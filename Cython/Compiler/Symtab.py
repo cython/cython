@@ -566,6 +566,14 @@ class ModuleScope(Scope):
         entry = self.lookup_here(name)
         if entry:
             if not (entry.is_pyglobal and not entry.as_module):
+                # SAGE -- I put this here so Pyrex
+                # cimport's work across directories.
+                # Currently it tries to multiply define
+                # every module appearing in an import list.
+                # It shouldn't be an error for a module
+                # name to appear again, and indeed the generated
+                # code compiles fine. 
+                return entry
                 error(pos, "'%s' redeclared" % name)
                 return None
         else:

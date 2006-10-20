@@ -91,7 +91,10 @@ class Context:
     def find_pxd_file(self, module_name, pos):
         # Search include directories for the .pxd file
         # corresponding to the given (full) module name.
-        pxd_filename = "%s.pxd" % module_name
+        if "." in module_name:
+            pxd_filename = "%s.pxd" % os.path.join(*module_name.split('.'))
+        else:
+            pxd_filename = "%s.pxd" % module_name
         return self.search_include_directories(pxd_filename, pos)
     
     def find_include_file(self, filename, pos):

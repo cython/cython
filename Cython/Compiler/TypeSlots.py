@@ -26,6 +26,7 @@ class Signature:
     #    'i'  int
     #    'I'  int *
     #    'l'  long
+    #    'Z'  Py_ssize_t
     #    's'  char *
     #    'S'  char **
     #    'r'  int used only to signal exception
@@ -42,6 +43,7 @@ class Signature:
         'i': PyrexTypes.c_int_type,
         'I': PyrexTypes.c_int_ptr_type,
         'l': PyrexTypes.c_long_type,
+        'Z': PyrexTypes.c_py_ssize_t_type,
         's': PyrexTypes.c_char_ptr_type,
         'S': PyrexTypes.c_char_ptr_ptr_type,
         'r': PyrexTypes.c_returncode_type,
@@ -354,18 +356,30 @@ ternaryfunc = Signature("OOO", "O")        # typedef PyObject * (*ternaryfunc)(P
 iternaryfunc = Signature("TOO", "O")       # typedef PyObject * (*ternaryfunc)(PyObject *, PyObject *, PyObject *);
 callfunc = Signature("T*", "O")            # typedef PyObject * (*ternaryfunc)(PyObject *, PyObject *, PyObject *);
 inquiry = Signature("T", "i")              # typedef int (*inquiry)(PyObject *);
+lenfunc = Signature("T", "Z")              # typedef Py_ssize_t (*lenfunc)(PyObject *);
+
                                            # typedef int (*coercion)(PyObject **, PyObject **);
 intargfunc = Signature("Ti", "O")          # typedef PyObject *(*intargfunc)(PyObject *, int);
+ssizeargfunc = Signature("TZ", "O")        # typedef PyObject *(*ssizeargfunc)(PyObject *, Py_ssize_t);
 intintargfunc = Signature("Tii", "O")      # typedef PyObject *(*intintargfunc)(PyObject *, int, int);
+ssizessizeargfunc = Signature("TZZ", "O")  # typedef PyObject *(*ssizessizeargfunc)(PyObject *, Py_ssize_t, Py_ssize_t);
 intobjargproc = Signature("TiO", 'r')      # typedef int(*intobjargproc)(PyObject *, int, PyObject *);
+ssizeobjargproc = Signature("TZO", 'r')    # typedef int(*ssizeobjargproc)(PyObject *, Py_ssize_t, PyObject *);
 intintobjargproc = Signature("TiiO", 'r')  # typedef int(*intintobjargproc)(PyObject *, int, int, PyObject *);
+ssizessizeobjargproc = Signature("TZZO", 'r') # typedef int(*ssizessizeobjargproc)(PyObject *, Py_ssize_t, Py_ssize_t, PyObject *);
+
 intintargproc = Signature("Tii", 'r')
+ssizessizeargproc = Signature("TZZ", 'r')
 objargfunc = Signature("TO", "O")
 objobjargproc = Signature("TOO", 'r')      # typedef int (*objobjargproc)(PyObject *, PyObject *, PyObject *);
 getreadbufferproc = Signature("TiP", 'i')  # typedef int (*getreadbufferproc)(PyObject *, int, void **);
 getwritebufferproc = Signature("TiP", 'i') # typedef int (*getwritebufferproc)(PyObject *, int, void **);
 getsegcountproc = Signature("TI", 'i')     # typedef int (*getsegcountproc)(PyObject *, int *);
 getcharbufferproc = Signature("TiS", 'i')  # typedef int (*getcharbufferproc)(PyObject *, int, const char **);
+readbufferproc = Signature("TZP", "Z")     # typedef Py_ssize_t (*readbufferproc)(PyObject *, Py_ssize_t, void **);
+writebufferproc = Signature("TZP", "Z")    # typedef Py_ssize_t (*writebufferproc)(PyObject *, Py_ssize_t, void **);
+segcountproc = Signature("TZ", "Z")        # typedef Py_ssize_t (*segcountproc)(PyObject *, Py_ssize_t *);
+writebufferproc = Signature("TZS", "Z")    # typedef Py_ssize_t (*charbufferproc)(PyObject *, Py_ssize_t, char **);
 objargproc = Signature("TO", 'r')          # typedef int (*objobjproc)(PyObject *, PyObject *);
                                            # typedef int (*visitproc)(PyObject *, void *);
                                            # typedef int (*traverseproc)(PyObject *, visitproc, void *);
@@ -454,14 +468,17 @@ PyNumberMethods = (
     MethodSlot(binaryfunc, "nb_true_divide", "__truediv__"),
     MethodSlot(ibinaryfunc, "nb_inplace_floor_divide", "__ifloordiv__"),
     MethodSlot(ibinaryfunc, "nb_inplace_true_divide", "__itruediv__"),
+
+    # Added in release 2.5
+    MethodSlot(unaryfunc, "nb_index", "__index__"),
 )
 
 PySequenceMethods = (
-    MethodSlot(inquiry, "sq_length", "__len__"),    # EmptySlot("sq_length"), # mp_length used instead
+    MethodSlot(lenfunc, "sq_length", "__len__"),    # EmptySlot("sq_length"), # mp_length used instead
     EmptySlot("sq_concat"), # nb_add used instead
     EmptySlot("sq_repeat"), # nb_multiply used instead
     SyntheticSlot("sq_item", ["__getitem__"], "0"),    #EmptySlot("sq_item"),   # mp_subscript used instead
-    MethodSlot(intintargfunc, "sq_slice", "__getslice__"),
+    MethodSlot(ssizessizeargfunc, "sq_slice", "__getslice__"),
     EmptySlot("sq_ass_item"), # mp_ass_subscript used instead
     SyntheticSlot("sq_ass_slice", ["__setslice__", "__delslice__"], "0"),
     MethodSlot(cmpfunc, "sq_contains", "__contains__"),
@@ -470,7 +487,7 @@ PySequenceMethods = (
 )
 
 PyMappingMethods = (
-    MethodSlot(inquiry, "mp_length", "__len__"),
+    MethodSlot(lenfunc, "mp_length", "__len__"),
     MethodSlot(objargfunc, "mp_subscript", "__getitem__"),
     SyntheticSlot("mp_ass_subscript", ["__setitem__", "__delitem__"], "0"),
 )
@@ -565,8 +582,8 @@ MethodSlot(initproc, "", "__new__")
 MethodSlot(destructor, "", "__dealloc__")
 MethodSlot(objobjargproc, "", "__setitem__")
 MethodSlot(objargproc, "", "__delitem__")
-MethodSlot(intintobjargproc, "", "__setslice__")
-MethodSlot(intintargproc, "", "__delslice__")
+MethodSlot(ssizessizeobjargproc, "", "__setslice__")
+MethodSlot(ssizessizeargproc, "", "__delslice__")
 MethodSlot(getattrofunc, "", "__getattr__")
 MethodSlot(setattrofunc, "", "__setattr__")
 MethodSlot(delattrofunc, "", "__delattr__")

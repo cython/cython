@@ -1035,7 +1035,7 @@ class IndexNode(ExprNode):
                 self.type = PyrexTypes.error_type
             if self.index.type.is_pyobject:
                 self.index = self.index.coerce_to(
-                    PyrexTypes.c_int_type, env)
+                    PyrexTypes.c_py_ssize_t_type, env)
             if not self.index.type.is_int:
                 error(self.pos,
                     "Invalid index type '%s'" %
@@ -1107,7 +1107,7 @@ class SliceIndexNode(ExprNode):
         if self.stop:
             self.stop.analyse_types(env)
         self.base = self.base.coerce_to_pyobject(env)
-        c_int = PyrexTypes.c_int_type
+        c_int = PyrexTypes.c_py_ssize_t_type
         if self.start:
             self.start = self.start.coerce_to(c_int, env)
         if self.stop:
@@ -3101,7 +3101,7 @@ static void __Pyx_UnpackError(void) {
     PyErr_SetString(PyExc_ValueError, "unpack sequence of wrong size");
 }
 
-static PyObject *__Pyx_UnpackItem(PyObject *seq, int i) {
+static PyObject *__Pyx_UnpackItem(PyObject *seq, Py_ssize_t i) {
   PyObject *item;
   if (!(item = PySequence_GetItem(seq, i))) {
     if (PyErr_ExceptionMatches(PyExc_IndexError))
@@ -3110,7 +3110,7 @@ static PyObject *__Pyx_UnpackItem(PyObject *seq, int i) {
   return item;
 }
 
-static int __Pyx_EndUnpack(PyObject *seq, int i) {
+static int __Pyx_EndUnpack(PyObject *seq, Py_ssize_t i) {
   PyObject *item;
   if (item = PySequence_GetItem(seq, i)) {
     Py_DECREF(item);
