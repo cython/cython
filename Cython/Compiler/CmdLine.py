@@ -12,11 +12,12 @@ Options:
   -I, --include-dir <directory>  Search for include files in named directory
                                  (multiply include directories are allowed).
   -o, --output-file <filename>   Specify name of generated C file
-The following experimental options are supported only on MacOSX:
-  -C, --compile    Compile generated .c file to .o file
-  -X, --link       Link .o file to produce extension module (implies -C)
-  -+, --cplus      Use C++ compiler for compiling and linking
-  Additional .o files to link may be supplied when using -X."""
+"""  
+#The following experimental options are supported only on MacOSX:
+#  -C, --compile    Compile generated .c file to .o file
+#  -X, --link       Link .o file to produce extension module (implies -C)
+#  -+, --cplus      Use C++ compiler for compiling and linking
+#  Additional .o files to link may be supplied when using -X."""
 
 def bad_usage():
     print >>sys.stderr, usage
