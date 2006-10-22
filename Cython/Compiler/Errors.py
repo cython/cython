@@ -81,7 +81,7 @@ def error(position, message):
 
 def warning(position, message):
     warn = CompileWarning(position, message)
-    line = "%s\n" % warn
+    line = "warning: %s\n" % warn
     if listing_file:
         listing_file.write(line)
     if echo_file:
