@@ -82,7 +82,8 @@ class Context:
                 try:
                     if debug_find_module:
                         print "Context.find_module: Parsing", pxd_pathname
-                    pxd_tree = self.parse(pxd_pathname, scope.type_names, pxd = 1)
+                    pxd_tree = self.parse(pxd_pathname, scope.type_names, pxd = 1,
+                                          full_module_name = module_name)
                     pxd_tree.analyse_declarations(scope)
                 except CompileError:
                     pass
@@ -133,20 +134,20 @@ class Context:
             self.modules[name] = scope
         return scope
 
-    def parse(self, source_filename, type_names, pxd):
+    def parse(self, source_filename, type_names, pxd, full_module_name):
         # Parse the given source file and return a parse tree.
         f = open(source_filename, "rU")
         s = PyrexScanner(f, source_filename, 
             type_names = type_names, context = self)
         try:
-            tree = Parsing.p_module(s, pxd)
+            tree = Parsing.p_module(s, pxd, full_module_name)
         finally:
             f.close()
         if Errors.num_errors > 0:
             raise CompileError
         return tree
 
-    def extract_module_name(self, path):
+    def extract_module_name(self, path, options):
         # Get the module name out of a source file pathname.
         _, tail = os.path.split(path)
         name, _ = os.path.splitext(tail)
@@ -159,7 +160,11 @@ class Context:
             options = default_options
         result = CompilationResult()
         cwd = os.getcwd()
+
+        full_module_name, _ = os.path.splitext(source.replace('/', '.'))
+
         source = os.path.join(cwd, source)
+        
         if options.use_listing_file:
             result.listing_file = replace_suffix(source, ".lis")
             Errors.open_listing_file(result.listing_file,
@@ -174,12 +179,12 @@ class Context:
             else:
                 c_suffix = ".c"
             result.c_file = replace_suffix(source, c_suffix)
-        module_name = self.extract_module_name(source)
+        module_name = self.extract_module_name(source, options)
         initial_pos = (source, 1, 0)
         scope = self.find_module(module_name, pos = initial_pos, need_pxd = 0)
         errors_occurred = False
         try:
-            tree = self.parse(source, scope.type_names, pxd = 0)
+            tree = self.parse(source, scope.type_names, pxd = 0, full_module_name = full_module_name)
             tree.process_implementation(scope, result)
         except CompileError:
             errors_occurred = True

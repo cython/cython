@@ -1768,7 +1768,7 @@ def p_doc_string(s):
     else:
         return None
 
-def p_module(s, pxd):
+def p_module(s, pxd, full_module_name):
     s.add_type_name("object")
     pos = s.position()
     doc = p_doc_string(s)
@@ -1780,7 +1780,7 @@ def p_module(s, pxd):
     if s.sy <> 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
             repr(s.sy), repr(s.systring)))
-    return Nodes.ModuleNode(pos, doc = doc, body = body)
+    return Nodes.ModuleNode(pos, doc = doc, body = body, full_module_name = full_module_name)
 
 #----------------------------------------------
 #

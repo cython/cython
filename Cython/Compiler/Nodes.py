@@ -962,6 +962,7 @@ class ModuleNode(Node, BlockNode):
             "}")
 
     def generate_typeobj_definition(self, modname, entry, code):
+        print modname
         type = entry.type
         scope = type.scope
         for suite in TypeSlots.substructures:
@@ -980,7 +981,7 @@ class ModuleNode(Node, BlockNode):
             "0, /*ob_size*/")
         code.putln(
             '"%s.%s", /*tp_name*/' % (
-                modname, scope.class_name))
+            self.full_module_name, scope.class_name))
         if type.typedef_flag:
             objstruct = type.objstruct_cname
         else:
