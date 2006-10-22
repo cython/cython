@@ -12,6 +12,13 @@ class PyrexError(Exception):
 class PyrexWarning(Exception):
     pass
 
+def context(position):
+    F = open(position[0]).readlines()
+    s = ''.join(F[position[1]-6:position[1]])
+    s += ' '*(position[2]-1) + '^'
+    s = '-'*60 + '\n...\n' + s + '\n' + '-'*60 + '\n'
+    return s
+
 class CompileError(PyrexError):
     
     def __init__(self, position = None, message = ""):
@@ -19,9 +26,11 @@ class CompileError(PyrexError):
         self.message = message
         if position:
             pos_str = "%s:%d:%d: " % position
+            cont = context(position)
         else:
             pos_str = ""
-        Exception.__init__(self, pos_str + message)
+            cont = ''
+        Exception.__init__(self, '\nError converting Pyrex file to C:\n' + cont + '\n' + pos_str + message )
 
 class CompileWarning(PyrexWarning):
     
