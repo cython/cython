@@ -10,6 +10,7 @@ Options:
   -v, --version                  Display version number of pyrex compiler
   -l, --create-listing           Write error messages to a listing file
   -I, --include-dir <directory>  Search for include files in named directory
+                                 (multiply include directories are allowed).
   -o, --output-file <filename>   Specify name of generated C file
 The following experimental options are supported only on MacOSX:
   -C, --compile    Compile generated .c file to .o file
