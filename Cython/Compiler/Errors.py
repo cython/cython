@@ -9,8 +9,21 @@ from Pyrex.Utils import open_new_file
 class PyrexError(Exception):
     pass
 
+class PyrexWarning(Exception):
+    pass
 
 class CompileError(PyrexError):
+    
+    def __init__(self, position = None, message = ""):
+        self.position = position
+        self.message = message
+        if position:
+            pos_str = "%s:%d:%d: " % position
+        else:
+            pos_str = ""
+        Exception.__init__(self, pos_str + message)
+
+class CompileWarning(PyrexWarning):
     
     def __init__(self, position = None, message = ""):
         self.position = position
@@ -65,3 +78,12 @@ def error(position, message):
         echo_file.write(line)
     num_errors = num_errors + 1
     return err
+
+def warning(position, message):
+    warn = CompileWarning(position, message)
+    line = "%s\n" % warn
+    if listing_file:
+        listing_file.write(line)
+    if echo_file:
+        echo_file.write(line)
+    return warn

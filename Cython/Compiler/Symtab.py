@@ -3,7 +3,7 @@
 #
 
 import re
-from Errors import error, InternalError
+from Errors import error, InternalError, warning
 import Options
 import Naming
 from PyrexTypes import c_int_type, \
@@ -195,7 +195,7 @@ class Scope:
         # declared.
         dict = self.entries
         if name and dict.has_key(name):
-            error(pos, "'%s' redeclared" % name)
+            warning(pos, "'%s' redeclared (ignoring second declaration)" % name)
         entry = Entry(name, cname, type, pos = pos)
         entry.in_cinclude = self.in_cinclude
         if name:
@@ -243,9 +243,9 @@ class Scope:
             self.sue_entries.append(entry)
         else:
             if not (entry.is_type and entry.type.is_struct_or_union):
-                error(pos, "'%s' redeclared" % name)
+                warning(pos, "'%s' redeclared  (ignoring second declaration)" % name)
             elif scope and entry.type.scope:
-                error(pos, "'%s' already defined" % name)
+                warning(pos, "'%s' already defined  (ignoring second definition)" % name)
             else:
                 self.check_previous_typedef_flag(entry, typedef_flag, pos)
                 if scope:
@@ -556,7 +556,7 @@ class ModuleScope(Scope):
         if entry not in self.entries:
             self.entries[name] = entry
         else:
-            error(pos, "'%s' redeclared" % name)
+            warning(pos, "'%s' redeclared  (ignoring second declaration)" % name)
     
     def declare_module(self, name, scope, pos):
         # Declare a cimported module. This is represented as a
@@ -574,7 +574,7 @@ class ModuleScope(Scope):
                 # name to appear again, and indeed the generated
                 # code compiles fine. 
                 return entry
-                error(pos, "'%s' redeclared" % name)
+                warning(pos, "'%s' redeclared  (ignoring second declaration)" % name)
                 return None
         else:
             entry = self.declare_var(name, py_object_type, pos)
@@ -822,7 +822,7 @@ class LocalScope(Scope):
     def declare_global(self, name, pos):
         # Pull entry from global scope into local scope.
         if self.lookup_here(name):
-            error(pos, "'%s' redeclared")
+            warning(pos, "'%s' redeclared  (ignoring second declaration)")
         else:
             entry = self.global_scope().lookup_target(name)
             self.entries[name] = entry
@@ -996,7 +996,7 @@ class CClassScope(ClassScope):
         entry = self.lookup_here(name)
         if entry:
             if not entry.is_cfunction:
-                error(pos, "'%s' redeclared" % name)
+                warning(pos, "'%s' redeclared  (ignoring second declaration)" % name)
             else:
                 if defining and entry.func_cname:
                     error(pos, "'%s' already defined" % name)
