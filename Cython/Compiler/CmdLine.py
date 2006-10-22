@@ -80,5 +80,7 @@ def parse_command_line(args):
         print >>sys.stderr, \
             "pyrexc: Only one source file allowed when using -o"
         sys.exit(1)
+    if len(sources) == 0:
+        bad_usage()
     return options, sources
 
