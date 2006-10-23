@@ -962,7 +962,6 @@ class ModuleNode(Node, BlockNode):
             "}")
 
     def generate_typeobj_definition(self, modname, entry, code):
-        print modname
         type = entry.type
         scope = type.scope
         for suite in TypeSlots.substructures:
