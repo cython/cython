@@ -18,6 +18,27 @@ import Options
 
 from DebugFlags import debug_disposal_code
 
+absolute_path_length = len(os.path.abspath('.')) 
+
+def relative_position(pos):
+    """
+    We embed the relative filename in the generated C file, since we
+    don't want to have to regnerate and compile all the source code
+    whenever the Python install directory moves (which could happen,
+    e.g,. when distributing binaries.)
+    
+    INPUT:
+        a position tuple -- (absolute filename, line number column position)
+
+    OUTPUT:
+        relative filename
+        line number
+
+    AUTHOR: William Stein
+    """
+    return (pos[0][absolute_path_length+1:], pos[1])
+        
+
 class Node:
     #  pos         (string, int, int)   Source file position
     #  is_name     boolean              Is a NameNode
@@ -2004,7 +2025,12 @@ class DefNode(FuncDefNode):
     
     def declare_pyfunction(self, env):
         self.entry = env.declare_pyfunction(self.name, self.pos)
-        self.entry.doc = self.doc
+        if Options.embed_pos_in_docstring:
+            self.entry.doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
+            if not self.doc is None:
+                self.entry.doc = self.entry.doc + '\\n' + self.doc
+        else:
+            self.entry.doc = self.doc
         self.entry.func_cname = \
             Naming.func_prefix + env.scope_prefix + self.name
         self.entry.doc_cname = \

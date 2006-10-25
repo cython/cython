@@ -3,6 +3,7 @@
 #
 
 import sys
+import Options
 
 usage = """\
 Usage: pyrexc [options] sourcefile...
@@ -12,6 +13,8 @@ Options:
   -I, --include-dir <directory>  Search for include files in named directory
                                  (multiply include directories are allowed).
   -o, --output-file <filename>   Specify name of generated C file
+  -p, --embed-positions          If specified, the positions in Pyrex files of each
+                                 function definition is embedded in its docstring.
 """  
 #The following experimental options are supported only on MacOSX:
 #  -C, --compile    Compile generated .c file to .o file
@@ -62,6 +65,8 @@ def parse_command_line(args):
                 options.include_path.append(pop_arg())
             elif option in ("-o", "--output-file"):
                 options.output_file = pop_arg()
+            elif option in ("-p", "--embed-positions"):
+                Options.embed_pos_in_docstring = 1
             else:
                 bad_usage()
         else:
