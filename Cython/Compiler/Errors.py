@@ -88,7 +88,11 @@ def error(position, message):
     num_errors = num_errors + 1
     return err
 
-def warning(position, message):
+LEVEL=1 # warn about all errors level 1 or higher
+
+def warning(position, message, level):
+    if level < LEVEL:
+        return
     warn = CompileWarning(position, message)
     line = "warning: %s\n" % warn
     if listing_file:
