@@ -748,6 +748,7 @@ sign_and_rank_to_type = {
     (0, 2): c_uint_type, 
   (0, 3): c_ulong_type,
   (0, 4): c_ulonglong_type,
+    (0, 5):  c_ulonglong_type,            # I'm not sure about this.  this should be for size_t Py_ssize_t
     (1, 0): c_char_type, 
     (1, 1): c_short_type, 
     (1, 2): c_int_type, 
