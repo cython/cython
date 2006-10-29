@@ -195,7 +195,7 @@ class Scope:
         # declared.
         dict = self.entries
         if name and dict.has_key(name):
-            error(pos, "'%s' redeclared (ignoring second declaration)" % name)
+            warning(pos, "'%s' redeclared (ignoring second declaration)" % name, 1)
         entry = Entry(name, cname, type, pos = pos)
         entry.in_cinclude = self.in_cinclude
         if name:
