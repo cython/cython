@@ -19,6 +19,9 @@ class CCodeWriter:
     # in_try_finally   boolean         inside try of try...finally
     # filename_table   {string : int}  for finding filename table indexes
     # filename_list    [string]        filenames in filename table order
+    # input_file_contents dict         contents (=list of lines) of any file that was used as input
+    #                                  to create this output C code.  This is
+    #                                  used to annotate the comments. 
     
     in_try_finally = 0
     
@@ -31,6 +34,7 @@ class CCodeWriter:
         self.error_label = None
         self.filename_table = {}
         self.filename_list = []
+        self.input_file_contents = {}
     
     def putln(self, code = ""):
         if self.marker and self.bol:
@@ -73,10 +77,27 @@ class CCodeWriter:
     
     def indent(self):
         self.f.write("  " * self.level)
+
+    def file_contents(self, file):
+        try:
+            return self.input_file_contents[file]
+        except KeyError:
+            F = open(file).readlines()
+            self.input_file_contents[file] = F
+            return F
     
     def mark_pos(self, pos):
         file, line, col = pos
-        self.marker = '"%s":%s' % (file, line)
+        contents = self.file_contents(file)
+
+        context = ''
+        for i in range(max(0,line-3), min(line+2, len(contents))):
+            s = contents[i]
+            if i+1 == line:   # line numbers in pyrex start counting up from 1
+                s = s.rstrip() + '             # <<<<<<<<<<<<<< ' + '\n'
+            context += s
+        
+        self.marker = '"%s":%s\n%s' % (file, line, context)
 
     def init_labels(self):
         self.label_counter = 0
