@@ -294,7 +294,7 @@ class CNumericType(CType):
     
     parsetuple_formats = ( # rank -> format
         "?HIkKn???", # unsigned
-        "chilL?fd?", # signed
+        "chilLnfd?", # signed
     )
     
     def __init__(self, rank, signed = 1, pymemberdef_typecode = None):
