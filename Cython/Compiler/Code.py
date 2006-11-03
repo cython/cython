@@ -95,7 +95,7 @@ class CCodeWriter:
             s = contents[i]
             if i+1 == line:   # line numbers in pyrex start counting up from 1
                 s = s.rstrip() + '             # <<<<<<<<<<<<<< ' + '\n'
-            context += s
+            context += " * " + s
         
         self.marker = '"%s":%s\n%s' % (file, line, context)
 
