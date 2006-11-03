@@ -293,7 +293,7 @@ class CNumericType(CType):
     default_value = "0"
     
     parsetuple_formats = ( # rank -> format
-        "?HIkK????", # unsigned
+        "?HIkKn???", # unsigned
         "chilL?fd?", # signed
     )
     
