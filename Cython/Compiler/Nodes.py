@@ -2171,7 +2171,7 @@ class DefNode(FuncDefNode):
                         arg_formats.append(format)
                     else:
                         error(arg.pos, 
-                            "Cannot convert Python object argument to type '%s'" 
+                            "Cannot convert Python object argument to type '%s' (when parsing input arguments)" 
                                 % arg.type)
             argformat = '"%s"' % string.join(arg_formats, "")
             has_starargs = self.star_arg is not None or self.starstar_arg is not None
@@ -2247,7 +2247,7 @@ class DefNode(FuncDefNode):
                     "%s = %s;" % (arg.entry.cname, arg.hdr_cname))
             else:
                 error(arg.pos,
-                    "Cannot convert argument from '%s' to '%s'" %
+                    "Cannot convert 1 argument from '%s' to '%s'" %
                         (old_type, new_type))
     
     def generate_arg_conversion_from_pyobject(self, arg, code):

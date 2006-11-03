@@ -4,7 +4,7 @@
 
 from string import join
 
-from Errors import error, InternalError
+from Errors import error, warning, InternalError
 import Naming
 from Nodes import Node
 import PyrexTypes
