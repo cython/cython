@@ -6,7 +6,10 @@ import sys
 import Options
 
 usage = """\
-Usage: pyrexc [options] sourcefile...
+SageX is a minor variant of Pyrex for compiling code for SAGE.
+
+Usage: sagexc [options] sourcefile...
+
 Options:
   -v, --version                  Display version number of pyrex compiler
   -l, --create-listing           Write error messages to a listing file
