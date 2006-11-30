@@ -183,6 +183,8 @@ class CCodeWriter:
                 storage_class = "static"
             else:
                 storage_class = ""
+	else:
+	    storage_class = ""
         if storage_class:
             self.put("%s " % storage_class)
         #if visibility == 'extern' or visibility == 'public' and not definition:
