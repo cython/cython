@@ -542,7 +542,10 @@ class ModuleNode(Node, BlockNode):
                 type.vtabptr_cname))
         for entry in scope.var_entries:
             if entry.type.is_pyobject:
-                code.put_init_var_to_py_none(entry, "p->%s")
+                if entry.name == "__weakref__":
+                    code.putln("p->%s = NULL;" % entry.cname)
+                else:
+                    code.put_init_var_to_py_none(entry, "p->%s")
         entry = scope.lookup_here("__new__")
         if entry:
             code.putln(
@@ -566,7 +569,12 @@ class ModuleNode(Node, BlockNode):
         self.generate_usr_dealloc_call(scope, code)
         for entry in scope.var_entries:
             if entry.type.is_pyobject:
-                code.put_xdecref("p->%s" % entry.cname, entry.type)
+                if entry.name == "__weakref__":
+                    code.putln(
+                        "if (p->%s) PyObject_ClearWeakRefs(o);" %
+                            entry.cname)
+                else:
+                    code.put_xdecref("p->%s" % entry.cname, entry.type)
         if base_type:
             code.putln(
                 "%s->tp_dealloc(o);" %
@@ -614,7 +622,7 @@ class ModuleNode(Node, BlockNode):
                     "e = %s->tp_traverse(o, v, a); if (e) return e;" %
                         base_type.typeptr_cname)
         for entry in scope.var_entries:
-            if entry.type.is_pyobject:
+            if entry.type.is_pyobject and entry.name != "__weakref__":
                 var_code = "p->%s" % entry.cname
                 code.putln(
                         "if (%s) {"
@@ -643,7 +651,7 @@ class ModuleNode(Node, BlockNode):
                 "%s->tp_clear(o);" %
                     base_type.typeptr_cname)
         for entry in scope.var_entries:
-            if entry.type.is_pyobject:
+            if entry.type.is_pyobject and entry.name != "__weakref__":
                 name = "p->%s" % entry.cname
                 code.put_xdecref(name, entry.type)
                 #code.put_init_to_py_none(name)
