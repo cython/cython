@@ -123,7 +123,12 @@ class ModuleNode(Node, BlockNode):
     #  body      StatListNode
     
     def analyse_declarations(self, env):
-        env.doc = self.doc
+        if Options.embed_pos_in_docstring:
+            env.doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
+            if not self.doc is None:
+                env.doc = env.doc + '\\n' + self.doc
+        else:
+            env.doc = self.doc
         self.body.analyse_declarations(env)
     
     def process_implementation(self, env, result):
@@ -2352,7 +2357,10 @@ class PyClassDefNode(StatNode, BlockNode):
         import ExprNodes
         self.dict = ExprNodes.DictNode(pos, key_value_pairs = [])
         if self.doc:
-            doc_node = ExprNodes.StringNode(pos, value = self.doc)
+            if Options.embed_pos_in_docstring:
+                doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
+            doc = doc + '\\n' + self.doc
+            doc_node = ExprNodes.StringNode(pos, value = doc)
         else:
             doc_node = None
         self.classobj = ExprNodes.ClassNode(pos,
@@ -2447,8 +2455,14 @@ class CClassDefNode(StatNode):
             visibility = self.visibility,
             typedef_flag = self.typedef_flag)
         scope = self.entry.type.scope
+        
         if self.doc:
-            scope.doc = self.doc
+            if Options.embed_pos_in_docstring:
+                scope.doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
+                scope.doc = scope.doc + '\\n' + self.doc
+            else:
+                scope.doc = self.doc
+            
         if has_body:
             self.body.analyse_declarations(scope)
             if self.in_pxd:
