@@ -573,14 +573,65 @@ def unquote(s):
         s = "".join(l2)
     return s
         
+# list_display  	::=  	"[" [listmaker] "]"
+# listmaker 	::= 	expression ( list_for | ( "," expression )* [","] )
+# list_iter 	::= 	list_for | list_if
+# list_for 	::= 	"for" expression_list "in" testlist [list_iter]
+# list_if 	::= 	"if" test [list_iter]
+        
 def p_list_maker(s):
     # s.sy == '['
     pos = s.position()
     s.next()
-    exprs = p_simple_expr_list(s)
-    s.expect(']')
-    return ExprNodes.ListNode(pos, args = exprs)
+    if s.sy == ']':
+        s.expect(']')
+        return ExprNodes.ListNode(pos, args = [])
+    expr = p_simple_expr(s)
+    if s.sy == 'for':
+        loop = p_list_for(s)
+        s.expect(']')
+        inner_loop = loop
+        while not isinstance(inner_loop.body, Nodes.PassStatNode):
+            inner_loop = inner_loop.body
+            if isinstance(inner_loop, Nodes.IfStatNode):
+                 inner_loop = inner_loop.if_clauses[0]
+        append = ExprNodes.ListComprehensionAppendNode( pos, expr = expr )
+        inner_loop.body = Nodes.ExprStatNode(pos, expr = append)
+        return ExprNodes.ListComprehensionNode(pos, loop = loop, append = append)
+    else:
+        exprs = [expr]
+        if s.sy == ',':
+            s.next()
+            exprs += p_simple_expr_list(s)
+        s.expect(']')
+        return ExprNodes.ListNode(pos, args = exprs)
+        
+def p_list_iter(s):
+    if s.sy == 'for':
+        return p_list_for(s)
+    elif s.sy == 'if':
+        return p_list_if(s)
+    else:
+        return Nodes.PassStatNode(s.position())
 
+def p_list_for(s):
+    # s.sy == 'for'
+    pos = s.position()
+    s.next()
+    kw = p_for_bounds(s)
+    kw['else_clause'] = None
+    kw['body'] = p_list_iter(s)
+    return Nodes.ForStatNode(pos, **kw)
+        
+def p_list_if(s):
+    # s.sy == 'if'
+    pos = s.position()
+    s.next()
+    test = p_simple_expr(s)
+    return Nodes.IfStatNode(pos, 
+        if_clauses = [Nodes.IfClauseNode(pos, condition = test, body = p_list_iter(s))],
+        else_clause = None )
+    
 #dictmaker: test ':' test (',' test ':' test)* [',']
 
 def p_dict_maker(s):
@@ -931,17 +982,17 @@ def p_for_statement(s):
     # s.sy == 'for'
     pos = s.position()
     s.next()
+    kw = p_for_bounds(s)
+    kw['body'] = p_suite(s)
+    kw['else_clause'] = p_else_clause(s)
+    return Nodes.ForStatNode(pos, **kw)
+            
+def p_for_bounds(s):
     target = p_for_target(s)
     if s.sy == 'in':
         s.next()
         iterator = p_for_iterator(s)
-        body = p_suite(s)
-        else_clause = p_else_clause(s)
-        return Nodes.ForInStatNode(pos, 
-            target = target,
-            iterator = iterator,
-            body = body,
-            else_clause = else_clause)
+        return { 'target': target, 'iterator': iterator }
     elif s.sy == 'from':
         s.next()
         bound1 = p_bit_expr(s)
@@ -960,16 +1011,11 @@ def p_for_statement(s):
         if rel1[0] <> rel2[0]:
             error(rel2_pos,
                 "Relation directions in for-from do not match")
-        body = p_suite(s)
-        else_clause = p_else_clause(s)
-        return Nodes.ForFromStatNode(pos,
-            target = target,
-            bound1 = bound1,
-            relation1 = rel1,
-            relation2 = rel2,
-            bound2 = bound2,
-            body = body,
-            else_clause = else_clause)
+        return {'target': target, 
+                'bound1': bound1, 
+                'relation1': rel1, 
+                'relation2': rel2,
+                'bound2': bound2 }
 
 def p_for_from_relation(s):
     if s.sy in inequality_relations:

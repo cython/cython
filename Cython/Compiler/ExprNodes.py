@@ -916,10 +916,23 @@ class IteratorNode(ExprNode):
         self.sequence = self.sequence.coerce_to_pyobject(env)
         self.type = py_object_type
         self.is_temp = 1
+        
+        self.counter = TempNode(self.pos, PyrexTypes.c_py_ssize_t_type, env)
+        self.counter.allocate_temp(env)
+        
+    def release_temp(self, env):
+        env.release_temp(self.result_code)
+        self.counter.release_temp(env)
     
     def generate_result_code(self, code):
         code.putln(
-            "%s = PyObject_GetIter(%s); if (!%s) %s" % (
+            "if (PyList_CheckExact(%s)) { %s = 0; %s = %s; Py_INCREF(%s); }" % (
+                self.sequence.py_result(),
+                self.counter.result_code,
+                self.result_code,
+                self.sequence.py_result(),
+                self.result_code))
+        code.putln("else { %s = PyObject_GetIter(%s); if (!%s) %s }" % (
                 self.result_code,
                 self.sequence.py_result(),
                 self.result_code,
@@ -942,6 +955,16 @@ class NextNode(AtomicExprNode):
     
     def generate_result_code(self, code):
         code.putln(
+            "if (PyList_CheckExact(%s)) { if (%s >= PyList_GET_SIZE(%s)) break; %s = PyList_GET_ITEM(%s, %s++); Py_INCREF(%s); }" % (
+                self.iterator.py_result(),
+                self.iterator.counter.result_code,
+                self.iterator.py_result(),
+                self.result_code,
+                self.iterator.py_result(),
+                self.iterator.counter.result_code,
+                self.result_code))
+        code.putln("else {")
+        code.putln(
             "%s = PyIter_Next(%s);" % (
                 self.result_code,
                 self.iterator.py_result()))
@@ -951,10 +974,9 @@ class NextNode(AtomicExprNode):
         code.putln(
                 "if (PyErr_Occurred()) %s" %
                     code.error_goto(self.pos))
-        code.putln(
-                "break;")
-        code.putln(
-            "}")
+        code.putln("break;")
+        code.putln("}")
+        code.putln("}")
         
 
 class ExcValueNode(AtomicExprNode):
@@ -1831,6 +1853,51 @@ class ListNode(SequenceNode):
         # in the list using a reference-stealing operation.
         for arg in self.args:
             arg.generate_post_assignment_code(code)		
+
+            
+class ListComprehensionNode(SequenceNode):
+
+    subexprs = []
+
+    def analyse_types(self, env): 
+        self.type = py_object_type
+        self.is_temp = 1
+        self.append.target = self # this is a CloneNode used in the PyList_Append in the inner loop
+        
+    def allocate_temps(self, env, result = None): 
+        if debug_temp_alloc:
+            print self, "Allocating temps"
+        self.allocate_temp(env, result)
+        self.loop.analyse_declarations(env)
+        self.loop.analyse_expressions(env)
+        
+    def generate_operation_code(self, code):
+        code.putln("%s = PyList_New(%s); if (!%s) %s" %
+            (self.result_code,
+            0,
+            self.result_code,
+            code.error_goto(self.pos)))
+        self.loop.generate_execution_code(code)
+
+
+class ListComprehensionAppendNode(ExprNode):
+
+    subexprs = ['expr']
+    
+    def analyse_types(self, env):
+        self.expr.analyse_types(env)
+        if self.expr.type != py_object_type:
+            self.expr = self.expr.coerce_to_pyobject(env)
+        self.type = PyrexTypes.c_int_type
+        self.is_temp = 1
+    
+    def generate_result_code(self, code):
+        code.putln("%s = PyList_Append(%s, %s); if (%s) %s" %
+            (self.result_code,
+            self.target.result_code,
+            self.expr.result_code,
+            self.result_code, 
+            code.error_goto(self.pos)))
 
 
 class DictNode(ExprNode):
@@ -2979,6 +3046,11 @@ class CloneNode(CoercionNode):
     
     def calculate_result_code(self):
         return self.arg.result_code
+        
+    def analyse_types(self, env):
+        self.type = self.arg.type
+        self.result_ctype = self.arg.result_ctype
+        self.is_temp = 1
     
     #def result_as_extension_type(self):
     #	return self.arg.result_as_extension_type()

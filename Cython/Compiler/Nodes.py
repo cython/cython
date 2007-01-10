@@ -3065,6 +3065,12 @@ class WhileStatNode(StatNode):
         code.put_label(break_label)
 
 
+def ForStatNode(pos, **kw):
+    if kw.has_key('iterator'):
+        return ForInStatNode(pos, **kw)
+    else:
+        return ForFromStatNode(pos, **kw)
+
 class ForInStatNode(StatNode):
     #  for statement
     #
