@@ -90,7 +90,7 @@ class PyrexType:
         return self.same_as_resolved_type(other_type.resolve(), **kwds)
     
     def same_as_resolved_type(self, other_type):
-        return self is other_type or other_type is error_type
+        return self == other_type or other_type is error_type
     
     def subtype_of(self, other_type):
         return self.subtype_of_resolved_type(other_type.resolve())

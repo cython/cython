@@ -467,7 +467,10 @@ class ExprNode(Node):
         elif src.type.is_pyobject:
             src = CoerceFromPyTypeNode(dst_type, src, env)
         else: # neither src nor dst are py types
-            if not dst_type.assignable_from(src_type):
+            # Added the string comparison, since for c types that
+            # is enough, but SageX gets confused when the types are
+            # in different files. 
+            if not (str(src.type) == str(dst_type) or dst_type.assignable_from(src_type)):
                 error(self.pos, "Cannot assign type '%s' to '%s'" %
                     (src.type, dst_type))
         return src
