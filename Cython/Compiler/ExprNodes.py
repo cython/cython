@@ -3041,8 +3041,11 @@ class CloneNode(CoercionNode):
     
     def __init__(self, arg):
         CoercionNode.__init__(self, arg)
-        self.type = arg.type
-        self.result_ctype = arg.result_ctype
+        if hasattr(arg, 'type'):
+            self.type = arg.type
+            self.result_ctype = arg.result_ctype
+        if hasattr(arg, 'entry'):
+            self.entry = arg.entry
     
     def calculate_result_code(self):
         return self.arg.result_code
@@ -3051,6 +3054,8 @@ class CloneNode(CoercionNode):
         self.type = self.arg.type
         self.result_ctype = self.arg.result_ctype
         self.is_temp = 1
+        if hasattr(self.arg, 'entry'):
+            self.entry = self.arg.entry
     
     #def result_as_extension_type(self):
     #	return self.arg.result_as_extension_type()
@@ -3059,6 +3064,15 @@ class CloneNode(CoercionNode):
         pass
 
     def generate_result_code(self, code):
+        pass
+        
+    def generate_disposal_code(self, code):
+        code.putln("// ---- CloneNode.generate_disposal_code() for %s"%self.arg.result_code)
+        
+    def allocate_temps(self, env):
+        self.result_code = self.calculate_result_code()
+        
+    def release_temp(self, env):
         pass
     
 #------------------------------------------------------------------------------------

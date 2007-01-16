@@ -700,8 +700,17 @@ def p_expression_or_assignment(s):
         s.next()
         expr_list.append(p_expr(s))
     if len(expr_list) == 1:
-        expr = expr_list[0]
-        return Nodes.ExprStatNode(expr.pos, expr = expr)
+        if re.match("[+*/\%^\&|-]=", s.sy):
+            lhs = expr_list[0]
+            if not isinstance(lhs, (ExprNodes.AttributeNode, ExprNodes.IndexNode, ExprNodes.NameNode) ):
+                error(lhs.pos, "Illegal operand for inplace operation.")
+            operator = s.sy[0]
+            s.next()
+            rhs = p_expr(s)
+            return Nodes.InPlaceAssignmentNode(lhs.pos, operator = operator, lhs = lhs, rhs = rhs)
+        else:
+            expr = expr_list[0]
+            return Nodes.ExprStatNode(expr.pos, expr = expr)
     else:
         expr_list_list = []
         flatten_parallel_assignments(expr_list, expr_list_list)
@@ -1835,6 +1844,7 @@ def p_module(s, pxd, full_module_name):
 #----------------------------------------------
 
 def print_parse_tree(f, node, level, key = None):	
+    from Nodes import Node
     ind = "  " * level
     if node:
         f.write(ind)

@@ -2708,6 +2708,104 @@ class ParallelAssignmentNode(AssignmentNode):
         for stat in self.stats:
             stat.generate_assignment_code(code)
 
+class InPlaceAssignmentNode(AssignmentNode):
+    #  An in place arithmatic operand:
+    #
+    #    a += b
+    #    a -= b
+    #    ...
+    #
+    #  lhs      ExprNode      Left hand side
+    #  rhs      ExprNode      Right hand side
+    #  op       char          one of "+-*/%^&|"
+    #  dup     (ExprNode)     copy of lhs used for operation (auto-generated)
+    #
+    #  This code is a bit tricky because in order to obey Python 
+    #  semantics the sub-expressions (e.g. indices) of the lhs must 
+    #  not be evaluated twice. So we must re-use the values calculated 
+    #  in evaluation phase for the assignment phase as well. 
+    #  Fortunately, the type of the lhs node is fairly constrained 
+    #  (it must be a NameNode, AttributeNode, or IndexNode).     
+    
+    def analyse_declarations(self, env):
+        self.lhs.analyse_target_declaration(env)
+    
+    def analyse_expressions_1(self, env, use_temp = 0):
+        import ExprNodes
+        self.create_dup_node(env) # re-assigns lhs to a shallow copy
+        self.rhs.analyse_types(env)
+        self.lhs.analyse_target_types(env)
+        if self.lhs.type.is_pyobject or self.rhs.type.is_pyobject:
+            self.rhs = self.rhs.coerce_to(self.lhs.type, env)
+        if self.lhs.type.is_pyobject:
+             self.result = ExprNodes.PyTempNode(self.pos, env)
+             self.result.allocate_temps(env)
+        if use_temp:
+            self.rhs = self.rhs.coerce_to_temp(env)
+        self.dup.allocate_subexpr_temps(env)
+        self.dup.allocate_temp(env)
+        self.rhs.allocate_temps(env)
+    
+    def analyse_expressions_2(self, env):
+        self.lhs.allocate_target_temps(env)
+        self.lhs.release_target_temp(env)
+        self.dup.release_temp(env)
+        if self.dup.is_temp:
+            self.dup.release_subexpr_temps(env)
+        self.rhs.release_temp(env)
+        if self.lhs.type.is_pyobject:
+            self.result.release_temp(env)
+
+    def generate_execution_code(self, code):
+        self.rhs.generate_evaluation_code(code)
+        self.dup.generate_subexpr_evaluation_code(code)
+        self.dup.generate_result_code(code)
+        if self.lhs.type.is_pyobject:
+            code.putln("//---- iadd code");
+            code.putln(
+                "%s = %s(%s, %s); if (!%s) %s" % (
+                    self.result.result_code, 
+                    self.py_operation_function(), 
+                    self.dup.py_result(),
+                    self.rhs.py_result(),
+                    self.result.py_result(),
+                    code.error_goto(self.pos)))
+            self.rhs.generate_disposal_code(code)
+            self.dup.generate_disposal_code(code)
+            self.lhs.generate_assignment_code(self.result, code)
+        else: 
+            # have to do assignment directly to avoid side-effects
+            code.putln("%s %s= %s;" % (self.lhs.result_code, self.operator, self.rhs.result_code) )
+            self.rhs.generate_disposal_code(code)
+        if self.dup.is_temp:
+            self.dup.generate_subexpr_disposal_code(code)
+            
+    def create_dup_node(self, env): 
+        import ExprNodes
+        self.dup = self.lhs
+        self.dup.analyse_types(env)
+        if isinstance(self.lhs, ExprNodes.NameNode):
+            target_lhs = ExprNodes.NameNode(self.dup.pos, name = self.dup.name, is_temp = self.dup.is_temp, entry = self.dup.entry)
+        elif isinstance(self.lhs, ExprNodes.AttributeNode):
+            target_lhs = ExprNodes.AttributeNode(self.dup.pos, obj = ExprNodes.CloneNode(self.lhs.obj), attribute = self.dup.attribute, is_temp = self.dup.is_temp)
+        elif isinstance(self.lhs, ExprNodes.IndexNode):
+            target_lhs = ExprNodes.IndexNode(self.dup.pos, base = ExprNodes.CloneNode(self.dup.base), index = ExprNodes.CloneNode(self.lhs.index), is_temp = self.dup.is_temp)
+        self.lhs = target_lhs
+    
+    def py_operation_function(self):
+        return self.py_functions[self.operator]
+
+    py_functions = {
+        "|":		"PyNumber_InPlaceOr",
+        "^":		"PyNumber_InPlaceXor",
+        "&":		"PyNumber_InPlaceAnd",
+        "+":		"PyNumber_InPlaceAdd",
+        "-":		"PyNumber_InPlaceSubtract",
+        "*":		"PyNumber_InPlaceMultiply",
+        "/":		"PyNumber_InPlaceDivide",
+        "%":		"PyNumber_InPlaceRemainder",
+    }
+
 
 class PrintStatNode(StatNode):
     #  print statement

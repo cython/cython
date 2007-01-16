@@ -66,7 +66,7 @@ def make_lexicon():
     bra = Any("([{")
     ket = Any(")]}")
     punct = Any(":,;+-*/|&<>=.%`~^?")
-    diphthong = Str("==", "<>", "!=", "<=", ">=", "<<", ">>", "**")
+    diphthong = Str("==", "<>", "!=", "<=", ">=", "<<", ">>", "**", "+=", "-=", "*=", "/=", "%=", "|=", "^=", "&=")
     spaces = Rep1(Any(" \t\f"))
     comment = Str("#") + Rep(AnyBut("\n"))
     escaped_newline = Str("\\\n")
