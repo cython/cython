@@ -2421,6 +2421,7 @@ class NumBinopNode(BinopNode):
         "-":		"PyNumber_Subtract",
         "*":		"PyNumber_Multiply",
         "/":		"PyNumber_Divide",
+        "//":		"PyNumber_FloorDivide",
         "%":		"PyNumber_Remainder",
         "**":   "PyNumber_Power"
     }
@@ -2477,6 +2478,16 @@ class MulNode(NumBinopNode):
                 return 1
         else:
             return NumBinopNode.is_py_operation(self)
+
+
+class FloorDivNode(NumBinopNode):
+    #  '//' operator.
+    
+    def calculate_result_code(self):
+        return "(%s %s %s)" % (
+            self.operand1.result_code, 
+            "/",  # c division is by default floor-div 
+            self.operand2.result_code)
 
 
 class ModNode(IntBinopNode):
@@ -2841,6 +2852,7 @@ binop_node_classes = {
     "-":		SubNode,
     "*":		MulNode,
     "/":		NumBinopNode,
+    "//":		FloorDivNode,
     "%":		ModNode,
     "**":		PowNode
 }

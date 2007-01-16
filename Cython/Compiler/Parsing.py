@@ -155,7 +155,7 @@ def p_arith_expr(s):
 #term: factor (('*'|'/'|'%') factor)*
 
 def p_term(s):
-    return p_binop_expr(s, ('*', '/', '%'), p_factor)
+    return p_binop_expr(s, ('*', '/', '%', '//'), p_factor)
 
 #factor: ('+'|'-'|'~'|'&'|typecast|sizeof) factor | power
 
