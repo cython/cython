@@ -2742,9 +2742,9 @@ class InPlaceAssignmentNode(AssignmentNode):
              self.result.allocate_temps(env)
         if use_temp:
             self.rhs = self.rhs.coerce_to_temp(env)
+        self.rhs.allocate_temps(env)
         self.dup.allocate_subexpr_temps(env)
         self.dup.allocate_temp(env)
-        self.rhs.allocate_temps(env)
     
     def analyse_expressions_2(self, env):
         self.lhs.allocate_target_temps(env)
@@ -2761,7 +2761,6 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.dup.generate_subexpr_evaluation_code(code)
         self.dup.generate_result_code(code)
         if self.lhs.type.is_pyobject:
-            code.putln("//---- iadd code");
             code.putln(
                 "%s = %s(%s, %s); if (!%s) %s" % (
                     self.result.result_code, 
