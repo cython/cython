@@ -2933,8 +2933,6 @@ class ReturnStatNode(StatNode):
         if not self.return_type:
             # error reported earlier
             return
-        for entry in self.temps_in_use:
-            code.put_var_decref_clear(entry)
         if self.value:
             self.value.generate_evaluation_code(code)
             self.value.make_owned_reference(code)
@@ -2951,6 +2949,8 @@ class ReturnStatNode(StatNode):
                     "%s = %s;" % (
                         Naming.retval_cname,
                         self.return_type.default_value))
+        for entry in self.temps_in_use:
+            code.put_var_decref_clear(entry)
         code.putln(
             "goto %s;" %
                 code.return_label)
