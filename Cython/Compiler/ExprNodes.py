@@ -2514,6 +2514,9 @@ class PowNode(NumBinopNode):
             return PyrexTypes.c_double_type
         else:
             return None
+            
+    def c_types_okay(self, type1, type2):
+        return type1.is_float or type2.is_float
     
     def calculate_result_code(self):
         return "pow(%s, %s)" % (
