@@ -1035,7 +1035,7 @@ class IndexNode(ExprNode):
     #  base     ExprNode
     #  index    ExprNode
     
-    subexprs = ['base', 'index']
+    subexprs = ['base', 'index', 'py_index']
     
     def is_ephemeral(self):
         return self.base.is_ephemeral()
@@ -1046,8 +1046,13 @@ class IndexNode(ExprNode):
     def analyse_types(self, env):
         self.base.analyse_types(env)
         self.index.analyse_types(env)
-        if self.base.type.is_pyobject: 
-            self.index = self.index.coerce_to_pyobject(env)
+        if self.base.type.is_pyobject:
+            if self.index.type.is_int:
+                self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
+                self.py_index = CloneNode(self.index).coerce_to_pyobject(env)
+            else:
+                self.index = self.index.coerce_to_pyobject(env)
+                self.py_index = CloneNode(self.index)
             self.type = py_object_type
             self.is_temp = 1
         else:
@@ -1065,7 +1070,7 @@ class IndexNode(ExprNode):
                 error(self.pos,
                     "Invalid index type '%s'" %
                         self.index.type)
-    
+
     def check_const_addr(self):
         self.base.check_const_addr()
         self.index.check_const()
@@ -1076,26 +1081,80 @@ class IndexNode(ExprNode):
     def calculate_result_code(self):
         return "(%s[%s])" % (
             self.base.result_code, self.index.result_code)
+
+    def generate_subexpr_evaluation_code(self, code):
+        # do not evaluate self.py_index in case we don't need it
+        self.base.generate_evaluation_code(code)
+        self.index.generate_evaluation_code(code)
+        
+    def generate_subexpr_disposal_code(self, code):
+        # if we used self.py_index, it will be disposed of manually
+        self.base.generate_disposal_code(code)
+        self.index.generate_disposal_code(code)
     
     def generate_result_code(self, code):
         if self.type.is_pyobject:
-            code.putln(
-                "%s = PyObject_GetItem(%s, %s); if (!%s) %s" % (
-                    self.result_code,
-                    self.base.py_result(),
-                    self.index.py_result(),
-                    self.result_code,
-                    code.error_goto(self.pos)))
-    
+            if self.index.type.is_int:
+                code.putln("if (PyList_CheckExact(%s) && 0 <= %s && %s < PyList_GET_SIZE(%s)) {" % (
+                        self.base.py_result(),
+                        self.index.result_code,
+                        self.index.result_code,
+                        self.base.py_result()))
+                code.putln("%s = PyList_GET_ITEM(%s, %s); Py_INCREF(%s);" % (
+                        self.result_code,
+                        self.base.py_result(),
+                        self.index.result_code,
+                        self.result_code))
+                code.putln("} else if (PyTuple_CheckExact(%s) && 0 <= %s && %s < PyTuple_GET_SIZE(%s)) {" % (
+                        self.base.py_result(),
+                        self.index.result_code,
+                        self.index.result_code,
+                        self.base.py_result()))
+                code.putln("%s = PyTuple_GET_ITEM(%s, %s); Py_INCREF(%s);" % (
+                        self.result_code,
+                        self.base.py_result(),
+                        self.index.result_code,
+                        self.result_code))
+                code.putln("} else {")
+                self.generate_generic_code_result(code)
+                code.putln("}")
+            else:
+                self.generate_generic_code_result(code)
+                       
+    def generate_generic_code_result(self, code):
+        self.py_index.generate_result_code(code)
+        code.putln(
+            "%s = PyObject_GetItem(%s, %s); if (!%s) %s" % (
+                self.result_code,
+                self.base.py_result(),
+                self.py_index.py_result(),
+                self.result_code,
+                code.error_goto(self.pos)))
+        if self.is_temp:
+            self.py_index.generate_disposal_code(code)
+                                
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
         if self.type.is_pyobject:
-            code.putln(
-                "if (PyObject_SetItem(%s, %s, %s) < 0) %s" % (
-                    self.base.py_result(),
-                    self.index.py_result(),
-                    rhs.py_result(),
-                    code.error_goto(self.pos)))
+            if self.index.type.is_int:
+                code.putln("if (PyList_CheckExact(%s) && 0 <= %s && %s < PyList_GET_SIZE(%s)) {" % (
+                        self.base.py_result(),
+                        self.index.result_code,
+                        self.index.result_code,
+                        self.base.py_result()))
+                code.putln("Py_DECREF(PyList_GET_ITEM(%s, %s)); Py_INCREF(%s);" % (
+                        self.base.py_result(),
+                        self.index.result_code,
+                        rhs.py_result()))
+                code.putln("PyList_SET_ITEM(%s, %s, %s);" % (
+                        self.base.py_result(),
+                        self.index.result_code,
+                        rhs.py_result()))
+                code.putln("} else {")
+                self.generate_generic_assignment_code(rhs, code)
+                code.putln("}")
+            else:
+                self.generate_generic_assignment_code(rhs, code)
             self.generate_subexpr_disposal_code(code)
         else:
             code.putln(
@@ -1103,15 +1162,28 @@ class IndexNode(ExprNode):
                     self.result_code, rhs.result_code))
         rhs.generate_disposal_code(code)
     
+    def generate_generic_assignment_code(self, rhs, code):
+        self.py_index.generate_result_code(code)
+        code.putln(
+            "if (PyObject_SetItem(%s, %s, %s) < 0) %s" % (
+                self.base.py_result(),
+                self.py_index.py_result(),
+                rhs.py_result(),
+                code.error_goto(self.pos)))
+        if self.is_temp:
+            self.py_index.generate_disposal_code(code)
+    
     def generate_deletion_code(self, code):
         self.generate_subexpr_evaluation_code(code)
+        self.py_index.generate_evaluation_code(code)
         code.putln(
             "if (PyObject_DelItem(%s, %s) < 0) %s" % (
                 self.base.py_result(),
-                self.index.py_result(),
+                self.py_index.py_result(),
                 code.error_goto(self.pos)))
         self.generate_subexpr_disposal_code(code)
-
+        self.py_index.generate_disposal_code(code)
+        
 
 class SliceIndexNode(ExprNode):
     #  2-element slice indexing
