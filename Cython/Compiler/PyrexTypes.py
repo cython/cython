@@ -484,7 +484,7 @@ class CFuncType(CType):
         self.has_varargs = has_varargs
         self.exception_value = exception_value
         self.exception_check = exception_check
-    
+        
     def __repr__(self):
         arg_reprs = map(repr, self.args)
         if self.has_varargs:

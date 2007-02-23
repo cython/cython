@@ -6,9 +6,7 @@ import re
 from Errors import error, InternalError, warning
 import Options
 import Naming
-from PyrexTypes import c_int_type, \
-    py_object_type, c_char_array_type, \
-    CEnumType, CStructOrUnionType, PyExtensionType
+from PyrexTypes import *
 from TypeSlots import \
     pyfunction_signature, pymethod_signature, \
     get_special_method_signature, get_property_accessor_signature
@@ -447,12 +445,31 @@ class BuiltinScope(Scope):
     
     def __init__(self):
         Scope.__init__(self, "__builtin__", None, None)
+        for name, definition in self.builtin_functions.iteritems():
+            if len(definition) < 4: definition.append(None) # exception_value
+            if len(definition) < 5: definition.append(False) # exception_check
+            cname, type, arg_types, exception_value, exception_check = definition
+            function = CFuncType(type, [CFuncTypeArg("", t, None) for t in arg_types], False, exception_value, exception_check)
+            self.add_cfunction(name, function, None, cname, False)
     
     def declare_builtin(self, name, pos):
         entry = self.declare(name, name, py_object_type, pos)
         entry.is_builtin = 1
         return entry
-    
+        
+    builtin_functions = {
+      "hasattr": ["PyObject_HasAttrString", c_int_type, (py_object_type, c_char_ptr_type)],
+      "cmp":     ["PyObject_Compare", c_int_type, (py_object_type, py_object_type), None, True],
+      "repr":    ["PyObject_Repr", py_object_type, (py_object_type, ), 0],
+      "str":     ["PyObject_Str", py_object_type, (py_object_type, ), 0],
+      "unicode": ["PyObject_Unicode", py_object_type, (py_object_type, ), 0],
+      "isinstance": ["PyObject_IsInstance", c_int_type, (py_object_type, py_object_type), -1],
+      "hash":    ["PyObject_Hash", c_long_type, (py_object_type, ), -1, True],
+      "type":    ["PyObject_Type", py_object_type, (py_object_type, ), 0],
+      "len":     ["PyObject_Size", c_py_ssize_t_type, (py_object_type, ), -1],
+      "dir":     ["PyObject_Dir", py_object_type, (py_object_type, ), 0],
+      "iter":     ["PyObject_GetIter", py_object_type, (py_object_type, ), 0],
+    }
 
 class ModuleScope(Scope):
     # module_name          string             Python name of the module

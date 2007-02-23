@@ -1290,7 +1290,6 @@ class SliceNode(ExprNode):
                 self.result_code,
                 code.error_goto(self.pos)))
 
-
 class SimpleCallNode(ExprNode):
     #  Function call without keyword, * or ** args.
     #
@@ -1440,8 +1439,7 @@ class SimpleCallNode(ExprNode):
                         lhs,
                         rhs,
                         " && ".join(exc_checks),
-                        code.error_goto(self.pos)))
-    
+                        code.error_goto(self.pos)))    
 
 class GeneralCallNode(ExprNode):
     #  General Python function call, including keyword,
