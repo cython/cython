@@ -46,9 +46,31 @@ def p_binop_expr(s, ops, p_sub_expr):
         n1 = ExprNodes.binop_node(pos, op, n1, n2)
     return n1
 
-#test: and_test ('or' and_test)* | lambdef
+#expression: or_test [if or_test else test] | lambda_form
 
 def p_simple_expr(s):
+    pos = s.position()
+    expr = p_or_test(s)
+    if s.sy == 'if':
+        s.next()
+        test = p_or_test(s)
+        if s.sy == 'else':
+            s.next()
+            other = p_test(s)
+            return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
+        else:
+            s.error("Expected 'else'")
+    else:
+        return expr
+        
+#test: or_test | lambda_form
+        
+def p_test(s):
+    return p_or_test(s)
+
+#or_test: and_test ('or' and_test)*
+
+def p_or_test(s):
     #return p_binop_expr(s, ('or',), p_and_test)
     return p_rassoc_binop_expr(s, ('or',), p_and_test)
 
@@ -627,7 +649,7 @@ def p_list_if(s):
     # s.sy == 'if'
     pos = s.position()
     s.next()
-    test = p_simple_expr(s)
+    test = p_test(s)
     return Nodes.IfStatNode(pos, 
         if_clauses = [Nodes.IfClauseNode(pos, condition = test, body = p_list_iter(s))],
         else_clause = None )
@@ -658,8 +680,6 @@ def p_backquote_expr(s):
     s.expect('`')
     return ExprNodes.BackquoteNode(pos, arg = arg)
 
-#testlist: test (',' test)* [',']
-
 def p_simple_expr_list(s):
     exprs = []
     while s.sy not in expr_terminators:
@@ -679,6 +699,22 @@ def p_expr(s):
     else:
         return expr
 
+
+#testlist: test (',' test)* [',']
+# differs from p_expr only in the fact that it cannot contain conditional expressions
+
+def p_testlist(s):
+    pos = s.position()
+    expr = p_test(s)
+    if s.sy == ',':
+        exprs = [expr]
+        while s.sy == ',':
+            s.next()
+            exprs.append(p_test(s))
+        return ExprNodes.TupleNode(pos, args = exprs)
+    else:
+        return expr
+        
 expr_terminators = (')', ']', '}', ':', '=', 'NEWLINE')
 
 #-------------------------------------------------------
@@ -1053,7 +1089,7 @@ def p_for_target(s):
 
 def p_for_iterator(s):
     pos = s.position()
-    expr = p_expr(s)
+    expr = p_testlist(s)
     return ExprNodes.IteratorNode(pos, sequence = expr)
 
 def p_try_statement(s):

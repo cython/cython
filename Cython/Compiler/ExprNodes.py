@@ -2695,6 +2695,88 @@ class BoolBinopNode(ExprNode):
         return test_result
 
 
+class CondExprNode(ExprNode):
+    #  Short-circuiting conditional expression.
+    #
+    #  test        ExprNode
+    #  true_val    ExprNode
+    #  false_val   ExprNode
+    
+    temp_bool = None
+    
+    subexprs = ['test', 'true_val', 'false_val']
+    
+    def analyse_types(self, env):
+        self.test.analyse_types(env)
+        self.test = self.test.coerce_to_boolean(env)
+        self.true_val.analyse_types(env)
+        self.false_val.analyse_types(env)
+        self.type = self.compute_result_type(self.true_val.type, self.false_val.type)
+        if self.type:
+            if self.true_val.type.is_pyobject or self.false_val.type.is_pyobject:
+                self.true_val = self.true_val.coerce_to(self.type, env)
+                self.false_val = self.false_val.coerce_to(self.type, env)
+            # must be tmp variables so they can share a result
+            self.true_val = self.true_val.coerce_to_temp(env)
+            self.false_val = self.false_val.coerce_to_temp(env)
+            self.is_temp = 1
+        else:
+            self.type_error()
+    
+    def allocate_temps(self, env, result_code = None):
+        #  We only ever evaluate one side, and this is 
+        #  after evaluating the truth value, so we may
+        #  use an allocation strategy here which results in
+        #  this node and both its operands sharing the same
+        #  result variable. This allows us to avoid some 
+        #  assignments and increfs/decrefs that would otherwise
+        #  be necessary.
+        self.allocate_temp(env, result_code)
+        self.test.allocate_temps(env, result_code)
+        self.true_val.allocate_temps(env, self.result_code)
+        self.false_val.allocate_temps(env, self.result_code)
+        #  We haven't called release_temp on either value,
+        #  because although they are temp nodes, they don't own 
+        #  their result variable. And because they are temp
+        #  nodes, any temps in their subnodes will have been
+        #  released before their allocate_temps returned.
+        #  Therefore, they contain no temp vars that need to
+        #  be released.
+        
+    def compute_result_type(self, type1, type2):
+        if type1 == type2:
+            return type1
+        elif type1.is_pyobject or type2.is_pyobject:
+            return py_object_type
+        elif type1.is_numeric and type2.is_numeric:
+            return PyrexTypes.widest_numeric_type(type1, type2)
+        elif type1.is_extension_type and type1.subtype_of_resolved_type(type2):
+            return type2
+        elif type2.is_extension_type and type2.subtype_of_resolved_type(type1):
+            return type1
+        else:
+            return None
+        
+    def type_error(self):
+        if not (self.true_val.type.is_error or self.false_val.type.is_error):
+            error(self.pos, "Incompatable types in conditional expression (%s; %s)" %
+                (self.true_val.type, self.false_val.type))
+        self.type = PyrexTypes.error_type
+
+    def check_const(self):
+        self.test.check_const()
+        self.true_val.check_const()
+        self.false_val.check_const()
+    
+    def generate_evaluation_code(self, code):
+        self.test.generate_evaluation_code(code)
+        code.putln("if (%s) {" % self.test.result_code )
+        self.true_val.generate_evaluation_code(code)
+        code.putln("} else {")
+        self.false_val.generate_evaluation_code(code)
+        code.putln("}")
+        self.test.generate_disposal_code(code)
+
 class CmpNode:
     #  Mixin class containing code common to PrimaryCmpNodes
     #  and CascadedCmpNodes.
