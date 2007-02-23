@@ -225,7 +225,7 @@ class PyExtensionType(PyObjectType):
         return self.typeobj_cname is None and self.module_name is not None
     
     def declaration_code(self, entity_code, 
-            for_display = 0, dll_linkage = None, pyrex = 0):
+            for_display = 0, dll_linkage = None, pyrex = 0, deref = 0):
         if pyrex:
             return "%s %s" % (self.name, entity_code)
         else:
@@ -234,7 +234,10 @@ class PyExtensionType(PyObjectType):
             else:
                 base_format = "struct %s"
             base = public_decl(base_format % self.objstruct_cname, dll_linkage)
-            return "%s *%s" % (base,  entity_code)
+            if deref:
+                return "%s %s" % (base,  entity_code)
+            else:
+                return "%s *%s" % (base,  entity_code)
 
     def attributes_known(self):
         return self.scope is not None

@@ -2352,7 +2352,7 @@ class SizeofTypeNode(SizeofNode):
         base_type = self.base_type.analyse(env)
         _, arg_type = self.declarator.analyse(base_type, env)
         self.arg_type = arg_type
-        if arg_type.is_pyobject:
+        if arg_type.is_pyobject and not arg_type.is_extension_type:
             error(self.pos, "Cannot take sizeof Python object")
         elif arg_type.is_void:
             error(self.pos, "Cannot take sizeof void")
@@ -2361,7 +2361,12 @@ class SizeofTypeNode(SizeofNode):
         self.type = PyrexTypes.c_int_type
         
     def calculate_result_code(self):
-        arg_code = self.arg_type.declaration_code("")
+        if self.arg_type.is_extension_type:
+            # the size of the pointer is boring
+            # we want the size of the actual struct
+            arg_code = self.arg_type.declaration_code("", deref=1)
+        else:
+            arg_code = self.arg_type.declaration_code("")
         return "(sizeof(%s))" % arg_code
     
 
@@ -2744,14 +2749,14 @@ class CondExprNode(ExprNode):
     def compute_result_type(self, type1, type2):
         if type1 == type2:
             return type1
-        elif type1.is_pyobject or type2.is_pyobject:
-            return py_object_type
         elif type1.is_numeric and type2.is_numeric:
             return PyrexTypes.widest_numeric_type(type1, type2)
         elif type1.is_extension_type and type1.subtype_of_resolved_type(type2):
             return type2
         elif type2.is_extension_type and type2.subtype_of_resolved_type(type1):
             return type1
+        elif type1.is_pyobject or type2.is_pyobject:
+            return py_object_type
         else:
             return None
         
