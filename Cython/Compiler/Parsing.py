@@ -218,7 +218,7 @@ def p_sizeof(s):
     pos = s.position()
     s.next()
     s.expect('(')
-    if looking_at_type(s):
+    if looking_at_type(s) or looking_at_dotted_name(s):
         base_type = p_c_base_type(s)
         declarator = p_c_declarator(s, empty = 1)
         node = ExprNodes.SizeofTypeNode(pos, 
