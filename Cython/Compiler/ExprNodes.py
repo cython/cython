@@ -1056,6 +1056,7 @@ class IndexNode(ExprNode):
             self.type = py_object_type
             self.is_temp = 1
         else:
+            self.py_index = CloneNode(self.index) # so that it exists for subexpr processing
             if self.base.type.is_ptr or self.base.type.is_array:
                 self.type = self.base.type.base_type
             else:

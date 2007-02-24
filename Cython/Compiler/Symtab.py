@@ -457,18 +457,31 @@ class BuiltinScope(Scope):
         entry.is_builtin = 1
         return entry
         
+    # TODO: built in functions conflict with built in types of same name...
+    
     builtin_functions = {
       "hasattr": ["PyObject_HasAttrString", c_int_type, (py_object_type, c_char_ptr_type)],
       "cmp":     ["PyObject_Compare", c_int_type, (py_object_type, py_object_type), None, True],
       "repr":    ["PyObject_Repr", py_object_type, (py_object_type, ), 0],
-      "str":     ["PyObject_Str", py_object_type, (py_object_type, ), 0],
+#      "str":     ["PyObject_Str", py_object_type, (py_object_type, ), 0],
       "unicode": ["PyObject_Unicode", py_object_type, (py_object_type, ), 0],
       "isinstance": ["PyObject_IsInstance", c_int_type, (py_object_type, py_object_type), -1],
       "hash":    ["PyObject_Hash", c_long_type, (py_object_type, ), -1, True],
       "type":    ["PyObject_Type", py_object_type, (py_object_type, ), 0],
       "len":     ["PyObject_Size", c_py_ssize_t_type, (py_object_type, ), -1],
       "dir":     ["PyObject_Dir", py_object_type, (py_object_type, ), 0],
-      "iter":     ["PyObject_GetIter", py_object_type, (py_object_type, ), 0],
+      "iter":    ["PyObject_GetIter", py_object_type, (py_object_type, ), 0],
+
+      "abs":     ["PyNumber_Absolute", py_object_type, (py_object_type, ), 0],
+      "divmod":  ["PyNumber_Divmod", py_object_type, (py_object_type, py_object_type), 0],
+      "pow":     ["PyNumber_Power", py_object_type, (py_object_type, py_object_type, py_object_type), 0],
+#      "int":     ["PyNumber_Int", py_object_type, (py_object_type, ), 0],
+#      "long":    ["PyNumber_Long", py_object_type, (py_object_type, ), 0],
+#      "float":   ["PyNumber_Float", py_object_type, (py_object_type, ), 0],
+
+#      "list":    ["PyNumber_List", py_object_type, (py_object_type, ), 0],
+#      "tuple":   ["PySequence_Tuple", py_object_type, (py_object_type, ), 0],
+
     }
 
 class ModuleScope(Scope):
