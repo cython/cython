@@ -1396,7 +1396,7 @@ def p_opt_cname(s):
         cname = None
     return cname
 
-def p_c_declarator(s, empty = 0, is_type = 0, cmethod_flag = 0):
+def p_c_declarator(s, empty = 0, is_type = 0, cmethod_flag = 0 , assignable = 0):
     # If empty is true, the declarator must be
     # empty, otherwise we don't care.
     # If cmethod_flag is true, then if this declarator declares
@@ -1404,12 +1404,12 @@ def p_c_declarator(s, empty = 0, is_type = 0, cmethod_flag = 0):
     pos = s.position()
     if s.sy == '*':
         s.next()
-        base = p_c_declarator(s, empty, is_type, cmethod_flag)
+        base = p_c_declarator(s, empty, is_type, cmethod_flag, assignable)
         result = Nodes.CPtrDeclaratorNode(pos, 
             base = base)
     elif s.sy == '**': # scanner returns this as a single token
         s.next()
-        base = p_c_declarator(s, empty, is_type, cmethod_flag)
+        base = p_c_declarator(s, empty, is_type, cmethod_flag, assignable)
         result = Nodes.CPtrDeclaratorNode(pos,
             base = Nodes.CPtrDeclaratorNode(pos,
                 base = base))
@@ -1430,8 +1430,12 @@ def p_c_declarator(s, empty = 0, is_type = 0, cmethod_flag = 0):
             else:
                 name = ""
                 cname = None
+            if s.sy == '=' and assignable:
+                s.next()
+                rhs = p_simple_expr(s)
+            else: rhs = None
             result = Nodes.CNameDeclaratorNode(pos,
-                name = name, cname = cname)
+                name = name, cname = cname, rhs = rhs)
         while s.sy in ('[', '('):
             if s.sy == '[':
                 s.next()
@@ -1651,11 +1655,19 @@ def p_visibility(s, prev_visibility):
                 % (prev_visibility, visibility))
         s.next()
     return visibility
+    
+def p_c_modifiers(s):
+    if s.systring in ('inline', ):
+        modifier = s.systring
+        s.next()
+        return modifier + ' ' + p_c_modifiers(s)
+    return ""
 
 def p_c_func_or_var_declaration(s, level, pos, visibility = 'private'):
     cmethod_flag = level in ('c_class', 'c_class_pxd')
+    modifiers = p_c_modifiers(s)
     base_type = p_c_base_type(s)
-    declarator = p_c_declarator(s, cmethod_flag = cmethod_flag)
+    declarator = p_c_declarator(s, cmethod_flag = cmethod_flag, assignable = 1)
     if s.sy == ':':
         if level not in ('module', 'c_class'):
             s.error("C function definition not allowed here")
@@ -1664,7 +1676,8 @@ def p_c_func_or_var_declaration(s, level, pos, visibility = 'private'):
             visibility = visibility,
             base_type = base_type,
             declarator = declarator, 
-            body = suite)
+            body = suite,
+            modifiers = modifiers)
     else:
         if level == 'module_pxd' and visibility <> 'extern':
             error(pos, 
@@ -1674,7 +1687,7 @@ def p_c_func_or_var_declaration(s, level, pos, visibility = 'private'):
             s.next()
             if s.sy == 'NEWLINE':
                 break
-            declarator = p_c_declarator(s, cmethod_flag = cmethod_flag)
+            declarator = p_c_declarator(s, cmethod_flag = cmethod_flag, assignable = 1)
             declarators.append(declarator)
         s.expect_newline("Syntax error in C variable declaration")
         result = Nodes.CVarDefNode(pos, 

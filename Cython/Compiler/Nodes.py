@@ -1422,7 +1422,12 @@ class CDeclaratorNode(Node):
     #      CNameDeclaratorNode of the name being declared 
     #      and type is the type it is being declared as.
     #
-    pass
+        
+    def analyse_expressions(self, env):
+        pass
+
+    def generate_execution_code(self, env):
+        pass
 
 
 class CNameDeclaratorNode(CDeclaratorNode):
@@ -1430,8 +1435,28 @@ class CNameDeclaratorNode(CDeclaratorNode):
     #  cname  string or None   C name, if specified
     
     def analyse(self, base_type, env):
+        self.type = base_type
         return self, base_type
+        
+    def analyse_expressions(self, env):
+        self.entry = env.lookup(self.name)
+        if self.rhs is not None:
+            if self.type.is_pyobject:
+                self.entry.init_to_none = False
+                self.entry.init = 0
+            self.rhs.analyse_types(env)
+            self.rhs = self.rhs.coerce_to(self.type, env)
+            self.rhs.allocate_temps(env)
+            self.rhs.release_temp(env)
 
+    def generate_execution_code(self, code):
+        if self.rhs is not None:
+            self.rhs.generate_evaluation_code(code)
+            if self.type.is_pyobject:
+                self.rhs.make_owned_reference(code)
+            code.putln('%s = %s;' % (self.entry.cname, self.rhs.result_as(self.entry.type)))
+            self.rhs.generate_post_assignment_code(code)
+            code.putln()
 
 class CPtrDeclaratorNode(CDeclaratorNode):
     # base     CDeclaratorNode
@@ -1443,6 +1468,11 @@ class CPtrDeclaratorNode(CDeclaratorNode):
         ptr_type = PyrexTypes.c_ptr_type(base_type)
         return self.base.analyse(ptr_type, env)
         
+    def analyse_expressions(self, env):
+        self.base.analyse_expressions(env)
+
+    def generate_execution_code(self, env):
+        self.base.generate_execution_code(env)
 
 class CArrayDeclaratorNode(CDeclaratorNode):
     # base        CDeclaratorNode
@@ -1625,10 +1655,12 @@ class CVarDefNode(StatNode):
                     cname = cname, visibility = self.visibility, is_cdef = 1)
     
     def analyse_expressions(self, env):
-        pass
+        for declarator in self.declarators:
+            declarator.analyse_expressions(env)
     
     def generate_execution_code(self, code):
-        pass
+        for declarator in self.declarators:
+            declarator.generate_execution_code(code)
 
 
 class CStructOrUnionDefNode(StatNode):
@@ -1844,6 +1876,7 @@ class FuncDefNode(StatNode, BlockNode):
 class CFuncDefNode(FuncDefNode):
     #  C function definition.
     #
+    #  modifiers     'inline ' or ''
     #  visibility    'private' or 'public' or 'extern'
     #  base_type     CBaseTypeNode
     #  declarator    CDeclaratorNode
@@ -1900,8 +1933,9 @@ class CFuncDefNode(FuncDefNode):
             storage_class = "%s " % Naming.extern_c_macro
         else:
             storage_class = "static "
-        code.putln("%s%s {" % (
+        code.putln("%s%s%s {" % (
             storage_class,
+            self.modifiers, 
             header))
 
     def generate_argument_declarations(self, env, code):
