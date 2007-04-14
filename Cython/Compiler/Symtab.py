@@ -187,9 +187,13 @@ class Scope:
         # Return the module-level scope containing this scope.
         return self.outer_scope.global_scope()
     
+    def builtin_scope(self):
+        # Return the module-level scope containing this scope.
+        return self.outer_scope.builtin_scope()
+
     def declare(self, name, cname, type, pos):
         # Create new entry, and add to dictionary if
-        # name is not None. Reports an error if already 
+        # name is not None. Reports a warning if already 
         # declared.
         dict = self.entries
         if name and dict.has_key(name):
@@ -451,11 +455,23 @@ class BuiltinScope(Scope):
             cname, type, arg_types, exception_value, exception_check = definition
             function = CFuncType(type, [CFuncTypeArg("", t, None) for t in arg_types], False, exception_value, exception_check)
             self.add_cfunction(name, function, None, cname, False)
-    
+        self.cached_entries = []
+        self.undeclared_cached_entries = []
+                    
     def declare_builtin(self, name, pos):
         entry = self.declare(name, name, py_object_type, pos)
-        entry.is_builtin = 1
+        if Options.cache_builtins:
+            entry.is_builtin = 1
+            entry.is_const = 1
+            entry.cname = Naming.builtin_prefix + name
+            self.cached_entries.append(entry)
+            self.undeclared_cached_entries.append(entry)
+        else:
+            entry.is_builtin = 1
         return entry
+        
+    def builtin_scope(self):
+        return self
         
     # TODO: built in functions conflict with built in types of same name...
     

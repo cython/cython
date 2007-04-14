@@ -714,7 +714,10 @@ class NameNode(AtomicExprNode):
             self.type = self.type.element_ptr_type()
         if self.entry.is_pyglobal or self.entry.is_builtin:
             assert self.type.is_pyobject, "Python global or builtin not a Python object"
-            self.is_temp = 1
+            if Options.intern_names and self.entry.is_builtin:
+                self.is_temp = 0
+            else:
+                self.is_temp = 1
             if Options.intern_names:
                 env.use_utility_code(get_name_interned_utility_code)
             else:
@@ -777,7 +780,9 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is None:
             return # There was an error earlier
-        if entry.is_pyglobal or entry.is_builtin:
+        if entry.is_builtin and Options.cache_builtins:
+            return # Lookup already cached
+        elif entry.is_pyglobal or entry.is_builtin:
             if entry.is_builtin:
                 namespace = Naming.builtins_cname
             else: # entry.is_pyglobal

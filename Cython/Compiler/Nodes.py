@@ -117,6 +117,14 @@ class BlockNode:
                 code.putln(
                     "static PyObject *%s;" % entry.pystring_cname)
         
+    def generate_cached_builtins_decls(self, env, code):
+        entries = env.builtin_scope().undeclared_cached_entries
+        if len(entries) > 0:
+            code.putln("")
+        for entry in entries:
+            code.putln("static PyObject *%s;" % entry.cname)
+        del entries[:]
+        
 
 class ModuleNode(Node, BlockNode):
     #  doc       string or None
@@ -203,6 +211,7 @@ class ModuleNode(Node, BlockNode):
         self.generate_const_definitions(env, code)
         self.generate_interned_name_decls(env, code)
         self.generate_py_string_decls(env, code)
+        self.generate_cached_builtins_decls(env, code)
         self.body.generate_function_definitions(env, code)
         self.generate_interned_name_table(env, code)
         self.generate_py_string_table(env, code)
@@ -1143,6 +1152,8 @@ class ModuleNode(Node, BlockNode):
         self.generate_intern_code(env, code)
         #code.putln("/*--- String init code ---*/")
         self.generate_string_init_code(env, code)
+        #code.putln("/*--- Builtin init code ---*/")
+        self.generate_builtin_init_code(env, code)
         #code.putln("/*--- Global init code ---*/")
         self.generate_global_init_code(env, code)
         #code.putln("/*--- Type import code ---*/")
@@ -1208,6 +1219,28 @@ class ModuleNode(Node, BlockNode):
                     Naming.stringtab_cname,
                     code.error_goto(self.pos)))
     
+    def generate_builtin_init_code(self, env, code):
+        # Lookup and cache builtin objects.
+        if Options.cache_builtins:
+            for entry in env.builtin_scope().cached_entries:
+                if Options.intern_names:
+                    #assert entry.interned_cname is not None
+                    code.putln(
+                        '%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
+                        entry.cname,
+                        Naming.builtins_cname,
+                        entry.interned_cname,
+                        entry.cname, 
+                        code.error_goto(entry.pos)))
+                else:
+                    code.putln(
+                        '%s = __Pyx_GetName(%s, "%s"); if (!%s) %s' % (
+                        entry.cname,
+                        Naming.builtins_cname,
+                        self.entry.name,
+                        entry.cname, 
+                        code.error_goto(entry.pos)))
+
     def generate_global_init_code(self, env, code):
         # Generate code to initialise global PyObject *
         # variables to None.
@@ -1771,6 +1804,7 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Top-level constants used by this function
         self.generate_interned_name_decls(lenv, code)
         self.generate_py_string_decls(lenv, code)
+        self.generate_cached_builtins_decls(lenv, code)
         #code.putln("")
         #code.put_var_declarations(lenv.const_entries, static = 1)
         self.generate_const_definitions(lenv, code)
@@ -1871,7 +1905,7 @@ class FuncDefNode(StatNode, BlockNode):
 
     def generate_execution_code(self, code):
         pass
-
+        
 
 class CFuncDefNode(FuncDefNode):
     #  C function definition.

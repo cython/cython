@@ -8,6 +8,7 @@
 
 pyrex_prefix    = "__pyx_"
 
+builtin_prefix    = pyrex_prefix + "builtin_"
 arg_prefix        = pyrex_prefix + "arg_"
 funcdoc_prefix    = pyrex_prefix + "doc_"
 enum_prefix       = pyrex_prefix + "e_"
