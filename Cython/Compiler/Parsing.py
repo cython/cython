@@ -1047,6 +1047,7 @@ def p_for_bounds(s):
         rel2_pos = s.position()
         rel2 = p_for_from_relation(s)
         bound2 = p_bit_expr(s)
+        step = p_for_from_step(s)
         if not target.is_name:
             error(target.pos, 
                 "Target of for-from statement must be a variable name")
@@ -1060,7 +1061,8 @@ def p_for_bounds(s):
                 'bound1': bound1, 
                 'relation1': rel1, 
                 'relation2': rel2,
-                'bound2': bound2 }
+                'bound2': bound2,
+                'step': step }
 
 def p_for_from_relation(s):
     if s.sy in inequality_relations:
@@ -1069,6 +1071,14 @@ def p_for_from_relation(s):
         return op
     else:
         s.error("Expected one of '<', '<=', '>' '>='")
+        
+def p_for_from_step(s):
+    if s.sy == 'by':
+        s.next()
+        step = p_bit_expr(s)
+        return step
+    else:
+        return None
 
 inequality_relations = ('<', '<=', '>', '>=')
 

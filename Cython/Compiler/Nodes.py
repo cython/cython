@@ -3297,6 +3297,7 @@ class ForFromStatNode(StatNode):
     #  relation1     string
     #  relation2     string
     #  bound2        ExprNode
+    #  step          ExprNode or None
     #  body          StatNode
     #  else_clause   StatNode or None
     #
@@ -3318,6 +3319,9 @@ class ForFromStatNode(StatNode):
         self.bound2.analyse_types(env)
         self.bound1 = self.bound1.coerce_to_integer(env)
         self.bound2 = self.bound2.coerce_to_integer(env)
+        if self.step is not None:
+            self.step.analyse_types(env)
+            self.step = self.step.coerce_to_integer(env)
         if not (self.bound2.is_name or self.bound2.is_literal):
             self.bound2 = self.bound2.coerce_to_temp(env)
         target_type = self.target.type
@@ -3337,6 +3341,8 @@ class ForFromStatNode(StatNode):
                 ExprNodes.CloneNode(c_loopvar_node).coerce_to_pyobject(env)
         self.bound1.allocate_temps(env)
         self.bound2.allocate_temps(env)
+        if self.step is not None:
+            self.step.allocate_temps(env)
         if self.py_loopvar_node:
             self.py_loopvar_node.allocate_temps(env)
         self.target.allocate_target_temps(env)
@@ -3350,6 +3356,8 @@ class ForFromStatNode(StatNode):
             self.else_clause.analyse_expressions(env)
         self.bound1.release_temp(env)
         self.bound2.release_temp(env)
+        if self.step is not None:
+            self.step.release_temp(env)
         #env.recycle_pending_temps() # TEMPORARY
             
     def generate_execution_code(self, code):
@@ -3357,12 +3365,15 @@ class ForFromStatNode(StatNode):
         self.bound1.generate_evaluation_code(code)
         self.bound2.generate_evaluation_code(code)
         offset, incop = self.relation_table[self.relation1]
+        if self.step is not None:
+            self.step.generate_evaluation_code(code)
+            incop = "%s=%s" % (incop[0], self.step.result_code)
         code.putln(
             "for (%s = %s%s; %s %s %s; %s%s) {" % (
                 self.loopvar_name,
                 self.bound1.result_code, offset,
                 self.loopvar_name, self.relation2, self.bound2.result_code,
-                incop, self.loopvar_name))
+                self.loopvar_name, incop))
         if self.py_loopvar_node:
             self.py_loopvar_node.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.py_loopvar_node, code)
@@ -3378,6 +3389,8 @@ class ForFromStatNode(StatNode):
         code.put_label(break_label)
         self.bound1.generate_disposal_code(code)
         self.bound2.generate_disposal_code(code)
+        if self.step is not None:
+            self.step.generate_disposal_code(code)
     
     relation_table = {
         # {relop : (initial offset, increment op)}
