@@ -2186,7 +2186,7 @@ class NotNode(ExprNode):
     def analyse_types(self, env):
         self.operand.analyse_types(env)
         self.operand = self.operand.coerce_to_boolean(env)
-        self.type = PyrexTypes.c_int_type
+        self.type = PyrexTypes.c_bint_type
     
     def calculate_result_code(self):
         return "(!%s)" % self.operand.result_code
@@ -2623,13 +2623,12 @@ class BoolBinopNode(ExprNode):
                 self.operand2.type.is_pyobject:
             self.operand1 = self.operand1.coerce_to_pyobject(env)
             self.operand2 = self.operand2.coerce_to_pyobject(env)
-            self.temp_bool = TempNode(self.pos,
-                PyrexTypes.c_int_type, env)
+            self.temp_bool = TempNode(self.pos, PyrexTypes.c_bint_type, env)
             self.type = py_object_type
         else:
             self.operand1 = self.operand1.coerce_to_boolean(env)
             self.operand2 = self.operand2.coerce_to_boolean(env)
-            self.type = PyrexTypes.c_int_type
+            self.type = PyrexTypes.c_bint_type
         # For what we're about to do, it's vital that
         # both operands be temp nodes.
         self.operand1 = self.operand1.coerce_to_temp(env) #CTT
@@ -2886,7 +2885,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             self.operand2 = self.operand2.coerce_to_simple(env)
             self.cascade.coerce_cascaded_operands_to_temp(env)
         self.check_operand_types(env)
-        self.type = PyrexTypes.c_int_type
+        self.type = PyrexTypes.c_bint_type
         if self.is_pycmp or self.cascade:
             self.is_temp = 1
     
@@ -3167,7 +3166,7 @@ class CoerceToBooleanNode(CoercionNode):
     
     def __init__(self, arg, env):
         CoercionNode.__init__(self, arg)
-        self.type = PyrexTypes.c_int_type
+        self.type = PyrexTypes.c_bint_type
         if arg.type.is_pyobject:
             self.is_temp = 1
     

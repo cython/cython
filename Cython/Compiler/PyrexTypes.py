@@ -341,7 +341,13 @@ class CIntType(CNumericType):
     def __init__(self, rank, signed, pymemberdef_typecode = None, is_returncode = 0):
         CNumericType.__init__(self, rank, signed, pymemberdef_typecode)
         self.is_returncode = is_returncode
+        
 
+class CBIntType(CIntType):
+    
+    to_py_function = "PyBool_FromLong"
+    from_py_function = "PyObject_IsTrue"
+    
 
 class CPySSizeTType(CIntType):
 
@@ -710,6 +716,8 @@ c_long_type =     CIntType(3, 1, "T_LONG")
 c_longlong_type = CLongLongType(4, 1, "T_LONGLONG")
 c_py_ssize_t_type = CPySSizeTType(5, 1)
 
+c_bint_type =      CBIntType(2, 1, "T_INT")
+
 c_uchar_type =     CIntType(0, 0, "T_UBYTE")
 c_ushort_type =    CIntType(1, 0, "T_USHORT")
 c_uint_type =      CUIntType(2, 0, "T_UINT")
@@ -768,8 +776,8 @@ modifiers_and_name_to_type = {
     (0, 0, "char"): c_uchar_type, 
     (0, -1, "int"): c_ushort_type, 
     (0, 0, "int"): c_uint_type, 
-  (0, 1, "int"): c_ulong_type,
-  (0, 2, "int"): c_ulonglong_type,
+    (0, 1, "int"): c_ulong_type,
+    (0, 2, "int"): c_ulonglong_type,
     (1, 0, "void"): c_void_type,
     (1, 0, "char"): c_char_type, 
     (1, -1, "int"): c_short_type, 
@@ -781,6 +789,8 @@ modifiers_and_name_to_type = {
     (1, 0, "double"): c_double_type,
     (1, 1, "double"): c_longdouble_type,
     (1, 0, "object"): py_object_type,
+
+    (1, 0, "bint"): c_bint_type, 
 }
 
 def widest_numeric_type(type1, type2):
