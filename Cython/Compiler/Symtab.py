@@ -455,6 +455,9 @@ class BuiltinScope(Scope):
             cname, type, arg_types, exception_value, exception_check = definition
             function = CFuncType(type, [CFuncTypeArg("", t, None) for t in arg_types], False, exception_value, exception_check)
             self.add_cfunction(name, function, None, cname, False)
+        for name, definition in self.builtin_entries.iteritems():
+            cname, type = definition
+            self.declare_var(name, type, None, cname)
         self.cached_entries = []
         self.undeclared_cached_entries = []
                     
@@ -474,6 +477,7 @@ class BuiltinScope(Scope):
         return self
         
     # TODO: built in functions conflict with built in types of same name...
+    # TODO: perhapse these should all be declared in some universal .pxi file? 
     
     builtin_functions = {
       "hasattr": ["PyObject_HasAttrString", c_bint_type, (py_object_type, c_char_ptr_type)],
@@ -498,6 +502,27 @@ class BuiltinScope(Scope):
 #      "list":    ["PyNumber_List", py_object_type, (py_object_type, ), 0],
 #      "tuple":   ["PySequence_Tuple", py_object_type, (py_object_type, ), 0],
 
+    }
+    
+    builtin_entries = {
+        "int":    ["PyInt_Type", py_object_type],
+        "long":   ["PyLong_Type", py_object_type],
+        "float":  ["PyFloat_Type", py_object_type],
+        
+        "str":    ["PyString_Type", py_object_type],
+        "tuple":  ["PyTuple_Type", py_object_type],
+        "list":   ["PyList_Type", py_object_type],
+        "dict":   ["PyDict_Type", py_object_type],
+        "set":    ["PySet_Type", py_object_type],
+        "frozenset":   ["PyFrozenSet_Type", py_object_type],
+        
+        "type":   ["PyType_Type", py_object_type],
+        "slice":  ["PySlice_Type", py_object_type],
+        "file":   ["PyFile_Type", py_object_type],
+        
+        "None":   ["Py_None", py_object_type],
+        "False":  ["Py_False", py_object_type],
+        "True":   ["Py_True", py_object_type],
     }
 
 class ModuleScope(Scope):
