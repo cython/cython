@@ -5,7 +5,7 @@
 import os, string, sys, time
 
 import Code
-from Errors import error, InternalError
+from Errors import error, warning, InternalError
 import Naming
 import PyrexTypes
 from PyrexTypes import py_object_type, error_type, CTypedefType
@@ -3320,6 +3320,8 @@ class ForFromStatNode(StatNode):
         self.bound1 = self.bound1.coerce_to_integer(env)
         self.bound2 = self.bound2.coerce_to_integer(env)
         if self.step is not None:
+            if isinstance(self.step, ExprNodes.UnaryMinusNode):
+                warning(self.step.pos, "Probable infinite loop in for-from-by statment. Consider switching the directions of the relations.", 2)
             self.step.analyse_types(env)
             self.step = self.step.coerce_to_integer(env)
         if not (self.bound2.is_name or self.bound2.is_literal):
