@@ -10,6 +10,7 @@ from PyrexTypes import *
 from TypeSlots import \
     pyfunction_signature, pymethod_signature, \
     get_special_method_signature, get_property_accessor_signature
+import __builtin__
 
 identifier_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -460,8 +461,10 @@ class BuiltinScope(Scope):
             self.declare_var(name, type, None, cname)
         self.cached_entries = []
         self.undeclared_cached_entries = []
-                    
+        
     def declare_builtin(self, name, pos):
+        if not hasattr(__builtin__, name):
+            error(pos, "undeclared name not builtin: %s"%name)
         entry = self.declare(name, name, py_object_type, pos)
         if Options.cache_builtins:
             entry.is_builtin = 1
@@ -481,7 +484,7 @@ class BuiltinScope(Scope):
     
     builtin_functions = {
       "hasattr": ["PyObject_HasAttrString", c_bint_type, (py_object_type, c_char_ptr_type)],
-      "cmp":     ["PyObject_Compare", c_int_type, (py_object_type, py_object_type), None, True],
+      "cmp":     ["PyObject_Compare", c_bint_type, (py_object_type, py_object_type), None, True],
       "repr":    ["PyObject_Repr", py_object_type, (py_object_type, ), 0],
 #      "str":     ["PyObject_Str", py_object_type, (py_object_type, ), 0],
       "unicode": ["PyObject_Unicode", py_object_type, (py_object_type, ), 0],
@@ -505,20 +508,20 @@ class BuiltinScope(Scope):
     }
     
     builtin_entries = {
-        "int":    ["PyInt_Type", py_object_type],
-        "long":   ["PyLong_Type", py_object_type],
-        "float":  ["PyFloat_Type", py_object_type],
+        "int":    ["((PyObject*)&PyInt_Type)", py_object_type],
+        "long":   ["((PyObject*)&PyLong_Type)", py_object_type],
+        "float":  ["((PyObject*)&PyFloat_Type)", py_object_type],
         
-        "str":    ["PyString_Type", py_object_type],
-        "tuple":  ["PyTuple_Type", py_object_type],
-        "list":   ["PyList_Type", py_object_type],
-        "dict":   ["PyDict_Type", py_object_type],
-        "set":    ["PySet_Type", py_object_type],
-        "frozenset":   ["PyFrozenSet_Type", py_object_type],
+        "str":    ["((PyObject*)&PyString_Type)", py_object_type],
+        "tuple":  ["((PyObject*)&PyTuple_Type)", py_object_type],
+        "list":   ["((PyObject*)&PyList_Type)", py_object_type],
+        "dict":   ["((PyObject*)&PyDict_Type)", py_object_type],
+        "set":    ["((PyObject*)&PySet_Type)", py_object_type],
+        "frozenset":   ["((PyObject*)&PyFrozenSet_Type)", py_object_type],
         
-        "type":   ["PyType_Type", py_object_type],
-        "slice":  ["PySlice_Type", py_object_type],
-        "file":   ["PyFile_Type", py_object_type],
+        "type":   ["((PyObject*)&PyType_Type)", py_object_type],
+        "slice":  ["((PyObject*)&PySlice_Type)", py_object_type],
+        "file":   ["((PyObject*)&PyFile_Type)", py_object_type],
         
         "None":   ["Py_None", py_object_type],
         "False":  ["Py_False", py_object_type],
