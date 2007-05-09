@@ -484,7 +484,7 @@ class BuiltinScope(Scope):
     
     builtin_functions = {
       "hasattr": ["PyObject_HasAttrString", c_bint_type, (py_object_type, c_char_ptr_type)],
-      "cmp":     ["PyObject_Compare", c_bint_type, (py_object_type, py_object_type), None, True],
+      "cmp":     ["PyObject_Compare", c_int_type, (py_object_type, py_object_type), None, True],
       "repr":    ["PyObject_Repr", py_object_type, (py_object_type, ), 0],
 #      "str":     ["PyObject_Str", py_object_type, (py_object_type, ), 0],
       "unicode": ["PyObject_Unicode", py_object_type, (py_object_type, ), 0],
