@@ -1944,7 +1944,7 @@ class CFuncDefNode(FuncDefNode):
         for arg in self.type.args:
             if not arg.name:
                 error(arg.pos, "Missing argument name")
-            self.declare_argument(env, arg)
+            arg.entry = self.declare_argument(env, arg)
             
     def generate_function_header(self, code, with_pymethdef):
         arg_decls = []
@@ -1989,7 +1989,27 @@ class CFuncDefNode(FuncDefNode):
         pass
     
     def generate_argument_type_tests(self, code):
-        pass
+        # Generate type tests for args whose type in a parent
+        # class is a supertype of the declared type.
+        for arg in self.type.args:
+            if arg.needs_type_test:
+                self.generate_arg_type_test(arg, code)
+    
+    def generate_arg_type_test(self, arg, code):
+        # Generate type test for one argument.
+        if arg.type.typeobj_is_available():
+            typeptr_cname = arg.type.typeptr_cname
+            arg_code = "((PyObject *)%s)" % arg.entry.cname
+            code.putln(
+                'if (!__Pyx_ArgTypeTest(%s, %s, %d, "%s")) %s' % (
+                    arg_code, 
+                    typeptr_cname,
+                    not arg.not_none,
+                    arg.name,
+                    code.error_goto(arg.pos)))
+        else:
+            error(arg.pos, "Cannot test type of extern C class "
+                "without type object name specification")
     
     def error_value(self):
         if self.return_type.is_pyobject:
@@ -3804,6 +3824,9 @@ static int __Pyx_GetVtable(PyObject *dict, void *vtabptr); /*proto*/
 static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name, char *modname); /*proto*/
 static int __Pyx_InternStrings(__Pyx_InternTabEntry *t); /*proto*/
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
+
+#DEFINE __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
+#DEFINE __Pyx_PyObject_IsTrue(x) ({PyObject *_x = (x); _x == Py_True ? 1 : (_x) == Py_False ? 0 : PyObject_IsTrue(_x)})
 """
 
 get_name_predeclaration = \
