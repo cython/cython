@@ -262,14 +262,14 @@ class CType(PyrexType):
     from_py_function = None
 
 
-class CSimpleType(CType):
-    #
-    #  Base class for all unstructured C types.
-    #
-    pass
+#class CSimpleType(CType):
+#	#
+#	#  Base class for all unstructured C types.
+#	#
+#	pass
 
 
-class CVoidType(CSimpleType):
+class CVoidType(CType):
     is_void = 1
     
     def __repr__(self):
@@ -316,9 +316,6 @@ class CNumericType(CType):
             u = "unsigned "
         return "<CNumericType %s%s>" % (u, rank_to_type_name[self.rank])
     
-    def assignable_from_resolved_type(self, src_type):
-        return src_type.is_numeric or src_type is error_type
-    
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
         if self.signed:
@@ -327,8 +324,6 @@ class CNumericType(CType):
             u = "unsigned "
         base = public_decl(u + rank_to_type_name[self.rank], dll_linkage)
         return "%s %s" % (base,  entity_code)
-
-#		return "%s%s %s" % (u, rank_to_type_name[self.rank], entity_code)
     
 
 class CIntType(CNumericType):
@@ -341,6 +336,9 @@ class CIntType(CNumericType):
     def __init__(self, rank, signed, pymemberdef_typecode = None, is_returncode = 0):
         CNumericType.__init__(self, rank, signed, pymemberdef_typecode)
         self.is_returncode = is_returncode
+    
+    def assignable_from_resolved_type(self, src_type):
+        return src_type.is_int or src_type.is_enum or src_type is error_type
         
 
 class CBIntType(CIntType):
@@ -390,6 +388,9 @@ class CFloatType(CNumericType):
     def __init__(self, rank, pymemberdef_typecode = None):
         CNumericType.__init__(self, rank, 1, pymemberdef_typecode)
     
+    def assignable_from_resolved_type(self, src_type):
+        return src_type.is_numeric or src_type is error_type
+
 
 class CArrayType(CType):
     #  base_type     CType              Element type
@@ -464,6 +465,8 @@ class CPtrType(CType):
             return 1
         elif self.base_type.is_cfunction and other_type.is_cfunction:
             return self.base_type.same_as(other_type)
+        elif other_type.is_array:
+            return self.base_type.same_as(other_type.base_type)
         elif not other_type.is_ptr:
             return 0
         elif self.base_type.is_void:
@@ -495,7 +498,7 @@ class CFuncType(CType):
         self.has_varargs = has_varargs
         self.exception_value = exception_value
         self.exception_check = exception_check
-        
+    
     def __repr__(self):
         arg_reprs = map(repr, self.args)
         if self.has_varargs:
@@ -651,14 +654,16 @@ class CStructOrUnionType(CType):
         return self.is_complete()
 
 
-class CEnumType(CIntType):
+class CEnumType(CType):
     #  name           string
     #  cname          string or None
     #  typedef_flag   boolean
     
     is_enum = 1
-    signed = 1
-    rank = 2
+    #signed = 1
+    #rank = 2
+    to_py_function = "PyInt_FromLong"
+    from_py_function = "PyInt_AsLong"
 
     def __init__(self, name, cname, typedef_flag):
         self.name = name
@@ -743,7 +748,6 @@ c_int_type =      CIntType(2, 1, "T_INT")
 c_long_type =     CIntType(3, 1, "T_LONG")
 c_longlong_type = CLongLongType(4, 1, "T_LONGLONG")
 c_py_ssize_t_type = CPySSizeTType(5, 1)
-
 c_bint_type =      CBIntType(2, 1, "T_INT")
 
 c_uchar_type =     CIntType(0, 0, "T_UBYTE")

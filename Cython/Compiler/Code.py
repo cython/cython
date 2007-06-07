@@ -25,8 +25,9 @@ class CCodeWriter:
     
     in_try_finally = 0
     
-    def __init__(self, outfile_name):
-        self.f = open_new_file(outfile_name)
+    def __init__(self, f):
+        #self.f = open_new_file(outfile_name)
+        self.f = f
         self.level = 0
         self.bol = 1
         self.marker = None
@@ -101,6 +102,7 @@ class CCodeWriter:
 
     def init_labels(self):
         self.label_counter = 0
+        self.labels_used = {}
         self.return_label = self.new_label()
         self.new_error_label()
         self.continue_label = None
@@ -155,9 +157,17 @@ class CCodeWriter:
                 new_labels.append(old_label)
         self.set_all_labels(new_labels)
         return old_labels
+    
+    def use_label(self, lbl):
+        self.labels_used[lbl] = 1
 
     def put_label(self, lbl):
-        self.putln("%s:;" % lbl)
+        if lbl in self.labels_used:
+            self.putln("%s:;" % lbl)
+    
+    def put_goto(self, lbl):
+        self.use_label(lbl)
+        self.putln("goto %s;" % lbl)
     
     def put_var_declarations(self, entries, static = 0, dll_linkage = None,
             definition = True):
@@ -167,30 +177,23 @@ class CCodeWriter:
     
     def put_var_declaration(self, entry, static = 0, dll_linkage = None,
             definition = True):
-        #print "Code.put_var_declaration:", entry.name, "definition =", definition
+        #print "Code.put_var_declaration:", entry.name, "definition =", definition ###
         visibility = entry.visibility
         if visibility == 'private' and not definition:
             return
+        if not entry.used and visibility == "private":
+            return
+        storage_class = ""
         if visibility == 'extern':
             storage_class = Naming.extern_c_macro
         elif visibility == 'public':
-            if definition:
-                storage_class = ""
-            else:
+            if not definition:
                 storage_class = Naming.extern_c_macro
         elif visibility == 'private':
             if static:
                 storage_class = "static"
-            else:
-                storage_class = ""
-	else:
-	    storage_class = ""
         if storage_class:
             self.put("%s " % storage_class)
-        #if visibility == 'extern' or visibility == 'public' and not definition:
-        #	self.put("%s " % Naming.extern_c_macro)
-        #elif static and visibility <> 'public':
-        #	self.put("static ")
         if visibility <> 'public':
             dll_linkage = None
         self.put(entry.type.declaration_code(entry.cname,
@@ -209,10 +212,6 @@ class CCodeWriter:
     
     def as_pyobject(self, cname, type):
         return typecast(py_object_type, type, cname)
-        #if type.is_extension_type and type.base_type:
-        #	return "(PyObject *)" + cname
-        #else:
-        #	return cname
     
     def put_incref(self, cname, type):
         self.putln("Py_INCREF(%s);" % self.as_pyobject(cname, type))
@@ -257,12 +256,13 @@ class CCodeWriter:
             self.putln("Py_XDECREF(%s); %s = 0;" % (
                 self.entry_as_pyobject(entry), entry.cname))
     
-    def put_var_decrefs(self, entries):
+    def put_var_decrefs(self, entries, used_only = 0):
         for entry in entries:
-            if entry.xdecref_cleanup:
-                self.put_var_xdecref(entry)
-            else:
-                self.put_var_decref(entry)
+            if not used_only or entry.used:
+                if entry.xdecref_cleanup:
+                    self.put_var_xdecref(entry)
+                else:
+                    self.put_var_decref(entry)
     
     def put_var_xdecrefs(self, entries):
         for entry in entries:
@@ -295,13 +295,15 @@ class CCodeWriter:
                 term))
     
     def error_goto(self, pos):
+        lbl = self.error_label
+        self.use_label(lbl)
         return "{%s = %s[%s]; %s = %s; goto %s;}" % (
             Naming.filename_cname,
             Naming.filetable_cname,
             self.lookup_filename(pos[0]),
             Naming.lineno_cname,
             pos[1],
-            self.error_label)
+            lbl)
     
     def lookup_filename(self, filename):
         try:
