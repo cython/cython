@@ -1587,24 +1587,26 @@ class InPlaceAssignmentNode(AssignmentNode):
     
     def analyse_declarations(self, env):
         self.lhs.analyse_target_declaration(env)
-    
-    def analyse_expressions_1(self, env, use_temp = 0):
+        
+    def analyse_types(self, env):
         import ExprNodes
-        self.create_dup_node(env) # re-assigns lhs to a shallow copy
+        self.dup = self.create_dup_node(env) # re-assigns lhs to a shallow copy
         self.rhs.analyse_types(env)
         self.lhs.analyse_target_types(env)
+        
+    def allocate_rhs_temps(self, env):
         if self.lhs.type.is_pyobject or self.rhs.type.is_pyobject:
             self.rhs = self.rhs.coerce_to(self.lhs.type, env)
         if self.lhs.type.is_pyobject:
              self.result = ExprNodes.PyTempNode(self.pos, env)
              self.result.allocate_temps(env)
-        if use_temp:
-            self.rhs = self.rhs.coerce_to_temp(env)
+#        if use_temp:
+#            self.rhs = self.rhs.coerce_to_temp(env)
         self.rhs.allocate_temps(env)
         self.dup.allocate_subexpr_temps(env)
         self.dup.allocate_temp(env)
     
-    def analyse_expressions_2(self, env):
+    def allocate_lhs_temps(self, env):
         self.lhs.allocate_target_temps(env)
         self.lhs.release_target_temp(env)
         self.dup.release_temp(env)
@@ -1648,6 +1650,7 @@ class InPlaceAssignmentNode(AssignmentNode):
         elif isinstance(self.lhs, ExprNodes.IndexNode):
             target_lhs = ExprNodes.IndexNode(self.dup.pos, base = ExprNodes.CloneNode(self.dup.base), index = ExprNodes.CloneNode(self.lhs.index), is_temp = self.dup.is_temp)
         self.lhs = target_lhs
+        return self.dup
     
     def py_operation_function(self):
         return self.py_functions[self.operator]
