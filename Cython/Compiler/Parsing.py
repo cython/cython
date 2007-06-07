@@ -8,6 +8,7 @@ from types import ListType, TupleType
 from Scanning import PyrexScanner
 import Nodes
 import ExprNodes
+from ModuleNode import ModuleNode
 from Errors import error, InternalError
 
 def p_ident(s, message = "Expected an identifier"):
@@ -413,13 +414,7 @@ def p_atom(s):
     elif sy == '`':
         return p_backquote_expr(s)
     elif sy == 'INT':
-        digits = s.systring
-        if digits[:2] == "0x":
-            value = long(digits[2:], 16)
-        elif digits[:1] == "0":
-            value = int(digits, 8)
-        else:
-            value = int(s.systring)
+        value = s.systring
         s.next()
         return ExprNodes.IntNode(pos, value = value)
     elif sy == 'LONG':
@@ -517,7 +512,7 @@ def p_string_literal(s):
                 elif c == '\n':
                     pass
                 else:
-                    chars.append(systr[1:])
+                    chars.append(r'\\' + systr[1:])
         elif sy == 'NEWLINE':
             chars.append(r'\n')
         elif sy == 'END_STRING':
@@ -668,7 +663,6 @@ def p_expression_or_assignment(s):
         if len(nodes) == 1:
             return nodes[0]
         else:
-            #return Nodes.StatListNode(nodes[0].pos, stats = nodes)
             return Nodes.ParallelAssignmentNode(nodes[0].pos, stats = nodes)
 
 def flatten_parallel_assignments(input, output):
@@ -1375,19 +1369,19 @@ def p_exception_value_clause(s):
             if s.sy == '?':
                 exc_check = 1
                 s.next()
-            exc_val = p_exception_value(s)
+            exc_val = p_simple_expr(s) #p_exception_value(s)
     return exc_val, exc_check
 
-def p_exception_value(s):
-    sign = ""
-    if s.sy == "-":
-        sign = "-"
-        s.next()
-    if s.sy in ('INT', 'LONG', 'FLOAT', 'NULL'):
-        s.systring = sign + s.systring
-        return p_atom(s)
-    else:
-        s.error("Exception value must be an int or float literal or NULL")
+#def p_exception_value(s):
+#	sign = ""
+#	if s.sy == "-":
+#		sign = "-"
+#		s.next()
+#	if s.sy in ('INT', 'LONG', 'FLOAT', 'NULL'):
+#		s.systring = sign + s.systring
+#		return p_atom(s)
+#	else:
+#		s.error("Exception value must be an int or float literal or NULL")
 
 c_arg_list_terminators = ('*', '**', '.', ')')
 c_arg_list_trailers = ('.', '*', '**')
@@ -1780,7 +1774,7 @@ def p_module(s, pxd):
     if s.sy <> 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
             repr(s.sy), repr(s.systring)))
-    return Nodes.ModuleNode(pos, doc = doc, body = body)
+    return ModuleNode(pos, doc = doc, body = body)
 
 #----------------------------------------------
 #

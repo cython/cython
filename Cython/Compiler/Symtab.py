@@ -61,6 +61,7 @@ class Entry:
     # interned_cname   string     C name of interned name string
     # pystring_cname   string     C name of Python version of string literal
     # is_interned      boolean    For string const entries, value is interned
+    # used             boolean
 
     borrowed = 0
     init = ""
@@ -91,6 +92,7 @@ class Entry:
     interned_cname = None
     pystring_cname = None
     is_interned = 0
+    used = 0
     
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -351,6 +353,7 @@ class Scope:
         # Add an entry for a string constant.
         cname = self.new_const_cname()
         entry = Entry("", cname, c_char_array_type, init = value)
+        entry.used = 1
         self.const_entries.append(entry)
         return entry
     
@@ -395,6 +398,7 @@ class Scope:
         self.temp_counter = n + 1
         cname = "%s%d" % (Naming.pyrex_prefix, n)
         entry = Entry("", cname, type)
+        entry.used = 1
         if type.is_pyobject:
             entry.init = "0"
         self.cname_to_entry[entry.cname] = entry
@@ -476,6 +480,7 @@ class ModuleScope(Scope):
     # intern_map           {string : string}  Mapping from Python names to interned strs
     # interned_names       [string]           Interned names pending generation of declarations
     # all_pystring_entries [Entry]            Python string consts from all scopes
+    # types_imported       {PyrexType : 1}    Set of types for which import code generated
 
     def __init__(self, name, parent_module, context):
         self.parent_module = parent_module
@@ -500,6 +505,7 @@ class ModuleScope(Scope):
         self.intern_map = {}
         self.interned_names = []
         self.all_pystring_entries = []
+        self.types_imported = {}
     
     def qualifying_scope(self):
         return self.parent_module
@@ -565,6 +571,8 @@ class ModuleScope(Scope):
         # None if previously declared as something else.
         entry = self.lookup_here(name)
         if entry:
+            if entry.is_pyglobal and entry.as_module is scope:
+                return entry # Already declared as the same module
             if not (entry.is_pyglobal and not entry.as_module):
                 error(pos, "'%s' redeclared" % name)
                 return None
@@ -956,6 +964,8 @@ class CClassScope(ClassScope):
         if visibility in ('public', 'readonly'):
             if type.pymemberdef_typecode:
                 self.public_attr_entries.append(entry)
+                if name == "__weakref__":
+                    error(pos, "Special attribute __weakref__ cannot be exposed to Python")
             else:
                 error(pos,
                     "C attribute of type '%s' cannot be accessed from Python" % type)

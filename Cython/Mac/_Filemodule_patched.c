@@ -108,6 +108,15 @@ PyMac_BuildHFSUniStr255(HFSUniStr255 *itself)
 
 static PyObject *File_Error;
 
+static PyTypeObject FInfo_Type;
+
+#define FInfo_Check(x) ((x)->ob_type == &FInfo_Type || PyObject_TypeCheck((x), &FInfo_Type))
+
+typedef struct FInfoObject {
+	PyObject_HEAD
+	FInfo ob_itself;
+} FInfoObject;
+
 /* ------------------- Object type FSCatalogInfo -------------------- */
 
 static PyTypeObject FSCatalogInfo_Type;
@@ -338,16 +347,16 @@ static int FSCatalogInfo_set_userPrivileges(FSCatalogInfoObject *self, PyObject 
 
 static PyObject *FSCatalogInfo_get_finderInfo(FSCatalogInfoObject *self, void *closure)
 {
-	return FInfo_New((FInfo *)self->finderInfo);
+	return FInfo_New((FInfo *)self->ob_itself.finderInfo);
 }
 
 static int FSCatalogInfo_set_finderInfo(FSCatalogInfoObject *self, PyObject *v, void *closure)
 {
 	if (!FInfo_Check(v)) {
-		PyErr_SetString(PyTypeError, "Expected an FInfo object");
+		PyErr_SetString(PyExc_TypeError, "Expected an FInfo object");
 		return -1;
 	}
-	*(FInfo *)self->finderInfo = ((FInfoObject *)self)->ob_itself;
+	*(FInfo *)self->ob_itself.finderInfo = ((FInfoObject *)v)->ob_itself;
 	return 0;
 }
 
@@ -484,15 +493,6 @@ static PyTypeObject FSCatalogInfo_Type = {
 
 
 /* ----------------------- Object type FInfo ------------------------ */
-
-static PyTypeObject FInfo_Type;
-
-#define FInfo_Check(x) ((x)->ob_type == &FInfo_Type || PyObject_TypeCheck((x), &FInfo_Type))
-
-typedef struct FInfoObject {
-	PyObject_HEAD
-	FInfo ob_itself;
-} FInfoObject;
 
 static PyObject *FInfo_New(FInfo *itself)
 {
@@ -3247,8 +3247,8 @@ PyMac_GetFSRef(PyObject *v, FSRef *fsr)
 	if ( PyString_Check(v) || PyUnicode_Check(v)) {
 		char *path = NULL;
 		if (!PyArg_Parse(v, "et", Py_FileSystemDefaultEncoding, &path))
-			return NULL;
-		if ( (err=FSPathMakeRef(path, fsr, NULL)) ) {
+			return 0;
+		if ( (err=FSPathMakeRef((unsigned char *)path, fsr, NULL)) ) {
 			PyMac_Error(err);
 			return 0;
 		}

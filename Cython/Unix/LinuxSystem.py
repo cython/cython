@@ -1,5 +1,5 @@
 #
-#   Pyrex - Darwin system interface
+#   Pyrex - Linux system interface
 #
 
 verbose = 0
@@ -11,8 +11,9 @@ import os
 from Pyrex.Utils import replace_suffix
 from Pyrex.Compiler.Errors import PyrexError
 
+version = "%s.%s" % sys.version[:2]
 py_include_dirs = [
-    "/Library/Frameworks/Python.framework/Headers"
+    "%s/include/python%s" % (sys.prefix, version)
 ]
 
 compilers = ["gcc", "g++"]
@@ -30,7 +31,7 @@ if gcc_all_warnings:
 
 linkers = ["gcc", "g++"]
 linker_options = \
-    "-Wl,-F.,-w -bundle -framework Python" \
+    "-shared" \
     .split()
 
 class CCompilerError(PyrexError):
