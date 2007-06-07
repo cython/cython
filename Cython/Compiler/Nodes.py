@@ -115,6 +115,14 @@ class BlockNode:
                 code.putln(
                     "static PyObject *%s;" % entry.pystring_cname)
 
+    def generate_cached_builtins_decls(self, env, code):
+        entries = env.builtin_scope().undeclared_cached_entries
+        if len(entries) > 0:
+            code.putln("")
+        for entry in entries:
+            code.putln("static PyObject *%s;" % entry.cname)
+        del entries[:]
+
 
 class StatListNode(Node):
     # stats     a list of StatNode
