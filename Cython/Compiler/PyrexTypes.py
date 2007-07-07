@@ -618,6 +618,15 @@ class CStructOrUnionType(CType):
                 base = "%s %s" % (self.kind, self.cname)
             return "%s %s" % (public_decl(base, dll_linkage), entity_code)
 
+    def __cmp__(self, other):
+        try:
+            if self.name == other.name:
+                return 0
+            else:
+                return 1
+        except AttributeError:
+            return 1
+
     def is_complete(self):
         return self.scope is not None
     
