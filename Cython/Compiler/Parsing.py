@@ -1503,7 +1503,7 @@ def p_c_arg_list(s, in_pyfunc, cmethod_flag = 0):
         args.append(p_c_arg_decl(s, in_pyfunc, cmethod_flag))
         while s.sy == ',':
             s.next()
-            if s.sy in c_arg_list_trailers:
+            if s.sy in c_arg_list_terminators:
                 break
             args.append(p_c_arg_decl(s, in_pyfunc))
     return args
