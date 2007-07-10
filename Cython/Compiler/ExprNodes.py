@@ -1878,6 +1878,27 @@ class SequenceNode(ExprNode):
     
     def generate_assignment_code(self, rhs, code):
         code.putln(
+            "if (PyTuple_CheckExact(%s) && PyTuple_GET_SIZE(%s) == %s) {" % (
+                rhs.py_result(), 
+                rhs.py_result(), 
+                len(self.args)))
+        for i in range(len(self.args)):
+            item = self.unpacked_items[i]
+            code.putln(
+                "%s = PyTuple_GET_ITEM(%s, %s);" % (
+                    item.result_code,
+                    rhs.py_result(),
+                    i))
+            code.put_incref(item.result_code, item.ctype())
+            value_node = self.coerced_unpacked_items[i]
+            value_node.generate_evaluation_code(code)
+            self.args[i].generate_assignment_code(value_node, code)
+            
+        rhs.generate_disposal_code(code)
+        code.putln("}")
+        code.putln("else {")
+
+        code.putln(
             "%s = PyObject_GetIter(%s); if (!%s) %s" % (
                 self.iterator.result_code,
                 rhs.py_result(),
@@ -1903,8 +1924,10 @@ class SequenceNode(ExprNode):
                 code.error_goto(self.pos)))
         if debug_disposal_code:
             print "UnpackNode.generate_assignment_code:"
-            print "...generating disposal code for", rhs
+            print "...generating disposal code for", iterator
         self.iterator.generate_disposal_code(code)
+
+        code.putln("}")
 
 
 class TupleNode(SequenceNode):
