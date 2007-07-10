@@ -155,6 +155,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         #	code.putln('#include "%s"' % filename)
         code.putln('')
         code.put(Nodes.utility_function_predeclarations)
+        code.put(Nodes.branch_prediction_macros)
         #if Options.intern_names:
         #	code.putln(Nodes.get_name_interned_predeclaration)
         #else:
@@ -1207,13 +1208,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             objstruct = type.objstruct_cname
         else:
             objstruct = "struct %s" % type.objstruct_cname
-        code.putln('%s = __Pyx_ImportType("%s", "%s", sizeof(%s)); if (!%s) %s' % (
+        code.putln('%s = __Pyx_ImportType("%s", "%s", sizeof(%s)); %s' % (
             type.typeptr_cname,
             type.module_name, 
             type.name,
             objstruct,
-            type.typeptr_cname,
-            code.error_goto(pos)))
+            code.error_goto_if_null(type.typeptr_cname, pos)))
         self.use_type_import_utility_code(env)
         if type.vtabptr_cname:
             code.putln(

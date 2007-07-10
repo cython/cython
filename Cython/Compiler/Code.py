@@ -3,6 +3,7 @@
 #
 
 import Naming
+import Options
 from Pyrex.Utils import open_new_file
 from PyrexTypes import py_object_type, typecast
 
@@ -294,6 +295,10 @@ class CCodeWriter:
                 doc_code,
                 term))
     
+    def put_error_if_neg(self, pos, value):
+#        return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))  # TODO this path is almost _never_ taken, yet this macro makes is slower!
+        return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
+
     def error_goto(self, pos):
         lbl = self.error_label
         self.use_label(lbl)
@@ -304,6 +309,21 @@ class CCodeWriter:
             Naming.lineno_cname,
             pos[1],
             lbl)
+            
+    def error_goto_if(self, cond, pos):
+        if Options.gcc_branch_hints or 0: # TODO this path is almost _never_ taken, yet this macro makes is slower!
+            return "if (unlikely(%s)) %s" % (cond, self.error_goto(pos))
+        else:
+            return "if (%s) %s" % (cond, self.error_goto(pos))
+            
+    def error_goto_if_null(self, cname, pos):
+        return self.error_goto_if("!%s" % cname, pos)
+    
+    def error_goto_if_neg(self, cname, pos):
+        return self.error_goto_if("%s < 0" % cname, pos)
+    
+    def error_goto_if_PyErr(self, pos):
+        return self.error_goto_if("PyErr_Occurred()", pos)
     
     def lookup_filename(self, filename):
         try:

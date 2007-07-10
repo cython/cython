@@ -744,7 +744,7 @@ class CFuncDefNode(FuncDefNode):
             typeptr_cname = arg.type.typeptr_cname
             arg_code = "((PyObject *)%s)" % arg.cname
             code.putln(
-                'if (!__Pyx_ArgTypeTest(%s, %s, %d, "%s")) %s' % (
+                'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, "%s"))) %s' % (
                     arg_code, 
                     typeptr_cname,
                     not arg.not_none,
@@ -1029,7 +1029,7 @@ class DefNode(FuncDefNode):
                     Naming.kwdlist_cname] + arg_addrs
             pt_argstring = string.join(pt_arglist, ", ")
             code.put(
-                'if (!PyArg_ParseTupleAndKeywords(%s)) ' %
+                'if (unlikely(!PyArg_ParseTupleAndKeywords(%s))) ' %
                     pt_argstring)
             error_return_code = "return %s;" % self.error_value()
             if has_starargs:
@@ -1102,11 +1102,11 @@ class DefNode(FuncDefNode):
         new_type = arg.type
         func = new_type.from_py_function
         if func:
-            code.putln("%s = %s(%s); if (PyErr_Occurred()) %s" % (
+            code.putln("%s = %s(%s); %s" % (
                 arg.entry.cname,
                 func,
                 arg.hdr_cname,
-                code.error_goto(arg.pos)))
+                code.error_goto_if_PyErr(arg.pos)))
         else:
             error(arg.pos, 
                 "Cannot convert Python object argument to type '%s'" 
@@ -1116,12 +1116,11 @@ class DefNode(FuncDefNode):
         old_type = arg.hdr_type
         func = old_type.to_py_function
         if func:
-            code.putln("%s = %s(%s); if (!%s) %s" % (
+            code.putln("%s = %s(%s); %s" % (
                 arg.entry.cname,
                 func,
                 arg.hdr_cname,
-                arg.entry.cname,
-                code.error_goto(arg.pos)))
+                code.error_goto_if_null(arg.entry.cname, arg.pos)))
         else:
             error(arg.pos,
                 "Cannot convert argument of type '%s' to Python object"
@@ -1141,7 +1140,7 @@ class DefNode(FuncDefNode):
             typeptr_cname = arg.type.typeptr_cname
             arg_code = "((PyObject *)%s)" % arg.entry.cname
             code.putln(
-                'if (!__Pyx_ArgTypeTest(%s, %s, %d, "%s")) %s' % (
+                'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, "%s"))) %s' % (
                     arg_code, 
                     typeptr_cname,
                     not arg.not_none,
@@ -1623,13 +1622,12 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.dup.generate_result_code(code)
         if self.lhs.type.is_pyobject:
             code.putln(
-                "%s = %s(%s, %s); if (!%s) %s" % (
+                "%s = %s(%s, %s); %s" % (
                     self.result.result_code, 
                     self.py_operation_function(), 
                     self.dup.py_result(),
                     self.rhs.py_result(),
-                    self.result.py_result(),
-                    code.error_goto(self.pos)))
+                    code.error_goto_if_null(self.result.py_result(), self.pos)))
             self.rhs.generate_disposal_code(code)
             self.dup.generate_disposal_code(code)
             self.lhs.generate_assignment_code(self.result, code)
@@ -1910,7 +1908,7 @@ class AssertStatNode(StatNode):
         if self.value:
             self.value.generate_evaluation_code(code)
         code.putln(
-            "if (!%s) {" %
+            "if (unlikely(!%s)) {" %
                 self.cond.result_code)
         if self.value:
             code.putln(
@@ -2563,22 +2561,20 @@ class FromImportStatNode(StatNode):
         if Options.intern_names:
             for cname, target in self.interned_items:
                 code.putln(
-                    '%s = PyObject_GetAttr(%s, %s); if (!%s) %s' % (
+                    '%s = PyObject_GetAttr(%s, %s); %s' % (
                         self.item.result_code, 
                         self.module.py_result(),
                         cname,
-                        self.item.result_code,
-                        code.error_goto(self.pos)))
+                        code.error_goto_if_null(self.item.result_code, self.pos)))
                 target.generate_assignment_code(self.item, code)
         else:
             for name, target in self.items:
                 code.putln(
-                    '%s = PyObject_GetAttrString(%s, "%s"); if (!%s) %s' % (
+                    '%s = PyObject_GetAttrString(%s, "%s"); %s' % (
                         self.item.result_code, 
                         self.module.py_result(),
                         name,
-                        self.item.result_code,
-                        code.error_goto(self.pos)))
+                        code.error_goto_if_null(self.item.result_code, self.pos)))
                 target.generate_assignment_code(self.item, code)
         self.module.generate_disposal_code(code)
 
@@ -2600,7 +2596,20 @@ static inline int __Pyx_PyObject_IsTrue(PyObject* x) {
    else return PyObject_IsTrue(x);
 }
 
-"""
+""" 
+
+if Options.gcc_branch_hints:
+    branch_prediction_macros = \
+    """
+#define likely(x)   __builtin_expect(!!(x), 1)
+#define unlikely(x) __builtin_expect(!!(x), 0)
+    """
+else:
+    branch_prediction_macros = \
+    """
+#define likely(x)   (x)
+#define unlikely(x) (x)
+    """
 
 #get_name_predeclaration = \
 #"static PyObject *__Pyx_GetName(PyObject *dict, char *name); /*proto*/"
