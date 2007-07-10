@@ -719,7 +719,10 @@ class NameNode(AtomicExprNode):
         #	self.type = self.type.element_ptr_type()
         if entry.is_pyglobal or entry.is_builtin:
             assert self.type.is_pyobject, "Python global or builtin not a Python object"
-            self.is_temp = 1
+            if Options.cache_builtins and entry.is_builtin:
+                self.is_temp = 0
+            else:
+                self.is_temp = 1
             if Options.intern_names:
                 env.use_utility_code(get_name_interned_utility_code)
             else:
@@ -755,12 +758,12 @@ class NameNode(AtomicExprNode):
     
     def check_const(self):
         entry = self.entry
-        if not (entry.is_const or entry.is_cfunction):
+        if not (entry.is_const or entry.is_cfunction or entry.is_builtin):
             self.not_const()
     
     def check_const_addr(self):
         entry = self.entry
-        if not (entry.is_cglobal or entry.is_cfunction):
+        if not (entry.is_cglobal or entry.is_cfunction or entry.is_builtin):
             self.addr_not_const()
 
     def is_lvalue(self):
@@ -3405,7 +3408,6 @@ static void __Pyx_UnpackError(void) {
     PyErr_SetString(PyExc_ValueError, "unpack sequence of wrong size");
 }
 
-static PyObject *__Pyx_UnpackItem(PyObject *seq, Py_ssize_t i) {
 static PyObject *__Pyx_UnpackItem(PyObject *iter) {
     PyObject *item;
     if (!(item = PyIter_Next(iter))) {
@@ -3413,8 +3415,8 @@ static PyObject *__Pyx_UnpackItem(PyObject *iter) {
             __Pyx_UnpackError();
     }
     return item;
+}
 
-static int __Pyx_EndUnpack(PyObject *seq, Py_ssize_t i) {
 static int __Pyx_EndUnpack(PyObject *iter) {
     PyObject *item;
     if ((item = PyIter_Next(iter))) {
@@ -3426,6 +3428,7 @@ static int __Pyx_EndUnpack(PyObject *iter) {
         return 0;
     else
         return -1;
+}
 """]
 
 #------------------------------------------------------------------------------------

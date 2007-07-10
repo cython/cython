@@ -2,7 +2,7 @@
 #   Pyrex - Parse tree nodes
 #
 
-import string, sys
+import string, sys, os, time
 
 import Code
 from Errors import error, warning, InternalError
@@ -218,6 +218,7 @@ class CNameDeclaratorNode(CDeclaratorNode):
     def analyse_expressions(self, env):
         self.entry = env.lookup(self.name)
         if self.rhs is not None:
+            self.entry.used = 1
             if self.type.is_pyobject:
                 self.entry.init_to_none = False
                 self.entry.init = 0
@@ -741,7 +742,7 @@ class CFuncDefNode(FuncDefNode):
         # Generate type test for one argument.
         if arg.type.typeobj_is_available():
             typeptr_cname = arg.type.typeptr_cname
-            arg_code = "((PyObject *)%s)" % arg.entry.cname
+            arg_code = "((PyObject *)%s)" % arg.cname
             code.putln(
                 'if (!__Pyx_ArgTypeTest(%s, %s, %d, "%s")) %s' % (
                     arg_code, 
@@ -1589,12 +1590,12 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.lhs.analyse_target_declaration(env)
         
     def analyse_types(self, env):
-        import ExprNodes
         self.dup = self.create_dup_node(env) # re-assigns lhs to a shallow copy
         self.rhs.analyse_types(env)
         self.lhs.analyse_target_types(env)
         
     def allocate_rhs_temps(self, env):
+        import ExprNodes
         if self.lhs.type.is_pyobject or self.rhs.type.is_pyobject:
             self.rhs = self.rhs.coerce_to(self.lhs.type, env)
         if self.lhs.type.is_pyobject:
@@ -1607,12 +1608,12 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.dup.allocate_temp(env)
     
     def allocate_lhs_temps(self, env):
-        self.lhs.allocate_target_temps(env)
-        self.lhs.release_target_temp(env)
+        self.lhs.allocate_target_temps(env, self.rhs)
+#        self.lhs.release_target_temp(env)
         self.dup.release_temp(env)
         if self.dup.is_temp:
             self.dup.release_subexpr_temps(env)
-        self.rhs.release_temp(env)
+#        self.rhs.release_temp(env)
         if self.lhs.type.is_pyobject:
             self.result.release_temp(env)
 
@@ -2592,8 +2593,13 @@ utility_function_predeclarations = \
 typedef struct {PyObject **p; char *s;} __Pyx_InternTabEntry; /*proto*/
 typedef struct {PyObject **p; char *s; long n;} __Pyx_StringTabEntry; /*proto*/
 
-#DEFINE __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
-#DEFINE __Pyx_PyObject_IsTrue(x) ({PyObject *_x = (x); _x == Py_True ? 1 : (_x) == Py_False ? 0 : PyObject_IsTrue(_x)})
+#define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
+static inline int __Pyx_PyObject_IsTrue(PyObject* x) {
+   if (x == Py_True) return 1;
+   else if (x == Py_False) return 0;
+   else return PyObject_IsTrue(x);
+}
+
 """
 
 #get_name_predeclaration = \
@@ -2630,7 +2636,7 @@ static int __Pyx_PrintItem(PyObject *v) {
         return -1;
     if (PyString_Check(v)) {
         char *s = PyString_AsString(v);
-        Py_ssize_t len = PyString_Size(v);
+        int len = PyString_Size(v);
         if (len > 0 &&
             isspace(Py_CHARMASK(s[len-1])) &&
             s[len-1] != ' ')
@@ -2685,9 +2691,11 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
         Py_INCREF(type);
         Py_DECREF(tmp);
     }
-    if (PyString_Check(type))
-        ;
-/*    else if (PyClass_Check(type)) */
+    if (PyString_Check(type)) {
+        if (PyErr_Warn(PyExc_DeprecationWarning,
+                "raising a string exception is deprecated"))
+            goto raise_error;
+    }
     else if (PyType_Check(type) || PyClass_Check(type))
         ; /*PyErr_NormalizeException(&type, &value, &tb);*/
     else {
@@ -2706,12 +2714,10 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
             type = (PyObject*) type->ob_type;
         Py_INCREF(type);
     }
-    if (PyString_Check(type)) {
-        if (PyErr_Warn(PyExc_DeprecationWarning,
-                "raising a string exception is deprecated"))
-            goto raise_error;
-    }
-    else if (PyType_Check(type) || PyClass_Check(type))
+    PyErr_Restore(type, value, tb);
+    return;
+raise_error:
+    Py_XDECREF(value);
     Py_XDECREF(type);
     Py_XDECREF(tb);
     return;
@@ -2779,7 +2785,7 @@ static int __Pyx_GetStarArgs(
     PyObject **args, 
     PyObject **kwds,
     char *kwd_list[], 
-    Py_ssize_t nargs,
+    int nargs,
     PyObject **args2, 
     PyObject **kwds2)
 {
@@ -2839,8 +2845,12 @@ static int __Pyx_GetStarArgs(
 bad:
     Py_XDECREF(args1);
     Py_XDECREF(kwds1);
-    Py_XDECREF(*args2);
-    Py_XDECREF(*kwds2);
+    if (*args2) {
+        Py_XDECREF(*args2);
+    }
+    if (*kwds2) {
+        Py_XDECREF(*kwds2);
+    }
     return -1;
 }
 """]
@@ -2860,12 +2870,8 @@ static void __Pyx_WriteUnraisable(char *name) {
     if (!ctx)
         ctx = Py_None;
     PyErr_WriteUnraisable(ctx);
-    if (*args2) {
-        Py_XDECREF(*args2);
-    }
-    if (*kwds2) {
-        Py_XDECREF(*kwds2);
-    }
+}
+"""]
 
 #------------------------------------------------------------------------------------
 

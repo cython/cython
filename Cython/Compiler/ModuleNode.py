@@ -23,7 +23,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     
     def analyse_declarations(self, env):
         if Options.embed_pos_in_docstring:
-            env.doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
+            env.doc = 'File: %s (starting at line %s)'%Nodes.relative_position(self.pos)
             if not self.doc is None:
                 env.doc = env.doc + '\\n' + self.doc
         else:
@@ -459,7 +459,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.vtabptr_cname))
         for entry in py_attrs:
             if entry.name == "__weakref__":
-                code.putln("p->%s = NULL;" % entry.cname)
+                code.putln("p->%s = 0;" % entry.cname)
             else:
                 code.put_init_var_to_py_none(entry, "p->%s")
         entry = scope.lookup_here("__new__")
@@ -485,11 +485,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in scope.var_entries:
             if entry.type.is_pyobject and entry.name <> "__weakref__":
                 py_attrs.append(entry)
-        if py_attrs:
+        if py_attrs or scope.lookup_here("__weakref__"):
             self.generate_self_cast(scope, code)
         self.generate_usr_dealloc_call(scope, code)
         if scope.lookup_here("__weakref__"):
-            code.putln("PyObject_ClearWeakRefs(o);")
+            code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
         for entry in py_attrs:
             code.put_xdecref("p->%s" % entry.cname, entry.type)
         if base_type:
@@ -533,7 +533,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 % scope.mangle_internal("tp_traverse"))
         py_attrs = []
         for entry in scope.var_entries:
-            if entry.type.is_pyobject:
+            if entry.type.is_pyobject and entry.name != "__weakref__":
                 py_attrs.append(entry)
         if base_type or py_attrs:
             code.putln(
@@ -569,7 +569,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 % scope.mangle_internal("tp_clear"))
         py_attrs = []
         for entry in scope.var_entries:
-            if entry.type.is_pyobject:
+            if entry.type.is_pyobject and entry.name != "__weakref__":
                 py_attrs.append(entry)
         if py_attrs:
             self.generate_self_cast(scope, code)
@@ -596,7 +596,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
                 "PyObject *r;")
         code.putln(
-                "PyObject *x = PyInt_FromSsize(i); if(!x) return 0;")
+                "PyObject *x = PyInt_FromSsize_t(i); if(!x) return 0;")
         code.putln(
                 "r = o->ob_type->tp_as_mapping->mp_subscript(o, x);")
         code.putln(

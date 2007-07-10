@@ -1084,8 +1084,10 @@ class CClassScope(ClassScope):
             else:
                 if defining and entry.func_cname:
                     error(pos, "'%s' already defined" % name)
-                if type.narrower_c_signature_than(entry.type, as_cmethod = 1):
-                    entry.type = type
+                if type.same_c_signature_as(entry.type, as_cmethod = 1):
+                    pass
+#                if type.narrower_c_signature_than(entry.type, as_cmethod = 1):
+#                    entry.type = type
                 else:
                     error(pos, "Signature not compatible with previous declaration")
         else:
