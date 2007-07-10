@@ -1857,13 +1857,13 @@ class SequenceNode(ExprNode):
     
     def allocate_target_temps(self, env, rhs):
         self.iterator.allocate_temps(env)
-        if rhs:
-            rhs.release_temp(env)
         for arg, node in zip(self.args, self.coerced_unpacked_items):
             node.allocate_temps(env)
             arg.allocate_target_temps(env, node)
             #arg.release_target_temp(env)
             #node.release_temp(env)
+        if rhs:
+            rhs.release_temp(env)
         self.iterator.release_temp(env)
     
 #	def release_target_temp(self, env):
