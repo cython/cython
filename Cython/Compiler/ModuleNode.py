@@ -163,6 +163,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('')
         code.putln('static PyObject *%s;' % env.module_cname)
         code.putln('static PyObject *%s;' % Naming.builtins_cname)
+        if Options.pre_import is not None:
+            code.putln('static PyObject *%s;' % Naming.preimport_cname)
         code.putln('static int %s;' % Naming.lineno_cname)
         code.putln('static char *%s;' % Naming.filename_cname)
         code.putln('static char **%s;' % Naming.filetable_cname)
@@ -1122,6 +1124,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_cname,
                 Naming.builtins_cname,
                 code.error_goto(self.pos)))
+        if Options.pre_import is not None:
+            code.putln(
+                '%s = PyImport_AddModule("%s");' % (
+                    Naming.preimport_cname, 
+                    Options.pre_import))
+            code.putln(
+                "if (!%s) %s;" % (
+                    Naming.preimport_cname,
+                    code.error_goto(self.pos)));
     
     def generate_intern_code(self, env, code):
         if env.intern_map:

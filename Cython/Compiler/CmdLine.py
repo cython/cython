@@ -18,6 +18,9 @@ Options:
   -o, --output-file <filename>   Specify name of generated C file
   -p, --embed-positions          If specified, the positions in Pyrex files of each
                                  function definition is embedded in its docstring.
+  -z, --pre-import <module>      If specified, assume undeclared names in this 
+                                 module. Emulates the behavior of putting 
+                                 "from <module> import *" at the top of the file. 
 """  
 #The following experimental options are supported only on MacOSX:
 #  -C, --compile    Compile generated .c file to .o file
@@ -70,6 +73,8 @@ def parse_command_line(args):
                 options.output_file = pop_arg()
             elif option in ("-p", "--embed-positions"):
                 Options.embed_pos_in_docstring = 1
+            elif option in ("-z", "--pre-import"):
+                Options.pre_import = pop_arg()
             else:
                 bad_usage()
         else:

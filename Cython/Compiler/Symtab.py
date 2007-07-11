@@ -448,12 +448,27 @@ class Scope:
                 return 1
         return 0
 
+class PreImportScope(Scope):
+    def __init__(self):
+        Scope.__init__(self, Options.pre_import, None, None)
+        
+    def declare_builtin(self, name, pos):
+        entry = self.declare(name, name, py_object_type, pos)
+        entry.is_variable = True
+        entry.is_pyglobal = True
+        entry.namespace_cname = Naming.preimport_cname
+        return entry
+
 
 class BuiltinScope(Scope):
     #  The builtin namespace.
     
     def __init__(self):
-        Scope.__init__(self, "__builtin__", None, None)
+        if Options.pre_import is None:
+            Scope.__init__(self, "__builtin__", None, None)
+        else:
+            Scope.__init__(self, "__builtin__", PreImportScope(), None)
+        
         for name, definition in self.builtin_functions.iteritems():
             if len(definition) < 4: definition.append(None) # exception_value
             if len(definition) < 5: definition.append(False) # exception_check
@@ -468,7 +483,10 @@ class BuiltinScope(Scope):
         
     def declare_builtin(self, name, pos):
         if not hasattr(__builtin__, name):
-            error(pos, "undeclared name not builtin: %s"%name)
+            if self.outer_scope is not None:
+                return self.outer_scope.declare_builtin(name, pos)
+            else:
+                error(pos, "undeclared name not builtin: %s"%name)
         entry = self.declare(name, name, py_object_type, pos)
         if Options.cache_builtins:
             entry.is_builtin = 1

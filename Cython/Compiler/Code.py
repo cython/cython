@@ -311,7 +311,7 @@ class CCodeWriter:
             lbl)
             
     def error_goto_if(self, cond, pos):
-        if Options.gcc_branch_hints or 0: # TODO this path is almost _never_ taken, yet this macro makes is slower!
+        if Options.gcc_branch_hints:
             return "if (unlikely(%s)) %s" % (cond, self.error_goto(pos))
         else:
             return "if (%s) %s" % (cond, self.error_goto(pos))
