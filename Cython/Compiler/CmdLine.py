@@ -1,22 +1,23 @@
 #
-#   Pyrex - Command Line Parsing
+#   Cython - Command Line Parsing
 #
 
 import sys
 import Options
 
 usage = """\
-SageX is a minor variant of Pyrex for compiling code for SAGE.
+Cython (http://cython.org) is for compiling code written in the Cython
+language.  Cython is based on Pyrex by Greg Ewing. 
 
-Usage: sagexc [options] sourcefile...
+Usage: cython [options] sourcefile...
 
 Options:
-  -v, --version                  Display version number of pyrex compiler
+  -v, --version                  Display version number of cython compiler
   -l, --create-listing           Write error messages to a listing file
   -I, --include-dir <directory>  Search for include files in named directory
                                  (multiply include directories are allowed).
   -o, --output-file <filename>   Specify name of generated C file
-  -p, --embed-positions          If specified, the positions in Pyrex files of each
+  -p, --embed-positions          If specified, the positions in Cython files of each
                                  function definition is embedded in its docstring.
   -z, --pre-import <module>      If specified, assume undeclared names in this 
                                  module. Emulates the behavior of putting 
@@ -33,7 +34,7 @@ def bad_usage():
     sys.exit(1)
 
 def parse_command_line(args):
-    from Pyrex.Compiler.Main import \
+    from Cython.Compiler.Main import \
         CompilationOptions, default_options
 
     def pop_arg():
@@ -85,13 +86,13 @@ def parse_command_line(args):
                 options.objects.append(arg)
             else:
                 print >>sys.stderr, \
-                    "pyrexc: %s: Unknown filename suffix" % arg
+                    "cython: %s: Unknown filename suffix" % arg
     if options.objects and len(sources) > 1:
         print >>sys.stderr, \
-            "pyrexc: Only one source file allowed together with .o files"
+            "cython: Only one source file allowed together with .o files"
     if options.use_listing_file and len(sources) > 1:
         print >>sys.stderr, \
-            "pyrexc: Only one source file allowed when using -o"
+            "cython: Only one source file allowed when using -o"
         sys.exit(1)
     if len(sources) == 0:
         bad_usage()

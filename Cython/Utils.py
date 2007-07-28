@@ -1,5 +1,5 @@
 #
-#   Pyrex -- Things that don't belong
+#   Cython -- Things that don't belong
 #            anywhere else in particular
 #
 
