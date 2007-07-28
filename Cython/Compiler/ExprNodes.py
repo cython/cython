@@ -2478,6 +2478,10 @@ class NumBinopNode(BinopNode):
     def analyse_c_operation(self, env):
         type1 = self.operand1.type
         type2 = self.operand2.type
+        if type1.is_enum:
+            type1 = PyrexTypes.c_int_type
+        if type2.is_enum:
+            type2 = PyrexTypes.c_int_type
         self.type = self.compute_c_result_type(type1, type2)
         if not self.type:
             self.type_error()
