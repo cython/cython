@@ -52,5 +52,6 @@ retval_cname     = pyrex_prefix + "r"
 self_cname       = pyrex_prefix + "self"
 stringtab_cname  = pyrex_prefix + "string_tab"
 vtabslot_cname   = pyrex_prefix + "vtab"
+c_api_tab_cname  = pyrex_prefix + "c_api_tab"
 
 extern_c_macro  = pyrex_prefix.upper() + "EXTERN_C"

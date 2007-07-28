@@ -709,10 +709,12 @@ class CFuncDefNode(FuncDefNode):
             dll_linkage = None
         header = self.return_type.declaration_code(entity,
             dll_linkage = dll_linkage)
-        if self.visibility <> 'private':
+        if self.visibility == 'private':
+            storage_class = "static "
+        elif self.visibility == 'extern':
             storage_class = "%s " % Naming.extern_c_macro
         else:
-            storage_class = "static "
+            storage_class = ""
         code.putln("%s%s%s {" % (
             storage_class,
             self.modifiers, 
@@ -1904,6 +1906,7 @@ class AssertStatNode(StatNode):
         #env.recycle_pending_temps() # TEMPORARY
     
     def generate_execution_code(self, code):
+        code.putln("#ifndef PYREX_WITHOUT_ASSERTIONS")
         self.cond.generate_evaluation_code(code)
         if self.value:
             self.value.generate_evaluation_code(code)
@@ -1924,6 +1927,7 @@ class AssertStatNode(StatNode):
         self.cond.generate_disposal_code(code)
         if self.value:
             self.value.generate_disposal_code(code)
+        code.putln("#endif")
 
 
 class IfStatNode(StatNode):
@@ -2586,6 +2590,7 @@ class FromImportStatNode(StatNode):
 
 utility_function_predeclarations = \
 """
+typedef struct {const char *s; const void **p;} __Pyx_CApiTabEntry; /*proto*/
 typedef struct {PyObject **p; char *s;} __Pyx_InternTabEntry; /*proto*/
 typedef struct {PyObject **p; char *s; long n;} __Pyx_StringTabEntry; /*proto*/
 
@@ -3095,4 +3100,42 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
 }
 """]
 
+#------------------------------------------------------------------------------------
+
+c_api_import_code = [
+"""
+static int __Pyx_InitCApi(PyObject *module); /*proto*/
+static int __Pyx_ImportModuleCApi(__Pyx_CApiTabEntry *t); /*proto*/
+""","""
+static int __Pyx_ImportModuleCApi(__Pyx_CApiTabEntry *t) {
+    __Pyx_CApiTabEntry *api_t;
+    while (t->s) {
+        if (*t->s == '\\0')
+            continue; /* shortcut for erased string entries */
+        api_t = %(API_TAB)s;
+        while ((api_t->s) && (strcmp(api_t->s, t->s) < 0))
+            ++api_t;
+        if ((!api_t->p) || (strcmp(api_t->s, t->s) != 0)) {
+            PyErr_Format(PyExc_ValueError,
+                         "Unknown function name in C API: %%s", t->s);
+            return -1;
+        }
+        *t->p = api_t->p;
+        ++t;
+    }
+    return 0;
+}
+
+static int __Pyx_InitCApi(PyObject *module) {
+    int result;
+    PyObject* cobj = PyCObject_FromVoidPtr(&__Pyx_ImportModuleCApi, NULL);
+    if (!cobj)
+        return -1;
+
+    result = PyObject_SetAttrString(module, "_import_c_api", cobj);
+    Py_DECREF(cobj);
+    return result;
+}
+""" % {'API_TAB' : Naming.c_api_tab_cname}
+]
 #------------------------------------------------------------------------------------
