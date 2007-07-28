@@ -11,7 +11,7 @@ import PyrexTypes
 from PyrexTypes import py_object_type, error_type, CTypedefType
 from Symtab import ModuleScope, LocalScope, \
     StructOrUnionScope, PyClassScope, CClassScope
-from Pyrex.Utils import open_new_file, replace_suffix
+from Cython.Utils import open_new_file, replace_suffix
 import Options
 
 from DebugFlags import debug_disposal_code

@@ -11,8 +11,8 @@ import sys
 from time import time
 
 from Pyrex import Plex
-from Pyrex.Plex import Scanner
-from Pyrex.Plex.Errors import UnrecognizedInput
+from Cython.Plex import Scanner
+from Cython.Plex.Errors import UnrecognizedInput
 from Errors import CompileError, error
 from Lexicon import string_prefixes, make_lexicon
 

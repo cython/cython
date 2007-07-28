@@ -8,8 +8,8 @@ gcc_warnings_are_errors = True
 gcc_all_warnings = True
 
 import os
-from Pyrex.Utils import replace_suffix
-from Pyrex.Compiler.Errors import PyrexError
+from Cython.Utils import replace_suffix
+from Cython.Compiler.Errors import PyrexError
 
 version = "%s.%s" % sys.version[:2]
 py_include_dirs = [

@@ -8,8 +8,8 @@ gcc_warnings_are_errors = True
 gcc_all_warnings = True
 
 import os
-from Pyrex.Utils import replace_suffix
-from Pyrex.Compiler.Errors import PyrexError
+from Cython.Utils import replace_suffix
+from Cython.Compiler.Errors import PyrexError
 
 py_include_dirs = [
     "/Library/Frameworks/Python.framework/Headers"

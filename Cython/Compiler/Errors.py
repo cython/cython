@@ -3,7 +3,7 @@
 #
 
 import sys
-from Pyrex.Utils import open_new_file
+from Cython.Utils import open_new_file
 
 
 class PyrexError(Exception):

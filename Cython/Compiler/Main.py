@@ -16,7 +16,7 @@ from Errors import PyrexError, CompileError, error
 import Parsing
 from Symtab import BuiltinScope, ModuleScope
 import Code
-from Pyrex.Utils import replace_suffix
+from Cython.Utils import replace_suffix
 
 verbose = 0
 
@@ -325,10 +325,10 @@ default_options = CompilationOptions(
     output_file = None)
     
 if sys.platform == "mac":
-    from Pyrex.Mac.MacSystem import c_compile, c_link, CCompilerError
+    from Cython.Mac.MacSystem import c_compile, c_link, CCompilerError
     default_options.use_listing_file = 1
 elif sys.platform == "darwin":
-    from Pyrex.Mac.DarwinSystem import c_compile, c_link, CCompilerError
+    from Cython.Mac.DarwinSystem import c_compile, c_link, CCompilerError
 else:
     c_compile = None
     c_link = None

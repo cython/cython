@@ -12,7 +12,7 @@ from PyrexTypes import py_object_type, c_long_type, typecast
 import Symtab
 import Options
 
-from Pyrex.Debugging import print_call_chain
+from Cython.Debugging import print_call_chain
 from DebugFlags import debug_disposal_code, debug_temp_alloc, \
     debug_coercion
 

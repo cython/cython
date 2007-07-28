@@ -4,7 +4,7 @@
 
 import Naming
 import Options
-from Pyrex.Utils import open_new_file
+from Cython.Utils import open_new_file
 from PyrexTypes import py_object_type, typecast
 
 class CCodeWriter:

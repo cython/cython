@@ -7,9 +7,9 @@
 # Pyrex is (c) Greg Ewing.
 
 import distutils.command.build_ext
-#import Pyrex.Compiler.Main
-from Pyrex.Compiler.Main import CompilationOptions, default_options, compile
-from Pyrex.Compiler.Errors import PyrexError
+#import Cython.Compiler.Main
+from Cython.Compiler.Main import CompilationOptions, default_options, compile
+from Cython.Compiler.Errors import PyrexError
 from distutils.dep_util import newer
 import os
 import sys

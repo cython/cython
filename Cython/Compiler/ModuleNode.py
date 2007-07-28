@@ -15,7 +15,7 @@ import Version
 
 from Errors import error
 from PyrexTypes import py_object_type
-from Pyrex.Utils import open_new_file, replace_suffix
+from Cython.Utils import open_new_file, replace_suffix
 
 class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  doc       string or None

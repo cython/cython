@@ -6,8 +6,8 @@ import os, sys, string
 import aetools
 from aetools import TalkTo
 from StdSuites.Standard_Suite import Standard_Suite_Events as Standard_Suite
-from Pyrex.Utils import replace_suffix
-from Pyrex.Compiler.Errors import PyrexError
+from Cython.Utils import replace_suffix
+from Cython.Compiler.Errors import PyrexError
 
 c_compiler = "MWCPPC"
 c_optimizations = "off"

@@ -8,7 +8,7 @@
 string_prefixes = "cCrR"
 
 def make_lexicon():
-    from Pyrex.Plex import \
+    from Cython.Plex import \
         Str, Any, AnyBut, AnyChar, Rep, Rep1, Opt, Bol, Eol, Eof, \
         TEXT, IGNORE, State, Lexicon
     from Scanning import Method

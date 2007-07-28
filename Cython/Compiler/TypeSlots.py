@@ -179,7 +179,7 @@ class MethodSlot(SlotDescriptor):
 
 class InternalMethodSlot(SlotDescriptor):
     #  Type slot descriptor for a method which is always
-    #  synthesized by Pyrex.
+    #  synthesized by Cython.
     #
     #  slot_name    string           Member name of the slot in the type object
 
@@ -574,7 +574,7 @@ slot_table = (
 #
 #  Descriptors for special methods which don't appear directly
 #  in the type object or its substructures. These methods are
-#  called from slot functions synthesized by Pyrex.
+#  called from slot functions synthesized by Cython.
 #
 #------------------------------------------------------------------------------------------
 
