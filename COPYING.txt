@@ -8,4 +8,6 @@ Cython, which derives from Pyrex, is licensed under the Python
 Software Foundation License.  More precisely, all modifications 
 made to go from Pyrex to Cython are so licensed.
 
+See LICENSE.txt for more details.
+
  

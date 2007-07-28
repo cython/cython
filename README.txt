@@ -1,8 +1,8 @@
 Welcome to Cython!
 =================
 
-Cython (http://www.cython.org) is based on Pyrex, but 
-supports more cutting edge functionality and optimizations.
+Cython (http://www.cython.org) is based on Pyrex, but supports more
+cutting edge functionality and optimizations.
 
 LICENSE:
 
@@ -14,17 +14,24 @@ below).  Cython itself is licensed under the
 
 
 
-
-
 --------------------------
 
-To see the change history, go to the Pyrex directory and type 
+There are TWO mercurial (hg) repositories included with Cython:
+
+   * Various project files, documentation, etc. (in the top level directory)
+   * The main codebase itself (in Cython/)
+   
+We keep these separate for easier merging with the Pyrex project. 
+
+To see the change history for Cython code itself, go to the Cython
+directory and type 
 
  $ hg log
 
 This requires that you have installed Mercurial.
 
- -- William Stein (wstein@gmail.com)
+
+-- William Stein (wstein@gmail.com)
 
 xxxx
 

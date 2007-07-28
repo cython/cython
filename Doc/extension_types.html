@@ -31,7 +31,7 @@
   </ul>
    <h2> <a name="Introduction"></a>Introduction</h2>
   As well as creating normal user-defined classes with the Python <b>class</b>
-statement, Pyrex also lets you create new built-in Python types, known as 
+statement, Cython also lets you create new built-in Python types, known as 
 <i>extension types</i>. You define an extension type using the <b>cdef class</b> statement. Here's an example:  
 <blockquote><tt>cdef class Shrubbery:</tt>     <p><tt>&nbsp;&nbsp;&nbsp; cdef int width, height</tt> </p>
      <p><tt>&nbsp;&nbsp;&nbsp; def __init__(self, w, h):</tt> <br>
@@ -43,7 +43,7 @@ self.width, \</tt> <br>
    <tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
 "by", self.height, "cubits."</tt></p>
  </blockquote>
-  As you can see, a Pyrex extension type definition looks a lot like a Python
+  As you can see, a Cython extension type definition looks a lot like a Python
  class definition. Within it, you use the <b>def</b> statement to define
 methods that can be called from Python code. You can even define many of
 the special methods such as <tt>__init__</tt> as you would in Python.  
@@ -59,9 +59,9 @@ to an extension type instance at run time simply by assigning to them, as
 you could with a Python class instance. (You can subclass the extension type 
 in Python and add attributes to instances of the subclass, however.)  
 <p>There are two ways that attributes of an extension type can be accessed:
- by Python attribute lookup, or by direct access to the C struct from Pyrex
+ by Python attribute lookup, or by direct access to the C struct from Cython
  code. Python code is only able to access attributes of an extension type
-by the first method, but Pyrex code can use either method. </p>
+by the first method, but Cython code can use either method. </p>
  <p>By default, extension type attributes are only accessible by direct access, 
 not Python access, which means that they are not accessible from Python code. 
 To make them accessible from Python code, you need to declare them as <tt>public</tt> or <tt>readonly</tt>. For example, </p>
@@ -79,7 +79,7 @@ To make them accessible from Python code, you need to declare them as <tt>public
  <p>Note also that the <tt>public</tt> and <tt>readonly</tt> options apply
  only to <i>Python</i> access, not direct access. All the attributes of an 
 extension type are always readable and writable by direct access. </p>
- <p>Howerver, for direct access to be possible, the Pyrex compiler must know 
+ <p>Howerver, for direct access to be possible, the Cython compiler must know 
 that you have an instance of that type, and not just a generic Python object. 
 It knows this already in the case of the "self" parameter of the methods of
 that type, but in other cases you will have to tell it by means of a declaration. 
@@ -87,19 +87,19 @@ For example, </p>
  <blockquote><tt>cdef widen_shrubbery(Shrubbery sh, extra_width):</tt> <br>
    <tt>&nbsp;&nbsp;&nbsp; sh.width = sh.width + extra_width</tt></blockquote>
   If you attempt to access an extension type attribute through a generic
-object reference, Pyrex will use a Python attribute lookup. If the attribute
+object reference, Cython will use a Python attribute lookup. If the attribute
 is exposed for Python access (using <tt>public</tt> or <tt>readonly</tt>)
 then this will work, but it will be much slower than direct access.  
 <h2> <a name="NotNone"></a>Extension types and None</h2>
   When you declare a parameter or C variable as being of an extension type,
- Pyrex will allow it to take on the value None as well as values of its declared 
+ Cython will allow it to take on the value None as well as values of its declared 
 type. This is analogous to the way a C pointer can take on the value NULL, 
 and you need to exercise the same caution because of it. There is no problem 
 as long as you are performing Python operations on it, because full dynamic 
 type checking will be applied. However, when you access C attributes of an 
 extension type (as in the <tt>widen_shrubbery</tt> function above), it's up
 to you to make sure the reference you're using is not None -- in the interests 
-of efficiency, Pyrex does <i>not</i> check this.  
+of efficiency, Cython does <i>not</i> check this.  
 <p>You need to be particularly careful when exposing Python functions which
  take extension types as arguments. If we wanted to make <tt>widen_shrubbery</tt>
 a Python function, for example, if we simply wrote </p>
@@ -113,7 +113,7 @@ parameter.
    <tt>&nbsp;&nbsp;&nbsp; if sh is None:</tt> <br>
    <tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; raise TypeError</tt> <br>
    <tt>&nbsp;&nbsp;&nbsp; sh.width = sh.width + extra_width</tt></blockquote>
-  but since this is anticipated to be such a frequent requirement, Pyrex
+  but since this is anticipated to be such a frequent requirement, Cython
 provides a more convenient way. Parameters of a Python function declared
 as an extension type can have a <b><tt>not None</tt></b> clause:  
 <blockquote><tt>def widen_shrubbery(Shrubbery sh not None, extra_width):</tt>
@@ -223,14 +223,14 @@ type:
    <tt>&nbsp;&nbsp;&nbsp; ...</tt></p>
  </blockquote>
    <p><br>
- A complete definition of the base type must be available to Pyrex, so if 
+ A complete definition of the base type must be available to Cython, so if 
 the base type is a built-in type, it must have been previously declared as 
-an <b>extern</b> extension type. If the base type is defined in another Pyrex 
+an <b>extern</b> extension type. If the base type is defined in another Cython 
 module, it must either be declared as an extern extension type or imported 
 using the <b><a href="sharing.html">cimport</a></b> statement. </p>
  <p>An extension type can only have one base class (no multiple inheritance).
  </p>
- <p>Pyrex extension types can also be subclassed in Python. A Python class
+ <p>Cython extension types can also be subclassed in Python. A Python class
  can inherit from multiple extension types provided that the usual Python
 rules for multiple inheritance are followed (i.e. the C layouts of all the
 base classes must be compatible).<br>
@@ -316,18 +316,18 @@ type <span style="font-family: monospace;">object</span> called <span style="fon
 <h2><a name="PublicAndExtern"></a>Public and external extension types</h2>
 
   Extension types can be declared <b>extern</b> or <b>public</b>. An <a href="#ExternalExtTypes"><b>extern</b> extension type declaration</a> makes 
-an extension type defined in external C code available to a Pyrex module. 
-A <a href="#PublicExtensionTypes"><b>public</b> extension type declaration</a> makes an extension type defined in a Pyrex module available to external C 
+an extension type defined in external C code available to a Cython module. 
+A <a href="#PublicExtensionTypes"><b>public</b> extension type declaration</a> makes an extension type defined in a Cython module available to external C 
 code.  
 <h3> <a name="ExternalExtTypes"></a>External extension types</h3>
   An <b>extern</b> extension type allows you to gain access to the internals
- of Python objects defined in the Python core or in a non-Pyrex extension
+ of Python objects defined in the Python core or in a non-Cython extension
 module.  
-<blockquote><b>NOTE:</b> In Pyrex versions before 0.8, <b>extern</b> extension
- types were also used to reference extension types defined in another Pyrex
- module. While you can still do that, Pyrex 0.8 and later provides a better
+<blockquote><b>NOTE:</b> In Cython versions before 0.8, <b>extern</b> extension
+ types were also used to reference extension types defined in another Cython
+ module. While you can still do that, Cython 0.8 and later provides a better
  mechanism for this. See <a href="sharing.html">Sharing C Declarations Between
- Pyrex Modules</a>.</blockquote>
+ Cython Modules</a>.</blockquote>
   Here is an example which will let you get at the C-level members of the
 built-in <i>complex</i> object.  
 <blockquote><tt>cdef extern from "complexobject.h":</tt>     <p><tt>&nbsp;&nbsp;&nbsp; struct Py_complex:</tt> <br>
@@ -365,11 +365,11 @@ if your extension class declaration is inside a <i>cdef extern from</i> block,
   </ol>
    <h3> <a name="ImplicitImport"></a>Implicit importing</h3>
    <blockquote><font color="#ef1f1d">Backwards Incompatibility Note</font>:
-You will have to update any pre-0.8 Pyrex modules you have which use <b>extern</b>
+You will have to update any pre-0.8 Cython modules you have which use <b>extern</b>
 extension types. I apologise for this, but for complicated reasons it proved
  to be too difficult to continue supporting the old way of doing these while
  introducing the new features that I wanted.</blockquote>
-  Pyrex 0.8 and later requires you to include a module name in an extern
+  Cython 0.8 and later requires you to include a module name in an extern
 extension class declaration, for example,  
 <blockquote><tt>cdef extern class MyModule.Spam:</tt> <br>
    <tt>&nbsp;&nbsp;&nbsp; ...</tt></blockquote>
@@ -394,7 +394,7 @@ using an <b>as</b> clause, for example,
       <pre>from <tt>My.Nested.Package</tt> import <tt>Spam</tt> as <tt>Yummy</tt></pre>
   </ol>
    <h3> <a name="TypeVsConstructor"></a>Type names vs. constructor names</h3>
-  Inside a Pyrex module, the name of an extension type serves two distinct
+  Inside a Cython module, the name of an extension type serves two distinct
  purposes. When used in an expression, it refers to a module-level global
 variable holding the type's constructor (i.e. its type-object). However,
 it can also be used as a C type name to declare variables, arguments and
@@ -429,12 +429,12 @@ struct, and <i>type_object_name</i> is the name to assume for the type's
 statically declared type object. (The object and type clauses can be written
 in either order.)  
 <p>If the extension type declaration is inside a <b>cdef extern from</b>
-block, the <b>object</b> clause is required, because Pyrex must be able to
+block, the <b>object</b> clause is required, because Cython must be able to
 generate code that is compatible with the declarations in the header file.
 Otherwise, for <b>extern</b> extension types, the <b>object</b> clause is
 optional. </p>
  <p>For <b>public</b> extension types, the <b>object</b> and <b>type</b> clauses 
-are both required, because Pyrex must be able to generate code that is compatible 
+are both required, because Cython must be able to generate code that is compatible 
 with external C code. </p>
  <p> </p>
  <hr width="100%"> <br>

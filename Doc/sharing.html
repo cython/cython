@@ -1,14 +1,14 @@
 <!DOCTYPE doctype PUBLIC "-//w3c//dtd html 4.0 transitional//en">
 <html><head>
          <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-         <meta name="GENERATOR" content="Mozilla/4.61 (Macintosh; I; PPC) [Netscape]"><title>Sharing Declarations Between Pyrex Modules</title></head>
+         <meta name="GENERATOR" content="Mozilla/4.61 (Macintosh; I; PPC) [Netscape]"><title>Sharing Declarations Between Cython Modules</title></head>
 
 <body>
-   <h1>  <hr width="100%">Sharing Declarations Between Pyrex Modules  
+   <h1>  <hr width="100%">Sharing Declarations Between Cython Modules  
 <hr width="100%"></h1>
-  This section describes a new set of facilities introduced in Pyrex 0.8
-for making C declarations and extension types in one Pyrex module available
-for use in another Pyrex module. These facilities are closely modelled on
+  This section describes a new set of facilities introduced in Cython 0.8
+for making C declarations and extension types in one Cython module available
+for use in another Cython module. These facilities are closely modelled on
 the Python import mechanism, and can be thought of as a compile-time version 
 of it.  
 <h2> Contents</h2>
@@ -27,9 +27,9 @@ naming conflicts</a></li>
    <li> <a href="#SharingExtensionTypes">Sharing extension types</a></li>
   </ul>
    <h2> <a name="DefAndImpFiles"></a>Definition and Implementation files</h2>
-  A Pyrex module can be split into two parts: a <i>definition file</i> with
+  A Cython module can be split into two parts: a <i>definition file</i> with
  a <tt>.pxd</tt> suffix, containing C declarations that are to be available
- to other Pyrex modules, and an <i>implementation file</i> with a <tt>.pyx</tt>
+ to other Cython modules, and an <i>implementation file</i> with a <tt>.pyx</tt>
 suffix, containing everything else. When a module wants to use something
 declared in another module's definition file, it imports it using the <a href="#CImportStatement"><b>cimport</b> statement</a>.  
 <h3> <a name="WhatDefFileContains"></a>What a Definition File contains</h3>
@@ -44,11 +44,11 @@ declared in another module's definition file, it imports it using the <a href="#
 <p>It cannot contain the implementations of any C or Python functions, or 
 any Python class definitions, or any executable statements. </p>
  <blockquote>NOTE: You don't need to (and shouldn't) declare anything in a 
-declaration file <b>public</b> in order to make it available to other Pyrex 
+declaration file <b>public</b> in order to make it available to other Cython 
 modules; its mere presence in a definition file does that. You only need a
 public declaration if you want to make something available to external C code.</blockquote>
    <h3> <a name="WhatImpFileContains"></a>What an Implementation File contains</h3>
-  An implementation file can contain any kind of Pyrex statement, although
+  An implementation file can contain any kind of Cython statement, although
  there are some restrictions on the implementation part of an extension type 
 if the corresponding definition file also defines that type (see below).
  
@@ -101,7 +101,7 @@ name under which you imported it. Using <b>cimport</b> to import extension
 types is covered in more detail <a href="#SharingExtensionTypes">below</a>.
 </p>
  <h3> <a name="SearchPaths"></a>Search paths for definition files</h3>
-  When you <b>cimport</b> a module called <tt>modulename</tt>, the Pyrex
+  When you <b>cimport</b> a module called <tt>modulename</tt>, the Cython
 compiler searches for a file called <tt>modulename.pxd</tt> along the search
 path for include files, as specified by <b>-I</b> command line options.  
 <p>Also, whenever you compile a file <tt>modulename.pyx</tt>, the corresponding

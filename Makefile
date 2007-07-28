@@ -1,14 +1,8 @@
-VERSION = 0.9.4.1
+VERSION = 0.9.6
 
 version:
 	@echo "Setting version to $(VERSION)"
-	@echo "version = '$(VERSION)'" > Pyrex/Compiler/Version.py
-
-#check_contents:
-#	@if [ ! -d Pyrex/Distutils ]; then \
-#		echo Pyrex/Distutils missing; \
-#		exit 1; \
-#	fi
+	@echo "version = '$(VERSION)'" > Cython/Compiler/Version.py
 
 clean:
 	@echo Cleaning Source

@@ -5,14 +5,14 @@
 
              
   <meta name="GENERATOR" content="Mozilla/4.61 (Macintosh; I; PPC) [Netscape]">
-  <title>Pyrex Language Overview</title>
+  <title>Cython Language Overview</title>
 </head>
 <body>
      
-<h1>   <hr width="100%">Overview of the Pyrex Language&nbsp;  <hr width="100%"></h1>
+<h1>   <hr width="100%">Overview of the Cython Language&nbsp;  <hr width="100%"></h1>
 
    This document informally describes the extensions to the Python language 
- made by Pyrex. Some day there will be a reference manual covering everything 
+ made by Cython. Some day there will be a reference manual covering everything 
  in more detail. <br>
 
   &nbsp;  
@@ -33,14 +33,14 @@
     <li> <a href="#ScopeRules">Scope rules</a></li>
     <li> <a href="#StatsAndExprs">Statements and expressions</a></li>
                  <ul>
-   <li> <a href="#ExprSyntaxDifferences">Differences between C and Pyrex
+   <li> <a href="#ExprSyntaxDifferences">Differences between C and Cython
 expressions<br>
 </a></li>
     <li> <a href="#ForFromLoop">Integer for-loops</a></li>
                 </ul>
     <li> <a href="#ExceptionValues">Error return values</a></li>
                  <ul>
-   <li> <a href="#CheckingReturnValues">Checking return values of non-Pyrex
+   <li> <a href="#CheckingReturnValues">Checking return values of non-Cython
  functions</a></li>
                 </ul>
     <li> <a href="#IncludeStatement">The <tt>include</tt> statement</a></li>
@@ -57,13 +57,13 @@ expressions<br>
     <li> <a href="#PublicDecls">Public declarations</a></li>
           </ul>
     <li> <a href="extension_types.html">Extension Types</a> <font color="#006600">(Section revised in 0.9)</font></li>
-    <li> <a href="sharing.html">Sharing Declarations Between Pyrex Modules</a>
+    <li> <a href="sharing.html">Sharing Declarations Between Cython Modules</a>
      <font color="#006600">(NEW in 0.8)</font></li>
     <li> <a href="#Limitations">Limitations</a></li>
            <ul>
    <li> <a href="#Unsupported">Unsupported Python features</a></li>
     <li> <a href="#SemanticDifferences">Semantic differences between Python
- and Pyrex</a></li>
+ and Cython</a></li>
           </ul>
     
 </ul>
@@ -72,13 +72,13 @@ expressions<br>
 <h2>   <hr width="100%"><a name="Basics"></a>Basics   
 <hr width="100%"></h2>
 
-   This section describes the basic features of the Pyrex language. The facilities 
+   This section describes the basic features of the Cython language. The facilities 
  covered in this section allow you to create Python-callable functions that 
  manipulate C data structures and convert between Python and C data types. 
- Later sections will cover facilities for <a href="#InterfacingWithExternal">wrapping external C code</a>, <a href="extension_types.html">creating new Python types</a> and <a href="sharing.html">cooperation between Pyrex modules</a>.   
+ Later sections will cover facilities for <a href="#InterfacingWithExternal">wrapping external C code</a>, <a href="extension_types.html">creating new Python types</a> and <a href="sharing.html">cooperation between Cython modules</a>.   
 <h3> <a name="PyFuncsVsCFuncs"></a>Python functions vs. C functions</h3>
 
-   There are two kinds of function definition in Pyrex:   
+   There are two kinds of function definition in Cython:   
 <p><b>Python functions</b> are defined using the <b>def</b> statement, as
  in Python. They take Python objects as parameters and return Python objects. 
  </p>
@@ -89,10 +89,10 @@ expressions<br>
  Python objects or C values. </p>
 
    
-<p>Within a Pyrex module, Python functions and C functions can call each other
+<p>Within a Cython module, Python functions and C functions can call each other
 freely, but only Python functions can be called from outside the module by
 interpreted Python code. So, any functions that you want to "export" from
- your Pyrex module must be declared as Python functions using <span style="font-weight: bold;">def</span>. </p>
+ your Cython module must be declared as Python functions using <span style="font-weight: bold;">def</span>. </p>
 
    
 <p>Parameters of either type of function can be declared to have C data types,
@@ -259,16 +259,16 @@ string.<br>
 
 <br>
 
-Pyrex detects and prevents <span style="font-style: italic;">some</span> mistakes of this kind. For instance, if you attempt something like<br>
+Cython detects and prevents <span style="font-style: italic;">some</span> mistakes of this kind. For instance, if you attempt something like<br>
 
 <pre style="margin-left: 40px;">cdef char *s<br>s = pystring1 + pystring2</pre>
 
-then Pyrex will produce the error message "<span style="font-weight: bold;">Obtaining char * from temporary Python value</span>".
+then Cython will produce the error message "<span style="font-weight: bold;">Obtaining char * from temporary Python value</span>".
 The reason is that concatenating the two Python strings produces a new
 Python string object that is referenced only by a temporary internal
-variable that Pyrex generates. As soon as the statement has finished,
+variable that Cython generates. As soon as the statement has finished,
 the temporary variable will be decrefed and the Python string
-deallocated, leaving <span style="font-family: monospace;">s</span> dangling. Since this code could not possibly work, Pyrex refuses to compile it.<br>
+deallocated, leaving <span style="font-family: monospace;">s</span> dangling. Since this code could not possibly work, Cython refuses to compile it.<br>
 
 <br>
 
@@ -281,7 +281,7 @@ It is then your responsibility to hold the reference <span style="font-family: m
 <br>
 
 Keep in mind that the rules used to detect such errors are only
-heuristics. Sometimes Pyrex will complain unnecessarily, and sometimes
+heuristics. Sometimes Cython will complain unnecessarily, and sometimes
 it will fail to detect a problem that exists. Ultimately, you need to
 understand the issue and be careful what you do.<br>
 
@@ -292,7 +292,7 @@ understand the issue and be careful what you do.<br>
      
 <h3> <a name="ScopeRules"></a>Scope rules</h3>
 
-   Pyrex determines whether a variable belongs to a local scope, the module 
+   Cython determines whether a variable belongs to a local scope, the module 
  scope, or the built-in scope <i>completely statically.</i> As with Python, 
  assigning to a variable which is not otherwise declared implicitly declares 
  it to be a Python variable residing in the scope where it is assigned. Unlike
@@ -316,7 +316,7 @@ the builtins module.<br>
   Note: A consequence of these rules is that the module-level scope behaves
  the same way as a Python local scope if you refer to a variable before assigning
  to it. In particular, tricks such as the following will <i>not</i> work
-in  Pyrex:<br>
+in  Cython:<br>
 
    
 <blockquote>        <pre>try:<br>&nbsp; x = True<br>except NameError:<br>&nbsp; True = 1<br></pre>
@@ -347,21 +347,21 @@ all Python operations are automatically checked for errors, with appropriate
  action taken. </p>
 
    
-<h4> <a name="ExprSyntaxDifferences"></a>Differences between C and Pyrex
+<h4> <a name="ExprSyntaxDifferences"></a>Differences between C and Cython
 expressions</h4>
 There
 are some differences in syntax and semantics between C expressions and
-Pyrex expressions, particularly in the area of C constructs which have
+Cython expressions, particularly in the area of C constructs which have
 no direct equivalent in Python.<br>
 
 <ul>
 <li>An integer literal without an <span style="font-family: monospace; font-weight: bold;">L</span> suffix is treated as a C constant, and will be truncated to whatever size your C compiler thinks appropriate. With an <span style="font-family: monospace; font-weight: bold;">L</span> suffix, it will be converted to Python long integer (even if it would be small enough to fit into a C int).<br>
     <br>
   </li>
-<li> There is no <b><tt>-&gt;</tt></b> operator in Pyrex. Instead of <tt>p-&gt;x</tt>, 
+<li> There is no <b><tt>-&gt;</tt></b> operator in Cython. Instead of <tt>p-&gt;x</tt>, 
  use <tt>p.x</tt></li>
     
-  &nbsp; <li> There is no <b><tt>*</tt></b> operator in Pyrex. Instead of 
+  &nbsp; <li> There is no <b><tt>*</tt></b> operator in Cython. Instead of 
     <tt>*p</tt>,  use <tt>p[0]</tt></li>
     
   &nbsp; <li> There is an <b><tt>&amp;</tt></b> operator, with the same semantics
@@ -380,7 +380,7 @@ example:</li>
                 <pre>cdef char *p, float *q<br>p = &lt;char*&gt;q</pre>
           </ul>
    <i><b>Warning</b>: Don't attempt to use a typecast to convert between
-Python  and C data types -- it won't do the right thing. Leave Pyrex to perform 
+Python  and C data types -- it won't do the right thing. Leave Cython to perform 
 the conversion automatically.</i>  
 </ul>
 
@@ -393,12 +393,12 @@ the conversion automatically.</i>
 
    won't be very fast, even if <tt>i</tt> and <tt>n</tt> are declared as
 C integers, because <tt>range</tt> is a Python function. For iterating over 
-ranges of integers, Pyrex has another form of for-loop:   
+ranges of integers, Cython has another form of for-loop:   
 <blockquote><tt>for i from 0 &lt;= i &lt; n:</tt> <br>
     <tt>&nbsp;&nbsp;&nbsp; ...</tt></blockquote>
 
    If the loop variable and the lower and upper bounds are all C integers, 
-this form of loop will be much faster, because Pyrex will translate it into 
+this form of loop will be much faster, because Cython will translate it into 
 pure C code.   
 <p>Some things to note about the <tt>for-from</tt> loop: </p>
 
@@ -446,7 +446,7 @@ of exception value declaration: </p>
 <blockquote><tt>cdef int spam() except? -1:</tt> <br>
     <tt>&nbsp;&nbsp;&nbsp; ...</tt></blockquote>
 
-   The "?" indicates that the value <tt>-1</tt> only indicates a <i>possible</i> error. In this case, Pyrex generates a call to <tt>PyErr_Occurred</tt>if the
+   The "?" indicates that the value <tt>-1</tt> only indicates a <i>possible</i> error. In this case, Cython generates a call to <tt>PyErr_Occurred</tt>if the
 exception value is returned, to make sure it really is an error.   
 <p>There is also a third form of exception value declaration: </p>
 
@@ -454,7 +454,7 @@ exception value is returned, to make sure it really is an error.
 <blockquote><tt>cdef int spam() except *:</tt> <br>
     <tt>&nbsp;&nbsp;&nbsp; ...</tt></blockquote>
 
-   This form causes Pyrex to generate a call to <tt>PyErr_Occurred</tt> after 
+   This form causes Cython to generate a call to <tt>PyErr_Occurred</tt> after 
  <i>every</i> call to spam, regardless of what value it returns. If you have
  a function returning <tt>void</tt> that needs to propagate errors, you will
  have to use this form, since there isn't any return value to test.   
@@ -484,7 +484,7 @@ is an example of a pointer-to-function declaration with an exception value:</li>
 </ul>
 
      
-<h4> <a name="CheckingReturnValues"></a>Checking return values of non-Pyrex 
+<h4> <a name="CheckingReturnValues"></a>Checking return values of non-Cython 
  functions</h4>
 
    It's important to understand that the <tt>except</tt> clause does <i>not</i> cause an error to be <i>raised</i> when the specified value is returned. For
@@ -495,7 +495,7 @@ example, you can't write something like
    and expect an exception to be automatically raised if a call to fopen
 returns  NULL. The except clause doesn't work that way; its only purpose
 is for <i>propagating</i> exceptions that have already been raised, either
-by a Pyrex function or a  C function that calls Python/C API routines. To
+by a Cython function or a  C function that calls Python/C API routines. To
 get an exception from a non-Python-aware  function such as fopen, you will
 have to check the return value and raise  it yourself, for example,   
 <blockquote>        <pre>cdef FILE *p<br>p = fopen("spam.txt", "r")<br>if p == NULL:<br>&nbsp;&nbsp;&nbsp; raise SpamError("Couldn't open the spam file")</pre>
@@ -507,20 +507,20 @@ have to check the return value and raise  it yourself, for example,
      
 <h4> <a name="IncludeStatement"></a>The <tt>include</tt> statement</h4>
 
-   For convenience, a large Pyrex module can be split up into a number of 
+   For convenience, a large Cython module can be split up into a number of 
 files which are put together using the <b>include</b> statement, for example 
   
 <blockquote>        <pre>include "spamstuff.pxi"</pre>
    </blockquote>
 
    The contents of the named file are textually included at that point. The 
- included file can contain any complete top-level Pyrex statements, including 
+ included file can contain any complete top-level Cython statements, including 
  other <b>include</b> statements. The <b>include</b> statement itself can 
 only appear at the top level of a file.   
 <p>The <b>include</b> statement can also be used in conjunction with <a href="#PublicDecls"><b>public</b> declarations</a> to make C functions and
- variables defined in one Pyrex module accessible to another. However, note
+ variables defined in one Cython module accessible to another. However, note
  that some of these uses have been superseded by the facilities described
-in <a href="sharing.html">Sharing Declarations Between Pyrex Modules</a>,
+in <a href="sharing.html">Sharing Declarations Between Cython Modules</a>,
 and it is expected that use of the <b>include</b> statement for this purpose
 will be phased out altogether in future versions. </p>
 
@@ -529,14 +529,14 @@ will be phased out altogether in future versions. </p>
  C Code   
 <hr width="100%"></h2>
 
-   One of the main uses of Pyrex is wrapping existing libraries of C code. 
+   One of the main uses of Cython is wrapping existing libraries of C code. 
 This is achieved by using <a href="#ExternDecls">external declarations</a> to declare the C functions and variables from the library that you want to
  use.   
 <p>You can also use <a href="#PublicDecls">public declarations</a> to make 
- C functions and variables defined in a Pyrex module available to external 
+ C functions and variables defined in a Cython module available to external 
  C code. The need for this is expected to be less frequent, but you might 
 want to do it, for example, if you are embedding Python in another application 
- as a scripting language. Just as a Pyrex module can be used as a bridge to
+ as a scripting language. Just as a Cython module can be used as a bridge to
 allow Python code to call C code, it can also be used to allow C code to
 call Python code. </p>
 
@@ -558,12 +558,12 @@ can also be declared <b>extern</b> to specify that they are defined elsewhere,
 <h4> <a name="ReferencingHeaders"></a>Referencing C header files</h4>
 
    When you use an extern definition on its own as in the examples above, 
-Pyrex includes a declaration for it in the generated C file. This can cause 
+Cython includes a declaration for it in the generated C file. This can cause 
 problems if the declaration doesn't exactly match the declaration that will 
 be seen by other C code. If you're wrapping an existing C library, for example, 
 it's important that the generated C code is compiled with exactly the same 
 declarations as the rest of the library.   
-<p>To achieve this, you can tell Pyrex that the declarations are to be found
+<p>To achieve this, you can tell Cython that the declarations are to be found
  in a C header file, like this: </p>
 
    
@@ -575,10 +575,10 @@ declarations as the rest of the library.
    The <b>cdef extern from</b> clause does three things:   
 <ol>
 
-   <li> It directs Pyrex to place a <b>#include</b> statement for the named
+   <li> It directs Cython to place a <b>#include</b> statement for the named
  header file in the generated C code.<br>
    </li>
-  &nbsp; <li> It prevents Pyrex from generating any C code for the declarations
+  &nbsp; <li> It prevents Cython from generating any C code for the declarations
  found in the associated block.<br>
    </li>
   &nbsp; <li> It treats all declarations within the block as though they
@@ -586,14 +586,14 @@ started  with <b>cdef extern</b>.</li>
     
 </ol>
 
-   It's important to understand that Pyrex does <i>not</i> itself read the 
-C header file, so you still need to provide Pyrex versions of any declarations 
- from it that you use. However, the Pyrex declarations don't always have to
+   It's important to understand that Cython does <i>not</i> itself read the 
+C header file, so you still need to provide Cython versions of any declarations 
+ from it that you use. However, the Cython declarations don't always have to
 exactly match the C ones, and in some cases they shouldn't or can't. In particular:
   
 <ol>
 
-   <li> Don't use <b>const</b>. Pyrex doesn't know anything about const,
+   <li> Don't use <b>const</b>. Cython doesn't know anything about const,
 so  just leave it out. Most of the time this shouldn't cause any problem,
 although  on rare occasions you might have to use a cast.<sup><a href="#Footnote1"> 1</a></sup><br>
    </li>
@@ -673,21 +673,21 @@ name:</li>
    There are two main ways that structs, unions and enums can be declared 
 in C header files: using a tag name, or using a typedef. There are also some
  variations based on various combinations of these.   
-<p>It's important to make the Pyrex declarations match the style used in the
-header file, so that Pyrex can emit the right sort of references to the type
-in the code it generates. To make this possible, Pyrex provides two different
+<p>It's important to make the Cython declarations match the style used in the
+header file, so that Cython can emit the right sort of references to the type
+in the code it generates. To make this possible, Cython provides two different
 syntaxes for declaring a struct, union or enum type. The style introduced
 above corresponds to the use of a tag name. To get the other style, you prefix
 the declaration with <b>ctypedef</b>, as illustrated below. </p>
 
    
 <p>The following table shows the various possible styles that can be found 
- in a header file, and the corresponding Pyrex declaration that you should 
+ in a header file, and the corresponding Cython declaration that you should 
  put in the <b>cdef exern from </b>block. Struct declarations are used as 
 an example; the same applies equally to union and enum declarations. </p>
 
    
-<p>Note that in all the cases below, you refer to the type in Pyrex code simply
+<p>Note that in all the cases below, you refer to the type in Cython code simply
 as <tt><font size="+1">Foo</font></tt>, not <tt><font size="+1">struct Foo</font></tt>.
  <br>
   &nbsp;  <table cellpadding="5">
@@ -696,7 +696,7 @@ as <tt><font size="+1">Foo</font></tt>, not <tt><font size="+1">struct Foo</font
    <td bgcolor="#8cbc1c">&nbsp;</td>
     <td bgcolor="#ff9933" nowrap="nowrap"><b>C code</b></td>
     <td bgcolor="#66cccc" valign="top"><b>Possibilities for corresponding 
-Pyrex  code</b></td>
+Cython  code</b></td>
     <td bgcolor="#99cc33" valign="top"><b>Comments</b></td>
    </tr>
     <tr bgcolor="#8cbc1c" valign="top">
@@ -706,7 +706,7 @@ Pyrex  code</b></td>
         <tt>};</tt></td>
     <td bgcolor="#66cccc"><tt>cdef struct Foo:</tt> <br>
         <tt>&nbsp; ...</tt></td>
-    <td>Pyrex will refer to the type as <tt>struct Foo </tt>in the generated 
+    <td>Cython will refer to the type as <tt>struct Foo </tt>in the generated 
  C code<tt>.</tt></td>
    </tr>
     <tr bgcolor="#8cbc1c" valign="top">
@@ -716,7 +716,7 @@ Pyrex  code</b></td>
         <tt>} Foo;</tt></td>
     <td bgcolor="#66cccc" valign="top"><tt>ctypedef struct Foo:</tt> <br>
         <tt>&nbsp; ...</tt></td>
-    <td valign="top">Pyrex will refer to the type simply as <tt>Foo</tt>
+    <td valign="top">Cython will refer to the type simply as <tt>Foo</tt>
 in  the generated C code.</td>
    </tr>
     <tr bgcolor="#8cbc1c" valign="top">
@@ -729,7 +729,7 @@ foo  {</tt> <br>
         <tt>&nbsp; ...</tt> <br>
         <tt>ctypedef foo Foo #optional</tt></td>
     <td rowspan="2" valign="top">If the C header uses both a tag and a typedef 
- with <i>different</i> names, you can use either form of declaration in Pyrex
+ with <i>different</i> names, you can use either form of declaration in Cython
  (although if you need to forward reference the type, you'll have to use
 the  first form).</td>
    </tr>
@@ -767,19 +767,19 @@ necessary.</td>
 <hr width="100%">  
 <h3> <a name="CNameSpecs"></a>Resolving naming conflicts - C name specifications</h3>
 
-   Each Pyrex module has a single module-level namespace for both Python
+   Each Cython module has a single module-level namespace for both Python
 and  C names. This can be inconvenient if you want to wrap some external
 C functions  and provide the Python user with Python functions of the same
 names.   
-<p>Pyrex 0.8 provides a couple of different ways of solving this problem. 
+<p>Cython 0.8 provides a couple of different ways of solving this problem. 
  The best way, especially if you have many C functions to wrap, is probably 
  to put the extern C function declarations into a different namespace using 
  the facilities described in the section on <a href="sharing.html">sharing 
- declarations between Pyrex modules</a>. </p>
+ declarations between Cython modules</a>. </p>
 
    
 <p>The other way is to use a <b>c name specification</b> to give different 
- Pyrex and C names to the C function. Suppose, for example, that you want 
+ Cython and C names to the C function. Suppose, for example, that you want 
 to wrap an external function called <tt>eject_tomato</tt>. If you declare 
 it as </p>
 
@@ -787,7 +787,7 @@ it as </p>
 <blockquote>        <pre>cdef extern void c_eject_tomato "eject_tomato" (float speed)</pre>
    </blockquote>
 
-   then its name inside the Pyrex module will be <tt>c_eject_tomato</tt>, 
+   then its name inside the Cython module will be <tt>c_eject_tomato</tt>, 
 whereas its name in C will be <tt>eject_tomato</tt>. You can then wrap it 
 with   
 <blockquote>        <pre>def eject_tomato(speed):<br>&nbsp; c_eject_tomato(speed)</pre>
@@ -796,8 +796,8 @@ with
    so that users of your module can refer to it as <tt>eject_tomato</tt>. 
   
 <p>Another use for this feature is referring to external names that happen 
- to be Pyrex keywords. For example, if you want to call an external function 
- called <tt>print</tt>, you can rename it to something else in your Pyrex 
+ to be Cython keywords. For example, if you want to call an external function 
+ called <tt>print</tt>, you can rename it to something else in your Cython 
 module.  </p>
 
    
@@ -814,16 +814,16 @@ module.  </p>
 <hr width="100%">  
 <h3> <a name="PublicDecls"></a>Public Declarations</h3>
 
-   You can make C variables and functions defined in a Pyrex module accessible 
- to external C code (or another Pyrex module) using the <b><tt>public</tt></b> keyword, as follows:   
+   You can make C variables and functions defined in a Cython module accessible 
+ to external C code (or another Cython module) using the <b><tt>public</tt></b> keyword, as follows:   
 <blockquote><tt>cdef public int spam # public variable declaration</tt>       <p><tt>cdef public void grail(int num_nuns): # public function declaration</tt>   <br>
     <tt>&nbsp;&nbsp;&nbsp; ...</tt></p>
   </blockquote>
 
-   If there are any <tt>public</tt> declarations in a Pyrex module, a <b>.h</b> file is generated containing equivalent C declarations for inclusion in other
+   If there are any <tt>public</tt> declarations in a Cython module, a <b>.h</b> file is generated containing equivalent C declarations for inclusion in other
  C code.   
-<p>Pyrex also generates a <b>.pxi</b> file containing Pyrex versions of the
- declarations for inclusion in another Pyrex module using the <b><a href="#IncludeStatement">include</a></b> statement. If you use this, you
+<p>Cython also generates a <b>.pxi</b> file containing Cython versions of the
+ declarations for inclusion in another Cython module using the <b><a href="#IncludeStatement">include</a></b> statement. If you use this, you
  will need to arrange for the module using the declarations to be linked
 against  the module defining them, and for both modules to be available to
 the dynamic  linker at run time. I haven't tested this, so I can't say how
@@ -832,22 +832,22 @@ well it will  work on the various platforms. </p>
    
 <blockquote>NOTE: If all you want to export is an extension type, there is
  now a better way -- see <a href="sharing.html">Sharing Declarations Between
- Pyrex Modules</a>.</blockquote>
+ Cython Modules</a>.</blockquote>
 
      
 <h2>   <hr width="100%">Extension Types   
 <hr width="100%"></h2>
 
-   One of the most powerful features of Pyrex is the ability to easily create 
+   One of the most powerful features of Cython is the ability to easily create 
  new built-in Python types, called <b>extension types</b>. This is a major 
  topic in itself, so there is a&nbsp; <a href="extension_types.html">separate 
  page</a> devoted to it.   
-<h2>   <hr width="100%">Sharing Declarations Between Pyrex Modules   
+<h2>   <hr width="100%">Sharing Declarations Between Cython Modules   
 <hr width="100%"></h2>
 
-   Pyrex 0.8 introduces a substantial new set of facilities allowing a Pyrex 
+   Cython 0.8 introduces a substantial new set of facilities allowing a Cython 
  module to easily import and use C declarations and extension types from another
-Pyrex module. You can now create a set of co-operating Pyrex modules just
+Cython module. You can now create a set of co-operating Cython modules just
 as easily as you can create a set of co-operating Python modules. There is
 a <a href="sharing.html">separate page</a> devoted to this topic.   
 <h2>   <hr width="100%"><a name="Limitations"></a>Limitations   
@@ -856,7 +856,7 @@ a <a href="sharing.html">separate page</a> devoted to this topic.
      
 <h3> <a name="Unsupported"></a>Unsupported Python features</h3>
 
-   Pyrex is not quite a full superset of Python. The following restrictions 
+   Cython is not quite a full superset of Python. The following restrictions 
  apply:   
 <blockquote> <li> Function definitions (whether using <b>def</b> or <b>cdef</b>)
  cannot be nested within other function definitions.<br>
@@ -867,7 +867,7 @@ a <a href="sharing.html">separate page</a> devoted to this topic.
   &nbsp; <li> The<tt> import *</tt> form of import is not allowed anywhere
  (other forms of the import statement are fine, though).<br>
    </li>
-  &nbsp; <li> Generators cannot be defined in Pyrex.<br>
+  &nbsp; <li> Generators cannot be defined in Cython.<br>
      <br>
    </li>
     <li> The <tt>globals()</tt> and <tt>locals()</tt> functions cannot be 
@@ -875,7 +875,7 @@ used.</li>
    </blockquote>
 
    The above restrictions will most likely remain, since removing them would 
- be difficult and they're not really needed for Pyrex's intended applications. 
+ be difficult and they're not really needed for Cython's intended applications. 
   
 <p>There are also some temporary limitations, which may eventually be lifted, including: 
  </p>
@@ -895,26 +895,26 @@ docstrings.<br>
      <br>
    </li>
     <li> The use of string literals as comments is not recommended at present,
- because Pyrex doesn't optimize them away, and won't even accept them in
+ because Cython doesn't optimize them away, and won't even accept them in
 places  where executable statements are not allowed.</li>
    </blockquote>
    
 <h3> <a name="SemanticDifferences"></a>Semantic differences between Python
- and Pyrex</h3>
+ and Cython</h3>
 
      
 <h4> Behaviour of class scopes</h4>
 
    In Python, referring to a method of a class inside the class definition, 
  i.e. while the class is being defined, yields a plain function object, but
- in Pyrex it yields an unbound method<sup><font size="-2"><a href="#Footnote2">2</a></font></sup>. A consequence of this is that the
+ in Cython it yields an unbound method<sup><font size="-2"><a href="#Footnote2">2</a></font></sup>. A consequence of this is that the
 usual idiom for using the classmethod and staticmethod functions, e.g.   
 <blockquote>        <pre>class Spam:</pre>
            <pre>&nbsp; def method(cls):<br>&nbsp;&nbsp;&nbsp; ...</pre>
            <pre>&nbsp; method = classmethod(method)</pre>
    </blockquote>
 
-   will not work in Pyrex. This can be worked around by defining the function 
+   will not work in Cython. This can be worked around by defining the function 
  <i>outside</i> the class, and then assigning the result of classmethod or
  staticmethod inside the class, i.e.   
 <blockquote>        <pre>def Spam_method(cls):<br>&nbsp; ...</pre>
@@ -947,10 +947,10 @@ casting  away the constness:
 
      
 <hr width="100%"><a name="Footnote2"></a>2. The reason for the different behaviour
-of class scopes is that Pyrex-defined Python functions are PyCFunction objects,
+of class scopes is that Cython-defined Python functions are PyCFunction objects,
 not PyFunction objects, and are not recognised by the machinery that creates
 a bound or unbound method when a function is extracted from a class. To get
-around this, Pyrex wraps each method in an unbound method object itself before
+around this, Cython wraps each method in an unbound method object itself before
 storing it in the class's dictionary. <br>
 
   &nbsp; <br>

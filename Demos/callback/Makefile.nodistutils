@@ -4,7 +4,7 @@ PYINCLUDE = \
 	-I$(PYHOME)/$(ARCH)/include/python2.2
 
 %.c:	%.pyx
-	../../bin/pyrexc $<
+	../../bin/cython $<
 
 %.o:	%.c
 	gcc -c -fPIC $(PYINCLUDE) $<

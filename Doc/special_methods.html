@@ -5,7 +5,7 @@
 <body>
    <h1>  <hr width="100%">Special Methods of Extension Types  
 <hr width="100%"></h1>
-  This page describes the special methods currently supported by Pyrex extension
+  This page describes the special methods currently supported by Cython extension
  types. A complete list of all the special methods appears in the table at 
 the bottom. Some of these methods behave differently from their Python counterparts 
 or have no direct Python counterparts, and require special mention.  
@@ -73,11 +73,11 @@ touch the object. In particular, don't call any other methods of the object
 or do anything which might cause the object to be resurrected. It's best if
 you stick to just deallocating C data. </p>
  <p>You don't need to worry about deallocating Python attributes of your object, 
-because that will be done for you by Pyrex after your <tt>__dealloc__</tt>
+because that will be done for you by Cython after your <tt>__dealloc__</tt>
 method returns.<br>
  <br>
  <b>Note:</b> There is no <tt>__del__</tt> method for extension types. (Earlier 
-versions of the Pyrex documentation stated that there was, but this turned 
+versions of the Cython documentation stated that there was, but this turned 
 out to be incorrect.)<br>
   </p>
  <h2><font size="+1">Arithmetic methods</font></h2>

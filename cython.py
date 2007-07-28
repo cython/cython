@@ -1,6 +1,6 @@
 #
-#   Pyrex -- Main Program, generic
+#   Cython -- Main Program, generic
 #
 
-from Pyrex.Compiler.Main import main
+from Cython.Compiler.Main import main
 main(command_line = 1)

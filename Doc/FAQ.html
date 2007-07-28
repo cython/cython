@@ -4,7 +4,7 @@
               <meta name="GENERATOR" content="Mozilla/4.51 (Macintosh; I; PPC) [Netscape]"><title>FAQ.html</title></head>
 
 <body>
-      <center>   <h1>    <hr width="100%">Pyrex FAQ   
+      <center>   <h1>    <hr width="100%">Cython FAQ   
 <hr width="100%"></h1>
   </center>
       <h2> Contents</h2>
@@ -14,7 +14,7 @@
  bytes to a Python string?</a></b></li>
     <li> <b><a href="#NumericAccess">How do I access the data inside a Numeric
  array object?</a></b></li>
-  <li><b><a href="#Rhubarb">Pyrex says my extension type object has no attribute
+  <li><b><a href="#Rhubarb">Cython says my extension type object has no attribute
 'rhubarb', but I know it does. What gives?</a></b></li><li><a style="font-weight: bold;" href="#Quack">Python says my extension type has no method called 'quack', but I know it does. What gives?</a><br>
   </li>
 
@@ -55,10 +55,10 @@ bytes to a Python string?</h2>
 section of the <a href="extension_types.html">"Extension Types"</a> documentation
 page.<br>
 <tt>    </tt> </p>
-    <h2><a name="Rhubarb"></a>Pyrex says my extension type object has no attribute
+    <h2><a name="Rhubarb"></a>Cython says my extension type object has no attribute
 'rhubarb', but I know it does. What gives?</h2>
-You're probably trying to access it through a reference which Pyrex thinks
-is a generic Python object. You need to tell Pyrex that it's a reference
+You're probably trying to access it through a reference which Cython thinks
+is a generic Python object. You need to tell Cython that it's a reference
 to your extension type by means of a declaration,<br>
 for example,<br>
 <blockquote><tt>cdef class Vegetables:</tt><br>
