@@ -19,7 +19,7 @@ def replace_suffix(path, new_suffix):
 
 class build_ext (distutils.command.build_ext.build_ext):
 
-    description = "compile Pyrex scripts, then build C/C++ extensions (compile/link to build directory)"
+    description = "compile Cython scripts, then build C/C++ extensions (compile/link to build directory)"
 
     def finalize_options (self):
         distutils.command.build_ext.build_ext.finalize_options(self)
@@ -50,11 +50,11 @@ class build_ext (distutils.command.build_ext.build_ext):
                 source = pyx
                 target = replace_suffix(source, suffix)
                 if newer(source, target) or self.force:
-                    self.pyrex_compile(source)
+                    self.cython_compile(source)
 
         return [replace_suffix(src, suffix) for src in pyx_sources] + other_sources
 
-    def pyrex_compile(self, source):
+    def cython_compile(self, source):
         options = CompilationOptions(default_options,
             include_path = self.include_dirs)
         result = compile(source, options)
