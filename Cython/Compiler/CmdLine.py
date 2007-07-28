@@ -6,10 +6,10 @@ import sys
 import Options
 
 usage = """\
-Cython (http://cython.org) is for compiling code written in the Cython
-language.  Cython is based on Pyrex by Greg Ewing. 
+Cython (http://cython.org) is a compiler for code written in the
+Cython language.  Cython is based on Pyrex by Greg Ewing.
 
-Usage: cython [options] sourcefile...
+Usage: cython [options] sourcefile.pyx ...
 
 Options:
   -v, --version                  Display version number of cython compiler

@@ -1,10 +1,10 @@
 #
-#   Pyrex Top Level
+#   Cython Top Level
 #
 
 import os, sys
 if sys.version_info[:2] < (2, 2):
-    print >>sys.stderr, "Sorry, Pyrex requires Python 2.2 or later"
+    print >>sys.stderr, "Sorry, Cython requires Python 2.2 or later"
     sys.exit(1)
 
 import os
@@ -217,7 +217,7 @@ class Context:
 
 class CompilationOptions:
     """
-    Options to the Pyrex compiler:
+    Options to the Cython compiler:
     
     show_version      boolean   Display version number
     use_listing_file  boolean   Generate a .lis file
@@ -243,7 +243,7 @@ class CompilationOptions:
 
 class CompilationResult:
     """
-    Results from the Pyrex compiler:
+    Results from the Cython compiler:
     
     c_file           string or None   The generated C source file
     h_file           string or None   The generated C header file
@@ -267,7 +267,7 @@ def compile(source, options = None, c_compile = 0, c_link = 0):
     """
     compile(source, options = default_options)
     
-    Compile the given Pyrex implementation file and return
+    Compile the given Cython implementation file and return
     a CompilationResult object describing what was produced.
     """
     if not options:
@@ -296,7 +296,7 @@ def main(command_line = 0):
         options = default_options
         sources = args
     if options.show_version:
-        print >>sys.stderr, "Pyrex version %s" % Version.version
+        print >>sys.stderr, "Cython version %s" % Version.version
     context = Context(options.include_path)
     for source in sources:
         try:

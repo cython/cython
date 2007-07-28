@@ -10,7 +10,7 @@ import stat
 import sys
 from time import time
 
-from Pyrex import Plex
+from Cython import Plex
 from Cython.Plex import Scanner
 from Cython.Plex.Errors import UnrecognizedInput
 from Errors import CompileError, error
