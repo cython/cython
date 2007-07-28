@@ -1,0 +1,35 @@
+# Makefile for Microsoft C Compiler, building a DLL
+PYVERSION = 2.2
+PYHOME = \Python$(PYVERSION:.=)
+PYINCLUDE = -I$(PYHOME)\include
+PYLIB = /LIBPATH:$(PYHOME)\libs
+
+CFLAGS = $(PYINCLUDE) /Ox /W3 /GX -nologo
+.SUFFIXES: .exe .dll .obj .c .cpp .pyx
+
+.pyx.c:
+	$(PYHOME)\Python.exe ../../pyrexc.py $<
+
+all:	main.exe
+
+clean:
+	del /Q/F *.obj embedded.h embedded.c main.exe embedded.dll embedded.lib embedded.exp
+
+# When linking the DLL we must explicitly list all of the exports
+# There doesn't seem to be an easy way to get DL_EXPORT to have the correct definition
+# to do the export for us without breaking the importing of symbols from the core
+# python library.
+embedded.dll: embedded.obj
+	link /nologo /DLL /INCREMENTAL:NO $(PYLIB) $** /IMPLIB:$*.lib /DEF:<< /OUT:$*.dll
+EXPORTS initembedded
+EXPORTS spam
+<<
+
+main.exe:	main.obj embedded.lib
+	link /nologo $** $(PYLIB) /OUT:main.exe
+
+embedded.h:	embedded.c
+main.obj:	embedded.h
+embedded.obj: embedded.c
+	$(CC) /MD $(CFLAGS) -c $**
+embedded.lib: embedded.dll

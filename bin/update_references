@@ -1,0 +1,49 @@
+#!/usr/bin/env python
+#
+#   Go through the Tests directory and its subdirectories
+#   copying the latest versions of the test outputs into
+#   the Reference directories.
+#
+
+import os, sys
+
+ignore_names = [".DS_Store", "Icon\r"]
+
+def copy_file(from_path, to_path):
+	# We copy the contents from one file to the other
+	# so as to preserve metadata on the Mac.
+	#print from_path, "-->", to_path
+	f = open(from_path)
+	g = open(to_path, "w+")
+	g.write(f.read())
+	f.close()
+	g.close()
+
+def update_references(out_dir, ref_dir):
+	for name in os.listdir(ref_dir):
+		if name not in ignore_names:
+			out_file = os.path.join(out_dir, name)
+			ref_file = os.path.join(ref_dir, name)
+			if os.path.isfile(out_file):
+				print "Updating", name
+				copy_file(out_file, ref_file)
+
+def update_references_in_dir(dir):
+	print "Updating references in", dir
+	for name in os.listdir(dir):
+		if name <> "Reference" and not name.startswith("("):
+			item_path = os.path.join(dir, name)
+			if os.path.isdir(item_path):
+				update_references_in_dir(item_path)
+	ref_dir = os.path.join(dir, "Reference")
+	if os.path.isdir(ref_dir):
+		update_references(dir, ref_dir)
+
+def main():
+	bin_dir = os.path.dirname(sys.argv[0])
+	source_dir = os.path.dirname(bin_dir)
+	tests_dir = os.path.join(source_dir, "Tests")
+	update_references_in_dir(tests_dir)
+
+if __name__ == "__main__":
+	main()

@@ -1,0 +1,7 @@
+include MANIFEST.in README.txt INSTALL.txt CHANGES.txt ToDo.txt USAGE.txt
+include setup.py
+include bin/pyrexc
+include pyrexc.py
+include Pyrex/Compiler/Lexicon.pickle
+include Doc/*
+include Demos/*

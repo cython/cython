@@ -1,0 +1,21 @@
+PYHOME = $(HOME)/pkg/python/version
+PYINCLUDE = \
+	-I$(PYHOME)/include/python2.2 \
+	-I$(PYHOME)/$(ARCH)/include/python2.2
+
+%.c:	%.pyx
+	../bin/pyrexc $<
+
+%.o:	%.c
+	gcc -c -fPIC $(PYINCLUDE) $<
+
+%.so:	%.o
+	gcc -shared $< -lm -o $@
+
+all:	primes.so spam.so numeric_demo.so
+
+clean:
+	@echo Cleaning Demos
+	@rm -f *.c *.o *.so *~ core core.*
+	@cd callback; $(MAKE) clean
+	@cd embed; $(MAKE) clean

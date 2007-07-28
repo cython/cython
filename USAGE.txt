@@ -1,0 +1,69 @@
+Pyrex - Usage Instructions
+==========================
+
+Building Pyrex extensions using distutils
+-----------------------------------------
+
+Pyrex comes with an experimental distutils extension for compiling
+Pyrex modules, contributed by Graham Fawcett of the University of
+Windsor (fawcett@uwindsor.ca).
+
+The Demos directory contains a setup.py file demonstrating its use. To
+compile the demos:
+
+(1)  cd Demos
+
+(2)  python setup.py build_ext --inplace
+
+         or
+
+     python setup.py build --build-lib=.
+
+(You may get a screed of warnings from the C compiler, but you can
+ignore these -- as long as there are no actual errors, things are
+probably okay.)
+
+Try out the extensions with:
+
+     python run_primes.py
+     python run_spam.py
+     python run_numeric_demo.py
+
+
+Building Pyrex extensions by hand
+---------------------------------
+
+You can also invoke the Pyrex compiler on its own to translate a .pyx
+file to a .c file. On Unix,
+
+     pyrexc filename.pyx
+
+On other platforms,
+
+     python pyrexc.py filename.pyx
+
+It's then up to you to compile and link the .c file using whatever
+procedure is appropriate for your platform. The file
+Makefile.nodistutils in the Demos directory shows how to do this for
+one particular Unix system.
+
+
+Command line options
+--------------------
+
+The pyrexc command supports the following options:
+
+  Short Long              Argument    Description
+  -----------------------------------------------------------------------------
+  -v    --version                     Display version number of pyrex compiler
+  -l    --create-listing              Write error messages to a .lis file
+  -I    --include-dir     <directory> Search for include files in named 
+                                       directory (may be repeated)
+  -o    --output-file     <filename>  Specify name of generated C file (only
+                                       one source file allowed if this is used)
+
+Anything else is taken as the name of a Pyrex source file and compiled
+to a C source file. Multiple Pyrex source files can be specified
+(unless -o is used), in which case each source file is treated as the
+source of a distinct extension module and compiled separately to
+produce its own C file.
