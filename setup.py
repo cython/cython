@@ -19,6 +19,36 @@ setup(
   url = 'http://www.cython.org',
   author = 'Greg Ewing, William Stein, Robert Bradshaw, Stefan Behnel, et al.',
   author_email = 'wstein@gmail.com',
+  description = "The Cython compiler for writing C extensions for the Python language.",
+  long_description = """\
+  The Cython language makes writing C extensions for the Python language as
+  easy as Python itself.  Cython is a source code translator based on the
+  well-known Pyrex_, but supports more cutting edge functionality and
+  optimizations.
+
+  The Cython language is very close to the Python language (and most Python
+  code is also valid Cython code), but Cython additionally supports calling C
+  functions and declaring C types on variables and class attributes. This
+  allows the compiler to generate very efficient C code from Cython code.
+
+  This makes Cython the ideal language for writing glue code for external C
+  libraries, and for fast C modules that speed up the execution of Python
+  code.
+
+  .. _Pyrex: http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
+  """,
+  classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Python Software Foundation License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Topic :: Software Development :: Code Generators",
+    "Topic :: Software Development :: Compilers",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+  ],
+  zip_safe = False,
+
   scripts = scripts,
   packages=[
     'Cython',
