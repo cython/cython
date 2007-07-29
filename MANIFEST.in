@@ -1,4 +1,6 @@
 include MANIFEST.in README.txt INSTALL.txt CHANGES.txt ToDo.txt USAGE.txt
+recursive-include .hg *
+recursive-include Cython/.hg *
 include setup.py
 include bin/cython
 include cython.py
