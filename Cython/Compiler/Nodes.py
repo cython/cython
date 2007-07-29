@@ -2590,12 +2590,20 @@ class FromImportStatNode(StatNode):
 
 utility_function_predeclarations = \
 """
+#ifdef __GNUC__
+#define INLINE __inline__
+#elif _WIN32
+#define INILNE __inline
+#else
+#define INLINE 
+#endif
+
 typedef struct {const char *s; const void **p;} __Pyx_CApiTabEntry; /*proto*/
 typedef struct {PyObject **p; char *s;} __Pyx_InternTabEntry; /*proto*/
 typedef struct {PyObject **p; char *s; long n;} __Pyx_StringTabEntry; /*proto*/
 
 #define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
-static inline int __Pyx_PyObject_IsTrue(PyObject* x) {
+static INILNE int __Pyx_PyObject_IsTrue(PyObject* x) {
    if (x == Py_True) return 1;
    else if (x == Py_False) return 0;
    else return PyObject_IsTrue(x);
@@ -2606,8 +2614,13 @@ static inline int __Pyx_PyObject_IsTrue(PyObject* x) {
 if Options.gcc_branch_hints:
     branch_prediction_macros = \
     """
+#ifdef __GNUC__
 #define likely(x)   __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
+#else /* __GNUC__ */
+#define likely(x)   (x)
+#define unlikely(x) (x)
+#endif /* __GNUC__ */
     """
 else:
     branch_prediction_macros = \

@@ -1662,7 +1662,7 @@ def p_visibility(s, prev_visibility):
     
 def p_c_modifiers(s):
     if s.systring in ('inline', ):
-        modifier = s.systring
+        modifier = s.systring.upper() # uppercase is macro defined for various compilers
         s.next()
         return modifier + ' ' + p_c_modifiers(s)
     return ""
