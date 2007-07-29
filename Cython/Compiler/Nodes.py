@@ -2593,7 +2593,7 @@ utility_function_predeclarations = \
 #ifdef __GNUC__
 #define INLINE __inline__
 #elif _WIN32
-#define INILNE __inline
+#define INLINE __inline
 #else
 #define INLINE 
 #endif
@@ -2603,7 +2603,7 @@ typedef struct {PyObject **p; char *s;} __Pyx_InternTabEntry; /*proto*/
 typedef struct {PyObject **p; char *s; long n;} __Pyx_StringTabEntry; /*proto*/
 
 #define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
-static INILNE int __Pyx_PyObject_IsTrue(PyObject* x) {
+static INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
    if (x == Py_True) return 1;
    else if (x == Py_False) return 0;
    else return PyObject_IsTrue(x);
