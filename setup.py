@@ -54,8 +54,8 @@ setup(
     'Cython.Mac',
     'Cython.Plex'
     ],
-  data_files=[
-    (compiler_dir, ['Cython/Compiler/Lexicon.pickle'])
-    ]
+  package_data = {
+    'Cython.Compiler' : ['Lexicon.pickle']
+    }
   )
 
