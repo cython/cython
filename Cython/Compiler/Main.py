@@ -153,7 +153,7 @@ class Context:
         name, _ = os.path.splitext(tail)
         return name
 
-    def compile(self, source, options = None):
+    def compile(self, source, options = None, full_module_name = None):
         # Compile a Pyrex implementation file in this context
         # and return a CompilationResult.
         if not options:
@@ -161,7 +161,8 @@ class Context:
         result = CompilationResult()
         cwd = os.getcwd()
 
-        full_module_name, _ = os.path.splitext(source.replace('/', '.'))
+        if full_module_name is None:
+            full_module_name, _ = os.path.splitext(source.replace('/', '.'))
 
         source = os.path.join(cwd, source)
         
@@ -263,7 +264,8 @@ class CompilationResult:
         self.extension_file = None
 
 
-def compile(source, options = None, c_compile = 0, c_link = 0):
+def compile(source, options = None, c_compile = 0, c_link = 0,
+            full_module_name = None):
     """
     compile(source, options = default_options)
     
@@ -278,7 +280,7 @@ def compile(source, options = None, c_compile = 0, c_link = 0):
     if c_link:
         options.obj_only = 0
     context = Context(options.include_path)
-    return context.compile(source, options)
+    return context.compile(source, options, full_module_name)
 
 #------------------------------------------------------------------------
 #
