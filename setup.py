@@ -1,9 +1,16 @@
 from distutils.core import setup
 from distutils.sysconfig import get_python_lib
-import os
+import os, sys
 from Cython.Compiler.Version import version
 
-compiler_dir = os.path.join(get_python_lib(prefix=''), 'Cython/Compiler')
+setup_args = {}
+
+if sys.version_info < (2,4):
+    compiler_dir = os.path.join(get_python_lib(prefix=''), 'Cython/Compiler')
+    setup_args['data_files'] = [
+        {compiler_dir : ['Cython/Compiler/Lexicon.pickle']}]
+else:
+    setup_args['package_data'] = {'Cython.Compiler' : ['Lexicon.pickle']}
 
 if os.name == "posix":
     scripts = ["bin/cython"]
@@ -54,8 +61,6 @@ setup(
     'Cython.Mac',
     'Cython.Plex'
     ],
-  package_data = {
-    'Cython.Compiler' : ['Lexicon.pickle']
-    }
+  **setup_args
   )
 
