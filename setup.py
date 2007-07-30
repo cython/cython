@@ -56,7 +56,6 @@ setup(
     "Topic :: Software Development :: Compilers",
     "Topic :: Software Development :: Libraries :: Python Modules"
   ],
-  zip_safe = False,
 
   scripts = scripts,
   packages=[
