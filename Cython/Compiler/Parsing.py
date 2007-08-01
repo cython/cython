@@ -493,7 +493,7 @@ def p_opt_string_literal(s):
 
 def p_string_literal(s):
     # A single string or char literal.
-    # Returns (kind, value) where kind in ('', 'c', 'r')
+    # Returns (kind, value) where kind in ('', 'c', 'r', 'u')
     if s.sy == 'STRING':
         value = unquote(s.systring)
         s.next()
@@ -502,7 +502,7 @@ def p_string_literal(s):
     pos = s.position()
     #is_raw = s.systring[:1].lower() == "r"
     kind = s.systring[:1].lower()
-    if kind not in "cr":
+    if kind not in "cru":
         kind = ''
     chars = []
     while 1:
@@ -513,6 +513,8 @@ def p_string_literal(s):
             systr = s.systring
             if len(systr) == 1 and systr in "'\"\n":
                 chars.append('\\')
+            if kind == 'u' and not isinstance(systr, unicode):
+                systr = systr.decode("UTF-8")
             chars.append(systr)
         elif sy == 'ESCAPE':
             systr = s.systring
@@ -533,6 +535,8 @@ def p_string_literal(s):
                     chars.append('\\x0' + systr[2:])
                 elif c == '\n':
                     pass
+                elif c == 'u':
+                    chars.append(systr)
                 else:
                     chars.append(r'\\' + systr[1:])
         elif sy == 'NEWLINE':
@@ -546,7 +550,10 @@ def p_string_literal(s):
                 "Unexpected token %r:%r in string literal" %
                     (sy, s.systring))
     s.next()
-    value = join(chars, '')
+    if kind == 'u':
+        value = u''.join(chars)
+    else:
+        value = ''.join(chars)
     #print "p_string_literal: value =", repr(value) ###
     return kind, value
 

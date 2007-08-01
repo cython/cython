@@ -2600,7 +2600,7 @@ utility_function_predeclarations = \
 
 typedef struct {const char *s; const void **p;} __Pyx_CApiTabEntry; /*proto*/
 typedef struct {PyObject **p; char *s;} __Pyx_InternTabEntry; /*proto*/
-typedef struct {PyObject **p; char *s; long n;} __Pyx_StringTabEntry; /*proto*/
+typedef struct {PyObject **p; char *s; long n; int is_unicode;} __Pyx_StringTabEntry; /*proto*/
 
 #define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
 static INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
@@ -3104,7 +3104,11 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
 ""","""
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
-        *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
+        if (t->is_unicode) {
+            *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
+        } else {
+            *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
+        }
         if (!*t->p)
             return -1;
         ++t;

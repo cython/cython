@@ -1071,13 +1071,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "static __Pyx_StringTabEntry %s[] = {" %
                     Naming.stringtab_cname)
             for entry in entries:
+                print repr(entry.init), type(entry.init)
                 code.putln(
-                    "{&%s, %s, sizeof(%s)}," % (
+                    "{&%s, %s, sizeof(%s), %d}," % (
                         entry.pystring_cname,
                         entry.cname,
-                        entry.cname))
+                        entry.cname,
+                        isinstance(entry.init, unicode)
+                        ))
             code.putln(
-                "{0, 0, 0}")
+                "{0, 0, 0, 0}")
             code.putln(
                 "};")
     

@@ -705,6 +705,8 @@ class CStringType:
     from_py_function = "PyString_AsString"
 
     def literal_code(self, value):
+        if isinstance(value, unicode):
+            value = value.encode("UTF-8")
         return '"%s"' % value
 
 
