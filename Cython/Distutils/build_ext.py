@@ -37,8 +37,12 @@ class build_ext (distutils.command.build_ext.build_ext):
         if not self.extensions:
             return
 
+        #suffix = self.swig_cpp and '.cpp' or '.c'
+        suffix = '.c'
         if extension is not None:
             module_name = extension.name
+            if extension.language == "c++":
+                suffix = ".cpp"
         else:
             module_name = None
 
@@ -46,8 +50,6 @@ class build_ext (distutils.command.build_ext.build_ext):
         pyx_sources = [source for source in sources if source.endswith('.pyx')]
         other_sources = [source for source in sources if not source.endswith('.pyx')]
 
-        #suffix = self.swig_cpp and '.cpp' or '.c'
-        suffix = '.c'
         for pyx in pyx_sources:
             # should I raise an exception if it doesn't exist?
             if os.path.exists(pyx):
