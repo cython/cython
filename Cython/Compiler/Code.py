@@ -289,17 +289,14 @@ class CCodeWriter:
             doc_code = entry.doc_cname
         else:
             doc_code = 0
-        # Add METH_COEXIST to special methods
-        meth_flags = "METH_VARARGS|METH_KEYWORDS"
-        if get_special_method_signature(entry.name):
-            meth_flags = "METH_VARARGS|METH_KEYWORDS|METH_COEXIST"            
-        self.putln(
-            '{"%s", (PyCFunction)%s, %s, %s}%s' % (
-                entry.name, 
-                entry.func_cname,
-                meth_flags,
-                doc_code,
-                term))
+        if entry.meth_flags:
+            self.putln(
+                '{"%s", (PyCFunction)%s, %s, %s}%s' % (
+                    entry.name, 
+                    entry.func_cname,
+                    entry.meth_flags,
+                    doc_code,
+                    term))
     
     def put_error_if_neg(self, pos, value):
 #        return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))  # TODO this path is almost _never_ taken, yet this macro makes is slower!
