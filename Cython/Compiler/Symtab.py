@@ -198,6 +198,9 @@ class Scope:
         # Create new entry, and add to dictionary if
         # name is not None. Reports a warning if already 
         # declared.
+        if not self.in_cinclude and re.match("^_[_A-Z]+$", cname):
+            # See http://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names 
+            error(pos, "'%s' is a reserved name in C." % cname)
         dict = self.entries
         if name and dict.has_key(name):
             warning(pos, "'%s' redeclared " % name, 0)
