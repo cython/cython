@@ -699,6 +699,8 @@ class NameNode(AtomicExprNode):
             #print "NameNode.analyse_target_declaration:", self.name ###
             #print "...declaring as py_object_type" ###
             self.entry = env.declare_var(self.name, py_object_type, self.pos)
+        if self.entry.is_declared_generic:
+            self.result_ctype = py_object_type
     
     def analyse_types(self, env):
         self.entry = env.lookup(self.name)
