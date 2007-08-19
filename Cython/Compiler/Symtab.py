@@ -29,6 +29,7 @@ class Entry:
     # is_pyglobal      boolean    Is a Python module-level variable
     #                               or class attribute during
     #                               class construction
+    # is_special       boolean    Is a special class method
     # is_variable      boolean    Is a variable
     # is_cfunction     boolean    Is a C function
     # is_cmethod       boolean    Is a C method of an extension type
@@ -69,6 +70,7 @@ class Entry:
     is_builtin = 0
     is_cglobal = 0
     is_pyglobal = 0
+    is_special = 0
     is_variable = 0
     is_cfunction = 0
     is_cmethod = 0
@@ -199,9 +201,9 @@ class Scope:
         # Create new entry, and add to dictionary if
         # name is not None. Reports a warning if already 
         # declared.
-        if not self.in_cinclude and re.match("^_[_A-Z]+$", cname):
+        if not self.in_cinclude and cname and re.match("^_[_A-Z]+$", cname):
             # See http://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names 
-            error(pos, "'%s' is a reserved name in C." % cname)
+            warning(pos, "'%s' is a reserved name in C." % cname, -1)
         dict = self.entries
         if name and dict.has_key(name):
             warning(pos, "'%s' redeclared " % name, 0)
@@ -1089,8 +1091,10 @@ class CClassScope(ClassScope):
             # Special methods get put in the method table with a particular
             # signature declared in advance.
             entry.signature = special_sig
+            entry.is_special = 1
         else:
             entry.signature = pymethod_signature
+            entry.is_special = 0
 
         self.pyfunc_entries.append(entry)
         return entry
