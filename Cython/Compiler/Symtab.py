@@ -303,7 +303,7 @@ class Scope:
         # Add an entry for a Python function.
         entry = self.declare_var(name, py_object_type, pos)
         entry.signature = pyfunction_signature
-        entry.meth_flags = "METH_VARARGS|METH_KEYWORDS"
+        entry.meth_flags = [TypeSlots.method_varargs, TypeSlots.method_keywords]
         self.pyfunc_entries.append(entry)
         return entry
     
@@ -1091,13 +1091,13 @@ class CClassScope(ClassScope):
             # signature declared in advance.
             entry.signature = special_sig
             if special_sig == TypeSlots.unaryfunc:
-                entry.meth_flags = "METH_NOARGS|METH_COEXIST"
+                entry.meth_flags = [TypeSlots.method_noargs, TypeSlots.method_coexist]
             elif special_sig == TypeSlots.binaryfunc or special_sig == TypeSlots.ibinaryfunc:
-                entry.meth_flags = "METH_O|METH_COEXIST"
+                entry.meth_flags = [TypeSlots.method_onearg, TypeSlots.method_coexist]
             else:
                 entry.meth_flags = None # should it generate a wrapper function?
         else:
-            entry.meth_flags = "METH_VARARGS|METH_KEYWORDS"
+            entry.meth_flags = [TypeSlots.method_varargs, TypeSlots.method_keywords]
             entry.signature = pymethod_signature
 
         self.pyfunc_entries.append(entry)

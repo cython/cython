@@ -8,6 +8,7 @@ import Code
 from Errors import error, warning, InternalError
 import Naming
 import PyrexTypes
+import TypeSlots
 from PyrexTypes import py_object_type, error_type, CTypedefType
 from Symtab import ModuleScope, LocalScope, \
     StructOrUnionScope, PyClassScope, CClassScope
@@ -819,6 +820,13 @@ class DefNode(FuncDefNode):
     
     def analyse_signature(self, env):
         any_type_tests_needed = 0
+        if self.entry.signature is TypeSlots.pymethod_signature:
+            if len(self.args) == 1:
+                self.entry.signature = TypeSlots.unaryfunc
+                self.entry.meth_flags = [TypeSlots.method_noargs]
+            elif len(self.args) == 2 and self.args[1].type.is_pyobject and self.args[1].default is None:
+                self.entry.signature = TypeSlots.ibinaryfunc
+                self.entry.meth_flags = [TypeSlots.method_onearg]
         sig = self.entry.signature
         nfixed = sig.num_fixed_args()
         for i in range(nfixed):
@@ -963,6 +971,8 @@ class DefNode(FuncDefNode):
                 else:
                     arg_code_list.append(
                         arg.hdr_type.declaration_code(arg.hdr_cname))
+        if self.entry.meth_flags == [TypeSlots.method_noargs]:
+            arg_code_list.append("PyObject *unused")
         if sig.has_generic_args:
             arg_code_list.append(
                 "PyObject *%s, PyObject *%s"

@@ -590,3 +590,12 @@ MethodSlot(delattrofunc, "", "__delattr__")
 MethodSlot(descrgetfunc, "", "__get__")
 MethodSlot(descrsetfunc, "", "__set__")
 MethodSlot(descrdelfunc, "", "__delete__")
+
+
+# Method flags for python-exposed methods. 
+
+method_noargs   = "METH_NOARGS"
+method_onearg   = "METH_O"
+method_varargs  = "METH_VARARGS"
+method_keywords = "METH_KEYWORDS"
+method_coexist  = "METH_COEXIST"

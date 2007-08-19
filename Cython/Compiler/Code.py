@@ -294,7 +294,7 @@ class CCodeWriter:
                 '{"%s", (PyCFunction)%s, %s, %s}%s' % (
                     entry.name, 
                     entry.func_cname,
-                    entry.meth_flags,
+                    "|".join(entry.meth_flags),
                     doc_code,
                     term))
     
