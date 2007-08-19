@@ -303,7 +303,6 @@ class Scope:
         # Add an entry for a Python function.
         entry = self.declare_var(name, py_object_type, pos)
         entry.signature = pyfunction_signature
-        entry.meth_flags = [TypeSlots.method_varargs, TypeSlots.method_keywords]
         self.pyfunc_entries.append(entry)
         return entry
     
@@ -1090,14 +1089,7 @@ class CClassScope(ClassScope):
             # Special methods get put in the method table with a particular
             # signature declared in advance.
             entry.signature = special_sig
-            if special_sig == TypeSlots.unaryfunc:
-                entry.meth_flags = [TypeSlots.method_noargs, TypeSlots.method_coexist]
-            elif special_sig == TypeSlots.binaryfunc or special_sig == TypeSlots.ibinaryfunc:
-                entry.meth_flags = [TypeSlots.method_onearg, TypeSlots.method_coexist]
-            else:
-                entry.meth_flags = None # should it generate a wrapper function?
         else:
-            entry.meth_flags = [TypeSlots.method_varargs, TypeSlots.method_keywords]
             entry.signature = pymethod_signature
 
         self.pyfunc_entries.append(entry)
@@ -1181,7 +1173,6 @@ class PropertyScope(Scope):
         if signature:
             entry = self.declare(name, name, py_object_type, pos)
             entry.signature = signature
-            entry.meth_flags = None
             return entry
         else:
             error(pos, "Only __get__, __set__ and __del__ methods allowed "

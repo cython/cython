@@ -6,7 +6,7 @@ import Naming
 import Options
 from Cython.Utils import open_new_file
 from PyrexTypes import py_object_type, typecast
-from TypeSlots import get_special_method_signature
+from TypeSlots import get_special_method_signature, method_coexist
 
 class CCodeWriter:
     # f                file            output file
@@ -289,12 +289,15 @@ class CCodeWriter:
             doc_code = entry.doc_cname
         else:
             doc_code = 0
-        if entry.meth_flags:
+        method_flags = entry.signature.method_flags()
+        if method_flags:
+            if get_special_method_signature(entry.name):
+                method_flags += [method_coexist]
             self.putln(
                 '{"%s", (PyCFunction)%s, %s, %s}%s' % (
                     entry.name, 
                     entry.func_cname,
-                    "|".join(entry.meth_flags),
+                    "|".join(method_flags),
                     doc_code,
                     term))
     

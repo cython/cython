@@ -820,13 +820,17 @@ class DefNode(FuncDefNode):
     
     def analyse_signature(self, env):
         any_type_tests_needed = 0
-        if self.entry.signature is TypeSlots.pymethod_signature:
+        # Use the simpler calling signature for zero- and one-argument functions.
+        if self.entry.signature is TypeSlots.pyfunction_signature:
+            if len(self.args) == 0:
+                self.entry.signature = TypeSlots.pyfunction_noargs
+            elif len(self.args) == 1 and self.args[0].type.is_pyobject and self.args[0].default is None:
+                self.entry.signature = TypeSlots.pyfunction_onearg
+        elif self.entry.signature is TypeSlots.pymethod_signature:
             if len(self.args) == 1:
                 self.entry.signature = TypeSlots.unaryfunc
-                self.entry.meth_flags = [TypeSlots.method_noargs]
             elif len(self.args) == 2 and self.args[1].type.is_pyobject and self.args[1].default is None:
                 self.entry.signature = TypeSlots.ibinaryfunc
-                self.entry.meth_flags = [TypeSlots.method_onearg]
         sig = self.entry.signature
         nfixed = sig.num_fixed_args()
         for i in range(nfixed):

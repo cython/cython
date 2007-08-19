@@ -82,6 +82,18 @@ class Signature:
     
     def return_type(self):
         return self.format_map[self.ret_format]
+        
+    def method_flags(self):
+        if self.ret_format == "O":
+            full_args = "O" + self.fixed_arg_format if self.has_dummy_arg else self.fixed_arg_format
+            if full_args in ["O", "T"]:
+                if self.has_generic_args:
+                    return [method_varargs, method_keywords]
+                else:
+                    return [method_noargs]
+            elif full_args in ["OO", "TO"] and not self.has_generic_args:
+                return [method_onearg]
+        return None
 
 
 class SlotDescriptor:
@@ -341,6 +353,15 @@ def get_property_accessor_signature(name):
 
 pyfunction_signature = Signature("-*", "O")
 pymethod_signature = Signature("T*", "O")
+
+#------------------------------------------------------------------------------------------
+#
+#  Signatures for simple Python functions.
+#
+#------------------------------------------------------------------------------------------
+
+pyfunction_noargs = Signature("-", "O")
+pyfunction_onearg = Signature("-O", "O")
 
 #------------------------------------------------------------------------------------------
 #
