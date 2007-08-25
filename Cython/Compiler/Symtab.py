@@ -7,6 +7,7 @@ from Errors import error, InternalError, warning
 import Options
 import Naming
 from PyrexTypes import *
+import TypeSlots
 from TypeSlots import \
     pyfunction_signature, pymethod_signature, \
     get_special_method_signature, get_property_accessor_signature
@@ -28,6 +29,7 @@ class Entry:
     # is_pyglobal      boolean    Is a Python module-level variable
     #                               or class attribute during
     #                               class construction
+    # is_special       boolean    Is a special class method
     # is_variable      boolean    Is a variable
     # is_cfunction     boolean    Is a C function
     # is_cmethod       boolean    Is a C method of an extension type
@@ -68,6 +70,7 @@ class Entry:
     is_builtin = 0
     is_cglobal = 0
     is_pyglobal = 0
+    is_special = 0
     is_variable = 0
     is_cfunction = 0
     is_cmethod = 0
@@ -198,6 +201,9 @@ class Scope:
         # Create new entry, and add to dictionary if
         # name is not None. Reports a warning if already 
         # declared.
+        if not self.in_cinclude and cname and re.match("^_[_A-Z]+$", cname):
+            # See http://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names 
+            warning(pos, "'%s' is a reserved name in C." % cname, -1)
         dict = self.entries
         if name and dict.has_key(name):
             warning(pos, "'%s' redeclared " % name, 0)
@@ -1076,14 +1082,21 @@ class CClassScope(ClassScope):
 
     def declare_pyfunction(self, name, pos):
         # Add an entry for a method.
+        if name in ('__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__'):
+            error(pos, "Special method %s must be implemented via __richcmp__" 
+% name)
         entry = self.declare(name, name, py_object_type, pos)
         special_sig = get_special_method_signature(name)
         if special_sig:
+            # Special methods get put in the method table with a particular
+            # signature declared in advance.
             entry.signature = special_sig
-            # Special methods don't get put in the method table
+            entry.is_special = 1
         else:
             entry.signature = pymethod_signature
-            self.pyfunc_entries.append(entry)
+            entry.is_special = 0
+
+        self.pyfunc_entries.append(entry)
         return entry
             
     def declare_cfunction(self, name, type, pos,

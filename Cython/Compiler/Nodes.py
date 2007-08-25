@@ -8,6 +8,7 @@ import Code
 from Errors import error, warning, InternalError
 import Naming
 import PyrexTypes
+import TypeSlots
 from PyrexTypes import py_object_type, error_type, CTypedefType
 from Symtab import ModuleScope, LocalScope, \
     StructOrUnionScope, PyClassScope, CClassScope
@@ -819,6 +820,18 @@ class DefNode(FuncDefNode):
     
     def analyse_signature(self, env):
         any_type_tests_needed = 0
+        # Use the simpler calling signature for zero- and one-argument functions.
+        if not self.entry.is_special and not self.star_arg and not self.starstar_arg:
+            if self.entry.signature is TypeSlots.pyfunction_signature:
+                if len(self.args) == 0:
+                    self.entry.signature = TypeSlots.pyfunction_noargs
+                elif len(self.args) == 1 and self.args[0].default is None:
+                    self.entry.signature = TypeSlots.pyfunction_onearg
+            elif self.entry.signature is TypeSlots.pymethod_signature:
+                if len(self.args) == 1:
+                    self.entry.signature = TypeSlots.unaryfunc
+                elif len(self.args) == 2 and self.args[1].default is None:
+                    self.entry.signature = TypeSlots.ibinaryfunc
         sig = self.entry.signature
         nfixed = sig.num_fixed_args()
         for i in range(nfixed):
@@ -851,6 +864,12 @@ class DefNode(FuncDefNode):
                 if arg.is_generic and arg.type.is_extension_type:
                     arg.needs_type_test = 1
                     any_type_tests_needed = 1
+                elif arg.type is PyrexTypes.c_py_ssize_t_type:
+                    # Want to use __index__ rather than __int__ method
+                    # that PyArg_ParseTupleAndKeywords calls
+                    arg.needs_conversion = 1
+                    arg.hdr_type = PyrexTypes.py_object_type
+                    arg.hdr_cname = Naming.arg_prefix + arg.name
         if any_type_tests_needed:
             env.use_utility_code(arg_type_test_utility_code)
     
@@ -957,6 +976,8 @@ class DefNode(FuncDefNode):
                 else:
                     arg_code_list.append(
                         arg.hdr_type.declaration_code(arg.hdr_cname))
+        if not self.entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
+            arg_code_list.append("PyObject *unused")
         if sig.has_generic_args:
             arg_code_list.append(
                 "PyObject *%s, PyObject *%s"
@@ -980,7 +1001,10 @@ class DefNode(FuncDefNode):
     def generate_argument_declarations(self, env, code):
         for arg in self.args:
             if arg.is_generic: # or arg.needs_conversion:
-                code.put_var_declaration(arg.entry)
+                if arg.needs_conversion:
+                    code.putln("PyObject *%s = 0;" % arg.hdr_cname)
+                else:
+                    code.put_var_declaration(arg.entry)
     
     def generate_keyword_list(self, code):
         if self.entry.signature.has_generic_args:
@@ -994,7 +1018,7 @@ class DefNode(FuncDefNode):
                             arg.name)
             code.putln(
                 "0};")
-    
+                        
     def generate_argument_parsing_code(self, code):
         # Generate PyArg_ParseTuple call for generic
         # arguments, if any.
@@ -1015,8 +1039,12 @@ class DefNode(FuncDefNode):
                         default_seen = 1
                     elif default_seen:
                         error(arg.pos, "Non-default argument following default argument")
-                    arg_addrs.append("&" + arg_entry.cname)
-                    format = arg_entry.type.parsetuple_format
+                    if arg.needs_conversion:
+                        arg_addrs.append("&" + arg.hdr_cname)
+                        format = arg.hdr_type.parsetuple_format
+                    else:
+                        arg_addrs.append("&" + arg_entry.cname)
+                        format = arg_entry.type.parsetuple_format
                     if format:
                         arg_formats.append(format)
                     else:
@@ -1088,7 +1116,9 @@ class DefNode(FuncDefNode):
         old_type = arg.hdr_type
         new_type = arg.type
         if old_type.is_pyobject:
+            code.putln("if (likely(%s)) {" % arg.hdr_cname)
             self.generate_arg_conversion_from_pyobject(arg, code)
+            code.putln("}")
         elif new_type.is_pyobject:
             self.generate_arg_conversion_to_pyobject(arg, code)
         else:
@@ -2601,6 +2631,8 @@ utility_function_predeclarations = \
 typedef struct {const char *s; const void **p;} __Pyx_CApiTabEntry; /*proto*/
 typedef struct {PyObject **p; char *s;} __Pyx_InternTabEntry; /*proto*/
 typedef struct {PyObject **p; char *s; long n; int is_unicode;} __Pyx_StringTabEntry; /*proto*/
+
+#define __pyx_PyIndex_AsSsize_t(b) PyInt_AsSsize_t(PyNumber_Index(b))
 
 #define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
 static INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {

@@ -352,7 +352,7 @@ class CBIntType(CIntType):
 class CPySSizeTType(CIntType):
 
     to_py_function = "PyInt_FromSsize_t"
-    from_py_function = "PyInt_AsSsize_t"
+    from_py_function = "__pyx_PyIndex_AsSsize_t"
 
 
 class CUIntType(CIntType):

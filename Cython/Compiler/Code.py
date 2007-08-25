@@ -6,6 +6,7 @@ import Naming
 import Options
 from Cython.Utils import open_new_file
 from PyrexTypes import py_object_type, typecast
+from TypeSlots import method_coexist
 
 class CCodeWriter:
     # f                file            output file
@@ -288,12 +289,17 @@ class CCodeWriter:
             doc_code = entry.doc_cname
         else:
             doc_code = 0
-        self.putln(
-            '{"%s", (PyCFunction)%s, METH_VARARGS|METH_KEYWORDS, %s}%s' % (
-                entry.name, 
-                entry.func_cname, 
-                doc_code,
-                term))
+        method_flags = entry.signature.method_flags()
+        if method_flags:
+            if entry.is_special:
+                method_flags += [method_coexist]
+            self.putln(
+                '{"%s", (PyCFunction)%s, %s, %s}%s' % (
+                    entry.name, 
+                    entry.func_cname,
+                    "|".join(method_flags),
+                    doc_code,
+                    term))
     
     def put_error_if_neg(self, pos, value):
 #        return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))  # TODO this path is almost _never_ taken, yet this macro makes is slower!

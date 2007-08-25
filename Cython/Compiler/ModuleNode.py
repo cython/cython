@@ -173,6 +173,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PY_SSIZE_T_MIN INT_MIN")
         code.putln("  #define PyInt_FromSsize_t(z) PyInt_FromLong(z)")
         code.putln("  #define PyInt_AsSsize_t(o)   PyInt_AsLong(o)")
+        code.putln("  #define PyNumber_Index(o)    PyNumber_Int(o)")
+        code.putln("  #define PyIndex_Check(o)     PyNumber_Check(o)")
         code.putln("#endif")
         self.generate_extern_c_macro_definition(code)
         code.putln("%s double pow(double, double);" % Naming.extern_c_macro)
