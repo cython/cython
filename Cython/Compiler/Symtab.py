@@ -1177,6 +1177,7 @@ class PropertyScope(Scope):
         if signature:
             entry = self.declare(name, name, py_object_type, pos)
             entry.signature = signature
+            entry.is_special = 1
             return entry
         else:
             error(pos, "Only __get__, __set__ and __del__ methods allowed "
