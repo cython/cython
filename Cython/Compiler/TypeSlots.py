@@ -85,7 +85,9 @@ class Signature:
         
     def method_flags(self):
         if self.ret_format == "O":
-            full_args = "O" + self.fixed_arg_format if self.has_dummy_arg else self.fixed_arg_format
+            full_args = self.fixed_arg_format
+            if self.has_dummy_arg:
+                full_args = "O" + full_args
             if full_args in ["O", "T"]:
                 if self.has_generic_args:
                     return [method_varargs, method_keywords]
