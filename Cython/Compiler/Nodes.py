@@ -2879,7 +2879,7 @@ static int __Pyx_GetStarArgs(
         if (*kwds) {
             char **p;
             kwds1 = PyDict_New();
-            if (!kwds)
+            if (!kwds1)
                 goto bad;
             *kwds2 = PyDict_Copy(*kwds);
             if (!*kwds2)
