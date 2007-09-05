@@ -2610,6 +2610,15 @@ class PowNode(NumBinopNode):
     def c_types_okay(self, type1, type2):
         return type1.is_float or type2.is_float
     
+    def type_error(self):
+        if not (self.operand1.type.is_error or self.operand2.type.is_error):
+            if self.operand1.type.is_int and self.operand2.type.is_int:
+                error(self.pos, "C has no integer powering, use python ints or floats instead '%s' (%s; %s)" %
+                    (self.operator, self.operand1.type, self.operand2.type))
+            else:
+                NumBinopNode.type_error(self)
+        self.type = PyrexTypes.error_type
+    
     def calculate_result_code(self):
         return "pow(%s, %s)" % (
             self.operand1.result_code, self.operand2.result_code)
