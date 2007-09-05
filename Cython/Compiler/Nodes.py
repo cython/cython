@@ -1624,6 +1624,8 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.dup = self.create_dup_node(env) # re-assigns lhs to a shallow copy
         self.rhs.analyse_types(env)
         self.lhs.analyse_target_types(env)
+        if Options.incref_local_binop and self.dup.type.is_pyobject:
+            self.dup = self.dup.coerce_to_temp(env)
         
     def allocate_rhs_temps(self, env):
         import ExprNodes

@@ -40,6 +40,7 @@ class Entry:
     # getter_cname     string          C func for getting property
     # setter_cname     string          C func for setting or deleting property
     # is_self_arg      boolean    Is the "self" arg of an exttype method
+    # is_arg           boolean    Is the arg of a method
     # is_readonly      boolean    Can't be assigned to
     # func_cname       string     C func implementing Python func
     # pos              position   Source position where declared
@@ -81,6 +82,7 @@ class Entry:
     getter_cname = None
     setter_cname = None
     is_self_arg = 0
+    is_arg = 0
     is_declared_generic = 0
     is_readonly = 0
     func_cname = None
@@ -910,6 +912,7 @@ class LocalScope(Scope):
         entry.is_variable = 1
         if type.is_pyobject:
             entry.init = "0"
+        entry.is_arg = 1
         #entry.borrowed = 1 # Not using borrowed arg refs for now
         self.arg_entries.append(entry)
         return entry

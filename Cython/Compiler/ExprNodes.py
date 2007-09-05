@@ -2430,6 +2430,8 @@ class BinopNode(ExprNode):
             self.coerce_operands_to_pyobjects(env)
             self.type = py_object_type
             self.is_temp = 1
+            if Options.incref_local_binop and self.operand1.type.is_pyobject:
+                self.operand1 = self.operand1.coerce_to_temp(env)
         else:
             self.analyse_c_operation(env)
     
