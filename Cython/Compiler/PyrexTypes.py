@@ -260,6 +260,8 @@ class CType(PyrexType):
     
     to_py_function = None
     from_py_function = None
+    exception_value = None
+    exception_check = 1
 
 
 #class CSimpleType(CType):
@@ -332,6 +334,7 @@ class CIntType(CNumericType):
     typedef_flag = 0
     to_py_function = "PyInt_FromLong"
     from_py_function = "PyInt_AsLong"
+    exception_value = -1
 
     def __init__(self, rank, signed, pymemberdef_typecode = None, is_returncode = 0):
         CNumericType.__init__(self, rank, signed, pymemberdef_typecode)
@@ -347,33 +350,35 @@ class CBIntType(CIntType):
     #       and no error checking should be needed (just an incref). 
     to_py_function = "__Pyx_PyBool_FromLong"
     from_py_function = "__Pyx_PyObject_IsTrue"
+    exception_check = 0
     
 
 class CPySSizeTType(CIntType):
 
     to_py_function = "PyInt_FromSsize_t"
     from_py_function = "__pyx_PyIndex_AsSsize_t"
-
+    exception_value = None
 
 class CUIntType(CIntType):
 
     to_py_function = "PyLong_FromUnsignedLong"
     from_py_function = "PyInt_AsUnsignedLongMask"
+    exception_value = None
 
 
-class CULongType(CIntType):
+class CULongType(CUIntType):
 
     to_py_function = "PyLong_FromUnsignedLong"
     from_py_function = "PyInt_AsUnsignedLongMask"
 
 
-class CLongLongType(CIntType):
+class CLongLongType(CUIntType):
 
     to_py_function = "PyLong_FromLongLong"
     from_py_function = "PyInt_AsUnsignedLongLongMask"
 
 
-class CULongLongType(CIntType):
+class CULongLongType(CUIntType):
 
     to_py_function = "PyLong_FromUnsignedLongLong"
     from_py_function = "PyInt_AsUnsignedLongLongMask"
@@ -703,6 +708,7 @@ class CStringType:
     
     to_py_function = "PyString_FromString"
     from_py_function = "PyString_AsString"
+    exception_value = "NULL"
 
     def literal_code(self, value):
         return '"%s"' % value

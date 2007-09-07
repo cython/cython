@@ -3177,7 +3177,18 @@ class CoerceFromPyTypeNode(CoercionNode):
         code.putln('%s = %s; %s' % (
             self.result_code, 
             rhs, 
-            code.error_goto_if_PyErr(self.pos)))
+            code.error_goto_if(self.error_cond(), self.pos)))
+            
+    def error_cond(self):
+        conds = []
+        if self.type.exception_value is not None:
+            conds.append("(%s == %s)" % (self.result_code, self.type.exception_value))
+        if self.type.exception_check:
+            conds.append("PyErr_Occurred()")
+        if len(conds) > 0:
+            return " && ".join(conds)
+        else:
+            return 0
 
 
 class CoerceToBooleanNode(CoercionNode):
