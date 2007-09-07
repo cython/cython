@@ -8,6 +8,15 @@ compiler_dir = os.path.join(get_python_lib(prefix=''), 'Cython/Compiler')
 if sys.platform == "win32":
     compiler_dir = compiler_dir[len(sys.prefix)+1:]
 
+setup_args = {}
+
+if sys.version_info < (2,4):
+    compiler_dir = os.path.join(get_python_lib(prefix=''), 'Cython/Compiler')
+    setup_args['data_files'] = [
+        {compiler_dir : ['Cython/Compiler/Lexicon.pickle']}]
+else:
+    setup_args['package_data'] = {'Cython.Compiler' : ['Lexicon.pickle']}
+
 if os.name == "posix":
     scripts = ["bin/cython"]
 else:
@@ -57,8 +66,6 @@ setup(
     'Cython.Mac',
     'Cython.Plex'
     ],
-  package_data = {
-    'Cython.Compiler' : ['Lexicon.pickle']
-    }
+  **setup_args
   )
 
