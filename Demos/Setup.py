@@ -7,7 +7,9 @@ setup(
   ext_modules=[ 
     Extension("primes",       ["primes.pyx"]),
     Extension("spam",         ["spam.pyx"]),
-    Extension("numeric_demo", ["numeric_demo.pyx"]),
+#    Extension("numeric_demo", ["numeric_demo.pyx"]),
+    Extension("test", ["test.pyx"]),
     ],
-  cmdclass = {'build_ext': build_ext}
+  cmdclass = {'build_ext': build_ext},
+#  include_dirs = "/System/Library/Frameworks/Python.framework/Versions/2.3/include/python2.3/"
 )

@@ -1,9 +1,12 @@
 from distutils.core import setup
 from distutils.sysconfig import get_python_lib
 import os
+import sys
 from Cython.Compiler.Version import version
 
 compiler_dir = os.path.join(get_python_lib(prefix=''), 'Cython/Compiler')
+if sys.platform == "win32":
+    compiler_dir = compiler_dir[len(sys.prefix)+1:]
 
 if os.name == "posix":
     scripts = ["bin/cython"]
