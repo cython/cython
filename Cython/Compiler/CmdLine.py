@@ -22,7 +22,7 @@ Options:
   -z, --pre-import <module>      If specified, assume undeclared names in this 
                                  module. Emulates the behavior of putting 
                                  "from <module> import *" at the top of the file. 
-  --incref_local_binop           Force local an extra incref on local variables before
+  --incref-local-binop           Force local an extra incref on local variables before
                                  performing any binary operations. 
 """  
 #The following experimental options are supported only on MacOSX:
@@ -78,7 +78,7 @@ def parse_command_line(args):
                 Options.embed_pos_in_docstring = 1
             elif option in ("-z", "--pre-import"):
                 Options.pre_import = pop_arg()
-            elif option == "--incref_local_binop":
+            elif option == "--incref-local-binop":
                 Options.incref_local_binop = 1
             else:
                 bad_usage()

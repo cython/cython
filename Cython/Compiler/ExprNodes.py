@@ -1626,7 +1626,8 @@ class AttributeNode(ExprNode):
         self.obj.analyse_types(env)
         self.analyse_attribute(env)
         if self.entry and self.entry.is_cmethod and not self.is_called:
-            error(self.pos, "C method can only be called")
+#            error(self.pos, "C method can only be called")
+            pass
         ## Reference to C array turns into pointer to first element.
         #while self.type.is_array:
         #	self.type = self.type.element_ptr_type()
@@ -2837,7 +2838,7 @@ class CmpNode:
                 and op not in ('is', 'is_not')):
             return 1
         else:
-            return 0
+            return type1.is_cfunction and type1.is_cfunction and type1 == type2
 
     def generate_operation_code(self, code, result_code, 
             operand1, op , operand2):
