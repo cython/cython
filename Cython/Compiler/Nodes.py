@@ -282,6 +282,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
     # has_varargs      boolean
     # exception_value  ConstNode
     # exception_check  boolean    True if PyErr_Occurred check needed
+    # with_gil         boolean    True if GIL should be grabbed/released
 
     def analyse(self, return_type, env):
         func_type_args = []
@@ -317,7 +318,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             exc_check = self.exception_check
         func_type = PyrexTypes.CFuncType(
             return_type, func_type_args, self.has_varargs, 
-            exception_value = exc_val, exception_check = exc_check)
+            exception_value = exc_val, exception_check = exc_check,
+            with_gil = self.with_gil)
         return self.base.analyse(func_type, env)
 
 
@@ -572,6 +574,8 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_keyword_list(code)
         # ----- Extern library function declarations
         lenv.generate_library_function_declarations(code)
+        # ----- Grab GIL
+        self.generate_grab_gil(code)
         # ----- Fetch arguments
         self.generate_argument_parsing_code(code)
         self.generate_argument_increfs(lenv, code)
@@ -623,6 +627,9 @@ class FuncDefNode(StatNode, BlockNode):
         code.put_var_decrefs(lenv.var_entries, used_only = 1)
         code.put_var_decrefs(lenv.arg_entries)
         self.put_stararg_decrefs(code)
+        # ----- Release GIL
+        self.generate_release_gil(code)
+        # ----- Return
         if not self.return_type.is_void:
             retval_code = Naming.retval_cname
             #if self.return_type.is_extension_type:
@@ -651,6 +658,12 @@ class FuncDefNode(StatNode, BlockNode):
             code.put_var_incref(entry)
 
     def generate_execution_code(self, code):
+        pass
+
+    def generate_grab_gil(self, code):
+        pass
+
+    def generate_release_gil(self, code):
         pass
 
 
@@ -756,7 +769,19 @@ class CFuncDefNode(FuncDefNode):
         else:
             error(arg.pos, "Cannot test type of extern C class "
                 "without type object name specification")
-    
+
+    def generate_grab_gil(self, code):
+        if self.entry.type.with_gil:
+            code.putln("")
+            code.put_py_gil_state_ensure(Naming.gilstate_cname)
+            code.putln("")
+
+    def generate_release_gil(self, code):
+        if self.entry.type.with_gil:
+            code.putln("")
+            code.put_py_gil_state_release(Naming.gilstate_cname)
+            code.putln("")
+
     def error_value(self):
         if self.return_type.is_pyobject:
             return "0"

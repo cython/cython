@@ -1455,10 +1455,10 @@ def p_c_declarator(s, empty = 0, is_type = 0, cmethod_flag = 0 , assignable = 0)
                 args = p_c_arg_list(s, in_pyfunc = 0, cmethod_flag = cmethod_flag)
                 ellipsis = p_optional_ellipsis(s)
                 s.expect(')')
-                exc_val, exc_check = p_exception_value_clause(s)
+                options = p_c_func_options(s)
                 result = Nodes.CFuncDeclaratorNode(pos, 
                     base = result, args = args, has_varargs = ellipsis,
-                    exception_value = exc_val, exception_check = exc_check)
+                    **options)
             cmethod_flag = 0
     return result
 
@@ -1476,6 +1476,32 @@ def p_exception_value_clause(s):
                 s.next()
             exc_val = p_simple_expr(s) #p_exception_value(s)
     return exc_val, exc_check
+
+def p_c_with_gil(s):
+    if s.sy == 'withGIL':
+        s.next()
+        return True
+    return False
+
+def p_c_func_options(s):
+    exc_val = None
+    exc_check = 0
+    with_gil = False
+
+    if s.sy == 'except':
+        exc_val, exc_check = p_exception_value_clause(s)
+        with_gil = p_c_with_gil(s)
+    elif s.sy == 'withGIL':
+        with_gil = p_c_with_gil(s)
+        exc_val, exc_check = p_exception_value_clause(s)
+
+    ret = {
+        'exception_value': exc_val,
+        'exception_check': exc_check,
+        'with_gil': with_gil,
+        }
+
+    return ret
 
 #def p_exception_value(s):
 #	sign = ""
