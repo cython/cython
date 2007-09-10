@@ -284,6 +284,13 @@ class CCodeWriter:
         #	code = "((PyObject*)%s)" % code
         self.put_init_to_py_none(code, entry.type)
 
+    def put_py_gil_state_ensure(self, cname):
+        self.putln("PyGILState_STATE %s;" % cname)
+        self.putln("%s = PyGILState_Ensure();" % cname)
+
+    def put_py_gil_state_release(self, cname):
+        self.putln("PyGILState_Release(%s);" % cname)
+
     def put_pymethoddef(self, entry, term):
         if entry.doc:
             doc_code = entry.doc_cname

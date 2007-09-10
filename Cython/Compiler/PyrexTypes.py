@@ -488,16 +488,18 @@ class CFuncType(CType):
     #  has_varargs      boolean
     #  exception_value  string
     #  exception_check  boolean  True if PyErr_Occurred check needed
+    #  with_gil         boolean  True if GIL should be grabbed/released
     
     is_cfunction = 1
     
     def __init__(self, return_type, args, has_varargs,
-            exception_value = None, exception_check = 0):
+            exception_value = None, exception_check = 0, with_gil = False):
         self.return_type = return_type
         self.args = args
         self.has_varargs = has_varargs
         self.exception_value = exception_value
         self.exception_check = exception_check
+        self.with_gil = with_gil
     
     def __repr__(self):
         arg_reprs = map(repr, self.args)
@@ -580,6 +582,7 @@ class CFuncType(CType):
         if not arg_decl_code and not pyrex:
             arg_decl_code = "void"
         exc_clause = ""
+        with_gil_clause = ""
         if pyrex or for_display:
             if self.exception_value and self.exception_check:
                 exc_clause = " except? %s" % self.exception_value
@@ -587,8 +590,11 @@ class CFuncType(CType):
                 exc_clause = " except %s" % self.exception_value
             elif self.exception_check:
                 exc_clause = " except *"
+            if self.with_gil:
+                with_gil_clause = " withGIL"
         return self.return_type.declaration_code(
-            "(%s(%s)%s)" % (entity_code, arg_decl_code, exc_clause),
+            "(%s(%s)%s%s)" % (entity_code, arg_decl_code,
+                              exc_clause, with_gil_clause),
             for_display, dll_linkage, pyrex)
 
 
