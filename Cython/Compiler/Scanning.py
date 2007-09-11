@@ -138,7 +138,11 @@ reserved_words = [
     "raise", "import", "exec", "try", "except", "finally",
     "while", "if", "elif", "else", "for", "in", "assert",
     "and", "or", "not", "is", "in", "lambda", "from",
-    "NULL", "cimport", "by", "withGIL"
+    "NULL", "cimport", "by", "with"
+]
+
+function_contexts = [ # allowed arguments to the "with" option
+    "GIL"
 ]
 
 class Method:
