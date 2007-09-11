@@ -5,7 +5,7 @@
 import os, re
 from string import join, replace
 from types import ListType, TupleType
-from Scanning import PyrexScanner
+from Scanning import PyrexScanner, function_contexts
 import Nodes
 import ExprNodes
 from ModuleNode import ModuleNode
@@ -1484,28 +1484,33 @@ def p_exception_value_clause(s):
             exc_val = p_simple_expr(s) #p_exception_value(s)
     return exc_val, exc_check
 
-def p_c_with_gil(s):
-    if s.sy == 'withGIL':
+def p_c_with(s):
+    if s.sy == 'with':
         s.next()
-        return True
-    return False
+        return p_ident_list(s)
+    return ()
 
 def p_c_func_options(s):
     exc_val = None
     exc_check = 0
-    with_gil = False
+    contexts = []
 
     if s.sy == 'except':
         exc_val, exc_check = p_exception_value_clause(s)
-        with_gil = p_c_with_gil(s)
-    elif s.sy == 'withGIL':
-        with_gil = p_c_with_gil(s)
+        contexts = p_c_with(s)
+    elif s.sy == 'with':
+        contexts = p_c_with(s)
         exc_val, exc_check = p_exception_value_clause(s)
+
+    for context in contexts:
+        if context not in function_contexts:
+            s.error("Unknown context: " + context)
+            return None
 
     ret = {
         'exception_value': exc_val,
         'exception_check': exc_check,
-        'with_gil': with_gil,
+        'with_gil': 'GIL' in contexts,
         }
 
     return ret

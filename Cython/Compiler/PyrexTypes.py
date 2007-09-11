@@ -591,7 +591,7 @@ class CFuncType(CType):
             elif self.exception_check:
                 exc_clause = " except *"
             if self.with_gil:
-                with_gil_clause = " withGIL"
+                with_gil_clause = " with GIL"
         return self.return_type.declaration_code(
             "(%s(%s)%s%s)" % (entity_code, arg_decl_code,
                               exc_clause, with_gil_clause),
