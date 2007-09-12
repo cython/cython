@@ -1626,7 +1626,8 @@ class AttributeNode(ExprNode):
         self.obj.analyse_types(env)
         self.analyse_attribute(env)
         if self.entry and self.entry.is_cmethod and not self.is_called:
-            error(self.pos, "C method can only be called")
+#            error(self.pos, "C method can only be called")
+            pass
         ## Reference to C array turns into pointer to first element.
         #while self.type.is_array:
         #	self.type = self.type.element_ptr_type()
@@ -2430,6 +2431,8 @@ class BinopNode(ExprNode):
             self.coerce_operands_to_pyobjects(env)
             self.type = py_object_type
             self.is_temp = 1
+            if Options.incref_local_binop and self.operand1.type.is_pyobject:
+                self.operand1 = self.operand1.coerce_to_temp(env)
         else:
             self.analyse_c_operation(env)
     
@@ -2609,6 +2612,15 @@ class PowNode(NumBinopNode):
             
     def c_types_okay(self, type1, type2):
         return type1.is_float or type2.is_float
+    
+    def type_error(self):
+        if not (self.operand1.type.is_error or self.operand2.type.is_error):
+            if self.operand1.type.is_int and self.operand2.type.is_int:
+                error(self.pos, "C has no integer powering, use python ints or floats instead '%s' (%s; %s)" %
+                    (self.operator, self.operand1.type, self.operand2.type))
+            else:
+                NumBinopNode.type_error(self)
+        self.type = PyrexTypes.error_type
     
     def calculate_result_code(self):
         return "pow(%s, %s)" % (
@@ -2826,7 +2838,7 @@ class CmpNode:
                 and op not in ('is', 'is_not')):
             return 1
         else:
-            return 0
+            return type1.is_cfunction and type1.is_cfunction and type1 == type2
 
     def generate_operation_code(self, code, result_code, 
             operand1, op , operand2):
@@ -3166,7 +3178,18 @@ class CoerceFromPyTypeNode(CoercionNode):
         code.putln('%s = %s; %s' % (
             self.result_code, 
             rhs, 
-            code.error_goto_if_PyErr(self.pos)))
+            code.error_goto_if(self.error_cond(), self.pos)))
+            
+    def error_cond(self):
+        conds = []
+        if self.type.exception_value is not None:
+            conds.append("(%s == %s)" % (self.result_code, self.type.exception_value))
+        if self.type.exception_check:
+            conds.append("PyErr_Occurred()")
+        if len(conds) > 0:
+            return " && ".join(conds)
+        else:
+            return 0
 
 
 class CoerceToBooleanNode(CoercionNode):

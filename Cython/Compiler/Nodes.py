@@ -1649,13 +1649,17 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.dup = self.create_dup_node(env) # re-assigns lhs to a shallow copy
         self.rhs.analyse_types(env)
         self.lhs.analyse_target_types(env)
+        if Options.incref_local_binop and self.dup.type.is_pyobject:
+            self.dup = self.dup.coerce_to_temp(env)
         
     def allocate_rhs_temps(self, env):
         import ExprNodes
-        if self.lhs.type.is_pyobject or self.rhs.type.is_pyobject:
+        if self.lhs.type.is_pyobject:
+            self.rhs = self.rhs.coerce_to_pyobject(env)
+        elif self.rhs.type.is_pyobject:
             self.rhs = self.rhs.coerce_to(self.lhs.type, env)
         if self.lhs.type.is_pyobject:
-             self.result = ExprNodes.PyTempNode(self.pos, env)
+             self.result = ExprNodes.PyTempNode(self.pos, env).coerce_to(self.lhs.type, env)
              self.result.allocate_temps(env)
 #        if use_temp:
 #            self.rhs = self.rhs.coerce_to_temp(env)
@@ -1685,6 +1689,7 @@ class InPlaceAssignmentNode(AssignmentNode):
                     self.dup.py_result(),
                     self.rhs.py_result(),
                     code.error_goto_if_null(self.result.py_result(), self.pos)))
+            self.result.generate_evaluation_code(code) # May be a type check...
             self.rhs.generate_disposal_code(code)
             self.dup.generate_disposal_code(code)
             self.lhs.generate_assignment_code(self.result, code)
