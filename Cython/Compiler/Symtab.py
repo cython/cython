@@ -515,7 +515,7 @@ class BuiltinScope(Scope):
     builtin_functions = {
       "hasattr": ["PyObject_HasAttr", c_bint_type, (py_object_type, py_object_type)],
       "getattr": ["PyObject_GetAttr", py_object_type, (py_object_type, py_object_type)],
-      "setattr": ["PyObject_SetAttr", c_bint_type, (py_object_type, py_object_type), -1],
+      "setattr": ["PyObject_SetAttr", c_bint_type, (py_object_type, py_object_type, py_object_type), -1],
       "cmp":     ["PyObject_Compare", c_int_type, (py_object_type, py_object_type), None, True],
       "repr":    ["PyObject_Repr", py_object_type, (py_object_type, ), 0],
 #      "str":     ["PyObject_Str", py_object_type, (py_object_type, ), 0],
