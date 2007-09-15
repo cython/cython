@@ -521,7 +521,6 @@ class BuiltinScope(Scope):
       "unicode": ["PyObject_Unicode", py_object_type, (py_object_type, ), 0],
       "isinstance": ["PyObject_IsInstance", c_bint_type, (py_object_type, py_object_type), -1],
       "issubclass": ["PyObject_IsSubclass", c_bint_type, (py_object_type, py_object_type), -1],
-      "callable":["PyCallable_Check", c_bint_type, (py_object_type, )],
       "hash":    ["PyObject_Hash", c_long_type, (py_object_type, ), -1, True],
       "type":    ["PyObject_Type", py_object_type, (py_object_type, ), 0],
       "len":     ["PyObject_Size", c_py_ssize_t_type, (py_object_type, ), -1],
