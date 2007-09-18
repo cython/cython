@@ -1088,7 +1088,7 @@ class CClassScope(ClassScope):
         if name in ('__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__'):
             error(pos, "Special method %s must be implemented via __richcmp__" 
 % name)
-        entry = self.declare(name, name, py_object_type, pos)
+        entry = self.declare_var(name, py_object_type, pos)
         special_sig = get_special_method_signature(name)
         if special_sig:
             # Special methods get put in the method table with a particular

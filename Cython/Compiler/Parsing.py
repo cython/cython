@@ -1227,8 +1227,6 @@ def p_statement(s, level, cdef_flag = 0, visibility = 'private'):
         if level in ('c_class', 'c_class_pxd'):
             if s.sy == 'pass':
                 return p_pass_statement(s, with_newline = 1)
-            else:
-                s.error("Executable statement not allowed here")
         if s.sy == 'if':
             return p_if_statement(s)
         elif s.sy == 'while':

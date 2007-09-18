@@ -1370,8 +1370,9 @@ class CClassDefNode(StatNode):
         env.allocate_vtable_names(self.entry)
         
     def analyse_expressions(self, env):
+        scope = self.entry.type.scope
         if self.body:
-            self.body.analyse_expressions(env)
+            self.body.analyse_expressions(scope)
     
     def generate_function_definitions(self, env, code):
         if self.body:
