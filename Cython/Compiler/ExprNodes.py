@@ -814,24 +814,45 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is None:
             return # There was an error earlier
+
+        # is_pyglobal seems to be True for module level-globals only.
+        # We use this to access class->tp_dict if necessary.
         if entry.is_pyglobal:
             namespace = self.entry.namespace_cname
-            if Options.intern_names:
-                code.put_error_if_neg(self.pos, 
-                    'PyObject_SetAttr(%s, %s, %s)' % (
-                        namespace, 
-                        entry.interned_cname,
-                        rhs.py_result()))
-            else:
-                code.put_error_if_neg(self.pos,
-                    'PyObject_SetAttrString(%s, "%s", %s)' % (
-                        namespace, 
-                        entry.name,
-                        rhs.py_result()))
-            if debug_disposal_code:
-                print "NameNode.generate_assignment_code:"
-                print "...generating disposal code for", rhs
-            rhs.generate_disposal_code(code)
+            if entry.is_member:
+                # if we entry is a member we have to cheat: SetAttr does not work
+                # on types, so we create a descriptor which is then added to tp_dict
+                if Options.intern_names:
+                    code.put_error_if_neg(self.pos,
+                        'PyDict_SetItem(%s->tp_dict, %s, %s)' % (
+                            namespace,
+                            entry.interned_cname,
+                            rhs.py_result()))
+                else:
+                    code.put_error_if_neg(self.pos,
+                        'PyDict_SetItemString(%s->tp_dict, %s, %s)' % (
+                            namespace,
+                            entry.name,
+                            rhs.py_result()))
+
+            else: 
+                if Options.intern_names:
+                    code.put_error_if_neg(self.pos,
+                        'PyObject_SetAttr(%s, %s, %s)' % (
+                            namespace,
+                            entry.interned_cname,
+                            rhs.py_result()))
+                else:
+                    code.put_error_if_neg(self.pos,
+                        'PyObject_SetAttrString(%s, "%s", %s)' % (
+                            namespace, 
+                            entry.name,
+                            rhs.py_result()))
+                if debug_disposal_code:
+                    print "NameNode.generate_assignment_code:"
+                    print "...generating disposal code for", rhs
+                rhs.generate_disposal_code(code)
+                
         else:
             if self.type.is_pyobject:
                 #print "NameNode.generate_assignment_code: to", self.name ###

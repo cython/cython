@@ -30,6 +30,7 @@ class Entry:
     #                               or class attribute during
     #                               class construction
     # is_special       boolean    Is a special class method
+    # is_member        boolean    Is an assigned class member
     # is_variable      boolean    Is a variable
     # is_cfunction     boolean    Is a C function
     # is_cmethod       boolean    Is a C method of an extension type
@@ -72,6 +73,7 @@ class Entry:
     is_cglobal = 0
     is_pyglobal = 0
     is_special = 0
+    is_member = 0
     is_variable = 0
     is_cfunction = 0
     is_cmethod = 0
@@ -979,10 +981,7 @@ class ClassScope(Scope):
         return self.outer_scope.add_string_const(value)
 
     def lookup(self, name):
-        print "*** Looking for", name, "in ClassScope", self
-        print self.entries
         res = Scope.lookup(self, name)
-        print "got", res, res.type
         return res
     
 
@@ -1095,7 +1094,10 @@ class CClassScope(ClassScope):
             # Add an entry for a class attribute.
             entry = Scope.declare_var(self, name, type, pos, 
                 cname, visibility, is_cdef)
-            entry.is_pyglobal = 1
+            entry.is_member = 1
+            entry.is_pyglobal = 1 # xxx: is_pyglobal changes behaviour in so many places that
+                                  # I keep it in for now. is_member should be enough
+                                  # later on
             entry.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
             if Options.intern_names:
                 entry.interned_cname = self.intern(name)
