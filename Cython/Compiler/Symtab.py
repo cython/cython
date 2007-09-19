@@ -1050,45 +1050,56 @@ class CClassScope(ClassScope):
 
     def declare_var(self, name, type, pos, 
             cname = None, visibility = 'private', is_cdef = 0):
-        # Add an entry for an attribute.
-        if self.defined:
-            error(pos,
-                "C attributes cannot be added in implementation part of"
-                " extension type")
-        if get_special_method_signature(name):
-            error(pos, 
-                "The name '%s' is reserved for a special method."
-                    % name)
-        if not cname:
-            cname = name
-        entry = self.declare(name, cname, type, pos)
-        entry.visibility = visibility
-        entry.is_variable = 1
-        self.var_entries.append(entry)
-        if type.is_pyobject:
-            self.has_pyobject_attrs = 1
-        if visibility not in ('private', 'public', 'readonly'):
-            error(pos,
-                "Attribute of extension type cannot be declared %s" % visibility)
-        if visibility in ('public', 'readonly'):
-            if type.pymemberdef_typecode:
-                self.public_attr_entries.append(entry)
-                if name == "__weakref__":
-                    error(pos, "Special attribute __weakref__ cannot be exposed to Python")
-            else:
+        if is_cdef:
+            # Add an entry for an attribute.
+            if self.defined:
                 error(pos,
-                    "C attribute of type '%s' cannot be accessed from Python" % type)
-        if visibility == 'public' and type.is_extension_type:
-            error(pos,
-                "Non-generic Python attribute cannot be exposed for writing from Python")
-        return entry
+                    "C attributes cannot be added in implementation part of"
+                    " extension type")
+            if get_special_method_signature(name):
+                error(pos, 
+                    "The name '%s' is reserved for a special method."
+                        % name)
+            if not cname:
+                cname = name
+            entry = self.declare(name, cname, type, pos)
+            entry.visibility = visibility
+            entry.is_variable = 1
+            self.var_entries.append(entry)
+            if type.is_pyobject:
+                self.has_pyobject_attrs = 1
+            if visibility not in ('private', 'public', 'readonly'):
+                error(pos,
+                    "Attribute of extension type cannot be declared %s" % visibility)
+            if visibility in ('public', 'readonly'):
+                if type.pymemberdef_typecode:
+                    self.public_attr_entries.append(entry)
+                    if name == "__weakref__":
+                        error(pos, "Special attribute __weakref__ cannot be exposed to Python")
+                else:
+                    error(pos,
+                        "C attribute of type '%s' cannot be accessed from Python" % type)
+            if visibility == 'public' and type.is_extension_type:
+                error(pos,
+                    "Non-generic Python attribute cannot be exposed for writing from Python")
+            return entry
+        else:
+            # Add an entry for a class attribute.
+            entry = Scope.declare_var(self, name, type, pos, 
+                cname, visibility, is_cdef)
+            entry.is_pyglobal = 1
+            entry.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
+            if Options.intern_names:
+                entry.interned_cname = self.intern(name)
+            return entry
+            
 
     def declare_pyfunction(self, name, pos):
         # Add an entry for a method.
         if name in ('__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__'):
             error(pos, "Special method %s must be implemented via __richcmp__" 
 % name)
-        entry = self.declare_var(name, py_object_type, pos)
+        entry = self.declare(name, name, py_object_type, pos)
         special_sig = get_special_method_signature(name)
         if special_sig:
             # Special methods get put in the method table with a particular
