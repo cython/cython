@@ -1684,10 +1684,13 @@ class AttributeNode(ExprNode):
             if entry:
                 if obj_type.is_extension_type and entry.name == "__weakref__":
                     error(self.pos, "Illegal use of special attribute __weakref__")
-                if entry.is_variable or entry.is_cmethod:
-                    self.type = entry.type
-                    self.member = entry.cname
-                    return
+                # methods need the normal attribute lookup
+                # because they do not have struct entries
+                if not entry.is_method:
+                    if entry.is_variable or entry.is_cmethod:
+                        self.type = entry.type
+                        self.member = entry.cname
+                        return
                 else:
                     # If it's not a variable or C method, it must be a Python
                     # method of an extension type, so we treat it like a Python
