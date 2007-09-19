@@ -1186,7 +1186,13 @@ class CClassScope(ClassScope):
                 adapt(base_entry.cname), base_entry.visibility)
             entry.is_inherited = 1
             
+    def allocate_temp(self, type):
+        return Scope.allocate_temp(self.global_scope(), type)
 
+    def release_temp(self, cname):
+        return Scope.release_temp(self.global_scope(), cname)
+        
+        
 class PropertyScope(Scope):
     #  Scope holding the __get__, __set__ and __del__ methods for
     #  a property of an extension type.
