@@ -342,6 +342,7 @@ class Scope:
             error(pos, "'%s' is not declared" % name)
     
     def lookup(self, name):
+        print "looking up", name, "in", self
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
         return (self.lookup_here(name)
@@ -977,6 +978,13 @@ class ClassScope(Scope):
     def add_string_const(self, value):
         return self.outer_scope.add_string_const(value)
 
+    def lookup(self, name):
+        print "*** Looking for", name, "in ClassScope", self
+        print self.entries
+        res = Scope.lookup(self, name)
+        print "got", res, res.type
+        return res
+    
 
 class PyClassScope(ClassScope):
     #  Namespace of a Python class.
@@ -1099,7 +1107,7 @@ class CClassScope(ClassScope):
         if name in ('__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__'):
             error(pos, "Special method %s must be implemented via __richcmp__" 
 % name)
-        entry = self.declare(name, name, py_object_type, pos)
+        entry = self.declare_var(name, py_object_type, pos)
         special_sig = get_special_method_signature(name)
         if special_sig:
             # Special methods get put in the method table with a particular
@@ -1177,7 +1185,7 @@ class CClassScope(ClassScope):
             entry = self.add_cfunction(base_entry.name, base_entry.type, None,
                 adapt(base_entry.cname), base_entry.visibility)
             entry.is_inherited = 1
-    
+            
 
 class PropertyScope(Scope):
     #  Scope holding the __get__, __set__ and __del__ methods for

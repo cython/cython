@@ -1371,7 +1371,11 @@ class CClassDefNode(StatNode):
         
     def analyse_expressions(self, env):
         if self.body:
-            self.body.analyse_expressions(env)
+            scope = self.entry.type.scope
+            print "env", env
+            print "scope", scope
+            print scope.outer_scope
+            self.body.analyse_expressions(scope)
     
     def generate_function_definitions(self, env, code):
         if self.body:
