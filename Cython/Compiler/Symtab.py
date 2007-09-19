@@ -344,7 +344,6 @@ class Scope:
             error(pos, "'%s' is not declared" % name)
     
     def lookup(self, name):
-        print "looking up", name, "in", self
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
         return (self.lookup_here(name)
@@ -980,10 +979,6 @@ class ClassScope(Scope):
     def add_string_const(self, value):
         return self.outer_scope.add_string_const(value)
 
-    def lookup(self, name):
-        res = Scope.lookup(self, name)
-        return res
-    
 
 class PyClassScope(ClassScope):
     #  Namespace of a Python class.
@@ -1194,6 +1189,21 @@ class CClassScope(ClassScope):
     def release_temp(self, cname):
         return Scope.release_temp(self.global_scope(), cname)
         
+    def lookup(self, name):
+        if name == "classmethod":
+            # We don't want to use the builtin classmethod here 'cause it won't do the 
+            # right thing in this scope (as the class memebers aren't still functions). 
+            # Don't want to add a cfunction to this scope 'cause that would mess with 
+            # the type definition, so we just return the right entry. 
+            self.use_utility_code(classmethod_utility_code)
+            entry = Entry("classmethod", 
+                          "__Pyx_Method_ClassMethod", 
+                          CFuncType(py_object_type, [CFuncTypeArg("", py_object_type, None)], 0, 0))
+            entry.is_cfunction = 1
+            return entry
+        else:
+            return Scope.lookup(self, name)
+    
         
 class PropertyScope(Scope):
     #  Scope holding the __get__, __set__ and __del__ methods for
@@ -1213,3 +1223,25 @@ class PropertyScope(Scope):
             error(pos, "Only __get__, __set__ and __del__ methods allowed "
                 "in a property declaration")
             return None
+
+
+# Should this go elsewhere (and then get imported)?
+#------------------------------------------------------------------------------------
+
+classmethod_utility_code = [
+"""
+#include "descrobject.h"
+static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
+""","""
+static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
+    /* It appears that PyMethodDescr_Type is not anywhere exposed in the Python/C API */
+    /* if (!PyObject_TypeCheck(method, &PyMethodDescr_Type)) { */ 
+    if (strcmp(method->ob_type->tp_name, "method_descriptor") != 0) {
+        PyErr_Format(PyExc_TypeError, "Extension type classmethod() can only be called on a method_descriptor.");
+        return NULL;
+    }
+    PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
+    return PyDescr_NewClassMethod(descr->d_type, descr->d_method);
+}
+"""
+]
