@@ -105,20 +105,22 @@ class SlotDescriptor:
     #  slot_name    string           Member name of the slot in the type object
     #  is_initialised_dynamically    Is initialised by code in the module init function
 
-    def __init__(self, slot_name, min_version=(2,2), dynamic = 0):
+    def __init__(self, slot_name, min_version=None, dynamic = 0):
         self.slot_name = slot_name
         self.is_initialised_dynamically = dynamic
         self.min_version = min_version
     
     def generate(self, scope, code):
-        if sys.version_info[0:2] < self.min_version:
-            return # not supported yet
         if self.is_initialised_dynamically:
             value = 0
         else:
             value = self.slot_code(scope)
+        if self.min_version:
+            code.putln("#if PY_VERSION_HEX >= 0x%X" % Naming.py_version_hex(*self.min_version))
         code.putln("%s, /*%s*/" % (value, self.slot_name))
-    
+        if self.min_version:
+            code.putln("#endif")
+            
     # Some C implementations have trouble statically 
     # initialising a global with a pointer to an extern 
     # function, so we initialise some of the type slots
@@ -161,7 +163,7 @@ class GCDependentSlot(SlotDescriptor):
     #  the type participates in GC.
     
     def __init__(self, slot_name, no_gc_value, gc_value, dynamic = 0):
-        SlotDescriptor.__init__(self, slot_name, dynamic)
+        SlotDescriptor.__init__(self, slot_name, dynamic = dynamic)
         self.no_gc_value = no_gc_value
         self.gc_value = gc_value
     
@@ -179,7 +181,7 @@ class MethodSlot(SlotDescriptor):
     #  method_name  string           The __xxx__ name of the method
     #  default      string or None   Default value of the slot
     
-    def __init__(self, signature, slot_name, method_name, min_version=(2,2), default = None):
+    def __init__(self, signature, slot_name, method_name, min_version=None, default = None):
         SlotDescriptor.__init__(self, slot_name, min_version)
         self.signature = signature
         self.slot_name = slot_name
