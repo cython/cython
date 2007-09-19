@@ -5,6 +5,7 @@
 
 import Naming
 import PyrexTypes
+import sys
 
 class Signature:
     #  Method slot signature descriptor.
@@ -104,11 +105,14 @@ class SlotDescriptor:
     #  slot_name    string           Member name of the slot in the type object
     #  is_initialised_dynamically    Is initialised by code in the module init function
 
-    def __init__(self, slot_name, dynamic = 0):
+    def __init__(self, slot_name, min_version=(2,2), dynamic = 0):
         self.slot_name = slot_name
         self.is_initialised_dynamically = dynamic
+        self.min_version = min_version
     
     def generate(self, scope, code):
+        if sys.version_info[0:2] < self.min_version:
+            return # not supported yet
         if self.is_initialised_dynamically:
             value = 0
         else:
@@ -175,8 +179,8 @@ class MethodSlot(SlotDescriptor):
     #  method_name  string           The __xxx__ name of the method
     #  default      string or None   Default value of the slot
     
-    def __init__(self, signature, slot_name, method_name, default = None):
-        SlotDescriptor.__init__(self, slot_name)
+    def __init__(self, signature, slot_name, method_name, min_version=(2,2), default = None):
+        SlotDescriptor.__init__(self, slot_name, min_version)
         self.signature = signature
         self.slot_name = slot_name
         self.method_name = method_name
@@ -493,7 +497,7 @@ PyNumberMethods = (
     MethodSlot(ibinaryfunc, "nb_inplace_true_divide", "__itruediv__"),
 
     # Added in release 2.5
-    MethodSlot(unaryfunc, "nb_index", "__index__"),
+    MethodSlot(unaryfunc, "nb_index", "__index__", min_version=(2,5)),
 )
 
 PySequenceMethods = (
