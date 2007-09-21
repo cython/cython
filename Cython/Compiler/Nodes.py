@@ -1141,9 +1141,8 @@ class DefNode(FuncDefNode):
         old_type = arg.hdr_type
         new_type = arg.type
         if old_type.is_pyobject:
-            code.putln("if (likely(%s)) {" % arg.hdr_cname)
+            code.putln("assert(%s);" % arg.hdr_cname)
             self.generate_arg_conversion_from_pyobject(arg, code)
-            code.putln("}")
         elif new_type.is_pyobject:
             self.generate_arg_conversion_to_pyobject(arg, code)
         else:
