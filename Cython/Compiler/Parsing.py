@@ -1772,20 +1772,15 @@ def p_def_statement(s):
     starstar_arg = None
     if s.sy == '*':
         s.next()
+        if s.sy == 'IDENT':
+            star_arg = p_py_arg_decl(s)
         if s.sy == ',':
             s.next()
             if s.sy == 'IDENT':
                 args.extend(p_c_arg_list(s, in_pyfunc = 1, kw_only = 1))
-        else:
-            star_arg = p_py_arg_decl(s)
-            if s.sy == ',':
+            if s.sy == '**':
                 s.next()
-                if s.sy == '**':
-                    s.next()
-                    starstar_arg = p_py_arg_decl(s)
-                elif s.sy == 'IDENT':
-                    args.extend(p_c_arg_list(s, in_pyfunc = 1,
-                                             kw_only = 1))
+                starstar_arg = p_py_arg_decl(s)
     elif s.sy == '**':
         s.next()
         starstar_arg = p_py_arg_decl(s)
