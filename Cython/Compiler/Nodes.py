@@ -332,6 +332,7 @@ class CArgDeclNode(Node):
     # default        ExprNode or None
     # default_entry  Symtab.Entry       Entry for the variable holding the default value
     # is_self_arg    boolean            Is the "self" arg of an extension type method
+    # kw_only        boolean            Is a keyword-only argument
     
     is_self_arg = 0
     
@@ -1051,9 +1052,12 @@ class DefNode(FuncDefNode):
             arg_addrs = []
             arg_formats = []
             default_seen = 0
+            kw_only_args = []
             for arg in self.args:
                 arg_entry = arg.entry
                 if arg.is_generic:
+                    if arg.kw_only:
+                        kw_only_args.append(arg_entry)
                     if arg.default:
                         code.putln(
                             "%s = %s;" % (
@@ -1062,7 +1066,7 @@ class DefNode(FuncDefNode):
                         if not default_seen:
                             arg_formats.append("|")
                         default_seen = 1
-                    elif default_seen:
+                    elif default_seen and not arg.kw_only:
                         error(arg.pos, "Non-default argument following default argument")
                     if arg.needs_conversion:
                         arg_addrs.append("&" + arg.hdr_cname)
@@ -1076,6 +1080,18 @@ class DefNode(FuncDefNode):
                         error(arg.pos, 
                             "Cannot convert Python object argument to type '%s' (when parsing input arguments)" 
                                 % arg.type)
+            error_return_code = "return %s;" % self.error_value()
+            if kw_only_args:
+                max_normal_args = len(self.args) - len(kw_only_args)
+                code.putln("if (%s && PyTuple_GET_SIZE(%s) > %d) {" % (
+                        Naming.args_cname,
+                        Naming.args_cname,
+                        max_normal_args))
+                code.putln('PyErr_Format(PyExc_TypeError, "function takes at most %d non-keyword arguments (%%d given)", PyTuple_GET_SIZE(%s));' % (
+                        max_normal_args,
+                        Naming.args_cname))
+                code.putln(error_return_code)
+                code.putln("}")
             argformat = '"%s"' % string.join(arg_formats, "")
             has_starargs = self.star_arg is not None or self.starstar_arg is not None
             if has_starargs:
@@ -1086,7 +1102,6 @@ class DefNode(FuncDefNode):
             code.put(
                 'if (unlikely(!PyArg_ParseTupleAndKeywords(%s))) ' %
                     pt_argstring)
-            error_return_code = "return %s;" % self.error_value()
             if has_starargs:
                 code.putln("{")
                 code.put_xdecref(Naming.args_cname, py_object_type)
@@ -1097,7 +1112,33 @@ class DefNode(FuncDefNode):
                 code.putln("}")
             else:
                 code.putln(error_return_code)
-            
+            # check that all required keywords were passed
+            required_keyword_entries = []
+            kw_checks = []
+            for arg in self.args:
+                if arg.is_generic and arg.kw_only and not arg.default:
+                    arg_entry = arg.entry
+                    required_keyword_entries.append(arg_entry)
+                    kw_checks.append("!" + arg_entry.cname)
+            if required_keyword_entries:
+                kw_check = ' || '.join(kw_checks)
+                code.putln("if (unlikely(%s)) {" % kw_check)
+                for entry in required_keyword_entries:
+                    kw_checks.pop()
+                    if kw_checks:
+                        code.putln('if (!%s) {' % entry.cname)
+                    code.putln('PyErr_SetString(PyExc_TypeError, "keyword argument \'%s\' is required");' % (
+                            entry.name))
+                    if kw_checks:
+                        code.put("} else ")
+                if has_starargs:
+                    code.put_xdecref(Naming.args_cname, py_object_type)
+                    code.put_xdecref(Naming.kwds_cname, py_object_type)
+                    self.generate_arg_xdecref(self.star_arg, code)
+                    self.generate_arg_xdecref(self.starstar_arg, code)
+                code.putln(error_return_code)
+                code.putln("}")
+
     def put_stararg_decrefs(self, code):
         if self.star_arg or self.starstar_arg:
             code.put_xdecref(Naming.args_cname, py_object_type)
@@ -1128,7 +1169,7 @@ class DefNode(FuncDefNode):
                     star_arg_addr,
                     starstar_arg_addr,
                     self.error_value()))
-    
+
     def generate_argument_conversion_code(self, code):
         # Generate code to convert arguments from
         # signature type to declared type, if needed.

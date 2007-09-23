@@ -1520,15 +1520,15 @@ def p_c_func_options(s):
 c_arg_list_terminators = ('*', '**', '.', ')')
 c_arg_list_trailers = ('.', '*', '**')
 
-def p_c_arg_list(s, in_pyfunc, cmethod_flag = 0):
+def p_c_arg_list(s, in_pyfunc, cmethod_flag = 0, kw_only = 0):
     args = []
     if s.sy not in c_arg_list_terminators:
-        args.append(p_c_arg_decl(s, in_pyfunc, cmethod_flag))
+        args.append(p_c_arg_decl(s, in_pyfunc, cmethod_flag, kw_only))
         while s.sy == ',':
             s.next()
             if s.sy in c_arg_list_terminators:
                 break
-            args.append(p_c_arg_decl(s, in_pyfunc))
+            args.append(p_c_arg_decl(s, in_pyfunc, kw_only = kw_only))
     return args
 
 def p_optional_ellipsis(s):
@@ -1538,7 +1538,7 @@ def p_optional_ellipsis(s):
     else:
         return 0
 
-def p_c_arg_decl(s, in_pyfunc, cmethod_flag = 0):
+def p_c_arg_decl(s, in_pyfunc, cmethod_flag = 0, kw_only = 0):
     pos = s.position()
     not_none = 0
     default = None
@@ -1560,7 +1560,8 @@ def p_c_arg_decl(s, in_pyfunc, cmethod_flag = 0):
         base_type = base_type,
         declarator = declarator,
         not_none = not_none,
-        default = default)
+        default = default,
+        kw_only = kw_only)
 
 def p_cdef_statement(s, level, visibility = 'private'):
     pos = s.position()
@@ -1762,12 +1763,20 @@ def p_def_statement(s):
     starstar_arg = None
     if s.sy == '*':
         s.next()
-        star_arg = p_py_arg_decl(s)
         if s.sy == ',':
             s.next()
-            if s.sy == '**':
+            if s.sy == 'IDENT':
+                args.extend(p_c_arg_list(s, in_pyfunc = 1, kw_only = 1))
+        else:
+            star_arg = p_py_arg_decl(s)
+            if s.sy == ',':
                 s.next()
-                starstar_arg = p_py_arg_decl(s)
+                if s.sy == '**':
+                    s.next()
+                    starstar_arg = p_py_arg_decl(s)
+                elif s.sy == 'IDENT':
+                    args.extend(p_c_arg_list(s, in_pyfunc = 1,
+                                             kw_only = 1))
     elif s.sy == '**':
         s.next()
         starstar_arg = p_py_arg_decl(s)
