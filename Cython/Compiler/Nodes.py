@@ -851,13 +851,15 @@ class DefNode(FuncDefNode):
             if self.entry.signature is TypeSlots.pyfunction_signature:
                 if len(self.args) == 0:
                     self.entry.signature = TypeSlots.pyfunction_noargs
-                elif len(self.args) == 1 and self.args[0].default is None:
-                    self.entry.signature = TypeSlots.pyfunction_onearg
+                elif len(self.args) == 1:
+                    if self.args[0].default is None and not self.args[0].kw_only:
+                        self.entry.signature = TypeSlots.pyfunction_onearg
             elif self.entry.signature is TypeSlots.pymethod_signature:
                 if len(self.args) == 1:
                     self.entry.signature = TypeSlots.unaryfunc
-                elif len(self.args) == 2 and self.args[1].default is None:
-                    self.entry.signature = TypeSlots.ibinaryfunc
+                elif len(self.args) == 2:
+                    if self.args[1].default is None and not self.args[1].kw_only:
+                        self.entry.signature = TypeSlots.ibinaryfunc
         sig = self.entry.signature
         nfixed = sig.num_fixed_args()
         for i in range(nfixed):
