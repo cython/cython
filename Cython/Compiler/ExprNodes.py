@@ -2766,15 +2766,14 @@ class CondExprNode(ExprNode):
         self.true_val.analyse_types(env)
         self.false_val.analyse_types(env)
         self.type = self.compute_result_type(self.true_val.type, self.false_val.type)
-        if self.type:
-            if self.true_val.type.is_pyobject or self.false_val.type.is_pyobject:
-                self.true_val = self.true_val.coerce_to(self.type, env)
-                self.false_val = self.false_val.coerce_to(self.type, env)
-            # must be tmp variables so they can share a result
-            self.true_val = self.true_val.coerce_to_temp(env)
-            self.false_val = self.false_val.coerce_to_temp(env)
-            self.is_temp = 1
-        else:
+        if self.true_val.type.is_pyobject or self.false_val.type.is_pyobject:
+            self.true_val = self.true_val.coerce_to(self.type, env)
+            self.false_val = self.false_val.coerce_to(self.type, env)
+        # must be tmp variables so they can share a result
+        self.true_val = self.true_val.coerce_to_temp(env)
+        self.false_val = self.false_val.coerce_to_temp(env)
+        self.is_temp = 1
+        if self.type == PyrexTypes.error_type:
             self.type_error()
     
     def allocate_temps(self, env, result_code = None):
@@ -2813,14 +2812,14 @@ class CondExprNode(ExprNode):
         elif type2.assignable_from(type1):
             return type2
         else:
-            return None
+            return PyrexTypes.error_type
         
     def type_error(self):
         if not (self.true_val.type.is_error or self.false_val.type.is_error):
             error(self.pos, "Incompatable types in conditional expression (%s; %s)" %
                 (self.true_val.type, self.false_val.type))
         self.type = PyrexTypes.error_type
-
+    
     def check_const(self):
         self.test.check_const()
         self.true_val.check_const()
