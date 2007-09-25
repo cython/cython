@@ -2805,6 +2805,10 @@ class CondExprNode(ExprNode):
             return type1
         elif type1.is_pyobject or type2.is_pyobject:
             return py_object_type
+        elif type1.assignable_from(type2):
+            return type1
+        elif type2.assignable_from(type1):
+            return type2
         else:
             return None
         
