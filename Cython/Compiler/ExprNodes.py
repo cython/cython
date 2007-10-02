@@ -1033,6 +1033,9 @@ class TempNode(AtomicExprNode):
         if type.is_pyobject:
             self.result_ctype = py_object_type
         self.is_temp = 1
+        
+    def analyse_types(self, env):
+        return self.type
     
     def generate_result_code(self, code):
         pass
@@ -1686,11 +1689,10 @@ class AttributeNode(ExprNode):
                     error(self.pos, "Illegal use of special attribute __weakref__")
                 # methods need the normal attribute lookup
                 # because they do not have struct entries
-                if not entry.is_method:
-                    if entry.is_variable or entry.is_cmethod:
-                        self.type = entry.type
-                        self.member = entry.cname
-                        return
+                if entry.is_variable or entry.is_cmethod:
+                    self.type = entry.type
+                    self.member = entry.cname
+                    return
                 else:
                     # If it's not a variable or C method, it must be a Python
                     # method of an extension type, so we treat it like a Python

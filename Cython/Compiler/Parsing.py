@@ -1691,11 +1691,11 @@ def p_visibility(s, prev_visibility):
     return visibility
     
 def p_c_modifiers(s):
-    if s.systring in ('inline', ):
-        modifier = s.systring.upper() # uppercase is macro defined for various compilers
+    if s.sy == 'IDENT' and s.systring in ('inline', 'visible', 'overrideable'):
+        modifier = s.systring
         s.next()
-        return modifier + ' ' + p_c_modifiers(s)
-    return ""
+        return [modifier] + p_c_modifiers(s)
+    return []
 
 def p_c_func_or_var_declaration(s, level, pos, visibility = 'private'):
     cmethod_flag = level in ('c_class', 'c_class_pxd')
