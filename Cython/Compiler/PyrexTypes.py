@@ -717,6 +717,8 @@ class CStringType:
     exception_value = "NULL"
 
     def literal_code(self, value):
+        if isinstance(value, unicode):
+            value = value.encode("UTF-8")
         return '"%s"' % value
 
 

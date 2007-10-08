@@ -37,8 +37,16 @@ class build_ext (distutils.command.build_ext.build_ext):
         if not self.extensions:
             return
 
+        #suffix = self.swig_cpp and '.cpp' or '.c'
+        suffix = '.c'
+        cplus  = 0
+        include_dirs = []
         if extension is not None:
             module_name = extension.name
+            include_dirs = extension.include_dirs or []
+            if extension.language == "c++":
+                cplus = 1
+                suffix = ".cpp"
         else:
             module_name = None
 
@@ -46,22 +54,21 @@ class build_ext (distutils.command.build_ext.build_ext):
         pyx_sources = [source for source in sources if source.endswith('.pyx')]
         other_sources = [source for source in sources if not source.endswith('.pyx')]
 
-        #suffix = self.swig_cpp and '.cpp' or '.c'
-        suffix = '.c'
         for pyx in pyx_sources:
             # should I raise an exception if it doesn't exist?
             if os.path.exists(pyx):
                 source = pyx
                 target = replace_suffix(source, suffix)
                 if newer(source, target) or self.force:
-                    self.cython_compile(source, module_name)
+                    self.cython_compile(source, module_name, include_dirs, cplus)
 
         return [replace_suffix(src, suffix) for src in pyx_sources] + other_sources
 
-    def cython_compile(self, source, module_name):
-        options = CompilationOptions(default_options,
-            include_path = self.include_dirs)
+    def cython_compile(self, source, module_name, include_dirs, cplus):
+        options = CompilationOptions(
+            default_options,
+            include_path = include_dirs + self.include_dirs,
+            cplus=cplus)
         result = compile(source, options, full_module_name=module_name)
         if result.num_errors <> 0:
             sys.exit(1)
-

@@ -888,13 +888,15 @@ class DefNode(FuncDefNode):
             if self.entry.signature is TypeSlots.pyfunction_signature:
                 if len(self.args) == 0:
                     self.entry.signature = TypeSlots.pyfunction_noargs
-                elif len(self.args) == 1 and self.args[0].default is None:
-                    self.entry.signature = TypeSlots.pyfunction_onearg
+                elif len(self.args) == 1:
+                    if self.args[0].default is None and not self.args[0].kw_only:
+                        self.entry.signature = TypeSlots.pyfunction_onearg
             elif self.entry.signature is TypeSlots.pymethod_signature:
                 if len(self.args) == 1:
                     self.entry.signature = TypeSlots.unaryfunc
-                elif len(self.args) == 2 and self.args[1].default is None:
-                    self.entry.signature = TypeSlots.ibinaryfunc
+                elif len(self.args) == 2:
+                    if self.args[1].default is None and not self.args[1].kw_only:
+                        self.entry.signature = TypeSlots.ibinaryfunc
         sig = self.entry.signature
         nfixed = sig.num_fixed_args()
         for i in range(nfixed):
@@ -2784,7 +2786,7 @@ utility_function_predeclarations = \
 
 typedef struct {const char *s; const void **p;} __Pyx_CApiTabEntry; /*proto*/
 typedef struct {PyObject **p; char *s;} __Pyx_InternTabEntry; /*proto*/
-typedef struct {PyObject **p; char *s; long n;} __Pyx_StringTabEntry; /*proto*/
+typedef struct {PyObject **p; char *s; long n; int is_unicode;} __Pyx_StringTabEntry; /*proto*/
 
 #define __pyx_PyIndex_AsSsize_t(b) PyInt_AsSsize_t(PyNumber_Index(b))
 
@@ -3297,7 +3299,11 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
 ""","""
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
-        *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
+        if (t->is_unicode) {
+            *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
+        } else {
+            *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
+        }
         if (!*t->p)
             return -1;
         ++t;

@@ -5,7 +5,7 @@
 #   to be rebuilt next time pyrexc is run.
 #
 
-string_prefixes = "cCrR"
+string_prefixes = "cCrRuU"
 
 def make_lexicon():
     from Cython.Plex import \
