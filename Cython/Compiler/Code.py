@@ -85,7 +85,8 @@ class CCodeWriter:
         try:
             return self.input_file_contents[file]
         except KeyError:
-            F = open(file).readlines()
+            F = [line.replace('*/', '*[inserted by cython to avoid comment closer]/')
+                 for line in open(file).readlines()]
             self.input_file_contents[file] = F
             return F
 
