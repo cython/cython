@@ -429,6 +429,9 @@ class CVarDefNode(StatNode):
                     "Python object cannot be declared extern")
             name = name_declarator.name
             cname = name_declarator.cname
+            if name == '':
+                error(declarator.pos, "Missing name in declaration.")
+                return
             if type.is_cfunction:
                 dest_scope.declare_cfunction(name, type, declarator.pos,
                     cname = cname, visibility = self.visibility)
