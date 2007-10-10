@@ -1211,11 +1211,19 @@ def p_statement(s, level, cdef_flag = 0, visibility = 'private'):
         return p_ctypedef_statement(s, level, visibility)
     if s.sy == 'cdef':
         cdef_flag = 1
+        overridable = 0
+        s.next()
+    if s.sy == 'rdef':
+        cdef_flag = 1
+        overridable = 1
         s.next()
     if cdef_flag:
         if level not in ('module', 'module_pxd', 'function', 'c_class', 'c_class_pxd'):
             s.error('cdef statement not allowed here')
-        return p_cdef_statement(s, level, visibility)
+        return p_cdef_statement(s, level, visibility, overridable = overridable)
+#    elif s.sy == 'rdef':
+#        s.next()
+#        return p_c_func_or_var_declaration(s, level, s.position(), visibility = visibility, overridable = True)
     elif s.sy == 'def':
         if level not in ('module', 'class', 'c_class', 'property'):
             s.error('def statement not allowed here')
@@ -1570,8 +1578,10 @@ def p_c_arg_decl(s, in_pyfunc, cmethod_flag = 0, kw_only = 0):
         default = default,
         kw_only = kw_only)
 
-def p_cdef_statement(s, level, visibility = 'private'):
+def p_cdef_statement(s, level, visibility = 'private', overridable = False):
     pos = s.position()
+    if overridable and level not in ('c_class', 'c_class_pxd'):
+            error(pos, "Overridable cdef function not allowed here")
     visibility = p_visibility(s, visibility)
     if visibility == 'extern' and s.sy in ('from' ,':'):
             return p_cdef_extern_block(s, level, pos)
@@ -1593,7 +1603,7 @@ def p_cdef_statement(s, level, visibility = 'private'):
         s.expect_newline('Expected a newline')
         return node
     else:
-        return p_c_func_or_var_declaration(s, level, pos, visibility)
+        return p_c_func_or_var_declaration(s, level, pos, visibility, overridable)
 
 def p_cdef_extern_block(s, level, pos):
     include_file = None
@@ -1698,13 +1708,13 @@ def p_visibility(s, prev_visibility):
     return visibility
     
 def p_c_modifiers(s):
-    if s.sy == 'IDENT' and s.systring in ('inline', 'visible', 'overrideable'):
+    if s.sy == 'IDENT' and s.systring in ('inline',):
         modifier = s.systring
         s.next()
         return [modifier] + p_c_modifiers(s)
     return []
 
-def p_c_func_or_var_declaration(s, level, pos, visibility = 'private'):
+def p_c_func_or_var_declaration(s, level, pos, visibility = 'private', overridable = False):
     cmethod_flag = level in ('c_class', 'c_class_pxd')
     modifiers = p_c_modifiers(s)
     base_type = p_c_base_type(s)
@@ -1718,7 +1728,8 @@ def p_c_func_or_var_declaration(s, level, pos, visibility = 'private'):
             base_type = base_type,
             declarator = declarator, 
             body = suite,
-            modifiers = modifiers)
+            modifiers = modifiers,
+            overridable = overridable)
     else:
         if level == 'module_pxd' and visibility <> 'extern':
             error(pos, 

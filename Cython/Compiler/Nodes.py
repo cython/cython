@@ -714,9 +714,7 @@ class CFuncDefNode(FuncDefNode):
             defining = self.body is not None)
         self.return_type = type.return_type
 
-        if 'overrideable' in self.modifiers or 'visible' in self.modifiers:
-            if 'visible' in self.modifiers:
-                self.modifiers.remove('visible')
+        if self.overridable:
             import ExprNodes
             arg_names = [arg.name for arg in self.type.args]
             self_arg = ExprNodes.NameNode(self.pos, name=arg_names[0])
@@ -735,10 +733,8 @@ class CFuncDefNode(FuncDefNode):
             env.entries[name] = self.entry
             if Options.intern_names:
                 self.py_func.interned_attr_cname = env.intern(self.py_func.entry.name)
-            if 'overrideable' in self.modifiers:
-                self.modifiers.remove('overrideable')
-                self.override = OverrideCheckNode(self.pos, py_func = self.py_func)
-                self.body.stats.insert(0, self.override)
+            self.override = OverrideCheckNode(self.pos, py_func = self.py_func)
+            self.body.stats.insert(0, self.override)
             
                     
     def declare_arguments(self, env):
