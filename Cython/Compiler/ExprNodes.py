@@ -2909,12 +2909,16 @@ class CmpNode:
                         richcmp_constants[op],
                         code.error_goto_if_null(result_code, self.pos)))
         else:
+            if operand1.type.is_pyobject:
+                res1, res2 = operand1.py_result(), operand2.py_result()
+            else:
+                res1, res2 = operand1.result_code, operand2.result_code
             code.putln("%s = %s(%s %s %s);" % (
                 result_code, 
                 coerce_result, 
-                operand1.result_code, 
+                res1, 
                 self.c_operator(op), 
-                operand2.result_code))
+                res2))
     
     def c_operator(self, op):
         if op == 'is':
