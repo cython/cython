@@ -596,6 +596,24 @@ class CharNode(ConstNode):
 class IntNode(ConstNode):
     type = PyrexTypes.c_long_type
 
+    def analyse_types(self, env):
+        self.entry = env.get_py_num(self.value)
+    
+    def coerce_to(self, dst_type, env):
+        # Arrange for a Python version of the string to be pre-allocated
+        # when coercing to a Python type.
+        if dst_type.is_pyobject:
+            self.type = PyrexTypes.py_object_type
+        # We still need to perform normal coerce_to processing on the
+        # result, because we might be coercing to an extension type,
+        # in which case a type test node will be needed.
+        return ConstNode.coerce_to(self, dst_type, env)
+
+    def calculate_result_code(self):
+        if self.type.is_pyobject:
+            return self.entry.cname
+        else:
+            return str(self.value)
 
 class FloatNode(ConstNode):
     type = PyrexTypes.c_double_type
@@ -2323,6 +2341,8 @@ unop_node_classes = {
 def unop_node(pos, operator, operand):
     # Construct unnop node of appropriate class for 
     # given operator.
+    if isinstance(operand, IntNode) and operator == '-':
+        return IntNode(pos = operand.pos, value = -int(operand.value))
     return unop_node_classes[operator](pos, 
         operator = operator, 
         operand = operand)
@@ -2744,7 +2764,7 @@ class BoolBinopNode(ExprNode):
         if self.type.is_pyobject:
             test_result = self.temp_bool.result_code
             code.putln(
-                "%s = PyObject_IsTrue(%s); %s" % (
+                "%s = __Pyx_PyObject_IsTrue(%s); %s" % (
                     test_result,
                     self.operand1.py_result(),
                     code.error_goto_if_neg(test_result, self.pos)))

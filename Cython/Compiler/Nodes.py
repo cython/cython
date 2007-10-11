@@ -115,6 +115,18 @@ class BlockNode:
             for entry in entries:
                 code.putln(
                     "static PyObject *%s;" % entry.pystring_cname)
+    
+    def generate_interned_num_decls(self, env, code):
+        #  Flush accumulated interned nums from the global scope
+        #  and generate declarations for them.
+        genv = env.global_scope()
+        entries = genv.interned_nums
+        if entries:
+            code.putln("")
+            for entry in entries:
+                code.putln(
+                    "static PyObject *%s;" % entry.cname)
+            del entries[:]
 
     def generate_cached_builtins_decls(self, env, code):
         entries = env.builtin_scope().undeclared_cached_entries
@@ -556,6 +568,7 @@ class FuncDefNode(StatNode, BlockNode):
         # Code for nested function definitions would go here
         # if we supported them, which we probably won't.
         # ----- Top-level constants used by this function
+        self.generate_interned_num_decls(lenv, code)
         self.generate_interned_name_decls(lenv, code)
         self.generate_py_string_decls(lenv, code)
         self.generate_cached_builtins_decls(lenv, code)

@@ -123,6 +123,7 @@ class Scope:
     # free_temp_entries [Entry]            Temp variables currently unused
     # temp_counter      integer            Counter for naming temp vars
     # cname_to_entry    {string : Entry}   Temp cname to entry mapping
+    # int_to_entry      {int : Entry}      Temp cname to entry mapping
     # pow_function_used boolean            The C pow() function is used
     # return_type       PyrexType or None  Return type of function owning scope
     # is_py_class_scope boolean            Is a Python class scope
@@ -169,6 +170,7 @@ class Scope:
         self.cname_to_entry = {}
         self.pow_function_used = 0
         self.string_to_entry = {}
+        self.num_to_entry = {}
         self.pystring_entries = []
     
     def __str__(self):
@@ -394,6 +396,28 @@ class Scope:
                 entry.pystring_cname = entry.cname + "p"
                 self.pystring_entries.append(entry)
                 self.global_scope().all_pystring_entries.append(entry)
+                
+    def add_py_num(self, value):
+        # Add an entry for an int constant.
+        cname = "%s%s" % (Naming.interned_num_prefix, value)
+        cname = cname.replace('-', 'neg_').replace('.','_')
+        entry = Entry("", cname, c_long_type, init = value)
+        entry.used = 1
+        entry.is_interned = 1
+        self.const_entries.append(entry)
+        self.interned_nums.append(entry)
+        return entry
+        
+    def get_py_num(self, value):
+        # Get entry for int constant. Returns an existing
+        # one if possible, otherwise creates a new one.
+        genv = self.global_scope()
+        entry = genv.num_to_entry.get(value)
+        if not entry:
+            entry = genv.add_py_num(value)
+            genv.num_to_entry[value] = entry
+            genv.pynum_entries.append(entry)
+        return entry
     
     def new_const_cname(self):
         # Create a new globally-unique name for a constant.
@@ -608,8 +632,10 @@ class ModuleScope(Scope):
         self.cimported_modules = []
         self.intern_map = {}
         self.interned_names = []
+        self.interned_nums = []
         self.all_pystring_entries = []
         self.types_imported = {}
+        self.pynum_entries = []
     
     def qualifying_scope(self):
         return self.parent_module
