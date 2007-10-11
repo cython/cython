@@ -1209,9 +1209,9 @@ def p_statement(s, level, cdef_flag = 0, visibility = 'private'):
         if level not in ('module', 'module_pxd'):
             s.error("ctypedef statement not allowed here")
         return p_ctypedef_statement(s, level, visibility)
+    overridable = 0
     if s.sy == 'cdef':
         cdef_flag = 1
-        overridable = 0
         s.next()
     if s.sy == 'rdef':
         cdef_flag = 1

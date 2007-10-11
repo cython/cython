@@ -1678,6 +1678,8 @@ class AttributeNode(ExprNode):
             entry = None
             if obj_type.attributes_known():
                 entry = obj_type.scope.lookup_here(self.attribute)
+                if entry and entry.is_member:
+                    entry = None
             else:
                 error(self.pos, 
                     "Cannot select attribute of incomplete type '%s'" 

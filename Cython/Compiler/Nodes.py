@@ -684,7 +684,7 @@ class FuncDefNode(StatNode, BlockNode):
 class CFuncDefNode(FuncDefNode):
     #  C function definition.
     #
-    #  modifiers     'inline ' or 'visible' or 'overrideable'
+    #  modifiers     ['inline']
     #  visibility    'private' or 'public' or 'extern'
     #  base_type     CBaseTypeNode
     #  declarator    CDeclaratorNode
@@ -766,7 +766,7 @@ class CFuncDefNode(FuncDefNode):
             storage_class = "%s " % Naming.extern_c_macro
         else:
             storage_class = ""
-        code.putln("%s%s%s {" % (
+        code.putln("%s%s %s {" % (
             storage_class,
             ' '.join(self.modifiers).upper(), # macro forms 
             header))
@@ -1003,13 +1003,14 @@ class DefNode(FuncDefNode):
             self.synthesize_assignment_node(env)
     
     def analyse_default_values(self, env):
+        genv = env.global_scope()
         for arg in self.args:
             if arg.default:
                 if arg.is_generic:
-                    arg.default.analyse_types(env)
-                    arg.default = arg.default.coerce_to(arg.type, env)
-                    arg.default.allocate_temps(env)
-                    arg.default_entry = env.add_default_value(arg.type)
+                    arg.default.analyse_types(genv)
+                    arg.default = arg.default.coerce_to(arg.type, genv)
+                    arg.default.allocate_temps(genv)
+                    arg.default_entry = genv.add_default_value(arg.type)
                     arg.default_entry.used = 1
                 else:
                     error(arg.pos,
@@ -1222,8 +1223,12 @@ class DefNode(FuncDefNode):
         old_type = arg.hdr_type
         new_type = arg.type
         if old_type.is_pyobject:
-            code.putln("assert(%s);" % arg.hdr_cname)
+            if arg.default:
+                code.putln("if (%s) {" % arg.hdr_cname)
+            else:
+                code.putln("assert(%s); {" % arg.hdr_cname)
             self.generate_arg_conversion_from_pyobject(arg, code)
+            code.putln("}")
         elif new_type.is_pyobject:
             self.generate_arg_conversion_to_pyobject(arg, code)
         else:

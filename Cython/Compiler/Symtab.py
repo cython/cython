@@ -1104,8 +1104,7 @@ class CClassScope(ClassScope):
     def declare_pyfunction(self, name, pos):
         # Add an entry for a method.
         if name in ('__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__'):
-            error(pos, "Special method %s must be implemented via __richcmp__" 
-% name)
+            error(pos, "Special method %s must be implemented via __richcmp__" % name)
         entry = self.declare_var(name, py_object_type, pos)
         special_sig = get_special_method_signature(name)
         if special_sig:
