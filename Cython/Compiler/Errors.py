@@ -54,14 +54,19 @@ def close_listing_file():
         listing_file.close()
         listing_file = None
 
-def error(position, message):
-    #print "Errors.error:", repr(position), repr(message) ###
-    global num_errors
+def report(position, message):
     err = CompileError(position, message)
     line = "%s\n" % err
     if listing_file:
         listing_file.write(line)
     if echo_file:
         echo_file.write(line)
-    num_errors = num_errors + 1
     return err
+
+def warning(position, message):
+    return report(position, "Warning: %s" % message)
+
+def error(position, message):
+    global num_errors
+    num_errors = num_errors + 1
+    return report(position, message)

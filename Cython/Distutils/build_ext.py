@@ -1,63 +1,193 @@
-# Subclasses disutils.command.build_ext,
-# replacing it with a Pyrex version that compiles pyx->c
-# before calling the original build_ext command.
-# July 2002, Graham Fawcett
-# Modified by Darrell Gallion <dgallion1@yahoo.com>
-# to allow inclusion of .c files along with .pyx files.
-# Pyrex is (c) Greg Ewing.
+"""Pyrex.Distutils.build_ext
 
-import distutils.command.build_ext
-#import Pyrex.Compiler.Main
-from Pyrex.Compiler.Main import CompilationOptions, default_options, compile
-from Pyrex.Compiler.Errors import PyrexError
-from distutils.dep_util import newer
-import os
-import sys
+Implements a version of the Distutils 'build_ext' command, for
+building Pyrex extension modules."""
 
-def replace_suffix(path, new_suffix):
-    return os.path.splitext(path)[0] + new_suffix
+# This module should be kept compatible with Python 2.1.
 
-class build_ext (distutils.command.build_ext.build_ext):
+__revision__ = "$Id:$"
 
-    description = "compile Pyrex scripts, then build C/C++ extensions (compile/link to build directory)"
+import sys, os, string, re
+from types import *
+from distutils.core import Command
+from distutils.errors import *
+from distutils.sysconfig import customize_compiler, get_python_version
+from distutils.dep_util import newer_group
+from distutils import log
+from distutils.dir_util import mkpath
+try:
+    from Pyrex.Compiler.Main \
+        import CompilationOptions, \
+               default_options as pyrex_default_options, \
+               compile as pyrex_compile
+    from Pyrex.Compiler.Errors import PyrexError
+except ImportError:
+    PyrexError = None
+
+from distutils.command import build_ext as _build_ext
+
+extension_name_re = _build_ext.extension_name_re
+
+show_compilers = _build_ext.show_compilers
+
+class build_ext(_build_ext.build_ext):
+
+    description = "build C/C++ and Pyrex extensions (compile/link to build directory)"
+
+    sep_by = _build_ext.build_ext.sep_by
+    user_options = _build_ext.build_ext.user_options
+    boolean_options = _build_ext.build_ext.boolean_options
+    help_options = _build_ext.build_ext.help_options
+
+    # Add the pyrex specific data.
+    user_options.extend([
+        ('pyrex-cplus', None,
+         "generate C++ source files"),
+        ('pyrex-create-listing', None,
+         "write errors to a listing file"),
+        ('pyrex-include-dirs=', None,
+         "path to the Pyrex include files" + sep_by),
+        ('pyrex-c-in-temp', None,
+         "put generated C files in temp directory"),
+        ('pyrex-gen-pxi', None,
+            "generate .pxi file for public declarations"),
+        ])
+
+    boolean_options.extend([
+        'pyrex-cplus', 'pyrex-create-listing', 'pyrex-c-in-temp'
+    ])
+
+    def initialize_options(self):
+        _build_ext.build_ext.initialize_options(self)
+        self.pyrex_cplus = 0
+        self.pyrex_create_listing = 0
+        self.pyrex_include_dirs = None
+        self.pyrex_c_in_temp = 0
+        self.pyrex_gen_pxi = 0
 
     def finalize_options (self):
-        distutils.command.build_ext.build_ext.finalize_options(self)
+        _build_ext.build_ext.finalize_options(self)
+        if self.pyrex_include_dirs is None:
+            self.pyrex_include_dirs = []
+        elif type(self.pyrex_include_dirs) is StringType:
+            self.pyrex_include_dirs = \
+                string.split(self.pyrex_include_dirs, os.pathsep)
+    # finalize_options ()
 
-        # The following hack should no longer be needed.
-        if 0:
-            # compiling with mingw32 gets an "initializer not a constant" error
-            # doesn't appear to happen with MSVC!
-            # so if we are compiling with mingw32,
-            # switch to C++ mode, to avoid the problem
-            if self.compiler == 'mingw32':
-                self.swig_cpp = 1
+    def build_extensions(self):
+        # First, sanity-check the 'extensions' list
+        self.check_extensions_list(self.extensions)
+        for ext in self.extensions:
+            ext.sources = self.pyrex_sources(ext.sources, ext)
+            self.build_extension(ext)
 
-    def swig_sources (self, sources, extension = None):
-        if not self.extensions:
-            return
+    def pyrex_sources(self, sources, extension):
 
-        # collect the names of the source (.pyx) files
-        pyx_sources = []
-        pyx_sources = [source for source in sources if source.endswith('.pyx')]
-        other_sources = [source for source in sources if not source.endswith('.pyx')]
+        """
+        Walk the list of source files in 'sources', looking for Pyrex
+        source (.pyx) files.  Run Pyrex on all that are found, and return
+        a modified 'sources' list with Pyrex source files replaced by the
+        generated C (or C++) files.
+        """
 
-        #suffix = self.swig_cpp and '.cpp' or '.c'
-        suffix = '.c'
-        for pyx in pyx_sources:
-            # should I raise an exception if it doesn't exist?
-            if os.path.exists(pyx):
-                source = pyx
-                target = replace_suffix(source, suffix)
-                if newer(source, target) or self.force:
-                    self.pyrex_compile(source)
+        if PyrexError == None:
+            raise DistutilsPlatformError, \
+                  ("Pyrex does not appear to be installed "
+                   "on platform '%s'") % os.name
 
-        return [replace_suffix(src, suffix) for src in pyx_sources] + other_sources
+        new_sources = []
+        pyrex_sources = []
+        pyrex_targets = {}
 
-    def pyrex_compile(self, source):
-        options = CompilationOptions(default_options,
-            include_path = self.include_dirs)
-        result = compile(source, options)
-        if result.num_errors <> 0:
-            sys.exit(1)
+        # Setup create_list and cplus from the extension options if
+        # Pyrex.Distutils.extension.Extension is used, otherwise just
+        # use what was parsed from the command-line or the configuration file.
+        # cplus will also be set to true is extension.language is equal to
+        # 'C++' or 'c++'.
+        #try:
+        #	create_listing = self.pyrex_create_listing or \
+        #						extension.pyrex_create_listing
+        #	cplus = self.pyrex_cplus or \
+        #				extension.pyrex_cplus or \
+        #				(extension.language != None and \
+        #					extension.language.lower() == 'c++')
+        #except AttributeError:
+        #	create_listing = self.pyrex_create_listing
+        #	cplus = self.pyrex_cplus or \
+        #				(extension.language != None and \
+        #					extension.language.lower() == 'c++')
+        
+        create_listing = self.pyrex_create_listing or \
+            getattr(extension, 'pyrex_create_listing', 0)
+        cplus = self.pyrex_cplus or getattr(extension, 'pyrex_cplus', 0) or \
+                (extension.language and extension.language.lower() == 'c++')
+        pyrex_gen_pxi = self.pyrex_gen_pxi or getattr(extension, 'pyrex_gen_pxi', 0)
 
+        # Set up the include_path for the Pyres compiler:
+        #	1.	Start with the command line option.
+        #	2.	Add in any (unique) paths from the extension
+        #		pyrex_include_dirs (if Pyrex.Distutils.extension is used).
+        #	3.	Add in any (unique) paths from the extension include_dirs
+        includes = self.pyrex_include_dirs
+        try:
+            for i in extension.pyrex_include_dirs:
+                if not i in includes:
+                    includes.append(i)
+        except AttributeError:
+            pass
+        for i in extension.include_dirs:
+            if not i in includes:
+                includes.append(i)
+
+        # Set the target_ext to '.c'.  Pyrex will change this to '.cpp' if
+        # needed.
+        if cplus:
+            target_ext = '.cpp'
+        else:
+            target_ext = '.c'
+
+        # Decide whether to drop the generated C files into the temp dir
+        # or the source tree.
+
+        if not self.inplace and (self.pyrex_c_in_temp
+                or getattr(extension, 'pyrex_c_in_temp', 0)):
+            target_dir = os.path.join(self.build_temp, "pyrex")
+        else:
+            target_dir = ""
+
+        for source in sources:
+            (base, ext) = os.path.splitext(source)
+            if ext == ".pyx":			  # Pyrex source file
+                new_sources.append(os.path.join(target_dir, base + target_ext))
+                pyrex_sources.append(source)
+                pyrex_targets[source] = new_sources[-1]
+            else:
+                new_sources.append(source)
+
+        if not pyrex_sources:
+            return new_sources
+
+        for source in pyrex_sources:
+            target = pyrex_targets[source]
+            source_time = os.stat(source).st_mtime
+            try:
+                target_time = os.stat(target).st_mtime
+                newer = source_time > target_time
+            except EnvironmentError:
+                newer = 1
+            if newer:
+                log.info("pyrexing %s to %s", source, target)
+                self.mkpath(os.path.dirname(target))
+                options = CompilationOptions(pyrex_default_options, 
+                    use_listing_file = create_listing,
+                    include_path = includes,
+                    output_file = target,
+                    cplus = cplus,
+                    generate_pxi = pyrex_gen_pxi)
+                result = pyrex_compile(source, options=options)
+
+        return new_sources
+
+    # pyrex_sources ()
+
+# class build_ext

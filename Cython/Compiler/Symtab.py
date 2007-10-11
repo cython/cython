@@ -3,9 +3,10 @@
 #
 
 import re
-from Errors import error, InternalError
+from Errors import warning, error, InternalError
 import Options
 import Naming
+import PyrexTypes
 from PyrexTypes import c_int_type, \
     py_object_type, c_char_array_type, \
     CEnumType, CStructOrUnionType, PyExtensionType
@@ -24,7 +25,7 @@ class Entry:
     # doc              string     Doc string
     # init             string     Initial value
     # visibility       'private' or 'public' or 'extern'
-    # is_builtin       boolean    Is a Python builtin name
+    # is_builtin       boolean    Is an entry in the Python builtins dict
     # is_cglobal       boolean    Is a C global variable
     # is_pyglobal      boolean    Is a Python module-level variable
     #                               or class attribute during
@@ -48,7 +49,7 @@ class Entry:
     # signature        Signature  Arg & return types for Python func
     # init_to_none     boolean    True if initial value should be None
     # as_variable      Entry      Alternative interpretation of extension
-    #                               type name as a variable
+    #                               type name or builtin C function as a variable
     # xdecref_cleanup  boolean    Use Py_XDECREF for error cleanup
     # in_cinclude      boolean    Suppress C declaration code
     # enum_values      [Entry]    For enum types, list of values
@@ -58,10 +59,14 @@ class Entry:
     #                                 type is an extension type
     # as_module        None       Module scope, if a cimported module
     # is_inherited     boolean    Is an inherited attribute of an extension type
-    # interned_cname   string     C name of interned name string
+    # #interned_cname   string     C name of interned name string
     # pystring_cname   string     C name of Python version of string literal
     # is_interned      boolean    For string const entries, value is interned
     # used             boolean
+    # is_special       boolean    Is a special method or property accessor
+    #                               of an extension type
+    # defined_in_pxd   boolean    Is defined in a .pxd file (not just declared)
+    # api              boolean    Generate C API for C function
 
     borrowed = 0
     init = ""
@@ -89,11 +94,14 @@ class Entry:
     in_cinclude = 0
     as_module = None
     is_inherited = 0
-    interned_cname = None
+    #interned_cname = None
     pystring_cname = None
     is_interned = 0
     used = 0
-    
+    is_special = 0
+    defined_in_pxd = 0
+    api = 0
+
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
         self.cname = cname
@@ -107,6 +115,7 @@ class Scope:
     # outer_scope       Scope or None      Enclosing scope
     # entries           {string : Entry}   Python name to entry, non-types
     # const_entries     [Entry]            Constant entries
+    # type_entries      [Entry]            Struct/union/enum/typedef/exttype entries
     # sue_entries       [Entry]            Struct/union/enum entries
     # arg_entries       [Entry]            Function argument entries
     # var_entries       [Entry]            User-defined variable entries
@@ -148,6 +157,7 @@ class Scope:
             self.scope_prefix = mangled_name
         self.entries = {}
         self.const_entries = []
+        self.type_entries = []
         self.sue_entries = []
         self.arg_entries = []
         self.var_entries = []
@@ -221,27 +231,41 @@ class Scope:
         return entry
     
     def declare_type(self, name, type, pos, 
-            cname = None, visibility = 'private'):
+            cname = None, visibility = 'private', defining = 1):
         # Add an entry for a type definition.
         if not cname:
             cname = name
         entry = self.declare(name, cname, type, pos)
         entry.visibility = visibility
         entry.is_type = 1
+        if defining:
+            self.type_entries.append(entry)
         return entry
+    
+    def declare_typedef(self, name, base_type, pos, cname = None,
+            visibility = 'private'):
+        if not cname:
+            if self.in_cinclude or visibility == 'public':
+                cname = name
+            else:
+                cname = self.mangle(Naming.type_prefix, name)
+        type = PyrexTypes.CTypedefType(cname, base_type)
+        entry = self.declare_type(name, type, pos, cname, visibility)
+        type.qualified_name = entry.qualified_name
         
     def declare_struct_or_union(self, name, kind, scope, 
-            typedef_flag, pos, cname = None):
+            typedef_flag, pos, cname = None, visibility = 'private'):
         # Add an entry for a struct or union definition.
         if not cname:
-            if self.in_cinclude:
+            if self.in_cinclude or visibility == 'public':
                 cname = name
             else:
                 cname = self.mangle(Naming.type_prefix, name)
         entry = self.lookup_here(name)
         if not entry:
             type = CStructOrUnionType(name, kind, scope, typedef_flag, cname)
-            entry = self.declare_type(name, type, pos, cname)
+            entry = self.declare_type(name, type, pos, cname,
+                visibility = visibility, defining = scope is not None)
             self.sue_entries.append(entry)
         else:
             if not (entry.is_type and entry.type.is_struct_or_union):
@@ -250,8 +274,10 @@ class Scope:
                 error(pos, "'%s' already defined" % name)
             else:
                 self.check_previous_typedef_flag(entry, typedef_flag, pos)
+                self.check_previous_visibility(entry, visibility, pos)
                 if scope:
                     entry.type.scope = scope
+                    self.type_entries.append(entry)
         if not scope and not entry.type.scope:
             self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
         return entry
@@ -261,17 +287,24 @@ class Scope:
             error(pos, "'%s' previously declared using '%s'" % (
                 entry.name, ("cdef", "ctypedef")[entry.type.typedef_flag]))
     
-    def declare_enum(self, name, pos, cname, typedef_flag):
+    def check_previous_visibility(self, entry, visibility, pos):
+        if entry.visibility <> visibility:
+            error(pos, "'%s' previously declared as '%s'" % (
+                entry.name, entry.visibility))
+    
+    def declare_enum(self, name, pos, cname, typedef_flag,
+            visibility = 'private'):
         if name:
             if not cname:
-                if self.in_cinclude:
+                if self.in_cinclude or visibility == 'public':
                     cname = name
                 else:
                     cname = self.mangle(Naming.type_prefix, name)
             type = CEnumType(name, cname, typedef_flag)
         else:
-            type = c_int_type
-        entry = self.declare_type(name, type, pos, cname = cname)
+            type = PyrexTypes.c_anon_enum_type
+        entry = self.declare_type(name, type, pos, cname = cname,
+            visibility = visibility)
         entry.enum_values = []
         self.sue_entries.append(entry)
         return entry	
@@ -303,15 +336,26 @@ class Scope:
         self.pyfunc_entries.append(entry)
     
     def declare_cfunction(self, name, type, pos, 
-            cname = None, visibility = 'private', defining = 0):
+            cname = None, visibility = 'private', defining = 0, api = 0, in_pxd = 0):
         # Add an entry for a C function.
-        if not cname:
-            if visibility <> 'private':
-                cname = name
-            else:
-                cname = self.mangle(Naming.func_prefix, name)
-        entry = self.add_cfunction(name, type, pos, cname, visibility)
-        entry.func_cname = cname
+        entry = self.lookup_here(name)
+        if entry:
+            if not entry.type.same_as(type):
+                error(pos, "Function signature does not match previous declaration")
+        else:
+            if not cname:
+                if api or visibility <> 'private':
+                    cname = name
+                else:
+                    cname = self.mangle(Naming.func_prefix, name)
+            entry = self.add_cfunction(name, type, pos, cname, visibility)
+            entry.func_cname = cname
+        if in_pxd and visibility <> 'extern':
+            entry.defined_in_pxd = 1
+        if api:
+            entry.api = 1
+        if not defining and not in_pxd and visibility <> 'extern':
+            error(pos, "Non-extern C function declared but not defined")
         return entry
     
     def add_cfunction(self, name, type, pos, cname, visibility):
@@ -457,6 +501,15 @@ class BuiltinScope(Scope):
         entry.is_builtin = 1
         return entry
     
+    def declare_builtin_cfunction(self, name, type, cname, with_python_equiv = 0):
+        entry = self.declare_cfunction(name, type, None, cname)
+        if with_python_equiv:
+            var_entry = Entry(name, name, py_object_type)
+            var_entry.is_variable = 1
+            var_entry.is_builtin = 1
+            entry.as_variable = var_entry
+        return entry
+
 
 class ModuleScope(Scope):
     # module_name          string             Python name of the module
@@ -515,7 +568,7 @@ class ModuleScope(Scope):
     
     def declare_builtin(self, name, pos):
         entry = Scope.declare_builtin(self, name, pos)
-        entry.interned_cname = self.intern(name)
+        #entry.interned_cname = self.intern(name)
         return entry
     
     def intern(self, name):
@@ -598,8 +651,8 @@ class ModuleScope(Scope):
                     "Non-cdef global variable is not a generic Python object")
             entry.is_pyglobal = 1
             entry.namespace_cname = self.module_cname
-            if Options.intern_names:
-                entry.interned_cname = self.intern(name)
+            #if Options.intern_names:
+            #	entry.interned_cname = self.intern(name)
         else:
             entry.is_cglobal = 1
             self.var_entries.append(entry)
@@ -636,9 +689,6 @@ class ModuleScope(Scope):
         module_name, base_type, objstruct_cname, typeobj_cname,
         visibility, typedef_flag):
         #
-        #print "declare_c_class:", name
-        #print "...visibility =", visibility
-        #
         # Look for previous declaration as a type
         #
         entry = self.lookup_here(name)
@@ -660,7 +710,8 @@ class ModuleScope(Scope):
             else:
                 type.module_name = self.qualified_name
             type.typeptr_cname = self.mangle(Naming.typeptr_prefix, name)
-            entry = self.declare_type(name, type, pos, visibility = visibility)
+            entry = self.declare_type(name, type, pos, visibility = visibility,
+                defining = 0)
             if objstruct_cname:
                 type.objstruct_cname = objstruct_cname
             elif not entry.in_cinclude:
@@ -680,6 +731,7 @@ class ModuleScope(Scope):
                 if base_type:
                     scope.declare_inherited_c_attributes(base_type.scope)
                 type.set_scope(scope)
+                self.type_entries.append(entry)
             else:
                 self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
         else:
@@ -690,11 +742,13 @@ class ModuleScope(Scope):
         #
         # Fill in options, checking for compatibility with any previous declaration
         #
+        if defining:
+            entry.defined_in_pxd = 1
         if implementing:   # So that filenames in runtime exceptions refer to
             entry.pos = pos  # the .pyx file and not the .pxd file
         if entry.visibility <> visibility:
             error(pos, "Declaration of '%s' as '%s' conflicts with previous "
-                "declaration as '%s'" % (class_name, visibility, entry.visibility))
+                "declaration as '%s'" % (name, visibility, entry.visibility))
         if objstruct_cname:
             if type.objstruct_cname and type.objstruct_cname <> objstruct_cname:
                 error(pos, "Object struct name differs from previous declaration")
@@ -884,8 +938,8 @@ class PyClassScope(ClassScope):
             cname, visibility, is_cdef)
         entry.is_pyglobal = 1
         entry.namespace_cname = self.class_obj_cname
-        if Options.intern_names:
-            entry.interned_cname = self.intern(name)
+        #if Options.intern_names:
+        #	entry.interned_cname = self.intern(name)
         return entry
 
     def allocate_temp(self, type):
@@ -976,18 +1030,28 @@ class CClassScope(ClassScope):
 
     def declare_pyfunction(self, name, pos):
         # Add an entry for a method.
+        if name == "__new__":
+            warning(pos, "__new__ method of extension type will change semantics "
+                "in a future version of Pyrex. Use __cinit__ instead.")
+            name = "__cinit__"
         entry = self.declare(name, name, py_object_type, pos)
         special_sig = get_special_method_signature(name)
         if special_sig:
+            entry.is_special = 1
             entry.signature = special_sig
             # Special methods don't get put in the method table
         else:
             entry.signature = pymethod_signature
             self.pyfunc_entries.append(entry)
         return entry
-            
+    
+    def lookup_here(self, name):
+        if name == "__new__":
+            name = "__cinit__"
+        return ClassScope.lookup_here(self, name)
+    
     def declare_cfunction(self, name, type, pos,
-            cname = None, visibility = 'private', defining = 0):
+            cname = None, visibility = 'private', defining = 0, api = 0, in_pxd = 0):
         if get_special_method_signature(name):
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
         args = type.args
@@ -1002,6 +1066,7 @@ class CClassScope(ClassScope):
             else:
                 if defining and entry.func_cname:
                     error(pos, "'%s' already defined" % name)
+                #print "CClassScope.declare_cfunction: checking signature" ###
                 if not entry.type.same_as(type, as_cmethod = 1):
                     error(pos, "Signature does not match previous declaration")
         else:
@@ -1059,6 +1124,7 @@ class PropertyScope(Scope):
         signature = get_property_accessor_signature(name)
         if signature:
             entry = self.declare(name, name, py_object_type, pos)
+            entry.is_special = 1
             entry.signature = signature
             return entry
         else:

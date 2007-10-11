@@ -26,6 +26,7 @@ class Signature:
     #    'i'  int
     #    'I'  int *
     #    'l'  long
+    #    'Z'  Py_ssize_t
     #    's'  char *
     #    'S'  char **
     #    'r'  int used only to signal exception
@@ -42,6 +43,7 @@ class Signature:
         'i': PyrexTypes.c_int_type,
         'I': PyrexTypes.c_int_ptr_type,
         'l': PyrexTypes.c_long_type,
+        'Z': PyrexTypes.c_py_ssize_t_type,
         's': PyrexTypes.c_char_ptr_type,
         'S': PyrexTypes.c_char_ptr_ptr_type,
         'r': PyrexTypes.c_returncode_type,
@@ -80,6 +82,19 @@ class Signature:
     
     def return_type(self):
         return self.format_map[self.ret_format]
+    
+    def exception_value(self):
+        return self.error_value_map.get(self.ret_format)
+    
+    def function_type(self):
+        #  Construct a C function type descriptor for this signature
+        args = []
+        for i in xrange(self.num_fixed_args()):
+            arg_type = self.fixed_arg_type(i)
+            args.append(PyrexTypes.CFuncTypeArg("", arg_type, None))
+        ret_type = self.return_type()
+        exc_value = self.exception_value()
+        return PyrexTypes.CFuncType(ret_type, args, exception_value = exc_value)
 
 
 class SlotDescriptor:
@@ -87,17 +102,24 @@ class SlotDescriptor:
     #
     #  slot_name    string           Member name of the slot in the type object
     #  is_initialised_dynamically    Is initialised by code in the module init function
-
-    def __init__(self, slot_name, dynamic = 0):
+    #  flag                          Py_TPFLAGS_XXX value indicating presence of slot
+    
+    def __init__(self, slot_name, dynamic = 0, flag = None):
         self.slot_name = slot_name
         self.is_initialised_dynamically = dynamic
+        self.flag = flag
     
     def generate(self, scope, code):
         if self.is_initialised_dynamically:
             value = 0
         else:
             value = self.slot_code(scope)
+        flag = self.flag
+        if flag:
+            code.putln("#if Py_TPFLAGS_DEFAULT & %s" % flag)
         code.putln("%s, /*%s*/" % (value, self.slot_name))
+        if flag:
+            code.putln("#endif")
     
     # Some C implementations have trouble statically 
     # initialising a global with a pointer to an extern 
@@ -159,8 +181,8 @@ class MethodSlot(SlotDescriptor):
     #  method_name  string           The __xxx__ name of the method
     #  default      string or None   Default value of the slot
     
-    def __init__(self, signature, slot_name, method_name, default = None):
-        SlotDescriptor.__init__(self, slot_name)
+    def __init__(self, signature, slot_name, method_name, default = None, flag = None):
+        SlotDescriptor.__init__(self, slot_name, flag = flag)
         self.signature = signature
         self.slot_name = slot_name
         self.method_name = method_name
@@ -354,18 +376,28 @@ ternaryfunc = Signature("OOO", "O")        # typedef PyObject * (*ternaryfunc)(P
 iternaryfunc = Signature("TOO", "O")       # typedef PyObject * (*ternaryfunc)(PyObject *, PyObject *, PyObject *);
 callfunc = Signature("T*", "O")            # typedef PyObject * (*ternaryfunc)(PyObject *, PyObject *, PyObject *);
 inquiry = Signature("T", "i")              # typedef int (*inquiry)(PyObject *);
+lenfunc = Signature("T", "Z")              # typedef Py_ssize_t (*lenfunc)(PyObject *);
                                            # typedef int (*coercion)(PyObject **, PyObject **);
 intargfunc = Signature("Ti", "O")          # typedef PyObject *(*intargfunc)(PyObject *, int);
+ssizeargfunc = Signature("TZ", "O")        # typedef PyObject *(*ssizeargfunc)(PyObject *, Py_ssize_t);
 intintargfunc = Signature("Tii", "O")      # typedef PyObject *(*intintargfunc)(PyObject *, int, int);
+ssizessizeargfunc = Signature("TZZ", "O")  # typedef PyObject *(*ssizessizeargfunc)(PyObject *, Py_ssize_t, Py_ssize_t);
 intobjargproc = Signature("TiO", 'r')      # typedef int(*intobjargproc)(PyObject *, int, PyObject *);
+ssizeobjargproc = Signature("TZO", 'r')    # typedef int(*ssizeobjargproc)(PyObject *, Py_ssize_t, PyObject *);
 intintobjargproc = Signature("TiiO", 'r')  # typedef int(*intintobjargproc)(PyObject *, int, int, PyObject *);
+ssizessizeobjargproc = Signature("TZZO", 'r') # typedef int(*ssizessizeobjargproc)(PyObject *, Py_ssize_t, Py_ssize_t, PyObject *);
 intintargproc = Signature("Tii", 'r')
+ssizessizeargproc = Signature("TZZ", 'r')
 objargfunc = Signature("TO", "O")
 objobjargproc = Signature("TOO", 'r')      # typedef int (*objobjargproc)(PyObject *, PyObject *, PyObject *);
 getreadbufferproc = Signature("TiP", 'i')  # typedef int (*getreadbufferproc)(PyObject *, int, void **);
 getwritebufferproc = Signature("TiP", 'i') # typedef int (*getwritebufferproc)(PyObject *, int, void **);
 getsegcountproc = Signature("TI", 'i')     # typedef int (*getsegcountproc)(PyObject *, int *);
 getcharbufferproc = Signature("TiS", 'i')  # typedef int (*getcharbufferproc)(PyObject *, int, const char **);
+readbufferproc = Signature("TZP", "Z")     # typedef Py_ssize_t (*readbufferproc)(PyObject *, Py_ssize_t, void **);
+writebufferproc = Signature("TZP", "Z")    # typedef Py_ssize_t (*writebufferproc)(PyObject *, Py_ssize_t, void **);
+segcountproc = Signature("TZ", "Z")        # typedef Py_ssize_t (*segcountproc)(PyObject *, Py_ssize_t *);
+writebufferproc = Signature("TZS", "Z")	# typedef Py_ssize_t (*charbufferproc)(PyObject *, Py_ssize_t, char **);
 objargproc = Signature("TO", 'r')          # typedef int (*objobjproc)(PyObject *, PyObject *);
                                            # typedef int (*visitproc)(PyObject *, void *);
                                            # typedef int (*traverseproc)(PyObject *, visitproc, void *);
@@ -454,14 +486,15 @@ PyNumberMethods = (
     MethodSlot(binaryfunc, "nb_true_divide", "__truediv__"),
     MethodSlot(ibinaryfunc, "nb_inplace_floor_divide", "__ifloordiv__"),
     MethodSlot(ibinaryfunc, "nb_inplace_true_divide", "__itruediv__"),
+    MethodSlot(unaryfunc, "nb_index", "__index__", flag = "Py_TPFLAGS_HAVE_INDEX")
 )
 
 PySequenceMethods = (
-    MethodSlot(inquiry, "sq_length", "__len__"),    # EmptySlot("sq_length"), # mp_length used instead
+    MethodSlot(lenfunc, "sq_length", "__len__"),
     EmptySlot("sq_concat"), # nb_add used instead
     EmptySlot("sq_repeat"), # nb_multiply used instead
     SyntheticSlot("sq_item", ["__getitem__"], "0"),    #EmptySlot("sq_item"),   # mp_subscript used instead
-    MethodSlot(intintargfunc, "sq_slice", "__getslice__"),
+    MethodSlot(ssizessizeargfunc, "sq_slice", "__getslice__"),
     EmptySlot("sq_ass_item"), # mp_ass_subscript used instead
     SyntheticSlot("sq_ass_slice", ["__setslice__", "__delslice__"], "0"),
     MethodSlot(cmpfunc, "sq_contains", "__contains__"),
@@ -470,7 +503,7 @@ PySequenceMethods = (
 )
 
 PyMappingMethods = (
-    MethodSlot(inquiry, "mp_length", "__len__"),
+    MethodSlot(lenfunc, "mp_length", "__len__"),
     MethodSlot(objargfunc, "mp_subscript", "__getitem__"),
     SyntheticSlot("mp_ass_subscript", ["__setitem__", "__delitem__"], "0"),
 )
@@ -561,12 +594,12 @@ slot_table = (
 #
 #------------------------------------------------------------------------------------------
 
-MethodSlot(initproc, "", "__new__")
+MethodSlot(initproc, "", "__cinit__")
 MethodSlot(destructor, "", "__dealloc__")
 MethodSlot(objobjargproc, "", "__setitem__")
 MethodSlot(objargproc, "", "__delitem__")
-MethodSlot(intintobjargproc, "", "__setslice__")
-MethodSlot(intintargproc, "", "__delslice__")
+MethodSlot(ssizessizeobjargproc, "", "__setslice__")
+MethodSlot(ssizessizeargproc, "", "__delslice__")
 MethodSlot(getattrofunc, "", "__getattr__")
 MethodSlot(setattrofunc, "", "__setattr__")
 MethodSlot(delattrofunc, "", "__delattr__")

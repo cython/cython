@@ -47,8 +47,20 @@ module_cname     = pyrex_prefix + "m"
 moddoc_cname     = pyrex_prefix + "mdoc"
 methtable_cname  = pyrex_prefix + "methods"
 retval_cname     = pyrex_prefix + "r"
+reqd_kwds_cname  = pyrex_prefix + "reqd_kwds"
 self_cname       = pyrex_prefix + "self"
 stringtab_cname  = pyrex_prefix + "string_tab"
 vtabslot_cname   = pyrex_prefix + "vtab"
 
 extern_c_macro  = pyrex_prefix.upper() + "EXTERN_C"
+
+exc_type_name   = pyrex_prefix + "exc_type"
+exc_value_name  = pyrex_prefix + "exc_value"
+exc_tb_name     = pyrex_prefix + "exc_tb"
+exc_lineno_name = pyrex_prefix + "exc_lineno"
+
+exc_vars = (exc_type_name, exc_value_name, exc_tb_name)
+
+h_guard_prefix   = "__PYX_HAVE__"
+api_guard_prefix = "__PYX_HAVE_API__"
+api_func_guard   = "__PYX_HAVE_API_FUNC_"

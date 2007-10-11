@@ -2,13 +2,14 @@
 #   Pyrex - Parse tree nodes for expressions
 #
 
+import operator
 from string import join
 
 from Errors import error, InternalError
 import Naming
 from Nodes import Node
 import PyrexTypes
-from PyrexTypes import py_object_type, c_long_type, typecast
+from PyrexTypes import py_object_type, c_long_type, typecast, error_type
 import Symtab
 import Options
 
@@ -207,6 +208,14 @@ class ExprNode(Node):
         #  Return the native C type of the result (i.e. the
         #  C type of the result_code expression).
         return self.result_ctype or self.type
+    
+    def compile_time_value(self, denv):
+        #  Return value of compile-time expression, or report error.
+        error(self.pos, "Invalid compile-time expression")
+    
+    def compile_time_value_error(self, e):
+        error(self.pos, "Error in compile-time expression: %s: %s" % (
+            e.__class__.__name__, e))
     
     # ------------- Declaration Analysis ----------------
     
@@ -486,7 +495,7 @@ class ExprNode(Node):
         if type.is_pyobject or type.is_ptr or type.is_float:
             return CoerceToBooleanNode(self, env)
         else:
-            if not type.is_int:
+            if not type.is_int and not type.is_error:
                 error(self.pos, 
                     "Type '%s' not acceptable as a boolean" % type)
             return self
@@ -548,11 +557,17 @@ class NoneNode(PyConstNode):
     
     value = "Py_None"
     
+    def compile_time_value(self, denv):
+        return None
+    
 
 class EllipsisNode(PyConstNode):
     #  '...' in a subscript list.
     
     value = "Py_Ellipsis"
+
+    def compile_time_value(self, denv):
+        return Ellipsis
 
 
 class ConstNode(AtomicExprNode):
@@ -586,6 +601,9 @@ class NullNode(ConstNode):
 class CharNode(ConstNode):
     type = PyrexTypes.c_char_type
     
+    def compile_time_value(self, denv):
+        return ord(self.value)
+    
     def calculate_result_code(self):
         return "'%s'" % self.value
 
@@ -593,15 +611,24 @@ class CharNode(ConstNode):
 class IntNode(ConstNode):
     type = PyrexTypes.c_long_type
 
+    def compile_time_value(self, denv):
+        return int(self.value)
+    
 
 class FloatNode(ConstNode):
     type = PyrexTypes.c_double_type
 
+    def compile_time_value(self, denv):
+        return float(self.value)
+    
 
 class StringNode(ConstNode):
     #  entry   Symtab.Entry
     
     type = PyrexTypes.c_char_ptr_type
+    
+    def compile_time_value(self, denv):
+        return eval('"%s"' % self.value)
     
     def analyse_types(self, env):
         self.entry = env.add_string_const(self.value)
@@ -637,6 +664,9 @@ class LongNode(AtomicExprNode):
     #
     #  value   string
     
+    def compile_time_value(self, denv):
+        return long(self.value)
+    
     def analyse_types(self, env):
         self.type = py_object_type
         self.is_temp = 1
@@ -655,6 +685,9 @@ class ImagNode(AtomicExprNode):
     #
     #  value   float    imaginary part
     
+    def compile_time_value(self, denv):
+        return complex(0.0, self.value)
+    
     def analyse_types(self, env):
         self.type = py_object_type
         self.is_temp = 1
@@ -672,9 +705,33 @@ class NameNode(AtomicExprNode):
     #  Reference to a local or global variable name.
     #
     #  name            string    Python name of the variable
+    #
     #  entry           Entry     Symbol table entry
+    #  interned_cname  string
     
     is_name = 1
+    
+    def compile_time_value(self, denv):
+        try:
+            return denv.lookup(self.name)
+        except KeyError:
+            error(self.pos, "Compile-time name '%s' not defined", self.name)
+    
+    def coerce_to(self, dst_type, env):
+        #  If coercing to a generic pyobject and this is a builtin
+        #  C function with a Python equivalent, manufacture a NameNode
+        #  referring to the Python builtin.
+        #print "NameNode.coerce_to:", self.name, dst_type ###
+        if dst_type is py_object_type:
+            entry = self.entry
+            if entry.is_cfunction:
+                var_entry = entry.as_variable
+                if var_entry:
+                    node = NameNode(self.pos, name = self.name)
+                    node.entry = var_entry
+                    node.analyse_rvalue_entry(env)
+                    return node
+        return AtomicExprNode.coerce_to(self, dst_type, env)
     
     def analyse_as_module(self, env):
         # Try to interpret this as a reference to a cimported module.
@@ -689,50 +746,56 @@ class NameNode(AtomicExprNode):
         # Returns the extension type, or None.
         entry = env.lookup(self.name)
         if entry and entry.is_type and entry.type.is_extension_type:
-                return entry.type
-        return None
+            return entry.type
+        else:
+            return None
     
     def analyse_target_declaration(self, env):
         self.entry = env.lookup_here(self.name)
         if not self.entry:
-            #print "NameNode.analyse_target_declaration:", self.name ###
-            #print "...declaring as py_object_type" ###
             self.entry = env.declare_var(self.name, py_object_type, self.pos)
     
     def analyse_types(self, env):
         self.entry = env.lookup(self.name)
         if not self.entry:
             self.entry = env.declare_builtin(self.name, self.pos)
-        self.analyse_entry(env)
+        self.analyse_rvalue_entry(env)
         
-    def analyse_entry(self, env):
-        self.check_identifier_kind()
+    def analyse_target_types(self, env):
+        self.analyse_entry(env)
+        if not self.is_lvalue():
+            error(self.pos, "Assignment to non-lvalue '%s'"
+                % self.name)
+            self.type = PyrexTypes.error_type
+        
+    def analyse_rvalue_entry(self, env):
+        #print "NameNode.analyse_rvalue_entry:", self.name ###
+        #print "Entry:", self.entry.__dict__ ###
+        self.analyse_entry(env)
         entry = self.entry
-        self.type = entry.type
         if entry.is_declared_generic:
             self.result_ctype = py_object_type
-        ## Reference to C array turns into pointer to first element.
-        #while self.type.is_array:
-        #	self.type = self.type.element_ptr_type()
         if entry.is_pyglobal or entry.is_builtin:
-            assert self.type.is_pyobject, "Python global or builtin not a Python object"
             self.is_temp = 1
             if Options.intern_names:
                 env.use_utility_code(get_name_interned_utility_code)
             else:
                 env.use_utility_code(get_name_utility_code)
     
-    def analyse_target_types(self, env):
+    def analyse_entry(self, env):
+        #print "NameNode.analyse_entry:", self.name ###
         self.check_identifier_kind()
-        if self.is_lvalue():
-            self.type = self.entry.type
-        else:
-            error(self.pos, "Assignment to non-lvalue '%s'"
-                % self.name)
-            self.type = PyrexTypes.error_type
-    
+        entry = self.entry
+        type = entry.type
+        self.type = type
+        if entry.is_pyglobal or entry.is_builtin:
+            assert type.is_pyobject, "Python global or builtin not a Python object"
+            if Options.intern_names:
+                self.interned_cname = env.intern(self.name)
+
     def check_identifier_kind(self):
         #print "NameNode.check_identifier_kind:", self.entry.name ###
+        #print self.entry.__dict__ ###
         entry = self.entry
         entry.used = 1
         if not (entry.is_const or entry.is_variable 
@@ -776,8 +839,9 @@ class NameNode(AtomicExprNode):
         return self.entry.cname
     
     def generate_result_code(self, code):
-        if not hasattr(self, 'entry'):
-            error(self.pos, "INTERNAL ERROR: NameNode has no entry attribute during code generation")
+        assert hasattr(self, 'entry')
+        #if not hasattr(self, 'entry'):
+        #	error(self.pos, "INTERNAL ERROR: NameNode has no entry attribute during code generation")
         entry = self.entry
         if entry is None:
             return # There was an error earlier
@@ -792,9 +856,10 @@ class NameNode(AtomicExprNode):
                     '%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
                     self.result_code,
                     namespace, 
-                    entry.interned_cname,
+                    #entry.interned_cname,
+                    self.interned_cname,
                     self.result_code, 
-                    code.error_goto(self.pos)))		
+                    code.error_goto(self.pos)))
             else:
                 code.putln(
                     '%s = __Pyx_GetName(%s, "%s"); if (!%s) %s' % (
@@ -805,6 +870,7 @@ class NameNode(AtomicExprNode):
                     code.error_goto(self.pos)))		
 
     def generate_assignment_code(self, rhs, code):
+        #print "NameNode.generate_assignment_code:", self.name ###
         entry = self.entry
         if entry is None:
             return # There was an error earlier
@@ -814,7 +880,8 @@ class NameNode(AtomicExprNode):
                 code.putln(
                     'if (PyObject_SetAttr(%s, %s, %s) < 0) %s' % (
                         namespace, 
-                        entry.interned_cname,
+                        #entry.interned_cname,
+                        self.interned_cname,
                         rhs.py_result(), 
                         code.error_goto(self.pos)))
             else:
@@ -962,25 +1029,23 @@ class NextNode(AtomicExprNode):
                 "break;")
         code.putln(
             "}")
-        
+
 
 class ExcValueNode(AtomicExprNode):
     #  Node created during analyse_types phase
     #  of an ExceptClauseNode to fetch the current
     #  exception value.
     
-    def __init__(self, pos, env):
+    def __init__(self, pos, env, var):
         ExprNode.__init__(self, pos)
         self.type = py_object_type
-        self.is_temp = 1
-        env.use_utility_code(get_exception_utility_code)
+        self.var = var
     
+    def calculate_result_code(self):
+        return self.var
+
     def generate_result_code(self, code):
-        code.putln(
-            "%s = __Pyx_GetExcValue(); if (!%s) %s" % (
-                self.result_code,
-                self.result_code,
-                code.error_goto(self.pos)))
+        pass
 
 
 class TempNode(AtomicExprNode):
@@ -1019,6 +1084,14 @@ class IndexNode(ExprNode):
     
     subexprs = ['base', 'index']
     
+    def compile_time_value(self, denv):
+        base = self.base.compile_time_value(denv)
+        index = self.index.compile_time_value(denv)
+        try:
+            return base[index]
+        except Exception, e:
+            self.compile_time_value_error(e)
+    
     def is_ephemeral(self):
         return self.base.is_ephemeral()
     
@@ -1042,7 +1115,7 @@ class IndexNode(ExprNode):
                 self.type = PyrexTypes.error_type
             if self.index.type.is_pyobject:
                 self.index = self.index.coerce_to(
-                    PyrexTypes.c_int_type, env)
+                    PyrexTypes.c_py_ssize_t_type, env)
             if not self.index.type.is_int:
                 error(self.pos,
                     "Invalid index type '%s'" %
@@ -1104,6 +1177,15 @@ class SliceIndexNode(ExprNode):
     
     subexprs = ['base', 'start', 'stop']
     
+    def compile_time_value(self, denv):
+        base = self.base.compile_time_value(denv)
+        start = self.start.compile_time_value(denv)
+        stop = self.stop.compile_time_value(denv)
+        try:
+            return base[start:stop]
+        except Exception, e:
+            self.compile_time_value_error(e)
+    
     def analyse_target_declaration(self, env):
         pass
 
@@ -1114,7 +1196,7 @@ class SliceIndexNode(ExprNode):
         if self.stop:
             self.stop.analyse_types(env)
         self.base = self.base.coerce_to_pyobject(env)
-        c_int = PyrexTypes.c_int_type
+        c_int = PyrexTypes.c_py_ssize_t_type
         if self.start:
             self.start = self.start.coerce_to(c_int, env)
         if self.stop:
@@ -1164,7 +1246,7 @@ class SliceIndexNode(ExprNode):
         if self.stop:
             return self.stop.result_code
         else:
-            return "0x7fffffff"
+            return "PY_SSIZE_T_MAX"
     
     def calculate_result_code(self):
         # self.result_code is not used, but this method must exist
@@ -1178,6 +1260,15 @@ class SliceNode(ExprNode):
     #  stop      ExprNode
     #  step      ExprNode
     
+    def compile_time_value(self, denv):
+        start = self.start.compile_time_value(denv)
+        stop = self.stop.compile_time_value(denv)
+        step = step.step.compile_time_value(denv)
+        try:
+            return slice(start, stop, step)
+        except Exception, e:
+            self.compile_time_value_error(e)
+
     subexprs = ['start', 'stop', 'step']
     
     def analyse_types(self, env):
@@ -1216,6 +1307,14 @@ class SimpleCallNode(ExprNode):
     coerced_self = None
     arg_tuple = None
     
+    def compile_time_value(self, denv):
+        function = self.function.compile_time_value(denv)
+        args = [arg.compile_time_value(denv) for arg in self.args]
+        try:
+            return function(*args)
+        except Exception, e:
+            self.compile_time_value_error(e)
+
     def analyse_types(self, env):
         function = self.function
         function.is_called = 1
@@ -1371,6 +1470,17 @@ class GeneralCallNode(ExprNode):
     
     subexprs = ['function', 'positional_args', 'keyword_args', 'starstar_arg']
 
+    def compile_time_value(self, denv):
+        function = self.function.compile_time_value(denv)
+        positional_args = self.positional_args.compile_time_value(denv)
+        keyword_args = self.keyword_args.compile_time_value(denv)
+        starstar_arg = self.starstar_arg.compile_time_value(denv)
+        try:
+            keyword_args.update(starstar_arg)
+            return function(*positional_args, **keyword_args)
+        except Exception, e:
+            self.compile_time_value_error(e)
+
     def analyse_types(self, env):
         self.function.analyse_types(env)
         self.positional_args.analyse_types(env)
@@ -1426,6 +1536,13 @@ class AsTupleNode(ExprNode):
     
     subexprs = ['arg']
     
+    def compile_time_value(self, denv):
+        arg = self.arg.compile_time_value(denv)
+        try:
+            return tuple(arg)
+        except Exception, e:
+            self.compile_time_value_error(e)
+
     def analyse_types(self, env):
         self.arg.analyse_types(env)
         self.arg = self.arg.coerce_to_pyobject(env)
@@ -1462,6 +1579,18 @@ class AttributeNode(ExprNode):
     result = "<error>"
     entry = None
     is_called = 0
+
+    def compile_time_value(self, denv):
+        attr = self.attribute
+        if attr.beginswith("__") and attr.endswith("__"):
+            self.error("Invalid attribute name '%s' in compile-time expression"
+                % attr)
+            return None
+        obj = self.arg.compile_time_value(denv)
+        try:
+            return getattr(obj, attr)
+        except Exception, e:
+            self.compile_time_value_error(e)
 
     def analyse_target_declaration(self, env):
         pass
@@ -1542,7 +1671,7 @@ class AttributeNode(ExprNode):
         if target:
             NameNode.analyse_target_types(self, env)
         else:
-            NameNode.analyse_entry(self, env)
+            NameNode.analyse_rvalue_entry(self, env)
     
     def analyse_as_ordinary_attribute(self, env, target):
         self.obj.analyse_types(env)
@@ -1729,6 +1858,9 @@ class SequenceNode(ExprNode):
     is_sequence_constructor = 1
     unpacked_items = None
     
+    def compile_time_value_list(self, denv):
+        return [arg.compile_time_value(denv) for arg in self.args]
+
     def analyse_target_declaration(self, env):
         for arg in self.args:
             arg.analyse_target_declaration(env)
@@ -1809,6 +1941,13 @@ class SequenceNode(ExprNode):
 class TupleNode(SequenceNode):
     #  Tuple constructor.
 
+    def compile_time_value(self, denv):
+        values = self.compile_time_value_list(denv)
+        try:
+            return tuple(values)
+        except Exception, e:
+            self.compile_time_value_error(e)
+    
     def generate_operation_code(self, code):
         code.putln(
             "%s = PyTuple_New(%s); if (!%s) %s" % (
@@ -1837,6 +1976,9 @@ class TupleNode(SequenceNode):
 class ListNode(SequenceNode):
     #  List constructor.
     
+    def compile_time_value(self, denv):
+        return self.compile_time_value_list(denv)
+
     def generate_operation_code(self, code):
         code.putln("%s = PyList_New(%s); if (!%s) %s" %
             (self.result_code,
@@ -1865,6 +2007,14 @@ class DictNode(ExprNode):
     #  Dictionary constructor.
     #
     #  key_value_pairs  [(ExprNode, ExprNode)]
+    
+    def compile_time_value(self, denv):
+        pairs = [(key.compile_time_value(denv), value.compile_time_value(denv))
+            for (key, value) in self.key_value_pairs]
+        try:
+            return dict(pairs)
+        except Exception, e:
+            self.compile_time_value_error(e)
     
     def analyse_types(self, env):
         new_pairs = []
@@ -2002,6 +2152,13 @@ class PyCFunctionNode(AtomicExprNode):
 #
 #-------------------------------------------------------------------
 
+compile_time_unary_operators = {
+    'not': operator.not_,
+    '~': operator.inv,
+    '-': operator.neg,
+    '+': operator.pos,
+}
+
 class UnopNode(ExprNode):
     #  operator     string
     #  operand      ExprNode
@@ -2016,6 +2173,18 @@ class UnopNode(ExprNode):
     
     subexprs = ['operand']
     
+    def compile_time_value(self, denv):
+        func = compile_time_unary_operators.get(self.operator)
+        if not func:
+            error(self.pos,
+                "Unary '%s' not supported in compile-time expression"
+                    % self.operator)
+        operand = self.operand.compile_time_value(denv)
+        try:
+            return func(operand)
+        except Exception, e:
+            self.compile_time_value_error(e)
+
     def analyse_types(self, env):
         self.operand.analyse_types(env)
         if self.is_py_operation():
@@ -2063,6 +2232,13 @@ class NotNode(ExprNode):
     #
     #  operand   ExprNode
     
+    def compile_time_value(self, denv):
+        operand = self.operand.compile_time_value(denv)
+        try:
+            return not operand
+        except Exception, e:
+            self.compile_time_value_error(e)
+
     subexprs = ['operand']
     
     def analyse_types(self, env):
@@ -2185,6 +2361,10 @@ class TypecastNode(ExprNode):
     def analyse_types(self, env):
         base_type = self.base_type.analyse(env)
         _, self.type = self.declarator.analyse(base_type, env)
+        if self.type.is_cfunction:
+            error(self.pos,
+                "Cannot cast to a function type")
+            self.type = PyrexTypes.error_type
         self.operand.analyse_types(env)
         to_py = self.type.is_pyobject
         from_py = self.operand.type.is_pyobject
@@ -2277,6 +2457,40 @@ class SizeofVarNode(SizeofNode):
 #
 #-------------------------------------------------------------------
 
+compile_time_binary_operators = {
+    '<': operator.lt,
+    '<=': operator.le,
+    '=': operator.eq,
+    '!=': operator.ne,
+    '>=': operator.ge,
+    '>': operator.gt,
+    'is': operator.is_,
+    'is_not': operator.is_not,
+    '+': operator.add,
+    '&': operator.and_,
+    '/': operator.div,
+    '//': operator.floordiv,
+    '<<': operator.lshift,
+    '%': operator.mod,
+    '*': operator.mul,
+    '|': operator.or_,
+    '**': operator.pow,
+    '>>': operator.rshift,
+    '-': operator.sub,
+    #'/': operator.truediv,
+    '^': operator.xor,
+    'in': lambda x, y: x in y,
+    'not_in': lambda x, y: x not in y,
+}
+
+def get_compile_time_binop(node):
+    func = compile_time_binary_operators.get(node.operator)
+    if not func:
+        error(node.pos,
+            "Binary '%s' not supported in compile-time expression"
+                % self.operator)
+    return func
+
 class BinopNode(ExprNode):
     #  operator     string
     #  operand1     ExprNode
@@ -2292,6 +2506,15 @@ class BinopNode(ExprNode):
     
     subexprs = ['operand1', 'operand2']
     
+    def compile_time_value(self, denv):
+        func = get_compile_time_binop(self)
+        operand1 = self.operand1.compile_time_value(denv)
+        operand2 = self.operand2.compile_time_value(denv)
+        try:
+            return func(operand1, operand2)
+        except Exception, e:
+            self.compile_time_value_error(e)
+
     def analyse_types(self, env):
         self.operand1.analyse_types(env)
         self.operand2.analyse_types(env)
@@ -2350,6 +2573,10 @@ class NumBinopNode(BinopNode):
     def analyse_c_operation(self, env):
         type1 = self.operand1.type
         type2 = self.operand2.type
+        if self.operator == "**" and type1.is_int and type2.is_int:
+            error(self.pos, "** with two C int types is ambiguous")
+            self.type = error_type
+            return
         self.type = self.compute_c_result_type(type1, type2)
         if not self.type:
             self.type_error()
@@ -2361,7 +2588,9 @@ class NumBinopNode(BinopNode):
             return None
     
     def c_types_okay(self, type1, type2):
-        return type1.is_numeric and type2.is_numeric
+        #print "NumBinopNode.c_types_okay:", type1, type2 ###
+        return (type1.is_numeric  or type1.is_enum) \
+            and (type2.is_numeric  or type2.is_enum)
 
     def calculate_result_code(self):
         return "(%s %s %s)" % (
@@ -2391,7 +2620,9 @@ class IntBinopNode(NumBinopNode):
     #  Binary operation taking integer arguments.
     
     def c_types_okay(self, type1, type2):
-        return type1.is_int and type2.is_int
+        #print "IntBinopNode.c_types_okay:", type1, type2 ###
+        return (type1.is_int or type1.is_enum) \
+            and (type2.is_int or type2.is_enum)
 
     
 class AddNode(NumBinopNode):
@@ -2405,9 +2636,10 @@ class AddNode(NumBinopNode):
             return NumBinopNode.is_py_operation(self)
 
     def compute_c_result_type(self, type1, type2):
-        if type1.is_ptr and type2.is_int:
+        #print "AddNode.compute_c_result_type:", type1, self.operator, type2 ###
+        if (type1.is_ptr or type1.is_array) and (type2.is_int or type2.is_enum):
             return type1
-        elif type1.is_int and type2.is_ptr:
+        elif (type2.is_ptr or type2.is_array) and (type1.is_int or type1.is_enum):
             return type2
         else:
             return NumBinopNode.compute_c_result_type(
@@ -2418,9 +2650,9 @@ class SubNode(NumBinopNode):
     #  '-' operator.
     
     def compute_c_result_type(self, type1, type2):
-        if type1.is_ptr and type2.is_int:
+        if (type1.is_ptr or type1.is_array) and (type2.is_int or type2.is_enum):
             return type1
-        elif type1.is_ptr and type2.is_ptr:
+        elif (type1.is_ptr or type1.is_array) and (type2.is_ptr or type2.is_array):
             return PyrexTypes.c_int_type
         else:
             return NumBinopNode.compute_c_result_type(
@@ -2479,6 +2711,14 @@ class BoolBinopNode(ExprNode):
     
     subexprs = ['operand1', 'operand2', 'temp_bool']
     
+    def compile_time_value(self, denv):
+        if self.operator == 'and':
+            return self.operand1.compile_time_value(denv) \
+                and self.operand2.compile_time_value(denv)
+        else:
+            return self.operand1.compile_time_value(denv) \
+                or self.operand2.compile_time_value(denv)
+
     def analyse_types(self, env):
         self.operand1.analyse_types(env)
         self.operand2.analyse_types(env)
@@ -2571,6 +2811,19 @@ class CmpNode:
     #  Mixin class containing code common to PrimaryCmpNodes
     #  and CascadedCmpNodes.
     
+    def cascaded_compile_time_value(self, operand1, denv):
+        func = get_compile_time_binop(self)
+        operand2 = self.operand.compile_time_value(denv)
+        try:
+            result = func(operand1, operand2)
+        except Exception, e:
+            self.compile_time_value_error(e)
+        if result:
+            cascade = self.cascade
+            if cascade:
+                result = result and cascade.compile_time_value(operand2, denv)
+        return result
+
     def is_python_comparison(self):
         return (self.has_python_operands()
             or (self.cascade and self.cascade.is_python_comparison())
@@ -2626,11 +2879,20 @@ class CmpNode:
                     "%s = %s %s 0;" % (
                         result_code, result_code, op))
         else:
+            type1 = operand1.type
+            type2 = operand2.type
+            if (type1.is_extension_type or type2.is_extension_type) \
+                    and not type1.same_as(type2):
+                common_type = py_object_type
+            else:
+                common_type = type1
+            code1 = operand1.result_as(common_type)
+            code2 = operand2.result_as(common_type)
             code.putln("%s = %s %s %s;" % (
                 result_code, 
-                operand1.result_code, 
+                code1, 
                 self.c_operator(op), 
-                operand2.result_code))
+                code2))
     
     def c_operator(self, op):
         if op == 'is':
@@ -2657,6 +2919,10 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     
     cascade = None
     
+    def compile_time_value(self, denv):
+        operand1 = self.operand.compile_time_value(denv)
+        return self.cascaded_compile_time_value(operand1, denv)
+
     def analyse_types(self, env):
         self.operand1.analyse_types(env)
         self.operand2.analyse_types(env)
@@ -2937,9 +3203,14 @@ class CoerceFromPyTypeNode(CoercionNode):
         rhs = "%s(%s)" % (function, operand)
         if self.type.is_enum:
             rhs = typecast(self.type, c_long_type, rhs)
-        code.putln('%s = %s; if (PyErr_Occurred()) %s' % (
+        if self.type.is_string:
+            err_code = "!%s" % self.result_code
+        else:
+            err_code = "PyErr_Occurred()"
+        code.putln('%s = %s; if (%s) %s' % (
             self.result_code, 
-            rhs, 
+            rhs,
+            err_code,
             code.error_goto(self.pos)))
 
 
@@ -3095,42 +3366,42 @@ bad:
 }]
 
 #------------------------------------------------------------------------------------
-
-get_exception_utility_code = [
-"""
-static PyObject *__Pyx_GetExcValue(void); /*proto*/
-""","""
-static PyObject *__Pyx_GetExcValue(void) {
-    PyObject *type = 0, *value = 0, *tb = 0;
-    PyObject *result = 0;
-    PyThreadState *tstate = PyThreadState_Get();
-    PyErr_Fetch(&type, &value, &tb);
-    PyErr_NormalizeException(&type, &value, &tb);
-    if (PyErr_Occurred())
-        goto bad;
-    if (!value) {
-        value = Py_None;
-        Py_INCREF(value);
-    }
-    Py_XDECREF(tstate->exc_type);
-    Py_XDECREF(tstate->exc_value);
-    Py_XDECREF(tstate->exc_traceback);
-    tstate->exc_type = type;
-    tstate->exc_value = value;
-    tstate->exc_traceback = tb;
-    result = value;
-    Py_XINCREF(result);
-    type = 0;
-    value = 0;
-    tb = 0;
-bad:
-    Py_XDECREF(type);
-    Py_XDECREF(value);
-    Py_XDECREF(tb);
-    return result;
-}
-"""]
-
+#
+#get_exception_utility_code = [
+#"""
+#static PyObject *__Pyx_GetExcValue(void); /*proto*/
+#""","""
+#static PyObject *__Pyx_GetExcValue(void) {
+#	PyObject *type = 0, *value = 0, *tb = 0;
+#	PyObject *result = 0;
+#	PyThreadState *tstate = PyThreadState_Get();
+#	PyErr_Fetch(&type, &value, &tb);
+#	PyErr_NormalizeException(&type, &value, &tb);
+#	if (PyErr_Occurred())
+#		goto bad;
+#	if (!value) {
+#		value = Py_None;
+#		Py_INCREF(value);
+#	}
+#	Py_XDECREF(tstate->exc_type);
+#	Py_XDECREF(tstate->exc_value);
+#	Py_XDECREF(tstate->exc_traceback);
+#	tstate->exc_type = type;
+#	tstate->exc_value = value;
+#	tstate->exc_traceback = tb;
+#	result = value;
+#	Py_XINCREF(result);
+#	type = 0;
+#	value = 0;
+#	tb = 0;
+#bad:
+#	Py_XDECREF(type);
+#	Py_XDECREF(value);
+#	Py_XDECREF(tb);
+#	return result;
+#}
+#"""]
+#
 #------------------------------------------------------------------------------------
 
 unpacking_utility_code = [

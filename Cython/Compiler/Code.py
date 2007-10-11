@@ -19,6 +19,7 @@ class CCodeWriter:
     # in_try_finally   boolean         inside try of try...finally
     # filename_table   {string : int}  for finding filename table indexes
     # filename_list    [string]        filenames in filename table order
+    # exc_vars         (string * 3)    exception variables for reraise, or None
     
     in_try_finally = 0
     
@@ -32,6 +33,7 @@ class CCodeWriter:
         self.error_label = None
         self.filename_table = {}
         self.filename_list = []
+        self.exc_vars = None
     
     def putln(self, code = ""):
         if self.marker and self.bol:
@@ -156,11 +158,13 @@ class CCodeWriter:
     
     def put_var_declaration(self, entry, static = 0, dll_linkage = None,
             definition = True):
-        #print "Code.put_var_declaration:", entry.name, "definition =", definition ###
+        #print "Code.put_var_declaration:", entry.name, repr(entry.type) ###
         visibility = entry.visibility
         if visibility == 'private' and not definition:
+            #print "...private and not definition, skipping" ###
             return
         if not entry.used and visibility == "private":
+            #print "not used and private, skipping" ###
             return
         storage_class = ""
         if visibility == 'extern':
@@ -254,8 +258,6 @@ class CCodeWriter:
     
     def put_init_var_to_py_none(self, entry, template = "%s"):
         code = template % entry.cname
-        #if entry.type.is_extension_type:
-        #	code = "((PyObject*)%s)" % code
         self.put_init_to_py_none(code, entry.type)
 
     def put_pymethoddef(self, entry, term):
@@ -269,6 +271,10 @@ class CCodeWriter:
                 entry.func_cname, 
                 doc_code,
                 term))
+    
+    def put_h_guard(self, guard):
+        self.putln("#ifndef %s" % guard)
+        self.putln("#define %s" % guard)
     
     def error_goto(self, pos):
         lbl = self.error_label
