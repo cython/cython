@@ -596,13 +596,11 @@ class CharNode(ConstNode):
 class IntNode(ConstNode):
     type = PyrexTypes.c_long_type
 
-    def analyse_types(self, env):
-        self.entry = env.get_py_num(self.value)
-    
     def coerce_to(self, dst_type, env):
         # Arrange for a Python version of the string to be pre-allocated
         # when coercing to a Python type.
         if dst_type.is_pyobject:
+            self.entry = env.get_py_num(self.value)
             self.type = PyrexTypes.py_object_type
         # We still need to perform normal coerce_to processing on the
         # result, because we might be coercing to an extension type,
