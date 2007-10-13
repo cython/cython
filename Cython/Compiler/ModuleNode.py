@@ -125,6 +125,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln("/* Implementation of %s */" % env.qualified_name)
         self.generate_const_definitions(env, code)
+        self.generate_interned_num_decls(env, code)
         self.generate_interned_name_decls(env, code)
         self.generate_py_string_decls(env, code)
         self.generate_cached_builtins_decls(env, code)
@@ -995,7 +996,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "static struct PyMethodDef %s[] = {" % 
                 env.method_table_cname)
         for entry in env.pyfunc_entries:
-                code.put_pymethoddef(entry, ",")
+            code.put_pymethoddef(entry, ",")
         code.putln(
                 "{0, 0, 0, 0}")
         code.putln(
@@ -1238,6 +1239,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.error_goto(self.pos)));
     
     def generate_intern_code(self, env, code):
+        for entry in env.pynum_entries:
+            code.putln("%s = PyInt_FromLong(%s); %s;" % (
+                entry.cname,
+                entry.init,
+                code.error_goto_if_null(entry.cname, self.pos)))
         if env.intern_map:
             env.use_utility_code(Nodes.init_intern_tab_utility_code);
             code.putln(

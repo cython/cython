@@ -346,8 +346,6 @@ class CIntType(CNumericType):
 
 class CBIntType(CIntType):
 
-    # TODO: this should be a macro "(__ ? Py_True : Py_False)"
-    #       and no error checking should be needed (just an incref). 
     to_py_function = "__Pyx_PyBool_FromLong"
     from_py_function = "__Pyx_PyObject_IsTrue"
     exception_check = 0

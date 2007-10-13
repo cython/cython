@@ -5,6 +5,7 @@
 
 import Naming
 import PyrexTypes
+import sys
 
 class Signature:
     #  Method slot signature descriptor.
@@ -163,7 +164,7 @@ class GCDependentSlot(SlotDescriptor):
     #  the type participates in GC.
     
     def __init__(self, slot_name, no_gc_value, gc_value, dynamic = 0):
-        SlotDescriptor.__init__(self, slot_name, dynamic)
+        SlotDescriptor.__init__(self, slot_name, dynamic = dynamic)
         self.no_gc_value = no_gc_value
         self.gc_value = gc_value
     

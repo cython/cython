@@ -21,6 +21,7 @@ pymethdef_prefix  = pyrex_prefix + "mdef_"
 methtab_prefix    = pyrex_prefix + "methods_"
 memtab_prefix     = pyrex_prefix + "members_"
 interned_prefix   = pyrex_prefix + "n_"
+interned_num_prefix = pyrex_prefix + "num_"
 objstruct_prefix  = pyrex_prefix + "obj_"
 typeptr_prefix    = pyrex_prefix + "ptype_"
 prop_set_prefix   = pyrex_prefix + "setprop_"
@@ -56,3 +57,7 @@ c_api_tab_cname  = pyrex_prefix + "c_api_tab"
 gilstate_cname   = pyrex_prefix + "state"
 
 extern_c_macro  = pyrex_prefix.upper() + "EXTERN_C"
+
+
+def py_version_hex(major, minor=0, micro=0, release_level=0, release_serial=0):
+    return (major << 24) | (minor << 16) | (micro << 8) | (release_level << 4) | (release_serial)

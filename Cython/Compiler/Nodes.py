@@ -115,6 +115,18 @@ class BlockNode:
             for entry in entries:
                 code.putln(
                     "static PyObject *%s;" % entry.pystring_cname)
+    
+    def generate_interned_num_decls(self, env, code):
+        #  Flush accumulated interned nums from the global scope
+        #  and generate declarations for them.
+        genv = env.global_scope()
+        entries = genv.interned_nums
+        if entries:
+            code.putln("")
+            for entry in entries:
+                code.putln(
+                    "static PyObject *%s;" % entry.cname)
+            del entries[:]
 
     def generate_cached_builtins_decls(self, env, code):
         entries = env.builtin_scope().undeclared_cached_entries
@@ -429,6 +441,9 @@ class CVarDefNode(StatNode):
                     "Python object cannot be declared extern")
             name = name_declarator.name
             cname = name_declarator.cname
+            if name == '':
+                error(declarator.pos, "Missing name in declaration.")
+                return
             if type.is_cfunction:
                 dest_scope.declare_cfunction(name, type, declarator.pos,
                     cname = cname, visibility = self.visibility)
@@ -534,6 +549,8 @@ class FuncDefNode(StatNode, BlockNode):
     #  #filename        string        C name of filename string const
     #  entry           Symtab.Entry
     
+    py_func = None
+    
     def analyse_expressions(self, env):
         pass
                 
@@ -551,6 +568,7 @@ class FuncDefNode(StatNode, BlockNode):
         # Code for nested function definitions would go here
         # if we supported them, which we probably won't.
         # ----- Top-level constants used by this function
+        self.generate_interned_num_decls(lenv, code)
         self.generate_interned_name_decls(lenv, code)
         self.generate_py_string_decls(lenv, code)
         self.generate_cached_builtins_decls(lenv, code)
@@ -559,6 +577,10 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_const_definitions(lenv, code)
         # ----- Function header
         code.putln("")
+        if self.py_func:
+            self.py_func.generate_function_header(code, 
+                with_pymethdef = env.is_py_class_scope,
+                proto_only=True)
         self.generate_function_header(code,
             with_pymethdef = env.is_py_class_scope)
         # ----- Local variable declarations
@@ -639,7 +661,11 @@ class FuncDefNode(StatNode, BlockNode):
             #		retval_code)
             code.putln("return %s;" % retval_code)
         code.putln("}")
-    
+        # ----- Python version
+        if self.py_func:
+            self.py_func.generate_function_definitions(env, code)
+
+        
     def put_stararg_decrefs(self, code):
         pass
 
@@ -671,7 +697,7 @@ class FuncDefNode(StatNode, BlockNode):
 class CFuncDefNode(FuncDefNode):
     #  C function definition.
     #
-    #  modifiers     'inline ' or ''
+    #  modifiers     ['inline']
     #  visibility    'private' or 'public' or 'extern'
     #  base_type     CBaseTypeNode
     #  declarator    CDeclaratorNode
@@ -700,7 +726,30 @@ class CFuncDefNode(FuncDefNode):
             cname = cname, visibility = self.visibility,
             defining = self.body is not None)
         self.return_type = type.return_type
-    
+
+        if self.overridable:
+            import ExprNodes
+            arg_names = [arg.name for arg in self.type.args]
+            self_arg = ExprNodes.NameNode(self.pos, name=arg_names[0])
+            cfunc = ExprNodes.AttributeNode(self.pos, obj=self_arg, attribute=self.declarator.base.name)
+            c_call = ExprNodes.SimpleCallNode(self.pos, function=cfunc, args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names[1:]])
+            py_func_body = ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
+            self.py_func = DefNode(pos = self.pos, 
+                                   name = self.declarator.base.name,
+                                   args = self.declarator.args,
+                                   star_arg = None,
+                                   starstar_arg = None,
+                                   doc = None, # self.doc,
+                                   body = py_func_body)
+            self.py_func.analyse_declarations(env)
+            # Reset scope entry the above cfunction
+            env.entries[name] = self.entry
+            if Options.intern_names:
+                self.py_func.interned_attr_cname = env.intern(self.py_func.entry.name)
+            self.override = OverrideCheckNode(self.pos, py_func = self.py_func)
+            self.body.stats.insert(0, self.override)
+            
+                    
     def declare_arguments(self, env):
         for arg in self.type.args:
             if not arg.name:
@@ -730,9 +779,9 @@ class CFuncDefNode(FuncDefNode):
             storage_class = "%s " % Naming.extern_c_macro
         else:
             storage_class = ""
-        code.putln("%s%s%s {" % (
+        code.putln("%s%s %s {" % (
             storage_class,
-            self.modifiers, 
+            ' '.join(self.modifiers).upper(), # macro forms 
             header))
 
     def generate_argument_declarations(self, env, code):
@@ -792,7 +841,7 @@ class CFuncDefNode(FuncDefNode):
             
     def caller_will_check_exceptions(self):
         return self.entry.type.exception_check
-
+                    
 
 class PyArgDeclNode(Node):
     # Argument which must be a Python object (used
@@ -925,7 +974,7 @@ class DefNode(FuncDefNode):
         else:
             self.entry.doc = self.doc
         self.entry.func_cname = \
-            Naming.func_prefix + env.scope_prefix + self.name
+            Naming.func_prefix + "py_" + env.scope_prefix + self.name
         self.entry.doc_cname = \
             Naming.funcdoc_prefix + env.scope_prefix + self.name
         self.entry.pymethdef_cname = \
@@ -967,13 +1016,14 @@ class DefNode(FuncDefNode):
             self.synthesize_assignment_node(env)
     
     def analyse_default_values(self, env):
+        genv = env.global_scope()
         for arg in self.args:
             if arg.default:
                 if arg.is_generic:
-                    arg.default.analyse_types(env)
-                    arg.default = arg.default.coerce_to(arg.type, env)
-                    arg.default.allocate_temps(env)
-                    arg.default_entry = env.add_default_value(arg.type)
+                    arg.default.analyse_types(genv)
+                    arg.default = arg.default.coerce_to(arg.type, genv)
+                    arg.default.allocate_temps(genv)
+                    arg.default_entry = genv.add_default_value(arg.type)
                     arg.default_entry.used = 1
                 else:
                     error(arg.pos,
@@ -991,7 +1041,7 @@ class DefNode(FuncDefNode):
         self.assmt.analyse_declarations(env)
         self.assmt.analyse_expressions(env)
             
-    def generate_function_header(self, code, with_pymethdef):
+    def generate_function_header(self, code, with_pymethdef, proto_only=0):
         arg_code_list = []
         sig = self.entry.signature
         if sig.has_dummy_arg:
@@ -1014,6 +1064,8 @@ class DefNode(FuncDefNode):
         dc = self.return_type.declaration_code(self.entry.func_cname)
         header = "static %s(%s)" % (dc, arg_code)
         code.putln("%s; /*proto*/" % header)
+        if proto_only:
+            return
         if self.entry.doc:
             code.putln(
                 'static char %s[] = "%s";' % (
@@ -1184,7 +1236,10 @@ class DefNode(FuncDefNode):
         old_type = arg.hdr_type
         new_type = arg.type
         if old_type.is_pyobject:
-            code.putln("if (likely(%s)) {" % arg.hdr_cname)
+            if arg.default:
+                code.putln("if (%s) {" % arg.hdr_cname)
+            else:
+                code.putln("assert(%s); {" % arg.hdr_cname)
             self.generate_arg_conversion_from_pyobject(arg, code)
             code.putln("}")
         elif new_type.is_pyobject:
@@ -1275,6 +1330,50 @@ class DefNode(FuncDefNode):
     def caller_will_check_exceptions(self):
         return 1
             
+class OverrideCheckNode(StatNode):
+    # A Node for dispatching to the def method if it
+    # is overriden. 
+    #
+    #  py_func
+    #
+    #  args
+    #  func_temp
+    #  body
+    
+    def analyse_expressions(self, env):
+        self.args = env.arg_entries
+        import ExprNodes
+        self.func_node = ExprNodes.PyTempNode(self.pos, env)
+        call_tuple = ExprNodes.TupleNode(self.pos, args=[ExprNodes.NameNode(self.pos, name=arg.name) for arg in self.args[1:]])
+        call_node = ExprNodes.SimpleCallNode(self.pos,
+                                             function=self.func_node, 
+                                             args=[ExprNodes.NameNode(self.pos, name=arg.name) for arg in self.args[1:]])
+        self.body = ReturnStatNode(self.pos, value=call_node)
+#        self.func_temp = env.allocate_temp_pyobject()
+        self.body.analyse_expressions(env)
+#        env.release_temp(self.func_temp)
+        
+    def generate_execution_code(self, code):
+        # Check to see if we are an extension type
+        self_arg = "((PyObject *)%s)" % self.args[0].cname
+        code.putln("/* Check if overriden in Python */")
+        code.putln("if (unlikely(%s->ob_type->tp_dictoffset != 0)) {" % self_arg)
+        err = code.error_goto_if_null(self_arg, self.pos)
+        # need to get attribute manually--scope would return cdef method
+        if Options.intern_names:
+            code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (self.func_node.result_code, self_arg, self.py_func.interned_attr_cname, err))
+        else:
+            code.putln('%s = PyObject_GetAttrString(%s, "%s"); %s' % (self.func_node.result_code, self_arg, self.py_func.entry.name, err))
+        # It appears that this type is not anywhere exposed in the Python/C API
+        is_builtin_function_or_method = '(strcmp(%s->ob_type->tp_name, "builtin_function_or_method") == 0)' % self.func_node.result_code
+        is_overridden = '(PyCFunction_GET_FUNCTION(%s) != &%s)' % (self.func_node.result_code, self.py_func.entry.func_cname)
+        code.putln('if (!%s || %s) {' % (is_builtin_function_or_method, is_overridden))
+        self.body.generate_execution_code(code)
+        code.putln('}')
+#        code.put_decref(self.func_temp, PyrexTypes.py_object_type)
+        code.putln("}")
+
+
 
 class PyClassDefNode(StatNode, BlockNode):
     #  A Python class definition.
@@ -1414,7 +1513,8 @@ class CClassDefNode(StatNode):
         
     def analyse_expressions(self, env):
         if self.body:
-            self.body.analyse_expressions(env)
+            scope = self.entry.type.scope
+            self.body.analyse_expressions(scope)
     
     def generate_function_definitions(self, env, code):
         if self.body:

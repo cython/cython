@@ -30,6 +30,7 @@ class Entry:
     #                               or class attribute during
     #                               class construction
     # is_special       boolean    Is a special class method
+    # is_member        boolean    Is an assigned class member
     # is_variable      boolean    Is a variable
     # is_cfunction     boolean    Is a C function
     # is_cmethod       boolean    Is a C method of an extension type
@@ -72,6 +73,7 @@ class Entry:
     is_cglobal = 0
     is_pyglobal = 0
     is_special = 0
+    is_member = 0
     is_variable = 0
     is_cfunction = 0
     is_cmethod = 0
@@ -121,6 +123,7 @@ class Scope:
     # free_temp_entries [Entry]            Temp variables currently unused
     # temp_counter      integer            Counter for naming temp vars
     # cname_to_entry    {string : Entry}   Temp cname to entry mapping
+    # int_to_entry      {int : Entry}      Temp cname to entry mapping
     # pow_function_used boolean            The C pow() function is used
     # return_type       PyrexType or None  Return type of function owning scope
     # is_py_class_scope boolean            Is a Python class scope
@@ -167,6 +170,7 @@ class Scope:
         self.cname_to_entry = {}
         self.pow_function_used = 0
         self.string_to_entry = {}
+        self.num_to_entry = {}
         self.pystring_entries = []
     
     def __str__(self):
@@ -392,6 +396,28 @@ class Scope:
                 entry.pystring_cname = entry.cname + "p"
                 self.pystring_entries.append(entry)
                 self.global_scope().all_pystring_entries.append(entry)
+                
+    def add_py_num(self, value):
+        # Add an entry for an int constant.
+        cname = "%s%s" % (Naming.interned_num_prefix, value)
+        cname = cname.replace('-', 'neg_').replace('.','_')
+        entry = Entry("", cname, c_long_type, init = value)
+        entry.used = 1
+        entry.is_interned = 1
+        self.const_entries.append(entry)
+        self.interned_nums.append(entry)
+        return entry
+        
+    def get_py_num(self, value):
+        # Get entry for int constant. Returns an existing
+        # one if possible, otherwise creates a new one.
+        genv = self.global_scope()
+        entry = genv.num_to_entry.get(value)
+        if not entry:
+            entry = genv.add_py_num(value)
+            genv.num_to_entry[value] = entry
+            genv.pynum_entries.append(entry)
+        return entry
     
     def new_const_cname(self):
         # Create a new globally-unique name for a constant.
@@ -606,8 +632,10 @@ class ModuleScope(Scope):
         self.cimported_modules = []
         self.intern_map = {}
         self.interned_names = []
+        self.interned_nums = []
         self.all_pystring_entries = []
         self.types_imported = {}
+        self.pynum_entries = []
     
     def qualifying_scope(self):
         return self.parent_module
@@ -1052,45 +1080,58 @@ class CClassScope(ClassScope):
 
     def declare_var(self, name, type, pos, 
             cname = None, visibility = 'private', is_cdef = 0):
-        # Add an entry for an attribute.
-        if self.defined:
-            error(pos,
-                "C attributes cannot be added in implementation part of"
-                " extension type")
-        if get_special_method_signature(name):
-            error(pos, 
-                "The name '%s' is reserved for a special method."
-                    % name)
-        if not cname:
-            cname = name
-        entry = self.declare(name, cname, type, pos)
-        entry.visibility = visibility
-        entry.is_variable = 1
-        self.var_entries.append(entry)
-        if type.is_pyobject:
-            self.has_pyobject_attrs = 1
-        if visibility not in ('private', 'public', 'readonly'):
-            error(pos,
-                "Attribute of extension type cannot be declared %s" % visibility)
-        if visibility in ('public', 'readonly'):
-            if type.pymemberdef_typecode:
-                self.public_attr_entries.append(entry)
-                if name == "__weakref__":
-                    error(pos, "Special attribute __weakref__ cannot be exposed to Python")
-            else:
+        if is_cdef:
+            # Add an entry for an attribute.
+            if self.defined:
                 error(pos,
-                    "C attribute of type '%s' cannot be accessed from Python" % type)
-        if visibility == 'public' and type.is_extension_type:
-            error(pos,
-                "Non-generic Python attribute cannot be exposed for writing from Python")
-        return entry
+                    "C attributes cannot be added in implementation part of"
+                    " extension type")
+            if get_special_method_signature(name):
+                error(pos, 
+                    "The name '%s' is reserved for a special method."
+                        % name)
+            if not cname:
+                cname = name
+            entry = self.declare(name, cname, type, pos)
+            entry.visibility = visibility
+            entry.is_variable = 1
+            self.var_entries.append(entry)
+            if type.is_pyobject:
+                self.has_pyobject_attrs = 1
+            if visibility not in ('private', 'public', 'readonly'):
+                error(pos,
+                    "Attribute of extension type cannot be declared %s" % visibility)
+            if visibility in ('public', 'readonly'):
+                if type.pymemberdef_typecode:
+                    self.public_attr_entries.append(entry)
+                    if name == "__weakref__":
+                        error(pos, "Special attribute __weakref__ cannot be exposed to Python")
+                else:
+                    error(pos,
+                        "C attribute of type '%s' cannot be accessed from Python" % type)
+            if visibility == 'public' and type.is_extension_type:
+                error(pos,
+                    "Non-generic Python attribute cannot be exposed for writing from Python")
+            return entry
+        else:
+            # Add an entry for a class attribute.
+            entry = Scope.declare_var(self, name, type, pos, 
+                cname, visibility, is_cdef)
+            entry.is_member = 1
+            entry.is_pyglobal = 1 # xxx: is_pyglobal changes behaviour in so many places that
+                                  # I keep it in for now. is_member should be enough
+                                  # later on
+            entry.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
+            if Options.intern_names:
+                entry.interned_cname = self.intern(name)
+            return entry
+            
 
     def declare_pyfunction(self, name, pos):
         # Add an entry for a method.
         if name in ('__eq__', '__ne__', '__lt__', '__gt__', '__le__', '__ge__'):
-            error(pos, "Special method %s must be implemented via __richcmp__" 
-% name)
-        entry = self.declare(name, name, py_object_type, pos)
+            error(pos, "Special method %s must be implemented via __richcmp__" % name)
+        entry = self.declare_var(name, py_object_type, pos)
         special_sig = get_special_method_signature(name)
         if special_sig:
             # Special methods get put in the method table with a particular
@@ -1168,8 +1209,29 @@ class CClassScope(ClassScope):
             entry = self.add_cfunction(base_entry.name, base_entry.type, None,
                 adapt(base_entry.cname), base_entry.visibility)
             entry.is_inherited = 1
-    
+            
+    def allocate_temp(self, type):
+        return Scope.allocate_temp(self.global_scope(), type)
 
+    def release_temp(self, cname):
+        return Scope.release_temp(self.global_scope(), cname)
+        
+    def lookup(self, name):
+        if name == "classmethod":
+            # We don't want to use the builtin classmethod here 'cause it won't do the 
+            # right thing in this scope (as the class memebers aren't still functions). 
+            # Don't want to add a cfunction to this scope 'cause that would mess with 
+            # the type definition, so we just return the right entry. 
+            self.use_utility_code(classmethod_utility_code)
+            entry = Entry("classmethod", 
+                          "__Pyx_Method_ClassMethod", 
+                          CFuncType(py_object_type, [CFuncTypeArg("", py_object_type, None)], 0, 0))
+            entry.is_cfunction = 1
+            return entry
+        else:
+            return Scope.lookup(self, name)
+    
+        
 class PropertyScope(Scope):
     #  Scope holding the __get__, __set__ and __del__ methods for
     #  a property of an extension type.
@@ -1188,3 +1250,25 @@ class PropertyScope(Scope):
             error(pos, "Only __get__, __set__ and __del__ methods allowed "
                 "in a property declaration")
             return None
+
+
+# Should this go elsewhere (and then get imported)?
+#------------------------------------------------------------------------------------
+
+classmethod_utility_code = [
+"""
+#include "descrobject.h"
+static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
+""","""
+static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
+    /* It appears that PyMethodDescr_Type is not anywhere exposed in the Python/C API */
+    /* if (!PyObject_TypeCheck(method, &PyMethodDescr_Type)) { */ 
+    if (strcmp(method->ob_type->tp_name, "method_descriptor") != 0) {
+        PyErr_Format(PyExc_TypeError, "Extension type classmethod() can only be called on a method_descriptor.");
+        return NULL;
+    }
+    PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
+    return PyDescr_NewClassMethod(descr->d_type, descr->d_method);
+}
+"""
+]

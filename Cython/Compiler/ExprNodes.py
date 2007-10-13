@@ -596,6 +596,22 @@ class CharNode(ConstNode):
 class IntNode(ConstNode):
     type = PyrexTypes.c_long_type
 
+    def coerce_to(self, dst_type, env):
+        # Arrange for a Python version of the string to be pre-allocated
+        # when coercing to a Python type.
+        if dst_type.is_pyobject:
+            self.entry = env.get_py_num(self.value)
+            self.type = PyrexTypes.py_object_type
+        # We still need to perform normal coerce_to processing on the
+        # result, because we might be coercing to an extension type,
+        # in which case a type test node will be needed.
+        return ConstNode.coerce_to(self, dst_type, env)
+
+    def calculate_result_code(self):
+        if self.type.is_pyobject:
+            return self.entry.cname
+        else:
+            return str(self.value)
 
 class FloatNode(ConstNode):
     type = PyrexTypes.c_double_type
@@ -814,24 +830,45 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is None:
             return # There was an error earlier
+
+        # is_pyglobal seems to be True for module level-globals only.
+        # We use this to access class->tp_dict if necessary.
         if entry.is_pyglobal:
             namespace = self.entry.namespace_cname
-            if Options.intern_names:
-                code.put_error_if_neg(self.pos, 
-                    'PyObject_SetAttr(%s, %s, %s)' % (
-                        namespace, 
-                        entry.interned_cname,
-                        rhs.py_result()))
-            else:
-                code.put_error_if_neg(self.pos,
-                    'PyObject_SetAttrString(%s, "%s", %s)' % (
-                        namespace, 
-                        entry.name,
-                        rhs.py_result()))
-            if debug_disposal_code:
-                print "NameNode.generate_assignment_code:"
-                print "...generating disposal code for", rhs
-            rhs.generate_disposal_code(code)
+            if entry.is_member:
+                # if we entry is a member we have to cheat: SetAttr does not work
+                # on types, so we create a descriptor which is then added to tp_dict
+                if Options.intern_names:
+                    code.put_error_if_neg(self.pos,
+                        'PyDict_SetItem(%s->tp_dict, %s, %s)' % (
+                            namespace,
+                            entry.interned_cname,
+                            rhs.py_result()))
+                else:
+                    code.put_error_if_neg(self.pos,
+                        'PyDict_SetItemString(%s->tp_dict, %s, %s)' % (
+                            namespace,
+                            entry.name,
+                            rhs.py_result()))
+
+            else: 
+                if Options.intern_names:
+                    code.put_error_if_neg(self.pos,
+                        'PyObject_SetAttr(%s, %s, %s)' % (
+                            namespace,
+                            entry.interned_cname,
+                            rhs.py_result()))
+                else:
+                    code.put_error_if_neg(self.pos,
+                        'PyObject_SetAttrString(%s, "%s", %s)' % (
+                            namespace, 
+                            entry.name,
+                            rhs.py_result()))
+                if debug_disposal_code:
+                    print "NameNode.generate_assignment_code:"
+                    print "...generating disposal code for", rhs
+                rhs.generate_disposal_code(code)
+                
         else:
             if self.type.is_pyobject:
                 #print "NameNode.generate_assignment_code: to", self.name ###
@@ -1012,6 +1049,9 @@ class TempNode(AtomicExprNode):
         if type.is_pyobject:
             self.result_ctype = py_object_type
         self.is_temp = 1
+        
+    def analyse_types(self, env):
+        return self.type
     
     def generate_result_code(self, code):
         pass
@@ -1654,6 +1694,8 @@ class AttributeNode(ExprNode):
             entry = None
             if obj_type.attributes_known():
                 entry = obj_type.scope.lookup_here(self.attribute)
+                if entry and entry.is_member:
+                    entry = None
             else:
                 error(self.pos, 
                     "Cannot select attribute of incomplete type '%s'" 
@@ -1663,6 +1705,8 @@ class AttributeNode(ExprNode):
             if entry:
                 if obj_type.is_extension_type and entry.name == "__weakref__":
                     error(self.pos, "Illegal use of special attribute __weakref__")
+                # methods need the normal attribute lookup
+                # because they do not have struct entries
                 if entry.is_variable or entry.is_cmethod:
                     self.type = entry.type
                     self.member = entry.cname
@@ -2295,6 +2339,8 @@ unop_node_classes = {
 def unop_node(pos, operator, operand):
     # Construct unnop node of appropriate class for 
     # given operator.
+    if isinstance(operand, IntNode) and operator == '-':
+        return IntNode(pos = operand.pos, value = -int(operand.value))
     return unop_node_classes[operator](pos, 
         operator = operator, 
         operand = operand)
@@ -2716,7 +2762,7 @@ class BoolBinopNode(ExprNode):
         if self.type.is_pyobject:
             test_result = self.temp_bool.result_code
             code.putln(
-                "%s = PyObject_IsTrue(%s); %s" % (
+                "%s = __Pyx_PyObject_IsTrue(%s); %s" % (
                     test_result,
                     self.operand1.py_result(),
                     code.error_goto_if_neg(test_result, self.pos)))
@@ -2742,15 +2788,14 @@ class CondExprNode(ExprNode):
         self.true_val.analyse_types(env)
         self.false_val.analyse_types(env)
         self.type = self.compute_result_type(self.true_val.type, self.false_val.type)
-        if self.type:
-            if self.true_val.type.is_pyobject or self.false_val.type.is_pyobject:
-                self.true_val = self.true_val.coerce_to(self.type, env)
-                self.false_val = self.false_val.coerce_to(self.type, env)
-            # must be tmp variables so they can share a result
-            self.true_val = self.true_val.coerce_to_temp(env)
-            self.false_val = self.false_val.coerce_to_temp(env)
-            self.is_temp = 1
-        else:
+        if self.true_val.type.is_pyobject or self.false_val.type.is_pyobject:
+            self.true_val = self.true_val.coerce_to(self.type, env)
+            self.false_val = self.false_val.coerce_to(self.type, env)
+        # must be tmp variables so they can share a result
+        self.true_val = self.true_val.coerce_to_temp(env)
+        self.false_val = self.false_val.coerce_to_temp(env)
+        self.is_temp = 1
+        if self.type == PyrexTypes.error_type:
             self.type_error()
     
     def allocate_temps(self, env, result_code = None):
@@ -2784,15 +2829,19 @@ class CondExprNode(ExprNode):
             return type1
         elif type1.is_pyobject or type2.is_pyobject:
             return py_object_type
+        elif type1.assignable_from(type2):
+            return type1
+        elif type2.assignable_from(type1):
+            return type2
         else:
-            return None
+            return PyrexTypes.error_type
         
     def type_error(self):
         if not (self.true_val.type.is_error or self.false_val.type.is_error):
             error(self.pos, "Incompatable types in conditional expression (%s; %s)" %
                 (self.true_val.type, self.false_val.type))
         self.type = PyrexTypes.error_type
-
+    
     def check_const(self):
         self.test.check_const()
         self.true_val.check_const()
@@ -2807,6 +2856,16 @@ class CondExprNode(ExprNode):
         code.putln("}")
         self.test.generate_disposal_code(code)
 
+richcmp_constants = {
+    "<" : "Py_LT",
+    "<=": "Py_LE",
+    "==": "Py_EQ",
+    "!=": "Py_NE",
+    "<>": "Py_NE",
+    ">" : "Py_GT",
+    ">=": "Py_GE",
+}
+
 class CmpNode:
     #  Mixin class containing code common to PrimaryCmpNodes
     #  and CascadedCmpNodes.
@@ -2815,6 +2874,10 @@ class CmpNode:
         return (self.has_python_operands()
             or (self.cascade and self.cascade.is_python_comparison())
             or self.operator in ('in', 'not_in'))
+
+    def is_python_result(self):
+        return ((self.has_python_operands() and self.operator not in ('is', 'is_not', 'in', 'not_in'))
+            or (self.cascade and self.cascade.is_python_result()))
 
     def check_types(self, env, operand1, op, operand2):
         if not self.types_okay(operand1, op, operand2):
@@ -2842,33 +2905,40 @@ class CmpNode:
 
     def generate_operation_code(self, code, result_code, 
             operand1, op , operand2):
+        if self.type is PyrexTypes.py_object_type:
+            coerce_result = "__Pyx_PyBool_FromLong"
+        else:
+            coerce_result = ""
+        if 'not' in op: negation = "!"
+        else: negation = ""
         if op == 'in' or op == 'not_in':
             code.putln(
-                "%s = PySequence_Contains(%s, %s); %s" % (
+                "%s = %s(%sPySequence_Contains(%s, %s)); %s" % (
                     result_code, 
+                    coerce_result, 
+                    negation,
                     operand2.py_result(), 
                     operand1.py_result(), 
                     code.error_goto_if_neg(result_code, self.pos)))
-            if op == 'not_in':
-                code.putln(
-                    "%s = !%s;" % (
-                        result_code, result_code))
         elif (operand1.type.is_pyobject
             and op not in ('is', 'is_not')):
-                code.put_error_if_neg(self.pos, 
-                    "PyObject_Cmp(%s, %s, &%s)" % (
+                code.putln("%s = PyObject_RichCompare(%s, %s, %s); %s" % (
+                        result_code, 
                         operand1.py_result(), 
                         operand2.py_result(), 
-                        result_code))
-                code.putln(
-                    "%s = %s %s 0;" % (
-                        result_code, result_code, op))
+                        richcmp_constants[op],
+                        code.error_goto_if_null(result_code, self.pos)))
         else:
-            code.putln("%s = %s %s %s;" % (
+            if operand1.type.is_pyobject:
+                res1, res2 = operand1.py_result(), operand2.py_result()
+            else:
+                res1, res2 = operand1.result_code, operand2.result_code
+            code.putln("%s = %s(%s %s %s);" % (
                 result_code, 
-                operand1.result_code, 
+                coerce_result, 
+                res1, 
                 self.c_operator(op), 
-                operand2.result_code))
+                res2))
     
     def c_operator(self, op):
         if op == 'is':
@@ -2908,7 +2978,14 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             self.operand2 = self.operand2.coerce_to_simple(env)
             self.cascade.coerce_cascaded_operands_to_temp(env)
         self.check_operand_types(env)
-        self.type = PyrexTypes.c_bint_type
+        if self.is_python_result():
+            self.type = PyrexTypes.py_object_type
+        else:
+            self.type = PyrexTypes.c_bint_type
+        cdr = self.cascade
+        while cdr:
+            cdr.type = self.type
+            cdr = cdr.cascade
         if self.is_pycmp or self.cascade:
             self.is_temp = 1
     
@@ -3019,7 +3096,10 @@ class CascadedCmpNode(Node, CmpNode):
             self.cascade.release_subexpr_temps(env)
     
     def generate_evaluation_code(self, code, result, operand1):
-        code.putln("if (%s) {" % result)
+        if self.type.is_pyobject:
+            code.putln("if (__Pyx_PyObject_IsTrue(%s)) {" % result)
+        else:
+            code.putln("if (%s) {" % result)
         self.operand2.generate_evaluation_code(code)
         self.generate_operation_code(code, result, 
             operand1, self.operator, self.operand2)
@@ -3213,7 +3293,7 @@ class CoerceToBooleanNode(CoercionNode):
     def generate_result_code(self, code):
         if self.arg.type.is_pyobject:
             code.putln(
-                "%s = PyObject_IsTrue(%s); %s" % (
+                "%s = __Pyx_PyObject_IsTrue(%s); %s" % (
                     self.result_code, 
                     self.arg.py_result(), 
                     code.error_goto_if_neg(self.result_code, self.pos)))
