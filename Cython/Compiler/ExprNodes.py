@@ -3449,6 +3449,7 @@ static PyObject *__Pyx_GetExcValue(void); /*proto*/
 ""","""
 static PyObject *__Pyx_GetExcValue(void) {
     PyObject *type = 0, *value = 0, *tb = 0;
+    PyObject *tmp_type, *tmp_value, *tmp_tb;
     PyObject *result = 0;
     PyThreadState *tstate = PyThreadState_Get();
     PyErr_Fetch(&type, &value, &tb);
@@ -3459,12 +3460,17 @@ static PyObject *__Pyx_GetExcValue(void) {
         value = Py_None;
         Py_INCREF(value);
     }
-    Py_XDECREF(tstate->exc_type);
-    Py_XDECREF(tstate->exc_value);
-    Py_XDECREF(tstate->exc_traceback);
+    tmp_type = tstate->exc_type;
+    tmp_value = tstate->exc_value;
+    tmp_tb = tstate->exc_traceback;
     tstate->exc_type = type;
     tstate->exc_value = value;
     tstate->exc_traceback = tb;
+    /* Make sure tstate is in a consistent state when we XDECREF
+    these objects (XDECREF may run arbitrary code). */
+    Py_XDECREF(tmp_type);
+    Py_XDECREF(tmp_value);
+    Py_XDECREF(tmp_tb);
     result = value;
     Py_XINCREF(result);
     type = 0;
