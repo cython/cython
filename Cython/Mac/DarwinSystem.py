@@ -6,14 +6,19 @@ verbose = 0
 gcc_pendantic = True
 gcc_warnings_are_errors = True
 gcc_all_warnings = True
+gcc_optimize = False
 
-import os
+import os, sys
 from Cython.Utils import replace_suffix
 from Cython.Compiler.Errors import PyrexError
 
+version_string = "%s.%s" % sys.version_info[:2]
+
 py_include_dirs = [
-    "/Library/Frameworks/Python.framework/Headers"
+    "/Library/Frameworks/Python.framework/Versions/%s/Headers" % version_string
 ]
+
+os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.3"
 
 compilers = ["gcc", "g++"]
 compiler_options = \
@@ -27,11 +32,16 @@ if gcc_warnings_are_errors:
 if gcc_all_warnings:
     compiler_options.append("-Wall")
     compiler_options.append("-Wno-unused-function")
+if gcc_optimize:
+    compiler_options.append("-O")
 
 linkers = ["gcc", "g++"]
 linker_options = \
-    "-Wl,-F.,-w -bundle -framework Python" \
+    "-Wl,-F.,-w -bundle -undefined dynamic_lookup" \
     .split()
+#linker_options = \
+#	"-Wl,-F.,-w -bundle -framework Python" \
+#	.split()
 
 class CCompilerError(PyrexError):
     pass

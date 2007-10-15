@@ -21,10 +21,11 @@ class CCodeWriter:
     # in_try_finally   boolean         inside try of try...finally
     # filename_table   {string : int}  for finding filename table indexes
     # filename_list    [string]        filenames in filename table order
+    # exc_vars         (string * 3)    exception variables for reraise, or None
     # input_file_contents dict         contents (=list of lines) of any file that was used as input
     #                                  to create this output C code.  This is
     #                                  used to annotate the comments. 
-    
+   
     in_try_finally = 0
     
     def __init__(self, f):
@@ -37,8 +38,9 @@ class CCodeWriter:
         self.error_label = None
         self.filename_table = {}
         self.filename_list = []
+        self.exc_vars = None
         self.input_file_contents = {}
-    
+
     def putln(self, code = ""):
         if self.marker and self.bol:
             self.emit_marker()
@@ -186,8 +188,10 @@ class CCodeWriter:
         #print "Code.put_var_declaration:", entry.name, "definition =", definition ###
         visibility = entry.visibility
         if visibility == 'private' and not definition:
+            #print "...private and not definition, skipping" ###
             return
         if not entry.used and visibility == "private":
+            #print "not used and private, skipping" ###
             return
         storage_class = ""
         if visibility == 'extern':
@@ -288,13 +292,6 @@ class CCodeWriter:
         #	code = "((PyObject*)%s)" % code
         self.put_init_to_py_none(code, entry.type)
 
-    def put_py_gil_state_ensure(self, cname):
-        self.putln("PyGILState_STATE %s;" % cname)
-        self.putln("%s = PyGILState_Ensure();" % cname)
-
-    def put_py_gil_state_release(self, cname):
-        self.putln("PyGILState_Release(%s);" % cname)
-
     def put_pymethoddef(self, entry, term):
         if entry.doc:
             doc_code = entry.doc_cname
@@ -316,6 +313,10 @@ class CCodeWriter:
 #        return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))  # TODO this path is almost _never_ taken, yet this macro makes is slower!
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
 
+    def put_h_guard(self, guard):
+        self.putln("#ifndef %s" % guard)
+        self.putln("#define %s" % guard)
+    
     def error_goto(self, pos):
         lbl = self.error_label
         self.use_label(lbl)
