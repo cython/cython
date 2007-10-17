@@ -648,6 +648,10 @@ class CFuncType(CType):
         return self.return_type.declaration_code(
             "%s%s(%s)%s" % (cc, entity_code, arg_decl_code, exc_clause),
             for_display, dll_linkage, pyrex)
+	
+    def function_header_code(self, func_name, arg_code):
+        return "%s%s(%s)" % (self.calling_convention_prefix(),
+            func_name, arg_code)
 
     def signature_string(self):
         s = self.declaration_code("")
