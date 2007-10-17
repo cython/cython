@@ -12,7 +12,7 @@ from types import *
 from distutils.core import Command
 from distutils.errors import *
 from distutils.sysconfig import customize_compiler, get_python_version
-from distutils.dep_util import newer_group
+from distutils.dep_util import newer, newer_group
 from distutils import log
 from distutils.dir_util import mkpath
 try:
@@ -171,13 +171,7 @@ class build_ext(_build_ext.build_ext):
 
         for source in pyrex_sources:
             target = pyrex_targets[source]
-            source_time = os.stat(source).st_mtime
-            try:
-                target_time = os.stat(target).st_mtime
-                newer = source_time > target_time
-            except EnvironmentError:
-                newer = 1
-            if newer:
+            if self.force or newer(source, target):
                 log.info("cythoning %s to %s", source, target)
                 self.mkpath(os.path.dirname(target))
                 options = CompilationOptions(pyrex_default_options, 
