@@ -99,9 +99,9 @@ class ExprNode(Node):
     #          temps used during assignment.
     #
     #      calculate_result_code
-    #        - Return a C code fragment evaluating to
-    #          the result. This is only called when the
-    #          result is not a temporary.
+    #        - Called during the Allocate Temps phase. Should return a
+    #          C code fragment evaluating to the result. This is only
+    #          called when the result is not a temporary.
     #
     #      target_code
     #        Called by the default implementation of allocate_target_temps.
@@ -365,7 +365,10 @@ class ExprNode(Node):
             if debug_temp_alloc:
                 print self, "Allocated result", self.result_code
         else:
-            self.result_code = self.calculate_result_code()
+            self.result_code = self.calculate_result_code_with_env(env)
+    
+    def calculate_result_code_with_env(self, env):
+        return self.calculate_result_code()
     
     def target_code(self):
         #  Return code fragment for use as LHS of a C assignment.
@@ -814,13 +817,13 @@ class NameNode(AtomicExprNode):
         if entry.is_pyglobal or entry.is_builtin:
             assert type.is_pyobject, "Python global or builtin not a Python object"
             if Options.intern_names:
-                self.interned_cname = env.intern(self.name)
+                self.interned_cname = env.intern(self.entry.name)
 
     def check_identifier_kind(self):
         #print "NameNode.check_identifier_kind:", self.entry.name ###
         #print self.entry.__dict__ ###
         entry = self.entry
-        entry.used = 1
+        #entry.used = 1
         if not (entry.is_const or entry.is_variable 
             or entry.is_builtin or entry.is_cfunction):
                 if self.entry.as_variable:
@@ -856,15 +859,23 @@ class NameNode(AtomicExprNode):
         #  result is in a temporary.
         return 0
 
+    def calculate_result_code_with_env(self, env):
+        entry = self.entry
+        if entry:
+            entry.used = 1
+            if entry.utility_code:
+                env.use_utility_code(entry.utility_code)
+        return self.calculate_result_code()
+    
     def calculate_result_code(self):
-        if self.entry is None:
+        entry = self.entry
+        if not entry:
             return "<error>" # There was an error earlier
-        return self.entry.cname
+        entry.used = 1
+        return entry.cname
     
     def generate_result_code(self, code):
         assert hasattr(self, 'entry')
-        #if not hasattr(self, 'entry'):
-        #	error(self.pos, "INTERNAL ERROR: NameNode has no entry attribute during code generation")
         entry = self.entry
         if entry is None:
             return # There was an error earlier
@@ -876,12 +887,10 @@ class NameNode(AtomicExprNode):
             else: # entry.is_pyglobal
                 namespace = entry.namespace_cname
             if Options.intern_names:
-                #assert entry.interned_cname is not None
                 code.putln(
                     '%s = __Pyx_GetName(%s, %s); %s' % (
                     self.result_code,
                     namespace, 
-                    #entry.interned_cname,
                     self.interned_cname,
                     code.error_goto_if_null(self.result_code, self.pos)))		
             else:

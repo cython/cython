@@ -69,6 +69,7 @@ class Entry:
     #                               of an extension type
     # defined_in_pxd   boolean    Is defined in a .pxd file (not just declared)
     # api              boolean    Generate C API for C class or function
+    # utility_code     string     Utility code needed when this entry is used
 
     borrowed = 0
     init = ""
@@ -105,6 +106,7 @@ class Entry:
     is_special = 0
     defined_in_pxd = 0
     api = 0
+    utility_code = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -574,13 +576,19 @@ class BuiltinScope(Scope):
             self.cached_entries.append(entry)
             self.undeclared_cached_entries.append(entry)
         else:
-            entry.is_builtin = 1
+        entry.is_builtin = 1
         return entry
-
-    def declare_builtin_cfunction(self, name, type, cname, with_python_equiv = 0):
+    
+    def declare_builtin_cfunction(self, name, type, cname, python_equiv = None,
+            utility_code = None):
+        # If python_equiv == "*", the Python equivalent has the same name
+        # as the entry, otherwise it has the name specified by python_equiv.
         entry = self.declare_cfunction(name, type, None, cname)
-        if with_python_equiv:
-            var_entry = Entry(name, name, py_object_type)
+        entry.utility_code = utility_code
+        if python_equiv:
+            if python_equiv == "*":
+                python_equiv = name
+            var_entry = Entry(python_equiv, python_equiv, py_object_type)
             var_entry.is_variable = 1
             var_entry.is_builtin = 1
             entry.as_variable = var_entry
