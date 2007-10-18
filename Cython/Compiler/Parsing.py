@@ -1301,7 +1301,7 @@ def p_statement(s, level, cdef_flag = 0, visibility = 'private', api = 0):
             s.error("ctypedef statement not allowed here")
         if api:
             error(s.pos, "'api' not allowed with 'ctypedef'")
-        return p_ctypedef_statement(s, level, visibility)
+        return p_ctypedef_statement(s, level, visibility, api)
     elif s.sy == 'DEF':
         return p_DEF_statement(s)
     elif s.sy == 'IF':
@@ -1713,20 +1713,20 @@ def p_cdef_statement(s, level, visibility = 'private', api = 0,
     if visibility == 'extern' and s.sy == 'from':
             return p_cdef_extern_block(s, level, pos)
     elif s.sy == ':':
-        p_cdef_block(s, level, visibility, api)
+        return p_cdef_block(s, level, visibility, api)
     elif s.sy == 'class':
         if level not in ('module', 'module_pxd'):
             error(pos, "Extension type definition not allowed here")
-        if api:
-            error(pos, "'api' not allowed with extension class")
-        return p_c_class_definition(s, level, pos, visibility = visibility)
+        #if api:
+        #    error(pos, "'api' not allowed with extension class")
+        return p_c_class_definition(s, level, pos, visibility = visibility, api = api)
     elif s.sy == 'IDENT' and s.systring in struct_union_or_enum:
         if level not in ('module', 'module_pxd'):
             error(pos, "C struct/union/enum definition not allowed here")
         #if visibility == 'public':
         #    error(pos, "Public struct/union/enum definition not implemented")
-        if api:
-            error(pos, "'api' not allowed with '%s'" % s.systring)
+        #if api:
+        #    error(pos, "'api' not allowed with '%s'" % s.systring)
         if s.systring == "enum":
             return p_c_enum_definition(s, pos, visibility)
         else:
@@ -1740,8 +1740,7 @@ def p_cdef_statement(s, level, visibility = 'private', api = 0,
                                            overridable)
 
 def p_cdef_block(s, level, visibility, api):
-    body = p_suite(s, level, cdef_flag = 1, visibility = 'extern', api = api)
-    return Nodes.StatListNode(pos, stats = body)
+    return p_suite(s, level, cdef_flag = 1, visibility = visibility, api = api)
 
 def p_cdef_extern_block(s, level, pos):
     include_file = None
@@ -1871,8 +1870,8 @@ def p_c_func_or_var_declaration(s, level, pos, visibility = 'private', api = 0,
             api = api,
             overridable = overridable)
     else:
-        if api:
-            error(s.pos, "'api' not allowed with variable declaration")
+        #if api:
+        #    error(s.pos, "'api' not allowed with variable declaration")
         declarators = [declarator]
         while s.sy == ',':
             s.next()
@@ -1888,15 +1887,14 @@ def p_c_func_or_var_declaration(s, level, pos, visibility = 'private', api = 0,
             in_pxd = level == 'module_pxd')
     return result
 
-def p_ctypedef_statement(s, level, visibility = 'private'):
+def p_ctypedef_statement(s, level, visibility = 'private', api = 0):
     # s.sy == 'ctypedef'
     pos = s.position()
     s.next()
     visibility = p_visibility(s, visibility)
     if s.sy == 'class':
         return p_c_class_definition(s, level, pos,
-            visibility = visibility,
-            typedef_flag = 1)
+            visibility = visibility, typedef_flag = 1, api = api)
     elif s.sy == 'IDENT' and s.systring in ('struct', 'union', 'enum'):
         if s.systring == 'enum':
             return p_c_enum_definition(s, pos, visibility, typedef_flag = 1)
@@ -1963,7 +1961,7 @@ def p_class_statement(s):
         doc = doc, body = body)
 
 def p_c_class_definition(s, level, pos, 
-        visibility = 'private', typedef_flag = 0):
+        visibility = 'private', typedef_flag = 0, api = 0):
     # s.sy == 'class'
     s.next()
     module_path = []
@@ -2019,9 +2017,13 @@ def p_c_class_definition(s, level, pos,
             error(pos, "Object struct name specification required for 'public' C class")
         if not typeobj_name:
             error(pos, "Type object name specification required for 'public' C class")
+    else:
+        if api:
+            error(pos, "Only 'public' C class can be declared 'api'")
     return Nodes.CClassDefNode(pos,
         visibility = visibility,
         typedef_flag = typedef_flag,
+        api = api,
         module_name = ".".join(module_path),
         class_name = class_name,
         as_name = as_name,

@@ -68,7 +68,7 @@ class Entry:
     # is_special       boolean    Is a special method or property accessor
     #                               of an extension type
     # defined_in_pxd   boolean    Is defined in a .pxd file (not just declared)
-    # api              boolean    Generate C API for C function
+    # api              boolean    Generate C API for C class or function
 
     borrowed = 0
     init = ""
@@ -353,6 +353,9 @@ class Scope:
         # Add an entry for a C function.
         entry = self.lookup_here(name)
         if entry:
+            if visibility <> 'private' and visibility <> entry.visibility:
+                error(pos, "Function '%s' previously declared as '%s'" % (
+                    name, entry.visibility))
             if not entry.type.same_as(type):
                 error(pos, "Function signature does not match previous declaration")
         else:
@@ -823,7 +826,7 @@ class ModuleScope(Scope):
     
     def declare_c_class(self, name, pos, defining, implementing,
         module_name, base_type, objstruct_cname, typeobj_cname,
-        visibility, typedef_flag):
+        visibility, typedef_flag, api):
         #
         # Look for previous declaration as a type
         #
@@ -882,9 +885,11 @@ class ModuleScope(Scope):
             entry.defined_in_pxd = 1
         if implementing:   # So that filenames in runtime exceptions refer to
             entry.pos = pos  # the .pyx file and not the .pxd file
-        if entry.visibility <> visibility:
-            error(pos, "Declaration of '%s' as '%s' conflicts with previous "
-                "declaration as '%s'" % (name, visibility, entry.visibility))
+        if visibility <> 'private' and entry.visibility <> visibility:
+            error(pos, "Class '%s' previously declared as '%s'"
+                % (name, entry.visibility))
+        if api:
+            entry.api = 1
         if objstruct_cname:
             if type.objstruct_cname and type.objstruct_cname <> objstruct_cname:
                 error(pos, "Object struct name differs from previous declaration")
