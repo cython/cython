@@ -267,6 +267,7 @@ class Scope:
         type = PyrexTypes.CTypedefType(cname, base_type)
         entry = self.declare_type(name, type, pos, cname, visibility)
         type.qualified_name = entry.qualified_name
+        return entry
         
     def declare_struct_or_union(self, name, kind, scope, 
             typedef_flag, pos, cname = None, visibility = 'private'):

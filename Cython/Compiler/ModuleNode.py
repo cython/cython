@@ -57,23 +57,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         return 0
     
     def generate_h_code(self, env, options, result):
-        public_types = []
-        public_vars = []
-        public_funcs = []
-        public_extension_types = []
-        for entry in env.type_entries:
-            if entry.visibility == 'public':
-                public_types.append(entry)
-        for entry in env.var_entries:
-            if entry.visibility == 'public':
-                public_vars.append(entry)
-        for entry in env.cfunc_entries:
-            if entry.visibility == 'public' and not entry.in_cinclude:
-                public_funcs.append(entry)
-        for entry in env.c_class_entries:
-            if entry.visibility == 'public':
-                public_extension_types.append(entry)
-        if public_types or public_vars or public_funcs or public_extension_types:
+        def h_entries(entries, pxd = 0):
+            return [entry for entry in entries
+                if entry.visibility == 'public' or pxd and entry.defined_in_pxd]
+        h_types = h_entries(env.type_entries)
+        h_vars = h_entries(env.var_entries)
+        h_funcs = h_entries(env.cfunc_entries)
+        h_extension_types = h_entries(env.c_class_entries)
+        if h_types or h_vars or h_funcs or h_extension_types:
             result.h_file = replace_suffix(result.c_file, ".h")
             h_code = Code.CCodeWriter(open_new_file(result.h_file))
             if options.generate_pxi:
@@ -84,20 +75,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             guard = Naming.h_guard_prefix + env.qualified_name.replace(".", "__")
             h_code.put_h_guard(guard)
             self.generate_extern_c_macro_definition(h_code)
-            self.generate_type_header_code(public_types, h_code)
+            self.generate_type_header_code(h_types, h_code)
             h_code.putln("")
             h_code.putln("#ifndef %s" % Naming.api_guard_prefix + self.api_name(env))
-            if public_vars:
+            if h_vars:
                 h_code.putln("")
-                for entry in public_vars:
+                for entry in h_vars:
                     self.generate_public_declaration(entry, h_code, i_code)
-            if public_funcs:
+            if h_funcs:
                 h_code.putln("")
-                for entry in public_funcs:
+                for entry in h_funcs:
                     self.generate_public_declaration(entry, h_code, i_code)
-            if public_extension_types:
+            if h_extension_types:
                 h_code.putln("")
-                for entry in public_extension_types:
+                for entry in h_extension_types:
                     self.generate_cclass_header_code(entry.type, h_code)
                     if i_code:
                         self.generate_cclass_include_code(entry.type, i_code)
@@ -122,14 +113,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     
     def generate_api_code(self, env, result):
         api_funcs = []
+        public_extension_types = []
+        has_api_extension_types = 0
         for entry in env.cfunc_entries:
             if entry.api:
                 api_funcs.append(entry)
-        public_extension_types = []
         for entry in env.c_class_entries:
             if entry.visibility == 'public':
                 public_extension_types.append(entry)
-        if api_funcs or public_extension_types:
+            if entry.api:
+                has_api_extension_types = 1
+        if api_funcs or has_api_extension_types:
             result.api_file = replace_suffix(result.c_file, "_api.h")
             h_code = Code.CCodeWriter(open_new_file(result.api_file))
             name = self.api_name(env)
@@ -156,16 +150,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("#endif")
             if api_funcs:
                 h_code.putln("")
-                h_code.put_h_guard(Naming.api_func_guard + "import_function")
                 h_code.put(function_import_utility_code[1])
-                h_code.putln("")
-                h_code.putln("#endif")
             if public_extension_types:
                 h_code.putln("")
-                h_code.put_h_guard(Naming.api_func_guard + "import_type")
                 h_code.put(type_import_utility_code[1])
-                h_code.putln("")
-                h_code.putln("#endif")
             h_code.putln("")
             h_code.putln("static int import_%s(void) {" % name)
             h_code.putln("PyObject *module = 0;")
@@ -207,10 +195,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             i_code.putln("pass")
         i_code.dedent()
-
+    
     def generate_c_code(self, env, result):
-#		modules = []
-#		self.find_referenced_modules(env, modules, {})
         modules = self.referenced_modules
         code = Code.CCodeWriter(StringIO())
         code.h = Code.CCodeWriter(StringIO())
@@ -358,9 +344,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if definition:
             type_entries = env.type_entries
         else:
-            type_entries = [
-                entry for entry in env.type_entries
-                    if entry.defined_in_pxd]
+            type_entries = []
+            for entry in env.type_entries:
+                if entry.defined_in_pxd:
+                    type_entries.append(entry)
         self.generate_type_header_code(type_entries, code)
         for entry in env.c_class_entries:
             if not entry.in_cinclude:
@@ -1485,12 +1472,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             objstruct = type.objstruct_cname
         else:
             objstruct = "struct %s" % type.objstruct_cname
-#        code.putln('%s = __Pyx_ImportType("%s", "%s", sizeof(%s)); %s' % (
-#			type.typeptr_cname,
-#			type.module_name, 
-#			type.name,
-#			objstruct,
-#            code.error_goto_if_null(type.typeptr_cname, pos)))
         self.generate_type_import_call(type, code,
                                        code.error_goto_if_null(type.typeptr_cname, pos))
         self.use_type_import_utility_code(env)
@@ -1600,62 +1581,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.put(utility_code[1])
 
 #------------------------------------------------------------------------------------
-
-#type_import_utility_code = [
-#"""
-#static PyTypeObject *__Pyx_ImportType(char *module_name, char *class_name, long size);  /*proto*/
-#""","""
-#static PyTypeObject *__Pyx_ImportType(char *module_name, char *class_name, 
-#	long size) 
-#{
-#	PyObject *py_module_name = 0;
-#	PyObject *py_class_name = 0;
-#	PyObject *py_name_list = 0;
-#	PyObject *py_module = 0;
-#	PyObject *result = 0;
-#	
-#	py_module_name = PyString_FromString(module_name);
-#	if (!py_module_name)
-#		goto bad;
-#	py_class_name = PyString_FromString(class_name);
-#	if (!py_class_name)
-#		goto bad;
-#	py_name_list = PyList_New(1);
-#	if (!py_name_list)
-#		goto bad;
-#	Py_INCREF(py_class_name);
-#	if (PyList_SetItem(py_name_list, 0, py_class_name) < 0)
-#		goto bad;
-#	py_module = __Pyx_Import(py_module_name, py_name_list);
-#	if (!py_module)
-#		goto bad;
-#	result = PyObject_GetAttr(py_module, py_class_name);
-#	if (!result)
-#		goto bad;
-#	if (!PyType_Check(result)) {
-#		PyErr_Format(PyExc_TypeError, 
-#			"%s.%s is not a type object",
-#			module_name, class_name);
-#		goto bad;
-#	}
-#	if (((PyTypeObject *)result)->tp_basicsize != size) {
-#		PyErr_Format(PyExc_ValueError, 
-#			"%s.%s does not appear to be the correct type object",
-#			module_name, class_name);
-#		goto bad;
-#	}
-#	goto done;
-#bad:
-#	Py_XDECREF(result);
-#	result = 0;
-#done:
-#	Py_XDECREF(py_module_name);
-#	Py_XDECREF(py_class_name);
-#	Py_XDECREF(py_name_list);
-#	return (PyTypeObject *)result;
-#}
-#"""]
-
+#
+#  Runtime support code
+#
 #------------------------------------------------------------------------------------
 
 import_module_utility_code = [
@@ -1701,6 +1629,8 @@ type_import_utility_code = [
 """
 static PyTypeObject *__Pyx_ImportType(PyObject *py_module, char *module_name, char *class_name, long size);  /*proto*/
 ""","""
+#ifndef __PYX_HAVE_RT_ImportType
+#define __PYX_HAVE_RT_ImportType
 static PyTypeObject *__Pyx_ImportType(PyObject *py_module, char *module_name, char *class_name, long size) {
     PyObject *result = 0;
     
@@ -1724,6 +1654,7 @@ bad:
     Py_XDECREF(result);
     return 0;
 }
+#endif
 """]
 
 #------------------------------------------------------------------------------------
@@ -1765,6 +1696,8 @@ function_import_utility_code = [
 """
 static int __Pyx_ImportFunction(PyObject *module, char *funcname, void **f, char *sig); /*proto*/
 ""","""
+#ifndef __PYX_HAVE_RT_ImportFunction
+#define __PYX_HAVE_RT_ImportFunction
 static int __Pyx_ImportFunction(PyObject *module, char *funcname, void **f, char *sig) {
     PyObject *d = 0;
     PyObject *cobj = 0;
@@ -1798,4 +1731,5 @@ bad:
     Py_XDECREF(d);
     return -1;
 }
+#endif
 """ % dict(API = Naming.api_name)]

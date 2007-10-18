@@ -449,6 +449,7 @@ class CVarDefNode(StatNode):
     #  base_type     CBaseTypeNode
     #  declarators   [CDeclaratorNode]
     #  in_pxd        boolean
+    #  api           boolean
     
     def analyse_declarations(self, env, dest_scope = None):
         if not dest_scope:
@@ -470,13 +471,8 @@ class CVarDefNode(StatNode):
                 return
             if type.is_cfunction:
                 entry = dest_scope.declare_cfunction(name, type, declarator.pos,
-                    cname = cname, visibility = self.visibility, in_pxd = self.in_pxd)
-                #if self.visibility <> 'extern':
-                #	if self.in_pxd:
-                #		entry.defined_in_pxd = 1
-                #	else:
-                #		error(declarator.pos,
-                #			"Non-extern C function declared but not defined")
+                    cname = cname, visibility = self.visibility, in_pxd = self.in_pxd,
+                    api = self.api)
             else:
                 if self.in_pxd and self.visibility != 'extern':
                     error(self.pos, 
@@ -499,6 +495,7 @@ class CStructOrUnionDefNode(StatNode):
     #  kind          "struct" or "union"
     #  typedef_flag  boolean
     #  visibility    "public" or "private"
+    #  in_pxd        boolean
     #  attributes    [CVarDefNode] or None
     #  entry         Entry
     
@@ -510,9 +507,11 @@ class CStructOrUnionDefNode(StatNode):
             self.name, self.kind, scope, self.typedef_flag, self.pos,
             self.cname, visibility = self.visibility)
         if self.attributes is not None:
+            if self.in_pxd and not env.in_cinclude:
+                self.entry.defined_in_pxd = 1
             for attr in self.attributes:
                 attr.analyse_declarations(env, scope)
-
+    
     def analyse_expressions(self, env):
         pass
     
@@ -525,15 +524,19 @@ class CEnumDefNode(StatNode):
     #  cname          string or None
     #  items          [CEnumDefItemNode]
     #  typedef_flag   boolean
-    #  visibility    "public" or "private"
+    #  visibility     "public" or "private"
+    #  in_pxd         boolean
     #  entry          Entry
     
     def analyse_declarations(self, env):
         self.entry = env.declare_enum(self.name, self.pos,
             cname = self.cname, typedef_flag = self.typedef_flag,
             visibility = self.visibility)
-        for item in self.items:
-            item.analyse_declarations(env, self.entry)
+        if self.items is not None:
+            if self.in_pxd and not env.in_cinclude:
+                self.entry.defined_in_pxd = 1
+            for item in self.items:
+                item.analyse_declarations(env, self.entry)
 
     def analyse_expressions(self, env):
         pass
@@ -559,23 +562,23 @@ class CEnumDefItemNode(StatNode):
 
 
 class CTypeDefNode(StatNode):
-    #  base_type   CBaseTypeNode
-    #  declarator  CDeclaratorNode
-    #  visibility    "public" or "private"
+    #  base_type    CBaseTypeNode
+    #  declarator   CDeclaratorNode
+    #  visibility   "public" or "private"
+    #  in_pxd       boolean
     
     def analyse_declarations(self, env):
         base = self.base_type.analyse(env)
         name_declarator, type = self.declarator.analyse(base, env)
         name = name_declarator.name
         cname = name_declarator.cname
-        #if env.in_cinclude:
-        #	type = CTypedefType(cname, type)
-        env.declare_typedef(name, type, self.pos,
+        entry = env.declare_typedef(name, type, self.pos,
             cname = cname, visibility = self.visibility)
+        if self.in_pxd and not env.in_cinclude:
+            entry.defined_in_pxd = 1
     
     def analyse_expressions(self, env):
         pass
-    
     def generate_execution_code(self, code):
         pass
 

@@ -365,10 +365,7 @@ class ExprNode(Node):
             if debug_temp_alloc:
                 print self, "Allocated result", self.result_code
         else:
-            self.result_code = self.calculate_result_code_with_env(env)
-    
-    def calculate_result_code_with_env(self, env):
-        return self.calculate_result_code()
+            self.result_code = self.calculate_result_code()
     
     def target_code(self):
         #  Return code fragment for use as LHS of a C assignment.
@@ -790,6 +787,7 @@ class NameNode(AtomicExprNode):
             error(self.pos, "Assignment to non-lvalue '%s'"
                 % self.name)
             self.type = PyrexTypes.error_type
+        self.entry.used = 1
         
     def analyse_rvalue_entry(self, env):
         #print "NameNode.analyse_rvalue_entry:", self.name ###
@@ -858,20 +856,19 @@ class NameNode(AtomicExprNode):
         #  Name nodes are never ephemeral, even if the
         #  result is in a temporary.
         return 0
-
-    def calculate_result_code_with_env(self, env):
+    
+    def allocate_temp(self, env, result = None):
+        AtomicExprNode.allocate_temp(self, env, result)
         entry = self.entry
         if entry:
             entry.used = 1
             if entry.utility_code:
                 env.use_utility_code(entry.utility_code)
-        return self.calculate_result_code()
-    
+        
     def calculate_result_code(self):
         entry = self.entry
         if not entry:
             return "<error>" # There was an error earlier
-        entry.used = 1
         return entry.cname
     
     def generate_result_code(self, code):
