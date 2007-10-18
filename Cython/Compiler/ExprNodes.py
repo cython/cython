@@ -2639,7 +2639,7 @@ class SizeofVarNode(SizeofNode):
 compile_time_binary_operators = {
     '<': operator.lt,
     '<=': operator.le,
-    '=': operator.eq,
+    '==': operator.eq,
     '!=': operator.ne,
     '>=': operator.ge,
     '>': operator.gt,
@@ -2667,7 +2667,7 @@ def get_compile_time_binop(node):
     if not func:
         error(node.pos,
             "Binary '%s' not supported in compile-time expression"
-                % self.operator)
+                % node.operator)
     return func
 
 class BinopNode(ExprNode):
@@ -3109,11 +3109,12 @@ class CmpNode:
     
     def cascaded_compile_time_value(self, operand1, denv):
         func = get_compile_time_binop(self)
-        operand2 = self.operand.compile_time_value(denv)
+        operand2 = self.operand2.compile_time_value(denv)
         try:
             result = func(operand1, operand2)
         except Exception, e:
             self.compile_time_value_error(e)
+            result = None
         if result:
             cascade = self.cascade
             if cascade:
@@ -3221,7 +3222,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     cascade = None
     
     def compile_time_value(self, denv):
-        operand1 = self.operand.compile_time_value(denv)
+        operand1 = self.operand1.compile_time_value(denv)
         return self.cascaded_compile_time_value(operand1, denv)
 
     def analyse_types(self, env):
