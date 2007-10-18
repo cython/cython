@@ -577,7 +577,7 @@ class BuiltinScope(Scope):
             self.cached_entries.append(entry)
             self.undeclared_cached_entries.append(entry)
         else:
-        entry.is_builtin = 1
+            entry.is_builtin = 1
         return entry
     
     def declare_builtin_cfunction(self, name, type, cname, python_equiv = None,
