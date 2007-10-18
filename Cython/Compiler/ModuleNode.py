@@ -57,19 +57,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         return 0
     
     def generate_h_code(self, env, options, result):
+        public_types = []
         public_vars = []
         public_funcs = []
         public_extension_types = []
+        for entry in env.type_entries:
+            if entry.visibility == 'public':
+                public_types.append(entry)
         for entry in env.var_entries:
             if entry.visibility == 'public':
                 public_vars.append(entry)
         for entry in env.cfunc_entries:
-            if entry.visibility == 'public':
+            if entry.visibility == 'public' and not entry.in_cinclude:
                 public_funcs.append(entry)
         for entry in env.c_class_entries:
             if entry.visibility == 'public':
                 public_extension_types.append(entry)
-        if public_vars or public_funcs or public_extension_types:
+        if public_types or public_vars or public_funcs or public_extension_types:
             result.h_file = replace_suffix(result.c_file, ".h")
             h_code = Code.CCodeWriter(open_new_file(result.h_file))
             if options.generate_pxi:
@@ -80,7 +84,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             guard = Naming.h_guard_prefix + env.qualified_name.replace(".", "__")
             h_code.put_h_guard(guard)
             self.generate_extern_c_macro_definition(h_code)
-            self.generate_type_header_code(env, h_code)
+            self.generate_type_header_code(public_types, h_code)
             h_code.putln("")
             h_code.putln("#ifndef %s" % Naming.api_guard_prefix + self.api_name(env))
             if public_vars:
@@ -176,7 +180,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         sig))
             h_code.putln("Py_DECREF(module);")
             for entry in public_extension_types:
-                self.generate_type_import_call(entry.type, h_code, "goto bad")
+                self.generate_type_import_call(entry.type, h_code, "goto bad;")
             h_code.putln("return 0;")
             h_code.putln("bad:")
             h_code.putln("Py_XDECREF(module);")
@@ -326,17 +330,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln("/* Declarations from %s */" % env.qualified_name)
         self.generate_type_predeclarations(env, code)
-        self.generate_type_definitions(env, code)
+        self.generate_type_definitions(env, code, definition)
         self.generate_global_declarations(env, code, definition)
         self.generate_cfunction_predeclarations(env, code, definition)
 
     def generate_type_predeclarations(self, env, code):
         pass
     
-    def generate_type_header_code(self, env, code):
+    def generate_type_header_code(self, type_entries, code):
         # Generate definitions of structs/unions/enums/typedefs/objstructs.
         #self.generate_gcc33_hack(env, code) # Is this still needed?
-        for entry in env.type_entries:
+        #for entry in env.type_entries:
+        for entry in type_entries:
             if not entry.in_cinclude:
                 #print "generate_type_header_code:", entry.name, repr(entry.type) ###
                 type = entry.type
@@ -349,22 +354,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 elif type.is_extension_type:
                     self.generate_obj_struct_definition(type, code)
     
-    def generate_type_definitions(self, env, code):
-        # Generate definitions of structs/unions/enums.
-#		self.generate_gcc33_hack(env, code)
-#		for entry in env.sue_entries:
-#			if not entry.in_cinclude:
-#				type = entry.type
-#				if type.is_struct_or_union:
-#					self.generate_struct_union_definition(entry, code)
-#				else:
-#					self.generate_enum_definition(entry, code)
-        self.generate_type_header_code(env, code)
-        # Generate extension type object struct definitions.
+    def generate_type_definitions(self, env, code, definition):
+        if definition:
+            type_entries = env.type_entries
+        else:
+            type_entries = [
+                entry for entry in env.type_entries
+                    if entry.defined_in_pxd]
+        self.generate_type_header_code(type_entries, code)
         for entry in env.c_class_entries:
             if not entry.in_cinclude:
                 self.generate_typeobject_predeclaration(entry, code)
-                #self.generate_obj_struct_definition(entry.type, code)
                 self.generate_exttype_vtable_struct(entry, code)
                 self.generate_exttype_vtabptr_declaration(entry, code)
     
@@ -519,8 +519,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_global_declarations(self, env, code, definition):
         code.putln("")
         for entry in env.c_class_entries:
-            code.putln("static PyTypeObject *%s = 0;" % 
-                entry.type.typeptr_cname)
+            if definition or entry.defined_in_pxd:
+                code.putln("static PyTypeObject *%s = 0;" % 
+                    entry.type.typeptr_cname)
         code.put_var_declarations(env.var_entries, static = 1, 
             dll_linkage = "DL_EXPORT", definition = definition)
         code.put_var_declarations(env.default_entries, static = 1,
