@@ -1732,18 +1732,31 @@ function_export_utility_code = [
 static int __Pyx_ExportFunction(char *n, void *f, char *s); /*proto*/
 """,r"""
 static int __Pyx_ExportFunction(char *n, void *f, char *s) {
+    PyObject *d = 0;
     PyObject *p = 0;
+    d = PyObject_GetAttrString(%(MODULE)s, "%(API)s");
+    if (!d) {
+        PyErr_Clear();
+        d = PyDict_New();
+        if (!d)
+            goto bad;
+        Py_INCREF(d);
+        if (PyModule_AddObject(%(MODULE)s, "%(API)s", d) < 0)
+            goto bad;
+    }
     p = PyCObject_FromVoidPtrAndDesc(f, s, 0);
     if (!p)
         goto bad;
-    if (PyModule_AddObject(%(MODULE)s, n, p) < 0)
+    if (PyDict_SetItemString(d, n, p) < 0)
         goto bad;
+    Py_DECREF(d);
     return 0;
 bad:
     Py_XDECREF(p);
+    Py_XDECREF(d);
     return -1;
 }
-""" % {'MODULE': Naming.module_cname}]
+""" % {'MODULE': Naming.module_cname, 'API': Naming.api_name}]
 
 #------------------------------------------------------------------------------------
 
@@ -1752,13 +1765,17 @@ function_import_utility_code = [
 static int __Pyx_ImportFunction(PyObject *module, char *funcname, void **f, char *sig); /*proto*/
 ""","""
 static int __Pyx_ImportFunction(PyObject *module, char *funcname, void **f, char *sig) {
+    PyObject *d = 0;
     PyObject *cobj = 0;
     char *desc;
     
-    cobj = PyObject_GetAttrString(module, funcname);
+    d = PyObject_GetAttrString(module, "%(API)s");
+    if (!d)
+        goto bad;
+    cobj = PyDict_GetItemString(d, funcname);
     if (!cobj) {
         PyErr_Format(PyExc_ImportError,
-            "%s does not export expected C function %s",
+            "%%s does not export expected C function %%s",
                 PyModule_GetName(module), funcname);
         goto bad;
     }
@@ -1767,15 +1784,17 @@ static int __Pyx_ImportFunction(PyObject *module, char *funcname, void **f, char
         goto bad;
     if (strcmp(desc, sig) != 0) {
         PyErr_Format(PyExc_TypeError,
-            "C function %s.%s has wrong signature (expected %s, got %s)",
+            "C function %%s.%%s has wrong signature (expected %%s, got %%s)",
                 PyModule_GetName(module), funcname, sig, desc);
         goto bad;
     }
     *f = PyCObject_AsVoidPtr(cobj);
     Py_DECREF(cobj);
+    Py_DECREF(d);
     return 0;
 bad:
     Py_XDECREF(cobj);
+    Py_XDECREF(d);
     return -1;
 }
-"""]
+""" % dict(API = Naming.api_name)]
