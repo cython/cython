@@ -7,7 +7,7 @@ gcc_pendantic = True
 gcc_warnings_are_errors = True
 gcc_all_warnings = True
 
-import os
+import os, sys
 from Cython.Utils import replace_suffix
 from Cython.Compiler.Errors import PyrexError
 

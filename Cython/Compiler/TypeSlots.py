@@ -83,7 +83,20 @@ class Signature:
     
     def return_type(self):
         return self.format_map[self.ret_format]
-        
+
+    def exception_value(self):
+        return self.error_value_map.get(self.ret_format)
+    
+    def function_type(self):
+        #  Construct a C function type descriptor for this signature
+        args = []
+        for i in xrange(self.num_fixed_args()):
+            arg_type = self.fixed_arg_type(i)
+            args.append(PyrexTypes.CFuncTypeArg("", arg_type, None))
+        ret_type = self.return_type()
+        exc_value = self.exception_value()
+        return PyrexTypes.CFuncType(ret_type, args, exception_value = exc_value)
+
     def method_flags(self):
         if self.ret_format == "O":
             full_args = self.fixed_arg_format
@@ -104,22 +117,23 @@ class SlotDescriptor:
     #
     #  slot_name    string           Member name of the slot in the type object
     #  is_initialised_dynamically    Is initialised by code in the module init function
-
-    def __init__(self, slot_name, dynamic = 0, min_python_version = None):
+    #  flag                          Py_TPFLAGS_XXX value indicating presence of slot
+    
+    def __init__(self, slot_name, dynamic = 0, flag = None):
         self.slot_name = slot_name
         self.is_initialised_dynamically = dynamic
-        self.min_python_version = min_python_version
+        self.flag = flag
 
     def generate(self, scope, code):
         if self.is_initialised_dynamically:
             value = 0
         else:
             value = self.slot_code(scope)
-        if self.min_python_version is not None:
-            code.putln("#if PY_VERSION_HEX >= " +
-                       code.get_py_version_hex(self.min_python_version))
+        flag = self.flag
+        if flag:
+            code.putln("#if Py_TPFLAGS_DEFAULT & %s" % flag)
         code.putln("%s, /*%s*/" % (value, self.slot_name))
-        if self.min_python_version is not None:
+        if flag:
             code.putln("#endif")
 
     # Some C implementations have trouble statically 
@@ -182,10 +196,8 @@ class MethodSlot(SlotDescriptor):
     #  method_name  string           The __xxx__ name of the method
     #  default      string or None   Default value of the slot
     
-    def __init__(self, signature, slot_name, method_name,
-                 default = None, min_python_version = None):
-        SlotDescriptor.__init__(self, slot_name,
-                                min_python_version = min_python_version)
+    def __init__(self, signature, slot_name, method_name, default = None, flag = None):
+        SlotDescriptor.__init__(self, slot_name, flag = flag)
         self.signature = signature
         self.slot_name = slot_name
         self.method_name = method_name
@@ -411,7 +423,7 @@ getcharbufferproc = Signature("TiS", 'i')  # typedef int (*getcharbufferproc)(Py
 readbufferproc = Signature("TZP", "Z")     # typedef Py_ssize_t (*readbufferproc)(PyObject *, Py_ssize_t, void **);
 writebufferproc = Signature("TZP", "Z")    # typedef Py_ssize_t (*writebufferproc)(PyObject *, Py_ssize_t, void **);
 segcountproc = Signature("TZ", "Z")        # typedef Py_ssize_t (*segcountproc)(PyObject *, Py_ssize_t *);
-writebufferproc = Signature("TZS", "Z")    # typedef Py_ssize_t (*charbufferproc)(PyObject *, Py_ssize_t, char **);
+charbufferproc = Signature("TZS", "Z")     # typedef Py_ssize_t (*charbufferproc)(PyObject *, Py_ssize_t, char **);
 objargproc = Signature("TO", 'r')          # typedef int (*objobjproc)(PyObject *, PyObject *);
                                            # typedef int (*visitproc)(PyObject *, void *);
                                            # typedef int (*traverseproc)(PyObject *, visitproc, void *);
@@ -502,11 +514,11 @@ PyNumberMethods = (
     MethodSlot(ibinaryfunc, "nb_inplace_true_divide", "__itruediv__"),
 
     # Added in release 2.5
-    MethodSlot(unaryfunc, "nb_index", "__index__", min_python_version=(2,5)),
+    MethodSlot(unaryfunc, "nb_index", "__index__", flag = "Py_TPFLAGS_HAVE_INDEX")
 )
 
 PySequenceMethods = (
-    MethodSlot(lenfunc, "sq_length", "__len__"),    # EmptySlot("sq_length"), # mp_length used instead
+    MethodSlot(lenfunc, "sq_length", "__len__"),
     EmptySlot("sq_concat"), # nb_add used instead
     EmptySlot("sq_repeat"), # nb_multiply used instead
     SyntheticSlot("sq_item", ["__getitem__"], "0"),    #EmptySlot("sq_item"),   # mp_subscript used instead
@@ -610,7 +622,7 @@ slot_table = (
 #
 #------------------------------------------------------------------------------------------
 
-MethodSlot(initproc, "", "__new__")
+MethodSlot(initproc, "", "__cinit__")
 MethodSlot(destructor, "", "__dealloc__")
 MethodSlot(objobjargproc, "", "__setitem__")
 MethodSlot(objargproc, "", "__delitem__")

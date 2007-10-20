@@ -1,74 +1,190 @@
-# Subclasses disutils.command.build_ext,
-# replacing it with a Pyrex version that compiles pyx->c
-# before calling the original build_ext command.
-# July 2002, Graham Fawcett
-# Modified by Darrell Gallion <dgallion1@yahoo.com>
-# to allow inclusion of .c files along with .pyx files.
-# Pyrex is (c) Greg Ewing.
+"""Cython.Distutils.build_ext
 
-import distutils.command.build_ext
-#import Cython.Compiler.Main
-from Cython.Compiler.Main import CompilationOptions, default_options, compile
-from Cython.Compiler.Errors import PyrexError
-from distutils.dep_util import newer
-import os
-import sys
+Implements a version of the Distutils 'build_ext' command, for
+building Cython extension modules."""
 
-def replace_suffix(path, new_suffix):
-    return os.path.splitext(path)[0] + new_suffix
+# This module should be kept compatible with Python 2.1.
 
-class build_ext (distutils.command.build_ext.build_ext):
+__revision__ = "$Id:$"
 
-    description = "compile Cython scripts, then build C/C++ extensions (compile/link to build directory)"
+import sys, os, string, re
+from types import *
+from distutils.core import Command
+from distutils.errors import *
+from distutils.sysconfig import customize_compiler, get_python_version
+from distutils.dep_util import newer, newer_group
+from distutils import log
+from distutils.dir_util import mkpath
+try:
+    from Cython.Compiler.Main \
+        import CompilationOptions, \
+               default_options as pyrex_default_options, \
+               compile as cython_compile
+    from Cython.Compiler.Errors import PyrexError
+except ImportError, e:
+    PyrexError = None
+
+from distutils.command import build_ext as _build_ext
+
+extension_name_re = _build_ext.extension_name_re
+
+show_compilers = _build_ext.show_compilers
+
+class build_ext(_build_ext.build_ext):
+
+    description = "build C/C++ and Cython extensions (compile/link to build directory)"
+
+    sep_by = _build_ext.build_ext.sep_by
+    user_options = _build_ext.build_ext.user_options
+    boolean_options = _build_ext.build_ext.boolean_options
+    help_options = _build_ext.build_ext.help_options
+
+    # Add the pyrex specific data.
+    user_options.extend([
+        ('pyrex-cplus', None,
+         "generate C++ source files"),
+        ('pyrex-create-listing', None,
+         "write errors to a listing file"),
+        ('pyrex-include-dirs=', None,
+         "path to the Cython include files" + sep_by),
+        ('pyrex-c-in-temp', None,
+         "put generated C files in temp directory"),
+        ('pyrex-gen-pxi', None,
+            "generate .pxi file for public declarations"),
+        ])
+
+    boolean_options.extend([
+        'pyrex-cplus', 'pyrex-create-listing', 'pyrex-c-in-temp'
+    ])
+
+    def initialize_options(self):
+        _build_ext.build_ext.initialize_options(self)
+        self.pyrex_cplus = 0
+        self.pyrex_create_listing = 0
+        self.pyrex_include_dirs = None
+        self.pyrex_c_in_temp = 0
+        self.pyrex_gen_pxi = 0
 
     def finalize_options (self):
-        distutils.command.build_ext.build_ext.finalize_options(self)
+        _build_ext.build_ext.finalize_options(self)
+        if self.pyrex_include_dirs is None:
+            self.pyrex_include_dirs = []
+        elif type(self.pyrex_include_dirs) is StringType:
+            self.pyrex_include_dirs = \
+                string.split(self.pyrex_include_dirs, os.pathsep)
+    # finalize_options ()
 
-        # The following hack should no longer be needed.
-        if 0:
-            # compiling with mingw32 gets an "initializer not a constant" error
-            # doesn't appear to happen with MSVC!
-            # so if we are compiling with mingw32,
-            # switch to C++ mode, to avoid the problem
-            if self.compiler == 'mingw32':
-                self.swig_cpp = 1
+    def build_extensions(self):
+        # First, sanity-check the 'extensions' list
+        self.check_extensions_list(self.extensions)
+        for ext in self.extensions:
+            ext.sources = self.cython_sources(ext.sources, ext)
+            self.build_extension(ext)
 
-    def swig_sources (self, sources, extension = None):
-        if not self.extensions:
-            return
+    def cython_sources(self, sources, extension):
 
-        #suffix = self.swig_cpp and '.cpp' or '.c'
-        suffix = '.c'
-        cplus  = 0
-        include_dirs = []
-        if extension is not None:
-            module_name = extension.name
-            include_dirs = extension.include_dirs or []
-            if extension.language == "c++":
-                cplus = 1
-                suffix = ".cpp"
+        """
+        Walk the list of source files in 'sources', looking for Cython
+        source (.pyx) files.  Run Cython on all that are found, and return
+        a modified 'sources' list with Cython source files replaced by the
+        generated C (or C++) files.
+        """
+
+        if PyrexError == None:
+            raise DistutilsPlatformError, \
+                  ("Cython does not appear to be installed "
+                   "on platform '%s'") % os.name
+
+        new_sources = []
+        pyrex_sources = []
+        pyrex_targets = {}
+
+        # Setup create_list and cplus from the extension options if
+        # Cython.Distutils.extension.Extension is used, otherwise just
+        # use what was parsed from the command-line or the configuration file.
+        # cplus will also be set to true is extension.language is equal to
+        # 'C++' or 'c++'.
+        #try:
+        #	create_listing = self.pyrex_create_listing or \
+        #						extension.pyrex_create_listing
+        #	cplus = self.pyrex_cplus or \
+        #				extension.pyrex_cplus or \
+        #				(extension.language != None and \
+        #					extension.language.lower() == 'c++')
+        #except AttributeError:
+        #	create_listing = self.pyrex_create_listing
+        #	cplus = self.pyrex_cplus or \
+        #				(extension.language != None and \
+        #					extension.language.lower() == 'c++')
+        
+        create_listing = self.pyrex_create_listing or \
+            getattr(extension, 'pyrex_create_listing', 0)
+        cplus = self.pyrex_cplus or getattr(extension, 'pyrex_cplus', 0) or \
+                (extension.language and extension.language.lower() == 'c++')
+        pyrex_gen_pxi = self.pyrex_gen_pxi or getattr(extension, 'pyrex_gen_pxi', 0)
+
+        # Set up the include_path for the Cython compiler:
+        #	1.	Start with the command line option.
+        #	2.	Add in any (unique) paths from the extension
+        #		pyrex_include_dirs (if Cython.Distutils.extension is used).
+        #	3.	Add in any (unique) paths from the extension include_dirs
+        includes = self.pyrex_include_dirs
+        try:
+            for i in extension.pyrex_include_dirs:
+                if not i in includes:
+                    includes.append(i)
+        except AttributeError:
+            pass
+        for i in extension.include_dirs:
+            if not i in includes:
+                includes.append(i)
+
+        # Set the target_ext to '.c'.  Cython will change this to '.cpp' if
+        # needed.
+        if cplus:
+            target_ext = '.cpp'
         else:
-            module_name = None
+            target_ext = '.c'
 
-        # collect the names of the source (.pyx) files
-        pyx_sources = [source for source in sources if source.endswith('.pyx')]
-        other_sources = [source for source in sources if not source.endswith('.pyx')]
+        # Decide whether to drop the generated C files into the temp dir
+        # or the source tree.
 
-        for pyx in pyx_sources:
-            # should I raise an exception if it doesn't exist?
-            if os.path.exists(pyx):
-                source = pyx
-                target = replace_suffix(source, suffix)
-                if newer(source, target) or self.force:
-                    self.cython_compile(source, module_name, include_dirs, cplus)
+        if not self.inplace and (self.pyrex_c_in_temp
+                or getattr(extension, 'pyrex_c_in_temp', 0)):
+            target_dir = os.path.join(self.build_temp, "pyrex")
+        else:
+            target_dir = ""
 
-        return [replace_suffix(src, suffix) for src in pyx_sources] + other_sources
+        for source in sources:
+            (base, ext) = os.path.splitext(source)
+            if ext == ".pyx":			  # Cython source file
+                new_sources.append(os.path.join(target_dir, base + target_ext))
+                pyrex_sources.append(source)
+                pyrex_targets[source] = new_sources[-1]
+            else:
+                new_sources.append(source)
 
-    def cython_compile(self, source, module_name, include_dirs, cplus):
-        options = CompilationOptions(
-            default_options,
-            include_path = include_dirs + self.include_dirs,
-            cplus=cplus)
-        result = compile(source, options, full_module_name=module_name)
-        if result.num_errors <> 0:
-            sys.exit(1)
+        if not pyrex_sources:
+            return new_sources
+
+        module_name = extension.name
+
+        for source in pyrex_sources:
+            target = pyrex_targets[source]
+            if self.force or newer(source, target):
+                log.info("cythoning %s to %s", source, target)
+                self.mkpath(os.path.dirname(target))
+                options = CompilationOptions(pyrex_default_options, 
+                    use_listing_file = create_listing,
+                    include_path = includes,
+                    output_file = target,
+                    cplus = cplus,
+                    generate_pxi = pyrex_gen_pxi)
+                result = cython_compile(source, options=options,
+                                        full_module_name=module_name)
+
+        return new_sources
+
+    # cython_sources ()
+
+# class build_ext

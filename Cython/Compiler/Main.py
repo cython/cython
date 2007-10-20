@@ -17,12 +17,14 @@ import Parsing
 from Symtab import BuiltinScope, ModuleScope
 import Code
 from Cython.Utils import replace_suffix
+import Builtin
+from Cython import Utils
 
 verbose = 0
 
 class Context:
     #  This class encapsulates the context needed for compiling
-    #  one or more Pyrex implementation files along with their
+    #  one or more Cython implementation files along with their
     #  associated and imported declaration files. It includes
     #  the root of the module import namespace and the list
     #  of directories to search for include files.
@@ -31,7 +33,8 @@ class Context:
     #  include_directories   [string]
     
     def __init__(self, include_directories):
-        self.modules = {"__builtin__" : BuiltinScope()}
+        #self.modules = {"__builtin__" : BuiltinScope()}
+        self.modules = {"__builtin__" : Builtin.builtin_scope}
         self.include_directories = include_directories
         
     def find_module(self, module_name, 
@@ -180,22 +183,29 @@ class Context:
             else:
                 c_suffix = ".c"
             result.c_file = replace_suffix(source, c_suffix)
+        c_stat = None
+        if result.c_file:
+            try:
+                c_stat = os.stat(result.c_file)
+            except EnvironmentError:
+                pass
         module_name = self.extract_module_name(source, options)
         initial_pos = (source, 1, 0)
         scope = self.find_module(module_name, pos = initial_pos, need_pxd = 0)
         errors_occurred = False
         try:
             tree = self.parse(source, scope.type_names, pxd = 0, full_module_name = full_module_name)
-            tree.process_implementation(scope, result)
+            tree.process_implementation(scope, options, result)
         except CompileError:
             errors_occurred = True
         Errors.close_listing_file()
         result.num_errors = Errors.num_errors
         if result.num_errors > 0:
             errors_occurred = True
-        if errors_occurred:
+        if errors_occurred and result.c_file:
             try:
-                os.unlink(result.c_file)
+                #os.unlink(result.c_file)
+                Utils.castrate_file(result.c_file, c_stat)
             except EnvironmentError:
                 pass
             result.c_file = None
@@ -225,6 +235,7 @@ class CompilationOptions:
     errors_to_stderr  boolean   Echo errors to stderr when using .lis
     include_path      [string]  Directories to search for include files
     output_file       string    Name of generated .c file
+    generate_pxi      boolean   Generate .pxi file for public declarations
     
     Following options are experimental and only used on MacOSX:
     
@@ -238,7 +249,11 @@ class CompilationOptions:
         self.include_path = []
         self.objects = []
         if defaults:
-            self.__dict__.update(defaults.__dict__)
+            if isinstance(defaults, CompilationOptions):
+                defaults = defaults.__dict__
+        else:
+            defaults = default_options
+        self.__dict__.update(defaults)
         self.__dict__.update(kw)
 
 
@@ -249,6 +264,7 @@ class CompilationResult:
     c_file           string or None   The generated C source file
     h_file           string or None   The generated C header file
     i_file           string or None   The generated .pxi file
+    api_file         string or None   The generated C API .h file
     listing_file     string or None   File of error messages
     object_file      string or None   Result of compiling the C file
     extension_file   string or None   Result of linking the object file
@@ -259,6 +275,7 @@ class CompilationResult:
         self.c_file = None
         self.h_file = None
         self.i_file = None
+        self.api_file = None
         self.listing_file = None
         self.object_file = None
         self.extension_file = None
@@ -317,18 +334,19 @@ def main(command_line = 0):
 #
 #------------------------------------------------------------------------
 
-default_options = CompilationOptions(
+default_options = dict(
     show_version = 0,
     use_listing_file = 0,
     errors_to_stderr = 1,
     c_only = 1,
     obj_only = 1,
     cplus = 0,
-    output_file = None)
+    output_file = None,
+    generate_pxi = 0)
     
 if sys.platform == "mac":
     from Cython.Mac.MacSystem import c_compile, c_link, CCompilerError
-    default_options.use_listing_file = 1
+    default_options['use_listing_file'] = 1
 elif sys.platform == "darwin":
     from Cython.Mac.DarwinSystem import c_compile, c_link, CCompilerError
 else:

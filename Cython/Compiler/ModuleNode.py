@@ -4,6 +4,7 @@
 
 import os, time
 from cStringIO import StringIO
+from PyrexTypes import CPtrType
 
 import Code
 import Naming
@@ -20,6 +21,10 @@ from Cython.Utils import open_new_file, replace_suffix
 class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  doc       string or None
     #  body      StatListNode
+    #
+    #  referenced_modules   [ModuleScope]
+    #  module_temp_cname    string
+    #  full_module_name     string
     
     def analyse_declarations(self, env):
         if Options.embed_pos_in_docstring:
@@ -30,75 +35,153 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             env.doc = self.doc
         self.body.analyse_declarations(env)
     
-    def process_implementation(self, env, result):
+    def process_implementation(self, env, options, result):
         self.analyse_declarations(env)
         env.check_c_classes()
         self.body.analyse_expressions(env)
         env.return_type = PyrexTypes.c_void_type
+        self.referenced_modules = []
+        self.find_referenced_modules(env, self.referenced_modules, {})
+        if self.has_imported_c_functions():
+            self.module_temp_cname = env.allocate_temp_pyobject()
+            env.release_temp(self.module_temp_cname)
         self.generate_c_code(env, result)
-        self.generate_h_code(env, result)
+        self.generate_h_code(env, options, result)
+        self.generate_api_code(env, result)
     
-    def generate_h_code(self, env, result):
-        public_vars = []
-        public_funcs = []
+    def has_imported_c_functions(self):
+        for module in self.referenced_modules:
+            for entry in module.cfunc_entries:
+                if entry.defined_in_pxd:
+                    return 1
+        return 0
+    
+    def generate_h_code(self, env, options, result):
+        def h_entries(entries, pxd = 0):
+            return [entry for entry in entries
+                if entry.visibility == 'public' or pxd and entry.defined_in_pxd]
+        h_types = h_entries(env.type_entries)
+        h_vars = h_entries(env.var_entries)
+        h_funcs = h_entries(env.cfunc_entries)
+        h_extension_types = h_entries(env.c_class_entries)
+        if h_types or h_vars or h_funcs or h_extension_types:
+            result.h_file = replace_suffix(result.c_file, ".h")
+            h_code = Code.CCodeWriter(open_new_file(result.h_file))
+            if options.generate_pxi:
+                result.i_file = replace_suffix(result.c_file, ".pxi")
+                i_code = Code.PyrexCodeWriter(result.i_file)
+            else:
+                i_code = None
+            guard = Naming.h_guard_prefix + env.qualified_name.replace(".", "__")
+            h_code.put_h_guard(guard)
+            self.generate_extern_c_macro_definition(h_code)
+            self.generate_type_header_code(h_types, h_code)
+            h_code.putln("")
+            h_code.putln("#ifndef %s" % Naming.api_guard_prefix + self.api_name(env))
+            if h_vars:
+                h_code.putln("")
+                for entry in h_vars:
+                    self.generate_public_declaration(entry, h_code, i_code)
+            if h_funcs:
+                h_code.putln("")
+                for entry in h_funcs:
+                    self.generate_public_declaration(entry, h_code, i_code)
+            if h_extension_types:
+                h_code.putln("")
+                for entry in h_extension_types:
+                    self.generate_cclass_header_code(entry.type, h_code)
+                    if i_code:
+                        self.generate_cclass_include_code(entry.type, i_code)
+            h_code.putln("")
+            h_code.putln("#endif")
+            h_code.putln("")
+            h_code.putln("PyMODINIT_FUNC init%s(void);" % env.module_name)
+            h_code.putln("")
+            h_code.putln("#endif")
+    
+    def generate_public_declaration(self, entry, h_code, i_code):
+        h_code.putln("%s %s;" % (
+            Naming.extern_c_macro,
+            entry.type.declaration_code(
+                entry.cname, dll_linkage = "DL_IMPORT")))
+        if i_code:
+            i_code.putln("cdef extern %s" % 
+                entry.type.declaration_code(entry.cname, pyrex = 1))
+    
+    def api_name(self, env):
+        return env.qualified_name.replace(".", "__")
+    
+    def generate_api_code(self, env, result):
+        api_funcs = []
         public_extension_types = []
-        for entry in env.var_entries:
-            if entry.visibility == 'public':
-                public_vars.append(entry)
+        has_api_extension_types = 0
         for entry in env.cfunc_entries:
-            if entry.visibility == 'public':
-                public_funcs.append(entry)
+            if entry.api:
+                api_funcs.append(entry)
         for entry in env.c_class_entries:
             if entry.visibility == 'public':
                 public_extension_types.append(entry)
-        if public_vars or public_funcs or public_extension_types:
-            result.h_file = replace_suffix(result.c_file, ".h")
-            result.i_file = replace_suffix(result.c_file, ".pxi")
-            h_code = Code.CCodeWriter(open_new_file(result.h_file))
-            i_code = Code.PyrexCodeWriter(result.i_file)
-            header_barrier = "__HAS_PYX_" + env.module_name
-            h_code.putln("#ifndef %s" % header_barrier)
-            h_code.putln("#define %s" % header_barrier)
-            self.generate_extern_c_macro_definition(h_code)
-            for entry in public_vars:
-                h_code.putln("%s %s;" % (
-                    Naming.extern_c_macro,
-                    entry.type.declaration_code(
-                        entry.cname, dll_linkage = "DL_IMPORT")))
-                i_code.putln("cdef extern %s" % 
-                    entry.type.declaration_code(entry.cname, pyrex = 1))
+            if entry.api:
+                has_api_extension_types = 1
+        if api_funcs or has_api_extension_types:
+            result.api_file = replace_suffix(result.c_file, "_api.h")
+            h_code = Code.CCodeWriter(open_new_file(result.api_file))
+            name = self.api_name(env)
+            guard = Naming.api_guard_prefix + name
+            h_code.put_h_guard(guard)
+            h_code.putln('#include "Python.h"')
+            if result.h_file:
+                h_code.putln('#include "%s"' % os.path.basename(result.h_file))
             for entry in public_extension_types:
-                self.generate_cclass_header_code(entry.type, h_code)
-                self.generate_cclass_include_code(entry.type, i_code)
-            if public_funcs:
-                sort_public_funcs = [ (func.cname, func)
-                                      for func in public_funcs ]
-                sort_public_funcs.sort()
-                public_funcs = [ func[1] for func in sort_public_funcs ]
-                for entry in public_funcs:
-                    h_code.putln(
-                        'static %s;' %
-                        entry.type.declaration_code("(*%s)" % entry.cname))
-                    i_code.putln("cdef extern %s" %
-                        entry.type.declaration_code(entry.cname, pyrex = 1))
+                type = entry.type
+                h_code.putln("")
+                h_code.putln("static PyTypeObject *%s;" % type.typeptr_cname)
+                h_code.putln("#define %s (*%s)" % (
+                    type.typeobj_cname, type.typeptr_cname))
+            if api_funcs:
+                h_code.putln("")
+                for entry in api_funcs:
+                    type = CPtrType(entry.type)
+                    h_code.putln("static %s;" % type.declaration_code(entry.cname))
+            h_code.putln("")
+            h_code.put_h_guard(Naming.api_func_guard + "import_module")
+            h_code.put(import_module_utility_code[1])
+            h_code.putln("")
+            h_code.putln("#endif")
+            if api_funcs:
+                h_code.putln("")
+                h_code.put(function_import_utility_code[1])
+            if public_extension_types:
+                h_code.putln("")
+                h_code.put(type_import_utility_code[1])
+            h_code.putln("")
+            h_code.putln("static int import_%s(void) {" % name)
+            h_code.putln("PyObject *module = 0;")
+            h_code.putln('module = __Pyx_ImportModule("%s", NULL);' % self.full_module_name)
+            h_code.putln("if (!module) goto bad;")
+            for entry in api_funcs:
+                sig = entry.type.signature_string()
                 h_code.putln(
-                    "static struct {char *s; void **p;} _%s_API[] = {" %
-                    env.module_name)
-                for entry in public_funcs:
-                    h_code.putln('{"%s", (void*)(&%s)},' % (
-                        entry.cname, entry.cname))
-                h_code.putln("{0, 0}")
-                h_code.putln("};")
-                self.generate_c_api_import_code(env, h_code)
-            h_code.putln("PyMODINIT_FUNC init%s(void);" % env.module_name)
-            h_code.putln("#endif /* %s */" % header_barrier)
+                    'if (__Pyx_ImportFunction(module, "%s", (void**)&%s, "%s") < 0) goto bad;' % (
+                        entry.name,
+                        entry.cname,
+                        sig))
+            h_code.putln("Py_DECREF(module);")
+            for entry in public_extension_types:
+                self.generate_type_import_call(entry.type, h_code, "goto bad;")
+            h_code.putln("return 0;")
+            h_code.putln("bad:")
+            h_code.putln("Py_XDECREF(module);")
+            h_code.putln("return -1;")
+            h_code.putln("}")
+            h_code.putln("")
+            h_code.putln("#endif")
     
     def generate_cclass_header_code(self, type, h_code):
-        #h_code.putln("extern DL_IMPORT(PyTypeObject) %s;" % type.typeobj_cname)
         h_code.putln("%s DL_IMPORT(PyTypeObject) %s;" % (
             Naming.extern_c_macro,
             type.typeobj_cname))
-        self.generate_obj_struct_definition(type, h_code)
+        #self.generate_obj_struct_definition(type, h_code)
     
     def generate_cclass_include_code(self, type, i_code):
         i_code.putln("cdef extern class %s.%s:" % (
@@ -114,9 +197,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         i_code.dedent()
     
     def generate_c_code(self, env, result):
-        modules = []
-        self.find_referenced_modules(env, modules, {})
-        #code = Code.CCodeWriter(result.c_file)
+        modules = self.referenced_modules
         code = Code.CCodeWriter(StringIO())
         code.h = Code.CCodeWriter(StringIO())
         code.init_labels()
@@ -132,10 +213,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.body.generate_function_definitions(env, code)
         self.generate_interned_name_table(env, code)
         self.generate_py_string_table(env, code)
-        self.generate_c_api_table(env, code)
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)
         self.generate_filename_init_prototype(code)
+        for module in modules[:-1]:
+            self.generate_imported_module(module, code)
         self.generate_module_init_func(modules[:-1], env, code)
         self.generate_filename_table(code)
         self.generate_utility_functions(env, code)
@@ -177,18 +259,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyNumber_Index(o)    PyNumber_Int(o)")
         code.putln("  #define PyIndex_Check(o)     PyNumber_Check(o)")
         code.putln("#endif")
+        code.putln("#ifndef WIN32")
+        code.putln("  #define __stdcall")
+        code.putln("  #define __cdecl")
+        code.putln("#endif")
         self.generate_extern_c_macro_definition(code)
-        code.putln("%s double pow(double, double);" % Naming.extern_c_macro)
+        code.putln("#include <math.h>")
         self.generate_includes(env, cimported_modules, code)
-        #for filename in env.include_files:
-        #	code.putln('#include "%s"' % filename)
         code.putln('')
         code.put(Nodes.utility_function_predeclarations)
         code.put(Nodes.branch_prediction_macros)
-        #if Options.intern_names:
-        #	code.putln(Nodes.get_name_interned_predeclaration)
-        #else:
-        #	code.putln(get_name_predeclaration)
         code.putln('')
         code.putln('static PyObject *%s;' % env.module_cname)
         code.putln('static PyObject *%s;' % Naming.builtins_cname)
@@ -236,30 +316,64 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln("/* Declarations from %s */" % env.qualified_name)
         self.generate_type_predeclarations(env, code)
-        self.generate_type_definitions(env, code)
+        self.generate_type_definitions(env, code, definition)
         self.generate_global_declarations(env, code, definition)
-        self.generate_cfunction_predeclarations(env, code)
+        self.generate_cfunction_predeclarations(env, code, definition)
 
     def generate_type_predeclarations(self, env, code):
         pass
     
-    def generate_type_definitions(self, env, code):
-        # Generate definitions of structs/unions/enums.
-        for entry in env.sue_entries:
+    def generate_type_header_code(self, type_entries, code):
+        # Generate definitions of structs/unions/enums/typedefs/objstructs.
+        #self.generate_gcc33_hack(env, code) # Is this still needed?
+        #for entry in env.type_entries:
+        for entry in type_entries:
             if not entry.in_cinclude:
+                #print "generate_type_header_code:", entry.name, repr(entry.type) ###
                 type = entry.type
-                if type.is_struct_or_union:
+                if type.is_typedef: # Must test this first!
+                    self.generate_typedef(entry, code)
+                elif type.is_struct_or_union:
                     self.generate_struct_union_definition(entry, code)
-                else:
+                elif type.is_enum:
                     self.generate_enum_definition(entry, code)
-        # Generate extension type object struct definitions.
+                elif type.is_extension_type:
+                    self.generate_obj_struct_definition(type, code)
+    
+    def generate_type_definitions(self, env, code, definition):
+        if definition:
+            type_entries = env.type_entries
+        else:
+            type_entries = []
+            for entry in env.type_entries:
+                if entry.defined_in_pxd:
+                    type_entries.append(entry)
+        self.generate_type_header_code(type_entries, code)
         for entry in env.c_class_entries:
             if not entry.in_cinclude:
                 self.generate_typeobject_predeclaration(entry, code)
-                self.generate_obj_struct_definition(entry.type, code)
                 self.generate_exttype_vtable_struct(entry, code)
                 self.generate_exttype_vtabptr_declaration(entry, code)
     
+    def generate_gcc33_hack(self, env, code):
+        # Workaround for spurious warning generation in gcc 3.3
+        code.putln("")
+        for entry in env.c_class_entries:
+            type = entry.type
+            if not type.typedef_flag:
+                name = type.objstruct_cname
+                if name.startswith("__pyx_"):
+                    tail = name[6:]
+                else:
+                    tail = name
+                code.putln("typedef struct %s __pyx_gcc33_%s;" % (
+                    name, tail))
+    
+    def generate_typedef(self, entry, code):
+        base_type = entry.type.typedef_base_type
+        code.putln("")
+        code.putln("typedef %s;" % base_type.declaration_code(entry.cname))
+
     def sue_header_footer(self, type, kind, name):
         if type.typedef_flag:
             header = "typedef %s {" % kind
@@ -392,21 +506,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_global_declarations(self, env, code, definition):
         code.putln("")
         for entry in env.c_class_entries:
-            code.putln("static PyTypeObject *%s = 0;" % 
-                entry.type.typeptr_cname)
+            if definition or entry.defined_in_pxd:
+                code.putln("static PyTypeObject *%s = 0;" % 
+                    entry.type.typeptr_cname)
         code.put_var_declarations(env.var_entries, static = 1, 
             dll_linkage = "DL_EXPORT", definition = definition)
         code.put_var_declarations(env.default_entries, static = 1,
                                   definition = definition)
     
-    def generate_cfunction_predeclarations(self, env, code):
+    def generate_cfunction_predeclarations(self, env, code, definition):
         for entry in env.cfunc_entries:
-            if not entry.in_cinclude:
-                if entry.visibility == 'public':
+            if not entry.in_cinclude and (definition
+                    or entry.defined_in_pxd or entry.visibility == 'extern'):
+                if entry.visibility in ('public', 'extern'):
                     dll_linkage = "DL_EXPORT"
                 else:
                     dll_linkage = None
-                header = entry.type.declaration_code(entry.cname, 
+                type = entry.type
+                if not definition and entry.defined_in_pxd:
+                    type = CPtrType(type)
+                header = type.declaration_code(entry.cname, 
                     dll_linkage = dll_linkage)
                 if entry.visibility == 'private':
                     storage_class = "static "
@@ -468,11 +587,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.declaration_code("")))
     
     def generate_new_function(self, scope, code):
-        base_type = scope.parent_type.base_type
+        type = scope.parent_type
+        base_type = type.base_type
+        py_attrs = []
+        for entry in scope.var_entries:
+            if entry.type.is_pyobject:
+                py_attrs.append(entry)
+        need_self_cast = type.vtabslot_cname or py_attrs
         code.putln("")
         code.putln(
             "static PyObject *%s(PyTypeObject *t, PyObject *a, PyObject *k) {"
                 % scope.mangle_internal("tp_new"))
+        if need_self_cast:
+            code.putln(
+                "%s;"
+                    % scope.parent_type.declaration_code("p"))
         if base_type:
             code.putln(
                 "PyObject *o = %s->tp_new(t, a, k);" %
@@ -480,13 +609,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             code.putln(
                 "PyObject *o = (*t->tp_alloc)(t, 0);")
-        type = scope.parent_type
-        py_attrs = []
-        for entry in scope.var_entries:
-            if entry.type.is_pyobject:
-                py_attrs.append(entry)
-        if type.vtabslot_cname or py_attrs:
-            self.generate_self_cast(scope, code)
+        code.putln(
+                "if (!o) return 0;")
+        if need_self_cast:
+            code.putln(
+                "p = %s;"
+                    % type.cast_code("o"))
+        #if need_self_cast:
+        #	self.generate_self_cast(scope, code)
         if type.vtabslot_cname:
             code.putln("*(struct %s **)&p->%s = %s;" % (
                 type.vtabstruct_cname,
@@ -1085,78 +1215,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "{0, 0, 0, 0}")
             code.putln(
                 "};")
-    
-    def generate_c_api_table(self, env, code):
-        public_funcs = []
-        for entry in env.cfunc_entries:
-            if entry.visibility == 'public':
-                public_funcs.append(entry.cname)
-        if public_funcs:
-            env.use_utility_code(Nodes.c_api_import_code)
-            code.putln(
-                "static __Pyx_CApiTabEntry %s[] = {" %
-                Naming.c_api_tab_cname)
-            public_funcs.sort()
-            for entry_cname in public_funcs:
-                code.putln('{"%s", %s},' % (entry_cname, entry_cname))
-            code.putln(
-                "{0, 0}")
-            code.putln(
-                "};")
 
-    def generate_c_api_import_code(self, env, h_code):
-        # this is written to the header file!
-        h_code.put("""
-            /* Return -1 and set exception on error, 0 on success. */
-            static int
-            import_%(name)s(PyObject *module)
-            {
-                if (module != NULL)
-                {
-                    int (*init)(struct {const char *s; const void **p;}*);
-                    PyObject* c_api_init;
-
-                    c_api_init = PyObject_GetAttrString(module,
-                                                        "_import_c_api");
-                    if (!c_api_init)
-                        return -1;
-                    if (!PyCObject_Check(c_api_init))
-                    {
-                        Py_DECREF(c_api_init);
-                        PyErr_SetString(PyExc_RuntimeError,
-                            "%(name)s module provided an invalid C-API reference");
-                        return -1;
-                    }
-
-                    init = PyCObject_AsVoidPtr(c_api_init);
-                    Py_DECREF(c_api_init);
-                    if (!init)
-                    {
-                        PyErr_SetString(PyExc_RuntimeError,
-                            "%(name)s module returned NULL pointer for C-API init function");
-                        return -1;
-                    }
-
-                    if (init(_%(name)s_API))
-                        return -1;
-                }
-                return 0;
-            }
-            """.replace('\n            ', '\n') % {'name' : env.module_name})
-
-    def generate_c_api_init_code(self, env, code):
-        public_funcs = []
-        for entry in env.cfunc_entries:
-            if entry.visibility == 'public':
-                public_funcs.append(entry)
-        if public_funcs:
-            code.putln('if (__Pyx_InitCApi(%s) < 0) %s' % (
-                Naming.module_cname,
-                code.error_goto(self.pos)))
 
     def generate_filename_init_prototype(self, code):
         code.putln("");
         code.putln("static void %s(void); /*proto*/" % Naming.fileinit_cname)
+
+    def build_module_var_name(self, module_name):
+        return Naming.modules_prefix + module_name.replace("_", "__").replace(".", "_")
+
+    def generate_imported_module(self, module, code):
+        import_module = 0
+        for entry in module.cfunc_entries:
+            if entry.defined_in_pxd:
+                import_module = 1
+        for entry in module.c_class_entries:
+            if entry.defined_in_pxd:
+                import_module = 1
+        if import_module:
+            code.putln("PyObject *%s;" % self.build_module_var_name(module.qualified_name))
 
     def generate_module_init_func(self, imported_modules, env, code):
         code.putln("")
@@ -1164,21 +1241,37 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s; /*proto*/" % header)
         code.putln("%s {" % header)
         code.put_var_declarations(env.temp_entries)
+
         #code.putln("/*--- Libary function declarations ---*/")
         env.generate_library_function_declarations(code)
         self.generate_filename_init_call(code)
+
         #code.putln("/*--- Module creation code ---*/")
         self.generate_module_creation_code(env, code)
+
         #code.putln("/*--- Intern code ---*/")
         self.generate_intern_code(env, code)
+
         #code.putln("/*--- String init code ---*/")
         self.generate_string_init_code(env, code)
-        #code.putln("/*--- External C API setup code ---*/")
-        self.generate_c_api_init_code(env, code)
+
         #code.putln("/*--- Builtin init code ---*/")
-        self.generate_builtin_init_code(env, code)
+        # FIXME !!
+        #self.generate_builtin_init_code(env, code)
+
         #code.putln("/*--- Global init code ---*/")
         self.generate_global_init_code(env, code)
+
+        #code.putln("/*--- Module import code ---*/")
+        for module in imported_modules:
+            self.generate_module_import_code(module, env, code)
+        
+        #code.putln("/*--- Function export code ---*/")
+        self.generate_c_function_export_code(env, code)
+
+        #code.putln("/*--- Function import code ---*/")
+        for module in imported_modules:
+            self.generate_c_function_import_code_for_module(module, env, code)
 
         #code.putln("/*--- Type init code ---*/")
         self.generate_type_init_code(env, code)
@@ -1270,14 +1363,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         entry.cname,
                         Naming.builtins_cname,
                         entry.interned_cname,
-                        entry.cname, 
+                        entry.cname,
                         code.error_goto(entry.pos)))
                 else:
                     code.putln(
                         '%s = __Pyx_GetName(%s, "%s"); if (!%s) %s' % (
                         entry.cname,
                         Naming.builtins_cname,
-                        self.entry.name,
+                        entry.name,
                         entry.cname, 
                         code.error_goto(entry.pos)))
     
@@ -1285,16 +1378,67 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Generate code to initialise global PyObject *
         # variables to None.
         for entry in env.var_entries:
-            if entry.visibility <> 'extern':
+            if entry.visibility != 'extern':
                 if entry.type.is_pyobject:
                     code.put_init_var_to_py_none(entry)
+
+
+    def generate_module_import_code(self, module, env, code):
+        import_module = 0
+        for entry in module.cfunc_entries:
+            if entry.defined_in_pxd:
+                import_module = 1
+        for entry in module.c_class_entries:
+            if entry.defined_in_pxd:
+                import_module = 1
+        if import_module:
+            env.use_utility_code(import_module_utility_code)
+            name = self.build_module_var_name(module.qualified_name)
+            code.putln(
+                '%s = __Pyx_ImportModule("%s", "%s"); %s' % (
+                    name,
+                    '.'.join(self.full_module_name.split('.')[:-1] + [module.qualified_name]),
+                    module.qualified_name,
+                    code.error_goto_if_null(name, self.pos)))
+        
+
+    def generate_c_function_export_code(self, env, code):
+        # Generate code to create PyCFunction wrappers for exported C functions.
+        for entry in env.cfunc_entries:
+            if entry.api or entry.defined_in_pxd:
+                env.use_utility_code(function_export_utility_code)
+                signature = entry.type.signature_string()
+                code.putln('if (__Pyx_ExportFunction("%s", (void*)%s, "%s") < 0) %s' % (
+                    entry.name,
+                    entry.cname,
+                    signature, 
+                    code.error_goto(self.pos)))
     
     def generate_type_import_code_for_module(self, module, env, code):
-        # Generate type import code for all extension types in
+        # Generate type import code for all exported extension types in
         # an imported module.
-        if module.c_class_entries:
-            for entry in module.c_class_entries:
+        #if module.c_class_entries:
+        for entry in module.c_class_entries:
+            if entry.defined_in_pxd:
                 self.generate_type_import_code(env, entry.type, entry.pos, code)
+    
+    def generate_c_function_import_code_for_module(self, module, env, code):
+        # Generate import code for all exported C functions in a cimported module.
+        entries = []
+        for entry in module.cfunc_entries:
+            if entry.defined_in_pxd:
+                entries.append(entry)
+        if entries:
+            env.use_utility_code(import_module_utility_code)
+            env.use_utility_code(function_import_utility_code)
+            for entry in entries:
+                code.putln(
+                    'if (__Pyx_ImportFunction(%s, "%s", (void**)&%s, "%s") < 0) %s' % (
+                        self.build_module_var_name(module.qualified_name),
+                        entry.name,
+                        entry.cname,
+                        entry.type.signature_string(),
+                        code.error_goto(self.pos)))
     
     def generate_type_init_code(self, env, code):
         # Generate type import code for extern extension types
@@ -1315,8 +1459,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     
     def use_type_import_utility_code(self, env):
         import ExprNodes
-        env.use_utility_code(Nodes.type_import_utility_code)
-        env.use_utility_code(ExprNodes.import_utility_code)
+        env.use_utility_code(type_import_utility_code)
+        env.use_utility_code(import_module_utility_code)
     
     def generate_type_import_code(self, env, type, pos, code):
         # If not already done, generate code to import the typeobject of an
@@ -1328,12 +1472,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             objstruct = type.objstruct_cname
         else:
             objstruct = "struct %s" % type.objstruct_cname
-        code.putln('%s = __Pyx_ImportType("%s", "%s", sizeof(%s)); %s' % (
-            type.typeptr_cname,
-            type.module_name, 
-            type.name,
-            objstruct,
-            code.error_goto_if_null(type.typeptr_cname, pos)))
+        self.generate_type_import_call(type, code,
+                                       code.error_goto_if_null(type.typeptr_cname, pos))
         self.use_type_import_utility_code(env)
         if type.vtabptr_cname:
             code.putln(
@@ -1343,7 +1483,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.error_goto(pos)))
             env.use_utility_code(Nodes.get_vtable_utility_code)
         env.types_imported[type] = 1
-    
+
+    def generate_type_import_call(self, type, code, error_code):
+        if type.typedef_flag:
+            objstruct = type.objstruct_cname
+        else:
+            objstruct = "struct %s" % type.objstruct_cname
+        code.putln('%s = __Pyx_ImportType(%s, "%s", "%s", sizeof(%s)); %s' % (
+            type.typeptr_cname,
+            self.build_module_var_name(type.module_name),
+            type.module_name,
+            type.name,
+            objstruct,
+            error_code))
+
     def generate_type_ready_code(self, env, entry, code):
         # Generate a call to PyType_Ready for an extension
         # type defined in this module.
@@ -1401,7 +1554,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for meth_entry in type.scope.cfunc_entries:
                 if meth_entry.func_cname:
                     code.putln(
-                        "*(void(**)())&%s.%s = (void(*)())%s;" % (
+                        "*(void(**)(void))&%s.%s = (void(*)(void))%s;" % (
                             type.vtable_cname,
                             meth_entry.cname,
                             meth_entry.func_cname))
@@ -1426,3 +1579,157 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for utility_code in env.utility_code_used:
             code.h.put(utility_code[0])
             code.put(utility_code[1])
+
+#------------------------------------------------------------------------------------
+#
+#  Runtime support code
+#
+#------------------------------------------------------------------------------------
+
+import_module_utility_code = [
+"""
+static PyObject *__Pyx_ImportModule(char *prefixed_name, char* name); /*proto*/
+""","""
+static PyObject *__Pyx_ImportModule(char *prefixed_name, char* name) {
+    PyObject *py_name = 0;
+    PyObject *py_module = 0;
+
+    if (prefixed_name) {
+        py_name = PyString_FromString(prefixed_name);
+        if (!py_name)
+            goto bad;
+        py_module = PyImport_Import(py_name);
+        Py_DECREF(py_name);
+        py_name = 0;
+        if (py_module)
+            return py_module;
+        if (name)
+            PyErr_Clear();
+    }
+    
+    if (name) {
+        py_name = PyString_FromString(name);
+        if (!py_name)
+            goto bad;
+        py_module = PyImport_Import(py_name);
+        Py_DECREF(py_name);
+        py_name = 0;
+    }
+
+    return py_module;
+bad:
+    Py_XDECREF(py_name);
+    return 0;
+}
+"""]
+
+#------------------------------------------------------------------------------------
+
+type_import_utility_code = [
+"""
+static PyTypeObject *__Pyx_ImportType(PyObject *py_module, char *module_name, char *class_name, long size);  /*proto*/
+""","""
+#ifndef __PYX_HAVE_RT_ImportType
+#define __PYX_HAVE_RT_ImportType
+static PyTypeObject *__Pyx_ImportType(PyObject *py_module, char *module_name, char *class_name, long size) {
+    PyObject *result = 0;
+    
+    result = PyObject_GetAttrString(py_module, class_name);
+    if (!result)
+        goto bad;
+    if (!PyType_Check(result)) {
+        PyErr_Format(PyExc_TypeError, 
+            "%s.%s is not a type object",
+            module_name, class_name);
+        goto bad;
+    }
+    if (((PyTypeObject *)result)->tp_basicsize != size) {
+        PyErr_Format(PyExc_ValueError, 
+            "%s.%s does not appear to be the correct type object",
+            module_name, class_name);
+        goto bad;
+    }
+    return (PyTypeObject *)result;
+bad:
+    Py_XDECREF(result);
+    return 0;
+}
+#endif
+"""]
+
+#------------------------------------------------------------------------------------
+
+function_export_utility_code = [
+"""
+static int __Pyx_ExportFunction(char *n, void *f, char *s); /*proto*/
+""",r"""
+static int __Pyx_ExportFunction(char *n, void *f, char *s) {
+    PyObject *d = 0;
+    PyObject *p = 0;
+    d = PyObject_GetAttrString(%(MODULE)s, "%(API)s");
+    if (!d) {
+        PyErr_Clear();
+        d = PyDict_New();
+        if (!d)
+            goto bad;
+        Py_INCREF(d);
+        if (PyModule_AddObject(%(MODULE)s, "%(API)s", d) < 0)
+            goto bad;
+    }
+    p = PyCObject_FromVoidPtrAndDesc(f, s, 0);
+    if (!p)
+        goto bad;
+    if (PyDict_SetItemString(d, n, p) < 0)
+        goto bad;
+    Py_DECREF(d);
+    return 0;
+bad:
+    Py_XDECREF(p);
+    Py_XDECREF(d);
+    return -1;
+}
+""" % {'MODULE': Naming.module_cname, 'API': Naming.api_name}]
+
+#------------------------------------------------------------------------------------
+
+function_import_utility_code = [
+"""
+static int __Pyx_ImportFunction(PyObject *module, char *funcname, void **f, char *sig); /*proto*/
+""","""
+#ifndef __PYX_HAVE_RT_ImportFunction
+#define __PYX_HAVE_RT_ImportFunction
+static int __Pyx_ImportFunction(PyObject *module, char *funcname, void **f, char *sig) {
+    PyObject *d = 0;
+    PyObject *cobj = 0;
+    char *desc;
+    
+    d = PyObject_GetAttrString(module, "%(API)s");
+    if (!d)
+        goto bad;
+    cobj = PyDict_GetItemString(d, funcname);
+    if (!cobj) {
+        PyErr_Format(PyExc_ImportError,
+            "%%s does not export expected C function %%s",
+                PyModule_GetName(module), funcname);
+        goto bad;
+    }
+    desc = (char *)PyCObject_GetDesc(cobj);
+    if (!desc)
+        goto bad;
+    if (strcmp(desc, sig) != 0) {
+        PyErr_Format(PyExc_TypeError,
+            "C function %%s.%%s has wrong signature (expected %%s, got %%s)",
+                PyModule_GetName(module), funcname, sig, desc);
+        goto bad;
+    }
+    *f = PyCObject_AsVoidPtr(cobj);
+    Py_DECREF(cobj);
+    Py_DECREF(d);
+    return 0;
+bad:
+    Py_XDECREF(cobj);
+    Py_XDECREF(d);
+    return -1;
+}
+#endif
+""" % dict(API = Naming.api_name)]
