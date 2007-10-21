@@ -357,10 +357,10 @@ class Scope:
         entry = self.lookup_here(name)
         if entry:
             if visibility <> 'private' and visibility <> entry.visibility:
-                error(pos, "Function '%s' previously declared as '%s'" % (
-                    name, entry.visibility))
+                warning(pos, "Function '%s' previously declared as '%s'" % (name, entry.visibility), 1)
             if not entry.type.same_as(type):
-                error(pos, "Function signature does not match previous declaration")
+                warning(pos, "Function signature does not match previous declaration", 1)
+                entry.type = type
         else:
             if not cname:
                 if api or visibility <> 'private':
@@ -598,20 +598,21 @@ class BuiltinScope(Scope):
     def builtin_scope(self):
         return self
         
-    # TODO: built in functions conflict with built in types of same name...
-    # TODO: perhapse these should all be declared in some universal .pxi file? 
+    # TODO: merge this into builtin_function_table when error handling in Pyrex
+    #       is fixed. Also handle pyrex types as functions. 
     
     builtin_functions = {
+      "cmp":     ["PyObject_Compare", c_int_type, (py_object_type, py_object_type), None, True],
+      "unicode": ["PyObject_Unicode", py_object_type, (py_object_type, ), 0],
+      "type":    ["PyObject_Type", py_object_type, (py_object_type, ), 0],
+
       "hasattr": ["PyObject_HasAttr", c_bint_type, (py_object_type, py_object_type)],
       "setattr": ["PyObject_SetAttr", c_int_type, (py_object_type, py_object_type, py_object_type), -1],
-      "cmp":     ["PyObject_Compare", c_int_type, (py_object_type, py_object_type), None, True],
       "repr":    ["PyObject_Repr", py_object_type, (py_object_type, ), 0],
 #      "str":     ["PyObject_Str", py_object_type, (py_object_type, ), 0],
-      "unicode": ["PyObject_Unicode", py_object_type, (py_object_type, ), 0],
       "isinstance": ["PyObject_IsInstance", c_bint_type, (py_object_type, py_object_type), -1],
       "issubclass": ["PyObject_IsSubclass", c_bint_type, (py_object_type, py_object_type), -1],
       "hash":    ["PyObject_Hash", c_long_type, (py_object_type, ), -1, True],
-      "type":    ["PyObject_Type", py_object_type, (py_object_type, ), 0],
       "len":     ["PyObject_Size", c_py_ssize_t_type, (py_object_type, ), -1],
       "dir":     ["PyObject_Dir", py_object_type, (py_object_type, ), 0],
       "iter":    ["PyObject_GetIter", py_object_type, (py_object_type, ), 0],
@@ -1055,6 +1056,9 @@ class StructOrUnionScope(Scope):
                 "C struct/union member cannot be declared %s" % visibility)
         return entry
 
+    def declare_cfunction(self, name, type, pos, 
+            cname = None, visibility = 'private', defining = 0, api = 0, in_pxd = 0):
+        self.declare_var(name, type, pos, cname, visibility)
 
 class ClassScope(Scope):
     #  Abstract base class for namespace of

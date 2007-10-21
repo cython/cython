@@ -1242,45 +1242,45 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s {" % header)
         code.put_var_declarations(env.temp_entries)
 
-        #code.putln("/*--- Libary function declarations ---*/")
+        code.putln("/*--- Libary function declarations ---*/")
         env.generate_library_function_declarations(code)
         self.generate_filename_init_call(code)
 
-        #code.putln("/*--- Module creation code ---*/")
+        code.putln("/*--- Module creation code ---*/")
         self.generate_module_creation_code(env, code)
 
-        #code.putln("/*--- Intern code ---*/")
+        code.putln("/*--- Intern code ---*/")
         self.generate_intern_code(env, code)
 
-        #code.putln("/*--- String init code ---*/")
+        code.putln("/*--- String init code ---*/")
         self.generate_string_init_code(env, code)
 
-        #code.putln("/*--- Builtin init code ---*/")
-        # FIXME !!
+        code.putln("/*--- Builtin init code ---*/")
+        # TODO: FIXME !!
         #self.generate_builtin_init_code(env, code)
 
-        #code.putln("/*--- Global init code ---*/")
+        code.putln("/*--- Global init code ---*/")
         self.generate_global_init_code(env, code)
 
-        #code.putln("/*--- Module import code ---*/")
+        code.putln("/*--- Module import code ---*/")
         for module in imported_modules:
             self.generate_module_import_code(module, env, code)
         
-        #code.putln("/*--- Function export code ---*/")
+        code.putln("/*--- Function export code ---*/")
         self.generate_c_function_export_code(env, code)
 
-        #code.putln("/*--- Function import code ---*/")
+        code.putln("/*--- Function import code ---*/")
         for module in imported_modules:
             self.generate_c_function_import_code_for_module(module, env, code)
 
-        #code.putln("/*--- Type init code ---*/")
+        code.putln("/*--- Type init code ---*/")
         self.generate_type_init_code(env, code)
 
-        #code.putln("/*--- Type import code ---*/")
+        code.putln("/*--- Type import code ---*/")
         for module in imported_modules:
             self.generate_type_import_code_for_module(module, env, code)
 
-        #code.putln("/*--- Execution code ---*/")
+        code.putln("/*--- Execution code ---*/")
         self.body.generate_execution_code(code)
         code.putln("return;")
         code.put_label(code.error_label)
@@ -1391,6 +1391,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in module.c_class_entries:
             if entry.defined_in_pxd:
                 import_module = 1
+        print "generate_module_import_code", module, import_module
         if import_module:
             env.use_utility_code(import_module_utility_code)
             name = self.build_module_var_name(module.qualified_name)

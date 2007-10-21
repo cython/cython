@@ -90,7 +90,7 @@ def error(position, message):
 
 LEVEL=1 # warn about all errors level 1 or higher
 
-def warning(position, message, level):
+def warning(position, message, level=0):
     if level < LEVEL:
         return
     warn = CompileWarning(position, message)

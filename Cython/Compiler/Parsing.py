@@ -1521,7 +1521,7 @@ def p_c_declarator(s, empty = 0, is_type = 0, cmethod_flag = 0, assignable = 0,
             base = Nodes.CNameDeclaratorNode(pos, name = "", cname = None)
             result = p_c_func_declarator(s, pos, base, cmethod_flag)
         else:
-            result = p_c_declarator(s, empty, is_type, cmethod_flag, nonempty,
+            result = p_c_declarator(s, empty, is_type, cmethod_flag, nonempty = nonempty,
                 calling_convention_allowed = 1)
             s.expect(')')
     else:
@@ -1587,14 +1587,14 @@ def p_c_simple_declarator(s, empty, is_type, cmethod_flag, assignable, nonempty)
                 error(s.position(), "Declarator should be empty")
             s.next()
             cname = p_opt_cname(s)
+            if s.sy == '=' and assignable:
+                s.next()
+                rhs = p_simple_expr(s)
         else:
             if nonempty:
                 error(s.position(), "Empty declarator")
             name = ""
             cname = None
-            if s.sy == '=' and assignable:
-                s.next()
-                rhs = p_simple_expr(s)
         result = Nodes.CNameDeclaratorNode(pos,
             name = name, cname = cname, rhs = rhs)
     result.calling_convention = calling_convention

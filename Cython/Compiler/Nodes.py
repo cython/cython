@@ -1500,6 +1500,17 @@ class CClassDefNode(StatNode):
             error(self.pos, "Object struct name specification required for "
                 "C class defined in 'extern from' block")
         self.base_type = None
+        # Now that module imports are cached, we need to 
+        # import the modules for extern classes. 
+        if self.module_name:
+            self.module = None
+            for module in env.cimported_modules:
+                if module.name == self.module_name:
+                    self.module = module
+            if self.module is None:
+                self.module = ModuleScope(self.module_name, None, env.context)
+                env.cimported_modules.append(self.module)
+        print [e.name for e in env.cimported_modules]
         if self.base_class_name:
             if self.base_class_module:
                 base_class_scope = env.find_module(self.base_class_module, self.pos)
@@ -1530,6 +1541,10 @@ class CClassDefNode(StatNode):
             typedef_flag = self.typedef_flag,
             api = self.api)
         scope = self.entry.type.scope
+        
+        if self.module_name:
+            self.entry.defined_in_pxd = 1
+            self.module.c_class_entries.append(self.entry)
 
         if self.doc:
             if Options.embed_pos_in_docstring:
