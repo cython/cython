@@ -700,6 +700,7 @@ class ModuleScope(Scope):
         self.all_pystring_entries = []
         self.types_imported = {}
         self.pynum_entries = []
+        self.has_extern_class = 0
     
     def qualifying_scope(self):
         return self.parent_module

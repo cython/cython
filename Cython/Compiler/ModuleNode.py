@@ -1225,7 +1225,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         return Naming.modules_prefix + module_name.replace("_", "__").replace(".", "_")
 
     def generate_imported_module(self, module, code):
-        import_module = 0
+        import_module = module.has_extern_class
         for entry in module.cfunc_entries:
             if entry.defined_in_pxd:
                 import_module = 1
@@ -1384,14 +1384,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
 
     def generate_module_import_code(self, module, env, code):
-        import_module = 0
+        import_module = module.has_extern_class
         for entry in module.cfunc_entries:
             if entry.defined_in_pxd:
                 import_module = 1
         for entry in module.c_class_entries:
             if entry.defined_in_pxd:
                 import_module = 1
-        print "generate_module_import_code", module, import_module
         if import_module:
             env.use_utility_code(import_module_utility_code)
             name = self.build_module_var_name(module.qualified_name)
