@@ -157,7 +157,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("")
             h_code.putln("static int import_%s(void) {" % name)
             h_code.putln("PyObject *module = 0;")
-            h_code.putln('module = __Pyx_ImportModule("%s", NULL);' % self.full_module_name)
+            h_code.putln('module = __Pyx_ImportModule("%s");' % env.qualified_name)
             h_code.putln("if (!module) goto bad;")
             for entry in api_funcs:
                 sig = entry.type.signature_string()
@@ -216,8 +216,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)
         self.generate_filename_init_prototype(code)
-        for module in modules[:-1]:
-            self.generate_imported_module(module, code)
         self.generate_module_init_func(modules[:-1], env, code)
         self.generate_filename_table(code)
         self.generate_utility_functions(env, code)
@@ -1221,20 +1219,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("");
         code.putln("static void %s(void); /*proto*/" % Naming.fileinit_cname)
 
-    def build_module_var_name(self, module_name):
-        return Naming.modules_prefix + module_name.replace("_", "__").replace(".", "_")
-
-    def generate_imported_module(self, module, code):
-        import_module = module.has_extern_class
-        for entry in module.cfunc_entries:
-            if entry.defined_in_pxd:
-                import_module = 1
-        for entry in module.c_class_entries:
-            if entry.defined_in_pxd:
-                import_module = 1
-        if import_module:
-            code.putln("PyObject *%s;" % self.build_module_var_name(module.qualified_name))
-
     def generate_module_init_func(self, imported_modules, env, code):
         code.putln("")
         header = "PyMODINIT_FUNC init%s(void)" % env.module_name
@@ -1261,10 +1245,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("/*--- Global init code ---*/")
         self.generate_global_init_code(env, code)
-
-        code.putln("/*--- Module import code ---*/")
-        for module in imported_modules:
-            self.generate_module_import_code(module, env, code)
         
         code.putln("/*--- Function export code ---*/")
         self.generate_c_function_export_code(env, code)
@@ -1382,26 +1362,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if entry.type.is_pyobject:
                     code.put_init_var_to_py_none(entry)
 
-
-    def generate_module_import_code(self, module, env, code):
-        import_module = module.has_extern_class
-        for entry in module.cfunc_entries:
-            if entry.defined_in_pxd:
-                import_module = 1
-        for entry in module.c_class_entries:
-            if entry.defined_in_pxd:
-                import_module = 1
-        if import_module:
-            env.use_utility_code(import_module_utility_code)
-            name = self.build_module_var_name(module.qualified_name)
-            code.putln(
-                '%s = __Pyx_ImportModule("%s", "%s"); %s' % (
-                    name,
-                    '.'.join(self.full_module_name.split('.')[:-1] + [module.qualified_name]),
-                    module.qualified_name,
-                    code.error_goto_if_null(name, self.pos)))
-        
-
     def generate_c_function_export_code(self, env, code):
         # Generate code to create PyCFunction wrappers for exported C functions.
         for entry in env.cfunc_entries:
@@ -1431,14 +1391,22 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if entries:
             env.use_utility_code(import_module_utility_code)
             env.use_utility_code(function_import_utility_code)
+            temp = self.module_temp_cname
+            code.putln(
+                '%s = __Pyx_ImportModule("%s"); if (!%s) %s' % (
+                    temp,
+                    module.qualified_name,
+                    temp,
+                    code.error_goto(self.pos)))
             for entry in entries:
                 code.putln(
                     'if (__Pyx_ImportFunction(%s, "%s", (void**)&%s, "%s") < 0) %s' % (
-                        self.build_module_var_name(module.qualified_name),
+                        temp,
                         entry.name,
                         entry.cname,
                         entry.type.signature_string(),
                         code.error_goto(self.pos)))
+            code.putln("Py_DECREF(%s); %s = 0;" % (temp, temp))
     
     def generate_type_init_code(self, env, code):
         # Generate type import code for extern extension types
@@ -1489,10 +1457,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             objstruct = type.objstruct_cname
         else:
             objstruct = "struct %s" % type.objstruct_cname
-        code.putln('%s = __Pyx_ImportType(%s, "%s", "%s", sizeof(%s)); %s' % (
+        code.putln('%s = __Pyx_ImportType("%s", "%s", sizeof(%s)); %s' % (
             type.typeptr_cname,
-            self.build_module_var_name(type.module_name),
-            type.module_name,
+            type.module_name, 
             type.name,
             objstruct,
             error_code))
@@ -1588,52 +1555,41 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
 import_module_utility_code = [
 """
-static PyObject *__Pyx_ImportModule(char *prefixed_name, char* name); /*proto*/
+static PyObject *__Pyx_ImportModule(char *name); /*proto*/
 ""","""
-static PyObject *__Pyx_ImportModule(char *prefixed_name, char* name) {
+#ifndef __PYX_HAVE_RT_ImportModule
+#define __PYX_HAVE_RT_ImportModule
+static PyObject *__Pyx_ImportModule(char *name) {
     PyObject *py_name = 0;
-    PyObject *py_module = 0;
-
-    if (prefixed_name) {
-        py_name = PyString_FromString(prefixed_name);
-        if (!py_name)
-            goto bad;
-        py_module = PyImport_Import(py_name);
-        Py_DECREF(py_name);
-        py_name = 0;
-        if (py_module)
-            return py_module;
-        if (name)
-            PyErr_Clear();
-    }
     
-    if (name) {
-        py_name = PyString_FromString(name);
-        if (!py_name)
-            goto bad;
-        py_module = PyImport_Import(py_name);
-        Py_DECREF(py_name);
-        py_name = 0;
-    }
-
-    return py_module;
+    py_name = PyString_FromString(name);
+    if (!py_name)
+        goto bad;
+    return PyImport_Import(py_name);
 bad:
     Py_XDECREF(py_name);
     return 0;
 }
+#endif
 """]
 
 #------------------------------------------------------------------------------------
 
 type_import_utility_code = [
 """
-static PyTypeObject *__Pyx_ImportType(PyObject *py_module, char *module_name, char *class_name, long size);  /*proto*/
+static PyTypeObject *__Pyx_ImportType(char *module_name, char *class_name, long size);  /*proto*/
 ""","""
 #ifndef __PYX_HAVE_RT_ImportType
 #define __PYX_HAVE_RT_ImportType
-static PyTypeObject *__Pyx_ImportType(PyObject *py_module, char *module_name, char *class_name, long size) {
+static PyTypeObject *__Pyx_ImportType(char *module_name, char *class_name,
+    long size)
+{
+    PyObject *py_module = 0;
     PyObject *result = 0;
     
+    py_module = __Pyx_ImportModule(module_name);
+    if (!py_module)
+        goto bad;
     result = PyObject_GetAttrString(py_module, class_name);
     if (!result)
         goto bad;
