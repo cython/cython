@@ -2589,7 +2589,7 @@ class ExceptClauseNode(Node):
         self.body.generate_execution_code(code)
         code.exc_vars = old_exc_vars
         for var in self.exc_vars:
-            code.putln("Py_DECREF(%s);" % var)
+            code.putln("Py_DECREF(%s); %s = 0;" % (var, var))
         code.put_goto(end_label)
         code.putln(
             "}")
