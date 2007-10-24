@@ -449,7 +449,7 @@ class Scope:
         # Add an entry for an int constant.
         cname = "%s%s" % (Naming.interned_num_prefix, value)
         cname = cname.replace('-', 'neg_').replace('.','_')
-        entry = Entry("", cname, c_long_type, init = value)
+        entry = Entry("", cname, py_object_type, init = value)
         entry.used = 1
         entry.is_interned = 1
         self.const_entries.append(entry)

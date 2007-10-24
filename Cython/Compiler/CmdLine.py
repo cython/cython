@@ -80,6 +80,8 @@ def parse_command_line(args):
                 Options.pre_import = pop_arg()
             elif option == "--incref-local-binop":
                 Options.incref_local_binop = 1
+            elif option == "--cleanup":
+                Options.generate_cleanup_code = int(pop_arg())
             else:
                 bad_usage()
         else:

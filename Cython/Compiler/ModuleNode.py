@@ -217,6 +217,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_method_table(env, code)
         self.generate_filename_init_prototype(code)
         self.generate_module_init_func(modules[:-1], env, code)
+        self.generate_module_cleanup_func(env, code)
         self.generate_filename_table(code)
         self.generate_utility_functions(env, code)
 
@@ -1262,13 +1263,47 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("/*--- Execution code ---*/")
         self.body.generate_execution_code(code)
+        
+        if Options.generate_cleanup_code:
+            code.putln("if (__Pyx_RegisterCleanup()) %s;" % code.error_goto(self.pos))
+        
         code.putln("return;")
         code.put_label(code.error_label)
         code.put_var_xdecrefs(env.temp_entries)
         code.putln('__Pyx_AddTraceback("%s");' % (env.qualified_name))
         env.use_utility_code(Nodes.traceback_utility_code)
         code.putln('}')
-    
+            
+    def generate_module_cleanup_func(self, env, code):
+        if not Options.generate_cleanup_code:
+            return
+        env.use_utility_code(import_module_utility_code)
+        env.use_utility_code(register_cleanup_utility_code)
+        code.putln()
+        code.putln('static PyObject* cleanup(PyObject *self, PyObject *unused) {')
+        if Options.generate_cleanup_code >= 2:
+            code.putln("/*--- Global cleanup code ---*/")
+            for entry in reversed(env.var_entries):
+                if entry.visibility != 'extern':
+                    if entry.type.is_pyobject:
+                        code.put_var_decref_clear(entry)
+        if Options.generate_cleanup_code >= 3:
+            code.putln("/*--- Type import cleanup code ---*/")
+            for type, _ in env.types_imported.items():
+                code.put_decref("((PyObject*)%s)" % type.typeptr_cname, PyrexTypes.py_object_type)
+        if Options.cache_builtins:
+            code.putln("/*--- Builtin cleanup code ---*/")
+            for entry in env.builtin_scope().cached_entries:
+                code.put_var_decref_clear(entry)
+        code.putln("/*--- Intern cleanup code ---*/")
+        for entry in env.pynum_entries:
+            code.put_var_decref_clear(entry)
+        if env.intern_map:
+            for name, cname in env.intern_map.items():
+                code.put_decref_clear(cname, PyrexTypes.py_object_type)
+        code.putln("Py_INCREF(Py_None); return Py_None;")
+        code.putln('}')
+
     def generate_filename_init_call(self, code):
         code.putln("%s();" % Naming.fileinit_cname)
     
@@ -1689,3 +1724,48 @@ bad:
 }
 #endif
 """ % dict(API = Naming.api_name)]
+
+register_cleanup_utility_code = [
+"""
+static int __Pyx_RegisterCleanup(); /*proto*/
+static PyObject* cleanup(PyObject *self, PyObject *unused); /*proto*/
+static PyMethodDef cleanup_def = {"__cleanup", (PyCFunction)&cleanup, METH_NOARGS, 0};
+""","""
+static int __Pyx_RegisterCleanup() {
+    /* Don't use Py_AtExit because that has a 32-call limit 
+     * and is called after python finalization. 
+     */
+
+    PyObject *cleanup_func = 0;
+    PyObject *atexit = 0;
+    PyObject *reg = 0;
+    PyObject *args = 0;
+    PyObject *res = 0;
+    int ret = -1;
+    
+    cleanup_func = PyCFunction_New(&cleanup_def, 0);
+    args = PyTuple_New(1);
+    if (!cleanup_func || !args)
+        goto bad;
+    PyTuple_SET_ITEM(args, 0, cleanup_func);
+    cleanup_func = 0;
+
+    atexit = __Pyx_ImportModule("atexit");
+    if (!atexit)
+        goto bad;
+    reg = PyObject_GetAttrString(atexit, "register");
+    if (!reg)
+        goto bad;
+    res = PyObject_CallObject(reg, args);
+    if (!res)
+        goto bad;
+    ret = 0;
+bad:
+    Py_XDECREF(cleanup_func);
+    Py_XDECREF(atexit);
+    Py_XDECREF(reg);
+    Py_XDECREF(args);
+    Py_XDECREF(res);
+    return ret;
+}
+"""]

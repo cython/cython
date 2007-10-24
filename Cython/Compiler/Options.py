@@ -16,3 +16,6 @@ pre_import = None
 # safe detection of inplace operators. 
 incref_local_binop = 0
 
+# Decref global variables in this module on exit for garbage collection. 
+# 0: None, 1+: interned objects, 2+: cdef globals, 3+: types objects
+generate_cleanup_code = 1
