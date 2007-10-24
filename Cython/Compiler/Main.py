@@ -189,7 +189,7 @@ class Context:
                 c_stat = os.stat(result.c_file)
             except EnvironmentError:
                 pass
-        module_name = self.extract_module_name(source, options)
+        module_name = full_module_name # self.extract_module_name(source, options)
         initial_pos = (source, 1, 0)
         scope = self.find_module(module_name, pos = initial_pos, need_pxd = 0)
         errors_occurred = False

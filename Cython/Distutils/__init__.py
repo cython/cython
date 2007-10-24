@@ -8,4 +8,4 @@
 # so that *our* build_ext can make use of it.
 
 from build_ext import build_ext
-from extension import Extension
+# from extension import Extension
