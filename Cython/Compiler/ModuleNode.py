@@ -1239,9 +1239,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- String init code ---*/")
         self.generate_string_init_code(env, code)
 
-        code.putln("/*--- Builtin init code ---*/")
-        # TODO: FIXME !!
-        #self.generate_builtin_init_code(env, code)
+        if Options.cache_builtins:
+            code.putln("/*--- Builtin init code ---*/")
+            self.generate_builtin_init_code(env, code)
 
         code.putln("/*--- Global init code ---*/")
         self.generate_global_init_code(env, code)

@@ -815,7 +815,7 @@ class NameNode(AtomicExprNode):
         if entry.is_pyglobal or entry.is_builtin:
             assert type.is_pyobject, "Python global or builtin not a Python object"
             if Options.intern_names:
-                self.interned_cname = env.intern(self.entry.name)
+                self.interned_cname = self.entry.interned_cname = env.intern(self.entry.name)
 
     def check_identifier_kind(self):
         #print "NameNode.check_identifier_kind:", self.entry.name ###
