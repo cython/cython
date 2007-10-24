@@ -42,6 +42,7 @@ class Signature:
         'p': PyrexTypes.c_void_ptr_type,
         'P': PyrexTypes.c_void_ptr_ptr_type,
         'i': PyrexTypes.c_int_type,
+        'b': PyrexTypes.c_bint_type,
         'I': PyrexTypes.c_int_ptr_type,
         'l': PyrexTypes.c_long_type,
         'Z': PyrexTypes.c_py_ssize_t_type,
@@ -53,10 +54,12 @@ class Signature:
     }
     
     error_value_map = {
-        'O': "0",
+        'O': "NULL",
         'i': "-1",
+        'b': "-1",
         'l': "-1",
         'r': "-1",
+        'Z': "-1",
     }
     
     def __init__(self, arg_format, ret_format):
