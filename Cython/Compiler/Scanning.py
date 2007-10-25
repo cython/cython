@@ -139,7 +139,7 @@ reserved_words = [
     "raise", "import", "exec", "try", "except", "finally",
     "while", "if", "elif", "else", "for", "in", "assert",
     "and", "or", "not", "is", "in", "lambda", "from",
-    "NULL", "cimport", "by", "with", "rdef", "DEF", "IF", "ELIF", "ELSE"
+    "NULL", "cimport", "by", "with", "cpdef", "DEF", "IF", "ELIF", "ELSE"
 ]
 
 class Method:
