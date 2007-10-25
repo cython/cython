@@ -1293,7 +1293,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.put_decref("((PyObject*)%s)" % type.typeptr_cname, PyrexTypes.py_object_type)
         if Options.cache_builtins:
             code.putln("/*--- Builtin cleanup code ---*/")
-            for entry in env.builtin_scope().cached_entries:
+            for entry in env.cached_builtins:
                 code.put_var_decref_clear(entry)
         code.putln("/*--- Intern cleanup code ---*/")
         for entry in env.pynum_entries:
@@ -1370,7 +1370,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_builtin_init_code(self, env, code):
         # Lookup and cache builtin objects.
         if Options.cache_builtins:
-            for entry in env.builtin_scope().cached_entries:
+            for entry in env.cached_builtins:
                 if Options.intern_names:
                     #assert entry.interned_cname is not None
                     code.putln(

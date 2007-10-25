@@ -129,7 +129,7 @@ class BlockNode:
             del entries[:]
 
     def generate_cached_builtins_decls(self, env, code):
-        entries = env.builtin_scope().undeclared_cached_entries
+        entries = env.global_scope().undeclared_cached_builtins
         if len(entries) > 0:
             code.putln("")
         for entry in entries:

@@ -560,8 +560,6 @@ class BuiltinScope(Scope):
         for name, definition in self.builtin_entries.iteritems():
             cname, type = definition
             self.declare_var(name, type, None, cname)
-        self.cached_entries = []
-        self.undeclared_cached_entries = []
         
     def declare_builtin(self, name, pos):
         if not hasattr(__builtin__, name):
@@ -569,16 +567,6 @@ class BuiltinScope(Scope):
                 return self.outer_scope.declare_builtin(name, pos)
             else:
                 error(pos, "undeclared name not builtin: %s"%name)
-        entry = self.declare(name, name, py_object_type, pos)
-        if Options.cache_builtins:
-            entry.is_builtin = 1
-            entry.is_const = 1
-            entry.cname = Naming.builtin_prefix + name
-            self.cached_entries.append(entry)
-            self.undeclared_cached_entries.append(entry)
-        else:
-            entry.is_builtin = 1
-        return entry
     
     def declare_builtin_cfunction(self, name, type, cname, python_equiv = None,
             utility_code = None):
@@ -688,6 +676,8 @@ class ModuleScope(Scope):
         self.types_imported = {}
         self.pynum_entries = []
         self.has_extern_class = 0
+        self.cached_builtins = []
+        self.undeclared_cached_builtins = []
     
     def qualifying_scope(self):
         return self.parent_module
@@ -696,8 +686,20 @@ class ModuleScope(Scope):
         return self
     
     def declare_builtin(self, name, pos):
-        entry = Scope.declare_builtin(self, name, pos)
-        #entry.interned_cname = self.intern(name)
+        if not hasattr(__builtin__, name):
+            if self.outer_scope is not None:
+                return self.outer_scope.declare_builtin(name, pos)
+            else:
+                error(pos, "undeclared name not builtin: %s"%name)
+        entry = self.declare(name, name, py_object_type, pos)
+        if Options.cache_builtins:
+            entry.is_builtin = 1
+            entry.is_const = 1
+            entry.cname = Naming.builtin_prefix + name
+            self.cached_builtins.append(entry)
+            self.undeclared_cached_builtins.append(entry)
+        else:
+            entry.is_builtin = 1
         return entry
     
     def intern(self, name):
