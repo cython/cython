@@ -742,7 +742,7 @@ class NameNode(AtomicExprNode):
         #print "NameNode.coerce_to:", self.name, dst_type ###
         if dst_type is py_object_type:
             entry = self.entry
-            if entry.is_cfunction:
+            if entry and entry.is_cfunction:
                 var_entry = entry.as_variable
                 if var_entry:
                     node = NameNode(self.pos, name = self.name)
@@ -779,6 +779,9 @@ class NameNode(AtomicExprNode):
         self.entry = env.lookup(self.name)
         if not self.entry:
             self.entry = env.declare_builtin(self.name, self.pos)
+        if not self.entry:
+            self.type = PyrexTypes.error_type
+            return
         self.analyse_rvalue_entry(env)
         
     def analyse_target_types(self, env):
