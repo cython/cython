@@ -166,9 +166,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         entry.name,
                         entry.cname,
                         sig))
-            h_code.putln("Py_DECREF(module);")
+            h_code.putln("Py_DECREF(module); module = 0;")
             for entry in public_extension_types:
-                self.generate_type_import_call(entry.type, h_code, "goto bad;")
+                self.generate_type_import_call(
+                    entry.type, h_code,
+                    "if (!%s) goto bad;" % entry.type.typeptr_cname)
             h_code.putln("return 0;")
             h_code.putln("bad:")
             h_code.putln("Py_XDECREF(module);")
