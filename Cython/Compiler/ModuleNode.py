@@ -1719,11 +1719,9 @@ static int __Pyx_ImportFunction(PyObject *module, char *funcname, void **f, char
         goto bad;
     }
     *f = PyCObject_AsVoidPtr(cobj);
-    Py_DECREF(cobj);
     Py_DECREF(d);
     return 0;
 bad:
-    Py_XDECREF(cobj);
     Py_XDECREF(d);
     return -1;
 }
