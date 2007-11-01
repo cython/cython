@@ -20,7 +20,7 @@ builtin_function_table = [
     ('getattr',    "OO",   "O",     "PyObject_GetAttr"),
     ('getattr3',   "OOO",  "O",     "__Pyx_GetAttr3",       "getattr"),
     ('hasattr',    "OO",   "b",     "PyObject_HasAttr"),
-    ('hash',       "O",    "i",     "PyObject_Hash"),
+    ('hash',       "O",    "l",     "PyObject_Hash"),
     #('hex',       "",     "",      ""),
     #('id',        "",     "",      ""),
     #('input',     "",     "",      ""),
