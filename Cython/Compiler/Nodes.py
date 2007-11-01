@@ -761,6 +761,7 @@ class CFuncDefNode(FuncDefNode):
         # may be different if we're overriding a C method inherited
         # from the base type of an extension type.
         self.type = type
+        type.is_overridable = self.overridable
         name = name_declarator.name
         cname = name_declarator.cname
         self.entry = env.declare_cfunction(
@@ -768,7 +769,6 @@ class CFuncDefNode(FuncDefNode):
             cname = cname, visibility = self.visibility,
             defining = self.body is not None,
             api = self.api)
-        self.entry.is_overridable = self.overridable
         self.return_type = type.return_type
 
         if self.overridable:

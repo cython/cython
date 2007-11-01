@@ -109,6 +109,7 @@ class Entry:
     defined_in_pxd = 0
     api = 0
     utility_code = None
+    is_overridable = 0
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name

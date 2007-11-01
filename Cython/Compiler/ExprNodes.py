@@ -1550,7 +1550,7 @@ class SimpleCallNode(ExprNode):
         result = "%s(%s)" % (self.function.result_code,
             join(arg_list_code, ","))
         if self.wrapper_call or \
-                self.function.entry.is_unbound_cmethod and self.function.entry.is_overridable:
+                self.function.entry.is_unbound_cmethod and self.function.entry.type.is_overridable:
             result = "(%s = 1, %s)" % (Naming.skip_dispatch_cname, result)
         return result
     
@@ -1770,7 +1770,6 @@ class AttributeNode(ExprNode):
                 ubcm_entry.is_cfunction = 1
                 ubcm_entry.func_cname = entry.func_cname
                 ubcm_entry.is_unbound_cmethod = 1
-                ubcm_entry.is_overridable = entry.is_overridable
                 self.mutate_into_name_node(env, ubcm_entry, None)
                 return 1
         return 0
