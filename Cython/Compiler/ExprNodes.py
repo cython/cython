@@ -1434,12 +1434,14 @@ class SimpleCallNode(ExprNode):
     #  arg_tuple      ExprNode or None     used internally
     #  self           ExprNode or None     used internally
     #  coerced_self   ExprNode or None     used internally
+    #  wrapper_call   bool                 used internally
     
     subexprs = ['self', 'coerced_self', 'function', 'args', 'arg_tuple']
     
     self = None
     coerced_self = None
     arg_tuple = None
+    wrapper_call = False
     
     def compile_time_value(self, denv):
         function = self.function.compile_time_value(denv)
@@ -1547,6 +1549,9 @@ class SimpleCallNode(ExprNode):
             arg_list_code.append(actual_arg.result_code)
         result = "%s(%s)" % (self.function.result_code,
             join(arg_list_code, ","))
+        if self.wrapper_call or \
+                self.function.entry.is_unbound_cmethod and self.function.entry.is_overridable:
+            result = "(%s = 1, %s)" % (Naming.skip_dispatch_cname, result)
         return result
     
     def generate_result_code(self, code):
@@ -1764,6 +1769,8 @@ class AttributeNode(ExprNode):
                     entry.type)
                 ubcm_entry.is_cfunction = 1
                 ubcm_entry.func_cname = entry.func_cname
+                ubcm_entry.is_unbound_cmethod = 1
+                ubcm_entry.is_overridable = entry.is_overridable
                 self.mutate_into_name_node(env, ubcm_entry, None)
                 return 1
         return 0

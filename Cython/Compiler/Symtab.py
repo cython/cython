@@ -34,6 +34,7 @@ class Entry:
     # is_variable      boolean    Is a variable
     # is_cfunction     boolean    Is a C function
     # is_cmethod       boolean    Is a C method of an extension type
+    # is_unbound_cmethod boolean  Is an unbound C method of an extension type
     # is_type          boolean    Is a type definition
     # is_const         boolean    Is a constant
     # is_property      boolean    Is a property of an extension type:
@@ -81,6 +82,7 @@ class Entry:
     is_variable = 0
     is_cfunction = 0
     is_cmethod = 0
+    is_unbound_cmethod = 0
     is_type = 0
     is_const = 0
     is_property = 0
