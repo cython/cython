@@ -2174,15 +2174,15 @@ class AssertStatNode(StatNode):
     def generate_execution_code(self, code):
         code.putln("#ifndef PYREX_WITHOUT_ASSERTIONS")
         self.cond.generate_evaluation_code(code)
-        if self.value:
-            self.value.generate_evaluation_code(code)
         code.putln(
             "if (unlikely(!%s)) {" %
                 self.cond.result_code)
         if self.value:
+            self.value.generate_evaluation_code(code)
             code.putln(
                 "PyErr_SetObject(PyExc_AssertionError, %s);" %
                     self.value.py_result())
+            self.value.generate_disposal_code(code)
         else:
             code.putln(
                 "PyErr_SetNone(PyExc_AssertionError);")
@@ -2191,8 +2191,6 @@ class AssertStatNode(StatNode):
         code.putln(
             "}")
         self.cond.generate_disposal_code(code)
-        if self.value:
-            self.value.generate_disposal_code(code)
         code.putln("#endif")
 
 class IfStatNode(StatNode):
