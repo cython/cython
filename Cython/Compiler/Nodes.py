@@ -783,7 +783,7 @@ class CFuncDefNode(FuncDefNode):
                                    args = self.declarator.args,
                                    star_arg = None,
                                    starstar_arg = None,
-                                   doc = None, # self.doc,
+                                   doc = self.doc,
                                    body = py_func_body)
             self.py_func.analyse_declarations(env)
             # Reset scope entry the above cfunction
@@ -1026,7 +1026,7 @@ class DefNode(FuncDefNode):
             Naming.pymethdef_prefix + prefix + name
         if not Options.docstrings:
             self.entry.doc = None
-        elif not entry.is_special:
+        else:
             if Options.embed_pos_in_docstring:
                 entry.doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
                 if not self.doc is None:

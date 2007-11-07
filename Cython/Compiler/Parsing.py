@@ -1862,12 +1862,13 @@ def p_c_func_or_var_declaration(s, level, pos, visibility = 'private', api = 0,
     if s.sy == ':':
         if level not in ('module', 'c_class'):
             s.error("C function definition not allowed here")
-        suite = p_suite(s, 'function', with_pseudo_doc = 1)
+        doc, suite = p_suite(s, 'function', with_doc = 1)
         result = Nodes.CFuncDefNode(pos,
             visibility = visibility,
             base_type = base_type,
             declarator = declarator, 
             body = suite,
+            doc = doc,
             modifiers = modifiers,
             api = api,
             overridable = overridable)
