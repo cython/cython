@@ -23,7 +23,8 @@ Options:
                                  module. Emulates the behavior of putting 
                                  "from <module> import *" at the top of the file. 
   --incref-local-binop           Force local an extra incref on local variables before
-                                 performing any binary operations. 
+                                 performing any binary operations.
+  -D, --no-docstrings            Remove docstrings.
 """  
 #The following experimental options are supported only on MacOSX:
 #  -C, --compile    Compile generated .c file to .o file
@@ -82,6 +83,8 @@ def parse_command_line(args):
                 Options.incref_local_binop = 1
             elif option == "--cleanup":
                 Options.generate_cleanup_code = int(pop_arg())
+            elif option in ("-D", "--no-docstrings"):
+                Options.docstrings = False
             else:
                 bad_usage()
         else:

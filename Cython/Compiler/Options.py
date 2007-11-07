@@ -9,6 +9,7 @@ embed_pos_in_docstring = 0
 gcc_branch_hints = 1
 
 pre_import = None
+docstrings = True
 
 # This is a SAGE-specific option that will 
 # cause Cython to incref local variables before

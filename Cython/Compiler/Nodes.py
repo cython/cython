@@ -1024,7 +1024,9 @@ class DefNode(FuncDefNode):
             Naming.pyfunc_prefix + prefix + name
         entry.pymethdef_cname = \
             Naming.pymethdef_prefix + prefix + name
-        if not entry.is_special:
+        if not Options.docstrings:
+            self.entry.doc = None
+        elif not entry.is_special:
             if Options.embed_pos_in_docstring:
                 entry.doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
                 if not self.doc is None:
@@ -1120,7 +1122,7 @@ class DefNode(FuncDefNode):
         code.putln("%s; /*proto*/" % header)
         if proto_only:
             return
-        if self.entry.doc:
+        if self.entry.doc and Options.docstrings:
             code.putln(
                 'static char %s[] = "%s";' % (
                     self.entry.doc_cname,
@@ -1433,7 +1435,7 @@ class PyClassDefNode(StatNode, BlockNode):
         self.body = body
         import ExprNodes
         self.dict = ExprNodes.DictNode(pos, key_value_pairs = [])
-        if self.doc:
+        if self.doc and Options.docstrings:
             if Options.embed_pos_in_docstring:
                 doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
             doc = doc + '\\n' + self.doc
@@ -1546,7 +1548,7 @@ class CClassDefNode(StatNode):
             api = self.api)
         scope = self.entry.type.scope
         
-        if self.doc:
+        if self.doc and Options.docstrings:
             if Options.embed_pos_in_docstring:
                 scope.doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
                 scope.doc = scope.doc + '\\n' + self.doc
@@ -1588,7 +1590,7 @@ class PropertyNode(StatNode):
     def analyse_declarations(self, env):
         entry = env.declare_property(self.name, self.doc, self.pos)
         if entry:
-            if self.doc:
+            if self.doc and Options.docstrings:
                 doc_entry = env.get_string_const(self.doc)
                 entry.doc_cname = doc_entry.cname
             self.body.analyse_declarations(entry.scope)
