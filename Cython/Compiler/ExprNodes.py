@@ -742,7 +742,7 @@ class NameNode(AtomicExprNode):
         #print "NameNode.coerce_to:", self.name, dst_type ###
         if dst_type is py_object_type:
             entry = self.entry
-            if entry.is_cfunction:
+            if entry and entry.is_cfunction:
                 var_entry = entry.as_variable
                 if var_entry:
                     node = NameNode(self.pos, name = self.name)
@@ -779,6 +779,9 @@ class NameNode(AtomicExprNode):
         self.entry = env.lookup(self.name)
         if not self.entry:
             self.entry = env.declare_builtin(self.name, self.pos)
+        if not self.entry:
+            self.type = PyrexTypes.error_type
+            return
         self.analyse_rvalue_entry(env)
         
     def analyse_target_types(self, env):
@@ -1431,12 +1434,14 @@ class SimpleCallNode(ExprNode):
     #  arg_tuple      ExprNode or None     used internally
     #  self           ExprNode or None     used internally
     #  coerced_self   ExprNode or None     used internally
+    #  wrapper_call   bool                 used internally
     
     subexprs = ['self', 'coerced_self', 'function', 'args', 'arg_tuple']
     
     self = None
     coerced_self = None
     arg_tuple = None
+    wrapper_call = False
     
     def compile_time_value(self, denv):
         function = self.function.compile_time_value(denv)
@@ -1544,6 +1549,9 @@ class SimpleCallNode(ExprNode):
             arg_list_code.append(actual_arg.result_code)
         result = "%s(%s)" % (self.function.result_code,
             join(arg_list_code, ","))
+        if self.wrapper_call or \
+                self.function.entry.is_unbound_cmethod and self.function.entry.type.is_overridable:
+            result = "(%s = 1, %s)" % (Naming.skip_dispatch_cname, result)
         return result
     
     def generate_result_code(self, code):
@@ -1761,6 +1769,7 @@ class AttributeNode(ExprNode):
                     entry.type)
                 ubcm_entry.is_cfunction = 1
                 ubcm_entry.func_cname = entry.func_cname
+                ubcm_entry.is_unbound_cmethod = 1
                 self.mutate_into_name_node(env, ubcm_entry, None)
                 return 1
         return 0

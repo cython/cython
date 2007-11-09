@@ -761,6 +761,7 @@ class CFuncDefNode(FuncDefNode):
         # may be different if we're overriding a C method inherited
         # from the base type of an extension type.
         self.type = type
+        type.is_overridable = self.overridable
         name = name_declarator.name
         cname = name_declarator.cname
         self.entry = env.declare_cfunction(
@@ -775,7 +776,7 @@ class CFuncDefNode(FuncDefNode):
             arg_names = [arg.name for arg in self.type.args]
             self_arg = ExprNodes.NameNode(self.pos, name=arg_names[0])
             cfunc = ExprNodes.AttributeNode(self.pos, obj=self_arg, attribute=self.declarator.base.name)
-            c_call = ExprNodes.SimpleCallNode(self.pos, function=cfunc, args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names[1:]])
+            c_call = ExprNodes.SimpleCallNode(self.pos, function=cfunc, args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names[1:]], wrapper_call=True)
             py_func_body = ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
             self.py_func = DefNode(pos = self.pos, 
                                    name = self.declarator.base.name,
@@ -790,7 +791,7 @@ class CFuncDefNode(FuncDefNode):
             if Options.intern_names:
                 self.py_func.interned_attr_cname = env.intern(self.py_func.entry.name)
             self.override = OverrideCheckNode(self.pos, py_func = self.py_func)
-            self.body.stats.insert(0, self.override)
+            self.body = StatListNode(self.pos, stats=[self.override, self.body])
             
                     
     def declare_arguments(self, env):
@@ -1020,7 +1021,7 @@ class DefNode(FuncDefNode):
         self.entry = entry
         prefix = env.scope_prefix
         entry.func_cname = \
-            Naming.func_prefix + prefix + name
+            Naming.pyfunc_prefix + prefix + name
         entry.pymethdef_cname = \
             Naming.pymethdef_prefix + prefix + name
         if not entry.is_special:
@@ -1389,8 +1390,10 @@ class OverrideCheckNode(StatNode):
     def generate_execution_code(self, code):
         # Check to see if we are an extension type
         self_arg = "((PyObject *)%s)" % self.args[0].cname
+        code.putln("/* Check if called by wrapper */")
+        code.putln("if (unlikely(%s)) %s = 0;" % (Naming.skip_dispatch_cname, Naming.skip_dispatch_cname))
         code.putln("/* Check if overriden in Python */")
-        code.putln("if (unlikely(%s->ob_type->tp_dictoffset != 0)) {" % self_arg)
+        code.putln("else if (unlikely(%s->ob_type->tp_dictoffset != 0)) {" % self_arg)
         err = code.error_goto_if_null(self_arg, self.pos)
         # need to get attribute manually--scope would return cdef method
         if Options.intern_names:
@@ -2934,7 +2937,14 @@ utility_function_predeclarations = \
 typedef struct {PyObject **p; char *s;} __Pyx_InternTabEntry; /*proto*/
 typedef struct {PyObject **p; char *s; long n; int is_unicode;} __Pyx_StringTabEntry; /*proto*/
 
-#define __pyx_PyIndex_AsSsize_t(b) PyInt_AsSsize_t(PyNumber_Index(b))
+static INLINE Py_ssize_t __pyx_PyIndex_AsSsize_t(PyObject* b) {
+  Py_ssize_t ival;
+  PyObject* x = PyNumber_Index(b);
+  if (!x) return -1;
+  ival = PyInt_AsSsize_t(x);
+  Py_DECREF(x);
+  return ival;
+}
 
 #define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
 static INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
@@ -2943,7 +2953,11 @@ static INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
    else return PyObject_IsTrue(x);
 }
 
-""" 
+""" + """
+
+static int %(skip_dispatch_cname)s = 0;
+
+""" % { 'skip_dispatch_cname': Naming.skip_dispatch_cname }
 
 if Options.gcc_branch_hints:
     branch_prediction_macros = \

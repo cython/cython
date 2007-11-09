@@ -1311,7 +1311,7 @@ def p_statement(s, level, cdef_flag = 0, visibility = 'private', api = 0):
         if s.sy == 'cdef':
             cdef_flag = 1
             s.next()
-        if s.sy == 'rdef':
+        if s.sy == 'cpdef':
             cdef_flag = 1
             overridable = 1
             s.next()
@@ -1320,7 +1320,7 @@ def p_statement(s, level, cdef_flag = 0, visibility = 'private', api = 0):
                 s.error('cdef statement not allowed here')
             return p_cdef_statement(s, level, visibility = visibility,
                                     api = api, overridable = overridable)
-    #    elif s.sy == 'rdef':
+    #    elif s.sy == 'cpdef':
     #        s.next()
     #        return p_c_func_or_var_declaration(s, level, s.position(), visibility = visibility, api = api, overridable = True)
         else:

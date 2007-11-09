@@ -417,7 +417,7 @@ class CULongLongType(CUIntType):
 class CPySSizeTType(CIntType):
 
     to_py_function = "PyInt_FromSsize_t"
-    from_py_function = "PyInt_AsSsize_t"
+    from_py_function = "__pyx_PyIndex_AsSsize_t"
 
 
 class CFloatType(CNumericType):
@@ -535,7 +535,7 @@ class CFuncType(CType):
     
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
-            nogil = 0, with_gil = 0):
+            nogil = 0, with_gil = 0, is_overridable = 0):
         self.return_type = return_type
         self.args = args
         self.has_varargs = has_varargs
@@ -544,6 +544,7 @@ class CFuncType(CType):
         self.calling_convention = calling_convention
         self.nogil = nogil
         self.with_gil = with_gil
+        self.is_overridable = is_overridable
     
     def __repr__(self):
         arg_reprs = map(repr, self.args)
@@ -571,6 +572,8 @@ class CFuncType(CType):
         if other_type is error_type:
             return 1
         if not other_type.is_cfunction:
+            return 0
+        if self.is_overridable != other_type.is_overridable:
             return 0
         nargs = len(self.args)
         if nargs <> len(other_type.args):

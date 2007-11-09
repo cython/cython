@@ -1598,11 +1598,14 @@ static PyObject *__Pyx_ImportModule(char *name); /*proto*/
 #define __PYX_HAVE_RT_ImportModule
 static PyObject *__Pyx_ImportModule(char *name) {
     PyObject *py_name = 0;
+    PyObject *py_module = 0;
     
     py_name = PyString_FromString(name);
     if (!py_name)
         goto bad;
-    return PyImport_Import(py_name);
+    py_module = PyImport_Import(py_name);
+    Py_DECREF(py_name);
+    return py_module;
 bad:
     Py_XDECREF(py_name);
     return 0;
