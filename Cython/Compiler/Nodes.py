@@ -351,7 +351,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             return_type, func_type_args, self.has_varargs, 
             exception_value = exc_val, exception_check = exc_check,
             calling_convention = self.base.calling_convention,
-            nogil = self.nogil, with_gil = self.with_gil)
+            nogil = self.nogil, with_gil = self.with_gil, is_overridable = self.overridable)
         return self.base.analyse(func_type, env)
 
 
