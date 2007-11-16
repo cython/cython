@@ -6,6 +6,7 @@ import os, time
 from cStringIO import StringIO
 from PyrexTypes import CPtrType
 
+import Annotate
 import Code
 import Naming
 import Nodes
@@ -200,7 +201,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     
     def generate_c_code(self, env, result):
         modules = self.referenced_modules
-        code = Code.CCodeWriter(StringIO())
+        if Options.annotate:
+            code = Annotate.AnnotationCCodeWriter(StringIO())
+        else:
+            code = Code.CCodeWriter(StringIO())
         code.h = Code.CCodeWriter(StringIO())
         code.init_labels()
         self.generate_module_preamble(env, modules, code.h)
@@ -233,6 +237,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         f.write(code.f.getvalue())
         f.close()
         result.c_file_generated = 1
+        if Options.annotate:
+            self.annotate(code)
+            code.save_annotation(result.c_file[:-1] + "pyx") # change?
     
     def find_referenced_modules(self, env, module_list, modules_seen):
         if env not in modules_seen:
@@ -388,6 +395,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         return header, footer
     
     def generate_struct_union_definition(self, entry, code):
+        code.mark_pos(entry.pos)
         type = entry.type
         scope = type.scope
         if scope:
@@ -407,6 +415,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(footer)
 
     def generate_enum_definition(self, entry, code):
+        code.mark_pos(entry.pos)
         type = entry.type
         name = entry.cname or entry.name or ""
         header, footer = \
@@ -450,6 +459,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             #	code.putln("staticforward PyTypeObject %s;" % name)
     
     def generate_exttype_vtable_struct(self, entry, code):
+        code.mark_pos(entry.pos)
         # Generate struct declaration for an extension type's vtable.
         type = entry.type
         scope = type.scope
@@ -470,6 +480,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "};")
     
     def generate_exttype_vtabptr_declaration(self, entry, code):
+        code.mark_pos(entry.pos)
         # Generate declaration of pointer to an extension type's vtable.
         type = entry.type
         if type.vtabptr_cname:
@@ -478,6 +489,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.vtabptr_cname))
     
     def generate_obj_struct_definition(self, type, code):
+        code.mark_pos(type.pos)
         # Generate object struct definition for an
         # extension type.
         if not type.scope:
