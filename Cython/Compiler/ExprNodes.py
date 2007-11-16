@@ -12,6 +12,7 @@ import PyrexTypes
 from PyrexTypes import py_object_type, c_long_type, typecast, error_type
 import Symtab
 import Options
+from Annotate import AnnotationItem
 
 from Cython.Debugging import print_call_chain
 from DebugFlags import debug_disposal_code, debug_temp_alloc, \
@@ -404,6 +405,7 @@ class ExprNode(Node):
             code.put_incref(self.result_code, self.ctype())
     
     def generate_evaluation_code(self, code):
+        code.mark_pos(self.pos)
         #  Generate code to evaluate this node and
         #  its sub-expressions, and dispose of any
         #  temporary results of its sub-expressions.
@@ -455,6 +457,12 @@ class ExprNode(Node):
         #  the argument of a del statement. An error
         #  will have been reported earlier.
         pass
+    
+    # ---------------- Annotation ---------------------
+    
+    def annotate(self, code):
+        for node in self.subexpr_nodes():
+            node.annotate(code)
     
     # ----------------- Coercion ----------------------
     
@@ -969,6 +977,14 @@ class NameNode(AtomicExprNode):
             'PyObject_DelAttrString(%s, "%s")' % (
                 Naming.module_cname,
                 self.entry.name))
+                
+    def annotate(self, code):
+        if hasattr(self, 'is_called') and self.is_called:
+            pos = (self.pos[0], self.pos[1], self.pos[2] - len(self.name) - 1)
+            if self.type.is_pyobject:
+                code.annotate(pos, AnnotationItem('py_call', 'python function', size=len(self.name)))
+            else:
+                code.annotate(pos, AnnotationItem('c_call', 'c function', size=len(self.name)))
             
 
 class BackquoteNode(ExprNode):
@@ -1970,6 +1986,12 @@ class AttributeNode(ExprNode):
         else:
             error(self.pos, "Cannot delete C attribute of extension type")
         self.obj.generate_disposal_code(code)
+        
+    def annotate(self, code):
+        if self.is_py_attr:
+            code.annotate(self.pos, AnnotationItem('py_attr', 'python attribute', size=len(self.attribute)))
+        else:
+            code.annotate(self.pos, AnnotationItem('c_attr', 'c attribute', size=len(self.attribute)))
 
 #-------------------------------------------------------------------
 #
@@ -2089,6 +2111,15 @@ class SequenceNode(ExprNode):
         self.iterator.generate_disposal_code(code)
 
         code.putln("}")
+        
+    def annotate(self, code):
+        for arg in self.args:
+            arg.annotate(code)
+        if self.unpacked_items:
+            for arg in self.unpacked_items:
+                arg.annotate(code)
+            for arg in self.coerced_unpacked_items:
+                arg.annotate(code)
 
 
 class TupleNode(SequenceNode):
@@ -2176,6 +2207,9 @@ class ListComprehensionNode(SequenceNode):
             0,
             code.error_goto_if_null(self.result_code, self.pos)))
         self.loop.generate_execution_code(code)
+        
+    def annotate(self, code):
+        self.loop.annotate(code)
 
 
 class ListComprehensionAppendNode(ExprNode):
@@ -2249,7 +2283,11 @@ class DictNode(ExprNode):
                     value.py_result()))
             key.generate_disposal_code(code)
             value.generate_disposal_code(code)
-    
+            
+    def annotate(self, code):
+        for key, value in self.key_value_pairs:
+            key.annotate(code)
+            value.annotate(code)
 
 class ClassNode(ExprNode):
     #  Helper class used in the implementation of Python
@@ -3321,6 +3359,12 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         #  so only need to dispose of the two main operands.
         self.operand1.generate_disposal_code(code)
         self.operand2.generate_disposal_code(code)
+        
+    def annotate(self, code):
+        self.operand1.annotate(code)
+        self.operand2.annotate(code)
+        if self.cascade:
+            self.cascade.annotate(code)
 
 
 class CascadedCmpNode(Node, CmpNode):
@@ -3385,6 +3429,11 @@ class CascadedCmpNode(Node, CmpNode):
         self.operand2.generate_disposal_code(code)
         code.putln("}")
 
+    def annotate(self, code):
+        self.operand2.annotate(code)
+        if self.cascade:
+            self.cascade.annotate(code)
+
 
 binop_node_classes = {
     "or":		BoolBinopNode,
@@ -3434,6 +3483,12 @@ class CoercionNode(ExprNode):
         self.arg = arg
         if debug_coercion:
             print self, "Coercing", self.arg
+            
+    def annotate(self, code):
+        self.arg.annotate(code)
+        if self.arg.type != self.type:
+            file, line, col = self.pos
+            code.annotate((file, line, col-1), AnnotationItem(style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
 
 
 class CastNode(CoercionNode):

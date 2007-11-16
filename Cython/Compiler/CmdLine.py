@@ -25,6 +25,7 @@ Options:
   --incref-local-binop           Force local an extra incref on local variables before
                                  performing any binary operations.
   -D, --no-docstrings            Remove docstrings.
+  -a, --annotate                 Produce an colorized version of the source.
 """  
 #The following experimental options are supported only on MacOSX:
 #  -C, --compile    Compile generated .c file to .o file
@@ -85,6 +86,8 @@ def parse_command_line(args):
                 Options.generate_cleanup_code = int(pop_arg())
             elif option in ("-D", "--no-docstrings"):
                 Options.docstrings = False
+            elif option in ("-a", "--annotate"):
+                Options.annotate = True
             else:
                 bad_usage()
         else:
