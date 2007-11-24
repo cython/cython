@@ -83,6 +83,13 @@ class Node:
     def generate_code(self, code):
         raise InternalError("generate_code not implemented for %s" % \
             self.__class__.__name__)
+            
+    def annotate(self, code):
+        # mro does the wrong thing
+        if isinstance(self, BlockNode):
+            self.body.annotate(code)
+        else:
+            print "skipping", self
 
 
 class BlockNode:
@@ -135,7 +142,7 @@ class BlockNode:
         for entry in entries:
             code.putln("static PyObject *%s;" % entry.cname)
         del entries[:]
-
+        
 
 class StatListNode(Node):
     # stats     a list of StatNode
@@ -160,6 +167,10 @@ class StatListNode(Node):
         for stat in self.stats:
             code.mark_pos(stat.pos)
             stat.generate_execution_code(code)
+            
+    def annotate(self, code):
+        for stat in self.stats:
+            stat.annotate(code)
     
 
 class StatNode(Node):
@@ -200,6 +211,9 @@ class CDefExternNode(StatNode):
     
     def generate_execution_code(self, code):
         pass
+
+    def annotate(self, code):
+        self.body.annotate(code)
         
 
 class CDeclaratorNode(Node):
@@ -302,6 +316,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
     # exception_check  boolean    True if PyErr_Occurred check needed
     # nogil            boolean    Can be called without gil
     # with_gil         boolean    Acquire gil around function body
+    
+    overridable = 0
 
     def analyse(self, return_type, env):
         func_type_args = []
@@ -351,7 +367,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             return_type, func_type_args, self.has_varargs, 
             exception_value = exc_val, exception_check = exc_check,
             calling_convention = self.base.calling_convention,
-            nogil = self.nogil, with_gil = self.with_gil)
+            nogil = self.nogil, with_gil = self.with_gil, is_overridable = self.overridable)
         return self.base.analyse(func_type, env)
 
 
@@ -372,6 +388,10 @@ class CArgDeclNode(Node):
         #print "CArgDeclNode.analyse: is_self_arg =", self.is_self_arg ###
         base_type = self.base_type.analyse(env)
         return self.declarator.analyse(base_type, env)
+
+    def annotate(self, code):
+        if self.default:
+            self.default.annotate(code)
 
 
 class CBaseTypeNode(Node):
@@ -599,6 +619,7 @@ class FuncDefNode(StatNode, BlockNode):
         return 0
                 
     def generate_function_definitions(self, env, code):
+        code.mark_pos(self.pos)
         # Generate C code for header and body of function
         genv = env.global_scope()
         lenv = LocalScope(name = self.entry.name, outer_scope = genv)
@@ -783,7 +804,7 @@ class CFuncDefNode(FuncDefNode):
                                    args = self.declarator.args,
                                    star_arg = None,
                                    starstar_arg = None,
-                                   doc = None, # self.doc,
+                                   doc = self.doc,
                                    body = py_func_body)
             self.py_func.analyse_declarations(env)
             # Reset scope entry the above cfunction
@@ -1024,7 +1045,9 @@ class DefNode(FuncDefNode):
             Naming.pyfunc_prefix + prefix + name
         entry.pymethdef_cname = \
             Naming.pymethdef_prefix + prefix + name
-        if not entry.is_special:
+        if not Options.docstrings:
+            self.entry.doc = None
+        else:
             if Options.embed_pos_in_docstring:
                 entry.doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
                 if not self.doc is None:
@@ -1120,7 +1143,7 @@ class DefNode(FuncDefNode):
         code.putln("%s; /*proto*/" % header)
         if proto_only:
             return
-        if self.entry.doc:
+        if self.entry.doc and Options.docstrings:
             code.putln(
                 'static char %s[] = "%s";' % (
                     self.entry.doc_cname,
@@ -1433,7 +1456,7 @@ class PyClassDefNode(StatNode, BlockNode):
         self.body = body
         import ExprNodes
         self.dict = ExprNodes.DictNode(pos, key_value_pairs = [])
-        if self.doc:
+        if self.doc and Options.docstrings:
             if Options.embed_pos_in_docstring:
                 doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
             doc = doc + '\\n' + self.doc
@@ -1546,7 +1569,7 @@ class CClassDefNode(StatNode):
             api = self.api)
         scope = self.entry.type.scope
         
-        if self.doc:
+        if self.doc and Options.docstrings:
             if Options.embed_pos_in_docstring:
                 scope.doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
                 scope.doc = scope.doc + '\\n' + self.doc
@@ -1576,6 +1599,10 @@ class CClassDefNode(StatNode):
         # default values of method arguments.
         if self.body:
             self.body.generate_execution_code(code)
+            
+    def annotate(self, code):
+        if self.body:
+            self.body.annotate(code)
 
 
 class PropertyNode(StatNode):
@@ -1588,7 +1615,7 @@ class PropertyNode(StatNode):
     def analyse_declarations(self, env):
         entry = env.declare_property(self.name, self.doc, self.pos)
         if entry:
-            if self.doc:
+            if self.doc and Options.docstrings:
                 doc_entry = env.get_string_const(self.doc)
                 entry.doc_cname = doc_entry.cname
             self.body.analyse_declarations(entry.scope)
@@ -1601,6 +1628,9 @@ class PropertyNode(StatNode):
 
     def generate_execution_code(self, code):
         pass
+
+    def annotate(self, code):
+        self.body.annotate(code)
 
 
 class GlobalNode(StatNode):
@@ -1634,6 +1664,9 @@ class ExprStatNode(StatNode):
             code.putln("%s;" % self.expr.result_code)
         self.expr.generate_disposal_code(code)
 
+    def annotate(self, code):
+        self.expr.annotate(code)
+
 
 class AssignmentNode(StatNode):
     #  Abstract base class for assignment nodes.
@@ -1656,7 +1689,7 @@ class AssignmentNode(StatNode):
     def generate_execution_code(self, code):
         self.generate_rhs_evaluation_code(code)
         self.generate_assignment_code(code)
-
+        
 
 class SingleAssignmentNode(AssignmentNode):
     #  The simplest case:
@@ -1702,6 +1735,10 @@ class SingleAssignmentNode(AssignmentNode):
     
     def generate_assignment_code(self, code):
         self.lhs.generate_assignment_code(self.rhs, code)
+
+    def annotate(self, code):
+        self.lhs.annotate(code)
+        self.rhs.annotate(code)
 
 
 class CascadedAssignmentNode(AssignmentNode):
@@ -1779,6 +1816,13 @@ class CascadedAssignmentNode(AssignmentNode):
             # Assignment has disposed of the cloned RHS
         self.rhs.generate_disposal_code(code)
 
+    def annotate(self, code):
+        for i in range(len(self.lhs_list)):
+            lhs = self.lhs_list[i].annotate(code)
+            rhs = self.coerced_rhs_list[i].annotate(code)
+        self.rhs.annotate(code)
+        
+
 class ParallelAssignmentNode(AssignmentNode):
     #  A combined packing/unpacking assignment:
     #
@@ -1815,6 +1859,11 @@ class ParallelAssignmentNode(AssignmentNode):
             stat.generate_rhs_evaluation_code(code)
         for stat in self.stats:
             stat.generate_assignment_code(code)
+
+    def annotate(self, code):
+        for stat in self.stats:
+            stat.annotate(code)
+
 
 class InPlaceAssignmentNode(AssignmentNode):
     #  An in place arithmatic operand:
@@ -1920,6 +1969,11 @@ class InPlaceAssignmentNode(AssignmentNode):
         "%":		"PyNumber_InPlaceRemainder",
     }
 
+    def annotate(self, code):
+        self.lhs.annotate(code)
+        self.rhs.annotate(code)
+        self.dup.annotate(code)
+
 
 class PrintStatNode(StatNode):
     #  print statement
@@ -1950,6 +2004,10 @@ class PrintStatNode(StatNode):
             code.putln(
                 "if (__Pyx_PrintNewline() < 0) %s" %
                     code.error_goto(self.pos))
+                    
+    def annotate(self, code):
+        for arg in self.args:
+            arg.annotate(code)
 
 
 class DelStatNode(StatNode):
@@ -1973,6 +2031,10 @@ class DelStatNode(StatNode):
             if arg.type.is_pyobject:
                 arg.generate_deletion_code(code)
             # else error reported earlier
+
+    def annotate(self, code):
+        for arg in self.args:
+            arg.annotate(code)
 
 
 class PassStatNode(StatNode):
@@ -2047,6 +2109,7 @@ class ReturnStatNode(StatNode):
                     error(self.pos, "Return value required")
     
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         if not self.return_type:
             # error reported earlier
             return
@@ -2072,6 +2135,10 @@ class ReturnStatNode(StatNode):
         #	"goto %s;" %
         #		code.return_label)
         code.put_goto(code.return_label)
+        
+    def annotate(self, code):
+        if self.value:
+            self.value.annotate(code)
 
 
 class RaiseStatNode(StatNode):
@@ -2139,6 +2206,14 @@ class RaiseStatNode(StatNode):
         code.putln(
             code.error_goto(self.pos))
 
+    def annotate(self, code):
+        if self.exc_type:
+            self.exc_type.annotate(code)
+        if self.exc_value:
+            self.exc_value.annotate(code)
+        if self.exc_tb:
+            self.exc_tb.annotate(code)
+
 
 class ReraiseStatNode(StatNode):
 
@@ -2174,15 +2249,15 @@ class AssertStatNode(StatNode):
     def generate_execution_code(self, code):
         code.putln("#ifndef PYREX_WITHOUT_ASSERTIONS")
         self.cond.generate_evaluation_code(code)
-        if self.value:
-            self.value.generate_evaluation_code(code)
         code.putln(
             "if (unlikely(!%s)) {" %
                 self.cond.result_code)
         if self.value:
+            self.value.generate_evaluation_code(code)
             code.putln(
                 "PyErr_SetObject(PyExc_AssertionError, %s);" %
                     self.value.py_result())
+            self.value.generate_disposal_code(code)
         else:
             code.putln(
                 "PyErr_SetNone(PyExc_AssertionError);")
@@ -2191,9 +2266,13 @@ class AssertStatNode(StatNode):
         code.putln(
             "}")
         self.cond.generate_disposal_code(code)
-        if self.value:
-            self.value.generate_disposal_code(code)
         code.putln("#endif")
+
+    def annotate(self, code):
+        self.cond.annotate(code)
+        if self.value:
+            self.value.annotate(code)
+
 
 class IfStatNode(StatNode):
     #  if statement
@@ -2214,6 +2293,7 @@ class IfStatNode(StatNode):
             self.else_clause.analyse_expressions(env)
     
     def generate_execution_code(self, code):
+        code.mark_pos(self.pos)
         end_label = code.new_label()
         for if_clause in self.if_clauses:
             if_clause.generate_execution_code(code, end_label)
@@ -2222,6 +2302,12 @@ class IfStatNode(StatNode):
             self.else_clause.generate_execution_code(code)
             code.putln("}")
         code.put_label(end_label)
+        
+    def annotate(self, code):
+        for if_clause in self.if_clauses:
+            if_clause.annotate(code)
+        if self.else_clause:
+            self.else_clause.annotate(code)
 
 
 class IfClauseNode(Node):
@@ -2252,6 +2338,10 @@ class IfClauseNode(Node):
         #		end_label)
         code.put_goto(end_label)
         code.putln("}")
+
+    def annotate(self, code):
+        self.condition.annotate(code)
+        self.body.annotate(code)
         
     
 class WhileStatNode(StatNode):
@@ -2293,6 +2383,12 @@ class WhileStatNode(StatNode):
             self.else_clause.generate_execution_code(code)
             code.putln("}")
         code.put_label(break_label)
+
+    def annotate(self, code):
+        self.condition.annotate(code)
+        self.body.annotate(code)
+        if self.else_clause:
+            self.else_clause.annotate(code)
 
 
 def ForStatNode(pos, **kw):
@@ -2350,6 +2446,14 @@ class ForInStatNode(StatNode):
             code.putln("}")
         code.put_label(break_label)
         self.iterator.generate_disposal_code(code)
+
+    def annotate(self, code):
+        self.target.annotate(code)
+        self.iterator.annotate(code)
+        self.body.annotate(code)
+        if self.else_clause:
+            self.else_clause.annotate(code)
+        self.item.annotate(code)
 
 
 class ForFromStatNode(StatNode):
@@ -2468,6 +2572,16 @@ class ForFromStatNode(StatNode):
         '>=': ("",   "--"),
         '>' : ("-1", "--")
     }
+    
+    def annotate(self, code):
+        self.target.annotate(code)
+        self.bound1.annotate(code)
+        self.bound2.annotate(code)
+        if self.step:
+            self.bound2.annotate(code)
+        self.body.annotate(code)
+        if self.else_clause:
+            self.else_clause.annotate(code)
 
 
 class TryExceptStatNode(StatNode):
@@ -2523,6 +2637,13 @@ class TryExceptStatNode(StatNode):
         if not default_clause_seen:
             code.put_goto(code.error_label)
         code.put_label(end_label)
+
+    def annotate(self, code):
+        self.body.annotate(code)
+        for except_node in self.except_clauses:
+            except_node.annotate(code)
+        if self.else_clause:
+            self.else_clause.annotate(code)
 
 
 class ExceptClauseNode(Node):
@@ -2596,6 +2717,12 @@ class ExceptClauseNode(Node):
         code.put_goto(end_label)
         code.putln(
             "}")
+
+    def annotate(self, code):
+        self.pattern.annotate(code)
+        if self.target:
+            self.target.annotate(code)
+        self.body.annotate(code)
 
 
 class TryFinallyStatNode(StatNode):
@@ -2762,6 +2889,10 @@ class TryFinallyStatNode(StatNode):
         code.put_goto(error_label)
         code.putln(
             "}")
+
+    def annotate(self, code):
+        self.body.annotate(code)
+        self.finally_clause.annotate(code)
 
 
 class GILStatNode(TryFinallyStatNode):
