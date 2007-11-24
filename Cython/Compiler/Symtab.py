@@ -847,6 +847,7 @@ class ModuleScope(Scope):
         #
         if not entry:
             type = PyExtensionType(name, typedef_flag, base_type)
+            type.pos = pos
             if visibility == 'extern':
                 type.module_name = module_name
             else:

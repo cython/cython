@@ -1300,7 +1300,7 @@ def p_statement(s, level, cdef_flag = 0, visibility = 'private', api = 0):
         if level not in ('module', 'module_pxd'):
             s.error("ctypedef statement not allowed here")
         if api:
-            error(s.pos, "'api' not allowed with 'ctypedef'")
+            error(s.position(), "'api' not allowed with 'ctypedef'")
         return p_ctypedef_statement(s, level, visibility, api)
     elif s.sy == 'DEF':
         return p_DEF_statement(s)
@@ -1859,15 +1859,17 @@ def p_c_func_or_var_declaration(s, level, pos, visibility = 'private', api = 0,
     modifiers = p_c_modifiers(s)
     base_type = p_c_base_type(s)
     declarator = p_c_declarator(s, cmethod_flag = cmethod_flag, assignable = 1, nonempty = 1)
+    declarator.overridable = overridable
     if s.sy == ':':
         if level not in ('module', 'c_class'):
             s.error("C function definition not allowed here")
-        suite = p_suite(s, 'function', with_pseudo_doc = 1)
+        doc, suite = p_suite(s, 'function', with_doc = 1)
         result = Nodes.CFuncDefNode(pos,
             visibility = visibility,
             base_type = base_type,
             declarator = declarator, 
             body = suite,
+            doc = doc,
             modifiers = modifiers,
             api = api,
             overridable = overridable)
@@ -1887,7 +1889,8 @@ def p_c_func_or_var_declaration(s, level, pos, visibility = 'private', api = 0,
             base_type = base_type, 
             declarators = declarators,
             in_pxd = level == 'module_pxd',
-            api = api)
+            api = api,
+            overridable = overridable)
     return result
 
 def p_ctypedef_statement(s, level, visibility = 'private', api = 0):

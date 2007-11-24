@@ -9,6 +9,7 @@ embed_pos_in_docstring = 0
 gcc_branch_hints = 1
 
 pre_import = None
+docstrings = True
 
 # This is a SAGE-specific option that will 
 # cause Cython to incref local variables before
@@ -19,3 +20,5 @@ incref_local_binop = 0
 # Decref global variables in this module on exit for garbage collection. 
 # 0: None, 1+: interned objects, 2+: cdef globals, 3+: types objects
 generate_cleanup_code = 3
+
+annotate = 0
