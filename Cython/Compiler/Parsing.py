@@ -1343,7 +1343,7 @@ def p_statement(s, level, cdef_flag = 0, visibility = 'private', api = 0):
             elif s.sy == 'pass' and level <> 'property':
                 return p_pass_statement(s, with_newline = 1)
             else:
-                if level in ('c_class', 'c_class_pxd', 'property'):
+                if level in ('c_class_pxd', 'property'):
                     s.error("Executable statement not allowed here")
                 if s.sy == 'if':
                     return p_if_statement(s)
