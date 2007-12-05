@@ -3068,22 +3068,6 @@ utility_function_predeclarations = \
 typedef struct {PyObject **p; char *s;} __Pyx_InternTabEntry; /*proto*/
 typedef struct {PyObject **p; char *s; long n; int is_unicode;} __Pyx_StringTabEntry; /*proto*/
 
-static INLINE Py_ssize_t __pyx_PyIndex_AsSsize_t(PyObject* b) {
-  Py_ssize_t ival;
-  PyObject* x = PyNumber_Index(b);
-  if (!x) return -1;
-  ival = PyInt_AsSsize_t(x);
-  Py_DECREF(x);
-  return ival;
-}
-
-#define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
-static INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
-   if (x == Py_True) return 1;
-   else if (x == Py_False) return 0;
-   else return PyObject_IsTrue(x);
-}
-
 """ + """
 
 static int %(skip_dispatch_cname)s = 0;
