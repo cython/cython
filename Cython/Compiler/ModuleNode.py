@@ -279,6 +279,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_includes(env, cimported_modules, code)
         code.putln('')
         code.put(Nodes.utility_function_predeclarations)
+        code.put(PyrexTypes.type_conversion_predeclarations)
         code.put(Nodes.branch_prediction_macros)
         code.putln('')
         code.putln('static PyObject *%s;' % env.module_cname)
@@ -1598,6 +1599,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for utility_code in env.utility_code_used:
             code.h.put(utility_code[0])
             code.put(utility_code[1])
+        code.put(PyrexTypes.type_conversion_functions)
 
 #------------------------------------------------------------------------------------
 #
@@ -1745,11 +1747,11 @@ bad:
 
 register_cleanup_utility_code = [
 """
-static int __Pyx_RegisterCleanup(); /*proto*/
+static int __Pyx_RegisterCleanup(void); /*proto*/
 static PyObject* cleanup(PyObject *self, PyObject *unused); /*proto*/
 static PyMethodDef cleanup_def = {"__cleanup", (PyCFunction)&cleanup, METH_NOARGS, 0};
 ""","""
-static int __Pyx_RegisterCleanup() {
+static int __Pyx_RegisterCleanup(void) {
     /* Don't use Py_AtExit because that has a 32-call limit 
      * and is called after python finalization. 
      */
