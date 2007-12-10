@@ -19,6 +19,8 @@ incref_local_binop = 0
 
 # Decref global variables in this module on exit for garbage collection. 
 # 0: None, 1+: interned objects, 2+: cdef globals, 3+: types objects
-generate_cleanup_code = 1
+# Mostly for reducing noise for Valgrind, only executes at process exit
+# (when all memory will be reclaimed anyways). 
+generate_cleanup_code = 0
 
 annotate = 0
