@@ -2417,7 +2417,7 @@ class ForInStatNode(StatNode):
         # The direction must be determined at compile time to set relations. 
         # Otherwise, return False. 
         if len(args) < 3:
-            self.step = ExprNodes.IntNode(pos = sequence.pos, value='1')
+            self.step = ExprNodes.IntNode(pos = args[0].pos, value='1')
             self.relation1 = '<='
             self.relation2 = '<'
             return True
