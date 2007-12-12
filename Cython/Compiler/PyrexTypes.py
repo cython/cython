@@ -384,32 +384,31 @@ class CIntType(CNumericType):
         c_type = self.sign_and_name()
         c_name = c_type.replace(' ', '_');
         func_name = "__pyx_PyInt_%s" % c_name;
-        c_mask = "__pyx_%s_MASK" % c_name
         if not int_conversion_list.has_key(func_name):
             # no env to add utility code to
             global type_conversion_predeclarations, type_conversion_functions
             if self.signed:
-                neg_test = " && ((-val) & %s)" % c_mask
-            else:
                 neg_test = ""
+            else:
+                neg_test = " || (long_val < 0)"
             type_conversion_predeclarations += """
 static INLINE %(c_type)s %(func_name)s(PyObject* x);""" % {'c_type': c_type, 'c_name': c_name, 'func_name': func_name }
             type_conversion_functions +=  """
-#define %(c_mask)s ((long)(~((1LL << (8*sizeof(%(c_type)s))) - 1LL)))
 static INLINE %(c_type)s %(func_name)s(PyObject* x) {
     if (sizeof(%(c_type)s) < sizeof(long)) {
-        long val = __pyx_PyInt_AsLong(x);
-        if (unlikely((val & %(c_mask)s) %(neg_test)s)) {
+        long long_val = __pyx_PyInt_AsLong(x);
+        %(c_type)s val = (%(c_type)s)long_val;
+        if (unlikely((val != long_val) %(neg_test)s)) {
             PyErr_SetString(PyExc_OverflowError, "value too large to convert to %(c_type)s");
             return (%(c_type)s)-1;
         }
-        return (%(c_type)s)val;
+        return val;
     }
     else {
         return __pyx_PyInt_AsLong(x);
     }
 }
-""" % {'c_type': c_type, 'c_name': c_name, 'func_name': func_name, 'c_mask': c_mask, 'neg_test': neg_test }
+""" % {'c_type': c_type, 'c_name': c_name, 'func_name': func_name, 'neg_test': neg_test }
             int_conversion_list[func_name] = True
         return func_name
     
