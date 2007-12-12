@@ -24,3 +24,12 @@ incref_local_binop = 0
 generate_cleanup_code = 0
 
 annotate = 0
+
+# This will convert statements of the form "for i in range(...)" 
+# to "for i from ..." when i is a cdef'd integer type, and the direction
+# (i.e. sign of step) can be determined. 
+# WARNING: This may change the symantics if the range causes assignment to 
+# i to overflow. Specifically, if this option is set, an error will be
+# raised before the loop is entered, wheras without this option the loop
+# will execute util a overflowing value is encountered. 
+convert_range = 0

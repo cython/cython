@@ -2411,11 +2411,58 @@ class ForInStatNode(StatNode):
         self.body.analyse_declarations(env)
         if self.else_clause:
             self.else_clause.analyse_declarations(env)
+            
+    def analyse_range_step(self, args):
+        import ExprNodes
+        # The direction must be determined at compile time to set relations. 
+        # Otherwise, return False. 
+        if len(args) < 3:
+            self.step = ExprNodes.IntNode(pos = sequence.pos, value='1')
+            self.relation1 = '<='
+            self.relation2 = '<'
+            return True
+        else:
+            step = args[2]
+            if isinstance(step, ExprNodes.UnaryMinusNode) and isinstance(step.operand, ExprNodes.IntNode):
+                step = ExprNodes.IntNode(pos = step.pos, value=-int(step.operand.value))
+            if isinstance(step, ExprNodes.IntNode):
+                if step.value > 0:
+                    self.step = step
+                    self.relation1 = '<='
+                    self.relation2 = '<'
+                    return True
+                elif step.value < 0:
+                    self.step = ExprNodes.IntNode(pos = step.pos, value=-int(step.value))
+                    self.relation1 = '>='
+                    self.relation2 = '>'
+                    return True
+        return False
+                
     
     def analyse_expressions(self, env):
         import ExprNodes
-        self.iterator.analyse_expressions(env)
         self.target.analyse_target_types(env)
+        if Options.convert_range and self.target.type.is_int:
+            sequence = self.iterator.sequence
+            if isinstance(sequence, ExprNodes.SimpleCallNode) \
+                  and sequence.self is None \
+                  and isinstance(sequence.function, ExprNodes.NameNode) \
+                  and sequence.function.name == 'range':
+                args = sequence.args
+                # Make sure we can determine direction from step
+                if self.analyse_range_step(args):
+                    # Mutate to ForFrom loop type
+                    self.__class__ = ForFromStatNode
+                    if len(args) == 1:
+                        self.bound1 = ExprNodes.IntNode(pos = sequence.pos, value='0')
+                        self.bound2 = args[0]
+                    else:
+                        self.bound1 = args[0]
+                        self.bound2 = args[1]
+                    ForFromStatNode.analyse_expressions(self, env)
+                    return
+                    
+        self.iterator.analyse_expressions(env)
         self.item = ExprNodes.NextNode(self.iterator, env)
         self.item = self.item.coerce_to(self.target.type, env)
         self.item.allocate_temps(env)
@@ -2485,8 +2532,8 @@ class ForFromStatNode(StatNode):
         self.target.analyse_target_types(env)
         self.bound1.analyse_types(env)
         self.bound2.analyse_types(env)
-        self.bound1 = self.bound1.coerce_to_integer(env)
-        self.bound2 = self.bound2.coerce_to_integer(env)
+        self.bound1 = self.bound1.coerce_to(self.target.type, env)
+        self.bound2 = self.bound2.coerce_to(self.target.type, env)
         if self.step is not None:
             if isinstance(self.step, ExprNodes.UnaryMinusNode):
                 warning(self.step.pos, "Probable infinite loop in for-from-by statment. Consider switching the directions of the relations.", 2)
