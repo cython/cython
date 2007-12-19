@@ -1251,7 +1251,7 @@ class DefNode(FuncDefNode):
                 code.putln(error_return_code)
 
     def put_stararg_decrefs(self, code):
-        if self.star_arg or self.starstar_arg:
+        if self.star_arg or self.starstar_arg or self.num_kwonly_args > 0:
             code.put_xdecref(Naming.args_cname, py_object_type)
             code.put_xdecref(Naming.kwds_cname, py_object_type)
     
