@@ -52,6 +52,7 @@ setup(
     "License :: OSI Approved :: Python Software Foundation License",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
+    "Programming Language :: C",
     "Topic :: Software Development :: Code Generators",
     "Topic :: Software Development :: Compilers",
     "Topic :: Software Development :: Libraries :: Python Modules"
