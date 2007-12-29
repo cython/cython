@@ -34,6 +34,7 @@ class CCodeWriter:
         self.level = 0
         self.bol = 1
         self.marker = None
+        self.last_marker = 1
         self.label_counter = 1
         self.error_label = None
         self.filename_table = {}
@@ -53,6 +54,7 @@ class CCodeWriter:
         self.f.write("\n");
         self.indent()
         self.f.write("/* %s */\n" % self.marker)
+        self.last_marker = self.marker
         self.marker = None
 
     def put(self, code):
@@ -96,8 +98,6 @@ class CCodeWriter:
         return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
 
     def mark_pos(self, pos):
-#        if self.marker is not None:
-#            print "new marker"
         file, line, col = pos
         contents = self.file_contents(file)
 
@@ -108,7 +108,9 @@ class CCodeWriter:
                 s = s.rstrip() + '             # <<<<<<<<<<<<<< ' + '\n'
             context += " * " + s
         
-        self.marker = '"%s":%s\n%s' % (file, line, context)
+        marker = '"%s":%s\n%s' % (file, line, context)
+        if self.last_marker != marker:
+            self.marker = marker
 
     def init_labels(self):
         self.label_counter = 0
