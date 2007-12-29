@@ -359,19 +359,58 @@ class CNumericType(CType):
             for_display = 0, dll_linkage = None, pyrex = 0):
         base = public_decl(self.sign_and_name(), dll_linkage)
         return self.base_declaration_code(base,  entity_code)
-    
+
+
+int_conversion_list = {}
+type_conversion_functions = ""
+type_conversion_predeclarations = ""
 
 class CIntType(CNumericType):
     
     is_int = 1
     typedef_flag = 0
     to_py_function = "PyInt_FromLong"
-    from_py_function = "PyInt_AsLong"
+    from_py_function = "__pyx_PyInt_AsLong"
     exception_value = -1
 
     def __init__(self, rank, signed, pymemberdef_typecode = None, is_returncode = 0):
         CNumericType.__init__(self, rank, signed, pymemberdef_typecode)
         self.is_returncode = is_returncode
+        if self.from_py_function == '__pyx_PyInt_AsLong':
+            self.from_py_function = self.get_type_conversion()
+
+    def get_type_conversion(self):
+        # error on overflow
+        c_type = self.sign_and_name()
+        c_name = c_type.replace(' ', '_');
+        func_name = "__pyx_PyInt_%s" % c_name;
+        if not int_conversion_list.has_key(func_name):
+            # no env to add utility code to
+            global type_conversion_predeclarations, type_conversion_functions
+            if self.signed:
+                neg_test = ""
+            else:
+                neg_test = " || (long_val < 0)"
+            type_conversion_predeclarations += """
+static INLINE %(c_type)s %(func_name)s(PyObject* x);""" % {'c_type': c_type, 'c_name': c_name, 'func_name': func_name }
+            type_conversion_functions +=  """
+static INLINE %(c_type)s %(func_name)s(PyObject* x) {
+    if (sizeof(%(c_type)s) < sizeof(long)) {
+        long long_val = __pyx_PyInt_AsLong(x);
+        %(c_type)s val = (%(c_type)s)long_val;
+        if (unlikely((val != long_val) %(neg_test)s)) {
+            PyErr_SetString(PyExc_OverflowError, "value too large to convert to %(c_type)s");
+            return (%(c_type)s)-1;
+        }
+        return val;
+    }
+    else {
+        return __pyx_PyInt_AsLong(x);
+    }
+}
+""" % {'c_type': c_type, 'c_name': c_name, 'func_name': func_name, 'neg_test': neg_test }
+            int_conversion_list[func_name] = True
+        return func_name
     
     def assignable_from_resolved_type(self, src_type):
         return src_type.is_int or src_type.is_enum or src_type is error_type
@@ -405,13 +444,13 @@ class CULongType(CUIntType):
 class CLongLongType(CUIntType):
 
     to_py_function = "PyLong_FromLongLong"
-    from_py_function = "PyInt_AsUnsignedLongLongMask"
+    from_py_function = "__pyx_PyInt_AsLongLong"
 
 
 class CULongLongType(CUIntType):
 
     to_py_function = "PyLong_FromUnsignedLongLong"
-    from_py_function = "PyInt_AsUnsignedLongLongMask"
+    from_py_function = "__pyx_PyInt_AsUnsignedLongLong"
 
 
 class CPySSizeTType(CIntType):
@@ -424,7 +463,7 @@ class CFloatType(CNumericType):
 
     is_float = 1
     to_py_function = "PyFloat_FromDouble"
-    from_py_function = "PyFloat_AsDouble"
+    from_py_function = "__pyx_PyFloat_AsDouble"
     
     def __init__(self, rank, pymemberdef_typecode = None):
         CNumericType.__init__(self, rank, 1, pymemberdef_typecode)
@@ -828,6 +867,18 @@ class ErrorType(PyrexType):
         return 1
 
 
+rank_to_type_name = (
+    "char",         # 0
+    "short",        # 1
+    "int",          # 2
+    "long",         # 3
+    "PY_LONG_LONG", # 4
+    "Py_ssize_t",   # 5
+    "float",        # 6
+    "double",       # 7
+    "long double",  # 8
+)
+
 py_object_type = PyObjectType()
 
 c_void_type =         CVoidType()
@@ -871,18 +922,6 @@ c_anon_enum_type =    CAnonEnumType(-1, 1)
 error_type =    ErrorType()
 
 lowest_float_rank = 6
-
-rank_to_type_name = (
-    "char",         # 0
-    "short",        # 1
-    "int",          # 2
-    "long",         # 3
-    "PY_LONG_LONG", # 4
-    "Py_ssize_t",   # 5
-    "float",        # 6
-    "double",       # 7
-    "long double",  # 8
-)
 
 sign_and_rank_to_type = {
     #(signed, rank)
@@ -988,3 +1027,72 @@ def typecast(to_type, from_type, expr_code):
     else:
         #print "typecast: to", to_type, "from", from_type ###
         return to_type.cast_code(expr_code)
+
+
+type_conversion_predeclarations = """
+/* Type Conversion Predeclarations */
+
+#define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
+static INLINE int __Pyx_PyObject_IsTrue(PyObject* x);
+static INLINE PY_LONG_LONG __pyx_PyInt_AsLongLong(PyObject* x);
+static INLINE unsigned PY_LONG_LONG __pyx_PyInt_AsUnsignedLongLong(PyObject* x);
+static INLINE Py_ssize_t __pyx_PyIndex_AsSsize_t(PyObject* b);
+
+#define __pyx_PyInt_AsLong(x) (PyInt_CheckExact(x) ? PyInt_AS_LONG(x) : PyInt_AsLong(x))
+#define __pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
+""" + type_conversion_predeclarations
+
+type_conversion_functions = """
+/* Type Conversion Functions */
+
+static INLINE Py_ssize_t __pyx_PyIndex_AsSsize_t(PyObject* b) {
+  Py_ssize_t ival;
+  PyObject* x = PyNumber_Index(b);
+  if (!x) return -1;
+  ival = PyInt_AsSsize_t(x);
+  Py_DECREF(x);
+  return ival;
+}
+
+static INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
+   if (x == Py_True) return 1;
+   else if (x == Py_False) return 0;
+   else return PyObject_IsTrue(x);
+}
+
+static INLINE PY_LONG_LONG __pyx_PyInt_AsLongLong(PyObject* x) {
+    if (PyInt_CheckExact(x)) {
+        return PyInt_AS_LONG(x);
+    }
+    else if (PyLong_CheckExact(x)) {
+        return PyLong_AsLongLong(x);
+    }
+    else {
+        PyObject* tmp = PyNumber_Int(x); if (!tmp) return (PY_LONG_LONG)-1;
+        PY_LONG_LONG val = __pyx_PyInt_AsLongLong(tmp);
+        Py_DECREF(tmp);
+        return val;
+    }
+}
+
+static INLINE unsigned PY_LONG_LONG __pyx_PyInt_AsUnsignedLongLong(PyObject* x) {
+    if (PyInt_CheckExact(x)) {
+        long val = PyInt_AS_LONG(x);
+        if (unlikely(val < 0)) {
+            PyErr_SetString(PyExc_TypeError, "Negative assignment to unsigned type.");
+            return (unsigned PY_LONG_LONG)-1;
+        }
+        return val;
+    }
+    else if (PyLong_CheckExact(x)) {
+        return PyLong_AsUnsignedLongLong(x);
+    }
+    else {
+        PyObject* tmp = PyNumber_Int(x); if (!tmp) return (PY_LONG_LONG)-1;
+        PY_LONG_LONG val = __pyx_PyInt_AsUnsignedLongLong(tmp);
+        Py_DECREF(tmp);
+        return val;
+    }
+}
+
+""" + type_conversion_functions
