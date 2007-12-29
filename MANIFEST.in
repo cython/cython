@@ -6,4 +6,6 @@ include bin/cython
 include cython.py
 include Cython/Compiler/Lexicon.pickle
 include Doc/*
-include Demos/*
+include Demos/*.p*
+include Demos/Makefile*
+include Cython/Compiler/Builtin.py
