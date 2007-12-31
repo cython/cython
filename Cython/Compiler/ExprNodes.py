@@ -2599,7 +2599,7 @@ class TypecastNode(ExprNode):
             error(self.pos, "Casting temporary Python object to non-Python type")
         if to_py and not from_py:
             self.result_ctype = py_object_type
-            self.is_temp = 1			
+            self.is_temp = 1
     
     def check_const(self):
         self.operand.check_const()
@@ -2846,7 +2846,7 @@ class NumBinopNode(BinopNode):
         "/":		"PyNumber_Divide",
         "//":		"PyNumber_FloorDivide",
         "%":		"PyNumber_Remainder",
-        "**":   "PyNumber_Power"
+        "**":       "PyNumber_Power"
     }
 
 
