@@ -24,8 +24,7 @@ py_include_dirs = [
 # Python to 2.5.2, this fix should be OK.
 import distutils.sysconfig as sc
 python_prefix = sc.get_config_var('prefix')
-leopard_python_prefix =
-'/System/Library/Frameworks/Python.framework/Versions/2.5'
+leopard_python_prefix = '/System/Library/Frameworks/Python.framework/Versions/2.5'
 full_version = "%s.%s.%s" % sys.version_info[:3]
 if python_prefix == leopard_python_prefix and full_version == '2.5.1':
     os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.5"
