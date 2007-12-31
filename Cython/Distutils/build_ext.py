@@ -156,7 +156,7 @@ class build_ext(_build_ext.build_ext):
             target_dir = ""
 
         for source in sources:
-            (base, ext) = os.path.splitext(source)
+            (base, ext) = os.path.splitext(os.path.basename(source))
             if ext == ".pyx":			  # Cython source file
                 new_sources.append(os.path.join(target_dir, base + target_ext))
                 pyrex_sources.append(source)
