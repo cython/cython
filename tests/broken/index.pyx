@@ -1,0 +1,16 @@
+def f(obj1, obj2, obj3):
+    cdef int int1, int2, int3
+    cdef float flt1, *ptr1
+    cdef int array1[42]
+    int1 = array1[int2]
+    flt1 = ptr1[int2]
+    array1[int1] = int2
+    ptr1[int1] = int2
+    obj1 = obj2[obj3]
+    int1 = array1[obj3]
+    obj1 = obj2[int3]
+    obj1[obj2] = obj3
+    array1[obj2] = int3
+    obj1[int2] = obj3
+    obj1[obj2] = 42
+    

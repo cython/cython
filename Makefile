@@ -1,4 +1,5 @@
 VERSION = 0.9.6.3
+PYTHON?=python
 
 version:
 	@echo "Setting version to $(VERSION)"
@@ -10,3 +11,9 @@ clean:
 	@rm -f *~ */*~ */*/*~
 	@rm -f core */core
 	@(cd Demos; $(MAKE) clean)
+
+testclean:
+	rm -fr BUILD
+
+test:	testclean
+	${PYTHON} runtests.py

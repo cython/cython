@@ -1,0 +1,1 @@
+cdef struct xmlDoc
