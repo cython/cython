@@ -15,9 +15,10 @@ INCLUDE_DIRS = os.getenv('INCLUDE', '').split(os.pathsep)
 CFLAGS = os.getenv('CFLAGS', '').split()
 
 class TestBuilder(object):
-    def __init__(self, rootdir, workdir):
+    def __init__(self, rootdir, workdir, selectors):
         self.rootdir = rootdir
         self.workdir = workdir
+        self.selectors = selectors
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -25,18 +26,22 @@ class TestBuilder(object):
             path = os.path.join(self.rootdir, filename)
             if os.path.isdir(path) and filename in TEST_DIRS:
                 suite.addTest(
-                    self.handle_directory(path, filename in TEST_RUN_DIRS))
+                    self.handle_directory(path, filename))
         return suite
 
-    def handle_directory(self, path, run_module):
+    def handle_directory(self, path, context):
         suite = unittest.TestSuite()
         for filename in os.listdir(path):
             if not filename.endswith(".pyx"):
                 continue
             module = filename[:-4]
+            fqmodule = "%s.%s" % (context, module)
+            if not [ 1 for match in self.selectors
+                     if match(fqmodule) ]:
+                continue
             suite.addTest(
                 CythonCompileTestCase(path, self.workdir, module))
-            if run_module:
+            if context in TEST_RUN_DIRS:
                 suite.addTest(
                     CythonRunTestCase(self.workdir, module))
         return suite
@@ -105,5 +110,10 @@ if __name__ == '__main__':
     if not os.path.exists(WORKDIR):
         os.makedirs(WORKDIR)
 
-    tests = TestBuilder(ROOTDIR, WORKDIR)
+    import re
+    selectors = [ re.compile(r, re.I).search for r in sys.argv[1:] ]
+    if not selectors:
+        selectors = [ lambda x:True ]
+
+    tests = TestBuilder(ROOTDIR, WORKDIR, selectors)
     unittest.TextTestRunner(verbosity=2).run( tests.build_suite() )
