@@ -1,6 +1,10 @@
+__doc__ = """
+    >>> swallow()
+"""
+
 cdef grail(char *blarg, ...):
     pass
 
-cdef swallow():
+def swallow():
     grail("spam")
     grail("spam", 42)

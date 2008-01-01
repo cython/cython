@@ -1,3 +1,9 @@
+__doc__ = """
+    >>> m = MyClass()
+    >>> m is foo(m)
+    True
+"""
+
 cdef class MyClass:
     pass
 

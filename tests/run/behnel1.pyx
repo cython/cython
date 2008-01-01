@@ -1,9 +1,14 @@
+__doc__ = """
+    >>> viking(5)
+    5
+"""
+
 cdef class Spam:
-    cdef eggs(self):
-        pass
+    cdef eggs(self, a):
+        return a
 
 cdef Spam spam():
-    pass
+    return Spam()
 
-def viking():
-    return spam().eggs()
+def viking(a):
+    return spam().eggs(a)

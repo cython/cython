@@ -1,3 +1,11 @@
+__doc__ = """
+    >>> f = foo()
+    >>> 'a' in f
+    True
+    >>> 1 in f
+    True
+"""
+
 cdef class foo:
 
   def __contains__(self, key):

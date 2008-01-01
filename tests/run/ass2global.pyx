@@ -1,4 +1,16 @@
+__doc__ = """
+    >>> getg()
+    5
+    >>> f(42)
+    >>> getg()
+    42
+"""
+
+g = 5
+
 def f(a):
-    global f
-    f = a
-    f = 42
+    global g
+    g = a
+
+def getg():
+    return g

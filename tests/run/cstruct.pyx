@@ -1,3 +1,10 @@
+__doc__ = """
+    >>> test_i()
+    >>> test_c()
+    >>> test_p()
+    >>> test_g()
+"""
+
 cdef struct Grail
 
 cdef struct Spam:
@@ -11,9 +18,42 @@ cdef struct Grail:
 
 cdef Spam spam, ham
 
-cdef void eggs(Spam s):
+cdef void eggs_i(Spam s):
     cdef int j
     j = s.i
     s.i = j
 
+cdef void eggs_c(Spam s):
+    cdef char c
+    c = s.c
+    s.c = c
+
+cdef void eggs_p(Spam s):
+    cdef float *p
+    p = s.p[0]
+    s.p[0] = p
+
+cdef void eggs_g(Spam s):
+    cdef float *p
+    p = s.p[0]
+    s.p[0] = p
+
 spam = ham
+
+def test_i():
+    spam.i = 1
+    eggs_i(spam)
+
+def test_c():
+    spam.c = c'a'
+    eggs_c(spam)
+
+def test_p():
+    cdef float f
+    spam.p[0] = &f
+    eggs_p(spam)
+
+def test_g():
+    cdef Grail l
+    spam.g = &l
+    eggs_g(spam)

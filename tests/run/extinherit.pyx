@@ -1,3 +1,9 @@
+__doc__ = """
+    >>> p = create()
+    >>> rest(p)
+    0
+"""
+
 cdef class Parrot:
     cdef object name
     cdef int alive
@@ -5,11 +11,24 @@ cdef class Parrot:
 cdef class Norwegian(Parrot):
     cdef object plumage_colour
 
-cdef void rest(Norwegian polly):
+def create():
+    cdef Parrot p
+    p = Norwegian()
+    p.alive = 1
+    return p
+
+def rest(Norwegian polly):
     cdef Parrot fred
     cdef object spam
+    spam = None
+
     fred = polly
     polly = fred
     polly = spam
+    assert polly is None
+    assert fred.alive
+
     spam = polly
-    polly.alive = 0
+    fred.alive = 0
+
+    return fred.alive

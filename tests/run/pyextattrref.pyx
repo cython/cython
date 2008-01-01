@@ -1,3 +1,7 @@
+__doc__ = """
+    >>> 
+"""
+
 cdef class Eggs:
     cdef object ham
 

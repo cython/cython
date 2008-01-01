@@ -1,3 +1,9 @@
+__doc__ = """
+    >>> test(Exception('hi'))
+    Raising: Exception('hi',)
+    Caught: <type 'exceptions.Exception'> Exception('hi',)
+"""
+
 import sys
 
 def test(obj):

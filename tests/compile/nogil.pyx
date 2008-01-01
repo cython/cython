@@ -1,4 +1,4 @@
-cdef extern object g(object x) nogil
+cdef extern object g(int x) nogil
 
 cdef void f(int x) nogil:
     cdef int y

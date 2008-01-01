@@ -1,10 +1,22 @@
+__doc__ = """
+    >>> test()
+    1
+"""
+
 cdef class Tri:
-    pass
+    def test(self):
+        return 1
     
 cdef class Curseur:
     cdef Tri tri
     def detail(self):
-        produire_fiches(self.tri)
+        return produire_fiches(self.tri)
 
 cdef produire_fiches(Tri tri):
-    pass
+    return tri.test()
+
+def test():
+    cdef Curseur c
+    c = Curseur()
+    c.tri = Tri()
+    return c.detail()
