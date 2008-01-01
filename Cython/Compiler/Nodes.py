@@ -2532,8 +2532,12 @@ class ForFromStatNode(StatNode):
         self.target.analyse_target_types(env)
         self.bound1.analyse_types(env)
         self.bound2.analyse_types(env)
-        self.bound1 = self.bound1.coerce_to(self.target.type, env)
-        self.bound2 = self.bound2.coerce_to(self.target.type, env)
+        if self.target.type.is_numeric:
+            self.bound1 = self.bound1.coerce_to(self.target.type, env)
+            self.bound2 = self.bound2.coerce_to(self.target.type, env)
+        else:
+            self.bound1 = self.bound1.coerce_to_integer(env)
+            self.bound2 = self.bound2.coerce_to_integer(env)
         if self.step is not None:
             if isinstance(self.step, ExprNodes.UnaryMinusNode):
                 warning(self.step.pos, "Probable infinite loop in for-from-by statment. Consider switching the directions of the relations.", 2)
@@ -2542,14 +2546,14 @@ class ForFromStatNode(StatNode):
         if not (self.bound2.is_name or self.bound2.is_literal):
             self.bound2 = self.bound2.coerce_to_temp(env)
         target_type = self.target.type
-        if not (target_type.is_pyobject or target_type.is_int):
+        if not (target_type.is_pyobject or target_type.is_numeric):
             error(self.target.pos,
                 "Integer for-loop variable must be of type int or Python object")
         #if not (target_type.is_pyobject
         #	or target_type.assignable_from(PyrexTypes.c_int_type)):
         #		error(self.target.pos,
         #			"Cannot assign integer to variable of type '%s'" % target_type)
-        if target_type.is_int:
+        if target_type.is_numeric:
             self.is_py_target = 0
             self.loopvar_name = self.target.entry.cname
             self.py_loopvar_node = None
