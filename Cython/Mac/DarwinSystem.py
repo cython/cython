@@ -18,7 +18,18 @@ py_include_dirs = [
     "/Library/Frameworks/Python.framework/Versions/%s/Headers" % version_string
 ]
 
-os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.3"
+# MACOSX_DEPLOYMENT_TARGET can be set to 10.3 in most cases.
+# But for the built-in Python 2.5.1 on Leopard, it needs to be set for 10.5.
+# This looks like a bug that will be fixed in 2.5.2.  If Apple updates their
+# Python to 2.5.2, this fix should be OK.
+import distutils.sysconfig as sc
+python_prefix = sc.get_config_var('prefix')
+leopard_python_prefix = '/System/Library/Frameworks/Python.framework/Versions/2.5'
+full_version = "%s.%s.%s" % sys.version_info[:3]
+if python_prefix == leopard_python_prefix and full_version == '2.5.1':
+    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.5"
+else:
+    os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.3"
 
 compilers = ["gcc", "g++"]
 compiler_options = \
