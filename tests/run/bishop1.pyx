@@ -1,3 +1,13 @@
+__doc__ = """
+    >>> m = fmatrix()
+    >>> m[1] = True
+    >>> m.getfoo()
+    1
+    >>> m[0] = True
+    >>> m.getfoo()
+    0
+"""
+
 cdef class fmatrix:
   cdef int foo
 
@@ -6,3 +16,6 @@ cdef class fmatrix:
       self.foo = value
       return
     self.foo = not value
+
+  def getfoo(self):
+    return self.foo

@@ -1,6 +1,12 @@
+__doc__ = """
+    >>> 
+"""
+
 def f():
     cdef int int1, int2, int3
     cdef char *ptr1, *ptr2, *ptr3
+    int2 = 10
+    int3 = 20
     obj1 = 1
     obj2 = 2
     obj3 = 3
@@ -8,4 +14,4 @@ def f():
     ptr1 = ptr2 + int3
     ptr1 = int2 + ptr3
     obj1 = obj2 + int3
-    
+    return int1, obj1

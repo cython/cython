@@ -1,3 +1,7 @@
+__doc__ = """
+    >>> f()
+"""
+
 def f():
     cdef char a_char
     cdef short a_short

@@ -1,3 +1,10 @@
+__doc__ = """
+    >>> test()
+    This parrot is resting.
+    Lovely plumage!
+"""
+
+
 cdef class Parrot:
 
     cdef void describe(self):
@@ -11,8 +18,9 @@ cdef class Norwegian(Parrot):
     cdef void describe(self):
         print "Lovely plumage!"
 
-cdef Parrot p1, p2
-p1 = Parrot()
-p2 = Norwegian()
-p1.describe()
-p2.describe()
+def test():
+    cdef Parrot p1, p2
+    p1 = Parrot()
+    p2 = Norwegian()
+    p1.describe()
+    p2.describe()
