@@ -1,3 +1,8 @@
+__doc__ = """
+    >>> test()
+    1
+"""
+
 cdef extern from "hinsen1.h":
 
     ctypedef class spam.Spam [object PySpamObject]:
@@ -7,4 +12,9 @@ cdef extern from "hinsen1.h":
 cdef class SpamAndEggs(Spam):
 
     cdef cook(self):
-        pass
+        return 1
+
+def test():
+    cdef SpamAndEggs s
+    s = SpamAndEggs()
+    return s.cook()

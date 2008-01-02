@@ -1,7 +1,11 @@
+__doc__ = """
+    >>> f()
+"""
+
 cdef struct Spam:
     char *grail
 
-cdef void f():
+def f():
     cdef int i, j, k
     cdef char *p
     i = sizeof(p)

@@ -2,8 +2,8 @@ __doc__ = """
     >>> f(1.0, 2.95)[0] == f(1.0, 2.95)[1]
     True
 
-    >>> constant_py()
-    1024L
+    >>> constant_py() == 2L ** 10
+    True
 
     >>> constant_long() == 2L ** 36
     True
