@@ -14,9 +14,15 @@ __doc__ = """
     2147483648L
     >>> test(sys.maxint * 2 + 1)
     4294967295L
+
+    >>> test(8 ** unsigned_long_size() - 1) > sys.maxint
+    True
 """
 
 def test(k):
     cdef unsigned long m
     m = k
     return m
+
+def unsigned_long_size():
+    return sizeof(unsigned long)
