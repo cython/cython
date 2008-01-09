@@ -723,9 +723,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if py_attrs:
             self.generate_self_cast(scope, code)
         if base_type:
+            code.putln("if (PyType_IS_GC(%s)) {" % base_type.typeptr_cname)
             code.putln(
                     "e = %s->tp_traverse(o, v, a); if (e) return e;" %
                         base_type.typeptr_cname)
+            code.putln("}")
         for entry in py_attrs:
             var_code = "p->%s" % entry.cname
             code.putln(
@@ -756,9 +758,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if py_attrs:
             self.generate_self_cast(scope, code)
         if base_type:
+            code.putln("if (PyType_IS_GC(%s)) {" % base_type.typeptr_cname)
             code.putln(
                 "%s->tp_clear(o);" %
                     base_type.typeptr_cname)
+            code.putln("}")
         for entry in py_attrs:
             name = "p->%s" % entry.cname
             code.put_xdecref(name, entry.type)
