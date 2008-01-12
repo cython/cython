@@ -758,6 +758,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 py_attrs.append(entry)
         if py_attrs:
             self.generate_self_cast(scope, code)
+            code.putln("PyObject* tmp;")
         if base_type:
             code.putln("if (%s->tp_clear) {" % base_type.typeptr_cname)
             code.putln(
@@ -766,8 +767,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("}")
         for entry in py_attrs:
             name = "p->%s" % entry.cname
-            code.put_xdecref(name, entry.type)
-            code.put_init_var_to_py_none(entry, "p->%s")
+            code.putln("tmp = %s; %s = 0;" % (name, name))
+            code.putln("Py_XDECREF(tmp);")
         code.putln(
             "return 0;")
         code.putln(
