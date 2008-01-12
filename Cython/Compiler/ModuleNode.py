@@ -566,8 +566,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_exttype_vtable(scope, code)
                     self.generate_new_function(scope, code)
                     self.generate_dealloc_function(scope, code)
-                    self.generate_traverse_function(scope, code)
-                    self.generate_clear_function(scope, code)
+                    if scope.needs_gc():
+                        self.generate_traverse_function(scope, code)
+                        self.generate_clear_function(scope, code)
                     if scope.defines_any(["__getitem__"]):
                         self.generate_getitem_int_function(scope, code)
                     if scope.defines_any(["__setitem__", "__delitem__"]):
