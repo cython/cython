@@ -220,10 +220,16 @@ class GCDependentSlot(InternalMethodSlot):
         InternalMethodSlot.__init__(self, slot_name)
     
     def slot_code(self, scope):
-        if scope.needs_gc():
-            return InternalMethodSlot.slot_code(self, scope)
-        else:
+        if not scope.needs_gc():
             return "0"
+        if not scope.has_pyobject_attrs:
+            # if the type does not have object attributes, it can
+            # delegate GC methods to its parent - iff the parent
+            # functions are defined in the same module
+            parent_type_scope = scope.parent_type.base_type.scope
+            if scope.parent_scope is parent_type_scope.parent_scope:
+                return self.slot_code(parent_type_scope)
+        return InternalMethodSlot.slot_code(self, scope)
 
 
 class SyntheticSlot(InternalMethodSlot):
