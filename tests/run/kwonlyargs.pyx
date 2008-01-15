@@ -1,8 +1,14 @@
 __doc__ = """
+    >>> b(1,2,3)
+    >>> b(1,2,3,4)
+    Traceback (most recent call last):
+    TypeError: function takes exactly 3 arguments (4 given)
+
+    >>> c(1,2)
     >>> c(1,2,3)
     >>> c(1,2,3,4)
     Traceback (most recent call last):
-    TypeError: function takes exactly 3 arguments (4 given)
+    TypeError: function takes at most 3 arguments (4 given)
 
     >>> d(1,2)
     >>> d(1,2, c=1)
@@ -63,7 +69,10 @@ __doc__ = """
     TypeError: required keyword argument 'c' is missing
 """
 
-def c(a, b, c):
+def b(a, b, c):
+    z = 22
+
+def c(a, b, c=1):
     z = 33
 
 def d(a, b, *, c = 88):
