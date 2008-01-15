@@ -1311,12 +1311,13 @@ class DefNode(FuncDefNode):
     def generate_arg_conversion_from_pyobject(self, arg, code):
         new_type = arg.type
         func = new_type.from_py_function
+        # copied from CoerceFromPyTypeNode
         if func:
             code.putln("%s = %s(%s); %s" % (
                 arg.entry.cname,
                 func,
                 arg.hdr_cname,
-                code.error_goto_if_PyErr(arg.pos)))
+                code.error_goto_if(new_type.error_condition(arg.entry.cname), arg.pos)))
         else:
             error(arg.pos, 
                 "Cannot convert Python object argument to type '%s'" 
