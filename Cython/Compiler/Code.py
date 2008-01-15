@@ -98,6 +98,8 @@ class CCodeWriter:
         return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
 
     def mark_pos(self, pos):
+        if pos is None:
+            return
         file, line, col = pos
         contents = self.file_contents(file)
 
