@@ -217,12 +217,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_py_string_decls(env, code)
         self.generate_cached_builtins_decls(env, code)
         self.body.generate_function_definitions(env, code)
+        code.mark_pos(None)
         self.generate_interned_name_table(env, code)
         self.generate_py_string_table(env, code)
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)
         self.generate_filename_init_prototype(code)
         self.generate_module_init_func(modules[:-1], env, code)
+        code.mark_pos(None)
         self.generate_module_cleanup_func(env, code)
         self.generate_filename_table(code)
         self.generate_utility_functions(env, code)
@@ -1196,6 +1198,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "};")
     
     def generate_interned_name_table(self, env, code):
+        code.mark_pos(None)
         items = env.intern_map.items()
         if items:
             items.sort()
@@ -1280,6 +1283,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_type_import_code_for_module(module, env, code)
 
         code.putln("/*--- Execution code ---*/")
+        code.mark_pos(None)
         self.body.generate_execution_code(code)
         
         if Options.generate_cleanup_code:

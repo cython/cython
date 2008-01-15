@@ -88,8 +88,6 @@ class Node:
         # mro does the wrong thing
         if isinstance(self, BlockNode):
             self.body.annotate(code)
-        else:
-            print "skipping", self
 
 
 class BlockNode:

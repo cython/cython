@@ -7,6 +7,10 @@ from StringIO import StringIO
 
 from Code import CCodeWriter
 
+# need one-characters subsitutions (for now) so offsets aren't off
+special_chars = [('<', '\xF0', '&lt;'),
+                 ('>', '\xF1', '&gt;'), 
+                 ('&', '\xF2', '&amp;')]
 
 class AnnotationCCodeWriter(CCodeWriter):
 
@@ -29,14 +33,13 @@ class AnnotationCCodeWriter(CCodeWriter):
 #        if pos is not None:
 #            CCodeWriter.mark_pos(self, pos)
 #        return
-        print "marking", pos
         if self.last_pos:
             try:
                 code = self.code[self.last_pos[1]]
             except KeyError:
                 code = ""
             self.code[self.last_pos[1]] = code + self.buffer.getvalue()
-            self.buffer = StringIO()
+        self.buffer = StringIO()
         self.last_pos = pos
 
     def annotate(self, pos, item):
@@ -47,12 +50,10 @@ class AnnotationCCodeWriter(CCodeWriter):
         f = open(filename)
         lines = f.readlines()
         for k in range(len(lines)):
-            # there has to be a better way to do this
-            lines[k] = lines[k].replace('  ','\t ')
-            lines[k] = lines[k].replace('  ','\t\t')
-            # TODO: this is incorrect
-            lines[k] = lines[k].replace('<', '~')
-            lines[k] = lines[k].replace('>', '~')
+            line = lines[k]
+            for c, cc, html in special_chars:
+                line = line.replace(c, cc)
+            lines[k] = line
         f.close()
         all = []
         for pos, item in self.annotations:
@@ -86,6 +87,7 @@ body { font-family: courier; font-size: 12; }
 .py_api  { color: red; }
 .pyx_api  { color: #FF3000; }
 .py_macro_api  { color: #FF8000; }
+.error_goto  { color: #FF8000; }
 
 .tag  {  }
 
@@ -96,6 +98,8 @@ body { font-family: courier; font-size: 12; }
 
 .py_call { color: #FF0000; font-weight: bold; }
 .c_call  { color: #0000FF; }
+
+.line { margin: 0em }
 
 </style>
 <script>
@@ -113,6 +117,7 @@ function toggleDiv(id) {
         py_c_api = re.compile('(Py[A-Z][a-z]+_[A-Z][a-z][A-Za-z_]+)')
         pyx_api = re.compile('(__Pyx[A-Za-z_]+)\(')
         py_marco_api = re.compile('(Py[A-Za-z]*_[A-Z][A-Z_]+)')
+        error_goto = re.compile(r'(if .*? \{__pyx_filename = .*goto __pyx_L\w+;\})')
         
         for line in lines:
 
@@ -125,16 +130,18 @@ function toggleDiv(id) {
             code, c_api_calls = py_c_api.subn(r"<span class='py_api'>\1</span>", code)
             code, pyx_api_calls = pyx_api.subn(r"<span class='pyx_api'>\1</span>(", code)
             code, macro_api_calls = py_marco_api.subn(r"<span class='py_macro_api'>\1</span>", code)
+            code, error_goto_calls = error_goto.subn(r"<span class='error_goto'>\1</span>", code)
             
             color = "FFFF%02x" % int(255/(1+(5*c_api_calls+2*pyx_api_calls+macro_api_calls)/10.0))
-            f.write("<div class='line' style='background-color: #%s' onclick='toggleDiv(\"line%s\")'>" % (color, k))
+            f.write("<pre class='line' style='background-color: #%s' onclick='toggleDiv(\"line%s\")'>" % (color, k))
 
             f.write(" %d: " % k)
-            line = line.replace('\t', '&nbsp;')
-            f.write(line)
+            for c, cc, html in special_chars:
+                line = line.replace(cc, html)
+            f.write(line.rstrip())
                 
-            f.write('</div>\n')
-            f.write("<div id='line%s' class='code' style='background-color: #%s'>%s</div>" % (k, color, code.replace('\n', '\n<br>')))
+            f.write('</pre>\n')
+            f.write("<pre id='line%s' class='code' style='background-color: #%s'>%s</pre>" % (k, color, code))
         f.write('</body></html>\n')
         f.close()
         
