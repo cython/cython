@@ -961,7 +961,8 @@ class DefNode(FuncDefNode):
         self.analyse_signature(env)
         self.return_type = self.entry.signature.return_type()
         if self.star_arg or self.starstar_arg or self.num_kwonly_args > 0:
-            env.use_utility_code(get_starargs_utility_code)
+            env.use_utility_code(get_stararg_utility_code)
+            env.use_utility_code(get_splitkeywords_utility_code)
     
     def analyse_signature(self, env):
         any_type_tests_needed = 0
@@ -1271,14 +1272,17 @@ class DefNode(FuncDefNode):
         star_arg_addr = self.arg_address(self.star_arg)
         starstar_arg_addr = self.arg_address(self.starstar_arg)
         code.putln(
-            "if (__Pyx_GetStarArgs(&%s, &%s, %s, %s, %s, %s, %s) < 0) return %s;" % (
-                Naming.args_cname,
+            "if (__Pyx_SplitKeywords(&%s, %s, %s, %s) < 0) return %s;" % (
                 Naming.kwds_cname,
                 Naming.kwdlist_cname,
-                nargs,
-                star_arg_addr,
                 starstar_arg_addr,
                 self.reqd_kw_flags_cname,
+                self.error_value()))
+        code.putln(
+            "if (__Pyx_GetStarArg(&%s, %s, %s) < 0) return %s;" % (
+                Naming.args_cname,
+                nargs,
+                star_arg_addr,
                 self.error_value()))
 
     def generate_argument_conversion_code(self, code):
@@ -3317,44 +3321,33 @@ static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed
 
 #------------------------------------------------------------------------------------
 #
-#  __Pyx_GetStarArgs splits the args tuple and kwds dict into two parts
-#  each, one part suitable for passing to PyArg_ParseTupleAndKeywords,
-#  and the other containing any extra arguments. On success, replaces
-#  the borrowed references *args and *kwds with references to a new
-#  tuple and dict, and passes back new references in *args2 and *kwds2.
-#  Does not touch any of its arguments on failure.
+#  __Pyx_GetStarArg splits the args tuple into two parts, one part
+#  suitable for passing to PyArg_ParseTupleAndKeywords, and the other
+#  containing any extra arguments. On success, replaces the borrowed
+#  reference *args with references to a new tuple, and passes back a
+#  new reference in *args2.  Does not touch any of its arguments on
+#  failure.
 #
-#  Any of *kwds, args2 and kwds2 may be 0 (but not args or kwds). If
-#  *kwds == 0, it is not changed. If kwds2 == 0 and *kwds != 0, a new
-#  reference to the same dictionary is passed back in *kwds.
+#  The parameter args2 may be 0, but not args or *args.
 #
 #  If rqd_kwds is not 0, it is an array of booleans corresponding to the
 #  names in kwd_list, indicating required keyword arguments. If any of
 #  these are not present in kwds, an exception is raised.
 #
 
-get_starargs_utility_code = [
+get_stararg_utility_code = [
 """
-static int __Pyx_GetStarArgs(PyObject **args, PyObject **kwds, char *kwd_list[], \
-    Py_ssize_t nargs, PyObject **args2, PyObject **kwds2, char rqd_kwds[]); /*proto*/
+static int __Pyx_GetStarArg(PyObject **args, Py_ssize_t nargs, PyObject **args2); /*proto*/
 ""","""
-static int __Pyx_GetStarArgs(
+static int __Pyx_GetStarArg(
     PyObject **args, 
-    PyObject **kwds,
-    char *kwd_list[], 
     Py_ssize_t nargs,
-    PyObject **args2, 
-    PyObject **kwds2,
-    char rqd_kwds[])
+    PyObject **args2)
 {
-    PyObject *s = 0, *x = 0, *args1 = 0, *kwds1 = 0;
-    int i;
-    char **p;
-    
+    PyObject *args1 = 0;
+
     if (args2)
         *args2 = 0;
-    if (kwds2)
-        *kwds2 = 0;
     
     if (args2) {
         args1 = PyTuple_GetSlice(*args, 0, nargs);
@@ -3377,6 +3370,53 @@ static int __Pyx_GetStarArgs(
         Py_INCREF(args1);
     }
 
+    *args = args1;
+    return 0;
+bad:
+    Py_XDECREF(args1);
+    if (args2) {
+        Py_XDECREF(*args2);
+    }
+    return -1;
+}
+"""]
+
+#------------------------------------------------------------------------------------
+#
+#  __Pyx_SplitKeywords splits the kwds dict into two parts one part
+#  suitable for passing to PyArg_ParseTupleAndKeywords, and the other
+#  containing any extra arguments. On success, replaces the borrowed
+#  reference *kwds with references to a new dict, and passes back a
+#  new reference in *kwds2.  Does not touch any of its arguments on
+#  failure.
+#
+#  Any of *kwds and kwds2 may be 0 (but not kwds). If *kwds == 0, it
+#  is not changed. If kwds2 == 0 and *kwds != 0, a new reference to
+#  the same dictionary is passed back in *kwds.
+#
+#  If rqd_kwds is not 0, it is an array of booleans corresponding to
+#  the names in kwd_list, indicating required keyword arguments. If
+#  any of these are not present in kwds, an exception is raised.
+#
+
+get_splitkeywords_utility_code = [
+"""
+static int __Pyx_SplitKeywords(PyObject **kwds, char *kwd_list[], \
+    PyObject **kwds2, char rqd_kwds[]); /*proto*/
+""","""
+static int __Pyx_SplitKeywords(
+    PyObject **kwds,
+    char *kwd_list[], 
+    PyObject **kwds2,
+    char rqd_kwds[])
+{
+    PyObject *s = 0, *x = 0, *kwds1 = 0;
+    int i;
+    char **p;
+    
+    if (kwds2)
+        *kwds2 = 0;
+    
     if (*kwds) {
         if (kwds2) {
             kwds1 = PyDict_New();
@@ -3422,8 +3462,7 @@ static int __Pyx_GetStarArgs(
                 goto bad;
         }
     }
-    
-    *args = args1;
+
     *kwds = kwds1;
     return 0;
 missing_kwarg:
@@ -3431,11 +3470,7 @@ missing_kwarg:
         "required keyword argument '%s' is missing", *p);
 bad:
     Py_XDECREF(s);
-    Py_XDECREF(args1);
     Py_XDECREF(kwds1);
-    if (args2) {
-        Py_XDECREF(*args2);
-    }
     if (kwds2) {
         Py_XDECREF(*kwds2);
     }
