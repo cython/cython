@@ -70,22 +70,22 @@ __doc__ = """
 """
 
 def b(a, b, c):
-    z = 22
+    pass
 
 def c(a, b, c=1):
-    z = 33
+    pass
 
 def d(a, b, *, c = 88):
-    z = 44
+    pass
 
 def e(a, b, c = 88, **kwds):
-    z = 55
+    pass
 
 def f(a, b, *, c, d = 42):
-    z = 66
+    pass
 
 def g(a, b, *, c, d = 42, e = 17, f, **kwds):
-    z = 77
+    pass
 
 def h(a, b, *args, c, d = 42, e = 17, f, **kwds):
-    z = 88
+    pass
