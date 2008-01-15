@@ -1216,6 +1216,10 @@ class DefNode(FuncDefNode):
                         if not default_seen:
                             arg_formats.append("|")
                         default_seen = 1
+                    elif arg.kw_only:
+                        if not default_seen:
+                            arg_formats.append("|")
+                        default_seen = 1
                     elif default_seen and not arg.kw_only:
                         error(arg.pos, "Non-default argument following default argument")
                     if arg.needs_conversion:
@@ -1268,22 +1272,35 @@ class DefNode(FuncDefNode):
 
     def generate_stararg_getting_code(self, code):
         num_kwonly = self.num_kwonly_args
-        nargs = len(self.args) - num_kwonly - self.entry.signature.num_fixed_args()
-        star_arg_addr = self.arg_address(self.star_arg)
-        starstar_arg_addr = self.arg_address(self.starstar_arg)
-        code.putln(
-            "if (__Pyx_SplitKeywords(&%s, %s, %s, %s) < 0) return %s;" % (
-                Naming.kwds_cname,
-                Naming.kwdlist_cname,
-                starstar_arg_addr,
-                self.reqd_kw_flags_cname,
-                self.error_value()))
-        code.putln(
-            "if (__Pyx_GetStarArg(&%s, %s, %s) < 0) return %s;" % (
-                Naming.args_cname,
-                nargs,
-                star_arg_addr,
-                self.error_value()))
+        fixed_args = self.entry.signature.num_fixed_args()
+        nargs = len(self.args) - num_kwonly - fixed_args
+        if self.star_arg:
+            star_arg_addr = self.arg_address(self.star_arg)
+            code.putln(
+                "if (unlikely(__Pyx_GetStarArg(&%s, %s, %s) < 0)) return %s;" % (
+                    Naming.args_cname,
+                    nargs,
+                    star_arg_addr,
+                    self.error_value()))
+        elif self.entry.signature.has_generic_args:
+            # provide a more helpful message about supernumerous
+            # positional arguments than PyArg_ParseTupelAndKeywords()
+            code.putln("if (unlikely(PyTuple_GET_SIZE(%s) > %d)) {" % (
+                    Naming.args_cname, nargs))
+            error_message = "function takes at most %d positional arguments (%d given)"
+            code.putln("PyErr_Format(PyExc_TypeError, \"%s\", %d, PyTuple_GET_SIZE(%s));" % (
+                    error_message, nargs, Naming.args_cname))
+            code.putln("return %s;" % self.error_value())
+            code.putln("}")
+        if self.starstar_arg or num_kwonly:
+            starstar_arg_addr = self.arg_address(self.starstar_arg)
+            code.putln(
+                "if (unlikely(__Pyx_SplitKeywords(&%s, %s, %s, %s) < 0)) return %s;" % (
+                    Naming.kwds_cname,
+                    Naming.kwdlist_cname,
+                    starstar_arg_addr,
+                    self.reqd_kw_flags_cname,
+                    self.error_value()))
 
     def generate_argument_conversion_code(self, code):
         # Generate code to convert arguments from
@@ -3328,8 +3345,6 @@ static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed
 #  new reference in *args2.  Does not touch any of its arguments on
 #  failure.
 #
-#  The parameter args2 may be 0, but not args or *args.
-#
 #  If rqd_kwds is not 0, it is an array of booleans corresponding to the
 #  names in kwd_list, indicating required keyword arguments. If any of
 #  these are not present in kwds, an exception is raised.
@@ -3346,29 +3361,13 @@ static int __Pyx_GetStarArg(
 {
     PyObject *args1 = 0;
 
-    if (args2)
-        *args2 = 0;
-    
-    if (args2) {
-        args1 = PyTuple_GetSlice(*args, 0, nargs);
-        if (!args1)
-            goto bad;
-        *args2 = PyTuple_GetSlice(*args, nargs, PyTuple_GET_SIZE(*args));
-        if (!*args2)
-            goto bad;
-    }
-    else if (PyTuple_GET_SIZE(*args) > nargs) {
-        int m = nargs;
-        int n = PyTuple_GET_SIZE(*args);
-        PyErr_Format(PyExc_TypeError,
-            "function takes at most %d positional arguments (%d given)",
-                m, n);
+    *args2 = 0;
+    args1 = PyTuple_GetSlice(*args, 0, nargs);
+    if (!args1)
         goto bad;
-    }
-    else {
-        args1 = *args;
-        Py_INCREF(args1);
-    }
+    *args2 = PyTuple_GetSlice(*args, nargs, PyTuple_GET_SIZE(*args));
+    if (!*args2)
+        goto bad;
 
     *args = args1;
     return 0;
