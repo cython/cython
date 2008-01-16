@@ -1280,10 +1280,10 @@ class DefNode(FuncDefNode):
             return 0
 
     def generate_stararg_getting_code(self, code):
-        error_return = "return %s;" % self.error_value()
         num_kwonly = self.num_kwonly_args
         fixed_args = self.entry.signature.num_fixed_args()
         nargs = len(self.args) - num_kwonly - fixed_args
+        error_return = "return %s;" % self.error_value()
 
         if self.star_arg:
             star_arg_addr = self.arg_address(self.star_arg)
@@ -1294,8 +1294,9 @@ class DefNode(FuncDefNode):
                     star_arg_addr,
                     self.error_value()))
         elif self.entry.signature.has_generic_args:
-            # provide a more helpful message about supernumerous
-            # positional arguments than PyArg_ParseTupelAndKeywords()
+            # make sure supernumerous positional arguments do not run
+            # into keyword-only arguments and provide a more helpful
+            # message than PyArg_ParseTupelAndKeywords()
             code.putln("if (unlikely(PyTuple_GET_SIZE(%s) > %d)) {" % (
                     Naming.args_cname, nargs))
             error_message = "function takes at most %d positional arguments (%d given)"
