@@ -302,6 +302,19 @@ class CType(PyrexType):
     from_py_function = None
     exception_value = None
     exception_check = 1
+    
+    def error_condition(self, result_code):
+        conds = []
+        if self.is_string:
+            conds.append("(!%s)" % result_code)
+        elif self.exception_value is not None:
+            conds.append("(%s == (%s)%s)" % (result_code, self.sign_and_name(), self.exception_value))
+        if self.exception_check:
+            conds.append("PyErr_Occurred()")
+        if len(conds) > 0:
+            return " && ".join(conds)
+        else:
+            return 0
 
 
 class CVoidType(CType):
@@ -432,7 +445,7 @@ class CUIntType(CIntType):
 
     to_py_function = "PyLong_FromUnsignedLong"
     from_py_function = "PyInt_AsUnsignedLongMask"
-    exception_value = None
+    exception_value = -1
 
 
 class CULongType(CUIntType):

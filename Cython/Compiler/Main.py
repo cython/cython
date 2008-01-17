@@ -17,7 +17,6 @@ import Parsing
 from Symtab import BuiltinScope, ModuleScope
 import Code
 from Cython.Utils import replace_suffix
-import Builtin
 from Cython import Utils
 
 verbose = 0
@@ -34,6 +33,7 @@ class Context:
     
     def __init__(self, include_directories):
         #self.modules = {"__builtin__" : BuiltinScope()}
+        import Builtin
         self.modules = {"__builtin__" : Builtin.builtin_scope}
         self.include_directories = include_directories
         

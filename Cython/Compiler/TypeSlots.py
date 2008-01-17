@@ -228,7 +228,31 @@ class GCDependentSlot(InternalMethodSlot):
             # functions are defined in the same module
             parent_type_scope = scope.parent_type.base_type.scope
             if scope.parent_scope is parent_type_scope.parent_scope:
-                return self.slot_code(parent_type_scope)
+                entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
+                if entry.visibility != 'extern':
+                    return self.slot_code(parent_type_scope)
+        return InternalMethodSlot.slot_code(self, scope)
+        
+        
+class ConstructorSlot(InternalMethodSlot):
+    #  Descriptor for tp_new and tp_dealloc.
+    
+    def __init__(self, slot_name, method):
+        InternalMethodSlot.__init__(self, slot_name)
+        self.method = method
+    
+    def slot_code(self, scope):
+        if scope.parent_type.base_type \
+            and not scope.has_pyobject_attrs \
+            and not scope.lookup_here(self.method):
+            # if the type does not have object attributes, it can
+            # delegate GC methods to its parent - iff the parent
+            # functions are defined in the same module
+            parent_type_scope = scope.parent_type.base_type.scope
+            if scope.parent_scope is parent_type_scope.parent_scope:
+                entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
+                if entry.visibility != 'extern':
+                    return self.slot_code(parent_type_scope)
         return InternalMethodSlot.slot_code(self, scope)
 
 
@@ -373,6 +397,19 @@ def get_property_accessor_signature(name):
     #  Return signature of accessor for an extension type
     #  property, else None.
     return property_accessor_signatures.get(name)
+    
+def get_base_slot_function(scope, slot):
+    #  Returns the function implementing this slot in the baseclass. 
+    #  This is useful for enabling the compiler to optimize calls
+    #  that recursively climb the class hierarchy. 
+    base_type = scope.parent_type.base_type
+    if scope.parent_scope is base_type.scope.parent_scope:
+        parent_slot = slot.slot_code(base_type.scope)
+        if parent_slot != '0':
+            entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
+            if entry.visibility != 'extern':
+                return parent_slot
+    return None
 
 #------------------------------------------------------------------------------------------
 #
@@ -558,7 +595,7 @@ PyBufferProcs = (
 #------------------------------------------------------------------------------------------
 
 slot_table = (
-    InternalMethodSlot("tp_dealloc"),
+    ConstructorSlot("tp_dealloc", '__dealloc__'),
     EmptySlot("tp_print"), #MethodSlot(printfunc, "tp_print", "__print__"),
     EmptySlot("tp_getattr"),
     EmptySlot("tp_setattr"),

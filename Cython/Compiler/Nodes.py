@@ -88,8 +88,6 @@ class Node:
         # mro does the wrong thing
         if isinstance(self, BlockNode):
             self.body.annotate(code)
-        else:
-            print "skipping", self
 
 
 class BlockNode:
@@ -985,6 +983,8 @@ class DefNode(FuncDefNode):
                 elif len(self.args) == 2:
                     if self.args[1].default is None and not self.args[1].kw_only:
                         self.entry.signature = TypeSlots.ibinaryfunc
+        elif self.entry.is_special:
+            self.entry.trivial_signature = len(self.args) == 1 and not (self.star_arg or self.starstar_arg)
         sig = self.entry.signature
         nfixed = sig.num_fixed_args()
         for i in range(nfixed):
@@ -1363,12 +1363,13 @@ class DefNode(FuncDefNode):
     def generate_arg_conversion_from_pyobject(self, arg, code):
         new_type = arg.type
         func = new_type.from_py_function
+        # copied from CoerceFromPyTypeNode
         if func:
             code.putln("%s = %s(%s); %s" % (
                 arg.entry.cname,
                 func,
                 arg.hdr_cname,
-                code.error_goto_if_PyErr(arg.pos)))
+                code.error_goto_if(new_type.error_condition(arg.entry.cname), arg.pos)))
         else:
             error(arg.pos, 
                 "Cannot convert Python object argument to type '%s'" 

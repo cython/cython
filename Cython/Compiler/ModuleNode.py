@@ -217,12 +217,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_py_string_decls(env, code)
         self.generate_cached_builtins_decls(env, code)
         self.body.generate_function_definitions(env, code)
+        code.mark_pos(None)
         self.generate_interned_name_table(env, code)
         self.generate_py_string_table(env, code)
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)
         self.generate_filename_init_prototype(code)
         self.generate_module_init_func(modules[:-1], env, code)
+        code.mark_pos(None)
         self.generate_module_cleanup_func(env, code)
         self.generate_filename_table(code)
         self.generate_utility_functions(env, code)
@@ -284,6 +286,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('')
         code.putln('static PyObject *%s;' % env.module_cname)
         code.putln('static PyObject *%s;' % Naming.builtins_cname)
+        code.putln('static PyObject *%s;' % Naming.empty_tuple)
         if Options.pre_import is not None:
             code.putln('static PyObject *%s;' % Naming.preimport_cname)
         code.putln('static int %s;' % Naming.lineno_cname)
@@ -605,6 +608,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.declaration_code("")))
     
     def generate_new_function(self, scope, code):
+        tp_slot = TypeSlots.ConstructorSlot("tp_new", '__new__')
+        slot_func = scope.mangle_internal("tp_new")
         type = scope.parent_type
         base_type = type.base_type
         py_attrs = []
@@ -621,9 +626,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "%s;"
                     % scope.parent_type.declaration_code("p"))
         if base_type:
+            tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
+            if tp_new is None:
+                tp_new = "%s->tp_new" % base_type.typeptr_cname
             code.putln(
-                "PyObject *o = %s->tp_new(t, a, k);" %
-                    base_type.typeptr_cname)
+                "PyObject *o = %s(t, a, k);" % tp_new)
         else:
             code.putln(
                 "PyObject *o = (*t->tp_alloc)(t, 0);")
@@ -647,9 +654,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.put_init_var_to_py_none(entry, "p->%s")
         entry = scope.lookup_here("__new__")
         if entry:
+            if entry.trivial_signature:
+                cinit_args = "o, %s, NULL" % Naming.empty_tuple
+            else:
+                cinit_args = "o, a, k"
             code.putln(
-                "if (%s(o, a, k) < 0) {" % 
-                    entry.func_cname)
+                "if (%s(%s) < 0) {" % 
+                    (entry.func_cname, cinit_args))
             code.put_decref_clear("o", py_object_type);
             code.putln(
                 "}")
@@ -659,7 +670,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
     
     def generate_dealloc_function(self, scope, code):
+        tp_slot = TypeSlots.ConstructorSlot("tp_dealloc", '__dealloc__')
+        slot_func = scope.mangle_internal("tp_dealloc")
         base_type = scope.parent_type.base_type
+        if tp_slot.slot_code(scope) != slot_func:
+            return # never used
         code.putln("")
         code.putln(
             "static void %s(PyObject *o) {"
@@ -676,12 +691,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in py_attrs:
             code.put_xdecref("p->%s" % entry.cname, entry.type)
         if base_type:
+            tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
+            if tp_dealloc is None:
+                tp_dealloc = "%s->tp_dealloc" % base_type.typeptr_cname
             code.putln(
-                "%s->tp_dealloc(o);" %
-                    base_type.typeptr_cname)
+                    "%s(o);" % tp_dealloc)
         else:
             code.putln(
-                "(*o->ob_type->tp_free)(o);")
+                    "(*o->ob_type->tp_free)(o);")
         code.putln(
             "}")
     
@@ -709,26 +726,34 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "}")
     
     def generate_traverse_function(self, scope, code):
+        tp_slot = TypeSlots.GCDependentSlot("tp_traverse")
+        slot_func = scope.mangle_internal("tp_traverse")
         base_type = scope.parent_type.base_type
+        if tp_slot.slot_code(scope) != slot_func:
+            return # never used
         code.putln("")
         code.putln(
             "static int %s(PyObject *o, visitproc v, void *a) {"
-                % scope.mangle_internal("tp_traverse"))
+                % slot_func)
         py_attrs = []
         for entry in scope.var_entries:
             if entry.type.is_pyobject and entry.name != "__weakref__":
                 py_attrs.append(entry)
         if base_type or py_attrs:
-            code.putln(
-                    "int e;")
+            code.putln("int e;")
         if py_attrs:
             self.generate_self_cast(scope, code)
         if base_type:
-            code.putln("if (%s->tp_traverse) {" % base_type.typeptr_cname)
-            code.putln(
-                    "e = %s->tp_traverse(o, v, a); if (e) return e;" %
-                        base_type.typeptr_cname)
-            code.putln("}")
+            # want to call it explicitly if possible so inlining can be performed
+            static_call = TypeSlots.get_base_slot_function(scope, tp_slot)
+            if static_call:
+                code.putln("e = %s(o, v, a); if (e) return e;" % static_call)
+            else:
+                code.putln("if (%s->tp_traverse) {" % base_type.typeptr_cname)
+                code.putln(
+                        "e = %s->tp_traverse(o, v, a); if (e) return e;" %
+                            base_type.typeptr_cname)
+                code.putln("}")
         for entry in py_attrs:
             var_code = "p->%s" % entry.cname
             code.putln(
@@ -747,11 +772,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
     
     def generate_clear_function(self, scope, code):
+        tp_slot = TypeSlots.GCDependentSlot("tp_clear")
+        slot_func = scope.mangle_internal("tp_clear")
         base_type = scope.parent_type.base_type
+        if tp_slot.slot_code(scope) != slot_func:
+            return # never used
         code.putln("")
-        code.putln(
-            "static int %s(PyObject *o) {"
-                % scope.mangle_internal("tp_clear"))
+        code.putln("static int %s(PyObject *o) {" % slot_func)
         py_attrs = []
         for entry in scope.var_entries:
             if entry.type.is_pyobject and entry.name != "__weakref__":
@@ -760,21 +787,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_self_cast(scope, code)
             code.putln("PyObject* tmp;")
         if base_type:
-            code.putln("if (%s->tp_clear) {" % base_type.typeptr_cname)
-            code.putln(
-                "%s->tp_clear(o);" %
-                    base_type.typeptr_cname)
-            code.putln("}")
+            # want to call it explicitly if possible so inlining can be performed
+            static_call = TypeSlots.get_base_slot_function(scope, tp_slot)
+            if static_call:
+                code.putln("%s(o);" % static_call)
+            else:
+                code.putln("if (%s->tp_clear) {" % base_type.typeptr_cname)
+                code.putln("%s->tp_clear(o);" % base_type.typeptr_cname)
+                code.putln("}")
         for entry in py_attrs:
             name = "p->%s" % entry.cname
+            if entry.type.is_extension_type:
+                name = "((PyObject*)%s)" % name
             code.putln("tmp = %s;" % name)
-            code.put_init_to_py_none(name, entry.type)
+            code.put_init_to_py_none(name, PyrexTypes.py_object_type)
             code.putln("Py_XDECREF(tmp);")
         code.putln(
             "return 0;")
         code.putln(
             "}")
-        
+            
     def generate_getitem_int_function(self, scope, code):
         # This function is put into the sq_item slot when
         # a __getitem__ method is present. It converts its
@@ -1203,6 +1235,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "};")
     
     def generate_interned_name_table(self, env, code):
+        code.mark_pos(None)
         items = env.intern_map.items()
         if items:
             items.sort()
@@ -1268,6 +1301,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
             self.generate_builtin_init_code(env, code)
+            
+        code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
 
         code.putln("/*--- Global init code ---*/")
         self.generate_global_init_code(env, code)
@@ -1287,6 +1322,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_type_import_code_for_module(module, env, code)
 
         code.putln("/*--- Execution code ---*/")
+        code.mark_pos(None)
         self.body.generate_execution_code(code)
         
         if Options.generate_cleanup_code:
@@ -1320,6 +1356,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("/*--- Builtin cleanup code ---*/")
             for entry in env.cached_builtins:
                 code.put_var_decref_clear(entry)
+        code.putln("Py_DECREF(%s); %s = 0;" % (Naming.empty_tuple, Naming.empty_tuple));
         code.putln("/*--- Intern cleanup code ---*/")
         for entry in env.pynum_entries:
             code.put_var_decref_clear(entry)
