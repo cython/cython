@@ -2118,6 +2118,19 @@ class SequenceNode(ExprNode):
 
 class TupleNode(SequenceNode):
     #  Tuple constructor.
+    
+    def analyse_types(self, env):
+        if len(self.args) == 0:
+            self.type = py_object_type
+            self.is_temp = 0
+        else:
+            SequenceNode.analyse_types(self, env)
+            
+    def calculate_result_code(self):
+        if len(self.args) > 0:
+            error(pos, "Positive length tuples must be constructed.")
+        else:
+            return Naming.empty_tuple
 
     def compile_time_value(self, denv):
         values = self.compile_time_value_list(denv)
@@ -2127,6 +2140,9 @@ class TupleNode(SequenceNode):
             self.compile_time_value_error(e)
     
     def generate_operation_code(self, code):
+        if len(self.args) == 0:
+            # result_code is Naming.empty_tuple
+            return
         code.putln(
             "%s = PyTuple_New(%s); %s" % (
                 self.result_code,
