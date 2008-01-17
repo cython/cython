@@ -608,6 +608,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.declaration_code("")))
     
     def generate_new_function(self, scope, code):
+        tp_slot = TypeSlots.ConstructorSlot("tp_new", '__new__')
+        slot_func = scope.mangle_internal("tp_new")
+        if tp_slot.slot_code(scope) != slot_func:
+            return # never used
         type = scope.parent_type
         base_type = type.base_type
         py_attrs = []
@@ -624,9 +628,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "%s;"
                     % scope.parent_type.declaration_code("p"))
         if base_type:
+            entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
+            if scope.parent_scope is base_type.scope.parent_scope and entry.visibility != 'extern':
+                tp_new = TypeSlots.InternalMethodSlot("tp_new").slot_code(base_type.scope)
+            else:
+                tp_new = "%s->tp_new" % base_type.typeptr_cname
             code.putln(
-                "PyObject *o = %s->tp_new(t, a, k);" %
-                    base_type.typeptr_cname)
+                "PyObject *o = %s(t, a, k);" % tp_new)
         else:
             code.putln(
                 "PyObject *o = (*t->tp_alloc)(t, 0);")
@@ -662,7 +670,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
     
     def generate_dealloc_function(self, scope, code):
+        tp_slot = TypeSlots.ConstructorSlot("tp_dealloc", '__dealloc__')
+        slot_func = scope.mangle_internal("tp_dealloc")
         base_type = scope.parent_type.base_type
+        if tp_slot.slot_code(scope) != slot_func:
+            return # never used
         code.putln("")
         code.putln(
             "static void %s(PyObject *o) {"
@@ -679,12 +691,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in py_attrs:
             code.put_xdecref("p->%s" % entry.cname, entry.type)
         if base_type:
+            entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
+            if scope.parent_scope is base_type.scope.parent_scope and entry.visibility != 'extern':
+                tp_dealloc = TypeSlots.InternalMethodSlot("tp_dealloc").slot_code(base_type.scope)
+            else:
+                tp_dealloc = "%s->tp_dealloc" % base_type.typeptr_cname
             code.putln(
-                "%s->tp_dealloc(o);" %
-                    base_type.typeptr_cname)
+                    "%s(o);" % tp_dealloc)
         else:
             code.putln(
-                "(*o->ob_type->tp_free)(o);")
+                    "(*o->ob_type->tp_free)(o);")
         code.putln(
             "}")
     
@@ -732,7 +748,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if base_type:
             # want to call it explicitly if possible so inlining can be performed
             parent_slot = tp_slot.slot_code(base_type.scope)
-            if scope.parent_scope is base_type.scope.parent_scope and parent_slot != '0':
+            entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
+            if scope.parent_scope is base_type.scope.parent_scope and parent_slot != '0' and entry.visibility != 'extern':
                 code.putln("e = %s(o, v, a); if (e) return e;" % parent_slot)
             else:
                 code.putln("if (%s->tp_traverse) {" % base_type.typeptr_cname)
@@ -775,7 +792,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if base_type:
             # want to call it explicitly if possible so inlining can be performed
             parent_slot = tp_slot.slot_code(base_type.scope)
-            if scope.parent_scope is base_type.scope.parent_scope and parent_slot != '0':
+            entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
+            if scope.parent_scope is base_type.scope.parent_scope and parent_slot != '0' and entry.visibility != 'extern':
                 code.putln("%s(o);" % parent_slot)
             else:
                 code.putln("if (%s->tp_clear) {" % base_type.typeptr_cname)
