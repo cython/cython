@@ -1937,7 +1937,7 @@ class AttributeNode(ExprNode):
                 code.putln(
                     '%s = PyObject_GetAttrString(%s, "%s"); %s' % (
                         self.result_code,
-                        self.objpy_result(),
+                        self.obj.py_result(),
                         self.attribute,
                         code.error_goto_if_null(self.result_code, self.pos)))
     
