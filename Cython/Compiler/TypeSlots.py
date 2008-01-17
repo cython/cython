@@ -228,7 +228,31 @@ class GCDependentSlot(InternalMethodSlot):
             # functions are defined in the same module
             parent_type_scope = scope.parent_type.base_type.scope
             if scope.parent_scope is parent_type_scope.parent_scope:
-                return self.slot_code(parent_type_scope)
+                entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
+                if entry.visibility != 'extern':
+                    return self.slot_code(parent_type_scope)
+        return InternalMethodSlot.slot_code(self, scope)
+        
+        
+class ConstructorSlot(InternalMethodSlot):
+    #  Descriptor for tp_new and tp_dealloc.
+    
+    def __init__(self, slot_name, method):
+        InternalMethodSlot.__init__(self, slot_name)
+        self.method = method
+    
+    def slot_code(self, scope):
+        if scope.parent_type.base_type \
+            and not scope.has_pyobject_attrs \
+            and not scope.lookup_here(self.method):
+            # if the type does not have object attributes, it can
+            # delegate GC methods to its parent - iff the parent
+            # functions are defined in the same module
+            parent_type_scope = scope.parent_type.base_type.scope
+            if scope.parent_scope is parent_type_scope.parent_scope:
+                entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
+                if entry.visibility != 'extern':
+                    return self.slot_code(parent_type_scope)
         return InternalMethodSlot.slot_code(self, scope)
 
 
@@ -558,7 +582,7 @@ PyBufferProcs = (
 #------------------------------------------------------------------------------------------
 
 slot_table = (
-    InternalMethodSlot("tp_dealloc"),
+    ConstructorSlot("tp_dealloc", '__dealloc__'),
     EmptySlot("tp_print"), #MethodSlot(printfunc, "tp_print", "__print__"),
     EmptySlot("tp_getattr"),
     EmptySlot("tp_setattr"),
@@ -606,7 +630,7 @@ slot_table = (
     
     MethodSlot(initproc, "tp_init", "__init__"),
     EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
-    InternalMethodSlot("tp_new"),
+    ConstructorSlot("tp_new", '__new__'),
     EmptySlot("tp_free"),
     
     EmptySlot("tp_is_gc"),
