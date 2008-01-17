@@ -977,6 +977,8 @@ class DefNode(FuncDefNode):
                 elif len(self.args) == 2:
                     if self.args[1].default is None and not self.args[1].kw_only:
                         self.entry.signature = TypeSlots.ibinaryfunc
+        elif self.entry.is_special:
+            self.entry.trivial_signature = len(self.args) == 1 and not (self.star_arg or self.starstar_arg)
         sig = self.entry.signature
         nfixed = sig.num_fixed_args()
         for i in range(nfixed):
