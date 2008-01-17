@@ -153,12 +153,13 @@ class build_ext(_build_ext.build_ext):
                 or getattr(extension, 'pyrex_c_in_temp', 0)):
             target_dir = os.path.join(self.build_temp, "pyrex")
         else:
-            target_dir = ""
+            target_dir = None
 
         for source in sources:
-            (base, ext) = os.path.splitext(source)
+            (base, ext) = os.path.splitext(os.path.basename(source))
             if ext == ".pyx":			  # Cython source file
-                new_sources.append(os.path.join(target_dir, base + target_ext))
+                output_dir = target_dir or os.path.dirname(source)
+                new_sources.append(os.path.join(output_dir, base + target_ext))
                 pyrex_sources.append(source)
                 pyrex_targets[source] = new_sources[-1]
             else:

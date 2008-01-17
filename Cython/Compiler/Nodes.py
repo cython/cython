@@ -3346,7 +3346,7 @@ static int __Pyx_GetStarArgs(
     PyObject **kwds2,
     char rqd_kwds[])
 {
-    PyObject *x = 0, *args1 = 0, *kwds1 = 0;
+    PyObject *s = 0, *x = 0, *args1 = 0, *kwds1 = 0;
     int i;
     char **p;
     
@@ -3375,14 +3375,9 @@ static int __Pyx_GetStarArgs(
         args1 = *args;
         Py_INCREF(args1);
     }
-    
-    if (rqd_kwds && !*kwds)
-            for (i = 0, p = kwd_list; *p; i++, p++)
-                if (rqd_kwds[i])
-                    goto missing_kwarg;
-    
-    if (kwds2) {
-        if (*kwds) {
+
+    if (*kwds) {
+        if (kwds2) {
             kwds1 = PyDict_New();
             if (!kwds1)
                 goto bad;
@@ -3390,30 +3385,41 @@ static int __Pyx_GetStarArgs(
             if (!*kwds2)
                 goto bad;
             for (i = 0, p = kwd_list; *p; i++, p++) {
-                x = PyDict_GetItemString(*kwds, *p);
+                s = PyString_FromString(*p);
+                x = PyDict_GetItem(*kwds, s);
                 if (x) {
-                    if (PyDict_SetItemString(kwds1, *p, x) < 0)
+                    if (PyDict_SetItem(kwds1, s, x) < 0)
                         goto bad;
-                    if (PyDict_DelItemString(*kwds2, *p) < 0)
+                    if (PyDict_DelItem(*kwds2, s) < 0)
                         goto bad;
                 }
                 else if (rqd_kwds && rqd_kwds[i])
                     goto missing_kwarg;
+                Py_DECREF(s);
             }
+            s = 0;
         }
         else {
+            kwds1 = *kwds;
+            Py_INCREF(kwds1);
+            if (rqd_kwds) {
+                for (i = 0, p = kwd_list; *p; i++, p++)
+                    if (rqd_kwds[i] && !PyDict_GetItemString(kwds1, *p))
+                        goto missing_kwarg;
+            }
+        }
+    }
+    else {
+        if (rqd_kwds) {
+            for (i = 0, p = kwd_list; *p; i++, p++)
+                if (rqd_kwds[i])
+                    goto missing_kwarg;
+        }
+        if (kwds2) {
             *kwds2 = PyDict_New();
             if (!*kwds2)
                 goto bad;
         }
-    }
-    else {
-        kwds1 = *kwds;
-        Py_XINCREF(kwds1);
-        if (rqd_kwds && *kwds)
-            for (i = 0, p = kwd_list; *p; i++, p++)
-                if (rqd_kwds[i] && !PyDict_GetItemString(*kwds, *p))
-                        goto missing_kwarg;
     }
     
     *args = args1;
@@ -3423,6 +3429,7 @@ missing_kwarg:
     PyErr_Format(PyExc_TypeError,
         "required keyword argument '%s' is missing", *p);
 bad:
+    Py_XDECREF(s);
     Py_XDECREF(args1);
     Py_XDECREF(kwds1);
     if (args2) {

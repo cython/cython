@@ -176,22 +176,6 @@ class EmptySlot(FixedSlot):
         FixedSlot.__init__(self, slot_name, "0")
 
 
-class GCDependentSlot(SlotDescriptor):
-    #  Descriptor for a slot whose value depends on whether
-    #  the type participates in GC.
-    
-    def __init__(self, slot_name, no_gc_value, gc_value, dynamic = 0):
-        SlotDescriptor.__init__(self, slot_name, dynamic = dynamic)
-        self.no_gc_value = no_gc_value
-        self.gc_value = gc_value
-    
-    def slot_code(self, scope):
-        if scope.has_pyobject_attrs:
-            return self.gc_value
-        else:
-            return self.no_gc_value
-
-
 class MethodSlot(SlotDescriptor):
     #  Type slot descriptor for a user-definable method.
     #
@@ -228,6 +212,26 @@ class InternalMethodSlot(SlotDescriptor):
         return scope.mangle_internal(self.slot_name)
 
 
+class GCDependentSlot(InternalMethodSlot):
+    #  Descriptor for a slot whose value depends on whether
+    #  the type participates in GC.
+    
+    def __init__(self, slot_name):
+        InternalMethodSlot.__init__(self, slot_name)
+    
+    def slot_code(self, scope):
+        if not scope.needs_gc():
+            return "0"
+        if not scope.has_pyobject_attrs:
+            # if the type does not have object attributes, it can
+            # delegate GC methods to its parent - iff the parent
+            # functions are defined in the same module
+            parent_type_scope = scope.parent_type.base_type.scope
+            if scope.parent_scope is parent_type_scope.parent_scope:
+                return self.slot_code(parent_type_scope)
+        return InternalMethodSlot.slot_code(self, scope)
+
+
 class SyntheticSlot(InternalMethodSlot):
     #  Type slot descriptor for a synthesized method which
     #  dispatches to one or more user-defined methods depending
@@ -252,12 +256,11 @@ class TypeFlagsSlot(SlotDescriptor):
     #  Descriptor for the type flags slot.
     
     def slot_code(self, scope):
-        # Always add Py_TPFLAGS_HAVE_GC -- PyType_Ready doesn't seem to inherit it
-        value = "Py_TPFLAGS_DEFAULT|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_GC"
-        #if scope.has_pyobject_attrs:
-        #	value += "|Py_TPFLAGS_HAVE_GC"
+        value = "Py_TPFLAGS_DEFAULT|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_BASETYPE"
+        if scope.needs_gc():
+            value += "|Py_TPFLAGS_HAVE_GC"
         return value
-        
+
 
 class DocStringSlot(SlotDescriptor):
     #  Descriptor for the docstring slot.
@@ -578,8 +581,8 @@ slot_table = (
     TypeFlagsSlot("tp_flags"),
     DocStringSlot("tp_doc"),
 
-    InternalMethodSlot("tp_traverse"),
-    InternalMethodSlot("tp_clear"),
+    GCDependentSlot("tp_traverse"),
+    GCDependentSlot("tp_clear"),
 
     # Later -- synthesize a method to split into separate ops?
     MethodSlot(richcmpfunc, "tp_richcompare", "__richcmp__"),
@@ -604,10 +607,7 @@ slot_table = (
     MethodSlot(initproc, "tp_init", "__init__"),
     EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
     InternalMethodSlot("tp_new"),
-    # Some versions of Python 2.2 inherit the wrong value for tp_free when the
-    # type has GC but the base type doesn't, so we explicitly set it ourselves
-    # in that case.
-    GCDependentSlot("tp_free", "0", "_PyObject_GC_Del", dynamic = 1),
+    EmptySlot("tp_free"),
     
     EmptySlot("tp_is_gc"),
     EmptySlot("tp_bases"),

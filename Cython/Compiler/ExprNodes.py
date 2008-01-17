@@ -1478,11 +1478,8 @@ class SimpleCallNode(ExprNode):
             function.obj = CloneNode(self.self)
         func_type = self.function_type()
         if func_type.is_pyobject:
-            if self.args:
-                self.arg_tuple = TupleNode(self.pos, args = self.args)
-                self.arg_tuple.analyse_types(env)
-            else:
-                self.arg_tuple = None
+            self.arg_tuple = TupleNode(self.pos, args = self.args)
+            self.arg_tuple.analyse_types(env)
             self.args = None
             self.type = py_object_type
             self.is_temp = 1
@@ -1573,12 +1570,9 @@ class SimpleCallNode(ExprNode):
     def generate_result_code(self, code):
         func_type = self.function_type()
         if func_type.is_pyobject:
-            if self.arg_tuple:
-                arg_code = self.arg_tuple.py_result()
-            else:
-                arg_code = "0"
+            arg_code = self.arg_tuple.py_result()
             code.putln(
-                "%s = PyObject_CallObject(%s, %s); %s" % (
+                "%s = PyObject_Call(%s, %s, NULL); %s" % (
                     self.result_code,
                     self.function.py_result(),
                     arg_code,
@@ -1663,7 +1657,7 @@ class GeneralCallNode(ExprNode):
         else:
             keyword_code = None
         if not keyword_code:
-            call_code = "PyObject_CallObject(%s, %s)" % (
+            call_code = "PyObject_Call(%s, %s, NULL)" % (
                 self.function.py_result(),
                 self.positional_args.py_result())
         else:

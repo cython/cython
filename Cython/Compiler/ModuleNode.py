@@ -568,8 +568,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_exttype_vtable(scope, code)
                     self.generate_new_function(scope, code)
                     self.generate_dealloc_function(scope, code)
-                    self.generate_traverse_function(scope, code)
-                    self.generate_clear_function(scope, code)
+                    if scope.needs_gc():
+                        self.generate_traverse_function(scope, code)
+                        self.generate_clear_function(scope, code)
                     if scope.defines_any(["__getitem__"]):
                         self.generate_getitem_int_function(scope, code)
                     if scope.defines_any(["__setitem__", "__delitem__"]):
@@ -725,9 +726,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if py_attrs:
             self.generate_self_cast(scope, code)
         if base_type:
+            code.putln("if (%s->tp_traverse) {" % base_type.typeptr_cname)
             code.putln(
                     "e = %s->tp_traverse(o, v, a); if (e) return e;" %
                         base_type.typeptr_cname)
+            code.putln("}")
         for entry in py_attrs:
             var_code = "p->%s" % entry.cname
             code.putln(
@@ -757,14 +760,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 py_attrs.append(entry)
         if py_attrs:
             self.generate_self_cast(scope, code)
+            code.putln("PyObject* tmp;")
         if base_type:
+            code.putln("if (%s->tp_clear) {" % base_type.typeptr_cname)
             code.putln(
                 "%s->tp_clear(o);" %
                     base_type.typeptr_cname)
+            code.putln("}")
         for entry in py_attrs:
             name = "p->%s" % entry.cname
-            code.put_xdecref(name, entry.type)
-            code.put_init_var_to_py_none(entry, "p->%s")
+            code.putln("tmp = %s;" % name)
+            code.put_init_to_py_none(name, entry.type)
+            code.putln("Py_XDECREF(tmp);")
         code.putln(
             "return 0;")
         code.putln(
