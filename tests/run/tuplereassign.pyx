@@ -5,6 +5,9 @@ __doc__ = """
     3
     >>> test( (1,2,3) )
     3
+    >>> testnonsense()
+    Traceback (most recent call last):
+    TypeError: 'int' object is not iterable
 """
 
 def test1(t):
@@ -17,4 +20,8 @@ def test3(t):
 
 def test(t):
     t,t,t = t
+    return t
+
+def testnonsense():
+    t,t,t = 1*2
     return t
