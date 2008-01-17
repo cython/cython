@@ -656,9 +656,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.put_init_var_to_py_none(entry, "p->%s")
         entry = scope.lookup_here("__new__")
         if entry:
+            if entry.trivial_signature:
+                cinit_args = "o, %s, NULL" % Naming.empty_tuple
+            else:
+                cinit_args = "o, a, k"
             code.putln(
-                "if (%s(o, a, k) < 0) {" % 
-                    entry.func_cname)
+                "if (%s(%s) < 0) {" % 
+                    (entry.func_cname, cinit_args))
             code.put_decref_clear("o", py_object_type);
             code.putln(
                 "}")
