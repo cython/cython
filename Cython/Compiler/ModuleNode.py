@@ -286,6 +286,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('')
         code.putln('static PyObject *%s;' % env.module_cname)
         code.putln('static PyObject *%s;' % Naming.builtins_cname)
+        code.putln('static PyObject *%s;' % Naming.empty_tuple)
         if Options.pre_import is not None:
             code.putln('static PyObject *%s;' % Naming.preimport_cname)
         code.putln('static int %s;' % Naming.lineno_cname)
@@ -1271,6 +1272,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
             self.generate_builtin_init_code(env, code)
+            
+        code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
 
         code.putln("/*--- Global init code ---*/")
         self.generate_global_init_code(env, code)
@@ -1324,6 +1327,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("/*--- Builtin cleanup code ---*/")
             for entry in env.cached_builtins:
                 code.put_var_decref_clear(entry)
+        code.putln("Py_DECREF(%s); %s = 0;" % (Naming.empty_tuple, Naming.empty_tuple));
         code.putln("/*--- Intern cleanup code ---*/")
         for entry in env.pynum_entries:
             code.put_var_decref_clear(entry)
