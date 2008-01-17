@@ -610,8 +610,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_new_function(self, scope, code):
         tp_slot = TypeSlots.ConstructorSlot("tp_new", '__new__')
         slot_func = scope.mangle_internal("tp_new")
-        if tp_slot.slot_code(scope) != slot_func:
-            return # never used
         type = scope.parent_type
         base_type = type.base_type
         py_attrs = []

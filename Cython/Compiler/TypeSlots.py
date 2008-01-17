@@ -643,7 +643,7 @@ slot_table = (
     
     MethodSlot(initproc, "tp_init", "__init__"),
     EmptySlot("tp_alloc"), #FixedSlot("tp_alloc", "PyType_GenericAlloc"),
-    ConstructorSlot("tp_new", '__new__'),
+    InternalMethodSlot("tp_new"),
     EmptySlot("tp_free"),
     
     EmptySlot("tp_is_gc"),
