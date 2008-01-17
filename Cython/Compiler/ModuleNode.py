@@ -799,8 +799,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("}")
         for entry in py_attrs:
             name = "p->%s" % entry.cname
+            if entry.type.is_extension_type:
+                name = "((PyObject*)%s)" % name
             code.putln("tmp = %s;" % name)
-            code.put_init_to_py_none(name, entry.type)
+            code.put_init_to_py_none(name, PyrexTypes.py_object_type)
             code.putln("Py_XDECREF(tmp);")
         code.putln(
             "return 0;")
