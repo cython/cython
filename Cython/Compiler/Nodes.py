@@ -962,9 +962,11 @@ class DefNode(FuncDefNode):
         self.declare_pyfunction(env)
         self.analyse_signature(env)
         self.return_type = self.entry.signature.return_type()
-        if self.star_arg or self.starstar_arg or self.num_kwonly_args > 0:
+        if self.star_arg:
             env.use_utility_code(get_stararg_utility_code)
+        if self.starstar_arg:
             env.use_utility_code(get_splitkeywords_utility_code)
+        if self.num_required_kw_args:
             env.use_utility_code(get_checkkeywords_utility_code)
 
     def analyse_signature(self, env):
