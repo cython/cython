@@ -21,7 +21,7 @@ incref_local_binop = 0
 # 0: None, 1+: interned objects, 2+: cdef globals, 3+: types objects
 # Mostly for reducing noise for Valgrind, only executes at process exit
 # (when all memory will be reclaimed anyways). 
-generate_cleanup_code = 3
+generate_cleanup_code = 0
 
 annotate = 0
 

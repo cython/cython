@@ -1931,7 +1931,7 @@ class AttributeNode(ExprNode):
                 code.putln(
                     '%s = PyObject_GetAttrString(%s, "%s"); %s' % (
                         self.result_code,
-                        self.objpy_result(),
+                        self.obj.py_result(),
                         self.attribute,
                         code.error_goto_if_null(self.result_code, self.pos)))
     
@@ -2118,6 +2118,19 @@ class SequenceNode(ExprNode):
 
 class TupleNode(SequenceNode):
     #  Tuple constructor.
+    
+    def analyse_types(self, env):
+        if len(self.args) == 0:
+            self.type = py_object_type
+            self.is_temp = 0
+        else:
+            SequenceNode.analyse_types(self, env)
+            
+    def calculate_result_code(self):
+        if len(self.args) > 0:
+            error(pos, "Positive length tuples must be constructed.")
+        else:
+            return Naming.empty_tuple
 
     def compile_time_value(self, denv):
         values = self.compile_time_value_list(denv)
@@ -2127,6 +2140,9 @@ class TupleNode(SequenceNode):
             self.compile_time_value_error(e)
     
     def generate_operation_code(self, code):
+        if len(self.args) == 0:
+            # result_code is Naming.empty_tuple
+            return
         code.putln(
             "%s = PyTuple_New(%s); %s" % (
                 self.result_code,
@@ -2565,6 +2581,8 @@ def unop_node(pos, operator, operand):
     # given operator.
     if isinstance(operand, IntNode) and operator == '-':
         return IntNode(pos = operand.pos, value = -int(operand.value))
+    elif isinstance(operand, UnopNode) and operand.operator == operator:
+        warning(pos, "Python has no increment/decrement operator: %s%sx = %s(%sx) = x" % ((operator,)*4), 5)
     return unop_node_classes[operator](pos, 
         operator = operator, 
         operand = operand)
@@ -3582,20 +3600,7 @@ class CoerceFromPyTypeNode(CoercionNode):
         code.putln('%s = %s; %s' % (
             self.result_code, 
             rhs,
-            code.error_goto_if(self.error_cond(), self.pos)))
-
-    def error_cond(self):
-        conds = []
-        if self.type.is_string:
-            conds.append("(!%s)" % self.result_code)
-        elif self.type.exception_value is not None:
-            conds.append("(%s == %s)" % (self.result_code, self.type.exception_value))
-        if self.type.exception_check:
-            conds.append("PyErr_Occurred()")
-        if len(conds) > 0:
-            return " && ".join(conds)
-        else:
-            return 0
+            code.error_goto_if(self.type.error_condition(self.result_code), self.pos)))
 
 
 class CoerceToBooleanNode(CoercionNode):
