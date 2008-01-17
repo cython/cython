@@ -1202,7 +1202,8 @@ def p_with_statement(s):
         body = p_suite(s)
         return Nodes.GILStatNode(pos, state = state, body = body)
     else:
-        s.error(pos, "Only 'with gil' and 'with nogil' implemented")
+        s.error("Only 'with gil' and 'with nogil' implemented",
+                pos = pos)
     
 def p_simple_statement(s):
     #print "p_simple_statement:", s.sy, s.systring ###
@@ -2025,9 +2026,11 @@ def p_c_class_definition(s, level, pos,
             error(pos, "Object struct name specification required for 'public' C class")
         if not typeobj_name:
             error(pos, "Type object name specification required for 'public' C class")
-    else:
+    elif visibility == 'private':
         if api:
             error(pos, "Only 'public' C class can be declared 'api'")
+    else:
+        error(pos, "Invalid class visibility '%s'" % visibility)
     return Nodes.CClassDefNode(pos,
         visibility = visibility,
         typedef_flag = typedef_flag,
