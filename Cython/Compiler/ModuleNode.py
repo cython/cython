@@ -712,26 +712,34 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "}")
     
     def generate_traverse_function(self, scope, code):
+        tp_slot = TypeSlots.GCDependentSlot("tp_traverse")
+        slot_func = scope.mangle_internal("tp_traverse")
         base_type = scope.parent_type.base_type
+        if tp_slot.slot_code(scope) != slot_func:
+            return # never used
         code.putln("")
         code.putln(
             "static int %s(PyObject *o, visitproc v, void *a) {"
-                % scope.mangle_internal("tp_traverse"))
+                % slot_func)
         py_attrs = []
         for entry in scope.var_entries:
             if entry.type.is_pyobject and entry.name != "__weakref__":
                 py_attrs.append(entry)
         if base_type or py_attrs:
-            code.putln(
-                    "int e;")
+            code.putln("int e;")
         if py_attrs:
             self.generate_self_cast(scope, code)
         if base_type:
-            code.putln("if (%s->tp_traverse) {" % base_type.typeptr_cname)
-            code.putln(
-                    "e = %s->tp_traverse(o, v, a); if (e) return e;" %
-                        base_type.typeptr_cname)
-            code.putln("}")
+            # want to call it explicitly if possible so inlining can be performed
+            parent_slot = tp_slot.slot_code(base_type.scope)
+            if scope.parent_scope is base_type.scope.parent_scope and parent_slot != '0':
+                code.putln("e = %s(o, v, a); if (e) return e;" % parent_slot)
+            else:
+                code.putln("if (%s->tp_traverse) {" % base_type.typeptr_cname)
+                code.putln(
+                        "e = %s->tp_traverse(o, v, a); if (e) return e;" %
+                            base_type.typeptr_cname)
+                code.putln("}")
         for entry in py_attrs:
             var_code = "p->%s" % entry.cname
             code.putln(
@@ -750,11 +758,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
     
     def generate_clear_function(self, scope, code):
+        tp_slot = TypeSlots.GCDependentSlot("tp_clear")
+        slot_func = scope.mangle_internal("tp_clear")
         base_type = scope.parent_type.base_type
+        if tp_slot.slot_code(scope) != slot_func:
+            return # never used
         code.putln("")
-        code.putln(
-            "static int %s(PyObject *o) {"
-                % scope.mangle_internal("tp_clear"))
+        code.putln("static int %s(PyObject *o) {" % slot_func)
         py_attrs = []
         for entry in scope.var_entries:
             if entry.type.is_pyobject and entry.name != "__weakref__":
@@ -763,11 +773,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_self_cast(scope, code)
             code.putln("PyObject* tmp;")
         if base_type:
-            code.putln("if (%s->tp_clear) {" % base_type.typeptr_cname)
-            code.putln(
-                "%s->tp_clear(o);" %
-                    base_type.typeptr_cname)
-            code.putln("}")
+            # want to call it explicitly if possible so inlining can be performed
+            parent_slot = tp_slot.slot_code(base_type.scope)
+            if scope.parent_scope is base_type.scope.parent_scope and parent_slot != '0':
+                code.putln("%s(o);" % parent_slot)
+            else:
+                code.putln("if (%s->tp_clear) {" % base_type.typeptr_cname)
+                code.putln("%s->tp_clear(o);" % base_type.typeptr_cname)
+                code.putln("}")
         for entry in py_attrs:
             name = "p->%s" % entry.cname
             code.putln("tmp = %s;" % name)
@@ -777,7 +790,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "return 0;")
         code.putln(
             "}")
-        
+            
     def generate_getitem_int_function(self, scope, code):
         # This function is put into the sq_item slot when
         # a __getitem__ method is present. It converts its
