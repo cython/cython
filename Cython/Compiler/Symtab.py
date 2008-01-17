@@ -184,6 +184,7 @@ class Scope:
         self.pow_function_used = 0
         self.string_to_entry = {}
         self.num_to_entry = {}
+        self.obj_to_entry = {}
         self.pystring_entries = []
     
     def __str__(self):
@@ -469,6 +470,27 @@ class Scope:
             genv.num_to_entry[value] = entry
             genv.pynum_entries.append(entry)
         return entry
+        
+    def add_py_obj(self, obj, c_prefix=''):
+        obj.check_const()
+        cname = self.new_const_cname(c_prefix)
+        entry = Entry("", cname, py_object_type, init = value)
+        entry.used = 1
+        entry.is_interned = 1
+        self.const_entries.append(entry)
+        self.interned_objs.append(entry)
+        return entry
+        
+    def get_py_obj(self, obj, c_prefix=''):
+        # Get entry for a generic constant. Returns an existing
+        # one if possible, otherwise creates a new one.
+        genv = self.global_scope()
+        entry = genv.obj_to_entry.get(obj)
+        if not entry:
+            entry = genv.add_py_num(obj, c_prefix)
+            genv.obj_to_entry[obj] = entry
+        return entry
+        
     
     def new_const_cname(self):
         # Create a new globally-unique name for a constant.
@@ -675,6 +697,7 @@ class ModuleScope(Scope):
         self.intern_map = {}
         self.interned_names = []
         self.interned_nums = []
+        self.interned_objs = []
         self.all_pystring_entries = []
         self.types_imported = {}
         self.pynum_entries = []
@@ -813,11 +836,11 @@ class ModuleScope(Scope):
         self.default_entries.append(entry)
         return entry
         
-    def new_const_cname(self):
+    def new_const_cname(self, prefix=''):
         # Create a new globally-unique name for a constant.
         n = self.const_counter
         self.const_counter = n + 1
-        return "%s%d" % (Naming.const_prefix, n)
+        return "%s%s_%d" % (Naming.const_prefix, prefix, n)
     
     def use_utility_code(self, new_code):
         #  Add string to list of utility code to be included,
