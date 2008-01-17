@@ -628,10 +628,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "%s;"
                     % scope.parent_type.declaration_code("p"))
         if base_type:
-            entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
-            if scope.parent_scope is base_type.scope.parent_scope and entry.visibility != 'extern':
-                tp_new = TypeSlots.InternalMethodSlot("tp_new").slot_code(base_type.scope)
-            else:
+            tp_new = TypeSlots.get_base_slot_function(scope, tp_slot)
+            if tp_new is None:
                 tp_new = "%s->tp_new" % base_type.typeptr_cname
             code.putln(
                 "PyObject *o = %s(t, a, k);" % tp_new)
@@ -691,10 +689,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in py_attrs:
             code.put_xdecref("p->%s" % entry.cname, entry.type)
         if base_type:
-            entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
-            if scope.parent_scope is base_type.scope.parent_scope and entry.visibility != 'extern':
-                tp_dealloc = TypeSlots.InternalMethodSlot("tp_dealloc").slot_code(base_type.scope)
-            else:
+            tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
+            if tp_dealloc is None:
                 tp_dealloc = "%s->tp_dealloc" % base_type.typeptr_cname
             code.putln(
                     "%s(o);" % tp_dealloc)
@@ -747,10 +743,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_self_cast(scope, code)
         if base_type:
             # want to call it explicitly if possible so inlining can be performed
-            parent_slot = tp_slot.slot_code(base_type.scope)
-            entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
-            if scope.parent_scope is base_type.scope.parent_scope and parent_slot != '0' and entry.visibility != 'extern':
-                code.putln("e = %s(o, v, a); if (e) return e;" % parent_slot)
+            static_call = TypeSlots.get_base_slot_function(scope, tp_slot)
+            if static_call:
+                code.putln("e = %s(o, v, a); if (e) return e;" % static_call)
             else:
                 code.putln("if (%s->tp_traverse) {" % base_type.typeptr_cname)
                 code.putln(
@@ -791,10 +786,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("PyObject* tmp;")
         if base_type:
             # want to call it explicitly if possible so inlining can be performed
-            parent_slot = tp_slot.slot_code(base_type.scope)
-            entry = scope.parent_scope.lookup_here(scope.parent_type.base_type.name)
-            if scope.parent_scope is base_type.scope.parent_scope and parent_slot != '0' and entry.visibility != 'extern':
-                code.putln("%s(o);" % parent_slot)
+            static_call = TypeSlots.get_base_slot_function(scope, tp_slot)
+            if static_call:
+                code.putln("%s(o);" % static_call)
             else:
                 code.putln("if (%s->tp_clear) {" % base_type.typeptr_cname)
                 code.putln("%s->tp_clear(o);" % base_type.typeptr_cname)
