@@ -2062,12 +2062,12 @@ class SequenceNode(ExprNode):
                 rhs.py_result(), 
                 rhs.py_result(), 
                 len(self.args)))
+        code.putln("PyObject* tuple = %s;" % rhs.py_result())
         for i in range(len(self.args)):
             item = self.unpacked_items[i]
             code.putln(
-                "%s = PyTuple_GET_ITEM(%s, %s);" % (
+                "%s = PyTuple_GET_ITEM(tuple, %s);" % (
                     item.result_code,
-                    rhs.py_result(),
                     i))
             code.put_incref(item.result_code, item.ctype())
             value_node = self.coerced_unpacked_items[i]
