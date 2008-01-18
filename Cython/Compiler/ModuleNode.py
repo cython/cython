@@ -797,7 +797,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("}")
         for entry in py_attrs:
             name = "p->%s" % entry.cname
-            code.putln("tmp = %s;" % code.as_pyobject(name, entry.type))
+            code.putln("tmp = ((PyObject*)%s);" % name)
             code.put_init_to_py_none(name, entry.type)
             code.putln("Py_XDECREF(tmp);")
         code.putln(
