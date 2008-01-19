@@ -670,7 +670,6 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_pyobject and entry.init_to_none and entry.used:
                 code.put_init_var_to_py_none(entry)
         # ----- Check and convert arguments
-        self.generate_argument_conversion_code(code)
         self.generate_argument_type_tests(code)
         # ----- Function body
         self.body.generate_execution_code(code)
@@ -933,14 +932,17 @@ class DefNode(FuncDefNode):
     
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
-        n = r = 0
+        k = rk = r = 0
         for arg in self.args:
             if arg.kw_only:
-                n += 1
+                k += 1
                 if not arg.default:
-                    r += 1
-        self.num_kwonly_args = n
-        self.num_required_kw_args = r
+                    rk += 1
+            if not arg.default:
+                r += 1
+        self.num_kwonly_args = k
+        self.num_required_kw_args = rk
+        self.num_required_args = r
     
     def analyse_declarations(self, env):
         for arg in self.args:
@@ -1208,6 +1210,7 @@ class DefNode(FuncDefNode):
         if not self.entry.signature.has_generic_args:
             if has_star_or_kw_args:
                 error(self.pos, "This method cannot have * or keyword arguments")
+            self.generate_argument_conversion_code(code)
         else:
             arg_addrs = []
             arg_formats = []
@@ -1248,18 +1251,63 @@ class DefNode(FuncDefNode):
             pt_arglist = [Naming.args_cname, Naming.kwds_cname, argformat,
                     Naming.kwdlist_cname] + arg_addrs
             pt_argstring = string.join(pt_arglist, ", ")
-            code.put(
-                'if (unlikely(!PyArg_ParseTupleAndKeywords(%s))) ' %
-                    pt_argstring)
+            old_error_label = code.new_error_label()
+            our_error_label = code.error_label
+            end_label = code.new_label()
+            # Unpack inplace if it's simple
+            if self.num_required_args == len(self.args):
+                count_cond = "PyTuple_GET_SIZE(%s) == %s" % (Naming.args_cname, self.num_required_args)
+            else:
+                count_cond = "%s <= PyTuple_GET_SIZE(%s) && PyTuple_GET_SIZE(%s) <= %s" % (
+                               self.num_required_args,
+                               Naming.args_cname,
+                               Naming.args_cname,
+                               len(self.args))
+            code.putln(
+                'if (likely(%s == NULL && %s)) {' % (Naming.kwds_cname, count_cond))
+            i = 0
+            for arg in self.args:
+                if arg.default:
+                    code.putln('if (PyTuple_GET_SIZE(%s) > %s) {' % (Naming.args_cname, i))
+                item = "PyTuple_GET_ITEM(%s, %s)" % (Naming.args_cname, i)
+                if arg.type.is_pyobject:
+                    if arg.is_generic:
+                        item = PyrexTypes.typecast(arg.type, PyrexTypes.py_object_type, item)
+                    code.putln("%s = %s;" % (arg.entry.cname, item))
+                else:
+                    func = arg.type.from_py_function
+                    if func:
+                        code.putln("%s = %s(%s); %s" % (
+                            arg.entry.cname,
+                            func,
+                            item,
+                            code.error_goto_if(arg.type.error_condition(arg.entry.cname), arg.pos)))
+                    else:
+                        error(arg.pos, "Cannot convert Python object argument to type '%s'" % arg.type)
+                i += 1
+            for _ in range(len(self.args) - self.num_required_args):
+                code.putln('}')
+            code.putln(
+                '}')
+            code.putln(
+                'else {')
+            code.putln(
+                'if (unlikely(!PyArg_ParseTupleAndKeywords(%s))) %s' % (
+                    pt_argstring,
+                    code.error_goto(self.pos)))
+            self.generate_argument_conversion_code(code)
+            code.putln(
+                '}')
+            code.error_label = old_error_label
+            code.put_goto(end_label)
+            code.put_label(our_error_label)
             if has_star_or_kw_args:
-                code.putln("{")
                 self.put_stararg_decrefs(code)
                 self.generate_arg_decref(self.star_arg, code)
                 self.generate_arg_xdecref(self.starstar_arg, code)
-                code.putln(error_return_code)
-                code.putln("}")
-            else:
-                code.putln(error_return_code)
+            code.putln(error_return_code)
+            code.put_label(end_label)
+          
 
     def put_stararg_decrefs(self, code):
         if self.star_arg:
