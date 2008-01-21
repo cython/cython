@@ -15,7 +15,9 @@ __doc__ = """
     >>> test(sys.maxint * 2 + 1)
     4294967295L
 
-    >>> test(8 ** unsigned_long_size() - 1) > sys.maxint
+    >>> test(256 ** unsigned_long_size() - 1) > 0
+    True
+    >>> test(256 ** unsigned_long_size() - 1) > sys.maxint
     True
 """
 
