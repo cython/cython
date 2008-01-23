@@ -1255,18 +1255,21 @@ class DefNode(FuncDefNode):
             our_error_label = code.error_label
             end_label = code.new_label()
             # Unpack inplace if it's simple
+            has_self_arg = len(self.args) > 0 and self.args[0].is_self_arg
             if self.num_required_args == len(self.args):
-                count_cond = "PyTuple_GET_SIZE(%s) == %s" % (Naming.args_cname, self.num_required_args)
+                count_cond = "PyTuple_GET_SIZE(%s) == %s" % (Naming.args_cname, self.num_required_args - has_self_arg)
             else:
                 count_cond = "%s <= PyTuple_GET_SIZE(%s) && PyTuple_GET_SIZE(%s) <= %s" % (
-                               self.num_required_args,
+                               self.num_required_args - has_self_arg,
                                Naming.args_cname,
                                Naming.args_cname,
-                               len(self.args))
+                               len(self.args) - has_self_arg)
             code.putln(
                 'if (likely(%s == NULL && %s)) {' % (Naming.kwds_cname, count_cond))
             i = 0
             for arg in self.args:
+                if arg.is_self_arg:
+                    continue
                 if arg.default:
                     code.putln('if (PyTuple_GET_SIZE(%s) > %s) {' % (Naming.args_cname, i))
                 item = "PyTuple_GET_ITEM(%s, %s)" % (Naming.args_cname, i)
