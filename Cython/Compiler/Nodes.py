@@ -1349,7 +1349,7 @@ class DefNode(FuncDefNode):
 
         if self.star_arg:
             star_arg_cname = self.star_arg.entry.cname
-            code.putln("if (PyTuple_GET_SIZE(%s) <= %d) {" % (
+            code.putln("if (likely(PyTuple_GET_SIZE(%s) <= %d)) {" % (
                     Naming.args_cname, nargs))
             code.put_incref(Naming.args_cname, py_object_type)
             code.put("%s = %s; " % (star_arg_cname, Naming.empty_tuple))
