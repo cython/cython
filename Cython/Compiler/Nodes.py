@@ -1348,13 +1348,21 @@ class DefNode(FuncDefNode):
         error_return = "return %s;" % self.error_value()
 
         if self.star_arg:
-            star_arg_addr = self.arg_address(self.star_arg)
+            star_arg_cname = self.star_arg.entry.cname
+            code.putln("if (PyTuple_GET_SIZE(%s) <= %d) {" % (
+                    Naming.args_cname, nargs))
+            code.put_incref(Naming.args_cname, py_object_type)
+            code.put("%s = %s;" % (star_arg_cname, Naming.empty_tuple))
+            code.put_incref(Naming.empty_tuple, py_object_type)
+            code.putln("}")
+            code.putln("else {")
             code.putln(
-                "if (unlikely(__Pyx_GetStarArg(&%s, %s, %s) < 0)) return %s;" % (
+                "if (unlikely(__Pyx_SplitStarArg(&%s, %d, &%s) < 0)) return %s;" % (
                     Naming.args_cname,
                     nargs,
-                    star_arg_addr,
+                    star_arg_cname,
                     self.error_value()))
+            code.putln("}")
             self.star_arg.entry.xdecref_cleanup = 0
         elif self.entry.signature.has_generic_args:
             # make sure supernumerous positional arguments do not run
@@ -1372,10 +1380,10 @@ class DefNode(FuncDefNode):
         if self.starstar_arg:
             handle_error = 1
             code.put(
-                "if (unlikely(__Pyx_SplitKeywords(&%s, %s, %s, %s) < 0)) " % (
+                "if (unlikely(__Pyx_SplitKeywords(&%s, %s, &%s, %s) < 0)) " % (
                     Naming.kwds_cname,
                     Naming.kwdlist_cname,
-                    self.arg_address(self.starstar_arg),
+                    self.starstar_arg.entry.cname,
                     self.reqd_kw_flags_cname))
             self.starstar_arg.entry.xdecref_cleanup = 0
         elif self.num_required_kw_args:
@@ -3432,7 +3440,7 @@ static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed
 
 #------------------------------------------------------------------------------------
 #
-#  __Pyx_GetStarArg splits the args tuple into two parts, one part
+#  __Pyx_SplitStarArg splits the args tuple into two parts, one part
 #  suitable for passing to PyArg_ParseTupleAndKeywords, and the other
 #  containing any extra arguments. On success, replaces the borrowed
 #  reference *args with references to a new tuple, and passes back a
@@ -3441,19 +3449,19 @@ static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed
 
 get_stararg_utility_code = [
 """
-static INLINE int __Pyx_GetStarArg(PyObject **args, Py_ssize_t nargs, PyObject **args2); /*proto*/
+static int __Pyx_SplitStarArg(PyObject **args, Py_ssize_t nargs, PyObject **args2); /*proto*/
 ""","""
-static INLINE int __Pyx_GetStarArg(
+static int __Pyx_SplitStarArg(
     PyObject **args, 
     Py_ssize_t nargs,
     PyObject **args2)
 {
     PyObject *args1 = 0;
-
-    *args2 = 0;
     args1 = PyTuple_GetSlice(*args, 0, nargs);
-    if (!args1)
+    if (!args1) {
+        *args2 = 0;
         return -1;
+    }
     *args2 = PyTuple_GetSlice(*args, nargs, PyTuple_GET_SIZE(*args));
     if (!*args2) {
         Py_DECREF(args1);
