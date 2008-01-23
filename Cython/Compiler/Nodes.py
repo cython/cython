@@ -1352,6 +1352,7 @@ class DefNode(FuncDefNode):
                     nargs,
                     star_arg_addr,
                     self.error_value()))
+            self.star_arg.entry.xdecref_cleanup = 0
         elif self.entry.signature.has_generic_args:
             # make sure supernumerous positional arguments do not run
             # into keyword-only arguments and provide a more helpful
@@ -1373,6 +1374,7 @@ class DefNode(FuncDefNode):
                     Naming.kwdlist_cname,
                     self.arg_address(self.starstar_arg),
                     self.reqd_kw_flags_cname))
+            self.starstar_arg.entry.xdecref_cleanup = 0
         elif self.num_required_kw_args:
             handle_error = 1
             code.put("if (unlikely(__Pyx_CheckRequiredKeywords(%s, %s, %s) < 0)) " % (
