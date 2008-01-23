@@ -3615,7 +3615,6 @@ static void __Pyx_AddTraceback(char *funcname) {
     PyObject *py_srcfile = 0;
     PyObject *py_funcname = 0;
     PyObject *py_globals = 0;
-    PyObject *empty_tuple = 0;
     PyObject *empty_string = 0;
     PyCodeObject *py_code = 0;
     PyFrameObject *py_frame = 0;
@@ -3626,8 +3625,6 @@ static void __Pyx_AddTraceback(char *funcname) {
     if (!py_funcname) goto bad;
     py_globals = PyModule_GetDict(%(GLOBALS)s);
     if (!py_globals) goto bad;
-    empty_tuple = PyTuple_New(0);
-    if (!empty_tuple) goto bad;
     empty_string = PyString_FromString("");
     if (!empty_string) goto bad;
     py_code = PyCode_New(
@@ -3636,11 +3633,11 @@ static void __Pyx_AddTraceback(char *funcname) {
         0,            /*int stacksize,*/
         0,            /*int flags,*/
         empty_string, /*PyObject *code,*/
-        empty_tuple,  /*PyObject *consts,*/
-        empty_tuple,  /*PyObject *names,*/
-        empty_tuple,  /*PyObject *varnames,*/
-        empty_tuple,  /*PyObject *freevars,*/
-        empty_tuple,  /*PyObject *cellvars,*/
+        %(EMPTY_TUPLE)s,  /*PyObject *consts,*/
+        %(EMPTY_TUPLE)s,  /*PyObject *names,*/
+        %(EMPTY_TUPLE)s,  /*PyObject *varnames,*/
+        %(EMPTY_TUPLE)s,  /*PyObject *freevars,*/
+        %(EMPTY_TUPLE)s,  /*PyObject *cellvars,*/
         py_srcfile,   /*PyObject *filename,*/
         py_funcname,  /*PyObject *name,*/
         %(LINENO)s,   /*int firstlineno,*/
@@ -3659,7 +3656,6 @@ static void __Pyx_AddTraceback(char *funcname) {
 bad:
     Py_XDECREF(py_srcfile);
     Py_XDECREF(py_funcname);
-    Py_XDECREF(empty_tuple);
     Py_XDECREF(empty_string);
     Py_XDECREF(py_code);
     Py_XDECREF(py_frame);
@@ -3667,7 +3663,8 @@ bad:
 """ % {
     'FILENAME': Naming.filename_cname,
     'LINENO':  Naming.lineno_cname,
-    'GLOBALS': Naming.module_cname
+    'GLOBALS': Naming.module_cname,
+    'EMPTY_TUPLE' : Naming.empty_tuple,
 }]
 
 #------------------------------------------------------------------------------------
