@@ -1214,6 +1214,7 @@ class DefNode(FuncDefNode):
         else:
             arg_addrs = []
             arg_formats = []
+            positional_args = []
             default_seen = 0
             for arg in self.args:
                 arg_entry = arg.entry
@@ -1226,12 +1227,16 @@ class DefNode(FuncDefNode):
                         if not default_seen:
                             arg_formats.append("|")
                         default_seen = 1
+                        if not arg.is_self_arg and not arg.kw_only:
+                            positional_args.append(arg)
                     elif arg.kw_only:
                         if not default_seen:
                             arg_formats.append("|")
                         default_seen = 1
-                    elif default_seen and not arg.kw_only:
+                    elif default_seen:
                         error(arg.pos, "Non-default argument following default argument")
+                    elif not arg.is_self_arg:
+                        positional_args.append(arg)
                     if arg.needs_conversion:
                         arg_addrs.append("&" + arg.hdr_cname)
                         format = arg.hdr_type.parsetuple_format
@@ -1256,22 +1261,23 @@ class DefNode(FuncDefNode):
             end_label = code.new_label()
             # Unpack inplace if it's simple
             has_self_arg = len(self.args) > 0 and self.args[0].is_self_arg
-            if self.num_required_args == len(self.args):
-                count_cond = "PyTuple_GET_SIZE(%s) == %s" % (Naming.args_cname, self.num_required_args - has_self_arg)
+            if self.num_required_args == len(positional_args) + has_self_arg:
+                count_cond = "likely(PyTuple_GET_SIZE(%s) == %s)" % (
+                    Naming.args_cname, len(positional_args))
             else:
-                count_cond = "%s <= PyTuple_GET_SIZE(%s) && PyTuple_GET_SIZE(%s) <= %s" % (
+                count_cond = "likely(%s <= PyTuple_GET_SIZE(%s)) && likely(PyTuple_GET_SIZE(%s) <= %s)" % (
                                self.num_required_args - has_self_arg,
                                Naming.args_cname,
                                Naming.args_cname,
-                               len(self.args) - has_self_arg)
+                               len(positional_args))
             code.putln(
-                'if (likely(%s == NULL && %s)) {' % (Naming.kwds_cname, count_cond))
+                'if (likely(!%s) && %s) {' % (Naming.kwds_cname, count_cond))
             i = 0
-            for arg in self.args:
-                if arg.is_self_arg:
-                    continue
+            closing = 0
+            for arg in positional_args:
                 if arg.default:
                     code.putln('if (PyTuple_GET_SIZE(%s) > %s) {' % (Naming.args_cname, i))
+                    closing += 1
                 item = "PyTuple_GET_ITEM(%s, %s)" % (Naming.args_cname, i)
                 if arg.type.is_pyobject:
                     if arg.is_generic:
@@ -1288,7 +1294,7 @@ class DefNode(FuncDefNode):
                     else:
                         error(arg.pos, "Cannot convert Python object argument to type '%s'" % arg.type)
                 i += 1
-            for _ in range(len(self.args) - self.num_required_args):
+            for _ in range(closing):
                 code.putln('}')
             code.putln(
                 '}')
