@@ -1313,10 +1313,13 @@ class DefNode(FuncDefNode):
             if has_star_or_kw_args:
                 self.put_stararg_decrefs(code)
                 self.generate_arg_decref(self.star_arg, code)
-                self.generate_arg_xdecref(self.starstar_arg, code)
+                if self.starstar_arg:
+                    if self.starstar_arg.entry.xdecref_cleanup:
+                        code.put_var_xdecref(self.starstar_arg.entry)
+                    else:
+                        code.put_var_decref(self.starstar_arg.entry)
             code.putln(error_return_code)
             code.put_label(end_label)
-          
 
     def put_stararg_decrefs(self, code):
         if self.star_arg:
