@@ -24,6 +24,8 @@ Options:
                                  "from <module> import *" at the top of the file. 
   --incref-local-binop           Force local an extra incref on local variables before
                                  performing any binary operations.
+  --cleanup <level>              Release interned objects on python exit, for memory debugging. 
+                                 Level indicates aggressiveness, default 0 releases nothing. 
   -D, --no-docstrings            Remove docstrings.
   -a, --annotate                 Produce an colorized version of the source.
   --convert-range                Convert for loops using range() function to for...from loops. 
