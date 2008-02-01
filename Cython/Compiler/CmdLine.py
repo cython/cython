@@ -111,7 +111,7 @@ def parse_command_line(args):
         print >>sys.stderr, \
             "cython: Only one source file allowed when using -o"
         sys.exit(1)
-    if len(sources) == 0:
+    if len(sources) == 0 and not options.show_version:
         bad_usage()
     return options, sources
 
