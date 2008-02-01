@@ -9,7 +9,7 @@ PYLIB = -L$(PYARCH)/lib/python$(PYVERSION)/config \
 	-ldl -lpthread -lutil -lm
 
 %.c:	%.pyx
-	../../bin/pyrexc $<
+	../../bin/cython $<
 
 %.o:	%.c
 	gcc -c -fPIC $(PYINCLUDE) $<

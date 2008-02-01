@@ -8,7 +8,7 @@ CFLAGS = $(PYINCLUDE) /Ox /W3 /GX -nologo
 .SUFFIXES: .exe .dll .obj .c .cpp .pyx
 
 .pyx.c:
-	$(PYHOME)\Python.exe ../../pyrexc.py $<
+	$(PYHOME)\Python.exe ../../cython.py $<
 
 all:	main.exe
 
