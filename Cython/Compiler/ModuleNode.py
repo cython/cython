@@ -1339,10 +1339,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.use_utility_code(import_module_utility_code)
         env.use_utility_code(register_cleanup_utility_code)
         code.putln()
-        code.putln('static PyObject* cleanup(PyObject *self, PyObject *unused) {')
+        code.putln('static PyObject* %s(PyObject *self, PyObject *unused) {' % Naming.cleanup_cname)
         if Options.generate_cleanup_code >= 2:
             code.putln("/*--- Global cleanup code ---*/")
-            for entry in reversed(env.var_entries):
+            rev_entries = list(env.var_entries)
+            rev_entries.reverse()
+            for entry in rev_entries:
                 if entry.visibility != 'extern':
                     if entry.type.is_pyobject:
                         code.put_var_decref_clear(entry)
@@ -1790,8 +1792,8 @@ bad:
 register_cleanup_utility_code = [
 """
 static int __Pyx_RegisterCleanup(void); /*proto*/
-static PyObject* cleanup(PyObject *self, PyObject *unused); /*proto*/
-static PyMethodDef cleanup_def = {"__cleanup", (PyCFunction)&cleanup, METH_NOARGS, 0};
+static PyObject* __pyx_module_cleanup(PyObject *self, PyObject *unused); /*proto*/
+static PyMethodDef cleanup_def = {"__cleanup", (PyCFunction)&__pyx_module_cleanup, METH_NOARGS, 0};
 ""","""
 static int __Pyx_RegisterCleanup(void) {
     /* Don't use Py_AtExit because that has a 32-call limit 
