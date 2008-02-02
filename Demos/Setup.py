@@ -8,7 +8,7 @@ setup(
     Extension("primes",       ["primes.pyx"]),
     Extension("spam",         ["spam.pyx"]),
 #    Extension("numeric_demo", ["numeric_demo.pyx"]),
-#    Extension("test", ["test.pyx"]),
+    Extension("test", ["test.pyx"]),
     Extension("func_pointers", ["func_pointers.pyx"]),
 #    Extension("inplace", ["inplace.pyx"]),
 #    Extension("withGIL", ["withGIL.pyx"]),
