@@ -1,4 +1,7 @@
 __doc__ = """
+    >>> ext = Ext()
+    >>> b,c,d,e,f,g,h,k = ext.b,ext.c,ext.d,ext.e,ext.f,ext.g,ext.h,ext.k
+
     >>> b(1,2,3)
     >>> b(1,2,3,4)
     Traceback (most recent call last):
@@ -81,26 +84,27 @@ __doc__ = """
     TypeError: required keyword argument 'f' is missing
 """
 
-def b(a, b, c):
-    pass
+cdef class Ext:
+    def b(self, a, b, c):
+        pass
 
-def c(a, b, c=1):
-    pass
+    def c(self, a, b, c=1):
+        pass
 
-def d(a, b, *, c = 88):
-    pass
+    def d(self, a, b, *, c = 88):
+        pass
 
-def e(a, b, c = 88, **kwds):
-    pass
+    def e(self, a, b, c = 88, **kwds):
+        pass
 
-def f(a, b, *, c, d = 42):
-    pass
+    def f(self, a, b, *, c, d = 42):
+        pass
 
-def g(a, b, *, c, d = 42, e = 17, f, **kwds):
-    pass
+    def g(self, a, b, *, c, d = 42, e = 17, f, **kwds):
+        pass
 
-def h(a, b, *args, c, d = 42, e = 17, f, **kwds):
-    pass
+    def h(self, a, b, *args, c, d = 42, e = 17, f, **kwds):
+        pass
 
-def k(a, b, c=1, *args, d = 42, e = 17, f, **kwds):
-    pass
+    def k(self, a, b, c=1, *args, d = 42, e = 17, f, **kwds):
+        pass
