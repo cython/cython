@@ -2608,6 +2608,11 @@ class TypecastNode(ExprNode):
         if to_py and not from_py:
             self.result_ctype = py_object_type
             self.is_temp = 1
+            if self.operand.type.to_py_function:
+                self.operand = self.operand.coerce_to_pyobject(env)
+        elif from_py and not to_py:
+            if self.type.from_py_function:
+                self.operand = self.operand.coerce_to(self.type, env)
     
     def check_const(self):
         self.operand.check_const()
