@@ -1249,17 +1249,34 @@ class DefNode(FuncDefNode):
                         error(arg.pos, 
                             "Cannot convert Python object argument to type '%s' (when parsing input arguments)" 
                                 % arg.type)
-            error_return_code = "return %s;" % self.error_value()
-            argformat = '"%s"' % string.join(arg_formats, "")
+
             if has_star_or_kw_args:
                 self.generate_stararg_getting_code(code)
-            pt_arglist = [Naming.args_cname, Naming.kwds_cname, argformat,
-                    Naming.kwdlist_cname] + arg_addrs
-            pt_argstring = string.join(pt_arglist, ", ")
             old_error_label = code.new_error_label()
             our_error_label = code.error_label
             end_label = code.new_label()
-            # Unpack inplace if it's simple
+
+            self.generate_argument_tuple_parsing_code(
+                positional_args, arg_formats, arg_addrs, code)
+
+            code.error_label = old_error_label
+            code.put_goto(end_label)
+            code.put_label(our_error_label)
+            if has_star_or_kw_args:
+                self.put_stararg_decrefs(code)
+                self.generate_arg_decref(self.star_arg, code)
+                if self.starstar_arg:
+                    if self.starstar_arg.entry.xdecref_cleanup:
+                        code.put_var_xdecref(self.starstar_arg.entry)
+                    else:
+                        code.put_var_decref(self.starstar_arg.entry)
+            code.putln("return %s;" % self.error_value())
+            code.put_label(end_label)
+
+    def generate_argument_tuple_parsing_code(self, positional_args,
+                                             arg_formats, arg_addrs, code):
+        # Unpack inplace if it's simple
+        if not self.num_required_kw_args:
             min_positional_args = self.num_required_args - self.num_required_kw_args
             max_positional_args = len(positional_args)
             if len(self.args) > 0 and self.args[0].is_self_arg:
@@ -1301,28 +1318,20 @@ class DefNode(FuncDefNode):
                 code.putln('}')
             code.putln(
                 '}')
-            code.putln(
-                'else {')
-            code.putln(
-                'if (unlikely(!PyArg_ParseTupleAndKeywords(%s))) %s' % (
-                    pt_argstring,
-                    code.error_goto(self.pos)))
-            self.generate_argument_conversion_code(code)
-            code.putln(
-                '}')
-            code.error_label = old_error_label
-            code.put_goto(end_label)
-            code.put_label(our_error_label)
-            if has_star_or_kw_args:
-                self.put_stararg_decrefs(code)
-                self.generate_arg_decref(self.star_arg, code)
-                if self.starstar_arg:
-                    if self.starstar_arg.entry.xdecref_cleanup:
-                        code.put_var_xdecref(self.starstar_arg.entry)
-                    else:
-                        code.put_var_decref(self.starstar_arg.entry)
-            code.putln(error_return_code)
-            code.put_label(end_label)
+            code.putln('else {')
+
+        argformat = '"%s"' % string.join(arg_formats, "")
+        pt_arglist = [Naming.args_cname, Naming.kwds_cname, argformat,
+                      Naming.kwdlist_cname] + arg_addrs
+        pt_argstring = string.join(pt_arglist, ", ")
+        code.putln(
+            'if (unlikely(!PyArg_ParseTupleAndKeywords(%s))) %s' % (
+                pt_argstring,
+                code.error_goto(self.pos)))
+        self.generate_argument_conversion_code(code)
+
+        if not self.num_required_kw_args:
+            code.putln('}')
 
     def put_stararg_decrefs(self, code):
         if self.star_arg:
