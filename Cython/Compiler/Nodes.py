@@ -1260,16 +1260,19 @@ class DefNode(FuncDefNode):
             our_error_label = code.error_label
             end_label = code.new_label()
             # Unpack inplace if it's simple
-            has_self_arg = len(self.args) > 0 and self.args[0].is_self_arg
-            if self.num_required_args == len(positional_args) + has_self_arg:
+            min_positional_args = self.num_required_args - self.num_required_kw_args
+            max_positional_args = len(positional_args)
+            if len(self.args) > 0 and self.args[0].is_self_arg:
+                min_positional_args -= 1
+            if max_positional_args == min_positional_args:
                 count_cond = "likely(PyTuple_GET_SIZE(%s) == %s)" % (
-                    Naming.args_cname, len(positional_args))
+                    Naming.args_cname, max_positional_args)
             else:
                 count_cond = "likely(%s <= PyTuple_GET_SIZE(%s)) && likely(PyTuple_GET_SIZE(%s) <= %s)" % (
-                               self.num_required_args - has_self_arg,
+                               min_positional_args,
                                Naming.args_cname,
                                Naming.args_cname,
-                               len(positional_args))
+                               max_positional_args)
             code.putln(
                 'if (likely(!%s) && %s) {' % (Naming.kwds_cname, count_cond))
             i = 0
