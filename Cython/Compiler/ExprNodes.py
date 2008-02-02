@@ -2610,9 +2610,13 @@ class TypecastNode(ExprNode):
             self.is_temp = 1
             if self.operand.type.to_py_function:
                 self.operand = self.operand.coerce_to_pyobject(env)
+            else:
+                warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.operand.type, self.type))
         elif from_py and not to_py:
             if self.type.from_py_function:
                 self.operand = self.operand.coerce_to(self.type, env)
+            else:
+                warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.type, self.operand.type))
     
     def check_const(self):
         self.operand.check_const()
