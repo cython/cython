@@ -2617,6 +2617,9 @@ class TypecastNode(ExprNode):
                 self.operand = self.operand.coerce_to(self.type, env)
             else:
                 warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.type, self.operand.type))
+        elif from_py and to_py:
+            if self.typecheck and self.type.is_extension_type:
+                self.operand = PyTypeTestNode(self.operand, self.type, env)
     
     def check_const(self):
         self.operand.check_const()

@@ -207,12 +207,18 @@ def p_typecast(s):
     s.next()
     base_type = p_c_base_type(s)
     declarator = p_c_declarator(s, empty = 1)
+    if s.sy == '?':
+        s.next()
+        typecheck = 1
+    else:
+        typecheck = 0
     s.expect(">")
     operand = p_factor(s)
     return ExprNodes.TypecastNode(pos, 
         base_type = base_type, 
         declarator = declarator,
-        operand = operand)
+        operand = operand,
+        typecheck = typecheck)
 
 def p_sizeof(s):
     # s.sy == ident "sizeof"
