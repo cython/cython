@@ -2600,10 +2600,6 @@ class TypecastNode(ExprNode):
     def analyse_types(self, env):
         base_type = self.base_type.analyse(env)
         _, self.type = self.declarator.analyse(base_type, env)
-        if self.type.is_cfunction:
-            error(self.pos,
-                "Cannot cast to a function type")
-            self.type = PyrexTypes.error_type
         self.operand.analyse_types(env)
         to_py = self.type.is_pyobject
         from_py = self.operand.type.is_pyobject
@@ -2612,6 +2608,18 @@ class TypecastNode(ExprNode):
         if to_py and not from_py:
             self.result_ctype = py_object_type
             self.is_temp = 1
+            if self.operand.type.to_py_function:
+                self.operand = self.operand.coerce_to_pyobject(env)
+            else:
+                warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.operand.type, self.type))
+        elif from_py and not to_py:
+            if self.type.from_py_function:
+                self.operand = self.operand.coerce_to(self.type, env)
+            else:
+                warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.type, self.operand.type))
+        elif from_py and to_py:
+            if self.typecheck and self.type.is_extension_type:
+                self.operand = PyTypeTestNode(self.operand, self.type, env)
     
     def check_const(self):
         self.operand.check_const()
