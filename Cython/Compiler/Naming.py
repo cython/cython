@@ -59,6 +59,7 @@ c_api_tab_cname  = pyrex_prefix + "c_api_tab"
 gilstate_cname   = pyrex_prefix + "state"
 skip_dispatch_cname = pyrex_prefix + "skip_dispatch"
 empty_tuple      = pyrex_prefix + "empty_tuple"
+cleanup_cname    = pyrex_prefix + "module_cleanup"
 
 
 extern_c_macro  = pyrex_prefix.upper() + "EXTERN_C"
