@@ -1,44 +1,97 @@
 __doc__ = """
     >>> s = Silly(1,2,3, 'test')
+    >>> (spam,grail,swallow,creosote,onlyt,onlyk,tk) = (
+    ...     s.spam,s.grail,s.swallow,s.creosote,s.onlyt,s.onlyk,s.tk)
 
-    >>> s.spam(1,2,3)
-    >>> s.spam(1,2)
+    >>> spam(1,2,3)
+    (1, 2, 3)
+    >>> spam(1,2)
     Traceback (most recent call last):
     TypeError: function takes exactly 3 arguments (2 given)
-    >>> s.spam(1,2,3,4)
+    >>> spam(1,2,3,4)
     Traceback (most recent call last):
     TypeError: function takes exactly 3 arguments (4 given)
-    >>> s.spam(1,2,3, a=1)
+    >>> spam(1,2,3, a=1)
     Traceback (most recent call last):
     TypeError: 'a' is an invalid keyword argument for this function
 
-    >>> s.grail(1,2,3)
-    >>> s.grail(1,2,3,4)
-    >>> s.grail(1,2,3,4,5,6,7,8,9)
-    >>> s.grail(1,2)
+    >>> grail(1,2,3)
+    (1, 2, 3, ())
+    >>> grail(1,2,3,4)
+    (1, 2, 3, (4,))
+    >>> grail(1,2,3,4,5,6,7,8,9)
+    (1, 2, 3, (4, 5, 6, 7, 8, 9))
+    >>> grail(1,2)
     Traceback (most recent call last):
     TypeError: function takes exactly 3 arguments (2 given)
-    >>> s.grail(1,2,3, a=1)
+    >>> grail(1,2,3, a=1)
     Traceback (most recent call last):
     TypeError: 'a' is an invalid keyword argument for this function
 
-    >>> s.swallow(1,2,3)
-    >>> s.swallow(1,2,3,4)
+    >>> swallow(1,2,3)
+    (1, 2, 3, ())
+    >>> swallow(1,2,3,4)
     Traceback (most recent call last):
     TypeError: function takes at most 3 positional arguments (4 given)
-    >>> s.swallow(1,2,3, a=1, b=2)
-    >>> s.swallow(1,2,3, x=1)
+    >>> swallow(1,2,3, a=1, b=2)
+    (1, 2, 3, (('a', 1), ('b', 2)))
+    >>> swallow(1,2,3, x=1)
     Traceback (most recent call last):
     TypeError: keyword parameter 'x' was given by position and by name
 
-    >>> s.creosote(1,2,3)
-    >>> s.creosote(1,2,3,4)
-    >>> s.creosote(1,2,3, a=1)
-    >>> s.creosote(1,2,3,4, a=1, b=2)
-    >>> s.creosote(1,2,3,4, x=1)
+    >>> creosote(1,2,3)
+    (1, 2, 3, (), ())
+    >>> creosote(1,2,3,4)
+    (1, 2, 3, (4,), ())
+    >>> creosote(1,2,3, a=1)
+    (1, 2, 3, (), (('a', 1),))
+    >>> creosote(1,2,3,4, a=1, b=2)
+    (1, 2, 3, (4,), (('a', 1), ('b', 2)))
+    >>> creosote(1,2,3,4, x=1)
     Traceback (most recent call last):
     TypeError: keyword parameter 'x' was given by position and by name
+
+    >>> onlyt(1)
+    (1,)
+    >>> onlyt(1,2)
+    (1, 2)
+    >>> onlyt(a=1)
+    Traceback (most recent call last):
+    TypeError: 'a' is an invalid keyword argument for this function
+    >>> onlyt(1, a=2)
+    Traceback (most recent call last):
+    TypeError: 'a' is an invalid keyword argument for this function
+
+    >>> onlyk(a=1)
+    (('a', 1),)
+    >>> onlyk(a=1, b=2)
+    (('a', 1), ('b', 2))
+    >>> onlyk(1)
+    Traceback (most recent call last):
+    TypeError: function takes at most 0 positional arguments (1 given)
+    >>> onlyk(1, 2)
+    Traceback (most recent call last):
+    TypeError: function takes at most 0 positional arguments (2 given)
+    >>> onlyk(1, a=1, b=2)
+    Traceback (most recent call last):
+    TypeError: function takes at most 0 positional arguments (1 given)
+
+    >>> tk(a=1)
+    (('a', 1),)
+    >>> tk(a=1, b=2)
+    (('a', 1), ('b', 2))
+    >>> tk(1)
+    (1,)
+    >>> tk(1, 2)
+    (1, 2)
+    >>> tk(1, a=1, b=2)
+    (1, ('a', 1), ('b', 2))
 """
+
+cdef sorteditems(d):
+    l = d.items()
+    l.sort()
+    return tuple(l)
 
 cdef class Silly:
 
@@ -46,13 +99,22 @@ cdef class Silly:
         pass
 
     def spam(self, x, y, z):
-        pass
-    
+        return (x, y, z)
+
     def grail(self, x, y, z, *a):
-        pass
-    
+        return (x, y, z, a)
+
     def swallow(self, x, y, z, **k):
-        pass
-    
+        return (x, y, z, sorteditems(k))
+
     def creosote(self, x, y, z, *a, **k):
-        pass
+        return (x, y, z, a, sorteditems(k))
+
+    def onlyt(self, *a):
+        return a
+
+    def onlyk(self, **k):
+        return sorteditems(k)
+
+    def tk(self, *a, **k):
+        return a + sorteditems(k)
