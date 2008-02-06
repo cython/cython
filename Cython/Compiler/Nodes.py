@@ -316,6 +316,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
     # with_gil         boolean    Acquire gil around function body
     
     overridable = 0
+    optional_arg_count = 0
 
     def analyse(self, return_type, env):
         func_type_args = []
@@ -337,7 +338,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             func_type_args.append(
                 PyrexTypes.CFuncTypeArg(name, type, arg_node.pos))
             if arg_node.default:
-                error(arg_node.pos, "C function argument cannot have default value")
+                self.optional_arg_count += 1
         exc_val = None
         exc_check = 0
         if return_type.is_pyobject \
@@ -363,6 +364,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 "Function cannot return a function")
         func_type = PyrexTypes.CFuncType(
             return_type, func_type_args, self.has_varargs, 
+            optional_arg_count = self.optional_arg_count,
             exception_value = exc_val, exception_check = exc_check,
             calling_convention = self.base.calling_convention,
             nogil = self.nogil, with_gil = self.with_gil, is_overridable = self.overridable)
@@ -609,10 +611,24 @@ class FuncDefNode(StatNode, BlockNode):
     #  entry           Symtab.Entry
     
     py_func = None
+    assmt = None
     
-    def analyse_expressions(self, env):
-        pass
-
+    def analyse_default_values(self, env):
+        genv = env.global_scope()
+        for arg in self.args:
+            if arg.default:
+                if arg.is_generic:
+                    if not hasattr(arg, 'default_entry'):
+                        arg.default.analyse_types(genv)
+                        arg.default = arg.default.coerce_to(arg.type, genv)
+                        arg.default.allocate_temps(genv)
+                        arg.default_entry = genv.add_default_value(arg.type)
+                        arg.default_entry.used = 1
+                else:
+                    error(arg.pos,
+                        "This argument cannot have a default value")
+                    arg.default = None
+    
     def need_gil_acquisition(self, lenv):
         return 0
                 
@@ -749,7 +765,24 @@ class FuncDefNode(StatNode, BlockNode):
             code.put_var_incref(entry)
 
     def generate_execution_code(self, code):
-        pass
+        # Evaluate and store argument default values
+        for arg in self.args:
+            default = arg.default
+            if default:
+                default.generate_evaluation_code(code)
+                default.make_owned_reference(code)
+                code.putln(
+                    "%s = %s;" % (
+                        arg.default_entry.cname,
+                        default.result_as(arg.default_entry.type)))
+                if default.is_temp and default.type.is_pyobject:
+                    code.putln(
+                        "%s = 0;" %
+                            default.result_code)
+        # For Python class methods, create and store function object
+        if self.assmt:
+            self.assmt.generate_execution_code(code)
+    
 
 
 class CFuncDefNode(FuncDefNode):
@@ -826,12 +859,20 @@ class CFuncDefNode(FuncDefNode):
                     error(self.pos, "Function declared nogil has Python locals or temporaries")
         return with_gil
 
+    def analyse_expressions(self, env):
+        self.args = self.declarator.args
+        self.analyse_default_values(env)
+        if self.overridable:
+            self.py_func.analyse_expressions(env)
+
     def generate_function_header(self, code, with_pymethdef):
         arg_decls = []
         type = self.type
         visibility = self.entry.visibility
         for arg in type.args:
             arg_decls.append(arg.declaration_code())
+        if type.optional_arg_count:
+            arg_decls.append("int %s" % Naming.optional_count_cname)
         if type.has_varargs:
             arg_decls.append("...")
         if not arg_decls:
@@ -861,7 +902,17 @@ class CFuncDefNode(FuncDefNode):
         pass
         
     def generate_argument_parsing_code(self, code):
-        pass
+        rev_args = zip(self.declarator.args, self.type.args)
+        rev_args.reverse()
+        i = 0
+        for darg, targ in rev_args:
+            if darg.default:
+                code.putln('if (%s > %s) {' % (Naming.optional_count_cname, i))
+                code.putln('%s = %s;' % (targ.cname, darg.default_entry.cname))
+                i += 1
+        for _ in range(i):
+            code.putln('}')
+        code.putln('/* defaults */')
     
     def generate_argument_conversion_code(self, code):
         pass
@@ -1101,21 +1152,6 @@ class DefNode(FuncDefNode):
         self.analyse_default_values(env)
         if env.is_py_class_scope:
             self.synthesize_assignment_node(env)
-    
-    def analyse_default_values(self, env):
-        genv = env.global_scope()
-        for arg in self.args:
-            if arg.default:
-                if arg.is_generic:
-                    arg.default.analyse_types(genv)
-                    arg.default = arg.default.coerce_to(arg.type, genv)
-                    arg.default.allocate_temps(genv)
-                    arg.default_entry = genv.add_default_value(arg.type)
-                    arg.default_entry.used = 1
-                else:
-                    error(arg.pos,
-                        "This argument cannot have a default value")
-                    arg.default = None
     
     def synthesize_assignment_node(self, env):
         import ExprNodes
@@ -1484,25 +1520,6 @@ class DefNode(FuncDefNode):
         else:
             error(arg.pos, "Cannot test type of extern C class "
                 "without type object name specification")
-    
-    def generate_execution_code(self, code):
-        # Evaluate and store argument default values
-        for arg in self.args:
-            default = arg.default
-            if default:
-                default.generate_evaluation_code(code)
-                default.make_owned_reference(code)
-                code.putln(
-                    "%s = %s;" % (
-                        arg.default_entry.cname,
-                        default.result_as(arg.default_entry.type)))
-                if default.is_temp and default.type.is_pyobject:
-                    code.putln(
-                        "%s = 0;" %
-                            default.result_code)
-        # For Python class methods, create and store function object
-        if self.assmt:
-            self.assmt.generate_execution_code(code)
     
     def error_value(self):
         return self.entry.signature.error_value

@@ -60,6 +60,7 @@ gilstate_cname   = pyrex_prefix + "state"
 skip_dispatch_cname = pyrex_prefix + "skip_dispatch"
 empty_tuple      = pyrex_prefix + "empty_tuple"
 cleanup_cname    = pyrex_prefix + "module_cleanup"
+optional_count_cname = pyrex_prefix + "optional_arg_count"
 
 
 extern_c_macro  = pyrex_prefix.upper() + "EXTERN_C"
