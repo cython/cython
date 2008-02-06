@@ -1325,6 +1325,7 @@ def p_statement(s, level, cdef_flag = 0, visibility = 'private', api = 0):
         if cdef_flag:
             if level not in ('module', 'module_pxd', 'function', 'c_class', 'c_class_pxd'):
                 s.error('cdef statement not allowed here')
+            s.level = level
             return p_cdef_statement(s, level, visibility = visibility,
                                     api = api, overridable = overridable)
     #    elif s.sy == 'cpdef':
@@ -1336,6 +1337,7 @@ def p_statement(s, level, cdef_flag = 0, visibility = 'private', api = 0):
             elif s.sy == 'def':
                 if level not in ('module', 'class', 'c_class', 'property'):
                     s.error('def statement not allowed here')
+                s.level = level
                 return p_def_statement(s)
             elif s.sy == 'class':
                 if level <> 'module':
@@ -1692,7 +1694,13 @@ def p_c_arg_decl(s, in_pyfunc, cmethod_flag = 0, nonempty = 0, kw_only = 0):
         not_none = 1
     if s.sy == '=':
         s.next()
-        default = p_simple_expr(s)
+        if 'pxd' in s.level:
+            if s.sy not in ['*', '?']:
+                error(pos, "default values cannot be specified in pxd files, use ? or *")
+            default = 1
+            s.next()
+        else:
+            default = p_simple_expr(s)
     return Nodes.CArgDeclNode(pos,
         base_type = base_type,
         declarator = declarator,
@@ -1710,8 +1718,8 @@ def p_api(s):
 def p_cdef_statement(s, level, visibility = 'private', api = 0,
                      overridable = False):
     pos = s.position()
-#    if overridable and level not in ('c_class', 'c_class_pxd'):
-#            error(pos, "Overridable cdef function not allowed here")
+    if overridable and level not in ('c_class', 'c_class_pxd'):
+            error(pos, "Overridable cdef function not allowed here")
     visibility = p_visibility(s, visibility)
     api = api or p_api(s)
     if api:
