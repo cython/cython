@@ -1710,8 +1710,8 @@ def p_api(s):
 def p_cdef_statement(s, level, visibility = 'private', api = 0,
                      overridable = False):
     pos = s.position()
-    if overridable and level not in ('c_class', 'c_class_pxd'):
-            error(pos, "Overridable cdef function not allowed here")
+#    if overridable and level not in ('c_class', 'c_class_pxd'):
+#            error(pos, "Overridable cdef function not allowed here")
     visibility = p_visibility(s, visibility)
     api = api or p_api(s)
     if api:

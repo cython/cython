@@ -587,10 +587,11 @@ class CFuncType(CType):
     
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
-            nogil = 0, with_gil = 0, is_overridable = 0):
+            nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0):
         self.return_type = return_type
         self.args = args
         self.has_varargs = has_varargs
+        self.optional_arg_count = optional_arg_count
         self.exception_value = exception_value
         self.exception_check = exception_check
         self.calling_convention = calling_convention
@@ -639,6 +640,8 @@ class CFuncType(CType):
                     return 0
         if self.has_varargs <> other_type.has_varargs:
             return 0
+        if self.optional_arg_count <> other_type.optional_arg_count:
+            return 0
         if not self.return_type.same_as(other_type.return_type):
             return 0
         if not self.same_calling_convention_as(other_type):
@@ -663,6 +666,8 @@ class CFuncType(CType):
                 self.args[i].needs_type_test = other_type.args[i].needs_type_test \
                         or not self.args[i].type.same_as(other_type.args[i].type)
         if self.has_varargs <> other_type.has_varargs:
+            return 0
+        if self.optional_arg_count <> other_type.optional_arg_count:
             return 0
         if not self.return_type.subtype_of_resolved_type(other_type.return_type):
             return 0
@@ -691,6 +696,8 @@ class CFuncType(CType):
         for arg in self.args:
             arg_decl_list.append(
                 arg.type.declaration_code("", for_display, pyrex = pyrex))
+        if self.optional_arg_count:
+            arg_decl_list.append("int %s" % Naming.optional_count_cname)
         if self.has_varargs:
             arg_decl_list.append("...")
         arg_decl_code = string.join(arg_decl_list, ",")
