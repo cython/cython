@@ -1523,7 +1523,7 @@ class SimpleCallNode(ExprNode):
                 if func_type.has_varargs:
                     expected_str = "at least " + expected_str
                 elif func_type.optional_arg_count:
-                    if actual_nargs > max_nargs:
+                    if actual_nargs < max_nargs:
                         expected_str = "at least " + expected_str
                     else:
                         expected_str = "at most " + str(max_nargs)
@@ -1569,7 +1569,11 @@ class SimpleCallNode(ExprNode):
                 arg_list_code.append(arg_code)
         if func_type.optional_arg_count:
             if expected_nargs == actual_nargs:
-                arg_list_code.append(func_type.op_args.cast_code('NULL'))
+                if func_type.old_signature:
+                    struct_type = func_type.old_signature.op_args
+                else:
+                    struct_type = func_type.op_args
+                optional_args = struct_type.cast_code('NULL')
             else:
                 optional_arg_code = [str(actual_nargs - expected_nargs)]
                 for formal_arg, actual_arg in args[expected_nargs:actual_nargs]:
@@ -1578,7 +1582,11 @@ class SimpleCallNode(ExprNode):
 #                for formal_arg in formal_args[actual_nargs:max_nargs]:
 #                    optional_arg_code.append(formal_arg.type.cast_code('0'))
                 optional_arg_struct = '{%s}' % ','.join(optional_arg_code)
-                arg_list_code.append('&' + func_type.op_args.base_type.cast_code(optional_arg_struct))
+                optional_args = '&' + func_type.op_args.base_type.cast_code(optional_arg_struct)
+                if func_type.old_signature and \
+                        func_type.old_signature.op_args != func_type.op_args:
+                        optional_args = func_type.old_signature.op_args.cast_code(optional_args)
+            arg_list_code.append(optional_args)
         for actual_arg in self.args[len(formal_args):]:
             arg_list_code.append(actual_arg.result_code)
         result = "%s(%s)" % (self.function.result_code,

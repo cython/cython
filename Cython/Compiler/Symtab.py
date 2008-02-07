@@ -1273,11 +1273,14 @@ class CClassScope(ClassScope):
                 if defining and entry.func_cname:
                     error(pos, "'%s' already defined" % name)
                 #print "CClassScope.declare_cfunction: checking signature" ###
-                if type.same_c_signature_as(entry.type, as_cmethod = 1):
-                    pass
+                if type.compatible_signature_with(entry.type, as_cmethod = 1):
+                    entry.type = type
+                elif type.same_c_signature_as(entry.type, as_cmethod = 1):
+                    print "not compatible", name
 #                if type.narrower_c_signature_than(entry.type, as_cmethod = 1):
 #                    entry.type = type
                 else:
+                    print "here"
                     error(pos, "Signature not compatible with previous declaration")
         else:
             if self.defined:
