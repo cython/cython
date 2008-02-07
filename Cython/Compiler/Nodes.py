@@ -1046,13 +1046,9 @@ class DefNode(FuncDefNode):
                 desc, self.name, len(self.args), expected_str))
 
     def signature_has_nongeneric_args(self):
-        has_generic_args = self.entry.signature.has_generic_args
         argcount = len(self.args)
-        if argcount == 0:
+        if argcount == 0 or (argcount == 1 and self.args[0].is_self_arg):
             return 0
-        elif argcount == 1:
-            if self.args[0].is_self_arg:
-                return 0
         return 1
 
     def signature_has_generic_args(self):
