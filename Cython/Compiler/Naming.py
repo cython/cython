@@ -62,6 +62,7 @@ skip_dispatch_cname = pyrex_prefix + "skip_dispatch"
 empty_tuple      = pyrex_prefix + "empty_tuple"
 cleanup_cname    = pyrex_prefix + "module_cleanup"
 optional_args_cname = pyrex_prefix + "optional_args"
+no_opt_args      = pyrex_prefix + "no_opt_args"
 
 
 extern_c_macro  = pyrex_prefix.upper() + "EXTERN_C"

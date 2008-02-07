@@ -1567,13 +1567,10 @@ class SimpleCallNode(ExprNode):
         for formal_arg, actual_arg in args[:expected_nargs]:
                 arg_code = actual_arg.result_as(formal_arg.type)
                 arg_list_code.append(arg_code)
+                
         if func_type.optional_arg_count:
             if expected_nargs == actual_nargs:
-                if func_type.old_signature:
-                    struct_type = func_type.old_signature.op_args
-                else:
-                    struct_type = func_type.op_args
-                optional_args = struct_type.cast_code('NULL')
+                optional_args = 'NULL'
             else:
                 optional_arg_code = [str(actual_nargs - expected_nargs)]
                 for formal_arg, actual_arg in args[expected_nargs:actual_nargs]:
@@ -1582,11 +1579,10 @@ class SimpleCallNode(ExprNode):
 #                for formal_arg in formal_args[actual_nargs:max_nargs]:
 #                    optional_arg_code.append(formal_arg.type.cast_code('0'))
                 optional_arg_struct = '{%s}' % ','.join(optional_arg_code)
-                optional_args = '&' + func_type.op_args.base_type.cast_code(optional_arg_struct)
-                if func_type.old_signature and \
-                        func_type.old_signature.op_args != func_type.op_args:
-                        optional_args = func_type.old_signature.op_args.cast_code(optional_args)
+                optional_args = PyrexTypes.c_void_ptr_type.cast_code(
+                    '&' + func_type.op_arg_struct.base_type.cast_code(optional_arg_struct))
             arg_list_code.append(optional_args)
+            
         for actual_arg in self.args[len(formal_args):]:
             arg_list_code.append(actual_arg.result_code)
         result = "%s(%s)" % (self.function.result_code,

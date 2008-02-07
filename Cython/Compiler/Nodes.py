@@ -384,7 +384,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             calling_convention = self.base.calling_convention,
             nogil = self.nogil, with_gil = self.with_gil, is_overridable = self.overridable)
         if self.optional_arg_count:
-            func_type.op_args = PyrexTypes.c_ptr_type(self.op_args_struct.type)
+            func_type.op_arg_struct = PyrexTypes.c_ptr_type(self.op_args_struct.type)
         return self.base.analyse(func_type, env)
 
 
@@ -763,6 +763,7 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Python version
         if self.py_func:
             self.py_func.generate_function_definitions(env, code)
+        self.generate_optarg_wrapper_function(env, code)
 
     def put_stararg_decrefs(self, code):
         pass
@@ -781,6 +782,9 @@ class FuncDefNode(StatNode, BlockNode):
         # assigned to, it will be decrefed.
         for entry in env.arg_entries:
             code.put_var_incref(entry)
+
+    def generate_optarg_wrapper_function(self, env, code):
+        pass
 
     def generate_execution_code(self, code):
         # Evaluate and store argument default values
@@ -845,11 +849,7 @@ class CFuncDefNode(FuncDefNode):
         
         if self.overridable:
             import ExprNodes
-            arg_names = [arg.name for arg in self.type.args]
-            self_arg = ExprNodes.NameNode(self.pos, name=arg_names[0])
-            cfunc = ExprNodes.AttributeNode(self.pos, obj=self_arg, attribute=self.declarator.base.name)
-            c_call = ExprNodes.SimpleCallNode(self.pos, function=cfunc, args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names[1:]], wrapper_call=True)
-            py_func_body = ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
+            py_func_body = self.call_self_node()
             self.py_func = DefNode(pos = self.pos, 
                                    name = self.declarator.base.name,
                                    args = self.declarator.args,
@@ -864,7 +864,17 @@ class CFuncDefNode(FuncDefNode):
                 self.py_func.interned_attr_cname = env.intern(self.py_func.entry.name)
             self.override = OverrideCheckNode(self.pos, py_func = self.py_func)
             self.body = StatListNode(self.pos, stats=[self.override, self.body])
-            
+    
+    def call_self_node(self, omit_optional_args=0):
+        import ExprNodes
+        args = self.type.args
+        if omit_optional_args:
+            args = args[:len(args) - self.type.optional_arg_count]
+        arg_names = [arg.name for arg in args]
+        self_arg = ExprNodes.NameNode(self.pos, name=arg_names[0])
+        cfunc = ExprNodes.AttributeNode(self.pos, obj=self_arg, attribute=self.declarator.base.name)
+        c_call = ExprNodes.SimpleCallNode(self.pos, function=cfunc, args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names[1:]], wrapper_call=True)
+        return ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
                     
     def declare_arguments(self, env):
         for arg in self.type.args:
@@ -886,20 +896,22 @@ class CFuncDefNode(FuncDefNode):
         if self.overridable:
             self.py_func.analyse_expressions(env)
 
-    def generate_function_header(self, code, with_pymethdef):
+    def generate_function_header(self, code, with_pymethdef, with_opt_args = 1):
         arg_decls = []
         type = self.type
         visibility = self.entry.visibility
         for arg in type.args[:len(type.args)-type.optional_arg_count]:
             arg_decls.append(arg.declaration_code())
-        if type.optional_arg_count:
-            arg_decls.append(type.op_args.declaration_code(Naming.optional_args_cname))
+        if type.optional_arg_count and with_opt_args:
+            arg_decls.append(type.op_arg_struct.declaration_code(Naming.optional_args_cname))
         if type.has_varargs:
             arg_decls.append("...")
         if not arg_decls:
             arg_decls = ["void"]
-        entity = type.function_header_code(self.entry.func_cname,
-            string.join(arg_decls, ", "))
+        cname = self.entry.func_cname
+        if not with_opt_args:
+            cname += Naming.no_opt_args
+        entity = type.function_header_code(cname, string.join(arg_decls, ", "))
         if visibility == 'public':
             dll_linkage = "DL_EXPORT"
         else:
@@ -973,6 +985,19 @@ class CFuncDefNode(FuncDefNode):
     def caller_will_check_exceptions(self):
         return self.entry.type.exception_check
                     
+    def generate_optarg_wrapper_function(self, env, code):
+        if self.type.optional_arg_count and \
+                self.type.original_sig and not self.type.original_sig.optional_arg_count:
+            code.putln()
+            self.generate_function_header(code, 0, with_opt_args = 0)
+            if not self.return_type.is_void:
+                code.put('return ')
+            args = self.type.args
+            arglist = [arg.cname for arg in args[:len(args)-self.type.optional_arg_count]]
+            arglist.append('NULL')
+            code.putln('%s(%s);' % (self.entry.func_cname, ', '.join(arglist)))
+            code.putln('}')
+
 
 class PyArgDeclNode(Node):
     # Argument which must be a Python object (used
