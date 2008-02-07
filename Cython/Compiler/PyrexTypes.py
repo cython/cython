@@ -584,6 +584,7 @@ class CFuncType(CType):
     #  with_gil         boolean    Acquire gil around function body
     
     is_cfunction = 1
+    old_signature = None
     
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
@@ -648,6 +649,49 @@ class CFuncType(CType):
             return 0
         return 1
         
+    
+    def compatible_signature_with(self, other_type, as_cmethod = 0):
+        return self.compatible_signature_with_resolved_type(other_type.resolve(), as_cmethod)
+    
+    def compatible_signature_with_resolved_type(self, other_type, as_cmethod):
+        #print "CFuncType.same_c_signature_as_resolved_type:", \
+        #	self, other_type, "as_cmethod =", as_cmethod ###
+        if other_type is error_type:
+            return 1
+        if not other_type.is_cfunction:
+            return 0
+        if self.is_overridable != other_type.is_overridable:
+            return 0
+        nargs = len(self.args)
+        if nargs - self.optional_arg_count != len(other_type.args) - other_type.optional_arg_count:
+            return 0
+        if self.optional_arg_count < other_type.optional_arg_count:
+            return 0
+        # When comparing C method signatures, the first argument
+        # is exempt from compatibility checking (the proper check
+        # is performed elsewhere).
+        for i in range(as_cmethod, len(other_type.args)):
+            if not self.args[i].type.same_as(
+                other_type.args[i].type):
+                    return 0
+        if self.has_varargs != other_type.has_varargs:
+            return 0
+        if not self.return_type.same_as(other_type.return_type):
+            return 0
+        if not self.same_calling_convention_as(other_type):
+            return 0
+        self.old_signature = other_type
+        if as_cmethod:
+            self.args[0] = other_type.args[0]
+        if self.optional_arg_count and \
+                self.optional_arg_count == other_type.optional_arg_count:
+            self.op_args = other_type.op_args
+            print self.op_args, other_type.op_args, self.optional_arg_count, other_type.optional_arg_count
+        elif self.optional_arg_count:
+            print self.op_args, other_type.op_args, self.optional_arg_count, other_type.optional_arg_count
+        return 1
+        
+        
     def narrower_c_signature_than(self, other_type, as_cmethod = 0):
         return self.narrower_c_signature_than_resolved_type(other_type.resolve(), as_cmethod)
         
@@ -698,6 +742,7 @@ class CFuncType(CType):
                 arg.type.declaration_code("", for_display, pyrex = pyrex))
         if self.optional_arg_count:
             arg_decl_list.append(self.op_args.declaration_code(Naming.optional_args_cname))
+#            arg_decl_list.append(c_void_ptr_type.declaration_code(Naming.optional_args_cname))
         if self.has_varargs:
             arg_decl_list.append("...")
         arg_decl_code = string.join(arg_decl_list, ", ")

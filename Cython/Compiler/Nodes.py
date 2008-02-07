@@ -345,7 +345,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             scope.declare_var('n', PyrexTypes.c_int_type, self.pos)
             for arg in func_type_args[len(func_type_args)-self.optional_arg_count:]:
                 scope.declare_var(arg.name, arg.type, arg.pos, allow_pyobject = 1)
-            struct_cname = Naming.opt_arg_prefix + self.base.name
+            struct_cname = Naming.opt_arg_prefix + env.mangle(self.base.name)
             self.op_args_struct = env.global_scope().declare_struct_or_union(name = struct_cname,
                                         kind = 'struct',
                                         scope = scope,
