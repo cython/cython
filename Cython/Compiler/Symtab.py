@@ -1058,14 +1058,14 @@ class StructOrUnionScope(Scope):
         Scope.__init__(self, "?", None, None)
 
     def declare_var(self, name, type, pos, 
-            cname = None, visibility = 'private', is_cdef = 0):
+            cname = None, visibility = 'private', is_cdef = 0, allow_pyobject = 0):
         # Add an entry for an attribute.
         if not cname:
             cname = name
         entry = self.declare(name, cname, type, pos)
         entry.is_variable = 1
         self.var_entries.append(entry)
-        if type.is_pyobject:
+        if type.is_pyobject and not allow_pyobject:
             error(pos,
                 "C struct/union member cannot be a Python object")
         if visibility <> 'private':
