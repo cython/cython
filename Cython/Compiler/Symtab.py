@@ -1273,14 +1273,26 @@ class CClassScope(ClassScope):
                 if defining and entry.func_cname:
                     error(pos, "'%s' already defined" % name)
                 #print "CClassScope.declare_cfunction: checking signature" ###
-                if type.compatible_signature_with(entry.type, as_cmethod = 1):
+                if type.same_c_signature_as(entry.type, as_cmethod = 1):
+                    pass
+                elif type.compatible_signature_with(entry.type, as_cmethod = 1):
+                    if type.optional_arg_count and not type.original_sig.optional_arg_count:
+                        # Need to put a wrapper taking no optional arguments 
+                        # into the method table.
+                        wrapper_func_cname = self.mangle(Naming.func_prefix, name) + Naming.no_opt_args
+                        wrapper_func_name = name + Naming.no_opt_args
+                        if entry.type.optional_arg_count:
+                            old_entry = self.lookup_here(wrapper_func_name)
+                            old_entry.func_cname = wrapper_func_cname
+                        else:
+                            entry.func_cname = wrapper_func_cname
+                            entry.name = wrapper_func_name
+                            entry = self.add_cfunction(name, type, pos, cname or name, visibility)
+                            defining = 1
                     entry.type = type
-                elif type.same_c_signature_as(entry.type, as_cmethod = 1):
-                    print "not compatible", name
 #                if type.narrower_c_signature_than(entry.type, as_cmethod = 1):
 #                    entry.type = type
                 else:
-                    print "here"
                     error(pos, "Signature not compatible with previous declaration")
         else:
             if self.defined:

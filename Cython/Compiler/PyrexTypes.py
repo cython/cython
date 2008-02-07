@@ -584,7 +584,7 @@ class CFuncType(CType):
     #  with_gil         boolean    Acquire gil around function body
     
     is_cfunction = 1
-    old_signature = None
+    original_sig = None
     
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
@@ -680,15 +680,9 @@ class CFuncType(CType):
             return 0
         if not self.same_calling_convention_as(other_type):
             return 0
-        self.old_signature = other_type
+        self.original_sig = other_type.original_sig or other_type
         if as_cmethod:
             self.args[0] = other_type.args[0]
-        if self.optional_arg_count and \
-                self.optional_arg_count == other_type.optional_arg_count:
-            self.op_args = other_type.op_args
-            print self.op_args, other_type.op_args, self.optional_arg_count, other_type.optional_arg_count
-        elif self.optional_arg_count:
-            print self.op_args, other_type.op_args, self.optional_arg_count, other_type.optional_arg_count
         return 1
         
         
@@ -741,8 +735,7 @@ class CFuncType(CType):
             arg_decl_list.append(
                 arg.type.declaration_code("", for_display, pyrex = pyrex))
         if self.optional_arg_count:
-            arg_decl_list.append(self.op_args.declaration_code(Naming.optional_args_cname))
-#            arg_decl_list.append(c_void_ptr_type.declaration_code(Naming.optional_args_cname))
+            arg_decl_list.append(self.op_arg_struct.declaration_code(Naming.optional_args_cname))
         if self.has_varargs:
             arg_decl_list.append("...")
         arg_decl_code = string.join(arg_decl_list, ", ")
