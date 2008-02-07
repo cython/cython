@@ -1560,14 +1560,25 @@ class SimpleCallNode(ExprNode):
             return "<error>"
         formal_args = func_type.args
         arg_list_code = []
-        for (formal_arg, actual_arg) in \
-            zip(formal_args, self.args):
+        args = zip(formal_args, self.args)
+        max_nargs = len(func_type.args)
+        expected_nargs = max_nargs - func_type.optional_arg_count
+        actual_nargs = len(self.args)
+        for formal_arg, actual_arg in args[:expected_nargs]:
                 arg_code = actual_arg.result_as(formal_arg.type)
                 arg_list_code.append(arg_code)
         if func_type.optional_arg_count:
-            for formal_arg in formal_args[len(self.args):]:
-                arg_list_code.append(formal_arg.type.cast_code('0'))
-            arg_list_code.append(str(max(0, len(formal_args) - len(self.args))))
+            if expected_nargs == actual_nargs:
+                arg_list_code.append(func_type.op_args.cast_code('NULL'))
+            else:
+                optional_arg_code = [str(actual_nargs - expected_nargs)]
+                for formal_arg, actual_arg in args[expected_nargs:actual_nargs]:
+                    arg_code = actual_arg.result_as(formal_arg.type)
+                    optional_arg_code.append(arg_code)
+#                for formal_arg in formal_args[actual_nargs:max_nargs]:
+#                    optional_arg_code.append(formal_arg.type.cast_code('0'))
+                optional_arg_struct = '{%s}' % ','.join(optional_arg_code)
+                arg_list_code.append('&' + func_type.op_args.base_type.cast_code(optional_arg_struct))
         for actual_arg in self.args[len(formal_args):]:
             arg_list_code.append(actual_arg.result_code)
         result = "%s(%s)" % (self.function.result_code,

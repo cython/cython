@@ -339,6 +339,21 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 PyrexTypes.CFuncTypeArg(name, type, arg_node.pos))
             if arg_node.default:
                 self.optional_arg_count += 1
+        
+        if self.optional_arg_count:
+            scope = StructOrUnionScope()
+            scope.declare_var('n', PyrexTypes.c_int_type, self.pos)
+            for arg in func_type_args[len(func_type_args)-self.optional_arg_count:]:
+                scope.declare_var(arg.name, arg.type, arg.pos, allow_pyobject = 1)
+            struct_cname = Naming.opt_arg_prefix + self.base.name
+            self.op_args_struct = env.global_scope().declare_struct_or_union(name = struct_cname,
+                                        kind = 'struct',
+                                        scope = scope,
+                                        typedef_flag = 0,
+                                        pos = self.pos,
+                                        cname = struct_cname)
+            self.op_args_struct.used = 1
+        
         exc_val = None
         exc_check = 0
         if return_type.is_pyobject \
@@ -368,6 +383,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             exception_value = exc_val, exception_check = exc_check,
             calling_convention = self.base.calling_convention,
             nogil = self.nogil, with_gil = self.with_gil, is_overridable = self.overridable)
+        if self.optional_arg_count:
+            func_type.op_args = PyrexTypes.c_ptr_type(self.op_args_struct.type)
         return self.base.analyse(func_type, env)
 
 
@@ -383,7 +400,8 @@ class CArgDeclNode(Node):
     # is_kw_only     boolean            Is a keyword-only argument
 
     is_self_arg = 0
-    
+    is_generic = 1
+
     def analyse(self, env):
         #print "CArgDeclNode.analyse: is_self_arg =", self.is_self_arg ###
         base_type = self.base_type.analyse(env)
@@ -813,6 +831,9 @@ class CFuncDefNode(FuncDefNode):
         # from the base type of an extension type.
         self.type = type
         type.is_overridable = self.overridable
+        for formal_arg, type_arg in zip(self.declarator.args, type.args):
+            formal_arg.type = type_arg.type
+            formal_arg.cname = type_arg.cname
         name = name_declarator.name
         cname = name_declarator.cname
         self.entry = env.declare_cfunction(
@@ -821,7 +842,7 @@ class CFuncDefNode(FuncDefNode):
             defining = self.body is not None,
             api = self.api)
         self.return_type = type.return_type
-
+        
         if self.overridable:
             import ExprNodes
             arg_names = [arg.name for arg in self.type.args]
@@ -869,16 +890,16 @@ class CFuncDefNode(FuncDefNode):
         arg_decls = []
         type = self.type
         visibility = self.entry.visibility
-        for arg in type.args:
+        for arg in type.args[:len(type.args)-type.optional_arg_count]:
             arg_decls.append(arg.declaration_code())
         if type.optional_arg_count:
-            arg_decls.append("int %s" % Naming.optional_count_cname)
+            arg_decls.append(type.op_args.declaration_code(Naming.optional_args_cname))
         if type.has_varargs:
             arg_decls.append("...")
         if not arg_decls:
             arg_decls = ["void"]
         entity = type.function_header_code(self.entry.func_cname,
-            string.join(arg_decls, ","))
+            string.join(arg_decls, ", "))
         if visibility == 'public':
             dll_linkage = "DL_EXPORT"
         else:
@@ -895,24 +916,26 @@ class CFuncDefNode(FuncDefNode):
             header))
 
     def generate_argument_declarations(self, env, code):
-        # Arguments already declared in function header
-        pass
-    
+        for arg in self.declarator.args:
+            if arg.default:
+                code.putln('%s = %s;' % (arg.type.declaration_code(arg.cname), arg.default_entry.cname))
+
     def generate_keyword_list(self, code):
         pass
         
     def generate_argument_parsing_code(self, code):
-        rev_args = zip(self.declarator.args, self.type.args)
-        rev_args.reverse()
+        rev_args = self.declarator.args
         i = 0
-        for darg, targ in rev_args:
-            if darg.default:
-                code.putln('if (%s > %s) {' % (Naming.optional_count_cname, i))
-                code.putln('%s = %s;' % (targ.cname, darg.default_entry.cname))
-                i += 1
-        for _ in range(i):
+        if self.type.optional_arg_count:
+            code.putln('if (%s) {' % Naming.optional_args_cname)
+            for arg in rev_args:
+                if arg.default:
+                    code.putln('if (%s->n > %s) {' % (Naming.optional_args_cname, i))
+                    code.putln('%s = %s->%s;' % (arg.cname, Naming.optional_args_cname, arg.declarator.name))
+                    i += 1
+            for _ in range(self.type.optional_arg_count):
+                code.putln('}')
             code.putln('}')
-        code.putln('/* defaults */')
     
     def generate_argument_conversion_code(self, code):
         pass

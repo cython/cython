@@ -693,14 +693,14 @@ class CFuncType(CType):
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
         arg_decl_list = []
-        for arg in self.args:
+        for arg in self.args[:len(self.args)-self.optional_arg_count]:
             arg_decl_list.append(
                 arg.type.declaration_code("", for_display, pyrex = pyrex))
         if self.optional_arg_count:
-            arg_decl_list.append("int %s" % Naming.optional_count_cname)
+            arg_decl_list.append(self.op_args.declaration_code(Naming.optional_args_cname))
         if self.has_varargs:
             arg_decl_list.append("...")
-        arg_decl_code = string.join(arg_decl_list, ",")
+        arg_decl_code = string.join(arg_decl_list, ", ")
         if not arg_decl_code and not pyrex:
             arg_decl_code = "void"
         exc_clause = ""

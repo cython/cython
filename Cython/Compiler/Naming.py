@@ -32,6 +32,7 @@ var_prefix        = pyrex_prefix + "v_"
 vtable_prefix     = pyrex_prefix + "vtable_"
 vtabptr_prefix    = pyrex_prefix + "vtabptr_"
 vtabstruct_prefix = pyrex_prefix + "vtabstruct_"
+opt_arg_prefix    = pyrex_prefix + "opt_args_"
 
 args_cname       = pyrex_prefix + "args"
 kwdlist_cname    = pyrex_prefix + "argnames"
@@ -60,7 +61,7 @@ gilstate_cname   = pyrex_prefix + "state"
 skip_dispatch_cname = pyrex_prefix + "skip_dispatch"
 empty_tuple      = pyrex_prefix + "empty_tuple"
 cleanup_cname    = pyrex_prefix + "module_cleanup"
-optional_count_cname = pyrex_prefix + "optional_arg_count"
+optional_args_cname = pyrex_prefix + "optional_args"
 
 
 extern_c_macro  = pyrex_prefix.upper() + "EXTERN_C"
