@@ -550,6 +550,8 @@ class AtomicExprNode(ExprNode):
 class PyConstNode(AtomicExprNode):
     #  Abstract base class for constant Python values.
     
+    is_literal = 1
+    
     def is_simple(self):
         return 1
     
@@ -571,6 +573,24 @@ class NoneNode(PyConstNode):
     def compile_time_value(self, denv):
         return None
     
+class BoolNode(PyConstNode):
+    #  The constant value True or False
+    
+    def compile_time_value(self, denv):
+        return None
+    
+    def calculate_result_code(self):
+        if self.value:
+            return "Py_True"
+        else:
+            return "Py_False"
+
+    def coerce_to(self, dst_type, env):
+        value = self.value
+        if dst_type.is_numeric:
+            return IntNode(self.pos, value=self.value).coerce_to(dst_type, env)
+        else:
+            return PyConstNode.coerce_to(self, dst_type, env)
 
 class EllipsisNode(PyConstNode):
     #  '...' in a subscript list.
@@ -2148,6 +2168,7 @@ class TupleNode(SequenceNode):
         if len(self.args) == 0:
             self.type = py_object_type
             self.is_temp = 0
+            self.is_literal = 1
         else:
             SequenceNode.analyse_types(self, env)
             

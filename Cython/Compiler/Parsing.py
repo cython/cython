@@ -468,6 +468,10 @@ def p_atom(s):
         s.next()
         if name == "None":
             return ExprNodes.NoneNode(pos)
+        elif name == "True":
+            return ExprNodes.BoolNode(pos, value=1)
+        elif name == "False":
+            return ExprNodes.BoolNode(pos, value=0)
         else:
             return p_name(s, name)
     elif sy == 'NULL':
