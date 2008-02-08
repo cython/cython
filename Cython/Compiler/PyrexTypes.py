@@ -627,7 +627,7 @@ class CFuncType(CType):
             return 1
         if not other_type.is_cfunction:
             return 0
-        if self.is_overridable != other_type.is_overridable:
+        if not self.is_overridable and other_type.is_overridable:
             return 0
         nargs = len(self.args)
         if nargs <> len(other_type.args):
@@ -660,7 +660,7 @@ class CFuncType(CType):
             return 1
         if not other_type.is_cfunction:
             return 0
-        if self.is_overridable != other_type.is_overridable:
+        if not self.is_overridable and other_type.is_overridable:
             return 0
         nargs = len(self.args)
         if nargs - self.optional_arg_count != len(other_type.args) - other_type.optional_arg_count:
