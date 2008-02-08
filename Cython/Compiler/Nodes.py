@@ -964,10 +964,13 @@ class DefNode(FuncDefNode):
         self.declare_pyfunction(env)
         self.analyse_signature(env)
         self.return_type = self.entry.signature.return_type()
-        if self.star_arg:
-            env.use_utility_code(get_stararg_utility_code)
-        if self.starstar_arg:
-            env.use_utility_code(get_splitkeywords_utility_code)
+        if self.signature_has_generic_args():
+            if self.star_arg:
+                env.use_utility_code(get_stararg_utility_code)
+            if not self.signature_has_nongeneric_args():
+                env.use_utility_code(get_keyword_string_check_utility_code)
+            elif self.starstar_arg:
+                env.use_utility_code(get_splitkeywords_utility_code)
         if self.num_required_kw_args:
             env.use_utility_code(get_checkkeywords_utility_code)
 
@@ -1223,7 +1226,7 @@ class DefNode(FuncDefNode):
             self.generate_argument_conversion_code(code)
         elif not self.signature_has_nongeneric_args():
             # func(*args) or func(**kw) or func(*args, **kw)
-            self.generate_stararg_copy_code(env, code)
+            self.generate_stararg_copy_code(code)
         else:
             arg_addrs = []
             arg_formats = []
@@ -1366,37 +1369,28 @@ class DefNode(FuncDefNode):
         else:
             return 0
 
-    def generate_stararg_copy_code(self, env, code):
-        if not self.starstar_arg:
-            env.use_utility_code(get_keyword_error_utility_code)
-            code.putln("if (unlikely(%s) && unlikely(PyDict_Size(%s))) {" % (
-                    Naming.kwds_cname, Naming.kwds_cname))
-            code.putln("__Pyx_RaiseKeywordError(%s);" % Naming.kwds_cname)
-            code.putln("return %s;" % self.error_value())
-            code.putln("}")
-        if self.star_arg:
-            code.put_incref(Naming.args_cname, py_object_type)
-            code.putln("%s = %s; %s = 0;" % (
-                    self.star_arg.entry.cname,
-                    Naming.args_cname,
-                    Naming.args_cname))
-            self.star_arg.entry.xdecref_cleanup = 0
-            self.star_arg = None
-        else:
+    def generate_stararg_copy_code(self, code):
+        if not self.star_arg:
             self.generate_positional_args_check(code, 0)
+        self.generate_keyword_args_check(code)
+
         if self.starstar_arg:
-            code.putln("if (%s) {" % Naming.kwds_cname)
-            code.put_incref(Naming.kwds_cname, py_object_type)
-            code.putln("%s = %s; %s = 0;" % (
+            code.putln("%s = (%s) ? PyDict_Copy(%s) : PyDict_New();" % (
                     self.starstar_arg.entry.cname,
                     Naming.kwds_cname,
                     Naming.kwds_cname))
-            code.putln("}")
-            code.putln("else {")
-            code.putln("%s = PyDict_New();" % self.starstar_arg.entry.cname)
-            code.putln("}")
+            code.putln("if (unlikely(!%s)) return %s;" % (
+                    self.starstar_arg.entry.cname, self.error_value()))
             self.starstar_arg.entry.xdecref_cleanup = 0
             self.starstar_arg = None
+
+        if self.star_arg:
+            code.put_incref(Naming.args_cname, py_object_type)
+            code.putln("%s = %s;" % (
+                    self.star_arg.entry.cname,
+                    Naming.args_cname))
+            self.star_arg.entry.xdecref_cleanup = 0
+            self.star_arg = None
 
     def generate_stararg_getting_code(self, code):
         num_kwonly = self.num_kwonly_args
@@ -1461,6 +1455,13 @@ class DefNode(FuncDefNode):
         code.putln("PyErr_Format(PyExc_TypeError, \"%s\", %d, PyTuple_GET_SIZE(%s));" % (
                 error_message, nargs, Naming.args_cname))
         code.putln("return %s;" % self.error_value())
+        code.putln("}")
+
+    def generate_keyword_args_check(self, code):
+        code.putln("if (unlikely(%s)) {" % Naming.kwds_cname)
+        code.putln("if (unlikely(!__Pyx_CheckKeywordStrings(%s, \"%s\", %d))) return %s;" % (
+                Naming.kwds_cname, self.name,
+                bool(self.starstar_arg), self.error_value()))
         code.putln("}")
 
     def generate_argument_conversion_code(self, code):
@@ -3534,25 +3535,35 @@ static INLINE int __Pyx_SplitStarArg(
 
 #------------------------------------------------------------------------------------
 #
-#  __Pyx_RaiseKeywordError raises an error that keywords were passed
-#  to a function that does not accept them.
+#  __Pyx_CheckKeywordStrings raises an error if non-string keywords
+#  were passed to a function, or if any keywords were passed to a
+#  function that does not accept them.
 
-get_keyword_error_utility_code = [
+get_keyword_string_check_utility_code = [
 """
-static void __Pyx_RaiseKeywordError(PyObject *kwdict); /*proto*/
+static int __Pyx_CheckKeywordStrings(PyObject *kwdict, const char* function_name, int kw_allowed); /*proto*/
 ""","""
-static void __Pyx_RaiseKeywordError(PyObject *kwdict) {
+static int __Pyx_CheckKeywordStrings(
+    PyObject *kwdict,
+    const char* function_name,
+    int kw_allowed)
+{
     PyObject* key = 0;
     Py_ssize_t pos = 0;
-    PyDict_Next(kwdict, &pos, &key, 0);
-    if (!PyString_Check(key)) {
-        PyErr_SetString(PyExc_TypeError, "keywords must be strings");
+    while (PyDict_Next(kwdict, &pos, &key, 0)) {
+        if (unlikely(!PyString_Check(key))) {
+            PyErr_Format(PyExc_TypeError,
+                         "%s() keywords must be strings", function_name);
+            return 0;
+        }
     }
-    else {
+    if (unlikely(!kw_allowed) && unlikely(key)) {
         PyErr_Format(PyExc_TypeError,
                      "'%s' is an invalid keyword argument for this function",
                      PyString_AsString(key));
+        return 0;
     }
+    return 1;
 }
 """]
 
