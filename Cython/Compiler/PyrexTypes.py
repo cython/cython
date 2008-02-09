@@ -584,13 +584,15 @@ class CFuncType(CType):
     #  with_gil         boolean    Acquire gil around function body
     
     is_cfunction = 1
+    original_sig = None
     
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
-            nogil = 0, with_gil = 0, is_overridable = 0):
+            nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0):
         self.return_type = return_type
         self.args = args
         self.has_varargs = has_varargs
+        self.optional_arg_count = optional_arg_count
         self.exception_value = exception_value
         self.exception_check = exception_check
         self.calling_convention = calling_convention
@@ -625,7 +627,7 @@ class CFuncType(CType):
             return 1
         if not other_type.is_cfunction:
             return 0
-        if self.is_overridable != other_type.is_overridable:
+        if not self.is_overridable and other_type.is_overridable:
             return 0
         nargs = len(self.args)
         if nargs <> len(other_type.args):
@@ -639,11 +641,50 @@ class CFuncType(CType):
                     return 0
         if self.has_varargs <> other_type.has_varargs:
             return 0
+        if self.optional_arg_count <> other_type.optional_arg_count:
+            return 0
         if not self.return_type.same_as(other_type.return_type):
             return 0
         if not self.same_calling_convention_as(other_type):
             return 0
         return 1
+        
+    
+    def compatible_signature_with(self, other_type, as_cmethod = 0):
+        return self.compatible_signature_with_resolved_type(other_type.resolve(), as_cmethod)
+    
+    def compatible_signature_with_resolved_type(self, other_type, as_cmethod):
+        #print "CFuncType.same_c_signature_as_resolved_type:", \
+        #	self, other_type, "as_cmethod =", as_cmethod ###
+        if other_type is error_type:
+            return 1
+        if not other_type.is_cfunction:
+            return 0
+        if not self.is_overridable and other_type.is_overridable:
+            return 0
+        nargs = len(self.args)
+        if nargs - self.optional_arg_count != len(other_type.args) - other_type.optional_arg_count:
+            return 0
+        if self.optional_arg_count < other_type.optional_arg_count:
+            return 0
+        # When comparing C method signatures, the first argument
+        # is exempt from compatibility checking (the proper check
+        # is performed elsewhere).
+        for i in range(as_cmethod, len(other_type.args)):
+            if not self.args[i].type.same_as(
+                other_type.args[i].type):
+                    return 0
+        if self.has_varargs != other_type.has_varargs:
+            return 0
+        if not self.return_type.same_as(other_type.return_type):
+            return 0
+        if not self.same_calling_convention_as(other_type):
+            return 0
+        self.original_sig = other_type.original_sig or other_type
+        if as_cmethod:
+            self.args[0] = other_type.args[0]
+        return 1
+        
         
     def narrower_c_signature_than(self, other_type, as_cmethod = 0):
         return self.narrower_c_signature_than_resolved_type(other_type.resolve(), as_cmethod)
@@ -663,6 +704,8 @@ class CFuncType(CType):
                 self.args[i].needs_type_test = other_type.args[i].needs_type_test \
                         or not self.args[i].type.same_as(other_type.args[i].type)
         if self.has_varargs <> other_type.has_varargs:
+            return 0
+        if self.optional_arg_count <> other_type.optional_arg_count:
             return 0
         if not self.return_type.subtype_of_resolved_type(other_type.return_type):
             return 0
@@ -688,12 +731,14 @@ class CFuncType(CType):
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
         arg_decl_list = []
-        for arg in self.args:
+        for arg in self.args[:len(self.args)-self.optional_arg_count]:
             arg_decl_list.append(
                 arg.type.declaration_code("", for_display, pyrex = pyrex))
+        if self.optional_arg_count:
+            arg_decl_list.append(self.op_arg_struct.declaration_code(Naming.optional_args_cname))
         if self.has_varargs:
             arg_decl_list.append("...")
-        arg_decl_code = string.join(arg_decl_list, ",")
+        arg_decl_code = string.join(arg_decl_list, ", ")
         if not arg_decl_code and not pyrex:
             arg_decl_code = "void"
         exc_clause = ""
