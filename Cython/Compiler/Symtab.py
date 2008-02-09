@@ -1058,14 +1058,14 @@ class StructOrUnionScope(Scope):
         Scope.__init__(self, "?", None, None)
 
     def declare_var(self, name, type, pos, 
-            cname = None, visibility = 'private', is_cdef = 0):
+            cname = None, visibility = 'private', is_cdef = 0, allow_pyobject = 0):
         # Add an entry for an attribute.
         if not cname:
             cname = name
         entry = self.declare(name, cname, type, pos)
         entry.is_variable = 1
         self.var_entries.append(entry)
-        if type.is_pyobject:
+        if type.is_pyobject and not allow_pyobject:
             error(pos,
                 "C struct/union member cannot be a Python object")
         if visibility <> 'private':
@@ -1275,6 +1275,21 @@ class CClassScope(ClassScope):
                 #print "CClassScope.declare_cfunction: checking signature" ###
                 if type.same_c_signature_as(entry.type, as_cmethod = 1):
                     pass
+                elif type.compatible_signature_with(entry.type, as_cmethod = 1):
+                    if type.optional_arg_count and not type.original_sig.optional_arg_count:
+                        # Need to put a wrapper taking no optional arguments 
+                        # into the method table.
+                        wrapper_func_cname = self.mangle(Naming.func_prefix, name) + Naming.no_opt_args
+                        wrapper_func_name = name + Naming.no_opt_args
+                        if entry.type.optional_arg_count:
+                            old_entry = self.lookup_here(wrapper_func_name)
+                            old_entry.func_cname = wrapper_func_cname
+                        else:
+                            entry.func_cname = wrapper_func_cname
+                            entry.name = wrapper_func_name
+                            entry = self.add_cfunction(name, type, pos, cname or name, visibility)
+                            defining = 1
+                    entry.type = type
 #                if type.narrower_c_signature_than(entry.type, as_cmethod = 1):
 #                    entry.type = type
                 else:

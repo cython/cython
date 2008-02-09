@@ -550,6 +550,8 @@ class AtomicExprNode(ExprNode):
 class PyConstNode(AtomicExprNode):
     #  Abstract base class for constant Python values.
     
+    is_literal = 1
+    
     def is_simple(self):
         return 1
     
@@ -571,6 +573,24 @@ class NoneNode(PyConstNode):
     def compile_time_value(self, denv):
         return None
     
+class BoolNode(PyConstNode):
+    #  The constant value True or False
+    
+    def compile_time_value(self, denv):
+        return None
+    
+    def calculate_result_code(self):
+        if self.value:
+            return "Py_True"
+        else:
+            return "Py_False"
+
+    def coerce_to(self, dst_type, env):
+        value = self.value
+        if dst_type.is_numeric:
+            return IntNode(self.pos, value=self.value).coerce_to(dst_type, env)
+        else:
+            return PyConstNode.coerce_to(self, dst_type, env)
 
 class EllipsisNode(PyConstNode):
     #  '...' in a subscript list.
@@ -1514,13 +1534,19 @@ class SimpleCallNode(ExprNode):
             self.result_code = "<error>"
             return
         # Check no. of args
-        expected_nargs = len(func_type.args)
+        max_nargs = len(func_type.args)
+        expected_nargs = max_nargs - func_type.optional_arg_count
         actual_nargs = len(self.args)
         if actual_nargs < expected_nargs \
-            or (not func_type.has_varargs and actual_nargs > expected_nargs):
+            or (not func_type.has_varargs and actual_nargs > max_nargs):
                 expected_str = str(expected_nargs)
                 if func_type.has_varargs:
                     expected_str = "at least " + expected_str
+                elif func_type.optional_arg_count:
+                    if actual_nargs < max_nargs:
+                        expected_str = "at least " + expected_str
+                    else:
+                        expected_str = "at most " + str(max_nargs)
                 error(self.pos, 
                     "Call with wrong number of arguments (expected %s, got %s)"
                         % (expected_str, actual_nargs))
@@ -1529,10 +1555,10 @@ class SimpleCallNode(ExprNode):
                 self.result_code = "<error>"
                 return
         # Coerce arguments
-        for i in range(expected_nargs):
+        for i in range(min(max_nargs, actual_nargs)):
             formal_type = func_type.args[i].type
             self.args[i] = self.args[i].coerce_to(formal_type, env)
-        for i in range(expected_nargs, actual_nargs):
+        for i in range(max_nargs, actual_nargs):
             if self.args[i].type.is_pyobject:
                 error(self.args[i].pos, 
                     "Python object cannot be passed as a varargs parameter")
@@ -1554,14 +1580,33 @@ class SimpleCallNode(ExprNode):
             return "<error>"
         formal_args = func_type.args
         arg_list_code = []
-        for (formal_arg, actual_arg) in \
-            zip(formal_args, self.args):
+        args = zip(formal_args, self.args)
+        max_nargs = len(func_type.args)
+        expected_nargs = max_nargs - func_type.optional_arg_count
+        actual_nargs = len(self.args)
+        for formal_arg, actual_arg in args[:expected_nargs]:
                 arg_code = actual_arg.result_as(formal_arg.type)
                 arg_list_code.append(arg_code)
+                
+        if func_type.optional_arg_count:
+            if expected_nargs == actual_nargs:
+                optional_args = 'NULL'
+            else:
+                optional_arg_code = [str(actual_nargs - expected_nargs)]
+                for formal_arg, actual_arg in args[expected_nargs:actual_nargs]:
+                    arg_code = actual_arg.result_as(formal_arg.type)
+                    optional_arg_code.append(arg_code)
+#                for formal_arg in formal_args[actual_nargs:max_nargs]:
+#                    optional_arg_code.append(formal_arg.type.cast_code('0'))
+                optional_arg_struct = '{%s}' % ','.join(optional_arg_code)
+                optional_args = PyrexTypes.c_void_ptr_type.cast_code(
+                    '&' + func_type.op_arg_struct.base_type.cast_code(optional_arg_struct))
+            arg_list_code.append(optional_args)
+            
         for actual_arg in self.args[len(formal_args):]:
             arg_list_code.append(actual_arg.result_code)
         result = "%s(%s)" % (self.function.result_code,
-            join(arg_list_code, ","))
+            join(arg_list_code, ", "))
         if self.wrapper_call or \
                 self.function.entry.is_unbound_cmethod and self.function.entry.type.is_overridable:
             result = "(%s = 1, %s)" % (Naming.skip_dispatch_cname, result)
@@ -2123,6 +2168,7 @@ class TupleNode(SequenceNode):
         if len(self.args) == 0:
             self.type = py_object_type
             self.is_temp = 0
+            self.is_literal = 1
         else:
             SequenceNode.analyse_types(self, env)
             
@@ -3539,6 +3585,9 @@ class PyTypeTestNode(CoercionNode):
         self.result_ctype = arg.ctype()
         env.use_utility_code(type_test_utility_code)
     
+    def analyse_types(self, env):
+        pass
+    
     def result_in_temp(self):
         return self.arg.result_in_temp()
     
@@ -3552,7 +3601,7 @@ class PyTypeTestNode(CoercionNode):
         if self.type.typeobj_is_available():
             code.putln(
                 "if (!__Pyx_TypeTest(%s, %s)) %s" % (
-                    self.arg.py_result(),
+                    self.arg.py_result(), 
                     self.type.typeptr_cname,
                     code.error_goto(self.pos)))
         else:
