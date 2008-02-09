@@ -344,7 +344,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         
         if self.optional_arg_count:
             scope = StructOrUnionScope()
-            scope.declare_var('n', PyrexTypes.c_int_type, self.pos)
+            scope.declare_var('%sn' % Naming.pyrex_prefix, PyrexTypes.c_int_type, self.pos)
             for arg in func_type_args[len(func_type_args)-self.optional_arg_count:]:
                 scope.declare_var(arg.name, arg.type, arg.pos, allow_pyobject = 1)
             struct_cname = env.mangle(Naming.opt_arg_prefix, self.base.name)
@@ -354,6 +354,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                                         typedef_flag = 0,
                                         pos = self.pos,
                                         cname = struct_cname)
+            self.op_args_struct.defined_in_pxd = 1
             self.op_args_struct.used = 1
         
         exc_val = None
@@ -462,6 +463,8 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                     scope = None
                     break
             if scope:
+                if scope.is_c_class_scope:
+                    scope = scope.global_scope()
                 entry = scope.find(self.name, self.pos)
                 if entry and entry.is_type:
                     type = entry.type
@@ -645,6 +648,8 @@ class FuncDefNode(StatNode, BlockNode):
                         if arg.default.is_literal:
                             arg.default_entry = arg.default
                             arg.default_result_code = arg.default.calculate_result_code()
+                            if arg.default.type != arg.type and not arg.type.is_int:
+                                arg.default_result_code = arg.type.cast_code(arg.default_result_code)
                         else:
                             arg.default.allocate_temps(genv)
                             arg.default_entry = genv.add_default_value(arg.type)
@@ -844,7 +849,11 @@ class CFuncDefNode(FuncDefNode):
         # from the base type of an extension type.
         self.type = type
         type.is_overridable = self.overridable
-        for formal_arg, type_arg in zip(self.declarator.args, type.args):
+        declarator = self.declarator
+        while not hasattr(declarator, 'args'):
+            declarator = declarator.base
+        self.args = declarator.args
+        for formal_arg, type_arg in zip(self.args, type.args):
             formal_arg.type = type_arg.type
             formal_arg.cname = type_arg.cname
         name = name_declarator.name
@@ -900,7 +909,6 @@ class CFuncDefNode(FuncDefNode):
         return with_gil
 
     def analyse_expressions(self, env):
-        self.args = self.declarator.args
         self.analyse_default_values(env)
         if self.overridable:
             self.py_func.analyse_expressions(env)
@@ -937,7 +945,7 @@ class CFuncDefNode(FuncDefNode):
             header))
 
     def generate_argument_declarations(self, env, code):
-        for arg in self.declarator.args:
+        for arg in self.args:
             if arg.default:
                     code.putln('%s = %s;' % (arg.type.declaration_code(arg.cname), arg.default_result_code))
 
@@ -945,13 +953,12 @@ class CFuncDefNode(FuncDefNode):
         pass
         
     def generate_argument_parsing_code(self, code):
-        rev_args = self.declarator.args
         i = 0
         if self.type.optional_arg_count:
             code.putln('if (%s) {' % Naming.optional_args_cname)
-            for arg in rev_args:
+            for arg in self.args:
                 if arg.default:
-                    code.putln('if (%s->n > %s) {' % (Naming.optional_args_cname, i))
+                    code.putln('if (%s->%sn > %s) {' % (Naming.optional_args_cname, Naming.pyrex_prefix, i))
                     declarator = arg.declarator
                     while not hasattr(declarator, 'name'):
                         declarator = declarator.base
@@ -2970,7 +2977,8 @@ class ExceptClauseNode(Node):
             "}")
 
     def annotate(self, code):
-        self.pattern.annotate(code)
+        if self.pattern:
+            self.pattern.annotate(code)
         if self.target:
             self.target.annotate(code)
         self.body.annotate(code)
