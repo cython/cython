@@ -1,7 +1,16 @@
+__doc__ = """
+    >>> f()
+    1
+    >>> g()
+    2
+    >>> h()
+    3
+"""
+
 DEF NO = 0
 DEF YES = 1
 
-cdef void f():
+def f():
     cdef int i
     IF YES:
         i = 1
@@ -9,8 +18,9 @@ cdef void f():
         i = 2
     ELSE:
         i = 3
+    return i
 
-cdef void g():
+def g():
     cdef int i
     IF NO:
         i = 1
@@ -18,8 +28,9 @@ cdef void g():
         i = 2
     ELSE:
         i = 3
+    return i
 
-cdef void h():
+def h():
     cdef int i
     IF NO:
         i = 1
@@ -27,3 +38,4 @@ cdef void h():
         i = 2
     ELSE:
         i = 3
+    return i
