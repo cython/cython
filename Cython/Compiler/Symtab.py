@@ -148,6 +148,7 @@ class Scope:
 
     is_py_class_scope = 0
     is_c_class_scope = 0
+    is_module_scope = 0
     scope_prefix = ""
     in_cinclude = 0
     
@@ -673,6 +674,8 @@ class ModuleScope(Scope):
     # interned_names       [string]           Interned names pending generation of declarations
     # all_pystring_entries [Entry]            Python string consts from all scopes
     # types_imported       {PyrexType : 1}    Set of types for which import code generated
+    
+    is_module_scope = 1
 
     def __init__(self, name, parent_module, context):
         self.parent_module = parent_module
