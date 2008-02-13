@@ -1875,8 +1875,6 @@ def p_c_modifiers(s):
 def p_c_func_or_var_declaration(s, level, pos, visibility = 'private', api = 0,
                                 overridable = False):
     cmethod_flag = level in ('c_class', 'c_class_pxd')
-    if level in ('c_class_pxd', 'module_pxd'):
-        api = 1 # default for pxd
     modifiers = p_c_modifiers(s)
     base_type = p_c_base_type(s)
     declarator = p_c_declarator(s, cmethod_flag = cmethod_flag, assignable = 1, nonempty = 1)
