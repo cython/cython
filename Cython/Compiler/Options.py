@@ -33,3 +33,9 @@ annotate = 0
 # raised before the loop is entered, wheras without this option the loop
 # will execute util a overflowing value is encountered. 
 convert_range = 0
+
+# Enable this to allow one to write your_module.foo = ... to overwrite the 
+# definition if the cpdef function foo, at the cost of an extra dictionary 
+# lookup on every call. 
+# If this is 0 it simply creates a wrapper. 
+lookup_module_cpdef = 0
