@@ -710,7 +710,7 @@ class FuncDefNode(StatNode, BlockNode):
         if acquire_gil:
             code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
         # ----- Fetch arguments
-        self.generate_argument_parsing_code(code)
+        self.generate_argument_parsing_code(env, code)
         self.generate_argument_increfs(lenv, code)
         # ----- Initialise local variables
         for entry in lenv.var_entries:
@@ -952,7 +952,7 @@ class CFuncDefNode(FuncDefNode):
     def generate_keyword_list(self, code):
         pass
         
-    def generate_argument_parsing_code(self, code):
+    def generate_argument_parsing_code(self, env, code):
         i = 0
         if self.type.optional_arg_count:
             code.putln('if (%s) {' % Naming.optional_args_cname)
@@ -1082,10 +1082,13 @@ class DefNode(FuncDefNode):
         self.declare_pyfunction(env)
         self.analyse_signature(env)
         self.return_type = self.entry.signature.return_type()
-        if self.star_arg:
-            env.use_utility_code(get_stararg_utility_code)
-        if self.starstar_arg:
-            env.use_utility_code(get_splitkeywords_utility_code)
+        if self.signature_has_generic_args():
+            if self.star_arg:
+                env.use_utility_code(get_stararg_utility_code)
+            if not self.signature_has_nongeneric_args():
+                env.use_utility_code(get_keyword_string_check_utility_code)
+            elif self.starstar_arg:
+                env.use_utility_code(get_splitkeywords_utility_code)
         if self.num_required_kw_args:
             env.use_utility_code(get_checkkeywords_utility_code)
 
@@ -1162,6 +1165,15 @@ class DefNode(FuncDefNode):
             "%s %s has wrong number of arguments "
             "(%d declared, %s expected)" % (
                 desc, self.name, len(self.args), expected_str))
+
+    def signature_has_nongeneric_args(self):
+        argcount = len(self.args)
+        if argcount == 0 or (argcount == 1 and self.args[0].is_self_arg):
+            return 0
+        return 1
+
+    def signature_has_generic_args(self):
+        return self.entry.signature.has_generic_args
     
     def declare_pyfunction(self, env):
         #print "DefNode.declare_pyfunction:", self.name, "in", env ###
@@ -1277,7 +1289,8 @@ class DefNode(FuncDefNode):
                     code.put_var_declaration(arg.entry)
     
     def generate_keyword_list(self, code):
-        if self.entry.signature.has_generic_args:
+        if self.signature_has_generic_args() and \
+                self.signature_has_nongeneric_args():
             reqd_kw_flags = []
             has_reqd_kwds = False
             code.put(
@@ -1304,16 +1317,19 @@ class DefNode(FuncDefNode):
                         flags_name,
                         ",".join(reqd_kw_flags)))
 
-    def generate_argument_parsing_code(self, code):
+    def generate_argument_parsing_code(self, env, code):
         # Generate PyArg_ParseTuple call for generic
         # arguments, if any.
         has_kwonly_args = self.num_kwonly_args > 0
         has_star_or_kw_args = self.star_arg is not None \
             or self.starstar_arg is not None or has_kwonly_args
-        if not self.entry.signature.has_generic_args:
+        if not self.signature_has_generic_args():
             if has_star_or_kw_args:
                 error(self.pos, "This method cannot have * or keyword arguments")
             self.generate_argument_conversion_code(code)
+        elif not self.signature_has_nongeneric_args():
+            # func(*args) or func(**kw) or func(*args, **kw)
+            self.generate_stararg_copy_code(code)
         else:
             arg_addrs = []
             arg_formats = []
@@ -1352,27 +1368,47 @@ class DefNode(FuncDefNode):
                         error(arg.pos, 
                             "Cannot convert Python object argument to type '%s' (when parsing input arguments)" 
                                 % arg.type)
-            error_return_code = "return %s;" % self.error_value()
-            argformat = '"%s"' % string.join(arg_formats, "")
+
             if has_star_or_kw_args:
                 self.generate_stararg_getting_code(code)
-            pt_arglist = [Naming.args_cname, Naming.kwds_cname, argformat,
-                    Naming.kwdlist_cname] + arg_addrs
-            pt_argstring = string.join(pt_arglist, ", ")
             old_error_label = code.new_error_label()
             our_error_label = code.error_label
             end_label = code.new_label()
-            # Unpack inplace if it's simple
-            has_self_arg = len(self.args) > 0 and self.args[0].is_self_arg
-            if self.num_required_args == len(positional_args) + has_self_arg:
+
+            self.generate_argument_tuple_parsing_code(
+                positional_args, arg_formats, arg_addrs, code)
+
+            code.error_label = old_error_label
+            code.put_goto(end_label)
+            code.put_label(our_error_label)
+            if has_star_or_kw_args:
+                self.put_stararg_decrefs(code)
+                self.generate_arg_decref(self.star_arg, code)
+                if self.starstar_arg:
+                    if self.starstar_arg.entry.xdecref_cleanup:
+                        code.put_var_xdecref(self.starstar_arg.entry)
+                    else:
+                        code.put_var_decref(self.starstar_arg.entry)
+            code.putln("return %s;" % self.error_value())
+            code.put_label(end_label)
+
+    def generate_argument_tuple_parsing_code(self, positional_args,
+                                             arg_formats, arg_addrs, code):
+        # Unpack inplace if it's simple
+        if not self.num_required_kw_args:
+            min_positional_args = self.num_required_args - self.num_required_kw_args
+            max_positional_args = len(positional_args)
+            if len(self.args) > 0 and self.args[0].is_self_arg:
+                min_positional_args -= 1
+            if max_positional_args == min_positional_args:
                 count_cond = "likely(PyTuple_GET_SIZE(%s) == %s)" % (
-                    Naming.args_cname, len(positional_args))
+                    Naming.args_cname, max_positional_args)
             else:
                 count_cond = "likely(%s <= PyTuple_GET_SIZE(%s)) && likely(PyTuple_GET_SIZE(%s) <= %s)" % (
-                               self.num_required_args - has_self_arg,
+                               min_positional_args,
                                Naming.args_cname,
                                Naming.args_cname,
-                               len(positional_args))
+                               max_positional_args)
             code.putln(
                 'if (likely(!%s) && %s) {' % (Naming.kwds_cname, count_cond))
             i = 0
@@ -1401,28 +1437,20 @@ class DefNode(FuncDefNode):
                 code.putln('}')
             code.putln(
                 '}')
-            code.putln(
-                'else {')
-            code.putln(
-                'if (unlikely(!PyArg_ParseTupleAndKeywords(%s))) %s' % (
-                    pt_argstring,
-                    code.error_goto(self.pos)))
-            self.generate_argument_conversion_code(code)
-            code.putln(
-                '}')
-            code.error_label = old_error_label
-            code.put_goto(end_label)
-            code.put_label(our_error_label)
-            if has_star_or_kw_args:
-                self.put_stararg_decrefs(code)
-                self.generate_arg_decref(self.star_arg, code)
-                if self.starstar_arg:
-                    if self.starstar_arg.entry.xdecref_cleanup:
-                        code.put_var_xdecref(self.starstar_arg.entry)
-                    else:
-                        code.put_var_decref(self.starstar_arg.entry)
-            code.putln(error_return_code)
-            code.put_label(end_label)
+            code.putln('else {')
+
+        argformat = '"%s"' % string.join(arg_formats, "")
+        pt_arglist = [Naming.args_cname, Naming.kwds_cname, argformat,
+                      Naming.kwdlist_cname] + arg_addrs
+        pt_argstring = string.join(pt_arglist, ", ")
+        code.putln(
+            'if (unlikely(!PyArg_ParseTupleAndKeywords(%s))) %s' % (
+                pt_argstring,
+                code.error_goto(self.pos)))
+        self.generate_argument_conversion_code(code)
+
+        if not self.num_required_kw_args:
+            code.putln('}')
 
     def put_stararg_decrefs(self, code):
         if self.star_arg:
@@ -1443,6 +1471,29 @@ class DefNode(FuncDefNode):
             return "&%s" % arg.entry.cname
         else:
             return 0
+
+    def generate_stararg_copy_code(self, code):
+        if not self.star_arg:
+            self.generate_positional_args_check(code, 0)
+        self.generate_keyword_args_check(code)
+
+        if self.starstar_arg:
+            code.putln("%s = (%s) ? PyDict_Copy(%s) : PyDict_New();" % (
+                    self.starstar_arg.entry.cname,
+                    Naming.kwds_cname,
+                    Naming.kwds_cname))
+            code.putln("if (unlikely(!%s)) return %s;" % (
+                    self.starstar_arg.entry.cname, self.error_value()))
+            self.starstar_arg.entry.xdecref_cleanup = 0
+            self.starstar_arg = None
+
+        if self.star_arg:
+            code.put_incref(Naming.args_cname, py_object_type)
+            code.putln("%s = %s;" % (
+                    self.star_arg.entry.cname,
+                    Naming.args_cname))
+            self.star_arg.entry.xdecref_cleanup = 0
+            self.star_arg = None
 
     def generate_stararg_getting_code(self, code):
         num_kwonly = self.num_kwonly_args
@@ -1467,17 +1518,11 @@ class DefNode(FuncDefNode):
                     self.error_value()))
             code.putln("}")
             self.star_arg.entry.xdecref_cleanup = 0
-        elif self.entry.signature.has_generic_args:
+        elif self.signature_has_generic_args():
             # make sure supernumerous positional arguments do not run
             # into keyword-only arguments and provide a more helpful
             # message than PyArg_ParseTupelAndKeywords()
-            code.putln("if (unlikely(PyTuple_GET_SIZE(%s) > %d)) {" % (
-                    Naming.args_cname, nargs))
-            error_message = "function takes at most %d positional arguments (%d given)"
-            code.putln("PyErr_Format(PyExc_TypeError, \"%s\", %d, PyTuple_GET_SIZE(%s));" % (
-                    error_message, nargs, Naming.args_cname))
-            code.putln(error_return)
-            code.putln("}")
+            self.generate_positional_args_check(code, nargs)
 
         handle_error = 0
         if self.starstar_arg:
@@ -1505,6 +1550,22 @@ class DefNode(FuncDefNode):
                 code.putln("}")
             else:
                 code.putln(error_return)
+
+    def generate_positional_args_check(self, code, nargs):
+        code.putln("if (unlikely(PyTuple_GET_SIZE(%s) > %d)) {" % (
+                Naming.args_cname, nargs))
+        error_message = "function takes at most %d positional arguments (%d given)"
+        code.putln("PyErr_Format(PyExc_TypeError, \"%s\", %d, PyTuple_GET_SIZE(%s));" % (
+                error_message, nargs, Naming.args_cname))
+        code.putln("return %s;" % self.error_value())
+        code.putln("}")
+
+    def generate_keyword_args_check(self, code):
+        code.putln("if (unlikely(%s)) {" % Naming.kwds_cname)
+        code.putln("if (unlikely(!__Pyx_CheckKeywordStrings(%s, \"%s\", %d))) return %s;" % (
+                Naming.kwds_cname, self.name,
+                bool(self.starstar_arg), self.error_value()))
+        code.putln("}")
 
     def generate_argument_conversion_code(self, code):
         # Generate code to convert arguments from
@@ -3554,6 +3615,40 @@ static INLINE int __Pyx_SplitStarArg(
     }
     *args = args1;
     return 0;
+}
+"""]
+
+#------------------------------------------------------------------------------------
+#
+#  __Pyx_CheckKeywordStrings raises an error if non-string keywords
+#  were passed to a function, or if any keywords were passed to a
+#  function that does not accept them.
+
+get_keyword_string_check_utility_code = [
+"""
+static int __Pyx_CheckKeywordStrings(PyObject *kwdict, const char* function_name, int kw_allowed); /*proto*/
+""","""
+static int __Pyx_CheckKeywordStrings(
+    PyObject *kwdict,
+    const char* function_name,
+    int kw_allowed)
+{
+    PyObject* key = 0;
+    Py_ssize_t pos = 0;
+    while (PyDict_Next(kwdict, &pos, &key, 0)) {
+        if (unlikely(!PyString_Check(key))) {
+            PyErr_Format(PyExc_TypeError,
+                         "%s() keywords must be strings", function_name);
+            return 0;
+        }
+    }
+    if (unlikely(!kw_allowed) && unlikely(key)) {
+        PyErr_Format(PyExc_TypeError,
+                     "'%s' is an invalid keyword argument for this function",
+                     PyString_AsString(key));
+        return 0;
+    }
+    return 1;
 }
 """]
 

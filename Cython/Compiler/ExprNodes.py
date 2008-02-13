@@ -577,7 +577,7 @@ class BoolNode(PyConstNode):
     #  The constant value True or False
     
     def compile_time_value(self, denv):
-        return None
+        return self.value
     
     def calculate_result_code(self):
         if self.value:

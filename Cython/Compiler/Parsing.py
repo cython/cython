@@ -1302,7 +1302,7 @@ def p_IF_statement(s, level, cdef_flag, visibility, api):
         if current_eval:
             result = body
     if not result:
-        result = PassStatNode(pos)
+        result = Nodes.PassStatNode(pos)
     s.compile_time_eval = saved_eval
     return result
 
