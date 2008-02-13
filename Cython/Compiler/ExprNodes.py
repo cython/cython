@@ -773,6 +773,8 @@ class NameNode(AtomicExprNode):
             if entry and entry.is_cfunction:
                 var_entry = entry.as_variable
                 if var_entry:
+                    if var_entry.is_builtin and Options.cache_builtins:
+                        var_entry = env.declare_builtin(var_entry.name, self.pos)
                     node = NameNode(self.pos, name = self.name)
                     node.entry = var_entry
                     node.analyse_rvalue_entry(env)
