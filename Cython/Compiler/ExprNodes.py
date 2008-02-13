@@ -2649,8 +2649,8 @@ class TypecastNode(ExprNode):
         self.operand.analyse_types(env)
         to_py = self.type.is_pyobject
         from_py = self.operand.type.is_pyobject
-        if from_py and not to_py and self.operand.is_ephemeral():
-            error(self.pos, "Casting temporary Python object to non-Python type")
+        if from_py and not to_py and self.operand.is_ephemeral() and not self.type.is_numeric:
+            error(self.pos, "Casting temporary Python object to non-numeric non-Python type")
         if to_py and not from_py:
             self.result_ctype = py_object_type
             self.is_temp = 1
