@@ -676,7 +676,7 @@ class CFuncType(CType):
                     return 0
         if self.has_varargs != other_type.has_varargs:
             return 0
-        if not self.return_type.same_as(other_type.return_type):
+        if not self.return_type.subtype_of_resolved_type(other_type.return_type):
             return 0
         if not self.same_calling_convention_as(other_type):
             return 0
