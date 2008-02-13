@@ -2244,6 +2244,7 @@ class ListNode(SequenceNode):
 class ListComprehensionNode(SequenceNode):
 
     subexprs = []
+    is_sequence_constructor = 0 # not unpackable
 
     def analyse_types(self, env): 
         self.type = py_object_type
