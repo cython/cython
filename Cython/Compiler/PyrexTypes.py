@@ -923,6 +923,9 @@ class ErrorType(PyrexType):
     
     def same_as_resolved_type(self, other_type):
         return 1
+        
+    def error_condition(self, result_code):
+        return "dummy"
 
 
 rank_to_type_name = (
