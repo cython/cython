@@ -1129,8 +1129,9 @@ static INLINE PY_LONG_LONG __pyx_PyInt_AsLongLong(PyObject* x) {
         return PyLong_AsLongLong(x);
     }
     else {
+        PY_LONG_LONG val;
         PyObject* tmp = PyNumber_Int(x); if (!tmp) return (PY_LONG_LONG)-1;
-        PY_LONG_LONG val = __pyx_PyInt_AsLongLong(tmp);
+        val = __pyx_PyInt_AsLongLong(tmp);
         Py_DECREF(tmp);
         return val;
     }
@@ -1149,8 +1150,9 @@ static INLINE unsigned PY_LONG_LONG __pyx_PyInt_AsUnsignedLongLong(PyObject* x) 
         return PyLong_AsUnsignedLongLong(x);
     }
     else {
+        PY_LONG_LONG val;
         PyObject* tmp = PyNumber_Int(x); if (!tmp) return (PY_LONG_LONG)-1;
-        PY_LONG_LONG val = __pyx_PyInt_AsUnsignedLongLong(tmp);
+        val = __pyx_PyInt_AsUnsignedLongLong(tmp);
         Py_DECREF(tmp);
         return val;
     }
