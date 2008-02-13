@@ -717,10 +717,15 @@ class ModuleScope(Scope):
                 return self.outer_scope.declare_builtin(name, pos)
             else:
                 error(pos, "undeclared name not builtin: %s"%name)
-        entry = self.declare(name, name, py_object_type, pos)
+        if Options.cache_builtins:
+            for entry in self.cached_builtins:
+                if entry.name == name:
+                    return entry
+        entry = self.declare(None, None, py_object_type, pos)
         if Options.cache_builtins:
             entry.is_builtin = 1
             entry.is_const = 1
+            entry.name = name
             entry.cname = Naming.builtin_prefix + name
             self.cached_builtins.append(entry)
             self.undeclared_cached_builtins.append(entry)
