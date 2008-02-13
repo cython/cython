@@ -509,7 +509,7 @@ class Scope:
         cname = "%s%d" % (Naming.pyrex_prefix, n)
         entry = Entry("", cname, type)
         entry.used = 1
-        if type.is_pyobject:
+        if type.is_pyobject or type == c_py_ssize_t_type:
             entry.init = "0"
         self.cname_to_entry[entry.cname] = entry
         self.temp_entries.append(entry)

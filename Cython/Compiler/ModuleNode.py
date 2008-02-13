@@ -1301,6 +1301,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_builtin_init_code(env, code)
             
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
+        code.putln("%s = 0;" % Naming.skip_dispatch_cname);
 
         code.putln("/*--- Global init code ---*/")
         self.generate_global_init_code(env, code)
