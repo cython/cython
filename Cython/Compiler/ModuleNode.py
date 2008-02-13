@@ -1207,7 +1207,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln('{"%s", %s, %s, %s, 0},' % (
                     entry.name,
                     type_code,
-                    "offsetof(%s, %s)" % (objstruct, entry.name),
+                    "offsetof(%s, %s)" % (objstruct, entry.cname),
                     flags))
             code.putln(
                     "{0, 0, 0, 0, 0}")
