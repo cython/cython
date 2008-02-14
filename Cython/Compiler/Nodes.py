@@ -874,7 +874,8 @@ class CFuncDefNode(FuncDefNode):
                                    star_arg = None,
                                    starstar_arg = None,
                                    doc = self.doc,
-                                   body = py_func_body)
+                                   body = py_func_body,
+                                   is_wrapper = 1)
             self.py_func.is_module_scope = env.is_module_scope
             self.py_func.analyse_declarations(env)
             self.entry.as_variable = self.py_func.entry
@@ -1054,6 +1055,7 @@ class DefNode(FuncDefNode):
     num_kwonly_args = 0
     num_required_kw_args = 0
     reqd_kw_flags_cname = "0"
+    is_wrapper = 0
     
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
@@ -1185,6 +1187,9 @@ class DefNode(FuncDefNode):
     def declare_pyfunction(self, env):
         #print "DefNode.declare_pyfunction:", self.name, "in", env ###
         name = self.name
+        entry = env.lookup_here(self.name)
+        if entry and entry.type.is_cfunction and not self.is_wrapper:
+            warning(self.pos, "Overriding cdef method with def method.", 5)
         entry = env.declare_pyfunction(self.name, self.pos)
         self.entry = entry
         prefix = env.scope_prefix
