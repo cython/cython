@@ -489,7 +489,7 @@ class ExprNode(Node):
             src = CoerceFromPyTypeNode(dst_type, src, env)
         else: # neither src nor dst are py types
             # Added the string comparison, since for c types that
-            # is enough, but SageX gets confused when the types are
+            # is enough, but Cython gets confused when the types are
             # in different files.
             if not (str(src.type) == str(dst_type) or dst_type.assignable_from(src_type)):
                 error(self.pos, "Cannot assign type '%s' to '%s'" %
@@ -588,7 +588,7 @@ class BoolNode(PyConstNode):
     def coerce_to(self, dst_type, env):
         value = self.value
         if dst_type.is_numeric:
-            return IntNode(self.pos, value=self.value).coerce_to(dst_type, env)
+            return IntNode(self.pos, value=int(self.value)).coerce_to(dst_type, env)
         else:
             return PyConstNode.coerce_to(self, dst_type, env)
 

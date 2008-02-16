@@ -469,9 +469,9 @@ def p_atom(s):
         if name == "None":
             return ExprNodes.NoneNode(pos)
         elif name == "True":
-            return ExprNodes.BoolNode(pos, value=1)
+            return ExprNodes.BoolNode(pos, value=True)
         elif name == "False":
-            return ExprNodes.BoolNode(pos, value=0)
+            return ExprNodes.BoolNode(pos, value=False)
         else:
             return p_name(s, name)
     elif sy == 'NULL':
@@ -489,7 +489,9 @@ def p_name(s, name):
             pass
         else:
             rep = repr(value)
-            if isinstance(value, int):
+            if isinstance(value, bool):
+                return ExprNodes.BoolNode(pos, value = value)
+            elif isinstance(value, int):
                 return ExprNodes.IntNode(pos, value = rep)
             elif isinstance(value, long):
                 return ExprNodes.LongNode(pos, value = rep)
