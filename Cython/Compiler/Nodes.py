@@ -3544,6 +3544,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
                 Py_INCREF(type);
             }
             else {
+                type = 0;
                 PyErr_SetString(PyExc_TypeError,
                     "raise: exception must be an old-style class or instance");
                 goto raise_error;
