@@ -2133,8 +2133,8 @@ class SequenceNode(ExprNode):
         rhs.generate_disposal_code(code)
         for i in range(len(self.args)):
             item = self.unpacked_items[i]
-            unpack_code = "__Pyx_UnpackItem(%s)" % (
-                self.iterator.py_result())
+            unpack_code = "__Pyx_UnpackItem(%s, %d)" % (
+                self.iterator.py_result(), i)
             code.putln(
                 "%s = %s; %s" % (
                     item.result_code,
@@ -3879,18 +3879,20 @@ bad:
 
 unpacking_utility_code = [
 """
-static PyObject *__Pyx_UnpackItem(PyObject *); /*proto*/
+static PyObject *__Pyx_UnpackItem(PyObject *, Py_ssize_t index); /*proto*/
 static int __Pyx_EndUnpack(PyObject *); /*proto*/
 ""","""
-static void __Pyx_UnpackError(void) {
-    PyErr_SetString(PyExc_ValueError, "unpack sequence of wrong size");
-}
-
-static PyObject *__Pyx_UnpackItem(PyObject *iter) {
+static PyObject *__Pyx_UnpackItem(PyObject *iter, Py_ssize_t index) {
     PyObject *item;
     if (!(item = PyIter_Next(iter))) {
-        if (!PyErr_Occurred())
-            __Pyx_UnpackError();
+        if (!PyErr_Occurred()) {
+            PyErr_Format(PyExc_ValueError,
+                #if PY_VERSION_HEX < 0x02050000
+                    "need more than %d values to unpack", (int)index);
+                #else
+                    "need more than %zd values to unpack", index);
+                #endif
+        }
     }
     return item;
 }
@@ -3899,7 +3901,7 @@ static int __Pyx_EndUnpack(PyObject *iter) {
     PyObject *item;
     if ((item = PyIter_Next(iter))) {
         Py_DECREF(item);
-        __Pyx_UnpackError();
+        PyErr_SetString(PyExc_ValueError, "too many values to unpack");
         return -1;
     }
     else if (!PyErr_Occurred())
