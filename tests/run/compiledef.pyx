@@ -4,7 +4,7 @@ __doc__ = """
     >>> f
     False
     >>> boolexpr
-
+    True
     >>> num6
     6
     >>> intexpr
