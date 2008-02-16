@@ -577,12 +577,6 @@ class BuiltinScope(Scope):
         else:
             Scope.__init__(self, "__builtin__", PreImportScope(), None)
         
-        for name, definition in self.builtin_functions.iteritems():
-            if len(definition) < 4: definition.append(None) # exception_value
-            if len(definition) < 5: definition.append(False) # exception_check
-            cname, type, arg_types, exception_value, exception_check = definition
-            function = CFuncType(type, [CFuncTypeArg("", t, None) for t in arg_types], False, exception_value, exception_check)
-            self.add_cfunction(name, function, None, cname, False)
         for name, definition in self.builtin_entries.iteritems():
             cname, type = definition
             self.declare_var(name, type, None, cname)
@@ -612,30 +606,13 @@ class BuiltinScope(Scope):
     def builtin_scope(self):
         return self
         
-    # TODO: merge this into builtin_function_table when error handling in Pyrex
-    #       is fixed. Also handle pyrex types as functions. 
-    
-    builtin_functions = {
-      "cmp":     ["PyObject_Compare", c_int_type, (py_object_type, py_object_type), None, True],
-      "unicode": ["PyObject_Unicode", py_object_type, (py_object_type, ), 0],
-      "type":    ["PyObject_Type", py_object_type, (py_object_type, ), 0],
-
-#      "str":     ["PyObject_Str", py_object_type, (py_object_type, ), 0],
-#      "int":     ["PyNumber_Int", py_object_type, (py_object_type, ), 0],
-#      "long":    ["PyNumber_Long", py_object_type, (py_object_type, ), 0],
-#      "float":   ["PyNumber_Float", py_object_type, (py_object_type, ), 0],
-
-#      "list":    ["PyNumber_List", py_object_type, (py_object_type, ), 0],
-#      "tuple":   ["PySequence_Tuple", py_object_type, (py_object_type, ), 0],
-
-    }
-    
     builtin_entries = {
         "int":    ["((PyObject*)&PyInt_Type)", py_object_type],
         "long":   ["((PyObject*)&PyLong_Type)", py_object_type],
         "float":  ["((PyObject*)&PyFloat_Type)", py_object_type],
         
         "str":    ["((PyObject*)&PyString_Type)", py_object_type],
+        "unicode":["((PyObject*)&PyUnicode_Type)", py_object_type],
         "tuple":  ["((PyObject*)&PyTuple_Type)", py_object_type],
         "list":   ["((PyObject*)&PyList_Type)", py_object_type],
         "dict":   ["((PyObject*)&PyDict_Type)", py_object_type],
@@ -672,6 +649,7 @@ class ModuleScope(Scope):
     # cimported_modules    [ModuleScope]      Modules imported with cimport
     # intern_map           {string : string}  Mapping from Python names to interned strs
     # interned_names       [string]           Interned names pending generation of declarations
+    # interned_nums        [int/long]         Interned numeric constants
     # all_pystring_entries [Entry]            Python string consts from all scopes
     # types_imported       {PyrexType : 1}    Set of types for which import code generated
     
