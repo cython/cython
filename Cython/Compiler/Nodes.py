@@ -3297,6 +3297,9 @@ class CImportStatNode(StatNode):
     #  as_name       string or None   Name specified in "as" clause, if any
     
     def analyse_declarations(self, env):
+        if not env.is_module_scope:
+            error(self.pos, "cimport only allowed at module level")
+            return
         module_scope = env.find_module(self.module_name, self.pos)
         if "." in self.module_name:
             names = self.module_name.split(".")
@@ -3329,6 +3332,9 @@ class FromCImportStatNode(StatNode):
     #  imported_names  [(pos, name, as_name)]  Names to be imported
     
     def analyse_declarations(self, env):
+        if not env.is_module_scope:
+            error(self.pos, "cimport only allowed at module level")
+            return
         module_scope = env.find_module(self.module_name, self.pos)
         env.add_imported_module(module_scope)
         for pos, name, as_name in self.imported_names:
