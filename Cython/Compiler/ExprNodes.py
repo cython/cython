@@ -682,6 +682,12 @@ class StringNode(ConstNode):
         self.entry = env.add_string_const(self.value)
     
     def coerce_to(self, dst_type, env):
+        if dst_type.is_int:
+            if not self.type.is_pyobject and len(self.value) == 1:
+                return CharNode(self.pos, value=self.value)
+            else:
+                error(self.pos, "Only coerce single-character ascii strings can be used as ints.")
+                return self
         # Arrange for a Python version of the string to be pre-allocated
         # when coercing to a Python type.
         if dst_type.is_pyobject and not self.type.is_pyobject:
@@ -3355,6 +3361,8 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         self.is_pycmp = self.is_python_comparison()
         if self.is_pycmp:
             self.coerce_operands_to_pyobjects(env)
+        if self.has_int_operands():
+            self.coerce_chars_to_ints(env)
         if self.cascade:
             #self.operand2 = self.operand2.coerce_to_temp(env) #CTT
             self.operand2 = self.operand2.coerce_to_simple(env)
@@ -3380,13 +3388,25 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     def has_python_operands(self):
         return (self.operand1.type.is_pyobject
             or self.operand2.type.is_pyobject)
-    
+            
     def coerce_operands_to_pyobjects(self, env):
         self.operand1 = self.operand1.coerce_to_pyobject(env)
         self.operand2 = self.operand2.coerce_to_pyobject(env)
         if self.cascade:
             self.cascade.coerce_operands_to_pyobjects(env)
         
+    def has_int_operands(self):
+        return (self.operand1.type.is_int or self.operand2.type.is_int) \
+           or (self.cascade and self.cascade.has_int_operands())
+    
+    def coerce_chars_to_ints(self, env):
+        if self.operand1.type.is_string:
+            self.operand1 = self.operand1.coerce_to(PyrexTypes.c_uchar_type, env)
+        if self.operand2.type.is_string:
+            self.operand2 = self.operand2.coerce_to(PyrexTypes.c_uchar_type, env)
+        if self.cascade:
+            self.cascade.coerce_chars_to_ints(env)
+    
     def allocate_subexpr_temps(self, env):
         self.operand1.allocate_temps(env)
         self.operand2.allocate_temps(env)
@@ -3461,11 +3481,18 @@ class CascadedCmpNode(Node, CmpNode):
     
     def has_python_operands(self):
         return self.operand2.type.is_pyobject
-
+        
     def coerce_operands_to_pyobjects(self, env):
         self.operand2 = self.operand2.coerce_to_pyobject(env)
         if self.cascade:
             self.cascade.coerce_operands_to_pyobjects(env)
+
+    def has_int_operands(self):
+        return self.operand2.type.is_int
+        
+    def coerce_chars_to_ints(self, env):
+        if self.operand2.type.is_string:
+            self.operand2 = self.operand2.coerce_to(PyrexTypes.c_uchar_type, env)
 
     def coerce_cascaded_operands_to_temp(self, env):
         if self.cascade:
