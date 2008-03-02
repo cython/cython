@@ -190,7 +190,7 @@ class TransitionMap:
   def check(self):
     """Check data structure integrity."""
     if not self.map[-3] < self.map[-1]:
-      print self
+      print(self)
       assert 0
   
   def dump(self, file):

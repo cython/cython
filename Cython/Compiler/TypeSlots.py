@@ -147,7 +147,7 @@ class SlotDescriptor:
     def generate_dynamic_init_code(self, scope, code):
         if self.is_initialised_dynamically:
             value = self.slot_code(scope)
-            if value <> "0":
+            if value != "0":
                 code.putln("%s.%s = %s;" % (
                     scope.parent_type.typeobj_cname, 
                     self.slot_name, 

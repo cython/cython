@@ -42,7 +42,7 @@ def hash_source_file(path):
             f = open(path, "rU")
             text = f.read()
         except IOError, e:
-            print "Unable to hash scanner source file (%s)" % e
+            print("Unable to hash scanner source file (%s)" % e)
             return ""
     finally:
         f.close()
@@ -69,12 +69,12 @@ def open_pickled_lexicon(expected_hash):
                 result = f
                 f = None
             else:
-                print "Lexicon hash mismatch:" ###
-                print "   expected", expected_hash ###
-                print "   got     ", actual_hash ###
+                print("Lexicon hash mismatch:")       ###
+                print("   expected " + expected_hash) ###
+                print("   got     " + actual_hash)    ###
         except IOError, e:
-            print "Warning: Unable to read pickled lexicon", lexicon_pickle
-            print e
+            print("Warning: Unable to read pickled lexicon " + lexicon_pickle)
+            print(e)
     if f:
         f.close()
     return result
@@ -89,37 +89,37 @@ def try_to_unpickle_lexicon():
     if f:
         if notify_lexicon_unpickling:
             t0 = time()
-            print "Unpickling lexicon..."
+            print("Unpickling lexicon...")
         lexicon = pickle.load(f)
         f.close()
         if notify_lexicon_unpickling:
             t1 = time()
-            print "Done (%.2f seconds)" % (t1 - t0)
+            print("Done (%.2f seconds)" % (t1 - t0))
 
 def create_new_lexicon():
     global lexicon
     t0 = time()
-    print "Creating lexicon..."
+    print("Creating lexicon...")
     lexicon = make_lexicon()
     t1 = time()
-    print "Done (%.2f seconds)" % (t1 - t0)
+    print("Done (%.2f seconds)" % (t1 - t0))
 
 def pickle_lexicon():
     f = None
     try:
         f = open(lexicon_pickle, "wb")
     except IOError:
-        print "Warning: Unable to save pickled lexicon in", lexicon_pickle
+        print("Warning: Unable to save pickled lexicon in " + lexicon_pickle)
     if f:
         if notify_lexicon_pickling:
             t0 = time()
-            print "Pickling lexicon..."
+            print("Pickling lexicon...")
         pickle.dump(lexicon_hash, f, binary_lexicon_pickle)
         pickle.dump(lexicon, f, binary_lexicon_pickle)
         f.close()
         if notify_lexicon_pickling:
             t1 = time()
-            print "Done (%.2f seconds)" % (t1 - t0)
+            print("Done (%.2f seconds)" % (t1 - t0))
 
 def get_lexicon():
     global lexicon
@@ -284,9 +284,9 @@ class PyrexScanner(Scanner):
                 self.indentation_char = c
                 #print "Scanner.indentation_action: setting indent_char to", repr(c)
             else:
-                if self.indentation_char <> c:
+                if self.indentation_char != c:
                     self.error("Mixed use of tabs and spaces")
-            if text.replace(c, "") <> "":
+            if text.replace(c, "") != "":
                 self.error("Mixed use of tabs and spaces")
         # Figure out how many indents/dedents to do
         current_level = self.current_level()
@@ -304,7 +304,7 @@ class PyrexScanner(Scanner):
                 self.indentation_stack.pop()
                 self.produce('DEDENT', '')
             #print "...current level now", self.current_level() ###
-            if new_level <> self.current_level():
+            if new_level != self.current_level():
                 self.error("Inconsistent indentation")
 
     def eof_action(self, text):
@@ -328,7 +328,7 @@ class PyrexScanner(Scanner):
                 t = self.sy
             else:
                 t = "%s %s" % (self.sy, self.systring)
-            print "--- %3d %2d %s" % (line, col, t)
+            print("--- %3d %2d %s" % (line, col, t))
     
     def put_back(self, sy, systring):
         self.unread(self.sy, self.systring)
@@ -380,5 +380,5 @@ class PyrexScanner(Scanner):
 
     def expect_newline(self, message = "Expected a newline"):
         # Expect either a newline or end of file
-        if self.sy <> 'EOF':
+        if self.sy != 'EOF':
             self.expect('NEWLINE', message)

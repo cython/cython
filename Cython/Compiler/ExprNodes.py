@@ -311,7 +311,7 @@ class ExprNode(Node):
     def allocate_target_temps(self, env, rhs):
         #  Perform temp allocation for the LHS of an assignment.
         if debug_temp_alloc:
-            print self, "Allocating target temps"
+            print("%s Allocating target temps" % self)
         self.allocate_subexpr_temps(env)
         self.result_code = self.target_code()
         if rhs:
@@ -325,7 +325,7 @@ class ExprNode(Node):
         #  is used as the result instead of allocating a new
         #  one.
         if debug_temp_alloc:
-            print self, "Allocating temps"
+            print("%s Allocating temps" % self)
         self.allocate_subexpr_temps(env)
         self.allocate_temp(env, result)
         if self.is_temp:
@@ -335,11 +335,11 @@ class ExprNode(Node):
         #  Allocate temporary variables for all sub-expressions
         #  of this node.
         if debug_temp_alloc:
-            print self, "Allocating temps for:", self.subexprs
+            print("%s Allocating temps for: %s" % (self, self.subexprs))
         for node in self.subexpr_nodes():
             if node:
                 if debug_temp_alloc:
-                    print self, "Allocating temps for", node
+                    print("%s Allocating temps for %s" % (self, node))
                 node.allocate_temps(env)
     
     def allocate_temp(self, env, result = None):
@@ -350,7 +350,7 @@ class ExprNode(Node):
         #  is used as the result instead of allocating a new
         #  one.
         if debug_temp_alloc:
-            print self, "Allocating temp"
+            print("%s Allocating temp" % self)
         if result:
             if not self.is_temp:
                 raise InternalError("Result forced on non-temp node")
@@ -364,7 +364,7 @@ class ExprNode(Node):
             else:
                 self.result_code = None
             if debug_temp_alloc:
-                print self, "Allocated result", self.result_code
+                print("%s Allocated result %s" % (self, self.result_code))
         else:
             self.result_code = self.calculate_result_code()
     
@@ -384,7 +384,7 @@ class ExprNode(Node):
         #  otherwise release results of its sub-expressions.
         if self.is_temp:
             if debug_temp_alloc:
-                print self, "Releasing result", self.result_code
+                print("%s Releasing result %s" % (self, self.result_code))
             env.release_temp(self.result_code)
         else:
             self.release_subexpr_temps(env)
@@ -971,8 +971,8 @@ class NameNode(AtomicExprNode):
                             entry.name,
                             rhs.py_result()))
                 if debug_disposal_code:
-                    print "NameNode.generate_assignment_code:"
-                    print "...generating disposal code for", rhs
+                    print("NameNode.generate_assignment_code:")
+                    print("...generating disposal code for %s" % rhs)
                 rhs.generate_disposal_code(code)
                 
         else:
@@ -985,8 +985,8 @@ class NameNode(AtomicExprNode):
                 code.put_decref(self.result_code, self.ctype())
             code.putln('%s = %s;' % (self.result_code, rhs.result_as(self.ctype())))
             if debug_disposal_code:
-                print "NameNode.generate_assignment_code:"
-                print "...generating post-assignment code for", rhs
+                print("NameNode.generate_assignment_code:")
+                print("...generating post-assignment code for %s" % rhs)
             rhs.generate_post_assignment_code(code)
     
     def generate_deletion_code(self, code):
@@ -2147,8 +2147,8 @@ class SequenceNode(ExprNode):
             "__Pyx_EndUnpack(%s)" % (
                 self.iterator.py_result()))
         if debug_disposal_code:
-            print "UnpackNode.generate_assignment_code:"
-            print "...generating disposal code for", iterator
+            print("UnpackNode.generate_assignment_code:")
+            print("...generating disposal code for %s" % iterator)
         self.iterator.generate_disposal_code(code)
 
         code.putln("}")
@@ -2255,7 +2255,7 @@ class ListComprehensionNode(SequenceNode):
         
     def allocate_temps(self, env, result = None): 
         if debug_temp_alloc:
-            print self, "Allocating temps"
+            print("%s Allocating temps" % self)
         self.allocate_temp(env, result)
         self.loop.analyse_declarations(env)
         self.loop.analyse_expressions(env)
@@ -3551,7 +3551,7 @@ class CoercionNode(ExprNode):
         self.pos = arg.pos
         self.arg = arg
         if debug_coercion:
-            print self, "Coercing", self.arg
+            print("%s Coercing %s" % (self, self.arg))
             
     def annotate(self, code):
         self.arg.annotate(code)

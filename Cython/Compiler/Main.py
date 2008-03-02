@@ -48,13 +48,13 @@ class Context:
         # that module, provided its name is not a dotted name.
         debug_find_module = 0
         if debug_find_module:
-            print "Context.find_module: module_name =", module_name, \
-                "relative_to =", relative_to, "pos =", pos, "need_pxd =", need_pxd
+            print("Context.find_module: module_name = %s, relative_to = %s, pos = %s, need_pxd = %s" % (
+                    module_name, relative_to, pos, need_pxd))
         scope = None
         pxd_pathname = None
         if "." not in module_name and relative_to:
             if debug_find_module:
-                print "...trying relative import"
+                print("...trying relative import")
             scope = relative_to.lookup_submodule(module_name)
             if not scope:
                 qualified_name = relative_to.qualify_name(module_name)
@@ -63,28 +63,28 @@ class Context:
                     scope = relative_to.find_submodule(module_name)
         if not scope:
             if debug_find_module:
-                print "...trying absolute import"
+                print("...trying absolute import")
             scope = self
             for name in module_name.split("."):
                 scope = scope.find_submodule(name)
         if debug_find_module:
-            print "...scope =", scope
+            print("...scope =", scope)
         if not scope.pxd_file_loaded:
             if debug_find_module:
-                print "...pxd not loaded"
+                print("...pxd not loaded")
             scope.pxd_file_loaded = 1
             if not pxd_pathname:
                 if debug_find_module:
-                    print "...looking for pxd file"
+                    print("...looking for pxd file")
                 pxd_pathname = self.find_pxd_file(module_name, pos)
                 if debug_find_module:
-                    print "......found ", pxd_pathname
+                    print("......found ", pxd_pathname)
                 if not pxd_pathname and need_pxd:
                     error(pos, "'%s.pxd' not found" % module_name)
             if pxd_pathname:
                 try:
                     if debug_find_module:
-                        print "Context.find_module: Parsing", pxd_pathname
+                        print("Context.find_module: Parsing %s" % pxd_pathname)
                     pxd_tree = self.parse(pxd_pathname, scope.type_names, pxd = 1,
                                           full_module_name = module_name)
                     pxd_tree.analyse_declarations(scope)
