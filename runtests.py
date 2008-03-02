@@ -110,10 +110,32 @@ if __name__ == '__main__':
     if not os.path.exists(WORKDIR):
         os.makedirs(WORKDIR)
 
+    try:
+        sys.argv.remove("-C")
+    except ValueError:
+        coverage = None
+    else:
+        import coverage
+        coverage.erase()
+
     import re
     selectors = [ re.compile(r, re.I).search for r in sys.argv[1:] ]
     if not selectors:
         selectors = [ lambda x:True ]
 
     tests = TestBuilder(ROOTDIR, WORKDIR, selectors)
-    unittest.TextTestRunner(verbosity=2).run( tests.build_suite() )
+    test_suite = tests.build_suite()
+
+    if coverage is not None:
+        coverage.start()
+
+    unittest.TextTestRunner(verbosity=2).run(test_suite)
+
+    if coverage is not None:
+        coverage.stop()
+        ignored_modules = ('Options', 'Version', 'DebugFlags')
+        modules = [ module for name, module in sys.modules.items()
+                    if module is not None and
+                    name.startswith('Cython.Compiler.') and 
+                    name[len('Cython.Compiler.'):] not in ignored_modules ]
+        coverage.report(modules, show_missing=0)
