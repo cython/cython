@@ -95,9 +95,9 @@ class REParser:
     if self.c == ']':
       char_list.append(']')
       self.next()
-    while not self.end and self.c <> ']':
+    while not self.end and self.c != ']':
       c1 = self.get()
-      if self.c == '-' and self.lookahead(1) <> ']':
+      if self.c == '-' and self.lookahead(1) != ']':
         self.next()
         c2 = self.get()
         for a in xrange(ord(c1), ord(c2) + 1):

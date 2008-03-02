@@ -943,7 +943,7 @@ class CFuncDefNode(FuncDefNode):
             dll_linkage = None
         header = self.return_type.declaration_code(entity,
             dll_linkage = dll_linkage)
-        if visibility <> 'private':
+        if visibility != 'private':
             storage_class = "%s " % Naming.extern_c_macro
         else:
             storage_class = "static "
@@ -3148,7 +3148,7 @@ class TryFinallyStatNode(StatNode):
                     "__pyx_why = 0; goto %s;" % catch_label)
             for i in cases_used:
                 new_label = new_labels[i]
-                #if new_label and new_label <> "<try>":
+                #if new_label and new_label != "<try>":
                 if new_label == new_error_label and self.preserve_exception:
                     self.put_error_catcher(code, 
                         new_error_label, i+1, catch_label)

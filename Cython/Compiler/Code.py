@@ -210,7 +210,7 @@ class CCodeWriter:
                 storage_class = "static"
         if storage_class:
             self.put("%s " % storage_class)
-        if visibility <> 'public':
+        if visibility != 'public':
             dll_linkage = None
         self.put(entry.type.declaration_code(entry.cname,
             dll_linkage = dll_linkage))
