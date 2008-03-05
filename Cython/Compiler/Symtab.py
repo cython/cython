@@ -442,7 +442,7 @@ class Scope:
         # Python identifier, it will be interned.
         if not entry.pystring_cname:
             value = entry.init
-            if identifier_pattern.match(value):
+            if identifier_pattern.match(value) and isinstance(value, str):
                 entry.pystring_cname = self.intern(value)
                 entry.is_interned = 1
             else:
