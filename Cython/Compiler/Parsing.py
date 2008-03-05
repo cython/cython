@@ -584,10 +584,9 @@ def p_string_literal(s):
                 "Unexpected token %r:%r in string literal" %
                     (sy, s.systring))
     s.next()
+    value = ''.join(chars)
     if kind == 'u':
-        value = u''.join(chars)
-    else:
-        value = ''.join(chars)
+        value = value.decode('raw_unicode_escape')
     #print "p_string_literal: value =", repr(value) ###
     return kind, value
 
