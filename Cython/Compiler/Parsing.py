@@ -565,12 +565,19 @@ def p_string_literal(s):
                 c = systr[1]
                 if c in "'\"\\abfnrtv01234567":
                     chars.append(systr)
-                elif c == 'x':
-                    chars.append('\\x0' + systr[2:])
                 elif c == '\n':
                     pass
-                elif c == 'u':
-                    chars.append(systr)
+                elif c in 'ux':
+                    if kind == 'u':
+                        try:
+                            chars.append(systr.decode('unicode_escape'))
+                        except UnicodeDecodeError:
+                            s.error("Invalid unicode escape '%s'" % systr,
+                                    pos = pos)
+                    elif c == 'x':
+                        chars.append('\\x0' + systr[2:])
+                    else:
+                        chars.append(systr)
                 else:
                     chars.append(r'\\' + systr[1:])
         elif sy == 'NEWLINE':
@@ -585,8 +592,6 @@ def p_string_literal(s):
                     (sy, s.systring))
     s.next()
     value = ''.join(chars)
-    if kind == 'u':
-        value = value.decode('raw_unicode_escape')
     #print "p_string_literal: value =", repr(value) ###
     return kind, value
 
