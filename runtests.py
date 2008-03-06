@@ -86,10 +86,11 @@ class CythonRunTestCase(unittest.TestCase):
         return "running " + self.module
 
     def runTest(self):
-        self.run(self)
+        self.run()
 
     def run(self, result=None):
-        sys.path.insert(0, self.rootdir)
+        if not sys.path or sys.path[0] != self.rootdir:
+            sys.path.insert(0, self.rootdir)
         if result is None: result = self.defaultTestResult()
         try:
             try:
