@@ -57,7 +57,7 @@ def parse_command_line(args):
             if modsplitpt == -1: bad_usage()
             modulename = fqn[:modsplitpt]
             symbolname = fqn[modsplitpt+1:]
-            module = __import__(modulename, fromlist=[symbolname], level=0)
+            module = __import__(modulename, globals(), locals(), [symbolname])
             return getattr(module, symbolname)
     
         stagename, factoryname = param.split(":")
