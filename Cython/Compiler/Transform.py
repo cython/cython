@@ -105,7 +105,8 @@ PHASES = [
 
 class TransformSet(dict):
     def __init__(self):
-        self.update([(name, []) for name in PHASES])
+        for name in PHASES:
+            self[name] = []
     def run(self, name, node, **options):
         assert name in self
         for transform in self[name]:
