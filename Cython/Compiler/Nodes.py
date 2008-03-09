@@ -943,7 +943,7 @@ class CFuncDefNode(FuncDefNode):
             dll_linkage = None
         header = self.return_type.declaration_code(entity,
             dll_linkage = dll_linkage)
-        if visibility <> 'private':
+        if visibility != 'private':
             storage_class = "%s " % Naming.extern_c_macro
         else:
             storage_class = "static "
@@ -1094,6 +1094,8 @@ class DefNode(FuncDefNode):
         if self.signature_has_generic_args():
             if self.star_arg:
                 env.use_utility_code(get_stararg_utility_code)
+            elif self.signature_has_generic_args():
+                env.use_utility_code(raise_argtuple_too_long_utility_code)
             if not self.signature_has_nongeneric_args():
                 env.use_utility_code(get_keyword_string_check_utility_code)
             elif self.starstar_arg:
@@ -1566,9 +1568,8 @@ class DefNode(FuncDefNode):
     def generate_positional_args_check(self, code, nargs):
         code.putln("if (unlikely(PyTuple_GET_SIZE(%s) > %d)) {" % (
                 Naming.args_cname, nargs))
-        error_message = "function takes at most %d positional arguments (%d given)"
-        code.putln("PyErr_Format(PyExc_TypeError, \"%s\", %d, PyTuple_GET_SIZE(%s));" % (
-                error_message, nargs, Naming.args_cname))
+        code.putln("__Pyx_RaiseArgtupleTooLong(%d, PyTuple_GET_SIZE(%s));" % (
+                nargs, Naming.args_cname))
         code.putln("return %s;" % self.error_value())
         code.putln("}")
 
@@ -3147,7 +3148,7 @@ class TryFinallyStatNode(StatNode):
                     "__pyx_why = 0; goto %s;" % catch_label)
             for i in cases_used:
                 new_label = new_labels[i]
-                #if new_label and new_label <> "<try>":
+                #if new_label and new_label != "<try>":
                 if new_label == new_error_label and self.preserve_exception:
                     self.put_error_catcher(code, 
                         new_error_label, i+1, catch_label)
@@ -3550,6 +3551,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
                 Py_INCREF(type);
             }
             else {
+                type = 0;
                 PyErr_SetString(PyExc_TypeError,
                     "raise: exception must be an old-style class or instance");
                 goto raise_error;
@@ -3643,6 +3645,30 @@ static INLINE int __Pyx_SplitStarArg(
     }
     *args = args1;
     return 0;
+}
+"""]
+
+#------------------------------------------------------------------------------------
+#
+#  __Pyx_RaiseArgtupleTooLong raises the correct exception when too
+#  many positional arguments were found.  This handles Py_ssize_t
+#  formatting correctly.
+
+raise_argtuple_too_long_utility_code = [
+"""
+static INLINE void __Pyx_RaiseArgtupleTooLong(Py_ssize_t num_expected, Py_ssize_t num_found); /*proto*/
+""","""
+static INLINE void __Pyx_RaiseArgtupleTooLong(
+    Py_ssize_t num_expected,
+    Py_ssize_t num_found)
+{
+    const char* error_message =
+    #if PY_VERSION_HEX < 0x02050000
+        "function takes at most %d positional arguments (%d given)";
+    #else
+        "function takes at most %zd positional arguments (%zd given)";
+    #endif
+    PyErr_Format(PyExc_TypeError, error_message, num_expected, num_found);
 }
 """]
 

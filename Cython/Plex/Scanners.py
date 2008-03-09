@@ -122,8 +122,8 @@ class Scanner:
     action = self.run_machine_inlined()
     if action:
       if self.trace:
-        print "Scanner: read: Performing", action, "%d:%d" % (
-          self.start_pos, self.cur_pos)
+        print("Scanner: read: Performing %s %d:%d" % (
+          action, self.start_pos, self.cur_pos))
       base = self.buf_start_pos
       text = self.buffer[self.start_pos - base : self.cur_pos - base]
       return (text, action)
@@ -163,8 +163,8 @@ class Scanner:
     trace = self.trace
     while 1:
       if trace: #TRACE#
-        print "State %d, %d/%d:%s -->" % ( #TRACE#
-          state['number'], input_state, cur_pos, repr(cur_char)),  #TRACE#
+        print("State %d, %d/%d:%s -->" % ( #TRACE#
+          state['number'], input_state, cur_pos, repr(cur_char)))  #TRACE#
       # Begin inlined self.save_for_backup()
       #action = state.action #@slow
       action = state['action'] #@fast
@@ -179,7 +179,7 @@ class Scanner:
         new_state = c and state.get('else') #@fast
       if new_state:
         if trace: #TRACE#
-          print "State %d" % new_state['number']  #TRACE#
+          print("State %d" % new_state['number'])  #TRACE#
         state = new_state
         # Begin inlined: self.next_char()
         if input_state == 1:
@@ -228,7 +228,7 @@ class Scanner:
         # End inlined self.next_char()
       else: # not new_state
         if trace: #TRACE#
-          print "blocked"  #TRACE#
+          print("blocked")  #TRACE#
         # Begin inlined: action = self.back_up()
         if backup_state:
           (action, cur_pos, cur_line, cur_line_start, 
@@ -245,7 +245,7 @@ class Scanner:
     self.next_pos	 = next_pos
     if trace: #TRACE#
       if action: #TRACE#
-        print "Doing", action #TRACE#
+        print("Doing " + action) #TRACE#
     return action
     
 #	def transition(self):
@@ -288,7 +288,7 @@ class Scanner:
   def next_char(self):
     input_state = self.input_state
     if self.trace:
-      print "Scanner: next:", " "*20, "[%d] %d" % (input_state, self.cur_pos),
+      print("Scanner: next: %s [%d] %d" % (" "*20, input_state, self.cur_pos))
     if input_state == 1:
       self.cur_pos = self.next_pos
       c = self.read_char()
@@ -314,7 +314,7 @@ class Scanner:
     else: # input_state = 5
       self.cur_char = ''
     if self.trace:
-      print "--> [%d] %d %s" % (input_state, self.cur_pos, repr(self.cur_char))
+      print("--> [%d] %d %s" % (input_state, self.cur_pos, repr(self.cur_char)))
     
 #	def read_char(self):
 #		"""

@@ -24,7 +24,7 @@ def p_ident_list(s):
     while s.sy == 'IDENT':
         names.append(s.systring)
         s.next()
-        if s.sy <> ',':
+        if s.sy != ',':
             break
         s.next()
     return names
@@ -290,7 +290,7 @@ def p_call(s, function):
                 s.error("Non-keyword arg following keyword arg",
                     pos = arg.pos)
             positional_args.append(arg)
-        if s.sy <> ',':
+        if s.sy != ',':
             break
         s.next()
     if s.sy == '*':
@@ -376,11 +376,11 @@ def p_subscript(s):
         return [ExprNodes.EllipsisNode(pos)]
     else:
         start = p_slice_element(s, (':',))
-        if s.sy <> ':':
+        if s.sy != ':':
             return [start]
         s.next()
         stop = p_slice_element(s, (':', ',', ']'))
-        if s.sy <> ':':
+        if s.sy != ':':
             return [start, stop]
         s.next()
         step = p_slice_element(s, (':', ',', ']'))
@@ -469,9 +469,9 @@ def p_atom(s):
         if name == "None":
             return ExprNodes.NoneNode(pos)
         elif name == "True":
-            return ExprNodes.BoolNode(pos, value=1)
+            return ExprNodes.BoolNode(pos, value=True)
         elif name == "False":
-            return ExprNodes.BoolNode(pos, value=0)
+            return ExprNodes.BoolNode(pos, value=False)
         else:
             return p_name(s, name)
     elif sy == 'NULL':
@@ -489,7 +489,9 @@ def p_name(s, name):
             pass
         else:
             rep = repr(value)
-            if isinstance(value, int):
+            if isinstance(value, bool):
+                return ExprNodes.BoolNode(pos, value = value)
+            elif isinstance(value, int):
                 return ExprNodes.IntNode(pos, value = rep)
             elif isinstance(value, long):
                 return ExprNodes.LongNode(pos, value = rep)
@@ -506,7 +508,7 @@ def p_cat_string_literal(s):
     # A sequence of one or more adjacent string literals.
     # Returns (kind, value) where kind in ('', 'c', 'r')
     kind, value = p_string_literal(s)
-    if kind <> 'c':
+    if kind != 'c':
         strings = [value]
         while s.sy == 'STRING' or s.sy == 'BEGIN_STRING':
             next_kind, next_value = p_string_literal(s)
@@ -563,12 +565,19 @@ def p_string_literal(s):
                 c = systr[1]
                 if c in "'\"\\abfnrtv01234567":
                     chars.append(systr)
-                elif c == 'x':
-                    chars.append('\\x0' + systr[2:])
                 elif c == '\n':
                     pass
-                elif c == 'u':
-                    chars.append(systr)
+                elif c in 'ux':
+                    if kind == 'u':
+                        try:
+                            chars.append(systr.decode('unicode_escape'))
+                        except UnicodeDecodeError:
+                            s.error("Invalid unicode escape '%s'" % systr,
+                                    pos = pos)
+                    elif c == 'x':
+                        chars.append('\\x0' + systr[2:])
+                    else:
+                        chars.append(systr)
                 else:
                     chars.append(r'\\' + systr[1:])
         elif sy == 'NEWLINE':
@@ -582,10 +591,7 @@ def p_string_literal(s):
                 "Unexpected token %r:%r in string literal" %
                     (sy, s.systring))
     s.next()
-    if kind == 'u':
-        value = u''.join(chars)
-    else:
-        value = ''.join(chars)
+    value = ''.join(chars)
     #print "p_string_literal: value =", repr(value) ###
     return kind, value
 
@@ -606,7 +612,7 @@ def unquote(s):
         # Split into double quotes, newlines, escape sequences 
         # and spans of regular chars
         l1 = re.split(r'((?:\\[0-7]{1,3})|(?:\\x[0-9A-Fa-f]{2})|(?:\\.)|(?:\\\n)|(?:\n)|")', s)
-        print "unquote: l1 =", l1 ###
+        #print "unquote: l1 =", l1 ###
         l2 = []
         for item in l1:
             if item == '"' or item == '\n':
@@ -695,12 +701,12 @@ def p_dict_maker(s):
     pos = s.position()
     s.next()
     items = []
-    while s.sy <> '}':
+    while s.sy != '}':
         key = p_simple_expr(s)
         s.expect(':')
         value = p_simple_expr(s)
         items.append((key, value))
-        if s.sy <> ',':
+        if s.sy != ',':
             break
         s.next()
     s.expect('}')
@@ -718,7 +724,7 @@ def p_simple_expr_list(s):
     exprs = []
     while s.sy not in expr_terminators:
         exprs.append(p_simple_expr(s))
-        if s.sy <> ',':
+        if s.sy != ',':
             break
         s.next()
     return exprs
@@ -830,7 +836,7 @@ def find_parallel_assignment_size(input):
     rhs_size = len(rhs.args)
     for lhs in input[:-1]:
         lhs_size = len(lhs.args)
-        if lhs_size <> rhs_size:
+        if lhs_size != rhs_size:
             error(lhs.pos, "Unpacking sequence of wrong size (expected %d, got %d)"
                 % (lhs_size, rhs_size))
             return -1
@@ -1092,10 +1098,10 @@ def p_for_bounds(s):
         if not target.is_name:
             error(target.pos, 
                 "Target of for-from statement must be a variable name")
-        elif name2 <> target.name:
+        elif name2 != target.name:
             error(name2_pos,
                 "Variable name in for-from range does not match target")
-        if rel1[0] <> rel2[0]:
+        if rel1[0] != rel2[0]:
             error(rel2_pos,
                 "Relation directions in for-from do not match")
         return {'target': target, 
@@ -1129,9 +1135,9 @@ def p_for_target(s):
     if s.sy == ',':
         s.next()
         exprs = [expr]
-        while s.sy <> 'in':
+        while s.sy != 'in':
             exprs.append(p_bit_expr(s))
-            if s.sy <> ',':
+            if s.sy != ',':
                 break
             s.next()
         return ExprNodes.TupleNode(pos, args = exprs)
@@ -1173,7 +1179,7 @@ def p_except_clause(s):
     s.next()
     exc_type = None
     exc_value = None
-    if s.sy <> ':':
+    if s.sy != ':':
         exc_type = p_simple_expr(s)
         if s.sy == ',':
             s.next()
@@ -1293,7 +1299,7 @@ def p_IF_statement(s, level, cdef_flag, visibility, api):
         if s.compile_time_eval:
             result = body
             current_eval = 0
-        if s.sy <> 'ELIF':
+        if s.sy != 'ELIF':
             break
     if s.sy == 'ELSE':
         s.next()
@@ -1344,7 +1350,7 @@ def p_statement(s, level, cdef_flag = 0, visibility = 'private', api = 0):
                 s.level = level
                 return p_def_statement(s)
             elif s.sy == 'class':
-                if level <> 'module':
+                if level != 'module':
                     s.error("class definition not allowed here")
                 return p_class_statement(s)
             elif s.sy == 'include':
@@ -1353,7 +1359,7 @@ def p_statement(s, level, cdef_flag = 0, visibility = 'private', api = 0):
                 return p_include_statement(s, level)
             elif level == 'c_class' and s.sy == 'IDENT' and s.systring == 'property':
                 return p_property_decl(s)
-            elif s.sy == 'pass' and level <> 'property':
+            elif s.sy == 'pass' and level != 'property':
                 return p_pass_statement(s, with_newline = 1)
             else:
                 if level in ('c_class_pxd', 'property'):
@@ -1539,7 +1545,7 @@ def p_c_declarator(s, empty = 0, is_type = 0, cmethod_flag = 0, assignable = 0,
             s.expect(')')
     else:
         result = p_c_simple_declarator(s, empty, is_type, cmethod_flag, assignable, nonempty)
-    if not calling_convention_allowed and result.calling_convention and s.sy <> '(':
+    if not calling_convention_allowed and result.calling_convention and s.sy != '(':
         error(s.position(), "%s on something that is not a function"
             % result.calling_convention)
     while s.sy in ('[', '('):
@@ -1555,7 +1561,7 @@ def p_c_declarator(s, empty = 0, is_type = 0, cmethod_flag = 0, assignable = 0,
 def p_c_array_declarator(s, base):
     pos = s.position()
     s.next() # '['
-    if s.sy <> ']':
+    if s.sy != ']':
         dim = p_expr(s)
     else:
         dim = None
@@ -1789,7 +1795,7 @@ def p_c_enum_definition(s, pos, level, visibility, typedef_flag = 0):
     items = None
     s.expect(':')
     items = []
-    if s.sy <> 'NEWLINE':
+    if s.sy != 'NEWLINE':
         p_c_enum_line(s, items)
     else:
         s.next() # 'NEWLINE'
@@ -1802,7 +1808,7 @@ def p_c_enum_definition(s, pos, level, visibility, typedef_flag = 0):
         in_pxd = level == 'module_pxd')
 
 def p_c_enum_line(s, items):
-    if s.sy <> 'pass':
+    if s.sy != 'pass':
         p_c_enum_item(s, items)
         while s.sy == ',':
             s.next()
@@ -1837,8 +1843,8 @@ def p_c_struct_or_union_definition(s, pos, level, visibility, typedef_flag = 0):
         s.expect('NEWLINE')
         s.expect_indent()
         attributes = []
-        while s.sy <> 'DEDENT':
-            if s.sy <> 'pass':
+        while s.sy != 'DEDENT':
+            if s.sy != 'pass':
                 attributes.append(
                     p_c_func_or_var_declaration(s, level = 'other', pos = s.position()))
             else:
@@ -1857,7 +1863,7 @@ def p_visibility(s, prev_visibility):
     visibility = prev_visibility
     if s.sy == 'IDENT' and s.systring in ('extern', 'public', 'readonly'):
         visibility = s.systring
-        if prev_visibility <> 'private' and visibility <> prev_visibility:
+        if prev_visibility != 'private' and visibility != prev_visibility:
             s.error("Conflicting visibility options '%s' and '%s'"
                 % (prev_visibility, visibility))
         s.next()
@@ -1995,7 +2001,7 @@ def p_c_class_definition(s, level, pos,
         s.next()
         module_path.append(class_name)
         class_name = p_ident(s)
-    if module_path and visibility <> 'extern':
+    if module_path and visibility != 'extern':
         error(pos, "Qualified class name only allowed for 'extern' C class")
     if module_path and s.sy == 'IDENT' and s.systring == 'as':
         s.next()
@@ -2067,7 +2073,7 @@ def p_c_class_options(s):
     typeobj_name = None
     s.expect('[')
     while 1:
-        if s.sy <> 'IDENT':
+        if s.sy != 'IDENT':
             break
         if s.systring == 'object':
             s.next()
@@ -2075,7 +2081,7 @@ def p_c_class_options(s):
         elif s.systring == 'type':
             s.next()
             typeobj_name = p_ident(s)
-        if s.sy <> ',':
+        if s.sy != ',':
             break
         s.next()
     s.expect(']', "Expected 'object' or 'type'")
@@ -2091,7 +2097,7 @@ def p_property_decl(s):
 def p_doc_string(s):
     if s.sy == 'STRING' or s.sy == 'BEGIN_STRING':
         _, result = p_cat_string_literal(s)
-        if s.sy <> 'EOF':
+        if s.sy != 'EOF':
             s.expect_newline("Syntax error in doc string")
         return result
     else:
@@ -2106,7 +2112,7 @@ def p_module(s, pxd, full_module_name):
     else:
         level = 'module'
     body = p_statement_list(s, level)
-    if s.sy <> 'EOF':
+    if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
             repr(s.sy), repr(s.systring)))
     return ModuleNode(pos, doc = doc, body = body, full_module_name = full_module_name)
@@ -2138,7 +2144,7 @@ def print_parse_tree(f, node, level, key = None):
                 tag = node.__class__.__name__
             f.write("%s @ %s\n" % (tag, node.pos))
             for name, value in node.__dict__.items():
-                if name <> 'tag' and name <> 'pos':
+                if name != 'tag' and name != 'pos':
                     print_parse_tree(f, value, level+1, name)
             return
         elif t == ListType:

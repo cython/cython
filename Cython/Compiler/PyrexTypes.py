@@ -630,7 +630,7 @@ class CFuncType(CType):
         if not self.is_overridable and other_type.is_overridable:
             return 0
         nargs = len(self.args)
-        if nargs <> len(other_type.args):
+        if nargs != len(other_type.args):
             return 0
         # When comparing C method signatures, the first argument
         # is exempt from compatibility checking (the proper check
@@ -639,9 +639,9 @@ class CFuncType(CType):
             if not self.args[i].type.same_as(
                 other_type.args[i].type):
                     return 0
-        if self.has_varargs <> other_type.has_varargs:
+        if self.has_varargs != other_type.has_varargs:
             return 0
-        if self.optional_arg_count <> other_type.optional_arg_count:
+        if self.optional_arg_count != other_type.optional_arg_count:
             return 0
         if not self.return_type.same_as(other_type.return_type):
             return 0
@@ -695,7 +695,7 @@ class CFuncType(CType):
         if not other_type.is_cfunction:
             return 0
         nargs = len(self.args)
-        if nargs <> len(other_type.args):
+        if nargs != len(other_type.args):
             return 0
         for i in range(as_cmethod, nargs):
             if not self.args[i].type.subtype_of_resolved_type(other_type.args[i].type):
@@ -703,9 +703,9 @@ class CFuncType(CType):
             else:
                 self.args[i].needs_type_test = other_type.args[i].needs_type_test \
                         or not self.args[i].type.same_as(other_type.args[i].type)
-        if self.has_varargs <> other_type.has_varargs:
+        if self.has_varargs != other_type.has_varargs:
             return 0
-        if self.optional_arg_count <> other_type.optional_arg_count:
+        if self.optional_arg_count != other_type.optional_arg_count:
             return 0
         if not self.return_type.subtype_of_resolved_type(other_type.return_type):
             return 0

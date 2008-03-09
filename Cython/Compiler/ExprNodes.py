@@ -311,7 +311,7 @@ class ExprNode(Node):
     def allocate_target_temps(self, env, rhs):
         #  Perform temp allocation for the LHS of an assignment.
         if debug_temp_alloc:
-            print self, "Allocating target temps"
+            print("%s Allocating target temps" % self)
         self.allocate_subexpr_temps(env)
         self.result_code = self.target_code()
         if rhs:
@@ -325,7 +325,7 @@ class ExprNode(Node):
         #  is used as the result instead of allocating a new
         #  one.
         if debug_temp_alloc:
-            print self, "Allocating temps"
+            print("%s Allocating temps" % self)
         self.allocate_subexpr_temps(env)
         self.allocate_temp(env, result)
         if self.is_temp:
@@ -335,11 +335,11 @@ class ExprNode(Node):
         #  Allocate temporary variables for all sub-expressions
         #  of this node.
         if debug_temp_alloc:
-            print self, "Allocating temps for:", self.subexprs
+            print("%s Allocating temps for: %s" % (self, self.subexprs))
         for node in self.subexpr_nodes():
             if node:
                 if debug_temp_alloc:
-                    print self, "Allocating temps for", node
+                    print("%s Allocating temps for %s" % (self, node))
                 node.allocate_temps(env)
     
     def allocate_temp(self, env, result = None):
@@ -350,7 +350,7 @@ class ExprNode(Node):
         #  is used as the result instead of allocating a new
         #  one.
         if debug_temp_alloc:
-            print self, "Allocating temp"
+            print("%s Allocating temp" % self)
         if result:
             if not self.is_temp:
                 raise InternalError("Result forced on non-temp node")
@@ -364,7 +364,7 @@ class ExprNode(Node):
             else:
                 self.result_code = None
             if debug_temp_alloc:
-                print self, "Allocated result", self.result_code
+                print("%s Allocated result %s" % (self, self.result_code))
         else:
             self.result_code = self.calculate_result_code()
     
@@ -384,7 +384,7 @@ class ExprNode(Node):
         #  otherwise release results of its sub-expressions.
         if self.is_temp:
             if debug_temp_alloc:
-                print self, "Releasing result", self.result_code
+                print("%s Releasing result %s" % (self, self.result_code))
             env.release_temp(self.result_code)
         else:
             self.release_subexpr_temps(env)
@@ -489,7 +489,7 @@ class ExprNode(Node):
             src = CoerceFromPyTypeNode(dst_type, src, env)
         else: # neither src nor dst are py types
             # Added the string comparison, since for c types that
-            # is enough, but SageX gets confused when the types are
+            # is enough, but Cython gets confused when the types are
             # in different files.
             if not (str(src.type) == str(dst_type) or dst_type.assignable_from(src_type)):
                 error(self.pos, "Cannot assign type '%s' to '%s'" %
@@ -588,7 +588,7 @@ class BoolNode(PyConstNode):
     def coerce_to(self, dst_type, env):
         value = self.value
         if dst_type.is_numeric:
-            return IntNode(self.pos, value=self.value).coerce_to(dst_type, env)
+            return IntNode(self.pos, value=int(self.value)).coerce_to(dst_type, env)
         else:
             return PyConstNode.coerce_to(self, dst_type, env)
 
@@ -977,8 +977,8 @@ class NameNode(AtomicExprNode):
                             entry.name,
                             rhs.py_result()))
                 if debug_disposal_code:
-                    print "NameNode.generate_assignment_code:"
-                    print "...generating disposal code for", rhs
+                    print("NameNode.generate_assignment_code:")
+                    print("...generating disposal code for %s" % rhs)
                 rhs.generate_disposal_code(code)
                 
         else:
@@ -991,8 +991,8 @@ class NameNode(AtomicExprNode):
                 code.put_decref(self.result_code, self.ctype())
             code.putln('%s = %s;' % (self.result_code, rhs.result_as(self.ctype())))
             if debug_disposal_code:
-                print "NameNode.generate_assignment_code:"
-                print "...generating post-assignment code for", rhs
+                print("NameNode.generate_assignment_code:")
+                print("...generating post-assignment code for %s" % rhs)
             rhs.generate_post_assignment_code(code)
     
     def generate_deletion_code(self, code):
@@ -2139,8 +2139,8 @@ class SequenceNode(ExprNode):
         rhs.generate_disposal_code(code)
         for i in range(len(self.args)):
             item = self.unpacked_items[i]
-            unpack_code = "__Pyx_UnpackItem(%s)" % (
-                self.iterator.py_result())
+            unpack_code = "__Pyx_UnpackItem(%s, %d)" % (
+                self.iterator.py_result(), i)
             code.putln(
                 "%s = %s; %s" % (
                     item.result_code,
@@ -2153,8 +2153,8 @@ class SequenceNode(ExprNode):
             "__Pyx_EndUnpack(%s)" % (
                 self.iterator.py_result()))
         if debug_disposal_code:
-            print "UnpackNode.generate_assignment_code:"
-            print "...generating disposal code for", iterator
+            print("UnpackNode.generate_assignment_code:")
+            print("...generating disposal code for %s" % iterator)
         self.iterator.generate_disposal_code(code)
 
         code.putln("}")
@@ -2261,7 +2261,7 @@ class ListComprehensionNode(SequenceNode):
         
     def allocate_temps(self, env, result = None): 
         if debug_temp_alloc:
-            print self, "Allocating temps"
+            print("%s Allocating temps" % self)
         self.allocate_temp(env, result)
         self.loop.analyse_declarations(env)
         self.loop.analyse_expressions(env)
@@ -3578,7 +3578,7 @@ class CoercionNode(ExprNode):
         self.pos = arg.pos
         self.arg = arg
         if debug_coercion:
-            print self, "Coercing", self.arg
+            print("%s Coercing %s" % (self, self.arg))
             
     def annotate(self, code):
         self.arg.annotate(code)
@@ -3906,18 +3906,20 @@ bad:
 
 unpacking_utility_code = [
 """
-static PyObject *__Pyx_UnpackItem(PyObject *); /*proto*/
+static PyObject *__Pyx_UnpackItem(PyObject *, Py_ssize_t index); /*proto*/
 static int __Pyx_EndUnpack(PyObject *); /*proto*/
 ""","""
-static void __Pyx_UnpackError(void) {
-    PyErr_SetString(PyExc_ValueError, "unpack sequence of wrong size");
-}
-
-static PyObject *__Pyx_UnpackItem(PyObject *iter) {
+static PyObject *__Pyx_UnpackItem(PyObject *iter, Py_ssize_t index) {
     PyObject *item;
     if (!(item = PyIter_Next(iter))) {
-        if (!PyErr_Occurred())
-            __Pyx_UnpackError();
+        if (!PyErr_Occurred()) {
+            PyErr_Format(PyExc_ValueError,
+                #if PY_VERSION_HEX < 0x02050000
+                    "need more than %d values to unpack", (int)index);
+                #else
+                    "need more than %zd values to unpack", index);
+                #endif
+        }
     }
     return item;
 }
@@ -3926,7 +3928,7 @@ static int __Pyx_EndUnpack(PyObject *iter) {
     PyObject *item;
     if ((item = PyIter_Next(iter))) {
         Py_DECREF(item);
-        __Pyx_UnpackError();
+        PyErr_SetString(PyExc_ValueError, "too many values to unpack");
         return -1;
     }
     else if (!PyErr_Occurred())

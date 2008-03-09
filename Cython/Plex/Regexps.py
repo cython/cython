@@ -152,12 +152,12 @@ class RE:
             self.wrong_type(num, value, "Plex.RE instance")
 
     def check_string(self, num, value):
-        if type(value) <> type(''):
+        if type(value) != type(''):
             self.wrong_type(num, value, "string")
     
     def check_char(self, num, value):
         self.check_string(num, value)
-        if len(value) <> 1:
+        if len(value) != 1:
             raise Errors.PlexValueError("Invalid value for argument %d of Plex.%s."
                 "Expected a string of length 1, got: %s" % (
                     num, self.__class__.__name__, repr(value)))
@@ -192,7 +192,7 @@ class RE:
         
 ##	 def build_machine(self, m, initial_state, final_state, match_bol, nocase):
 ##		 c = self.char
-##		 if match_bol and c <> BOL:
+##		 if match_bol and c != BOL:
 ##			 s1 = self.build_opt(m, initial_state, BOL)
 ##		 else:
 ##			 s1 = initial_state

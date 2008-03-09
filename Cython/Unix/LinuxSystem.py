@@ -49,10 +49,10 @@ def c_compile(c_file, verbose_flag = 0, cplus = 0, obj_suffix = ".o"):
     compiler = compilers[bool(cplus)]
     args = [compiler] + compiler_options + include_options + [c_file, "-o", o_file]
     if verbose_flag or verbose:
-        print " ".join(args)
+        print(" ".join(args))
     #print compiler, args ###
     status = os.spawnvp(os.P_WAIT, compiler, args)
-    if status <> 0:
+    if status != 0:
         raise CCompilerError("C compiler returned status %s" % status)
     return o_file
 
@@ -67,8 +67,8 @@ def c_link_list(obj_files, verbose_flag = 0, cplus = 0):
     linker = linkers[bool(cplus)]
     args = [linker] + linker_options + obj_files + ["-o", out_file]
     if verbose_flag or verbose:
-        print " ".join(args)
+        print(" ".join(args))
     status = os.spawnvp(os.P_WAIT, linker, args)
-    if status <> 0:
+    if status != 0:
         raise CCompilerError("Linker returned status %s" % status)
     return out_file
