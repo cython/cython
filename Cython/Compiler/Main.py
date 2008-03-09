@@ -18,6 +18,7 @@ from Symtab import BuiltinScope, ModuleScope
 import Code
 from Cython.Utils import replace_suffix
 from Cython import Utils
+import Transform
 
 verbose = 0
 
@@ -236,6 +237,7 @@ class CompilationOptions:
     include_path      [string]  Directories to search for include files
     output_file       string    Name of generated .c file
     generate_pxi      boolean   Generate .pxi file for public declarations
+    transforms        Transform.TransformSet Transforms to use on the parse tree
     
     Following options are experimental and only used on MacOSX:
     
@@ -342,7 +344,8 @@ default_options = dict(
     obj_only = 1,
     cplus = 0,
     output_file = None,
-    generate_pxi = 0)
+    generate_pxi = 0,
+    transforms = Transform.TransformSet())
     
 if sys.platform == "mac":
     from Cython.Mac.MacSystem import c_compile, c_link, CCompilerError

@@ -31,6 +31,7 @@ class ExprNode(Node):
     #                            Cached result of subexpr_nodes()
     
     result_ctype = None
+    type = None
 
     #  The Analyse Expressions phase for expressions is split
     #  into two sub-phases:
@@ -165,6 +166,14 @@ class ExprNode(Node):
     saved_subexpr_nodes = None
     is_temp = 0
 
+    def get_child_attrs(self):
+        """Automatically provide the contents of subexprs as children, unless child_attr
+        has been declared. See Nodes.Node.get_child_accessors."""
+        if self.child_attrs != None:
+            return self.child_attr
+        elif self.subexprs != None:
+            return self.subexprs
+        
     def not_implemented(self, method_name):
         print_call_chain(method_name, "not implemented") ###
         raise InternalError(
