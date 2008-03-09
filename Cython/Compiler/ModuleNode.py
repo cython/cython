@@ -26,6 +26,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  referenced_modules   [ModuleScope]
     #  module_temp_cname    string
     #  full_module_name     string
+
+    children_attrs = ["body"]
     
     def analyse_declarations(self, env):
         if Options.embed_pos_in_docstring:
@@ -46,7 +48,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if self.has_imported_c_functions():
             self.module_temp_cname = env.allocate_temp_pyobject()
             env.release_temp(self.module_temp_cname)
-        self.generate_c_code(env, result)
+        self.generate_c_code(env, options, result)
         self.generate_h_code(env, options, result)
         self.generate_api_code(env, result)
     
@@ -199,7 +201,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             i_code.putln("pass")
         i_code.dedent()
     
-    def generate_c_code(self, env, result):
+    def generate_c_code(self, env, options, result):
         modules = self.referenced_modules
         if Options.annotate:
             code = Annotate.AnnotationCCodeWriter(StringIO())
@@ -216,7 +218,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_interned_name_decls(env, code)
         self.generate_py_string_decls(env, code)
         self.generate_cached_builtins_decls(env, code)
-        self.body.generate_function_definitions(env, code)
+        self.body.generate_function_definitions(env, code, options.transforms)
         code.mark_pos(None)
         self.generate_interned_name_table(env, code)
         self.generate_py_string_table(env, code)
