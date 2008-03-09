@@ -562,7 +562,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in env.c_class_entries:
             #print "generate_typeobj_definitions:", entry.name
             #print "...visibility =", entry.visibility
-            if entry.visibility <> 'extern':
+            if entry.visibility != 'extern':
                 type = entry.type
                 scope = type.scope
                 if scope: # could be None if there was an error
@@ -681,7 +681,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 % scope.mangle_internal("tp_dealloc"))
         py_attrs = []
         for entry in scope.var_entries:
-            if entry.type.is_pyobject and entry.name <> "__weakref__":
+            if entry.type.is_pyobject and entry.name != "__weakref__":
                 py_attrs.append(entry)
         if py_attrs or scope.lookup_here("__weakref__"):
             self.generate_self_cast(scope, code)
@@ -1520,7 +1520,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     
     def generate_base_type_import_code(self, env, entry, code):
         base_type = entry.type.base_type
-        if base_type and base_type.module_name <> env.qualified_name:
+        if base_type and base_type.module_name != env.qualified_name:
             self.generate_type_import_code(env, base_type, self.pos, code)
     
     def use_type_import_utility_code(self, env):
@@ -1569,7 +1569,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         typeobj_cname = type.typeobj_cname
         scope = type.scope
         if scope: # could be None if there was an error
-            if entry.visibility <> 'extern':
+            if entry.visibility != 'extern':
                 for slot in TypeSlots.slot_table:
                     slot.generate_dynamic_init_code(scope, code)
                 code.putln(

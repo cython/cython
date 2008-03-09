@@ -61,7 +61,9 @@ def make_lexicon():
     two_oct = octdigit + octdigit
     three_oct = octdigit + octdigit + octdigit
     two_hex = hexdigit + hexdigit
-    escapeseq = Str("\\") + (two_oct | three_oct | two_hex | AnyChar)
+    four_hex = two_hex + two_hex
+    escapeseq = Str("\\") + (two_oct | three_oct | two_hex |
+                             Str('u') + four_hex | Str('x') + two_hex | AnyChar)
     
     bra = Any("([{")
     ket = Any(")]}")

@@ -124,8 +124,8 @@ def test_c_compile(link = 0):
             except PyrexError, e:
                 #print "Caught a PyrexError:" ###
                 #print repr(e) ###
-                print "%s.%s:" % (e.__class__.__module__,
-                    e.__class__.__name__), e
+                print("%s.%s: %s" % (e.__class__.__module__,
+                    e.__class__.__name__, e))
                 sys.exit(1)
         else:
             obj = arg

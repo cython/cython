@@ -304,12 +304,12 @@ class Scope:
         return entry
     
     def check_previous_typedef_flag(self, entry, typedef_flag, pos):
-        if typedef_flag <> entry.type.typedef_flag:
+        if typedef_flag != entry.type.typedef_flag:
             error(pos, "'%s' previously declared using '%s'" % (
                 entry.name, ("cdef", "ctypedef")[entry.type.typedef_flag]))
     
     def check_previous_visibility(self, entry, visibility, pos):
-        if entry.visibility <> visibility:
+        if entry.visibility != visibility:
             error(pos, "'%s' previously declared as '%s'" % (
                 entry.name, entry.visibility))
     
@@ -334,7 +334,7 @@ class Scope:
             cname = None, visibility = 'private', is_cdef = 0):
         # Add an entry for a variable.
         if not cname:
-            if visibility <> 'private':
+            if visibility != 'private':
                 cname = name
             else:
                 cname = self.mangle(Naming.var_prefix, name)
@@ -361,24 +361,24 @@ class Scope:
         # Add an entry for a C function.
         entry = self.lookup_here(name)
         if entry:
-            if visibility <> 'private' and visibility <> entry.visibility:
+            if visibility != 'private' and visibility != entry.visibility:
                 warning(pos, "Function '%s' previously declared as '%s'" % (name, entry.visibility), 1)
             if not entry.type.same_as(type):
                 warning(pos, "Function signature does not match previous declaration", 1)
                 entry.type = type
         else:
             if not cname:
-                if api or visibility <> 'private':
+                if api or visibility != 'private':
                     cname = name
                 else:
                     cname = self.mangle(Naming.func_prefix, name)
             entry = self.add_cfunction(name, type, pos, cname, visibility)
             entry.func_cname = cname
-        if in_pxd and visibility <> 'extern':
+        if in_pxd and visibility != 'extern':
             entry.defined_in_pxd = 1
         if api:
             entry.api = 1
-        if not defining and not in_pxd and visibility <> 'extern':
+        if not defining and not in_pxd and visibility != 'extern':
             error(pos, "Non-extern C function declared but not defined")
         return entry
     
@@ -442,7 +442,7 @@ class Scope:
         # Python identifier, it will be interned.
         if not entry.pystring_cname:
             value = entry.init
-            if identifier_pattern.match(value):
+            if identifier_pattern.match(value) and isinstance(value, str):
                 entry.pystring_cname = self.intern(value)
                 entry.is_interned = 1
             else:
@@ -577,12 +577,6 @@ class BuiltinScope(Scope):
         else:
             Scope.__init__(self, "__builtin__", PreImportScope(), None)
         
-        for name, definition in self.builtin_functions.iteritems():
-            if len(definition) < 4: definition.append(None) # exception_value
-            if len(definition) < 5: definition.append(False) # exception_check
-            cname, type, arg_types, exception_value, exception_check = definition
-            function = CFuncType(type, [CFuncTypeArg("", t, None) for t in arg_types], False, exception_value, exception_check)
-            self.add_cfunction(name, function, None, cname, False)
         for name, definition in self.builtin_entries.iteritems():
             cname, type = definition
             self.declare_var(name, type, None, cname)
@@ -612,30 +606,13 @@ class BuiltinScope(Scope):
     def builtin_scope(self):
         return self
         
-    # TODO: merge this into builtin_function_table when error handling in Pyrex
-    #       is fixed. Also handle pyrex types as functions. 
-    
-    builtin_functions = {
-      "cmp":     ["PyObject_Compare", c_int_type, (py_object_type, py_object_type), None, True],
-      "unicode": ["PyObject_Unicode", py_object_type, (py_object_type, ), 0],
-      "type":    ["PyObject_Type", py_object_type, (py_object_type, ), 0],
-
-#      "str":     ["PyObject_Str", py_object_type, (py_object_type, ), 0],
-#      "int":     ["PyNumber_Int", py_object_type, (py_object_type, ), 0],
-#      "long":    ["PyNumber_Long", py_object_type, (py_object_type, ), 0],
-#      "float":   ["PyNumber_Float", py_object_type, (py_object_type, ), 0],
-
-#      "list":    ["PyNumber_List", py_object_type, (py_object_type, ), 0],
-#      "tuple":   ["PySequence_Tuple", py_object_type, (py_object_type, ), 0],
-
-    }
-    
     builtin_entries = {
         "int":    ["((PyObject*)&PyInt_Type)", py_object_type],
         "long":   ["((PyObject*)&PyLong_Type)", py_object_type],
         "float":  ["((PyObject*)&PyFloat_Type)", py_object_type],
         
         "str":    ["((PyObject*)&PyString_Type)", py_object_type],
+        "unicode":["((PyObject*)&PyUnicode_Type)", py_object_type],
         "tuple":  ["((PyObject*)&PyTuple_Type)", py_object_type],
         "list":   ["((PyObject*)&PyList_Type)", py_object_type],
         "dict":   ["((PyObject*)&PyDict_Type)", py_object_type],
@@ -672,6 +649,7 @@ class ModuleScope(Scope):
     # cimported_modules    [ModuleScope]      Modules imported with cimport
     # intern_map           {string : string}  Mapping from Python names to interned strs
     # interned_names       [string]           Interned names pending generation of declarations
+    # interned_nums        [int/long]         Interned numeric constants
     # all_pystring_entries [Entry]            Python string consts from all scopes
     # types_imported       {PyrexType : 1}    Set of types for which import code generated
     
@@ -871,7 +849,7 @@ class ModuleScope(Scope):
                 entry = None # Will cause an error when we redeclare it
             else:
                 self.check_previous_typedef_flag(entry, typedef_flag, pos)
-                if base_type <> type.base_type:
+                if base_type != type.base_type:
                     error(pos, "Base type does not match previous declaration")
         #
         # Make a new entry if needed
@@ -920,17 +898,17 @@ class ModuleScope(Scope):
             entry.defined_in_pxd = 1
         if implementing:   # So that filenames in runtime exceptions refer to
             entry.pos = pos  # the .pyx file and not the .pxd file
-        if visibility <> 'private' and entry.visibility <> visibility:
+        if visibility != 'private' and entry.visibility != visibility:
             error(pos, "Class '%s' previously declared as '%s'"
                 % (name, entry.visibility))
         if api:
             entry.api = 1
         if objstruct_cname:
-            if type.objstruct_cname and type.objstruct_cname <> objstruct_cname:
+            if type.objstruct_cname and type.objstruct_cname != objstruct_cname:
                 error(pos, "Object struct name differs from previous declaration")
             type.objstruct_cname = objstruct_cname		
         if typeobj_cname:
-            if type.typeobj_cname and type.typeobj_cname <> typeobj_cname:
+            if type.typeobj_cname and type.typeobj_cname != typeobj_cname:
                     error(pos, "Type object name differs from previous declaration")
             type.typeobj_cname = typeobj_cname
         #
@@ -974,12 +952,12 @@ class ModuleScope(Scope):
         #
         debug_check_c_classes = 0
         if debug_check_c_classes:
-            print "Scope.check_c_classes: checking scope", self.qualified_name
+            print("Scope.check_c_classes: checking scope " + self.qualified_name)
         for entry in self.c_class_entries:
             if debug_check_c_classes:
-                print "...entry", entry.name, entry
-                print "......type =", entry.type
-                print "......visibility =", entry.visibility
+                print("...entry %s %s" % (entry.name, entry))
+                print("......type = " + entry.type)
+                print("......visibility = " + entry.visibility)
             type = entry.type
             name = entry.name
             visibility = entry.visibility
@@ -987,7 +965,7 @@ class ModuleScope(Scope):
             if not type.scope:
                 error(entry.pos, "C class '%s' is declared but not defined" % name)
             # Generate typeobj_cname
-            if visibility <> 'extern' and not type.typeobj_cname:
+            if visibility != 'extern' and not type.typeobj_cname:
                 type.typeobj_cname = self.mangle(Naming.typeobj_prefix, name)
             ## Generate typeptr_cname
             #type.typeptr_cname = self.mangle(Naming.typeptr_prefix, name)
@@ -1076,7 +1054,7 @@ class StructOrUnionScope(Scope):
         if type.is_pyobject and not allow_pyobject:
             error(pos,
                 "C struct/union member cannot be a Python object")
-        if visibility <> 'private':
+        if visibility != 'private':
             error(pos,
                 "C struct/union member cannot be declared %s" % visibility)
         return entry
@@ -1170,7 +1148,7 @@ class CClassScope(ClassScope):
     
     def __init__(self, name, outer_scope, visibility):
         ClassScope.__init__(self, name, outer_scope)
-        if visibility <> 'extern':
+        if visibility != 'extern':
             self.method_table_cname = outer_scope.mangle(Naming.methtab_prefix, name)
             self.member_table_cname = outer_scope.mangle(Naming.memtab_prefix, name)
             self.getset_table_cname = outer_scope.mangle(Naming.gstab_prefix, name)
