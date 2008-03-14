@@ -155,6 +155,7 @@ class build_ext(_build_ext.build_ext):
         else:
             target_dir = None
 
+        newest_dependency = None
         for source in sources:
             (base, ext) = os.path.splitext(os.path.basename(source))
             if ext == ".pyx":			  # Cython source file
@@ -162,6 +163,10 @@ class build_ext(_build_ext.build_ext):
                 new_sources.append(os.path.join(output_dir, base + target_ext))
                 pyrex_sources.append(source)
                 pyrex_targets[source] = new_sources[-1]
+            elif ext == '.pxi' or ext == '.pxd':
+                if newest_dependency is None \
+                        or newer(source, newest_dependency):
+                    newest_dependency = source
             else:
                 new_sources.append(source)
 
@@ -172,7 +177,10 @@ class build_ext(_build_ext.build_ext):
 
         for source in pyrex_sources:
             target = pyrex_targets[source]
-            if self.force or newer(source, target):
+            rebuild = self.force or newer(source, target)
+            if not rebuild and newest_dependency is not None:
+                rebuild = newer(newest_dependency, target)
+            if rebuild:
                 log.info("cythoning %s to %s", source, target)
                 self.mkpath(os.path.dirname(target))
                 options = CompilationOptions(pyrex_default_options, 
