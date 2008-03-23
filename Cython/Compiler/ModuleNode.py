@@ -19,6 +19,29 @@ from Errors import error
 from PyrexTypes import py_object_type
 from Cython.Utils import open_new_file, replace_suffix
 
+
+def recurse_vtab_check_inheritance(entry,b, dict):
+    base = entry
+    while base is not None:
+        if base.type.base_type is None or base.type.base_type.vtabstruct_cname is None:
+            return False
+        if base.type.base_type.vtabstruct_cname == b.type.vtabstruct_cname:
+            return True
+        base = dict[base.type.base_type.vtabstruct_cname]
+    return False
+    
+def recurse_vtabslot_check_inheritance(entry,b, dict):
+    base = entry
+    while base is not None:
+        if base.type.base_type is None:
+            return False
+        if base.type.base_type.objstruct_cname == b.type.objstruct_cname:
+            return True
+        base = dict[base.type.base_type.objstruct_cname]
+    return False
+    
+
+
 class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  doc       string or None
     #  body      StatListNode
@@ -226,14 +249,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_method_table(env, code)
         self.generate_filename_init_prototype(code)
         self.generate_module_init_func(modules[:-1], env, code)
+        self.generate_module_init2_func(modules[:-1], env, code)
         code.mark_pos(None)
         self.generate_module_cleanup_func(env, code)
         self.generate_filename_table(code)
         self.generate_utility_functions(env, code)
 
-        for module in modules:
-            self.generate_declarations_for_module(module, code.h,
-                definition = module is env)
+        self.generate_declarations_for_module(env, modules, code.h)
 
         f = open_new_file(result.c_file)
         f.write(code.h.f.getvalue())
@@ -244,6 +266,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.annotate:
             self.annotate(code)
             code.save_annotation(result.c_file[:-1] + "pyx") # change?
+    
+    
+    
     
     def find_referenced_modules(self, env, module_list, modules_seen):
         if env not in modules_seen:
@@ -294,6 +319,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.pre_import is not None:
             code.putln('static PyObject *%s;' % Naming.preimport_cname)
         code.putln('static int %s;' % Naming.lineno_cname)
+        code.putln('static int %s;' % Naming.clineno_cname)
+        code.putln('static char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
         code.putln('static char *%s;' % Naming.filename_cname)
         code.putln('static char **%s;' % Naming.filetable_cname)
         if env.doc:
@@ -331,16 +358,100 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("0")
         code.putln("};")
     
-    def generate_declarations_for_module(self, env, code, definition):
+    def generate_vtab_dict(self, module_list):
+        vtab_dict = {}
+        for module in module_list:
+            for entry in module.c_class_entries:
+                if not entry.in_cinclude:
+                    type = entry.type
+                    scope = type.scope
+                    if type.vtabstruct_cname:
+                        vtab_dict[type.vtabstruct_cname]=entry
+        return vtab_dict
+    def generate_vtab_list(self, vtab_dict):
+        vtab_list = list()
+        for entry in vtab_dict.itervalues():
+            vtab_list.append(entry)
+        for i in range(0,len(vtab_list)):
+            for j in range(0,len(vtab_list)):
+                if(recurse_vtab_check_inheritance(vtab_list[j],vtab_list[i], vtab_dict)==1):
+                    if i > j:
+                        vtab_list.insert(j,vtab_list[i])
+                        if i > j:
+                            vtab_list.pop(i+1)
+                        else:
+                            vtab_list.pop(i)
+        #for entry in vtab_list:
+            #print entry.type.vtabstruct_cname
+        return vtab_list
+        
+    def generate_vtabslot_dict(self, module_list, env):
+        vtab_dict={}
+        type_entries=[]
+        for module in module_list:
+            definition = module is env
+            if definition:
+                type_entries.extend( env.type_entries)
+            else:
+                for entry in module.type_entries:
+                    if entry.defined_in_pxd:
+                        type_entries.append(entry)
+        for entry in type_entries:
+            type = entry.type
+            if type.is_extension_type:
+                if not entry.in_cinclude:
+                    type = entry.type
+                    scope = type.scope
+                    vtab_dict[type.objstruct_cname]=entry
+        return vtab_dict
+    def generate_vtabslot_list(self, vtab_dict):
+        vtab_list = list()
+        for entry in vtab_dict.itervalues():
+            vtab_list.append(entry)
+        for i in range(0,len(vtab_list)):
+            for j in range(0,len(vtab_list)):
+                if(recurse_vtabslot_check_inheritance(vtab_list[j],vtab_list[i], vtab_dict)==1):
+                    if i > j:
+                        vtab_list.insert(j,vtab_list[i])
+                        if i > j:
+                            vtab_list.pop(i+1)
+                        else:
+                            vtab_list.pop(i)
+        #for entry in vtab_list:
+            #print entry.type.vtabstruct_cname
+        return vtab_list
+        
+        
+    def generate_type_definitions(self, env, modules, vtab_list, vtabslot_list, code):
+        for module in modules:
+            definition = module is env
+            if definition:
+                type_entries = module.type_entries
+            else:
+                type_entries = []
+                for entry in module.type_entries:
+                    if entry.defined_in_pxd:
+                        type_entries.append(entry)
+            self.generate_type_header_code(type_entries, code)
+        for entry in vtabslot_list:
+            self.generate_obj_struct_definition(entry.type, code)
+        for entry in vtab_list:
+            self.generate_typeobject_predeclaration(entry, code)
+            self.generate_exttype_vtable_struct(entry, code)
+            self.generate_exttype_vtabptr_declaration(entry, code)
+    
+    def generate_declarations_for_module(self, env, modules, code):
         code.putln("")
-        code.putln("/* Declarations from %s */" % env.qualified_name)
-        self.generate_type_predeclarations(env, code)
-        self.generate_type_definitions(env, code, definition)
-        self.generate_global_declarations(env, code, definition)
-        self.generate_cfunction_predeclarations(env, code, definition)
-
-    def generate_type_predeclarations(self, env, code):
-        pass
+        code.putln("/* Declarations */")
+        vtab_dict = self.generate_vtab_dict(modules)
+        vtab_list = self.generate_vtab_list(vtab_dict)
+        vtabslot_dict = self.generate_vtabslot_dict(modules,env)
+        vtabslot_list = self.generate_vtabslot_list(vtabslot_dict)
+        self.generate_type_definitions(env, modules, vtab_list, vtabslot_list, code)
+        for module in modules:
+            definition = module is env
+            self.generate_global_declarations(module, code, definition)
+            self.generate_cfunction_predeclarations(module, code, definition)
     
     def generate_type_header_code(self, type_entries, code):
         # Generate definitions of structs/unions/enums/typedefs/objstructs.
@@ -356,23 +467,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_struct_union_definition(entry, code)
                 elif type.is_enum:
                     self.generate_enum_definition(entry, code)
-                elif type.is_extension_type:
-                    self.generate_obj_struct_definition(type, code)
-    
-    def generate_type_definitions(self, env, code, definition):
-        if definition:
-            type_entries = env.type_entries
-        else:
-            type_entries = []
-            for entry in env.type_entries:
-                if entry.defined_in_pxd:
-                    type_entries.append(entry)
-        self.generate_type_header_code(type_entries, code)
-        for entry in env.c_class_entries:
-            if not entry.in_cinclude:
-                self.generate_typeobject_predeclaration(entry, code)
-                self.generate_exttype_vtable_struct(entry, code)
-                self.generate_exttype_vtabptr_declaration(entry, code)
     
     def generate_gcc33_hack(self, env, code):
         # Workaround for spurious warning generation in gcc 3.3
@@ -1282,9 +1376,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_init_func(self, imported_modules, env, code):
         code.putln("")
+        code.putln("PyMODINIT_FUNC init2%s(void);" % env.module_name)
+        code.putln("")
         header = "PyMODINIT_FUNC init%s(void)" % env.module_name
         code.putln("%s; /*proto*/" % header)
         code.putln("%s {" % header)
+        code.putln("PyObject* __pyx_internal1;")
+        code.putln("PyObject* __pyx_internal2;")
         code.put_var_declarations(env.temp_entries)
 
         code.putln("/*--- Libary function declarations ---*/")
@@ -1313,30 +1411,47 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Function export code ---*/")
         self.generate_c_function_export_code(env, code)
 
-        code.putln("/*--- Function import code ---*/")
-        for module in imported_modules:
-            self.generate_c_function_import_code_for_module(module, env, code)
-
+        env.use_utility_code(function_export_utility_code)
+        code.putln('if (__Pyx_ExportFunction("init2%s", (void*)init2%s, "int (void)") < 0) %s' % (env.module_name, env.module_name, code.error_goto((env.qualified_name,0,0) ) ) )
         code.putln("/*--- Type init code ---*/")
         self.generate_type_init_code(env, code)
-
         code.putln("/*--- Type import code ---*/")
         for module in imported_modules:
             self.generate_type_import_code_for_module(module, env, code)
-
-        code.putln("/*--- Execution code ---*/")
-        code.mark_pos(None)
-        self.body.generate_execution_code(code)
-        
+        code.putln("/*--- Function import code ---*/")
+        for module in imported_modules:
+            self.generate_c_function_import_code_for_module(module, env, code)
+        env.use_utility_code(function_import_utility_code)
+        code.putln('init2%s();' % env.module_name)
         if Options.generate_cleanup_code:
             code.putln("if (__Pyx_RegisterCleanup()) %s;" % code.error_goto(self.pos))
-        
         code.putln("return;")
         code.put_label(code.error_label)
         code.put_var_xdecrefs(env.temp_entries)
-        code.putln('__Pyx_AddTraceback("%s");' % (env.qualified_name))
+        code.putln('__Pyx_AddTraceback("%s",%s,%s);' % (env.qualified_name,Naming.cfilenm_cname,Naming.clineno_cname))
         env.use_utility_code(Nodes.traceback_utility_code)
         code.putln('}')
+
+    def generate_module_init2_func(self, imported_modules, env, code):
+        code.putln("")
+        header = "PyMODINIT_FUNC init2%s(void)" % env.module_name
+        code.putln("%s; /*proto*/" % header)
+        code.putln("%s {" % header)
+        code.putln("static int __Pyx_unique = 0;")
+        code.putln("if (__Pyx_unique==1) return;")
+        code.putln("__Pyx_unique = 1;")
+        code.put_var_declarations(env.temp_entries)
+        code.putln("/*--- Execution code ---*/")
+        code.mark_pos(None)
+        self.body.generate_execution_code(code)
+        if Options.generate_cleanup_code:
+            code.putln("if (__Pyx_RegisterCleanup()) %s;" % code.error_goto(self.pos))
+        code.putln("return;")
+        code.put_label(code.error_label)
+        code.put_var_xdecrefs(env.temp_entries)
+        code.putln('__Pyx_AddTraceback("%s",%s,%s);' % (env.qualified_name,Naming.cfilenm_cname,Naming.clineno_cname))
+        env.use_utility_code(Nodes.traceback_utility_code)
+        code.putln('}')        
             
     def generate_module_cleanup_func(self, env, code):
         if not Options.generate_cleanup_code:
@@ -1521,7 +1636,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 self.generate_exttype_vtable_init_code(entry, code)
                 self.generate_type_ready_code(env, entry, code)
                 self.generate_typeptr_assignment_code(entry, code)
-    
+        
     def generate_base_type_import_code(self, env, entry, code):
         base_type = entry.type.base_type
         if base_type and base_type.module_name != env.qualified_name:
@@ -1656,6 +1771,49 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 #
 #------------------------------------------------------------------------------------
 
+
+call_module_function_code = [
+"""
+static PyObject *__Pyx_CallModuleFunction(char* module, char *name); /*proto*/
+""","""
+static PyObject *__Pyx_CallModuleFunction(char* module, char *name)
+{
+    PyObject* py_name = 0;
+    PyObject* py_module_name = 0;
+    PyObject* py_module = 0;
+    PyObject* py_dict = 0;
+    PyObject* py_func = 0;
+    PyObject* py_tuple = PyTuple_New(0);
+    PyObject* ret = 0;
+    py_dict = PyImport_GetModuleDict();
+    if(py_dict == 0)
+        goto bad;
+    if(py_tuple == 0)
+        goto bad;
+    py_name = PyString_FromString(name);
+    if(py_name == 0)
+        goto bad;
+    py_module_name = PyString_FromString(module);
+    if(py_module_name == 0)
+        goto bad;
+    py_module = PyObject_GetItem(py_dict, py_module);
+    if(py_module == 0)
+        goto bad;
+    if ( (py_func = PyObject_GetAttr(py_module, py_name) ) == 0)
+        goto bad;
+    if ( (ret = PyObject_Call(py_func, py_tuple,NULL) ) == 0)
+        goto bad;
+    return ret;
+bad:
+    Py_XDECREF(py_name);
+    Py_XDECREF(py_module_name);
+    Py_XDECREF(py_module);
+    Py_XDECREF(py_dict);    
+    Py_XDECREF(py_func);
+    return 0;
+}
+"""]
+
 import_module_utility_code = [
 """
 static PyObject *__Pyx_ImportModule(char *name); /*proto*/
@@ -1692,7 +1850,12 @@ static PyTypeObject *__Pyx_ImportType(char *module_name, char *class_name,
 {
     PyObject *py_module = 0;
     PyObject *result = 0;
+    PyObject *py_name = 0;
     
+    py_name = PyString_FromString(module_name);
+    if (!py_name)
+        goto bad;
+        
     py_module = __Pyx_ImportModule(module_name);
     if (!py_module)
         goto bad;
@@ -1713,6 +1876,7 @@ static PyTypeObject *__Pyx_ImportType(char *module_name, char *class_name,
     }
     return (PyTypeObject *)result;
 bad:
+    Py_XDECREF(py_name);
     Py_XDECREF(result);
     return 0;
 }
@@ -1725,7 +1889,7 @@ function_export_utility_code = [
 """
 static int __Pyx_ExportFunction(char *n, void *f, char *s); /*proto*/
 """,r"""
-static int __Pyx_ExportFunction(char *n, void *f, char *s) {
+static int __Pyx_ExportFunction(char *name, void *f, char *sig) {
     PyObject *d = 0;
     PyObject *p = 0;
     d = PyObject_GetAttrString(%(MODULE)s, "%(API)s");
@@ -1738,10 +1902,10 @@ static int __Pyx_ExportFunction(char *n, void *f, char *s) {
         if (PyModule_AddObject(%(MODULE)s, "%(API)s", d) < 0)
             goto bad;
     }
-    p = PyCObject_FromVoidPtrAndDesc(f, s, 0);
+    p = PyCObject_FromVoidPtrAndDesc(f, sig, 0);
     if (!p)
         goto bad;
-    if (PyDict_SetItemString(d, n, p) < 0)
+    if (PyDict_SetItemString(d, name, p) < 0)
         goto bad;
     Py_DECREF(d);
     return 0;

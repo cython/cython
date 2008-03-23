@@ -310,6 +310,7 @@ def compile(source, options = None, c_compile = 0, c_link = 0,
 #------------------------------------------------------------------------
 
 def main(command_line = 0):
+
     args = sys.argv[1:]
     any_failures = 0
     if command_line:

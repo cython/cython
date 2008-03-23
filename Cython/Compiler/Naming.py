@@ -48,6 +48,8 @@ fileinit_cname   = pyrex_prefix + "init_filenames"
 intern_tab_cname = pyrex_prefix + "intern_tab"
 kwds_cname       = pyrex_prefix + "kwds"
 lineno_cname     = pyrex_prefix + "lineno"
+clineno_cname    = pyrex_prefix + "clineno"
+cfilenm_cname    = pyrex_prefix + "cfilenm"
 module_cname     = pyrex_prefix + "m"
 moddoc_cname     = pyrex_prefix + "mdoc"
 methtable_cname  = pyrex_prefix + "methods"
@@ -64,6 +66,9 @@ cleanup_cname    = pyrex_prefix + "module_cleanup"
 optional_args_cname = pyrex_prefix + "optional_args"
 no_opt_args      = pyrex_prefix + "no_opt_args"
 
+line_c_macro = "__LINE__"
+
+file_c_macro = "__FILE__"
 
 extern_c_macro  = pyrex_prefix.upper() + "EXTERN_C"
 
