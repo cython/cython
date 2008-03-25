@@ -14,6 +14,7 @@ from Symtab import ModuleScope, LocalScope, \
     StructOrUnionScope, PyClassScope, CClassScope
 from Cython.Utils import open_new_file, replace_suffix
 import Options
+import ControlFlow
 
 from DebugFlags import debug_disposal_code
 
@@ -119,15 +120,19 @@ class Node:
     
     
     #
-    #  There are 3 phases of parse tree processing, applied in order to
+    #  There are 4 phases of parse tree processing, applied in order to
     #  all the statements in a given scope-block:
+    #
+    #  (0) analyse_control_flow
+    #        Create the control flow tree into which state can be asserted and
+    #        queried.
     #
     #  (1) analyse_declarations
     #        Make symbol table entries for all declarations at the current
     #        level, both explicit (def, cdef, etc.) and implicit (assignment
     #        to an otherwise undeclared name).
     #
-    #		(2)	analyse_expressions
+    #  (2) analyse_expressions
     #         Determine the result types of expressions and fill in the
     #         'type' attribute of each ExprNode. Insert coercion nodes into the
     #         tree where needed to convert to and from Python objects. 
@@ -135,11 +140,14 @@ class Node:
     #         in the 'result_code' attribute of each ExprNode with a C code
     #         fragment.
     #
-    #   (3) generate_code
+    #  (3) generate_code
     #         Emit C code for all declarations, statements and expressions.
     #         Recursively applies the 3 processing phases to the bodies of
     #         functions.
     #
+    
+    def analyse_control_flow(self, env):
+        pass
     
     def analyse_declarations(self, env):
         pass
@@ -156,6 +164,26 @@ class Node:
         # mro does the wrong thing
         if isinstance(self, BlockNode):
             self.body.annotate(code)
+            
+    def end_pos(self):
+        try:
+            return self._end_pos
+        except AttributeError:
+            children = [acc.get() for acc in self.get_child_accessors()]
+            if len(children) == 0:
+                self._end_pos = self.pos
+            else:
+                # Sometimes lists, sometimes nodes
+                flat = []
+                for child in children:
+                    if child is None:
+                        pass
+                    elif isinstance(child, list):
+                        flat += child
+                    else:
+                        flat.append(child)
+                self._end_pos = max([child.end_pos() for child in flat])
+            return self._end_pos
 
 
 class BlockNode:
@@ -215,6 +243,10 @@ class StatListNode(Node):
     
     child_attrs = ["stats"]
     
+    def analyse_control_flow(self, env):
+        for stat in self.stats:
+            stat.analyse_control_flow(env)
+
     def analyse_declarations(self, env):
         #print "StatListNode.analyse_declarations" ###
         for stat in self.stats:
@@ -311,11 +343,12 @@ class CDeclaratorNode(Node):
 
 
 class CNameDeclaratorNode(CDeclaratorNode):
-    #  name   string           The Pyrex name being declared
-    #  cname  string or None   C name, if specified
+    #  name   string             The Pyrex name being declared
+    #  cname  string or None     C name, if specified
+    #  rhs    ExprNode or None   the value assigned on declaration
     
     child_attrs = []
-
+    
     def analyse(self, base_type, env):
         self.type = base_type
         return self, base_type
@@ -323,6 +356,7 @@ class CNameDeclaratorNode(CDeclaratorNode):
     def analyse_expressions(self, env):
         self.entry = env.lookup(self.name)
         if self.rhs is not None:
+            env.control_flow.set_state(self.rhs.end_pos(), (self.entry.name, 'initalized'), True)
             self.entry.used = 1
             if self.type.is_pyobject:
                 self.entry.init_to_none = False
@@ -770,6 +804,7 @@ class FuncDefNode(StatNode, BlockNode):
         code.init_labels()
         self.declare_arguments(lenv)
         transforms.run('before_analyse_function', self, env=env, lenv=lenv, genv=genv)
+        self.body.analyse_control_flow(lenv)
         self.body.analyse_declarations(lenv)
         self.body.analyse_expressions(lenv)
         transforms.run('after_analyse_function', self, env=env, lenv=lenv, genv=genv)
@@ -865,7 +900,9 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Return cleanup
         code.put_label(code.return_label)
         code.put_var_decrefs(lenv.var_entries, used_only = 1)
-        code.put_var_decrefs(lenv.arg_entries)
+        for entry in lenv.arg_entries:
+#            if len(entry.assignments) > 0:
+                code.put_var_decref(entry)
         self.put_stararg_decrefs(code)
         if acquire_gil:
             code.putln("PyGILState_Release(_save);")
@@ -894,7 +931,8 @@ class FuncDefNode(StatNode, BlockNode):
         # This is necessary, because if the argument is
         # assigned to, it will be decrefed.
         for entry in env.arg_entries:
-            code.put_var_incref(entry)
+#            if len(entry.assignments) > 0:
+                code.put_var_incref(entry)
 
     def generate_optarg_wrapper_function(self, env, code):
         pass
@@ -2714,6 +2752,15 @@ class IfStatNode(StatNode):
 
     child_attrs = ["if_clauses", "else_clause"]
     
+    def analyse_control_flow(self, env):
+        env.start_branching(self.pos)
+        for if_clause in self.if_clauses:
+            if_clause.analyse_control_flow(env)
+            env.next_branch(if_clause.end_pos())
+        if self.else_clause:
+            self.else_clause.analyse_control_flow(env)
+        env.finish_branching(self.end_pos())
+
     def analyse_declarations(self, env):
         for if_clause in self.if_clauses:
             if_clause.analyse_declarations(env)
@@ -2752,6 +2799,9 @@ class IfClauseNode(Node):
     
     child_attrs = ["condition", "body"]
 
+    def analyse_control_flow(self, env):
+        self.body.analyse_control_flow(env)
+        
     def analyse_declarations(self, env):
         self.condition.analyse_declarations(env)
         self.body.analyse_declarations(env)
@@ -2779,8 +2829,19 @@ class IfClauseNode(Node):
         self.condition.annotate(code)
         self.body.annotate(code)
         
+        
+class LoopNode:
     
-class WhileStatNode(StatNode):
+    def analyse_control_flow(self, env):
+        env.start_branching(self.pos)
+        self.body.analyse_control_flow(env)
+        env.next_branch(self.body.end_pos())
+        if self.else_clause:
+            self.else_clause.analyse_control_flow(env)
+        env.finish_branching(self.end_pos())
+
+    
+class WhileStatNode(LoopNode, StatNode):
     #  while statement
     #
     #  condition    ExprNode
@@ -2788,7 +2849,7 @@ class WhileStatNode(StatNode):
     #  else_clause  StatNode
 
     child_attrs = ["condition", "body", "else_clause"]
-    
+
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
         if self.else_clause:
@@ -2835,7 +2896,7 @@ def ForStatNode(pos, **kw):
     else:
         return ForFromStatNode(pos, **kw)
 
-class ForInStatNode(StatNode):
+class ForInStatNode(LoopNode, StatNode):
     #  for statement
     #
     #  target        ExprNode
@@ -2943,7 +3004,7 @@ class ForInStatNode(StatNode):
         self.item.annotate(code)
 
 
-class ForFromStatNode(StatNode):
+class ForFromStatNode(LoopNode, StatNode):
     #  for name from expr rel name rel expr
     #
     #  target        NameNode
@@ -2962,12 +3023,6 @@ class ForFromStatNode(StatNode):
     #  py_loopvar_node    PyTempNode or None
     child_attrs = ["target", "bound1", "bound2", "step", "body", "else_clause", "py_loopvar_node"]
     
-    def analyse_declarations(self, env):
-        self.target.analyse_target_declaration(env)
-        self.body.analyse_declarations(env)
-        if self.else_clause:
-            self.else_clause.analyse_declarations(env)
-
     def analyse_expressions(self, env):
         import ExprNodes
         self.target.analyse_target_types(env)
@@ -3084,8 +3139,21 @@ class TryExceptStatNode(StatNode):
     #  else_clause      StatNode or None
     #  cleanup_list     [Entry]            temps to clean up on error
 
-    child_attrs = ["body", "except_clauses", "else_clause", "cleanup_list"]
+    child_attrs = ["body", "except_clauses", "else_clause"]
     
+    def analyse_control_flow(self, env):
+        env.start_branching(self.pos)
+        self.body.analyse_control_flow(env)
+        for except_clause in self.except_clauses:
+            env.next_branch(except_clause.pos)
+            except_clause.analyse_control_flow(env)
+        if self.else_clause:
+            env.next_branch(self.except_clauses[-1].end_pos())
+            # the else cause it executed only when the try clause finishes
+            env.control_flow.incoming = env.control_flow.parent.branches[0]
+            self.else_clause.analyse_control_flow(env)
+        env.finish_branching(self.end_pos())
+
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
         for except_clause in self.except_clauses:
@@ -3239,7 +3307,7 @@ class TryFinallyStatNode(StatNode):
     #  exception on entry to the finally block and restore
     #  it on exit.
 
-    child_attrs = ["body", "finally_clause", "cleanup_list"]
+    child_attrs = ["body", "finally_clause"]
     
     preserve_exception = 1
     
@@ -3248,6 +3316,13 @@ class TryFinallyStatNode(StatNode):
     # continue in the try block, since we have no problem
     # handling it.
     
+    def analyse_control_flow(self, env):
+        env.start_branching(self.pos)
+        self.body.analyse_control_flow(env)
+        env.next_branch(self.body.end_pos())
+        self.finally_clause.analyse_control_flow(env)
+        env.finish_branching(self.end_pos())
+
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
         self.finally_clause.analyse_declarations(env)

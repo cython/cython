@@ -1162,10 +1162,13 @@ def p_try_statement(s):
         if s.sy == 'else':
             s.next()
             else_clause = p_suite(s)
-        return Nodes.TryExceptStatNode(pos,
+        body = Nodes.TryExceptStatNode(pos,
             body = body, except_clauses = except_clauses,
             else_clause = else_clause)
-    elif s.sy == 'finally':
+        if s.sy != 'finally':
+            return body
+        # try-except-finally is equivalent to nested try-except/try-finally
+    if s.sy == 'finally':
         s.next()
         finally_clause = p_suite(s)
         return Nodes.TryFinallyStatNode(pos,

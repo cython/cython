@@ -3,6 +3,8 @@
 #
 
 import re
+import bisect
+
 from Errors import warning, error, InternalError
 import Options
 import Naming
@@ -12,6 +14,7 @@ import TypeSlots
 from TypeSlots import \
     pyfunction_signature, pymethod_signature, \
     get_special_method_signature, get_property_accessor_signature
+import ControlFlow
 import __builtin__
 
 identifier_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*$")
@@ -43,6 +46,7 @@ class Entry:
     # setter_cname     string          C func for setting or deleting property
     # is_self_arg      boolean    Is the "self" arg of an exttype method
     # is_arg           boolean    Is the arg of a method
+    # is_local         boolean    Is a local variable
     # is_readonly      boolean    Can't be assigned to
     # func_cname       string     C func implementing Python func
     # pos              position   Source position where declared
@@ -91,6 +95,7 @@ class Entry:
     setter_cname = None
     is_self_arg = 0
     is_arg = 0
+    is_local = 0
     is_declared_generic = 0
     is_readonly = 0
     func_cname = None
@@ -117,8 +122,8 @@ class Entry:
         self.type = type
         self.pos = pos
         self.init = init
-
-
+        
+        
 class Scope:
     # name              string             Unqualified name
     # outer_scope       Scope or None      Enclosing scope
@@ -145,6 +150,7 @@ class Scope:
     # qualified_name    string             "modname" or "modname.classname"
     # pystring_entries  [Entry]            String const entries newly used as
     #                                        Python strings in this scope
+    # control_flow     ControlFlow  Used for keeping track of environment state
 
     is_py_class_scope = 0
     is_c_class_scope = 0
@@ -187,7 +193,17 @@ class Scope:
         self.num_to_entry = {}
         self.obj_to_entry = {}
         self.pystring_entries = []
+        self.control_flow = ControlFlow.LinearControlFlow()
+        
+    def start_branching(self, pos):
+        self.control_flow = self.control_flow.start_branch(pos)
     
+    def next_branch(self, pos):
+        self.control_flow = self.control_flow.next_branch(pos)
+        
+    def finish_branching(self, pos):
+        self.control_flow = self.control_flow.finish_branch(pos)
+        
     def __str__(self):
         return "<%s %s>" % (self.__class__.__name__, self.qualified_name)
     
@@ -233,6 +249,7 @@ class Scope:
         if name:
             entry.qualified_name = self.qualify_name(name)
             dict[name] = entry
+        entry.scope = self
         return entry
     
     def qualify_name(self, name):
@@ -341,6 +358,7 @@ class Scope:
         entry = self.declare(name, cname, type, pos)
         entry.is_variable = 1
         entry.visibility = visibility
+        self.control_flow.set_state((), (name, 'initalized'), False)
         return entry
         
     def declare_builtin(self, name, pos):
@@ -1025,6 +1043,7 @@ class LocalScope(Scope):
         entry = Scope.declare_var(self, name, type, pos, 
             cname, visibility, is_cdef)
         entry.init_to_none = type.is_pyobject
+        entry.is_local = 1
         self.var_entries.append(entry)
         return entry
     
