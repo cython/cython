@@ -1033,6 +1033,7 @@ class LocalScope(Scope):
         entry.is_arg = 1
         #entry.borrowed = 1 # Not using borrowed arg refs for now
         self.arg_entries.append(entry)
+        self.control_flow.set_state((), (name, 'source'), 'arg')
         return entry
     
     def declare_var(self, name, type, pos, 
@@ -1042,7 +1043,9 @@ class LocalScope(Scope):
             error(pos, "Local variable cannot be declared %s" % visibility)
         entry = Scope.declare_var(self, name, type, pos, 
             cname, visibility, is_cdef)
-        entry.init_to_none = type.is_pyobject
+        if type.is_pyobject and not Options.init_local_none:
+            entry.init = "0"
+        entry.init_to_none = type.is_pyobject and Options.init_local_none
         entry.is_local = 1
         self.var_entries.append(entry)
         return entry
