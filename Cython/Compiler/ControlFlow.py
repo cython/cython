@@ -37,19 +37,19 @@ class ControlFlow:
         self.parent.end_pos = pos
         return LinearControlFlow(pos, self.parent)
         
-    def get_state(self, pos, item):
-        return self.get_pos_state(pos, item)[1]
+    def get_state(self, item, pos=((),())):
+        return self.get_pos_state(item, pos)[1]
         
-    def get_pos_state(self, pos, item):
+    def get_pos_state(self, item, pos=((),())):
         # do some caching
         if pos > self.end_pos:
             try:
                 return self.tip[item]
             except KeyError:
-                self.tip[item] = pos_state = self._get_pos_state(pos, item)
+                self.tip[item] = pos_state = self._get_pos_state(item, pos)
                 return pos_state
         else:
-            return self._get_pos_state(pos, item)
+            return self._get_pos_state(item, pos)
         
 class LinearControlFlow(ControlFlow):
 
@@ -72,7 +72,7 @@ class LinearControlFlow(ControlFlow):
             bisect.insort(event_list, (pos, state))
             
         
-    def _get_pos_state(self, pos, item):
+    def _get_pos_state(self, item, pos):
         if pos > self.start_pos:
             if self.events.has_key(item):
                 event_list = self.events[item]
@@ -81,12 +81,12 @@ class LinearControlFlow(ControlFlow):
                         return event
                         
         if self.incoming is not None:
-            return self.incoming.get_pos_state(pos, item)
+            return self.incoming.get_pos_state(item, pos)
         
         else:
             return None, None
             
-    def to_string(self, indent, limit=None):
+    def to_string(self, indent='', limit=None):
     
         if len(self.events) == 0:
             s = indent + "[no state changes]"
@@ -124,19 +124,19 @@ class BranchingControlFlow(ControlFlow):
                     branch.set_state(pos, item, state)
                     return
     
-    def _get_pos_state(self, pos, item):
+    def _get_pos_state(self, item, pos):
         if pos <= self.start_pos:
-            return self.incoming.get_pos_state(pos, item)
+            return self.incoming.get_pos_state(item, pos)
         elif pos < self.end_pos:
             for branch_pos, branch in zip(self.branch_starts[::-1], self.branches[::-1]):
                 if pos >= branch_pos:
-                    return branch.get_pos_state(pos, item)
+                    return branch.get_pos_state(item, pos)
         else:
-            last_pos, last_state = self.branches[0].get_pos_state(pos, item)
+            last_pos, last_state = self.branches[0].get_pos_state(item, pos)
             if last_state is None:
                 return None, None
             for branch in self.branches[1:]:
-                other_pos, other_state = branch.get_pos_state(pos, item)
+                other_pos, other_state = branch.get_pos_state(item, pos)
                 if other_state is None or other_state != last_state:
                     return None, None
                 elif last_pos is not other_pos:
@@ -148,7 +148,7 @@ class BranchingControlFlow(ControlFlow):
         self.branch_starts.append(pos)
         return self.branches[-1]
 
-    def to_string(self, indent, limit=None):
+    def to_string(self, indent='', limit=None):
         join = "\n%sor\n" % indent
         s = join.join([branch.to_string(indent+"    ", limit=self.incoming) for branch in self.branches])
         if self.incoming is not limit and self.incoming is not None:

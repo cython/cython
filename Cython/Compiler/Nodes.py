@@ -357,6 +357,7 @@ class CNameDeclaratorNode(CDeclaratorNode):
         self.entry = env.lookup(self.name)
         if self.rhs is not None:
             env.control_flow.set_state(self.rhs.end_pos(), (self.entry.name, 'initalized'), True)
+            env.control_flow.set_state(self.rhs.end_pos(), (self.entry.name, 'source'), 'assignment')
             self.entry.used = 1
             if self.type.is_pyobject:
                 self.entry.init_to_none = False
@@ -846,7 +847,11 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
-        self.generate_argument_increfs(lenv, code)
+        # If an argument is assigned to in the body, we must 
+        # incref it to properly keep track of refcounts.
+        for entry in lenv.arg_entries:
+            if entry.type.is_pyobject and lenv.control_flow.get_state((entry.name, 'source')) != 'arg':
+                code.put_var_incref(entry)
         # ----- Initialise local variables
         for entry in lenv.var_entries:
             if entry.type.is_pyobject and entry.init_to_none and entry.used:
@@ -899,9 +904,15 @@ class FuncDefNode(StatNode, BlockNode):
                             #self.return_type.default_value))
         # ----- Return cleanup
         code.put_label(code.return_label)
+        if not Options.init_local_none:
+            for entry in lenv.var_entries:
+                print entry.name, lenv.control_flow.get_state((entry.name, 'initalized'))
+                if lenv.control_flow.get_state((entry.name, 'initalized')) is not True:
+                    entry.xdecref_cleanup = 1
         code.put_var_decrefs(lenv.var_entries, used_only = 1)
+        # Decref any increfed args
         for entry in lenv.arg_entries:
-#            if len(entry.assignments) > 0:
+            if entry.type.is_pyobject and lenv.control_flow.get_state((entry.name, 'source')) != 'arg':
                 code.put_var_decref(entry)
         self.put_stararg_decrefs(code)
         if acquire_gil:
@@ -914,7 +925,7 @@ class FuncDefNode(StatNode, BlockNode):
         if self.py_func:
             self.py_func.generate_function_definitions(env, code, transforms)
         self.generate_optarg_wrapper_function(env, code)
-
+        
     def put_stararg_decrefs(self, code):
         pass
 
@@ -925,15 +936,6 @@ class FuncDefNode(StatNode, BlockNode):
             error(arg.pos,
                 "Argument type '%s' is incomplete" % arg.type)
         return env.declare_arg(arg.name, arg.type, arg.pos)
-    
-    def generate_argument_increfs(self, env, code):
-        # Turn borrowed argument refs into owned refs.
-        # This is necessary, because if the argument is
-        # assigned to, it will be decrefed.
-        for entry in env.arg_entries:
-#            if len(entry.assignments) > 0:
-                code.put_var_incref(entry)
-
     def generate_optarg_wrapper_function(self, env, code):
         pass
 
@@ -2535,9 +2537,6 @@ class ContinueStatNode(StatNode):
         elif not code.continue_label:
             error(self.pos, "continue statement not inside loop")
         else:
-            #code.putln(
-            #	"goto %s;" %
-            #		code.continue_label)
             code.put_goto(code.continue_label)
 
 
@@ -3144,13 +3143,18 @@ class TryExceptStatNode(StatNode):
     def analyse_control_flow(self, env):
         env.start_branching(self.pos)
         self.body.analyse_control_flow(env)
+        successful_try = env.control_flow # grab this for later
+        env.next_branch(self.body.end_pos())
+        env.finish_branching(self.body.end_pos())
+        
+        env.start_branching(self.except_clauses[0].pos)
         for except_clause in self.except_clauses:
-            env.next_branch(except_clause.pos)
             except_clause.analyse_control_flow(env)
+            env.next_branch(except_clause.end_pos())
+            
+        # the else cause it executed only when the try clause finishes
+        env.control_flow.incoming = successful_try
         if self.else_clause:
-            env.next_branch(self.except_clauses[-1].end_pos())
-            # the else cause it executed only when the try clause finishes
-            env.control_flow.incoming = env.control_flow.parent.branches[0]
             self.else_clause.analyse_control_flow(env)
         env.finish_branching(self.end_pos())
 
@@ -3320,8 +3324,8 @@ class TryFinallyStatNode(StatNode):
         env.start_branching(self.pos)
         self.body.analyse_control_flow(env)
         env.next_branch(self.body.end_pos())
+        env.finish_branching(self.body.end_pos())
         self.finally_clause.analyse_control_flow(env)
-        env.finish_branching(self.end_pos())
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)

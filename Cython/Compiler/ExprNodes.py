@@ -818,6 +818,7 @@ class NameNode(AtomicExprNode):
         if not self.entry:
             self.entry = env.declare_var(self.name, py_object_type, self.pos)
         env.control_flow.set_state(self.pos, (self.name, 'initalized'), True)
+        env.control_flow.set_state(self.pos, (self.name, 'source'), 'assignment')
         if self.entry.is_declared_generic:
             self.result_ctype = py_object_type
     
@@ -947,11 +948,12 @@ class NameNode(AtomicExprNode):
                     self.entry.name,
                     code.error_goto_if_null(self.result_code, self.pos)))
         elif entry.is_local:
-            assigned = entry.scope.control_flow.get_state(self.pos, (entry.name, 'initalized'))
+            assigned = entry.scope.control_flow.get_state((entry.name, 'initalized'), self.pos)
             if assigned is False:
                 error(self.pos, "local variable '%s' referenced before assignment" % entry.name)
-            elif assigned is None:
-                code.putln('/* check %s */' % entry.cname)
+            elif not Options.init_local_none and assigned is None:
+                code.putln('if (%s == 0) { PyErr_SetString(PyExc_UnboundLocalError, "%s"); %s }' % (entry.cname, entry.name, code.error_goto(self.pos)))
+                entry.scope.control_flow.set_state(self.pos, (entry.name, 'initalized'), True)
 
     def generate_assignment_code(self, rhs, code):
         #print "NameNode.generate_assignment_code:", self.name ###
@@ -1004,7 +1006,14 @@ class NameNode(AtomicExprNode):
                 #print "...LHS type", self.type, "ctype", self.ctype() ###
                 #print "...RHS type", rhs.type, "ctype", rhs.ctype() ###
                 rhs.make_owned_reference(code)
-                code.put_decref(self.result_code, self.ctype())
+                if entry.is_local and not Options.init_local_none:
+                    initalized = entry.scope.control_flow.get_state((entry.name, 'initalized'), self.pos)
+                    if initalized is True:
+                        code.put_decref(self.result_code, self.ctype())
+                    elif initalized is None:
+                        code.put_xdecref(self.result_code, self.ctype())
+                else:
+                    code.put_decref(self.result_code, self.ctype())
             code.putln('%s = %s;' % (self.result_code, rhs.result_as(self.ctype())))
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
