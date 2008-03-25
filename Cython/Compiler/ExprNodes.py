@@ -817,6 +817,7 @@ class NameNode(AtomicExprNode):
         self.entry = env.lookup_here(self.name)
         if not self.entry:
             self.entry = env.declare_var(self.name, py_object_type, self.pos)
+        env.control_flow.set_state(self.pos, (self.name, 'initalized'), True)
         if self.entry.is_declared_generic:
             self.result_ctype = py_object_type
     
@@ -944,7 +945,13 @@ class NameNode(AtomicExprNode):
                     self.result_code,
                     namespace, 
                     self.entry.name,
-                    code.error_goto_if_null(self.result_code, self.pos)))		
+                    code.error_goto_if_null(self.result_code, self.pos)))
+        elif entry.is_local:
+            assigned = entry.scope.control_flow.get_state(self.pos, (entry.name, 'initalized'))
+            if assigned is False:
+                error(self.pos, "local variable '%s' referenced before assignment" % entry.name)
+            elif assigned is None:
+                code.putln('/* check %s */' % entry.cname)
 
     def generate_assignment_code(self, rhs, code):
         #print "NameNode.generate_assignment_code:", self.name ###
