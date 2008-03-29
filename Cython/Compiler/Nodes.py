@@ -1252,7 +1252,7 @@ class DefNode(FuncDefNode):
         any_type_tests_needed = 0
         # Use the simpler calling signature for zero- and one-argument functions.
         if not self.entry.is_special and not self.star_arg and not self.starstar_arg:
-            if self.entry.signature is TypeSlots.pyfunction_signature:
+            if self.entry.signature is TypeSlots.pyfunction_signature and Options.optimize_simple_methods:
                 if len(self.args) == 0:
                     self.entry.signature = TypeSlots.pyfunction_noargs
                 elif len(self.args) == 1:
