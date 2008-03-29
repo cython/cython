@@ -9,6 +9,9 @@ import bisect
 # could be done on get_state, clearing the cache on set_state (assuming 
 # incoming is immutable). 
 
+# This module still needs a lot of work, and probably should totally be 
+# redesigned. It doesn't take return, raise, continue, or break into 
+# account. 
 
 class ControlFlow:
 
