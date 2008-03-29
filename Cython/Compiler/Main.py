@@ -2,7 +2,7 @@
 #   Cython Top Level
 #
 
-import os, sys
+import os, sys, re
 if sys.version_info[:2] < (2, 2):
     print >>sys.stderr, "Sorry, Cython requires Python 2.2 or later"
     sys.exit(1)
@@ -166,7 +166,9 @@ class Context:
         cwd = os.getcwd()
 
         if full_module_name is None:
-            full_module_name, _ = os.path.splitext(source.replace('/', '.'))
+            full_module_name, _ = os.path.splitext(source)
+            full_module_name = re.sub(r'[\\/]', '.', full_module_name)
+            full_module_name = re.sub(r'[^\w.]', '_', full_module_name)
 
         source = os.path.join(cwd, source)
         
