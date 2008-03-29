@@ -3338,6 +3338,8 @@ class CmpNode:
             if (type1.is_extension_type or type2.is_extension_type) \
                     and not type1.same_as(type2):
                 common_type = py_object_type
+            elif type1.is_numeric:
+                common_type = PyrexTypes.widest_numeric_type(type1, type2)
             else:
                 common_type = type1
             code1 = operand1.result_as(common_type)
