@@ -947,7 +947,8 @@ class NameNode(AtomicExprNode):
                     namespace, 
                     self.entry.name,
                     code.error_goto_if_null(self.result_code, self.pos)))
-        elif entry.is_local:
+        elif entry.is_local and False:
+            # control flow not good enough yet
             assigned = entry.scope.control_flow.get_state((entry.name, 'initalized'), self.pos)
             if assigned is False:
                 error(self.pos, "local variable '%s' referenced before assignment" % entry.name)
