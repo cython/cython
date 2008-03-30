@@ -728,6 +728,9 @@ class CEnumDefItemNode(StatNode):
     def analyse_declarations(self, env, enum_entry):
         if self.value:
             self.value.analyse_const_expression(env)
+            if not self.value.type.is_int:
+                self.value = self.value.coerce_to(PyrexTypes.c_int_type, env)
+                self.value.analyse_const_expression(env)
             value = self.value.result_code
         else:
             value = self.name
