@@ -906,7 +906,6 @@ class FuncDefNode(StatNode, BlockNode):
         code.put_label(code.return_label)
         if not Options.init_local_none:
             for entry in lenv.var_entries:
-                print entry.name, lenv.control_flow.get_state((entry.name, 'initalized'))
                 if lenv.control_flow.get_state((entry.name, 'initalized')) is not True:
                     entry.xdecref_cleanup = 1
         code.put_var_decrefs(lenv.var_entries, used_only = 1)
@@ -1362,6 +1361,8 @@ class DefNode(FuncDefNode):
                 error(arg.pos, "Missing argument name")
             if arg.needs_conversion:
                 arg.entry = env.declare_var(arg.name, arg.type, arg.pos)
+                env.control_flow.set_state((), (arg.name, 'source'), 'arg')
+                env.control_flow.set_state((), (arg.name, 'initalized'), True)
                 if arg.type.is_pyobject:
                     arg.entry.init = "0"
                 arg.entry.init_to_none = 0
@@ -1385,6 +1386,7 @@ class DefNode(FuncDefNode):
             entry.init_to_none = 0
             entry.xdecref_cleanup = 1
             arg.entry = entry
+            env.control_flow.set_state((), (arg.name, 'initalized'), True)
             
     def analyse_expressions(self, env):
         self.analyse_default_values(env)
@@ -1479,16 +1481,23 @@ class DefNode(FuncDefNode):
     def generate_argument_parsing_code(self, env, code):
         # Generate PyArg_ParseTuple call for generic
         # arguments, if any.
+        old_error_label = code.new_error_label()
+        our_error_label = code.error_label
+        end_label = code.new_label()
+
         has_kwonly_args = self.num_kwonly_args > 0
         has_star_or_kw_args = self.star_arg is not None \
             or self.starstar_arg is not None or has_kwonly_args
+            
         if not self.signature_has_generic_args():
             if has_star_or_kw_args:
                 error(self.pos, "This method cannot have * or keyword arguments")
             self.generate_argument_conversion_code(code)
+            
         elif not self.signature_has_nongeneric_args():
             # func(*args) or func(**kw) or func(*args, **kw)
             self.generate_stararg_copy_code(code)
+            
         else:
             arg_addrs = []
             arg_formats = []
@@ -1530,14 +1539,12 @@ class DefNode(FuncDefNode):
 
             if has_star_or_kw_args:
                 self.generate_stararg_getting_code(code)
-            old_error_label = code.new_error_label()
-            our_error_label = code.error_label
-            end_label = code.new_label()
 
             self.generate_argument_tuple_parsing_code(
                 positional_args, arg_formats, arg_addrs, code)
 
-            code.error_label = old_error_label
+        code.error_label = old_error_label
+        if code.label_used(our_error_label):
             code.put_goto(end_label)
             code.put_label(our_error_label)
             if has_star_or_kw_args:
@@ -1548,6 +1555,7 @@ class DefNode(FuncDefNode):
                         code.put_var_xdecref(self.starstar_arg.entry)
                     else:
                         code.put_var_decref(self.starstar_arg.entry)
+            code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
             code.putln("return %s;" % self.error_value())
             code.put_label(end_label)
 
