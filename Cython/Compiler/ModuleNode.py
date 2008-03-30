@@ -1428,7 +1428,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("return;")
         code.put_label(code.error_label)
         code.put_var_xdecrefs(env.temp_entries)
-        code.putln('__Pyx_AddTraceback("%s",%s,%s);' % (env.qualified_name,Naming.cfilenm_cname,Naming.clineno_cname))
+        code.putln('__Pyx_AddTraceback("%s");' % env.qualified_name)
         env.use_utility_code(Nodes.traceback_utility_code)
         code.putln('}')
 
@@ -1449,7 +1449,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("return;")
         code.put_label(code.error_label)
         code.put_var_xdecrefs(env.temp_entries)
-        code.putln('__Pyx_AddTraceback("%s",%s,%s);' % (env.qualified_name,Naming.cfilenm_cname,Naming.clineno_cname))
+        code.putln('__Pyx_AddTraceback("%s");' % env.qualified_name)
         env.use_utility_code(Nodes.traceback_utility_code)
         code.putln('}')        
             
