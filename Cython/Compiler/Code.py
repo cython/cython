@@ -174,7 +174,10 @@ class CCodeWriter:
     
     def use_label(self, lbl):
         self.labels_used[lbl] = 1
-
+        
+    def label_used(self, lbl):
+        return lbl in self.labels_used
+        
     def put_label(self, lbl):
         if lbl in self.labels_used:
             self.putln("%s:;" % lbl)
