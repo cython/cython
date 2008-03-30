@@ -2,8 +2,12 @@
 
 import os, sys, unittest, doctest
 
-from Cython.Distutils.build_ext import build_ext
-from Cython.Distutils.extension import Extension
+#from Cython.Distutils.build_ext import build_ext
+#from Cython.Distutils.extension import Extension
+
+from distutils.extension import Extension
+from Cython.Distutils import build_ext
+
 
 from distutils.dist import Distribution
 distutils_distro = Distribution()

@@ -16,7 +16,7 @@ setup(
 #    Extension("inherit_bug", ["inherit_bug.pyx"]),
     Extension("override", ["override.pyx"]),
     Extension("cond", ["cond.pyx"]),
-    Extension("submodule.test",       ["submodule/test.pyx"]),
+#    Extension("submodule.test",       ["submodule/test.pyx"]),
     Extension("errors",       ["errors.pyx"]),
     Extension("cpdef",       ["cpdef.pyx"]),
     Extension("range",       ["range.pyx"]),
@@ -24,6 +24,7 @@ setup(
     Extension("ints",       ["ints.pyx"]),
     Extension("clear",       ["clear.pyx"]),
     Extension("detect_override",       ["detect_override.pyx"]),
+    Extension("fixes",       ["fixes.pyx"]),
     ],
   cmdclass = {'build_ext': build_ext},
 #  include_dirs = "/System/Library/Frameworks/Python.framework/Versions/2.3/include/python2.3/"
