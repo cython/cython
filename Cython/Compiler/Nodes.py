@@ -1010,8 +1010,8 @@ class CFuncDefNode(FuncDefNode):
             import ExprNodes
             py_func_body = self.call_self_node(is_module_scope = env.is_module_scope)
             self.py_func = DefNode(pos = self.pos, 
-                                   name = self.declarator.base.name,
-                                   args = self.declarator.args,
+                                   name = self.entry.name,
+                                   args = self.args,
                                    star_arg = None,
                                    starstar_arg = None,
                                    doc = self.doc,
@@ -1035,10 +1035,10 @@ class CFuncDefNode(FuncDefNode):
             args = args[:len(args) - self.type.optional_arg_count]
         arg_names = [arg.name for arg in args]
         if is_module_scope:
-            cfunc = ExprNodes.NameNode(self.pos, name=self.declarator.base.name)
+            cfunc = ExprNodes.NameNode(self.pos, name=self.entry.name)
         else:
             self_arg = ExprNodes.NameNode(self.pos, name=arg_names[0])
-            cfunc = ExprNodes.AttributeNode(self.pos, obj=self_arg, attribute=self.declarator.base.name)
+            cfunc = ExprNodes.AttributeNode(self.pos, obj=self_arg, attribute=self.entry.name)
         skip_dispatch = not is_module_scope or Options.lookup_module_cpdef
         c_call = ExprNodes.SimpleCallNode(self.pos, function=cfunc, args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names[1-is_module_scope:]], wrapper_call=skip_dispatch)
         return ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
