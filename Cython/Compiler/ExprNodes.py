@@ -1801,6 +1801,19 @@ class AttributeNode(ExprNode):
     entry = None
     is_called = 0
 
+    def coerce_to(self, dst_type, env):
+        #  If coercing to a generic pyobject and this is a cpdef function
+        #  we can create the corresponding attribute
+        if dst_type is py_object_type:
+            entry = self.entry
+            if entry and entry.is_cfunction and entry.as_variable:
+                # must be a cpdef function
+                self.is_temp = 1
+                self.entry = entry.as_variable
+                self.analyse_as_python_attribute(env) 
+                return self
+        return AtomicExprNode.coerce_to(self, dst_type, env)
+    
     def compile_time_value(self, denv):
         attr = self.attribute
         if attr.beginswith("__") and attr.endswith("__"):
@@ -1953,6 +1966,11 @@ class AttributeNode(ExprNode):
         # type, or it is an extension type and the attribute is either not
         # declared or is declared as a Python method. Treat it as a Python
         # attribute reference.
+        self.analyse_as_python_attribute(env)
+                    
+    def analyse_as_python_attribute(self, env):
+        obj_type = self.obj.type
+        self.member = self.attribute
         if obj_type.is_pyobject:
             self.type = py_object_type
             self.is_py_attr = 1
