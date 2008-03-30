@@ -884,9 +884,7 @@ class FuncDefNode(StatNode, BlockNode):
             err_val = self.error_value()
             exc_check = self.caller_will_check_exceptions()
             if err_val is not None or exc_check:
-                code.putln(
-                    '__Pyx_AddTraceback("%s",%s,%s);' % 
-                        (self.entry.qualified_name,Naming.cfilenm_cname,Naming.clineno_cname))
+                code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
                 if err_val is not None:
                     code.putln(
                         "%s = %s;" % (
@@ -3276,8 +3274,7 @@ class ExceptClauseNode(Node):
         else:
             code.putln(
                 "/*except:*/ {")
-        code.putln(
-            '__Pyx_AddTraceback("%s",%s,%s);' % (self.function_name, Naming.cfilenm_cname,Naming.clineno_cname))
+            code.putln('__Pyx_AddTraceback("%s");' % self.function_name)
         # We always have to fetch the exception value even if
         # there is no target, because this also normalises the 
         # exception and stores it in the thread state.
@@ -4095,13 +4092,13 @@ static void __Pyx_WriteUnraisable(char *name) {
 
 traceback_utility_code = [
 """
-static void __Pyx_AddTraceback(char *funcname, char* cfilename, unsigned int cfileline); /*proto*/
+static void __Pyx_AddTraceback(char *funcname); /*proto*/
 ""","""
 #include "compile.h"
 #include "frameobject.h"
 #include "traceback.h"
 
-static void __Pyx_AddTraceback(char *funcname, char* cfilename, unsigned int cfileline) {
+static void __Pyx_AddTraceback(char *funcname) {
     PyObject *py_srcfile = 0;
     PyObject *py_funcname = 0;
     PyObject *py_globals = 0;
@@ -4111,7 +4108,12 @@ static void __Pyx_AddTraceback(char *funcname, char* cfilename, unsigned int cfi
     
     py_srcfile = PyString_FromString(%(FILENAME)s);
     if (!py_srcfile) goto bad;
-    py_funcname = PyString_FromFormat( "%%s, %%s, %%u", funcname, cfilename, cfileline);
+    if (%(CLINENO)s) {
+        py_funcname = PyString_FromFormat( "%%s (%%s:%%u)", funcname, %(CFILENAME)s, %(CLINENO)s);
+    }
+    else {
+        py_funcname = PyString_FromString(funcname);
+    }
     if (!py_funcname) goto bad;
     py_globals = PyModule_GetDict(%(GLOBALS)s);
     if (!py_globals) goto bad;
@@ -4153,6 +4155,8 @@ bad:
 """ % {
     'FILENAME': Naming.filename_cname,
     'LINENO':  Naming.lineno_cname,
+    'CFILENAME': Naming.cfilenm_cname,
+    'CLINENO':  Naming.clineno_cname,
     'GLOBALS': Naming.module_cname,
     'EMPTY_TUPLE' : Naming.empty_tuple,
 }]

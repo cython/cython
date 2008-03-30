@@ -329,14 +329,17 @@ class CCodeWriter:
     def error_goto(self, pos):
         lbl = self.error_label
         self.use_label(lbl)
-        return "{%s = %s[%s]; %s = %s; %s = %s; goto %s;}" % (
+        if Options.c_line_in_traceback:
+            cinfo = "%s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
+        else:
+            cinfo = ""
+        return "{%s = %s[%s]; %s = %s; %s goto %s;}" % (
             Naming.filename_cname,
             Naming.filetable_cname,
             self.lookup_filename(pos[0]),
             Naming.lineno_cname,
             pos[1],
-            Naming.clineno_cname,
-            Naming.line_c_macro,
+            cinfo,
             lbl)
             
     def error_goto_if(self, cond, pos):

@@ -50,3 +50,6 @@ init_local_none = 1
 # calling conventions. These are faster calling conventions, but disallow the use of 
 # keywords (which, admittedly, are of little use in these cases). 
 optimize_simple_methods = 1
+
+# Append the c file and line number to the traceback for exceptions. 
+c_line_in_traceback = 1
