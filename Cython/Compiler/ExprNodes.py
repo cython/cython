@@ -1678,6 +1678,14 @@ class SimpleCallNode(ExprNode):
                         rhs = typecast(py_object_type, self.type, rhs)
                 else:
                     lhs = ""
+                # <fsw> added for generating C++ try/catch block
+                if func_type.exception_check == '+':
+                    code.putln(
+                    "try {%s%s;} catch(...) {CppExn2PyErr(); %s}" % (
+                        lhs,
+                        rhs,
+                        code.error_goto(self.pos)))
+                    return
                 code.putln(
                     "%s%s; %s" % (
                         lhs,

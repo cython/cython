@@ -1645,6 +1645,9 @@ def p_exception_value_clause(s):
         if s.sy == '*':
             exc_check = 1
             s.next()
+        elif s.sy == '+':
+            exc_check = '+'
+            s.next()
         else:
             if s.sy == '?':
                 exc_check = 1
