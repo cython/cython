@@ -747,8 +747,10 @@ class CFuncType(CType):
                 exc_clause = " except? %s" % self.exception_value
             elif self.exception_value:
                 exc_clause = " except %s" % self.exception_value
-            elif self.exception_check:
-                exc_clause = " except *"
+            elif self.exception_check == '+':
+                exc_clause = " except +"
+            else:
+                " except *"
         cc = self.calling_convention_prefix()
         if (not entity_code and cc) or entity_code.startswith("*"):
             entity_code = "(%s%s)" % (cc, entity_code)
