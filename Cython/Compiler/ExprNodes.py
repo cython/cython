@@ -889,7 +889,7 @@ class NameNode(AtomicExprNode):
     
     def check_const(self):
         entry = self.entry
-        if not (entry.is_const or entry.is_cfunction or entry.is_builtin):
+        if entry is not None and not (entry.is_const or entry.is_cfunction or entry.is_builtin):
             self.not_const()
     
     def check_const_addr(self):
@@ -1604,7 +1604,11 @@ class SimpleCallNode(ExprNode):
                 self.is_temp = 1
                 if self.type.is_pyobject:
                     self.result_ctype = py_object_type
-    
+        # C++ exception handler
+        if func_type.exception_check == '+':
+            if func_type.exception_value is None:
+                env.use_utility_code(cpp_exception_utility_code)
+
     def calculate_result_code(self):
         return self.c_call_code()
     
@@ -1678,12 +1682,18 @@ class SimpleCallNode(ExprNode):
                         rhs = typecast(py_object_type, self.type, rhs)
                 else:
                     lhs = ""
-                # <fsw> added for generating C++ try/catch block
                 if func_type.exception_check == '+':
+                    if func_type.exception_value is None:
+                        raise_py_exception = "__Pyx_CppExn2PyErr()"
+                    elif func_type.exception_value.type.is_pyobject:
+                        raise_py_exception = 'PyErr_SetString(%s, "")' % func_type.exception_value.entry.cname
+                    else:
+                        raise_py_exception = '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.")' % func_type.exception_value.entry.cname
                     code.putln(
-                    "try {%s%s;} catch(...) {CppExn2PyErr(); %s}" % (
+                    "try {%s%s;} catch(...) {%s; %s}" % (
                         lhs,
                         rhs,
+                        raise_py_exception,
                         code.error_goto(self.pos)))
                     return
                 code.putln(
@@ -4032,6 +4042,31 @@ static PyObject *__Pyx_CreateClass(
 bad:
     Py_XDECREF(py_modname);
     return result;
+}
+"""]
+
+#------------------------------------------------------------------------------------
+
+cpp_exception_utility_code = [
+"""
+static int __Pyx_CppExn2PyErr(); /*proto*/
+""","""
+void __Pyx_CppExn2PyErr() {
+  try {
+    if (PyErr_Occurred())
+      ; // let the latest Python exn pass through and ignore the current one
+    else
+      throw;
+  } catch (const std::out_of_range& exn) {
+    // catch out_of_range explicitly so the proper Python exn may be raised
+    PyErr_SetString(PyExc_IndexError, exn.what());
+  } catch (const std::exception& exn) {
+    PyErr_SetString(PyExc_RuntimeError, exn.what());
+  }
+  catch (...)
+  {
+    PyErr_SetString(PyExc_RuntimeError, "Unknown exception");
+  }
 }
 """]
 
