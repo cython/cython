@@ -702,15 +702,18 @@ def p_dict_maker(s):
     s.next()
     items = []
     while s.sy != '}':
-        key = p_simple_expr(s)
-        s.expect(':')
-        value = p_simple_expr(s)
-        items.append((key, value))
+        items.append(p_dict_item(s))
         if s.sy != ',':
             break
         s.next()
     s.expect('}')
     return ExprNodes.DictNode(pos, key_value_pairs = items)
+    
+def p_dict_item(s):
+    key = p_simple_expr(s)
+    s.expect(':')
+    value = p_simple_expr(s)
+    return ExprNodes.DictItemNode(key.pos, key=key, value=value)
 
 def p_backquote_expr(s):
     # s.sy == '`'
@@ -1743,8 +1746,11 @@ def p_cdef_statement(s, level, visibility = 'private', api = 0,
     if api:
         if visibility not in ('private', 'public'):
             error(pos, "Cannot combine 'api' with '%s'" % visibility)
-    if visibility == 'extern' and s.sy == 'from':
+    if (visibility == 'extern') and s.sy == 'from':
             return p_cdef_extern_block(s, level, pos)
+    elif s.sy == 'import':
+        s.next()
+        return p_cdef_extern_block(s, level, pos)
     elif s.sy == ':':
         return p_cdef_block(s, level, visibility, api)
     elif s.sy == 'class':
