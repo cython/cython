@@ -255,7 +255,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_filename_table(code)
         self.generate_utility_functions(env, code)
 
-        self.generate_declarations_for_module(env, modules, code.h)
+        self.generate_declarations_for_modules(env, modules, code.h)
 
         f = open_new_file(result.c_file)
         f.write(code.h.f.getvalue())
@@ -440,7 +440,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_exttype_vtable_struct(entry, code)
             self.generate_exttype_vtabptr_declaration(entry, code)
     
-    def generate_declarations_for_module(self, env, modules, code):
+    def generate_declarations_for_modules(self, env, modules, code):
         code.putln("")
         code.putln("/* Declarations */")
         vtab_dict = self.generate_vtab_dict(modules)

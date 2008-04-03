@@ -3043,6 +3043,12 @@ class ForFromStatNode(LoopNode, StatNode):
     #  py_loopvar_node    PyTempNode or None
     child_attrs = ["target", "bound1", "bound2", "step", "body", "else_clause", "py_loopvar_node"]
     
+    def analyse_declarations(self, env):
+        self.target.analyse_target_declaration(env)
+        self.body.analyse_declarations(env)
+        if self.else_clause:
+            self.else_clause.analyse_declarations(env)
+    
     def analyse_expressions(self, env):
         import ExprNodes
         self.target.analyse_target_types(env)

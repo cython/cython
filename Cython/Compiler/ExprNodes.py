@@ -870,8 +870,6 @@ class NameNode(AtomicExprNode):
     def check_identifier_kind(self):
         #print "NameNode.check_identifier_kind:", self.entry.name ###
         #print self.entry.__dict__ ###
-        print self
-        print self.pos, self.name
         entry = self.entry
         #entry.used = 1
         if not (entry.is_const or entry.is_variable 
