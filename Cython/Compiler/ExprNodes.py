@@ -1831,7 +1831,7 @@ class AttributeNode(ExprNode):
                 self.entry = entry.as_variable
                 self.analyse_as_python_attribute(env) 
                 return self
-        return AtomicExprNode.coerce_to(self, dst_type, env)
+        return ExprNode.coerce_to(self, dst_type, env)
     
     def compile_time_value(self, denv):
         attr = self.attribute
@@ -1948,7 +1948,7 @@ class AttributeNode(ExprNode):
         if self.obj.type.is_string:
             self.obj = self.obj.coerce_to_pyobject(env)
         obj_type = self.obj.type
-        if obj_type.is_ptr:
+        if obj_type.is_ptr or obj_type.is_array:
             obj_type = obj_type.base_type
             self.op = "->"
         elif obj_type.is_extension_type:
