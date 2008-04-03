@@ -1648,6 +1648,10 @@ def p_exception_value_clause(s):
         elif s.sy == '+':
             exc_check = '+'
             s.next()
+            if s.sy == 'IDENT':
+                name = s.systring
+                s.next()
+                exc_val = p_name(s, name)
         else:
             if s.sy == '?':
                 exc_check = 1
