@@ -477,7 +477,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         exc_val = None
         exc_check = 0
         if return_type.is_pyobject \
-            and (self.exception_value or self.exception_check):
+            and (self.exception_value or self.exception_check) \
+            and self.exception_check != '+':
                 error(self.pos,
                     "Exception clause not allowed for function returning Python object")
         else:
@@ -1841,6 +1842,8 @@ class OverrideCheckNode(StatNode):
     #  func_temp
     #  body
     
+    child_attrs = ['body']
+
     def analyse_expressions(self, env):
         self.args = env.arg_entries
         if self.py_func.is_module_scope:

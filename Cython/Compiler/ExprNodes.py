@@ -169,9 +169,9 @@ class ExprNode(Node):
     def get_child_attrs(self):
         """Automatically provide the contents of subexprs as children, unless child_attr
         has been declared. See Nodes.Node.get_child_accessors."""
-        if self.child_attrs != None:
-            return self.child_attr
-        elif self.subexprs != None:
+        if self.child_attrs is not None:
+            return self.child_attrs
+        elif self.subexprs is not None:
             return self.subexprs
         
     def not_implemented(self, method_name):
@@ -870,6 +870,8 @@ class NameNode(AtomicExprNode):
     def check_identifier_kind(self):
         #print "NameNode.check_identifier_kind:", self.entry.name ###
         #print self.entry.__dict__ ###
+        print self
+        print self.pos, self.name
         entry = self.entry
         #entry.used = 1
         if not (entry.is_const or entry.is_variable 
@@ -2364,22 +2366,16 @@ class DictNode(ExprNode):
     #  key_value_pairs  [(ExprNode, ExprNode)]
     
     def compile_time_value(self, denv):
-        pairs = [(key.compile_time_value(denv), value.compile_time_value(denv))
-            for (key, value) in self.key_value_pairs]
+        pairs = [(item.key.compile_time_value(denv), item.value.compile_time_value(denv))
+            for item in self.key_value_pairs]
         try:
             return dict(pairs)
         except Exception, e:
             self.compile_time_value_error(e)
     
     def analyse_types(self, env):
-        new_pairs = []
-        for key, value in self.key_value_pairs:
-            key.analyse_types(env)
-            value.analyse_types(env)
-            key = key.coerce_to_pyobject(env)
-            value = value.coerce_to_pyobject(env)
-            new_pairs.append((key, value))
-        self.key_value_pairs = new_pairs
+        for item in self.key_value_pairs:
+            item.analyse_types(env)
         self.type = py_object_type
         self.is_temp = 1
     
@@ -2387,11 +2383,11 @@ class DictNode(ExprNode):
         #  Custom method used here because key-value
         #  pairs are evaluated and used one at a time.
         self.allocate_temp(env, result)
-        for key, value in self.key_value_pairs:
-            key.allocate_temps(env)
-            value.allocate_temps(env)
-            key.release_temp(env)
-            value.release_temp(env)
+        for item in self.key_value_pairs:
+            item.key.allocate_temps(env)
+            item.value.allocate_temps(env)
+            item.key.release_temp(env)
+            item.value.release_temp(env)
     
     def generate_evaluation_code(self, code):
         #  Custom method used here because key-value
@@ -2400,21 +2396,39 @@ class DictNode(ExprNode):
             "%s = PyDict_New(); %s" % (
                 self.result_code,
                 code.error_goto_if_null(self.result_code, self.pos)))
-        for key, value in self.key_value_pairs:
-            key.generate_evaluation_code(code)
-            value.generate_evaluation_code(code)
+        for item in self.key_value_pairs:
+            item.generate_evaluation_code(code)
             code.put_error_if_neg(self.pos, 
                 "PyDict_SetItem(%s, %s, %s)" % (
                     self.result_code,
-                    key.py_result(),
-                    value.py_result()))
-            key.generate_disposal_code(code)
-            value.generate_disposal_code(code)
+                    item.key.py_result(),
+                    item.value.py_result()))
+            item.generate_disposal_code(code)
             
     def annotate(self, code):
-        for key, value in self.key_value_pairs:
-            key.annotate(code)
-            value.annotate(code)
+        for item in self.key_value_pairs:
+            item.annotate(code)
+            
+class DictItemNode(ExprNode):
+    # Represents a single item in a DictNode
+    #
+    # key          ExprNode
+    # value        ExprNode
+    subexprs = ['key', 'value']
+            
+    def analyse_types(self, env):
+        self.key.analyse_types(env)
+        self.value.analyse_types(env)
+        self.key = self.key.coerce_to_pyobject(env)
+        self.value = self.value.coerce_to_pyobject(env)
+        
+    def generate_evaluation_code(self, code):
+        self.key.generate_evaluation_code(code)
+        self.value.generate_evaluation_code(code)
+        
+    def generate_disposal_code(self, code):
+        self.key.generate_disposal_code(code)
+        self.value.generate_disposal_code(code)
 
 class ClassNode(ExprNode):
     #  Helper class used in the implementation of Python
@@ -3411,6 +3425,8 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     #  Instead, we override all the framework methods
     #  which use it.
     
+    child_attrs = ['operand1', 'operand2', 'cascade']
+    
     cascade = None
     
     def compile_time_value(self, denv):
@@ -3529,6 +3545,8 @@ class CascadedCmpNode(Node, CmpNode):
     #  operator      string
     #  operand2      ExprNode
     #  cascade       CascadedCmpNode
+
+    child_attrs = ['operand2', 'cascade']
 
     cascade = None
     

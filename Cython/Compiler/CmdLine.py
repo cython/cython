@@ -30,7 +30,8 @@ Options:
   -D, --no-docstrings            Remove docstrings.
   -a, --annotate                 Produce an colorized version of the source.
   --convert-range                Convert for loops using range() function to for...from loops. 
-"""  
+  --cplus                        Output a c++ rather than c file.
+"""
 #The following experimental options are supported only on MacOSX:
 #  -C, --compile    Compile generated .c file to .o file
 #  -X, --link       Link .o file to produce extension module (implies -C)
