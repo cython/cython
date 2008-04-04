@@ -1425,7 +1425,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Function import code ---*/")
         for module in imported_modules:
             self.generate_c_function_import_code_for_module(module, env, code)
-        env.use_utility_code(function_import_utility_code)
         code.putln('init2%s();' % env.module_name)
         if Options.generate_cleanup_code:
             code.putln("if (__Pyx_RegisterCleanup()) %s;" % code.error_goto(self.pos))
@@ -1437,6 +1436,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('}')
 
     def generate_module_init2_func(self, imported_modules, env, code):
+        code.init_labels()
         code.putln("")
         header = "PyMODINIT_FUNC init2%s(void)" % env.module_name
         code.putln("%s; /*proto*/" % header)
@@ -1647,7 +1647,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_type_import_code(env, base_type, self.pos, code)
     
     def use_type_import_utility_code(self, env):
-        import ExprNodes
         env.use_utility_code(type_import_utility_code)
         env.use_utility_code(import_module_utility_code)
     
