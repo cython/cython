@@ -330,10 +330,10 @@ class CCodeWriter:
         lbl = self.error_label
         self.use_label(lbl)
         if Options.c_line_in_traceback:
-            cinfo = "%s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
+            cinfo = " %s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
         else:
             cinfo = ""
-        return "{%s = %s[%s]; %s = %s; %s goto %s;}" % (
+        return "{%s = %s[%s]; %s = %s;%s goto %s;}" % (
             Naming.filename_cname,
             Naming.filetable_cname,
             self.lookup_filename(pos[0]),

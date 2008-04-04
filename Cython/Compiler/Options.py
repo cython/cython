@@ -52,4 +52,4 @@ init_local_none = 1
 optimize_simple_methods = 1
 
 # Append the c file and line number to the traceback for exceptions. 
-c_line_in_traceback = 1
+c_line_in_traceback = 0

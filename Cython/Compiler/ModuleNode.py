@@ -20,22 +20,26 @@ from PyrexTypes import py_object_type
 from Cython.Utils import open_new_file, replace_suffix
 
 
-def recurse_vtab_check_inheritance(entry,b, dict):
+def recurse_vtab_check_inheritance(entry, b, dict):
     base = entry
     while base is not None:
         if base.type.base_type is None or base.type.base_type.vtabstruct_cname is None:
             return False
         if base.type.base_type.vtabstruct_cname == b.type.vtabstruct_cname:
             return True
+        if base.type.base_type.typedef_flag:
+            return True
         base = dict[base.type.base_type.vtabstruct_cname]
     return False
     
-def recurse_vtabslot_check_inheritance(entry,b, dict):
+def recurse_vtabslot_check_inheritance(entry, b, dict):
     base = entry
     while base is not None:
         if base.type.base_type is None:
             return False
         if base.type.base_type.objstruct_cname == b.type.objstruct_cname:
+            return True
+        if base.type.base_type.typedef_flag:
             return True
         base = dict[base.type.base_type.objstruct_cname]
     return False
@@ -319,7 +323,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.pre_import is not None:
             code.putln('static PyObject *%s;' % Naming.preimport_cname)
         code.putln('static int %s;' % Naming.lineno_cname)
-        code.putln('static int %s;' % Naming.clineno_cname)
+        code.putln('static int %s = 0;' % Naming.clineno_cname)
         code.putln('static char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
         code.putln('static char *%s;' % Naming.filename_cname)
         code.putln('static char **%s;' % Naming.filetable_cname)
@@ -404,6 +408,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     scope = type.scope
                     vtab_dict[type.objstruct_cname]=entry
         return vtab_dict
+        
     def generate_vtabslot_list(self, vtab_dict):
         vtab_list = list()
         for entry in vtab_dict.itervalues():
@@ -1381,8 +1386,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         header = "PyMODINIT_FUNC init%s(void)" % env.module_name
         code.putln("%s; /*proto*/" % header)
         code.putln("%s {" % header)
-        code.putln("PyObject* __pyx_internal1;")
-        code.putln("PyObject* __pyx_internal2;")
+        # do we need any of these here, or just in init2?
         code.put_var_declarations(env.temp_entries)
 
         code.putln("/*--- Libary function declarations ---*/")

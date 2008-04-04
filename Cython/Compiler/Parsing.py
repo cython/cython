@@ -323,6 +323,8 @@ def p_call(s, function):
             else:
                 arg_tuple = star_arg_tuple
         if keyword_args:
+            keyword_args = [ExprNodes.DictItemNode(pos=key.pos, key=key, value=value) 
+                              for key, value in keyword_args]
             keyword_dict = ExprNodes.DictNode(pos,
                 key_value_pairs = keyword_args)
         return ExprNodes.GeneralCallNode(pos, 

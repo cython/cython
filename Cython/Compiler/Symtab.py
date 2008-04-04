@@ -1070,6 +1070,8 @@ class StructOrUnionScope(Scope):
         # Add an entry for an attribute.
         if not cname:
             cname = name
+        if type.is_cfunction:
+            type = CPtrType(type)
         entry = self.declare(name, cname, type, pos)
         entry.is_variable = 1
         self.var_entries.append(entry)
