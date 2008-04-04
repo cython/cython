@@ -2361,7 +2361,9 @@ class ListComprehensionAppendNode(ExprNode):
 class DictNode(ExprNode):
     #  Dictionary constructor.
     #
-    #  key_value_pairs  [(ExprNode, ExprNode)]
+    #  key_value_pairs  [DictItemNode]
+    
+    subexprs = ['key_value_pairs']
     
     def compile_time_value(self, denv):
         pairs = [(item.key.compile_time_value(denv), item.value.compile_time_value(denv))

@@ -182,7 +182,10 @@ class Node:
                         flat += child
                     else:
                         flat.append(child)
-                self._end_pos = max([child.end_pos() for child in flat])
+                if len(flat) == 0:
+                    self._end_pos = self.pos
+                else:
+                    self._end_pos = max([child.end_pos() for child in flat])
             return self._end_pos
 
 
@@ -3290,9 +3293,8 @@ class ExceptClauseNode(Node):
                 "if (%s) {" %
                     self.match_flag)
         else:
-            code.putln(
-                "/*except:*/ {")
-            code.putln('__Pyx_AddTraceback("%s");' % self.function_name)
+            code.putln("/*except:*/ {")
+        code.putln('__Pyx_AddTraceback("%s");' % self.function_name)
         # We always have to fetch the exception value even if
         # there is no target, because this also normalises the 
         # exception and stores it in the thread state.
