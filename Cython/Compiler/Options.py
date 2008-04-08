@@ -32,7 +32,7 @@ annotate = 0
 # i to overflow. Specifically, if this option is set, an error will be
 # raised before the loop is entered, wheras without this option the loop
 # will execute util a overflowing value is encountered. 
-convert_range = 0
+convert_range = 1
 
 # Enable this to allow one to write your_module.foo = ... to overwrite the 
 # definition if the cpdef function foo, at the cost of an extra dictionary 
@@ -52,4 +52,4 @@ init_local_none = 1
 optimize_simple_methods = 1
 
 # Append the c file and line number to the traceback for exceptions. 
-c_line_in_traceback = 0
+c_line_in_traceback = 1
