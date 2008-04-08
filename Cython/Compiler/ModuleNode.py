@@ -27,9 +27,10 @@ def recurse_vtab_check_inheritance(entry, b, dict):
             return False
         if base.type.base_type.vtabstruct_cname == b.type.vtabstruct_cname:
             return True
-        if base.type.base_type.typedef_flag:
+        try:
+            base = dict[base.type.base_type.vtabstruct_cname]
+        except KeyError:
             return True
-        base = dict[base.type.base_type.vtabstruct_cname]
     return False
     
 def recurse_vtabslot_check_inheritance(entry, b, dict):
@@ -39,9 +40,10 @@ def recurse_vtabslot_check_inheritance(entry, b, dict):
             return False
         if base.type.base_type.objstruct_cname == b.type.objstruct_cname:
             return True
-        if base.type.base_type.typedef_flag:
+        try:
+            base = dict[base.type.base_type.objstruct_cname]
+        except KeyError:
             return True
-        base = dict[base.type.base_type.objstruct_cname]
     return False
     
 
