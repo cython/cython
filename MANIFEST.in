@@ -1,7 +1,6 @@
 include MANIFEST.in README.txt INSTALL.txt CHANGES.txt ToDo.txt USAGE.txt
 include CHANGES_pyrex.txt COPYING.txt LICENSE.txt Makefile
 recursive-include .hg *
-recursive-include Cython/.hg *
 include setup.py
 include bin/cython
 include cython.py
@@ -9,6 +8,8 @@ include Cython/Compiler/Lexicon.pickle
 include Doc/*
 include Demos/*.pyx
 include Demos/*.pxd
+include Demos/callback/*.pyx
+include Demos/callback/*.pxd
 include Demos/Setup.py
 include Demos/Makefile*
 include Tools/*
