@@ -72,7 +72,6 @@ class CythonCompileTestCase(unittest.TestCase):
             module,
             sources = [os.path.join(directory, module + '.pyx')],
             extra_compile_args = CFLAGS,
-            pyrex_c_in_temp = 1
             )
         build_extension.extensions = [extension]
         build_extension.build_temp = workdir
