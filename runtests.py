@@ -2,10 +2,7 @@
 
 import os, sys, unittest, doctest
 
-#from Cython.Distutils.build_ext import build_ext
-#from Cython.Distutils.extension import Extension
-
-from distutils.extension import Extension
+from Cython.Distutils.extension import Extension
 from Cython.Distutils import build_ext
 
 from distutils.dist import Distribution
@@ -72,6 +69,7 @@ class CythonCompileTestCase(unittest.TestCase):
             module,
             sources = [os.path.join(directory, module + '.pyx')],
             extra_compile_args = CFLAGS,
+            pyrex_c_in_temp = 1
             )
         build_extension.extensions = [extension]
         build_extension.build_temp = workdir
