@@ -49,13 +49,17 @@ __doc__ = r"""
     True
     >>> d == u'üÖä'
     True
-    >>> e == u'\x03\x67\xf8\uf8d2Søk ik'
+    >>> e == u'\x03\x67\xf8\uf8d2Søk ik'     # unescaped by Cython
     True
-    >>> f == u'\xf8'
+    >>> e == u'\\x03\\x67\\xf8\\uf8d2Søk ik' # unescaped by Python
+    True
+    >>> f == u'\xf8'  # unescaped by Cython
+    True
+    >>> f == u'\\xf8' # unescaped by Python
     True
     >>> add == u'Søk ik' + u'üÖä' + 'abc'
     True
-    >>> null == u'\\x00' # doctest needs a double slash here
+    >>> null == u'\\x00' # unescaped by Python (required by doctest)
     True
 """
 
