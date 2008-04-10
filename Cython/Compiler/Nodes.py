@@ -1921,7 +1921,7 @@ class PyClassDefNode(StatNode, BlockNode):
         if self.doc and Options.docstrings:
             if Options.embed_pos_in_docstring:
                 doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
-            doc = doc + '\\n' + self.doc
+                doc = doc + '\\n' + self.doc
             doc_node = ExprNodes.StringNode(pos, value = doc)
         else:
             doc_node = None
