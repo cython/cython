@@ -1,8 +1,12 @@
 __doc__ = """
     >>> c()
     120
-    >>> i()
-    42
+    >>> i1() == 42
+    True
+    >>> i2() == 0x42
+    True
+    >>> i3() == 042
+    True
     >>> l()
     666
     >>> f()
@@ -23,7 +27,9 @@ DEF TUPLE = (1, 2, "buckle my shoe")
 DEF TRUE_FALSE = (True, False)
 
 DEF CHAR = c'x'
-DEF INT = 42
+DEF INT1 = 42
+DEF INT2 = 0x42
+DEF INT3 = 042
 DEF LONG = 666L
 DEF FLOAT = 12.5
 DEF STR = "spam"
@@ -37,9 +43,19 @@ def c():
     c = CHAR
     return c
 
-def i():
+def i1():
     cdef int i
-    i = INT
+    i = INT1
+    return i
+
+def i2():
+    cdef int i
+    i = INT2
+    return i
+
+def i3():
+    cdef int i
+    i = INT3
     return i
 
 def l():
