@@ -776,7 +776,7 @@ class NameNode(AtomicExprNode):
         try:
             return denv.lookup(self.name)
         except KeyError:
-            error(self.pos, "Compile-time name '%s' not defined", self.name)
+            error(self.pos, "Compile-time name '%s' not defined" % self.name)
     
     def coerce_to(self, dst_type, env):
         #  If coercing to a generic pyobject and this is a builtin
