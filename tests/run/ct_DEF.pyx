@@ -11,6 +11,12 @@ __doc__ = """
     666
     >>> f()
     12.5
+    >>> nan()
+    nan
+    >>> infp()
+    inf
+    >>> infn()
+    -inf
     >>> s()
     'spam'
     >>> two()
@@ -32,6 +38,9 @@ DEF INT2 = 0x42
 DEF INT3 = 042
 DEF LONG = 666L
 DEF FLOAT = 12.5
+DEF FLOAT_NAN = float('nan')
+DEF FLOAT_INFP = float('+inf')
+DEF FLOAT_INFN = float('-inf')
 DEF STR = "spam"
 DEF TWO = TUPLE[1]
 DEF FIVE = TWO + 3
@@ -66,6 +75,21 @@ def l():
 def f():
     cdef float f
     f = FLOAT
+    return f
+
+def nan():
+    cdef float f
+    f = FLOAT_NAN
+    return f
+
+def infp():
+    cdef float f
+    f = FLOAT_INFP
+    return f
+
+def infn():
+    cdef float f
+    f = FLOAT_INFN
     return f
 
 def s():

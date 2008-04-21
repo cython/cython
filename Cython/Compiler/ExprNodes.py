@@ -677,6 +677,17 @@ class FloatNode(ConstNode):
 
     def compile_time_value(self, denv):
         return float(self.value)
+    
+    def calculate_result_code(self):
+        strval = str(self.value)
+        if strval == 'nan':
+            return "NAN"
+        elif strval == 'inf':
+            return "INFINITY"
+        elif strval == '-inf':
+            return "(-INFINITY)"
+        else:
+            return strval
 
 
 class StringNode(ConstNode):
