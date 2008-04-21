@@ -669,7 +669,7 @@ class IntNode(ConstNode):
             return str(self.value)
 
     def compile_time_value(self, denv):
-        return int(self.value)
+        return int(self.value, 0)
 
 
 class FloatNode(ConstNode):
