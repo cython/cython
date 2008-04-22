@@ -1965,7 +1965,7 @@ class PyClassDefNode(StatNode, BlockNode):
         self.dict.generate_disposal_code(code)
 
 
-class CClassDefNode(StatNode):
+class CClassDefNode(StatNode, BlockNode):
     #  An extension type definition.
     #
     #  visibility         'private' or 'public' or 'extern'
@@ -2058,6 +2058,7 @@ class CClassDefNode(StatNode):
             self.body.analyse_expressions(scope)
     
     def generate_function_definitions(self, env, code, transforms):
+        self.generate_py_string_decls(self.entry.type.scope, code)
         if self.body:
             self.body.generate_function_definitions(
                 self.entry.type.scope, code, transforms)
