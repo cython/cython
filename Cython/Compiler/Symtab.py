@@ -3,8 +3,6 @@
 #
 
 import re
-import bisect
-
 from Errors import warning, error, InternalError
 import Options
 import Naming
