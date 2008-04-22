@@ -281,8 +281,10 @@ def p_call(s, function):
             if not arg.is_name:
                 s.error("Expected an identifier before '='",
                     pos = arg.pos)
+            encoded_name = ExprNodes.EncodedString(arg.name)
+            encoded_name.encoding = s.source_encoding
             keyword = ExprNodes.StringNode(arg.pos, 
-                value = arg.name)
+                value = encoded_name)
             arg = p_simple_expr(s)
             keyword_args.append((keyword, arg))
         else:
@@ -459,7 +461,7 @@ def p_atom(s):
         value = s.systring[:-1]
         s.next()
         return ExprNodes.ImagNode(pos, value = value)
-    elif sy == 'STRING' or sy == 'BEGIN_STRING':
+    elif sy == 'BEGIN_STRING':
         kind, value = p_cat_string_literal(s)
         if kind == 'c':
             return ExprNodes.CharNode(pos, value = value)
@@ -500,7 +502,12 @@ def p_name(s, name):
             elif isinstance(value, float):
                 return ExprNodes.FloatNode(pos, value = rep)
             elif isinstance(value, str):
-                return ExprNodes.StringNode(pos, value = rep[1:-1])
+                sval = ExprNodes.EncodedString(rep[1:-1])
+                sval.encoding = value.encoding
+                return ExprNodes.StringNode(pos, value = sval)
+            elif isinstance(value, unicode):
+                sval = ExprNodes.EncodedString(rep[2:-1])
+                return ExprNodes.StringNode(pos, value = sval)
             else:
                 error(pos, "Invalid type for compile-time constant: %s"
                     % value.__class__.__name__)
@@ -508,21 +515,25 @@ def p_name(s, name):
 
 def p_cat_string_literal(s):
     # A sequence of one or more adjacent string literals.
-    # Returns (kind, value) where kind in ('', 'c', 'r')
+    # Returns (kind, value) where kind in ('', 'c', 'r', 'u')
     kind, value = p_string_literal(s)
     if kind != 'c':
         strings = [value]
-        while s.sy == 'STRING' or s.sy == 'BEGIN_STRING':
+        while s.sy == 'BEGIN_STRING':
             next_kind, next_value = p_string_literal(s)
             if next_kind == 'c':
                 self.error(
                     "Cannot concatenate char literal with another string or char literal")
+            elif next_kind == 'u':
+                kind = 'u'
             strings.append(next_value)
-        value = ''.join(strings)
+        value = ExprNodes.EncodedString( u''.join(strings) )
+        if kind != 'u':
+            value.encoding = s.source_encoding
     return kind, value
 
 def p_opt_string_literal(s):
-    if s.sy == 'STRING' or s.sy == 'BEGIN_STRING':
+    if s.sy == 'BEGIN_STRING':
         return p_string_literal(s)
     else:
         return None
@@ -530,10 +541,6 @@ def p_opt_string_literal(s):
 def p_string_literal(s):
     # A single string or char literal.
     # Returns (kind, value) where kind in ('', 'c', 'r', 'u')
-    if s.sy == 'STRING':
-        value = unquote(s.systring)
-        s.next()
-        return value
     # s.sy == 'BEGIN_STRING'
     pos = s.position()
     #is_raw = s.systring[:1].lower() == "r"
@@ -549,8 +556,6 @@ def p_string_literal(s):
             systr = s.systring
             if len(systr) == 1 and systr in "'\"\n":
                 chars.append('\\')
-            if kind == 'u' and not isinstance(systr, unicode):
-                systr = systr.decode("UTF-8")
             chars.append(systr)
         elif sy == 'ESCAPE':
             systr = s.systring
@@ -572,7 +577,8 @@ def p_string_literal(s):
                 elif c in 'ux':
                     if kind == 'u':
                         try:
-                            chars.append(systr.decode('unicode_escape'))
+                            chars.append(
+                                systr.encode("ASCII").decode('unicode_escape'))
                         except UnicodeDecodeError:
                             s.error("Invalid unicode escape '%s'" % systr,
                                     pos = pos)
@@ -593,50 +599,12 @@ def p_string_literal(s):
                 "Unexpected token %r:%r in string literal" %
                     (sy, s.systring))
     s.next()
-    value = ''.join(chars)
+    value = ExprNodes.EncodedString( u''.join(chars) )
+    if kind != 'u':
+        value.encoding = s.source_encoding
     #print "p_string_literal: value =", repr(value) ###
     return kind, value
 
-def unquote(s):
-    is_raw = 0
-    if s[:1].lower() == "r":
-        is_raw = 1
-        s = s[1:]
-    q = s[:3]
-    if q == '"""' or q == "'''":
-        s = s[3:-3]
-    else:
-        s = s[1:-1]
-    if is_raw:
-        s = s.replace('\\', '\\\\')
-        s = s.replace('\n', '\\\n')
-    else:
-        # Split into double quotes, newlines, escape sequences 
-        # and spans of regular chars
-        l1 = re.split(r'((?:\\[0-7]{1,3})|(?:\\x[0-9A-Fa-f]{2})|(?:\\.)|(?:\\\n)|(?:\n)|")', s)
-        #print "unquote: l1 =", l1 ###
-        l2 = []
-        for item in l1:
-            if item == '"' or item == '\n':
-                l2.append('\\' + item)
-            elif item == '\\\n':
-                pass
-            elif item[:1] == '\\':
-                if len(item) == 2:
-                    if item[1] in '"\\abfnrtv':
-                        l2.append(item)
-                    else:
-                        l2.append(item[1])
-                elif item[1:2] == 'x':
-                    l2.append('\\x0' + item[2:])
-                else:
-                    # octal escape
-                    l2.append(item)
-            else:
-                l2.append(item)
-        s = "".join(l2)
-    return s
-        
 # list_display  	::=  	"[" [listmaker] "]"
 # listmaker 	::= 	expression ( list_for | ( "," expression )* [","] )
 # list_iter 	::= 	list_for | list_if
@@ -946,6 +914,8 @@ def p_import_statement(s):
                     ExprNodes.StringNode(pos, value = "*")])
             else:
                 name_list = None
+            dotted_name = ExprNodes.EncodedString(dotted_name)
+            dotted_name.encoding = s.source_encoding
             stat = Nodes.SingleAssignmentNode(pos,
                 lhs = ExprNodes.NameNode(pos, 
                     name = as_name or target_name),
@@ -984,14 +954,18 @@ def p_from_import_statement(s):
         imported_name_strings = []
         items = []
         for (name_pos, name, as_name) in imported_names:
+            encoded_name = ExprNodes.EncodedString(name)
+            encoded_name.encoding = s.source_encoding
             imported_name_strings.append(
-                ExprNodes.StringNode(name_pos, value = name))
+                ExprNodes.StringNode(name_pos, value = encoded_name))
             items.append(
                 (name,
                  ExprNodes.NameNode(name_pos, 
                  	name = as_name or name)))
         import_list = ExprNodes.ListNode(
             imported_names[0][0], args = imported_name_strings)
+        dotted_name = ExprNodes.EncodedString(dotted_name)
+        dotted_name.encoding = s.source_encoding
         return Nodes.FromImportStatNode(pos,
             module = ExprNodes.ImportNode(dotted_name_pos,
                 module_name = ExprNodes.StringNode(dotted_name_pos,
@@ -1996,7 +1970,8 @@ def p_class_statement(s):
     # s.sy == 'class'
     pos = s.position()
     s.next()
-    class_name = p_ident(s)
+    class_name = ExprNodes.EncodedString( p_ident(s) )
+    class_name.encoding = s.source_encoding
     if s.sy == '(':
         s.next()
         base_list = p_simple_expr_list(s)
@@ -2113,7 +2088,7 @@ def p_property_decl(s):
     return Nodes.PropertyNode(pos, name = name, doc = doc, body = body)
 
 def p_doc_string(s):
-    if s.sy == 'STRING' or s.sy == 'BEGIN_STRING':
+    if s.sy == 'BEGIN_STRING':
         _, result = p_cat_string_literal(s)
         if s.sy != 'EOF':
             s.expect_newline("Syntax error in doc string")

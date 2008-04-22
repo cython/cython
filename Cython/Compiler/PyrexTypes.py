@@ -37,6 +37,7 @@ class PyrexType(BaseType):
     #  is_enum               boolean     Is a C enum type
     #  is_typedef            boolean     Is a typedef type
     #  is_string             boolean     Is a C char * type
+    #  is_unicode            boolean     Is a UTF-8 encoded C char * type
     #  is_returncode         boolean     Is used only to signal exceptions
     #  is_error              boolean     Is the dummy error type
     #  has_attributes        boolean     Has C dot-selectable attributes
@@ -83,6 +84,7 @@ class PyrexType(BaseType):
     is_enum = 0
     is_typedef = 0
     is_string = 0
+    is_unicode = 0
     is_returncode = 0
     is_error = 0
     has_attributes = 0
@@ -875,22 +877,62 @@ class CEnumType(CType):
             return self.base_declaration_code(public_decl(base, dll_linkage), entity_code)
 
 
+def _escape_byte_string(s):
+    try:
+        s.decode("ASCII")
+        return s
+    except UnicodeDecodeError:
+        pass
+    l = []
+    append = l.append
+    for c in s:
+        o = ord(c)
+        if o >= 128:
+            append('\\x%X' % o)
+        else:
+            append(c)
+    return ''.join(l)
+
 class CStringType:
     #  Mixin class for C string types.
 
     is_string = 1
+    is_unicode = 0
     
     to_py_function = "PyString_FromString"
     from_py_function = "PyString_AsString"
     exception_value = "NULL"
 
     def literal_code(self, value):
-        if isinstance(value, unicode):
-            value = value.encode("UTF-8")
-        return '"%s"' % value
+        assert isinstance(value, str)
+        return '"%s"' % _escape_byte_string(value)
+
+
+class CUTF8StringType:
+    #  Mixin class for C unicode types.
+
+    is_string = 1
+    is_unicode = 1
+    
+    to_py_function = "PyUnicode_DecodeUTF8"
+    exception_value = "NULL"
+
+    def literal_code(self, value):
+        assert isinstance(value, str)
+        return '"%s"' % _escape_byte_string(value)
 
 
 class CCharArrayType(CStringType, CArrayType):
+    #  C 'char []' type.
+    
+    parsetuple_format = "s"
+    pymemberdef_typecode = "T_STRING_INPLACE"
+    
+    def __init__(self, size):
+        CArrayType.__init__(self, c_char_type, size)
+
+
+class CUTF8CharArrayType(CUTF8StringType, CArrayType):
     #  C 'char []' type.
     
     parsetuple_format = "s"
@@ -902,6 +944,16 @@ class CCharArrayType(CStringType, CArrayType):
 
 class CCharPtrType(CStringType, CPtrType):
     # C 'char *' type.
+    
+    parsetuple_format = "s"
+    pymemberdef_typecode = "T_STRING"
+    
+    def __init__(self):
+        CPtrType.__init__(self, c_char_type)
+
+
+class CUTF8CharPtrType(CUTF8StringType, CPtrType):
+    # C 'char *' type, encoded in UTF-8.
     
     parsetuple_format = "s"
     pymemberdef_typecode = "T_STRING"
@@ -974,7 +1026,9 @@ c_longdouble_type =  CFloatType(8)
 
 c_null_ptr_type =     CNullPtrType(c_void_type)
 c_char_array_type =   CCharArrayType(None)
+c_utf8_char_array_type =   CUTF8CharArrayType(None)
 c_char_ptr_type =     CCharPtrType()
+c_utf8_char_ptr_type =     CUTF8CharPtrType()
 c_char_ptr_ptr_type = CPtrType(c_char_ptr_type)
 c_int_ptr_type =      CPtrType(c_int_type)
 

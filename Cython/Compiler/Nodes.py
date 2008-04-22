@@ -1199,7 +1199,7 @@ class DefNode(FuncDefNode):
     # args          [CArgDeclNode]         formal arguments
     # star_arg      PyArgDeclNode or None  * argument
     # starstar_arg  PyArgDeclNode or None  ** argument
-    # doc           string or None
+    # doc           EncodedString or None
     # body          StatListNode
     #
     #  The following subnode is constructed internally
@@ -1358,12 +1358,15 @@ class DefNode(FuncDefNode):
         entry.pymethdef_cname = \
             Naming.pymethdef_prefix + prefix + name
         if not Options.docstrings:
-            self.entry.doc = None
+            entry.doc = None
         else:
             if Options.embed_pos_in_docstring:
-                entry.doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
+                doc = u'File: %s (starting at line %s)'%relative_position(self.pos)
                 if not self.doc is None:
-                    entry.doc = entry.doc + '\\n' + self.doc
+                    doc = doc + u'\\n' + self.doc
+                doc = ExprNodes.EncodedString(doc)
+                doc.encoding = self.doc.encoding
+                entry.doc = doc
             else:
                 entry.doc = self.doc
             entry.doc_cname = \
@@ -1920,8 +1923,9 @@ class PyClassDefNode(StatNode, BlockNode):
         self.dict = ExprNodes.DictNode(pos, key_value_pairs = [])
         if self.doc and Options.docstrings:
             if Options.embed_pos_in_docstring:
-                doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
-                doc = doc + '\\n' + self.doc
+                doc = u'File: %s (starting at line %s)'%relative_position(self.pos)
+                doc = ExprNodes.EncodedString(doc + 'u\\n' + self.doc)
+                doc.encoding = self.doc.encoding
             doc_node = ExprNodes.StringNode(pos, value = doc)
         else:
             doc_node = None
@@ -2073,7 +2077,7 @@ class PropertyNode(StatNode):
     #  Definition of a property in an extension type.
     #
     #  name   string
-    #  doc    string or None    Doc string
+    #  doc    EncodedString or None    Doc string
     #  body   StatListNode
     
     child_attrs = ["body"]
