@@ -61,13 +61,13 @@ class LinearControlFlow(ControlFlow):
         self.events = {}
             
     def set_state(self, pos, item, state):
-        if self.tip.has_key(item):
+        if item in self.tip:
             del self.tip[item]
         if pos < self.start_pos:
             if self.incoming is not None:
                 self.incoming.set_state(pos, item, state)
         else:
-            if self.events.has_key(item):
+            if item in self.events:
                 event_list = self.events[item]
             else:
                 event_list = []
@@ -77,7 +77,7 @@ class LinearControlFlow(ControlFlow):
         
     def _get_pos_state(self, item, pos):
         if pos > self.start_pos:
-            if self.events.has_key(item):
+            if item in self.events:
                 event_list = self.events[item]
                 for event in event_list[::-1]:
                     if event[0] < pos:
@@ -116,7 +116,7 @@ class BranchingControlFlow(ControlFlow):
         
     def set_state(self, pos, item, state):
     
-        if self.tip.has_key(item):
+        if item in self.tip:
             del self.tip[item]
         
         if pos < self.start_pos:
@@ -157,5 +157,3 @@ class BranchingControlFlow(ControlFlow):
         if self.incoming is not limit and self.incoming is not None:
             s = "%s\n%s" % (self.incoming.to_string(indent, limit=limit), s)
         return s
-        
-    
