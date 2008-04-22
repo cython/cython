@@ -1900,7 +1900,7 @@ class OverrideCheckNode(StatNode):
 class PyClassDefNode(StatNode, BlockNode):
     #  A Python class definition.
     #
-    #  name     string          Name of the class
+    #  name     EncodedString   Name of the class
     #  doc      string or None
     #  body     StatNode        Attribute definition code
     #  entry    Symtab.Entry
