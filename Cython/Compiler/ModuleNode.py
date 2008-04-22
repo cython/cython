@@ -1270,7 +1270,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         entry.pystring_cname,
                         entry.cname,
                         entry.cname,
-                        isinstance(entry.init, unicode)
+                        entry.type.is_unicode
                         ))
             code.putln(
                 "{0, 0, 0, 0}")

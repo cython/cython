@@ -18,6 +18,29 @@ from Cython.Debugging import print_call_chain
 from DebugFlags import debug_disposal_code, debug_temp_alloc, \
     debug_coercion
 
+class EncodedString(unicode):
+    # unicode string subclass to keep track of the original encoding.
+    # 'encoding' is None for unicode strings and the source encoding
+    # otherwise
+    encoding = None
+
+    def byteencode(self):
+        assert self.encoding is not None
+        return self.encode(self.encoding)
+
+    def utf8encode(self):
+        assert self.encoding is None
+        return self.encode("UTF-8")
+
+    def is_unicode(self):
+        return self.encoding is None
+    is_unicode = property(is_unicode)
+
+#    def __eq__(self, other):
+#        return unicode.__eq__(self, other) and \
+#            getattr(other, 'encoding', '') == self.encoding
+
+
 class ExprNode(Node):
     #  subexprs     [string]     Class var holding names of subexpr node attrs
     #  type         PyrexType    Type of the result
@@ -696,15 +719,16 @@ class StringNode(ConstNode):
     type = PyrexTypes.c_char_ptr_type
 
     def compile_time_value(self, denv):
-        return eval('"%s"' % self.value)
+        return self.value
     
     def analyse_types(self, env):
         self.entry = env.add_string_const(self.value)
     
     def coerce_to(self, dst_type, env):
         if dst_type.is_int:
-            if not self.type.is_pyobject and len(self.value) == 1:
-                return CharNode(self.pos, value=self.value)
+            if not self.type.is_pyobject and len(self.entry.init) == 1:
+                # we use the *encoded* value here
+                return CharNode(self.pos, value=self.entry.init)
             else:
                 error(self.pos, "Only coerce single-character ascii strings can be used as ints.")
                 return self

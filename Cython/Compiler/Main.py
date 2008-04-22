@@ -2,12 +2,11 @@
 #   Cython Top Level
 #
 
-import os, sys, re
+import os, sys, re, codecs
 if sys.version_info[:2] < (2, 2):
     print >>sys.stderr, "Sorry, Cython requires Python 2.2 or later"
     sys.exit(1)
 
-import os
 from time import time
 import Version
 from Scanning import PyrexScanner
@@ -138,10 +137,27 @@ class Context:
             self.modules[name] = scope
         return scope
 
+    match_file_encoding = re.compile("coding[:=]\s*([-\w.]+)").search
+
+    def detect_file_encoding(self, source_filename):
+        # PEPs 263 and 3120
+        f = codecs.open(source_filename, "rU", encoding="UTF-8")
+        try:
+            for line_no, line in enumerate(f):
+                encoding = self.match_file_encoding(line)
+                if encoding:
+                    return encoding.group(1)
+                if line_no == 1:
+                    break
+        finally:
+            f.close()
+        return "UTF-8"
+
     def parse(self, source_filename, type_names, pxd, full_module_name):
         # Parse the given source file and return a parse tree.
-        f = open(source_filename, "rU")
-        s = PyrexScanner(f, source_filename, 
+        encoding = self.detect_file_encoding(source_filename)
+        f = codecs.open(source_filename, "rU", encoding=encoding)
+        s = PyrexScanner(f, source_filename, source_encoding = encoding,
             type_names = type_names, context = self)
         try:
             tree = Parsing.p_module(s, pxd, full_module_name)
