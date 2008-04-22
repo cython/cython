@@ -2,7 +2,7 @@
 #   Pyrex Parser
 #
 
-import os, re
+import os, re, codecs
 from string import join, replace
 from types import ListType, TupleType
 from Scanning import PyrexScanner
@@ -1178,8 +1178,9 @@ def p_include_statement(s, level):
     if s.compile_time_eval:
         include_file_path = s.context.find_include_file(include_file_name, pos)
         if include_file_path:
-            f = open(include_file_path, "rU")
-            s2 = PyrexScanner(f, include_file_path, s)
+            encoding = s.context.detect_file_encoding(include_file_path)
+            f = codecs.open(include_file_path, "rU", encoding=encoding)
+            s2 = PyrexScanner(f, include_file_path, s, source_encoding=encoding)
             try:
                 tree = p_statement_list(s2, level)
             finally:
