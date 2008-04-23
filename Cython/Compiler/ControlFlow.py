@@ -1,4 +1,4 @@
-import bisect
+import bisect, sys
 
 # This module keeps track of arbitrary "states" at any point of the code. 
 # A state is considered known if every path to the given point agrees on
@@ -13,6 +13,8 @@ import bisect
 # redesigned. It doesn't take return, raise, continue, or break into 
 # account. 
 
+_END_POS = ((unichr(sys.maxunicode)*10),())
+
 class ControlFlow:
 
     def __init__(self, start_pos, incoming, parent):
@@ -22,7 +24,7 @@ class ControlFlow:
             parent = incoming.parent
         self.parent = parent
         self.tip = {}
-        self.end_pos = ((),)
+        self.end_pos = _END_POS
         
     def start_branch(self, pos):
         self.end_pos = pos
@@ -40,10 +42,10 @@ class ControlFlow:
         self.parent.end_pos = pos
         return LinearControlFlow(pos, self.parent)
         
-    def get_state(self, item, pos=((),())):
+    def get_state(self, item, pos=_END_POS):
         return self.get_pos_state(item, pos)[1]
         
-    def get_pos_state(self, item, pos=((),())):
+    def get_pos_state(self, item, pos=_END_POS):
         # do some caching
         if pos > self.end_pos:
             try:
