@@ -4,7 +4,7 @@
 
 import os, sys, re, codecs
 if sys.version_info[:2] < (2, 2):
-    print >>sys.stderr, "Sorry, Cython requires Python 2.2 or later"
+    sys.stderr.write("Sorry, Cython requires Python 2.2 or later\n")
     sys.exit(1)
 
 from time import time
@@ -327,7 +327,7 @@ def main(command_line = 0):
         options = default_options
         sources = args
     if options.show_version:
-        print >>sys.stderr, "Cython version %s" % Version.version
+        sys.stderr.write("Cython version %s\n" % Version.version)
     context = Context(options.include_path)
     for source in sources:
         try:
@@ -335,7 +335,7 @@ def main(command_line = 0):
             if result.num_errors > 0:
                 any_failures = 1
         except PyrexError, e:
-            print >>sys.stderr, e
+            sys.stderr.write(str(e) + '\n')
             any_failures = 1
     if any_failures:
         sys.exit(1)
