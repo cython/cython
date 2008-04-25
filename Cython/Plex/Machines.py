@@ -258,7 +258,8 @@ class FastMachine:
   def ranges_to_string(self, range_list):
     return string.join(map(self.range_to_string, range_list), ",")
   
-  def range_to_string(self, (c1, c2)):
+  def range_to_string(self, range_tuple):
+    (c1, c2) = range_tuple
     if c1 == c2:
       return repr(c1)
     else:

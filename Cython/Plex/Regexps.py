@@ -122,7 +122,7 @@ class RE:
         beginning of a line. If nocase is true, upper and lower case
         letters should be treated as equivalent.
         """
-        raise exceptions.UnimplementedMethod("%s.build_machine not implemented" % 
+        raise NotImplementedError("%s.build_machine not implemented" % 
             self.__class__.__name__)
     
     def build_opt(self, m, initial_state, c):
