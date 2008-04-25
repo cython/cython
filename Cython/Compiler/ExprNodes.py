@@ -2853,6 +2853,9 @@ class SizeofVarNode(SizeofNode):
 #
 #-------------------------------------------------------------------
 
+def _not_in(x, seq):
+    return x not in seq
+
 compile_time_binary_operators = {
     '<': operator.lt,
     '<=': operator.le,
@@ -2875,8 +2878,8 @@ compile_time_binary_operators = {
     '-': operator.sub,
     #'/': operator.truediv,
     '^': operator.xor,
-    'in': lambda x, y: x in y,
-    'not_in': lambda x, y: x not in y,
+    'in': operator.contains,
+    'not_in': _not_in,
 }
 
 def get_compile_time_binop(node):
