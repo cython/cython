@@ -12,7 +12,7 @@ import TypeSlots
 from PyrexTypes import py_object_type, error_type, CTypedefType, CFuncType
 from Symtab import ModuleScope, LocalScope, \
     StructOrUnionScope, PyClassScope, CClassScope
-from Cython.Utils import open_new_file, replace_suffix
+from Cython.Utils import open_new_file, replace_suffix, EncodedString
 import Options
 import ControlFlow
 
@@ -41,10 +41,10 @@ def relative_position(pos):
 def embed_position(pos, docstring):
     if not Options.embed_pos_in_docstring:
         return docstring
-    pos_line = u'File: %s (starting at line %s)' % relative_position(self.pos)
+    pos_line = u'File: %s (starting at line %s)' % relative_position(pos)
     if docstring is None:
         # unicode string
-        return ExprNodes.EncodedString(pos_line)
+        return EncodedString(pos_line)
 
     # make sure we can encode the filename in the docstring encoding
     # otherwise make the docstring a unicode string
@@ -57,9 +57,9 @@ def embed_position(pos, docstring):
 
     if not docstring:
         # reuse the string encoding of the original docstring
-        doc = ExprNodes.EncodedString(pos_line)
+        doc = EncodedString(pos_line)
     else:
-        doc = ExprNodes.EncodedString(pos_line + u'\\n' + docstring)
+        doc = EncodedString(pos_line + u'\\n' + docstring)
     doc.encoding = encoding
     return doc
 
