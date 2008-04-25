@@ -704,11 +704,11 @@ class FloatNode(ConstNode):
     def calculate_result_code(self):
         strval = str(self.value)
         if strval == 'nan':
-            return "NAN"
+            return "(Py_HUGE_VAL * 0)"
         elif strval == 'inf':
-            return "INFINITY"
+            return "Py_HUGE_VAL"
         elif strval == '-inf':
-            return "(-INFINITY)"
+            return "(-Py_HUGE_VAL)"
         else:
             return strval
 
