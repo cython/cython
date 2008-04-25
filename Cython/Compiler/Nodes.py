@@ -63,7 +63,7 @@ def embed_position(pos, docstring):
     doc.encoding = encoding
     return doc
 
-class AttributeAccessor:
+class _AttributeAccessor(object):
     """Used as the result of the Node.get_children_accessors() generator"""
     def __init__(self, obj, attrname):
         self.obj = obj
@@ -78,7 +78,18 @@ class AttributeAccessor:
     def name(self):
         return self.attrname
 
-class Node:
+class _AttributeIterator(object):
+    """Used as the result of the Node.get_children_accessors() generator"""
+    def __init__(self, obj, attrnames):
+        self.obj = obj
+        self.attrnames = iter(attrnames)
+    def __iter__(self):
+        return self
+    def __next__(self):
+        return _AttributeAccessor(self.obj, self.attrnames.next())
+    next = __next__
+
+class Node(object):
     #  pos         (string, int, int)   Source file position
     #  is_name     boolean              Is a NameNode
     #  is_literal  boolean              Is a ConstNode
@@ -129,13 +140,7 @@ class Node:
         if attrnames is None:
             raise InternalError("Children access not implemented for %s" % \
                 self.__class__.__name__)
-        for name in attrnames:
-            a = AttributeAccessor(self, name)
-            yield a
-            # Not really needed, but one wants to enforce clients not to
-            # hold on to iterated objects, in case more advanced iteration
-            # is needed later
-            a.attrname = None
+        return _AttributeIterator(self, attrnames)
     
     def get_child_attrs(self):
         """Utility method for more easily implementing get_child_accessors.
