@@ -6,6 +6,8 @@ __doc__ = """
     nan
     >>> nan2()
     nan
+    >>> float_nan
+    nan
 
     >>> infp1()
     inf
@@ -14,6 +16,10 @@ __doc__ = """
     >>> infp2()
     inf
     >>> infp2() == float('inf')
+    True
+    >>> float_infp
+    inf
+    >>> float_infp == float('inf')
     True
 
     >>> infn1()
@@ -24,12 +30,20 @@ __doc__ = """
     -inf
     >>> infn2() == float('-inf')
     True
+    >>> float_infn
+    -inf
+    >>> float_infn == float('-inf')
+    True
 """
 
 DEF FLOAT = 12.5
 DEF FLOAT_NAN = float('nan')
 DEF FLOAT_INFP = float('+inf')
 DEF FLOAT_INFN = float('-inf')
+
+float_nan = FLOAT_NAN
+float_infp = FLOAT_INFP
+float_infn = FLOAT_INFN
 
 def f():
     cdef float f
