@@ -37,7 +37,31 @@ def relative_position(pos):
     AUTHOR: William Stein
     """
     return (pos[0][absolute_path_length+1:], pos[1])
-        
+
+def embed_position(pos, docstring):
+    if not Options.embed_pos_in_docstring:
+        return docstring
+    pos_line = u'File: %s (starting at line %s)' % relative_position(self.pos)
+    if docstring is None:
+        # unicode string
+        return ExprNodes.EncodedString(pos_line)
+
+    # make sure we can encode the filename in the docstring encoding
+    # otherwise make the docstring a unicode string
+    encoding = docstring.encoding
+    if encoding is not None:
+        try:
+            encoded_bytes = pos_line.encode(encoding)
+        except UnicodeEncodeError:
+            encoding = None
+
+    if not docstring:
+        # reuse the string encoding of the original docstring
+        doc = ExprNodes.EncodedString(pos_line)
+    else:
+        doc = ExprNodes.EncodedString(pos_line + u'\\n' + docstring)
+    doc.encoding = encoding
+    return doc
 
 class AttributeAccessor:
     """Used as the result of the Node.get_children_accessors() generator"""
@@ -1357,20 +1381,12 @@ class DefNode(FuncDefNode):
             Naming.pyfunc_prefix + prefix + name
         entry.pymethdef_cname = \
             Naming.pymethdef_prefix + prefix + name
-        if not Options.docstrings:
-            entry.doc = None
-        else:
-            if Options.embed_pos_in_docstring:
-                doc = u'File: %s (starting at line %s)'%relative_position(self.pos)
-                if not self.doc is None:
-                    doc = doc + u'\\n' + self.doc
-                doc = ExprNodes.EncodedString(doc)
-                doc.encoding = self.doc.encoding
-                entry.doc = doc
-            else:
-                entry.doc = self.doc
+        if Options.docstrings:
+            entry.doc = embed_position(self.pos, self.doc)
             entry.doc_cname = \
                 Naming.funcdoc_prefix + prefix + name
+        else:
+            entry.doc = None
 
     def declare_arguments(self, env):
         for arg in self.args:
@@ -1922,10 +1938,7 @@ class PyClassDefNode(StatNode, BlockNode):
         import ExprNodes
         self.dict = ExprNodes.DictNode(pos, key_value_pairs = [])
         if self.doc and Options.docstrings:
-            if Options.embed_pos_in_docstring:
-                doc = u'File: %s (starting at line %s)'%relative_position(self.pos)
-                doc = ExprNodes.EncodedString(doc + 'u\\n' + self.doc)
-                doc.encoding = self.doc.encoding
+            doc = embed_position(self.pos, self.doc)
             doc_node = ExprNodes.StringNode(pos, value = doc)
         else:
             doc_node = None
@@ -2036,13 +2049,9 @@ class CClassDefNode(StatNode, BlockNode):
             typedef_flag = self.typedef_flag,
             api = self.api)
         scope = self.entry.type.scope
-        
+
         if self.doc and Options.docstrings:
-            if Options.embed_pos_in_docstring:
-                scope.doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
-                scope.doc = scope.doc + '\\n' + self.doc
-            else:
-                scope.doc = self.doc
+            scope.doc = embed_position(self.pos, self.doc)
 
         if has_body:
             self.body.analyse_declarations(scope)

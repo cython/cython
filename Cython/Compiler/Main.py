@@ -137,28 +137,20 @@ class Context:
             self.modules[name] = scope
         return scope
 
-    match_file_encoding = re.compile("coding[:=]\s*([-\w.]+)").search
-
-    def detect_file_encoding(self, source_filename):
-        # PEPs 263 and 3120
-        f = codecs.open(source_filename, "rU", encoding="UTF-8")
-        try:
-            for line_no, line in enumerate(f):
-                encoding = self.match_file_encoding(line)
-                if encoding:
-                    return encoding.group(1)
-                if line_no == 1:
-                    break
-        finally:
-            f.close()
-        return "UTF-8"
-
     def parse(self, source_filename, type_names, pxd, full_module_name):
         # Parse the given source file and return a parse tree.
-        encoding = self.detect_file_encoding(source_filename)
-        f = codecs.open(source_filename, "rU", encoding=encoding)
-        s = PyrexScanner(f, source_filename, source_encoding = encoding,
-            type_names = type_names, context = self)
+        f = Utils.open_source_file(source_filename, "rU")
+
+        if isinstance(source_filename, unicode):
+            name = source_filename
+        else:
+            filename_encoding = sys.getfilesystemencoding()
+            if filename_encoding is None:
+                filename_encoding = getdefaultencoding()
+            name = source_filename.decode(filename_encoding)
+
+        s = PyrexScanner(f, name, source_encoding = f.encoding,
+                         type_names = type_names, context = self)
         try:
             tree = Parsing.p_module(s, pxd, full_module_name)
         finally:
