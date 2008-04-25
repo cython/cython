@@ -146,7 +146,7 @@ class Context:
         else:
             filename_encoding = sys.getfilesystemencoding()
             if filename_encoding is None:
-                filename_encoding = getdefaultencoding()
+                filename_encoding = sys.getdefaultencoding()
             name = source_filename.decode(filename_encoding)
 
         s = PyrexScanner(f, name, source_encoding = f.encoding,
