@@ -10,6 +10,7 @@ import Nodes
 import ExprNodes
 from ModuleNode import ModuleNode
 from Errors import error, InternalError
+from Cython import Utils
 
 def p_ident(s, message = "Expected an identifier"):
     if s.sy == 'IDENT':
@@ -1178,9 +1179,8 @@ def p_include_statement(s, level):
     if s.compile_time_eval:
         include_file_path = s.context.find_include_file(include_file_name, pos)
         if include_file_path:
-            encoding = s.context.detect_file_encoding(include_file_path)
-            f = codecs.open(include_file_path, "rU", encoding=encoding)
-            s2 = PyrexScanner(f, include_file_path, s, source_encoding=encoding)
+            f = Utils.open_source_file(include_file_path, mode="rU")
+            s2 = PyrexScanner(f, include_file_path, s, source_encoding=f.encoding)
             try:
                 tree = p_statement_list(s2, level)
             finally:
