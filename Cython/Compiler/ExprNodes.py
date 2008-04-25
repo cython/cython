@@ -18,28 +18,6 @@ from Cython.Debugging import print_call_chain
 from DebugFlags import debug_disposal_code, debug_temp_alloc, \
     debug_coercion
 
-class EncodedString(unicode):
-    # unicode string subclass to keep track of the original encoding.
-    # 'encoding' is None for unicode strings and the source encoding
-    # otherwise
-    encoding = None
-
-    def byteencode(self):
-        assert self.encoding is not None
-        return self.encode(self.encoding)
-
-    def utf8encode(self):
-        assert self.encoding is None
-        return self.encode("UTF-8")
-
-    def is_unicode(self):
-        return self.encoding is None
-    is_unicode = property(is_unicode)
-
-#    def __eq__(self, other):
-#        return unicode.__eq__(self, other) and \
-#            getattr(other, 'encoding', '') == self.encoding
-
 
 class ExprNode(Node):
     #  subexprs     [string]     Class var holding names of subexpr node attrs
@@ -2251,7 +2229,7 @@ class SequenceNode(ExprNode):
                 self.iterator.py_result()))
         if debug_disposal_code:
             print("UnpackNode.generate_assignment_code:")
-            print("...generating disposal code for %s" % iterator)
+            print("...generating disposal code for %s" % self.iterator)
         self.iterator.generate_disposal_code(code)
 
         code.putln("}")
@@ -2279,7 +2257,7 @@ class TupleNode(SequenceNode):
             
     def calculate_result_code(self):
         if len(self.args) > 0:
-            error(pos, "Positive length tuples must be constructed.")
+            error(self.pos, "Positive length tuples must be constructed.")
         else:
             return Naming.empty_tuple
 

@@ -2,7 +2,7 @@
 #   Pyrex Parser
 #
 
-import os, re, codecs
+import os, re
 from string import join, replace
 from types import ListType, TupleType
 from Scanning import PyrexScanner
@@ -282,7 +282,7 @@ def p_call(s, function):
             if not arg.is_name:
                 s.error("Expected an identifier before '='",
                     pos = arg.pos)
-            encoded_name = ExprNodes.EncodedString(arg.name)
+            encoded_name = Utils.EncodedString(arg.name)
             encoded_name.encoding = s.source_encoding
             keyword = ExprNodes.StringNode(arg.pos, 
                 value = encoded_name)
@@ -503,11 +503,11 @@ def p_name(s, name):
             elif isinstance(value, float):
                 return ExprNodes.FloatNode(pos, value = rep)
             elif isinstance(value, str):
-                sval = ExprNodes.EncodedString(rep[1:-1])
+                sval = Utils.EncodedString(rep[1:-1])
                 sval.encoding = value.encoding
                 return ExprNodes.StringNode(pos, value = sval)
             elif isinstance(value, unicode):
-                sval = ExprNodes.EncodedString(rep[2:-1])
+                sval = Utils.EncodedString(rep[2:-1])
                 return ExprNodes.StringNode(pos, value = sval)
             else:
                 error(pos, "Invalid type for compile-time constant: %s"
@@ -523,12 +523,12 @@ def p_cat_string_literal(s):
         while s.sy == 'BEGIN_STRING':
             next_kind, next_value = p_string_literal(s)
             if next_kind == 'c':
-                self.error(
-                    "Cannot concatenate char literal with another string or char literal")
+                error(s.position(),
+                      "Cannot concatenate char literal with another string or char literal")
             elif next_kind == 'u':
                 kind = 'u'
             strings.append(next_value)
-        value = ExprNodes.EncodedString( u''.join(strings) )
+        value = Utils.EncodedString( u''.join(strings) )
         if kind != 'u':
             value.encoding = s.source_encoding
     return kind, value
@@ -600,7 +600,7 @@ def p_string_literal(s):
                 "Unexpected token %r:%r in string literal" %
                     (sy, s.systring))
     s.next()
-    value = ExprNodes.EncodedString( u''.join(chars) )
+    value = Utils.EncodedString( u''.join(chars) )
     if kind != 'u':
         value.encoding = s.source_encoding
     #print "p_string_literal: value =", repr(value) ###
@@ -915,7 +915,7 @@ def p_import_statement(s):
                     ExprNodes.StringNode(pos, value = "*")])
             else:
                 name_list = None
-            dotted_name = ExprNodes.EncodedString(dotted_name)
+            dotted_name = Utils.EncodedString(dotted_name)
             dotted_name.encoding = s.source_encoding
             stat = Nodes.SingleAssignmentNode(pos,
                 lhs = ExprNodes.NameNode(pos, 
@@ -955,7 +955,7 @@ def p_from_import_statement(s):
         imported_name_strings = []
         items = []
         for (name_pos, name, as_name) in imported_names:
-            encoded_name = ExprNodes.EncodedString(name)
+            encoded_name = Utils.EncodedString(name)
             encoded_name.encoding = s.source_encoding
             imported_name_strings.append(
                 ExprNodes.StringNode(name_pos, value = encoded_name))
@@ -965,7 +965,7 @@ def p_from_import_statement(s):
                  	name = as_name or name)))
         import_list = ExprNodes.ListNode(
             imported_names[0][0], args = imported_name_strings)
-        dotted_name = ExprNodes.EncodedString(dotted_name)
+        dotted_name = Utils.EncodedString(dotted_name)
         dotted_name.encoding = s.source_encoding
         return Nodes.FromImportStatNode(pos,
             module = ExprNodes.ImportNode(dotted_name_pos,
@@ -1971,7 +1971,7 @@ def p_class_statement(s):
     # s.sy == 'class'
     pos = s.position()
     s.next()
-    class_name = ExprNodes.EncodedString( p_ident(s) )
+    class_name = Utils.EncodedString( p_ident(s) )
     class_name.encoding = s.source_encoding
     if s.sy == '(':
         s.next()
