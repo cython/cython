@@ -2,12 +2,11 @@
 #   Cython Top Level
 #
 
-import os, sys, re
+import os, sys, re, codecs
 if sys.version_info[:2] < (2, 2):
     print >>sys.stderr, "Sorry, Cython requires Python 2.2 or later"
     sys.exit(1)
 
-import os
 from time import time
 import Version
 from Scanning import PyrexScanner
@@ -140,9 +139,18 @@ class Context:
 
     def parse(self, source_filename, type_names, pxd, full_module_name):
         # Parse the given source file and return a parse tree.
-        f = open(source_filename, "rU")
-        s = PyrexScanner(f, source_filename, 
-            type_names = type_names, context = self)
+        f = Utils.open_source_file(source_filename, "rU")
+
+        if isinstance(source_filename, unicode):
+            name = source_filename
+        else:
+            filename_encoding = sys.getfilesystemencoding()
+            if filename_encoding is None:
+                filename_encoding = getdefaultencoding()
+            name = source_filename.decode(filename_encoding)
+
+        s = PyrexScanner(f, name, source_encoding = f.encoding,
+                         type_names = type_names, context = self)
         try:
             tree = Parsing.p_module(s, pxd, full_module_name)
         finally:
@@ -310,7 +318,6 @@ def compile(source, options = None, c_compile = 0, c_link = 0,
 #------------------------------------------------------------------------
 
 def main(command_line = 0):
-
     args = sys.argv[1:]
     any_failures = 0
     if command_line:

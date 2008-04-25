@@ -1,10 +1,11 @@
 __doc__ = """
-    >>> 
+    >>> f()
+    (30, 22)
 """
 
 def f():
     cdef int int1, int2, int3
-    cdef char *ptr1, *ptr2, *ptr3
+    cdef char *ptr1, *ptr2 = "test", *ptr3 = "toast"
     int2 = 10
     int3 = 20
     obj1 = 1
