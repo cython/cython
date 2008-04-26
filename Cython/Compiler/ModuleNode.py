@@ -793,13 +793,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "static void %s(PyObject *o) {"
                 % scope.mangle_internal("tp_dealloc"))
         py_attrs = []
+        weakref_slot = scope.lookup_here("__weakref__")
         for entry in scope.var_entries:
-            if entry.type.is_pyobject and entry.name != "__weakref__":
+            if entry.type.is_pyobject and entry is not weakref_slot:
                 py_attrs.append(entry)
-        if py_attrs or scope.lookup_here("__weakref__"):
+        if py_attrs or weakref_slot in scope.var_entries:
             self.generate_self_cast(scope, code)
         self.generate_usr_dealloc_call(scope, code)
-        if scope.lookup_here("__weakref__"):
+        if weakref_slot in scope.var_entries:
             code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
         for entry in py_attrs:
             code.put_xdecref("p->%s" % entry.cname, entry.type)
@@ -1377,7 +1378,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         entry.pystring_cname,
                         entry.cname,
                         entry.cname,
-                        isinstance(entry.init, unicode)
+                        entry.type.is_unicode
                         ))
             code.putln(
                 "{0, 0, 0, 0}")

@@ -2,12 +2,8 @@
 
 import os, sys, unittest, doctest
 
-#from Cython.Distutils.build_ext import build_ext
-#from Cython.Distutils.extension import Extension
-
-from distutils.extension import Extension
+from Cython.Distutils.extension import Extension
 from Cython.Distutils import build_ext
-
 
 from distutils.dist import Distribution
 distutils_distro = Distribution()
@@ -15,7 +11,7 @@ distutils_distro = Distribution()
 TEST_DIRS = ['compile', 'run']
 TEST_RUN_DIRS = ['run']
 
-INCLUDE_DIRS = os.getenv('INCLUDE', '').split(os.pathsep)
+INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
 
 class TestBuilder(object):

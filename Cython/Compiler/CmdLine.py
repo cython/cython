@@ -134,6 +134,9 @@ def parse_command_line(args):
             arg = pop_arg()
             if arg.endswith(".pyx"):
                 sources.append(arg)
+            elif arg.endswith(".py"):
+                # maybe do some other stuff, but this should work for now
+                sources.append(arg)
             elif arg.endswith(".o"):
                 options.objects.append(arg)
             else:

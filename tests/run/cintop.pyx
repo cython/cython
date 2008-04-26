@@ -1,6 +1,20 @@
 __doc__ = """
+    >>> int2 = 42
+    >>> int3 = 7
+    >>> char1 = ord('C')
+
+    >>> int1 = int2 | int3
+    >>> int1 |= int2 ^ int3
+    >>> int1 ^= int2 & int3
+    >>> int1 ^= int2 << int3
+    >>> int1 ^= int2 >> int3
+    >>> int1 ^= int2 << int3 | int2 >> int3
+    >>> long1 = char1 | int1
+    >>> print (int1, long1) == f()
+    True
+
     >>> f()
-    (5376, 67)
+    (45, 111)
 """
 
 def f():
@@ -12,10 +26,10 @@ def f():
     char1 = c'C'
 
     int1 = int2 | int3
-    int1 = int2 ^ int3
-    int1 = int2 & int3
-    int1 = int2 << int3
-    int1 = int2 >> int3
-    int1 = int2 << int3 | int2 >> int3
-    long1 = char1 | long2
+    int1 |= int2 ^ int3
+    int1 ^= int2 & int3
+    int1 ^= int2 << int3
+    int1 ^= int2 >> int3
+    int1 ^= int2 << int3 | int2 >> int3
+    long1 = char1 | int1
     return int1, long1

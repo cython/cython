@@ -3,8 +3,6 @@
 #
 
 import re
-import bisect
-
 from Errors import warning, error, InternalError
 import Options
 import Naming
@@ -434,15 +432,21 @@ class Scope:
         if not entry:
             entry = self.declare_var(name, py_object_type, None)
         return entry
-    
+
     def add_string_const(self, value):
         # Add an entry for a string constant.
         cname = self.new_const_cname()
-        entry = Entry("", cname, c_char_array_type, init = value)
+        if value.is_unicode:
+            c_type = c_utf8_char_array_type
+            value = value.utf8encode()
+        else:
+            c_type = c_char_array_type
+            value = value.byteencode()
+        entry = Entry("", cname, c_type, init = value)
         entry.used = 1
         self.const_entries.append(entry)
         return entry
-    
+
     def get_string_const(self, value):
         # Get entry for string constant. Returns an existing
         # one if possible, otherwise creates a new one.
@@ -452,7 +456,7 @@ class Scope:
             entry = self.add_string_const(value)
             genv.string_to_entry[value] = entry
         return entry
-    
+
     def add_py_string(self, entry):
         # If not already done, allocate a C name for a Python version of
         # a string literal, and add it to the list of Python strings to
@@ -460,7 +464,7 @@ class Scope:
         # Python identifier, it will be interned.
         if not entry.pystring_cname:
             value = entry.init
-            if identifier_pattern.match(value) and isinstance(value, str):
+            if not entry.type.is_unicode and identifier_pattern.match(value):
                 entry.pystring_cname = self.intern(value)
                 entry.is_interned = 1
             else:
