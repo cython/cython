@@ -690,7 +690,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in scope.var_entries:
             if entry.type.is_pyobject and entry is not weakref_slot:
                 py_attrs.append(entry)
-        print py_attrs
         if py_attrs or weakref_slot in scope.var_entries:
             self.generate_self_cast(scope, code)
         self.generate_usr_dealloc_call(scope, code)
