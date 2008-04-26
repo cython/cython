@@ -4,7 +4,7 @@
 
 import os, sys, re, codecs
 if sys.version_info[:2] < (2, 2):
-    print >>sys.stderr, "Sorry, Cython requires Python 2.2 or later"
+    sys.stderr.write("Sorry, Cython requires Python 2.2 or later\n")
     sys.exit(1)
 
 from time import time
@@ -146,7 +146,7 @@ class Context:
         else:
             filename_encoding = sys.getfilesystemencoding()
             if filename_encoding is None:
-                filename_encoding = getdefaultencoding()
+                filename_encoding = sys.getdefaultencoding()
             name = source_filename.decode(filename_encoding)
 
         s = PyrexScanner(f, name, source_encoding = f.encoding,
@@ -327,7 +327,7 @@ def main(command_line = 0):
         options = default_options
         sources = args
     if options.show_version:
-        print >>sys.stderr, "Cython version %s" % Version.version
+        sys.stderr.write("Cython version %s\n" % Version.version)
     if options.working_path!="":
         os.chdir(options.working_path)
     context = Context(options.include_path)
@@ -337,7 +337,7 @@ def main(command_line = 0):
             if result.num_errors > 0:
                 any_failures = 1
         except PyrexError, e:
-            print >>sys.stderr, e
+            sys.stderr.write(str(e) + '\n')
             any_failures = 1
     if any_failures:
         sys.exit(1)

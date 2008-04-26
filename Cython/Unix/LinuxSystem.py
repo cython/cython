@@ -11,7 +11,7 @@ import os, sys
 from Cython.Utils import replace_suffix
 from Cython.Compiler.Errors import PyrexError
 
-version = "%s.%s" % sys.version[:2]
+version = "%s.%s" % sys.version_info[:2]
 py_include_dirs = [
     "%s/include/python%s" % (sys.prefix, version)
 ]

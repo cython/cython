@@ -7,7 +7,7 @@ from Errors import warning, error, InternalError
 import Options
 import Naming
 import PyrexTypes
-from PyrexTypes import *
+from PyrexTypes import py_object_type
 import TypeSlots
 from TypeSlots import \
     pyfunction_signature, pymethod_signature, \
@@ -299,7 +299,8 @@ class Scope:
                 cname = self.mangle(Naming.type_prefix, name)
         entry = self.lookup_here(name)
         if not entry:
-            type = CStructOrUnionType(name, kind, scope, typedef_flag, cname)
+            type = PyrexTypes.CStructOrUnionType(
+                name, kind, scope, typedef_flag, cname)
             entry = self.declare_type(name, type, pos, cname,
                 visibility = visibility, defining = scope is not None)
             self.sue_entries.append(entry)
@@ -336,7 +337,7 @@ class Scope:
                     cname = name
                 else:
                     cname = self.mangle(Naming.type_prefix, name)
-            type = CEnumType(name, cname, typedef_flag)
+            type = PyrexTypes.CEnumType(name, cname, typedef_flag)
         else:
             type = PyrexTypes.c_anon_enum_type
         entry = self.declare_type(name, type, pos, cname = cname,
@@ -437,10 +438,10 @@ class Scope:
         # Add an entry for a string constant.
         cname = self.new_const_cname()
         if value.is_unicode:
-            c_type = c_utf8_char_array_type
+            c_type = PyrexTypes.c_utf8_char_array_type
             value = value.utf8encode()
         else:
-            c_type = c_char_array_type
+            c_type = PyrexTypes.c_char_array_type
             value = value.byteencode()
         entry = Entry("", cname, c_type, init = value)
         entry.used = 1
@@ -494,16 +495,6 @@ class Scope:
             genv.pynum_entries.append(entry)
         return entry
         
-    def add_py_obj(self, obj, c_prefix=''):
-        obj.check_const()
-        cname = self.new_const_cname(c_prefix)
-        entry = Entry("", cname, py_object_type, init = value)
-        entry.used = 1
-        entry.is_interned = 1
-        self.const_entries.append(entry)
-        self.interned_objs.append(entry)
-        return entry
-        
     def get_py_obj(self, obj, c_prefix=''):
         # Get entry for a generic constant. Returns an existing
         # one if possible, otherwise creates a new one.
@@ -513,7 +504,6 @@ class Scope:
             entry = genv.add_py_num(obj, c_prefix)
             genv.obj_to_entry[obj] = entry
         return entry
-        
     
     def new_const_cname(self):
         # Create a new globally-unique name for a constant.
@@ -532,7 +522,7 @@ class Scope:
         cname = "%s%d" % (Naming.pyrex_prefix, n)
         entry = Entry("", cname, type)
         entry.used = 1
-        if type.is_pyobject or type == c_py_ssize_t_type:
+        if type.is_pyobject or type == PyrexTypes.c_py_ssize_t_type:
             entry.init = "0"
         self.cname_to_entry[entry.cname] = entry
         self.temp_entries.append(entry)
@@ -844,8 +834,9 @@ class ModuleScope(Scope):
         self.default_entries.append(entry)
         return entry
         
-    def new_const_cname(self, prefix=''):
+    def new_const_cname(self):
         # Create a new globally-unique name for a constant.
+        prefix=''
         n = self.const_counter
         self.const_counter = n + 1
         return "%s%s_%d" % (Naming.const_prefix, prefix, n)
@@ -877,7 +868,7 @@ class ModuleScope(Scope):
         # Make a new entry if needed
         #
         if not entry:
-            type = PyExtensionType(name, typedef_flag, base_type)
+            type = PyrexTypes.PyExtensionType(name, typedef_flag, base_type)
             type.pos = pos
             if visibility == 'extern':
                 type.module_name = module_name
@@ -1075,7 +1066,7 @@ class StructOrUnionScope(Scope):
         if not cname:
             cname = name
         if type.is_cfunction:
-            type = CPtrType(type)
+            type = PyrexTypes.CPtrType(type)
         entry = self.declare(name, cname, type, pos)
         entry.is_variable = 1
         self.var_entries.append(entry)
@@ -1115,9 +1106,12 @@ class ClassScope(Scope):
             # Don't want to add a cfunction to this scope 'cause that would mess with 
             # the type definition, so we just return the right entry. 
             self.use_utility_code(classmethod_utility_code)
-            entry = Entry("classmethod", 
-                          "__Pyx_Method_ClassMethod", 
-                          CFuncType(py_object_type, [CFuncTypeArg("", py_object_type, None)], 0, 0))
+            entry = Entry(
+                "classmethod", 
+                "__Pyx_Method_ClassMethod", 
+                PyrexTypes.CFuncType(
+                    py_object_type,
+                    [PyrexTypes.CFuncTypeArg("", py_object_type, None)], 0, 0))
             entry.is_cfunction = 1
             return entry
         else:

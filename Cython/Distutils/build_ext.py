@@ -85,9 +85,9 @@ class build_ext(_build_ext.build_ext):
 
         """
         Walk the list of source files in 'sources', looking for Cython
-        source (.pyx) files.  Run Cython on all that are found, and return
-        a modified 'sources' list with Cython source files replaced by the
-        generated C (or C++) files.
+        source files (.pyx and .py).  Run Cython on all that are
+        found, and return a modified 'sources' list with Cython source
+        files replaced by the generated C (or C++) files.
         """
 
         if PyrexError == None:
@@ -158,6 +158,9 @@ class build_ext(_build_ext.build_ext):
         newest_dependency = None
         for source in sources:
             (base, ext) = os.path.splitext(os.path.basename(source))
+            if ext == ".py":
+                # FIXME: we might want to special case this some more
+                ext = '.pyx'
             if ext == ".pyx":			  # Cython source file
                 output_dir = target_dir or os.path.dirname(source)
                 new_sources.append(os.path.join(output_dir, base + target_ext))

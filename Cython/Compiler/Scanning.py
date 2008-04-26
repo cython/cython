@@ -59,6 +59,7 @@ def open_pickled_lexicon(expected_hash):
     # Try to open pickled lexicon file and verify that
     # it matches the source file. Returns the opened
     # file if successful, otherwise None. ???
+    global lexicon_pickle
     f = None
     result = None
     if os.path.exists(lexicon_pickle):

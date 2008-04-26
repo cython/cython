@@ -54,3 +54,25 @@ def detect_file_encoding(source_filename):
 def open_source_file(source_filename, mode="rU"):
     encoding = detect_file_encoding(source_filename)
     return codecs.open(source_filename, mode=mode, encoding=encoding)
+
+class EncodedString(unicode):
+    # unicode string subclass to keep track of the original encoding.
+    # 'encoding' is None for unicode strings and the source encoding
+    # otherwise
+    encoding = None
+
+    def byteencode(self):
+        assert self.encoding is not None
+        return self.encode(self.encoding)
+
+    def utf8encode(self):
+        assert self.encoding is None
+        return self.encode("UTF-8")
+
+    def is_unicode(self):
+        return self.encoding is None
+    is_unicode = property(is_unicode)
+
+#    def __eq__(self, other):
+#        return unicode.__eq__(self, other) and \
+#            getattr(other, 'encoding', '') == self.encoding
