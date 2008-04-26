@@ -4083,9 +4083,8 @@ bad:
 
 cpp_exception_utility_code = [
 """
-static int __Pyx_CppExn2PyErr(); /*proto*/
-""","""
-void __Pyx_CppExn2PyErr() {
+#ifndef __Pyx_CppExn2PyErr
+static void __Pyx_CppExn2PyErr() {
   try {
     if (PyErr_Occurred())
       ; // let the latest Python exn pass through and ignore the current one
@@ -4102,6 +4101,7 @@ void __Pyx_CppExn2PyErr() {
     PyErr_SetString(PyExc_RuntimeError, "Unknown exception");
   }
 }
-"""]
+#endif
+""",""]
 
 #------------------------------------------------------------------------------------

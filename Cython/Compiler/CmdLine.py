@@ -27,6 +27,9 @@ Options:
                                  performing any binary operations.
   --cleanup <level>              Release interned objects on python exit, for memory debugging. 
                                  Level indicates aggressiveness, default 0 releases nothing. 
+  -w, --working <directory>      Sets the working directory for Cython (the directory modules 
+                                 are searched from)
+
   -D, --no-docstrings            Remove docstrings.
   -a, --annotate                 Produce an colorized version of the source.
   --convert-range                Convert for loops using range() function to for...from loops. 
@@ -104,6 +107,8 @@ def parse_command_line(args):
                 options.include_path.append(get_param(option))
             elif option == "--include-dir":
                 options.include_path.append(pop_arg())
+            elif option in ("-w", "--working"):
+                options.working_path = pop_arg()
             elif option in ("-o", "--output-file"):
                 options.output_file = pop_arg()
             elif option in ("-p", "--embed-positions"):
