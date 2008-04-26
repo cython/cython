@@ -18,7 +18,7 @@ import ControlFlow
 
 from DebugFlags import debug_disposal_code
 
-absolute_path_length = len(os.path.abspath('.')) 
+absolute_path_length = 0
 
 def relative_position(pos):
     """
@@ -36,6 +36,9 @@ def relative_position(pos):
 
     AUTHOR: William Stein
     """
+    global absolute_path_length
+    if absolute_path_length==0:
+        absolute_path_length = len(os.path.abspath(os.getcwd())) 
     return (pos[0][absolute_path_length+1:], pos[1])
 
 def embed_position(pos, docstring):
