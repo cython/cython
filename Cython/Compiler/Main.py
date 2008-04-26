@@ -320,6 +320,8 @@ def main(command_line = 0):
         sources = args
     if options.show_version:
         print >>sys.stderr, "Cython version %s" % Version.version
+    if options.working_path!="":
+        os.chdir(options.working_path)
     context = Context(options.include_path)
     for source in sources:
         try:
@@ -347,7 +349,8 @@ default_options = dict(
     cplus = 0,
     output_file = None,
     generate_pxi = 0,
-    transforms = Transform.TransformSet())
+    transforms = Transform.TransformSet(),
+    working_path = "")
     
 if sys.platform == "mac":
     from Cython.Mac.MacSystem import c_compile, c_link, CCompilerError
