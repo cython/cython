@@ -257,11 +257,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 self.find_referenced_modules(imported_module, module_list, modules_seen)
             module_list.append(env)
 
-    def collect_inheritance_hierarchies(self, type_dict, getkey):
-        base_dict = {}
-        for key, entry in type_dict.items():
+    def sort_types_by_inheritance(self, type_dict, getkey):
+        # copy the types into a list moving each parent type before
+        # its first child
+        type_items = type_dict.items()
+        type_list = []
+        for i, item in enumerate(type_items):
+            key, new_entry = item
+
+            # collect all base classes to check for children
             hierarchy = set()
-            base = entry
+            base = new_entry
             while base:
                 base_type = base.type.base_type
                 if not base_type:
@@ -269,18 +275,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 base_key = getkey(base_type)
                 hierarchy.add(base_key)
                 base = type_dict.get(base_key)
-            entry.base_keys = hierarchy
-            base_dict[key] = entry
-        return base_dict
+            new_entry.base_keys = hierarchy
 
-    def sort_types_by_inheritance(self, base_dict):
-        type_items = base_dict.items()
-        type_list = []
-        for i, item in enumerate(type_items):
-            type_key, new_entry = item
+            # find the first (sub-)subclass and insert before that
             for j in range(i):
                 entry = type_list[j]
-                if type_key in entry.base_keys:
+                if key in entry.base_keys:
                     type_list.insert(j, new_entry)
                     break
             else:
@@ -306,17 +306,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 
         def vtabstruct_cname(entry_type):
             return entry_type.vtabstruct_cname
-        vtab_hierarchies = self.sort_types_by_inheritance(
-            self.collect_inheritance_hierarchies(
-                vtab_dict, vtabstruct_cname))
+        vtab_list = self.sort_types_by_inheritance(
+            vtab_dict, vtabstruct_cname)
 
         def objstruct_cname(entry_type):
             return entry_type.objstruct_cname
-        vtabslot_hierarchies = self.sort_types_by_inheritance(
-            self.collect_inheritance_hierarchies(
-                vtabslot_dict, objstruct_cname))
+        vtabslot_list = self.sort_types_by_inheritance(
+            vtabslot_dict, objstruct_cname)
 
-        return (vtab_hierarchies, vtabslot_hierarchies)
+        return (vtab_list, vtabslot_list)
 
     def generate_type_definitions(self, env, modules, vtab_list, vtabslot_list, code):
         vtabslot_entries = set(vtabslot_list)
