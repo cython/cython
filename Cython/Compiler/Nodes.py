@@ -37,7 +37,31 @@ def relative_position(pos):
     AUTHOR: William Stein
     """
     return (pos[0][absolute_path_length+1:], pos[1])
-        
+
+def embed_position(pos, docstring):
+    if not Options.embed_pos_in_docstring:
+        return docstring
+    pos_line = u'File: %s (starting at line %s)' % relative_position(self.pos)
+    if docstring is None:
+        # unicode string
+        return ExprNodes.EncodedString(pos_line)
+
+    # make sure we can encode the filename in the docstring encoding
+    # otherwise make the docstring a unicode string
+    encoding = docstring.encoding
+    if encoding is not None:
+        try:
+            encoded_bytes = pos_line.encode(encoding)
+        except UnicodeEncodeError:
+            encoding = None
+
+    if not docstring:
+        # reuse the string encoding of the original docstring
+        doc = ExprNodes.EncodedString(pos_line)
+    else:
+        doc = ExprNodes.EncodedString(pos_line + u'\\n' + docstring)
+    doc.encoding = encoding
+    return doc
 
 class AttributeAccessor:
     """Used as the result of the Node.get_children_accessors() generator"""
@@ -1199,7 +1223,7 @@ class DefNode(FuncDefNode):
     # args          [CArgDeclNode]         formal arguments
     # star_arg      PyArgDeclNode or None  * argument
     # starstar_arg  PyArgDeclNode or None  ** argument
-    # doc           string or None
+    # doc           EncodedString or None
     # body          StatListNode
     #
     #  The following subnode is constructed internally
@@ -1357,17 +1381,12 @@ class DefNode(FuncDefNode):
             Naming.pyfunc_prefix + prefix + name
         entry.pymethdef_cname = \
             Naming.pymethdef_prefix + prefix + name
-        if not Options.docstrings:
-            self.entry.doc = None
-        else:
-            if Options.embed_pos_in_docstring:
-                entry.doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
-                if not self.doc is None:
-                    entry.doc = entry.doc + '\\n' + self.doc
-            else:
-                entry.doc = self.doc
+        if Options.docstrings:
+            entry.doc = embed_position(self.pos, self.doc)
             entry.doc_cname = \
                 Naming.funcdoc_prefix + prefix + name
+        else:
+            entry.doc = None
 
     def declare_arguments(self, env):
         for arg in self.args:
@@ -1897,7 +1916,7 @@ class OverrideCheckNode(StatNode):
 class PyClassDefNode(StatNode, BlockNode):
     #  A Python class definition.
     #
-    #  name     string          Name of the class
+    #  name     EncodedString   Name of the class
     #  doc      string or None
     #  body     StatNode        Attribute definition code
     #  entry    Symtab.Entry
@@ -1919,9 +1938,7 @@ class PyClassDefNode(StatNode, BlockNode):
         import ExprNodes
         self.dict = ExprNodes.DictNode(pos, key_value_pairs = [])
         if self.doc and Options.docstrings:
-            if Options.embed_pos_in_docstring:
-                doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
-            doc = doc + '\\n' + self.doc
+            doc = embed_position(self.pos, self.doc)
             doc_node = ExprNodes.StringNode(pos, value = doc)
         else:
             doc_node = None
@@ -1961,7 +1978,7 @@ class PyClassDefNode(StatNode, BlockNode):
         self.dict.generate_disposal_code(code)
 
 
-class CClassDefNode(StatNode):
+class CClassDefNode(StatNode, BlockNode):
     #  An extension type definition.
     #
     #  visibility         'private' or 'public' or 'extern'
@@ -2032,13 +2049,9 @@ class CClassDefNode(StatNode):
             typedef_flag = self.typedef_flag,
             api = self.api)
         scope = self.entry.type.scope
-        
+
         if self.doc and Options.docstrings:
-            if Options.embed_pos_in_docstring:
-                scope.doc = 'File: %s (starting at line %s)'%relative_position(self.pos)
-                scope.doc = scope.doc + '\\n' + self.doc
-            else:
-                scope.doc = self.doc
+            scope.doc = embed_position(self.pos, self.doc)
 
         if has_body:
             self.body.analyse_declarations(scope)
@@ -2054,6 +2067,7 @@ class CClassDefNode(StatNode):
             self.body.analyse_expressions(scope)
     
     def generate_function_definitions(self, env, code, transforms):
+        self.generate_py_string_decls(self.entry.type.scope, code)
         if self.body:
             self.body.generate_function_definitions(
                 self.entry.type.scope, code, transforms)
@@ -2073,7 +2087,7 @@ class PropertyNode(StatNode):
     #  Definition of a property in an extension type.
     #
     #  name   string
-    #  doc    string or None    Doc string
+    #  doc    EncodedString or None    Doc string
     #  body   StatListNode
     
     child_attrs = ["body"]

@@ -2,9 +2,10 @@
 #   Pyrex - Code output module
 #
 
+import codecs
 import Naming
 import Options
-from Cython.Utils import open_new_file
+from Cython.Utils import open_new_file, open_source_file
 from PyrexTypes import py_object_type, typecast
 from TypeSlots import method_coexist
 
@@ -85,23 +86,24 @@ class CCodeWriter:
     def indent(self):
         self.f.write("  " * self.level)
 
+    def get_py_version_hex(self, pyversion):
+        return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
+
     def file_contents(self, file):
         try:
             return self.input_file_contents[file]
         except KeyError:
-            F = [line.replace('*/', '*[inserted by cython to avoid comment closer]/')
-                 for line in open(file).readlines()]
+            F = [line.encode('ASCII', 'replace').replace(
+                    '*/', '*[inserted by cython to avoid comment closer]/')
+                 for line in open_source_file(file)]
             self.input_file_contents[file] = F
             return F
-
-    def get_py_version_hex(self, pyversion):
-        return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
 
     def mark_pos(self, pos):
         if pos is None:
             return
-        file, line, col = pos
-        contents = self.file_contents(file)
+        filename, line, col = pos
+        contents = self.file_contents(filename)
 
         context = ''
         for i in range(max(0,line-3), min(line+2, len(contents))):
@@ -109,8 +111,8 @@ class CCodeWriter:
             if i+1 == line:   # line numbers in pyrex start counting up from 1
                 s = s.rstrip() + '             # <<<<<<<<<<<<<< ' + '\n'
             context += " * " + s
-        
-        marker = '"%s":%s\n%s' % (file, line, context)
+
+        marker = '"%s":%d\n%s' % (filename.encode('ASCII', 'replace'), line, context)
         if self.last_marker != marker:
             self.marker = marker
 
