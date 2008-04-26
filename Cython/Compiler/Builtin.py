@@ -52,6 +52,9 @@ builtin_function_table = [
     #  Can't do these easily until we have builtin type entries.
     #('typecheck',  "OO",   "i",     "PyObject_TypeCheck", False),
     #('issubtype',  "OO",   "i",     "PyType_IsSubtype",   False),
+
+    # Put in namespace append optimization.
+    ('__Pyx_PyObject_Append', "OO",  "O",     "__Pyx_PyObject_Append"),
 ]
 
 # Builtin types

@@ -1519,12 +1519,15 @@ class SimpleCallNode(ExprNode):
     #  coerced_self   ExprNode or None     used internally
     #  wrapper_call   bool                 used internally
     
+    # optimized_call  str or None
+    
     subexprs = ['self', 'coerced_self', 'function', 'args', 'arg_tuple']
     
     self = None
     coerced_self = None
     arg_tuple = None
     wrapper_call = False
+    optimized_call = None
     
     def compile_time_value(self, denv):
         function = self.function.compile_time_value(denv)
@@ -1538,6 +1541,15 @@ class SimpleCallNode(ExprNode):
         function = self.function
         function.is_called = 1
         self.function.analyse_types(env)
+        if function.is_attribute and function.is_py_attr and \
+           function.attribute == "append" and len(self.args) == 1:
+            # L.append(x) is almost always applied to a list
+            self.py_func = self.function
+            self.function = NameNode(pos=self.function.pos, name="__Pyx_PyObject_Append")
+            self.function.analyse_types(env)
+            self.self = self.py_func.obj
+            function.obj = CloneNode(self.self)
+            env.use_utility_code(append_utility_code)
         if function.is_attribute and function.entry and function.entry.is_cmethod:
             # Take ownership of the object from which the attribute
             # was obtained, because we need to pass it as 'self'.
@@ -4105,3 +4117,18 @@ static void __Pyx_CppExn2PyErr() {
 """,""]
 
 #------------------------------------------------------------------------------------
+
+append_utility_code = [
+"""
+static inline PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
+    if (likely(PyList_CheckExact(L))) {
+        if (PyList_Append(L, x) < 0) return NULL;
+        Py_INCREF(Py_None);
+        return Py_None; // this is just to have an accurate signature
+    }
+    else {
+        return PyObject_CallMethod(L, "append", "O", x);
+    }
+}
+""",""
+]
