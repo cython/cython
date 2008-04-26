@@ -50,7 +50,7 @@ Options:
 #                   transforms for the same phase will be used in the order they are given.
 
 def bad_usage():
-    print >>sys.stderr, usage
+    sys.stderr.write(usage)
     sys.exit(1)
 
 def parse_command_line(args):
@@ -140,14 +140,14 @@ def parse_command_line(args):
             elif arg.endswith(".o"):
                 options.objects.append(arg)
             else:
-                print >>sys.stderr, \
-                    "cython: %s: Unknown filename suffix" % arg
+                sys.stderr.write(
+                    "cython: %s: Unknown filename suffix\n" % arg)
     if options.objects and len(sources) > 1:
-        print >>sys.stderr, \
-            "cython: Only one source file allowed together with .o files"
+        sys.stderr.write(
+            "cython: Only one source file allowed together with .o files\n")
     if options.use_listing_file and len(sources) > 1:
-        print >>sys.stderr, \
-            "cython: Only one source file allowed when using -o"
+        sys.stderr.write(
+            "cython: Only one source file allowed when using -o\n")
         sys.exit(1)
     if len(sources) == 0 and not options.show_version:
         bad_usage()

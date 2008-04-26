@@ -57,7 +57,7 @@ class Transform(object):
         parent has with child. This method should always return the node which the parent
         should use for this relation, which can either be the same node, None to remove
         the node, or a different node."""
-        raise InternalError("Not implemented")
+        raise NotImplementedError("Not implemented")
 
 class PrintTree(Transform):
     """Prints a representation of the tree to standard output.
