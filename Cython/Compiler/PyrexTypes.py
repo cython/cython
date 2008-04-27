@@ -72,6 +72,7 @@ class PyrexType(BaseType):
         
     is_pyobject = 0
     is_extension_type = 0
+    is_builtin_type = 0
     is_numeric = 0
     is_int = 0
     is_float = 0
@@ -210,6 +211,48 @@ class PyObjectType(PyrexType):
             return "%s *%s" % (public_decl("PyObject", dll_linkage), entity_code)
 
 
+class BuiltinObjectType(PyObjectType):
+
+    is_builtin_type = 1
+    has_attributes = 1
+    base_type = None
+    module_name = '__builtin__'
+
+    def __init__(self, name, cname):
+        self.name = name
+        self.cname = cname
+        self.typeptr_cname = "&" + cname
+                                 
+    def set_scope(self, scope):
+        self.scope = scope
+        if scope:
+            scope.parent_type = self
+        
+    def __str__(self):
+        return "%s object" % self.name
+    
+    def __repr__(self):
+        return "<%s>"% self.cname
+        
+    def assignable_from(self, src_type):
+        if isinstance(src_type, BuiltinObjectType):
+            return src_type.name == self.name
+        else:
+            return not src_type.is_extension_type
+            
+    def typeobj_is_available(self):
+        return True
+        
+    def attributes_known(self):
+        return True
+        
+    def subtype_of(self, type):
+        return type.is_pyobject and self.assignable_from(type)
+        
+    def type_test_code(self, arg):
+        return 'likely(Py%s_CheckExact(%s)) || (%s) == Py_None || (PyErr_Format(PyExc_TypeError, "Expected %s, got %%s", %s->ob_type->tp_name), 0)' % (self.name[0].upper() + self.name[1:], arg, arg, self.name, arg)
+
+
 class PyExtensionType(PyObjectType):
     #
     #  A Python extension type.
@@ -281,6 +324,9 @@ class PyExtensionType(PyObjectType):
             else:
                 return "%s *%s" % (base,  entity_code)
 
+    def type_test_code(self, py_arg):
+        return "__Pyx_TypeTest(%s, %s)" % (py_arg, self.typeptr_cname)
+    
     def attributes_known(self):
         return self.scope is not None
     

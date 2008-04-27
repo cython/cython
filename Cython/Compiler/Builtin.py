@@ -78,6 +78,28 @@ builtin_function_table = [
 #  type
 #  xrange
 
+builtin_types_table = [
+
+    ("type",    "PyType_Type",     []),
+#    ("str",     "PyString_Type",   []),
+    ("unicode", "PyUnicode_Type",  []),
+    ("file",    "PyFile_Type",     []),
+#    ("slice",   "PySlice_Type",    []),
+#    ("set",     "PySet_Type",      []),
+    ("frozenset", "PyFrozenSet_Type",   []),
+
+    ("tuple",   "PyTuple_Type",    []),
+    
+    ("list",    "PyList_Type",     [("append", "OO",   "i", "PyList_Append"),
+                                    ("insert", "OiO",  "i", "PyList_Insert"),
+                                    ("sort",   "O",    "i", "PyList_Sort"),
+                                    ("reverse","O",    "i", "PyList_Reverse")]),
+                                    
+    ("dict",    "PyDict_Type",     [("items", "O",   "O", "PyDict_Items"),
+                                    ("keys",  "O",   "O", "PyDict_Keys"),
+                                    ("values","O",   "O", "PyDict_Values")]),
+]
+
 getattr3_utility_code = ["""
 static PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *); /*proto*/
 ""","""
@@ -112,7 +134,19 @@ def init_builtin_funcs():
     for desc in builtin_function_table:
         declare_builtin_func(*desc)
 
+def init_builtin_types():
+    for name, cname, funcs in builtin_types_table:
+        the_type = builtin_scope.declare_builtin_type(name, cname)
+        for name, args, ret, cname in funcs:
+            sig = Signature(args, ret)
+            the_type.scope.declare_cfunction(name, sig.function_type(), None, cname)
+
 def init_builtins():
     init_builtin_funcs()
-
+    init_builtin_types()
+    global list_type, tuple_type, dict_type
+    list_type  = builtin_scope.lookup('list').type
+    tuple_type = builtin_scope.lookup('tuple').type
+    dict_type  = builtin_scope.lookup('dict').type
+    
 init_builtins()

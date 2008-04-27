@@ -1176,11 +1176,12 @@ class CFuncDefNode(FuncDefNode):
             typeptr_cname = arg.type.typeptr_cname
             arg_code = "((PyObject *)%s)" % arg.cname
             code.putln(
-                'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, "%s"))) %s' % (
+                'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, "%s", %s))) %s' % (
                     arg_code, 
                     typeptr_cname,
                     not arg.not_none,
                     arg.name,
+                    type.is_builtin_type,
                     code.error_goto(arg.pos)))
         else:
             error(arg.pos, "Cannot test type of extern C class "
@@ -1337,7 +1338,8 @@ class DefNode(FuncDefNode):
             if not sig.has_generic_args:
                 self.bad_signature()
             for arg in self.args:
-                if arg.is_generic and arg.type.is_extension_type:
+                if arg.is_generic and \
+                        (arg.type.is_extension_type or arg.type.is_builtin_type):
                     arg.needs_type_test = 1
                     any_type_tests_needed = 1
                 elif arg.type is PyrexTypes.c_py_ssize_t_type:
@@ -1843,11 +1845,12 @@ class DefNode(FuncDefNode):
             typeptr_cname = arg.type.typeptr_cname
             arg_code = "((PyObject *)%s)" % arg.entry.cname
             code.putln(
-                'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, "%s"))) %s' % (
+                'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, "%s", %s))) %s' % (
                     arg_code, 
                     typeptr_cname,
                     not arg.not_none,
                     arg.name,
+                    arg.type.is_builtin_type,
                     code.error_goto(arg.pos)))
         else:
             error(arg.pos, "Cannot test type of extern C class "
@@ -2990,7 +2993,7 @@ class ForInStatNode(LoopNode, StatNode):
             if isinstance(sequence, ExprNodes.SimpleCallNode) \
                   and sequence.self is None \
                   and isinstance(sequence.function, ExprNodes.NameNode) \
-                  and sequence.function.name == 'range':
+                  and (sequence.function.name == 'range' or sequence.function.name == 'xrange'):
                 args = sequence.args
                 # Make sure we can determine direction from step
                 if self.analyse_range_step(args):
@@ -3890,15 +3893,20 @@ static void __Pyx_ReRaise(void) {
 
 arg_type_test_utility_code = [
 """
-static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed, char *name); /*proto*/
+static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed, char *name, int exact); /*proto*/
 ""","""
-static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed, char *name) {
+static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed, char *name, int exact) {
     if (!type) {
         PyErr_Format(PyExc_SystemError, "Missing type object");
         return 0;
     }
-    if ((none_allowed && obj == Py_None) || PyObject_TypeCheck(obj, type))
-        return 1;
+    if (none_allowed && obj == Py_None) return 1;
+    else if (exact) {
+        if (PyObject_TypeCheck(obj, type)) return 1;
+    }
+    else {
+        if (obj->ob_type == type) return 1;
+    }
     PyErr_Format(PyExc_TypeError,
         "Argument '%s' has incorrect type (expected %s, got %s)",
         name, type->tp_name, obj->ob_type->tp_name);
