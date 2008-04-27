@@ -10,6 +10,7 @@ import Naming
 from Nodes import Node
 import PyrexTypes
 from PyrexTypes import py_object_type, c_long_type, typecast, error_type
+from Builtin import list_type, tuple_type, dict_type
 import Symtab
 import Options
 from Annotate import AnnotationItem
@@ -2052,9 +2053,12 @@ class AttributeNode(ExprNode):
         obj_code = obj.result_as(obj.type)
         #print "...obj_code =", obj_code ###
         if self.entry and self.entry.is_cmethod:
-            return "((struct %s *)%s%s%s)->%s" % (
-                obj.type.vtabstruct_cname, obj_code, self.op, 
-                obj.type.vtabslot_cname, self.member)
+            if obj.type.is_extension_type:
+                return "((struct %s *)%s%s%s)->%s" % (
+                    obj.type.vtabstruct_cname, obj_code, self.op, 
+                    obj.type.vtabslot_cname, self.member)
+            else:
+                return self.member
         else:
             return "%s%s%s" % (obj_code, self.op, self.member)
     
@@ -2261,11 +2265,11 @@ class TupleNode(SequenceNode):
     
     def analyse_types(self, env):
         if len(self.args) == 0:
-            self.type = py_object_type
             self.is_temp = 0
             self.is_literal = 1
         else:
             SequenceNode.analyse_types(self, env)
+        self.type = tuple_type
             
     def calculate_result_code(self):
         if len(self.args) > 0:
@@ -2310,6 +2314,10 @@ class TupleNode(SequenceNode):
 class ListNode(SequenceNode):
     #  List constructor.
     
+    def analyse_types(self, env):
+        SequenceNode.analyse_types(self, env)
+        self.type = list_type
+
     def compile_time_value(self, denv):
         return self.compile_time_value_list(denv)
 
@@ -2342,7 +2350,7 @@ class ListComprehensionNode(SequenceNode):
     is_sequence_constructor = 0 # not unpackable
 
     def analyse_types(self, env): 
-        self.type = py_object_type
+        self.type = list_type
         self.is_temp = 1
         self.append.target = self # this is a CloneNode used in the PyList_Append in the inner loop
         
@@ -2401,7 +2409,7 @@ class DictNode(ExprNode):
     def analyse_types(self, env):
         for item in self.key_value_pairs:
             item.analyse_types(env)
-        self.type = py_object_type
+        self.type = dict_type
         self.is_temp = 1
     
     def allocate_temps(self, env, result = None):
@@ -3719,7 +3727,7 @@ class PyTypeTestNode(CoercionNode):
     def __init__(self, arg, dst_type, env):
         #  The arg is know to be a Python object, and
         #  the dst_type is known to be an extension type.
-        assert dst_type.is_extension_type, "PyTypeTest on non extension type"
+        assert dst_type.is_extension_type or dst_type.is_builtin_type, "PyTypeTest on non extension type"
         CoercionNode.__init__(self, arg)
         self.type = dst_type
         self.result_ctype = arg.ctype()
@@ -3740,9 +3748,8 @@ class PyTypeTestNode(CoercionNode):
     def generate_result_code(self, code):
         if self.type.typeobj_is_available():
             code.putln(
-                "if (!__Pyx_TypeTest(%s, %s)) %s" % (
-                    self.arg.py_result(), 
-                    self.type.typeptr_cname,
+                "if (!(%s)) %s" % (
+                    self.type.type_test_code(self.arg.py_result()),
                     code.error_goto(self.pos)))
         else:
             error(self.pos, "Cannot test type of extern C class "

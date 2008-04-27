@@ -588,6 +588,7 @@ class BuiltinScope(Scope):
             Scope.__init__(self, "__builtin__", None, None)
         else:
             Scope.__init__(self, "__builtin__", PreImportScope(), None)
+        self.type_names = {}
         
         for name, definition in self.builtin_entries.iteritems():
             cname, type = definition
@@ -614,6 +615,23 @@ class BuiltinScope(Scope):
             var_entry.is_builtin = 1
             entry.as_variable = var_entry
         return entry
+        
+    def declare_builtin_type(self, name, cname):
+        type = PyrexTypes.BuiltinObjectType(name, cname)
+        type.set_scope(CClassScope(name, outer_scope=None, visibility='extern'))
+        self.type_names[name] = 1
+        entry = self.declare_type(name, type, None, visibility='extern')
+
+        var_entry = Entry(name = entry.name,
+            type = py_object_type,
+            pos = entry.pos,
+            cname = "((PyObject*)%s)" % entry.type.typeptr_cname)
+        var_entry.is_variable = 1
+        var_entry.is_cglobal = 1
+        var_entry.is_readonly = 1
+        entry.as_variable = var_entry
+
+        return type
 
     def builtin_scope(self):
         return self
@@ -684,7 +702,7 @@ class ModuleScope(Scope):
         self.module_entries = {}
         self.python_include_files = ["Python.h", "structmember.h"]
         self.include_files = []
-        self.type_names = {}
+        self.type_names = dict(outer_scope.type_names)
         self.pxd_file_loaded = 0
         self.cimported_modules = []
         self.intern_map = {}
