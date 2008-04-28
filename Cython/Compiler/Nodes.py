@@ -480,7 +480,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 type = PyrexTypes.c_ptr_type(type.base_type)
             # Catch attempted C-style func(void) decl
             if type.is_void:
-                error(arg_node.pos, "Function argument cannot be void")
+                error(arg_node.pos, "Use spam() rather than spam(void) to declare a function with no arguments.")
             if type.is_pyobject and self.nogil:
                 error(self.pos,
                     "Function with Python argument cannot be declared nogil")
