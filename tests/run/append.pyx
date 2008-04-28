@@ -4,7 +4,7 @@ None
 None
 got error
 [1, 2]
->>> test_append(A())
+>>> test_append(A()) # doctest: +ELLIPSIS
 appending
 1
 appending
