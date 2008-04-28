@@ -877,6 +877,7 @@ class CEnumType(CType):
 
 
 def _escape_byte_string(s):
+    s = s.replace('\0', r'\x00')
     try:
         s.decode("ASCII")
         return s
