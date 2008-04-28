@@ -1,18 +1,39 @@
 #!/usr/bin/python
 
-import os, sys, unittest, doctest
+import os, sys, re, shutil, unittest, doctest
 
-from Cython.Distutils.extension import Extension
-from Cython.Distutils import build_ext
+from Cython.Compiler.Main import \
+    CompilationOptions, \
+    default_options as pyrex_default_options, \
+    compile as cython_compile
 
 from distutils.dist import Distribution
+from distutils.core import Extension
+from distutils.command.build_ext import build_ext
 distutils_distro = Distribution()
 
-TEST_DIRS = ['compile', 'run']
+TEST_DIRS = ['compile', 'errors', 'run']
 TEST_RUN_DIRS = ['run']
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
+
+
+class ErrorWriter(object):
+    match_error = re.compile('(?:.*:)?([-0-9]+):([-0-9]+):(.*)').match
+    def __init__(self):
+        self.output = []
+        self.write = self.output.append
+
+    def geterrors(self):
+        s = ''.join(self.output)
+        errors = []
+        for line in s.split('\n'):
+            match = self.match_error(line)
+            if match:
+                line, column, message = match.groups()
+                errors.append( "%d:%d:%s" % (int(line), int(column), message.strip()) )
+        return errors
 
 class TestBuilder(object):
     def __init__(self, rootdir, workdir, selectors):
@@ -30,6 +51,7 @@ class TestBuilder(object):
         return suite
 
     def handle_directory(self, path, context):
+        expect_errors = (context == 'errors')
         suite = unittest.TestSuite()
         for filename in os.listdir(path):
             if not filename.endswith(".pyx"):
@@ -39,66 +61,124 @@ class TestBuilder(object):
             if not [ 1 for match in self.selectors
                      if match(fqmodule) ]:
                 continue
-            suite.addTest(
-                CythonCompileTestCase(path, self.workdir, module))
             if context in TEST_RUN_DIRS:
-                suite.addTest(
-                    CythonRunTestCase(self.workdir, module))
+                test = CythonRunTestCase(path, self.workdir, module)
+            else:
+                test = CythonCompileTestCase(
+                    path, self.workdir, module, expect_errors)
+            suite.addTest(test)
         return suite
 
 class CythonCompileTestCase(unittest.TestCase):
-    def __init__(self, directory, workdir, module):
+    def __init__(self, directory, workdir, module, expect_errors=False):
         self.directory = directory
         self.workdir = workdir
         self.module = module
+        self.expect_errors = expect_errors
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
         return "compiling " + self.module
 
+    def setUp(self):
+        if os.path.exists(self.workdir):
+            shutil.rmtree(self.workdir, ignore_errors=True)
+        os.makedirs(self.workdir)
+
     def runTest(self):
-        self.compile(self.directory, self.module, self.workdir)
+        self.compile(self.directory, self.module, self.workdir,
+                     self.directory, self.expect_errors)
 
-    def compile(self, directory, module, workdir):
-        build_extension = build_ext(distutils_distro)
-        build_extension.include_dirs = INCLUDE_DIRS[:]
-        build_extension.include_dirs.append(directory)
-        build_extension.finalize_options()
+    def split_source_and_output(self, directory, module, workdir):
+        source_and_output = open(os.path.join(directory, module + '.pyx'), 'rU')
+        out = open(os.path.join(workdir, module + '.pyx'), 'w')
+        for line in source_and_output:
+            last_line = line
+            if line.startswith("_ERRORS"):
+                out.close()
+                out = ErrorWriter()
+            else:
+                out.write(line)
+        try:
+            geterrors = out.geterrors
+        except AttributeError:
+            return []
+        else:
+            return geterrors()
 
-        extension = Extension(
-            module,
-            sources = [os.path.join(directory, module + '.pyx')],
-            extra_compile_args = CFLAGS,
-            pyrex_c_in_temp = 1
-            )
-        build_extension.extensions = [extension]
-        build_extension.build_temp = workdir
-        build_extension.build_lib  = workdir
-        build_extension.pyrex_c_in_temp = 1
-        build_extension.run()
+    def run_cython(self, directory, module, targetdir, incdir):
+        include_dirs = INCLUDE_DIRS[:]
+        if incdir:
+            include_dirs.append(incdir)
+        source = os.path.join(directory, module + '.pyx')
+        target = os.path.join(targetdir, module + '.c')
+        options = CompilationOptions(
+            pyrex_default_options,
+            include_path = include_dirs,
+            output_file = target,
+            use_listing_file = False, cplus = False, generate_pxi = False)
+        cython_compile(source, options=options,
+                       full_module_name=module)
 
-class CythonRunTestCase(unittest.TestCase):
-    def __init__(self, rootdir, module):
-        self.rootdir, self.module = rootdir, module
-        unittest.TestCase.__init__(self)
+    def run_distutils(self, module, workdir, incdir):
+        cwd = os.getcwd()
+        os.chdir(workdir)
+        try:
+            build_extension = build_ext(distutils_distro)
+            build_extension.include_dirs = INCLUDE_DIRS[:]
+            if incdir:
+                build_extension.include_dirs.append(incdir)
+            build_extension.finalize_options()
 
+            extension = Extension(
+                module,
+                sources = [module + '.c'],
+                extra_compile_args = CFLAGS,
+                )
+            build_extension.extensions = [extension]
+            build_extension.build_temp = workdir
+            build_extension.build_lib  = workdir
+            build_extension.run()
+        finally:
+            os.chdir(cwd)
+
+    def compile(self, directory, module, workdir, incdir, expect_errors):
+        expected_errors = errors = ()
+        if expect_errors:
+            expected_errors = self.split_source_and_output(
+                directory, module, workdir)
+            directory = workdir
+
+        old_stderr = sys.stderr
+        try:
+            sys.stderr = ErrorWriter()
+            self.run_cython(directory, module, workdir, incdir)
+            errors = sys.stderr.geterrors()
+        finally:
+            sys.stderr = old_stderr
+
+        if errors or expected_errors:
+            for expected, error in zip(expected_errors, errors):
+                self.assertEquals(expected, error)
+            if len(errors) < len(expected_errors):
+                expected_error = expected_errors[len(errors)]
+                self.assertEquals(expected_error, None)
+            elif len(errors) > len(expected_errors):
+                unexpected_error = errors[len(expected_errors)]
+                self.assertEquals(None, unexpected_error)
+        else:
+            self.run_distutils(module, workdir, incdir)
+
+class CythonRunTestCase(CythonCompileTestCase):
     def shortDescription(self):
-        return "running " + self.module
-
-    def runTest(self):
-        self.run()
+        return "compiling and running " + self.module
 
     def run(self, result=None):
-        if not sys.path or sys.path[0] != self.rootdir:
-            sys.path.insert(0, self.rootdir)
-        if result is None: result = self.defaultTestResult()
+        if result is None:
+            result = self.defaultTestResult()
         try:
-            try:
-                doctest.DocTestSuite(self.module).run(result)
-            except ImportError:
-                result.startTest(self)
-                result.addFailure(self, sys.exc_info())
-                result.stopTest(self)
+            self.runTest()
+            doctest.DocTestSuite(self.module).run(result)
         except Exception:
             result.startTest(self)
             result.addError(self, sys.exc_info())
@@ -110,6 +190,9 @@ if __name__ == '__main__':
     WORKDIR = os.path.join(os.getcwd(), 'BUILD')
     if not os.path.exists(WORKDIR):
         os.makedirs(WORKDIR)
+
+    if not sys.path or sys.path[0] != WORKDIR:
+        sys.path.insert(0, WORKDIR)
 
     try:
         sys.argv.remove("-C")
