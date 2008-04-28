@@ -3902,10 +3902,10 @@ static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed
     }
     if (none_allowed && obj == Py_None) return 1;
     else if (exact) {
-        if (PyObject_TypeCheck(obj, type)) return 1;
+        if (obj->ob_type == type) return 1;
     }
     else {
-        if (obj->ob_type == type) return 1;
+        if (PyObject_TypeCheck(obj, type)) return 1;
     }
     PyErr_Format(PyExc_TypeError,
         "Argument '%s' has incorrect type (expected %s, got %s)",

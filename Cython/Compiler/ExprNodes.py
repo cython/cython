@@ -1520,15 +1520,12 @@ class SimpleCallNode(ExprNode):
     #  coerced_self   ExprNode or None     used internally
     #  wrapper_call   bool                 used internally
     
-    # optimized_call  str or None
-    
     subexprs = ['self', 'coerced_self', 'function', 'args', 'arg_tuple']
     
     self = None
     coerced_self = None
     arg_tuple = None
     wrapper_call = False
-    optimized_call = None
     
     def compile_time_value(self, denv):
         function = self.function.compile_time_value(denv)
