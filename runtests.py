@@ -121,21 +121,26 @@ class CythonCompileTestCase(unittest.TestCase):
                        full_module_name=module)
 
     def run_distutils(self, module, workdir, incdir):
-        build_extension = build_ext(distutils_distro)
-        build_extension.include_dirs = INCLUDE_DIRS[:]
-        if incdir:
-            build_extension.include_dirs.append(incdir)
-        build_extension.finalize_options()
+        cwd = os.getcwd()
+        os.chdir(workdir)
+        try:
+            build_extension = build_ext(distutils_distro)
+            build_extension.include_dirs = INCLUDE_DIRS[:]
+            if incdir:
+                build_extension.include_dirs.append(incdir)
+            build_extension.finalize_options()
 
-        extension = Extension(
-            module,
-            sources = [os.path.join(workdir, module + '.c')],
-            extra_compile_args = CFLAGS,
-            )
-        build_extension.extensions = [extension]
-        build_extension.build_temp = workdir
-        build_extension.build_lib  = workdir
-        build_extension.run()
+            extension = Extension(
+                module,
+                sources = [module + '.c'],
+                extra_compile_args = CFLAGS,
+                )
+            build_extension.extensions = [extension]
+            build_extension.build_temp = workdir
+            build_extension.build_lib  = workdir
+            build_extension.run()
+        finally:
+            os.chdir(cwd)
 
     def compile(self, directory, module, workdir, incdir, expect_errors):
         expected_errors = errors = ()
@@ -165,9 +170,6 @@ class CythonCompileTestCase(unittest.TestCase):
             self.run_distutils(module, workdir, incdir)
 
 class CythonRunTestCase(CythonCompileTestCase):
-    def shortDescription(self):
-        return "compiling and running " + self.module
-
     def runTest(self):
         self.run()
 
