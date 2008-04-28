@@ -170,20 +170,15 @@ class CythonCompileTestCase(unittest.TestCase):
             self.run_distutils(module, workdir, incdir)
 
 class CythonRunTestCase(CythonCompileTestCase):
-    def runTest(self):
-        self.run()
+    def shortDescription(self):
+        return "compiling and running " + self.module
 
     def run(self, result=None):
         if result is None:
             result = self.defaultTestResult()
-        CythonCompileTestCase.runTest(self)
         try:
-            try:
-                doctest.DocTestSuite(self.module).run(result)
-            except ImportError:
-                result.startTest(self)
-                result.addFailure(self, sys.exc_info())
-                result.stopTest(self)
+            self.runTest()
+            doctest.DocTestSuite(self.module).run(result)
         except Exception:
             result.startTest(self)
             result.addError(self, sys.exc_info())
