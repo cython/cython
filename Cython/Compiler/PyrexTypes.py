@@ -2,7 +2,6 @@
 #   Pyrex - Types
 #
 
-import string
 import Naming
 
 class BaseType:
@@ -102,7 +101,7 @@ class PyrexType(BaseType):
         return str(value)
     
     def __str__(self):
-        return string.strip(self.declaration_code("", for_display = 1))
+        return self.declaration_code("", for_display = 1).strip()
     
     def same_as(self, other_type, **kwds):
         return self.same_as_resolved_type(other_type.resolve(), **kwds)
@@ -609,7 +608,7 @@ class CFuncType(CType):
         return "<CFuncType %s %s[%s]>" % (
             repr(self.return_type),
             self.calling_convention_prefix(),
-            string.join(arg_reprs, ","))
+            ",".join(arg_reprs))
     
     def calling_convention_prefix(self):
         cc = self.calling_convention
@@ -740,7 +739,7 @@ class CFuncType(CType):
             arg_decl_list.append(self.op_arg_struct.declaration_code(Naming.optional_args_cname))
         if self.has_varargs:
             arg_decl_list.append("...")
-        arg_decl_code = string.join(arg_decl_list, ", ")
+        arg_decl_code = ", ".join(arg_decl_list)
         if not arg_decl_code and not pyrex:
             arg_decl_code = "void"
         exc_clause = ""
