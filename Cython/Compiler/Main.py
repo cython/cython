@@ -150,11 +150,12 @@ class Context:
             name = source_filename.decode(filename_encoding)
 
         try:
-            s = PyrexScanner(f, name, source_encoding = f.encoding,
-                             type_names = type_names, context = self)
-            tree = Parsing.p_module(s, pxd, full_module_name)
-        except UnicodeDecodeError, msg:
-            error((name, 0, 0), "Decoding error, set coding=<encoding-name> at top of source (%s)" % msg)
+            try:
+                s = PyrexScanner(f, name, source_encoding = f.encoding,
+                                 type_names = type_names, context = self)
+                tree = Parsing.p_module(s, pxd, full_module_name)
+            except UnicodeDecodeError, msg:
+                error((name, 0, 0), "Decoding error, missing or incorrect coding=<encoding-name> at top of source (%s)" % msg)
         finally:
             f.close()
         if Errors.num_errors > 0:
