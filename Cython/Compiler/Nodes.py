@@ -757,10 +757,23 @@ class CEnumDefNode(StatNode):
                 item.analyse_declarations(env, self.entry)
 
     def analyse_expressions(self, env):
-        pass
+        if self.visibility == 'public':
+            self.temp = env.allocate_temp_pyobject()
+            env.release_temp(self.temp)
     
     def generate_execution_code(self, code):
-        pass
+        if self.visibility == 'public':
+            for item in self.entry.enum_values:
+                code.putln("%s = PyInt_FromLong(%s); %s" % (
+                        self.temp,
+                        item.cname,
+                        code.error_goto_if_null(self.temp, item.pos)))
+                code.putln('if (PyObject_SetAttrString(%s, "%s", %s) < 0) %s' % (
+                        Naming.module_cname, 
+                        item.name, 
+                        self.temp,
+                        code.error_goto(item.pos)))
+                code.putln("%s = 0;" % self.temp)
 
 
 class CEnumDefItemNode(StatNode):

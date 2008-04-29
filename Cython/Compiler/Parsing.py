@@ -1090,6 +1090,8 @@ def p_for_bounds(s):
                 'relation2': rel2,
                 'bound2': bound2,
                 'step': step }
+    else:
+        s.error("Expected 'in' or 'from'")
 
 def p_for_from_relation(s):
     if s.sy in inequality_relations:
