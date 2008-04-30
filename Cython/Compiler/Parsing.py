@@ -1405,13 +1405,13 @@ def p_suite(s, level = 'other', cdef_flag = 0,
     else:
         return body
 
-def p_c_base_type(s, self_flag = 0):
+def p_c_base_type(s, self_flag = 0, nonempty = 0):
     # If self_flag is true, this is the base type for the
     # self argument of a C method of an extension type.
     if s.sy == '(':
         return p_c_complex_base_type(s)
     else:
-        return p_c_simple_base_type(s, self_flag)
+        return p_c_simple_base_type(s, self_flag, nonempty = nonempty)
 
 def p_calling_convention(s):
     if s.sy == 'IDENT' and s.systring in calling_convention_words:
@@ -1433,7 +1433,7 @@ def p_c_complex_base_type(s):
     return Nodes.CComplexBaseTypeNode(pos, 
         base_type = base_type, declarator = declarator)
 
-def p_c_simple_base_type(s, self_flag):
+def p_c_simple_base_type(s, self_flag, nonempty):
     #print "p_c_simple_base_type: self_flag =", self_flag
     is_basic = 0
     signed = 1
@@ -1449,7 +1449,24 @@ def p_c_simple_base_type(s, self_flag):
             s.next()
         else:
             name = 'int'
-    elif s.looking_at_type_name() or looking_at_dotted_name(s):
+    elif s.looking_at_type_name():
+        name = s.systring
+        s.next()
+        if nonempty and s.sy != 'IDENT':
+            # Make sure this is not a declaration of a variable or 
+            # function with the same name as a type.  
+            if s.sy == '(':
+                s.next()
+                if s.sy == '*' or s.sy == '**':
+                    s.put_back('(', '(')
+                else:
+                    s.put_back('(', '(')
+                    s.put_back('IDENT', name)
+                    name = None
+            elif s.sy not in ('*', '**', '['):
+                s.put_back('IDENT', name)
+                name = None
+    elif looking_at_dotted_name(s):
         #print "p_c_simple_base_type: looking_at_type_name at", s.position()
         name = s.systring
         s.next()
@@ -1683,7 +1700,7 @@ def p_c_arg_decl(s, in_pyfunc, cmethod_flag = 0, nonempty = 0, kw_only = 0):
     pos = s.position()
     not_none = 0
     default = None
-    base_type = p_c_base_type(s, cmethod_flag)
+    base_type = p_c_base_type(s, cmethod_flag, nonempty = nonempty)
     declarator = p_c_declarator(s, nonempty = nonempty)
     if s.sy == 'not':
         s.next()
@@ -1875,7 +1892,7 @@ def p_c_func_or_var_declaration(s, level, pos, visibility = 'private', api = 0,
                                 overridable = False):
     cmethod_flag = level in ('c_class', 'c_class_pxd')
     modifiers = p_c_modifiers(s)
-    base_type = p_c_base_type(s)
+    base_type = p_c_base_type(s, nonempty = 1)
     declarator = p_c_declarator(s, cmethod_flag = cmethod_flag, assignable = 1, nonempty = 1)
     declarator.overridable = overridable
     if s.sy == ':':
@@ -1926,7 +1943,7 @@ def p_ctypedef_statement(s, level, visibility = 'private', api = 0):
             return p_c_struct_or_union_definition(s, pos, level, visibility,
                 typedef_flag = 1)
     else:
-        base_type = p_c_base_type(s)
+        base_type = p_c_base_type(s, nonempty = 1)
         declarator = p_c_declarator(s, is_type = 1, nonempty = 1)
         s.expect_newline("Syntax error in ctypedef statement")
         return Nodes.CTypeDefNode(pos,

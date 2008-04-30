@@ -1075,8 +1075,8 @@ class LocalScope(Scope):
 class StructOrUnionScope(Scope):
     #  Namespace of a C struct or union.
 
-    def __init__(self):
-        Scope.__init__(self, "?", None, None)
+    def __init__(self, name="?"):
+        Scope.__init__(self, name, None, None)
 
     def declare_var(self, name, type, pos, 
             cname = None, visibility = 'private', is_cdef = 0, allow_pyobject = 0):
