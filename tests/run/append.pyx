@@ -2,6 +2,7 @@ __doc__ = """
 >>> test_append([])
 None
 None
+None
 got error
 [1, 2, (3, 4)]
 >>> _ = test_append(A())
