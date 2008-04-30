@@ -384,7 +384,11 @@ class CNameDeclaratorNode(CDeclaratorNode):
     
     child_attrs = []
     
-    def analyse(self, base_type, env):
+    def analyse(self, base_type, env, nonempty = 0):
+        if nonempty and self.name == '':
+            # Must have mistaken the name for the type. 
+            self.name = base_type.name
+            base_type = py_object_type
         self.type = base_type
         return self, base_type
         
@@ -416,12 +420,12 @@ class CPtrDeclaratorNode(CDeclaratorNode):
     
     child_attrs = ["base"]
 
-    def analyse(self, base_type, env):
+    def analyse(self, base_type, env, nonempty = 0):
         if base_type.is_pyobject:
             error(self.pos,
                 "Pointer base type cannot be a Python object")
         ptr_type = PyrexTypes.c_ptr_type(base_type)
-        return self.base.analyse(ptr_type, env)
+        return self.base.analyse(ptr_type, env, nonempty = nonempty)
         
     def analyse_expressions(self, env):
         self.base.analyse_expressions(env)
@@ -435,7 +439,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
 
     child_attrs = ["base", "dimension"]
     
-    def analyse(self, base_type, env):
+    def analyse(self, base_type, env, nonempty = 0):
         if self.dimension:
             self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
@@ -453,7 +457,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             error(self.pos,
                 "Array element cannot be a function")
         array_type = PyrexTypes.c_array_type(base_type, size)
-        return self.base.analyse(array_type, env)
+        return self.base.analyse(array_type, env, nonempty = nonempty)
 
 
 class CFuncDeclaratorNode(CDeclaratorNode):
@@ -470,10 +474,10 @@ class CFuncDeclaratorNode(CDeclaratorNode):
     overridable = 0
     optional_arg_count = 0
 
-    def analyse(self, return_type, env):
+    def analyse(self, return_type, env, nonempty = 0):
         func_type_args = []
         for arg_node in self.args:
-            name_declarator, type = arg_node.analyse(env)
+            name_declarator, type = arg_node.analyse(env, nonempty = nonempty)
             name = name_declarator.name
             if name_declarator.cname:
                 error(self.pos, 
@@ -570,10 +574,10 @@ class CArgDeclNode(Node):
     is_self_arg = 0
     is_generic = 1
 
-    def analyse(self, env):
+    def analyse(self, env, nonempty = 0):
         #print "CArgDeclNode.analyse: is_self_arg =", self.is_self_arg ###
         base_type = self.base_type.analyse(env)
-        return self.declarator.analyse(base_type, env)
+        return self.declarator.analyse(base_type, env, nonempty = nonempty)
 
     def annotate(self, code):
         if self.default:
@@ -718,7 +722,7 @@ class CStructOrUnionDefNode(StatNode):
     def analyse_declarations(self, env):
         scope = None
         if self.attributes is not None:
-            scope = StructOrUnionScope()
+            scope = StructOrUnionScope(self.name)
         self.entry = env.declare_struct_or_union(
             self.name, self.kind, scope, self.typedef_flag, self.pos,
             self.cname, visibility = self.visibility)
@@ -1039,7 +1043,7 @@ class CFuncDefNode(FuncDefNode):
         
     def analyse_declarations(self, env):
         base_type = self.base_type.analyse(env)
-        name_declarator, type = self.declarator.analyse(base_type, env)
+        name_declarator, type = self.declarator.analyse(base_type, env, self.body is not None)
         if not type.is_cfunction:
             error(self.pos, 
                 "Suite attached to non-function declaration")
@@ -1101,7 +1105,7 @@ class CFuncDefNode(FuncDefNode):
         skip_dispatch = not is_module_scope or Options.lookup_module_cpdef
         c_call = ExprNodes.SimpleCallNode(self.pos, function=cfunc, args=[ExprNodes.NameNode(self.pos, name=n) for n in arg_names[1-is_module_scope:]], wrapper_call=skip_dispatch)
         return ReturnStatNode(pos=self.pos, return_type=PyrexTypes.py_object_type, value=c_call)
-                    
+    
     def declare_arguments(self, env):
         for arg in self.type.args:
             if not arg.name:
