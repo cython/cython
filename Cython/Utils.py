@@ -41,12 +41,15 @@ def detect_file_encoding(source_filename):
     # PEPs 263 and 3120
     f = codecs.open(source_filename, "rU", encoding="UTF-8")
     try:
-        for line_no, line in enumerate(f):
-            encoding = _match_file_encoding(line)
+        chars = []
+        for i in range(2):
+            c = f.read(1)
+            while c and c != '\n':
+                chars.append(c)
+                c = f.read(1)
+            encoding = _match_file_encoding(u''.join(chars))
             if encoding:
                 return encoding.group(1)
-            if line_no == 1:
-                break
     finally:
         f.close()
     return "UTF-8"
