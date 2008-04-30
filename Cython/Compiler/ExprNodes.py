@@ -4131,7 +4131,7 @@ static inline PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
         return Py_None; // this is just to have an accurate signature
     }
     else {
-        return PyObject_CallMethod(L, "append", "O", x);
+        return PyObject_CallMethod(L, "append", "(O)", x);
     }
 }
 """,""
