@@ -3,19 +3,21 @@ __doc__ = """
 None
 None
 got error
-[1, 2]
->>> test_append(A()) # doctest: +ELLIPSIS
+[1, 2, (3, 4)]
+>>> _ = test_append(A())
 appending
 1
 appending
 2
+appending
+(3, 4)
 got error
-<append.A instance at ...>
 >>> test_append(B())
 None
 None
 None
-[1, 2, 3, 4]
+None
+[1, 2, (3, 4), 5, 6]
 """
 
 class A:
@@ -31,9 +33,10 @@ class B(list):
 def test_append(L):
     print L.append(1)
     print L.append(2)
+    print L.append((3,4))
     try:
-        print L.append(3,4)
+        print L.append(5,6)
     except TypeError:
         print "got error"
-    print L
+    return L
 
