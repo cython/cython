@@ -138,26 +138,27 @@ class Context:
         return scope
 
     def parse(self, source_filename, type_names, pxd, full_module_name):
+        try:
+            name = source_filename
+            if not isinstance(source_filename, unicode):
+                filename_encoding = sys.getfilesystemencoding()
+                if filename_encoding is None:
+                    filename_encoding = sys.getdefaultencoding()
+                name = source_filename.decode(filename_encoding)
+        except UnicodeDecodeError:
+            pass
+
         # Parse the given source file and return a parse tree.
         try:
             f = Utils.open_source_file(source_filename, "rU")
-
             try:
-                if isinstance(source_filename, unicode):
-                    name = source_filename
-                else:
-                    filename_encoding = sys.getfilesystemencoding()
-                    if filename_encoding is None:
-                        filename_encoding = sys.getdefaultencoding()
-                    name = source_filename.decode(filename_encoding)
-
                 s = PyrexScanner(f, name, source_encoding = f.encoding,
                                  type_names = type_names, context = self)
                 tree = Parsing.p_module(s, pxd, full_module_name)
             finally:
                 f.close()
         except UnicodeDecodeError, msg:
-            error((source_filename, 0, 0), "Decoding error, missing or incorrect coding=<encoding-name> at top of source (%s)" % msg)
+            error((name, 0, 0), "Decoding error, missing or incorrect coding=<encoding-name> at top of source (%s)" % msg)
         if Errors.num_errors > 0:
             raise CompileError
         return tree
