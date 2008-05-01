@@ -44,7 +44,7 @@ def detect_file_encoding(source_filename):
         chars = []
         for i in range(2):
             c = f.read(1)
-            while c and c != '\n':
+            while c and c != u'\n':
                 chars.append(c)
                 c = f.read(1)
             encoding = _match_file_encoding(u''.join(chars))
