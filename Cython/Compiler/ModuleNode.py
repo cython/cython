@@ -666,7 +666,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_ass_subscript_function(scope, code)
                     if scope.defines_any(["__setslice__", "__delslice__"]):
                         self.generate_ass_slice_function(scope, code)
-                    if scope.defines_any(["__getattr__"]):
+                    if scope.defines_any(["__getattr__","__getattribute__"]):
                         self.generate_getattro_function(scope, code)
                     if scope.defines_any(["__setattr__", "__delattr__"]):
                         self.generate_setattro_function(scope, code)
@@ -1030,27 +1030,36 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             "}")
 
     def generate_getattro_function(self, scope, code):
-        # First try to get the attribute using PyObject_GenericGetAttr.
+        # First try to get the attribute using __getattribute__, if defined, or
+        # PyObject_GenericGetAttr.
+        #
         # If that raises an AttributeError, call the user's __getattr__
-        # method.
-        entry = scope.lookup_here("__getattr__")
+        # method, if defined.
+        getattr_entry = scope.lookup_here("__getattr__")
+        getattribute_entry = scope.lookup_here("__getattribute__")
         code.putln("")
         code.putln(
             "static PyObject *%s(PyObject *o, PyObject *n) {"
                 % scope.mangle_internal("tp_getattro"))
-        code.putln(
+        if getattribute_entry is not None:
+            code.putln(
+                "PyObject *v = %s(o, n);" %
+                    getattribute_entry.func_cname)
+        else:
+            code.putln(
                 "PyObject *v = PyObject_GenericGetAttr(o, n);")
-        code.putln(
+        if getattr_entry is not None:
+            code.putln(
                 "if (!v && PyErr_ExceptionMatches(PyExc_AttributeError)) {")
-        code.putln(
-                    "PyErr_Clear();")
-        code.putln(
-                    "v = %s(o, n);" %
-                        entry.func_cname)
-        code.putln(
+            code.putln(
+                "PyErr_Clear();")
+            code.putln(
+                "v = %s(o, n);" %
+                    getattr_entry.func_cname)
+            code.putln(
                 "}")
         code.putln(
-                "return v;")
+            "return v;")
         code.putln(
             "}")
     

@@ -610,7 +610,7 @@ slot_table = (
     MethodSlot(callfunc, "tp_call", "__call__"),
     MethodSlot(reprfunc, "tp_str", "__str__"),
     
-    SyntheticSlot("tp_getattro", ["__getattr__"], "0"), #"PyObject_GenericGetAttr"),
+    SyntheticSlot("tp_getattro", ["__getattr__","__getattribute__"], "0"), #"PyObject_GenericGetAttr"),
     SyntheticSlot("tp_setattro", ["__setattr__", "__delattr__"], "0"), #"PyObject_GenericSetAttr"),
 
     SuiteSlot(PyBufferProcs, "PyBufferProcs", "tp_as_buffer"),
