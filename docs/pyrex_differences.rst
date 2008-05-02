@@ -1,0 +1,276 @@
+Differences between Cython and Pyrex
+====================================
+
+Package names and cross-directory imports
+-----------------------------------------
+
+Just like in python. 
+
+List Comprehensions
+-------------------
+
+`[expr(x) for x in A]` is now available, implementing the full specification
+at http://www.python.org/dev/peps/pep-0202/ . Looping is optimized if ``A`` is
+a list. Also, use the :keyword:`for` ... :keyword:`from` syntax too, e.g.::
+
+    [i*i for i from 0 <= i < 10] 
+
+In-place operators
+------------------
+
+The following is now legal::
+
+    x += 10
+       
+for all single-character operators, for both python and :keyword:`cdef` variables. Side
+effects behave properly, i.e. for::
+
+    L[foo()] += bar()
+
+:func:`foo` is called exactly once, before :func:`bar`. 
+
+Conditional expressions "x if b else y" (python 2.5)
+----------------------------------------------------
+
+Conditional expressions as described in
+http://www.python.org/dev/peps/pep-0308/::
+
+    X if C else Y
+       
+Only one of ``X`` and ``Y`` is evaluated, (depending on the value of C). 
+
+cdef inline
+-----------
+
+Module level functions can now be declared inline, with the :keyword:`inline`
+keyword passed on to the C compiler. These can be as fast as macros.::
+
+    cdef inline int something_fast(int a, int b):
+        return a*a + b
+       
+Note that class-level :keyword:`cdef` functions are handled via a virtual
+function table, so the compiler won't be able to inline them in almost all
+cases. 
+
+Assignment on declaration (e.g. "cdef int spam = 5")
+----------------------------------------------------
+
+In Pyrex, one must write::
+
+    cdef int i, j, k
+    i = 2
+    j = 5
+    k = 7
+    
+Now, with cython, one can write::
+
+    cdef int i = 2, j = 5, k = 7
+    
+The expression on the right hand side can be arbitrarily complicated, e.g.::
+
+    cdef int n = python_call(foo(x,y), a + b + c) - 32
+       
+
+'by' expression in for loop (e.g. "for i from 0 <= i < 10 by 2")
+----------------------------------------------------------------
+    
+::
+
+    for i from 0 <= i < 10 by 2:
+        print i
+       
+
+yields::
+
+    0
+    2
+    4
+    6
+    8
+       
+
+Boolean int type (e.g. it acts like a c int, but coerces to/from python as a boolean)
+-------------------------------------------------------------------------------------
+
+In C, ints are used for truth values. In python, any object can be used as a
+truth value (using the :meth:`__nonzero__` method, but the canonical choices
+are the two boolean objects ``True`` and ``False``. The :keyword:`bint` of
+"boolean int" object is compiled to a C int, but get coerced to and from
+Cython as booleans. The return type of comparisons and several builtins is a
+:ctype:`bint` as well. This allows one to avoid having to wrap things in
+:func:`bool()`. For example, one can write::
+
+    def is_equal(x):
+        return x == y
+
+which would return ``1`` or ``0`` in Pyrex, but returns ``True`` or ``False`` in
+python. One can declare variables and return values for functions to be of the
+:ctype:`bint` type.  For example::
+
+    cdef int i = x
+    Cdef bint b = x
+
+The first conversion would happen via ``x.__int__()`` whereas the second would
+happen via ``x.__nonzero__()``. (Actually, if ``x`` is the python object
+``True`` or ``False`` then no method call is made.) 
+
+Executable class bodies
+-----------------------
+
+Including a working :func:`classmethod`::
+
+    cdef class Blah:
+        def some_method(self):
+            print self
+        some_method = classmethod(some_method)
+        a = 2*3
+        print "hi", a
+        
+cpdef functions
+---------------
+
+Cython adds a third function type on top of the usual :keyword:`def` and
+:keyword:`cdef`. If a function is declared :keyword:`cpdef` it can be called
+from and overridden by both extension and normal python subclasses. You can
+essentially think of a :keyword:`cpdef` method as a :keyword:`cdef` method +
+some extras. (That's how it's implemented at least.) First, it creates a
+:keyword:`def` method that does nothing but call the underlying
+:keyword:`cdef` method (and does argument unpacking/coercion if needed). At
+the top of the :keyword:`cdef` method a little bit of code is added to check
+to see if it's overridden.  Specifically, in pseudocode::
+
+    if type(self) has a __dict__:
+        foo = self.getattr('foo')
+        if foo is not wrapper_foo:
+            return foo(args)
+    [cdef method body]
+
+To detect whether or not a type has a dictionary, it just checks the
+tp_dictoffset slot, which is ``NULL`` (by default) for extension types, but
+non- null for instance classes. If the dictionary exists, it does a single
+attribute lookup and can tell (by comparing pointers) whether or not the
+returned result is actually a new function. If, and only if, it is a new
+function, then the arguments packed into a tuple and the method called. This
+is all very fast. A flag is set so this lookup does not occur if one calls the
+method on the class directly, e.g.::
+
+    cdef class A:
+        cpdef foo(self):
+        pass
+
+    x = A()
+    x.foo()  # will check to see if overridden
+    A.foo(x) # will call A's implementation whether overridden or not
+
+See :ref:`early-binding-speed-label` for explanation and usage tips. 
+
+.. _automatic-range-conversion:
+
+(Optional) automatic range conversion
+-------------------------------------
+
+::
+
+    $cython --convert-range
+       
+This will convert statements of the form ``for i in range(...)`` to ``for i
+from ...`` when ``i`` is any cdef'd integer type, and the direction (i.e. sign
+of step) can be determined. 
+
+.. warning:: 
+
+    This may change the semantics if the range causes
+    assignment to ``i`` to overflow. Specifically, if this option is set, an error
+    will be raised before the loop is entered, whereas without this option the loop
+    will execute until a overflowing value is encountered. 
+
+More friendly type casting
+--------------------------
+
+In Pyrex, if one types ``<int>x`` where ``x`` is a Python object, one will get
+the memory address of ``x``. Likewise, if one types ``<object>i`` where ``i``
+is a C int, one will get an "object" at location ``i`` in memory. This leads
+to confusing results and segfaults.
+
+In Cython ``<type>x`` will try and do a coercion (as would happen on assignment of
+``x`` to a variable of type type) if exactly one of the types is a python object.
+It does not stop one from casting where there is no conversion (though it will
+emit a warning). If one really wants the address, cast to a ``void *`` first.
+
+As in Pyrex ``<MyExtensionType>x`` will cast ``x`` to type <ctype>`MyExtensionType` without any
+type checking. Cython supports the syntax ``<MyExtensionType?>`` to do the cast
+with type checking (i.e. it will throw an error if ``x`` is not a (subclass of)
+<ctype>`MyExtensionType`. 
+
+Optional arguments in cdef/cpdef functions
+------------------------------------------
+
+Cython now supports optional arguments for :keyword:`cdef` and
+:keyword:`cpdef` functions.
+
+The syntax in the ``.pyx`` file remains as in Python, but one declares such
+functions in the ``.pxd`` file by writing ``cdef foo(x=*)``. The number of
+arguments may increase on subclassing, but the argument types and order must
+remain the same. There is a slight performance penalty in some cases when a
+cdef/cpdef function without any optional is overridden with one that does have
+default argument values. 
+
+For example, one can have the ``.pxd`` file::
+
+    cdef class A:
+        cdef foo(self)
+    cdef class B(A)
+        cdef foo(self, x=*)
+    cdef class C(B):
+        cpdef foo(self, x=*, int k=*)
+
+with corresponding ``.pyx`` file::
+
+    cdef class A:
+        cdef foo(self):
+            print "A"
+    cdef class B(A)
+        cdef foo(self, x=None)
+            print "B", x
+    cdef class C(B):
+        cpdef foo(self, x=True, int k=3)
+            print "C", x, k
+
+.. note:: 
+
+    this also demonstrates how :keyword:`cpdef` functions can override
+    :keyword:`cdef` functions.
+
+Function pointers in structs
+----------------------------
+
+Functions declared in :keyword:`structs` are automatically converted to
+function pointers for convenience.
+
+C++ Exception handling
+----------------------
+
+:keyword:`cdef` functions can now be declared as::
+
+    cdef int foo(...) except +
+    cdef int foo(...) except +TypeError
+    cdef int foo(...) except +python_error_raising_function
+
+in which case a Python exception will be raised when a C++ error is caught.
+See :ref:`wrapping-cplusplus-label` for more details.
+
+Synonyms
+--------
+
+``cdef import from`` means the same thing as ``cdef extern from``
+
+Source code encoding
+--------------------
+
+-- TODO: add the links to the relevent PEPs
+
+Cython supports PEP 3120 and PEP 263, i.e. you can start your Cython source
+file with an encoding comment and generally write your source code in UTF-8.
+This impacts the encoding of byte strings and the conversion of unicode string
+literals like ``u'abcd'`` to unicode objects.
+
