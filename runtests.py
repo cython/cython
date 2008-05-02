@@ -2,6 +2,7 @@
 
 import os, sys, re, shutil, unittest, doctest
 
+from Cython.Compiler.Version import version
 from Cython.Compiler.Main import \
     CompilationOptions, \
     default_options as pyrex_default_options, \
@@ -193,6 +194,10 @@ if __name__ == '__main__':
 
     if not sys.path or sys.path[0] != WORKDIR:
         sys.path.insert(0, WORKDIR)
+
+    print "Running tests against Cython %s" % version
+    print "Python", sys.version
+    print
 
     try:
         sys.argv.remove("-C")
