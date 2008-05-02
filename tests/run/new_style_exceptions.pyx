@@ -1,15 +1,15 @@
 __doc__ = """
     >>> test(Exception('hi'))
     Raising: Exception('hi',)
-    Caught: <type 'exceptions.Exception'> Exception('hi',)
+    Caught: Exception('hi',)
 """
 
 import sys
 
 def test(obj):
-    print "Raising:", repr(obj)
+    print "Raising: %s%r" % (obj.__class__.__name__, obj.args)
     try:
         raise obj
     except:
         info = sys.exc_info()
-        print "Caught: %r %r" % (info[0], info[1])
+        print "Caught: %s%r" % (obj.__class__.__name__, obj.args)
