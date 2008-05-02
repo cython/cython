@@ -4,7 +4,7 @@ __doc__ = """
     Caught: Exception('hi',)
 """
 
-import sys
+import sys, types
 
 def test(obj):
     print "Raising: %s%r" % (obj.__class__.__name__, obj.args)
@@ -12,4 +12,8 @@ def test(obj):
         raise obj
     except:
         info = sys.exc_info()
-        print "Caught: %s%r" % (obj.__class__.__name__, obj.args)
+        if sys.version_info >= (2,5):
+            assert isinstance(info[0], type)
+        else:
+            assert isinstance(info[0], types.ClassType)
+        print "Caught: %s%r" % (info[1].__class__.__name__, info[1].args)
