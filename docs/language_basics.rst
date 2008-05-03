@@ -327,7 +327,7 @@ body, and the loop may have an else clause.
 Error return values
 -------------------
 
-If you don't do anything special, a function declared with :keyword`cdef` that
+If you don't do anything special, a function declared with :keyword:`cdef` that
 does not return a Python object has no way of reporting Python exceptions to
 its caller. If an exception is detected in such a function, a warning message
 is printed and the exception is ignored.
@@ -520,7 +520,7 @@ Such expressions are made up of literal values and names defined using ``DEF``
 statements, combined using any of the Python expression syntax.
 
 The following compile-time names are predefined, corresponding to the values
-returned by :func:``os.uname``.
+returned by :func:`os.uname`.
 
     UNAME_SYSNAME, UNAME_NODENAME, UNAME_RELEASE,
     UNAME_VERSION, UNAME_MACHINE

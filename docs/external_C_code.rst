@@ -293,18 +293,16 @@ can then be called and the extension types used as usual.
 Any public C type or extension type declarations in the Cython module are also
 made available when you include :file:`modulename_api.h`.::
 
-    delorean.pyx
-
-    marty.c
-
+    # delorean.pyx
     cdef public struct Vehicle:
-    int speed
-    float power
+        int speed
+        float power
 
     cdef api void activate(Vehicle *v):
         if v.speed >= 88 and v.power >= 1.21:
             print "Time travel achieved"
 
+    # marty.c
     #include "delorean_api.h"
 
     Vehicle car;

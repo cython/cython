@@ -16,7 +16,12 @@ suffix, containing C declarations that are to be available to other Cython
 modules, and an implementation file with a ``.pyx`` suffix, containing
 everything else. When a module wants to use something declared in another
 module's definition file, it imports it using the :keyword:`cimport`
-statement.  What a Definition File contains A definition file can contain:
+statement.
+
+What a Definition File contains
+-------------------------------
+
+A definition file can contain:
 
 * Any kind of C type declaration.
 * extern C function or variable declarations.
@@ -77,9 +82,9 @@ uses it.
         d.filler = dishes.sausage
 
     def serve():
-        spamdish d
+        cdef spamdish d
         prepare(&d)
-        print "%d oz spam, filler no. %d" % (d->oz_of_spam, d->otherstuff)
+        print "%d oz spam, filler no. %d" % (d.oz_of_spam, d.otherstuff)
                                
 It is important to understand that the :keyword:`cimport` statement can only
 be used to import C data types, C functions and variables, and extension
@@ -139,11 +144,11 @@ C functions defined at the top level of a module can be made available via
 :keyword:`cimport` by putting headers for them in the ``.pxd`` file, for
 example,:
 
-:file:`volume.pxd`:
-
-:file:`spammery.pyx`::
+:file:`volume.pxd`::
 
     cdef float cube(float)
+
+:file:`spammery.pyx`::
 
     from volume cimport cube
 
@@ -185,17 +190,22 @@ Python methods.
 Here is an example of a module which defines and exports an extension type,
 and another module which uses it.::
  
-    Shrubbing.pxd 	Shrubbing.pyx
+    # Shrubbing.pxd
     cdef class Shrubbery:
         cdef int width
-        cdef int length 	cdef class Shrubbery:
+        cdef int length
+        
+    # Shrubbing.pyx
+    cdef class Shrubbery:
         def __new__(self, int w, int l):
             self.width = w
             self.length = l
 
     def standard_shrubbery():
         return Shrubbery(3, 7)
-    Landscaping.pyx
+
+
+    # Landscaping.pyx
     cimport Shrubbing
     import Shrubbing
 

@@ -209,25 +209,26 @@ Here's a complete example. It defines a property which adds to a list each
 time it is written to, returns the list when it is read, and empties the list
 when it is deleted.::
  
-    #cheesy.pyx 	Test input
+    # cheesy.pyx
     cdef class CheeseShop:
 
-    cdef object cheeses
+        cdef object cheeses
 
-    def __cinit__(self):
-        self.cheeses = []
+        def __cinit__(self):
+            self.cheeses = []
 
-    property cheese:
+        property cheese:
 
-        def __get__(self):
-            return "We don't have: %s" % self.cheeses
+            def __get__(self):
+                return "We don't have: %s" % self.cheeses
 
-        def __set__(self, value):
-            self.cheeses.append(value)
+            def __set__(self, value):
+                self.cheeses.append(value)
 
-        def __del__(self):
-            del self.cheeses[:]
+            def __del__(self):
+                del self.cheeses[:]
 
+    # Test input
     from cheesy import CheeseShop
 
     shop = CheeseShop()
@@ -242,7 +243,7 @@ when it is deleted.::
     del shop.cheese
     print shop.cheese
 
-    #Test output
+    # Test output
     We don't have: []
     We don't have: ['camembert']
     We don't have: ['camembert', 'cheddar']
@@ -280,18 +281,17 @@ functions, C methods are declared using :keyword:`cdef` instead of
 :keyword:`def`. C methods are "virtual", and may be overridden in derived
 extension types.::
 
-    pets.pyx
-            Output
+    # pets.pyx
     cdef class Parrot:
 
-    cdef void describe(self):
-        print "This parrot is resting."
+        cdef void describe(self):
+            print "This parrot is resting."
 
     cdef class Norwegian(Parrot):
 
-    cdef void describe(self):
-        Parrot.describe(self)
-        print "Lovely plumage!"
+        cdef void describe(self):
+            Parrot.describe(self)
+            print "Lovely plumage!"
 
 
     cdef Parrot p1, p2
@@ -301,7 +301,9 @@ extension types.::
     p1.describe()
     print "p2:"
     p2.describe()
-            p1:
+
+    # Output
+    p1:
     This parrot is resting.
     p2:
     This parrot is resting.

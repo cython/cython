@@ -108,7 +108,7 @@ python. One can declare variables and return values for functions to be of the
 :ctype:`bint` type.  For example::
 
     cdef int i = x
-    Cdef bint b = x
+    cdef bint b = x
 
 The first conversion would happen via ``x.__int__()`` whereas the second would
 happen via ``x.__nonzero__()``. (Actually, if ``x`` is the python object
@@ -156,7 +156,7 @@ method on the class directly, e.g.::
 
     cdef class A:
         cpdef foo(self):
-        pass
+            pass
 
     x = A()
     x.foo()  # will check to see if overridden
@@ -197,10 +197,10 @@ In Cython ``<type>x`` will try and do a coercion (as would happen on assignment 
 It does not stop one from casting where there is no conversion (though it will
 emit a warning). If one really wants the address, cast to a ``void *`` first.
 
-As in Pyrex ``<MyExtensionType>x`` will cast ``x`` to type <ctype>`MyExtensionType` without any
+As in Pyrex ``<MyExtensionType>x`` will cast ``x`` to type :ctype:`MyExtensionType` without any
 type checking. Cython supports the syntax ``<MyExtensionType?>`` to do the cast
 with type checking (i.e. it will throw an error if ``x`` is not a (subclass of)
-<ctype>`MyExtensionType`. 
+:ctype:`MyExtensionType`. 
 
 Optional arguments in cdef/cpdef functions
 ------------------------------------------

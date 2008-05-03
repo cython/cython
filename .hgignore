@@ -1,0 +1,8 @@
+syntax: glob
+
+*.pyc
+*~
+.*.swp
+
+syntax: regexp
+^build/
