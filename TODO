@@ -1,0 +1,10 @@
+* Make a Pygments lexer for cython/pyrex so we get nice color coding.
+* Fix up the latex style file so that boxes are not messed up when we have
+  code examples.
+* Put on my writing hat, and do an overhaul of the structure of the docs so
+  that it is faster to navigate. I will be using the python doc structure as a
+  reference.
+* Get some simple howto's written.
+* Thinking if there is an easy way to test the cython code in the docs so that
+  I can ensure accuracy.
+

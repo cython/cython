@@ -267,7 +267,7 @@ Synonyms
 Source code encoding
 --------------------
 
--- TODO: add the links to the relevent PEPs
+.. TODO: add the links to the relevent PEPs
 
 Cython supports PEP 3120 and PEP 263, i.e. you can start your Cython source
 file with an encoding comment and generally write your source code in UTF-8.

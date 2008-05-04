@@ -159,7 +159,18 @@ header file, and the corresponding Cython declaration that you should put in
 the ``cdef extern`` from block. Struct declarations are used as an example; the
 same applies equally to union and enum declarations.
 
--- TODO: put table here...
+.. TODO: put table here...
+
++-----------------+--------------------+
+| C code          | Cython             |
++-----------------+--------------------+
+| ::              | ::                 |
+|                 |                    |
+|   struct Foo {  |   cdef struct Foo: |
+|     ...         |     ...            |
+|   };            |                    |
++-----------------+--------------------+
+
 
 Note that in all the cases below, you refer to the type in Cython code simply
 as :ctype:`Foo`, not ``struct Foo``.
