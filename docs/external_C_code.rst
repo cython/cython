@@ -159,18 +159,38 @@ header file, and the corresponding Cython declaration that you should put in
 the ``cdef extern`` from block. Struct declarations are used as an example; the
 same applies equally to union and enum declarations.
 
-.. TODO: put table here...
-
-+-----------------+--------------------+
-| C code          | Cython             |
-+-----------------+--------------------+
-| ::              | ::                 |
-|                 |                    |
-|   struct Foo {  |   cdef struct Foo: |
-|     ...         |     ...            |
-|   };            |                    |
-+-----------------+--------------------+
-
++-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
+| C code                  | Possibilities for corresponding Cython Code | Comments                                                              |
++=========================+=============================================+=======================================================================+
+| ::                      | ::                                          | Cython will refer to the as ``struct Foo`` in the generated C code.   |
+|                         |                                             |                                                                       |
+|   struct Foo {          |   cdef struct Foo:                          |                                                                       |
+|     ...                 |     ...                                     |                                                                       |
+|   };                    |                                             |                                                                       |
++-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
+| ::                      | ::                                          | Cython will refer to the type simply as ``Foo`` in                    |
+|                         |                                             | the generated C code.                                                 |
+|   typedef struct {      |   ctypedef struct Foo:                      |                                                                       |
+|     ...                 |     ...                                     |                                                                       |
+|   } Foo;                |                                             |                                                                       |
++-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
+| ::                      | ::                                          | If the C header uses both a tag and a typedef with *different*        |
+|                         |                                             | names, you can use either form of declaration in Cython               |
+|   typedef struct foo {  |   cdef struct foo:                          | (although if you need to forward reference the type,                  |
+|     ...                 |     ...                                     | you'll have to use the first form).                                   |
+|   } Foo;                |   ctypedef foo Foo #optional                |                                                                       |
+|                         |                                             |                                                                       |
+|                         | or::                                        |                                                                       |
+|                         |                                             |                                                                       |
+|                         |   ctypedef struct Foo:                      |                                                                       |
+|                         |     ...                                     |                                                                       |
++-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
+| ::                      | ::                                          | If the header uses the *same* name for the tag and typedef, you       |
+|                         |                                             | won't be able to include a :keyword:`ctypedef` for it -- but then,    |
+|   typedef struct Foo {  |   cdef struct Foo:                          | it's not necessary.                                                   |
+|     ...                 |     ...                                     |                                                                       |
+|   } Foo;                |                                             |                                                                       |
++-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
 
 Note that in all the cases below, you refer to the type in Cython code simply
 as :ctype:`Foo`, not ``struct Foo``.
