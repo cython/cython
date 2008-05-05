@@ -1033,10 +1033,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # First try to get the attribute using __getattribute__, if defined, or
         # PyObject_GenericGetAttr.
         #
-        # If that raises an AttributeError, call the user's __getattr__
-        # method, if defined.
-        getattr_entry = scope.lookup_here("__getattr__")
-        getattribute_entry = scope.lookup_here("__getattribute__")
+        # If that raises an AttributeError, call the __getattr__ if defined.
+        #
+        # In both cases, defined can be in this class, or any base class.
+        def lookup_here_or_base(n,type=None):
+            # Recursive lookup
+            if type is None:
+                type = scope.parent_type
+            r = type.scope.lookup_here(n)
+            if r is None and \
+               type.base_type is not None:
+                return lookup_here_or_base(n,type.base_type)
+            else:
+                return r
+        getattr_entry = lookup_here_or_base("__getattr__")
+        getattribute_entry = lookup_here_or_base("__getattribute__")
         code.putln("")
         code.putln(
             "static PyObject *%s(PyObject *o, PyObject *n) {"
