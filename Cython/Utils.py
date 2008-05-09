@@ -35,6 +35,18 @@ def castrate_file(path, st):
 
 # support for source file encoding detection and unicode decoding
 
+def encode_filename(filename):
+    if isinstance(filename, unicode):
+        return filename
+    try:
+        filename_encoding = sys.getfilesystemencoding()
+        if filename_encoding is None:
+            filename_encoding = sys.getdefaultencoding()
+        filename = filename.decode(filename_encoding)
+    except UnicodeDecodeError:
+        pass
+    return filename
+
 _match_file_encoding = re.compile(u"coding[:=]\s*([-\w.]+)").search
 
 def detect_file_encoding(source_filename):
