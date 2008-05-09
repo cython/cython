@@ -4124,7 +4124,7 @@ static void __Pyx_CppExn2PyErr() {
 
 append_utility_code = [
 """
-static inline PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
+static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     if (likely(PyList_CheckExact(L))) {
         if (PyList_Append(L, x) < 0) return NULL;
         Py_INCREF(Py_None);
