@@ -138,16 +138,7 @@ class Context:
         return scope
 
     def parse(self, source_filename, type_names, pxd, full_module_name):
-        try:
-            name = source_filename
-            if not isinstance(source_filename, unicode):
-                filename_encoding = sys.getfilesystemencoding()
-                if filename_encoding is None:
-                    filename_encoding = sys.getdefaultencoding()
-                name = source_filename.decode(filename_encoding)
-        except UnicodeDecodeError:
-            pass
-
+        name = Utils.encode_filename(source_filename)
         # Parse the given source file and return a parse tree.
         try:
             f = Utils.open_source_file(source_filename, "rU")
