@@ -143,7 +143,7 @@ function toggleDiv(id) {
 
             f.write(" %d: " % k)
             for c, cc, html in special_chars:
-                line = line.replace(cc, html)
+                line = str(line).replace(cc, html)
             f.write(line.rstrip())
                 
             f.write('</pre>\n')
