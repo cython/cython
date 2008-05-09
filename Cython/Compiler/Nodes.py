@@ -1923,7 +1923,7 @@ class OverrideCheckNode(StatNode):
         if self.py_func.is_module_scope:
             code.putln("else {")
         else:
-            code.putln("else if (unlikely(%s->ob_type->tp_dictoffset != 0)) {" % self_arg)
+            code.putln("else if (unlikely(Py_TYPE(%s)->tp_dictoffset != 0)) {" % self_arg)
         err = code.error_goto_if_null(self_arg, self.pos)
         # need to get attribute manually--scope would return cdef method
         if Options.intern_names:
@@ -1931,7 +1931,7 @@ class OverrideCheckNode(StatNode):
         else:
             code.putln('%s = PyObject_GetAttrString(%s, "%s"); %s' % (self.func_node.result_code, self_arg, self.py_func.entry.name, err))
         # It appears that this type is not anywhere exposed in the Python/C API
-        is_builtin_function_or_method = '(strcmp(%s->ob_type->tp_name, "builtin_function_or_method") == 0)' % self.func_node.result_code
+        is_builtin_function_or_method = '(strcmp(Py_TYPE(%s)->tp_name, "builtin_function_or_method") == 0)' % self.func_node.result_code
         is_overridden = '(PyCFunction_GET_FUNCTION(%s) != (void *)&%s)' % (self.func_node.result_code, self.py_func.entry.func_cname)
         code.putln('if (!%s || %s) {' % (is_builtin_function_or_method, is_overridden))
         self.body.generate_execution_code(code)
@@ -3872,7 +3872,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
                 goto raise_error;
             }
         #else
-            type = (PyObject*) type->ob_type;
+            type = (PyObject*) Py_TYPE(type);
             Py_INCREF(type);
             if (!PyType_IsSubtype((PyTypeObject *)type, (PyTypeObject *)PyExc_BaseException)) {
                 PyErr_SetString(PyExc_TypeError,
@@ -3922,14 +3922,14 @@ static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed
     }
     if (none_allowed && obj == Py_None) return 1;
     else if (exact) {
-        if (obj->ob_type == type) return 1;
+        if (Py_TYPE(obj) == type) return 1;
     }
     else {
         if (PyObject_TypeCheck(obj, type)) return 1;
     }
     PyErr_Format(PyExc_TypeError,
         "Argument '%s' has incorrect type (expected %s, got %s)",
-        name, type->tp_name, obj->ob_type->tp_name);
+        name, type->tp_name, Py_TYPE(obj)->tp_name);
     return 0;
 }
 """]
@@ -4067,7 +4067,11 @@ static int __Pyx_SplitKeywords(
         if (!*kwds2)
             goto bad;
         for (i = 0, p = kwd_list; *p; i++, p++) {
+            #if PY_MAJOR_VERSION < 3
             s = PyString_FromString(*p);
+            #else
+            s = PyUnicode_FromString(*p);
+            #endif
             x = PyDict_GetItem(*kwds, s);
             if (x) {
                 if (PyDict_SetItem(kwds1, s, x) < 0)
@@ -4147,7 +4151,11 @@ static void __Pyx_WriteUnraisable(char *name) {
     PyObject *old_exc, *old_val, *old_tb;
     PyObject *ctx;
     PyErr_Fetch(&old_exc, &old_val, &old_tb);
+    #if PY_MAJOR_VERSION < 3
     ctx = PyString_FromString(name);
+    #else
+    ctx = PyUnicode_FromString(name);
+    #endif
     PyErr_Restore(old_exc, old_val, old_tb);
     if (!ctx)
         ctx = Py_None;
@@ -4172,14 +4180,26 @@ static void __Pyx_AddTraceback(char *funcname) {
     PyObject *empty_string = 0;
     PyCodeObject *py_code = 0;
     PyFrameObject *py_frame = 0;
-    
+
+    #if PY_MAJOR_VERSION < 3
     py_srcfile = PyString_FromString(%(FILENAME)s);
+    #else
+    py_srcfile = PyUnicode_FromString(%(FILENAME)s);
+    #endif
     if (!py_srcfile) goto bad;
     if (%(CLINENO)s) {
+        #if PY_MAJOR_VERSION < 3
         py_funcname = PyString_FromFormat( "%%s (%%s:%%u)", funcname, %(CFILENAME)s, %(CLINENO)s);
+        #else
+        py_funcname = PyUnicode_FromFormat( "%%s (%%s:%%u)", funcname, %(CFILENAME)s, %(CLINENO)s);
+        #endif
     }
     else {
+        #if PY_MAJOR_VERSION < 3
         py_funcname = PyString_FromString(funcname);
+        #else
+        py_funcname = PyUnicode_FromString(funcname);
+        #endif
     }
     if (!py_funcname) goto bad;
     py_globals = PyModule_GetDict(%(GLOBALS)s);
@@ -4188,6 +4208,9 @@ static void __Pyx_AddTraceback(char *funcname) {
     if (!empty_string) goto bad;
     py_code = PyCode_New(
         0,            /*int argcount,*/
+        #if PY_MAJOR_VERSION >= 3
+        0,            /*int kwonlyargcount,*/
+        #endif
         0,            /*int nlocals,*/
         0,            /*int stacksize,*/
         0,            /*int flags,*/
@@ -4289,7 +4312,11 @@ static int __Pyx_InternStrings(__Pyx_InternTabEntry *t); /*proto*/
 ""","""
 static int __Pyx_InternStrings(__Pyx_InternTabEntry *t) {
     while (t->p) {
+        #if PY_MAJOR_VERSION < 3
         *t->p = PyString_InternFromString(t->s);
+        #else
+        *t->p = PyUnicode_InternFromString(t->s);
+        #endif
         if (!*t->p)
             return -1;
         ++t;
@@ -4309,7 +4336,11 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
         if (t->is_unicode) {
             *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
         } else {
+            #if PY_MAJOR_VERSION < 3
             *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
+            #else
+            *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+            #endif
         }
         if (!*t->p)
             return -1;

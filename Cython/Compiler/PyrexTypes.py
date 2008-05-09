@@ -249,7 +249,7 @@ class BuiltinObjectType(PyObjectType):
         return type.is_pyobject and self.assignable_from(type)
         
     def type_test_code(self, arg):
-        return 'likely(Py%s_CheckExact(%s)) || (%s) == Py_None || (PyErr_Format(PyExc_TypeError, "Expected %s, got %%s", %s->ob_type->tp_name), 0)' % (self.name[0].upper() + self.name[1:], arg, arg, self.name, arg)
+        return 'likely(Py%s_CheckExact(%s)) || (%s) == Py_None || (PyErr_Format(PyExc_TypeError, "Expected %s, got %%s", Py_TYPE(%s)->tp_name), 0)' % (self.name[0].upper() + self.name[1:], arg, arg, self.name, arg)
 
 
 class PyExtensionType(PyObjectType):
