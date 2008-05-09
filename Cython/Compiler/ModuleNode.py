@@ -247,7 +247,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         result.c_file_generated = 1
         if Options.annotate or options.annotate:
             self.annotate(code)
-            code.save_annotation(result.c_file[:-1] + "pyx") # change?
+            code.save_annotation(result.main_source_file, result.c_file)
     
     def find_referenced_modules(self, env, module_list, modules_seen):
         if env not in modules_seen:

@@ -174,7 +174,8 @@ class Context:
             full_module_name = re.sub(r'[^\w.]', '_', full_module_name)
 
         source = os.path.join(cwd, source)
-        
+        result.main_source_file = source
+
         if options.use_listing_file:
             result.listing_file = replace_suffix(source, ".lis")
             Errors.open_listing_file(result.listing_file,
@@ -286,6 +287,7 @@ class CompilationResult:
         self.listing_file = None
         self.object_file = None
         self.extension_file = None
+        self.main_source_file = None
 
 
 def compile(source, options = None, c_compile = 0, c_link = 0,
