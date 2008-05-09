@@ -209,7 +209,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     
     def generate_c_code(self, env, options, result):
         modules = self.referenced_modules
-        if Options.annotate:
+        if Options.annotate or options.annotate:
             code = Annotate.AnnotationCCodeWriter(StringIO())
         else:
             code = Code.CCodeWriter(StringIO())
@@ -239,14 +239,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         self.generate_declarations_for_modules(env, modules, code.h)
 
-
         f = open_new_file(result.c_file)
         f.write(code.h.f.getvalue())
         f.write("\n")
         f.write(code.f.getvalue())
         f.close()
         result.c_file_generated = 1
-        if Options.annotate:
+        if Options.annotate or options.annotate:
             self.annotate(code)
             code.save_annotation(result.c_file[:-1] + "pyx") # change?
     

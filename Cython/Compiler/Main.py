@@ -351,6 +351,7 @@ default_options = dict(
     obj_only = 1,
     cplus = 0,
     output_file = None,
+    annotate = False,
     generate_pxi = 0,
     transforms = Transform.TransformSet(),
     working_path = "")
