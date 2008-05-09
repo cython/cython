@@ -1401,7 +1401,7 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
 static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     /* It appears that PyMethodDescr_Type is not anywhere exposed in the Python/C API */
     /* if (!PyObject_TypeCheck(method, &PyMethodDescr_Type)) { */ 
-    if (strcmp(method->ob_type->tp_name, "method_descriptor") == 0) { /* cdef classes */
+    if (strcmp(Py_TYPE(method)->tp_name, "method_descriptor") == 0) { /* cdef classes */
         PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
         return PyDescr_NewClassMethod(descr->d_type, descr->d_method);
     }

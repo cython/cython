@@ -4066,7 +4066,7 @@ static int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
     if (obj == Py_None || PyObject_TypeCheck(obj, type))
         return 1;
     PyErr_Format(PyExc_TypeError, "Cannot convert %s to %s",
-        obj->ob_type->tp_name, type->tp_name);
+        Py_TYPE(obj)->tp_name, type->tp_name);
     return 0;
 }
 """]
@@ -4082,13 +4082,17 @@ static PyObject *__Pyx_CreateClass(
 {
     PyObject *py_modname;
     PyObject *result = 0;
-    
+
     py_modname = PyString_FromString(modname);
     if (!py_modname)
         goto bad;
     if (PyDict_SetItemString(dict, "__module__", py_modname) < 0)
         goto bad;
+    #if PY_MAJOR_VERSION < 3
     result = PyClass_New(bases, dict, name);
+    #else
+    result = PyObject_CallFunctionObjArgs((PyObject *)&PyType_Type, name, bases, dict, NULL);
+    #endif
 bad:
     Py_XDECREF(py_modname);
     return result;
