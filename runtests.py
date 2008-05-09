@@ -37,14 +37,17 @@ class ErrorWriter(object):
         return errors
 
 class TestBuilder(object):
-    def __init__(self, rootdir, workdir, selectors):
+    def __init__(self, rootdir, workdir, selectors, annotate):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
+        self.annotate = annotate
 
     def build_suite(self):
         suite = unittest.TestSuite()
-        for filename in os.listdir(self.rootdir):
+        filenames = os.listdir(self.rootdir)
+        filenames.sort()
+        for filename in filenames:
             path = os.path.join(self.rootdir, filename)
             if os.path.isdir(path) and filename in TEST_DIRS:
                 suite.addTest(
@@ -54,7 +57,9 @@ class TestBuilder(object):
     def handle_directory(self, path, context):
         expect_errors = (context == 'errors')
         suite = unittest.TestSuite()
-        for filename in os.listdir(path):
+        filenames = os.listdir(path)
+        filenames.sort()
+        for filename in filenames:
             if not filename.endswith(".pyx"):
                 continue
             module = filename[:-4]
@@ -63,32 +68,46 @@ class TestBuilder(object):
                      if match(fqmodule) ]:
                 continue
             if context in TEST_RUN_DIRS:
-                test = CythonRunTestCase(path, self.workdir, module)
+                test = CythonRunTestCase(
+                    path, self.workdir, module, self.annotate)
             else:
                 test = CythonCompileTestCase(
-                    path, self.workdir, module, expect_errors)
+                    path, self.workdir, module, expect_errors, self.annotate)
             suite.addTest(test)
         return suite
 
 class CythonCompileTestCase(unittest.TestCase):
-    def __init__(self, directory, workdir, module, expect_errors=False):
+    def __init__(self, directory, workdir, module,
+                 expect_errors=False, annotate=False):
         self.directory = directory
         self.workdir = workdir
         self.module = module
         self.expect_errors = expect_errors
+        self.annotate = annotate
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
         return "compiling " + self.module
 
-    def setUp(self):
+    def tearDown(self):
         if os.path.exists(self.workdir):
-            shutil.rmtree(self.workdir, ignore_errors=True)
-        os.makedirs(self.workdir)
+            for rmfile in os.listdir(self.workdir):
+                if self.annotate and rmfile.endswith(".html"):
+                    continue
+                try:
+                    rmfile = os.path.join(self.workdir, rmfile)
+                    if os.path.isdir(rmfile):
+                        shutil.rmtree(rmfile, ignore_errors=True)
+                    else:
+                        os.remove(rmfile)
+                except IOError:
+                    pass
+        else:
+            os.makedirs(self.workdir)
 
     def runTest(self):
         self.compile(self.directory, self.module, self.workdir,
-                     self.directory, self.expect_errors)
+                     self.directory, self.expect_errors, self.annotate)
 
     def split_source_and_output(self, directory, module, workdir):
         source_and_output = open(os.path.join(directory, module + '.pyx'), 'rU')
@@ -107,7 +126,7 @@ class CythonCompileTestCase(unittest.TestCase):
         else:
             return geterrors()
 
-    def run_cython(self, directory, module, targetdir, incdir):
+    def run_cython(self, directory, module, targetdir, incdir, annotate):
         include_dirs = INCLUDE_DIRS[:]
         if incdir:
             include_dirs.append(incdir)
@@ -117,6 +136,7 @@ class CythonCompileTestCase(unittest.TestCase):
             pyrex_default_options,
             include_path = include_dirs,
             output_file = target,
+            annotate = annotate,
             use_listing_file = False, cplus = False, generate_pxi = False)
         cython_compile(source, options=options,
                        full_module_name=module)
@@ -143,7 +163,8 @@ class CythonCompileTestCase(unittest.TestCase):
         finally:
             os.chdir(cwd)
 
-    def compile(self, directory, module, workdir, incdir, expect_errors):
+    def compile(self, directory, module, workdir, incdir,
+                expect_errors, annotate):
         expected_errors = errors = ()
         if expect_errors:
             expected_errors = self.split_source_and_output(
@@ -153,7 +174,7 @@ class CythonCompileTestCase(unittest.TestCase):
         old_stderr = sys.stderr
         try:
             sys.stderr = ErrorWriter()
-            self.run_cython(directory, module, workdir, incdir)
+            self.run_cython(directory, module, workdir, incdir, annotate)
             errors = sys.stderr.geterrors()
         finally:
             sys.stderr = old_stderr
@@ -184,13 +205,18 @@ class CythonRunTestCase(CythonCompileTestCase):
             result.startTest(self)
             result.addError(self, sys.exc_info())
             result.stopTest(self)
+        try:
+            self.tearDown()
+        except Exception:
+            pass
 
 if __name__ == '__main__':
     # RUN ALL TESTS!
     ROOTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]), 'tests')
     WORKDIR = os.path.join(os.getcwd(), 'BUILD')
-    if not os.path.exists(WORKDIR):
-        os.makedirs(WORKDIR)
+    if os.path.exists(WORKDIR):
+        shutil.rmtree(WORKDIR, ignore_errors=True)
+    os.makedirs(WORKDIR)
 
     if not sys.path or sys.path[0] != WORKDIR:
         sys.path.insert(0, WORKDIR)
@@ -207,12 +233,19 @@ if __name__ == '__main__':
         import coverage
         coverage.erase()
 
+    try:
+        sys.argv.remove("-a")
+    except ValueError:
+        annotate_source = False
+    else:
+        annotate_source = True
+
     import re
     selectors = [ re.compile(r, re.I).search for r in sys.argv[1:] ]
     if not selectors:
         selectors = [ lambda x:True ]
 
-    tests = TestBuilder(ROOTDIR, WORKDIR, selectors)
+    tests = TestBuilder(ROOTDIR, WORKDIR, selectors, annotate_source)
     test_suite = tests.build_suite()
 
     if coverage is not None:
