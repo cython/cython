@@ -28,7 +28,7 @@ def castrate_file(path, st):
         f.seek(0, 0)
         f.truncate()
         f.write(
-            "#error Do not use this file, it is the result of a failed Pyrex compilation.\n")
+            "#error Do not use this file, it is the result of a failed Cython compilation.\n")
         f.close()
         if st:
             os.utime(path, (st.st_atime, st.st_mtime))
