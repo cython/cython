@@ -4312,7 +4312,11 @@ static int __Pyx_InternStrings(__Pyx_InternTabEntry *t); /*proto*/
 ""","""
 static int __Pyx_InternStrings(__Pyx_InternTabEntry *t) {
     while (t->p) {
+        #if PY_MAJOR_VERSION < 3
         *t->p = PyString_InternFromString(t->s);
+        #else
+        *t->p = PyString_FromString(t->s);
+        #endif
         if (!*t->p)
             return -1;
         ++t;
