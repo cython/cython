@@ -367,6 +367,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#ifndef PY_LONG_LONG")
         code.putln("  #define PY_LONG_LONG LONG_LONG")
         code.putln("#endif")
+        code.putln("#ifndef DL_EXPORT")
+        code.putln("  #define DL_EXPORT(t) t")
+        code.putln("#endif")
         code.putln("#if PY_VERSION_HEX < 0x02040000")
         code.putln("  #define METH_COEXIST 0")
         code.putln("#endif")
@@ -397,6 +400,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("#if PY_MAJOR_VERSION >= 3")
+        code.putln("  #define PyInt_Type                   PyLong_Type")
         code.putln("  #define PyInt_Check(op)              PyLong_Check(op)")
         code.putln("  #define PyInt_CheckExact(op)         PyLong_CheckExact(op)")
         code.putln("  #define PyInt_FromString             PyLong_FromString")
@@ -409,6 +413,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyInt_AsSsize_t              PyLong_AsSsize_t")
         code.putln("  #define PyInt_AsUnsignedLongMask     PyLong_AsUnsignedLongMask")
         code.putln("  #define PyInt_AsUnsignedLongLongMask PyLong_AsUnsignedLongLongMask")
+        code.putln("#endif")
+
+        code.putln("#if PY_MAJOR_VERSION >= 3")
+        code.putln("  #define PyBaseString_Type            PyUnicode_Type")
         code.putln("#endif")
 
         code.putln("#if PY_MAJOR_VERSION >= 3")
