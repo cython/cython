@@ -4312,11 +4312,7 @@ static int __Pyx_InternStrings(__Pyx_InternTabEntry *t); /*proto*/
 ""","""
 static int __Pyx_InternStrings(__Pyx_InternTabEntry *t) {
     while (t->p) {
-        #if PY_MAJOR_VERSION < 3
         *t->p = PyString_InternFromString(t->s);
-        #else
-        *t->p = PyUnicode_InternFromString(t->s);
-        #endif
         if (!*t->p)
             return -1;
         ++t;
@@ -4334,13 +4330,13 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         if (t->is_unicode) {
-            *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
-        } else {
             #if PY_MAJOR_VERSION < 3
-            *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
+            *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
             #else
             *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
             #endif
+        } else {
+            *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
         }
         if (!*t->p)
             return -1;
