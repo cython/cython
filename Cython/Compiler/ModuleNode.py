@@ -221,12 +221,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/* Implementation of %s */" % env.qualified_name)
         self.generate_const_definitions(env, code)
         self.generate_interned_num_decls(env, code)
-        self.generate_interned_name_decls(env, code)
         self.generate_py_string_decls(env, code)
         self.generate_cached_builtins_decls(env, code)
         self.body.generate_function_definitions(env, code, options.transforms)
         code.mark_pos(None)
-        self.generate_interned_name_table(env, code)
         self.generate_py_string_table(env, code)
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)
@@ -1362,46 +1360,32 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "{0, 0, 0, 0, 0}")
             code.putln(
                 "};")
-    
-    def generate_interned_name_table(self, env, code):
-        code.mark_pos(None)
-        items = env.intern_map.items()
-        if items:
-            items.sort()
-            code.putln("")
-            code.putln(
-                "static __Pyx_InternTabEntry %s[] = {" %
-                    Naming.intern_tab_cname)
-            for (name, cname) in items:
-                code.putln(
-                    '{&%s, "%s"},' % (
-                        cname,
-                        name))
-            code.putln(
-                "{0, 0}")
-            code.putln(
-                "};")
-    
+
     def generate_py_string_table(self, env, code):
         entries = env.all_pystring_entries
         if entries:
+            code.putln("")
+            for entry in entries:
+                if entry.is_interned:
+                    code.putln('static char %s[] = "%s";' % (
+                            entry.cname, entry.init))
             code.putln("")
             code.putln(
                 "static __Pyx_StringTabEntry %s[] = {" %
                     Naming.stringtab_cname)
             for entry in entries:
                 code.putln(
-                    "{&%s, %s, sizeof(%s), %d}," % (
+                    "{&%s, %s, sizeof(%s), %d, %d}," % (
                         entry.pystring_cname,
                         entry.cname,
                         entry.cname,
-                        entry.type.is_unicode
+                        entry.type.is_unicode,
+                        entry.is_interned
                         ))
             code.putln(
-                "{0, 0, 0, 0}")
+                "{0, 0, 0, 0, 0}")
             code.putln(
                 "};")
-
 
     def generate_filename_init_prototype(self, code):
         code.putln("");
@@ -1546,12 +1530,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 entry.cname,
                 entry.init,
                 code.error_goto_if_null(entry.cname, self.pos)))
-        if env.intern_map:
-            env.use_utility_code(Nodes.init_intern_tab_utility_code);
-            code.putln(
-                "if (__Pyx_InternStrings(%s) < 0) %s;" % (
-                    Naming.intern_tab_cname,
-                    code.error_goto(self.pos)))
     
     def generate_string_init_code(self, env, code):
         if env.all_pystring_entries:
