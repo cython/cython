@@ -11,7 +11,7 @@ import stat
 import sys
 from time import time
 
-from Cython import Plex
+from Cython import Plex, Utils
 from Cython.Plex import Scanner
 from Cython.Plex.Errors import UnrecognizedInput
 from Errors import CompileError, error
@@ -320,8 +320,12 @@ class PyrexScanner(Scanner):
             sy, systring = self.read()
         except UnrecognizedInput:
             self.error("Unrecognized character")
-        if sy == 'IDENT' and systring in self.resword_dict:
-            sy = systring
+        if sy == 'IDENT':
+            if systring in self.resword_dict:
+                sy = systring
+            else:
+                systring = Utils.EncodedString(systring)
+                systring.encoding = self.source_encoding
         self.sy = sy
         self.systring = systring
         if debug_scanner:
