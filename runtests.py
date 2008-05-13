@@ -2,11 +2,8 @@
 
 import os, sys, re, shutil, unittest, doctest
 
-from Cython.Compiler.Version import version
-from Cython.Compiler.Main import \
-    CompilationOptions, \
-    default_options as pyrex_default_options, \
-    compile as cython_compile
+WITH_CYTHON = True
+CLEANUP_WORKDIR = True
 
 from distutils.dist import Distribution
 from distutils.core import Extension
@@ -90,8 +87,11 @@ class CythonCompileTestCase(unittest.TestCase):
         return "compiling " + self.module
 
     def tearDown(self):
+        cleanup_c_files = WITH_CYTHON and CLEANUP_WORKDIR
         if os.path.exists(self.workdir):
             for rmfile in os.listdir(self.workdir):
+                if not cleanup_c_files and rmfile[-2:] in (".c", ".h"):
+                    continue
                 if self.annotate and rmfile.endswith(".html"):
                     continue
                 try:
@@ -171,13 +171,14 @@ class CythonCompileTestCase(unittest.TestCase):
                 directory, module, workdir)
             directory = workdir
 
-        old_stderr = sys.stderr
-        try:
-            sys.stderr = ErrorWriter()
-            self.run_cython(directory, module, workdir, incdir, annotate)
-            errors = sys.stderr.geterrors()
-        finally:
-            sys.stderr = old_stderr
+        if WITH_CYTHON:
+            old_stderr = sys.stderr
+            try:
+                sys.stderr = ErrorWriter()
+                self.run_cython(directory, module, workdir, incdir, annotate)
+                errors = sys.stderr.geterrors()
+            finally:
+                sys.stderr = old_stderr
 
         if errors or expected_errors:
             for expected, error in zip(expected_errors, errors):
@@ -211,19 +212,47 @@ class CythonRunTestCase(CythonCompileTestCase):
             pass
 
 if __name__ == '__main__':
+    try:
+        sys.argv.remove("--no-cython")
+    except ValueError:
+        WITH_CYTHON = True
+    else:
+        WITH_CYTHON = False
+
+    if WITH_CYTHON:
+        from Cython.Compiler.Main import \
+            CompilationOptions, \
+            default_options as pyrex_default_options, \
+            compile as cython_compile
+
+    from distutils.dist import Distribution
+    from distutils.core import Extension
+    from distutils.command.build_ext import build_ext
+    distutils_distro = Distribution()
+
     # RUN ALL TESTS!
     ROOTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]), 'tests')
     WORKDIR = os.path.join(os.getcwd(), 'BUILD')
-    if os.path.exists(WORKDIR):
-        shutil.rmtree(WORKDIR, ignore_errors=True)
-    os.makedirs(WORKDIR)
+    if WITH_CYTHON:
+        if os.path.exists(WORKDIR):
+            shutil.rmtree(WORKDIR, ignore_errors=True)
+    if not os.path.exists(WORKDIR):
+        os.makedirs(WORKDIR)
 
     if not sys.path or sys.path[0] != WORKDIR:
         sys.path.insert(0, WORKDIR)
 
-    print "Running tests against Cython %s" % version
-    print "Python", sys.version
-    print
+    if WITH_CYTHON:
+        from Cython.Compiler.Version import version
+        from Cython.Compiler.Main import \
+            CompilationOptions, \
+            default_options as pyrex_default_options, \
+            compile as cython_compile
+        print("Running tests against Cython %s" % version)
+    else:
+        print("Running tests without Cython.")
+    print("Python", sys.version)
+    print("")
 
     try:
         sys.argv.remove("-C")
@@ -232,6 +261,13 @@ if __name__ == '__main__':
     else:
         import coverage
         coverage.erase()
+
+    try:
+        sys.argv.remove("--no-cleanup")
+    except ValueError:
+        CLEANUP_WORKDIR = True
+    else:
+        CLEANUP_WORKDIR = False
 
     try:
         sys.argv.remove("-a")
