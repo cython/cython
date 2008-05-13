@@ -15,7 +15,7 @@ from TypeSlots import \
 import ControlFlow
 import __builtin__
 
-identifier_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*$")
+possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 
 class Entry:
     # A symbol table entry in a Scope or ModuleNamespace.
@@ -64,7 +64,6 @@ class Entry:
     #                                 type is an extension type
     # as_module        None       Module scope, if a cimported module
     # is_inherited     boolean    Is an inherited attribute of an extension type
-    # #interned_cname   string     C name of interned name string
     # pystring_cname   string     C name of Python version of string literal
     # is_interned      boolean    For string const entries, value is interned
     # used             boolean
@@ -104,7 +103,6 @@ class Entry:
     in_cinclude = 0
     as_module = None
     is_inherited = 0
-    #interned_cname = None
     pystring_cname = None
     is_interned = 0
     used = 0
@@ -204,10 +202,10 @@ class Scope:
         
     def __str__(self):
         return "<%s %s>" % (self.__class__.__name__, self.qualified_name)
-    
+
     def intern(self, name):
         return self.global_scope().intern(name)
-    
+
     def qualifying_scope(self):
         return self.parent_scope
     
@@ -465,14 +463,12 @@ class Scope:
         # Python identifier, it will be interned.
         if not entry.pystring_cname:
             value = entry.init
-            if not entry.type.is_unicode and identifier_pattern.match(value):
-                entry.pystring_cname = self.intern(value)
+            if possible_identifier(value):
                 entry.is_interned = 1
-            else:
-                entry.pystring_cname = entry.cname + "p"
-                self.pystring_entries.append(entry)
-                self.global_scope().all_pystring_entries.append(entry)
-                
+            entry.pystring_cname = entry.cname + "p"
+            self.pystring_entries.append(entry)
+            self.global_scope().all_pystring_entries.append(entry)
+
     def add_py_num(self, value):
         # Add an entry for an int constant.
         cname = "%s%s" % (Naming.interned_num_prefix, value)
@@ -678,7 +674,6 @@ class ModuleScope(Scope):
     # pxd_file_loaded      boolean            Corresponding .pxd file has been processed
     # cimported_modules    [ModuleScope]      Modules imported with cimport
     # intern_map           {string : string}  Mapping from Python names to interned strs
-    # interned_names       [string]           Interned names pending generation of declarations
     # interned_nums        [int/long]         Interned numeric constants
     # all_pystring_entries [Entry]            Python string consts from all scopes
     # types_imported       {PyrexType : 1}    Set of types for which import code generated
@@ -706,7 +701,6 @@ class ModuleScope(Scope):
         self.pxd_file_loaded = 0
         self.cimported_modules = []
         self.intern_map = {}
-        self.interned_names = []
         self.interned_nums = []
         self.interned_objs = []
         self.all_pystring_entries = []
@@ -743,15 +737,11 @@ class ModuleScope(Scope):
         else:
             entry.is_builtin = 1
         return entry
-    
+
     def intern(self, name):
-        intern_map = self.intern_map
-        cname = intern_map.get(name)
-        if not cname:
-            cname = Naming.interned_prefix + name
-            intern_map[name] = cname
-            self.interned_names.append(name)
-        return cname
+        string_entry = self.add_string_const(name)
+        self.add_py_string(string_entry)
+        return string_entry.pystring_cname
 
     def find_module(self, module_name, pos):
         # Find a module in the import namespace, interpreting
@@ -832,8 +822,6 @@ class ModuleScope(Scope):
                     "Non-cdef global variable is not a generic Python object")
             entry.is_pyglobal = 1
             entry.namespace_cname = self.module_cname
-            #if Options.intern_names:
-            #	entry.interned_cname = self.intern(name)
         else:
             entry.is_cglobal = 1
             self.var_entries.append(entry)
@@ -1151,8 +1139,6 @@ class PyClassScope(ClassScope):
             cname, visibility, is_cdef)
         entry.is_pyglobal = 1
         entry.namespace_cname = self.class_obj_cname
-        #if Options.intern_names:
-        #	entry.interned_cname = self.intern(name)
         return entry
 
     def allocate_temp(self, type):

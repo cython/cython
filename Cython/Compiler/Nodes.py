@@ -231,19 +231,6 @@ class BlockNode:
                 if not entry.is_interned:
                     code.put_var_declaration(entry, static = 1)
     
-    def generate_interned_name_decls(self, env, code):
-        #  Flush accumulated interned names from the global scope
-        #  and generate declarations for them.
-        genv = env.global_scope()
-        intern_map = genv.intern_map
-        names = genv.interned_names
-        if names:
-            code.putln("")
-            for name in names:
-                code.putln(
-                    "static PyObject *%s;" % intern_map[name])
-            del names[:]
-    
     def generate_py_string_decls(self, env, code):
         entries = env.pystring_entries
         if entries:
@@ -878,7 +865,6 @@ class FuncDefNode(StatNode, BlockNode):
         # if we supported them, which we probably won't.
         # ----- Top-level constants used by this function
         self.generate_interned_num_decls(lenv, code)
-        self.generate_interned_name_decls(lenv, code)
         self.generate_py_string_decls(lenv, code)
         self.generate_cached_builtins_decls(lenv, code)
         #code.putln("")
@@ -3729,8 +3715,7 @@ utility_function_predeclarations = \
 #define INLINE 
 #endif
 
-typedef struct {PyObject **p; char *s;} __Pyx_InternTabEntry; /*proto*/
-typedef struct {PyObject **p; char *s; long n; int is_unicode;} __Pyx_StringTabEntry; /*proto*/
+typedef struct {PyObject **p; char *s; long n; char is_unicode; char intern;} __Pyx_StringTabEntry; /*proto*/
 
 """ + """
 
@@ -4306,27 +4291,6 @@ done:
 
 #------------------------------------------------------------------------------------
 
-init_intern_tab_utility_code = [
-"""
-static int __Pyx_InternStrings(__Pyx_InternTabEntry *t); /*proto*/
-""","""
-static int __Pyx_InternStrings(__Pyx_InternTabEntry *t) {
-    while (t->p) {
-        #if PY_MAJOR_VERSION < 3
-        *t->p = PyString_InternFromString(t->s);
-        #else
-        *t->p = PyString_FromString(t->s);
-        #endif
-        if (!*t->p)
-            return -1;
-        ++t;
-    }
-    return 0;
-}
-"""]
-
-#------------------------------------------------------------------------------------
-
 init_string_tab_utility_code = [
 """
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
@@ -4337,10 +4301,19 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
             #if PY_MAJOR_VERSION < 3
             *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
             #else
-            *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+            if (t->intern) {
+                *t->p = PyUnicode_InternFromString(t->s);
+            } else {
+                *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+            }
             #endif
         } else {
-            *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
+            #if PY_MAJOR_VERSION < 3
+            if (t->intern)
+                *t->p = PyString_InternFromString(t->s);
+            else
+            #endif
+                *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
         }
         if (!*t->p)
             return -1;
