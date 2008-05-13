@@ -461,13 +461,15 @@ class Scope:
         # a string literal, and add it to the list of Python strings to
         # be created at module init time. If the string resembles a
         # Python identifier, it will be interned.
-        if not entry.pystring_cname:
-            value = entry.init
-            if possible_identifier(value):
-                entry.is_interned = 1
-            entry.pystring_cname = entry.cname + "p"
-            self.pystring_entries.append(entry)
-            self.global_scope().all_pystring_entries.append(entry)
+        if entry.pystring_cname:
+            return
+        value = entry.init
+        entry.pystring_cname = entry.cname + "p"
+        self.pystring_entries.append(entry)
+        self.global_scope().all_pystring_entries.append(entry)
+        if possible_identifier(value):
+            entry.is_interned = 1
+            self.global_scope().new_interned_string_entries.append(entry)
 
     def add_py_num(self, value):
         # Add an entry for an int constant.
@@ -673,7 +675,7 @@ class ModuleScope(Scope):
     # type_names           {string : 1}       Set of type names (used during parsing)
     # pxd_file_loaded      boolean            Corresponding .pxd file has been processed
     # cimported_modules    [ModuleScope]      Modules imported with cimport
-    # intern_map           {string : string}  Mapping from Python names to interned strs
+    # new_interned_string_entries [Entry]     New interned strings waiting to be declared
     # interned_nums        [int/long]         Interned numeric constants
     # all_pystring_entries [Entry]            Python string consts from all scopes
     # types_imported       {PyrexType : 1}    Set of types for which import code generated
@@ -700,7 +702,7 @@ class ModuleScope(Scope):
         self.type_names = dict(outer_scope.type_names)
         self.pxd_file_loaded = 0
         self.cimported_modules = []
-        self.intern_map = {}
+        self.new_interned_string_entries = []
         self.interned_nums = []
         self.interned_objs = []
         self.all_pystring_entries = []
@@ -739,7 +741,7 @@ class ModuleScope(Scope):
         return entry
 
     def intern(self, name):
-        string_entry = self.add_string_const(name)
+        string_entry = self.get_string_const(name)
         self.add_py_string(string_entry)
         return string_entry.pystring_cname
 
