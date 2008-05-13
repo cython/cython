@@ -237,6 +237,7 @@ class BlockNode:
             code.putln("")
             for entry in entries:
                 code.put_var_declaration(entry, static = 1)
+            code.putln("")
             for entry in entries:
                 code.putln(
                     "static PyObject *%s;" % entry.pystring_cname)
