@@ -221,6 +221,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/* Implementation of %s */" % env.qualified_name)
         self.generate_const_definitions(env, code)
         self.generate_interned_num_decls(env, code)
+        self.generate_interned_string_decls(env, code)
         self.generate_py_string_decls(env, code)
         self.generate_cached_builtins_decls(env, code)
         self.body.generate_function_definitions(env, code, options.transforms)
@@ -1365,11 +1366,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         entries = env.all_pystring_entries
         if entries:
             code.putln("")
-            for entry in entries:
-                if entry.is_interned:
-                    code.putln('static char %s[] = "%s";' % (
-                            entry.cname, entry.init))
-            code.putln("")
             code.putln(
                 "static __Pyx_StringTabEntry %s[] = {" %
                     Naming.stringtab_cname)
@@ -1476,9 +1472,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Intern cleanup code ---*/")
         for entry in env.pynum_entries:
             code.put_var_decref_clear(entry)
-        if env.intern_map:
-            for name, cname in env.intern_map.items():
-                code.put_decref_clear(cname, PyrexTypes.py_object_type)
+        if env.all_pystring_entries:
+            for entry in env.all_pystring_entries:
+                if entry.is_interned:
+                    code.put_decref_clear(
+                        entry.pystring_cname, PyrexTypes.py_object_type)
         code.putln("Py_INCREF(Py_None); return Py_None;")
         code.putln('}')
 
