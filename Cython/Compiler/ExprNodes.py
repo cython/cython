@@ -2741,7 +2741,7 @@ def unop_node(pos, operator, operand):
     # Construct unnop node of appropriate class for 
     # given operator.
     if isinstance(operand, IntNode) and operator == '-':
-        return IntNode(pos = operand.pos, value = -int(operand.value))
+        return IntNode(pos = operand.pos, value = str(-int(operand.value, 0)))
     elif isinstance(operand, UnopNode) and operand.operator == operator:
         warning(pos, "Python has no increment/decrement operator: %s%sx = %s(%sx) = x" % ((operator,)*4), 5)
     return unop_node_classes[operator](pos, 
@@ -4128,7 +4128,7 @@ static void __Pyx_CppExn2PyErr() {
 
 append_utility_code = [
 """
-static inline PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
+static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     if (likely(PyList_CheckExact(L))) {
         if (PyList_Append(L, x) < 0) return NULL;
         Py_INCREF(Py_None);

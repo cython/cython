@@ -10,10 +10,10 @@ __doc__ = """
     >>> type(sys.maxint * 2 + 1) is long
     True
 
-    >>> test(sys.maxint + 1)
-    2147483648L
-    >>> test(sys.maxint * 2 + 1)
-    4294967295L
+    >>> test(sys.maxint + 1) == sys.maxint + 1
+    True
+    >>> test(sys.maxint * 2 + 1) == sys.maxint * 2 + 1
+    True
 
     >>> test(256 ** unsigned_long_size() - 1) > 0
     True
