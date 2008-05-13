@@ -1,0 +1,11 @@
+syntax: glob
+
+*.pyc
+*.swp
+
+Cython/Compiler/Lexicon.pickle
+BUILD/
+.coverage
+*~
+*.orig
+*.rej

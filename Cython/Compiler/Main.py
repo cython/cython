@@ -138,16 +138,7 @@ class Context:
         return scope
 
     def parse(self, source_filename, type_names, pxd, full_module_name):
-        try:
-            name = source_filename
-            if not isinstance(source_filename, unicode):
-                filename_encoding = sys.getfilesystemencoding()
-                if filename_encoding is None:
-                    filename_encoding = sys.getdefaultencoding()
-                name = source_filename.decode(filename_encoding)
-        except UnicodeDecodeError:
-            pass
-
+        name = Utils.encode_filename(source_filename)
         # Parse the given source file and return a parse tree.
         try:
             f = Utils.open_source_file(source_filename, "rU")
@@ -183,7 +174,8 @@ class Context:
             full_module_name = re.sub(r'[^\w.]', '_', full_module_name)
 
         source = os.path.join(cwd, source)
-        
+        result.main_source_file = source
+
         if options.use_listing_file:
             result.listing_file = replace_suffix(source, ".lis")
             Errors.open_listing_file(result.listing_file,
@@ -295,6 +287,7 @@ class CompilationResult:
         self.listing_file = None
         self.object_file = None
         self.extension_file = None
+        self.main_source_file = None
 
 
 def compile(source, options = None, c_compile = 0, c_link = 0,
@@ -360,6 +353,7 @@ default_options = dict(
     obj_only = 1,
     cplus = 0,
     output_file = None,
+    annotate = False,
     generate_pxi = 0,
     transforms = Transform.TransformSet(),
     working_path = "")

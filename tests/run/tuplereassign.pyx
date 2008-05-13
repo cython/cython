@@ -5,9 +5,9 @@ __doc__ = """
     3
     >>> test( (1,2,3) )
     3
-    >>> testnonsense()
+    >>> testnonsense()     # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'int' object is not iterable
+    TypeError: ...
 """
 
 def test1(t):
