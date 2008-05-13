@@ -1833,7 +1833,7 @@ class AttributeNode(ExprNode):
     #  member               string    C name of struct member
     #  is_called            boolean   Function call is being done on result
     #  entry                Entry     Symbol table entry of attribute
-    #  interned_attr_cname	string    C name of interned attribute name
+    #  interned_attr_cname  string    C name of interned attribute name
     
     is_attribute = 1
     subexprs = ['obj']
