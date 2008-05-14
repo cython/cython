@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> d = {1 : 2}
     >>> test(**d)
     Traceback (most recent call last):

@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
   >>> s = Swallow("Brian", 42)
   Name: Brian
   Airspeed: 42

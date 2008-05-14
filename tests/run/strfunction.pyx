@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
    >>> s('test')
    'test'
    >>> z
@@ -16,20 +16,26 @@ __doc__ = """
 #   'testing a subtype'
 """
 
+import sys
+if sys.version_info[0] >= 3:
+    encoding = {'encoding' : 'ASCII'}
+else:
+    encoding = {}
+
 s = str
-z = str('test')
+z = str('test', **encoding)
 
 def c(string):
-    return str(string)
+    return str(string, **encoding)
 
 class subs(str):
     pass
 
 def sub(string):
-    return subs(string)
+    return subs(string, **encoding)
 
 #cdef class subs(str):
 #    pass
 
 #def csub(string):
-#    return csubs(string)
+#    return csubs(string, **encoding)

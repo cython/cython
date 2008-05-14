@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
 try:
     eggs().eat()
 except RuntimeError, e:

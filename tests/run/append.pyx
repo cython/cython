@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
 >>> test_append([])
 None
 None

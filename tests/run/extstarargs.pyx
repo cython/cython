@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> s = Silly(1,2,3, 'test')
     >>> (spam,grail,swallow,creosote,onlyt,onlyk,tk) = (
     ...     s.spam,s.grail,s.swallow,s.creosote,s.onlyt,s.onlyk,s.tk)

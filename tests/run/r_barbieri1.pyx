@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
   >>> try:
   ...     B()
   ... except Exception, e:

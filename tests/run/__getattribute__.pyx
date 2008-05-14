@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
 __getattribute__ and __getattr__ special methods for a single class.
 
     >>> a = just_getattribute()

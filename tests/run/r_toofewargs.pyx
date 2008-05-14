@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> s = Spam()
     Traceback (most recent call last):
     TypeError: function takes exactly 3 arguments (0 given)

@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> e = Eggs()
     >>> print type(e).__name__
     Eggs

@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
 __getattribute__ and __getattr__ special methods and subclasses. 
 
 getattr does not override members. 

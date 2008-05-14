@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
   >>> try:
   ...     s = Spam()
   ... except StandardError, e:

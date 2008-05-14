@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> spam = Spam()
     >>> b,c,d,e,f,g,h,k = spam.b,spam.c,spam.d,spam.e,spam.f,spam.g,spam.h,spam.k
 

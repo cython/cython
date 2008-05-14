@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
   >>> swallow(name = "Brian")
   This swallow is called Brian
   >>> swallow(airspeed = 42)

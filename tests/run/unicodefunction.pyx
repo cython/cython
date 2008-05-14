@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
    >>> u('test')
    u'test'
    >>> z
@@ -15,6 +15,10 @@ __doc__ = """
 #   >>> csub('testing a C subtype')
 #   u'testing a C subtype'
 """
+
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u" u'", u" '")
 
 u = unicode
 z = unicode('test')

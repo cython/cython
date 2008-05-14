@@ -1,7 +1,7 @@
-__doc__ = """
-    >>> print spam
+__doc__ = u"""
+    >>> print(spam)
     eggseggseggseggs
-    >>> print grail
+    >>> print(grail)
     tomatotomatotomatotomatotomatotomatotomato
 """
 

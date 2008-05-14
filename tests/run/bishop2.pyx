@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> f = foo()
     >>> 'a' in f
     True

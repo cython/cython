@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> ext = Ext()
     >>> b,c,d,e,f,g,h,k = ext.b,ext.c,ext.d,ext.e,ext.f,ext.g,ext.h,ext.k
 

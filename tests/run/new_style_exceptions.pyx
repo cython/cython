@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> test(Exception('hi'))
     Raising: Exception('hi',)
     Caught: Exception('hi',)
