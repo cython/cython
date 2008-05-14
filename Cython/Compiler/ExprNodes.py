@@ -1197,7 +1197,7 @@ class NextNode(AtomicExprNode):
         code.putln(
             "if (!%s) {" %
                 self.result_code)
-        code.error_goto_if_PyErr(self.pos)
+        code.putln(code.error_goto_if_PyErr(self.pos))
         code.putln("break;")
         code.putln("}")
         code.putln("}")
