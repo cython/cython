@@ -5,13 +5,13 @@ __doc__ = u"""
 
     >>> spam(1,2,3)
     (1, 2, 3)
-    >>> spam(1,2)
+    >>> spam(1,2) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: function takes exactly 3 arguments (2 given)
-    >>> spam(1,2,3,4)
+    >>> spam(1,2,3,4) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: function takes exactly 3 arguments (4 given)
-    >>> spam(1,2,3, a=1)
+    >>> spam(1,2,3, a=1) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: 'a' is an invalid keyword argument for this function
 
@@ -21,21 +21,21 @@ __doc__ = u"""
     (1, 2, 3, (4,))
     >>> grail(1,2,3,4,5,6,7,8,9)
     (1, 2, 3, (4, 5, 6, 7, 8, 9))
-    >>> grail(1,2)
+    >>> grail(1,2) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: function takes exactly 3 arguments (2 given)
-    >>> grail(1,2,3, a=1)
+    >>> grail(1,2,3, a=1) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: 'a' is an invalid keyword argument for this function
 
     >>> swallow(1,2,3)
     (1, 2, 3, ())
-    >>> swallow(1,2,3,4)
+    >>> swallow(1,2,3,4) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: function takes at most 3 positional arguments (4 given)
     >>> swallow(1,2,3, a=1, b=2)
     (1, 2, 3, (('a', 1), ('b', 2)))
-    >>> swallow(1,2,3, x=1)
+    >>> swallow(1,2,3, x=1) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: keyword parameter 'x' was given by position and by name
 
@@ -47,7 +47,7 @@ __doc__ = u"""
     (1, 2, 3, (), (('a', 1),))
     >>> creosote(1,2,3,4, a=1, b=2)
     (1, 2, 3, (4,), (('a', 1), ('b', 2)))
-    >>> creosote(1,2,3,4, x=1)
+    >>> creosote(1,2,3,4, x=1) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: keyword parameter 'x' was given by position and by name
 
@@ -55,10 +55,10 @@ __doc__ = u"""
     (1,)
     >>> onlyt(1,2)
     (1, 2)
-    >>> onlyt(a=1)
+    >>> onlyt(a=1) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: 'a' is an invalid keyword argument for this function
-    >>> onlyt(1, a=2)
+    >>> onlyt(1, a=2) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: 'a' is an invalid keyword argument for this function
 
@@ -66,13 +66,13 @@ __doc__ = u"""
     (('a', 1),)
     >>> onlyk(a=1, b=2)
     (('a', 1), ('b', 2))
-    >>> onlyk(1)
+    >>> onlyk(1) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: function takes at most 0 positional arguments (1 given)
-    >>> onlyk(1, 2)
+    >>> onlyk(1, 2) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: function takes at most 0 positional arguments (2 given)
-    >>> onlyk(1, a=1, b=2)
+    >>> onlyk(1, a=1, b=2) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: function takes at most 0 positional arguments (1 given)
 
@@ -88,8 +88,12 @@ __doc__ = u"""
     (1, ('a', 1), ('b', 2))
 """
 
+import sys, re
+if sys.version_info[0] >= 3:
+    __doc__ = re.sub(u"Error: (.*)", u"Error: ...", __doc__)
+
 cdef sorteditems(d):
-    l = d.items()
+    l = list(d.items())
     l.sort()
     return tuple(l)
 
