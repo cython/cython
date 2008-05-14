@@ -1084,7 +1084,8 @@ class CFuncDefNode(FuncDefNode):
             self.entry.as_variable = self.py_func.entry
             # Reset scope entry the above cfunction
             env.entries[name] = self.entry
-            self.py_func.interned_attr_cname = env.intern(self.py_func.entry.name)
+            self.py_func.interned_attr_cname = env.intern_identifier(
+                self.py_func.entry.name)
             if not env.is_module_scope or Options.lookup_module_cpdef:
                 self.override = OverrideCheckNode(self.pos, py_func = self.py_func)
                 self.body = StatListNode(self.pos, stats=[self.override, self.body])
@@ -2119,10 +2120,11 @@ class PropertyNode(StatNode):
         entry = env.declare_property(self.name, self.doc, self.pos)
         if entry:
             if self.doc and Options.docstrings:
-                doc_entry = env.get_string_const(self.doc)
+                doc_entry = env.get_string_const(
+                    self.doc, identifier = False)
                 entry.doc_cname = doc_entry.cname
             self.body.analyse_declarations(entry.scope)
-        
+
     def analyse_expressions(self, env):
         self.body.analyse_expressions(env)
     
@@ -3679,7 +3681,8 @@ class FromImportStatNode(StatNode):
         self.item.allocate_temp(env)
         self.interned_items = []
         for name, target in self.items:
-            self.interned_items.append((env.intern(name), target))
+            self.interned_items.append(
+                (env.intern_identifier(name), target))
             target.analyse_target_expression(env, None)
             #target.release_target_temp(env) # was release_temp ?!?
         self.module.release_temp(env)
@@ -3713,7 +3716,7 @@ utility_function_predeclarations = \
 #define INLINE 
 #endif
 
-typedef struct {PyObject **p; char *s; long n; char is_unicode; char intern;} __Pyx_StringTabEntry; /*proto*/
+typedef struct {PyObject **p; char *s; long n; char is_unicode; char intern; char is_identifier;} __Pyx_StringTabEntry; /*proto*/
 
 """ + """
 
@@ -4295,23 +4298,19 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
 ""","""
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
+        #if PY_MAJOR_VERSION < 3
         if (t->is_unicode) {
-            #if PY_MAJOR_VERSION < 3
             *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
-            #else
-            if (t->intern) {
-                *t->p = PyUnicode_InternFromString(t->s);
-            } else {
-                *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
-            }
-            #endif
+        } else if (t->intern) {
+            *t->p = PyString_InternFromString(t->s);
+        #else  /* Python 3+ has unicode identifiers */
+        if (t->is_identifier || (t->is_unicode && t->intern)) {
+            *t->p = PyUnicode_InternFromString(t->s);
+        } else if (t->is_unicode) {
+            *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+        #endif
         } else {
-            #if PY_MAJOR_VERSION < 3
-            if (t->intern)
-                *t->p = PyString_InternFromString(t->s);
-            else
-            #endif
-                *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
+            *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
         }
         if (!*t->p)
             return -1;

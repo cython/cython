@@ -1390,11 +1390,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     Naming.stringtab_cname)
             for entry in entries:
                 code.putln(
-                    "{&%s, %s, sizeof(%s), %d, %d}," % (
+                    "{&%s, %s, sizeof(%s), %d, %d, %d}," % (
                         entry.pystring_cname,
                         entry.cname,
                         entry.cname,
                         entry.type.is_unicode,
+                        entry.is_identifier,
                         entry.is_interned
                         ))
             code.putln(
