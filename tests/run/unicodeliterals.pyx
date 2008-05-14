@@ -19,7 +19,7 @@ __doc__ = r"""
     u'S\xf8k ik\xfc\xd6\xe4abc'
     >>> null
     u'\x00'
-""" + """
+""".decode("ASCII") + """
     >>> len(sa)
     3
     >>> len(ua)
@@ -38,7 +38,7 @@ __doc__ = r"""
     12
     >>> len(null)
     1
-""" + u"""
+""".decode("ASCII") + u"""
     >>> sa == 'abc'
     True
     >>> ua == u'abc'
@@ -62,6 +62,10 @@ __doc__ = r"""
     >>> null == u'\\x00' # unescaped by Python (required by doctest)
     True
 """
+
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u" u'", u" '")
 
 sa = 'abc'
 ua = u'abc'
