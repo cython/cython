@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> b = Bicycle()
     >>> b.fall_off()
     Falling off extremely hard

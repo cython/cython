@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> eggs()
     Args: 1 2 3
     Args: buckle my shoe

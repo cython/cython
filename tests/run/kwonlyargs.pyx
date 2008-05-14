@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> b(1,2,3)
     >>> b(1,2,3,4)
     Traceback (most recent call last):

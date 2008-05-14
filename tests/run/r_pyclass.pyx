@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> order()
     42 tons of spam!
 """

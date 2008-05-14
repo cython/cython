@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> m = MyClass()
     >>> m is foo(m)
     True

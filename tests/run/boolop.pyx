@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> foo(True, False, 23, 'test', 1)
     (0, 1, False, False)
 """

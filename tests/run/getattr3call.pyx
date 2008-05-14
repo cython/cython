@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> class test(object): a = 1
     >>> t = test()
 

@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
   >>> frighten()
   NOBODY expects the Spanish Inquisition!
 """

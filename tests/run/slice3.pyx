@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> class Test(object):
     ...     def __setitem__(self, key, value):
     ...         print key, value

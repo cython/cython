@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> class Test:
     ...     def __init__(self, i):
     ...         self.i = i

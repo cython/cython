@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
   >>> c = CoconutCarrier()
   >>> c.swallow(name = "Brian")
   This swallow is called Brian

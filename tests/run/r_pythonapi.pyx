@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> x = spam()
     >>> print repr(x)
     'Ftang\\x00Ftang!'

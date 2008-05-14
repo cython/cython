@@ -1,9 +1,11 @@
-__doc__ = """
-foo = Foo()
-fee = Fee()
-faa = Faa()
-fee.bof()
-faa.bof()
+__doc__ = u"""
+>>> foo = Foo()
+>>> fee = Fee()
+>>> faa = Faa()
+>>> fee.bof()
+Fee bof 0
+>>> faa.bof()
+Foo bof 0
 """
 
 cdef class Foo:

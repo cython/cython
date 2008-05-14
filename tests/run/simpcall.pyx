@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> z(1,9.2,'test')
     >>> failtype()
     Traceback (most recent call last):

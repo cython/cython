@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> def test(a, b):
     ...     print a, b, add(a, b)
 

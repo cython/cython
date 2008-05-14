@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> c = eggs()
     >>> print "eggs returned:", c
     eggs returned: (17+42j)

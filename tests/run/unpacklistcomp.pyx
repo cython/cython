@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> unpack_normal([1,2])
     (1, 2)
     >>> unpack_normal([1,2,3]) # doctest: +ELLIPSIS

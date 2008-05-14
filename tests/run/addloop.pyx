@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> x = 1
     >>> for i in range(10):
     ...     x = x + i

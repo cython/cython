@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> f.__doc__
     'This is a function docstring.'
 

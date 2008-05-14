@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> empty()
     {}
     >>> keyvalue(1, 2)

@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> s = Spam()
     >>> print s.__class__.__name__
     Spam
