@@ -420,6 +420,21 @@ class Scope:
         else:
             error(pos, "'%s' is not declared" % name)
     
+    def find_imported_module(self, path, pos):
+        # Look up qualified name, must be a module, report error if not found.
+        # Path is a list of names.
+        scope = self
+        for name in path:
+            entry = scope.find(name, pos)
+            if not entry:
+                return None
+            if entry.as_module:
+                scope = entry.as_module
+            else:
+                error(pos, "'%s' is not a cimported module" % scope.qualified_name)
+                return None
+        return scope
+        
     def lookup(self, name):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.

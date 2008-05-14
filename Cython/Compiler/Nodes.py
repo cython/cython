@@ -571,16 +571,7 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
             else:
                 type = py_object_type
         else:
-            scope = env
-            for name in self.module_path:
-                entry = scope.find(name, self.pos)
-                if entry and entry.as_module:
-                    scope = entry.as_module
-                else:
-                    if entry:
-                        error(self.pos, "'%s' is not a cimported module" % name)
-                    scope = None
-                    break
+            scope = env.find_imported_module(self.module_path, self.pos)
             if scope:
                 if scope.is_c_class_scope:
                     scope = scope.global_scope()
@@ -1229,6 +1220,8 @@ class DefNode(FuncDefNode):
         self.num_kwonly_args = k
         self.num_required_kw_args = rk
         self.num_required_args = r
+    
+    entry = None
     
     def analyse_declarations(self, env):
         for arg in self.args:
@@ -2010,7 +2003,14 @@ class CClassDefNode(StatNode, BlockNode):
                     else:
                         self.base_type = base_class_entry.type
         has_body = self.body is not None
-        self.entry = env.declare_c_class(
+        if self.module_name:
+            module_path = self.module_name.split(".")
+            home_scope = env.find_imported_module(module_path, self.pos)
+            if not home_scope:
+                return
+        else:
+            home_scope = env
+        self.entry = home_scope.declare_c_class(
             name = self.class_name, 
             pos = self.pos,
             defining = has_body and self.in_pxd,
@@ -2022,6 +2022,8 @@ class CClassDefNode(StatNode, BlockNode):
             visibility = self.visibility,
             typedef_flag = self.typedef_flag,
             api = self.api)
+        if home_scope is not env and self.visibility == 'extern':
+            env.add_imported_entry(self.class_name, self.entry, pos)
         scope = self.entry.type.scope
 
         if self.doc and Options.docstrings:
