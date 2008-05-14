@@ -45,6 +45,9 @@ class TestBuilder(object):
         filenames = os.listdir(self.rootdir)
         filenames.sort()
         for filename in filenames:
+            if not WITH_CYTHON and filename == "errors":
+                # we won't get any errors without running Cython
+                continue
             path = os.path.join(self.rootdir, filename)
             if os.path.isdir(path) and filename in TEST_DIRS:
                 suite.addTest(
