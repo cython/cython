@@ -212,8 +212,8 @@ class InternalMethodSlot(SlotDescriptor):
     #
     #  slot_name    string           Member name of the slot in the type object
 
-    def __init__(self, slot_name):
-        SlotDescriptor.__init__(self, slot_name)
+    def __init__(self, slot_name, py3k = True):
+        SlotDescriptor.__init__(self, slot_name, py3k = py3k)
 
     def slot_code(self, scope):
         return scope.mangle_internal(self.slot_name)
@@ -271,8 +271,8 @@ class SyntheticSlot(InternalMethodSlot):
     #  alternative default value will be placed in the type
     #  slot.
     
-    def __init__(self, slot_name, user_methods, default_value):
-        InternalMethodSlot.__init__(self, slot_name)
+    def __init__(self, slot_name, user_methods, default_value, py3k = True):
+        InternalMethodSlot.__init__(self, slot_name, py3k = py3k)
         self.user_methods = user_methods
         self.default_value = default_value
     
@@ -574,7 +574,7 @@ PySequenceMethods = (
     SyntheticSlot("sq_item", ["__getitem__"], "0"),    #EmptySlot("sq_item"),   # mp_subscript used instead
     MethodSlot(ssizessizeargfunc, "sq_slice", "__getslice__"),
     EmptySlot("sq_ass_item"), # mp_ass_subscript used instead
-    SyntheticSlot("sq_ass_slice", ["__setslice__", "__delslice__"], "0"),
+    SyntheticSlot("sq_ass_slice", ["__setslice__", "__delslice__"], "0", py3k = False),
     MethodSlot(cmpfunc, "sq_contains", "__contains__"),
     EmptySlot("sq_inplace_concat"), # nb_inplace_add used instead
     EmptySlot("sq_inplace_repeat"), # nb_inplace_multiply used instead
