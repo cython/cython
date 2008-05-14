@@ -15,6 +15,10 @@ __doc__ = u"""
     True
 """
 
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u"2L", u"2")
+
 def f(obj2, obj3):
     cdef float flt1, flt2, flt3
     flt2, flt3 = obj2, obj3

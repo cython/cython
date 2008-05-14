@@ -4,10 +4,14 @@ __doc__ = u"""
     >>> g()
     (1, 1, 2, 2, 3, 3)
     >>> h()
-    (1, 'test', 3, 1, 'test', 3)
+    (1, b'test', 3, 1, b'test', 3)
     >>> j()
     (2, 1, 4, 2, 6, 3)
 """
+
+import sys
+if sys.version_info[0] < 3:
+    __doc__ = __doc__.replace(u" b'", u" '")
 
 def f():
     cdef object obj1a, obj2a, obj3a, obj1b, obj2b, obj3b
