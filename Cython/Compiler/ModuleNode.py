@@ -487,9 +487,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('static PyObject *%s;' % Naming.preimport_cname)
         code.putln('static int %s;' % Naming.lineno_cname)
         code.putln('static int %s = 0;' % Naming.clineno_cname)
-        code.putln('static char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
-        code.putln('static char *%s;' % Naming.filename_cname)
-        code.putln('static char **%s;' % Naming.filetable_cname)
+        code.putln('static const char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
+        code.putln('static const char *%s;' % Naming.filename_cname)
+        code.putln('static const char **%s;' % Naming.filetable_cname)
         if env.doc:
             code.putln('')
             code.putln('static char %s[] = "%s";' % (env.doc_cname, env.doc))
@@ -513,7 +513,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     
     def generate_filename_table(self, code):
         code.putln("")
-        code.putln("static char *%s[] = {" % Naming.filenames_cname)
+        code.putln("static const char *%s[] = {" % Naming.filenames_cname)
         if code.filename_list:
             for source_desc in code.filename_list:
                 filename = os.path.basename(source_desc.get_filenametable_entry())
