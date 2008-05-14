@@ -3775,6 +3775,7 @@ static int __Pyx_PrintItem(PyObject *v) {
     
     if (!(f = __Pyx_GetStdout()))
         return -1;
+    #if PY_MAJOR_VERSION < 3
     if (PyFile_SoftSpace(f, 1)) {
         if (PyFile_WriteString(" ", f) < 0)
             return -1;
@@ -3789,6 +3790,7 @@ static int __Pyx_PrintItem(PyObject *v) {
             s[len-1] != ' ')
                 PyFile_SoftSpace(f, 0);
     }
+    #endif
     return 0;
 }
 
@@ -3797,9 +3799,11 @@ static int __Pyx_PrintNewline(void) {
     
     if (!(f = __Pyx_GetStdout()))
         return -1;
+    #if PY_MAJOR_VERSION < 3
     if (PyFile_WriteString("\n", f) < 0)
         return -1;
     PyFile_SoftSpace(f, 0);
+    #endif
     return 0;
 }
 """]
