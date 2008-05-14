@@ -1,6 +1,6 @@
 __doc__ = u"""
     >>> c = C()
-    >>> print c.x
+    >>> print(c.x)
     foo
 """
 

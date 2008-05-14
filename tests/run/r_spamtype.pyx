@@ -1,9 +1,9 @@
 __doc__ = u"""
     >>> s = Spam()
-    >>> print s.get_tons()
+    >>> s.get_tons()
     17
     >>> s.set_tons(42)
-    >>> print s.get_tons()
+    >>> s.get_tons()
     42
     >>> s = None
     42 tons of spam is history.

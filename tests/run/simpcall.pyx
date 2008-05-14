@@ -1,5 +1,5 @@
 __doc__ = u"""
-    >>> z(1,9.2,'test')
+    >>> z(1,9.2, b'test')
     >>> failtype()
     Traceback (most recent call last):
     TypeError: an integer is required
@@ -12,6 +12,10 @@ __doc__ = u"""
     Traceback (most recent call last):
     TypeError: function takes exactly 2 arguments (1 given)
 """
+
+import sys
+if sys.version_info[0] < 3:
+    __doc__ = __doc__.replace(u" b'", u" '")
 
 def f(x, y):
     x = y

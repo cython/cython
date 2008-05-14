@@ -6,6 +6,10 @@ __doc__ = u"""
   Exception: crash-me
 """
 
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u"Exception, e'", u"Exception as e")
+
 cdef class A:
     def __cinit__(self):
         raise Exception("crash-me")

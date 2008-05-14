@@ -1,11 +1,15 @@
 __doc__ = u"""
     >>> boolExpressionsFail()
-    'Not 2b'
+    u'Not 2b'
 """
+
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u" u'", u" '")
 
 def boolExpressionsFail():
     dict = {1: 1}
-    if not dict.has_key("2b"):
-        return "Not 2b"
+    if not "2b" in dict:
+        return u"Not 2b"
     else:
-        return "2b?"
+        return u"2b?"
