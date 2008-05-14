@@ -916,7 +916,6 @@ def p_import_statement(s):
             else:
                 name_list = None
             dotted_name = Utils.EncodedString(dotted_name)
-            dotted_name.encoding = s.source_encoding
             stat = Nodes.SingleAssignmentNode(pos,
                 lhs = ExprNodes.NameNode(pos, 
                     name = as_name or target_name),
