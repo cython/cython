@@ -1466,7 +1466,7 @@ class DefNode(FuncDefNode):
             reqd_kw_flags = []
             has_reqd_kwds = False
             code.put(
-                "static char *%s[] = {" %
+                "static const char *%s[] = {" %
                     Naming.kwdlist_cname)
             for arg in self.args:
                 if arg.is_generic:
@@ -1619,7 +1619,7 @@ class DefNode(FuncDefNode):
 
         argformat = '"%s"' % string.join(arg_formats, "")
         pt_arglist = [Naming.args_cname, Naming.kwds_cname, argformat,
-                      Naming.kwdlist_cname] + arg_addrs
+                      '(char **)/*temp.hack*/'+Naming.kwdlist_cname] + arg_addrs
         pt_argstring = string.join(pt_arglist, ", ")
         code.putln(
             'if (unlikely(!PyArg_ParseTupleAndKeywords(%s))) %s' % (
@@ -4219,9 +4219,9 @@ missing_kwarg:
 
 unraisable_exception_utility_code = [
 """
-static void __Pyx_WriteUnraisable(char *name); /*proto*/
+static void __Pyx_WriteUnraisable(const char *name); /*proto*/
 ""","""
-static void __Pyx_WriteUnraisable(char *name) {
+static void __Pyx_WriteUnraisable(const char *name) {
     PyObject *old_exc, *old_val, *old_tb;
     PyObject *ctx;
     PyErr_Fetch(&old_exc, &old_val, &old_tb);
@@ -4241,13 +4241,13 @@ static void __Pyx_WriteUnraisable(char *name) {
 
 traceback_utility_code = [
 """
-static void __Pyx_AddTraceback(char *funcname); /*proto*/
+static void __Pyx_AddTraceback(const char *funcname); /*proto*/
 ""","""
 #include "compile.h"
 #include "frameobject.h"
 #include "traceback.h"
 
-static void __Pyx_AddTraceback(char *funcname) {
+static void __Pyx_AddTraceback(const char *funcname) {
     PyObject *py_srcfile = 0;
     PyObject *py_funcname = 0;
     PyObject *py_globals = 0;
