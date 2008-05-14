@@ -1084,8 +1084,7 @@ class CFuncDefNode(FuncDefNode):
             self.entry.as_variable = self.py_func.entry
             # Reset scope entry the above cfunction
             env.entries[name] = self.entry
-            if Options.intern_names:
-                self.py_func.interned_attr_cname = env.intern(self.py_func.entry.name)
+            self.py_func.interned_attr_cname = env.intern(self.py_func.entry.name)
             if not env.is_module_scope or Options.lookup_module_cpdef:
                 self.override = OverrideCheckNode(self.pos, py_func = self.py_func)
                 self.body = StatListNode(self.pos, stats=[self.override, self.body])
@@ -1925,10 +1924,7 @@ class OverrideCheckNode(StatNode):
             code.putln("else if (unlikely(Py_TYPE(%s)->tp_dictoffset != 0)) {" % self_arg)
         err = code.error_goto_if_null(self_arg, self.pos)
         # need to get attribute manually--scope would return cdef method
-        if Options.intern_names:
-            code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (self.func_node.result_code, self_arg, self.py_func.interned_attr_cname, err))
-        else:
-            code.putln('%s = PyObject_GetAttrString(%s, "%s"); %s' % (self.func_node.result_code, self_arg, self.py_func.entry.name, err))
+        code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (self.func_node.result_code, self_arg, self.py_func.interned_attr_cname, err))
         # It appears that this type is not anywhere exposed in the Python/C API
         is_builtin_function_or_method = '(strcmp(Py_TYPE(%s)->tp_name, "builtin_function_or_method") == 0)' % self.func_node.result_code
         is_overridden = '(PyCFunction_GET_FUNCTION(%s) != (void *)&%s)' % (self.func_node.result_code, self.py_func.entry.func_cname)
@@ -3683,8 +3679,7 @@ class FromImportStatNode(StatNode):
         self.item.allocate_temp(env)
         self.interned_items = []
         for name, target in self.items:
-            if Options.intern_names:
-                self.interned_items.append((env.intern(name), target))
+            self.interned_items.append((env.intern(name), target))
             target.analyse_target_expression(env, None)
             #target.release_target_temp(env) # was release_temp ?!?
         self.module.release_temp(env)
@@ -3692,24 +3687,14 @@ class FromImportStatNode(StatNode):
     
     def generate_execution_code(self, code):
         self.module.generate_evaluation_code(code)
-        if Options.intern_names:
-            for cname, target in self.interned_items:
-                code.putln(
-                    '%s = PyObject_GetAttr(%s, %s); %s' % (
-                        self.item.result_code, 
-                        self.module.py_result(),
-                        cname,
-                        code.error_goto_if_null(self.item.result_code, self.pos)))
-                target.generate_assignment_code(self.item, code)
-        else:
-            for name, target in self.items:
-                code.putln(
-                    '%s = PyObject_GetAttrString(%s, "%s"); %s' % (
-                        self.item.result_code, 
-                        self.module.py_result(),
-                        name,
-                        code.error_goto_if_null(self.item.result_code, self.pos)))
-                target.generate_assignment_code(self.item, code)
+        for cname, target in self.interned_items:
+            code.putln(
+                '%s = PyObject_GetAttr(%s, %s); %s' % (
+                    self.item.result_code, 
+                    self.module.py_result(),
+                    cname,
+                    code.error_goto_if_null(self.item.result_code, self.pos)))
+            target.generate_assignment_code(self.item, code)
         self.module.generate_disposal_code(code)
 
 #------------------------------------------------------------------------------------

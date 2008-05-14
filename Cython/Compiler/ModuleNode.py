@@ -1560,23 +1560,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Lookup and cache builtin objects.
         if Options.cache_builtins:
             for entry in env.cached_builtins:
-                if Options.intern_names:
-                    #assert entry.interned_cname is not None
-                    code.putln(
-                        '%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
-                        entry.cname,
-                        Naming.builtins_cname,
-                        entry.interned_cname,
-                        entry.cname,
-                        code.error_goto(entry.pos)))
-                else:
-                    code.putln(
-                        '%s = __Pyx_GetName(%s, "%s"); if (!%s) %s' % (
-                        entry.cname,
-                        Naming.builtins_cname,
-                        entry.name,
-                        entry.cname, 
-                        code.error_goto(entry.pos)))
+                #assert entry.interned_cname is not None
+                code.putln(
+                    '%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
+                    entry.cname,
+                    Naming.builtins_cname,
+                    entry.interned_cname,
+                    entry.cname,
+                    code.error_goto(entry.pos)))
     
     def generate_global_init_code(self, env, code):
         # Generate code to initialise global PyObject *

@@ -1238,10 +1238,9 @@ class CClassScope(ClassScope):
                                   # I keep it in for now. is_member should be enough
                                   # later on
             entry.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
-            if Options.intern_names:
-                entry.interned_cname = self.intern(name)
+            entry.interned_cname = self.intern(name)
             return entry
-            
+
 
     def declare_pyfunction(self, name, pos):
         # Add an entry for a method.
