@@ -3,16 +3,16 @@ __doc__ = u"""
     u'This is a function docstring.'
 
     >>> C.__doc__
-    u'This is a class docstring.'
+    'This is a class docstring.'
     >>> CS.__doc__
-    u'This is a subclass docstring.'
+    'This is a subclass docstring.'
     >>> print(CSS.__doc__)
     None
 
     >>> T.__doc__
-    u'This is an extension type docstring.'
+    'This is an extension type docstring.'
     >>> TS.__doc__
-    u'This is an extension subtype docstring.'
+    'This is an extension subtype docstring.'
     >>> TSS.__doc__
 
 Compare with standard Python:
@@ -20,7 +20,7 @@ Compare with standard Python:
     >>> def f():
     ...     'This is a function docstring.'
     >>> f.__doc__
-    u'This is a function docstring.'
+    'This is a function docstring.'
 
     >>> class C:
     ...     'This is a class docstring.'
@@ -30,9 +30,9 @@ Compare with standard Python:
     ...     pass
 
     >>> C.__doc__
-    u'This is a class docstring.'
+    'This is a class docstring.'
     >>> CS.__doc__
-    u'This is a subclass docstring.'
+    'This is a subclass docstring.'
     >>> CSS.__doc__
 """
 
