@@ -4000,7 +4000,11 @@ static int __Pyx_CheckKeywordStrings(
     PyObject* key = 0;
     Py_ssize_t pos = 0;
     while (PyDict_Next(kwdict, &pos, &key, 0)) {
+        #if PY_MAJOR_VERSION < 3
         if (unlikely(!PyString_Check(key))) {
+        #else
+        if (unlikely(!PyUnicode_Check(key))) {
+        #endif
             PyErr_Format(PyExc_TypeError,
                          "%s() keywords must be strings", function_name);
             return 0;
@@ -4009,7 +4013,11 @@ static int __Pyx_CheckKeywordStrings(
     if (unlikely(!kw_allowed) && unlikely(key)) {
         PyErr_Format(PyExc_TypeError,
                      "'%s' is an invalid keyword argument for this function",
+        #if PY_MAJOR_VERSION < 3
                      PyString_AsString(key));
+        #else
+                     PyUnicode_AsString(key));
+        #endif
         return 0;
     }
     return 1;
