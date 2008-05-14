@@ -66,6 +66,7 @@ class Entry:
     # is_inherited     boolean    Is an inherited attribute of an extension type
     # pystring_cname   string     C name of Python version of string literal
     # is_interned      boolean    For string const entries, value is interned
+    # is_identifier    boolean    For string const entries, value is an identifier
     # used             boolean
     # is_special       boolean    Is a special method or property accessor
     #                               of an extension type
@@ -104,6 +105,7 @@ class Entry:
     as_module = None
     is_inherited = 0
     pystring_cname = None
+    is_identifier = 0
     is_interned = 0
     used = 0
     is_special = 0
@@ -186,6 +188,7 @@ class Scope:
         self.cname_to_entry = {}
         self.pow_function_used = 0
         self.string_to_entry = {}
+        self.identifier_to_entry = {}
         self.num_to_entry = {}
         self.obj_to_entry = {}
         self.pystring_entries = []
@@ -203,8 +206,8 @@ class Scope:
     def __str__(self):
         return "<%s %s>" % (self.__class__.__name__, self.qualified_name)
 
-    def intern(self, name):
-        return self.global_scope().intern(name)
+    def intern_identifier(self, name):
+        return self.global_scope().intern_identifier(name)
 
     def qualifying_scope(self):
         return self.parent_scope
@@ -446,14 +449,19 @@ class Scope:
         self.const_entries.append(entry)
         return entry
 
-    def get_string_const(self, value):
+    def get_string_const(self, value, identifier = False):
         # Get entry for string constant. Returns an existing
         # one if possible, otherwise creates a new one.
         genv = self.global_scope()
-        entry = genv.string_to_entry.get(value)
+        if identifier:
+            string_map = genv.identifier_to_entry
+        else:
+            string_map = genv.string_to_entry
+        entry = string_map.get(value)
         if not entry:
             entry = self.add_string_const(value)
-            genv.string_to_entry[value] = entry
+            entry.is_identifier = identifier
+            string_map[value] = entry
         return entry
 
     def add_py_string(self, entry):
@@ -669,6 +677,7 @@ class ModuleScope(Scope):
     # python_include_files [string]           Standard  Python headers to be included
     # include_files        [string]           Other C headers to be included
     # string_to_entry      {string : Entry}   Map string const to entry
+    # identifier_to_entry  {string : Entry}   Map identifier string const to entry
     # context              Context
     # parent_module        Scope              Parent in the import namespace
     # module_entries       {string : Entry}   For cimport statements
@@ -740,8 +749,8 @@ class ModuleScope(Scope):
             entry.is_builtin = 1
         return entry
 
-    def intern(self, name):
-        string_entry = self.get_string_const(name)
+    def intern_identifier(self, name):
+        string_entry = self.get_string_const(name, identifier = True)
         self.add_py_string(string_entry)
         return string_entry.pystring_cname
 
@@ -1238,7 +1247,7 @@ class CClassScope(ClassScope):
                                   # I keep it in for now. is_member should be enough
                                   # later on
             entry.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
-            entry.interned_cname = self.intern(name)
+            entry.interned_cname = self.intern_identifier(name)
             return entry
 
 
