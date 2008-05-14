@@ -280,7 +280,7 @@ if __name__ == '__main__':
         annotate_source = True
 
     import re
-    selectors = [ re.compile(r, re.I).search for r in sys.argv[1:] ]
+    selectors = [ re.compile(r, re.I|re.U).search for r in sys.argv[1:] ]
     if not selectors:
         selectors = [ lambda x:True ]
 
