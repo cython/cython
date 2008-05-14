@@ -85,7 +85,7 @@ __doc__ = u"""
 """
 
 cdef sorteditems(d):
-    l = d.items()
+    l = list(d.items())
     l.sort()
     return tuple(l)
 

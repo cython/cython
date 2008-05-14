@@ -1,14 +1,14 @@
 __doc__ = u"""
-   >>> s('test')
-   'test'
+   >>> s('test', **encoding)
+   b'test'
    >>> z
-   'test'
+   b'test'
    >>> c('testing')
-   'testing'
+   b'testing'
    >>> sub('testing a subtype')
-   'testing a subtype'
-   >>> subs('testing a subtype')
-   'testing a subtype'
+   b'testing a subtype'
+   >>> subs('testing a subtype', **encoding)
+   b'testing a subtype'
 
 #   >>> csub('testing a subtype')
 #   'testing a subtype'
@@ -21,6 +21,7 @@ if sys.version_info[0] >= 3:
     encoding = {'encoding' : 'ASCII'}
 else:
     encoding = {}
+    __doc__ = __doc__.replace(u" b'", u" '")
 
 s = str
 z = str('test', **encoding)

@@ -1,7 +1,7 @@
 __doc__ = u"""
     >>> c = eggs()
-    >>> print "eggs returned:", c
-    eggs returned: (17+42j)
+    >>> c
+    (17+42j)
     >>> spam(c)
     Real: 17.0
     Imag: 42.0
