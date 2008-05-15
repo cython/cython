@@ -1,7 +1,11 @@
 __doc__ = u"""
-    >>> spam == "C string 1" + "C string 2"
+    >>> spam == u'C string 1' + u'C string 2'
     True
 """
 
-spam = "C string 1" + "C string 2"
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u" u'", u" '")
+
+spam = u"C string 1" + u"C string 2"
 

@@ -16,7 +16,7 @@ __doc__ = u"""
     >>> f()
     12.5
     >>> s()
-    'spam'
+    u'spam'
     >>> two()
     2
     >>> five()
@@ -27,7 +27,15 @@ __doc__ = u"""
     False
 """
 
-DEF TUPLE = (1, 2, "buckle my shoe")
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u" u'", u" '")
+
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u" 042", u" 0o42")
+
+DEF TUPLE = (1, 2, u"buckle my shoe")
 DEF TRUE_FALSE = (True, False)
 
 DEF CHAR = c'x'
@@ -38,7 +46,7 @@ DEF INT3 = 042
 DEF INT4 = -0x42
 DEF LONG = 666L
 DEF FLOAT = 12.5
-DEF STR = "spam"
+DEF STR = u"spam"
 DEF TWO = TUPLE[1]
 DEF FIVE = TWO + 3
 DEF TRUE  = TRUE_FALSE[0]
