@@ -1414,6 +1414,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s; /*proto*/" % header)
         code.putln("%s {" % header)
         code.put_var_declarations(env.temp_entries)
+        code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
 
         code.putln("/*--- Libary function declarations ---*/")
         env.generate_library_function_declarations(code)
@@ -1432,7 +1433,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("/*--- Builtin init code ---*/")
             self.generate_builtin_init_code(env, code)
             
-        code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
         code.putln("%s = 0;" % Naming.skip_dispatch_cname);
 
         code.putln("/*--- Global init code ---*/")
