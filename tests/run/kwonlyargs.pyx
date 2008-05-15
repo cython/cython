@@ -81,6 +81,10 @@ __doc__ = u"""
     TypeError: required keyword argument 'f' is missing
 """
 
+import sys, re
+if sys.version_info[0] >= 3:
+    __doc__ = re.sub(u"Error: (.*)exactly(.*)", u"Error: \\1at most\\2", __doc__)
+
 def b(a, b, c):
     pass
 

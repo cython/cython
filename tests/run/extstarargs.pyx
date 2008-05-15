@@ -8,7 +8,7 @@ __doc__ = u"""
     >>> spam(1,2) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: function takes exactly 3 arguments (2 given)
-    >>> spam(1,2,3,4) #doctest: +ELLIPSIS
+    >>> spam(1,2,3,4)
     Traceback (most recent call last):
     TypeError: function takes exactly 3 arguments (4 given)
     >>> spam(1,2,3, a=1) #doctest: +ELLIPSIS
@@ -30,7 +30,7 @@ __doc__ = u"""
 
     >>> swallow(1,2,3)
     (1, 2, 3, ())
-    >>> swallow(1,2,3,4) #doctest: +ELLIPSIS
+    >>> swallow(1,2,3,4)
     Traceback (most recent call last):
     TypeError: function takes at most 3 positional arguments (4 given)
     >>> swallow(1,2,3, a=1, b=2)
@@ -55,10 +55,10 @@ __doc__ = u"""
     (1,)
     >>> onlyt(1,2)
     (1, 2)
-    >>> onlyt(a=1) #doctest: +ELLIPSIS
+    >>> onlyt(a=1)
     Traceback (most recent call last):
     TypeError: 'a' is an invalid keyword argument for this function
-    >>> onlyt(1, a=2) #doctest: +ELLIPSIS
+    >>> onlyt(1, a=2)
     Traceback (most recent call last):
     TypeError: 'a' is an invalid keyword argument for this function
 
@@ -66,13 +66,13 @@ __doc__ = u"""
     (('a', 1),)
     >>> onlyk(a=1, b=2)
     (('a', 1), ('b', 2))
-    >>> onlyk(1) #doctest: +ELLIPSIS
+    >>> onlyk(1)
     Traceback (most recent call last):
     TypeError: function takes at most 0 positional arguments (1 given)
-    >>> onlyk(1, 2) #doctest: +ELLIPSIS
+    >>> onlyk(1, 2)
     Traceback (most recent call last):
     TypeError: function takes at most 0 positional arguments (2 given)
-    >>> onlyk(1, a=1, b=2) #doctest: +ELLIPSIS
+    >>> onlyk(1, a=1, b=2)
     Traceback (most recent call last):
     TypeError: function takes at most 0 positional arguments (1 given)
 
@@ -90,7 +90,11 @@ __doc__ = u"""
 
 import sys, re
 if sys.version_info[0] >= 3:
-    __doc__ = re.sub(u"Error: (.*)", u"Error: ...", __doc__)
+    __doc__ = re.sub(u"Error: (.*)exactly(.*)", u"Error: \\1at most\\2", __doc__)
+
+import sys, re
+if sys.version_info[0] >= 3:
+    __doc__ = re.sub(u"(ELLIPSIS[^>]*Error: )[^\n]*\n", u"\\1...\n", __doc__, re.M)
 
 cdef sorteditems(d):
     l = list(d.items())

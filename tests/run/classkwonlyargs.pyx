@@ -49,7 +49,7 @@ __doc__ = u"""
     >>> g(1,2, c=1, e=0, f=2, d=11)
     >>> g(1,2, c=1, f=2, e=0, x=25)
 
-    >>> g(1,2,3)
+    >>> g(1,2,3) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: function takes at most 3 positional arguments (4 given)
     >>> g(1,2)
@@ -83,6 +83,14 @@ __doc__ = u"""
     Traceback (most recent call last):
     TypeError: required keyword argument 'f' is missing
 """
+
+import sys, re
+if sys.version_info[0] >= 3:
+    __doc__ = re.sub(u"Error: (.*)exactly(.*)", u"Error: \\1at most\\2", __doc__)
+
+import sys, re
+if sys.version_info[0] >= 3:
+    __doc__ = re.sub(u"(ELLIPSIS[^>]*Error: )[^\n]*\n", u"\\1...\n", __doc__, re.M)
 
 class Spam:
     def b(self, a, b, c):
