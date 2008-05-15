@@ -3,6 +3,7 @@
 #           and associated know-how.
 #
 
+from Cython import Utils
 import Naming
 import PyrexTypes
 import sys
@@ -298,7 +299,11 @@ class DocStringSlot(SlotDescriptor):
     
     def slot_code(self, scope):
         if scope.doc is not None:
-            return '"%s"' % scope.doc
+            if scope.doc.is_unicode:
+                doc = scope.doc.utf8encode()
+            else:
+                doc = scope.doc.byteencode()
+            return '"%s"' % Utils.escape_byte_string(doc)
         else:
             return "0"
 
