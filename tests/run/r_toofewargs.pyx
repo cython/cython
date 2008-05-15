@@ -1,12 +1,12 @@
 __doc__ = u"""
-    >>> s = Spam()
+    >>> s = Spam() #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: function takes exactly 3 arguments (0 given)
 """
 
 import sys, re
 if sys.version_info[0] >= 3:
-    __doc__ = re.sub(u"Error: (.*)exactly(.*)", u"Error: \\1at most\\2", __doc__)
+    __doc__ = re.sub(u"Error: .*", u"Error: ...", __doc__)
 
 cdef class Spam:
 

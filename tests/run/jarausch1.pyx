@@ -1,6 +1,10 @@
 __doc__ = u"""
-   >>> py_x = r'\\\\'
+   >>> py_x = ur'\\\\'
    >>> assert x == py_x
 """
 
-x = r'\\'
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u" ur'", u" r'")
+
+x = ur'\\'

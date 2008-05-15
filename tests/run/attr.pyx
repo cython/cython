@@ -1,5 +1,5 @@
 __doc__ = u"""
-    >>> class Test:
+    >>> class Test(object):
     ...     def __init__(self, i):
     ...         self.i = i
     >>> b = Test(1)
@@ -9,50 +9,50 @@ __doc__ = u"""
     >>> b.spam.eggs.spam.eggs = Test(5)
 
     >>> a = f(b)
-    >>> print a.i
+    >>> a.i
     2
-    >>> print b.i
+    >>> b.i
     1
-    >>> print a.spam.i
+    >>> a.spam.i
     1
-    >>> print b.spam.i
+    >>> b.spam.i
     2
-    >>> print a.spam.eggs.i
+    >>> a.spam.eggs.i
     Traceback (most recent call last):
-    AttributeError: Test instance has no attribute 'eggs'
-    >>> print b.spam.eggs.i
+    AttributeError: 'Test' object has no attribute 'eggs'
+    >>> b.spam.eggs.i
     3
-    >>> print a.spam.spam.i
+    >>> a.spam.spam.i
     2
-    >>> print b.spam.spam.i
+    >>> b.spam.spam.i
     1
-    >>> print a.spam.eggs.spam.i
+    >>> a.spam.eggs.spam.i
     Traceback (most recent call last):
-    AttributeError: Test instance has no attribute 'eggs'
-    >>> print b.spam.eggs.spam.i
+    AttributeError: 'Test' object has no attribute 'eggs'
+    >>> b.spam.eggs.spam.i
     4
 
     >>> a = g(b)
-    >>> print a.i
+    >>> a.i
     3
-    >>> print b.i
+    >>> b.i
     1
-    >>> print a.spam.i
+    >>> a.spam.i
     4
-    >>> print b.spam.i
+    >>> b.spam.i
     2
-    >>> print a.spam.eggs.i
+    >>> a.spam.eggs.i
     1
-    >>> print b.spam.eggs.i
+    >>> b.spam.eggs.i
     3
-    >>> print a.spam.spam.i
+    >>> a.spam.spam.i
     Traceback (most recent call last):
-    AttributeError: Test instance has no attribute 'spam'
-    >>> print b.spam.spam.i
+    AttributeError: 'Test' object has no attribute 'spam'
+    >>> b.spam.spam.i
     1
-    >>> print a.spam.eggs.spam.i
+    >>> a.spam.eggs.spam.i
     2
-    >>> print b.spam.eggs.spam.i
+    >>> b.spam.eggs.spam.i
     4
 """
 

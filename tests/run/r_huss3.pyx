@@ -2,12 +2,12 @@ __doc__ = u"""
 >>> try:
 ...     foo()
 ... except Exception, e:
-...     print "%s: %s" % (e.__class__.__name__, e)
+...     print("%s: %s" % (e.__class__.__name__, e))
 ValueError: 
 >>> try:
 ...     bar()
 ... except Exception, e:
-...     print "%s: %s" % (e.__class__.__name__, e)
+...     print("%s: %s" % (e.__class__.__name__, e))
 """
 
 import sys
