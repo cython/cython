@@ -4202,7 +4202,7 @@ static void __Pyx_AddTraceback(char *funcname) {
     if (!py_funcname) goto bad;
     py_globals = PyModule_GetDict(%(GLOBALS)s);
     if (!py_globals) goto bad;
-    empty_string = PyString_FromString("");
+    empty_string = PyString_FromStringAndSize("", 0);
     if (!empty_string) goto bad;
     py_code = PyCode_New(
         0,            /*int argcount,*/
