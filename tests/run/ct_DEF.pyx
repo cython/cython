@@ -16,7 +16,7 @@ __doc__ = u"""
     >>> f()
     12.5
     >>> s()
-    u'spam'
+    b'spam'
     >>> two()
     2
     >>> five()
@@ -28,8 +28,8 @@ __doc__ = u"""
 """
 
 import sys
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u" u'", u" '")
+if sys.version_info[0] < 3:
+    __doc__ = __doc__.replace(u" b'", u" '")
 
 import sys
 if sys.version_info[0] >= 3:
@@ -46,7 +46,7 @@ DEF INT3 = 042
 DEF INT4 = -0x42
 DEF LONG = 666L
 DEF FLOAT = 12.5
-DEF STR = u"spam"
+DEF STR = "spam"
 DEF TWO = TUPLE[1]
 DEF FIVE = TWO + 3
 DEF TRUE  = TRUE_FALSE[0]
