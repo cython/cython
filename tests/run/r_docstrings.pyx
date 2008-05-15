@@ -1,6 +1,6 @@
 __doc__ = u"""
     >>> f.__doc__
-    u'This is a function docstring.'
+    'This is a function docstring.'
 
     >>> C.__doc__
     u'This is a class docstring.'
@@ -10,9 +10,9 @@ __doc__ = u"""
     None
 
     >>> T.__doc__
-    u'This is an extension type docstring.'
+    'This is an extension type docstring.'
     >>> TS.__doc__
-    u'This is an extension subtype docstring.'
+    'This is an extension subtype docstring.'
     >>> TSS.__doc__
 
 Compare with standard Python:
