@@ -502,13 +502,8 @@ def p_name(s, name):
                 return ExprNodes.LongNode(pos, value = rep)
             elif isinstance(value, float):
                 return ExprNodes.FloatNode(pos, value = rep)
-            elif isinstance(value, str):
-                sval = Utils.EncodedString(rep[1:-1])
-                sval.encoding = value.encoding
-                return ExprNodes.StringNode(pos, value = sval)
             elif isinstance(value, unicode):
-                sval = Utils.EncodedString(rep[2:-1])
-                return ExprNodes.StringNode(pos, value = sval)
+                return ExprNodes.StringNode(pos, value = value)
             else:
                 error(pos, "Invalid type for compile-time constant: %s"
                     % value.__class__.__name__)
