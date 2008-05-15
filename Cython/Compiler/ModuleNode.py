@@ -418,7 +418,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("#if PY_MAJOR_VERSION >= 3")
-        code.putln("  #define PyMethod_New(func, self, klass) (func!=NULL?(Py_INCREF(func),func):NULL)")
+        code.putln("  #define PyMethod_New(func, self, klass) (Py_XINCREF(func),func)")
         code.putln("  #define PyNumber_Divide(x,y) PyNumber_TrueDivide(x,y)")
         code.putln("#endif")
 
