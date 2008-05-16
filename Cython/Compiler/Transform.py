@@ -84,14 +84,12 @@ class VisitorTransform(Transform):
     # Note: If needed, this can be replaced with a more efficient metaclass
     # approach, resolving the jump table at module load time.
     
-    def __init__(self, readonly=False, **kw):
+    def __init__(self, **kw):
         """readonly - If this is set to True, the results of process_node
         will be discarded (so that one can return None without changing
         the tree)."""
         super(VisitorTransform, self).__init__(**kw)
         self.visitmethods = {'process_' : {}, 'pre_' : {}, 'post_' : {}}
-        self.attrname = ""
-        self.readonly = readonly
      
     def get_visitfunc(self, prefix, cls):
         mname = prefix + cls.__name__
@@ -106,16 +104,12 @@ class VisitorTransform(Transform):
             self.visitmethods[prefix][mname] = m
         return m
 
-    def process_node(self, node, name="_"):
+    def process_node(self, node):
         # Pass on to calls registered in self.visitmethods
-        self.attrname = name
         if node is None:
             return None
         result = self.get_visitfunc("process_", node.__class__)(node)
-        if self.readonly:
-            return node
-        else:
-            return result
+        return node
     
     def process_Node(self, node):
         descend = self.get_visitfunc("pre_", node.__class__)(node)
@@ -130,6 +124,15 @@ class VisitorTransform(Transform):
     def post_Node(self, node):
         pass
 
+class ReadonlyVisitor(VisitorTransform):
+    """
+    Like VisitorTransform, however process_X methods do not have to return
+    the result node -- the result of process_X is always discarded and the
+    structure of the original tree is not changed.
+    """
+    def process_node(self, node):
+        super(ReadonlyVisitor, self).process_node(node) # discard result
+        return node
 
 # Utils
 def ensure_statlist(node):
