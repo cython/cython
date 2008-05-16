@@ -1,5 +1,11 @@
-import __future__
+def _get_feature(name):
+    import __future__
+    try:
+        return getattr(__future__, name)
+    except AttributeError:
+        # unique fake object for earlier Python versions
+        return object()
 
-unicode_literals = __future__.unicode_literals
+unicode_literals = _get_feature("unicode_literals")
 
-del __future__
+del _get_feature
