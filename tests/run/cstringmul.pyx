@@ -5,6 +5,5 @@ __doc__ = u"""
     tomatotomatotomatotomatotomatotomatotomato
 """
 
-spam = "eggs" * 4
-grail = 7 * "tomato"
-
+spam = u"eggs" * 4
+grail = 7 * u"tomato"

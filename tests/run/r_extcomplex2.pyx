@@ -17,8 +17,8 @@ cdef extern from "complexobject.h":
         cdef Py_complex cval
     
 def spam(complex c):
-    print "Real:", c.cval.real
-    print "Imag:", c.cval.imag
+    print u"Real:", c.cval.real
+    print u"Imag:", c.cval.imag
 
 def eggs():
     return complex(17, 42)

@@ -18,7 +18,7 @@ __doc__ = u"""
 
 import sys
 if sys.version_info[0] >= 3:
-    encoding = {'encoding' : 'ASCII'}
+    encoding = {u'encoding' : u'ASCII'}
 else:
     encoding = {}
     __doc__ = __doc__.replace(u" b'", u" '")

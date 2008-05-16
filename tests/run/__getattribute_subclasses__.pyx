@@ -5,16 +5,16 @@ getattr does not override members.
     >>> a = getattr_boring()
     >>> a.boring_member
     10
-    >>> a.resolved_by
-    'getattr_boring'
+    >>> print(a.resolved_by)
+    getattr_boring
 
 getattribute does.
     >>> a = getattribute_boring()
     >>> a.boring_member
     Traceback (most recent call last):
     AttributeError
-    >>> a.resolved_by
-    'getattribute_boring'
+    >>> print(a.resolved_by)
+    getattribute_boring
 
 Is inherited.
     >>> a = boring_boring_getattribute()
@@ -24,8 +24,8 @@ Is inherited.
     >>> a.boring_boring_getattribute_member
     Traceback (most recent call last):
     AttributeError
-    >>> a.resolved_by
-    '_getattribute'
+    >>> print(a.resolved_by)
+    _getattribute
 
 __getattribute__ is always tried first, then __getattr__, regardless of where
 in the inheritance hiarchy they came from.
@@ -33,8 +33,8 @@ in the inheritance hiarchy they came from.
     >>> a.foo
     Traceback (most recent call last):
     AttributeError
-    >>> a.resolved_by
-    'getattribute_boring_boring_getattr'
+    >>> print(a.resolved_by)
+    getattribute_boring_boring_getattr
     >>> a.getattribute_boring_boring_getattr
     True
     >>> a._getattr
@@ -44,8 +44,8 @@ in the inheritance hiarchy they came from.
     >>> a.foo
     Traceback (most recent call last):
     AttributeError
-    >>> a.resolved_by
-    '_getattribute'
+    >>> print(a.resolved_by)
+    _getattribute
     >>> a.getattr_boring_boring_getattribute
     True
     >>> a._getattribute
@@ -60,36 +60,36 @@ cdef class boring:
 
 cdef class getattr_boring(boring):
     def __getattr__(self,n):
-        if n == 'resolved_by':
-            return 'getattr_boring'
-        elif n == 'getattr_boring':
+        if n == u'resolved_by':
+            return u'getattr_boring'
+        elif n == u'getattr_boring':
             return True
         else:
             raise AttributeError
 
 cdef class getattribute_boring(boring):
     def __getattribute__(self,n):
-        if n == 'resolved_by':
-            return 'getattribute_boring'
-        elif n == 'getattribute_boring':
+        if n == u'resolved_by':
+            return u'getattribute_boring'
+        elif n == u'getattribute_boring':
             return True
         else:
             raise AttributeError
 
 cdef class _getattr:
     def __getattr__(self,n):
-        if n == 'resolved_by':
-            return '_getattr'
-        elif n == '_getattr':
+        if n == u'resolved_by':
+            return u'_getattr'
+        elif n == u'_getattr':
             return True
         else:
             raise AttributeError
 
 cdef class _getattribute(boring):
     def __getattribute__(self,n):
-        if n == 'resolved_by':
-            return '_getattribute'
-        elif n == '_getattribute':
+        if n == u'resolved_by':
+            return u'_getattribute'
+        elif n == u'_getattribute':
             return True
         else:
             raise AttributeError
@@ -108,19 +108,18 @@ cdef class boring_boring_getattr(boring_getattr):
 
 cdef class getattribute_boring_boring_getattr(boring_boring_getattr):
     def __getattribute__(self,n):
-        if n == 'resolved_by':
-            return 'getattribute_boring_boring_getattr'
-        elif n == 'getattribute_boring_boring_getattr':
+        if n == u'resolved_by':
+            return u'getattribute_boring_boring_getattr'
+        elif n == u'getattribute_boring_boring_getattr':
             return True
         else:
             raise AttributeError
 
 cdef class getattr_boring_boring_getattribute(boring_boring_getattribute):
     def __getattr__(self,n):
-        if n == 'resolved_by':
-            return 'getattr_boring_boring_getattribute'
-        elif n == 'getattr_boring_boring_getattribute':
+        if n == u'resolved_by':
+            return u'getattr_boring_boring_getattribute'
+        elif n == u'getattr_boring_boring_getattribute':
             return True
         else:
             raise AttributeError
-

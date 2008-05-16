@@ -4,5 +4,5 @@ __doc__ = u"""
 """
 
 def frighten():
-    print "NOBODY", "expects", "the Spanish Inquisition!"
+    print u"NOBODY", u"expects", u"the Spanish Inquisition!"
 

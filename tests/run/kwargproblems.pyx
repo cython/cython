@@ -12,13 +12,18 @@ __doc__ = u"""
     >>> d
     {}
 
-    >>> d = {'arg' : 2}
+    >>> d = {'arg' : 2} # this should be u'arg', but Py2 can't handle it...
     >>> test(**d)
     {'arg': 3}
     >>> d
     {'arg': 2}
 """
 
+import sys
+
 def test(**kw):
-    kw['arg'] = 3
+    if sys.version_info[0] >= 3:
+        kw[u'arg'] = 3
+    else:
+        kw['arg'] = 3
     return kw
