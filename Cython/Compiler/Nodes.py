@@ -2986,15 +2986,16 @@ class ForInStatNode(LoopNode, StatNode):
         else:
             step = args[2]
             if isinstance(step, ExprNodes.UnaryMinusNode) and isinstance(step.operand, ExprNodes.IntNode):
-                step = ExprNodes.IntNode(pos = step.pos, value=-int(step.operand.value))
+                step = ExprNodes.IntNode(pos = step.pos, value=str(-int(step.operand.value, 0)))
             if isinstance(step, ExprNodes.IntNode):
-                if step.value > 0:
+                step_value = int(step.value, 0)
+                if step_value > 0:
                     self.step = step
                     self.relation1 = '<='
                     self.relation2 = '<'
                     return True
-                elif step.value < 0:
-                    self.step = ExprNodes.IntNode(pos = step.pos, value=-int(step.value))
+                elif step_value < 0:
+                    self.step = ExprNodes.IntNode(pos = step.pos, value=str(-step_value))
                     self.relation1 = '>='
                     self.relation2 = '>'
                     return True
