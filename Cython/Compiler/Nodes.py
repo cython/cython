@@ -1967,8 +1967,7 @@ class PyClassDefNode(StatNode, BlockNode):
             doc_node = ExprNodes.StringNode(pos, value = doc)
         else:
             doc_node = None
-        self.classobj = ExprNodes.ClassNode(pos,
-            name = ExprNodes.StringNode(pos, value = name), 
+        self.classobj = ExprNodes.ClassNode(pos, name = name,
             bases = bases, dict = self.dict, doc = doc_node)
         self.target = ExprNodes.NameNode(pos, name = name)
     
