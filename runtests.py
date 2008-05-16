@@ -95,7 +95,7 @@ class CythonCompileTestCase(unittest.TestCase):
     def shortDescription(self):
         return "compiling " + self.module
 
-    def _tearDown(self):
+    def tearDown(self):
         if os.path.exists(self.workdir):
             for rmfile in os.listdir(self.workdir):
                 if self.annotate and rmfile.endswith(".html"):
