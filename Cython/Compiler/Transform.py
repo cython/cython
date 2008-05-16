@@ -109,7 +109,7 @@ class VisitorTransform(Transform):
         if node is None:
             return None
         result = self.get_visitfunc("process_", node.__class__)(node)
-        return node
+        return result
     
     def process_Node(self, node):
         descend = self.get_visitfunc("pre_", node.__class__)(node)
