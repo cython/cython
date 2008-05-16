@@ -8,5 +8,5 @@ __doc__ = u"""
 """
 
 def spam(*args):
-    print "Args:", args
+    print u"Args:", args
 
