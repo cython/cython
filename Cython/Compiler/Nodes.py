@@ -2495,12 +2495,15 @@ class InPlaceAssignmentNode(AssignmentNode):
 class PrintStatNode(StatNode):
     #  print statement
     #
-    #  args              [ExprNode]
-    #  ends_with_comma   boolean
-    
-    child_attrs = ["args"]
-    
+    #  arg_tuple         TupleNode
+    #  add_newline       boolean
+
+    child_attrs = ["arg_tuple"]
+
     def analyse_expressions(self, env):
+        self.arg_tuple.analyse_expressions(env)
+        env.use_utility_code(printing_utility_code)
+        return
         for i in range(len(self.args)):
             arg = self.args[i]
             arg.analyse_types(env)
@@ -2509,23 +2512,31 @@ class PrintStatNode(StatNode):
             arg.release_temp(env)
             self.args[i] = arg
             #env.recycle_pending_temps() # TEMPORARY
-        env.use_utility_code(printing_utility_code)
-    
+
     def generate_execution_code(self, code):
-        for arg in self.args:
+        code.putln("#if PY_MAJOR_VERSION < 3")
+        for arg in self.arg_tuple.args:
             arg.generate_evaluation_code(code)
             code.putln(
                 "if (__Pyx_PrintItem(%s) < 0) %s" % (
                     arg.py_result(),
                     code.error_goto(self.pos)))
             arg.generate_disposal_code(code)
-        if not self.ends_with_comma:
+        if self.add_newline:
             code.putln(
                 "if (__Pyx_PrintNewline() < 0) %s" %
                     code.error_goto(self.pos))
-                    
+        code.putln("#else") # Python 3 has a print() function
+        self.arg_tuple.generate_result_code(code)
+        code.putln(
+            "if (__Pyx_Print(%s, %d) < 0) %s" % (
+                self.arg_tuple.py_result(),
+                self.add_newline,
+                code.error_goto(self.pos)))
+        code.putln("#endif")
+
     def annotate(self, code):
-        for arg in self.args:
+        for arg in self.arg_tuple.args:
             arg.annotate(code)
 
 
@@ -3759,9 +3770,16 @@ else:
 
 printing_utility_code = [
 """
+#if PY_MAJOR_VERSION < 3
 static int __Pyx_PrintItem(PyObject *); /*proto*/
 static int __Pyx_PrintNewline(void); /*proto*/
-""",r"""
+#else
+static PyObject* %s = 0;
+static PyObject* %s = 0;
+static int __Pyx_Print(PyObject *, int newline); /*proto*/
+#endif
+""" % (Naming.print_function, Naming.print_function_kwargs), r"""
+#if PY_MAJOR_VERSION < 3
 static PyObject *__Pyx_GetStdout(void) {
     PyObject *f = PySys_GetObject("stdout");
     if (!f) {
@@ -3775,7 +3793,6 @@ static int __Pyx_PrintItem(PyObject *v) {
     
     if (!(f = __Pyx_GetStdout()))
         return -1;
-    #if PY_MAJOR_VERSION < 3
     if (PyFile_SoftSpace(f, 1)) {
         if (PyFile_WriteString(" ", f) < 0)
             return -1;
@@ -3790,7 +3807,6 @@ static int __Pyx_PrintItem(PyObject *v) {
             s[len-1] != ' ')
                 PyFile_SoftSpace(f, 0);
     }
-    #endif
     return 0;
 }
 
@@ -3799,14 +3815,52 @@ static int __Pyx_PrintNewline(void) {
     
     if (!(f = __Pyx_GetStdout()))
         return -1;
-    #if PY_MAJOR_VERSION < 3
     if (PyFile_WriteString("\n", f) < 0)
         return -1;
     PyFile_SoftSpace(f, 0);
-    #endif
     return 0;
 }
-"""]
+#else /* Python 3 has a print function */
+static int __Pyx_Print(PyObject *arg_tuple, int newline) {
+    PyObject* kwargs = 0;
+    PyObject* result = 0;
+    PyObject* end_string;
+    if (!%(PRINT_FUNCTION)s) {
+        %(PRINT_FUNCTION)s = PyObject_GetAttrString(%(BUILTINS)s, "print");
+        if (!%(PRINT_FUNCTION)s)
+            goto bad;
+    }
+    if (!newline) {
+        if (!%(PRINT_KWARGS)s) {
+            %(PRINT_KWARGS)s = PyDict_New();
+            if (!%(PRINT_KWARGS)s)
+                goto bad;
+            end_string = PyUnicode_FromStringAndSize(" ", 1);
+            if (!end_string)
+                goto bad;
+            if (PyDict_SetItemString(%(PRINT_KWARGS)s, "end", end_string) < 0) {
+                Py_DECREF(end_string);
+                goto bad;
+            }
+            Py_DECREF(end_string);
+        }
+        kwargs = %(PRINT_KWARGS)s;
+    }
+    result = PyObject_Call(%(PRINT_FUNCTION)s, arg_tuple, kwargs);
+    if (!result)
+        goto bad;
+    Py_DECREF(result);
+    Py_DECREF(arg_tuple);
+    return 0;
+bad:
+    Py_DECREF(arg_tuple);
+    return -1;
+}
+#endif
+""" % {'BUILTINS'       : Naming.builtins_cname,
+       'PRINT_FUNCTION' : Naming.print_function,
+       'PRINT_KWARGS'   : Naming.print_function_kwargs}
+]
 
 #------------------------------------------------------------------------------------
 
