@@ -2423,11 +2423,10 @@ class ClassNode(ExprNode):
     #  doc          ExprNode or None   Doc string
     #  module_name  string             Name of defining module
     
-    subexprs = ['name', 'bases', 'doc']
-    
+    subexprs = ['bases', 'doc']
+
     def analyse_types(self, env):
-        self.name.analyse_types(env)
-        self.name = self.name.coerce_to_pyobject(env)
+        self.cname = env.intern_identifier(self.name)
         self.bases.analyse_types(env)
         if self.doc:
             self.doc.analyse_types(env)
@@ -2436,7 +2435,7 @@ class ClassNode(ExprNode):
         self.type = py_object_type
         self.is_temp = 1
         env.use_utility_code(create_class_utility_code);
-    
+
     def generate_result_code(self, code):
         if self.doc:
             code.put_error_if_neg(self.pos, 
@@ -2448,7 +2447,7 @@ class ClassNode(ExprNode):
                 self.result_code,
                 self.bases.py_result(),
                 self.dict.py_result(),
-                self.name.py_result(),
+                self.cname,
                 self.module_name,
                 code.error_goto_if_null(self.result_code, self.pos)))
 
@@ -4022,7 +4021,11 @@ static PyObject *__Pyx_CreateClass(
     PyObject *py_modname;
     PyObject *result = 0;
 
+    #if PY_MAJOR_VERSION < 3
     py_modname = PyString_FromString(modname);
+    #else
+    py_modname = PyUnicode_FromString(modname);
+    #endif
     if (!py_modname)
         goto bad;
     if (PyDict_SetItemString(dict, "__module__", py_modname) < 0)
