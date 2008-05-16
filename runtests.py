@@ -55,6 +55,12 @@ class TestBuilder(object):
         return suite
 
     def handle_directory(self, path, context):
+        workdir = os.path.join(self.workdir, context)
+        if not os.path.exists(workdir):
+            os.makedirs(workdir)
+        if workdir not in sys.path:
+            sys.path.insert(0, workdir)
+
         expect_errors = (context == 'errors')
         suite = unittest.TestSuite()
         filenames = os.listdir(path)
@@ -69,10 +75,10 @@ class TestBuilder(object):
                 continue
             if context in TEST_RUN_DIRS:
                 test = CythonRunTestCase(
-                    path, self.workdir, module, self.annotate)
+                    path, workdir, module, self.annotate)
             else:
                 test = CythonCompileTestCase(
-                    path, self.workdir, module, expect_errors, self.annotate)
+                    path, workdir, module, expect_errors, self.annotate)
             suite.addTest(test)
         return suite
 
@@ -89,7 +95,7 @@ class CythonCompileTestCase(unittest.TestCase):
     def shortDescription(self):
         return "compiling " + self.module
 
-    def tearDown(self):
+    def _tearDown(self):
         if os.path.exists(self.workdir):
             for rmfile in os.listdir(self.workdir):
                 if self.annotate and rmfile.endswith(".html"):
@@ -217,9 +223,6 @@ if __name__ == '__main__':
     if os.path.exists(WORKDIR):
         shutil.rmtree(WORKDIR, ignore_errors=True)
     os.makedirs(WORKDIR)
-
-    if not sys.path or sys.path[0] != WORKDIR:
-        sys.path.insert(0, WORKDIR)
 
     print "Running tests against Cython %s" % version
     print "Python", sys.version
