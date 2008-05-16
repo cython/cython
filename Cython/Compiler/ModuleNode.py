@@ -33,7 +33,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  module_temp_cname    string
     #  full_module_name     string
 
-    children_attrs = ["body"]
+    child_attrs = ["body"]
     
     def analyse_declarations(self, env):
         if Options.embed_pos_in_docstring:
