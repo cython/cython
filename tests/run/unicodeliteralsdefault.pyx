@@ -8,7 +8,7 @@
 
 __doc__ = r"""
     >>> sa
-    'abc'
+    b'abc'
     >>> ua
     u'abc'
     >>> b
@@ -45,8 +45,6 @@ __doc__ = r"""
     >>> len(null)
     1
 """.decode(u"ASCII") + u"""
-    >>> sa == 'abc'
-    True
     >>> ua == u'abc'
     True
     >>> b == u'123'
@@ -72,6 +70,8 @@ __doc__ = r"""
 import sys
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u" u'", u" '")
+else:
+    __doc__ = __doc__.replace(u" b'", u" '")
 
 sa = 'abc'
 ua = u'abc'

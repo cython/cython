@@ -23,7 +23,7 @@ None
 
 class A:
     def append(self, x):
-        print "appending"
+        print u"appending"
         return x
         
 class B(list):
@@ -38,6 +38,6 @@ def test_append(L):
     try:
         print L.append(5,6)
     except TypeError:
-        print "got error"
+        print u"got error"
     return L
 
