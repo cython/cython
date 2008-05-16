@@ -2,7 +2,7 @@
 #   Pyrex - Parse tree nodes
 #
 
-import string, sys, os, time
+import string, sys, os, time, copy
 
 import Code
 from Errors import error, warning, InternalError
@@ -149,6 +149,19 @@ class Node(object):
         """Utility method for more easily implementing get_child_accessors.
         If you override get_child_accessors then this method is not used."""
         return self.child_attrs
+    
+    def clone_node(self):
+        """Clone the node. This is defined as a shallow copy, except for member lists
+           amongst the child attributes (from get_child_accessors) which are also
+           copied. Lists containing child nodes are thus seen as a way for the node
+           to hold multiple children directly; the list is not treated as a seperate
+           level in the tree."""
+        c = copy.copy(self)
+        for acc in c.get_child_accessors():
+            value = acc.get()
+            if isinstance(value, list):
+                acc.set([x for x in value])
+        return c
     
     
     #
