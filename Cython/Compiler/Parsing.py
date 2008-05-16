@@ -825,17 +825,18 @@ def p_print_statement(s):
     if s.sy == '>>':
         s.error("'print >>' not yet implemented")
     args = []
-    ewc = 0
+    ends_with_comma = 0
     if s.sy not in ('NEWLINE', 'EOF'):
         args.append(p_simple_expr(s))
         while s.sy == ',':
             s.next()
             if s.sy in ('NEWLINE', 'EOF'):
-                ewc = 1
+                ends_with_comma = 1
                 break
             args.append(p_simple_expr(s))
+    arg_tuple = ExprNodes.TupleNode(pos, args = args)
     return Nodes.PrintStatNode(pos, 
-        args = args, ends_with_comma = ewc)
+        arg_tuple = arg_tuple, add_newline = not ends_with_comma)
 
 def p_del_statement(s):
     # s.sy == 'del'
