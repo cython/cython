@@ -11,9 +11,9 @@ __doc__ = u"""
 
     >>> len(constant())
     2
-    >>> constant()['parrot']
-    'resting'
-    >>> constant()['answer']
+    >>> print(constant()['parrot'])
+    resting
+    >>> print(constant()['answer'])
     42
 """
 
@@ -34,6 +34,5 @@ def keyvalues2(key1, value1, key2, value2):
     return d
 
 def constant():
-    d = {"parrot":"resting", "answer":42}
+    d = {u"parrot":u"resting", u"answer":42}
     return d
-    

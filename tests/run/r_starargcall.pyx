@@ -5,9 +5,9 @@ __doc__ = u"""
 """
 
 def spam(a, b, c):
-    print "Args:", a, b, c
+    print u"Args:", a, b, c
 
 def eggs():
     spam(*(1,2,3))
-    spam(*["buckle","my","shoe"])
+    spam(*[u"buckle",u"my",u"shoe"])
 

@@ -3,19 +3,22 @@ __doc__ = u"""
     >>> g
     42
     >>> x
-    'spam'
+    u'spam'
     >>> y
-    'eggs'
+    u'eggs'
     >>> z
-    'spameggs'
+    u'spameggs'
 """
+
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u" u'", u" '")
 
 def f():
     pass
     
 g = 42
-x = "spam"
-y = "eggs"
+x = u"spam"
+y = u"eggs"
 if g:
     z = x + y
-

@@ -25,7 +25,7 @@ __doc__ = r"""
     u'S\xf8k ik\xfc\xd6\xe4abc'
     >>> null
     u'\x00'
-""".decode("ASCII") + """
+""".decode(u"ASCII") + """
     >>> len(sa)
     3
     >>> len(ua)
@@ -44,7 +44,7 @@ __doc__ = r"""
     12
     >>> len(null)
     1
-""".decode("ASCII") + u"""
+""".decode(u"ASCII") + u"""
     >>> sa == 'abc'
     True
     >>> ua == u'abc'
@@ -82,5 +82,5 @@ d = u'üÖä'
 e = u'\x03\x67\xf8\uf8d2Søk ik'
 f = u'\xf8'
 
-add = u'Søk ik' + u'üÖä' + 'abc'
+add = u'Søk ik' + u'üÖä' + u'abc'
 null = u'\x00'

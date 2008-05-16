@@ -29,7 +29,7 @@ __getattribute__ and __getattr__ special methods for a single class.
 
 cdef class just_getattribute:
     def __getattribute__(self,n):
-        if n == 'bar':
+        if n == u'bar':
             return n
         else:
             raise AttributeError
@@ -39,7 +39,7 @@ cdef class just_getattr:
     def __init__(self):
         self.foo = 10
     def __getattr__(self,n):
-        if n == 'bar':
+        if n == u'bar':
             return n
         else:
             raise AttributeError
@@ -49,12 +49,12 @@ cdef class both:
     def __init__(self):
         self.foo = 10
     def __getattribute__(self,n):
-        if n == 'foo':
+        if n == u'foo':
             return self.foo
         else:
             raise AttributeError
     def __getattr__(self,n):
-        if n == 'bar':
+        if n == u'bar':
             return n
         else:
             raise AttributeError

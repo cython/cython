@@ -11,5 +11,4 @@ def f(a, b):
     print a
     print a, b
     print a, b,
-    print 42, "spam"
-    
+    print 42, u"spam"

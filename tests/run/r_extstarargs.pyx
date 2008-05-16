@@ -33,7 +33,7 @@ __doc__ = u"""
 cdef class Swallow:
 
     def __init__(self, name, airspeed, *args, **kwds):
-        print "Name:", name
-        print "Airspeed:", airspeed
-        print "Extra args:", args
-        print "Extra keywords:", kwds
+        print u"Name:", name
+        print u"Airspeed:", airspeed
+        print u"Extra args:", args
+        print u"Extra keywords:", kwds

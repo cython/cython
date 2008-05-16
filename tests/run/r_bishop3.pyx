@@ -18,10 +18,10 @@ cdef class Foo:
 cdef class Fee(Foo):
 
   def bof(self):
-    print 'Fee bof', self.val
+    print u'Fee bof', self.val
 
 
 cdef class Faa(Fee):
 
   def bof(self):
-    print 'Foo bof', self.val
+    print u'Foo bof', self.val
