@@ -248,8 +248,9 @@ class BlockNode:
         if entries:
             code.putln("")
             for entry in entries:
-                code.putln(
-                    "static PyObject *%s;" % entry.pystring_cname)
+                if not entry.is_interned:
+                    code.putln(
+                        "static PyObject *%s;" % entry.pystring_cname)
 
     def generate_interned_num_decls(self, env, code):
         #  Flush accumulated interned nums from the global scope
