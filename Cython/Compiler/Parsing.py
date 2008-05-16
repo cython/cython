@@ -5,7 +5,7 @@
 import os, re
 from string import join, replace
 from types import ListType, TupleType
-from Scanning import PyrexScanner
+from Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
 import ExprNodes
 from ModuleNode import ModuleNode
@@ -1182,7 +1182,8 @@ def p_include_statement(s, level):
         include_file_path = s.context.find_include_file(include_file_name, pos)
         if include_file_path:
             f = Utils.open_source_file(include_file_path, mode="rU")
-            s2 = PyrexScanner(f, include_file_path, s, source_encoding=f.encoding)
+            source_desc = FileSourceDescriptor(include_file_path)
+            s2 = PyrexScanner(f, source_desc, s, source_encoding=f.encoding)
             try:
                 tree = p_statement_list(s2, level)
             finally:

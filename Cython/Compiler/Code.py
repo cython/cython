@@ -8,6 +8,7 @@ import Options
 from Cython.Utils import open_new_file, open_source_file
 from PyrexTypes import py_object_type, typecast
 from TypeSlots import method_coexist
+from Scanning import SourceDescriptor
 
 class CCodeWriter:
     # f                file            output file
@@ -89,21 +90,22 @@ class CCodeWriter:
     def get_py_version_hex(self, pyversion):
         return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
 
-    def file_contents(self, file):
+    def file_contents(self, source_desc):
         try:
-            return self.input_file_contents[file]
+            return self.input_file_contents[source_desc]
         except KeyError:
             F = [line.encode('ASCII', 'replace').replace(
                     '*/', '*[inserted by cython to avoid comment closer]/')
-                 for line in open_source_file(file)]
-            self.input_file_contents[file] = F
+                 for line in source_desc.get_lines(decode=True)]
+            self.input_file_contents[source_desc] = F
             return F
 
     def mark_pos(self, pos):
         if pos is None:
             return
-        filename, line, col = pos
-        contents = self.file_contents(filename)
+        source_desc, line, col = pos
+        assert isinstance(source_desc, SourceDescriptor)
+        contents = self.file_contents(source_desc)
 
         context = ''
         for i in range(max(0,line-3), min(line+2, len(contents))):
@@ -112,7 +114,7 @@ class CCodeWriter:
                 s = s.rstrip() + '             # <<<<<<<<<<<<<< ' + '\n'
             context += " * " + s
 
-        marker = '"%s":%d\n%s' % (filename.encode('ASCII', 'replace'), line, context)
+        marker = '"%s":%d\n%s' % (str(source_desc).encode('ASCII', 'replace'), line, context)
         if self.last_marker != marker:
             self.marker = marker
 

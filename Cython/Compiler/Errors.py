@@ -12,13 +12,17 @@ class PyrexError(Exception):
 class PyrexWarning(Exception):
     pass
 
+
 def context(position):
-    F = open(position[0]).readlines()
-    s = ''.join(F[position[1]-6:position[1]])
+    source = position[0]
+    assert not (isinstance(source, unicode) or isinstance(source, str)), (
+        "Please replace filename strings with Scanning.FileSourceDescriptor instances %r" % source)
+    F = list(source.get_lines())
+    s = ''.join(F[min(0, position[1]-6):position[1]])
     s += ' '*(position[2]-1) + '^'
     s = '-'*60 + '\n...\n' + s + '\n' + '-'*60 + '\n'
     return s
-
+    
 class CompileError(PyrexError):
     
     def __init__(self, position = None, message = ""):

@@ -427,8 +427,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln("static char *%s[] = {" % Naming.filenames_cname)
         if code.filename_list:
-            for filename in code.filename_list:
-                filename = os.path.basename(filename)
+            for source_desc in code.filename_list:
+                filename = os.path.basename(str(source_desc))
                 escaped_filename = filename.replace("\\", "\\\\").replace('"', r'\"')
                 code.putln('"%s",' % 
                     escaped_filename)
