@@ -1396,8 +1396,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         entry.cname,
                         entry.cname,
                         entry.type.is_unicode,
-                        entry.is_identifier,
-                        entry.is_interned
+                        entry.is_interned,
+                        entry.is_identifier
                         ))
             code.putln(
                 "{0, 0, 0, 0, 0}")
