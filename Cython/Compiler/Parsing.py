@@ -835,8 +835,8 @@ def p_print_statement(s):
                 break
             args.append(p_simple_expr(s))
     arg_tuple = ExprNodes.TupleNode(pos, args = args)
-    return Nodes.PrintStatNode(pos, 
-        arg_tuple = arg_tuple, add_newline = not ends_with_comma)
+    return Nodes.PrintStatNode(pos,
+        arg_tuple = arg_tuple, append_newline = not ends_with_comma)
 
 def p_del_statement(s):
     # s.sy == 'del'

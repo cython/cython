@@ -2496,12 +2496,14 @@ class PrintStatNode(StatNode):
     #  print statement
     #
     #  arg_tuple         TupleNode
-    #  add_newline       boolean
+    #  append_newline    boolean
 
     child_attrs = ["arg_tuple"]
 
     def analyse_expressions(self, env):
         self.arg_tuple.analyse_expressions(env)
+        self.arg_tuple = self.arg_tuple.coerce_to_pyobject(env)
+        self.arg_tuple.release_temp(env)
         env.use_utility_code(printing_utility_code)
         return
         for i in range(len(self.args)):
@@ -2514,30 +2516,16 @@ class PrintStatNode(StatNode):
             #env.recycle_pending_temps() # TEMPORARY
 
     def generate_execution_code(self, code):
-        code.putln("#if PY_MAJOR_VERSION < 3")
-        for arg in self.arg_tuple.args:
-            arg.generate_evaluation_code(code)
-            code.putln(
-                "if (__Pyx_PrintItem(%s) < 0) %s" % (
-                    arg.py_result(),
-                    code.error_goto(self.pos)))
-            arg.generate_disposal_code(code)
-        if self.add_newline:
-            code.putln(
-                "if (__Pyx_PrintNewline() < 0) %s" %
-                    code.error_goto(self.pos))
-        code.putln("#else") # Python 3 has a print() function
-        self.arg_tuple.generate_result_code(code)
+        self.arg_tuple.generate_evaluation_code(code)
         code.putln(
             "if (__Pyx_Print(%s, %d) < 0) %s" % (
                 self.arg_tuple.py_result(),
-                self.add_newline,
+                self.append_newline,
                 code.error_goto(self.pos)))
-        code.putln("#endif")
+        self.arg_tuple.generate_disposal_code(code)
 
     def annotate(self, code):
-        for arg in self.arg_tuple.args:
-            arg.annotate(code)
+        self.arg_tuple.annotate(code)
 
 
 class DelStatNode(StatNode):
@@ -3770,13 +3758,10 @@ else:
 
 printing_utility_code = [
 """
-#if PY_MAJOR_VERSION < 3
-static int __Pyx_PrintItem(PyObject *); /*proto*/
-static int __Pyx_PrintNewline(void); /*proto*/
-#else
+static int __Pyx_Print(PyObject *, int); /*proto*/
+#if PY_MAJOR_VERSION >= 3
 static PyObject* %s = 0;
 static PyObject* %s = 0;
-static int __Pyx_Print(PyObject *, int newline); /*proto*/
 #endif
 """ % (Naming.print_function, Naming.print_function_kwargs), r"""
 #if PY_MAJOR_VERSION < 3
@@ -3788,38 +3773,38 @@ static PyObject *__Pyx_GetStdout(void) {
     return f;
 }
 
-static int __Pyx_PrintItem(PyObject *v) {
+static int __Pyx_Print(PyObject *arg_tuple, int newline) {
     PyObject *f;
+    PyObject* v;
+    int i;
     
     if (!(f = __Pyx_GetStdout()))
         return -1;
-    if (PyFile_SoftSpace(f, 1)) {
-        if (PyFile_WriteString(" ", f) < 0)
+    for (i=0; i < PyTuple_GET_SIZE(arg_tuple); i++) {
+        if (PyFile_SoftSpace(f, 1)) {
+            if (PyFile_WriteString(" ", f) < 0)
+                return -1;
+        }
+        v = PyTuple_GET_ITEM(arg_tuple, i);
+        if (PyFile_WriteObject(v, f, Py_PRINT_RAW) < 0)
             return -1;
+        if (PyString_Check(v)) {
+            char *s = PyString_AsString(v);
+            Py_ssize_t len = PyString_Size(v);
+            if (len > 0 &&
+                isspace(Py_CHARMASK(s[len-1])) &&
+                s[len-1] != ' ')
+                    PyFile_SoftSpace(f, 0);
+        }
     }
-    if (PyFile_WriteObject(v, f, Py_PRINT_RAW) < 0)
-        return -1;
-    if (PyString_Check(v)) {
-        char *s = PyString_AsString(v);
-        Py_ssize_t len = PyString_Size(v);
-        if (len > 0 &&
-            isspace(Py_CHARMASK(s[len-1])) &&
-            s[len-1] != ' ')
-                PyFile_SoftSpace(f, 0);
+    if (newline) {
+        if (PyFile_WriteString("\n", f) < 0)
+            return -1;
+        PyFile_SoftSpace(f, 0);
     }
     return 0;
 }
 
-static int __Pyx_PrintNewline(void) {
-    PyObject *f;
-    
-    if (!(f = __Pyx_GetStdout()))
-        return -1;
-    if (PyFile_WriteString("\n", f) < 0)
-        return -1;
-    PyFile_SoftSpace(f, 0);
-    return 0;
-}
 #else /* Python 3 has a print function */
 static int __Pyx_Print(PyObject *arg_tuple, int newline) {
     PyObject* kwargs = 0;
@@ -3828,19 +3813,19 @@ static int __Pyx_Print(PyObject *arg_tuple, int newline) {
     if (!%(PRINT_FUNCTION)s) {
         %(PRINT_FUNCTION)s = PyObject_GetAttrString(%(BUILTINS)s, "print");
         if (!%(PRINT_FUNCTION)s)
-            goto bad;
+            return -1;
     }
     if (!newline) {
         if (!%(PRINT_KWARGS)s) {
             %(PRINT_KWARGS)s = PyDict_New();
             if (!%(PRINT_KWARGS)s)
-                goto bad;
+                return -1;
             end_string = PyUnicode_FromStringAndSize(" ", 1);
             if (!end_string)
-                goto bad;
+                return -1;
             if (PyDict_SetItemString(%(PRINT_KWARGS)s, "end", end_string) < 0) {
                 Py_DECREF(end_string);
-                goto bad;
+                return -1;
             }
             Py_DECREF(end_string);
         }
@@ -3848,13 +3833,9 @@ static int __Pyx_Print(PyObject *arg_tuple, int newline) {
     }
     result = PyObject_Call(%(PRINT_FUNCTION)s, arg_tuple, kwargs);
     if (!result)
-        goto bad;
+        return -1;
     Py_DECREF(result);
-    Py_DECREF(arg_tuple);
     return 0;
-bad:
-    Py_DECREF(arg_tuple);
-    return -1;
 }
 #endif
 """ % {'BUILTINS'       : Naming.builtins_cname,
