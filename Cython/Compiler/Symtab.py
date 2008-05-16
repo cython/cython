@@ -906,19 +906,24 @@ class ModuleScope(Scope):
         module_name, base_type, objstruct_cname, typeobj_cname,
         visibility, typedef_flag, api):
         #
-        # Look for previous declaration as a type
+        #  Look for previous declaration as a type
         #
         entry = self.lookup_here(name)
         if entry:
             type = entry.type
             if not (entry.is_type and type.is_extension_type):
-                entry = None # Will cause an error when we redeclare it
+                entry = None # Will cause redeclaration and produce an error
             else:
-                self.check_previous_typedef_flag(entry, typedef_flag, pos)
-                if base_type != type.base_type:
-                    error(pos, "Base type does not match previous declaration")
+                scope = type.scope
+                if typedef_flag and scope.defined:
+                    self.check_previous_typedef_flag(entry, typedef_flag, pos)
+                if (scope and scope.defined) or (base_type and type.base_type):
+                    if base_type and base_type is not type.base_type:
+                        error(pos, "Base type does not match previous declaration")
+                if base_type and not type.base_type:
+                    type.base_type = base_type
         #
-        # Make a new entry if needed
+        #  Make a new entry if needed
         #
         if not entry:
             type = PyrexTypes.PyExtensionType(name, typedef_flag, base_type)
@@ -940,7 +945,7 @@ class ModuleScope(Scope):
             self.attach_var_entry_to_c_class(entry)
             self.c_class_entries.append(entry)
         #
-        # Check for re-definition and create scope if needed
+        #  Check for re-definition and create scope if needed
         #
         if not type.scope:
             if defining or implementing:
@@ -958,7 +963,7 @@ class ModuleScope(Scope):
             elif implementing and type.scope.implemented:
                 error(pos, "C class '%s' already implemented" % name)
         #
-        # Fill in options, checking for compatibility with any previous declaration
+        #  Fill in options, checking for compatibility with any previous declaration
         #
         if defining:
             entry.defined_in_pxd = 1
