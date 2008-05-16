@@ -24,7 +24,7 @@ else:
     __doc__ = __doc__.replace(u" b'", u" '")
 
 s = str
-z = str('test', **encoding)
+z = str('test')
 
 def c(string):
     return str(string, **encoding)

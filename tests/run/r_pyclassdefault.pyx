@@ -14,6 +14,6 @@ class CoconutCarrier:
         if name is not None:
             print u"This swallow is called", name
         if airspeed is not None:
-            print u"This swallow is flying at", airspeed, "furlongs per fortnight"
+            print u"This swallow is flying at", airspeed, u"furlongs per fortnight"
         if coconuts is not None:
-            print u"This swallow is carrying", coconuts, "coconuts"
+            print u"This swallow is carrying", coconuts, u"coconuts"

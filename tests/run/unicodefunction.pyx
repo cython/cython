@@ -21,7 +21,7 @@ if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u" u'", u" '")
 
 u = unicode
-z = unicode('test')
+z = unicode(u'test')
 
 def c(string):
     return unicode(string)
