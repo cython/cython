@@ -4351,13 +4351,15 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
             *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
         } else if (t->intern) {
             *t->p = PyString_InternFromString(t->s);
+        }
         #else  /* Python 3+ has unicode identifiers */
         if (t->is_identifier || (t->is_unicode && t->intern)) {
             *t->p = PyUnicode_InternFromString(t->s);
         } else if (t->is_unicode) {
             *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+        }
         #endif
-        } else {
+        else {
             *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
         }
         if (!*t->p)
