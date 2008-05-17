@@ -15,7 +15,7 @@ from Cython import Plex, Utils
 from Cython.Plex import Scanner
 from Cython.Plex.Errors import UnrecognizedInput
 from Errors import CompileError, error
-from Lexicon import string_prefixes, make_lexicon
+from Lexicon import string_prefixes, raw_prefixes, make_lexicon
 
 plex_version = getattr(Plex, '_version', None)
 #print "Plex version:", plex_version ###
@@ -261,6 +261,8 @@ class PyrexScanner(Scanner):
     
     def begin_string_action(self, text):
         if text[:1] in string_prefixes:
+            text = text[1:]
+        if text[:1] in raw_prefixes:
             text = text[1:]
         self.begin(self.string_states[text])
         self.produce('BEGIN_STRING')

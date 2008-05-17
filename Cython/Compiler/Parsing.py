@@ -512,7 +512,7 @@ def p_name(s, name):
 
 def p_cat_string_literal(s):
     # A sequence of one or more adjacent string literals.
-    # Returns (kind, value) where kind in ('', 'c', 'r', 'u')
+    # Returns (kind, value) where kind in ('b', 'c', 'u')
     kind, value = p_string_literal(s)
     if kind != 'c':
         strings = [value]
@@ -537,19 +537,23 @@ def p_opt_string_literal(s):
 
 def p_string_literal(s):
     # A single string or char literal.
-    # Returns (kind, value) where kind in ('', 'c', 'r', 'u')
+    # Returns (kind, value) where kind in ('b', 'c', 'u')
     # s.sy == 'BEGIN_STRING'
     pos = s.position()
-    #is_raw = s.systring[:1].lower() == "r"
+    is_raw = 0
     kind = s.systring[:1].lower()
-    if kind not in "cru":
+    if kind == 'r':
+        kind = ''
+        is_raw = 1
+    elif kind in 'ub':
+        is_raw = s.systring[1:2].lower() == 'r'
+    elif kind != 'c':
         kind = ''
     if Future.unicode_literals in s.context.future_directives:
         if kind == '':
             kind = 'u'
-        elif kind == 'u':
-            s.error("string literal must not start with 'u' when importing __future__.unicode_literals")
-            return ('u', '')
+    elif kind == '':
+        kind = 'b'
     chars = []
     while 1:
         s.next()
@@ -562,7 +566,7 @@ def p_string_literal(s):
             chars.append(systr)
         elif sy == 'ESCAPE':
             systr = s.systring
-            if kind == 'r':
+            if is_raw:
                 if systr == '\\\n':
                     chars.append(r'\\\n')
                 elif systr == r'\"':
