@@ -5,7 +5,8 @@
 #   to be rebuilt next time pyrexc is run.
 #
 
-string_prefixes = "cCrRuU"
+raw_prefixes = "rR"
+string_prefixes = "cCuUbB"
 
 def make_lexicon():
     from Cython.Plex import \
@@ -55,9 +56,8 @@ def make_lexicon():
         + Rep(non_dq | (Str('"') + non_dq) | (Str('""') + non_dq)) 
         + Str('"""')
     )
-    stringlit = Opt(Any(string_prefixes)) + (sq_string | dq_string | tsq_string| tdq_string)
     
-    beginstring = Opt(Any(string_prefixes)) + (Str("'") | Str('"') | Str("'''") | Str('"""'))
+    beginstring = Opt(Any(string_prefixes)) + Opt(Any(raw_prefixes)) + (Str("'") | Str('"') | Str("'''") | Str('"""'))
     two_oct = octdigit + octdigit
     three_oct = octdigit + octdigit + octdigit
     two_hex = hexdigit + hexdigit

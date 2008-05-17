@@ -25,11 +25,12 @@ class A:
     def append(self, x):
         print u"appending"
         return x
-        
+
 class B(list):
     def append(self, *args):
+        append = super(B, self).append
         for arg in args:
-            list.append(self, arg)
+            append(arg)
 
 def test_append(L):
     print L.append(1)
