@@ -736,6 +736,18 @@ class StringNode(ConstNode):
             return self.entry.cname
 
 
+class KeywordNameNode(ConstNode):
+    # A keyword in a Python function call: a string that behaves like
+    # an identifier
+    type = PyrexTypes.py_object_type
+
+    def analyse_types(self, env):
+        self.cname = env.intern_identifier(self.value)
+
+    def calculate_result_code(self):
+        return self.cname
+
+
 class LongNode(AtomicExprNode):
     #  Python long integer literal
     #

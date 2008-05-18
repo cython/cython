@@ -284,8 +284,7 @@ def p_call(s, function):
                 s.error("Expected an identifier before '='",
                     pos = arg.pos)
             encoded_name = Utils.EncodedString(arg.name)
-            encoded_name.encoding = s.source_encoding
-            keyword = ExprNodes.StringNode(arg.pos, 
+            keyword = ExprNodes.KeywordNameNode(arg.pos, 
                 value = encoded_name)
             arg = p_simple_expr(s)
             keyword_args.append((keyword, arg))

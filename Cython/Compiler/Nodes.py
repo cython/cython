@@ -4347,7 +4347,7 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         #if PY_MAJOR_VERSION < 3
-        if (t->is_unicode) {
+        if (t->is_unicode && (!t->is_identifier)) {
             *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
         } else if (t->intern) {
             *t->p = PyString_InternFromString(t->s);
