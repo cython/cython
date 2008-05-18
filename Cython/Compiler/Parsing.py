@@ -284,7 +284,7 @@ def p_call(s, function):
                 s.error("Expected an identifier before '='",
                     pos = arg.pos)
             encoded_name = Utils.EncodedString(arg.name)
-            keyword = ExprNodes.KeywordNameNode(arg.pos, 
+            keyword = ExprNodes.IdentifierStringNode(arg.pos, 
                 value = encoded_name)
             arg = p_simple_expr(s)
             keyword_args.append((keyword, arg))
@@ -926,8 +926,8 @@ def p_import_statement(s):
                 lhs = ExprNodes.NameNode(pos, 
                     name = as_name or target_name),
                 rhs = ExprNodes.ImportNode(pos, 
-                    module_name = ExprNodes.StringNode(pos,
-                        value = dotted_name),
+                    module_name = ExprNodes.IdentifierStringNode(
+                        pos, value = dotted_name),
                     name_list = name_list))
         stats.append(stat)
     return Nodes.StatListNode(pos, stats = stats)
@@ -974,9 +974,8 @@ def p_from_import_statement(s, first_statement = 0):
         items = []
         for (name_pos, name, as_name) in imported_names:
             encoded_name = Utils.EncodedString(name)
-            encoded_name.encoding = s.source_encoding
             imported_name_strings.append(
-                ExprNodes.StringNode(name_pos, value = encoded_name))
+                ExprNodes.IdentifierStringNode(name_pos, value = encoded_name))
             items.append(
                 (name,
                  ExprNodes.NameNode(name_pos, 
@@ -984,11 +983,9 @@ def p_from_import_statement(s, first_statement = 0):
         import_list = ExprNodes.ListNode(
             imported_names[0][0], args = imported_name_strings)
         dotted_name = Utils.EncodedString(dotted_name)
-        dotted_name.encoding = s.source_encoding
         return Nodes.FromImportStatNode(pos,
             module = ExprNodes.ImportNode(dotted_name_pos,
-                module_name = ExprNodes.StringNode(dotted_name_pos,
-                    value = dotted_name),
+                module_name = ExprNodes.IdentifierStringNode(pos, value = dotted_name),
                 name_list = import_list),
             items = items)
 

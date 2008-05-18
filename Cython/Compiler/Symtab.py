@@ -464,7 +464,7 @@ class Scope:
             string_map[value] = entry
         return entry
 
-    def add_py_string(self, entry):
+    def add_py_string(self, entry, identifier = None):
         # If not already done, allocate a C name for a Python version of
         # a string literal, and add it to the list of Python strings to
         # be created at module init time. If the string resembles a
@@ -475,7 +475,7 @@ class Scope:
         entry.pystring_cname = entry.cname + "p"
         self.pystring_entries.append(entry)
         self.global_scope().all_pystring_entries.append(entry)
-        if possible_identifier(value):
+        if identifier or (identifier is None and possible_identifier(value)):
             entry.is_interned = 1
             self.global_scope().new_interned_string_entries.append(entry)
 
@@ -751,7 +751,7 @@ class ModuleScope(Scope):
 
     def intern_identifier(self, name):
         string_entry = self.get_string_const(name, identifier = True)
-        self.add_py_string(string_entry)
+        self.add_py_string(string_entry, identifier = 1)
         return string_entry.pystring_cname
 
     def find_module(self, module_name, pos):
