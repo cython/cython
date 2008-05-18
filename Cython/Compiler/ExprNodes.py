@@ -2412,12 +2412,14 @@ class DictItemNode(ExprNode):
         self.key.generate_disposal_code(code)
         self.value.generate_disposal_code(code)
 
+
 class ClassNode(ExprNode):
     #  Helper class used in the implementation of Python
     #  class definitions. Constructs a class object given
     #  a name, tuple of bases and class dictionary.
     #
-    #  name         ExprNode           Name of the class
+    #  name         EncodedString      Name of the class
+    #  cname        string             Class name as a Python string
     #  bases        ExprNode           Base class tuple
     #  dict         ExprNode           Class dict (not owned by this node)
     #  doc          ExprNode or None   Doc string
