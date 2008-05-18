@@ -736,9 +736,9 @@ class StringNode(ConstNode):
             return self.entry.cname
 
 
-class KeywordNameNode(ConstNode):
-    # A keyword in a Python function call: a string that behaves like
-    # an identifier
+class IdentifierStringNode(ConstNode):
+    # A Python string that behaves like an identifier, e.g. for
+    # keyword arguments in a call, or for imported names
     type = PyrexTypes.py_object_type
 
     def analyse_types(self, env):
@@ -1067,8 +1067,8 @@ class ImportNode(ExprNode):
     #  Implements result = 
     #    __import__(module_name, globals(), None, name_list)
     #
-    #  module_name   StringNode         dotted name of module
-    #  name_list     ListNode or None   list of names to be imported
+    #  module_name   IdentifierStringNode     dotted name of module
+    #  name_list     ListNode or None         list of names to be imported
     
     subexprs = ['module_name', 'name_list']
 
