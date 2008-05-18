@@ -1668,6 +1668,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             env.use_utility_code(Nodes.get_vtable_utility_code)
         env.types_imported[type] = 1
 
+    py3_type_name_map = {'str' : 'bytes', 'unicode' : 'str'}
+
     def generate_type_import_call(self, type, code, error_code):
         if type.typedef_flag:
             objstruct = type.objstruct_cname
@@ -1678,12 +1680,23 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             module_name = '"%s"' % module_name
         else:
             module_name = '__Pyx_BUILTIN_MODULE_NAME'
+        if type.name in self.py3_type_name_map:
+            code.putln("#if PY_MAJOR_VERSION >= 3")
+            code.putln('%s = __Pyx_ImportType(%s, "%s", sizeof(%s)); %s' % (
+                    type.typeptr_cname,
+                    module_name,
+                    self.py3_type_name_map[type.name],
+                    objstruct,
+                    error_code))
+            code.putln("#else")
         code.putln('%s = __Pyx_ImportType(%s, "%s", sizeof(%s)); %s' % (
-            type.typeptr_cname,
-            module_name,
-            type.name,
-            objstruct,
-            error_code))
+                type.typeptr_cname,
+                module_name,
+                type.name,
+                objstruct,
+                error_code))
+        if type.name in self.py3_type_name_map:
+            code.putln("#endif")
 
     def generate_type_ready_code(self, env, entry, code):
         # Generate a call to PyType_Ready for an extension
