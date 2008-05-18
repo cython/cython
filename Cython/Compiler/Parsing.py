@@ -261,7 +261,7 @@ def p_trailer(s, node1):
         return p_index(s, node1)
     else: # s.sy == '.'
         s.next()
-        name = p_ident(s)
+        name = Utils.EncodedString( p_ident(s) )
         return ExprNodes.AttributeNode(pos, 
             obj = node1, attribute = name)
 
@@ -469,7 +469,7 @@ def p_atom(s):
         else:
             return ExprNodes.StringNode(pos, value = value)
     elif sy == 'IDENT':
-        name = s.systring
+        name = Utils.EncodedString( s.systring )
         s.next()
         if name == "None":
             return ExprNodes.NoneNode(pos)
@@ -911,6 +911,7 @@ def p_import_statement(s):
         items.append(p_dotted_name(s, as_allowed = 1))
     stats = []
     for pos, target_name, dotted_name, as_name in items:
+        dotted_name = Utils.EncodedString(dotted_name)
         if kind == 'cimport':
             stat = Nodes.CImportStatNode(pos, 
                 module_name = dotted_name,
@@ -921,7 +922,6 @@ def p_import_statement(s):
                     ExprNodes.StringNode(pos, value = Utils.EncodedString("*"))])
             else:
                 name_list = None
-            dotted_name = Utils.EncodedString(dotted_name)
             stat = Nodes.SingleAssignmentNode(pos,
                 lhs = ExprNodes.NameNode(pos, 
                     name = as_name or target_name),
@@ -949,6 +949,7 @@ def p_from_import_statement(s, first_statement = 0):
     while s.sy == ',':
         s.next()
         imported_names.append(p_imported_name(s))
+    dotted_name = Utils.EncodedString(dotted_name)
     if dotted_name == '__future__':
         if not first_statement:
             s.error("from __future__ imports must occur at the beginning of the file")
