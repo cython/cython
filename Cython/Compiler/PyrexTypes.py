@@ -982,16 +982,6 @@ class CCharPtrType(CStringType, CPtrType):
         CPtrType.__init__(self, c_char_type)
 
 
-class CUTF8CharPtrType(CUTF8StringType, CPtrType):
-    # C 'char *' type, encoded in UTF-8.
-    
-    parsetuple_format = "s"
-    pymemberdef_typecode = "T_STRING"
-    
-    def __init__(self):
-        CPtrType.__init__(self, c_char_type)
-
-
 class ErrorType(PyrexType):
     # Used to prevent propagation of error messages.
     
@@ -1058,7 +1048,6 @@ c_null_ptr_type =     CNullPtrType(c_void_type)
 c_char_array_type =   CCharArrayType(None)
 c_utf8_char_array_type =   CUTF8CharArrayType(None)
 c_char_ptr_type =     CCharPtrType()
-c_utf8_char_ptr_type =     CUTF8CharPtrType()
 c_char_ptr_ptr_type = CPtrType(c_char_ptr_type)
 c_int_ptr_type =      CPtrType(c_int_type)
 
