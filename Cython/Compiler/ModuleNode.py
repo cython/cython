@@ -412,10 +412,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyInt_AsSsize_t              PyLong_AsSsize_t")
         code.putln("  #define PyInt_AsUnsignedLongMask     PyLong_AsUnsignedLongMask")
         code.putln("  #define PyInt_AsUnsignedLongLongMask PyLong_AsUnsignedLongLongMask")
+        code.putln("  #define PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)")
         code.putln("#endif")
 
         code.putln("#if PY_MAJOR_VERSION >= 3")
-        code.putln("  #define PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)")
         code.putln("  #define PyMethod_New(func, self, klass) PyInstanceMethod_New(func)")
         code.putln("#endif")
 
