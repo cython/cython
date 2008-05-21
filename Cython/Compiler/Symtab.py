@@ -3,6 +3,7 @@
 #
 
 import re
+from Cython import Utils
 from Errors import warning, error, InternalError
 import Options
 import Naming
@@ -611,11 +612,14 @@ class BuiltinScope(Scope):
             utility_code = None):
         # If python_equiv == "*", the Python equivalent has the same name
         # as the entry, otherwise it has the name specified by python_equiv.
+        name = Utils.EncodedString(name)
         entry = self.declare_cfunction(name, type, None, cname)
         entry.utility_code = utility_code
         if python_equiv:
             if python_equiv == "*":
                 python_equiv = name
+            else:
+                python_equiv = Utils.EncodedString(python_equiv)
             var_entry = Entry(python_equiv, python_equiv, py_object_type)
             var_entry.is_variable = 1
             var_entry.is_builtin = 1
@@ -623,6 +627,7 @@ class BuiltinScope(Scope):
         return entry
         
     def declare_builtin_type(self, name, cname):
+        name = Utils.EncodedString(name)
         type = PyrexTypes.BuiltinObjectType(name, cname)
         type.set_scope(CClassScope(name, outer_scope=None, visibility='extern'))
         self.type_names[name] = 1
