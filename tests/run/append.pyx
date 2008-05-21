@@ -21,16 +21,12 @@ None
 [1, 2, (3, 4), 5, 6]
 """
 
-cdef extern from "Python.h":
-    ctypedef class __builtin__.list [ object PyListObject ]:
-        pass
-
 class A:
     def append(self, x):
         print u"appending"
         return x
 
-cdef class B(list):
+class B(list):
     def append(self, *args):
         for arg in args:
             list.append(self, arg)
