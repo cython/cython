@@ -24,7 +24,7 @@ builtin_function_table = [
     #('hex',       "",     "",      ""),
     #('id',        "",     "",      ""),
     #('input',     "",     "",      ""),
-    ('intern',     "s",    "O",     "PyString_InternFromString"),
+    ('intern',     "s",    "O",     "__Pyx_InternFromString"),
     ('isinstance', "OO",   "b",     "PyObject_IsInstance"),
     ('issubclass', "OO",   "b",     "PyObject_IsSubclass"),
     ('iter',       "O",    "O",     "PyObject_GetIter"),
@@ -118,8 +118,18 @@ bad:
 }
 """]
 
+intern_utility_code = ["""
+#if PY_MAJOR_VERSION >= 3
+#  define __Pyx_InternFromString(s) PyUnicode_InternFromString(s)
+#else
+#  define __Pyx_InternFromString(s) PyString_InternFromString(s)
+#endif
+""","""
+"""]
+
 builtin_utility_code = {
     'getattr3': getattr3_utility_code,
+    'intern'  : intern_utility_code,
 }
 
 builtin_scope = BuiltinScope()
