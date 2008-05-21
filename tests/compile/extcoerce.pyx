@@ -2,12 +2,6 @@ cdef class Grail:
 
     def __add__(int x, float y):
         pass
-    
-    def __getslice__(self, i, j):
-        pass
-
-    def __setslice__(self, Py_ssize_t i, float j, x):
-        pass
 
 cdef class Swallow:
     pass
