@@ -416,9 +416,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("  #define PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)")
-        code.putln("  #define __Pyx_PyMethod_New(func, self, klass) PyMethod_New(func, klass)")
-        code.putln("#else")
-        code.putln("  #define __Pyx_PyMethod_New(func, self, klass) PyMethod_New(func, self, klass)")
+        code.putln("  #define PyMethod_New(func, self, klass) PyInstanceMethod_New(func)")
         code.putln("#endif")
 
         code.putln("#ifndef __stdcall")

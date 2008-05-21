@@ -2483,7 +2483,7 @@ class UnboundMethodNode(ExprNode):
     
     def generate_result_code(self, code):
         code.putln(
-            "%s = __Pyx_PyMethod_New(%s, 0, %s); %s" % (
+            "%s = PyMethod_New(%s, 0, %s); %s" % (
                 self.result_code,
                 self.function.py_result(),
                 self.class_cname,
