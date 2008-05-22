@@ -5,7 +5,7 @@ __doc__ = u"""
 """
 
 import sys, re
-if sys.version_info[0] >= 3:
+if sys.version_info >= (2,6):
     __doc__ = re.sub(u"Error: .*", u"Error: ...", __doc__)
 
 cdef class Spam:

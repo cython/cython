@@ -82,7 +82,7 @@ __doc__ = u"""
 """
 
 import sys, re
-if sys.version_info[0] >= 3:
+if sys.version_info >= (2,6):
     __doc__ = re.sub(u"Error: (.*)exactly(.*)", u"Error: \\1at most\\2", __doc__)
 
 def b(a, b, c):
