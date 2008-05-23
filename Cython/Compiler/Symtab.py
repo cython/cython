@@ -1120,24 +1120,6 @@ class ClassScope(Scope):
 
     def add_string_const(self, value):
         return self.outer_scope.add_string_const(value)
-
-    def lookup(self, name):
-        if name == "classmethod":
-            # We don't want to use the builtin classmethod here 'cause it won't do the 
-            # right thing in this scope (as the class memebers aren't still functions). 
-            # Don't want to add a cfunction to this scope 'cause that would mess with 
-            # the type definition, so we just return the right entry. 
-            self.use_utility_code(classmethod_utility_code)
-            entry = Entry(
-                "classmethod", 
-                "__Pyx_Method_ClassMethod", 
-                PyrexTypes.CFuncType(
-                    py_object_type,
-                    [PyrexTypes.CFuncTypeArg("", py_object_type, None)], 0, 0))
-            entry.is_cfunction = 1
-            return entry
-        else:
-            return Scope.lookup(self, name)
     
 
 class PyClassScope(ClassScope):
@@ -1389,28 +1371,3 @@ class PropertyScope(Scope):
             error(pos, "Only __get__, __set__ and __del__ methods allowed "
                 "in a property declaration")
             return None
-
-
-# Should this go elsewhere (and then get imported)?
-#------------------------------------------------------------------------------------
-
-classmethod_utility_code = [
-"""
-#include "descrobject.h"
-static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
-""","""
-static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
-    /* It appears that PyMethodDescr_Type is not anywhere exposed in the Python/C API */
-    /* if (!PyObject_TypeCheck(method, &PyMethodDescr_Type)) { */ 
-    if (strcmp(Py_TYPE(method)->tp_name, "method_descriptor") == 0) { /* cdef classes */
-        PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
-        return PyDescr_NewClassMethod(descr->d_type, descr->d_method);
-    }
-    else if (PyMethod_Check(method)) {                                /* python classes */
-        return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
-    }
-    PyErr_Format(PyExc_TypeError, "Class-level classmethod() can only be called on a method_descriptor or instance method.");
-    return NULL;
-}
-"""
-]
