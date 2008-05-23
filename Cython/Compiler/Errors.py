@@ -27,7 +27,8 @@ class CompileError(PyrexError):
     
     def __init__(self, position = None, message = ""):
         self.position = position
-        self.message = message
+    # Deprecated and withdrawn in 2.6:
+    #   self.message = message
         if position:
             pos_str = "%s:%d:%d: " % (position[0].get_description(), position[1], position[2])
             cont = context(position)
@@ -40,7 +41,8 @@ class CompileWarning(PyrexWarning):
     
     def __init__(self, position = None, message = ""):
         self.position = position
-        self.message = message
+    # Deprecated and withdrawn in 2.6:
+    #   self.message = message
         if position:
             pos_str = "%s:%d:%d: " % (position[0].get_description(), position[1], position[2])
         else:

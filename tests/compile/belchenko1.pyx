@@ -1,4 +1,4 @@
-cdef extern from "stdint.h":
+cdef extern from *:
     ctypedef int intptr_t
 
 cdef int _is_aligned(void *ptr):
