@@ -2136,6 +2136,7 @@ def p_doc_string(s):
 
 def p_module(s, pxd, full_module_name):
     s.add_type_name("object")
+    s.add_type_name("Py_buffer")
     pos = s.position()
     doc = p_doc_string(s)
     if pxd:
