@@ -1,20 +1,23 @@
 __doc__ = u"""
->>> class1.plus1(1)
-2
->>> class2.plus1(1)
-2
->>> class3.plus1(1)
-2
+>>> class1.plus(1)
+6
+>>> class2.plus(1)
+7
+>>> class3.plus(1)
+8
 """
 
-def f_plus(a):
-    return a + 1
+def f_plus(cls, a):
+    return cls.a + a
 
 class class1:
-    plus1 = f_plus
+    a = 5
+    plus = classmethod(f_plus)
 
 class class2(object):
-    plus1 = f_plus
+    a = 6
+    plus = classmethod(f_plus)
 
 cdef class class3:
-    plus1 = f_plus
+    a = 7
+    plus = classmethod(f_plus)
