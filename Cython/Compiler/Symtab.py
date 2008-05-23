@@ -1263,7 +1263,7 @@ class CClassScope(ClassScope):
         if name == "__new__":
             warning(pos, "__new__ method of extension type will change semantics "
                 "in a future version of Pyrex and Cython. Use __cinit__ instead.")
-            name = "__cinit__"
+            name = Utils.EncodedString("__cinit__")
         entry = self.declare_var(name, py_object_type, pos)
         special_sig = get_special_method_signature(name)
         if special_sig:
@@ -1280,7 +1280,7 @@ class CClassScope(ClassScope):
     
     def lookup_here(self, name):
         if name == "__new__":
-            name = "__cinit__"
+            name = Utils.EncodedString("__cinit__")
         return ClassScope.lookup_here(self, name)
     
     def declare_cfunction(self, name, type, pos,
