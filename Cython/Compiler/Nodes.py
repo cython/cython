@@ -3610,7 +3610,7 @@ class CImportStatNode(StatNode):
             return
         module_scope = env.find_module(self.module_name, self.pos)
         if "." in self.module_name:
-            names = self.module_name.split(".")
+            names = [EncodedString(name) for name in self.module_name.split(".")]
             top_name = names[0]
             top_module_scope = env.context.find_submodule(top_name)
             module_scope = top_module_scope
