@@ -257,7 +257,7 @@ if __name__ == '__main__':
         print("Running tests against Cython %s" % version)
     else:
         print("Running tests without Cython.")
-    print("Python", sys.version)
+    print("Python %s" % sys.version)
     print("")
 
     try:
