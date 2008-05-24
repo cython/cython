@@ -473,6 +473,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
         self.generate_extern_c_macro_definition(code)
         code.putln("#include <math.h>")
+        code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
         self.generate_includes(env, cimported_modules, code)
         code.putln('')
         code.put(Nodes.utility_function_predeclarations)
