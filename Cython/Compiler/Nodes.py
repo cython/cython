@@ -2101,6 +2101,11 @@ class CClassDefNode(StatNode, BlockNode):
         # default values of method arguments.
         if self.body:
             self.body.generate_execution_code(code)
+            # in Py2.6+, we need to invalidate the type cache
+            code.putln("#if PY_VERSION_HEX >= 0x02060000")
+            code.putln("(%s)->tp_flags &= ~Py_TPFLAGS_VALID_VERSION_TAG;" %
+                       self.entry.type.typeptr_cname)
+            code.putln("#endif")
             
     def annotate(self, code):
         if self.body:
