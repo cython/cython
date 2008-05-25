@@ -282,6 +282,18 @@ if __name__ == '__main__':
     else:
         annotate_source = True
 
+    try:
+        sys.argv.remove("-vv")
+    except ValueError:
+        try:
+            sys.argv.remove("-v")
+        except ValueError:
+            verbosity = 0
+        else:
+            verbosity = 1
+    else:
+        verbosity = 2
+
     import re
     selectors = [ re.compile(r, re.I|re.U).search for r in sys.argv[1:] ]
     if not selectors:
@@ -293,7 +305,7 @@ if __name__ == '__main__':
     if coverage is not None:
         coverage.start()
 
-    unittest.TextTestRunner(verbosity=2).run(test_suite)
+    unittest.TextTestRunner(verbosity=verbosity).run(test_suite)
 
     if coverage is not None:
         coverage.stop()
