@@ -208,11 +208,11 @@ class CythonRunTestCase(CythonCompileTestCase):
     def run(self, result=None):
         if result is None:
             result = self.defaultTestResult()
+        result.startTest(self)
         try:
             self.runTest()
             doctest.DocTestSuite(self.module).run(result)
         except Exception:
-            result.startTest(self)
             result.addError(self, sys.exc_info())
             result.stopTest(self)
         try:
