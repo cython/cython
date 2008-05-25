@@ -3,7 +3,6 @@
 import os, sys, re, shutil, unittest, doctest
 
 WITH_CYTHON = True
-CLEANUP_WORKDIR = True
 
 from distutils.dist import Distribution
 from distutils.core import Extension
@@ -34,11 +33,12 @@ class ErrorWriter(object):
         return errors
 
 class TestBuilder(object):
-    def __init__(self, rootdir, workdir, selectors, annotate):
+    def __init__(self, rootdir, workdir, selectors, annotate, cleanup_workdir):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
         self.annotate = annotate
+        self.cleanup_workdir = cleanup_workdir
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -75,28 +75,34 @@ class TestBuilder(object):
                 continue
             if context in TEST_RUN_DIRS:
                 test = CythonRunTestCase(
-                    path, workdir, module, self.annotate)
+                    path, workdir, module,
+                    annotate=self.annotate,
+                    cleanup_workdir=self.cleanup_workdir)
             else:
                 test = CythonCompileTestCase(
-                    path, workdir, module, expect_errors, self.annotate)
+                    path, workdir, module,
+                    expect_errors=expect_errors,
+                    annotate=self.annotate,
+                    cleanup_workdir=self.cleanup_workdir)
             suite.addTest(test)
         return suite
 
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, directory, workdir, module,
-                 expect_errors=False, annotate=False):
+                 expect_errors=False, annotate=False, cleanup_workdir=True):
         self.directory = directory
         self.workdir = workdir
         self.module = module
         self.expect_errors = expect_errors
         self.annotate = annotate
+        self.cleanup_workdir = cleanup_workdir
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
         return "compiling " + self.module
 
     def tearDown(self):
-        cleanup_c_files = WITH_CYTHON and CLEANUP_WORKDIR
+        cleanup_c_files = WITH_CYTHON and self.cleanup_workdir
         if os.path.exists(self.workdir):
             for rmfile in os.listdir(self.workdir):
                 if not cleanup_c_files and rmfile[-2:] in (".c", ".h"):
@@ -221,12 +227,22 @@ class CythonRunTestCase(CythonCompileTestCase):
             pass
 
 if __name__ == '__main__':
-    try:
-        sys.argv.remove("--no-cython")
-    except ValueError:
-        WITH_CYTHON = True
-    else:
-        WITH_CYTHON = False
+    from optparse import OptionParser
+    parser = OptionParser()
+    parser.add_option("--no-cython", dest="with_cython",
+                      action="store_false", default=True)
+    parser.add_option("--no-cleanup", dest="cleanup_workdir",
+                      action="store_false", default=True)
+    parser.add_option("-C", "--coverage", dest="coverage",
+                      action="store_true", default=False)
+    parser.add_option("-A", "--annotate-source", dest="annotate_source",
+                      action="store_true", default=False)
+    parser.add_option("-v", "--verbose", dest="verbosity",
+                      action="count", default=0)
+
+    options, cmd_args = parser.parse_args()
+
+    WITH_CYTHON = options.with_cython
 
     if WITH_CYTHON:
         from Cython.Compiler.Main import \
@@ -250,64 +266,31 @@ if __name__ == '__main__':
 
     if WITH_CYTHON:
         from Cython.Compiler.Version import version
-        from Cython.Compiler.Main import \
-            CompilationOptions, \
-            default_options as pyrex_default_options, \
-            compile as cython_compile
         print("Running tests against Cython %s" % version)
     else:
         print("Running tests without Cython.")
     print("Python %s" % sys.version)
     print("")
 
-    try:
-        sys.argv.remove("-C")
-    except ValueError:
-        coverage = None
-    else:
-        import coverage
-        coverage.erase()
-
-    try:
-        sys.argv.remove("--no-cleanup")
-    except ValueError:
-        CLEANUP_WORKDIR = True
-    else:
-        CLEANUP_WORKDIR = False
-
-    try:
-        sys.argv.remove("-a")
-    except ValueError:
-        annotate_source = False
-    else:
-        annotate_source = True
-
-    try:
-        sys.argv.remove("-vv")
-    except ValueError:
-        try:
-            sys.argv.remove("-v")
-        except ValueError:
-            verbosity = 0
-        else:
-            verbosity = 1
-    else:
-        verbosity = 2
-
     import re
-    selectors = [ re.compile(r, re.I|re.U).search for r in sys.argv[1:] ]
+    selectors = [ re.compile(r, re.I|re.U).search for r in cmd_args ]
     if not selectors:
         selectors = [ lambda x:True ]
 
-    tests = TestBuilder(ROOTDIR, WORKDIR, selectors, annotate_source)
+    if options.coverage:
+        import coverage
+        coverage.erase()
+
+    tests = TestBuilder(ROOTDIR, WORKDIR, selectors,
+                        options.annotate_source, options.cleanup_workdir)
     test_suite = tests.build_suite()
 
-    if coverage is not None:
+    if options.coverage:
         coverage.start()
 
-    unittest.TextTestRunner(verbosity=verbosity).run(test_suite)
+    unittest.TextTestRunner(verbosity=options.verbosity).run(test_suite)
 
-    if coverage is not None:
+    if options.coverage:
         coverage.stop()
         ignored_modules = ('Options', 'Version', 'DebugFlags')
         modules = [ module for name, module in sys.modules.items()
