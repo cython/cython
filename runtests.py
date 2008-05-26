@@ -242,6 +242,11 @@ if __name__ == '__main__':
 
     options, cmd_args = parser.parse_args()
 
+    if options.coverage:
+        import coverage
+        coverage.erase()
+        coverage.start()
+
     WITH_CYTHON = options.with_cython
 
     if WITH_CYTHON:
@@ -249,11 +254,6 @@ if __name__ == '__main__':
             CompilationOptions, \
             default_options as pyrex_default_options, \
             compile as cython_compile
-
-    from distutils.dist import Distribution
-    from distutils.core import Extension
-    from distutils.command.build_ext import build_ext
-    distutils_distro = Distribution()
 
     # RUN ALL TESTS!
     ROOTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]), 'tests')
@@ -277,16 +277,9 @@ if __name__ == '__main__':
     if not selectors:
         selectors = [ lambda x:True ]
 
-    if options.coverage:
-        import coverage
-        coverage.erase()
-
     tests = TestBuilder(ROOTDIR, WORKDIR, selectors,
                         options.annotate_source, options.cleanup_workdir)
     test_suite = tests.build_suite()
-
-    if options.coverage:
-        coverage.start()
 
     unittest.TextTestRunner(verbosity=options.verbosity).run(test_suite)
 
