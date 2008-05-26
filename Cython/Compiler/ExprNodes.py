@@ -982,7 +982,7 @@ class NameNode(AtomicExprNode):
         if entry.is_pyglobal:
             namespace = self.entry.namespace_cname
             if entry.is_member:
-                # if we entry is a member we have to cheat: SetAttr does not work
+                # if the entry is a member we have to cheat: SetAttr does not work
                 # on types, so we create a descriptor which is then added to tp_dict
                 code.put_error_if_neg(self.pos,
                     'PyDict_SetItem(%s->tp_dict, %s, %s)' % (
