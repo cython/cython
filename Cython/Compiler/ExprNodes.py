@@ -989,6 +989,12 @@ class NameNode(AtomicExprNode):
                         namespace,
                         self.interned_cname,
                         rhs.py_result()))
+                # in Py2.6+, we need to invalidate the method cache
+                typeptr_cname = entry.scope.parent_type.typeptr_cname
+                code.putln("#if PY_VERSION_HEX >= 0x02060000")
+                code.putln("(%s)->tp_flags &= ~Py_TPFLAGS_VALID_VERSION_TAG;" %
+                           typeptr_cname)
+                code.putln("#endif")
             else: 
                 code.put_error_if_neg(self.pos,
                     'PyObject_SetAttr(%s, %s, %s)' % (
