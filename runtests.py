@@ -229,16 +229,21 @@ class CythonRunTestCase(CythonCompileTestCase):
 if __name__ == '__main__':
     from optparse import OptionParser
     parser = OptionParser()
-    parser.add_option("--no-cython", dest="with_cython",
-                      action="store_false", default=True)
     parser.add_option("--no-cleanup", dest="cleanup_workdir",
-                      action="store_false", default=True)
+                      action="store_false", default=True,
+                      help="do not delete the generated C files (allows passing --no-cython on next run)")
+    parser.add_option("--no-cython", dest="with_cython",
+                      action="store_false", default=True,
+                      help="do not run the Cython compiler, only the C compiler")
     parser.add_option("-C", "--coverage", dest="coverage",
-                      action="store_true", default=False)
-    parser.add_option("-A", "--annotate-source", dest="annotate_source",
-                      action="store_true", default=False)
+                      action="store_true", default=False,
+                      help="collect source coverage data for the Compiler")
+    parser.add_option("-A", "--annotate", dest="annotate_source",
+                      action="store_true", default=False,
+                      help="generate annotated HTML versions of the test source files")
     parser.add_option("-v", "--verbose", dest="verbosity",
-                      action="count", default=0)
+                      action="count", default=0,
+                      help="display test progress, pass twice to print test names")
 
     options, cmd_args = parser.parse_args()
 
