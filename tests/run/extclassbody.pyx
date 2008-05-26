@@ -1,18 +1,20 @@
 __doc__ = u"""
 >>> s = Spam()
 >>> s.a
-1
+2
 >>> s.c
 3
 >>> s.test(5)
-8
+13
 >>> s.b
-3
+5
 """
 
 cdef class Spam:
     a = 1
     def test(self, a):
-        return a + self.c
-    b = a + 2
-    c = 3
+        return a + self.b + self.c
+    b = a + 2 # 3
+    a = b - 1 # 2
+    c = 3     # 3
+    b = c + a # 5
