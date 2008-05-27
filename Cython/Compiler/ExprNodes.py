@@ -992,7 +992,7 @@ class NameNode(AtomicExprNode):
                         self.interned_cname,
                         rhs.py_result()))
                 # in Py2.6+, we need to invalidate the method cache
-                code.putln("__Pyx_TypeModified((PyTypeObject*)%s);" %
+                code.putln("__Pyx_TypeModified(%s);" %
                            entry.scope.parent_type.typeptr_cname)
             else: 
                 code.put_error_if_neg(self.pos,
