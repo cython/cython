@@ -83,6 +83,14 @@ class SubstitutionTransform(VisitorTransform):
             # Clone
             return self.visit_Node(node)
     
+    def visit_ExprStatNode(self, node):
+        # If an expression-as-statement consists of only a replaceable
+        # NameNode, we replace the entire statement, not only the NameNode
+        if isinstance(node.expr, NameNode) and node.expr.name in self.substitute:
+            return self.substitute[node.expr.name]
+        else:
+            return self.visit_Node(node)
+    
     def __call__(self, node, substitute):
         self.substitute = substitute
         return super(SubstitutionTransform, self).__call__(node)
