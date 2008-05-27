@@ -168,6 +168,9 @@ class ExprNode(Node):
     saved_subexpr_nodes = None
     is_temp = 0
 
+    def get_child_attrs(self): return self.subexprs
+    child_attrs = property(fget=get_child_attrs)
+
     def get_child_attrs(self):
         """Automatically provide the contents of subexprs as children, unless child_attr
         has been declared. See Nodes.Node.get_child_accessors."""

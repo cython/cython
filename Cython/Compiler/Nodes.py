@@ -100,7 +100,9 @@ class Node(object):
     is_name = 0
     is_literal = 0
 
-    # All descandants should set child_attrs (see get_child_accessors)    
+    # All descandants should set child_attrs to a list of the attributes
+    # containing nodes considered "children" in the tree. Each such attribute
+    # can either contain a single node or a list of nodes. See Visitor.py.
     child_attrs = None
     
     def __init__(self, pos, **kw):
@@ -156,12 +158,12 @@ class Node(object):
            copied. Lists containing child nodes are thus seen as a way for the node
            to hold multiple children directly; the list is not treated as a seperate
            level in the tree."""
-        c = copy.copy(self)
-        for acc in c.get_child_accessors():
-            value = acc.get()
+        result = copy.copy(self)
+        for attrname in result.child_attrs:
+            value = getattr(result, attrname)
             if isinstance(value, list):
-                acc.set([x for x in value])
-        return c
+                setattr(result, attrname, value)
+        return result
     
     
     #

@@ -6,7 +6,7 @@ import re
 from cStringIO import StringIO
 from Scanning import PyrexScanner, StringSourceDescriptor
 from Symtab import BuiltinScope, ModuleScope
-from Transform import Transform, VisitorTransform
+from Visitor import VisitorTransform
 from Nodes import Node
 from ExprNodes import NameNode
 import Parsing
@@ -57,31 +57,35 @@ def parse_from_strings(name, code, pxds={}):
     tree = Parsing.p_module(scanner, 0, module_name)
     return tree
 
-class TreeCopier(Transform):
-    def process_node(self, node):
+class TreeCopier(VisitorTransform):
+    def visit_Node(self, node):
         if node is None:
             return node
         else:
             c = node.clone_node()
-            self.process_children(c)
+            self.visitchildren(c)
             return c
 
 class SubstitutionTransform(VisitorTransform):
-    def process_Node(self, node):
+    def visit_Node(self, node):
         if node is None:
             return node
         else:
             c = node.clone_node()
-            self.process_children(c)
+            self.visitchildren(c)
             return c
     
-    def process_NameNode(self, node):
+    def visit_NameNode(self, node):
         if node.name in self.substitute:
             # Name matched, substitute node
             return self.substitute[node.name]
         else:
             # Clone
-            return self.process_Node(node)
+            return self.visit_Node(node)
+    
+    def __call__(self, node, substitute):
+        self.substitute = substitute
+        return super(SubstitutionTransform, self).__call__(node)
 
 def copy_code_tree(node):
     return TreeCopier()(node)
