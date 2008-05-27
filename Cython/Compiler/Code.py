@@ -114,7 +114,7 @@ class CCodeWriter:
                 s = s.rstrip() + '             # <<<<<<<<<<<<<< ' + '\n'
             context += " * " + s
 
-        marker = '"%s":%d\n%s' % (str(source_desc).encode('ASCII', 'replace'), line, context)
+        marker = '"%s":%d\n%s' % (source_desc.get_description().encode('ASCII', 'replace'), line, context)
         if self.last_marker != marker:
             self.marker = marker
 
