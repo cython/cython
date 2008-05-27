@@ -91,3 +91,20 @@ class EncodedString(unicode):
 #    def __eq__(self, other):
 #        return unicode.__eq__(self, other) and \
 #            getattr(other, 'encoding', '') == self.encoding
+
+def escape_byte_string(s):
+    s = s.replace('\0', r'\x00')
+    try:
+        s.decode("ASCII")
+        return s
+    except UnicodeDecodeError:
+        pass
+    l = []
+    append = l.append
+    for c in s:
+        o = ord(c)
+        if o >= 128:
+            append('\\x%X' % o)
+        else:
+            append(c)
+    return ''.join(l)

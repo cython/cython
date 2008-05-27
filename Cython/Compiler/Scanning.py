@@ -11,11 +11,11 @@ import stat
 import sys
 from time import time
 
-from Cython import Plex
+from Cython import Plex, Utils
 from Cython.Plex import Scanner
 from Cython.Plex.Errors import UnrecognizedInput
 from Errors import CompileError, error
-from Lexicon import string_prefixes, make_lexicon
+from Lexicon import string_prefixes, raw_prefixes, make_lexicon
 
 from Cython import Utils
 
@@ -322,6 +322,8 @@ class PyrexScanner(Scanner):
     def begin_string_action(self, text):
         if text[:1] in string_prefixes:
             text = text[1:]
+        if text[:1] in raw_prefixes:
+            text = text[1:]
         self.begin(self.string_states[text])
         self.produce('BEGIN_STRING')
     
@@ -380,8 +382,12 @@ class PyrexScanner(Scanner):
             sy, systring = self.read()
         except UnrecognizedInput:
             self.error("Unrecognized character")
-        if sy == 'IDENT' and systring in self.resword_dict:
-            sy = systring
+        if sy == 'IDENT':
+            if systring in self.resword_dict:
+                sy = systring
+            else:
+                systring = Utils.EncodedString(systring)
+                systring.encoding = self.source_encoding
         self.sy = sy
         self.systring = systring
         if debug_scanner:

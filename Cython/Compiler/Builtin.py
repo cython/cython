@@ -2,8 +2,9 @@
 #   Pyrex - Builtin Definitions
 #
 
-from Symtab import BuiltinScope
+from Symtab import BuiltinScope, StructOrUnionScope
 from TypeSlots import Signature
+import PyrexTypes
 
 builtin_function_table = [
     # name,        args,   return,  C API func,           py equiv = "*"
@@ -24,7 +25,7 @@ builtin_function_table = [
     #('hex',       "",     "",      ""),
     #('id',        "",     "",      ""),
     #('input',     "",     "",      ""),
-    ('intern',     "s",    "O",     "PyString_InternFromString"),
+    ('intern',     "s",    "O",     "__Pyx_InternFromString"),
     ('isinstance', "OO",   "b",     "PyObject_IsInstance"),
     ('issubclass', "OO",   "b",     "PyObject_IsSubclass"),
     ('iter',       "O",    "O",     "PyObject_GetIter"),
@@ -100,6 +101,21 @@ builtin_types_table = [
                                     ("values","O",   "O", "PyDict_Values")]),
 ]
 
+builtin_structs_table = [
+    ('Py_buffer', 'Py_buffer',
+     [("buf",        PyrexTypes.c_void_ptr_type),
+      ("len",        PyrexTypes.c_py_ssize_t_type),
+      ("readonly",   PyrexTypes.c_bint_type),
+      ("format",     PyrexTypes.c_char_ptr_type),
+      ("ndim",       PyrexTypes.c_int_type),
+      ("shape",      PyrexTypes.c_py_ssize_t_ptr_type),
+      ("strides",    PyrexTypes.c_py_ssize_t_ptr_type),
+      ("suboffsets", PyrexTypes.c_py_ssize_t_ptr_type),
+      ("itemsize",   PyrexTypes.c_py_ssize_t_type),
+      ("internal",   PyrexTypes.c_void_ptr_type),
+      ])
+]
+
 getattr3_utility_code = ["""
 static PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *); /*proto*/
 ""","""
@@ -118,8 +134,18 @@ bad:
 }
 """]
 
+intern_utility_code = ["""
+#if PY_MAJOR_VERSION >= 3
+#  define __Pyx_InternFromString(s) PyUnicode_InternFromString(s)
+#else
+#  define __Pyx_InternFromString(s) PyString_InternFromString(s)
+#endif
+""","""
+"""]
+
 builtin_utility_code = {
     'getattr3': getattr3_utility_code,
+    'intern'  : intern_utility_code,
 }
 
 builtin_scope = BuiltinScope()
@@ -141,12 +167,22 @@ def init_builtin_types():
             sig = Signature(args, ret)
             the_type.scope.declare_cfunction(name, sig.function_type(), None, cname)
 
+def init_builtin_structs():
+    for name, cname, attribute_types in builtin_structs_table:
+        scope = StructOrUnionScope(name)
+        for attribute_name, attribute_type in attribute_types:
+            scope.declare_var(
+                attribute_name, attribute_type, None, attribute_name)
+        builtin_scope.declare_struct_or_union(
+            name, "struct", scope, 1, None, cname = cname)
+
 def init_builtins():
     init_builtin_funcs()
     init_builtin_types()
+    init_builtin_structs()
     global list_type, tuple_type, dict_type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
     dict_type  = builtin_scope.lookup('dict').type
-    
+
 init_builtins()

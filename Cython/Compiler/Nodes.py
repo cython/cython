@@ -245,28 +245,28 @@ class BlockNode:
             for entry in env.const_entries:
                 if not entry.is_interned:
                     code.put_var_declaration(entry, static = 1)
-    
-    def generate_interned_name_decls(self, env, code):
-        #  Flush accumulated interned names from the global scope
-        #  and generate declarations for them.
-        genv = env.global_scope()
-        intern_map = genv.intern_map
-        names = genv.interned_names
-        if names:
+
+    def generate_interned_string_decls(self, env, code):
+        entries = env.global_scope().new_interned_string_entries
+        if entries:
             code.putln("")
-            for name in names:
+            for entry in entries:
+                code.put_var_declaration(entry, static = 1)
+            code.putln("")
+            for entry in entries:
                 code.putln(
-                    "static PyObject *%s;" % intern_map[name])
-            del names[:]
-    
+                    "static PyObject *%s;" % entry.pystring_cname)
+            del entries[:]
+
     def generate_py_string_decls(self, env, code):
         entries = env.pystring_entries
         if entries:
             code.putln("")
             for entry in entries:
-                code.putln(
-                    "static PyObject *%s;" % entry.pystring_cname)
-    
+                if not entry.is_interned:
+                    code.putln(
+                        "static PyObject *%s;" % entry.pystring_cname)
+
     def generate_interned_num_decls(self, env, code):
         #  Flush accumulated interned nums from the global scope
         #  and generate declarations for them.
@@ -893,7 +893,7 @@ class FuncDefNode(StatNode, BlockNode):
         # if we supported them, which we probably won't.
         # ----- Top-level constants used by this function
         self.generate_interned_num_decls(lenv, code)
-        self.generate_interned_name_decls(lenv, code)
+        self.generate_interned_string_decls(lenv, code)
         self.generate_py_string_decls(lenv, code)
         self.generate_cached_builtins_decls(lenv, code)
         #code.putln("")
@@ -1100,8 +1100,8 @@ class CFuncDefNode(FuncDefNode):
             self.entry.as_variable = self.py_func.entry
             # Reset scope entry the above cfunction
             env.entries[name] = self.entry
-            if Options.intern_names:
-                self.py_func.interned_attr_cname = env.intern(self.py_func.entry.name)
+            self.py_func.interned_attr_cname = env.intern_identifier(
+                self.py_func.entry.name)
             if not env.is_module_scope or Options.lookup_module_cpdef:
                 self.override = OverrideCheckNode(self.pos, py_func = self.py_func)
                 self.body = StatListNode(self.pos, stats=[self.override, self.body])
@@ -1938,15 +1938,12 @@ class OverrideCheckNode(StatNode):
         if self.py_func.is_module_scope:
             code.putln("else {")
         else:
-            code.putln("else if (unlikely(%s->ob_type->tp_dictoffset != 0)) {" % self_arg)
+            code.putln("else if (unlikely(Py_TYPE(%s)->tp_dictoffset != 0)) {" % self_arg)
         err = code.error_goto_if_null(self_arg, self.pos)
         # need to get attribute manually--scope would return cdef method
-        if Options.intern_names:
-            code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (self.func_node.result_code, self_arg, self.py_func.interned_attr_cname, err))
-        else:
-            code.putln('%s = PyObject_GetAttrString(%s, "%s"); %s' % (self.func_node.result_code, self_arg, self.py_func.entry.name, err))
+        code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (self.func_node.result_code, self_arg, self.py_func.interned_attr_cname, err))
         # It appears that this type is not anywhere exposed in the Python/C API
-        is_builtin_function_or_method = '(strcmp(%s->ob_type->tp_name, "builtin_function_or_method") == 0)' % self.func_node.result_code
+        is_builtin_function_or_method = '(strcmp(Py_TYPE(%s)->tp_name, "builtin_function_or_method") == 0)' % self.func_node.result_code
         is_overridden = '(PyCFunction_GET_FUNCTION(%s) != (void *)&%s)' % (self.func_node.result_code, self.py_func.entry.func_cname)
         code.putln('if (!%s || %s) {' % (is_builtin_function_or_method, is_overridden))
         self.body.generate_execution_code(code)
@@ -1985,8 +1982,7 @@ class PyClassDefNode(StatNode, BlockNode):
             doc_node = ExprNodes.StringNode(pos, value = doc)
         else:
             doc_node = None
-        self.classobj = ExprNodes.ClassNode(pos,
-            name = ExprNodes.StringNode(pos, value = name), 
+        self.classobj = ExprNodes.ClassNode(pos, name = name,
             bases = bases, dict = self.dict, doc = doc_node)
         self.target = ExprNodes.NameNode(pos, name = name)
     
@@ -2139,10 +2135,11 @@ class PropertyNode(StatNode):
         entry = env.declare_property(self.name, self.doc, self.pos)
         if entry:
             if self.doc and Options.docstrings:
-                doc_entry = env.get_string_const(self.doc)
+                doc_entry = env.get_string_const(
+                    self.doc, identifier = False)
                 entry.doc_cname = doc_entry.cname
             self.body.analyse_declarations(entry.scope)
-        
+
     def analyse_expressions(self, env):
         self.body.analyse_expressions(env)
     
@@ -2513,12 +2510,17 @@ class InPlaceAssignmentNode(AssignmentNode):
 class PrintStatNode(StatNode):
     #  print statement
     #
-    #  args              [ExprNode]
-    #  ends_with_comma   boolean
-    
-    child_attrs = ["args"]
-    
+    #  arg_tuple         TupleNode
+    #  append_newline    boolean
+
+    child_attrs = ["arg_tuple"]
+
     def analyse_expressions(self, env):
+        self.arg_tuple.analyse_expressions(env)
+        self.arg_tuple = self.arg_tuple.coerce_to_pyobject(env)
+        self.arg_tuple.release_temp(env)
+        env.use_utility_code(printing_utility_code)
+        return
         for i in range(len(self.args)):
             arg = self.args[i]
             arg.analyse_types(env)
@@ -2527,24 +2529,18 @@ class PrintStatNode(StatNode):
             arg.release_temp(env)
             self.args[i] = arg
             #env.recycle_pending_temps() # TEMPORARY
-        env.use_utility_code(printing_utility_code)
-    
+
     def generate_execution_code(self, code):
-        for arg in self.args:
-            arg.generate_evaluation_code(code)
-            code.putln(
-                "if (__Pyx_PrintItem(%s) < 0) %s" % (
-                    arg.py_result(),
-                    code.error_goto(self.pos)))
-            arg.generate_disposal_code(code)
-        if not self.ends_with_comma:
-            code.putln(
-                "if (__Pyx_PrintNewline() < 0) %s" %
-                    code.error_goto(self.pos))
-                    
+        self.arg_tuple.generate_evaluation_code(code)
+        code.putln(
+            "if (__Pyx_Print(%s, %d) < 0) %s" % (
+                self.arg_tuple.py_result(),
+                self.append_newline,
+                code.error_goto(self.pos)))
+        self.arg_tuple.generate_disposal_code(code)
+
     def annotate(self, code):
-        for arg in self.args:
-            arg.annotate(code)
+        self.arg_tuple.annotate(code)
 
 
 class DelStatNode(StatNode):
@@ -3005,15 +3001,16 @@ class ForInStatNode(LoopNode, StatNode):
         else:
             step = args[2]
             if isinstance(step, ExprNodes.UnaryMinusNode) and isinstance(step.operand, ExprNodes.IntNode):
-                step = ExprNodes.IntNode(pos = step.pos, value=-int(step.operand.value))
+                step = ExprNodes.IntNode(pos = step.pos, value=str(-int(step.operand.value, 0)))
             if isinstance(step, ExprNodes.IntNode):
-                if step.value > 0:
+                step_value = int(step.value, 0)
+                if step_value > 0:
                     self.step = step
                     self.relation1 = '<='
                     self.relation2 = '<'
                     return True
-                elif step.value < 0:
-                    self.step = ExprNodes.IntNode(pos = step.pos, value=-int(step.value))
+                elif step_value < 0:
+                    self.step = ExprNodes.IntNode(pos = step.pos, value=str(-step_value))
                     self.relation1 = '>='
                     self.relation2 = '>'
                     return True
@@ -3628,7 +3625,7 @@ class CImportStatNode(StatNode):
             return
         module_scope = env.find_module(self.module_name, self.pos)
         if "." in self.module_name:
-            names = self.module_name.split(".")
+            names = [EncodedString(name) for name in self.module_name.split(".")]
             top_name = names[0]
             top_module_scope = env.context.find_submodule(top_name)
             module_scope = top_module_scope
@@ -3699,8 +3696,8 @@ class FromImportStatNode(StatNode):
         self.item.allocate_temp(env)
         self.interned_items = []
         for name, target in self.items:
-            if Options.intern_names:
-                self.interned_items.append((env.intern(name), target))
+            self.interned_items.append(
+                (env.intern_identifier(name), target))
             target.analyse_target_expression(env, None)
             #target.release_target_temp(env) # was release_temp ?!?
         self.module.release_temp(env)
@@ -3708,24 +3705,14 @@ class FromImportStatNode(StatNode):
     
     def generate_execution_code(self, code):
         self.module.generate_evaluation_code(code)
-        if Options.intern_names:
-            for cname, target in self.interned_items:
-                code.putln(
-                    '%s = PyObject_GetAttr(%s, %s); %s' % (
-                        self.item.result_code, 
-                        self.module.py_result(),
-                        cname,
-                        code.error_goto_if_null(self.item.result_code, self.pos)))
-                target.generate_assignment_code(self.item, code)
-        else:
-            for name, target in self.items:
-                code.putln(
-                    '%s = PyObject_GetAttrString(%s, "%s"); %s' % (
-                        self.item.result_code, 
-                        self.module.py_result(),
-                        name,
-                        code.error_goto_if_null(self.item.result_code, self.pos)))
-                target.generate_assignment_code(self.item, code)
+        for cname, target in self.interned_items:
+            code.putln(
+                '%s = PyObject_GetAttr(%s, %s); %s' % (
+                    self.item.result_code, 
+                    self.module.py_result(),
+                    cname,
+                    code.error_goto_if_null(self.item.result_code, self.pos)))
+            target.generate_assignment_code(self.item, code)
         self.module.generate_disposal_code(code)
 
 #------------------------------------------------------------------------------------
@@ -3744,8 +3731,7 @@ utility_function_predeclarations = \
 #define INLINE 
 #endif
 
-typedef struct {PyObject **p; char *s;} __Pyx_InternTabEntry; /*proto*/
-typedef struct {PyObject **p; char *s; long n; int is_unicode;} __Pyx_StringTabEntry; /*proto*/
+typedef struct {PyObject **p; char *s; long n; char is_unicode; char intern; char is_identifier;} __Pyx_StringTabEntry; /*proto*/
 
 """ + """
 
@@ -3788,9 +3774,13 @@ else:
 
 printing_utility_code = [
 """
-static int __Pyx_PrintItem(PyObject *); /*proto*/
-static int __Pyx_PrintNewline(void); /*proto*/
-""",r"""
+static int __Pyx_Print(PyObject *, int); /*proto*/
+#if PY_MAJOR_VERSION >= 3
+static PyObject* %s = 0;
+static PyObject* %s = 0;
+#endif
+""" % (Naming.print_function, Naming.print_function_kwargs), r"""
+#if PY_MAJOR_VERSION < 3
 static PyObject *__Pyx_GetStdout(void) {
     PyObject *f = PySys_GetObject("stdout");
     if (!f) {
@@ -3799,39 +3789,75 @@ static PyObject *__Pyx_GetStdout(void) {
     return f;
 }
 
-static int __Pyx_PrintItem(PyObject *v) {
+static int __Pyx_Print(PyObject *arg_tuple, int newline) {
     PyObject *f;
+    PyObject* v;
+    int i;
     
     if (!(f = __Pyx_GetStdout()))
         return -1;
-    if (PyFile_SoftSpace(f, 1)) {
-        if (PyFile_WriteString(" ", f) < 0)
+    for (i=0; i < PyTuple_GET_SIZE(arg_tuple); i++) {
+        if (PyFile_SoftSpace(f, 1)) {
+            if (PyFile_WriteString(" ", f) < 0)
+                return -1;
+        }
+        v = PyTuple_GET_ITEM(arg_tuple, i);
+        if (PyFile_WriteObject(v, f, Py_PRINT_RAW) < 0)
             return -1;
+        if (PyString_Check(v)) {
+            char *s = PyString_AsString(v);
+            Py_ssize_t len = PyString_Size(v);
+            if (len > 0 &&
+                isspace(Py_CHARMASK(s[len-1])) &&
+                s[len-1] != ' ')
+                    PyFile_SoftSpace(f, 0);
+        }
     }
-    if (PyFile_WriteObject(v, f, Py_PRINT_RAW) < 0)
-        return -1;
-    if (PyString_Check(v)) {
-        char *s = PyString_AsString(v);
-        Py_ssize_t len = PyString_Size(v);
-        if (len > 0 &&
-            isspace(Py_CHARMASK(s[len-1])) &&
-            s[len-1] != ' ')
-                PyFile_SoftSpace(f, 0);
+    if (newline) {
+        if (PyFile_WriteString("\n", f) < 0)
+            return -1;
+        PyFile_SoftSpace(f, 0);
     }
     return 0;
 }
 
-static int __Pyx_PrintNewline(void) {
-    PyObject *f;
-    
-    if (!(f = __Pyx_GetStdout()))
+#else /* Python 3 has a print function */
+static int __Pyx_Print(PyObject *arg_tuple, int newline) {
+    PyObject* kwargs = 0;
+    PyObject* result = 0;
+    PyObject* end_string;
+    if (!%(PRINT_FUNCTION)s) {
+        %(PRINT_FUNCTION)s = PyObject_GetAttrString(%(BUILTINS)s, "print");
+        if (!%(PRINT_FUNCTION)s)
+            return -1;
+    }
+    if (!newline) {
+        if (!%(PRINT_KWARGS)s) {
+            %(PRINT_KWARGS)s = PyDict_New();
+            if (!%(PRINT_KWARGS)s)
+                return -1;
+            end_string = PyUnicode_FromStringAndSize(" ", 1);
+            if (!end_string)
+                return -1;
+            if (PyDict_SetItemString(%(PRINT_KWARGS)s, "end", end_string) < 0) {
+                Py_DECREF(end_string);
+                return -1;
+            }
+            Py_DECREF(end_string);
+        }
+        kwargs = %(PRINT_KWARGS)s;
+    }
+    result = PyObject_Call(%(PRINT_FUNCTION)s, arg_tuple, kwargs);
+    if (!result)
         return -1;
-    if (PyFile_WriteString("\n", f) < 0)
-        return -1;
-    PyFile_SoftSpace(f, 0);
+    Py_DECREF(result);
     return 0;
 }
-"""]
+#endif
+""" % {'BUILTINS'       : Naming.builtins_cname,
+       'PRINT_FUNCTION' : Naming.print_function,
+       'PRINT_KWARGS'   : Naming.print_function_kwargs}
+]
 
 #------------------------------------------------------------------------------------
 
@@ -3887,7 +3913,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
                 goto raise_error;
             }
         #else
-            type = (PyObject*) type->ob_type;
+            type = (PyObject*) Py_TYPE(type);
             Py_INCREF(type);
             if (!PyType_IsSubtype((PyTypeObject *)type, (PyTypeObject *)PyExc_BaseException)) {
                 PyErr_SetString(PyExc_TypeError,
@@ -3937,14 +3963,14 @@ static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed
     }
     if (none_allowed && obj == Py_None) return 1;
     else if (exact) {
-        if (obj->ob_type == type) return 1;
+        if (Py_TYPE(obj) == type) return 1;
     }
     else {
         if (PyObject_TypeCheck(obj, type)) return 1;
     }
     PyErr_Format(PyExc_TypeError,
         "Argument '%s' has incorrect type (expected %s, got %s)",
-        name, type->tp_name, obj->ob_type->tp_name);
+        name, type->tp_name, Py_TYPE(obj)->tp_name);
     return 0;
 }
 """]
@@ -4025,7 +4051,11 @@ static int __Pyx_CheckKeywordStrings(
     PyObject* key = 0;
     Py_ssize_t pos = 0;
     while (PyDict_Next(kwdict, &pos, &key, 0)) {
+        #if PY_MAJOR_VERSION < 3
         if (unlikely(!PyString_Check(key))) {
+        #else
+        if (unlikely(!PyUnicode_Check(key))) {
+        #endif
             PyErr_Format(PyExc_TypeError,
                          "%s() keywords must be strings", function_name);
             return 0;
@@ -4034,7 +4064,11 @@ static int __Pyx_CheckKeywordStrings(
     if (unlikely(!kw_allowed) && unlikely(key)) {
         PyErr_Format(PyExc_TypeError,
                      "'%s' is an invalid keyword argument for this function",
+        #if PY_MAJOR_VERSION < 3
                      PyString_AsString(key));
+        #else
+                     PyUnicode_AsString(key));
+        #endif
         return 0;
     }
     return 1;
@@ -4082,7 +4116,11 @@ static int __Pyx_SplitKeywords(
         if (!*kwds2)
             goto bad;
         for (i = 0, p = kwd_list; *p; i++, p++) {
+            #if PY_MAJOR_VERSION < 3
             s = PyString_FromString(*p);
+            #else
+            s = PyUnicode_FromString(*p);
+            #endif
             x = PyDict_GetItem(*kwds, s);
             if (x) {
                 if (PyDict_SetItem(kwds1, s, x) < 0)
@@ -4162,7 +4200,11 @@ static void __Pyx_WriteUnraisable(char *name) {
     PyObject *old_exc, *old_val, *old_tb;
     PyObject *ctx;
     PyErr_Fetch(&old_exc, &old_val, &old_tb);
+    #if PY_MAJOR_VERSION < 3
     ctx = PyString_FromString(name);
+    #else
+    ctx = PyUnicode_FromString(name);
+    #endif
     PyErr_Restore(old_exc, old_val, old_tb);
     if (!ctx)
         ctx = Py_None;
@@ -4187,22 +4229,37 @@ static void __Pyx_AddTraceback(char *funcname) {
     PyObject *empty_string = 0;
     PyCodeObject *py_code = 0;
     PyFrameObject *py_frame = 0;
-    
+
+    #if PY_MAJOR_VERSION < 3
     py_srcfile = PyString_FromString(%(FILENAME)s);
+    #else
+    py_srcfile = PyUnicode_FromString(%(FILENAME)s);
+    #endif
     if (!py_srcfile) goto bad;
     if (%(CLINENO)s) {
+        #if PY_MAJOR_VERSION < 3
         py_funcname = PyString_FromFormat( "%%s (%%s:%%u)", funcname, %(CFILENAME)s, %(CLINENO)s);
+        #else
+        py_funcname = PyUnicode_FromFormat( "%%s (%%s:%%u)", funcname, %(CFILENAME)s, %(CLINENO)s);
+        #endif
     }
     else {
+        #if PY_MAJOR_VERSION < 3
         py_funcname = PyString_FromString(funcname);
+        #else
+        py_funcname = PyUnicode_FromString(funcname);
+        #endif
     }
     if (!py_funcname) goto bad;
     py_globals = PyModule_GetDict(%(GLOBALS)s);
     if (!py_globals) goto bad;
-    empty_string = PyString_FromString("");
+    empty_string = PyString_FromStringAndSize("", 0);
     if (!empty_string) goto bad;
     py_code = PyCode_New(
         0,            /*int argcount,*/
+        #if PY_MAJOR_VERSION >= 3
+        0,            /*int kwonlyargcount,*/
+        #endif
         0,            /*int nlocals,*/
         0,            /*int stacksize,*/
         0,            /*int flags,*/
@@ -4298,32 +4355,26 @@ done:
 
 #------------------------------------------------------------------------------------
 
-init_intern_tab_utility_code = [
-"""
-static int __Pyx_InternStrings(__Pyx_InternTabEntry *t); /*proto*/
-""","""
-static int __Pyx_InternStrings(__Pyx_InternTabEntry *t) {
-    while (t->p) {
-        *t->p = PyString_InternFromString(t->s);
-        if (!*t->p)
-            return -1;
-        ++t;
-    }
-    return 0;
-}
-"""]
-
-#------------------------------------------------------------------------------------
-
 init_string_tab_utility_code = [
 """
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
 ""","""
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
-        if (t->is_unicode) {
+        #if PY_MAJOR_VERSION < 3
+        if (t->is_unicode && (!t->is_identifier)) {
             *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
-        } else {
+        } else if (t->intern) {
+            *t->p = PyString_InternFromString(t->s);
+        }
+        #else  /* Python 3+ has unicode identifiers */
+        if (t->is_identifier || (t->is_unicode && t->intern)) {
+            *t->p = PyUnicode_InternFromString(t->s);
+        } else if (t->is_unicode) {
+            *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+        }
+        #endif
+        else {
             *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
         }
         if (!*t->p)

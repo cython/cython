@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> p = create()
     >>> rest(p)
     0

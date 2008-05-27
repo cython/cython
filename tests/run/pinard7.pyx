@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> c = build()
     >>> c.method()
     Traceback (most recent call last):

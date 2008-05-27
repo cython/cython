@@ -1,5 +1,6 @@
-__doc__ = """
-print r_jeff_epler_1.blowup([2, 3, 5])
+__doc__ = u"""
+    >>> blowup([2, 3, 5])
+    1
 """
 
 def blowup(p):

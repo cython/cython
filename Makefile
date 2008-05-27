@@ -17,3 +17,7 @@ testclean:
 
 test:	testclean
 	${PYTHON} runtests.py
+
+test3:	testclean
+	${PYTHON} runtests.py --no-cleanup
+	python3.0 runtests.py --no-cython

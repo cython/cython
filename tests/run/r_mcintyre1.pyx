@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> b = Bicycle()
     >>> b.fall_off()
     Falling off extremely hard
@@ -8,5 +8,5 @@ __doc__ = """
 
 class Bicycle:
 
-    def fall_off(self, how_hard = "extremely"):
-        print "Falling off", how_hard, "hard"
+    def fall_off(self, how_hard = u"extremely"):
+        print u"Falling off", how_hard, u"hard"

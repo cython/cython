@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> f(1.0, 2.95)[0] == f(1.0, 2.95)[1]
     True
 
@@ -14,6 +14,10 @@ __doc__ = """
     >>> constant_long() == 2L ** 36
     True
 """
+
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u"2L", u"2")
 
 def f(obj2, obj3):
     cdef float flt1, flt2, flt3

@@ -1,17 +1,17 @@
-__doc__ = """
+__doc__ = u"""
     >>> s = Silly(1,2,3, 'test')
     >>> (spam,grail,swallow,creosote,onlyt,onlyk,tk) = (
     ...     s.spam,s.grail,s.swallow,s.creosote,s.onlyt,s.onlyk,s.tk)
 
     >>> spam(1,2,3)
     (1, 2, 3)
-    >>> spam(1,2)
+    >>> spam(1,2) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: function takes exactly 3 arguments (2 given)
     >>> spam(1,2,3,4)
     Traceback (most recent call last):
     TypeError: function takes exactly 3 arguments (4 given)
-    >>> spam(1,2,3, a=1)
+    >>> spam(1,2,3, a=1) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: 'a' is an invalid keyword argument for this function
 
@@ -21,10 +21,10 @@ __doc__ = """
     (1, 2, 3, (4,))
     >>> grail(1,2,3,4,5,6,7,8,9)
     (1, 2, 3, (4, 5, 6, 7, 8, 9))
-    >>> grail(1,2)
+    >>> grail(1,2) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: function takes exactly 3 arguments (2 given)
-    >>> grail(1,2,3, a=1)
+    >>> grail(1,2,3, a=1) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: 'a' is an invalid keyword argument for this function
 
@@ -35,7 +35,7 @@ __doc__ = """
     TypeError: function takes at most 3 positional arguments (4 given)
     >>> swallow(1,2,3, a=1, b=2)
     (1, 2, 3, (('a', 1), ('b', 2)))
-    >>> swallow(1,2,3, x=1)
+    >>> swallow(1,2,3, x=1) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: keyword parameter 'x' was given by position and by name
 
@@ -47,7 +47,7 @@ __doc__ = """
     (1, 2, 3, (), (('a', 1),))
     >>> creosote(1,2,3,4, a=1, b=2)
     (1, 2, 3, (4,), (('a', 1), ('b', 2)))
-    >>> creosote(1,2,3,4, x=1)
+    >>> creosote(1,2,3,4, x=1) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     TypeError: keyword parameter 'x' was given by position and by name
 
@@ -88,8 +88,16 @@ __doc__ = """
     (1, ('a', 1), ('b', 2))
 """
 
+import sys, re
+if sys.version_info >= (2,6):
+    __doc__ = re.sub(u"Error: (.*)exactly(.*)", u"Error: \\1at most\\2", __doc__)
+
+import sys, re
+if sys.version_info >= (2,6):
+    __doc__ = re.sub(u"(ELLIPSIS[^>]*Error: )[^\n]*\n", u"\\1...\n", __doc__, re.M)
+
 cdef sorteditems(d):
-    l = d.items()
+    l = list(d.items())
     l.sort()
     return tuple(l)
 

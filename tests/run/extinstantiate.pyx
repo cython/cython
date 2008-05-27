@@ -1,6 +1,6 @@
-__doc__ = """
-    >>> print type(f()).__name__
-    Spam
+__doc__ = u"""
+    >>> type(f()).__name__
+    'Spam'
 """
 
 cdef class Spam:

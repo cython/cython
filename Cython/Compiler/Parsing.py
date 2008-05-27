@@ -11,6 +11,7 @@ import ExprNodes
 from ModuleNode import ModuleNode
 from Errors import error, InternalError
 from Cython import Utils
+import Future
 
 def p_ident(s, message = "Expected an identifier"):
     if s.sy == 'IDENT':
@@ -260,7 +261,7 @@ def p_trailer(s, node1):
         return p_index(s, node1)
     else: # s.sy == '.'
         s.next()
-        name = p_ident(s)
+        name = Utils.EncodedString( p_ident(s) )
         return ExprNodes.AttributeNode(pos, 
             obj = node1, attribute = name)
 
@@ -283,8 +284,7 @@ def p_call(s, function):
                 s.error("Expected an identifier before '='",
                     pos = arg.pos)
             encoded_name = Utils.EncodedString(arg.name)
-            encoded_name.encoding = s.source_encoding
-            keyword = ExprNodes.StringNode(arg.pos, 
+            keyword = ExprNodes.IdentifierStringNode(arg.pos, 
                 value = encoded_name)
             arg = p_simple_expr(s)
             keyword_args.append((keyword, arg))
@@ -469,7 +469,7 @@ def p_atom(s):
         else:
             return ExprNodes.StringNode(pos, value = value)
     elif sy == 'IDENT':
-        name = s.systring
+        name = Utils.EncodedString( s.systring )
         s.next()
         if name == "None":
             return ExprNodes.NoneNode(pos)
@@ -502,13 +502,8 @@ def p_name(s, name):
                 return ExprNodes.LongNode(pos, value = rep)
             elif isinstance(value, float):
                 return ExprNodes.FloatNode(pos, value = rep)
-            elif isinstance(value, str):
-                sval = Utils.EncodedString(rep[1:-1])
-                sval.encoding = value.encoding
-                return ExprNodes.StringNode(pos, value = sval)
             elif isinstance(value, unicode):
-                sval = Utils.EncodedString(rep[2:-1])
-                return ExprNodes.StringNode(pos, value = sval)
+                return ExprNodes.StringNode(pos, value = value)
             else:
                 error(pos, "Invalid type for compile-time constant: %s"
                     % value.__class__.__name__)
@@ -516,7 +511,7 @@ def p_name(s, name):
 
 def p_cat_string_literal(s):
     # A sequence of one or more adjacent string literals.
-    # Returns (kind, value) where kind in ('', 'c', 'r', 'u')
+    # Returns (kind, value) where kind in ('b', 'c', 'u')
     kind, value = p_string_literal(s)
     if kind != 'c':
         strings = [value]
@@ -541,13 +536,23 @@ def p_opt_string_literal(s):
 
 def p_string_literal(s):
     # A single string or char literal.
-    # Returns (kind, value) where kind in ('', 'c', 'r', 'u')
+    # Returns (kind, value) where kind in ('b', 'c', 'u')
     # s.sy == 'BEGIN_STRING'
     pos = s.position()
-    #is_raw = s.systring[:1].lower() == "r"
+    is_raw = 0
     kind = s.systring[:1].lower()
-    if kind not in "cru":
+    if kind == 'r':
         kind = ''
+        is_raw = 1
+    elif kind in 'ub':
+        is_raw = s.systring[1:2].lower() == 'r'
+    elif kind != 'c':
+        kind = ''
+    if Future.unicode_literals in s.context.future_directives:
+        if kind == '':
+            kind = 'u'
+    elif kind == '':
+        kind = 'b'
     chars = []
     while 1:
         s.next()
@@ -560,7 +565,7 @@ def p_string_literal(s):
             chars.append(systr)
         elif sy == 'ESCAPE':
             systr = s.systring
-            if kind == 'r':
+            if is_raw:
                 if systr == '\\\n':
                     chars.append(r'\\\n')
                 elif systr == r'\"':
@@ -823,17 +828,18 @@ def p_print_statement(s):
     if s.sy == '>>':
         s.error("'print >>' not yet implemented")
     args = []
-    ewc = 0
+    ends_with_comma = 0
     if s.sy not in ('NEWLINE', 'EOF'):
         args.append(p_simple_expr(s))
         while s.sy == ',':
             s.next()
             if s.sy in ('NEWLINE', 'EOF'):
-                ewc = 1
+                ends_with_comma = 1
                 break
             args.append(p_simple_expr(s))
-    return Nodes.PrintStatNode(pos, 
-        args = args, ends_with_comma = ewc)
+    arg_tuple = ExprNodes.TupleNode(pos, args = args)
+    return Nodes.PrintStatNode(pos,
+        arg_tuple = arg_tuple, append_newline = not ends_with_comma)
 
 def p_del_statement(s):
     # s.sy == 'del'
@@ -905,6 +911,7 @@ def p_import_statement(s):
         items.append(p_dotted_name(s, as_allowed = 1))
     stats = []
     for pos, target_name, dotted_name, as_name in items:
+        dotted_name = Utils.EncodedString(dotted_name)
         if kind == 'cimport':
             stat = Nodes.CImportStatNode(pos, 
                 module_name = dotted_name,
@@ -915,19 +922,17 @@ def p_import_statement(s):
                     ExprNodes.StringNode(pos, value = Utils.EncodedString("*"))])
             else:
                 name_list = None
-            dotted_name = Utils.EncodedString(dotted_name)
-            dotted_name.encoding = s.source_encoding
             stat = Nodes.SingleAssignmentNode(pos,
                 lhs = ExprNodes.NameNode(pos, 
                     name = as_name or target_name),
                 rhs = ExprNodes.ImportNode(pos, 
-                    module_name = ExprNodes.StringNode(pos,
-                        value = dotted_name),
+                    module_name = ExprNodes.IdentifierStringNode(
+                        pos, value = dotted_name),
                     name_list = name_list))
         stats.append(stat)
     return Nodes.StatListNode(pos, stats = stats)
 
-def p_from_import_statement(s):
+def p_from_import_statement(s, first_statement = 0):
     # s.sy == 'from'
     pos = s.position()
     s.next()
@@ -944,7 +949,20 @@ def p_from_import_statement(s):
     while s.sy == ',':
         s.next()
         imported_names.append(p_imported_name(s))
-    if kind == 'cimport':
+    dotted_name = Utils.EncodedString(dotted_name)
+    if dotted_name == '__future__':
+        if not first_statement:
+            s.error("from __future__ imports must occur at the beginning of the file")
+        else:
+            for (name_pos, name, as_name) in imported_names:
+                try:
+                    directive = getattr(Future, name)
+                except AttributeError:
+                    s.error("future feature %s is not defined" % name)
+                    break
+                s.context.future_directives.add(directive)
+        return Nodes.PassStatNode(pos)
+    elif kind == 'cimport':
         for (name_pos, name, as_name) in imported_names:
             local_name = as_name or name
             s.add_type_name(local_name)
@@ -956,9 +974,8 @@ def p_from_import_statement(s):
         items = []
         for (name_pos, name, as_name) in imported_names:
             encoded_name = Utils.EncodedString(name)
-            encoded_name.encoding = s.source_encoding
             imported_name_strings.append(
-                ExprNodes.StringNode(name_pos, value = encoded_name))
+                ExprNodes.IdentifierStringNode(name_pos, value = encoded_name))
             items.append(
                 (name,
                  ExprNodes.NameNode(name_pos, 
@@ -966,11 +983,9 @@ def p_from_import_statement(s):
         import_list = ExprNodes.ListNode(
             imported_names[0][0], args = imported_name_strings)
         dotted_name = Utils.EncodedString(dotted_name)
-        dotted_name.encoding = s.source_encoding
         return Nodes.FromImportStatNode(pos,
             module = ExprNodes.ImportNode(dotted_name_pos,
-                module_name = ExprNodes.StringNode(dotted_name_pos,
-                    value = dotted_name),
+                module_name = ExprNodes.IdentifierStringNode(pos, value = dotted_name),
                 name_list = import_list),
             items = items)
 
@@ -1207,7 +1222,7 @@ def p_with_statement(s):
         s.error("Only 'with gil' and 'with nogil' implemented",
                 pos = pos)
     
-def p_simple_statement(s):
+def p_simple_statement(s, first_statement = 0):
     #print "p_simple_statement:", s.sy, s.systring ###
     if s.sy == 'global':
         node = p_global_statement(s)
@@ -1226,7 +1241,7 @@ def p_simple_statement(s):
     elif s.sy in ('import', 'cimport'):
         node = p_import_statement(s)
     elif s.sy == 'from':
-        node = p_from_import_statement(s)
+        node = p_from_import_statement(s, first_statement = first_statement)
     elif s.sy == 'assert':
         node = p_assert_statement(s)
     elif s.sy == 'pass':
@@ -1235,10 +1250,10 @@ def p_simple_statement(s):
         node = p_expression_or_assignment(s)
     return node
 
-def p_simple_statement_list(s):
+def p_simple_statement_list(s, first_statement = 0):
     # Parse a series of simple statements on one line
     # separated by semicolons.
-    stat = p_simple_statement(s)
+    stat = p_simple_statement(s, first_statement = first_statement)
     if s.sy == ';':
         stats = [stat]
         while s.sy == ';':
@@ -1298,7 +1313,8 @@ def p_IF_statement(s, level, cdef_flag, visibility, api):
     s.compile_time_eval = saved_eval
     return result
 
-def p_statement(s, level, cdef_flag = 0, visibility = 'private', api = 0):
+def p_statement(s, level, cdef_flag = 0, visibility = 'private', api = 0,
+                first_statement = 0):
     if s.sy == 'ctypedef':
         if level not in ('module', 'module_pxd'):
             s.error("ctypedef statement not allowed here")
@@ -1361,16 +1377,18 @@ def p_statement(s, level, cdef_flag = 0, visibility = 'private', api = 0):
                 elif s.sy == 'with':
                     return p_with_statement(s)
                 else:
-                    return p_simple_statement_list(s)
+                    return p_simple_statement_list(s, first_statement = first_statement)
 
 def p_statement_list(s, level,
-        cdef_flag = 0, visibility = 'private', api = 0):
+        cdef_flag = 0, visibility = 'private', api = 0, first_statement = 0):
     # Parse a series of statements separated by newlines.
     pos = s.position()
     stats = []
     while s.sy not in ('DEDENT', 'EOF'):
         stats.append(p_statement(s, level,
-            cdef_flag = cdef_flag, visibility = visibility, api = api))
+            cdef_flag = cdef_flag, visibility = visibility, api = api,
+            first_statement = first_statement))
+        first_statement = 0
     if len(stats) == 1:
         return stats[0]
     else:
@@ -2119,13 +2137,14 @@ def p_doc_string(s):
 
 def p_module(s, pxd, full_module_name):
     s.add_type_name("object")
+    s.add_type_name("Py_buffer")
     pos = s.position()
     doc = p_doc_string(s)
     if pxd:
         level = 'module_pxd'
     else:
         level = 'module'
-    body = p_statement_list(s, level)
+    body = p_statement_list(s, level, first_statement = 1)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
             repr(s.sy), repr(s.systring)))

@@ -2,11 +2,7 @@
 
 import os, sys, re, shutil, unittest, doctest
 
-from Cython.Compiler.Version import version
-from Cython.Compiler.Main import \
-    CompilationOptions, \
-    default_options as pyrex_default_options, \
-    compile as cython_compile
+WITH_CYTHON = True
 
 from distutils.dist import Distribution
 from distutils.core import Extension
@@ -37,17 +33,21 @@ class ErrorWriter(object):
         return errors
 
 class TestBuilder(object):
-    def __init__(self, rootdir, workdir, selectors, annotate):
+    def __init__(self, rootdir, workdir, selectors, annotate, cleanup_workdir):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
         self.annotate = annotate
+        self.cleanup_workdir = cleanup_workdir
 
     def build_suite(self):
         suite = unittest.TestSuite()
         filenames = os.listdir(self.rootdir)
         filenames.sort()
         for filename in filenames:
+            if not WITH_CYTHON and filename == "errors":
+                # we won't get any errors without running Cython
+                continue
             path = os.path.join(self.rootdir, filename)
             if os.path.isdir(path) and filename in TEST_DIRS:
                 suite.addTest(
@@ -55,6 +55,12 @@ class TestBuilder(object):
         return suite
 
     def handle_directory(self, path, context):
+        workdir = os.path.join(self.workdir, context)
+        if not os.path.exists(workdir):
+            os.makedirs(workdir)
+        if workdir not in sys.path:
+            sys.path.insert(0, workdir)
+
         expect_errors = (context == 'errors')
         suite = unittest.TestSuite()
         filenames = os.listdir(path)
@@ -69,29 +75,38 @@ class TestBuilder(object):
                 continue
             if context in TEST_RUN_DIRS:
                 test = CythonRunTestCase(
-                    path, self.workdir, module, self.annotate)
+                    path, workdir, module,
+                    annotate=self.annotate,
+                    cleanup_workdir=self.cleanup_workdir)
             else:
                 test = CythonCompileTestCase(
-                    path, self.workdir, module, expect_errors, self.annotate)
+                    path, workdir, module,
+                    expect_errors=expect_errors,
+                    annotate=self.annotate,
+                    cleanup_workdir=self.cleanup_workdir)
             suite.addTest(test)
         return suite
 
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, directory, workdir, module,
-                 expect_errors=False, annotate=False):
+                 expect_errors=False, annotate=False, cleanup_workdir=True):
         self.directory = directory
         self.workdir = workdir
         self.module = module
         self.expect_errors = expect_errors
         self.annotate = annotate
+        self.cleanup_workdir = cleanup_workdir
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
         return "compiling " + self.module
 
     def tearDown(self):
+        cleanup_c_files = WITH_CYTHON and self.cleanup_workdir
         if os.path.exists(self.workdir):
             for rmfile in os.listdir(self.workdir):
+                if not cleanup_c_files and rmfile[-2:] in (".c", ".h"):
+                    continue
                 if self.annotate and rmfile.endswith(".html"):
                     continue
                 try:
@@ -171,13 +186,14 @@ class CythonCompileTestCase(unittest.TestCase):
                 directory, module, workdir)
             directory = workdir
 
-        old_stderr = sys.stderr
-        try:
-            sys.stderr = ErrorWriter()
-            self.run_cython(directory, module, workdir, incdir, annotate)
-            errors = sys.stderr.geterrors()
-        finally:
-            sys.stderr = old_stderr
+        if WITH_CYTHON:
+            old_stderr = sys.stderr
+            try:
+                sys.stderr = ErrorWriter()
+                self.run_cython(directory, module, workdir, incdir, annotate)
+                errors = sys.stderr.geterrors()
+            finally:
+                sys.stderr = old_stderr
 
         if errors or expected_errors:
             for expected, error in zip(expected_errors, errors):
@@ -198,11 +214,11 @@ class CythonRunTestCase(CythonCompileTestCase):
     def run(self, result=None):
         if result is None:
             result = self.defaultTestResult()
+        result.startTest(self)
         try:
             self.runTest()
             doctest.DocTestSuite(self.module).run(result)
         except Exception:
-            result.startTest(self)
             result.addError(self, sys.exc_info())
             result.stopTest(self)
         try:
@@ -211,49 +227,68 @@ class CythonRunTestCase(CythonCompileTestCase):
             pass
 
 if __name__ == '__main__':
+    from optparse import OptionParser
+    parser = OptionParser()
+    parser.add_option("--no-cleanup", dest="cleanup_workdir",
+                      action="store_false", default=True,
+                      help="do not delete the generated C files (allows passing --no-cython on next run)")
+    parser.add_option("--no-cython", dest="with_cython",
+                      action="store_false", default=True,
+                      help="do not run the Cython compiler, only the C compiler")
+    parser.add_option("-C", "--coverage", dest="coverage",
+                      action="store_true", default=False,
+                      help="collect source coverage data for the Compiler")
+    parser.add_option("-A", "--annotate", dest="annotate_source",
+                      action="store_true", default=False,
+                      help="generate annotated HTML versions of the test source files")
+    parser.add_option("-v", "--verbose", dest="verbosity",
+                      action="count", default=0,
+                      help="display test progress, pass twice to print test names")
+
+    options, cmd_args = parser.parse_args()
+
+    if options.coverage:
+        import coverage
+        coverage.erase()
+        coverage.start()
+
+    WITH_CYTHON = options.with_cython
+
+    if WITH_CYTHON:
+        from Cython.Compiler.Main import \
+            CompilationOptions, \
+            default_options as pyrex_default_options, \
+            compile as cython_compile
+
     # RUN ALL TESTS!
     ROOTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]), 'tests')
     WORKDIR = os.path.join(os.getcwd(), 'BUILD')
-    if os.path.exists(WORKDIR):
-        shutil.rmtree(WORKDIR, ignore_errors=True)
-    os.makedirs(WORKDIR)
+    if WITH_CYTHON:
+        if os.path.exists(WORKDIR):
+            shutil.rmtree(WORKDIR, ignore_errors=True)
+    if not os.path.exists(WORKDIR):
+        os.makedirs(WORKDIR)
 
-    if not sys.path or sys.path[0] != WORKDIR:
-        sys.path.insert(0, WORKDIR)
-
-    print "Running tests against Cython %s" % version
-    print "Python", sys.version
-    print
-
-    try:
-        sys.argv.remove("-C")
-    except ValueError:
-        coverage = None
+    if WITH_CYTHON:
+        from Cython.Compiler.Version import version
+        print("Running tests against Cython %s" % version)
     else:
-        import coverage
-        coverage.erase()
-
-    try:
-        sys.argv.remove("-a")
-    except ValueError:
-        annotate_source = False
-    else:
-        annotate_source = True
+        print("Running tests without Cython.")
+    print("Python %s" % sys.version)
+    print("")
 
     import re
-    selectors = [ re.compile(r, re.I).search for r in sys.argv[1:] ]
+    selectors = [ re.compile(r, re.I|re.U).search for r in cmd_args ]
     if not selectors:
         selectors = [ lambda x:True ]
 
-    tests = TestBuilder(ROOTDIR, WORKDIR, selectors, annotate_source)
+    tests = TestBuilder(ROOTDIR, WORKDIR, selectors,
+                        options.annotate_source, options.cleanup_workdir)
     test_suite = tests.build_suite()
 
-    if coverage is not None:
-        coverage.start()
+    unittest.TextTestRunner(verbosity=options.verbosity).run(test_suite)
 
-    unittest.TextTestRunner(verbosity=2).run(test_suite)
-
-    if coverage is not None:
+    if options.coverage:
         coverage.stop()
         ignored_modules = ('Options', 'Version', 'DebugFlags')
         modules = [ module for name, module in sys.modules.items()
