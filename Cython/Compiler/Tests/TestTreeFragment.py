@@ -1,5 +1,6 @@
 from Cython.TestUtils import CythonTest
 from Cython.Compiler.TreeFragment import *
+from Cython.Compiler.Nodes import *
 
 class TestTreeFragments(CythonTest):
     def test_basic(self):
@@ -20,6 +21,12 @@ class TestTreeFragments(CythonTest):
         y = NameNode(pos=None, name=u"y")
         T = F.substitute({"x" : y})
         self.assertCode(u"y = 4", T)
+
+    def test_exprstat(self):
+        F = self.fragment(u"PASS")
+        pass_stat = PassStatNode(pos=None)
+        T = F.substitute({"PASS" : pass_stat})
+        self.assert_(T.body is pass_stat, T.body)
 
 if __name__ == "__main__":
     import unittest
