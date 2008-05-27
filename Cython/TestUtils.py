@@ -8,7 +8,7 @@ from Cython.Compiler.TreeFragment import TreeFragment, strip_common_indent
 class CythonTest(unittest.TestCase):
     def assertCode(self, expected, result_tree):
         writer = CodeWriter()
-        writer(result_tree)
+        writer.write(result_tree)
         result_lines = writer.result.lines
                 
         expected_lines = strip_common_indent(expected.split("\n"))

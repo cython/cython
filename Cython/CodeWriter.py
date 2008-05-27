@@ -1,4 +1,4 @@
-from Cython.Compiler.Transform import ReadonlyVisitor
+from Cython.Compiler.Visitor import TreeVisitor
 from Cython.Compiler.Nodes import *
 
 """
@@ -25,7 +25,7 @@ class LinesResult(object):
         self.put(s)
         self.newline()
 
-class CodeWriter(ReadonlyVisitor):
+class CodeWriter(TreeVisitor):
 
     indent_string = u"    "
     
@@ -35,6 +35,9 @@ class CodeWriter(ReadonlyVisitor):
             result = LinesResult()
         self.result = result
         self.numindents = 0
+    
+    def write(self, tree):
+        self.visit(tree)
     
     def indent(self):
         self.numindents += 1
@@ -58,43 +61,43 @@ class CodeWriter(ReadonlyVisitor):
     def comma_seperated_list(self, items, output_rhs=False):
         if len(items) > 0:
             for item in items[:-1]:
-                self.process_node(item)
+                self.visit(item)
                 if output_rhs and item.rhs is not None:
                     self.put(u" = ")
-                    self.process_node(item.rhs)
+                    self.visit(item.rhs)
                 self.put(u", ")
-            self.process_node(items[-1])
+            self.visit(items[-1])
     
-    def process_Node(self, node):
+    def visit_Node(self, node):
         raise AssertionError("Node not handled by serializer: %r" % node)
     
-    def process_ModuleNode(self, node):
-        self.process_children(node)
+    def visit_ModuleNode(self, node):
+        self.visitchildren(node)
     
-    def process_StatListNode(self, node):
-        self.process_children(node)
+    def visit_StatListNode(self, node):
+        self.visitchildren(node)
 
-    def process_FuncDefNode(self, node):
+    def visit_FuncDefNode(self, node):
         self.startline(u"def %s(" % node.name)
         self.comma_seperated_list(node.args)
         self.endline(u"):")
         self.indent()
-        self.process_node(node.body)
+        self.visit(node.body)
         self.dedent()
     
-    def process_CArgDeclNode(self, node):
+    def visit_CArgDeclNode(self, node):
         if node.base_type.name is not None:
-            self.process_node(node.base_type)
+            self.visit(node.base_type)
             self.put(u" ")
-        self.process_node(node.declarator)
+        self.visit(node.declarator)
         if node.default is not None:
             self.put(u" = ")
-            self.process_node(node.default)
+            self.visit(node.default)
     
-    def process_CNameDeclaratorNode(self, node):
+    def visit_CNameDeclaratorNode(self, node):
         self.put(node.name)
     
-    def process_CSimpleBaseTypeNode(self, node):
+    def visit_CSimpleBaseTypeNode(self, node):
         # See Parsing.p_sign_and_longness
         if node.is_basic_c_type:
             self.put(("unsigned ", "", "signed ")[node.signed])
@@ -105,97 +108,97 @@ class CodeWriter(ReadonlyVisitor):
             
         self.put(node.name)
     
-    def process_SingleAssignmentNode(self, node):
+    def visit_SingleAssignmentNode(self, node):
         self.startline()
-        self.process_node(node.lhs)
+        self.visit(node.lhs)
         self.put(u" = ")
-        self.process_node(node.rhs)
+        self.visit(node.rhs)
         self.endline()
     
-    def process_NameNode(self, node):
+    def visit_NameNode(self, node):
         self.put(node.name)
     
-    def process_IntNode(self, node):
+    def visit_IntNode(self, node):
         self.put(node.value)
         
-    def process_IfStatNode(self, node):
+    def visit_IfStatNode(self, node):
         # The IfClauseNode is handled directly without a seperate match
         # for clariy.
         self.startline(u"if ")
-        self.process_node(node.if_clauses[0].condition)
+        self.visit(node.if_clauses[0].condition)
         self.endline(":")
         self.indent()
-        self.process_node(node.if_clauses[0].body)
+        self.visit(node.if_clauses[0].body)
         self.dedent()
         for clause in node.if_clauses[1:]:
             self.startline("elif ")
-            self.process_node(clause.condition)
+            self.visit(clause.condition)
             self.endline(":")
             self.indent()
-            self.process_node(clause.body)
+            self.visit(clause.body)
             self.dedent()
         if node.else_clause is not None:
             self.line("else:")
             self.indent()
-            self.process_node(node.else_clause)
+            self.visit(node.else_clause)
             self.dedent()
 
-    def process_PassStatNode(self, node):
+    def visit_PassStatNode(self, node):
         self.startline(u"pass")
         self.endline()
     
-    def process_PrintStatNode(self, node):
+    def visit_PrintStatNode(self, node):
         self.startline(u"print ")
         self.comma_seperated_list(node.args)
         if node.ends_with_comma:
             self.put(u",")
         self.endline()
 
-    def process_BinopNode(self, node):
-        self.process_node(node.operand1)
+    def visit_BinopNode(self, node):
+        self.visit(node.operand1)
         self.put(u" %s " % node.operator)
-        self.process_node(node.operand2)
+        self.visit(node.operand2)
     
-    def process_CVarDefNode(self, node):
+    def visit_CVarDefNode(self, node):
         self.startline(u"cdef ")
-        self.process_node(node.base_type)
+        self.visit(node.base_type)
         self.put(u" ")
         self.comma_seperated_list(node.declarators, output_rhs=True)
         self.endline()
 
-    def process_ForInStatNode(self, node):
+    def visit_ForInStatNode(self, node):
         self.startline(u"for ")
-        self.process_node(node.target)
+        self.visit(node.target)
         self.put(u" in ")
-        self.process_node(node.iterator.sequence)
+        self.visit(node.iterator.sequence)
         self.endline(u":")
         self.indent()
-        self.process_node(node.body)
+        self.visit(node.body)
         self.dedent()
         if node.else_clause is not None:
             self.line(u"else:")
             self.indent()
-            self.process_node(node.else_clause)
+            self.visit(node.else_clause)
             self.dedent()
 
-    def process_SequenceNode(self, node):
+    def visit_SequenceNode(self, node):
         self.comma_seperated_list(node.args) # Might need to discover whether we need () around tuples...hmm...
     
-    def process_SimpleCallNode(self, node):
+    def visit_SimpleCallNode(self, node):
         self.put(node.function.name + u"(")
         self.comma_seperated_list(node.args)
         self.put(")")
 
-    def process_ExprStatNode(self, node):
+    def visit_ExprStatNode(self, node):
         self.startline()
-        self.process_node(node.expr)
+        self.visit(node.expr)
         self.endline()
     
-    def process_InPlaceAssignmentNode(self, node):
+    def visit_InPlaceAssignmentNode(self, node):
         self.startline()
-        self.process_node(node.lhs)
+        self.visit(node.lhs)
         self.put(" %s= " % node.operator)
-        self.process_node(node.rhs)
+        self.visit(node.rhs)
         self.endline()
     
     

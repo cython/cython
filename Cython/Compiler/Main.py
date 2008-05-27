@@ -17,7 +17,22 @@ from Symtab import BuiltinScope, ModuleScope
 import Code
 from Cython.Utils import replace_suffix
 from Cython import Utils
-import Transform
+
+# Note: PHASES and TransformSet should be removed soon; but that's for
+# another day and another commit.
+PHASES = [
+    'before_analyse_function', # run in FuncDefNode.generate_function_definitions
+    'after_analyse_function'   # run in FuncDefNode.generate_function_definitions
+]
+
+class TransformSet(dict):
+    def __init__(self):
+        for name in PHASES:
+            self[name] = []
+    def run(self, name, node, **options):
+        assert name in self, "Transform phase %s not defined" % name
+        for transform in self[name]:
+            transform(node, phase=name, **options)
 
 verbose = 0
 
@@ -364,7 +379,7 @@ default_options = dict(
     output_file = None,
     annotate = False,
     generate_pxi = 0,
-    transforms = Transform.TransformSet(),
+    transforms = TransformSet(),
     working_path = "")
     
 if sys.platform == "mac":

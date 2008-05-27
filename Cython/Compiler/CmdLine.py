@@ -4,7 +4,6 @@
 
 import sys
 import Options
-import Transform
 
 usage = """\
 Cython (http://cython.org) is a compiler for code written in the
@@ -56,6 +55,7 @@ def bad_usage():
 def parse_command_line(args):
 
     def parse_add_transform(transforms, param):
+        from Main import PHASES
         def import_symbol(fqn):
             modsplitpt = fqn.rfind(".")
             if modsplitpt == -1: bad_usage()
@@ -65,7 +65,7 @@ def parse_command_line(args):
             return getattr(module, symbolname)
     
         stagename, factoryname = param.split(":")
-        if not stagename in Transform.PHASES:
+        if not stagename in PHASES:
             bad_usage()
         factory = import_symbol(factoryname)
         transform = factory()
