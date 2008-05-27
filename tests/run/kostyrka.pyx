@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> t = TEST()
     >>> 1 in t
     True

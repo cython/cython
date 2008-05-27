@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
   >>> iter(C())
   Traceback (most recent call last):
   TypeError: iter() returned non-iterator of type 'NoneType'

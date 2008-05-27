@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> c()
     120
     >>> i0() == -1
@@ -16,7 +16,7 @@ __doc__ = """
     >>> f()
     12.5
     >>> s()
-    'spam'
+    b'spam'
     >>> two()
     2
     >>> five()
@@ -27,7 +27,15 @@ __doc__ = """
     False
 """
 
-DEF TUPLE = (1, 2, "buckle my shoe")
+import sys
+if sys.version_info[0] < 3:
+    __doc__ = __doc__.replace(u" b'", u" '")
+
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u" 042", u" 0o42")
+
+DEF TUPLE = (1, 2, u"buckle my shoe")
 DEF TRUE_FALSE = (True, False)
 
 DEF CHAR = c'x'

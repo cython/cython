@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> s = Swallow()
     >>> s.spam(1)
     1 42 'grail' True

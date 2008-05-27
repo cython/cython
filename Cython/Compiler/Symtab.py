@@ -3,6 +3,7 @@
 #
 
 import re
+from Cython import Utils
 from Errors import warning, error, InternalError
 import Options
 import Naming
@@ -15,7 +16,7 @@ from TypeSlots import \
 import ControlFlow
 import __builtin__
 
-identifier_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*$")
+possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 
 class Entry:
     # A symbol table entry in a Scope or ModuleNamespace.
@@ -64,9 +65,9 @@ class Entry:
     #                                 type is an extension type
     # as_module        None       Module scope, if a cimported module
     # is_inherited     boolean    Is an inherited attribute of an extension type
-    # #interned_cname   string     C name of interned name string
     # pystring_cname   string     C name of Python version of string literal
     # is_interned      boolean    For string const entries, value is interned
+    # is_identifier    boolean    For string const entries, value is an identifier
     # used             boolean
     # is_special       boolean    Is a special method or property accessor
     #                               of an extension type
@@ -104,8 +105,8 @@ class Entry:
     in_cinclude = 0
     as_module = None
     is_inherited = 0
-    #interned_cname = None
     pystring_cname = None
+    is_identifier = 0
     is_interned = 0
     used = 0
     is_special = 0
@@ -188,6 +189,7 @@ class Scope:
         self.cname_to_entry = {}
         self.pow_function_used = 0
         self.string_to_entry = {}
+        self.identifier_to_entry = {}
         self.num_to_entry = {}
         self.obj_to_entry = {}
         self.pystring_entries = []
@@ -204,10 +206,10 @@ class Scope:
         
     def __str__(self):
         return "<%s %s>" % (self.__class__.__name__, self.qualified_name)
-    
-    def intern(self, name):
-        return self.global_scope().intern(name)
-    
+
+    def intern_identifier(self, name):
+        return self.global_scope().intern_identifier(name)
+
     def qualifying_scope(self):
         return self.parent_scope
     
@@ -448,31 +450,36 @@ class Scope:
         self.const_entries.append(entry)
         return entry
 
-    def get_string_const(self, value):
+    def get_string_const(self, value, identifier = False):
         # Get entry for string constant. Returns an existing
         # one if possible, otherwise creates a new one.
         genv = self.global_scope()
-        entry = genv.string_to_entry.get(value)
+        if identifier:
+            string_map = genv.identifier_to_entry
+        else:
+            string_map = genv.string_to_entry
+        entry = string_map.get(value)
         if not entry:
             entry = self.add_string_const(value)
-            genv.string_to_entry[value] = entry
+            entry.is_identifier = identifier
+            string_map[value] = entry
         return entry
 
-    def add_py_string(self, entry):
+    def add_py_string(self, entry, identifier = None):
         # If not already done, allocate a C name for a Python version of
         # a string literal, and add it to the list of Python strings to
         # be created at module init time. If the string resembles a
         # Python identifier, it will be interned.
-        if not entry.pystring_cname:
-            value = entry.init
-            if not entry.type.is_unicode and identifier_pattern.match(value):
-                entry.pystring_cname = self.intern(value)
-                entry.is_interned = 1
-            else:
-                entry.pystring_cname = entry.cname + "p"
-                self.pystring_entries.append(entry)
-                self.global_scope().all_pystring_entries.append(entry)
-                
+        if entry.pystring_cname:
+            return
+        value = entry.init
+        entry.pystring_cname = entry.cname + "p"
+        self.pystring_entries.append(entry)
+        self.global_scope().all_pystring_entries.append(entry)
+        if identifier or (identifier is None and possible_identifier(value)):
+            entry.is_interned = 1
+            self.global_scope().new_interned_string_entries.append(entry)
+
     def add_py_num(self, value):
         # Add an entry for an int constant.
         cname = "%s%s" % (Naming.interned_num_prefix, value)
@@ -605,11 +612,14 @@ class BuiltinScope(Scope):
             utility_code = None):
         # If python_equiv == "*", the Python equivalent has the same name
         # as the entry, otherwise it has the name specified by python_equiv.
+        name = Utils.EncodedString(name)
         entry = self.declare_cfunction(name, type, None, cname)
         entry.utility_code = utility_code
         if python_equiv:
             if python_equiv == "*":
                 python_equiv = name
+            else:
+                python_equiv = Utils.EncodedString(python_equiv)
             var_entry = Entry(python_equiv, python_equiv, py_object_type)
             var_entry.is_variable = 1
             var_entry.is_builtin = 1
@@ -617,6 +627,7 @@ class BuiltinScope(Scope):
         return entry
         
     def declare_builtin_type(self, name, cname):
+        name = Utils.EncodedString(name)
         type = PyrexTypes.BuiltinObjectType(name, cname)
         type.set_scope(CClassScope(name, outer_scope=None, visibility='extern'))
         self.type_names[name] = 1
@@ -671,14 +682,14 @@ class ModuleScope(Scope):
     # python_include_files [string]           Standard  Python headers to be included
     # include_files        [string]           Other C headers to be included
     # string_to_entry      {string : Entry}   Map string const to entry
+    # identifier_to_entry  {string : Entry}   Map identifier string const to entry
     # context              Context
     # parent_module        Scope              Parent in the import namespace
     # module_entries       {string : Entry}   For cimport statements
     # type_names           {string : 1}       Set of type names (used during parsing)
     # pxd_file_loaded      boolean            Corresponding .pxd file has been processed
     # cimported_modules    [ModuleScope]      Modules imported with cimport
-    # intern_map           {string : string}  Mapping from Python names to interned strs
-    # interned_names       [string]           Interned names pending generation of declarations
+    # new_interned_string_entries [Entry]     New interned strings waiting to be declared
     # interned_nums        [int/long]         Interned numeric constants
     # all_pystring_entries [Entry]            Python string consts from all scopes
     # types_imported       {PyrexType : 1}    Set of types for which import code generated
@@ -705,8 +716,7 @@ class ModuleScope(Scope):
         self.type_names = dict(outer_scope.type_names)
         self.pxd_file_loaded = 0
         self.cimported_modules = []
-        self.intern_map = {}
-        self.interned_names = []
+        self.new_interned_string_entries = []
         self.interned_nums = []
         self.interned_objs = []
         self.all_pystring_entries = []
@@ -743,15 +753,11 @@ class ModuleScope(Scope):
         else:
             entry.is_builtin = 1
         return entry
-    
-    def intern(self, name):
-        intern_map = self.intern_map
-        cname = intern_map.get(name)
-        if not cname:
-            cname = Naming.interned_prefix + name
-            intern_map[name] = cname
-            self.interned_names.append(name)
-        return cname
+
+    def intern_identifier(self, name):
+        string_entry = self.get_string_const(name, identifier = True)
+        self.add_py_string(string_entry, identifier = 1)
+        return string_entry.pystring_cname
 
     def find_module(self, module_name, pos):
         # Find a module in the import namespace, interpreting
@@ -832,8 +838,6 @@ class ModuleScope(Scope):
                     "Non-cdef global variable is not a generic Python object")
             entry.is_pyglobal = 1
             entry.namespace_cname = self.module_cname
-            #if Options.intern_names:
-            #	entry.interned_cname = self.intern(name)
         else:
             entry.is_cglobal = 1
             self.var_entries.append(entry)
@@ -1151,8 +1155,6 @@ class PyClassScope(ClassScope):
             cname, visibility, is_cdef)
         entry.is_pyglobal = 1
         entry.namespace_cname = self.class_obj_cname
-        #if Options.intern_names:
-        #	entry.interned_cname = self.intern(name)
         return entry
 
     def allocate_temp(self, type):
@@ -1250,10 +1252,9 @@ class CClassScope(ClassScope):
                                   # I keep it in for now. is_member should be enough
                                   # later on
             entry.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
-            if Options.intern_names:
-                entry.interned_cname = self.intern(name)
+            entry.interned_cname = self.intern_identifier(name)
             return entry
-            
+
 
     def declare_pyfunction(self, name, pos):
         # Add an entry for a method.
@@ -1262,7 +1263,7 @@ class CClassScope(ClassScope):
         if name == "__new__":
             warning(pos, "__new__ method of extension type will change semantics "
                 "in a future version of Pyrex and Cython. Use __cinit__ instead.")
-            name = "__cinit__"
+            name = Utils.EncodedString("__cinit__")
         entry = self.declare_var(name, py_object_type, pos)
         special_sig = get_special_method_signature(name)
         if special_sig:
@@ -1279,7 +1280,7 @@ class CClassScope(ClassScope):
     
     def lookup_here(self, name):
         if name == "__new__":
-            name = "__cinit__"
+            name = Utils.EncodedString("__cinit__")
         return ClassScope.lookup_here(self, name)
     
     def declare_cfunction(self, name, type, pos,
@@ -1401,12 +1402,15 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
 static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     /* It appears that PyMethodDescr_Type is not anywhere exposed in the Python/C API */
     /* if (!PyObject_TypeCheck(method, &PyMethodDescr_Type)) { */ 
-    if (strcmp(method->ob_type->tp_name, "method_descriptor") == 0) { /* cdef classes */
+    if (strcmp(Py_TYPE(method)->tp_name, "method_descriptor") == 0) { /* cdef classes */
         PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
         return PyDescr_NewClassMethod(descr->d_type, descr->d_method);
     }
     else if (PyMethod_Check(method)) {                                /* python classes */
         return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
+    }
+    else if (PyCFunction_Check(method)) {
+        return PyClassMethod_New(method);
     }
     PyErr_Format(PyExc_TypeError, "Class-level classmethod() can only be called on a method_descriptor or instance method.");
     return NULL;

@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> ext = Ext()
     >>> b,c,d,e,f,g,h,k = ext.b,ext.c,ext.d,ext.e,ext.f,ext.g,ext.h,ext.k
 
@@ -83,6 +83,10 @@ __doc__ = """
     Traceback (most recent call last):
     TypeError: required keyword argument 'f' is missing
 """
+
+import sys, re
+if sys.version_info >= (2,6):
+    __doc__ = re.sub(u"Error: (.*)exactly(.*)", u"Error: \\1at most\\2", __doc__)
 
 cdef class Ext:
     def b(self, a, b, c):

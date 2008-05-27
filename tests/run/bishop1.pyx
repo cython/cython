@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> m = fmatrix()
     >>> m[1] = True
     >>> m.getfoo()

@@ -1,12 +1,18 @@
+__doc__ = u"""
+>>> tomato()
+42
+"""
+
 cdef class Spam:
 
     property eggs:
     
         def __get__(self):
-            pass
+            return 42
 
-cdef void tomato():
+def tomato():
     cdef Spam spam
     cdef object lettuce
+    spam = Spam()
     lettuce = spam.eggs
-
+    return lettuce

@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> f('test')
     >>> test_g()
     >>> test_h(5)

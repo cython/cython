@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> int2 = 42
     >>> int3 = 7
     >>> char1 = ord('C')
@@ -10,7 +10,7 @@ __doc__ = """
     >>> int1 ^= int2 >> int3
     >>> int1 ^= int2 << int3 | int2 >> int3
     >>> long1 = char1 | int1
-    >>> print (int1, long1) == f()
+    >>> (int1, long1) == f()
     True
 
     >>> f()

@@ -8,7 +8,7 @@
 
 __doc__ = r"""
     >>> sa
-    'abc'
+    b'abc'
     >>> ua
     u'abc'
     >>> b
@@ -25,7 +25,7 @@ __doc__ = r"""
     u'S\xf8k ik\xfc\xd6\xe4abc'
     >>> null
     u'\x00'
-""" + """
+""".decode(u"ASCII") + """
     >>> len(sa)
     3
     >>> len(ua)
@@ -44,9 +44,7 @@ __doc__ = r"""
     12
     >>> len(null)
     1
-""" + u"""
-    >>> sa == 'abc'
-    True
+""".decode(u"ASCII") + u"""
     >>> ua == u'abc'
     True
     >>> b == u'123'
@@ -69,6 +67,12 @@ __doc__ = r"""
     True
 """
 
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u" u'", u" '")
+else:
+    __doc__ = __doc__.replace(u" b'", u" '")
+
 sa = 'abc'
 ua = u'abc'
 
@@ -78,5 +82,5 @@ d = u'üÖä'
 e = u'\x03\x67\xf8\uf8d2Søk ik'
 f = u'\xf8'
 
-add = u'Søk ik' + u'üÖä' + 'abc'
+add = u'Søk ik' + u'üÖä' + u'abc'
 null = u'\x00'

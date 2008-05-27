@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = """# disabled in Py3
     >>> test(0)
     0L
     >>> test(1)

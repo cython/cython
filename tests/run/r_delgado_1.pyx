@@ -1,8 +1,11 @@
-__doc__ = """
-try:
-    eggs().eat()
-except RuntimeError, e:
-    print "%s: %s" % (e.__class__.__name__, e)
+__doc__ = u"""
+>>> try:
+...     eggs().eat()
+... except RuntimeError:
+...    import sys
+...    e = sys.exc_info()[1]
+...    print("%s: %s" % (e.__class__.__name__, e))
+RuntimeError: I don't like that
 """
 
 cdef class eggs:
@@ -11,5 +14,5 @@ cdef class eggs:
     pass
 
   def eat(self):
-    raise RuntimeError("I don't like that")
+    raise RuntimeError(u"I don't like that")
 

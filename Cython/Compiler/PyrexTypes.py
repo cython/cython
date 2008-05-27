@@ -2,6 +2,7 @@
 #   Pyrex - Types
 #
 
+from Cython import Utils
 import Naming
 
 class BaseType:
@@ -249,7 +250,7 @@ class BuiltinObjectType(PyObjectType):
         return type.is_pyobject and self.assignable_from(type)
         
     def type_test_code(self, arg):
-        return 'likely(Py%s_CheckExact(%s)) || (%s) == Py_None || (PyErr_Format(PyExc_TypeError, "Expected %s, got %%s", %s->ob_type->tp_name), 0)' % (self.name[0].upper() + self.name[1:], arg, arg, self.name, arg)
+        return 'likely(Py%s_CheckExact(%s)) || (%s) == Py_None || (PyErr_Format(PyExc_TypeError, "Expected %s, got %%s", Py_TYPE(%s)->tp_name), 0)' % (self.name[0].upper() + self.name[1:], arg, arg, self.name, arg)
 
 
 class PyExtensionType(PyObjectType):
@@ -922,23 +923,6 @@ class CEnumType(CType):
             return self.base_declaration_code(public_decl(base, dll_linkage), entity_code)
 
 
-def _escape_byte_string(s):
-    s = s.replace('\0', r'\x00')
-    try:
-        s.decode("ASCII")
-        return s
-    except UnicodeDecodeError:
-        pass
-    l = []
-    append = l.append
-    for c in s:
-        o = ord(c)
-        if o >= 128:
-            append('\\x%X' % o)
-        else:
-            append(c)
-    return ''.join(l)
-
 class CStringType:
     #  Mixin class for C string types.
 
@@ -951,7 +935,7 @@ class CStringType:
 
     def literal_code(self, value):
         assert isinstance(value, str)
-        return '"%s"' % _escape_byte_string(value)
+        return '"%s"' % Utils.escape_byte_string(value)
 
 
 class CUTF8StringType:
@@ -965,7 +949,7 @@ class CUTF8StringType:
 
     def literal_code(self, value):
         assert isinstance(value, str)
-        return '"%s"' % _escape_byte_string(value)
+        return '"%s"' % Utils.escape_byte_string(value)
 
 
 class CCharArrayType(CStringType, CArrayType):
@@ -990,16 +974,6 @@ class CUTF8CharArrayType(CUTF8StringType, CArrayType):
 
 class CCharPtrType(CStringType, CPtrType):
     # C 'char *' type.
-    
-    parsetuple_format = "s"
-    pymemberdef_typecode = "T_STRING"
-    
-    def __init__(self):
-        CPtrType.__init__(self, c_char_type)
-
-
-class CUTF8CharPtrType(CUTF8StringType, CPtrType):
-    # C 'char *' type, encoded in UTF-8.
     
     parsetuple_format = "s"
     pymemberdef_typecode = "T_STRING"
@@ -1074,13 +1048,16 @@ c_null_ptr_type =     CNullPtrType(c_void_type)
 c_char_array_type =   CCharArrayType(None)
 c_utf8_char_array_type =   CUTF8CharArrayType(None)
 c_char_ptr_type =     CCharPtrType()
-c_utf8_char_ptr_type =     CUTF8CharPtrType()
 c_char_ptr_ptr_type = CPtrType(c_char_ptr_type)
+c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
 c_int_ptr_type =      CPtrType(c_int_type)
 
 c_returncode_type =   CIntType(2, 1, "T_INT", is_returncode = 1)
 
 c_anon_enum_type =    CAnonEnumType(-1, 1)
+
+# the Py_buffer type is defined in Builtin.py
+c_py_buffer_ptr_type = CPtrType(CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer"))
 
 error_type =    ErrorType()
 

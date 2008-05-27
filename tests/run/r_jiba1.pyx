@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> test()
     This parrot is resting.
     Lovely plumage!
@@ -8,7 +8,7 @@ __doc__ = """
 cdef class Parrot:
 
     cdef void describe(self):
-        print "This parrot is resting."
+        print u"This parrot is resting."
 
     def describe_python(self):
         self.describe()
@@ -16,7 +16,7 @@ cdef class Parrot:
 cdef class Norwegian(Parrot):
 
     cdef void describe(self):
-        print "Lovely plumage!"
+        print u"Lovely plumage!"
 
 def test():
     cdef Parrot p1, p2

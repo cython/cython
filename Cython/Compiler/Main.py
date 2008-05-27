@@ -7,6 +7,12 @@ if sys.version_info[:2] < (2, 2):
     sys.stderr.write("Sorry, Cython requires Python 2.2 or later\n")
     sys.exit(1)
 
+try:
+    set
+except NameError:
+    # Python 2.3
+    from sets import Set as set
+
 from time import time
 import Version
 from Scanning import PyrexScanner, FileSourceDescriptor
@@ -45,12 +51,14 @@ class Context:
     #
     #  modules               {string : ModuleScope}
     #  include_directories   [string]
+    #  future_directives     [object]
     
     def __init__(self, include_directories):
         #self.modules = {"__builtin__" : BuiltinScope()}
         import Builtin
         self.modules = {"__builtin__" : Builtin.builtin_scope}
         self.include_directories = include_directories
+        self.future_directives = set()
         
     def find_module(self, module_name, 
             relative_to = None, pos = None, need_pxd = 1):

@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> f(1, 'test')
     <BLANKLINE>
     1
@@ -11,5 +11,4 @@ def f(a, b):
     print a
     print a, b
     print a, b,
-    print 42, "spam"
-    
+    print 42, u"spam"

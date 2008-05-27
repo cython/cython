@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> b(1,2,3)
     >>> b(1,2,3,4)
     Traceback (most recent call last):
@@ -80,6 +80,10 @@ __doc__ = """
     Traceback (most recent call last):
     TypeError: required keyword argument 'f' is missing
 """
+
+import sys, re
+if sys.version_info >= (2,6):
+    __doc__ = re.sub(u"Error: (.*)exactly(.*)", u"Error: \\1at most\\2", __doc__)
 
 def b(a, b, c):
     pass

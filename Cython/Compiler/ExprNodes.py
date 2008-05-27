@@ -739,6 +739,18 @@ class StringNode(ConstNode):
             return self.entry.cname
 
 
+class IdentifierStringNode(ConstNode):
+    # A Python string that behaves like an identifier, e.g. for
+    # keyword arguments in a call, or for imported names
+    type = PyrexTypes.py_object_type
+
+    def analyse_types(self, env):
+        self.cname = env.intern_identifier(self.value)
+
+    def calculate_result_code(self):
+        return self.cname
+
+
 class LongNode(AtomicExprNode):
     #  Python long integer literal
     #
@@ -838,6 +850,8 @@ class NameNode(AtomicExprNode):
         env.control_flow.set_state(self.pos, (self.name, 'source'), 'assignment')
         if self.entry.is_declared_generic:
             self.result_ctype = py_object_type
+        if self.entry.is_pyglobal and self.entry.is_member:
+            env.use_utility_code(type_cache_invalidation_code)
     
     def analyse_types(self, env):
         self.entry = env.lookup(self.name)
@@ -868,10 +882,7 @@ class NameNode(AtomicExprNode):
                 self.is_temp = 0
             else:
                 self.is_temp = 1
-            if Options.intern_names:
-                env.use_utility_code(get_name_interned_utility_code)
-            else:
-                env.use_utility_code(get_name_utility_code)
+            env.use_utility_code(get_name_interned_utility_code)
     
     def analyse_entry(self, env):
         #print "NameNode.analyse_entry:", self.name ###
@@ -881,8 +892,8 @@ class NameNode(AtomicExprNode):
         self.type = type
         if entry.is_pyglobal or entry.is_builtin:
             assert type.is_pyobject, "Python global or builtin not a Python object"
-            if Options.intern_names:
-                self.interned_cname = self.entry.interned_cname = env.intern(self.entry.name)
+            self.interned_cname = self.entry.interned_cname = \
+                env.intern_identifier(self.entry.name)
 
     def check_identifier_kind(self):
         #print "NameNode.check_identifier_kind:", self.entry.name ###
@@ -950,20 +961,12 @@ class NameNode(AtomicExprNode):
                 namespace = Naming.builtins_cname
             else: # entry.is_pyglobal
                 namespace = entry.namespace_cname
-            if Options.intern_names:
-                code.putln(
-                    '%s = __Pyx_GetName(%s, %s); %s' % (
-                    self.result_code,
-                    namespace, 
-                    self.interned_cname,
-                    code.error_goto_if_null(self.result_code, self.pos)))		
-            else:
-                code.putln(
-                    '%s = __Pyx_GetName(%s, "%s"); %s' % (
-                    self.result_code,
-                    namespace, 
-                    self.entry.name,
-                    code.error_goto_if_null(self.result_code, self.pos)))
+            code.putln(
+                '%s = __Pyx_GetName(%s, %s); %s' % (
+                self.result_code,
+                namespace, 
+                self.interned_cname,
+                code.error_goto_if_null(self.result_code, self.pos)))		
         elif entry.is_local and False:
             # control flow not good enough yet
             assigned = entry.scope.control_flow.get_state((entry.name, 'initalized'), self.pos)
@@ -984,34 +987,22 @@ class NameNode(AtomicExprNode):
         if entry.is_pyglobal:
             namespace = self.entry.namespace_cname
             if entry.is_member:
-                # if we entry is a member we have to cheat: SetAttr does not work
+                # if the entry is a member we have to cheat: SetAttr does not work
                 # on types, so we create a descriptor which is then added to tp_dict
-                if Options.intern_names:
-                    code.put_error_if_neg(self.pos,
-                        'PyDict_SetItem(%s->tp_dict, %s, %s)' % (
-                            namespace,
-                            self.interned_cname,
-                            rhs.py_result()))
-                else:
-                    code.put_error_if_neg(self.pos,
-                        'PyDict_SetItemString(%s->tp_dict, %s, %s)' % (
-                            namespace,
-                            entry.name,
-                            rhs.py_result()))
-
+                code.put_error_if_neg(self.pos,
+                    'PyDict_SetItem(%s->tp_dict, %s, %s)' % (
+                        namespace,
+                        self.interned_cname,
+                        rhs.py_result()))
+                # in Py2.6+, we need to invalidate the method cache
+                code.putln("__Pyx_TypeModified((PyTypeObject*)%s);" %
+                           entry.scope.parent_type.typeptr_cname)
             else: 
-                if Options.intern_names:
-                    code.put_error_if_neg(self.pos,
-                        'PyObject_SetAttr(%s, %s, %s)' % (
-                            namespace,
-                            self.interned_cname,
-                            rhs.py_result()))
-                else:
-                    code.put_error_if_neg(self.pos,
-                        'PyObject_SetAttrString(%s, "%s", %s)' % (
-                            namespace, 
-                            entry.name,
-                            rhs.py_result()))
+                code.put_error_if_neg(self.pos,
+                    'PyObject_SetAttr(%s, %s, %s)' % (
+                        namespace,
+                        self.interned_cname,
+                        rhs.py_result()))
                 if debug_disposal_code:
                     print("NameNode.generate_assignment_code:")
                     print("...generating disposal code for %s" % rhs)
@@ -1084,8 +1075,8 @@ class ImportNode(ExprNode):
     #  Implements result = 
     #    __import__(module_name, globals(), None, name_list)
     #
-    #  module_name   StringNode         dotted name of module
-    #  name_list     ListNode or None   list of names to be imported
+    #  module_name   IdentifierStringNode     dotted name of module
+    #  name_list     ListNode or None         list of names to be imported
     
     subexprs = ['module_name', 'name_list']
 
@@ -1836,7 +1827,7 @@ class AttributeNode(ExprNode):
     #  member               string    C name of struct member
     #  is_called            boolean   Function call is being done on result
     #  entry                Entry     Symbol table entry of attribute
-    #  interned_attr_cname	string    C name of interned attribute name
+    #  interned_attr_cname  string    C name of interned attribute name
     
     is_attribute = 1
     subexprs = ['obj']
@@ -2019,8 +2010,7 @@ class AttributeNode(ExprNode):
         if obj_type.is_pyobject:
             self.type = py_object_type
             self.is_py_attr = 1
-            if Options.intern_names:
-                self.interned_attr_cname = env.intern(self.attribute)
+            self.interned_attr_cname = env.intern_identifier(self.attribute)
         else:
             if not obj_type.is_error:
                 error(self.pos, 
@@ -2064,36 +2054,21 @@ class AttributeNode(ExprNode):
     
     def generate_result_code(self, code):
         if self.is_py_attr:
-            if Options.intern_names:
-                code.putln(
-                    '%s = PyObject_GetAttr(%s, %s); %s' % (
-                        self.result_code,
-                        self.obj.py_result(),
-                        self.interned_attr_cname,
-                        code.error_goto_if_null(self.result_code, self.pos)))
-            else:
-                code.putln(
-                    '%s = PyObject_GetAttrString(%s, "%s"); %s' % (
-                        self.result_code,
-                        self.obj.py_result(),
-                        self.attribute,
-                        code.error_goto_if_null(self.result_code, self.pos)))
+            code.putln(
+                '%s = PyObject_GetAttr(%s, %s); %s' % (
+                    self.result_code,
+                    self.obj.py_result(),
+                    self.interned_attr_cname,
+                    code.error_goto_if_null(self.result_code, self.pos)))
     
     def generate_assignment_code(self, rhs, code):
         self.obj.generate_evaluation_code(code)
         if self.is_py_attr:
-            if Options.intern_names:
-                code.put_error_if_neg(self.pos, 
-                    'PyObject_SetAttr(%s, %s, %s)' % (
-                        self.obj.py_result(),
-                        self.interned_attr_cname,
-                        rhs.py_result()))
-            else:
-                code.put_error_if_neg(self.pos,
-                    'PyObject_SetAttrString(%s, "%s", %s)' % (
-                        self.obj.py_result(),
-                        self.attribute,
-                        rhs.py_result()))
+            code.put_error_if_neg(self.pos, 
+                'PyObject_SetAttr(%s, %s, %s)' % (
+                    self.obj.py_result(),
+                    self.interned_attr_cname,
+                    rhs.py_result()))
             rhs.generate_disposal_code(code)
         else:
             select_code = self.result_code
@@ -2111,16 +2086,10 @@ class AttributeNode(ExprNode):
     def generate_deletion_code(self, code):
         self.obj.generate_evaluation_code(code)
         if self.is_py_attr:
-            if Options.intern_names:
-                code.put_error_if_neg(self.pos,
-                    'PyObject_DelAttr(%s, %s)' % (
-                        self.obj.py_result(),
-                        self.interned_attr_cname))
-            else:
-                code.put_error_if_neg(self.pos, 
-                    'PyObject_DelAttrString(%s, "%s")' % (
-                        self.obj.py_result(),
-                        self.attribute))
+            code.put_error_if_neg(self.pos,
+                'PyObject_DelAttr(%s, %s)' % (
+                    self.obj.py_result(),
+                    self.interned_attr_cname))
         else:
             error(self.pos, "Cannot delete C attribute of extension type")
         self.obj.generate_disposal_code(code)
@@ -2463,22 +2432,23 @@ class DictItemNode(ExprNode):
         self.key.generate_disposal_code(code)
         self.value.generate_disposal_code(code)
 
+
 class ClassNode(ExprNode):
     #  Helper class used in the implementation of Python
     #  class definitions. Constructs a class object given
     #  a name, tuple of bases and class dictionary.
     #
-    #  name         ExprNode           Name of the class
+    #  name         EncodedString      Name of the class
+    #  cname        string             Class name as a Python string
     #  bases        ExprNode           Base class tuple
     #  dict         ExprNode           Class dict (not owned by this node)
     #  doc          ExprNode or None   Doc string
     #  module_name  string             Name of defining module
     
-    subexprs = ['name', 'bases', 'doc']
-    
+    subexprs = ['bases', 'doc']
+
     def analyse_types(self, env):
-        self.name.analyse_types(env)
-        self.name = self.name.coerce_to_pyobject(env)
+        self.cname = env.intern_identifier(self.name)
         self.bases.analyse_types(env)
         if self.doc:
             self.doc.analyse_types(env)
@@ -2487,7 +2457,7 @@ class ClassNode(ExprNode):
         self.type = py_object_type
         self.is_temp = 1
         env.use_utility_code(create_class_utility_code);
-    
+
     def generate_result_code(self, code):
         if self.doc:
             code.put_error_if_neg(self.pos, 
@@ -2499,7 +2469,7 @@ class ClassNode(ExprNode):
                 self.result_code,
                 self.bases.py_result(),
                 self.dict.py_result(),
-                self.name.py_result(),
+                self.cname,
                 self.module_name,
                 code.error_goto_if_null(self.result_code, self.pos)))
 
@@ -3907,19 +3877,6 @@ class CloneNode(CoercionNode):
 #
 #------------------------------------------------------------------------------------
 
-get_name_utility_code = [
-"""
-static PyObject *__Pyx_GetName(PyObject *dict, char *name); /*proto*/
-""","""
-static PyObject *__Pyx_GetName(PyObject *dict, char *name) {
-    PyObject *result;
-    result = PyObject_GetAttrString(dict, name);
-    if (!result)
-        PyErr_SetString(PyExc_NameError, name);
-    return result;
-}
-"""]
-
 get_name_interned_utility_code = [
 """
 static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name); /*proto*/
@@ -4069,7 +4026,7 @@ static int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
     if (obj == Py_None || PyObject_TypeCheck(obj, type))
         return 1;
     PyErr_Format(PyExc_TypeError, "Cannot convert %s to %s",
-        obj->ob_type->tp_name, type->tp_name);
+        Py_TYPE(obj)->tp_name, type->tp_name);
     return 0;
 }
 """]
@@ -4085,13 +4042,21 @@ static PyObject *__Pyx_CreateClass(
 {
     PyObject *py_modname;
     PyObject *result = 0;
-    
+
+    #if PY_MAJOR_VERSION < 3
     py_modname = PyString_FromString(modname);
+    #else
+    py_modname = PyUnicode_FromString(modname);
+    #endif
     if (!py_modname)
         goto bad;
     if (PyDict_SetItemString(dict, "__module__", py_modname) < 0)
         goto bad;
+    #if PY_MAJOR_VERSION < 3
     result = PyClass_New(bases, dict, name);
+    #else
+    result = PyObject_CallFunctionObjArgs((PyObject *)&PyType_Type, name, bases, dict, NULL);
+    #endif
 bad:
     Py_XDECREF(py_modname);
     return result;
@@ -4138,4 +4103,40 @@ static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     }
 }
 """,""
+]
+
+#------------------------------------------------------------------------------------
+
+type_cache_invalidation_code = [
+"""
+#if PY_VERSION_HEX >= 0x02060000
+static void __Pyx_TypeModified(PyTypeObject* type); /*proto*/
+#else
+  #define __Pyx_TypeModified(t)
+#endif
+""","""
+#if PY_VERSION_HEX >= 0x02060000
+/* copied from typeobject.c in Python 3.0a5 */
+static void __Pyx_TypeModified(PyTypeObject* type) {
+    PyObject *raw, *ref;
+    Py_ssize_t i, n;
+
+    if (!PyType_HasFeature(type, Py_TPFLAGS_VALID_VERSION_TAG))
+        return;
+
+    raw = type->tp_subclasses;
+    if (raw != NULL) {
+        n = PyList_GET_SIZE(raw);
+        for (i = 0; i < n; i++) {
+            ref = PyList_GET_ITEM(raw, i);
+            ref = PyWeakref_GET_OBJECT(ref);
+            if (ref != Py_None) {
+                __Pyx_TypeModified((PyTypeObject *)ref);
+            }
+        }
+    }
+    type->tp_flags &= ~Py_TPFLAGS_VALID_VERSION_TAG;
+}
+#endif
+"""
 ]

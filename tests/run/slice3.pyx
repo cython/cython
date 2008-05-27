@@ -1,9 +1,9 @@
-__doc__ = """
+__doc__ = u"""
     >>> class Test(object):
     ...     def __setitem__(self, key, value):
-    ...         print key, value
+    ...         print((key, value))
     ...     def __getitem__(self, key):
-    ...         print key
+    ...         print(key)
     ...         return self
 
     >>> ellipsis(Test())
@@ -23,7 +23,7 @@ __doc__ = """
     slice(1, 2, 3)
 
     >>> set(Test(), -11)
-    slice(1, 2, 3) -11
+    (slice(1, 2, 3), -11)
 """
 
 def ellipsis(o):

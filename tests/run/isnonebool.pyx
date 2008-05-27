@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> test_and(None, None)
     True
     >>> test_and(None, 1)

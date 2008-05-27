@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
   >>> go()
   Spam!
   Spam!
@@ -9,5 +9,5 @@ __doc__ = """
 
 def go():
     for i in range(5):
-        print "Spam!"
+        print u"Spam!"
 

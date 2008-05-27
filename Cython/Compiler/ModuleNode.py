@@ -20,7 +20,7 @@ import PyrexTypes
 import TypeSlots
 import Version
 
-from Errors import error
+from Errors import error, warning
 from PyrexTypes import py_object_type
 from Cython.Utils import open_new_file, replace_suffix
 
@@ -221,12 +221,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/* Implementation of %s */" % env.qualified_name)
         self.generate_const_definitions(env, code)
         self.generate_interned_num_decls(env, code)
-        self.generate_interned_name_decls(env, code)
+        self.generate_interned_string_decls(env, code)
         self.generate_py_string_decls(env, code)
         self.generate_cached_builtins_decls(env, code)
         self.body.generate_function_definitions(env, code, options.transforms)
         code.mark_pos(None)
-        self.generate_interned_name_table(env, code)
         self.generate_py_string_table(env, code)
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)
@@ -366,6 +365,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#ifndef PY_LONG_LONG")
         code.putln("  #define PY_LONG_LONG LONG_LONG")
         code.putln("#endif")
+        code.putln("#ifndef DL_EXPORT")
+        code.putln("  #define DL_EXPORT(t) t")
+        code.putln("#endif")
+        code.putln("#if PY_VERSION_HEX < 0x02040000")
+        code.putln("  #define METH_COEXIST 0")
+        code.putln("#endif")
+
         code.putln("#if PY_VERSION_HEX < 0x02050000")
         code.putln("  typedef int Py_ssize_t;")
         code.putln("  #define PY_SSIZE_T_MAX INT_MAX")
@@ -375,9 +381,68 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyNumber_Index(o)    PyNumber_Int(o)")
         code.putln("  #define PyIndex_Check(o)     PyNumber_Check(o)")
         code.putln("#endif")
-        code.putln("#if PY_VERSION_HEX < 0x02040000")
-        code.putln("  #define METH_COEXIST 0")
+
+        code.putln("#if PY_VERSION_HEX < 0x02060000")
+        code.putln("  #define Py_REFCNT(ob) (((PyObject*)(ob))->ob_refcnt)")
+        code.putln("  #define Py_TYPE(ob)   (((PyObject*)(ob))->ob_type)")
+        code.putln("  #define Py_SIZE(ob)   ((PyVarObject*)(ob))->ob_size)")
+        code.putln("  #define PyVarObject_HEAD_INIT(type, size) \\")
+        code.putln("          PyObject_HEAD_INIT(type) size,")
+        code.putln("")
+        code.putln("  typedef struct {")
+        code.putln("     void *buf;")
+        code.putln("     Py_ssize_t len;")
+        code.putln("     int readonly;")
+        code.putln("     const char *format;")
+        code.putln("     int ndim;")
+        code.putln("     Py_ssize_t *shape;")
+        code.putln("     Py_ssize_t *strides;")
+        code.putln("     Py_ssize_t *suboffsets;")
+        code.putln("     Py_ssize_t itemsize;")
+        code.putln("     void *internal;")
+        code.putln("  } Py_buffer;")
+        code.putln("")
+        code.putln("  #define PyBUF_SIMPLE 0")
+        code.putln("  #define PyBUF_WRITABLE 0x0001")
+        code.putln("  #define PyBUF_LOCK 0x0002")
+        code.putln("  #define PyBUF_FORMAT 0x0004")
+        code.putln("  #define PyBUF_ND 0x0008")
+        code.putln("  #define PyBUF_STRIDES (0x0010 | PyBUF_ND)")
+        code.putln("  #define PyBUF_C_CONTIGUOUS (0x0020 | PyBUF_STRIDES)")
+        code.putln("  #define PyBUF_F_CONTIGUOUS (0x0040 | PyBUF_STRIDES)")
+        code.putln("  #define PyBUF_ANY_CONTIGUOUS (0x0080 | PyBUF_STRIDES)")
+        code.putln("  #define PyBUF_INDIRECT (0x0100 | PyBUF_STRIDES)")
         code.putln("#endif")
+
+        code.put(builtin_module_name_utility_code[0])
+
+        code.putln("#if PY_MAJOR_VERSION >= 3")
+        code.putln("  #define Py_TPFLAGS_CHECKTYPES 0")
+        code.putln("  #define Py_TPFLAGS_HAVE_INDEX 0")
+        code.putln("#endif")
+
+        code.putln("#if PY_MAJOR_VERSION >= 3")
+        code.putln("  #define PyBaseString_Type            PyUnicode_Type")
+        code.putln("  #define PyInt_Type                   PyLong_Type")
+        code.putln("  #define PyInt_Check(op)              PyLong_Check(op)")
+        code.putln("  #define PyInt_CheckExact(op)         PyLong_CheckExact(op)")
+        code.putln("  #define PyInt_FromString             PyLong_FromString")
+        code.putln("  #define PyInt_FromUnicode            PyLong_FromUnicode")
+        code.putln("  #define PyInt_FromLong               PyLong_FromLong")
+        code.putln("  #define PyInt_FromSize_t             PyLong_FromSize_t")
+        code.putln("  #define PyInt_FromSsize_t            PyLong_FromSsize_t")
+        code.putln("  #define PyInt_AsLong                 PyLong_AsLong")
+        code.putln("  #define PyInt_AS_LONG                PyLong_AS_LONG")
+        code.putln("  #define PyInt_AsSsize_t              PyLong_AsSsize_t")
+        code.putln("  #define PyInt_AsUnsignedLongMask     PyLong_AsUnsignedLongMask")
+        code.putln("  #define PyInt_AsUnsignedLongLongMask PyLong_AsUnsignedLongLongMask")
+        code.putln("  #define PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)")
+        code.putln("#endif")
+
+        code.putln("#if PY_MAJOR_VERSION >= 3")
+        code.putln("  #define PyMethod_New(func, self, klass) PyInstanceMethod_New(func)")
+        code.putln("#endif")
+
         code.putln("#ifndef __stdcall")
         code.putln("  #define __stdcall")
         code.putln("#endif")
@@ -664,6 +729,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     if scope.defines_any(["__setitem__", "__delitem__"]):
                         self.generate_ass_subscript_function(scope, code)
                     if scope.defines_any(["__setslice__", "__delslice__"]):
+                        warning(self.pos, "__setslice__ and __delslice__ are not supported by Python 3")
                         self.generate_ass_slice_function(scope, code)
                     if scope.defines_any(["__getattr__","__getattribute__"]):
                         self.generate_getattro_function(scope, code)
@@ -786,7 +852,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "%s(o);" % tp_dealloc)
         else:
             code.putln(
-                    "(*o->ob_type->tp_free)(o);")
+                    "(*Py_TYPE(o)->tp_free)(o);")
         code.putln(
             "}")
     
@@ -800,14 +866,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                     "PyErr_Fetch(&etype, &eval, &etb);")
             code.putln(
-                    "++o->ob_refcnt;")
+                    "++Py_REFCNT(o);")
             code.putln(
                     "%s(o);" % 
                         entry.func_cname)
             code.putln(
                     "if (PyErr_Occurred()) PyErr_WriteUnraisable(o);")
             code.putln(
-                    "--o->ob_refcnt;")
+                    "--Py_REFCNT(o);")
             code.putln(
                     "PyErr_Restore(etype, eval, etb);")
             code.putln(
@@ -905,7 +971,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
                 "PyObject *x = PyInt_FromSsize_t(i); if(!x) return 0;")
         code.putln(
-                "r = o->ob_type->tp_as_mapping->mp_subscript(o, x);")
+                "r = Py_TYPE(o)->tp_as_mapping->mp_subscript(o, x);")
         code.putln(
                 "Py_DECREF(x);")
         code.putln(
@@ -936,7 +1002,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                     "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                    '  "Subscript assignment not supported by %s", o->ob_type->tp_name);')
+                    '  "Subscript assignment not supported by %s", Py_TYPE(o)->tp_name);')
             code.putln(
                     "return -1;")
         code.putln(
@@ -953,7 +1019,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                     "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                    '  "Subscript deletion not supported by %s", o->ob_type->tp_name);')
+                    '  "Subscript deletion not supported by %s", Py_TYPE(o)->tp_name);')
             code.putln(
                     "return -1;")
         code.putln(
@@ -1003,7 +1069,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                     "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                    '  "2-element slice assignment not supported by %s", o->ob_type->tp_name);')
+                    '  "2-element slice assignment not supported by %s", Py_TYPE(o)->tp_name);')
             code.putln(
                     "return -1;")
         code.putln(
@@ -1020,7 +1086,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                     "PyErr_Format(PyExc_NotImplementedError,")
             code.putln(
-                    '  "2-element slice deletion not supported by %s", o->ob_type->tp_name);')
+                    '  "2-element slice deletion not supported by %s", Py_TYPE(o)->tp_name);')
             code.putln(
                     "return -1;")
         code.putln(
@@ -1261,9 +1327,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         #code.putln(header % scope.parent_type.typeobj_cname)
         code.putln(header % type.typeobj_cname)
         code.putln(
-            "PyObject_HEAD_INIT(0)")
-        code.putln(
-            "0, /*ob_size*/")
+            "PyVarObject_HEAD_INIT(0, 0)")
         code.putln(
             '"%s.%s", /*tp_name*/' % (
                 self.full_module_name, scope.class_name))
@@ -1339,26 +1403,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "{0, 0, 0, 0, 0}")
             code.putln(
                 "};")
-    
-    def generate_interned_name_table(self, env, code):
-        code.mark_pos(None)
-        items = env.intern_map.items()
-        if items:
-            items.sort()
-            code.putln("")
-            code.putln(
-                "static __Pyx_InternTabEntry %s[] = {" %
-                    Naming.intern_tab_cname)
-            for (name, cname) in items:
-                code.putln(
-                    '{&%s, "%s"},' % (
-                        cname,
-                        name))
-            code.putln(
-                "{0, 0}")
-            code.putln(
-                "};")
-    
+
     def generate_py_string_table(self, env, code):
         entries = env.all_pystring_entries
         if entries:
@@ -1368,17 +1413,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     Naming.stringtab_cname)
             for entry in entries:
                 code.putln(
-                    "{&%s, %s, sizeof(%s), %d}," % (
+                    "{&%s, %s, sizeof(%s), %d, %d, %d}," % (
                         entry.pystring_cname,
                         entry.cname,
                         entry.cname,
-                        entry.type.is_unicode
+                        entry.type.is_unicode,
+                        entry.is_interned,
+                        entry.is_identifier
                         ))
             code.putln(
-                "{0, 0, 0, 0}")
+                "{0, 0, 0, 0, 0}")
             code.putln(
                 "};")
-
 
     def generate_filename_init_prototype(self, code):
         code.putln("");
@@ -1390,6 +1436,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s; /*proto*/" % header)
         code.putln("%s {" % header)
         code.put_var_declarations(env.temp_entries)
+        code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
 
         code.putln("/*--- Libary function declarations ---*/")
         env.generate_library_function_declarations(code)
@@ -1408,7 +1455,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("/*--- Builtin init code ---*/")
             self.generate_builtin_init_code(env, code)
             
-        code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
         code.putln("%s = 0;" % Naming.skip_dispatch_cname);
 
         code.putln("/*--- Global init code ---*/")
@@ -1469,9 +1515,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Intern cleanup code ---*/")
         for entry in env.pynum_entries:
             code.put_var_decref_clear(entry)
-        if env.intern_map:
-            for name, cname in env.intern_map.items():
-                code.put_decref_clear(cname, PyrexTypes.py_object_type)
+        if env.all_pystring_entries:
+            for entry in env.all_pystring_entries:
+                if entry.is_interned:
+                    code.put_decref_clear(
+                        entry.pystring_cname, PyrexTypes.py_object_type)
         code.putln("Py_INCREF(Py_None); return Py_None;")
         code.putln('}')
 
@@ -1496,7 +1544,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_cname,
                 code.error_goto(self.pos)));
         code.putln(
-            '%s = PyImport_AddModule("__builtin__");' %
+            '%s = PyImport_AddModule(__Pyx_BUILTIN_MODULE_NAME);' %
                 Naming.builtins_cname)
         code.putln(
             "if (!%s) %s;" % (
@@ -1523,12 +1571,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 entry.cname,
                 entry.init,
                 code.error_goto_if_null(entry.cname, self.pos)))
-        if env.intern_map:
-            env.use_utility_code(Nodes.init_intern_tab_utility_code);
-            code.putln(
-                "if (__Pyx_InternStrings(%s) < 0) %s;" % (
-                    Naming.intern_tab_cname,
-                    code.error_goto(self.pos)))
     
     def generate_string_init_code(self, env, code):
         if env.all_pystring_entries:
@@ -1542,23 +1584,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Lookup and cache builtin objects.
         if Options.cache_builtins:
             for entry in env.cached_builtins:
-                if Options.intern_names:
-                    #assert entry.interned_cname is not None
-                    code.putln(
-                        '%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
-                        entry.cname,
-                        Naming.builtins_cname,
-                        entry.interned_cname,
-                        entry.cname,
-                        code.error_goto(entry.pos)))
-                else:
-                    code.putln(
-                        '%s = __Pyx_GetName(%s, "%s"); if (!%s) %s' % (
-                        entry.cname,
-                        Naming.builtins_cname,
-                        entry.name,
-                        entry.cname, 
-                        code.error_goto(entry.pos)))
+                #assert entry.interned_cname is not None
+                code.putln(
+                    '%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
+                    entry.cname,
+                    Naming.builtins_cname,
+                    entry.interned_cname,
+                    entry.cname,
+                    code.error_goto(entry.pos)))
     
     def generate_global_init_code(self, env, code):
         # Generate code to initialise global PyObject *
@@ -1657,17 +1690,35 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             env.use_utility_code(Nodes.get_vtable_utility_code)
         env.types_imported[type] = 1
 
+    py3_type_name_map = {'str' : 'bytes', 'unicode' : 'str'}
+
     def generate_type_import_call(self, type, code, error_code):
         if type.typedef_flag:
             objstruct = type.objstruct_cname
         else:
             objstruct = "struct %s" % type.objstruct_cname
-        code.putln('%s = __Pyx_ImportType("%s", "%s", sizeof(%s)); %s' % (
-            type.typeptr_cname,
-            type.module_name, 
-            type.name,
-            objstruct,
-            error_code))
+        module_name = type.module_name
+        if module_name not in ('__builtin__', 'builtins'):
+            module_name = '"%s"' % module_name
+        else:
+            module_name = '__Pyx_BUILTIN_MODULE_NAME'
+        if type.name in self.py3_type_name_map:
+            code.putln("#if PY_MAJOR_VERSION >= 3")
+            code.putln('%s = __Pyx_ImportType(%s, "%s", sizeof(%s)); %s' % (
+                    type.typeptr_cname,
+                    module_name,
+                    self.py3_type_name_map[type.name],
+                    objstruct,
+                    error_code))
+            code.putln("#else")
+        code.putln('%s = __Pyx_ImportType(%s, "%s", sizeof(%s)); %s' % (
+                type.typeptr_cname,
+                module_name,
+                type.name,
+                objstruct,
+                error_code))
+        if type.name in self.py3_type_name_map:
+            code.putln("#endif")
 
     def generate_type_ready_code(self, env, entry, code):
         # Generate a call to PyType_Ready for an extension
@@ -1759,6 +1810,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 #
 #------------------------------------------------------------------------------------
 
+builtin_module_name_utility_code = [
+"""\
+#if PY_MAJOR_VERSION < 3
+  #define __Pyx_BUILTIN_MODULE_NAME "__builtin__"
+#else
+  #define __Pyx_BUILTIN_MODULE_NAME "builtins"
+#endif
+"""]
+
+
 import_module_utility_code = [
 """
 static PyObject *__Pyx_ImportModule(char *name); /*proto*/
@@ -1768,8 +1829,12 @@ static PyObject *__Pyx_ImportModule(char *name); /*proto*/
 static PyObject *__Pyx_ImportModule(char *name) {
     PyObject *py_name = 0;
     PyObject *py_module = 0;
-    
+
+    #if PY_MAJOR_VERSION < 3
     py_name = PyString_FromString(name);
+    #else
+    py_name = PyUnicode_FromString(name);
+    #endif
     if (!py_name)
         goto bad;
     py_module = PyImport_Import(py_name);
@@ -1796,8 +1861,12 @@ static PyTypeObject *__Pyx_ImportType(char *module_name, char *class_name,
     PyObject *py_module = 0;
     PyObject *result = 0;
     PyObject *py_name = 0;
-    
+
+    #if PY_MAJOR_VERSION < 3
     py_name = PyString_FromString(module_name);
+    #else
+    py_name = PyUnicode_FromString(module_name);
+    #endif
     if (!py_name)
         goto bad;
 
