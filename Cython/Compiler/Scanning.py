@@ -206,7 +206,8 @@ def initial_compile_time_env():
 #------------------------------------------------------------------
 
 class SourceDescriptor:
-    pass
+    def __str__(self):
+        assert False # To catch all places where a descriptor is used directly as a filename
 
 class FileSourceDescriptor(SourceDescriptor):
     """
@@ -230,7 +231,10 @@ class FileSourceDescriptor(SourceDescriptor):
         else:
             return open(self.filename)
     
-    def __str__(self):
+    def get_description(self):
+        return self.filename
+    
+    def get_filenametable_entry(self):
         return self.filename
     
     def __repr__(self):
@@ -248,8 +252,11 @@ class StringSourceDescriptor(SourceDescriptor):
     def get_lines(self, decode=False):
         return self.codelines
     
-    def __str__(self):
+    def get_description(self):
         return self.name
+
+    def get_filenametable_entry(self):
+        return "stringsource"
 
     def __repr__(self):
         return "<StringSourceDescriptor:%s>" % self

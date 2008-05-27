@@ -29,7 +29,7 @@ class CompileError(PyrexError):
         self.position = position
         self.message = message
         if position:
-            pos_str = "%s:%d:%d: " % position
+            pos_str = "%s:%d:%d: " % (position[0].get_description(), position[1], position[2])
             cont = context(position)
         else:
             pos_str = ""
