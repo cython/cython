@@ -422,6 +422,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("#if PY_MAJOR_VERSION >= 3")
+        code.putln("  #include \"stringobject.h\"") # Py3 compat header for PyString_*()
         code.putln("  #define PyBaseString_Type            PyUnicode_Type")
         code.putln("  #define PyInt_Type                   PyLong_Type")
         code.putln("  #define PyInt_Check(op)              PyLong_Check(op)")
