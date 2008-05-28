@@ -4107,6 +4107,7 @@ static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
 type_cache_invalidation_code = [
 """
 #if PY_VERSION_HEX >= 0x02060000
+/* #define __Pyx_TypeModified(t) PyType_Modified(t) */  /* Py3.0beta1 */
 static void __Pyx_TypeModified(PyTypeObject* type); /*proto*/
 #else
   #define __Pyx_TypeModified(t)
