@@ -2737,9 +2737,8 @@ class TypecastNode(ExprNode):
         if from_py and not to_py and self.operand.is_ephemeral() and not self.type.is_numeric:
             error(self.pos, "Casting temporary Python object to non-numeric non-Python type")
         if to_py and not from_py:
-            self.result_ctype = py_object_type
-            self.is_temp = 1
             if self.operand.type.to_py_function:
+                self.result_ctype = py_object_type
                 self.operand = self.operand.coerce_to_pyobject(env)
             else:
                 warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.operand.type, self.type))
@@ -3849,9 +3848,6 @@ class CloneNode(CoercionNode):
         self.is_temp = 1
         if hasattr(self.arg, 'entry'):
             self.entry = self.arg.entry
-    
-    #def result_as_extension_type(self):
-    #	return self.arg.result_as_extension_type()
     
     def generate_evaluation_code(self, code):
         pass
