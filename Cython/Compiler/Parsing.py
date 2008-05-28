@@ -1286,7 +1286,7 @@ def p_DEF_statement(s):
     return Nodes.PassStatNode(pos)
 
 def p_IF_statement(s, level, cdef_flag, visibility, api):
-    pos = s.position
+    pos = s.position()
     saved_eval = s.compile_time_eval
     current_eval = saved_eval
     denv = s.compile_time_env
