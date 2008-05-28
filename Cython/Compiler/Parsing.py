@@ -755,11 +755,11 @@ def p_expression_or_assignment(s):
         s.next()
         expr_list.append(p_expr(s))
     if len(expr_list) == 1:
-        if re.match("[+*/\%^\&|-]=", s.sy):
+        if re.match(r"([+*/\%^\&|-]|<<|>>|\*\*|//)=", s.sy):
             lhs = expr_list[0]
             if not isinstance(lhs, (ExprNodes.AttributeNode, ExprNodes.IndexNode, ExprNodes.NameNode) ):
                 error(lhs.pos, "Illegal operand for inplace operation.")
-            operator = s.sy[0]
+            operator = s.sy[:-1]
             s.next()
             rhs = p_expr(s)
             return Nodes.InPlaceAssignmentNode(lhs.pos, operator = operator, lhs = lhs, rhs = rhs)

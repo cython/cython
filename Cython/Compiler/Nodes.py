@@ -2440,21 +2440,34 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.rhs.generate_evaluation_code(code)
         self.dup.generate_subexpr_evaluation_code(code)
         self.dup.generate_result_code(code)
+        if self.operator == "**":
+            extra = ", Py_None"
+        else:
+            extra = ""
         if self.lhs.type.is_pyobject:
             code.putln(
-                "%s = %s(%s, %s); %s" % (
+                "%s = %s(%s, %s%s); %s" % (
                     self.result.result_code, 
                     self.py_operation_function(), 
                     self.dup.py_result(),
                     self.rhs.py_result(),
+                    extra,
                     code.error_goto_if_null(self.result.py_result(), self.pos)))
             self.result.generate_evaluation_code(code) # May be a type check...
             self.rhs.generate_disposal_code(code)
             self.dup.generate_disposal_code(code)
             self.lhs.generate_assignment_code(self.result, code)
         else: 
+            c_op = self.operator
+            if c_op == "//":
+                c_op = "/"
+            elif c_op == "**":
+                if self.lhs.type.is_int and self.rhs.type.is_int:
+                    error(self.pos, "** with two C int types is ambiguous")
+                else:
+                    error(self.pos, "No C inplace power operator")
             # have to do assignment directly to avoid side-effects
-            code.putln("%s %s= %s;" % (self.lhs.result_code, self.operator, self.rhs.result_code) )
+            code.putln("%s %s= %s;" % (self.lhs.result_code, c_op, self.rhs.result_code) )
             self.rhs.generate_disposal_code(code)
         if self.dup.is_temp:
             self.dup.generate_subexpr_disposal_code(code)
@@ -2484,6 +2497,10 @@ class InPlaceAssignmentNode(AssignmentNode):
         "*":		"PyNumber_InPlaceMultiply",
         "/":		"PyNumber_InPlaceDivide",
         "%":		"PyNumber_InPlaceRemainder",
+        "<<":		"PyNumber_InPlaceLshift",
+        ">>":		"PyNumber_InPlaceRshift",
+        "**":		"PyNumber_InPlacePower",
+        "//":		"PyNumber_InPlaceFloorDivide",
     }
 
     def annotate(self, code):
