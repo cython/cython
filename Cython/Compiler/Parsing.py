@@ -944,8 +944,11 @@ def p_from_import_statement(s, first_statement = 0):
     else:
         s.error("Expected 'import' or 'cimport'")
     if s.sy == '*':
-        s.error("'import *' not supported")
-    imported_names = [p_imported_name(s)]
+#        s.error("'import *' not supported")
+        imported_names = [(s.position(), "*", None)]
+        s.next()
+    else:
+        imported_names = [p_imported_name(s)]
     while s.sy == ',':
         s.next()
         imported_names.append(p_imported_name(s))

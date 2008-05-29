@@ -1290,12 +1290,10 @@ class IndexNode(ExprNode):
             self.base.result_code, self.index.result_code)
 
     def generate_subexpr_evaluation_code(self, code):
-        # do not evaluate self.py_index in case we don't need it
         self.base.generate_evaluation_code(code)
         self.index.generate_evaluation_code(code)
         
     def generate_subexpr_disposal_code(self, code):
-        # if we used self.py_index, it will be disposed of manually
         self.base.generate_disposal_code(code)
         self.index.generate_disposal_code(code)
 
@@ -1344,13 +1342,20 @@ class IndexNode(ExprNode):
     
     def generate_deletion_code(self, code):
         self.generate_subexpr_evaluation_code(code)
-        self.py_index.generate_evaluation_code(code)
-        code.put_error_if_neg(self.pos, 
-            "PyObject_DelItem(%s, %s)" % (
+        #if self.type.is_pyobject:
+        if self.index.type.is_int:
+            function = "PySequence_DelItem"
+            index_code = self.index.result_code
+        else:
+            function = "PyObject_DelItem"
+            index_code = self.index.py_result()
+        code.putln(
+            "if (%s(%s, %s) < 0) %s" % (
+                function,
                 self.base.py_result(),
-                self.py_index.py_result()))
+                index_code,
+                code.error_goto(self.pos)))
         self.generate_subexpr_disposal_code(code)
-        self.py_index.generate_disposal_code(code)
 
 
 class SliceIndexNode(ExprNode):
