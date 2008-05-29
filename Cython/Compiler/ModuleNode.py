@@ -230,6 +230,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)
         self.generate_filename_init_prototype(code)
+        if env.has_import_star:
+            self.generate_import_star(env, code)
         self.generate_module_init_func(modules[:-1], env, code)
         code.mark_pos(None)
         self.generate_module_cleanup_func(env, code)
@@ -1429,6 +1431,66 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_filename_init_prototype(self, code):
         code.putln("");
         code.putln("static void %s(void); /*proto*/" % Naming.fileinit_cname)
+        
+    def generate_import_star(self, env, code):
+        code.putln()
+        code.putln("char* %s_type_names[] = {" % Naming.import_star)
+        for name, entry in env.entries.items():
+            if entry.is_type:
+                code.putln('"%s",' % name)
+        code.putln("0")
+        code.putln("};")
+        code.putln()
+        code.putln("static int %s(PyObject *o, PyObject* py_name, char *name) {" % Naming.import_star_set)
+        code.putln("char** type_name = %s_type_names;" % Naming.import_star)
+        code.putln("while (*type_name) {")
+        code.putln("if (!strcmp(name, *type_name)) {")
+        code.putln('PyErr_Format(PyExc_TypeError, "Cannot overwrite C type %s", name);')
+        code.putln('goto bad;')
+        code.putln("}")
+        code.putln("type_name++;")
+        code.putln("}")
+        old_error_label = code.new_error_label()
+        code.putln("if (0);") # so the first one can be "else if"
+        for name, entry in env.entries.items():
+            if entry.is_cglobal and entry.used:
+                code.putln('else if (!strcmp(name, "%s")) {' % name)
+                if entry.type.is_pyobject:
+                    if entry.type.is_extension_type or entry.type.is_builtin_type:
+                        code.putln("if (!(%s)) %s;" % (
+                            entry.type.type_test_code("o"),
+                            code.error_goto(entry.pos)))
+                    code.put_var_decref(entry)
+                    code.putln("%s = %s;" % (
+                        entry.cname, 
+                        PyrexTypes.typecast(entry.type, py_object_type, "o")))
+                elif entry.type.from_py_function:
+                    rhs = "%s(o)" % entry.type.from_py_function
+                    if entry.type.is_enum:
+                        rhs = typecast(entry.type, c_long_type, rhs)
+                    code.putln("%s = %s; if (%s) %s;" % (
+                        entry.cname,
+                        rhs,
+                        entry.type.error_condition(entry.cname),
+                        code.error_goto(entry.pos)))
+                    code.putln("Py_DECREF(o);")
+                else:
+                    code.putln('PyErr_Format(PyExc_TypeError, "Cannot convert Python object %s to %s");' % (name, entry.type))
+                    code.putln(code.error_goto(entry.pos))
+                code.putln("}")
+        code.putln("else {")
+        code.putln("if (PyObject_SetAttr(%s, py_name, o) < 0) goto bad;" % Naming.module_cname)
+        code.putln("}")
+        code.putln("return 0;")
+        code.put_label(code.error_label)
+        # This helps locate the offending name.
+        code.putln('__Pyx_AddTraceback("%s");' % self.full_module_name);
+        code.error_label = old_error_label
+        code.putln("bad:")
+        code.putln("Py_DECREF(o);")
+        code.putln("return -1;")
+        code.putln("}")
+        code.putln(import_star_utility_code)
 
     def generate_module_init_func(self, imported_modules, env, code):
         code.putln("")
@@ -2019,3 +2081,94 @@ bad:
     return ret;
 }
 """]
+
+import_star_utility_code = """
+
+/* import_all_from is an unexposed function from ceval.c */
+
+static int
+__Pyx_import_all_from(PyObject *locals, PyObject *v)
+{
+	PyObject *all = PyObject_GetAttrString(v, "__all__");
+	PyObject *dict, *name, *value;
+	int skip_leading_underscores = 0;
+	int pos, err;
+
+	if (all == NULL) {
+		if (!PyErr_ExceptionMatches(PyExc_AttributeError))
+			return -1; /* Unexpected error */
+		PyErr_Clear();
+		dict = PyObject_GetAttrString(v, "__dict__");
+		if (dict == NULL) {
+			if (!PyErr_ExceptionMatches(PyExc_AttributeError))
+				return -1;
+			PyErr_SetString(PyExc_ImportError,
+			"from-import-* object has no __dict__ and no __all__");
+			return -1;
+		}
+		all = PyMapping_Keys(dict);
+		Py_DECREF(dict);
+		if (all == NULL)
+			return -1;
+		skip_leading_underscores = 1;
+	}
+
+	for (pos = 0, err = 0; ; pos++) {
+		name = PySequence_GetItem(all, pos);
+		if (name == NULL) {
+			if (!PyErr_ExceptionMatches(PyExc_IndexError))
+				err = -1;
+			else
+				PyErr_Clear();
+			break;
+		}
+		if (skip_leading_underscores &&
+		    PyString_Check(name) &&
+		    PyString_AS_STRING(name)[0] == '_')
+		{
+			Py_DECREF(name);
+			continue;
+		}
+		value = PyObject_GetAttr(v, name);
+		if (value == NULL)
+			err = -1;
+		else if (PyDict_CheckExact(locals))
+			err = PyDict_SetItem(locals, name, value);
+		else
+			err = PyObject_SetItem(locals, name, value);
+		Py_DECREF(name);
+		Py_XDECREF(value);
+		if (err != 0)
+			break;
+	}
+	Py_DECREF(all);
+	return err;
+}
+
+
+static int %s(PyObject* m) {
+
+    int i;
+    int ret = -1;
+    PyObject *locals = 0;
+    PyObject *list = 0;
+    PyObject *name;
+    PyObject *item;
+    
+    locals = PyDict_New();              if (!locals) goto bad;
+    if (__Pyx_import_all_from(locals, m) < 0) goto bad;
+    list = PyDict_Items(locals);        if (!list) goto bad;
+    
+    for(i=0; i<PyList_GET_SIZE(list); i++) {
+        name = PyTuple_GET_ITEM(PyList_GET_ITEM(list, i), 0);
+        item = PyTuple_GET_ITEM(PyList_GET_ITEM(list, i), 1);
+        if (%s(item, name, PyString_AsString(name)) < 0) goto bad;
+    }
+    ret = 0;
+    
+bad:
+    Py_XDECREF(locals);
+    Py_XDECREF(list);
+    return ret;
+}
+""" % ( Naming.import_star, Naming.import_star_set )

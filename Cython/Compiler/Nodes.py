@@ -3665,10 +3665,14 @@ class FromCImportStatNode(StatNode):
         module_scope = env.find_module(self.module_name, self.pos)
         env.add_imported_module(module_scope)
         for pos, name, as_name in self.imported_names:
-            entry = module_scope.find(name, pos)
-            if entry:
-                local_name = as_name or name
-                env.add_imported_entry(local_name, entry, pos)
+            if name == "*":
+                for local_name, entry in module_scope.entries.items():
+                    env.add_imported_entry(local_name, entry, pos)
+            else:
+                entry = module_scope.find(name, pos)
+                if entry:
+                    local_name = as_name or name
+                    env.add_imported_entry(local_name, entry, pos)
 
     def analyse_expressions(self, env):
         pass
@@ -3684,12 +3688,21 @@ class FromImportStatNode(StatNode):
     #  items            [(string, NameNode)]
     #  interned_items   [(string, NameNode)]
     #  item             PyTempNode            used internally
+    #  import_star      boolean               used internally
 
     child_attrs = ["module"]
+    import_star = 0
     
     def analyse_declarations(self, env):
-        for _, target in self.items:
-            target.analyse_target_declaration(env)
+        for name, target in self.items:
+            if name == "*":
+                if not env.is_module_scope:
+                    error(self.pos, "import * only allowed at module level")
+                    return
+                env.has_import_star = 1
+                self.import_star = 1
+            else:
+                target.analyse_target_declaration(env)
     
     def analyse_expressions(self, env):
         import ExprNodes
@@ -3698,15 +3711,27 @@ class FromImportStatNode(StatNode):
         self.item.allocate_temp(env)
         self.interned_items = []
         for name, target in self.items:
-            self.interned_items.append(
-                (env.intern_identifier(name), target))
-            target.analyse_target_expression(env, None)
-            #target.release_target_temp(env) # was release_temp ?!?
+            if name == '*':
+                for _, entry in env.entries.items():
+                    if not entry.is_type and entry.type.is_extension_type:
+                        env.use_utility_code(ExprNodes.type_test_utility_code)
+                        break
+            else:
+                self.interned_items.append(
+                    (env.intern_identifier(name), target))
+                target.analyse_target_expression(env, None)
+                #target.release_target_temp(env) # was release_temp ?!?
         self.module.release_temp(env)
         self.item.release_temp(env)
     
     def generate_execution_code(self, code):
         self.module.generate_evaluation_code(code)
+        if self.import_star:
+            code.putln(
+                'if (%s(%s) < 0) %s;' % (
+                    Naming.import_star,
+                    self.module.py_result(),
+                    code.error_goto(self.pos)))
         for cname, target in self.interned_items:
             code.putln(
                 '%s = PyObject_GetAttr(%s, %s); %s' % (

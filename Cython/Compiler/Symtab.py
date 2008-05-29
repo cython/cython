@@ -693,8 +693,10 @@ class ModuleScope(Scope):
     # interned_nums        [int/long]         Interned numeric constants
     # all_pystring_entries [Entry]            Python string consts from all scopes
     # types_imported       {PyrexType : 1}    Set of types for which import code generated
+    # has_import_star      boolean            Module contains import *
     
     is_module_scope = 1
+    has_import_star = 0
 
     def __init__(self, name, parent_module, context):
         self.parent_module = parent_module
@@ -734,7 +736,10 @@ class ModuleScope(Scope):
     
     def declare_builtin(self, name, pos):
         if not hasattr(__builtin__, name):
-            if self.outer_scope is not None:
+            if self.has_import_star:
+                entry = self.declare_var(name, py_object_type, pos)
+                return entry
+            elif self.outer_scope is not None:
                 return self.outer_scope.declare_builtin(name, pos)
             else:
                 error(pos, "undeclared name not builtin: %s"%name)
