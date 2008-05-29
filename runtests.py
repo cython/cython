@@ -17,20 +17,31 @@ CFLAGS = os.getenv('CFLAGS', '').split()
 
 
 class ErrorWriter(object):
-    match_error = re.compile('(?:.*:)?([-0-9]+):([-0-9]+):(.*)').match
+    match_error = re.compile('(warning:)?(?:.*:)?([-0-9]+):([-0-9]+):(.*)').match
     def __init__(self):
         self.output = []
         self.write = self.output.append
 
-    def geterrors(self):
+    def _collect(self, collect_errors, collect_warnings):
         s = ''.join(self.output)
-        errors = []
+        result = []
         for line in s.split('\n'):
             match = self.match_error(line)
             if match:
-                line, column, message = match.groups()
-                errors.append( "%d:%d:%s" % (int(line), int(column), message.strip()) )
-        return errors
+                is_warning, line, column, message = match.groups()
+                if (is_warning and collect_warnings) or \
+                        (not is_warning and collect_errors):
+                    result.append( "%d:%d:%s" % (int(line), int(column), message.strip()) )
+        return result
+
+    def geterrors(self):
+        return self._collect(True, False)
+
+    def getwarnings(self):
+        return self._collect(False, True)
+
+    def getall(self):
+        return self._collect(True, True)
 
 class TestBuilder(object):
     def __init__(self, rootdir, workdir, selectors, annotate, cleanup_workdir):
@@ -259,6 +270,8 @@ if __name__ == '__main__':
             CompilationOptions, \
             default_options as pyrex_default_options, \
             compile as cython_compile
+        from Cython.Compiler import Errors
+        Errors.LEVEL = 0 # show all warnings
 
     # RUN ALL TESTS!
     ROOTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]), 'tests')
