@@ -1295,7 +1295,7 @@ class IndexNode(ExprNode):
             if self.original_index_type.signed:
                 return ", 0"
             else:
-                return ", sizeof(Py_ssize_t) >= sizeof(%s)" % self.original_index_type.declaration_code("")
+                return ", sizeof(Py_ssize_t) <= sizeof(%s)" % self.original_index_type.declaration_code("")
         else:
             return ""
 
