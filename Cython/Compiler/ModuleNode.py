@@ -730,7 +730,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     if scope.defines_any(["__setitem__", "__delitem__"]):
                         self.generate_ass_subscript_function(scope, code)
                     if scope.defines_any(["__setslice__", "__delslice__"]):
-                        warning(self.pos, "__setslice__ and __delslice__ are not supported by Python 3")
+                        warning(self.pos, "__setslice__ and __delslice__ are not supported by Python 3", 1)
                         self.generate_ass_slice_function(scope, code)
                     if scope.defines_any(["__getattr__","__getattribute__"]):
                         self.generate_getattro_function(scope, code)
