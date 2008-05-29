@@ -1253,6 +1253,7 @@ class IndexNode(ExprNode):
         self.index.analyse_types(env)
         if self.base.type.is_pyobject:
             if self.index.type.is_int:
+                self.original_index_type = self.index.type
                 self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
                 if getting:
                     env.use_utility_code(getitem_int_utility_code)
@@ -1288,6 +1289,15 @@ class IndexNode(ExprNode):
     def calculate_result_code(self):
         return "(%s[%s])" % (
             self.base.result_code, self.index.result_code)
+            
+    def index_unsigned_parameter(self):
+        if self.index.type.is_int:
+            if self.original_index_type.signed:
+                return ", 0"
+            else:
+                return ", sizeof(Py_ssize_t) >= sizeof(%s)" % self.original_index_type.declaration_code("")
+        else:
+            return ""
 
     def generate_subexpr_evaluation_code(self, code):
         self.base.generate_evaluation_code(code)
@@ -1305,12 +1315,14 @@ class IndexNode(ExprNode):
             else:
                 function = "PyObject_GetItem"
                 index_code = self.index.py_result()
+                sign_code = ""
             code.putln(
-                "%s = %s(%s, %s); if (!%s) %s" % (
+                "%s = %s(%s, %s%s); if (!%s) %s" % (
                     self.result_code,
                     function,
                     self.base.py_result(),
                     index_code,
+                    self.index_unsigned_parameter(),
                     self.result_code,
                     code.error_goto(self.pos)))
 
@@ -1322,11 +1334,12 @@ class IndexNode(ExprNode):
             function = "PyObject_SetItem"
             index_code = self.index.py_result()
         code.putln(
-            "if (%s(%s, %s, %s) < 0) %s" % (
+            "if (%s(%s, %s, %s%s) < 0) %s" % (
                 function,
                 self.base.py_result(),
                 index_code,
                 value_code,
+                self.index_unsigned_parameter(),
                 code.error_goto(self.pos)))
     
     def generate_assignment_code(self, rhs, code):
@@ -4112,9 +4125,12 @@ static void __Pyx_TypeModified(PyTypeObject* type) {
 
 #------------------------------------------------------------------------------------
 
+# If the is_unsigned flag is set, we need to do some extra work to make 
+# sure the index doesn't become negative. 
+
 getitem_int_utility_code = [
 """
-static INLINE PyObject *__Pyx_GetItemInt(PyObject *o, Py_ssize_t i) {
+static INLINE PyObject *__Pyx_GetItemInt(PyObject *o, Py_ssize_t i, int is_unsigned) {
     PyObject *r;
     if (PyList_CheckExact(o) && 0 <= i && i < PyList_GET_SIZE(o)) {
         r = PyList_GET_ITEM(o, i);
@@ -4124,10 +4140,10 @@ static INLINE PyObject *__Pyx_GetItemInt(PyObject *o, Py_ssize_t i) {
         r = PyTuple_GET_ITEM(o, i);
         Py_INCREF(r);
     }
-    else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_item)
+    else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_item && (likely(i >= 0) || !is_unsigned))
         r = PySequence_GetItem(o, i);
     else {
-        PyObject *j = PyInt_FromLong(i);
+        PyObject *j = (likely(i >= 0) || !is_unsigned) ? PyInt_FromLong(i) : PyLong_FromUnsignedLongLong((sizeof(unsigned long long) > sizeof(Py_ssize_t) ? (1ULL << (sizeof(Py_ssize_t)*8)) : 0) + i);
         if (!j)
             return 0;
         r = PyObject_GetItem(o, j);
@@ -4143,7 +4159,7 @@ static INLINE PyObject *__Pyx_GetItemInt(PyObject *o, Py_ssize_t i) {
 
 setitem_int_utility_code = [
 """
-static INLINE int __Pyx_SetItemInt(PyObject *o, Py_ssize_t i, PyObject *v) {
+static INLINE int __Pyx_SetItemInt(PyObject *o, Py_ssize_t i, PyObject *v, int is_unsigned) {
     int r;
     if (PyList_CheckExact(o) && 0 <= i && i < PyList_GET_SIZE(o)) {
         Py_DECREF(PyList_GET_ITEM(o, i));
@@ -4151,10 +4167,10 @@ static INLINE int __Pyx_SetItemInt(PyObject *o, Py_ssize_t i, PyObject *v) {
         PyList_SET_ITEM(o, i, v);
         return 1;
     }
-    else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item)
+    else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item && (likely(i >= 0) || !is_unsigned))
         r = PySequence_SetItem(o, i, v);
     else {
-        PyObject *j = PyInt_FromLong(i);
+        PyObject *j = (likely(i >= 0) || !is_unsigned) ? PyInt_FromLong(i) : PyLong_FromUnsignedLongLong((sizeof(unsigned long long) > sizeof(Py_ssize_t) ? (1ULL << (sizeof(Py_ssize_t)*8)) : 0) + i);
         if (!j)
             return -1;
         r = PyObject_SetItem(o, j, v);
