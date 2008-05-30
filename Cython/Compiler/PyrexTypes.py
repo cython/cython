@@ -929,8 +929,8 @@ class CStringType:
     is_string = 1
     is_unicode = 0
     
-    to_py_function = "PyString_FromString"
-    from_py_function = "PyString_AsString"
+    to_py_function = "__Pyx_PyBytes_FromString"
+    from_py_function = "__Pyx_PyBytes_AsString"
     exception_value = "NULL"
 
     def literal_code(self, value):
@@ -1171,6 +1171,14 @@ def typecast(to_type, from_type, expr_code):
 
 type_conversion_predeclarations = """
 /* Type Conversion Predeclarations */
+
+#if PY_VERSION_MAJOR < 3
+#define __Pyx_PyBytes_FromString PyString_FromString
+#define __Pyx_PyBytes_AsString   PyString_AsString
+#else
+#define __Pyx_PyBytes_FromString PyBytes_FromString
+#define __Pyx_PyBytes_AsString   PyBytes_AsString
+#endif
 
 #define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
 static INLINE int __Pyx_PyObject_IsTrue(PyObject* x);
