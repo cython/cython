@@ -425,7 +425,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("  #define PyBaseString_Type            PyUnicode_Type")
-        code.putln("  #define PyString_Type                PyBytes_Type")
         code.putln("  #define PyInt_Type                   PyLong_Type")
         code.putln("  #define PyInt_Check(op)              PyLong_Check(op)")
         code.putln("  #define PyInt_CheckExact(op)         PyLong_CheckExact(op)")
@@ -440,6 +439,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyInt_AsUnsignedLongMask     PyLong_AsUnsignedLongMask")
         code.putln("  #define PyInt_AsUnsignedLongLongMask PyLong_AsUnsignedLongLongMask")
         code.putln("  #define PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)")
+        code.putln("#else")
+        code.putln("  #define PyBytes_Type                 PyString_Type")
         code.putln("#endif")
 
         code.putln("#if PY_MAJOR_VERSION >= 3")
@@ -2124,8 +2125,13 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
 			break;
 		}
 		if (skip_leading_underscores &&
+#if PY_MAJOR_VERSION < 3
 		    PyString_Check(name) &&
 		    PyString_AS_STRING(name)[0] == '_')
+#else
+		    PyUnicode_Check(name) &&
+		    PyUnicode_AS_UNICODE(name)[0] == '_')
+#endif
 		{
 			Py_DECREF(name);
 			continue;
@@ -2147,10 +2153,11 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
 }
 
 
-static int %s(PyObject* m) {
+static int %(IMPORT_STAR)s(PyObject* m) {
 
     int i;
     int ret = -1;
+    char* s;
     PyObject *locals = 0;
     PyObject *list = 0;
     PyObject *name;
@@ -2163,7 +2170,13 @@ static int %s(PyObject* m) {
     for(i=0; i<PyList_GET_SIZE(list); i++) {
         name = PyTuple_GET_ITEM(PyList_GET_ITEM(list, i), 0);
         item = PyTuple_GET_ITEM(PyList_GET_ITEM(list, i), 1);
-        if (%s(item, name, PyString_AsString(name)) < 0) goto bad;
+#if PY_MAJOR_VERSION < 3
+        s = PyString_AsString(name);
+#else
+        s = PyUnicode_AsString(name);
+#endif
+        if (!s) goto bad;
+        if (%(IMPORT_STAR_SET)s(item, name, s) < 0) goto bad;
     }
     ret = 0;
     
@@ -2172,4 +2185,5 @@ bad:
     Py_XDECREF(list);
     return ret;
 }
-""" % ( Naming.import_star, Naming.import_star_set )
+""" % {'IMPORT_STAR'     : Naming.import_star,
+       'IMPORT_STAR_SET' : Naming.import_star_set }
