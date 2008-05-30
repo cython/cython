@@ -180,7 +180,7 @@ class ExprNode(Node):
         print_call_chain(method_name, "not implemented") ###
         raise InternalError(
             "%s.%s not implemented" %
-                (self.__class__.__name__, method_name))		
+                (self.__class__.__name__, method_name))
                 
     def is_lvalue(self):
         return 0
@@ -963,7 +963,7 @@ class NameNode(AtomicExprNode):
                 self.result_code,
                 namespace, 
                 self.interned_cname,
-                code.error_goto_if_null(self.result_code, self.pos)))		
+                code.error_goto_if_null(self.result_code, self.pos)))
         elif entry.is_local and False:
             # control flow not good enough yet
             assigned = entry.scope.control_flow.get_state((entry.name, 'initalized'), self.pos)
@@ -1226,7 +1226,7 @@ class IndexNode(ExprNode):
     #  base     ExprNode
     #  index    ExprNode
     
-    subexprs = ['base', 'index', 'py_index']
+    subexprs = ['base', 'index']
     
     def compile_time_value(self, denv):
         base = self.base.compile_time_value(denv)
@@ -1243,19 +1243,27 @@ class IndexNode(ExprNode):
         pass
     
     def analyse_types(self, env):
+        self.analyse_base_and_index_types(env, getting = 1)
+    
+    def analyse_target_types(self, env):
+        self.analyse_base_and_index_types(env, setting = 1)
+    
+    def analyse_base_and_index_types(self, env, getting = 0, setting = 0):
         self.base.analyse_types(env)
         self.index.analyse_types(env)
         if self.base.type.is_pyobject:
             if self.index.type.is_int:
+                self.original_index_type = self.index.type
                 self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
-                self.py_index = CloneNode(self.index).coerce_to_pyobject(env)
+                if getting:
+                    env.use_utility_code(getitem_int_utility_code)
+                if setting:
+                    env.use_utility_code(setitem_int_utility_code)
             else:
                 self.index = self.index.coerce_to_pyobject(env)
-                self.py_index = CloneNode(self.index)
             self.type = py_object_type
             self.is_temp = 1
         else:
-            self.py_index = CloneNode(self.index) # so that it exists for subexpr processing
             if self.base.type.is_ptr or self.base.type.is_array:
                 self.type = self.base.type.base_type
             else:
@@ -1281,79 +1289,63 @@ class IndexNode(ExprNode):
     def calculate_result_code(self):
         return "(%s[%s])" % (
             self.base.result_code, self.index.result_code)
+            
+    def index_unsigned_parameter(self):
+        if self.index.type.is_int:
+            if self.original_index_type.signed:
+                return ", 0"
+            else:
+                return ", sizeof(Py_ssize_t) <= sizeof(%s)" % self.original_index_type.declaration_code("")
+        else:
+            return ""
 
     def generate_subexpr_evaluation_code(self, code):
-        # do not evaluate self.py_index in case we don't need it
         self.base.generate_evaluation_code(code)
         self.index.generate_evaluation_code(code)
         
     def generate_subexpr_disposal_code(self, code):
-        # if we used self.py_index, it will be disposed of manually
         self.base.generate_disposal_code(code)
         self.index.generate_disposal_code(code)
 
     def generate_result_code(self, code):
         if self.type.is_pyobject:
             if self.index.type.is_int:
-                code.putln("if (PyList_CheckExact(%s) && 0 <= %s && %s < PyList_GET_SIZE(%s)) {" % (
-                        self.base.py_result(),
-                        self.index.result_code,
-                        self.index.result_code,
-                        self.base.py_result()))
-                code.putln("%s = PyList_GET_ITEM(%s, %s); Py_INCREF(%s);" % (
-                        self.result_code,
-                        self.base.py_result(),
-                        self.index.result_code,
-                        self.result_code))
-                code.putln("} else if (PyTuple_CheckExact(%s) && 0 <= %s && %s < PyTuple_GET_SIZE(%s)) {" % (
-                        self.base.py_result(),
-                        self.index.result_code,
-                        self.index.result_code,
-                        self.base.py_result()))
-                code.putln("%s = PyTuple_GET_ITEM(%s, %s); Py_INCREF(%s);" % (
-                        self.result_code,
-                        self.base.py_result(),
-                        self.index.result_code,
-                        self.result_code))
-                code.putln("} else {")
-                self.generate_generic_code_result(code)
-                code.putln("}")
+                function = "__Pyx_GetItemInt"
+                index_code = self.index.result_code
             else:
-                self.generate_generic_code_result(code)
+                function = "PyObject_GetItem"
+                index_code = self.index.py_result()
+                sign_code = ""
+            code.putln(
+                "%s = %s(%s, %s%s); if (!%s) %s" % (
+                    self.result_code,
+                    function,
+                    self.base.py_result(),
+                    index_code,
+                    self.index_unsigned_parameter(),
+                    self.result_code,
+                    code.error_goto(self.pos)))
 
-    def generate_generic_code_result(self, code):
-        self.py_index.generate_result_code(code)
+    def generate_setitem_code(self, value_code, code):
+        if self.index.type.is_int:
+            function = "__Pyx_SetItemInt"
+            index_code = self.index.result_code
+        else:
+            function = "PyObject_SetItem"
+            index_code = self.index.py_result()
         code.putln(
-            "%s = PyObject_GetItem(%s, %s); %s" % (
-                self.result_code,
+            "if (%s(%s, %s, %s%s) < 0) %s" % (
+                function,
                 self.base.py_result(),
-                self.py_index.py_result(),
-                code.error_goto_if_null(self.result_code, self.pos)))
-        if self.is_temp:
-            self.py_index.generate_disposal_code(code)
-
+                index_code,
+                value_code,
+                self.index_unsigned_parameter(),
+                code.error_goto(self.pos)))
+    
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
         if self.type.is_pyobject:
-            if self.index.type.is_int:
-                code.putln("if (PyList_CheckExact(%s) && 0 <= %s && %s < PyList_GET_SIZE(%s)) {" % (
-                        self.base.py_result(),
-                        self.index.result_code,
-                        self.index.result_code,
-                        self.base.py_result()))
-                code.putln("Py_DECREF(PyList_GET_ITEM(%s, %s)); Py_INCREF(%s);" % (
-                        self.base.py_result(),
-                        self.index.result_code,
-                        rhs.py_result()))
-                code.putln("PyList_SET_ITEM(%s, %s, %s);" % (
-                        self.base.py_result(),
-                        self.index.result_code,
-                        rhs.py_result()))
-                code.putln("} else {")
-                self.generate_generic_assignment_code(rhs, code)
-                code.putln("}")
-            else:
-                self.generate_generic_assignment_code(rhs, code)
+            self.generate_setitem_code(rhs.py_result(), code)
         else:
             code.putln(
                 "%s = %s;" % (
@@ -1361,25 +1353,22 @@ class IndexNode(ExprNode):
         self.generate_subexpr_disposal_code(code)
         rhs.generate_disposal_code(code)
     
-    def generate_generic_assignment_code(self, rhs, code):
-        self.py_index.generate_result_code(code)
-        code.put_error_if_neg(self.pos, 
-            "PyObject_SetItem(%s, %s, %s)" % (
-                self.base.py_result(),
-                self.py_index.py_result(),
-                rhs.py_result()))
-        if self.is_temp:
-            self.py_index.generate_disposal_code(code)
-    
     def generate_deletion_code(self, code):
         self.generate_subexpr_evaluation_code(code)
-        self.py_index.generate_evaluation_code(code)
-        code.put_error_if_neg(self.pos, 
-            "PyObject_DelItem(%s, %s)" % (
+        #if self.type.is_pyobject:
+        if self.index.type.is_int:
+            function = "PySequence_DelItem"
+            index_code = self.index.result_code
+        else:
+            function = "PyObject_DelItem"
+            index_code = self.index.py_result()
+        code.putln(
+            "if (%s(%s, %s) < 0) %s" % (
+                function,
                 self.base.py_result(),
-                self.py_index.py_result()))
+                index_code,
+                code.error_goto(self.pos)))
         self.generate_subexpr_disposal_code(code)
-        self.py_index.generate_disposal_code(code)
 
 
 class SliceIndexNode(ExprNode):
@@ -2274,7 +2263,7 @@ class TupleNode(SequenceNode):
         # of generate_disposal_code, because values were stored
         # in the tuple using a reference-stealing operation.
         for arg in self.args:
-            arg.generate_post_assignment_code(code)		
+            arg.generate_post_assignment_code(code)	
 
 
 class ListNode(SequenceNode):
@@ -2737,9 +2726,8 @@ class TypecastNode(ExprNode):
         if from_py and not to_py and self.operand.is_ephemeral() and not self.type.is_numeric:
             error(self.pos, "Casting temporary Python object to non-numeric non-Python type")
         if to_py and not from_py:
-            self.result_ctype = py_object_type
-            self.is_temp = 1
             if self.operand.type.to_py_function:
+                self.result_ctype = py_object_type
                 self.operand = self.operand.coerce_to_pyobject(env)
             else:
                 warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.operand.type, self.type))
@@ -3850,9 +3838,6 @@ class CloneNode(CoercionNode):
         if hasattr(self.arg, 'entry'):
             self.entry = self.arg.entry
     
-    #def result_as_extension_type(self):
-    #	return self.arg.result_as_extension_type()
-    
     def generate_evaluation_code(self, code):
         pass
 
@@ -4138,3 +4123,62 @@ static void __Pyx_TypeModified(PyTypeObject* type) {
 #endif
 """
 ]
+
+#------------------------------------------------------------------------------------
+
+# If the is_unsigned flag is set, we need to do some extra work to make 
+# sure the index doesn't become negative. 
+
+getitem_int_utility_code = [
+"""
+static INLINE PyObject *__Pyx_GetItemInt(PyObject *o, Py_ssize_t i, int is_unsigned) {
+    PyObject *r;
+    if (PyList_CheckExact(o) && 0 <= i && i < PyList_GET_SIZE(o)) {
+        r = PyList_GET_ITEM(o, i);
+        Py_INCREF(r);
+    }
+    else if (PyTuple_CheckExact(o) && 0 <= i && i < PyTuple_GET_SIZE(o)) {
+        r = PyTuple_GET_ITEM(o, i);
+        Py_INCREF(r);
+    }
+    else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_item && (likely(i >= 0) || !is_unsigned))
+        r = PySequence_GetItem(o, i);
+    else {
+        PyObject *j = (likely(i >= 0) || !is_unsigned) ? PyInt_FromLong(i) : PyLong_FromUnsignedLongLong((sizeof(unsigned long long) > sizeof(Py_ssize_t) ? (1ULL << (sizeof(Py_ssize_t)*8)) : 0) + i);
+        if (!j)
+            return 0;
+        r = PyObject_GetItem(o, j);
+        Py_DECREF(j);
+    }
+    return r;
+}
+""",
+"""
+"""]
+
+#------------------------------------------------------------------------------------
+
+setitem_int_utility_code = [
+"""
+static INLINE int __Pyx_SetItemInt(PyObject *o, Py_ssize_t i, PyObject *v, int is_unsigned) {
+    int r;
+    if (PyList_CheckExact(o) && 0 <= i && i < PyList_GET_SIZE(o)) {
+        Py_DECREF(PyList_GET_ITEM(o, i));
+        Py_INCREF(v);
+        PyList_SET_ITEM(o, i, v);
+        return 1;
+    }
+    else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item && (likely(i >= 0) || !is_unsigned))
+        r = PySequence_SetItem(o, i, v);
+    else {
+        PyObject *j = (likely(i >= 0) || !is_unsigned) ? PyInt_FromLong(i) : PyLong_FromUnsignedLongLong((sizeof(unsigned long long) > sizeof(Py_ssize_t) ? (1ULL << (sizeof(Py_ssize_t)*8)) : 0) + i);
+        if (!j)
+            return -1;
+        r = PyObject_SetItem(o, j, v);
+        Py_DECREF(j);
+    }
+    return r;
+}
+""",
+"""
+"""]
