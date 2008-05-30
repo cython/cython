@@ -177,8 +177,8 @@ class FixedSlot(SlotDescriptor):
     #
     #  value        string
     
-    def __init__(self, slot_name, value):
-        SlotDescriptor.__init__(self, slot_name)
+    def __init__(self, slot_name, value, py3k=True):
+        SlotDescriptor.__init__(self, slot_name, py3k=py3k)
         self.value = value
     
     def slot_code(self, scope):
@@ -188,8 +188,8 @@ class FixedSlot(SlotDescriptor):
 class EmptySlot(FixedSlot):
     #  Descriptor for a type slot whose value is always 0.
     
-    def __init__(self, slot_name):
-        FixedSlot.__init__(self, slot_name, "0")
+    def __init__(self, slot_name, py3k=True):
+        FixedSlot.__init__(self, slot_name, "0", py3k=py3k)
 
 
 class MethodSlot(SlotDescriptor):
@@ -553,12 +553,12 @@ PyNumberMethods = (
     MethodSlot(binaryfunc, "nb_and", "__and__"),
     MethodSlot(binaryfunc, "nb_xor", "__xor__"),
     MethodSlot(binaryfunc, "nb_or", "__or__"),
-    EmptySlot("nb_coerce"),
+    EmptySlot("nb_coerce", py3k = False),
     MethodSlot(unaryfunc, "nb_int", "__int__"),
     MethodSlot(unaryfunc, "nb_long", "__long__"),
     MethodSlot(unaryfunc, "nb_float", "__float__"),
-    MethodSlot(unaryfunc, "nb_oct", "__oct__"),
-    MethodSlot(unaryfunc, "nb_hex", "__hex__"),
+    MethodSlot(unaryfunc, "nb_oct", "__oct__", py3k = False),
+    MethodSlot(unaryfunc, "nb_hex", "__hex__", py3k = False),
     
     # Added in release 2.0
     MethodSlot(ibinaryfunc, "nb_inplace_add", "__iadd__"),
