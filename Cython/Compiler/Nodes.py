@@ -2455,21 +2455,34 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.rhs.generate_evaluation_code(code)
         self.dup.generate_subexpr_evaluation_code(code)
         self.dup.generate_result_code(code)
+        if self.operator == "**":
+            extra = ", Py_None"
+        else:
+            extra = ""
         if self.lhs.type.is_pyobject:
             code.putln(
-                "%s = %s(%s, %s); %s" % (
+                "%s = %s(%s, %s%s); %s" % (
                     self.result.result_code, 
                     self.py_operation_function(), 
                     self.dup.py_result(),
                     self.rhs.py_result(),
+                    extra,
                     code.error_goto_if_null(self.result.py_result(), self.pos)))
             self.result.generate_evaluation_code(code) # May be a type check...
             self.rhs.generate_disposal_code(code)
             self.dup.generate_disposal_code(code)
             self.lhs.generate_assignment_code(self.result, code)
         else: 
+            c_op = self.operator
+            if c_op == "//":
+                c_op = "/"
+            elif c_op == "**":
+                if self.lhs.type.is_int and self.rhs.type.is_int:
+                    error(self.pos, "** with two C int types is ambiguous")
+                else:
+                    error(self.pos, "No C inplace power operator")
             # have to do assignment directly to avoid side-effects
-            code.putln("%s %s= %s;" % (self.lhs.result_code, self.operator, self.rhs.result_code) )
+            code.putln("%s %s= %s;" % (self.lhs.result_code, c_op, self.rhs.result_code) )
             self.rhs.generate_disposal_code(code)
         if self.dup.is_temp:
             self.dup.generate_subexpr_disposal_code(code)
@@ -2499,6 +2512,10 @@ class InPlaceAssignmentNode(AssignmentNode):
         "*":		"PyNumber_InPlaceMultiply",
         "/":		"PyNumber_InPlaceDivide",
         "%":		"PyNumber_InPlaceRemainder",
+        "<<":		"PyNumber_InPlaceLshift",
+        ">>":		"PyNumber_InPlaceRshift",
+        "**":		"PyNumber_InPlacePower",
+        "//":		"PyNumber_InPlaceFloorDivide",
     }
 
     def annotate(self, code):
@@ -3663,10 +3680,14 @@ class FromCImportStatNode(StatNode):
         module_scope = env.find_module(self.module_name, self.pos)
         env.add_imported_module(module_scope)
         for pos, name, as_name in self.imported_names:
-            entry = module_scope.find(name, pos)
-            if entry:
-                local_name = as_name or name
-                env.add_imported_entry(local_name, entry, pos)
+            if name == "*":
+                for local_name, entry in module_scope.entries.items():
+                    env.add_imported_entry(local_name, entry, pos)
+            else:
+                entry = module_scope.find(name, pos)
+                if entry:
+                    local_name = as_name or name
+                    env.add_imported_entry(local_name, entry, pos)
 
     def analyse_expressions(self, env):
         pass
@@ -3682,12 +3703,21 @@ class FromImportStatNode(StatNode):
     #  items            [(string, NameNode)]
     #  interned_items   [(string, NameNode)]
     #  item             PyTempNode            used internally
+    #  import_star      boolean               used internally
 
     child_attrs = ["module"]
+    import_star = 0
     
     def analyse_declarations(self, env):
-        for _, target in self.items:
-            target.analyse_target_declaration(env)
+        for name, target in self.items:
+            if name == "*":
+                if not env.is_module_scope:
+                    error(self.pos, "import * only allowed at module level")
+                    return
+                env.has_import_star = 1
+                self.import_star = 1
+            else:
+                target.analyse_target_declaration(env)
     
     def analyse_expressions(self, env):
         import ExprNodes
@@ -3696,15 +3726,27 @@ class FromImportStatNode(StatNode):
         self.item.allocate_temp(env)
         self.interned_items = []
         for name, target in self.items:
-            self.interned_items.append(
-                (env.intern_identifier(name), target))
-            target.analyse_target_expression(env, None)
-            #target.release_target_temp(env) # was release_temp ?!?
+            if name == '*':
+                for _, entry in env.entries.items():
+                    if not entry.is_type and entry.type.is_extension_type:
+                        env.use_utility_code(ExprNodes.type_test_utility_code)
+                        break
+            else:
+                self.interned_items.append(
+                    (env.intern_identifier(name), target))
+                target.analyse_target_expression(env, None)
+                #target.release_target_temp(env) # was release_temp ?!?
         self.module.release_temp(env)
         self.item.release_temp(env)
     
     def generate_execution_code(self, code):
         self.module.generate_evaluation_code(code)
+        if self.import_star:
+            code.putln(
+                'if (%s(%s) < 0) %s;' % (
+                    Naming.import_star,
+                    self.module.py_result(),
+                    code.error_goto(self.pos)))
         for cname, target in self.interned_items:
             code.putln(
                 '%s = PyObject_GetAttr(%s, %s); %s' % (
@@ -4253,7 +4295,11 @@ static void __Pyx_AddTraceback(char *funcname) {
     if (!py_funcname) goto bad;
     py_globals = PyModule_GetDict(%(GLOBALS)s);
     if (!py_globals) goto bad;
+    #if PY_MAJOR_VERSION < 3
     empty_string = PyString_FromStringAndSize("", 0);
+    #else
+    empty_string = PyBytes_FromStringAndSize("", 0);
+    #endif
     if (!empty_string) goto bad;
     py_code = PyCode_New(
         0,            /*int argcount,*/
@@ -4366,17 +4412,18 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
             *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
         } else if (t->intern) {
             *t->p = PyString_InternFromString(t->s);
+        } else {
+            *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
         }
         #else  /* Python 3+ has unicode identifiers */
         if (t->is_identifier || (t->is_unicode && t->intern)) {
             *t->p = PyUnicode_InternFromString(t->s);
         } else if (t->is_unicode) {
             *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+        } else {
+            *t->p = PyBytes_FromStringAndSize(t->s, t->n - 1);
         }
         #endif
-        else {
-            *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
-        }
         if (!*t->p)
             return -1;
         ++t;
