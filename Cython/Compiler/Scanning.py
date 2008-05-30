@@ -206,6 +206,9 @@ def initial_compile_time_env():
 #------------------------------------------------------------------
 
 class SourceDescriptor:
+    """
+    A SourceDescriptor should be considered immutable.
+    """
     def __str__(self):
         assert False # To catch all places where a descriptor is used directly as a filename
 
@@ -237,6 +240,12 @@ class FileSourceDescriptor(SourceDescriptor):
     def get_filenametable_entry(self):
         return self.filename
     
+    def __eq__(self, other):
+        return isinstance(other, FileSourceDescriptor) and self.filename == other.filename
+
+    def __hash__(self):
+        return hash(self.filename)
+
     def __repr__(self):
         return "<FileSourceDescriptor:%s>" % self.filename
 
@@ -257,6 +266,12 @@ class StringSourceDescriptor(SourceDescriptor):
 
     def get_filenametable_entry(self):
         return "stringsource"
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __eq__(self, other):
+        return isinstance(other, StringSourceDescriptor) and self.name == other.name
 
     def __repr__(self):
         return "<StringSourceDescriptor:%s>" % self.name
