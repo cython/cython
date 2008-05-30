@@ -12,10 +12,10 @@ def test():
     cdef long neg = -1
     cdef unsigned long pos = -2 # will be a large positive number
 
-    print "neg", neg
-    print "pos", pos
+    print u"neg", neg
+    print u"pos", pos
 
-    D = { neg: 'neg', pos: 'pos' }
+    D = { neg: u'neg', pos: u'pos' }
 
     print D[<object>neg]
     print D[<object>pos]
