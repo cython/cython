@@ -4280,7 +4280,7 @@ static void __Pyx_AddTraceback(char *funcname) {
     if (!py_funcname) goto bad;
     py_globals = PyModule_GetDict(%(GLOBALS)s);
     if (!py_globals) goto bad;
-    #if PY_VERSION_MAJOR < 3
+    #if PY_MAJOR_VERSION < 3
     empty_string = PyString_FromStringAndSize("", 0);
     #else
     empty_string = PyBytes_FromStringAndSize("", 0);

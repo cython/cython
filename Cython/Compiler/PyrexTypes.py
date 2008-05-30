@@ -1172,7 +1172,7 @@ def typecast(to_type, from_type, expr_code):
 type_conversion_predeclarations = """
 /* Type Conversion Predeclarations */
 
-#if PY_VERSION_MAJOR < 3
+#if PY_MAJOR_VERSION < 3
 #define __Pyx_PyBytes_FromString PyString_FromString
 #define __Pyx_PyBytes_AsString   PyString_AsString
 #else
