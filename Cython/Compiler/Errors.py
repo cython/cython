@@ -42,7 +42,7 @@ class CompileWarning(PyrexWarning):
         self.position = position
         self.message = message
         if position:
-            pos_str = "%s:%d:%d: " % position
+            pos_str = "%s:%d:%d: " % (position[0].get_description(), position[1], position[2])
         else:
             pos_str = ""
         Exception.__init__(self, pos_str + message)
