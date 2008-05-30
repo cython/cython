@@ -39,7 +39,7 @@ def relative_position(pos):
     global absolute_path_length
     if absolute_path_length==0:
         absolute_path_length = len(os.path.abspath(os.getcwd())) 
-    return (pos[0][absolute_path_length+1:], pos[1])
+    return (pos[0].get_filenametable_entry()[absolute_path_length+1:], pos[1])
 
 def embed_position(pos, docstring):
     if not Options.embed_pos_in_docstring:
