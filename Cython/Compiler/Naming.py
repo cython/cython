@@ -67,6 +67,8 @@ print_function_kwargs   = pyrex_prefix + "print_kwargs"
 cleanup_cname    = pyrex_prefix + "module_cleanup"
 optional_args_cname = pyrex_prefix + "optional_args"
 no_opt_args      = pyrex_prefix + "no_opt_args"
+import_star      = pyrex_prefix + "import_star"
+import_star_set  = pyrex_prefix + "import_star_set"
 
 line_c_macro = "__LINE__"
 
