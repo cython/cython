@@ -652,7 +652,7 @@ class BuiltinScope(Scope):
         "long":   ["((PyObject*)&PyLong_Type)", py_object_type],
         "float":  ["((PyObject*)&PyFloat_Type)", py_object_type],
         
-        "str":    ["((PyObject*)&PyString_Type)", py_object_type],
+        "str":    ["((PyObject*)&PyBytes_Type)", py_object_type],
         "unicode":["((PyObject*)&PyUnicode_Type)", py_object_type],
         "tuple":  ["((PyObject*)&PyTuple_Type)", py_object_type],
         "list":   ["((PyObject*)&PyList_Type)", py_object_type],
