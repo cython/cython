@@ -4238,7 +4238,11 @@ static void __Pyx_AddTraceback(char *funcname) {
     if (!py_funcname) goto bad;
     py_globals = PyModule_GetDict(%(GLOBALS)s);
     if (!py_globals) goto bad;
+    #if PY_VERSION_MAJOR < 3
     empty_string = PyString_FromStringAndSize("", 0);
+    #else
+    empty_string = PyBytes_FromStringAndSize("", 0);
+    #endif
     if (!empty_string) goto bad;
     py_code = PyCode_New(
         0,            /*int argcount,*/
@@ -4351,17 +4355,18 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
             *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
         } else if (t->intern) {
             *t->p = PyString_InternFromString(t->s);
+        } else {
+            *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
         }
         #else  /* Python 3+ has unicode identifiers */
         if (t->is_identifier || (t->is_unicode && t->intern)) {
             *t->p = PyUnicode_InternFromString(t->s);
         } else if (t->is_unicode) {
             *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+        } else {
+            *t->p = PyBytes_FromStringAndSize(t->s, t->n - 1);
         }
         #endif
-        else {
-            *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
-        }
         if (!*t->p)
             return -1;
         ++t;
