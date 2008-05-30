@@ -238,7 +238,7 @@ class FileSourceDescriptor(SourceDescriptor):
         return self.filename
     
     def __repr__(self):
-        return "<FileSourceDescriptor:%s>" % self
+        return "<FileSourceDescriptor:%s>" % self.filename
 
 class StringSourceDescriptor(SourceDescriptor):
     """
@@ -259,7 +259,7 @@ class StringSourceDescriptor(SourceDescriptor):
         return "stringsource"
 
     def __repr__(self):
-        return "<StringSourceDescriptor:%s>" % self
+        return "<StringSourceDescriptor:%s>" % self.name
 
 #------------------------------------------------------------------
 
