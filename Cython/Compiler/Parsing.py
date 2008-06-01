@@ -1007,7 +1007,7 @@ def p_dotted_name(s, as_allowed):
         names.append(p_ident(s))
     if as_allowed:
         as_name = p_as_name(s)
-    return (pos, target_name, u'.'join(names), as_name)
+    return (pos, target_name, u'.'.join(names), as_name)
 
 def p_as_name(s):
     if s.sy == 'IDENT' and s.systring == 'as':
