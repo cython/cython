@@ -190,7 +190,14 @@ class Context:
     def find_cimported_module_names(self, source_path):
         return [ name for kind, name in self.read_dependency_file(source_path)
                  if kind == "cimport" ]
-    
+
+    def is_package_dir(self, dir_path):
+        #  Return true if the given directory is a package directory.
+        for filename in ("__init__.py", "__init__.pyx"):
+            path = os.path.join(dir_path, filename)
+            if os.path.exists(path):
+                return 1
+
     def read_dependency_file(self, source_path):
         dep_path = replace_suffix(source_path, ".dep")
         if os.path.exists(dep_path):
@@ -234,10 +241,23 @@ class Context:
         return tree
 
     def extract_module_name(self, path, options):
-        # Get the module name out of a source file pathname.
-        _, tail = os.path.split(path)
-        name, _ = os.path.splitext(tail)
-        return name
+        # Find fully_qualified module name from the full pathname
+        # of a source file.
+        dir, filename = os.path.split(path)
+        module_name, _ = os.path.splitext(filename)
+        if "." in module_name:
+            return module_name
+        if module_name == "__init__":
+            dir, module_name = os.path.split(dir)
+        names = [module_name]
+        while self.is_package_dir(dir):
+            parent, package_name = os.path.split(dir)
+            if parent == dir:
+                break
+            names.append(package_name)
+            dir = parent
+        names.reverse()
+        return ".".join(names)
 
     def compile(self, source, options = None, full_module_name = None):
         # Compile a Pyrex implementation file in this context
