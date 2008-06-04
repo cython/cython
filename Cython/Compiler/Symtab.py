@@ -554,10 +554,6 @@ class Scope:
         return [entry for entry in self.temp_entries
             if entry not in self.free_temp_entries]
     
-    #def recycle_pending_temps(self):
-    #	# Obsolete
-    #	pass
-
     def use_utility_code(self, new_code):
         self.global_scope().use_utility_code(new_code)
     
@@ -687,6 +683,7 @@ class ModuleScope(Scope):
     # parent_module        Scope              Parent in the import namespace
     # module_entries       {string : Entry}   For cimport statements
     # type_names           {string : 1}       Set of type names (used during parsing)
+    # included_files       [string]           Cython sources included with 'include'
     # pxd_file_loaded      boolean            Corresponding .pxd file has been processed
     # cimported_modules    [ModuleScope]      Modules imported with cimport
     # new_interned_string_entries [Entry]     New interned strings waiting to be declared
@@ -723,6 +720,7 @@ class ModuleScope(Scope):
         self.interned_objs = []
         self.all_pystring_entries = []
         self.types_imported = {}
+        self.included_files = []
         self.pynum_entries = []
         self.has_extern_class = 0
         self.cached_builtins = []

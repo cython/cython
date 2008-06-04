@@ -18,6 +18,10 @@ Options:
   -I, --include-dir <directory>  Search for include files in named directory
                                  (multiply include directories are allowed).
   -o, --output-file <filename>   Specify name of generated C file
+  -r, --recursive                Recursively find and compile dependencies
+  -t, --timestamps               Only compile newer source files (implied with -r)
+  -f, --force                    Compile all source files (overrides implied -t)
+  -q, --quiet                    Don't print module names in recursive mode
   -p, --embed-positions          If specified, the positions in Cython files of each
                                  function definition is embedded in its docstring.
   -z, --pre-import <module>      If specified, assume undeclared names in this 
@@ -111,6 +115,12 @@ def parse_command_line(args):
                 options.working_path = pop_arg()
             elif option in ("-o", "--output-file"):
                 options.output_file = pop_arg()
+            elif option in ("-r", "--recursive"):
+                options.recursive = 1
+            elif option in ("-t", "--timestamps"):
+                options.timestamps = 1
+            elif option in ("-f", "--force"):
+                options.timestamps = 0
             elif option in ("-p", "--embed-positions"):
                 Options.embed_pos_in_docstring = 1
             elif option in ("-z", "--pre-import"):

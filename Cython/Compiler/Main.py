@@ -3,8 +3,8 @@
 #
 
 import os, sys, re, codecs
-if sys.version_info[:2] < (2, 2):
-    sys.stderr.write("Sorry, Cython requires Python 2.2 or later\n")
+if sys.version_info[:2] < (2, 3):
+    sys.stderr.write("Sorry, Cython requires Python 2.3 or later\n")
     sys.exit(1)
 
 try:
@@ -14,14 +14,13 @@ except NameError:
     from sets import Set as set
 
 from time import time
-import Version
-from Scanning import PyrexScanner
-import Errors
-from Errors import PyrexError, CompileError, error
-import Parsing
-from Symtab import BuiltinScope, ModuleScope
 import Code
-from Cython.Utils import replace_suffix
+import Errors
+import Parsing
+import Version
+from Errors import PyrexError, CompileError, error
+from Scanning import PyrexScanner
+from Symtab import BuiltinScope, ModuleScope
 from Cython import Utils
 import Transform
 
@@ -93,31 +92,34 @@ class Context:
                 try:
                     if debug_find_module:
                         print("Context.find_module: Parsing %s" % pxd_pathname)
-                    pxd_tree = self.parse(pxd_pathname, scope.type_names, pxd = 1,
+                    pxd_tree = self.parse(pxd_pathname, scope, pxd = 1,
                                           full_module_name = module_name)
                     pxd_tree.analyse_declarations(scope)
                 except CompileError:
                     pass
         return scope
     
-    def find_pxd_file(self, module_name, pos):
-        # Search include directories for the .pxd file
-        # corresponding to the given (full) module name.
-        if "." in module_name:
-            pxd_filename = "%s.pxd" % os.path.join(*module_name.split('.'))
-        else:
-            pxd_filename = "%s.pxd" % module_name
-        return self.search_include_directories(pxd_filename, pos)
+    def find_pxd_file(self, qualified_name, pos):
+        # Search include path for the .pxd file corresponding to the
+        # given fully-qualified module name.
+        return self.search_include_directories(qualified_name, ".pxd", pos)
+
+    def find_pyx_file(self, qualified_name, pos):
+        # Search include path for the .pyx file corresponding to the
+        # given fully-qualified module name, as for find_pxd_file().
+        return self.search_include_directories(qualified_name, ".pyx", pos)
     
     def find_include_file(self, filename, pos):
         # Search list of include directories for filename.
         # Reports an error and returns None if not found.
-        path = self.search_include_directories(filename, pos)
+        path = self.search_include_directories(filename, "", pos,
+                                               split_package=False)
         if not path:
             error(pos, "'%s' not found" % filename)
         return path
     
-    def search_include_directories(self, filename, pos):
+    def search_include_directories(self, qualified_name, suffix, pos,
+                                   split_package=True):
         # Search the list of include directories for the given
         # file name. If a source file position is given, first
         # searches the directory containing that file. Returns
@@ -126,11 +128,80 @@ class Context:
         if pos:
             here_dir = os.path.dirname(pos[0])
             dirs = [here_dir] + dirs
+
+        dotted_filename = qualified_name + suffix
+        if split_package:
+            names = qualified_name.split('.')
+            package_names = names[:-1]
+            module_name = names[-1]
+            module_filename = module_name + suffix
+            package_filename = "__init__" + suffix
+
         for dir in dirs:
-            path = os.path.join(dir, filename)
+            path = os.path.join(dir, dotted_filename)
             if os.path.exists(path):
                 return path
+            if split_package:
+                package_dir = self.check_package_dir(dir, package_names)
+                if package_dir is not None:
+                    path = os.path.join(package_dir, module_filename)
+                    if os.path.exists(path):
+                        return path
+                    path = os.path.join(dir, package_dir, module_name,
+                                        package_filename)
+                    if os.path.exists(path):
+                        return path
         return None
+
+    def check_package_dir(self, dir, package_names):
+        package_dir = os.path.join(dir, *package_names)
+        if not os.path.exists(package_dir):
+            return None
+        for dirname in package_names:
+            dir = os.path.join(dir, dirname)
+            package_init = os.path.join(dir, "__init__.py")
+            if not os.path.exists(package_init) and \
+                    not os.path.exists(package_init + "x"): # same with .pyx ?
+                return None
+        return package_dir
+
+    def c_file_out_of_date(self, source_path):
+        c_path = Utils.replace_suffix(source_path, ".c")
+        if not os.path.exists(c_path):
+            return 1
+        c_time = Utils.modification_time(c_path)
+        if Utils.file_newer_than(source_path, c_time):
+            return 1
+        pos = [source_path]
+        pxd_path = Utils.replace_suffix(source_path, ".pxd")
+        if os.path.exists(pxd_path) and Utils.file_newer_than(pxd_path, c_time):
+            return 1
+        for kind, name in self.read_dependency_file(source_path):
+            if kind == "cimport":
+                dep_path = self.find_pxd_file(name, pos)
+            elif kind == "include":
+                dep_path = self.search_include_directories(name, pos)
+            else:
+                continue
+            if dep_path and Utils.file_newer_than(dep_path, c_time):
+                return 1
+        return 0
+    
+    def find_cimported_module_names(self, source_path):
+        return [ name for kind, name in self.read_dependency_file(source_path)
+                 if kind == "cimport" ]
+    
+    def read_dependency_file(self, source_path):
+        dep_path = replace_suffix(source_path, ".dep")
+        if os.path.exists(dep_path):
+            f = open(dep_path, "rU")
+            chunks = [ line.strip().split(" ", 1)
+                       for line in f.readlines()
+                       if " " in line.strip() ]
+            f.close()
+            return chunks
+        else:
+            return ()
 
     def lookup_submodule(self, name):
         # Look up a top-level module. Returns None if not found.
@@ -145,14 +216,14 @@ class Context:
             self.modules[name] = scope
         return scope
 
-    def parse(self, source_filename, type_names, pxd, full_module_name):
+    def parse(self, source_filename, scope, pxd, full_module_name):
         name = Utils.encode_filename(source_filename)
         # Parse the given source file and return a parse tree.
         try:
             f = Utils.open_source_file(source_filename, "rU")
             try:
                 s = PyrexScanner(f, name, source_encoding = f.encoding,
-                                 type_names = type_names, context = self)
+                                 scope = scope, context = self)
                 tree = Parsing.p_module(s, pxd, full_module_name)
             finally:
                 f.close()
@@ -185,7 +256,7 @@ class Context:
         result.main_source_file = source
 
         if options.use_listing_file:
-            result.listing_file = replace_suffix(source, ".lis")
+            result.listing_file = Utils.replace_suffix(source, ".lis")
             Errors.open_listing_file(result.listing_file,
                 echo_to_stderr = options.errors_to_stderr)
         else:
@@ -197,19 +268,14 @@ class Context:
                 c_suffix = ".cpp"
             else:
                 c_suffix = ".c"
-            result.c_file = replace_suffix(source, c_suffix)
-        c_stat = None
-        if result.c_file:
-            try:
-                c_stat = os.stat(result.c_file)
-            except EnvironmentError:
-                pass
+            result.c_file = Utils.replace_suffix(source, c_suffix)
         module_name = full_module_name # self.extract_module_name(source, options)
         initial_pos = (source, 1, 0)
         scope = self.find_module(module_name, pos = initial_pos, need_pxd = 0)
         errors_occurred = False
         try:
-            tree = self.parse(source, scope.type_names, pxd = 0, full_module_name = full_module_name)
+            tree = self.parse(source, scope, pxd = 0,
+                              full_module_name = full_module_name)
             tree.process_implementation(scope, options, result)
         except CompileError:
             errors_occurred = True
@@ -219,8 +285,7 @@ class Context:
             errors_occurred = True
         if errors_occurred and result.c_file:
             try:
-                #os.unlink(result.c_file)
-                Utils.castrate_file(result.c_file, c_stat)
+                Utils.castrate_file(result.c_file, os.stat(source))
             except EnvironmentError:
                 pass
             result.c_file = None
@@ -237,7 +302,7 @@ class Context:
 
 #------------------------------------------------------------------------
 #
-#  Main Python entry point
+#  Main Python entry points
 #
 #------------------------------------------------------------------------
 
@@ -251,6 +316,10 @@ class CompilationOptions:
     include_path      [string]  Directories to search for include files
     output_file       string    Name of generated .c file
     generate_pxi      boolean   Generate .pxi file for public declarations
+    recursive         boolean   Recursively find and compile dependencies
+    timestamps        boolean   Only compile changed source files. If None,
+                                defaults to true when recursive is true.
+    quiet             boolean   Don't print source names in recursive mode
     transforms        Transform.TransformSet Transforms to use on the parse tree
     
     Following options are experimental and only used on MacOSX:
@@ -261,7 +330,7 @@ class CompilationOptions:
     cplus             boolean   Compile as c++ code
     """
     
-    def __init__(self, defaults = None, **kw):
+    def __init__(self, defaults = None, c_compile = 0, c_link = 0, **kw):
         self.include_path = []
         self.objects = []
         if defaults:
@@ -271,6 +340,10 @@ class CompilationOptions:
             defaults = default_options
         self.__dict__.update(defaults)
         self.__dict__.update(kw)
+        if c_compile:
+            self.c_only = 0
+        if c_link:
+            self.obj_only = 0
 
 
 class CompilationResult:
@@ -298,23 +371,86 @@ class CompilationResult:
         self.main_source_file = None
 
 
-def compile(source, options = None, c_compile = 0, c_link = 0,
-            full_module_name = None):
+class CompilationResultSet(dict):
     """
-    compile(source, options = default_options)
+    Results from compiling multiple Pyrex source files. A mapping
+    from source file paths to CompilationResult instances. Also
+    has the following attributes:
     
-    Compile the given Cython implementation file and return
-    a CompilationResult object describing what was produced.
+    num_errors   integer   Total number of compilation errors
     """
-    if not options:
-        options = default_options
-    options = CompilationOptions(defaults = options)
-    if c_compile:
-        options.c_only = 0
-    if c_link:
-        options.obj_only = 0
+    
+    num_errors = 0
+
+    def add(self, source, result):
+        self[source] = result
+        self.num_errors += result.num_errors
+
+
+def compile_single(source, options, full_module_name = None):
+    """
+    compile_single(source, options, full_module_name)
+    
+    Compile the given Pyrex implementation file and return a CompilationResult.
+    Always compiles a single file; does not perform timestamp checking or
+    recursion.
+    """
     context = Context(options.include_path)
     return context.compile(source, options, full_module_name)
+
+def compile_multiple(sources, options):
+    """
+    compile_multiple(sources, options)
+    
+    Compiles the given sequence of Pyrex implementation files and returns
+    a CompilationResultSet. Performs timestamp checking and/or recursion
+    if these are specified in the options.
+    """
+    sources = [os.path.abspath(source) for source in sources]
+    processed = set()
+    results = CompilationResultSet()
+    context = Context(options.include_path)
+    recursive = options.recursive
+    timestamps = options.timestamps
+    if timestamps is None:
+        timestamps = recursive
+    verbose = recursive and not options.quiet
+    for source in sources:
+        if source not in processed:
+            if not timestamps or context.c_file_out_of_date(source):
+                if verbose:
+                    sys.stderr.write("Compiling %s\n" % source)
+                result = context.compile(source, options)
+                results.add(source, result)
+            processed.add(source)
+            if recursive:
+                for module_name in context.find_cimported_module_names(source):
+                    path = context.find_pyx_file(module_name, [source])
+                    if path:
+                        sources.append(path)
+                    else:
+                        sys.stderr.write(
+                            "Cannot find .pyx file for cimported module '%s'\n" % module_name)
+    return results
+
+def compile(source, options = None, c_compile = 0, c_link = 0,
+            full_module_name = None, **kwds):
+    """
+    compile(source [, options], [, <option> = <value>]...)
+    
+    Compile one or more Pyrex implementation files, with optional timestamp
+    checking and recursing on dependecies. The source argument may be a string
+    or a sequence of strings If it is a string and no recursion or timestamp
+    checking is requested, a CompilationResult is returned, otherwise a
+    CompilationResultSet is returned.
+    """
+    options = CompilationOptions(defaults = options, c_compile = c_compile,
+        c_link = c_link, **kwds)
+    if isinstance(source, basestring) and not options.timestamps \
+            and not options.recursive:
+        return compile_single(source, options, full_module_name)
+    else:
+        return compile_multiple(source, options)
 
 #------------------------------------------------------------------------
 #
@@ -329,21 +465,19 @@ def main(command_line = 0):
         from CmdLine import parse_command_line
         options, sources = parse_command_line(args)
     else:
-        options = default_options
+        options = CompilationOptions(default_options)
         sources = args
     if options.show_version:
         sys.stderr.write("Cython version %s\n" % Version.version)
     if options.working_path!="":
         os.chdir(options.working_path)
-    context = Context(options.include_path)
-    for source in sources:
-        try:
-            result = context.compile(source, options)
-            if result.num_errors > 0:
-                any_failures = 1
-        except PyrexError, e:
-            sys.stderr.write(str(e) + '\n')
+    try:
+        result = compile(sources, options)
+        if result.num_errors > 0:
             any_failures = 1
+    except (EnvironmentError, PyrexError), e:
+        sys.stderr.write(str(e) + '\n')
+        any_failures = 1
     if any_failures:
         sys.exit(1)
 
@@ -363,6 +497,9 @@ default_options = dict(
     output_file = None,
     annotate = False,
     generate_pxi = 0,
+    recursive = 0,
+    timestamps = None,
+    quiet = 0,
     transforms = Transform.TransformSet(),
     working_path = "")
     

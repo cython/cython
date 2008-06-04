@@ -206,24 +206,26 @@ def initial_compile_time_env():
 class PyrexScanner(Scanner):
     #  context            Context  Compilation context
     #  type_names         set      Identifiers to be treated as type names
+    #  included_files     [string] Files included with 'include' statement
     #  compile_time_env   dict     Environment for conditional compilation
     #  compile_time_eval  boolean  In a true conditional compilation context
     #  compile_time_expr  boolean  In a compile-time expression context
-    
     resword_dict = build_resword_dict()
 
     def __init__(self, file, filename, parent_scanner = None, 
-            type_names = None, context = None, source_encoding=None):
+                 scope = None, context = None, source_encoding=None):
         Scanner.__init__(self, get_lexicon(), file, filename)
         if parent_scanner:
             self.context = parent_scanner.context
             self.type_names = parent_scanner.type_names
+            self.included_files = parent_scanner.included_files
             self.compile_time_env = parent_scanner.compile_time_env
             self.compile_time_eval = parent_scanner.compile_time_eval
             self.compile_time_expr = parent_scanner.compile_time_expr
         else:
             self.context = context
-            self.type_names = type_names
+            self.type_names = scope.type_names
+            self.included_files = scope.included_files
             self.compile_time_env = initial_compile_time_env()
             self.compile_time_eval = 1
             self.compile_time_expr = 0
