@@ -150,12 +150,14 @@ class Scope:
     # pystring_entries  [Entry]            String const entries newly used as
     #                                        Python strings in this scope
     # control_flow     ControlFlow  Used for keeping track of environment state
+    # nogil             boolean            In a nogil section
 
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_module_scope = 0
     scope_prefix = ""
     in_cinclude = 0
+    nogil = 0
     
     def __init__(self, name, outer_scope, parent_scope):
         # The outer_scope is the next scope in the lookup chain.
@@ -1324,6 +1326,7 @@ class CClassScope(ClassScope):
 #                    entry.type = type
                 else:
                     error(pos, "Signature not compatible with previous declaration")
+                    error(entry.pos, "Previous declaration is here")
         else:
             if self.defined:
                 error(pos,
@@ -1363,8 +1366,8 @@ class CClassScope(ClassScope):
                 entry.is_variable = 1
                 self.inherited_var_entries.append(entry)
         for base_entry in base_scope.cfunc_entries:
-            entry = self.add_cfunction(base_entry.name, base_entry.type, None,
-                adapt(base_entry.cname), base_entry.visibility)
+            entry = self.add_cfunction(base_entry.name, base_entry.type,
+                    base_entry.pos, adapt(base_entry.cname), base_entry.visibility)
             entry.is_inherited = 1
             
     def allocate_temp(self, type):

@@ -18,5 +18,5 @@ def g():
         h()
     return 1
 
-cdef int h() except -1:
+cdef int h() nogil except -1:
     pass
