@@ -289,7 +289,7 @@ class Context:
             else:
                 c_suffix = ".c"
             result.c_file = Utils.replace_suffix(source, c_suffix)
-        module_name = full_module_name # self.extract_module_name(source, options)
+        module_name = full_module_name or self.extract_module_name(source, options)
         initial_pos = (source, 1, 0)
         scope = self.find_module(module_name, pos = initial_pos, need_pxd = 0)
         errors_occurred = False
