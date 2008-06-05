@@ -17,7 +17,7 @@ CFLAGS = os.getenv('CFLAGS', '').split()
 
 
 class ErrorWriter(object):
-    match_error = re.compile('(warning:)?(?:.*:)?([-0-9]+):([-0-9]+):(.*)').match
+    match_error = re.compile('(warning:)?(?:.*:)?\s*([-0-9]+)\s*:\s*([-0-9]+)\s*:\s*(.*)').match
     def __init__(self):
         self.output = []
         self.write = self.output.append
@@ -31,8 +31,9 @@ class ErrorWriter(object):
                 is_warning, line, column, message = match.groups()
                 if (is_warning and collect_warnings) or \
                         (not is_warning and collect_errors):
-                    result.append( "%d:%d:%s" % (int(line), int(column), message.strip()) )
-        return result
+                    result.append( (int(line), int(column), message.strip()) )
+        result.sort()
+        return [ "%d:%d:%s" % values for values in result ]
 
     def geterrors(self):
         return self._collect(True, False)
