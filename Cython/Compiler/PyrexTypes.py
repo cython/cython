@@ -695,7 +695,7 @@ class CFuncType(CType):
             return 0
         if not self.same_calling_convention_as(other_type):
             return 0
-        if self.nogil != other_type.nogil:
+        if self.nogil and not other_type.nogil:
             return 0
         return 1
 
