@@ -33,7 +33,7 @@ class ErrorWriter(object):
                         (not is_warning and collect_errors):
                     result.append( (int(line), int(column), message.strip()) )
         result.sort()
-        return [ "%d:%d:%s" % values for values in result ]
+        return [ "%d:%d: %s" % values for values in result ]
 
     def geterrors(self):
         return self._collect(True, False)
