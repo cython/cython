@@ -956,6 +956,8 @@ class FuncDefNode(StatNode, BlockNode):
             exc_check = self.caller_will_check_exceptions()
             if err_val is not None or exc_check:
                 code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
+                if err_val is None and self.return_type.default_value:
+                    err_val = self.return_type.default_value
                 if err_val is not None:
                     code.putln(
                         "%s = %s;" % (
