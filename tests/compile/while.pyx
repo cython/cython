@@ -1,5 +1,5 @@
 def f(a, b):
-    cdef int i
+    cdef int i = 5
     
     while a:
         x = 1
