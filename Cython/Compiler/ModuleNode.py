@@ -702,8 +702,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     entry.type.typeptr_cname)
         code.put_var_declarations(env.var_entries, static = 1, 
             dll_linkage = "DL_EXPORT", definition = definition)
-        code.put_var_declarations(env.default_entries, static = 1,
-                                  definition = definition)
+        if definition:
+            code.put_var_declarations(env.default_entries, static = 1,
+                                      definition = definition)
     
     def generate_cfunction_predeclarations(self, env, code, definition):
         for entry in env.cfunc_entries:
