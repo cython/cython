@@ -267,11 +267,6 @@ class Context:
         result = CompilationResult()
         cwd = os.getcwd()
 
-        if full_module_name is None:
-            full_module_name, _ = os.path.splitext(source)
-            full_module_name = re.sub(r'[\\/]', '.', full_module_name)
-            full_module_name = re.sub(r'[^\w.]', '_', full_module_name)
-
         source = os.path.join(cwd, source)
         result.main_source_file = source
 
