@@ -66,32 +66,6 @@ def embed_position(pos, docstring):
     doc.encoding = encoding
     return doc
 
-class _AttributeAccessor(object):
-    """Used as the result of the Node.get_children_accessors() generator"""
-    def __init__(self, obj, attrname):
-        self.obj = obj
-        self.attrname = attrname
-    def get(self):
-        try:
-            return getattr(self.obj, self.attrname)
-        except AttributeError:
-            return None
-    def set(self, value):
-        setattr(self.obj, self.attrname, value)
-    def name(self):
-        return self.attrname
-
-class _AttributeIterator(object):
-    """Used as the result of the Node.get_children_accessors() generator"""
-    def __init__(self, obj, attrnames):
-        self.obj = obj
-        self.attrnames = iter(attrnames)
-    def __iter__(self):
-        return self
-    def __next__(self):
-        return _AttributeAccessor(self.obj, self.attrnames.next())
-    next = __next__
-
 class Node(object):
     #  pos         (string, int, int)   Source file position
     #  is_name     boolean              Is a NameNode
@@ -108,49 +82,6 @@ class Node(object):
     def __init__(self, pos, **kw):
         self.pos = pos
         self.__dict__.update(kw)
-    
-    def get_child_accessors(self):
-        """Returns an iterator over the children of the Node. Each member in the
-        iterated list is an object with get(), set(value), and name() methods,
-        which can be used to fetch and replace the child and query the name
-        the relation this node has with the child. For instance, for an
-        assignment node, this code:
-        
-        for child in assignment_node.get_child_accessors():
-            print(child.name())
-            child.set(i_node)
-        
-        will print "lhs", "rhs", and change the assignment statement to "i = i"
-        (assuming that i_node is a node able to represent the variable i in the
-        tree).
-        
-        Any kind of objects can in principle be returned, but the typical
-        candidates are either Node instances or lists of node instances.
-        
-        The object returned in each iteration stage can only be used until the
-        iterator is advanced to the next child attribute. (However, the objects
-        returned by the get() function can be kept).
-        
-        Typically, a Node instance will have other interesting and potentially
-        hierarchical attributes as well. These must be explicitly accessed -- this
-        method only provides access to attributes that are deemed to naturally
-        belong in the parse tree.
-        
-        Descandant classes can either specify child_attrs, override get_child_attrs,
-        or override this method directly in order to provide access to their
-        children. All descendants of Node *must* declare their children -- leaf nodes
-        should simply declare "child_attrs = []".
-        """
-        attrnames = self.get_child_attrs()
-        if attrnames is None:
-            raise InternalError("Children access not implemented for %s" % \
-                self.__class__.__name__)
-        return _AttributeIterator(self, attrnames)
-    
-    def get_child_attrs(self):
-        """Utility method for more easily implementing get_child_accessors.
-        If you override get_child_accessors then this method is not used."""
-        return self.child_attrs
     
     def clone_node(self):
         """Clone the node. This is defined as a shallow copy, except for member lists
@@ -216,23 +147,20 @@ class Node(object):
         try:
             return self._end_pos
         except AttributeError:
-            children = [acc.get() for acc in self.get_child_accessors()]
-            if len(children) == 0:
+            flat = []
+            for attr in self.child_attrs:
+                child = getattr(parent, attr)
+                # Sometimes lists, sometimes nodes
+                if child is None:
+                    pass
+                elif isinstance(child, list):
+                    flat += child
+                else:
+                    flat.append(child)
+            if len(flat) == 0:
                 self._end_pos = self.pos
             else:
-                # Sometimes lists, sometimes nodes
-                flat = []
-                for child in children:
-                    if child is None:
-                        pass
-                    elif isinstance(child, list):
-                        flat += child
-                    else:
-                        flat.append(child)
-                if len(flat) == 0:
-                    self._end_pos = self.pos
-                else:
-                    self._end_pos = max([child.end_pos() for child in flat])
+                self._end_pos = max([child.end_pos() for child in flat])
             return self._end_pos
 
 
