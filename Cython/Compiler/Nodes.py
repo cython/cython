@@ -956,26 +956,19 @@ class FuncDefNode(StatNode, BlockNode):
             exc_check = self.caller_will_check_exceptions()
             if err_val is not None or exc_check:
                 code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
-                if err_val is None and self.return_type.default_value:
-                    err_val = self.return_type.default_value
-                if err_val is not None:
-                    code.putln(
-                        "%s = %s;" % (
-                            Naming.retval_cname, 
-                            err_val))
             else:
                 code.putln(
                     '__Pyx_WriteUnraisable("%s");' % 
                         self.entry.qualified_name)
                 env.use_utility_code(unraisable_exception_utility_code)
-                #if not self.return_type.is_void:
-                default_retval = self.return_type.default_value
-                if default_retval:
-                    code.putln(
-                        "%s = %s;" % (
-                            Naming.retval_cname,
-                            default_retval))
-                            #self.return_type.default_value))
+            default_retval = self.return_type.default_value
+            if err_val is None and default_retval:
+                err_val = default_retval
+            if err_val is not None:
+                code.putln(
+                    "%s = %s;" % (
+                        Naming.retval_cname, 
+                        err_val))
         # ----- Return cleanup
         code.put_label(code.return_label)
         if not Options.init_local_none:
