@@ -981,7 +981,7 @@ def p_from_import_statement(s, first_statement = 0):
             items.append(
                 (name,
                  ExprNodes.NameNode(name_pos, 
-                 	name = as_name or name)))
+                                    name = as_name or name)))
         import_list = ExprNodes.ListNode(
             imported_names[0][0], args = imported_name_strings)
         dotted_name = Utils.EncodedString(dotted_name)
@@ -2164,7 +2164,7 @@ def p_module(s, pxd, full_module_name):
 #
 #----------------------------------------------
 
-def print_parse_tree(f, node, level, key = None):	
+def print_parse_tree(f, node, level, key = None):
     from Nodes import Node
     ind = "  " * level
     if node:
