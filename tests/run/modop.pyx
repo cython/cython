@@ -6,6 +6,9 @@ __doc__ = u"""
 
     >>> modint(9,2)
     1
+
+    >>> print modptr()
+    spameggs
 """
 
 def modobj(obj2, obj3):
@@ -17,11 +20,10 @@ def modint(int int2, int int3):
     int1 = int2 % int3
     return int1
 
-cdef modptr():
-    # FIXME!!!
+def modptr():
     cdef char *str2, *str3
-    str2 = "spam"
+    str2 = "spam%s"
     str3 = "eggs"
 
     obj1 = str2 % str3
-    return obj1
+    return obj1.decode(u"ASCII")
