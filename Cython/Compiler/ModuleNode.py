@@ -363,12 +363,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_declarations_for_modules(self, env, modules, code):
         code.putln("")
-        code.putln("/* Declarations */")
+        code.putln("/* Type declarations */")
         vtab_list, vtabslot_list = self.sort_type_hierarchy(modules, env)
         self.generate_type_definitions(
             env, modules, vtab_list, vtabslot_list, code)
         for module in modules:
             defined_here = module is env
+            code.putln("/* Module declarations from %s */" %
+                       module.qualified_name.encode("ASCII", "ignore"))
             self.generate_global_declarations(module, code, defined_here)
             self.generate_cfunction_predeclarations(module, code, defined_here)
 
