@@ -334,6 +334,7 @@ class CompilationOptions:
     recursive         boolean   Recursively find and compile dependencies
     timestamps        boolean   Only compile changed source files. If None,
                                 defaults to true when recursive is true.
+    verbose           boolean   Always print source names being compiled
     quiet             boolean   Don't print source names in recursive mode
     transforms        Transform.TransformSet Transforms to use on the parse tree
     
@@ -429,13 +430,16 @@ def compile_multiple(sources, options):
     timestamps = options.timestamps
     if timestamps is None:
         timestamps = recursive
-    verbose = recursive and not options.quiet
+    verbose = options.verbose or ((recursive or timestamps) and not options.quiet)
     for source in sources:
         if source not in processed:
             if not timestamps or context.c_file_out_of_date(source):
                 if verbose:
                     sys.stderr.write("Compiling %s\n" % source)
                 result = context.compile(source, options)
+                # Compiling multiple sources in one context doesn't quite
+                # work properly yet.
+                context = Context(options.include_path) # to be removed later
                 results.add(source, result)
             processed.add(source)
             if recursive:
@@ -514,6 +518,7 @@ default_options = dict(
     generate_pxi = 0,
     recursive = 0,
     timestamps = None,
+    verbose = 0,
     quiet = 0,
     transforms = Transform.TransformSet(),
     working_path = "")
