@@ -149,7 +149,7 @@ class Node(object):
         except AttributeError:
             flat = []
             for attr in self.child_attrs:
-                child = getattr(parent, attr)
+                child = getattr(self, attr)
                 # Sometimes lists, sometimes nodes
                 if child is None:
                     pass
@@ -2850,7 +2850,50 @@ class IfClauseNode(Node):
         self.condition.annotate(code)
         self.body.annotate(code)
         
+
+class SwitchCaseNode(StatNode):
+    # Generated in the optimization of an if-elif-else node
+    #
+    # conditions    [ExprNode]
+    # body          StatNode
+    
+    child_attrs = ['conditions', 'body']
+    
+    def generate_execution_code(self, code):
+        for cond in self.conditions:
+            code.putln("case %s:" % cond.calculate_result_code())
+        self.body.generate_execution_code(code)
+        code.putln("break;")
         
+    def annotate(self, code):
+        for cond in self.conditions:
+            cond.annotate(code)
+        body.annotate(code)
+
+class SwitchStatNode(StatNode):
+    # Generated in the optimization of an if-elif-else node
+    #
+    # test          ExprNode
+    # cases         [SwitchCaseNode]
+    # else_clause   StatNode or None
+    
+    child_attrs = ['test', 'cases', 'else_clause']
+    
+    def generate_execution_code(self, code):
+        code.putln("switch (%s) {" % self.test.calculate_result_code())
+        for case in self.cases:
+            case.generate_execution_code(code)
+        if self.else_clause is not None:
+            code.putln("default:")
+            self.else_clause.generate_execution_code(code)
+        code.putln("}")
+
+    def annotate(self, code):
+        self.test.annotate(code)
+        for case in self.cases:
+            case.annotate(code)
+        self.else_clause.annotate(code)
+            
 class LoopNode:
     
     def analyse_control_flow(self, env):
