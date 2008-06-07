@@ -6,9 +6,14 @@ __doc__ = u"""
 
     >>> modint(9,2)
     1
+"""
 
-    >>> print modptr()
-    spameggs
+import sys
+if sys.version_info[0] < 3:
+    __doc__ = __doc__ + u"""
+
+    >>> modptr()
+    'spameggs'
 """
 
 def modobj(obj2, obj3):
@@ -25,5 +30,5 @@ def modptr():
     str2 = "spam%s"
     str3 = "eggs"
 
-    obj1 = str2 % str3
-    return obj1.decode(u"ASCII")
+    obj1 = str2 % str3 # '%' operator doesn't work on byte strings in Py3
+    return obj1
