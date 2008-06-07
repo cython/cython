@@ -300,7 +300,11 @@ class ExprNode(Node):
     
     def analyse_target_types(self, env):
         self.analyse_types(env)
-    
+
+    def gil_assignment_check(self, env):
+        if env.nogil and self.type.is_pyobject:
+            error(self.pos, "Assignment of Python object not allowed without gil")
+
     def check_const(self):
         self.not_const()
     
@@ -312,7 +316,11 @@ class ExprNode(Node):
     
     def addr_not_const(self):
         error(self.pos, "Address is not constant")
-    
+
+    def gil_check(self, env):
+        if env.nogil and self.type.is_pyobject:
+            self.gil_error()
+
     # ----------------- Result Allocation -----------------
     
     def result_in_temp(self):
@@ -758,11 +766,16 @@ class LongNode(AtomicExprNode):
     
     def compile_time_value(self, denv):
         return long(self.value)
+
+    gil_message = "Constructing Python long int"
     
     def analyse_types(self, env):
         self.type = py_object_type
+        self.gil_check(env)
         self.is_temp = 1
-    
+
+    gil_message = "Constructing Python long int"
+
     def generate_evaluation_code(self, code):
         code.putln(
             '%s = PyLong_FromString("%s", 0, 0); %s' % (
@@ -781,8 +794,11 @@ class ImagNode(AtomicExprNode):
     
     def analyse_types(self, env):
         self.type = py_object_type
+        self.gil_check(env)
         self.is_temp = 1
-    
+
+    gil_message = "Constructing complex number"
+
     def generate_evaluation_code(self, code):
         code.putln(
             "%s = PyComplex_FromDoubles(0.0, %s); %s" % (
@@ -883,7 +899,10 @@ class NameNode(AtomicExprNode):
             else:
                 self.is_temp = 1
             env.use_utility_code(get_name_interned_utility_code)
-    
+            self.gil_check(env)
+
+    gil_message = "Accessing Python global or builtin"
+
     def analyse_entry(self, env):
         #print "NameNode.analyse_entry:", self.name ###
         self.check_identifier_kind()
@@ -1060,8 +1079,11 @@ class BackquoteNode(ExprNode):
         self.arg.analyse_types(env)
         self.arg = self.arg.coerce_to_pyobject(env)
         self.type = py_object_type
+        self.gil_check(env)
         self.is_temp = 1
-    
+
+    gil_message = "Backquote expression"
+
     def generate_result_code(self, code):
         code.putln(
             "%s = PyObject_Repr(%s); %s" % (
@@ -1086,9 +1108,12 @@ class ImportNode(ExprNode):
         if self.name_list:
             self.name_list.analyse_types(env)
         self.type = py_object_type
+        self.gil_check(env)
         self.is_temp = 1
         env.use_utility_code(import_utility_code)
-    
+
+    gil_message = "Python import"
+
     def generate_result_code(self, code):
         if self.name_list:
             name_list_code = self.name_list.py_result()
@@ -1114,11 +1139,14 @@ class IteratorNode(ExprNode):
         self.sequence.analyse_types(env)
         self.sequence = self.sequence.coerce_to_pyobject(env)
         self.type = py_object_type
+        self.gil_check(env)
         self.is_temp = 1
         
         self.counter = TempNode(self.pos, PyrexTypes.c_py_ssize_t_type, env)
         self.counter.allocate_temp(env)
-        
+
+    gil_message = "Iterating over Python object"
+
     def release_temp(self, env):
         env.release_temp(self.result_code)
         self.counter.release_temp(env)
@@ -1265,6 +1293,7 @@ class IndexNode(ExprNode):
             else:
                 self.index = self.index.coerce_to_pyobject(env)
             self.type = py_object_type
+            self.gil_check(env)
             self.is_temp = 1
         else:
             if self.base.type.is_ptr or self.base.type.is_array:
@@ -1281,7 +1310,9 @@ class IndexNode(ExprNode):
                 error(self.pos,
                     "Invalid index type '%s'" %
                         self.index.type)
-    
+
+    gil_message = "Indexing Python object"
+
     def check_const_addr(self):
         self.base.check_const_addr()
         self.index.check_const()
@@ -1408,8 +1439,11 @@ class SliceIndexNode(ExprNode):
         if self.stop:
             self.stop = self.stop.coerce_to(c_int, env)
         self.type = py_object_type
+        self.gil_check(env)
         self.is_temp = 1
-    
+
+    gil_message = "Slicing Python object"
+
     def generate_result_code(self, code):
         code.putln(
             "%s = PySequence_GetSlice(%s, %s, %s); %s" % (
@@ -1482,8 +1516,11 @@ class SliceNode(ExprNode):
         self.stop = self.stop.coerce_to_pyobject(env)
         self.step = self.step.coerce_to_pyobject(env)
         self.type = py_object_type
+        self.gil_check(env)
         self.is_temp = 1
-    
+
+    gil_message = "Constructing Python slice object"
+
     def generate_result_code(self, code):
         code.putln(
             "%s = PySlice_New(%s, %s, %s); %s" % (
@@ -1493,7 +1530,15 @@ class SliceNode(ExprNode):
                 self.step.py_result(),
                 code.error_goto_if_null(self.result_code, self.pos)))
 
-class SimpleCallNode(ExprNode):
+
+class CallNode(ExprNode):
+    def gil_check(self, env):
+        # Make sure we're not in a nogil environment
+        if env.nogil:
+            error(self.pos, "Calling gil-requiring function without gil")
+
+
+class SimpleCallNode(CallNode):
     #  Function call without keyword, * or ** args.
     #
     #  function       ExprNode
@@ -1542,6 +1587,7 @@ class SimpleCallNode(ExprNode):
             self.arg_tuple.analyse_types(env)
             self.args = None
             self.type = py_object_type
+            self.gil_check(env)
             self.is_temp = 1
         else:
             for arg in self.args:
@@ -1614,6 +1660,9 @@ class SimpleCallNode(ExprNode):
         if func_type.exception_check == '+':
             if func_type.exception_value is None:
                 env.use_utility_code(cpp_exception_utility_code)
+        # Check gil
+        if not func_type.nogil:
+            self.gil_check(env)
 
     def calculate_result_code(self):
         return self.c_call_code()
@@ -1708,7 +1757,7 @@ class SimpleCallNode(ExprNode):
                         rhs,
                         code.error_goto_if(" && ".join(exc_checks), self.pos)))    
 
-class GeneralCallNode(ExprNode):
+class GeneralCallNode(CallNode):
     #  General Python function call, including keyword,
     #  * and ** arguments.
     #
@@ -1744,6 +1793,7 @@ class GeneralCallNode(ExprNode):
             self.starstar_arg = \
                 self.starstar_arg.coerce_to_pyobject(env)
         self.type = py_object_type
+        self.gil_check(env)
         self.is_temp = 1
         
     def generate_result_code(self, code):
@@ -1794,8 +1844,11 @@ class AsTupleNode(ExprNode):
         self.arg.analyse_types(env)
         self.arg = self.arg.coerce_to_pyobject(env)
         self.type = py_object_type
+        self.gil_check(env)
         self.is_temp = 1
-    
+
+    gil_message = "Constructing Python tuple"
+
     def generate_result_code(self, code):
         code.putln(
             "%s = PySequence_Tuple(%s); %s" % (
@@ -2000,12 +2053,15 @@ class AttributeNode(ExprNode):
             self.type = py_object_type
             self.is_py_attr = 1
             self.interned_attr_cname = env.intern_identifier(self.attribute)
+            self.gil_check(env)
         else:
             if not obj_type.is_error:
                 error(self.pos, 
                     "Object of type '%s' has no attribute '%s'" %
                     (obj_type, self.attribute))
-        
+
+    gil_message = "Accessing Python attribute"
+
     def is_simple(self):
         if self.obj:
             return self.result_in_temp() or self.obj.is_simple()
@@ -2122,8 +2178,9 @@ class SequenceNode(ExprNode):
             arg.analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
         self.type = py_object_type
+        self.gil_check(env)
         self.is_temp = 1
-    
+
     def analyse_target_types(self, env):
         self.iterator = PyTempNode(self.pos, env)
         self.unpacked_items = []
@@ -2220,7 +2277,9 @@ class SequenceNode(ExprNode):
 
 class TupleNode(SequenceNode):
     #  Tuple constructor.
-    
+
+    gil_message = "Constructing Python tuple"
+
     def analyse_types(self, env):
         if len(self.args) == 0:
             self.is_temp = 0
@@ -2271,7 +2330,9 @@ class TupleNode(SequenceNode):
 
 class ListNode(SequenceNode):
     #  List constructor.
-    
+
+    gil_message = "Constructing Python list"
+
     def analyse_types(self, env):
         SequenceNode.analyse_types(self, env)
         self.type = list_type
@@ -2368,8 +2429,11 @@ class DictNode(ExprNode):
         for item in self.key_value_pairs:
             item.analyse_types(env)
         self.type = dict_type
+        self.gil_check(env)
         self.is_temp = 1
-    
+
+    gil_message = "Constructing Python dict"
+
     def allocate_temps(self, env, result = None):
         #  Custom method used here because key-value
         #  pairs are evaluated and used one at a time.
@@ -2444,8 +2508,11 @@ class ClassNode(ExprNode):
             self.doc = self.doc.coerce_to_pyobject(env)
         self.module_name = env.global_scope().qualified_name
         self.type = py_object_type
+        self.gil_check(env)
         self.is_temp = 1
         env.use_utility_code(create_class_utility_code);
+
+    gil_message = "Constructing Python class"
 
     def generate_result_code(self, code):
         if self.doc:
@@ -2476,8 +2543,11 @@ class UnboundMethodNode(ExprNode):
     def analyse_types(self, env):
         self.function.analyse_types(env)
         self.type = py_object_type
+        self.gil_check(env)
         self.is_temp = 1
-    
+
+    gil_message = "Constructing an unbound method"
+
     def generate_result_code(self, code):
         code.putln(
             "%s = PyMethod_New(%s, 0, %s); %s" % (
@@ -2496,8 +2566,11 @@ class PyCFunctionNode(AtomicExprNode):
     
     def analyse_types(self, env):
         self.type = py_object_type
+        self.gil_check(env)
         self.is_temp = 1
-    
+
+    gil_message = "Constructing Python function"
+
     def generate_result_code(self, code):
         code.putln(
             "%s = PyCFunction_New(&%s, 0); %s" % (
@@ -2549,6 +2622,7 @@ class UnopNode(ExprNode):
         if self.is_py_operation():
             self.coerce_operand_to_pyobject(env)
             self.type = py_object_type
+            self.gil_check(env)
             self.is_temp = 1
         else:
             self.analyse_c_operation(env)
@@ -2898,6 +2972,7 @@ class BinopNode(ExprNode):
         if self.is_py_operation():
             self.coerce_operands_to_pyobjects(env)
             self.type = py_object_type
+            self.gil_check(env)
             self.is_temp = 1
             if Options.incref_local_binop and self.operand1.type.is_pyobject:
                 self.operand1 = self.operand1.coerce_to_temp(env)
@@ -3129,6 +3204,7 @@ class BoolBinopNode(ExprNode):
             self.operand2 = self.operand2.coerce_to_pyobject(env)
             self.temp_bool = TempNode(self.pos, PyrexTypes.c_bint_type, env)
             self.type = py_object_type
+            self.gil_check(env)
         else:
             self.operand1 = self.operand1.coerce_to_boolean(env)
             self.operand2 = self.operand2.coerce_to_boolean(env)
@@ -3137,11 +3213,10 @@ class BoolBinopNode(ExprNode):
         # both operands be temp nodes.
         self.operand1 = self.operand1.coerce_to_temp(env) #CTT
         self.operand2 = self.operand2.coerce_to_temp(env)
-        # coerce_to_simple does not seem to be sufficient
-        #self.operand1 = self.operand1.coerce_to_simple(env)
-        #self.operand2 = self.operand2.coerce_to_simple(env)
         self.is_temp = 1
-    
+
+    gil_message = "Truth-testing Python object"
+
     def allocate_temps(self, env, result_code = None):
         #  We don't need both operands at the same time, and
         #  one of the operands will also be our result. So we
@@ -3438,7 +3513,6 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         if self.has_int_operands():
             self.coerce_chars_to_ints(env)
         if self.cascade:
-            #self.operand2 = self.operand2.coerce_to_temp(env) #CTT
             self.operand2 = self.operand2.coerce_to_simple(env)
             self.cascade.coerce_cascaded_operands_to_temp(env)
         self.check_operand_types(env)
@@ -3688,8 +3762,11 @@ class PyTypeTestNode(CoercionNode):
         assert dst_type.is_extension_type or dst_type.is_builtin_type, "PyTypeTest on non extension type"
         CoercionNode.__init__(self, arg)
         self.type = dst_type
+        self.gil_check(env)
         self.result_ctype = arg.ctype()
         env.use_utility_code(type_test_utility_code)
+
+    gil_message = "Python type test"
     
     def analyse_types(self, env):
         pass
@@ -3724,11 +3801,14 @@ class CoerceToPyTypeNode(CoercionNode):
     def __init__(self, arg, env):
         CoercionNode.__init__(self, arg)
         self.type = py_object_type
+        self.gil_check(env)
         self.is_temp = 1
         if not arg.type.to_py_function:
             error(arg.pos,
                 "Cannot convert '%s' to Python object" % arg.type)
-    
+
+    gil_message = "Converting to Python object"
+
     def generate_result_code(self, code):
         function = self.arg.type.to_py_function
         code.putln('%s = %s(%s); %s' % (
@@ -3773,7 +3853,11 @@ class CoerceToBooleanNode(CoercionNode):
         CoercionNode.__init__(self, arg)
         self.type = PyrexTypes.c_bint_type
         if arg.type.is_pyobject:
+            if env.nogil:
+                self.gil_error()
             self.is_temp = 1
+
+    gil_message = "Truth-testing Python object"
     
     def check_const(self):
         if self.is_temp:
@@ -3802,8 +3886,11 @@ class CoerceToTempNode(CoercionNode):
         self.type = self.arg.type
         self.is_temp = 1
         if self.type.is_pyobject:
+            self.gil_check(env)
             self.result_ctype = py_object_type
-    
+
+    gil_message = "Creating temporary Python reference"
+
     def generate_result_code(self, code):
         #self.arg.generate_evaluation_code(code) # Already done
         # by generic generate_subexpr_evaluation_code!

@@ -3,3 +3,6 @@ cdef void f() with gil:
 
 cdef int g(void* x) with gil:
     pass
+
+f()
+g("test")

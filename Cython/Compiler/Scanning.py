@@ -284,11 +284,10 @@ class PyrexScanner(Scanner):
     #  compile_time_env   dict     Environment for conditional compilation
     #  compile_time_eval  boolean  In a true conditional compilation context
     #  compile_time_expr  boolean  In a compile-time expression context
-    
     resword_dict = build_resword_dict()
 
     def __init__(self, file, filename, parent_scanner = None, 
-            type_names = None, context = None, source_encoding=None):
+                 type_names = None, context = None, source_encoding=None):
         Scanner.__init__(self, get_lexicon(), file, filename)
         if parent_scanner:
             self.context = parent_scanner.context

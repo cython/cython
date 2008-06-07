@@ -1,7 +1,7 @@
 __doc__ = u"""
     >>> test()
-    neg -1
-    pos 4294967294
+    neg False
+    pos True
     neg
     pos
     neg
@@ -12,8 +12,8 @@ def test():
     cdef long neg = -1
     cdef unsigned long pos = -2 # will be a large positive number
 
-    print "neg", neg
-    print "pos", pos
+    print "neg", neg > 0
+    print "pos", pos > -
 
     D = { neg: 'neg', pos: 'pos' }
 
