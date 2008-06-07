@@ -108,7 +108,7 @@ class Context:
                     if debug_find_module:
                         print("Context.find_module: Parsing %s" % pxd_pathname)
                     source_desc = FileSourceDescriptor(pxd_pathname)
-                    pxd_tree = self.parse(source_desc, scope.type_names, pxd = 1,
+                    pxd_tree = self.parse(source_desc, scope, pxd = 1,
                                           full_module_name = module_name)
                     pxd_tree.analyse_declarations(scope)
                 except CompileError:
@@ -242,7 +242,7 @@ class Context:
             self.modules[name] = scope
         return scope
 
-    def parse(self, source_desc, type_names, pxd, full_module_name):
+    def parse(self, source_desc, scope, pxd, full_module_name):
         if not isinstance(source_desc, FileSourceDescriptor):
             raise RuntimeError("Only file sources for code supported")
         source_filename = Utils.encode_filename(source_desc.filename)
@@ -251,7 +251,7 @@ class Context:
             f = Utils.open_source_file(source_filename, "rU")
             try:
                 s = PyrexScanner(f, source_desc, source_encoding = f.encoding,
-                                 type_names = type_names, context = self)
+                                 scope = scope, context = self)
                 tree = Parsing.p_module(s, pxd, full_module_name)
             finally:
                 f.close()
@@ -304,7 +304,7 @@ class Context:
                 c_suffix = ".cpp"
             else:
                 c_suffix = ".c"
-            result.c_file = Utils .replace_suffix(source, c_suffix)
+            result.c_file = Utils.replace_suffix(source, c_suffix)
         c_stat = None
         if result.c_file:
             try:
@@ -317,7 +317,7 @@ class Context:
         scope = self.find_module(module_name, pos = initial_pos, need_pxd = 0)
         errors_occurred = False
         try:
-            tree = self.parse(source, scope.type_names, pxd = 0,
+            tree = self.parse(source, scope, pxd = 0,
                               full_module_name = full_module_name)
             tree.process_implementation(scope, options, result)
         except CompileError:
