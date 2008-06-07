@@ -13,7 +13,7 @@ def test():
     cdef unsigned long pos = -2 # will be a large positive number
 
     print "neg", neg > 0
-    print "pos", pos > -
+    print "pos", pos > 0
 
     D = { neg: 'neg', pos: 'pos' }
 
