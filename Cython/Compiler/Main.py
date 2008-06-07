@@ -328,7 +328,7 @@ class Context:
             errors_occurred = True
         if errors_occurred and result.c_file:
             try:
-                Utils.castrate_file(result.c_file, os.stat(source))
+                Utils.castrate_file(result.c_file, os.stat(source.filename))
             except EnvironmentError:
                 pass
             result.c_file = None
