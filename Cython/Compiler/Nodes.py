@@ -790,7 +790,7 @@ class FuncDefNode(StatNode, BlockNode):
             if arg.default:
                 if arg.is_generic:
                     if not hasattr(arg, 'default_entry'):
-                        arg.default.analyse_types(genv)
+                        arg.default.analyse_types(env)
                         arg.default = arg.default.coerce_to(arg.type, genv)
                         if arg.default.is_literal:
                             arg.default_entry = arg.default
