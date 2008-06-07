@@ -17,6 +17,7 @@ import ControlFlow
 import __builtin__
 
 possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
+nice_identifier = re.compile('[a-zA-Z0-0_]').match
 
 class Entry:
     # A symbol table entry in a Scope or ModuleNamespace.
@@ -438,9 +439,12 @@ class Scope:
             entry = self.declare_var(name, py_object_type, None)
         return entry
 
-    def add_string_const(self, value):
+    def add_string_const(self, value, identifier = False):
         # Add an entry for a string constant.
-        cname = self.new_const_cname()
+        if identifier:
+            cname = self.new_string_const_cname(value)
+        else:
+            cname = self.new_const_cname()
         if value.is_unicode:
             c_type = PyrexTypes.c_utf8_char_array_type
             value = value.utf8encode()
@@ -462,7 +466,7 @@ class Scope:
             string_map = genv.string_to_entry
         entry = string_map.get(value)
         if not entry:
-            entry = self.add_string_const(value)
+            entry = self.add_string_const(value, identifier)
             entry.is_identifier = identifier
             string_map[value] = entry
         return entry
@@ -475,7 +479,7 @@ class Scope:
         if entry.pystring_cname:
             return
         value = entry.init
-        entry.pystring_cname = entry.cname + "p"
+        entry.pystring_cname = Naming.py_const_prefix + entry.cname[len(Naming.const_prefix):]
         self.pystring_entries.append(entry)
         self.global_scope().all_pystring_entries.append(entry)
         if identifier or (identifier is None and possible_identifier(value)):
@@ -514,6 +518,13 @@ class Scope:
             genv.obj_to_entry[obj] = entry
         return entry
     
+    def new_string_const_cname(self, value):
+        # Create a new globally-unique nice name for a string constant.
+        if len(value) < 20 and nice_identifier(value):
+            return "%s%s" % (Naming.const_prefix, value)
+        else:
+            return self.global_scope().new_const_cname()
+
     def new_const_cname(self):
         # Create a new globally-unique name for a constant.
         return self.global_scope().new_const_cname()
@@ -866,7 +877,7 @@ class ModuleScope(Scope):
         prefix=''
         n = self.const_counter
         self.const_counter = n + 1
-        return "%s%s_%d" % (Naming.const_prefix, prefix, n)
+        return "%s%s%d" % (Naming.const_prefix, prefix, n)
     
     def use_utility_code(self, new_code):
         #  Add string to list of utility code to be included,
@@ -1123,8 +1134,8 @@ class ClassScope(Scope):
         self.class_name = name
         self.doc = None
 
-    def add_string_const(self, value):
-        return self.outer_scope.add_string_const(value)
+    def add_string_const(self, value, identifier = False):
+        return self.outer_scope.add_string_const(value, identifier)
 
     def lookup(self, name):
         if name == "classmethod":
