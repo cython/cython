@@ -1466,7 +1466,7 @@ class DefNode(FuncDefNode):
             reqd_kw_flags = []
             has_reqd_kwds = False
             code.put(
-                "static const char *%s[] = {" %
+                "static char *%s[] = {" %
                     Naming.kwdlist_cname)
             for arg in self.args:
                 if arg.is_generic:
@@ -1618,8 +1618,7 @@ class DefNode(FuncDefNode):
             code.putln('else {')
 
         argformat = '"%s"' % string.join(arg_formats, "")
-        pt_arglist = [Naming.args_cname, Naming.kwds_cname, argformat,
-                      '(char **)/*temp.hack*/'+Naming.kwdlist_cname] + arg_addrs
+        pt_arglist = [Naming.args_cname, Naming.kwds_cname, argformat, Naming.kwdlist_cname] + arg_addrs
         pt_argstring = string.join(pt_arglist, ", ")
         code.putln(
             'if (unlikely(!PyArg_ParseTupleAndKeywords(%s))) %s' % (

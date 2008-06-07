@@ -17,7 +17,7 @@ import ControlFlow
 import __builtin__
 
 possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
-nice_identifier = re.compile('[a-zA-Z0-0_]').match
+nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
 
 class Entry:
     # A symbol table entry in a Scope or ModuleNamespace.
