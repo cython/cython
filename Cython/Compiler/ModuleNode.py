@@ -54,6 +54,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if self.has_imported_c_functions():
             self.module_temp_cname = env.allocate_temp_pyobject()
             env.release_temp(self.module_temp_cname)
+        self.generate_dep_file(env, result)
         self.generate_c_code(env, options, result)
         self.generate_h_code(env, options, result)
         self.generate_api_code(env, result)
@@ -65,6 +66,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     return 1
         return 0
     
+    def generate_dep_file(self, env, result):
+        modules = self.referenced_modules
+        if len(modules) > 1 or env.included_files:
+            dep_file = replace_suffix(result.c_file, ".dep")
+            f = open(dep_file, "w")
+            try:
+                for module in modules:
+                    if module is not env:
+                        f.write("cimport %s\n" % module.qualified_name)
+                    for path in module.included_files:
+                        f.write("include %s\n" % path)
+            finally:
+                f.close()
+
     def generate_h_code(self, env, options, result):
         def h_entries(entries, pxd = 0):
             return [entry for entry in entries
@@ -348,12 +363,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_declarations_for_modules(self, env, modules, code):
         code.putln("")
-        code.putln("/* Declarations */")
+        code.putln("/* Type declarations */")
         vtab_list, vtabslot_list = self.sort_type_hierarchy(modules, env)
         self.generate_type_definitions(
             env, modules, vtab_list, vtabslot_list, code)
         for module in modules:
             defined_here = module is env
+            code.putln("/* Module declarations from %s */" %
+                       module.qualified_name.encode("ASCII", "ignore"))
             self.generate_global_declarations(module, code, defined_here)
             self.generate_cfunction_predeclarations(module, code, defined_here)
 
@@ -440,6 +457,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyInt_AsUnsignedLongMask     PyLong_AsUnsignedLongMask")
         code.putln("  #define PyInt_AsUnsignedLongLongMask PyLong_AsUnsignedLongLongMask")
         code.putln("  #define PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)")
+        code.putln("#else")
+        code.putln("  #define PyBytes_Type                 PyString_Type")
         code.putln("#endif")
 
         code.putln("#if PY_MAJOR_VERSION >= 3")
@@ -686,8 +705,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     entry.type.typeptr_cname)
         code.put_var_declarations(env.var_entries, static = 1, 
             dll_linkage = "DL_EXPORT", definition = definition)
-        code.put_var_declarations(env.default_entries, static = 1,
-                                  definition = definition)
+        if definition:
+            code.put_var_declarations(env.default_entries, static = 1,
+                                      definition = definition)
     
     def generate_cfunction_predeclarations(self, env, code, definition):
         for entry in env.cfunc_entries:
@@ -2124,8 +2144,13 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
 			break;
 		}
 		if (skip_leading_underscores &&
+#if PY_MAJOR_VERSION < 3
 		    PyString_Check(name) &&
 		    PyString_AS_STRING(name)[0] == '_')
+#else
+		    PyUnicode_Check(name) &&
+		    PyUnicode_AS_UNICODE(name)[0] == '_')
+#endif
 		{
 			Py_DECREF(name);
 			continue;
@@ -2147,10 +2172,11 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
 }
 
 
-static int %s(PyObject* m) {
+static int %(IMPORT_STAR)s(PyObject* m) {
 
     int i;
     int ret = -1;
+    char* s;
     PyObject *locals = 0;
     PyObject *list = 0;
     PyObject *name;
@@ -2163,7 +2189,13 @@ static int %s(PyObject* m) {
     for(i=0; i<PyList_GET_SIZE(list); i++) {
         name = PyTuple_GET_ITEM(PyList_GET_ITEM(list, i), 0);
         item = PyTuple_GET_ITEM(PyList_GET_ITEM(list, i), 1);
-        if (%s(item, name, PyString_AsString(name)) < 0) goto bad;
+#if PY_MAJOR_VERSION < 3
+        s = PyString_AsString(name);
+#else
+        s = PyUnicode_AsString(name);
+#endif
+        if (!s) goto bad;
+        if (%(IMPORT_STAR_SET)s(item, name, s) < 0) goto bad;
     }
     ret = 0;
     
@@ -2172,4 +2204,5 @@ bad:
     Py_XDECREF(list);
     return ret;
 }
-""" % ( Naming.import_star, Naming.import_star_set )
+""" % {'IMPORT_STAR'     : Naming.import_star,
+       'IMPORT_STAR_SET' : Naming.import_star_set }

@@ -82,7 +82,7 @@ builtin_function_table = [
 builtin_types_table = [
 
     ("type",    "PyType_Type",     []),
-#    ("str",     "PyString_Type",   []),
+#    ("str",     "PyBytes_Type",   []),
     ("unicode", "PyUnicode_Type",  []),
     ("file",    "PyFile_Type",     []),
 #    ("slice",   "PySlice_Type",    []),

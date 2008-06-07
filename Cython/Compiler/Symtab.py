@@ -150,12 +150,14 @@ class Scope:
     # pystring_entries  [Entry]            String const entries newly used as
     #                                        Python strings in this scope
     # control_flow     ControlFlow  Used for keeping track of environment state
+    # nogil             boolean            In a nogil section
 
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_module_scope = 0
     scope_prefix = ""
     in_cinclude = 0
+    nogil = 0
     
     def __init__(self, name, outer_scope, parent_scope):
         # The outer_scope is the next scope in the lookup chain.
@@ -554,10 +556,6 @@ class Scope:
         return [entry for entry in self.temp_entries
             if entry not in self.free_temp_entries]
     
-    #def recycle_pending_temps(self):
-    #	# Obsolete
-    #	pass
-
     def use_utility_code(self, new_code):
         self.global_scope().use_utility_code(new_code)
     
@@ -652,7 +650,7 @@ class BuiltinScope(Scope):
         "long":   ["((PyObject*)&PyLong_Type)", py_object_type],
         "float":  ["((PyObject*)&PyFloat_Type)", py_object_type],
         
-        "str":    ["((PyObject*)&PyString_Type)", py_object_type],
+        "str":    ["((PyObject*)&PyBytes_Type)", py_object_type],
         "unicode":["((PyObject*)&PyUnicode_Type)", py_object_type],
         "tuple":  ["((PyObject*)&PyTuple_Type)", py_object_type],
         "list":   ["((PyObject*)&PyList_Type)", py_object_type],
@@ -687,6 +685,7 @@ class ModuleScope(Scope):
     # parent_module        Scope              Parent in the import namespace
     # module_entries       {string : Entry}   For cimport statements
     # type_names           {string : 1}       Set of type names (used during parsing)
+    # included_files       [string]           Cython sources included with 'include'
     # pxd_file_loaded      boolean            Corresponding .pxd file has been processed
     # cimported_modules    [ModuleScope]      Modules imported with cimport
     # new_interned_string_entries [Entry]     New interned strings waiting to be declared
@@ -723,6 +722,7 @@ class ModuleScope(Scope):
         self.interned_objs = []
         self.all_pystring_entries = []
         self.types_imported = {}
+        self.included_files = []
         self.pynum_entries = []
         self.has_extern_class = 0
         self.cached_builtins = []
@@ -1326,6 +1326,7 @@ class CClassScope(ClassScope):
 #                    entry.type = type
                 else:
                     error(pos, "Signature not compatible with previous declaration")
+                    error(entry.pos, "Previous declaration is here")
         else:
             if self.defined:
                 error(pos,
@@ -1365,8 +1366,8 @@ class CClassScope(ClassScope):
                 entry.is_variable = 1
                 self.inherited_var_entries.append(entry)
         for base_entry in base_scope.cfunc_entries:
-            entry = self.add_cfunction(base_entry.name, base_entry.type, None,
-                adapt(base_entry.cname), base_entry.visibility)
+            entry = self.add_cfunction(base_entry.name, base_entry.type,
+                    base_entry.pos, adapt(base_entry.cname), base_entry.visibility)
             entry.is_inherited = 1
             
     def allocate_temp(self, type):
