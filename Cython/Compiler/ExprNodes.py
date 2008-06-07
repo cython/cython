@@ -168,16 +168,9 @@ class ExprNode(Node):
     saved_subexpr_nodes = None
     is_temp = 0
 
-    def get_child_attrs(self): return self.subexprs
-    child_attrs = property(fget=get_child_attrs)
-
     def get_child_attrs(self):
-        """Automatically provide the contents of subexprs as children, unless child_attr
-        has been declared. See Nodes.Node.get_child_accessors."""
-        if self.child_attrs is not None:
-            return self.child_attrs
-        elif self.subexprs is not None:
-            return self.subexprs
+        return self.subexprs
+    child_attrs = property(fget=get_child_attrs)
         
     def not_implemented(self, method_name):
         print_call_chain(method_name, "not implemented") ###
@@ -3289,6 +3282,8 @@ class CondExprNode(ExprNode):
     #  false_val   ExprNode
     
     temp_bool = None
+    true_val = None
+    false_val = None
     
     subexprs = ['test', 'true_val', 'false_val']
     
