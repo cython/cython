@@ -1,6 +1,6 @@
-from distutils.core import setup
+from distutils.core import setup, Extension
 from distutils.sysconfig import get_python_lib
-import os, sys
+import os, os.path
 import sys
 from Cython.Compiler.Version import version
 
@@ -21,6 +21,31 @@ if os.name == "posix":
     scripts = ["bin/cython"]
 else:
     scripts = ["cython.py"]
+
+try:
+    sys.argv.remove("--no-compile")
+except ValueError:
+    try:
+        from Cython.Compiler.Main import compile
+        source_root = os.path.dirname(__file__)
+        compiled_modules = ["Cython.Plex.Scanners"]
+        extensions = []
+        for module in compiled_modules:
+            source_file = os.path.join(source_root, *module.split('.'))
+            print("Compiling module %s ..." % module)
+            result = compile(source_file + ".py")
+            if result.c_file:
+                extensions.append(
+                    Extension(module, sources = [result.c_file])
+                    )
+            else:
+                print("Compilation failed")
+        if extensions:
+            setup_args['ext_modules'] = extensions
+    except Exception:
+        print("ERROR: %s" % sys.exc_info()[1])
+        print("Extension module compilation failed, using plain Python implementation")
+
 
 setup(
   name = 'Cython', 
