@@ -311,10 +311,10 @@ class Context:
                 c_stat = os.stat(result.c_file)
             except EnvironmentError:
                 pass
-        module_name = full_module_name or self.extract_module_name(source, options)
+        full_module_name = full_module_name or self.extract_module_name(source, options)
         source = FileSourceDescriptor(source)
         initial_pos = (source, 1, 0)
-        scope = self.find_module(module_name, pos = initial_pos, need_pxd = 0)
+        scope = self.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
         errors_occurred = False
         try:
             tree = self.parse(source, scope, pxd = 0,
