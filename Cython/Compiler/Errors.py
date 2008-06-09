@@ -18,7 +18,7 @@ def context(position):
     assert not (isinstance(source, unicode) or isinstance(source, str)), (
         "Please replace filename strings with Scanning.FileSourceDescriptor instances %r" % source)
     F = list(source.get_lines())
-    s = ''.join(F[min(0, position[1]-6):position[1]])
+    s = ''.join(F[max(0, position[1]-6):position[1]])
     s += ' '*(position[2]-1) + '^'
     s = '-'*60 + '\n...\n' + s + '\n' + '-'*60 + '\n'
     return s
