@@ -959,21 +959,21 @@ def p_from_import_statement(s, first_statement = 0):
         s.next()
     else:
         s.error("Expected 'import' or 'cimport'")
+    is_cimport = kind == 'cimport'
     if s.sy == '*':
-#        s.error("'import *' not supported")
-        imported_names = [(s.position(), "*", None)]
+        imported_names = [(s.position(), "*", None, None)]
         s.next()
     else:
-        imported_names = [p_imported_name(s)]
+        imported_names = [p_imported_name(s, is_cimport)]
     while s.sy == ',':
         s.next()
-        imported_names.append(p_imported_name(s))
+        imported_names.append(p_imported_name(s, is_cimport))
     dotted_name = Utils.EncodedString(dotted_name)
     if dotted_name == '__future__':
         if not first_statement:
             s.error("from __future__ imports must occur at the beginning of the file")
         else:
-            for (name_pos, name, as_name) in imported_names:
+            for (name_pos, name, as_name, kind) in imported_names:
                 try:
                     directive = getattr(Future, name)
                 except AttributeError:
@@ -982,7 +982,7 @@ def p_from_import_statement(s, first_statement = 0):
                 s.context.future_directives.add(directive)
         return Nodes.PassStatNode(pos)
     elif kind == 'cimport':
-        for (name_pos, name, as_name) in imported_names:
+        for (name_pos, name, as_name, kind) in imported_names:
             local_name = as_name or name
             s.add_type_name(local_name)
         return Nodes.FromCImportStatNode(pos,
@@ -991,7 +991,7 @@ def p_from_import_statement(s, first_statement = 0):
     else:
         imported_name_strings = []
         items = []
-        for (name_pos, name, as_name) in imported_names:
+        for (name_pos, name, as_name, kind) in imported_names:
             encoded_name = Utils.EncodedString(name)
             imported_name_strings.append(
                 ExprNodes.IdentifierStringNode(name_pos, value = encoded_name))
@@ -1008,11 +1008,17 @@ def p_from_import_statement(s, first_statement = 0):
                 name_list = import_list),
             items = items)
 
-def p_imported_name(s):
+imported_name_kinds = ('class', 'struct', 'union')
+
+def p_imported_name(s, is_cimport):
     pos = s.position()
+    kind = None
+    if is_cimport and s.systring in imported_name_kinds:
+        kind = s.systring
+        s.next()
     name = p_ident(s)
     as_name = p_as_name(s)
-    return (pos, name, as_name)
+    return (pos, name, as_name, kind)
 
 def p_dotted_name(s, as_allowed):
     pos = s.position()
