@@ -3656,8 +3656,8 @@ class CImportStatNode(StatNode):
 class FromCImportStatNode(StatNode):
     #  from ... cimport statement
     #
-    #  module_name     string                  Qualified name of module
-    #  imported_names  [(pos, name, as_name)]  Names to be imported
+    #  module_name     string                        Qualified name of module
+    #  imported_names  [(pos, name, as_name, kind)]  Names to be imported
     
     child_attrs = []
 
@@ -3667,15 +3667,43 @@ class FromCImportStatNode(StatNode):
             return
         module_scope = env.find_module(self.module_name, self.pos)
         env.add_imported_module(module_scope)
-        for pos, name, as_name in self.imported_names:
+        for pos, name, as_name, kind in self.imported_names:
             if name == "*":
                 for local_name, entry in module_scope.entries.items():
                     env.add_imported_entry(local_name, entry, pos)
             else:
-                entry = module_scope.find(name, pos)
+                entry = module_scope.lookup(name)
+                if entry:
+                    if kind and not self.declaration_matches(entry, kind):
+                        entry.redeclared(pos)
+                else:
+                    if kind == 'struct' or kind == 'union':
+                        entry = module_scope.declare_struct_or_union(name,
+                            kind = kind, scope = None, typedef_flag = 0, pos = pos)
+                    elif kind == 'class':
+                        entry = module_scope.declare_c_class(name, pos = pos,
+                            module_name = self.module_name)
+                    else:
+                        error(pos, "Name '%s' not declared in module '%s'"
+                            % (name, self.module_name))
+                        
                 if entry:
                     local_name = as_name or name
                     env.add_imported_entry(local_name, entry, pos)
+    
+    def declaration_matches(self, entry, kind):
+		if not entry.is_type:
+			return 0
+		type = entry.type
+		if kind == 'class':
+			if not type.is_extension_type:
+				return 0
+		else:
+			if not type.is_struct_or_union:
+				return 0
+			if kind <> type.kind:
+				return 0
+		return 1
 
     def analyse_expressions(self, env):
         pass
