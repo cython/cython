@@ -5,7 +5,9 @@ syntax: glob
 
 Cython/Compiler/Lexicon.pickle
 BUILD/
+build/
 .coverage
 *~
 *.orig
 *.rej
+*.dep
