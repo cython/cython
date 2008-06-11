@@ -89,7 +89,11 @@ setup(
     'Cython.Compiler',
     'Cython.Distutils',
     'Cython.Mac',
-    'Cython.Plex'
+    'Cython.Unix',
+    'Cython.Plex',
+
+    'Cython.Tests',
+    'Cython.Compiler.Tests',
     ],
   **setup_args
   )
