@@ -33,10 +33,11 @@ class CCodeWriter:
     def __init__(self, f):
         #self.f = open_new_file(outfile_name)
         self.f = f
+        self._write = f.write
         self.level = 0
         self.bol = 1
         self.marker = None
-        self.last_marker = 1
+        self.last_marker_line = 0
         self.label_counter = 1
         self.error_label = None
         self.filename_table = {}
@@ -49,14 +50,14 @@ class CCodeWriter:
             self.emit_marker()
         if code:
             self.put(code)
-        self.f.write("\n");
+        self._write("\n");
         self.bol = 1
     
     def emit_marker(self):
-        self.f.write("\n");
+        self._write("\n");
         self.indent()
-        self.f.write("/* %s */\n" % self.marker)
-        self.last_marker = self.marker
+        self._write("/* %s */\n" % self.marker[1])
+        self.last_marker_line = self.marker[0]
         self.marker = None
 
     def put(self, code):
@@ -65,7 +66,7 @@ class CCodeWriter:
             self.level += dl
         if self.bol:
             self.indent()
-        self.f.write(code)
+        self._write(code)
         self.bol = 0
         if dl > 0:
             self.level += dl
@@ -85,7 +86,7 @@ class CCodeWriter:
         self.putln("}")
     
     def indent(self):
-        self.f.write("  " * self.level)
+        self._write("  " * self.level)
 
     def get_py_version_hex(self, pyversion):
         return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
@@ -105,6 +106,8 @@ class CCodeWriter:
         if pos is None:
             return
         source_desc, line, col = pos
+        if self.last_marker_line == line:
+            return
         assert isinstance(source_desc, SourceDescriptor)
         contents = self.commented_file_contents(source_desc)
 
@@ -114,8 +117,7 @@ class CCodeWriter:
 
         marker = u'"%s":%d\n%s\n' % (
             source_desc.get_escaped_description(), line, u'\n'.join(lines))
-        if self.last_marker != marker:
-            self.marker = marker
+        self.marker = (line, marker)
 
     def init_labels(self):
         self.label_counter = 0
