@@ -3543,9 +3543,10 @@ class PrimaryCmpNode(ExprNode, CmpNode):
            or (self.cascade and self.cascade.has_int_operands())
     
     def coerce_chars_to_ints(self, env):
-        if self.operand1.type.is_string:
+        # coerce literal single-char strings to c chars
+        if self.operand1.type.is_string and isinstance(self.operand1, StringNode):
             self.operand1 = self.operand1.coerce_to(PyrexTypes.c_uchar_type, env)
-        if self.operand2.type.is_string:
+        if self.operand2.type.is_string and isinstance(self.operand2, StringNode):
             self.operand2 = self.operand2.coerce_to(PyrexTypes.c_uchar_type, env)
         if self.cascade:
             self.cascade.coerce_chars_to_ints(env)
@@ -3636,7 +3637,7 @@ class CascadedCmpNode(Node, CmpNode):
         return self.operand2.type.is_int
         
     def coerce_chars_to_ints(self, env):
-        if self.operand2.type.is_string:
+        if self.operand2.type.is_string and isinstance(self.operand2, StringNode):
             self.operand2 = self.operand2.coerce_to(PyrexTypes.c_uchar_type, env)
 
     def coerce_cascaded_operands_to_temp(self, env):
