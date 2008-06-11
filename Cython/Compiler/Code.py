@@ -33,10 +33,11 @@ class CCodeWriter:
     def __init__(self, f):
         #self.f = open_new_file(outfile_name)
         self.f = f
+        self._write = f.write
         self.level = 0
         self.bol = 1
         self.marker = None
-        self.last_marker = 1
+        self.last_marker_line = 0
         self.label_counter = 1
         self.error_label = None
         self.filename_table = {}
@@ -49,14 +50,14 @@ class CCodeWriter:
             self.emit_marker()
         if code:
             self.put(code)
-        self.f.write("\n");
+        self._write("\n");
         self.bol = 1
     
     def emit_marker(self):
-        self.f.write("\n");
+        self._write("\n");
         self.indent()
-        self.f.write("/* %s */\n" % self.marker)
-        self.last_marker = self.marker
+        self._write("/* %s */\n" % self.marker[1])
+        self.last_marker_line = self.marker[0]
         self.marker = None
 
     def put(self, code):
@@ -65,7 +66,7 @@ class CCodeWriter:
             self.level += dl
         if self.bol:
             self.indent()
-        self.f.write(code)
+        self._write(code)
         self.bol = 0
         if dl > 0:
             self.level += dl
@@ -85,18 +86,19 @@ class CCodeWriter:
         self.putln("}")
     
     def indent(self):
-        self.f.write("  " * self.level)
+        self._write("  " * self.level)
 
     def get_py_version_hex(self, pyversion):
         return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
 
-    def file_contents(self, source_desc):
+    def commented_file_contents(self, source_desc):
         try:
             return self.input_file_contents[source_desc]
         except KeyError:
-            F = [line.encode('ASCII', 'replace').replace(
-                    '*/', '*[inserted by cython to avoid comment closer]/')
-                 for line in source_desc.get_lines(decode=True)]
+            F = [u' * ' + line.rstrip().replace(
+                    u'*/', u'*[inserted by cython to avoid comment closer]/'
+                    ).encode('ASCII', 'replace') # + Py2 auto-decode to unicode
+                 for line in source_desc.get_lines()]
             self.input_file_contents[source_desc] = F
             return F
 
@@ -104,19 +106,18 @@ class CCodeWriter:
         if pos is None:
             return
         source_desc, line, col = pos
+        if self.last_marker_line == line:
+            return
         assert isinstance(source_desc, SourceDescriptor)
-        contents = self.file_contents(source_desc)
+        contents = self.commented_file_contents(source_desc)
 
-        context = ''
-        for i in range(max(0,line-3), min(line+2, len(contents))):
-            s = contents[i]
-            if i+1 == line:   # line numbers in pyrex start counting up from 1
-                s = s.rstrip() + '             # <<<<<<<<<<<<<< ' + '\n'
-            context += " * " + s
+        lines = contents[max(0,line-3):line] # line numbers start at 1
+        lines[-1] += u'             # <<<<<<<<<<<<<<'
+        lines += contents[line:line+2]
 
-        marker = '"%s":%d\n%s' % (source_desc.get_description().encode('ASCII', 'replace'), line, context)
-        if self.last_marker != marker:
-            self.marker = marker
+        marker = u'"%s":%d\n%s\n' % (
+            source_desc.get_escaped_description(), line, u'\n'.join(lines))
+        self.marker = (line, marker)
 
     def init_labels(self):
         self.label_counter = 0

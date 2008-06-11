@@ -1,9 +1,4 @@
-VERSION = 0.9.6.3
 PYTHON?=python
-
-version:
-	@echo "Setting version to $(VERSION)"
-	@echo "version = '$(VERSION)'" > Cython/Compiler/Version.py
 
 clean:
 	@echo Cleaning Source
