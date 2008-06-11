@@ -196,6 +196,8 @@ class BlockNode:
             del entries[:]
 
     def generate_py_string_decls(self, env, code):
+        if env is None:
+            return # earlier error
         entries = env.pystring_entries
         if entries:
             code.putln("")
