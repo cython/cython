@@ -3,5 +3,6 @@ cdef class C:
         pass
 
 _ERRORS = u"""
-2:6: Signature does not match previous declaration
+nogilcmeth.pyx:2:9: Signature not compatible with previous declaration
+nogilcmeth.pxd:2:15: Previous declaration is here
 """
