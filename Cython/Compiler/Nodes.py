@@ -153,24 +153,24 @@ class Node(object):
             self.body.annotate(code)
             
     def end_pos(self):
+        if not self.child_attrs:
+            return self.pos
         try:
             return self._end_pos
         except AttributeError:
-            flat = []
+            pos = self.pos
             for attr in self.child_attrs:
                 child = getattr(self, attr)
                 # Sometimes lists, sometimes nodes
                 if child is None:
                     pass
                 elif isinstance(child, list):
-                    flat += child
+                    for c in child:
+                        pos = max(pos, c.end_pos())
                 else:
-                    flat.append(child)
-            if len(flat) == 0:
-                self._end_pos = self.pos
-            else:
-                self._end_pos = max([child.end_pos() for child in flat])
-            return self._end_pos
+                    pos = max(pos, child.end_pos())
+            self._end_pos = pos
+            return pos
 
 
 class BlockNode:
