@@ -919,7 +919,7 @@ class ModuleScope(Scope):
                 entry = None # Will cause redeclaration and produce an error
             else:
                 scope = type.scope
-                if typedef_flag and scope.defined:
+                if typedef_flag and (scope and scope.defined):
                     self.check_previous_typedef_flag(entry, typedef_flag, pos)
                 if (scope and scope.defined) or (base_type and type.base_type):
                     if base_type and base_type is not type.base_type:
