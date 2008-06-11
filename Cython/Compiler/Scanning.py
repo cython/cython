@@ -209,8 +209,15 @@ class SourceDescriptor:
     """
     A SourceDescriptor should be considered immutable.
     """
+    _escaped_description = None
     def __str__(self):
         assert False # To catch all places where a descriptor is used directly as a filename
+    
+    def get_escaped_description(self):
+        if self._escaped_description is None:
+            self._escaped_description = \
+                self.get_description().encode('ASCII', 'replace').decode("ASCII")
+        return self._escaped_description
 
 class FileSourceDescriptor(SourceDescriptor):
     """
@@ -223,16 +230,8 @@ class FileSourceDescriptor(SourceDescriptor):
     def __init__(self, filename):
         self.filename = filename
     
-    def get_lines(self, decode=False):
-        # decode is True when called from Code.py (which reserializes in a standard way to ASCII),
-        # while decode is False when called from Errors.py.
-        #
-        # Note that if changing Errors.py in this respect, raising errors over wrong encoding
-        # will no longer be able to produce the line where the encoding problem occurs ...
-        if decode:
-            return Utils.open_source_file(self.filename)
-        else:
-            return open(self.filename)
+    def get_lines(self):
+        return Utils.open_source_file(self.filename)
     
     def get_description(self):
         return self.filename
@@ -258,7 +257,7 @@ class StringSourceDescriptor(SourceDescriptor):
         self.name = name
         self.codelines = [x + "\n" for x in code.split("\n")]
     
-    def get_lines(self, decode=False):
+    def get_lines(self):
         return self.codelines
     
     def get_description(self):

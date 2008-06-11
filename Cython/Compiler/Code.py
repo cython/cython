@@ -90,13 +90,14 @@ class CCodeWriter:
     def get_py_version_hex(self, pyversion):
         return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
 
-    def file_contents(self, source_desc):
+    def commented_file_contents(self, source_desc):
         try:
             return self.input_file_contents[source_desc]
         except KeyError:
-            F = [line.encode('ASCII', 'replace').replace(
-                    '*/', '*[inserted by cython to avoid comment closer]/')
-                 for line in source_desc.get_lines(decode=True)]
+            F = [u' * ' + line.rstrip().replace(
+                    u'*/', u'*[inserted by cython to avoid comment closer]/'
+                    ).encode('ASCII', 'replace') # + Py2 auto-decode to unicode
+                 for line in source_desc.get_lines()]
             self.input_file_contents[source_desc] = F
             return F
 
@@ -105,16 +106,14 @@ class CCodeWriter:
             return
         source_desc, line, col = pos
         assert isinstance(source_desc, SourceDescriptor)
-        contents = self.file_contents(source_desc)
+        contents = self.commented_file_contents(source_desc)
 
-        context = ''
-        for i in range(max(0,line-3), min(line+2, len(contents))):
-            s = contents[i]
-            if i+1 == line:   # line numbers in pyrex start counting up from 1
-                s = s.rstrip() + '             # <<<<<<<<<<<<<< ' + '\n'
-            context += " * " + s
+        lines = contents[max(0,line-3):line] # line numbers start at 1
+        lines[-1] += u'             # <<<<<<<<<<<<<<'
+        lines += contents[line:line+2]
 
-        marker = '"%s":%d\n%s' % (source_desc.get_description().encode('ASCII', 'replace'), line, context)
+        marker = u'"%s":%d\n%s\n' % (
+            source_desc.get_escaped_description(), line, u'\n'.join(lines))
         if self.last_marker != marker:
             self.marker = marker
 
