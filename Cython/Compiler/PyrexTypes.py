@@ -699,6 +699,8 @@ class CFuncType(CType):
             return 0
         if not self.same_calling_convention_as(other_type):
             return 0
+        if self.nogil != other_type.nogil:
+            return 0
         return 1
 
     def compatible_signature_with(self, other_type, as_cmethod = 0):
@@ -730,6 +732,8 @@ class CFuncType(CType):
         if not self.return_type.subtype_of_resolved_type(other_type.return_type):
             return 0
         if not self.same_calling_convention_as(other_type):
+            return 0
+        if self.nogil != other_type.nogil:
             return 0
         self.original_sig = other_type.original_sig or other_type
         if as_cmethod:
