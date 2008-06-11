@@ -2003,7 +2003,7 @@ class CClassDefNode(StatNode, BlockNode):
                     else:
                         self.base_type = base_class_entry.type
         has_body = self.body is not None
-        if self.module_name:
+        if self.module_name and self.visibility != 'extern':
             module_path = self.module_name.split(".")
             home_scope = env.find_imported_module(module_path, self.pos)
             if not home_scope:
