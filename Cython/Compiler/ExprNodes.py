@@ -3153,7 +3153,8 @@ class PowNode(NumBinopNode):
             return None
 
     def c_types_okay(self, type1, type2):
-        return type1.is_float or type2.is_float
+        return (type1.is_float or type2.is_float) and \
+                NumBinopNode.c_types_okay(self, type1, type2)
 
     def type_error(self):
         if not (self.operand1.type.is_error or self.operand2.type.is_error):
