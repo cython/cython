@@ -814,8 +814,6 @@ class CFuncType(CType):
         if (not entity_code and cc) or entity_code.startswith("*"):
             entity_code = "(%s%s)" % (cc, entity_code)
             cc = ""
-        if not entity_code:
-            entity_code = "()"
         return self.return_type.declaration_code(
             "%s%s(%s)%s" % (cc, entity_code, arg_decl_code, trailer),
             for_display, dll_linkage, pyrex)
