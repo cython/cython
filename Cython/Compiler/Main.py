@@ -23,6 +23,8 @@ from Errors import PyrexError, CompileError, error
 from Symtab import BuiltinScope, ModuleScope
 from Cython import Utils
 
+module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
+
 # Note: PHASES and TransformSet should be removed soon; but that's for
 # another day and another commit.
 PHASES = [
@@ -74,6 +76,9 @@ class Context:
                     module_name, relative_to, pos, need_pxd))
         scope = None
         pxd_pathname = None
+        if not module_name_pattern.match(module_name):
+            raise CompileError((path, 0, 0),
+                "'%s' is not a valid module name" % module_name)
         if "." not in module_name and relative_to:
             if debug_find_module:
                 print("...trying relative import")
