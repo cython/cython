@@ -2017,7 +2017,8 @@ class AttributeNode(ExprNode):
                 error(self.pos, 
                     "Cannot select attribute of incomplete type '%s'" 
                     % obj_type)
-                obj_type = PyrexTypes.error_type
+                self.type = PyrexTypes.error_type
+                return
             self.entry = entry
             if entry:
                 if obj_type.is_extension_type and entry.name == "__weakref__":
