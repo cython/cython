@@ -54,7 +54,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if self.has_imported_c_functions():
             self.module_temp_cname = env.allocate_temp_pyobject()
             env.release_temp(self.module_temp_cname)
-        self.generate_dep_file(env, result)
+        if options.recursive:
+            self.generate_dep_file(env, result)
         self.generate_c_code(env, options, result)
         self.generate_h_code(env, options, result)
         self.generate_api_code(env, result)
