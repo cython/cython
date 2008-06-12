@@ -821,10 +821,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         #if need_self_cast:
         #	self.generate_self_cast(scope, code)
         if type.vtabslot_cname:
-            code.putln("*(struct %s **)&p->%s = %s;" % (
-                type.vtabstruct_cname,
+            if base_type:
+                struct_type_cast = "(struct %s*)" % base_type.vtabstruct_cname
+            else:
+                struct_type_cast = ""
+            code.putln("p->%s = %s%s;" % (
                 type.vtabslot_cname,
-                type.vtabptr_cname))
+                struct_type_cast, type.vtabptr_cname))
         for entry in py_attrs:
             if entry.name == "__weakref__":
                 code.putln("p->%s = 0;" % entry.cname)
