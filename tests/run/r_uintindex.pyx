@@ -1,7 +1,7 @@
 __doc__ = u"""
->>> print idx_uint( ["buckle", "my", "shoe"], 2)
+>>> print(idx_uint( ["buckle", "my", "shoe"], 2))
 shoe
->>> print idx_ulong(["buckle", "my", "shoe"], 2)
+>>> print(idx_ulong(["buckle", "my", "shoe"], 2))
 shoe
 """
 
