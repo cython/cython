@@ -247,6 +247,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_filename_init_prototype(code)
         if env.has_import_star:
             self.generate_import_star(env, code)
+        self.generate_pymoduledef_struct(env, code)
         self.generate_module_init_func(modules[:-1], env, code)
         code.mark_pos(None)
         self.generate_module_cleanup_func(env, code)
@@ -1516,9 +1517,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_init_func(self, imported_modules, env, code):
         code.putln("")
-        header = "PyMODINIT_FUNC init%s(void)" % env.module_name
-        code.putln("%s; /*proto*/" % header)
-        code.putln("%s {" % header)
+        header2 = "PyMODINIT_FUNC init%s(void)" % env.module_name
+        header3 = "PyMODINIT_FUNC PyInit_%s(void)" % env.module_name
+        code.putln("#if PY_MAJOR_VERSION < 3")
+        code.putln("%s; /*proto*/" % header2)
+        code.putln(header2)
+        code.putln("#else")
+        code.putln("%s; /*proto*/" % header3)
+        code.putln(header3)
+        code.putln("#endif")
+        code.putln("{")
+
         code.put_var_declarations(env.temp_entries)
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
 
@@ -1563,13 +1572,21 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.body.generate_execution_code(code)
 
         if Options.generate_cleanup_code:
+            # this should be replaced by the module's tp_clear in Py3
             code.putln("if (__Pyx_RegisterCleanup()) %s;" % code.error_goto(self.pos))
 
+        code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln("return;")
+        code.putln("#else")
+        code.putln("return %s;" % env.module_cname)
+        code.putln("#endif")
         code.put_label(code.error_label)
         code.put_var_xdecrefs(env.temp_entries)
         code.putln('__Pyx_AddTraceback("%s");' % env.qualified_name)
         env.use_utility_code(Nodes.traceback_utility_code)
+        code.putln("#if PY_MAJOR_VERSION >= 3")
+        code.putln("return NULL;")
+        code.putln("#endif")
         code.putln('}')
 
     def generate_module_cleanup_func(self, env, code):
@@ -1609,7 +1626,27 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_filename_init_call(self, code):
         code.putln("%s();" % Naming.fileinit_cname)
-    
+
+    def generate_pymoduledef_struct(self, env, code):
+        if env.doc:
+            doc = env.doc_cname
+        else:
+            doc = "0"
+        code.putln("")
+        code.putln("#if PY_MAJOR_VERSION >= 3")
+        code.putln("static struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
+        code.putln("  PyModuleDef_HEAD_INIT,")
+        code.putln('  "%s",' % env.module_name)
+        code.putln("  %s, /* m_doc */" % doc)
+        code.putln("  -1, /* m_size */")
+        code.putln("  %s /* m_methods */," % env.method_table_cname)
+        code.putln("  NULL, /* m_reload */")
+        code.putln("  NULL, /* m_traverse */")
+        code.putln("  NULL, /* m_clear */")
+        code.putln("  NULL /* m_free */")
+        code.putln("};")
+        code.putln("#endif")
+
     def generate_module_creation_code(self, env, code):
         # Generate code to create the module object and
         # install the builtins.
@@ -1617,19 +1654,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             doc = env.doc_cname
         else:
             doc = "0"
+        code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln(
             '%s = Py_InitModule4("%s", %s, %s, 0, PYTHON_API_VERSION);' % (
                 env.module_cname, 
                 env.module_name, 
                 env.method_table_cname, 
                 doc))
+        code.putln("#else")
+        code.putln(
+            "%s = PyModule_Create(&%s);" % (
+                env.module_cname,
+                Naming.pymoduledef_cname))
+        code.putln("#endif")
         code.putln(
             "if (!%s) %s;" % (
                 env.module_cname,
                 code.error_goto(self.pos)));
+        code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln(
             "Py_INCREF(%s);" %
                 env.module_cname)
+        code.putln("#endif")
         code.putln(
             '%s = PyImport_AddModule(__Pyx_BUILTIN_MODULE_NAME);' %
                 Naming.builtins_cname)
