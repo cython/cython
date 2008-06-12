@@ -1,7 +1,11 @@
 __doc__ = u"""
-    >>> print D
-    {'answer': (42, 42)}
+    >>> print(D)
+    {u'answer': (42, 42)}
 """
+
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u"u'", u"'")
 
 D = {}
 
@@ -10,4 +14,4 @@ def foo(x):
 
 cdef class Spam:
     answer = 42
-    D['answer'] = foo(answer)
+    D[u'answer'] = foo(answer)
