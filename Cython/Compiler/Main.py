@@ -223,7 +223,7 @@ class Context:
                 return 1
 
     def read_dependency_file(self, source_path):
-        dep_path = replace_suffix(source_path, ".dep")
+        dep_path = Utils.replace_suffix(source_path, ".dep")
         if os.path.exists(dep_path):
             f = open(dep_path, "rU")
             chunks = [ line.strip().split(" ", 1)
