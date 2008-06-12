@@ -30,7 +30,7 @@ def castrate_file(path, st):
             "#error Do not use this file, it is the result of a failed Cython compilation.\n")
         f.close()
         if st:
-            os.utime(path, (st.st_atime, st.st_mtime))
+            os.utime(path, (st.st_atime, st.st_mtime-1))
 
 def modification_time(path):
     st = os.stat(path)
