@@ -1,4 +1,4 @@
-cdef object foo, blarg
+cdef object blarg
 
 def foo(obj):
 	cdef int *p

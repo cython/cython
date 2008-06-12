@@ -2791,6 +2791,10 @@ class TypecastNode(ExprNode):
     def analyse_types(self, env):
         base_type = self.base_type.analyse(env)
         _, self.type = self.declarator.analyse(base_type, env)
+        if self.type.is_cfunction:
+            error(self.pos,
+                "Cannot cast to a function type")
+            self.type = PyrexTypes.error_type
         self.operand.analyse_types(env)
         to_py = self.type.is_pyobject
         from_py = self.operand.type.is_pyobject

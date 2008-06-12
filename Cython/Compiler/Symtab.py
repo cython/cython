@@ -374,6 +374,10 @@ class Scope:
     
     def declare_pyfunction(self, name, pos):
         # Add an entry for a Python function.
+        entry = self.lookup_here(name)
+        if entry:
+            # This is legal Python, but for now will produce invalid C.
+            error(pos, "'%s' already declared" % name)
         entry = self.declare_var(name, py_object_type, pos)
         entry.signature = pyfunction_signature
         self.pyfunc_entries.append(entry)
@@ -1340,9 +1344,9 @@ class CClassScope(ClassScope):
                 if defining and entry.func_cname:
                     error(pos, "'%s' already defined" % name)
                 #print "CClassScope.declare_cfunction: checking signature" ###
-                if type.same_c_signature_as(entry.type, as_cmethod = 1):
+                if type.same_c_signature_as(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
                     pass
-                elif type.compatible_signature_with(entry.type, as_cmethod = 1):
+                elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
                     if type.optional_arg_count and not type.original_sig.optional_arg_count:
                         # Need to put a wrapper taking no optional arguments 
                         # into the method table.
