@@ -1914,7 +1914,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for meth_entry in type.scope.cfunc_entries:
                 if meth_entry.func_cname:
                     code.putln(
-                        "%s.%s = (void*)%s;" % (
+                        "*(void(**)(void))&%s.%s = (void(*)(void))%s;" % (
                             type.vtable_cname,
                             meth_entry.cname,
                             meth_entry.func_cname))
