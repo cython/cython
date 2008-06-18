@@ -28,6 +28,16 @@ class NodeTypeWriter(TreeVisitor):
         self._indents -= 1
 
 class CythonTest(unittest.TestCase):
+
+    def assertLines(self, expected, result):
+        "Checks that the given strings or lists of strings are equal line by line"
+        if not isinstance(expected, list): expected = expected.split(u"\n")
+        if not isinstance(result, list): result = result.split(u"\n")
+        for idx, (expected_line, result_line) in enumerate(zip(expected, result)):
+            self.assertEqual(expected_line, result_line, "Line %d:\nExp: %s\nGot: %s" % (idx, expected_line, result_line))
+        self.assertEqual(len(expected), len(result),
+            "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(expected), u"\n".join(result)))
+
     def assertCode(self, expected, result_tree):
         writer = CodeWriter()
         writer.write(result_tree)

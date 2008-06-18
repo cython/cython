@@ -324,6 +324,9 @@ class Context:
         try:
             tree = self.parse(source, scope, pxd = 0,
                               full_module_name = full_module_name)
+            from ParseTreeTransforms import WithTransform, PostParse
+            tree = PostParse()(tree)
+            tree = WithTransform()(tree)
             tree.process_implementation(scope, options, result)
         except CompileError:
             errors_occurred = True
