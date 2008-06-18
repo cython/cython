@@ -2414,7 +2414,7 @@ class InPlaceAssignmentNode(AssignmentNode):
     #  Fortunately, the type of the lhs node is fairly constrained 
     #  (it must be a NameNode, AttributeNode, or IndexNode).     
     
-    child_attrs = ["lhs", "rhs", "dup"]
+    child_attrs = ["lhs", "rhs"]
 
     def analyse_declarations(self, env):
         self.lhs.analyse_target_declaration(env)
@@ -2998,7 +2998,7 @@ class ForInStatNode(LoopNode, StatNode):
     #  else_clause   StatNode
     #  item          NextNode       used internally
     
-    child_attrs = ["target", "iterator", "body", "else_clause", "item"]
+    child_attrs = ["target", "iterator", "body", "else_clause"]
     
     def analyse_declarations(self, env):
         self.target.analyse_target_declaration(env)
@@ -3115,7 +3115,7 @@ class ForFromStatNode(LoopNode, StatNode):
     #  is_py_target       bool
     #  loopvar_name       string
     #  py_loopvar_node    PyTempNode or None
-    child_attrs = ["target", "bound1", "bound2", "step", "body", "else_clause", "py_loopvar_node"]
+    child_attrs = ["target", "bound1", "bound2", "step", "body", "else_clause"]
     
     def analyse_declarations(self, env):
         self.target.analyse_target_declaration(env)
@@ -3231,6 +3231,18 @@ class ForFromStatNode(LoopNode, StatNode):
             self.else_clause.annotate(code)
 
 
+class WithStatNode(StatNode):
+    """
+    Represents a Python with statement.
+    
+    This is only used at parse tree level; and is not present in
+    analysis or generation phases.
+    """
+    #  manager          The with statement manager object
+    #  target            Node (lhs expression)
+    #  body             StatNode
+    child_attrs = ["manager", "target", "body"]
+
 class TryExceptStatNode(StatNode):
     #  try .. except statement
     #
@@ -3325,6 +3337,8 @@ class ExceptClauseNode(Node):
     #  exc_vars       (string * 3)       local exception variables
     
     child_attrs = ["pattern", "target", "body", "exc_value"]
+
+    exc_value = None
 
     def analyse_declarations(self, env):
         if self.target:
