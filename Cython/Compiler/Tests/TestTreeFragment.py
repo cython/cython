@@ -44,7 +44,21 @@ class TestTreeFragments(CythonTest):
         a = T.body.stats[1].rhs.operand2.operand1
         self.assertEquals(v.pos, a.pos)
         
-        
+    def test_temps(self):
+        F = self.fragment(u"""
+            TMP
+            x = TMP
+        """)
+        T = F.substitute(temps=[u"TMP"])
+        s = T.body.stats
+        print s[0].expr.name
+        self.assert_(s[0].expr.name.__class__ is TempName)
+        self.assert_(s[1].rhs.name.__class__ is TempName)
+
+        self.assert_(s[0].expr.name == s[1].rhs.name)
+        self.assert_(s[0].expr.name !=  u"TMP")
+        self.assert_(s[0].expr.name !=  TempName(u"TMP"))
+        self.assert_(s[0].expr.name.description == u"TMP")
 
 if __name__ == "__main__":
     import unittest
