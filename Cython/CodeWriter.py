@@ -1,5 +1,7 @@
 from Cython.Compiler.Visitor import TreeVisitor
 from Cython.Compiler.Nodes import *
+from Cython.Compiler.ExprNodes import *
+from Cython.Compiler.Symtab import TempName
 
 """
 Serializes a Cython code tree to Cython code. This is primarily useful for
@@ -196,6 +198,18 @@ class CodeWriter(TreeVisitor):
         self.comma_seperated_list(node.args)
         self.put(")")
 
+    def visit_GeneralCallNode(self, node):
+        self.visit(node.function)
+        self.put(u"(")
+        posarg = node.positional_args
+        if isinstance(posarg, AsTupleNode):
+            self.visit(posarg.arg)
+        else:
+            self.comma_seperated_list(posarg)
+        if node.keyword_args is not None or node.starstar_arg is not None:
+            raise Exception("Not implemented yet")
+        self.put(u")")
+
     def visit_ExprStatNode(self, node):
         self.startline()
         self.visit(node.expr)
@@ -260,6 +274,17 @@ class CodeWriter(TreeVisitor):
         self.visit(node.body)
         self.dedent()
 
+    def visit_ReraiseStatNode(self, node):
+        self.line("raise")
+
     def visit_NoneNode(self, node):
         self.put(u"None")
+
+    def visit_ImportNode(self, node):
+        self.put(u"(import %s)" % node.module_name.value)
+
+    def visit_NotNode(self, node):
+        self.put(u"(not ")
+        self.visit(node.operand)
+        self.put(u")")
 
