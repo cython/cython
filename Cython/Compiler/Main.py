@@ -232,6 +232,10 @@ class Context:
         errors_occurred = False
         try:
             tree = self.parse(source, scope.type_names, pxd = 0, full_module_name = full_module_name)
+            # This is of course going to change and be refactored real soon
+            from ParseTreeTransforms import WithTransform, PostParse
+            tree = PostParse()(tree)
+            tree = WithTransform()(tree)
             tree.process_implementation(scope, options, result)
         except CompileError:
             errors_occurred = True

@@ -1134,13 +1134,13 @@ def p_for_from_step(s):
 
 inequality_relations = ('<', '<=', '>', '>=')
 
-def p_for_target(s):
+def p_target(s, terminator):
     pos = s.position()
     expr = p_bit_expr(s)
     if s.sy == ',':
         s.next()
         exprs = [expr]
-        while s.sy != 'in':
+        while s.sy != terminator:
             exprs.append(p_bit_expr(s))
             if s.sy != ',':
                 break
@@ -1148,6 +1148,9 @@ def p_for_target(s):
         return ExprNodes.TupleNode(pos, args = exprs)
     else:
         return expr
+
+def p_for_target(s):
+    return p_target(s, 'in')
 
 def p_for_iterator(s):
     pos = s.position()
@@ -1227,8 +1230,17 @@ def p_with_statement(s):
         body = p_suite(s)
         return Nodes.GILStatNode(pos, state = state, body = body)
     else:
-        s.error("Only 'with gil' and 'with nogil' implemented",
-                pos = pos)
+        manager = p_expr(s)
+        target = None
+        if s.sy == 'IDENT' and s.systring == 'as':
+            s.next()
+            allow_multi = (s.sy == '(')
+            target = p_target(s, ':')
+            if not allow_multi and isinstance(target, ExprNodes.TupleNode):
+                s.error("Multiple with statement target values not allowed without paranthesis")
+        body = p_suite(s)
+	return Nodes.WithStatNode(pos, manager = manager, 
+	       			       target = target, body = body)
     
 def p_simple_statement(s, first_statement = 0):
     #print "p_simple_statement:", s.sy, s.systring ###
