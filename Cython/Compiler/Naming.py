@@ -8,6 +8,8 @@
 
 pyrex_prefix    = "__pyx_"
 
+temp_prefix       = "__pyxtmp_"
+
 builtin_prefix    = pyrex_prefix + "builtin_"
 arg_prefix        = pyrex_prefix + "arg_"
 funcdoc_prefix    = pyrex_prefix + "doc_"

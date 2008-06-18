@@ -4,6 +4,28 @@ import unittest
 from Cython.Compiler.ModuleNode import ModuleNode
 import Cython.Compiler.Main as Main
 from Cython.Compiler.TreeFragment import TreeFragment, strip_common_indent
+from Cython.Compiler.Visitor import TreeVisitor
+
+class NodeTypeWriter(TreeVisitor):
+    def __init__(self):
+        super(NodeTypeWriter, self).__init__()
+        self._indents = 0
+        self.result = []
+    def visit_Node(self, node):
+        if len(self.access_path) == 0:
+            name = u"(root)"
+        else:
+            tip = self.access_path[-1]
+            if tip[2] is not None:
+                name = u"%s[%d]" % tip[1:3]
+            else:
+                name = tip[1]
+            
+        self.result.append(u"  " * self._indents +
+                           u"%s: %s" % (name, node.__class__.__name__))
+        self._indents += 1
+        self.visitchildren(node)
+        self._indents -= 1
 
 class CythonTest(unittest.TestCase):
     def assertCode(self, expected, result_tree):
@@ -24,7 +46,15 @@ class CythonTest(unittest.TestCase):
         if name.startswith("__main__."): name = name[len("__main__."):]
         name = name.replace(".", "_")
         return TreeFragment(code, name, pxds)
-        
+
+    def treetypes(self, root):
+        """Returns a string representing the tree by class names.
+        There's a leading and trailing whitespace so that it can be
+        compared by simple string comparison while still making test
+        cases look ok."""
+        w = NodeTypeWriter()
+        w.visit(root)
+        return u"\n".join([u""] + w.result + [u""])
 
 class TransformTest(CythonTest):
     """
