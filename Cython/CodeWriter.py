@@ -35,6 +35,7 @@ class CodeWriter(TreeVisitor):
             result = LinesResult()
         self.result = result
         self.numindents = 0
+        self.tempnames = {}
     
     def write(self, tree):
         self.visit(tree)
@@ -57,6 +58,11 @@ class CodeWriter(TreeVisitor):
     def line(self, s):
         self.startline(s)
         self.endline()
+
+    def putname(self, name):
+        if isinstance(name, TempName):
+            name = self.tempnames.setdefault(name, u"$" + name.description)
+        self.put(name)
     
     def comma_seperated_list(self, items, output_rhs=False):
         if len(items) > 0:
@@ -116,7 +122,7 @@ class CodeWriter(TreeVisitor):
         self.endline()
     
     def visit_NameNode(self, node):
-        self.put(node.name)
+        self.putname(node.name)
     
     def visit_IntNode(self, node):
         self.put(node.value)
@@ -185,7 +191,8 @@ class CodeWriter(TreeVisitor):
         self.comma_seperated_list(node.args) # Might need to discover whether we need () around tuples...hmm...
     
     def visit_SimpleCallNode(self, node):
-        self.put(node.function.name + u"(")
+        self.visit(node.function)
+        self.put(u"(")
         self.comma_seperated_list(node.args)
         self.put(")")
 
@@ -197,9 +204,62 @@ class CodeWriter(TreeVisitor):
     def visit_InPlaceAssignmentNode(self, node):
         self.startline()
         self.visit(node.lhs)
-        self.put(" %s= " % node.operator)
+        self.put(u" %s= " % node.operator)
         self.visit(node.rhs)
         self.endline()
-    
-    
+        
+    def visit_WithStatNode(self, node):
+        self.startline()
+        self.put(u"with ")
+        self.visit(node.manager)
+        if node.target is not None:
+            self.put(u" as ")
+            self.visit(node.target)
+        self.endline(u":")
+        self.indent()
+        self.visit(node.body)
+        self.dedent()
+        
+    def visit_AttributeNode(self, node):
+        self.visit(node.obj)
+        self.put(u".%s" % node.attribute)
+
+    def visit_BoolNode(self, node):
+        self.put(str(node.value))
+
+    def visit_TryFinallyStatNode(self, node):
+        self.line(u"try:")
+        self.indent()
+        self.visit(node.body)
+        self.dedent()
+        self.line(u"finally:")
+        self.indent()
+        self.visit(node.finally_clause)
+        self.dedent()
+
+    def visit_TryExceptStatNode(self, node):
+        self.line(u"try:")
+        self.indent()
+        self.visit(node.body)
+        self.dedent()
+        for x in node.except_clauses:
+            self.visit(x)
+        if node.else_clause is not None:
+            self.visit(node.else_clause)
+
+    def visit_ExceptClauseNode(self, node):
+        self.startline(u"except")
+        if node.pattern is not None:
+            self.put(u" ")
+            self.visit(node.pattern)
+        if node.target is not None:
+            self.put(u", ")
+            self.visit(node.target)
+        self.endline(":")
+        self.indent()
+        self.visit(node.body)
+        self.dedent()
+
+    def visit_NoneNode(self, node):
+        self.put(u"None")
 
