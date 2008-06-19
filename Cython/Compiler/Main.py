@@ -325,15 +325,15 @@ def create_parse(context):
         return tree
     return parse
 
-def create_generate_code(context, options):
+def create_generate_code(context, options, result):
     def generate_code(module_node):
         scope = module_node.scope
-        result = create_default_resultobj(module_node.compilation_source, options)
         module_node.process_implementation(options, result)
+        result.compilation_source = module_node.compilation_source
         return result
     return generate_code
 
-def create_default_pipeline(context, options):
+def create_default_pipeline(context, options, result):
     from ParseTreeTransforms import WithTransform, PostParse
     from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
     from ModuleNode import check_c_classes
@@ -345,7 +345,7 @@ def create_default_pipeline(context, options):
         AnalyseDeclarationsTransform(),
         check_c_classes,
         AnalyseExpressionsTransform(),
-        create_generate_code(context, options)
+        create_generate_code(context, options, result)
     ]
 
 def create_default_resultobj(compilation_source, options):
@@ -380,11 +380,14 @@ def run_pipeline(source, options, full_module_name = None):
     full_module_name = full_module_name or context.extract_module_name(source, options)
     source = CompilationSource(source_desc, full_module_name, cwd)
 
+    # Set up result object
+    result = create_default_resultobj(source, options)
+    
     # Get pipeline
-    pipeline = create_default_pipeline(context, options)
+    pipeline = create_default_pipeline(context, options, result)
 
     context.setup_errors(options)
-    errors_occurred, result = context.run_pipeline(pipeline, source)
+    errors_occurred, enddata = context.run_pipeline(pipeline, source)
     context.teardown_errors(errors_occurred, options, result)
     return result
 
