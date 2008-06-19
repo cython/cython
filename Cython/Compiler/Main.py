@@ -349,13 +349,14 @@ def create_generate_code(context, options):
 
 def create_default_pipeline(context, options):
     from ParseTreeTransforms import WithTransform, PostParse
-    from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
+    from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform, MarkClosureVisitor
     from ModuleNode import check_c_classes
     
     return [
         create_parse(context),
         PostParse(),
         WithTransform(),
+        MarkClosureVisitor(), 
         AnalyseDeclarationsTransform(),
         check_c_classes,
         AnalyseExpressionsTransform(),
