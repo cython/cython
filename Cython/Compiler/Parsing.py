@@ -1386,8 +1386,8 @@ def p_statement(s, ctx, first_statement = 0):
             if ctx.api:
                 error(s.pos, "'api' not allowed with this statement")
             elif s.sy == 'def':
-                if ctx.level not in ('module', 'class', 'c_class', 'property'):
-                    s.error('def statement not allowed here')
+#                if ctx.level not in ('module', 'class', 'c_class', 'property'):
+#                    s.error('def statement not allowed here')
                 s.level = ctx.level
                 return p_def_statement(s)
             elif s.sy == 'class':
