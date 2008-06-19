@@ -608,6 +608,9 @@ class Scope:
         return 0
 
 class PreImportScope(Scope):
+
+    namespace_cname = Naming.preimport_cname
+
     def __init__(self):
         Scope.__init__(self, Options.pre_import, None, None)
         
@@ -615,7 +618,6 @@ class PreImportScope(Scope):
         entry = self.declare(name, name, py_object_type, pos)
         entry.is_variable = True
         entry.is_pyglobal = True
-        entry.namespace_cname = Naming.preimport_cname
         return entry
 
 
@@ -761,6 +763,7 @@ class ModuleScope(Scope):
         self.has_extern_class = 0
         self.cached_builtins = []
         self.undeclared_cached_builtins = []
+        self.namespace_cname = self.module_cname
     
     def qualifying_scope(self):
         return self.parent_module
@@ -876,7 +879,6 @@ class ModuleScope(Scope):
                 raise InternalError(
                     "Non-cdef global variable is not a generic Python object")
             entry.is_pyglobal = 1
-            entry.namespace_cname = self.module_cname
         else:
             entry.is_cglobal = 1
             self.var_entries.append(entry)
@@ -1197,7 +1199,6 @@ class PyClassScope(ClassScope):
         entry = Scope.declare_var(self, name, type, pos, 
             cname, visibility, is_cdef)
         entry.is_pyglobal = 1
-        entry.namespace_cname = self.class_obj_cname
         return entry
 
     def allocate_temp(self, type):
@@ -1294,7 +1295,7 @@ class CClassScope(ClassScope):
             entry.is_pyglobal = 1 # xxx: is_pyglobal changes behaviour in so many places that
                                   # I keep it in for now. is_member should be enough
                                   # later on
-            entry.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
+            self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
             entry.interned_cname = self.intern_identifier(name)
             return entry
 
