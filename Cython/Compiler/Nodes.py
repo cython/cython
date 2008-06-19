@@ -10,7 +10,7 @@ import Naming
 import PyrexTypes
 import TypeSlots
 from PyrexTypes import py_object_type, error_type, CTypedefType, CFuncType
-from Symtab import ModuleScope, LocalScope, PersistentLocalScope, \
+from Symtab import ModuleScope, LocalScope, GeneratorLocalScope, \
     StructOrUnionScope, PyClassScope, CClassScope
 from Cython.Utils import open_new_file, replace_suffix, EncodedString
 import Options
@@ -810,7 +810,7 @@ class FuncDefNode(StatNode, BlockNode):
         while env.is_py_class_scope or env.is_c_class_scope:
             env = env.outer_scope
         if self.needs_closure:
-            lenv = PersistentLocalScope(name = self.entry.name, outer_scope = genv)
+            lenv = GeneratorLocalScope(name = self.entry.name, outer_scope = genv)
         else:
             lenv = LocalScope(name = self.entry.name, outer_scope = genv)
         lenv.return_type = self.return_type
@@ -842,7 +842,10 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_function_header(code,
             with_pymethdef = env.is_py_class_scope)
         # ----- Local variable declarations
+        lenv.mangle_closure_cnames(Naming.cur_scope_cname)
         self.generate_argument_declarations(lenv, code)
+        if self.needs_closure:
+            code.putln("/* TODO: declare and create scope object */")
         code.put_var_declarations(lenv.var_entries)
         init = ""
         if not self.return_type.is_void:
@@ -923,6 +926,7 @@ class FuncDefNode(StatNode, BlockNode):
         self.put_stararg_decrefs(code)
         if acquire_gil:
             code.putln("PyGILState_Release(_save);")
+        code.putln("/* TODO: decref scope object */")
         # ----- Return
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
