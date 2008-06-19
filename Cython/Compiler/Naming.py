@@ -8,7 +8,7 @@
 
 pyrex_prefix    = "__pyx_"
 
-temp_prefix       = "__pyxtmp_"
+temp_prefix       = u"__cyt_"
 
 builtin_prefix    = pyrex_prefix + "builtin_"
 arg_prefix        = pyrex_prefix + "arg_"

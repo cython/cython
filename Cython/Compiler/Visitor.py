@@ -1,9 +1,10 @@
 #
 #   Tree visitor and transform framework
 #
+import inspect
 import Nodes
 import ExprNodes
-import inspect
+import Naming
 from Cython.Utils import EncodedString
 
 class BasicVisitor(object):
@@ -171,7 +172,7 @@ tmpnamectr = 0
 def temp_name_handle(description):
     global tmpnamectr
     tmpnamectr += 1
-    return EncodedString(u"__cyt_%d_%s" % (tmpnamectr, description))
+    return EncodedString(Naming.temp_prefix + u"%d_%s" % (tmpnamectr, description))
 
 def get_temp_name_handle_desc(handle):
     if not handle.startswith(u"__cyt_"):
