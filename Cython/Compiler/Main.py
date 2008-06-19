@@ -25,22 +25,6 @@ from Cython import Utils
 
 module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
 
-# Note: PHASES and TransformSet should be removed soon; but that's for
-# another day and another commit.
-PHASES = [
-    'before_analyse_function', # run in FuncDefNode.generate_function_definitions
-    'after_analyse_function'   # run in FuncDefNode.generate_function_definitions
-]
-
-class TransformSet(dict):
-    def __init__(self):
-        for name in PHASES:
-            self[name] = []
-    def run(self, name, node, **options):
-        assert name in self, "Transform phase %s not defined" % name
-        for transform in self[name]:
-            transform(node, phase=name, **options)
-
 verbose = 0
 
 class Context:
@@ -295,7 +279,10 @@ class Context:
         else:
             Errors.open_listing_file(None)
 
-    def teardown_errors(self, errors_occurred, options, result, source_desc):
+    def teardown_errors(self, errors_occurred, options, result):
+        source_desc = result.compilation_source.source_desc
+        if not isinstance(source_desc, FileSourceDescriptor):
+            raise RuntimeError("Only file sources for code supported")
         Errors.close_listing_file()
         result.num_errors = Errors.num_errors
         if result.num_errors > 0:
@@ -315,17 +302,16 @@ class Context:
                     extra_objects = options.objects,
                     verbose_flag = options.show_version,
                     cplus = options.cplus)
-        
 
-class CompilationSource(object):
-    """
-    Contains the data necesarry to start up a compilation pipeline for
-    a single compilation source (= file, usually).
-    """
-    def __init__(self, source_desc, full_module_name, cwd):
-        self.source_desc = source_desc
-        self.full_module_name = full_module_name
-        self.cwd = cwd
+    def run_pipeline(self, pipeline, source):
+        errors_occurred = False
+        data = source
+        try:
+            for phase in pipeline:
+                data = phase(data)
+        except CompileError:
+            errors_occurred = True
+        return (errors_occurred, data)
 
 def create_parse(context):
     def parse(compsrc):
@@ -365,6 +351,7 @@ def create_default_pipeline(context, options):
 def create_default_resultobj(compilation_source, options):
     result = CompilationResult()
     result.main_source_file = compilation_source.source_desc.filename
+    result.compilation_source = compilation_source
     source_desc = compilation_source.source_desc
     if options.output_file:
         result.c_file = os.path.join(compilation_source.cwd, options.output_file)
@@ -383,13 +370,9 @@ def create_default_resultobj(compilation_source, options):
             pass
     return result
 
-def run_pipeline(source, options = None, full_module_name = None):
-    if not options:
-        options = default_options
-
+def run_pipeline(source, options, full_module_name = None):
     # Set up context
     context = Context(options.include_path)
-    context.setup_errors(options)
 
     # Set up source object
     cwd = os.getcwd()
@@ -400,15 +383,9 @@ def run_pipeline(source, options = None, full_module_name = None):
     # Get pipeline
     pipeline = create_default_pipeline(context, options)
 
-    data = source
-    errors_occurred = False
-    try:
-        for phase in pipeline:
-            data = phase(data)
-    except CompileError:
-        errors_occurred = True
-    result = data
-    context.teardown_errors(errors_occurred, options, result, source_desc)
+    context.setup_errors(options)
+    errors_occurred, result = context.run_pipeline(pipeline, source)
+    context.teardown_errors(errors_occurred, options, result)
     return result
 
 #------------------------------------------------------------------------
@@ -416,6 +393,16 @@ def run_pipeline(source, options = None, full_module_name = None):
 #  Main Python entry points
 #
 #------------------------------------------------------------------------
+
+class CompilationSource(object):
+    """
+    Contains the data necesarry to start up a compilation pipeline for
+    a single compilation unit.
+    """
+    def __init__(self, source_desc, full_module_name, cwd):
+        self.source_desc = source_desc
+        self.full_module_name = full_module_name
+        self.cwd = cwd
 
 class CompilationOptions:
     """
@@ -432,7 +419,6 @@ class CompilationOptions:
                                 defaults to true when recursive is true.
     verbose           boolean   Always print source names being compiled
     quiet             boolean   Don't print source names in recursive mode
-    transforms        Transform.TransformSet Transforms to use on the parse tree
     
     Following options are experimental and only used on MacOSX:
     
@@ -470,6 +456,7 @@ class CompilationResult:
     object_file      string or None   Result of compiling the C file
     extension_file   string or None   Result of linking the object file
     num_errors       integer          Number of compilation errors
+    compilation_source CompilationSource
     """
     
     def __init__(self):
@@ -619,9 +606,9 @@ default_options = dict(
     output_file = None,
     annotate = False,
     generate_pxi = 0,
-    transforms = TransformSet(),
     working_path = "",
     recursive = 0,
+    transforms = None, # deprecated
     timestamps = None,
     verbose = 0,
     quiet = 0)
