@@ -1883,9 +1883,10 @@ class OverrideCheckNode(StatNode):
 #        code.put_decref(self.func_temp, PyrexTypes.py_object_type)
         code.putln("}")
 
+class ClassDefNode(StatNode, BlockNode):
+    pass
 
-
-class PyClassDefNode(StatNode, BlockNode):
+class PyClassDefNode(ClassDefNode):
     #  A Python class definition.
     #
     #  name     EncodedString   Name of the class
@@ -1957,7 +1958,7 @@ class PyClassDefNode(StatNode, BlockNode):
         self.dict.generate_disposal_code(code)
 
 
-class CClassDefNode(StatNode, BlockNode):
+class CClassDefNode(ClassDefNode):
     #  An extension type definition.
     #
     #  visibility         'private' or 'public' or 'extern'
