@@ -4,6 +4,7 @@
 import Nodes
 import ExprNodes
 import inspect
+from Cython.Utils import EncodedString
 
 class BasicVisitor(object):
     """A generic visitor base class which can be used for visiting any kind of object."""
@@ -170,7 +171,7 @@ tmpnamectr = 0
 def temp_name_handle(description):
     global tmpnamectr
     tmpnamectr += 1
-    return u"__cyt_%d_%s" % (tmpnamectr, description)
+    return EncodedString(u"__cyt_%d_%s" % (tmpnamectr, description))
 
 def get_temp_name_handle_desc(handle):
     if not handle.startswith(u"__cyt_"):
