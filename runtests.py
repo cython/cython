@@ -238,7 +238,7 @@ class CythonRunTestCase(CythonCompileTestCase):
         except Exception:
             pass
 
-def collect_unittests(path, suite):
+def collect_unittests(path, suite, selectors):
     def file_matches(filename):
         return filename.startswith("Test") and filename.endswith(".py")
 
@@ -254,6 +254,8 @@ def collect_unittests(path, suite):
                 if file_matches(f):
                     filepath = os.path.join(dirpath, f)[:-len(".py")]
                     modulename = filepath[len(path)+1:].replace(os.path.sep, '.')
+                    if not [ 1 for match in selectors if match(modulename) ]:
+                        continue
                     module = __import__(modulename)
                     for x in modulename.split('.')[1:]:
                         module = getattr(module, x)
@@ -326,7 +328,7 @@ if __name__ == '__main__':
     test_suite = unittest.TestSuite()
 
     if options.unittests:
-        collect_unittests(os.getcwd(), test_suite)
+        collect_unittests(os.getcwd(), test_suite, selectors)
 
     if options.filetests:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors,
