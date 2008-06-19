@@ -3330,17 +3330,19 @@ class ExceptClauseNode(Node):
     #  target         ExprNode or None
     #  body           StatNode
     #  excinfo_target NameNode or None   optional target for exception info
-    #  excinfo_target NameNode or None   used internally
     #  match_flag     string             result of exception match
     #  exc_value      ExcValueNode       used internally
     #  function_name  string             qualified name of enclosing function
     #  exc_vars       (string * 3)       local exception variables
+
+    # excinfo_target is never set by the parser, but can be set by a transform
+    # in order to extract more extensive information about the exception as a
+    # sys.exc_info()-style tuple into a target variable
     
     child_attrs = ["pattern", "target", "body", "exc_value", "excinfo_target"]
 
     exc_value = None
     excinfo_target = None
-    excinfo_assignment = None
 
     def analyse_declarations(self, env):
         if self.target:
