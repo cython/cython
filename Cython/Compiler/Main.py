@@ -286,6 +286,7 @@ class Context:
         return ".".join(names)
 
     def compile(self, source, options = None, full_module_name = None):
+        raise Exception("Deprecated")
         # Compile a Pyrex implementation file in this context
         # and return a CompilationResult.
         if not options:
@@ -350,6 +351,117 @@ class Context:
                     verbose_flag = options.show_version,
                     cplus = options.cplus)
         return result
+
+
+    def setup_errors(self, options):
+        if options.use_listing_file:
+            result.listing_file = Utils.replace_suffix(source, ".lis")
+            Errors.open_listing_file(result.listing_file,
+                echo_to_stderr = options.errors_to_stderr)
+        else:
+            Errors.open_listing_file(None)
+
+    def teardown_errors(self, errors_occurred, options, result, source_desc):
+        Errors.close_listing_file()
+        result.num_errors = Errors.num_errors
+        if result.num_errors > 0:
+            errors_occurred = True
+        if errors_occurred and result.c_file:
+            try:
+                Utils.castrate_file(result.c_file, os.stat(source_desc.filename))
+            except EnvironmentError:
+                pass
+            result.c_file = None
+        if result.c_file and not options.c_only and c_compile:
+            result.object_file = c_compile(result.c_file,
+                verbose_flag = options.show_version,
+                cplus = options.cplus)
+            if not options.obj_only and c_link:
+                result.extension_file = c_link(result.object_file,
+                    extra_objects = options.objects,
+                    verbose_flag = options.show_version,
+                    cplus = options.cplus)
+        
+
+class CompilationSource(object):
+    def __init__(self, source_desc, full_module_name):
+        self.source_desc = source_desc
+        self.full_module_name = full_module_name
+
+def create_parse(context, scope):
+    def parse(compsrc):
+        source_desc = compsrc.source_desc
+        full_module_name = compsrc.full_module_name
+        tree = context.parse(source_desc, scope, pxd = 0, full_module_name = full_module_name)
+        return tree
+    return parse
+
+def create_generate_code(context, scope, options, result):
+    def generate_code(tree):
+        tree.process_implementation(scope, options, result)
+    return generate_code
+
+def create_default_pipeline(context, scope, options, result):
+    from ParseTreeTransforms import WithTransform, PostParse
+    return [
+        create_parse(context, scope),
+        PostParse(),
+        WithTransform(),
+        create_generate_code(context, scope, options, result)
+    ]
+
+def create_default_resultobj(source_desc, options, cwd):
+    result = CompilationResult()
+    result.main_source_file = source_desc.filename
+    if options.output_file:
+        result.c_file = os.path.join(cwd, options.output_file)
+    else:
+        if options.cplus:
+            c_suffix = ".cpp"
+        else:
+            c_suffix = ".c"
+        result.c_file = Utils.replace_suffix(source_desc.filename, c_suffix)
+    # The below doesn't make any sense? Why is it there?
+    c_stat = None
+    if result.c_file:
+        try:
+            c_stat = os.stat(result.c_file)
+        except EnvironmentError:
+            pass
+    return result
+
+def run_pipeline(source, options = None, full_module_name = None):
+    if not options:
+        options = default_options
+
+    # Set up context
+    context = Context(options.include_path)
+    context.setup_errors(options)
+
+    # Set up source object
+    cwd = os.getcwd()
+    source_desc = FileSourceDescriptor(os.path.join(cwd, source))
+    full_module_name = full_module_name or context.extract_module_name(source, options)
+    source = CompilationSource(source_desc, full_module_name)
+
+    # Set up result object
+    result = create_default_resultobj(source_desc, options, cwd)
+
+    # Get pipeline
+    initial_pos = (source_desc, 1, 0)
+    scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
+
+    pipeline = create_default_pipeline(context, scope, options, result)
+
+    errors_occurred = False
+    try:
+        data = source
+        for phase in pipeline:
+            data = phase(data)
+    except CompileError:
+        errors_occurred = True
+    context.teardown_errors(errors_occurred, options, result, source_desc)
+    return result
 
 #------------------------------------------------------------------------
 #
@@ -447,8 +559,10 @@ def compile_single(source, options, full_module_name = None):
     Always compiles a single file; does not perform timestamp checking or
     recursion.
     """
-    context = Context(options.include_path)
-    return context.compile(source, options, full_module_name)
+    return run_pipeline(source, options, full_module_name)
+#    context = Context(options.include_path)
+#    return context.compile(source, options, full_module_name)
+
 
 def compile_multiple(sources, options):
     """
@@ -461,21 +575,21 @@ def compile_multiple(sources, options):
     sources = [os.path.abspath(source) for source in sources]
     processed = set()
     results = CompilationResultSet()
-    context = Context(options.include_path)
     recursive = options.recursive
     timestamps = options.timestamps
     if timestamps is None:
         timestamps = recursive
     verbose = options.verbose or ((recursive or timestamps) and not options.quiet)
     for source in sources:
+        context = Context(options.include_path) # to be removed later
         if source not in processed:
             if not timestamps or context.c_file_out_of_date(source):
                 if verbose:
                     sys.stderr.write("Compiling %s\n" % source)
+
                 result = context.compile(source, options)
                 # Compiling multiple sources in one context doesn't quite
                 # work properly yet.
-                context = Context(options.include_path) # to be removed later
                 results.add(source, result)
             processed.add(source)
             if recursive:
@@ -505,7 +619,10 @@ def compile(source, options = None, c_compile = 0, c_link = 0,
             and not options.recursive:
         return compile_single(source, options, full_module_name)
     else:
-        return compile_multiple(source, options)
+        # Hack it for wednesday dev1
+        assert len(source) == 1
+        return compile_single(source[0], options)
+#        return compile_multiple(source, options)
 
 #------------------------------------------------------------------------
 #
