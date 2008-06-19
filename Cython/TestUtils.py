@@ -77,8 +77,8 @@ class TransformTest(CythonTest):
     To create a test case:
      - Call run_pipeline. The pipeline should at least contain the transform you
        are testing; pyx should be either a string (passed to the parser to
-       create a post-parse tree) or a ModuleNode representing input to pipeline.
-       The result will be a transformed result (usually a ModuleNode).
+       create a post-parse tree) or a node representing input to pipeline.
+       The result will be a transformed result.
        
      - Check that the tree is correct. If wanted, assertCode can be used, which
        takes a code string as expected, and a ModuleNode in result_tree
@@ -93,7 +93,6 @@ class TransformTest(CythonTest):
     
     def run_pipeline(self, pipeline, pyx, pxds={}):
         tree = self.fragment(pyx, pxds).root
-        assert isinstance(tree, ModuleNode)
         # Run pipeline
         for T in pipeline:
             tree = T(tree)

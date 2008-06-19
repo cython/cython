@@ -3329,18 +3329,24 @@ class ExceptClauseNode(Node):
     #  pattern        ExprNode
     #  target         ExprNode or None
     #  body           StatNode
+    #  excinfo_target NameNode or None   optional target for exception info
+    #  excinfo_target NameNode or None   used internally
     #  match_flag     string             result of exception match
     #  exc_value      ExcValueNode       used internally
     #  function_name  string             qualified name of enclosing function
     #  exc_vars       (string * 3)       local exception variables
     
-    child_attrs = ["pattern", "target", "body", "exc_value"]
+    child_attrs = ["pattern", "target", "body", "exc_value", "excinfo_target"]
 
     exc_value = None
+    excinfo_target = None
+    excinfo_assignment = None
 
     def analyse_declarations(self, env):
         if self.target:
             self.target.analyse_target_declaration(env)
+        if self.excinfo_target is not None:
+            self.excinfo_target.analyse_target_declaration(env)
         self.body.analyse_declarations(env)
     
     def analyse_expressions(self, env):
@@ -3358,6 +3364,17 @@ class ExceptClauseNode(Node):
             self.exc_value = ExprNodes.ExcValueNode(self.pos, env, self.exc_vars[1])
             self.exc_value.allocate_temps(env)
             self.target.analyse_target_expression(env, self.exc_value)
+        if self.excinfo_target is not None:
+            import ExprNodes
+            self.excinfo_tuple = ExprNodes.TupleNode(pos=self.pos, args=[
+                ExprNodes.ExcValueNode(pos=self.pos, env=env, var=self.exc_vars[0]),
+                ExprNodes.ExcValueNode(pos=self.pos, env=env, var=self.exc_vars[1]),
+                ExprNodes.ExcValueNode(pos=self.pos, env=env, var=self.exc_vars[2])
+            ])
+            self.excinfo_tuple.analyse_expressions(env)
+            self.excinfo_tuple.allocate_temps(env)
+            self.excinfo_target.analyse_target_expression(env, self.excinfo_tuple)
+
         self.body.analyse_expressions(env)
         for var in self.exc_vars:
             env.release_temp(var)
@@ -3387,6 +3404,10 @@ class ExceptClauseNode(Node):
         if self.target:
             self.exc_value.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.exc_value, code)
+        if self.excinfo_target is not None:
+            self.excinfo_tuple.generate_evaluation_code(code)
+            self.excinfo_target.generate_assignment_code(self.excinfo_tuple, code)
+
         old_exc_vars = code.exc_vars
         code.exc_vars = self.exc_vars
         self.body.generate_execution_code(code)
@@ -4497,6 +4518,7 @@ bad:
     Py_XDECREF(*tb);
     return -1;
 }
+
 """]
 
 #------------------------------------------------------------------------------------

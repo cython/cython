@@ -1060,7 +1060,6 @@ class NameNode(AtomicExprNode):
             else:
                 code.annotate(pos, AnnotationItem('c_call', 'c function', size=len(self.name)))
             
-
 class BackquoteNode(ExprNode):
     #  `expr`
     #
@@ -1210,6 +1209,9 @@ class ExcValueNode(AtomicExprNode):
         return self.var
 
     def generate_result_code(self, code):
+        pass
+
+    def analyse_types(self, env):
         pass
 
 
