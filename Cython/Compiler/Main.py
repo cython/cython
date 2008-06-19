@@ -318,40 +318,50 @@ class Context:
         
 
 class CompilationSource(object):
-    def __init__(self, source_desc, full_module_name):
+    """
+    Contains the data necesarry to start up a compilation pipeline for
+    a single compilation source (= file, usually).
+    """
+    def __init__(self, source_desc, full_module_name, cwd):
         self.source_desc = source_desc
         self.full_module_name = full_module_name
+        self.cwd = cwd
 
-def create_parse(context, scope):
+def create_parse(context):
     def parse(compsrc):
         source_desc = compsrc.source_desc
         full_module_name = compsrc.full_module_name
+        initial_pos = (source_desc, 1, 0)
+        scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
         tree = context.parse(source_desc, scope, pxd = 0, full_module_name = full_module_name)
         tree.compilation_source = compsrc
+        tree.scope = scope
         return tree
     return parse
 
-def create_generate_code(context, scope, options):
-    def generate_code(tree):
-        result = create_default_resultobj(tree.compilation_source.source_desc, options, os.getcwd())
-        tree.process_implementation(scope, options, result)
+def create_generate_code(context, options):
+    def generate_code(module_node):
+        scope = module_node.scope
+        result = create_default_resultobj(module_node.compilation_source, options)
+        module_node.process_implementation(scope, options, result)
         return result
     return generate_code
 
-def create_default_pipeline(context, scope, options):
+def create_default_pipeline(context, options):
     from ParseTreeTransforms import WithTransform, PostParse
     return [
-        create_parse(context, scope),
+        create_parse(context),
         PostParse(),
         WithTransform(),
-        create_generate_code(context, scope, options)
+        create_generate_code(context, options)
     ]
 
-def create_default_resultobj(source_desc, options, cwd):
+def create_default_resultobj(compilation_source, options):
     result = CompilationResult()
-    result.main_source_file = source_desc.filename
+    result.main_source_file = compilation_source.source_desc.filename
+    source_desc = compilation_source.source_desc
     if options.output_file:
-        result.c_file = os.path.join(cwd, options.output_file)
+        result.c_file = os.path.join(compilation_source.cwd, options.output_file)
     else:
         if options.cplus:
             c_suffix = ".cpp"
@@ -379,13 +389,10 @@ def run_pipeline(source, options = None, full_module_name = None):
     cwd = os.getcwd()
     source_desc = FileSourceDescriptor(os.path.join(cwd, source))
     full_module_name = full_module_name or context.extract_module_name(source, options)
-    source = CompilationSource(source_desc, full_module_name)
+    source = CompilationSource(source_desc, full_module_name, cwd)
 
     # Get pipeline
-    initial_pos = (source_desc, 1, 0)
-    scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
-
-    pipeline = create_default_pipeline(context, scope, options)
+    pipeline = create_default_pipeline(context, options)
 
     data = source
     errors_occurred = False
