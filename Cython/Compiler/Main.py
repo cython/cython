@@ -58,6 +58,8 @@ class Context:
         #self.modules = {"__builtin__" : BuiltinScope()}
         import Builtin
         self.modules = {"__builtin__" : Builtin.builtin_scope}
+        self.pxds = {}
+        self.pyxs = {}
         self.include_directories = include_directories
         self.future_directives = set()
         
@@ -285,74 +287,6 @@ class Context:
         names.reverse()
         return ".".join(names)
 
-    def compile(self, source, options = None, full_module_name = None):
-        raise Exception("Deprecated")
-        # Compile a Pyrex implementation file in this context
-        # and return a CompilationResult.
-        if not options:
-            options = default_options
-        result = CompilationResult()
-        cwd = os.getcwd()
-
-        source = os.path.join(cwd, source)
-        result.main_source_file = source
-
-        if options.use_listing_file:
-            result.listing_file = Utils.replace_suffix(source, ".lis")
-            Errors.open_listing_file(result.listing_file,
-                echo_to_stderr = options.errors_to_stderr)
-        else:
-            Errors.open_listing_file(None)
-        if options.output_file:
-            result.c_file = os.path.join(cwd, options.output_file)
-        else:
-            if options.cplus:
-                c_suffix = ".cpp"
-            else:
-                c_suffix = ".c"
-            result.c_file = Utils.replace_suffix(source, c_suffix)
-        c_stat = None
-        if result.c_file:
-            try:
-                c_stat = os.stat(result.c_file)
-            except EnvironmentError:
-                pass
-        full_module_name = full_module_name or self.extract_module_name(source, options)
-        source = FileSourceDescriptor(source)
-        initial_pos = (source, 1, 0)
-        scope = self.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
-        errors_occurred = False
-        try:
-            tree = self.parse(source, scope, pxd = 0,
-                              full_module_name = full_module_name)
-            from ParseTreeTransforms import WithTransform, PostParse
-            tree = PostParse()(tree)
-            tree = WithTransform()(tree)
-            tree.process_implementation(scope, options, result)
-        except CompileError:
-            errors_occurred = True
-        Errors.close_listing_file()
-        result.num_errors = Errors.num_errors
-        if result.num_errors > 0:
-            errors_occurred = True
-        if errors_occurred and result.c_file:
-            try:
-                Utils.castrate_file(result.c_file, os.stat(source.filename))
-            except EnvironmentError:
-                pass
-            result.c_file = None
-        if result.c_file and not options.c_only and c_compile:
-            result.object_file = c_compile(result.c_file,
-                verbose_flag = options.show_version,
-                cplus = options.cplus)
-            if not options.obj_only and c_link:
-                result.extension_file = c_link(result.object_file,
-                    extra_objects = options.objects,
-                    verbose_flag = options.show_version,
-                    cplus = options.cplus)
-        return result
-
-
     def setup_errors(self, options):
         if options.use_listing_file:
             result.listing_file = Utils.replace_suffix(source, ".lis")
@@ -384,37 +318,56 @@ class Context:
         
 
 class CompilationSource(object):
-    def __init__(self, source_desc, full_module_name):
+    """
+    Contains the data necesarry to start up a compilation pipeline for
+    a single compilation source (= file, usually).
+    """
+    def __init__(self, source_desc, full_module_name, cwd):
         self.source_desc = source_desc
         self.full_module_name = full_module_name
+        self.cwd = cwd
 
-def create_parse(context, scope):
+def create_parse(context):
     def parse(compsrc):
         source_desc = compsrc.source_desc
         full_module_name = compsrc.full_module_name
+        initial_pos = (source_desc, 1, 0)
+        scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
         tree = context.parse(source_desc, scope, pxd = 0, full_module_name = full_module_name)
+        tree.compilation_source = compsrc
+        tree.scope = scope
         return tree
     return parse
 
-def create_generate_code(context, scope, options, result):
-    def generate_code(tree):
-        tree.process_implementation(scope, options, result)
+def create_generate_code(context, options):
+    def generate_code(module_node):
+        scope = module_node.scope
+        result = create_default_resultobj(module_node.compilation_source, options)
+        module_node.process_implementation(options, result)
+        return result
     return generate_code
 
-def create_default_pipeline(context, scope, options, result):
+def create_default_pipeline(context, options):
     from ParseTreeTransforms import WithTransform, PostParse
+    from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
+    from ModuleNode import check_c_classes
+    
     return [
-        create_parse(context, scope),
+        create_parse(context),
         PostParse(),
         WithTransform(),
-        create_generate_code(context, scope, options, result)
+        AnalyseDeclarationsTransform(),
+        check_c_classes,
+        AnalyseExpressionsTransform(),
+        create_generate_code(context, options)
     ]
 
-def create_default_resultobj(source_desc, options, cwd):
+def create_default_resultobj(compilation_source, options):
     result = CompilationResult()
-    result.main_source_file = source_desc.filename
+    result.main_source_file = compilation_source.source_desc.filename
+    source_desc = compilation_source.source_desc
     if options.output_file:
-        result.c_file = os.path.join(cwd, options.output_file)
+        result.c_file = os.path.join(compilation_source.cwd, options.output_file)
     else:
         if options.cplus:
             c_suffix = ".cpp"
@@ -442,24 +395,19 @@ def run_pipeline(source, options = None, full_module_name = None):
     cwd = os.getcwd()
     source_desc = FileSourceDescriptor(os.path.join(cwd, source))
     full_module_name = full_module_name or context.extract_module_name(source, options)
-    source = CompilationSource(source_desc, full_module_name)
-
-    # Set up result object
-    result = create_default_resultobj(source_desc, options, cwd)
+    source = CompilationSource(source_desc, full_module_name, cwd)
 
     # Get pipeline
-    initial_pos = (source_desc, 1, 0)
-    scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
+    pipeline = create_default_pipeline(context, options)
 
-    pipeline = create_default_pipeline(context, scope, options, result)
-
+    data = source
     errors_occurred = False
     try:
-        data = source
         for phase in pipeline:
             data = phase(data)
     except CompileError:
         errors_occurred = True
+    result = data
     context.teardown_errors(errors_occurred, options, result, source_desc)
     return result
 
