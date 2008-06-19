@@ -802,26 +802,25 @@ class FuncDefNode(StatNode, BlockNode):
     
     def need_gil_acquisition(self, lenv):
         return 0
-                
-    def generate_function_definitions(self, env, code, transforms):
-        code.mark_pos(self.pos)
-        # Generate C code for header and body of function
-        genv = env.global_scope()
+        
+    def create_local_scope(self, env):
+        genv = env
+        while env.is_py_class_scope or env.is_c_class_scope:
+            env = env.outer_scope
         lenv = LocalScope(name = self.entry.name, outer_scope = genv)
         lenv.return_type = self.return_type
         type = self.entry.type
         if type.is_cfunction:
             lenv.nogil = type.nogil and not type.with_gil
+        self.local_scope = lenv
+        return lenv
+                
+    def generate_function_definitions(self, env, code, transforms):
+        # Generate C code for header and body of function
         code.init_labels()
-        self.declare_arguments(lenv)
-        transforms.run('before_analyse_function', self, env=env, lenv=lenv, genv=genv)
-        self.body.analyse_control_flow(lenv)
-        self.body.analyse_declarations(lenv)
-        self.body.analyse_expressions(lenv)
-        transforms.run('after_analyse_function', self, env=env, lenv=lenv, genv=genv)
-        # Code for nested function definitions would go here
-        # if we supported them, which we probably won't.
+        lenv = self.local_scope
         # ----- Top-level constants used by this function
+        code.mark_pos(self.pos)
         self.generate_interned_num_decls(lenv, code)
         self.generate_interned_string_decls(lenv, code)
         self.generate_py_string_decls(lenv, code)
@@ -975,8 +974,9 @@ class CFuncDefNode(FuncDefNode):
     #
     #  with_gil      boolean    Acquire GIL around body
     #  type          CFuncType
+    #  py_func       wrapper for calling from Python
     
-    child_attrs = ["base_type", "declarator", "body"]
+    child_attrs = ["base_type", "declarator", "body", "py_func"]
 
     def unqualified_name(self):
         return self.entry.name
@@ -1838,6 +1838,8 @@ class OverrideCheckNode(StatNode):
     #  body
     
     child_attrs = ['body']
+    
+    body = None
 
     def analyse_expressions(self, env):
         self.args = env.arg_entries
@@ -1915,19 +1917,27 @@ class PyClassDefNode(StatNode, BlockNode):
         self.classobj = ExprNodes.ClassNode(pos, name = name,
             bases = bases, dict = self.dict, doc = doc_node)
         self.target = ExprNodes.NameNode(pos, name = name)
+        
+    def create_scope(self, env):
+        genv = env
+        while env.is_py_class_scope or env.is_c_class_scope:
+            env = env.outer_scope
+        cenv = self.scope = PyClassScope(name = self.name, outer_scope = genv)
+        return cenv
     
     def analyse_declarations(self, env):
         self.target.analyse_target_declaration(env)
+        cenv = self.create_scope(env)
+        cenv.class_obj_cname = self.target.entry.cname
+        self.body.analyse_declarations(cenv)
     
     def analyse_expressions(self, env):
         self.dict.analyse_expressions(env)
         self.classobj.analyse_expressions(env)
         genv = env.global_scope()
-        cenv = PyClassScope(name = self.name, outer_scope = genv)
+        cenv = self.scope
         cenv.class_dict_cname = self.dict.result_code
-        cenv.class_obj_cname = self.classobj.result_code
-        self.scope = cenv
-        self.body.analyse_declarations(cenv)
+        cenv.namespace_cname = cenv.class_obj_cname = self.classobj.result_code
         self.body.analyse_expressions(cenv)
         self.target.analyse_target_expression(env, self.classobj)
         self.dict.release_temp(env)

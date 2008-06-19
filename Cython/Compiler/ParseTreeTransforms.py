@@ -117,7 +117,7 @@ class WithTransform(VisitorTransform):
 
     def visit_Node(self, node):
     	self.visitchildren(node)
-	return node
+        return node
 
     def visit_WithStatNode(self, node):
         excinfo_name = temp_name_handle('EXCINFO')
@@ -142,3 +142,46 @@ class WithTransform(VisitorTransform):
             result.stats[4].body.stats[0].except_clauses[0].excinfo_target = excinfo_target
         
         return result.stats
+
+class AnalyseDeclarationsTransform(VisitorTransform):
+
+    def __init__(self, env):
+        VisitorTransform.__init__(self)
+        self.env_stack = [env]
+    
+    def visit_ModuleNode(self, node):
+        node.analyse_declarations(self.env_stack[-1])
+        self.visitchildren(node)
+        return node
+        
+    def visit_FuncDefNode(self, node):
+        lenv = node.create_local_scope(self.env_stack[-1])
+        node.body.analyse_control_flow(lenv) # this will be totally refactored
+        node.declare_arguments(lenv)
+        node.body.analyse_declarations(lenv)
+        self.env_stack.append(lenv)
+        self.visitchildren(node)
+        self.env_stack.pop()
+        return node
+        
+    def visit_Node(self, node):
+        self.visitchildren(node)
+        return node
+
+
+class AnalyseExpressionsTransform(VisitorTransform):
+
+    def visit_ModuleNode(self, node):
+        node.body.analyse_expressions(node.scope)
+        self.visitchildren(node)
+        return node
+        
+    def visit_FuncDefNode(self, node):
+        node.body.analyse_expressions(node.local_scope)
+        self.visitchildren(node)
+        return node
+        
+    def visit_Node(self, node):
+        self.visitchildren(node)
+        return node
+

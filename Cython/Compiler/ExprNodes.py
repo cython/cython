@@ -972,7 +972,7 @@ class NameNode(AtomicExprNode):
             if entry.is_builtin:
                 namespace = Naming.builtins_cname
             else: # entry.is_pyglobal
-                namespace = entry.namespace_cname
+                namespace = entry.scope.namespace_cname
             code.putln(
                 '%s = __Pyx_GetName(%s, %s); %s' % (
                 self.result_code,
@@ -997,7 +997,7 @@ class NameNode(AtomicExprNode):
         # is_pyglobal seems to be True for module level-globals only.
         # We use this to access class->tp_dict if necessary.
         if entry.is_pyglobal:
-            namespace = self.entry.namespace_cname
+            namespace = self.entry.scope.namespace_cname
             if entry.is_member:
                 # if the entry is a member we have to cheat: SetAttr does not work
                 # on types, so we create a descriptor which is then added to tp_dict

@@ -45,9 +45,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.body.analyse_declarations(env)
     
     def process_implementation(self, env, options, result):
-        self.analyse_declarations(env)
+        self.scope = env
+        from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
+        AnalyseDeclarationsTransform(env).visit_ModuleNode(self) # self.analyse_declarations(env)
         env.check_c_classes()
-        self.body.analyse_expressions(env)
+        AnalyseExpressionsTransform().visit_ModuleNode(self) # self.body.analyse_expressions(env)
         env.return_type = PyrexTypes.c_void_type
         self.referenced_modules = []
         self.find_referenced_modules(env, self.referenced_modules, {})
