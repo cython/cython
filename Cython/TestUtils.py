@@ -27,6 +27,15 @@ class NodeTypeWriter(TreeVisitor):
         self.visitchildren(node)
         self._indents -= 1
 
+def treetypes(root):
+    """Returns a string representing the tree by class names.
+    There's a leading and trailing whitespace so that it can be
+    compared by simple string comparison while still making test
+    cases look ok."""
+    w = NodeTypeWriter()
+    w.visit(root)
+    return u"\n".join([u""] + w.result + [u""])
+
 class CythonTest(unittest.TestCase):
 
     def assertLines(self, expected, result):
@@ -58,13 +67,7 @@ class CythonTest(unittest.TestCase):
         return TreeFragment(code, name, pxds)
 
     def treetypes(self, root):
-        """Returns a string representing the tree by class names.
-        There's a leading and trailing whitespace so that it can be
-        compared by simple string comparison while still making test
-        cases look ok."""
-        w = NodeTypeWriter()
-        w.visit(root)
-        return u"\n".join([u""] + w.result + [u""])
+        return treetypes(root)
 
 class TransformTest(CythonTest):
     """

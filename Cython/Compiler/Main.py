@@ -336,6 +336,7 @@ def create_generate_code(context, options, result):
 def create_default_pipeline(context, options, result):
     from ParseTreeTransforms import WithTransform, PostParse
     from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
+    from ParseTreeTransforms import CreateClosureClasses
     from ModuleNode import check_c_classes
     
     return [
@@ -345,6 +346,7 @@ def create_default_pipeline(context, options, result):
         AnalyseDeclarationsTransform(),
         check_c_classes,
         AnalyseExpressionsTransform(),
+        CreateClosureClasses(),
         create_generate_code(context, options, result)
     ]
 
