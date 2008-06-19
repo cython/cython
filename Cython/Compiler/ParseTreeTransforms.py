@@ -185,3 +185,26 @@ class AnalyseExpressionsTransform(VisitorTransform):
         self.visitchildren(node)
         return node
 
+class MarkClosureNode(VisitorTransform):
+    
+    needs_closure = False
+    
+    def visit_FuncDefNode(self, node):
+        self.needs_closure = False
+        self.visitchildren(node)
+        node.needs_closure = self.needs_closure
+        self.needs_closure = True
+        return node
+        
+    def visit_ClassDefNode(self, node):
+        self.visitchildren(node)
+        self.needs_closure = True
+        return node
+        
+    def visit_YieldNode(self, node):
+        self.needs_closure = True
+        
+    def visit_Node(self, node):
+        self.visitchildren(node)
+        return node
+
