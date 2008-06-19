@@ -10,7 +10,7 @@ import Naming
 import PyrexTypes
 import TypeSlots
 from PyrexTypes import py_object_type, error_type, CTypedefType, CFuncType
-from Symtab import ModuleScope, LocalScope, \
+from Symtab import ModuleScope, LocalScope, PersistentLocalScope, \
     StructOrUnionScope, PyClassScope, CClassScope
 from Cython.Utils import open_new_file, replace_suffix, EncodedString
 import Options
@@ -773,9 +773,11 @@ class FuncDefNode(StatNode, BlockNode):
     #  return_type     PyrexType
     #  #filename        string        C name of filename string const
     #  entry           Symtab.Entry
+    #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
     
     py_func = None
     assmt = None
+    needs_closure = False
     
     def analyse_default_values(self, env):
         genv = env.global_scope()
@@ -807,7 +809,10 @@ class FuncDefNode(StatNode, BlockNode):
         genv = env
         while env.is_py_class_scope or env.is_c_class_scope:
             env = env.outer_scope
-        lenv = LocalScope(name = self.entry.name, outer_scope = genv)
+        if self.needs_closure:
+            lenv = PersistentLocalScope(name = self.entry.name, outer_scope = genv)
+        else:
+            lenv = LocalScope(name = self.entry.name, outer_scope = genv)
         lenv.return_type = self.return_type
         type = self.entry.type
         if type.is_cfunction:

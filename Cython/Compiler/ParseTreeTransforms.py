@@ -185,7 +185,7 @@ class AnalyseExpressionsTransform(VisitorTransform):
         self.visitchildren(node)
         return node
 
-class MarkClosureNode(VisitorTransform):
+class MarkClosureVisitor(VisitorTransform):
     
     needs_closure = False
     

@@ -1,5 +1,5 @@
 #
-#   Pyrex - Symbol Table
+#   Symbol Table
 #
 
 import re
@@ -1120,6 +1120,11 @@ class LocalScope(Scope):
             entry = self.global_scope().lookup_target(name)
             self.entries[name] = entry
         
+
+class PersistentLocalScope(LocalScope):
+    
+    def mangle(self, prefix, name):
+        return "%s->%s" % (scope_obj_cname, name)
 
 class StructOrUnionScope(Scope):
     #  Namespace of a C struct or union.

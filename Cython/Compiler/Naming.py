@@ -72,6 +72,7 @@ optional_args_cname = pyrex_prefix + "optional_args"
 no_opt_args      = pyrex_prefix + "no_opt_args"
 import_star      = pyrex_prefix + "import_star"
 import_star_set  = pyrex_prefix + "import_star_set"
+scope_obj_cname  = pyrex_prefix + "scope"
 
 line_c_macro = "__LINE__"
 
