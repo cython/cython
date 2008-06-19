@@ -1,8 +1,8 @@
 from Cython.Compiler.Visitor import VisitorTransform, temp_name_handle
+from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import *
 from Cython.Compiler.ExprNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment
-
 
 class PostParse(VisitorTransform):
     """
@@ -170,7 +170,6 @@ class AnalyseDeclarationsTransform(VisitorTransform):
 
 
 class AnalyseExpressionsTransform(VisitorTransform):
-
     def visit_ModuleNode(self, node):
         node.body.analyse_expressions(node.scope)
         self.visitchildren(node)
@@ -179,6 +178,38 @@ class AnalyseExpressionsTransform(VisitorTransform):
     def visit_FuncDefNode(self, node):
         node.body.analyse_expressions(node.local_scope)
         self.visitchildren(node)
+        return node
+        
+    def visit_Node(self, node):
+        self.visitchildren(node)
+        return node
+
+
+class CreateClosureClasses(VisitorTransform):
+    # Output closure classes in module scope for all functions
+    # that need it. 
+    
+    def visit_ModuleNode(self, node):
+        self.module_scope = node.scope
+        self.visitchildren(node)
+        return node
+
+    def create_class_from_scope(self, node, target_module_scope):
+        as_name = temp_name_handle("closure")
+        func_scope = node.local_scope
+
+        entry = target_module_scope.declare_c_class(name = as_name,
+            pos = node.pos, defining = True, implementing = True)
+        class_scope = entry.type.scope
+        for entry in func_scope.entries.values():
+            class_scope.declare_var(pos=node.pos,
+                                    name=entry.name,
+                                    cname=entry.cname,
+                                    type=entry.type,
+                                    is_cdef=True)
+            
+    def visit_FuncDefNode(self, node):
+        self.create_class_from_scope(node, self.module_scope)
         return node
         
     def visit_Node(self, node):
