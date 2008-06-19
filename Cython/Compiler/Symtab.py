@@ -16,29 +16,6 @@ from TypeSlots import \
 import ControlFlow
 import __builtin__
 
-class TempName(object):
-    """
-    Use instances of this class in order to provide a name for
-    anonymous, temporary functions. Each instance is considered
-    a seperate name, which are guaranteed not to clash with one
-    another or with names explicitly given as strings.
-
-    The argument to the constructor is simply a describing string
-    for debugging purposes and does not affect name clashes at all.
-
-    NOTE: Support for these TempNames are introduced on an as-needed
-    basis and will not "just work" everywhere. Places where they work:
-    - (none)
-    """
-    def __init__(self, description):
-        self.description = description
-
-    # Spoon-feed operators for documentation purposes
-    def __hash__(self):
-        return id(self)
-    def __cmp__(self, other):
-        return cmp(id(self), id(other))
-
 possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
 
@@ -1098,20 +1075,13 @@ class ModuleScope(Scope):
         var_entry.is_readonly = 1
         entry.as_variable = var_entry
         
-tempctr = 0
-
 class LocalScope(Scope):    
 
     def __init__(self, name, outer_scope):
         Scope.__init__(self, name, outer_scope, outer_scope)
     
     def mangle(self, prefix, name):
-        if isinstance(name, TempName):
-            global tempctr
-            tempctr += 1
-            return u"%s%s%d" % (Naming.temp_prefix, name.description, tempctr)
-        else:
-            return prefix + name
+        return prefix + name
 
     def declare_arg(self, name, type, pos):
         # Add an entry for an argument of a function.

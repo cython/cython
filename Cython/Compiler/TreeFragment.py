@@ -6,9 +6,8 @@ import re
 from cStringIO import StringIO
 from Scanning import PyrexScanner, StringSourceDescriptor
 from Symtab import BuiltinScope, ModuleScope
-from Visitor import VisitorTransform
-from Nodes import Node
-from Symtab import TempName
+from Visitor import VisitorTransform, temp_name_handle
+from Nodes import Node, StatListNode
 from ExprNodes import NameNode
 import Parsing
 import Main
@@ -109,7 +108,7 @@ class TemplateTransform(VisitorTransform):
         self.substitutions = substitutions
         tempdict = {}
         for key in temps:
-            tempdict[key] = TempName(key)
+            tempdict[key] = temp_name_handle(key)
         self.temps = tempdict
         self.pos = pos
         return super(TemplateTransform, self).__call__(node)
@@ -164,7 +163,7 @@ def strip_common_indent(lines):
     return lines
     
 class TreeFragment(object):
-    def __init__(self, code, name, pxds={}):
+    def __init__(self, code, name="(tree fragment)", pxds={}, temps=[], pipeline=[]):
         if isinstance(code, unicode):
             def fmt(x): return u"\n".join(strip_common_indent(x.split(u"\n"))) 
             
@@ -173,12 +172,20 @@ class TreeFragment(object):
             for key, value in pxds.iteritems():
                 fmt_pxds[key] = fmt(value)
                 
-            self.root = parse_from_strings(name, fmt_code, fmt_pxds)
+            t = parse_from_strings(name, fmt_code, fmt_pxds)
+            mod = t
+            t = t.body # Make sure a StatListNode is at the top
+            if not isinstance(t, StatListNode):
+                t = StatListNode(pos=mod.pos, stats=[t])
+            for transform in pipeline:
+                t = transform(t)
+            self.root = t
         elif isinstance(code, Node):
             if pxds != {}: raise NotImplementedError()
             self.root = code
         else:
             raise ValueError("Unrecognized code format (accepts unicode and Node)")
+        self.temps = temps
 
     def copy(self):
         return copy_code_tree(self.root)
@@ -186,7 +193,7 @@ class TreeFragment(object):
     def substitute(self, nodes={}, temps=[], pos = None):
         return TemplateTransform()(self.root,
                                    substitutions = nodes,
-                                   temps = temps, pos = pos)
+                                   temps = self.temps + temps, pos = pos)
 
 
 

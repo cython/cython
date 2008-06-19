@@ -1,7 +1,6 @@
-from Cython.Compiler.Visitor import TreeVisitor
+from Cython.Compiler.Visitor import TreeVisitor, get_temp_name_handle_desc
 from Cython.Compiler.Nodes import *
 from Cython.Compiler.ExprNodes import *
-from Cython.Compiler.Symtab import TempName
 
 """
 Serializes a Cython code tree to Cython code. This is primarily useful for
@@ -62,8 +61,9 @@ class CodeWriter(TreeVisitor):
         self.endline()
 
     def putname(self, name):
-        if isinstance(name, TempName):
-            name = self.tempnames.setdefault(name, u"$" + name.description)
+        tmpdesc = get_temp_name_handle_desc(name)
+        if tmpdesc is not None:
+            name = self.tempnames.setdefault(tmpdesc, u"$" +tmpdesc)
         self.put(name)
     
     def comma_seperated_list(self, items, output_rhs=False):
