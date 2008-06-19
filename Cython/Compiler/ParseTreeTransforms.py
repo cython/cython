@@ -145,15 +145,15 @@ class WithTransform(VisitorTransform):
 
 class AnalyseDeclarationsTransform(VisitorTransform):
 
-    def __init__(self, env):
-        VisitorTransform.__init__(self)
-        self.env_stack = [env]
+    def __call__(self, root):
+        self.env_stack = [root.scope]
+        return super(AnalyseDeclarationsTransform, self).__call__(root)        
     
     def visit_ModuleNode(self, node):
         node.analyse_declarations(self.env_stack[-1])
         self.visitchildren(node)
         return node
-        
+
     def visit_FuncDefNode(self, node):
         lenv = node.create_local_scope(self.env_stack[-1])
         node.body.analyse_control_flow(lenv) # this will be totally refactored

@@ -25,6 +25,10 @@ from PyrexTypes import py_object_type
 from Cython.Utils import open_new_file, replace_suffix
 
 
+def check_c_classes(module_node):
+    module_node.scope.check_c_classes()
+    return module_node
+
 class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  doc       string or None
     #  body      StatListNode
@@ -47,14 +51,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             env.doc = self.doc
         self.body.analyse_declarations(env)
     
-    def process_implementation(self, env, options, result):
-        # Currently, scope is also set by the parse step in Main.py; they will be the same
-        assert self.scope is env
-        self.scope = env
-        from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
-        AnalyseDeclarationsTransform(env).visit_ModuleNode(self) # self.analyse_declarations(env)
-        env.check_c_classes()
-        AnalyseExpressionsTransform().visit_ModuleNode(self) # self.body.analyse_expressions(env)
+    def process_implementation(self, options, result):
+        env = self.scope
         env.return_type = PyrexTypes.c_void_type
         self.referenced_modules = []
         self.find_referenced_modules(env, self.referenced_modules, {})

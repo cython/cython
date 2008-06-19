@@ -343,16 +343,22 @@ def create_generate_code(context, options):
     def generate_code(module_node):
         scope = module_node.scope
         result = create_default_resultobj(module_node.compilation_source, options)
-        module_node.process_implementation(scope, options, result)
+        module_node.process_implementation(options, result)
         return result
     return generate_code
 
 def create_default_pipeline(context, options):
     from ParseTreeTransforms import WithTransform, PostParse
+    from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
+    from ModuleNode import check_c_classes
+    
     return [
         create_parse(context),
         PostParse(),
         WithTransform(),
+        AnalyseDeclarationsTransform(),
+        check_c_classes,
+        AnalyseExpressionsTransform(),
         create_generate_code(context, options)
     ]
 
