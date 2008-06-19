@@ -26,6 +26,10 @@ exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
 enter
 (1, 2, (3, (4, 5)))
 exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+>>> typed()
+enter
+10
+exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
 """
 
 class MyException(Exception):
@@ -68,3 +72,9 @@ def tupletarget():
     with ContextManager((1, 2, (3, (4, 5)))) as t:
         print t
 
+def typed():
+    cdef unsigned char i
+    c = ContextManager(255)
+    with c as i:
+        i += 11
+        print i
