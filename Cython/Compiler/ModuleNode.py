@@ -32,6 +32,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  referenced_modules   [ModuleScope]
     #  module_temp_cname    string
     #  full_module_name     string
+    #
+    #  scope                The module scope.
+    #  compilation_source   A CompilationSource (see Main)
 
     child_attrs = ["body"]
     
@@ -45,6 +48,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.body.analyse_declarations(env)
     
     def process_implementation(self, env, options, result):
+        # Currently, scope is also set by the parse step in Main.py; they will be the same
+        assert self.scope is env
         self.scope = env
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         AnalyseDeclarationsTransform(env).visit_ModuleNode(self) # self.analyse_declarations(env)
