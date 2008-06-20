@@ -123,6 +123,11 @@ class Context:
     def find_pxd_file(self, qualified_name, pos):
         # Search include path for the .pxd file corresponding to the
         # given fully-qualified module name.
+        # Will find either a dotted filename or a file in a
+        # package directory. If a source file position is given,
+        # the directory containing the source file is searched first
+        # for a dotted filename, and its containing package root
+        # directory is searched first for a non-dotted filename.
         return self.search_include_directories(qualified_name, ".pxd", pos)
 
     def find_pyx_file(self, qualified_name, pos):
@@ -134,27 +139,30 @@ class Context:
         # Search list of include directories for filename.
         # Reports an error and returns None if not found.
         path = self.search_include_directories(filename, "", pos,
-                                               split_package=False)
+                                               include=True)
         if not path:
             error(pos, "'%s' not found" % filename)
         return path
     
     def search_include_directories(self, qualified_name, suffix, pos,
-                                   split_package=True):
+                                   include=False):
         # Search the list of include directories for the given
         # file name. If a source file position is given, first
         # searches the directory containing that file. Returns
         # None if not found, but does not report an error.
+        # The 'include' option will disable package dereferencing.
         dirs = self.include_directories
         if pos:
             file_desc = pos[0]
             if not isinstance(file_desc, FileSourceDescriptor):
                 raise RuntimeError("Only file sources for code supported")
-            here_dir = os.path.dirname(file_desc.filename)
-            dirs = [here_dir] + dirs
+            if include:
+                dirs = [os.path.dirname(file_desc.filename)] + dirs
+            else:
+                dirs = [self.find_root_package_dir(file_desc.filename)] + dirs
 
         dotted_filename = qualified_name + suffix
-        if split_package:
+        if not include:
             names = qualified_name.split('.')
             package_names = names[:-1]
             module_name = names[-1]
@@ -165,7 +173,7 @@ class Context:
             path = os.path.join(dir, dotted_filename)
             if os.path.exists(path):
                 return path
-            if split_package:
+            if not include:
                 package_dir = self.check_package_dir(dir, package_names)
                 if package_dir is not None:
                     path = os.path.join(package_dir, module_filename)
@@ -177,15 +185,27 @@ class Context:
                         return path
         return None
 
+    def find_root_package_dir(self, file_path):
+        dir = os.path.dirname(file_path)
+        while self.is_package_dir(dir):
+            parent = os.path.dirname(dir)
+            if parent == dir:
+                break
+            dir = parent
+        return dir
+
+    def is_package_dir(self, dir):
+        package_init = os.path.join(dir, "__init__.py")
+        return os.path.exists(package_init) or \
+            os.path.exists(package_init + "x") # same with .pyx
+
     def check_package_dir(self, dir, package_names):
         package_dir = os.path.join(dir, *package_names)
         if not os.path.exists(package_dir):
             return None
         for dirname in package_names:
             dir = os.path.join(dir, dirname)
-            package_init = os.path.join(dir, "__init__.py")
-            if not os.path.exists(package_init) and \
-                    not os.path.exists(package_init + "x"): # same with .pyx ?
+            if not self.is_package_dir(dir):
                 return None
         return package_dir
 
