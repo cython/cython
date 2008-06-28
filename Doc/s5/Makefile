@@ -1,8 +1,6 @@
 
 SLIDES=$(subst .txt,.html,$(wildcard *.txt))
 
-all: slides
-
 slides: $(SLIDES)
 
 %.html: %.txt
