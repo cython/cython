@@ -565,7 +565,6 @@ class CBaseTypeNode(Node):
     
     pass
 
-
 class CSimpleBaseTypeNode(CBaseTypeNode):
     # name             string
     # module_path      [string]     Qualifying name components
