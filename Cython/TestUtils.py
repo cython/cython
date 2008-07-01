@@ -59,15 +59,35 @@ class CythonTest(unittest.TestCase):
         self.assertEqual(len(result_lines), len(expected_lines),
             "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(result_lines), expected))
 
-    def fragment(self, code, pxds={}):
+    def fragment(self, code, pxds={}, pipeline=[]):
         "Simply create a tree fragment using the name of the test-case in parse errors."
         name = self.id()
         if name.startswith("__main__."): name = name[len("__main__."):]
         name = name.replace(".", "_")
-        return TreeFragment(code, name, pxds)
+        return TreeFragment(code, name, pxds, pipeline=pipeline)
 
     def treetypes(self, root):
         return treetypes(root)
+
+    def should_fail(self, func, exc_type=Exception):
+        """Calls "func" and fails if it doesn't raise the right exception
+        (any exception by default). Also returns the exception in question.
+        """
+        try:
+            func()
+            self.fail("Expected an exception of type %r" % exc_type)
+        except exc_type, e:
+            self.assert_(isinstance(e, exc_type))
+            return e
+
+    def should_not_fail(self, func):
+        """Calls func and succeeds if and only if no exception is raised
+        (i.e. converts exception raising into a failed testcase). Returns
+        the return value of func."""
+        try:
+            return func()
+        except:
+            self.fail()
 
 class TransformTest(CythonTest):
     """

@@ -4,6 +4,7 @@ from Cython.Compiler.Nodes import *
 import Cython.Compiler.Naming as Naming
 
 class TestTreeFragments(CythonTest):
+    
     def test_basic(self):
         F = self.fragment(u"x = 4")
         T = F.copy()
@@ -46,13 +47,14 @@ class TestTreeFragments(CythonTest):
         self.assertEquals(v.pos, a.pos)
         
     def test_temps(self):
+        import Cython.Compiler.Visitor as v
+        v.tmpnamectr = 0
         F = self.fragment(u"""
             TMP
             x = TMP
         """)
         T = F.substitute(temps=[u"TMP"])
         s = T.stats
-        print s[0].expr.name
         self.assert_(s[0].expr.name == Naming.temp_prefix +  u"1_TMP", s[0].expr.name)
         self.assert_(s[1].rhs.name == Naming.temp_prefix + u"1_TMP")
         self.assert_(s[0].expr.name !=  u"TMP")
