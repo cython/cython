@@ -172,7 +172,27 @@ class Node(object):
             self._end_pos = pos
             return pos
 
-
+    def dump(self, level=0, filter_out=("pos",)):
+        def dump_child(x, level):
+            if isinstance(x, Node):
+                return x.dump(level)
+            elif isinstance(x, list):
+                return "[%s]" % ", ".join(dump_child(item, level) for item in x)
+            else:
+                return repr(x)
+            
+        
+        attrs = [(key, value) for key, value in self.__dict__.iteritems() if key not in filter_out]
+        if len(attrs) == 0:
+            return "<%s>" % self.__class__.__name__
+        else:
+            indent = "  " * level
+            res = "<%s\n" % (self.__class__.__name__)
+            for key, value in attrs:
+                res += "%s  %s: %s\n" % (indent, key, dump_child(value, level + 1))
+            res += "%s>" % indent
+            return res
+        
 class BlockNode:
     #  Mixin class for nodes representing a declaration block.
 
@@ -587,6 +607,16 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
         else:
             return PyrexTypes.error_type
 
+class CBufferAccessTypeNode(Node):
+    #  base_type_node   CBaseTypeNode
+    #  positional_args  [ExprNode]        List of positional arguments
+    #  keyword_args     DictNode          Keyword arguments
+
+    child_attrs = ["base_type_node", "positional_args", "keyword_args"]
+    
+    def analyse(self, env):
+        
+        return self.base_type_node.analyse(env)
 
 class CComplexBaseTypeNode(CBaseTypeNode):
     # base_type   CBaseTypeNode
