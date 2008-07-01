@@ -312,6 +312,7 @@ def p_call(s, function):
         if s.sy != ',':
             break
         s.next()
+
     if s.sy == '*':
         s.next()
         star_arg = p_simple_expr(s)
@@ -1386,7 +1387,7 @@ def p_statement(s, ctx, first_statement = 0):
             if ctx.api:
                 error(s.pos, "'api' not allowed with this statement")
             elif s.sy == 'def':
-                if ctx.level not in ('module', 'class', 'c_class', 'function', 'property'):
+                if ctx.level not in ('module', 'class', 'c_class', 'property'):
                     s.error('def statement not allowed here')
                 s.level = ctx.level
                 return p_def_statement(s)
@@ -1455,6 +1456,71 @@ def p_suite(s, ctx = Ctx(), with_doc = 0, with_pseudo_doc = 0):
         return doc, body
     else:
         return body
+
+def p_positional_and_keyword_args(s, end_sy_set, type_positions=(), type_keywords=()):
+    """
+    Parses positional and keyword arguments. end_sy_set
+    should contain any s.sy that terminate the argument list.
+    Argument expansion (* and **) are not allowed.
+
+    type_positions and type_keywords specifies which argument
+    positions and/or names which should be interpreted as
+    types. Other arguments will be treated as expressions.
+
+    Returns: (positional_args, keyword_args)
+    """
+    positional_args = []
+    keyword_args = []
+    pos_idx = 0
+
+    while s.sy not in end_sy_set:
+        if s.sy == '*' or s.sy == '**':
+            s.error('Argument expansion not allowed here.')
+
+        was_keyword = False
+        parsed_type = False
+        if s.sy == 'IDENT':
+            # Since we can have either types or expressions as positional args,
+            # we use a strategy of looking an extra step forward for a '=' and
+            # if it is a positional arg we backtrack.
+            ident = s.systring
+            s.next()
+            if s.sy == '=':
+                s.next()
+                # Is keyword arg
+                if ident in type_keywords:
+                    arg = p_c_base_type(s)
+                    parsed_type = True
+                else:
+                    arg = p_simple_expr(s)
+                keyword_node = ExprNodes.IdentifierStringNode(arg.pos,
+                                value = Utils.EncodedString(ident))
+                keyword_args.append((keyword_node, arg))
+                was_keyword = True
+            else:
+                s.put_back('IDENT', ident)
+                
+        if not was_keyword:
+            if pos_idx in type_positions:
+                arg = p_c_base_type(s)
+                parsed_type = True
+            else:
+                arg = p_simple_expr(s)
+            positional_args.append(arg)
+            pos_idx += 1
+            if len(keyword_args) > 0:
+                s.error("Non-keyword arg following keyword arg",
+                        pos = arg.pos)
+
+        if s.sy != ',':
+            if s.sy not in end_sy_set:
+                if parsed_type:
+                    s.error("Expected: type")
+                else:
+                    s.error("Expected: expression")
+            break
+        s.next()
+    return positional_args, keyword_args
 
 def p_c_base_type(s, self_flag = 0, nonempty = 0):
     # If self_flag is true, this is the base type for the
@@ -1528,10 +1594,42 @@ def p_c_simple_base_type(s, self_flag, nonempty):
     else:
         #print "p_c_simple_base_type: not looking at type at", s.position()
         name = None
-    return Nodes.CSimpleBaseTypeNode(pos, 
+
+    type_node = Nodes.CSimpleBaseTypeNode(pos, 
         name = name, module_path = module_path,
         is_basic_c_type = is_basic, signed = signed,
         longness = longness, is_self_arg = self_flag)
+
+
+    # Treat trailing [] on type as buffer access
+    if s.sy == '[':
+        if is_basic:
+            p.error("Basic C types do not support buffer access")
+        return p_buffer_access(s, type_node)
+    else:
+        return type_node
+
+def p_buffer_access(s, type_node):
+    # s.sy == '['
+    pos = s.position()
+    s.next()
+    positional_args, keyword_args = (
+        p_positional_and_keyword_args(s, (']',), (0,), ('dtype',))
+    )
+    s.expect(']')
+
+    keyword_dict = ExprNodes.DictNode(pos,
+        key_value_pairs = [
+            ExprNodes.DictItemNode(pos=key.pos, key=key, value=value)
+            for key, value in keyword_args
+        ])
+
+    result = Nodes.CBufferAccessTypeNode(pos,
+        positional_args = positional_args,
+        keyword_args = keyword_dict,
+        base_type_node = type_node)
+    return result
+    
 
 def looking_at_type(s):
     return looking_at_base_type(s) or s.looking_at_type_name()

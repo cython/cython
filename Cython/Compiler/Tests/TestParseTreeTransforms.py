@@ -2,7 +2,7 @@ from Cython.TestUtils import TransformTest
 from Cython.Compiler.ParseTreeTransforms import *
 from Cython.Compiler.Nodes import *
 
-class TestPostParse(TransformTest):
+class TestNormalizeTree(TransformTest):
     def test_parserbehaviour_is_what_we_coded_for(self):
         t = self.fragment(u"if x: y").root
         self.assertLines(u"""
@@ -15,7 +15,7 @@ class TestPostParse(TransformTest):
 """, self.treetypes(t))
         
     def test_wrap_singlestat(self):
-    	t = self.run_pipeline([PostParse()], u"if x: y")
+    	t = self.run_pipeline([NormalizeTree(None)], u"if x: y")
         self.assertLines(u"""
 (root): StatListNode
   stats[0]: IfStatNode
@@ -27,7 +27,7 @@ class TestPostParse(TransformTest):
 """, self.treetypes(t))
 
     def test_wrap_multistat(self):
-        t = self.run_pipeline([PostParse()], u"""
+        t = self.run_pipeline([NormalizeTree(None)], u"""
             if z:
                 x
                 y
@@ -45,7 +45,7 @@ class TestPostParse(TransformTest):
 """, self.treetypes(t))
 
     def test_statinexpr(self):
-        t = self.run_pipeline([PostParse()], u"""
+        t = self.run_pipeline([NormalizeTree(None)], u"""
             a, b = x, y
         """)
         self.assertLines(u"""
@@ -60,7 +60,7 @@ class TestPostParse(TransformTest):
 """, self.treetypes(t))
 
     def test_wrap_offagain(self):
-        t = self.run_pipeline([PostParse()], u"""
+        t = self.run_pipeline([NormalizeTree(None)], u"""
             x
             y
             if z:
@@ -82,13 +82,13 @@ class TestPostParse(TransformTest):
         
 
     def test_pass_eliminated(self):
-        t = self.run_pipeline([PostParse()], u"pass")
+        t = self.run_pipeline([NormalizeTree(None)], u"pass")
         self.assert_(len(t.stats) == 0)
 
 class TestWithTransform(TransformTest):
 
     def test_simplified(self):
-        t = self.run_pipeline([WithTransform()], u"""
+        t = self.run_pipeline([WithTransform(None)], u"""
         with x:
             y = z ** 3
         """)
@@ -113,7 +113,7 @@ class TestWithTransform(TransformTest):
         """, t)
 
     def test_basic(self):
-        t = self.run_pipeline([WithTransform()], u"""
+        t = self.run_pipeline([WithTransform(None)], u"""
         with x as y:
             y = z ** 3
         """)

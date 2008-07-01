@@ -131,7 +131,6 @@ class VisitorTransform(TreeVisitor):
     was not, an exception will be raised. (Typically you want to ensure that you
     are within a StatListNode or similar before doing this.)
     """
-    
     def visitchildren(self, parent, attrs=None):
         result = super(VisitorTransform, self).visitchildren(parent, attrs)
         for attr, newnode in result.iteritems():
@@ -151,6 +150,19 @@ class VisitorTransform(TreeVisitor):
     
     def __call__(self, root):
         return self.visit(root)
+
+class CythonTransform(VisitorTransform):
+    """
+    Certain common conventions and utilitues for Cython transforms.
+    """
+    def __init__(self, context):
+        super(CythonTransform, self).__init__()
+        self.context = context
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
+        return node
+
 
 # Utils
 def ensure_statlist(node):
