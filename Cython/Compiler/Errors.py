@@ -32,6 +32,7 @@ class CompileError(PyrexError):
     
     def __init__(self, position = None, message = ""):
         self.position = position
+        self.message_only = message
     # Deprecated and withdrawn in 2.6:
     #   self.message = message
         if position:
