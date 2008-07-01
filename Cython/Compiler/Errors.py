@@ -91,6 +91,7 @@ def error(position, message):
     #print "Errors.error:", repr(position), repr(message) ###
     global num_errors
     err = CompileError(position, message)
+#    if position is not None: raise Exception(err) # debug
     line = "%s\n" % err
     if listing_file:
         listing_file.write(line)

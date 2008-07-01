@@ -281,18 +281,20 @@ def p_trailer(s, node1):
         return ExprNodes.AttributeNode(pos, 
             obj = node1, attribute = name)
 
-# arglist:  argument (',' argument)* [',']
-# argument: [test '='] test       # Really [keyword '='] test
+def p_positional_and_keyword_callargs(s, end_sy_set):
+    """
+    Parses positional and keyword call arguments. end_sy_set
+    should contain any s.sy that terminate the argument chain
+    (this is ('*', '**', ')') for a normal function call,
+    and (']',) for buffers declarators).
 
-def p_call(s, function):
-    # s.sy == '('
-    pos = s.position()
-    s.next()
+    Returns: (positional_args, keyword_args)
+    """
     positional_args = []
     keyword_args = []
-    star_arg = None
-    starstar_arg = None
-    while s.sy not in ('*', '**', ')'):
+    while s.sy not in end_sy_set:
+        if s.sy == '*' or s.sy == '**':
+            s.error('Argument expansion not allowed here.')
         arg = p_simple_expr(s)
         if s.sy == '=':
             s.next()
@@ -312,6 +314,21 @@ def p_call(s, function):
         if s.sy != ',':
             break
         s.next()
+    return positional_args, keyword_args
+
+
+# arglist:  argument (',' argument)* [',']
+# argument: [test '='] test       # Really [keyword '='] test
+
+def p_call(s, function):
+    # s.sy == '('
+    pos = s.position()
+    s.next()
+    star_arg = None
+    starstar_arg = None
+    positional_args, keyword_args = (
+        p_positional_and_keyword_callargs(s,('*', '**', ')')))
+
     if s.sy == '*':
         s.next()
         star_arg = p_simple_expr(s)
@@ -1528,10 +1545,34 @@ def p_c_simple_base_type(s, self_flag, nonempty):
     else:
         #print "p_c_simple_base_type: not looking at type at", s.position()
         name = None
-    return Nodes.CSimpleBaseTypeNode(pos, 
+
+    type_node = Nodes.CSimpleBaseTypeNode(pos, 
         name = name, module_path = module_path,
         is_basic_c_type = is_basic, signed = signed,
         longness = longness, is_self_arg = self_flag)
+
+
+    # Treat trailing [] on type as buffer access
+    if s.sy == '[':
+        if is_basic:
+            p.error("Basic C types do not support buffer access")
+        s.next()
+        positional_args, keyword_args = (
+            p_positional_and_keyword_callargs(s, ('[]',)))
+        s.expect(']')
+
+        keyword_dict = ExprNodes.DictNode(pos,
+            key_value_pairs = [
+                ExprNodes.DictItemNode(pos=key.pos, key=key, value=value)
+                for key, value in keyword_args
+            ])
+        
+        return Nodes.CBufferAccessTypeNode(pos,
+            positional_args = positional_args,
+            keyword_args = keyword_dict,
+            base_type_node = type_node)
+    else:
+        return type_node
 
 def looking_at_type(s):
     return looking_at_base_type(s) or s.looking_at_type_name()
