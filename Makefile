@@ -16,3 +16,6 @@ test:	testclean
 test3:	testclean
 	${PYTHON} runtests.py --no-cleanup
 	python3.0 runtests.py --no-cython
+
+s5:
+	$(MAKE) -C Doc/s5 slides
