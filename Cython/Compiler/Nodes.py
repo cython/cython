@@ -607,15 +607,29 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
             return PyrexTypes.error_type
 
 class CBufferAccessTypeNode(Node):
-    #  base_type_node   CBaseTypeNode
+    #  After parsing:
     #  positional_args  [ExprNode]        List of positional arguments
     #  keyword_args     DictNode          Keyword arguments
+    #  base_type_node   CBaseTypeNode
 
-    child_attrs = ["base_type_node", "positional_args", "keyword_args"]
+    #  After PostParse:
+    #  dtype_node       CBaseTypeNode
+    #  ndim             int
+
+    #  After analysis:
+    #  type             PyrexType.PyrexType
+
+    child_attrs = ["base_type_node", "positional_args", "keyword_args",
+                   "dtype_node"]
+
+    dtype_node = None
     
     def analyse(self, env):
-        
-        return self.base_type_node.analyse(env)
+        base_type = self.base_type_node.analyse(env)
+        dtype = self.dtype_node.analyse(env)
+        options = PyrexTypes.BufferOptions(dtype=dtype, ndim=self.ndim)
+        self.type = PyrexTypes.create_buffer_type(base_type, options)
+        return self.type
 
 class CComplexBaseTypeNode(CBaseTypeNode):
     # base_type   CBaseTypeNode

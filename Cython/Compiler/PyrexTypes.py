@@ -4,6 +4,7 @@
 
 from Cython import Utils
 import Naming
+import copy
 
 class BaseType:
     #
@@ -183,6 +184,20 @@ class CTypedefType(BaseType):
     def __getattr__(self, name):
         return getattr(self.typedef_base_type, name)
 
+class BufferOptions:
+    # dtype         PyrexType
+    # ndim          int
+    def __init__(self, dtype, ndim):
+        self.dtype = dtype
+        self.ndim = ndim
+
+
+def create_buffer_type(base_type, buffer_options):
+    # Make a shallow copy of base_type and then annotate it
+    # with the buffer information
+    result = copy.copy(base_type)
+    result.buffer_options = buffer_options
+    return result
 
 class PyObjectType(PyrexType):
     #
@@ -193,6 +208,7 @@ class PyObjectType(PyrexType):
     default_value = "0"
     parsetuple_format = "O"
     pymemberdef_typecode = "T_OBJECT"
+    buffer_options = None # can contain a BufferOptions instance
     
     def __str__(self):
         return "Python object"
