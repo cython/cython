@@ -124,7 +124,7 @@ class PostParse(CythonTransform):
         # get dtype
         dtype = options.get("dtype")
         if dtype is None: raise PostParseError(node.pos, ERR_BUF_MISSING % 'dtype')
-        node.dtype = dtype
+        node.dtype_node = dtype
 
         # get ndim
         if "ndim" in provided:
@@ -142,8 +142,6 @@ class PostParse(CythonTransform):
         node.positional_args = None
         node.keyword_args = None
         return node
-
-
 
 class WithTransform(CythonTransform):
 
