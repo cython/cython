@@ -1,9 +1,9 @@
 /* Following are the presentation styles -- edit away! */
 
 /* body {background: #FFF url(cython.png) 1em 1em no-repeat; color: #000; font-size: 2em;} */
-:link, :visited {text-decoration: none; color: #646464;}
-#controls :active {color: #646464 !important;}
-#controls :focus {outline: 1px dotted #646464;}
+:link, :visited {text-decoration: none; color: #545454;}
+#controls :active {color: #545454 !important;}
+#controls :focus {outline: 1px dotted #545454;}
 h1, h2, h3, h4 {font-size: 100%; margin: 0; padding: 0; font-weight: inherit;}
 ul, pre {margin: 0; line-height: 1em;}
 html, body {margin: 0; padding: 0;}
@@ -19,6 +19,8 @@ blockquote b i {font-style: italic;}
 kbd {font-weight: bold; font-size: 1em;}
 sup {font-size: smaller; line-height: 1px;}
 
+.slide {padding-top: 3em; }
+
 .slide code {padding: 2px 0.25em; font-weight: bold; color: #533;}
 .slide code.bad, code del {color: red;}
 .slide code.old {color: silver;}
@@ -32,19 +34,19 @@ sup {font-size: smaller; line-height: 1px;}
 .slide ul ul li {margin: .4em; font-size: 85%; list-style: square;}
 .slide img.leader {display: block; margin: 0 auto;}
 
-div#header, div#footer {background: #f0f0f0; color: #646464;
+div#header, div#footer {background: #f0f0f0; color: #545454;
   font-family: Verdana, Helvetica, sans-serif; padding: 0;}
-div#header {background: #f0f0f0 url(cython-logo64.png) 1ex 0.6ex no-repeat;
-  line-height: 1px; border-bottom: solid #646464 4px;}
+div#header {background: #f0f0f0 url(cython-logo64.png) 1ex 0.2ex no-repeat;
+  line-height: 1px; border-bottom: solid #545454 4px; height: 2.4em;}
 div#footer {font-size: 0.5em; font-weight: bold; padding: 0.6em 0;
-            border-top: solid #646464 3px;}
-#footer h1, #footer h2 {display: block; padding: 0 1em;}
+            border-top: solid #545454 3px;}
+#footer h1, #footer h2 {display: block; padding: 0 1.5ex;}
 #footer h2 {font-style: italic;}
-#footer a {color: #646464;}
+#footer a {color: #545454;}
 
 div.long {font-size: 0.75em;}
-.slide h1 {position: absolute; top: 0.4em; left: 87px; z-index: 1;
-  margin: 0; padding: 0.2em 0 0 25px; white-space: nowrap;
+.slide h1 {position: absolute; top: 0.2em; left: 87px; z-index: 1;
+  margin: 0; padding: 0.3ex 0 0 25px; white-space: nowrap;
   font: bold 150%/1em Helvetica, sans-serif; /* text-transform: capitalize; */
   color: #646464; background: #f0f0f0;}
 .slide h3 {font-size: 130%;}
@@ -58,12 +60,12 @@ html>body div#controls {position: fixed; padding: 0 0 1em 0;
 div#controls form {position: absolute; bottom: 0; right: 0; width: 100%;
   margin: 0; padding: 0;}
 #controls #navLinks a {padding: 0; margin: 0 0.5em; 
-  background: #f0f0f0; border: none; color: #646464;
+  background: #f0f0f0; border: none; color: #545454;
   cursor: pointer;}
 #controls #navList {height: 1em;}
 #controls #navList #jumplist {position: absolute; bottom: 0; right: 0; background: #f0f0f0; color: black;}
 
-#currentSlide {text-align: center; font-size: 0.5em; color: #646464; left: 90%; bottom: 2px;}
+#currentSlide {text-align: center; font-size: 0.5em; color: #545454; left: 90%; bottom: 2px;}
 
 #slide0 {padding-top: 3em; font-size: 90%;}
 #slide0 h1 {position: static; margin: 1em 0 0; padding: 0;
@@ -80,7 +82,7 @@ ul.urls {list-style: none; display: inline; margin: 0;}
 html>body .external {border-bottom: none;}
 /* .external:after {content: " \274F"; font-size: smaller; color: #7B7;} */
 
-/* .incremental, .incremental *, .incremental *:after {color: #646464; visibility: visible;} */
+/* .incremental, .incremental *, .incremental *:after {color: #545454; visibility: visible;} */
 .incremental, .incremental *, .incremental *:after {visibility: hidden;}
 img.incremental {visibility: hidden;}
 .slide .current {color: #B02;}
