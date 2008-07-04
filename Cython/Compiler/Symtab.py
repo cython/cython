@@ -19,6 +19,14 @@ import __builtin__
 possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
 
+class BufferAux:
+    def __init__(self, buffer_info_var, stridevars, shapevars):
+        self.buffer_info_var = buffer_info_var
+        self.stridevars = stridevars
+        self.shapevars = shapevars
+    def __repr__(self):
+        return "<BufferAux %r>" % self.__dict__
+
 class Entry:
     # A symbol table entry in a Scope or ModuleNamespace.
     #
@@ -76,6 +84,8 @@ class Entry:
     # defined_in_pxd   boolean    Is defined in a .pxd file (not just declared)
     # api              boolean    Generate C API for C class or function
     # utility_code     string     Utility code needed when this entry is used
+    #
+    # buffer_aux      BufferAux or None  Extra information needed for buffer variables
 
     borrowed = 0
     init = ""
@@ -117,6 +127,7 @@ class Entry:
     api = 0
     utility_code = None
     is_overridable = 0
+    buffer_aux = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name

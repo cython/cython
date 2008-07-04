@@ -1,3 +1,4 @@
+
 from Cython.Compiler.Visitor import VisitorTransform, temp_name_handle, CythonTransform
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import *
@@ -137,11 +138,176 @@ class PostParse(CythonTransform):
             if ndim_value < 0:
                 raise PostParseError(ndimnode.pos, ERR_BUF_NONNEG % 'ndim')
             node.ndim = int(ndimnode.value)
+        else:
+            node.ndim = 1
         
         # We're done with the parse tree args
         node.positional_args = None
         node.keyword_args = None
         return node
+
+class BufferTransform(CythonTransform):
+    """
+    Run after type analysis. Takes care of the buffer functionality.
+    """
+    scope = None
+
+    def __call__(self, node):
+        cymod = self.context.modules[u'__cython__']
+        self.buffer_type = cymod.entries[u'Py_buffer'].type
+        return super(BufferTransform, self).__call__(node)
+
+    def handle_scope(self, node, scope):
+        # For all buffers, insert extra variables in the scope.
+        # The variables are also accessible from the buffer_info
+        # on the buffer entry
+        bufvars = [(name, entry) for name, entry
+                   in scope.entries.iteritems()
+                   if entry.type.buffer_options is not None]
+                   
+        for name, entry in bufvars:
+            # Variable has buffer opts, declare auxiliary vars
+            bufopts = entry.type.buffer_options
+
+            bufinfo = scope.declare_var(temp_name_handle(u"%s_bufinfo" % name),
+                                        self.buffer_type, node.pos)
+
+            temp_var =  scope.declare_var(temp_name_handle(u"%s_tmp" % name),
+                                        entry.type, node.pos)
+            
+            
+            stridevars = []
+            shapevars = []
+            for idx in range(bufopts.ndim):
+                # stride
+                varname = temp_name_handle(u"%s_%s%d" % (name, "stride", idx))
+                var = scope.declare_var(varname, PyrexTypes.c_int_type, node.pos, is_cdef=True)
+                stridevars.append(var)
+                # shape
+                varname = temp_name_handle(u"%s_%s%d" % (name, "shape", idx))
+                var = scope.declare_var(varname, PyrexTypes.c_uint_type, node.pos, is_cdef=True)
+                shapevars.append(var)
+            entry.buffer_aux = Symtab.BufferAux(bufinfo, stridevars, 
+                                                shapevars)
+            entry.buffer_aux.temp_var = temp_var
+        self.scope = scope
+
+            
+    def visit_ModuleNode(self, node):
+        self.handle_scope(node, node.scope)
+        self.visitchildren(node)
+        return node
+
+    def visit_FuncDefNode(self, node):
+        self.handle_scope(node, node.local_scope)
+        self.visitchildren(node)
+        return node
+
+    acquire_buffer_fragment = TreeFragment(u"""
+        TMP = LHS
+        if TMP is not None:
+            __cython__.PyObject_ReleaseBuffer(<__cython__.PyObject*>TMP, &BUFINFO)
+        TMP = RHS
+        __cython__.PyObject_GetBuffer(<__cython__.PyObject*>TMP, &BUFINFO, 0)
+        ASSIGN_AUX
+        LHS = TMP
+    """)
+
+    fetch_strides = TreeFragment(u"""
+        TARGET = BUFINFO.strides[IDX]
+    """)
+
+    fetch_shape = TreeFragment(u"""
+        TARGET = BUFINFO.shape[IDX]
+    """)
+
+#                ass = SingleAssignmentNode(pos=node.pos,
+#                    lhs=NameNode(node.pos, name=entry.name),
+#                    rhs=IndexNode(node.pos,
+#                        base=AttributeNode(node.pos,
+#                            obj=NameNode(node.pos, name=bufaux.buffer_info_var.name),
+#                            attribute=EncodedString("strides")),
+#                        index=IntNode(node.pos, value=EncodedString(idx))))
+#                print ass.dump()
+    def visit_SingleAssignmentNode(self, node):
+        self.visitchildren(node)
+        bufaux = node.lhs.entry.buffer_aux
+        if bufaux is not None:
+            auxass = []
+            for idx, entry in enumerate(bufaux.stridevars):
+                entry.used = True
+                ass = self.fetch_strides.substitute({
+                    u"TARGET": NameNode(node.pos, name=entry.name),
+                    u"BUFINFO": NameNode(node.pos, name=bufaux.buffer_info_var.name),
+                    u"IDX": IntNode(node.pos, value=EncodedString(idx))
+                })
+                auxass.append(ass)
+
+            for idx, entry in enumerate(bufaux.shapevars):
+                entry.used = True
+                ass = self.fetch_shape.substitute({
+                    u"TARGET": NameNode(node.pos, name=entry.name),
+                    u"BUFINFO": NameNode(node.pos, name=bufaux.buffer_info_var.name),
+                    u"IDX": IntNode(node.pos, value=EncodedString(idx))
+                })
+                auxass.append(ass)
+                
+            bufaux.buffer_info_var.used = True
+            acq = self.acquire_buffer_fragment.substitute({
+                u"TMP" : NameNode(pos=node.pos, name=bufaux.temp_var.name),
+                u"LHS" : node.lhs,
+                u"RHS": node.rhs,
+                u"ASSIGN_AUX": StatListNode(node.pos, stats=auxass),
+                u"BUFINFO": NameNode(pos=node.pos, name=bufaux.buffer_info_var.name)
+            }, pos=node.pos)
+            # Note: The below should probably be refactored into something
+            # like fragment.substitute(..., context=self.context), with
+            # TreeFragment getting context.pipeline_until_now() and
+            # applying it on the fragment.
+            acq.analyse_declarations(self.scope)
+            acq.analyse_expressions(self.scope)
+            stats = acq.stats
+#            stats += [node] # Do assignment after successful buffer acquisition
+         #   print acq.dump()
+            return stats
+        else:
+            return node
+
+    buffer_access = TreeFragment(u"""
+        (<unsigned char*>(BUF.buf + OFFSET))[0]
+    """)
+    def visit_IndexNode(self, node):
+        if node.is_buffer_access:
+            assert node.index is None
+            assert node.indices is not None
+            bufaux = node.base.entry.buffer_aux
+            assert bufaux is not None
+            to_sum = [ IntBinopNode(node.pos, operator='*', operand1=index,
+                                    operand2=NameNode(node.pos, name=stride.name))
+                for index, stride in zip(node.indices, bufaux.stridevars)]
+            print to_sum
+
+            indices = node.indices
+            # reduce * on indices
+            expr = to_sum[0]
+            for next in to_sum[1:]:
+                expr = IntBinopNode(node.pos, operator='+', operand1=expr, operand2=next)
+            tmp= self.buffer_access.substitute({
+                'BUF': NameNode(node.pos, name=bufaux.buffer_info_var.name),
+                'OFFSET': expr
+                })
+            tmp.analyse_expressions(self.scope)
+            return tmp.stats[0].expr
+        else:
+            return node
+
+    def visit_CallNode(self, node):
+###        print node.dump()
+        return node
+    
+#    def visit_FuncDefNode(self, node):
+#        print node.dump()
+    
 
 class WithTransform(CythonTransform):
 

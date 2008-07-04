@@ -1275,36 +1275,59 @@ class IndexNode(ExprNode):
         self.analyse_base_and_index_types(env, setting = 1)
     
     def analyse_base_and_index_types(self, env, getting = 0, setting = 0):
+        self.is_buffer_access = False
+
         self.base.analyse_types(env)
-        self.index.analyse_types(env)
-        if self.base.type.is_pyobject:
-            if self.index.type.is_int:
-                self.original_index_type = self.index.type
-                self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
-                if getting:
-                    env.use_utility_code(getitem_int_utility_code)
-                if setting:
-                    env.use_utility_code(setitem_int_utility_code)
+        
+        if self.base.type.buffer_options is not None:
+            if isinstance(self.index, TupleNode):
+                indices = self.index.args
+#                is_int_indices = 0 == sum([1 for i in self.index.args if not i.type.is_int])
             else:
-                self.index = self.index.coerce_to_pyobject(env)
-            self.type = py_object_type
-            self.gil_check(env)
-            self.is_temp = 1
-        else:
-            if self.base.type.is_ptr or self.base.type.is_array:
-                self.type = self.base.type.base_type
+#                is_int_indices = self.index.type.is_int
+                indices = [self.index]
+            all_ints = True
+            for index in indices:
+                index.analyse_types(env)
+                if not index.type.is_int:
+                    all_ints = False
+            if all_ints:
+                self.indices = indices
+                self.index = None
+                self.type = self.base.type.buffer_options.dtype
+                self.is_temp = 1
+                self.is_buffer_access = True
+
+        if not self.is_buffer_access:
+            self.index.analyse_types(env) # ok to analyse as tuple
+            if self.base.type.is_pyobject:
+                if self.index.type.is_int:
+                    self.original_index_type = self.index.type
+                    self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
+                    if getting:
+                        env.use_utility_code(getitem_int_utility_code)
+                    if setting:
+                        env.use_utility_code(setitem_int_utility_code)
+                else:
+                    self.index = self.index.coerce_to_pyobject(env)
+                self.type = py_object_type
+                self.gil_check(env)
+                self.is_temp = 1
             else:
-                error(self.pos,
-                    "Attempting to index non-array type '%s'" %
-                        self.base.type)
-                self.type = PyrexTypes.error_type
-            if self.index.type.is_pyobject:
-                self.index = self.index.coerce_to(
-                    PyrexTypes.c_py_ssize_t_type, env)
-            if not self.index.type.is_int:
-                error(self.pos,
-                    "Invalid index type '%s'" %
-                        self.index.type)
+                if self.base.type.is_ptr or self.base.type.is_array:
+                    self.type = self.base.type.base_type
+                else:
+                    error(self.pos,
+                        "Attempting to index non-array type '%s'" %
+                            self.base.type)
+                    self.type = PyrexTypes.error_type
+                if self.index.type.is_pyobject:
+                    self.index = self.index.coerce_to(
+                        PyrexTypes.c_py_ssize_t_type, env)
+                if not self.index.type.is_int:
+                    error(self.pos,
+                        "Invalid index type '%s'" %
+                            self.index.type)
 
     gil_message = "Indexing Python object"
 
@@ -1330,11 +1353,17 @@ class IndexNode(ExprNode):
 
     def generate_subexpr_evaluation_code(self, code):
         self.base.generate_evaluation_code(code)
-        self.index.generate_evaluation_code(code)
+        if self.index is not None:
+            self.index.generate_evaluation_code(code)
+        else:
+            for i in self.indices: i.generate_evaluation_code(code)
         
     def generate_subexpr_disposal_code(self, code):
         self.base.generate_disposal_code(code)
-        self.index.generate_disposal_code(code)
+        if self.index is not None:
+            self.index.generate_disposal_code(code)
+        else:
+            for i in self.indices: i.generate_disposal_code(code)
 
     def generate_result_code(self, code):
         if self.type.is_pyobject:
