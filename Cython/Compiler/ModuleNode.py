@@ -259,6 +259,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_module_cleanup_func(env, code)
         self.generate_filename_table(code)
         self.generate_utility_functions(env, code)
+        self.generate_buffer_compatability_functions(env, code)
 
         self.generate_declarations_for_modules(env, modules, code.h)
 
@@ -438,6 +439,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyBUF_F_CONTIGUOUS (0x0040 | PyBUF_STRIDES)")
         code.putln("  #define PyBUF_ANY_CONTIGUOUS (0x0080 | PyBUF_STRIDES)")
         code.putln("  #define PyBUF_INDIRECT (0x0100 | PyBUF_STRIDES)")
+        code.putln("")
+        code.putln("  static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags);")
+        code.putln("  static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view);")
         code.putln("#endif")
 
         code.put(builtin_module_name_utility_code[0])
@@ -1945,6 +1949,60 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.h.put(utility_code[0])
             code.put(utility_code[1])
         code.put(PyrexTypes.type_conversion_functions)
+        code.putln("")
+
+    def generate_buffer_compatability_functions(self, env, code):
+        # will be refactored
+        code.put("""
+static int numpy_getbuffer(PyObject *obj, Py_buffer *view, int flags) {
+  /* This function is always called after a type-check */
+  PyArrayObject *arr = (PyArrayObject*)obj;
+  PyArray_Descr *type = (PyArray_Descr*)arr->descr;
+  
+  view->buf = arr->data;
+  view->readonly = 0; /*fixme*/
+  view->format = "B"; /*fixme*/
+  view->ndim = arr->nd;
+  view->strides = arr->strides;
+  view->shape = arr->dimensions;
+  view->suboffsets = 0;
+  
+  view->itemsize = type->elsize;
+  view->internal = 0;
+  return 0;
+}
+
+static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
+}
+
+""")
+        
+        # For now, hard-code numpy imported as "numpy"
+        ndarrtype = env.entries[u'numpy'].as_module.entries['ndarray'].type
+        types = [
+            (ndarrtype.typeptr_cname, "numpy_getbuffer", "numpy_releasebuffer")
+        ]
+        
+#        typeptr_cname = ndarrtype.typeptr_cname
+        code.putln("static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {")
+        clause = "if"
+        for t, get, release in types:
+            code.putln("%s (__Pyx_TypeTest(obj, %s)) return %s(obj, view, flags);" % (clause, t, get))
+            clause = "else if"
+        code.putln("else {")
+        code.putln("PyErr_Format(PyExc_TypeError, \"'%100s' does not have the buffer interface\", Py_TYPE(obj)->tp_name);")
+        code.putln("return -1;")
+        code.putln("}")
+        code.putln("}")
+        code.putln("")
+        code.putln("static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view) {")
+        clause = "if"
+        for t, get, release in types:
+            code.putln("%s (__Pyx_TypeTest(obj, %s)) %s(obj, view);" % (clause, t, release))
+            clause = "else if"
+        code.putln("}")
+        code.putln("")
+
 
 #------------------------------------------------------------------------------------
 #

@@ -6,6 +6,22 @@ from Cython import Utils
 import Naming
 import copy
 
+class BufferOptions:
+    # dtype         PyrexType
+    # ndim          int
+    def __init__(self, dtype, ndim):
+        self.dtype = dtype
+        self.ndim = ndim
+
+
+def create_buffer_type(base_type, buffer_options):
+    # Make a shallow copy of base_type and then annotate it
+    # with the buffer information
+    result = copy.copy(base_type)
+    result.buffer_options = buffer_options
+    return result
+
+
 class BaseType:
     #
     #  Base class for all Pyrex types including pseudo-types.
@@ -93,6 +109,7 @@ class PyrexType(BaseType):
     default_value = ""
     parsetuple_format = ""
     pymemberdef_typecode = None
+    buffer_options = None # can contain a BufferOptions instance
     
     def resolve(self):
         # If a typedef, returns the base type.
@@ -184,21 +201,6 @@ class CTypedefType(BaseType):
     def __getattr__(self, name):
         return getattr(self.typedef_base_type, name)
 
-class BufferOptions:
-    # dtype         PyrexType
-    # ndim          int
-    def __init__(self, dtype, ndim):
-        self.dtype = dtype
-        self.ndim = ndim
-
-
-def create_buffer_type(base_type, buffer_options):
-    # Make a shallow copy of base_type and then annotate it
-    # with the buffer information
-    result = copy.copy(base_type)
-    result.buffer_options = buffer_options
-    return result
-
 class PyObjectType(PyrexType):
     #
     #  Base class for all Python object types (reference-counted).
@@ -208,7 +210,6 @@ class PyObjectType(PyrexType):
     default_value = "0"
     parsetuple_format = "O"
     pymemberdef_typecode = "T_OBJECT"
-    buffer_options = None # can contain a BufferOptions instance
     
     def __str__(self):
         return "Python object"
