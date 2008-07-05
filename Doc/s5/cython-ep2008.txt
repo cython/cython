@@ -214,9 +214,7 @@ Python 2 feature support
 
   * ``with`` statement
 
-  * closures
-
-  * support for local classes and functions is close!
+  * closures (i.e. local classes and functions) are close!
 
 
 Speed
@@ -311,19 +309,19 @@ Calling C functions
 	return PyUnicode_DecodeASCII(s, size, NULL)
 
 
-Cutting-edge features
-=====================
+Features in work
+================
 
 * Dynamic classes and functions with closures
 
   .. sourcecode:: python
 
-    def myfunction(a,b):
+    def factory(a,b):
         def closure_function(c):
             return a+b+c
         return closure_function
 
-* Native support for new ``buffer`` protocol this summer
+* Native support for new ``buffer`` protocol
 
   * part of NumPy integration by Dag Seljebotn
 
