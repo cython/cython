@@ -19,5 +19,10 @@ cdef extern from "Python.h":
     int PyObject_GetBuffer(PyObject* obj, Py_buffer* view, int flags) except -1
     void PyObject_ReleaseBuffer(PyObject* obj, Py_buffer* view)
 
+    void PyErr_Format(int, char*, ...)
+
+    enum:
+        PyExc_TypeError
+
 #                  int PyObject_GetBuffer(PyObject *obj, Py_buffer *view,
 #                       int flags)

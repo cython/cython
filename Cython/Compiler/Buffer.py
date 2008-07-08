@@ -5,18 +5,97 @@ from Cython.Compiler.ExprNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment
 from Cython.Utils import EncodedString
 from Cython.Compiler.Errors import CompileError
+import PyrexTypes
 from sets import Set as set
+
+class PureCFuncNode(Node):
+    def __init__(self, pos, cname, type, c_code):
+        self.pos = pos
+        self.cname = cname
+        self.type = type
+        self.c_code = c_code
+
+    def analyse_types(self, env):
+        self.entry = env.declare_cfunction(
+            "<pure c function:%s>" % self.cname,
+            self.type, self.pos, cname=self.cname,
+            defining=True)
+
+    def generate_function_definitions(self, env, code, transforms):
+        # TODO: Fix constness, don't hack it
+        assert self.type.optional_arg_count == 0
+        arg_decls = [arg.declaration_code() for arg in self.type.args]
+        sig = self.type.return_type.declaration_code(
+            self.type.function_header_code(self.cname, ", ".join(arg_decls)))
+        code.putln("")
+        code.putln("%s {" % sig)
+        code.put(self.c_code)
+        code.putln("}")
+
+    def generate_execution_code(self, code):
+        pass
 
 class BufferTransform(CythonTransform):
     """
     Run after type analysis. Takes care of the buffer functionality.
     """
     scope = None
+    tschecker_functype = PyrexTypes.CFuncType(
+        PyrexTypes.c_char_ptr_type,
+        [PyrexTypes.CFuncTypeArg(EncodedString("ts"), PyrexTypes.c_char_ptr_type,
+                      (0, 0, None), cname="ts")],
+        exception_value = "NULL"
+    )  
 
     def __call__(self, node):
         cymod = self.context.modules[u'__cython__']
-        self.buffer_type = cymod.entries[u'Py_buffer'].type
-        return super(BufferTransform, self).__call__(node)
+        self.bufstruct_type = cymod.entries[u'Py_buffer'].type
+        self.tscheckers = {}
+        self.module_scope = node.scope
+        self.module_pos = node.pos
+        result = super(BufferTransform, self).__call__(node)
+        result.body.stats += [node for node in self.tscheckers.values()]
+        return result
+
+    def tschecker_simple(self, dtype):
+        char = dtype.typestring
+        return """
+  if (*ts != '%s') {
+    PyErr_Format(PyExc_TypeError, "Buffer datatype mismatch");  
+    return NULL;
+  } else return ts + 1;
+""" % char
+
+    def tschecker(self, dtype):
+        # Creates a type string checker function for the given type.
+        # Each checker is created as a function entry in the module scope
+        # and a PureCNode and put in the self.ts_checkers dict.
+        # Also the entry is returned.
+        #
+        # TODO: __eq__ and __hash__ for types
+        funcnode = self.tscheckers.get(dtype, None)
+        if funcnode is None:
+            assert dtype.is_int or dtype.is_float or dtype.is_struct_or_union
+            # Use prefixes to seperate user defined types from builtins
+            # (consider "typedef float unsigned_int")
+            builtin = not (dtype.is_struct_or_union or dtype.is_typedef)
+            if not builtin:
+                prefix = "user"
+            else:
+                prefix = "builtin"
+            cname = "check_typestring_%s_%s" % (prefix,
+                       dtype.declaration_code("").replace(" ", "_"))
+
+            if dtype.typestring is not None and len(dtype.typestring) == 1:
+                code = self.tschecker_simple(dtype)
+            else:
+                assert False
+
+            funcnode = PureCFuncNode(self.module_pos, cname,
+                                     self.tschecker_functype, code)
+            funcnode.analyse_types(self.module_scope)
+            self.tscheckers[dtype] = funcnode
+        return funcnode.entry
 
     def handle_scope(self, node, scope):
         # For all buffers, insert extra variables in the scope.
@@ -27,11 +106,15 @@ class BufferTransform(CythonTransform):
                    if entry.type.buffer_options is not None]
                    
         for name, entry in bufvars:
-            # Variable has buffer opts, declare auxiliary vars
+            
             bufopts = entry.type.buffer_options
 
+            # Get or make a type string checker
+            tschecker = self.tschecker(bufopts.dtype)
+
+            # Declare auxiliary vars
             bufinfo = scope.declare_var(temp_name_handle(u"%s_bufinfo" % name),
-                                        self.buffer_type, node.pos)
+                                        self.bufstruct_type, node.pos)
 
             temp_var =  scope.declare_var(temp_name_handle(u"%s_tmp" % name),
                                         entry.type, node.pos)
@@ -49,7 +132,7 @@ class BufferTransform(CythonTransform):
                 var = scope.declare_var(varname, PyrexTypes.c_uint_type, node.pos, is_cdef=True)
                 shapevars.append(var)
             entry.buffer_aux = Symtab.BufferAux(bufinfo, stridevars, 
-                                                shapevars)
+                                                shapevars, tschecker)
             entry.buffer_aux.temp_var = temp_var
         self.scope = scope
 
@@ -64,13 +147,16 @@ class BufferTransform(CythonTransform):
         self.visitchildren(node)
         return node
 
+    # Notes: The cast to <char*> gets around Cython not supporting const types
     acquire_buffer_fragment = TreeFragment(u"""
         TMP = LHS
         if TMP is not None:
             __cython__.PyObject_ReleaseBuffer(<__cython__.PyObject*>TMP, &BUFINFO)
         TMP = RHS
-        __cython__.PyObject_GetBuffer(<__cython__.PyObject*>TMP, &BUFINFO, 0)
-        ASSIGN_AUX
+        if TMP is not None:
+            __cython__.PyObject_GetBuffer(<__cython__.PyObject*>TMP, &BUFINFO, 0)
+            TSCHECKER(<char*>BUFINFO.format)
+            ASSIGN_AUX
         LHS = TMP
     """)
 
@@ -82,22 +168,6 @@ class BufferTransform(CythonTransform):
         TARGET = BUFINFO.shape[IDX]
     """)
 
-    def visit_SingleAssignmentNode(self, node):
-        # On assignments, two buffer-related things can happen:
-        # a) A buffer variable is assigned to (reacquisition)
-        # b) Buffer access assignment: arr[...] = ...
-        # Since we don't allow nested buffers, these don't overlap.
-        
-        self.visitchildren(node)
-        # Only acquire buffers on vars (not attributes) for now.
-        if isinstance(node.lhs, NameNode) and node.lhs.entry.buffer_aux:
-            # Is buffer variable
-            return self.reacquire_buffer(node)
-        elif (isinstance(node.lhs, IndexNode) and
-              isinstance(node.lhs.base, NameNode) and
-              node.lhs.base.entry.buffer_aux is not None):
-            return self.assign_into_buffer(node)
-        
     def reacquire_buffer(self, node):
         bufaux = node.lhs.entry.buffer_aux
         auxass = []
@@ -106,7 +176,7 @@ class BufferTransform(CythonTransform):
             ass = self.fetch_strides.substitute({
                 u"TARGET": NameNode(node.pos, name=entry.name),
                 u"BUFINFO": NameNode(node.pos, name=bufaux.buffer_info_var.name),
-                u"IDX": IntNode(node.pos, value=EncodedString(idx))
+                u"IDX": IntNode(node.pos, value=EncodedString(idx)),
             })
             auxass.append(ass)
 
@@ -125,7 +195,8 @@ class BufferTransform(CythonTransform):
             u"LHS" : node.lhs,
             u"RHS": node.rhs,
             u"ASSIGN_AUX": StatListNode(node.pos, stats=auxass),
-            u"BUFINFO": NameNode(pos=node.pos, name=bufaux.buffer_info_var.name)
+            u"BUFINFO": NameNode(pos=node.pos, name=bufaux.buffer_info_var.name),
+            u"TSCHECKER": NameNode(node.pos, name=bufaux.tschecker.name)
         }, pos=node.pos)
         # Note: The below should probably be refactored into something
         # like fragment.substitute(..., context=self.context), with
@@ -165,6 +236,24 @@ class BufferTransform(CythonTransform):
 
         return tmp.stats[0].expr
 
+
+    def visit_SingleAssignmentNode(self, node):
+        # On assignments, two buffer-related things can happen:
+        # a) A buffer variable is assigned to (reacquisition)
+        # b) Buffer access assignment: arr[...] = ...
+        # Since we don't allow nested buffers, these don't overlap.
+        self.visitchildren(node)
+        # Only acquire buffers on vars (not attributes) for now.
+        if isinstance(node.lhs, NameNode) and node.lhs.entry.buffer_aux:
+            # Is buffer variable
+            return self.reacquire_buffer(node)
+        elif (isinstance(node.lhs, IndexNode) and
+              isinstance(node.lhs.base, NameNode) and
+              node.lhs.base.entry.buffer_aux is not None):
+            return self.assign_into_buffer(node)
+        else:
+            return node
+        
     buffer_access = TreeFragment(u"""
         (<unsigned char*>(BUF.buf + OFFSET))[0]
     """)
@@ -179,10 +268,3 @@ class BufferTransform(CythonTransform):
         else:
             return node
 
-    def visit_CallNode(self, node):
-###        print node.dump()
-        return node
-    
-#    def visit_FuncDefNode(self, node):
-#        print node.dump()
-    

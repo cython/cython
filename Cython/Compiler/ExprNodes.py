@@ -1251,8 +1251,19 @@ class IndexNode(ExprNode):
     #
     #  base     ExprNode
     #  index    ExprNode
+    #  indices  [ExprNode]
+    #  is_buffer_access boolean Whether this is a buffer access.
+    #
+    #  indices is used on buffer access, index on non-buffer access.
+    #  The former contains a clean list of index parameters, the
+    #  latter whatever Python object is needed for index access.
     
-    subexprs = ['base', 'index']
+    subexprs = ['base', 'index', 'indices']
+    indices = None
+
+    def __init__(self, pos, index, *args, **kw):
+        ExprNode.__init__(self, pos, index=index, *args, **kw)
+        self._index = index
     
     def compile_time_value(self, denv):
         base = self.base.compile_time_value(denv)
@@ -1273,7 +1284,7 @@ class IndexNode(ExprNode):
     
     def analyse_target_types(self, env):
         self.analyse_base_and_index_types(env, setting = 1)
-    
+
     def analyse_base_and_index_types(self, env, getting = 0, setting = 0):
         self.is_buffer_access = False
 
@@ -1282,19 +1293,20 @@ class IndexNode(ExprNode):
         if self.base.type.buffer_options is not None:
             if isinstance(self.index, TupleNode):
                 indices = self.index.args
-#                is_int_indices = 0 == sum([1 for i in self.index.args if not i.type.is_int])
             else:
-#                is_int_indices = self.index.type.is_int
                 indices = [self.index]
             all_ints = True
-            for index in indices:
-                index.analyse_types(env)
-                if not index.type.is_int:
+            for x in indices:
+                x.analyse_types(env)
+                if not x.type.is_int:
                     all_ints = False
             if all_ints:
+#                self.indices = [
+#                    x.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
+#                    for x in  indices]
                 self.indices = indices
                 self.index = None
-                self.type = self.base.type.buffer_options.dtype
+                self.type = self.base.type.buffer_options.dtype 
                 self.is_temp = 1
                 self.is_buffer_access = True
 
@@ -3934,6 +3946,10 @@ class CoerceToTempNode(CoercionNode):
             self.result_ctype = py_object_type
 
     gil_message = "Creating temporary Python reference"
+
+    def analyse_types(self, env):
+        # The arg is always already analysed
+        pass
 
     def generate_result_code(self, code):
         #self.arg.generate_evaluation_code(code) # Already done
