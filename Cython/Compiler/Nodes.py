@@ -184,10 +184,10 @@ class Node(object):
         
         attrs = [(key, value) for key, value in self.__dict__.iteritems() if key not in filter_out]
         if len(attrs) == 0:
-            return "<%s>" % self.__class__.__name__
+            return "<%s (%d)>" % (self.__class__.__name__, id(self))
         else:
             indent = "  " * level
-            res = "<%s\n" % (self.__class__.__name__)
+            res = "<%s (%d)\n" % (self.__class__.__name__, id(self))
             for key, value in attrs:
                 res += "%s  %s: %s\n" % (indent, key, dump_child(value, level + 1))
             res += "%s>" % indent

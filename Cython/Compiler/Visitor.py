@@ -181,10 +181,14 @@ def replace_node(ptr, value):
         getattr(parent, attrname)[listidx] = value
 
 tmpnamectr = 0
-def temp_name_handle(description):
+def temp_name_handle(description=None):
     global tmpnamectr
     tmpnamectr += 1
-    return EncodedString(Naming.temp_prefix + u"%d_%s" % (tmpnamectr, description))
+    if description is not None:
+        name = u"%d_%s" % (tmpnamectr, description)
+    else:
+        name = u"%d" % tmpnamectr
+    return EncodedString(Naming.temp_prefix + name)
 
 def get_temp_name_handle_desc(handle):
     if not handle.startswith(u"__cyt_"):
@@ -198,7 +202,7 @@ class PrintTree(TreeVisitor):
     Subclass and override repr_of to provide more information
     about nodes. """
     def __init__(self):
-        Transform.__init__(self)
+        TreeVisitor.__init__(self)
         self._indent = ""
 
     def indent(self):
@@ -208,6 +212,7 @@ class PrintTree(TreeVisitor):
 
     def __call__(self, tree, phase=None):
         print("Parse tree dump at phase '%s'" % phase)
+        self.visit(tree)
 
     # Don't do anything about process_list, the defaults gives
     # nice-looking name[idx] nodes which will visually appear

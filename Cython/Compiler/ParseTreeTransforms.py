@@ -1,4 +1,3 @@
-
 from Cython.Compiler.Visitor import VisitorTransform, temp_name_handle, CythonTransform
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import *
@@ -51,12 +50,6 @@ class NormalizeTree(CythonTransform):
         else:
             return node
 
-    def visit_PassStatNode(self, node):
-        if not self.is_in_statlist:
-            return StatListNode(pos=node.pos, stats=[])
-        else:
-            return []
-
     def visit_StatListNode(self, node):
         self.is_in_statlist = True
         self.visitchildren(node)
@@ -71,6 +64,18 @@ class NormalizeTree(CythonTransform):
 
     def visit_CStructOrUnionDefNode(self, node):
         return self.visit_StatNode(node, True)
+
+    # Eliminate PassStatNode
+    def visit_PassStatNode(self, node):
+        if not self.is_in_statlist:
+            return StatListNode(pos=node.pos, stats=[])
+        else:
+            return []
+
+    # Eliminate CascadedAssignmentNode
+    def visit_CascadedAssignmentNode(self, node):
+        tmpname = temp_name_handle()
+        
 
 
 class PostParseError(CompileError): pass
