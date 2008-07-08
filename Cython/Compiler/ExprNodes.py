@@ -1289,29 +1289,40 @@ class IndexNode(ExprNode):
         self.is_buffer_access = False
 
         self.base.analyse_types(env)
-        
+
+        skip_child_analysis = False
+        buffer_access = False
         if self.base.type.buffer_options is not None:
             if isinstance(self.index, TupleNode):
                 indices = self.index.args
             else:
                 indices = [self.index]
-            all_ints = True
-            for x in indices:
-                x.analyse_types(env)
-                if not x.type.is_int:
-                    all_ints = False
-            if all_ints:
-#                self.indices = [
-#                    x.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
-#                    for x in  indices]
-                self.indices = indices
-                self.index = None
-                self.type = self.base.type.buffer_options.dtype 
-                self.is_temp = 1
-                self.is_buffer_access = True
+            if len(indices) == self.base.type.buffer_options.ndim:
+                buffer_access = True
+                skip_child_analysis = True
+                for x in indices:
+                    x.analyse_types(env)
+                    if not x.type.is_int:
+                        buffer_access = False
+                if buffer_access:
+                    # self.indices = [
+                    #   x.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
+                    # for x in  indices]
+                    self.indices = indices
+                    self.index = None
+                    self.type = self.base.type.buffer_options.dtype 
+                    self.is_temp = 1
+                    self.is_buffer_access = True
+            
+        # Note: This might be cleaned up by having IndexNode
+        # parsed in a saner way and only construct the tuple if
+        # needed.
 
-        if not self.is_buffer_access:
-            self.index.analyse_types(env) # ok to analyse as tuple
+        if not buffer_access:
+            if isinstance(self.index, TupleNode):
+                self.index.analyse_types(env, skip_children=skip_child_analysis)
+            elif not skip_child_analysis:
+                self.index.analyse_types(env)
             if self.base.type.is_pyobject:
                 if self.index.type.is_int:
                     self.original_index_type = self.index.type
@@ -2212,10 +2223,10 @@ class SequenceNode(ExprNode):
         for arg in self.args:
             arg.analyse_target_declaration(env)
 
-    def analyse_types(self, env):
+    def analyse_types(self, env, skip_children=False):
         for i in range(len(self.args)):
             arg = self.args[i]
-            arg.analyse_types(env)
+            if not skip_children: arg.analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
         self.type = py_object_type
         self.gil_check(env)
@@ -2320,12 +2331,12 @@ class TupleNode(SequenceNode):
 
     gil_message = "Constructing Python tuple"
 
-    def analyse_types(self, env):
+    def analyse_types(self, env, skip_children=False):
         if len(self.args) == 0:
             self.is_temp = 0
             self.is_literal = 1
         else:
-            SequenceNode.analyse_types(self, env)
+            SequenceNode.analyse_types(self, env, skip_children)
         self.type = tuple_type
             
     def calculate_result_code(self):
