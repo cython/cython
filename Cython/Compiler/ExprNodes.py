@@ -1339,8 +1339,11 @@ class IndexNode(ExprNode):
         return 1
     
     def calculate_result_code(self):
-        return "(%s[%s])" % (
-            self.base.result_code, self.index.result_code)
+        if self.is_buffer_access:
+            return "<not needed>"
+        else:
+            return "(%s[%s])" % (
+                self.base.result_code, self.index.result_code)
             
     def index_unsigned_parameter(self):
         if self.index.type.is_int:
@@ -3842,6 +3845,10 @@ class CoerceToPyTypeNode(CoercionNode):
 
     gil_message = "Converting to Python object"
 
+    def analyse_types(self, env):
+        # The arg is always already analysed
+        pass
+
     def generate_result_code(self, code):
         function = self.arg.type.to_py_function
         code.putln('%s = %s(%s); %s' % (
@@ -3866,6 +3873,10 @@ class CoerceFromPyTypeNode(CoercionNode):
             error(arg.pos,
                 "Obtaining char * from temporary Python value")
     
+    def analyse_types(self, env):
+        # The arg is always already analysed
+        pass
+
     def generate_result_code(self, code):
         function = self.type.from_py_function
         operand = self.arg.py_result()
