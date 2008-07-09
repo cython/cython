@@ -1955,24 +1955,64 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # will be refactored
         code.put("""
 static int numpy_getbuffer(PyObject *obj, Py_buffer *view, int flags) {
-  /* This function is always called after a type-check */
+  /* This function is always called after a type-check; safe to cast */
   PyArrayObject *arr = (PyArrayObject*)obj;
   PyArray_Descr *type = (PyArray_Descr*)arr->descr;
+
   
+  int typenum = PyArray_TYPE(obj);
+  if (!PyTypeNum_ISNUMBER(typenum)) {
+    PyErr_Format(PyExc_TypeError, "Only numeric NumPy types currently supported.");
+    return -1;
+  }
+
+  /*
+  NumPy format codes doesn't completely match buffer codes;
+  seems safest to retranslate.
+                            01234567890123456789012345*/
+  const char* base_codes = "?bBhHiIlLqQfdgfdgO";
+
+/*
+enum NPY_TYPES {    NPY_BOOL=0,
+                    NPY_BYTE, NPY_UBYTE,
+                    NPY_SHORT, NPY_USHORT,
+                    NPY_INT, NPY_UINT,
+                    NPY_LONG, NPY_ULONG,
+                    NPY_LONGLONG, NPY_ULONGLONG,
+                    NPY_FLOAT, NPY_DOUBLE, NPY_LONGDOUBLE,
+                    NPY_CFLOAT, NPY_CDOUBLE, NPY_CLONGDOUBLE,
+                    NPY_OBJECT=17,
+                    NPY_STRING, NPY_UNICODE,
+                    NPY_VOID,
+                    NPY_NTYPES,
+                    NPY_NOTYPE,
+                    NPY_CHAR,       special flag 
+                    NPY_USERDEF=256   leave room for characters 
+*/
+
+  char* format = (char*)malloc(4);
+  char* fp = format;
+  *fp++ = type->byteorder;
+  if (PyTypeNum_ISCOMPLEX(typenum)) *fp++ = 'Z';
+  *fp++ = base_codes[typenum];
+  *fp = 0;
+
   view->buf = arr->data;
-  view->readonly = 0; /*fixme*/
-  view->format = "B"; /*fixme*/
-  view->ndim = arr->nd;
-  view->strides = arr->strides;
-  view->shape = arr->dimensions;
-  view->suboffsets = 0;
-  
+  view->readonly = !PyArray_ISWRITEABLE(obj);
+  view->ndim = PyArray_NDIM(arr);
+  view->strides = PyArray_STRIDES(arr);
+  view->shape = PyArray_DIMS(arr);
+  view->suboffsets = NULL;
+  view->format = format;
   view->itemsize = type->elsize;
+
   view->internal = 0;
   return 0;
 }
 
 static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
+  free((char*)view->format);
+  view->format = NULL;
 }
 
 """)
