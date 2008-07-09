@@ -974,10 +974,13 @@ def p_from_import_statement(s, first_statement = 0):
             s.error("from __future__ imports must occur at the beginning of the file")
         else:
             for (name_pos, name, as_name, kind) in imported_names:
+                if name == "braces":
+                    s.error("not a chance", name_pos)
+                    break
                 try:
                     directive = getattr(Future, name)
                 except AttributeError:
-                    s.error("future feature %s is not defined" % name)
+                    s.error("future feature %s is not defined" % name, name_pos)
                     break
                 s.context.future_directives.add(directive)
         return Nodes.PassStatNode(pos)
