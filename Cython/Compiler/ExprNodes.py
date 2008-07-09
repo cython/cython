@@ -2839,15 +2839,20 @@ def unop_node(pos, operator, operand):
 class TypecastNode(ExprNode):
     #  C type cast
     #
+    #  operand      ExprNode
     #  base_type    CBaseTypeNode
     #  declarator   CDeclaratorNode
-    #  operand      ExprNode
+    #
+    #  If used from a transform, one can if wanted specify the attribute
+    #  "type" directly and leave base_type and declarator to None
     
     subexprs = ['operand']
+    base_type = declarator = type = None
     
     def analyse_types(self, env):
-        base_type = self.base_type.analyse(env)
-        _, self.type = self.declarator.analyse(base_type, env)
+        if self.type is None:
+            base_type = self.base_type.analyse(env)
+            _, self.type = self.declarator.analyse(base_type, env)
         if self.type.is_cfunction:
             error(self.pos,
                 "Cannot cast to a function type")
