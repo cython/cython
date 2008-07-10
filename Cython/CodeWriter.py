@@ -274,6 +274,16 @@ class CodeWriter(TreeVisitor):
         self.visit(node.body)
         self.dedent()
 
+    def visit_ReturnStatNode(self, node):
+        self.startline("return ")
+        self.visit(node.value)
+        self.endline()
+
+    def visit_DecoratorNode(self, node):
+        self.startline("@")
+        self.visit(node.decorator)
+        self.endline()
+
     def visit_ReraiseStatNode(self, node):
         self.line("raise")
 

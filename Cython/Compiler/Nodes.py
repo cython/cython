@@ -1235,13 +1235,19 @@ class PyArgDeclNode(Node):
     # entry  Symtab.Entry
     child_attrs = []
     
-    pass
-    
+
+class DecoratorNode(Node):
+    # A decorator
+    #
+    # decorator    NameNode or CallNode
+    child_attrs = ['decorator']
+
 
 class DefNode(FuncDefNode):
     # A Python function definition.
     #
     # name          string                 the Python name of the function
+    # decorators    [DecoratorNode]        list of decorators
     # args          [CArgDeclNode]         formal arguments
     # star_arg      PyArgDeclNode or None  * argument
     # starstar_arg  PyArgDeclNode or None  ** argument
@@ -1253,14 +1259,15 @@ class DefNode(FuncDefNode):
     #
     #  assmt   AssignmentNode   Function construction/assignment
     
-    child_attrs = ["args", "star_arg", "starstar_arg", "body"]
+    child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators"]
 
     assmt = None
     num_kwonly_args = 0
     num_required_kw_args = 0
     reqd_kw_flags_cname = "0"
     is_wrapper = 0
-    
+    decorators = None
+
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
         k = rk = r = 0
