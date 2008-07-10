@@ -284,7 +284,7 @@ class BufferTransform(CythonTransform):
         funcnode = self.ts_item_checkers.get(dtype)
         if funcnode is None:
             char = dtype.typestring
-            if char is not None and len(char) > 1:
+            if char is not None and len(char) == 1:
                 # Can use direct comparison
                 funcnode = self.new_ts_func("natitem_%s" % self.mangle_dtype_name(dtype), """\
   if (*ts != '%s') {
