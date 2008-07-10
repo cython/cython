@@ -61,6 +61,7 @@ class PyrexType(BaseType):
     #  default_value         string      Initial value
     #  parsetuple_format     string      Format char for PyArg_ParseTuple
     #  pymemberdef_typecode  string      Type code for PyMemberDef struct
+    #  typestring            string      String char defining the type (see Python struct module)
     #
     #  declaration_code(entity_code, 
     #      for_display = 0, dll_linkage = None, pyrex = 0)
@@ -416,9 +417,10 @@ class CNumericType(CType):
     
     sign_words = ("unsigned ", "", "signed ")
     
-    def __init__(self, rank, signed = 1, pymemberdef_typecode = None):
+    def __init__(self, rank, signed = 1, pymemberdef_typecode = None, typestring = None):
         self.rank = rank
         self.signed = signed
+        self.typestring = typestring
         ptf = self.parsetuple_formats[signed][rank]
         if ptf == '?':
             ptf = None
@@ -451,8 +453,9 @@ class CIntType(CNumericType):
     from_py_function = "__pyx_PyInt_AsLong"
     exception_value = -1
 
-    def __init__(self, rank, signed, pymemberdef_typecode = None, is_returncode = 0):
-        CNumericType.__init__(self, rank, signed, pymemberdef_typecode)
+    def __init__(self, rank, signed, pymemberdef_typecode = None, is_returncode = 0,
+                 typestring=None):
+        CNumericType.__init__(self, rank, signed, pymemberdef_typecode, typestring=typestring)
         self.is_returncode = is_returncode
         if self.from_py_function == '__pyx_PyInt_AsLong':
             self.from_py_function = self.get_type_conversion()
@@ -543,8 +546,8 @@ class CFloatType(CNumericType):
     to_py_function = "PyFloat_FromDouble"
     from_py_function = "__pyx_PyFloat_AsDouble"
     
-    def __init__(self, rank, pymemberdef_typecode = None):
-        CNumericType.__init__(self, rank, 1, pymemberdef_typecode)
+    def __init__(self, rank, pymemberdef_typecode = None, typestring=None):
+        CNumericType.__init__(self, rank, 1, pymemberdef_typecode, typestring = typestring)
     
     def assignable_from_resolved_type(self, src_type):
         return src_type.is_numeric or src_type is error_type
@@ -852,9 +855,12 @@ class CFuncTypeArg:
     #  type       PyrexType
     #  pos        source file position
     
-    def __init__(self, name, type, pos):
+    def __init__(self, name, type, pos, cname=None):
         self.name = name
-        self.cname = Naming.var_prefix + name
+        if cname is not None:
+            self.cname = cname
+        else:
+            self.cname = Naming.var_prefix + name
         self.type = type
         self.pos = pos
         self.not_none = False
@@ -1050,29 +1056,29 @@ c_void_type =         CVoidType()
 c_void_ptr_type =     CPtrType(c_void_type)
 c_void_ptr_ptr_type = CPtrType(c_void_ptr_type)
 
-c_uchar_type =       CIntType(0, 0, "T_UBYTE")
-c_ushort_type =      CIntType(1, 0, "T_USHORT")
-c_uint_type =        CUIntType(2, 0, "T_UINT")
-c_ulong_type =       CULongType(3, 0, "T_ULONG")
-c_ulonglong_type =   CULongLongType(4, 0, "T_ULONGLONG")
+c_uchar_type =       CIntType(0, 0, "T_UBYTE", typestring="B")
+c_ushort_type =      CIntType(1, 0, "T_USHORT", typestring="H")
+c_uint_type =        CUIntType(2, 0, "T_UINT", typestring="I")
+c_ulong_type =       CULongType(3, 0, "T_ULONG", typestring="L")
+c_ulonglong_type =   CULongLongType(4, 0, "T_ULONGLONG", typestring="Q")
 
-c_char_type =        CIntType(0, 1, "T_CHAR")
-c_short_type =       CIntType(1, 1, "T_SHORT")
-c_int_type =         CIntType(2, 1, "T_INT")
-c_long_type =        CIntType(3, 1, "T_LONG")
-c_longlong_type =    CLongLongType(4, 1, "T_LONGLONG")
+c_char_type =        CIntType(0, 1, "T_CHAR", typestring="b")
+c_short_type =       CIntType(1, 1, "T_SHORT", typestring="h")
+c_int_type =         CIntType(2, 1, "T_INT", typestring="i")
+c_long_type =        CIntType(3, 1, "T_LONG", typestring="l")
+c_longlong_type =    CLongLongType(4, 1, "T_LONGLONG", typestring="q")
 c_py_ssize_t_type =  CPySSizeTType(5, 1)
-c_bint_type =        CBIntType(2, 1, "T_INT")
+c_bint_type =        CBIntType(2, 1, "T_INT", typestring="i")
 
-c_schar_type =       CIntType(0, 2, "T_CHAR")
-c_sshort_type =      CIntType(1, 2, "T_SHORT")
-c_sint_type =        CIntType(2, 2, "T_INT")
-c_slong_type =       CIntType(3, 2, "T_LONG")
-c_slonglong_type =   CLongLongType(4, 2, "T_LONGLONG")
+c_schar_type =       CIntType(0, 2, "T_CHAR", typestring="b")
+c_sshort_type =      CIntType(1, 2, "T_SHORT", typestring="h")
+c_sint_type =        CIntType(2, 2, "T_INT", typestring="i")
+c_slong_type =       CIntType(3, 2, "T_LONG", typestring="l")
+c_slonglong_type =   CLongLongType(4, 2, "T_LONGLONG", typestring="q")
 
-c_float_type =       CFloatType(6, "T_FLOAT")
-c_double_type =      CFloatType(7, "T_DOUBLE")
-c_longdouble_type =  CFloatType(8)
+c_float_type =       CFloatType(6, "T_FLOAT", typestring="f")
+c_double_type =      CFloatType(7, "T_DOUBLE", typestring="d")
+c_longdouble_type =  CFloatType(8, typestring="g")
 
 c_null_ptr_type =     CNullPtrType(c_void_type)
 c_char_array_type =   CCharArrayType(None)
@@ -1087,7 +1093,8 @@ c_returncode_type =   CIntType(2, 1, "T_INT", is_returncode = 1)
 c_anon_enum_type =    CAnonEnumType(-1, 1)
 
 # the Py_buffer type is defined in Builtin.py
-c_py_buffer_ptr_type = CPtrType(CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer"))
+c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer")
+c_py_buffer_ptr_type = CPtrType(c_py_buffer_type)
 
 error_type =    ErrorType()
 

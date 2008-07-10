@@ -1953,53 +1953,81 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_buffer_compatability_functions(self, env, code):
         # will be refactored
-        code.put("""
+        try:
+            env.entries[u'numpy']
+            code.put("""
 static int numpy_getbuffer(PyObject *obj, Py_buffer *view, int flags) {
-  /* This function is always called after a type-check */
+  /* This function is always called after a type-check; safe to cast */
   PyArrayObject *arr = (PyArrayObject*)obj;
   PyArray_Descr *type = (PyArray_Descr*)arr->descr;
+
   
+  int typenum = PyArray_TYPE(obj);
+  if (!PyTypeNum_ISNUMBER(typenum)) {
+    PyErr_Format(PyExc_TypeError, "Only numeric NumPy types currently supported.");
+    return -1;
+  }
+
+  /*
+  NumPy format codes doesn't completely match buffer codes;
+  seems safest to retranslate.
+                            01234567890123456789012345*/
+  const char* base_codes = "?bBhHiIlLqQfdgfdgO";
+
+  char* format = (char*)malloc(4);
+  char* fp = format;
+  *fp++ = type->byteorder;
+  if (PyTypeNum_ISCOMPLEX(typenum)) *fp++ = 'Z';
+  *fp++ = base_codes[typenum];
+  *fp = 0;
+
   view->buf = arr->data;
-  view->readonly = 0; /*fixme*/
-  view->format = "B"; /*fixme*/
-  view->ndim = arr->nd;
-  view->strides = arr->strides;
-  view->shape = arr->dimensions;
-  view->suboffsets = 0;
-  
+  view->readonly = !PyArray_ISWRITEABLE(obj);
+  view->ndim = PyArray_NDIM(arr);
+  view->strides = PyArray_STRIDES(arr);
+  view->shape = PyArray_DIMS(arr);
+  view->suboffsets = NULL;
+  view->format = format;
   view->itemsize = type->elsize;
+
   view->internal = 0;
   return 0;
 }
 
 static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
+  free((char*)view->format);
+  view->format = NULL;
 }
 
 """)
+        except KeyError:
+            pass
         
         # For now, hard-code numpy imported as "numpy"
-        ndarrtype = env.entries[u'numpy'].as_module.entries['ndarray'].type
-        types = [
-            (ndarrtype.typeptr_cname, "numpy_getbuffer", "numpy_releasebuffer")
-        ]
-        
-#        typeptr_cname = ndarrtype.typeptr_cname
+        types = []
+        try:
+            ndarrtype = env.entries[u'numpy'].as_module.entries['ndarray'].type
+            types.append((ndarrtype.typeptr_cname, "numpy_getbuffer", "numpy_releasebuffer"))
+        except KeyError:
+            pass
         code.putln("static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {")
-        clause = "if"
-        for t, get, release in types:
-            code.putln("%s (__Pyx_TypeTest(obj, %s)) return %s(obj, view, flags);" % (clause, t, get))
-            clause = "else if"
-        code.putln("else {")
+        if len(types) > 0:
+            clause = "if"
+            for t, get, release in types:
+                code.putln("%s (__Pyx_TypeTest(obj, %s)) return %s(obj, view, flags);" % (clause, t, get))
+                clause = "else if"
+            code.putln("else {")
         code.putln("PyErr_Format(PyExc_TypeError, \"'%100s' does not have the buffer interface\", Py_TYPE(obj)->tp_name);")
         code.putln("return -1;")
-        code.putln("}")
+        if len(types) > 0: code.putln("}")
         code.putln("}")
         code.putln("")
         code.putln("static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view) {")
-        clause = "if"
-        for t, get, release in types:
-            code.putln("%s (__Pyx_TypeTest(obj, %s)) %s(obj, view);" % (clause, t, release))
-            clause = "else if"
+        if len(types) > 0:
+            clause = "if"
+            for t, get, release in types:
+                code.putln("%s (__Pyx_TypeTest(obj, %s)) %s(obj, view);" % (clause, t, release))
+                clause = "else if"
         code.putln("}")
         code.putln("")
 
