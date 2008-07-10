@@ -9,8 +9,8 @@ from distutils.core import Extension
 from distutils.command.build_ext import build_ext
 distutils_distro = Distribution()
 
-TEST_DIRS = ['compile', 'errors', 'run']
-TEST_RUN_DIRS = ['run']
+TEST_DIRS = ['compile', 'errors', 'run', 'pyregr']
+TEST_RUN_DIRS = ['run', 'pyregr']
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
@@ -78,15 +78,19 @@ class TestBuilder(object):
         filenames = os.listdir(path)
         filenames.sort()
         for filename in filenames:
-            if not filename.endswith(".pyx"):
+            if not (filename.endswith(".pyx") or filename.endswith(".py")):
                 continue
-            module = filename[:-4]
+            module = os.path.splitext(filename)[0]
             fqmodule = "%s.%s" % (context, module)
             if not [ 1 for match in self.selectors
                      if match(fqmodule) ]:
                 continue
             if context in TEST_RUN_DIRS:
-                test = CythonRunTestCase(
+                if module.startswith("test_"):
+                    build_test = CythonUnitTestCase
+                else:
+                    build_test = CythonRunTestCase
+                test = build_test(
                     path, workdir, module,
                     annotate=self.annotate,
                     cleanup_workdir=self.cleanup_workdir)
@@ -133,11 +137,21 @@ class CythonCompileTestCase(unittest.TestCase):
             os.makedirs(self.workdir)
 
     def runTest(self):
+        self.runCompileTest()
+
+    def runCompileTest(self):
         self.compile(self.directory, self.module, self.workdir,
                      self.directory, self.expect_errors, self.annotate)
 
+    def find_module_source_file(self, source_file):
+        if not os.path.exists(source_file):
+            source_file = source_file[:-1]
+        return source_file
+
     def split_source_and_output(self, directory, module, workdir):
-        source_and_output = open(os.path.join(directory, module + '.pyx'), 'rU')
+        source_file = os.path.join(directory, module)
+        source_and_output = open(
+        self.find_module_source_file(source_file), 'rU')
         out = open(os.path.join(workdir, module + '.pyx'), 'w')
         for line in source_and_output:
             last_line = line
@@ -157,7 +171,8 @@ class CythonCompileTestCase(unittest.TestCase):
         include_dirs = INCLUDE_DIRS[:]
         if incdir:
             include_dirs.append(incdir)
-        source = os.path.join(directory, module + '.pyx')
+        source = self.find_module_source_file(
+            os.path.join(directory, module + '.pyx'))
         target = os.path.join(targetdir, module + '.c')
         options = CompilationOptions(
             pyrex_default_options,
@@ -228,8 +243,27 @@ class CythonRunTestCase(CythonCompileTestCase):
             result = self.defaultTestResult()
         result.startTest(self)
         try:
-            self.runTest()
+            self.runCompileTest()
             doctest.DocTestSuite(self.module).run(result)
+        except Exception:
+            result.addError(self, sys.exc_info())
+            result.stopTest(self)
+        try:
+            self.tearDown()
+        except Exception:
+            pass
+
+class CythonUnitTestCase(CythonCompileTestCase):
+    def shortDescription(self):
+        return "compiling and running unit tests in " + self.module
+
+    def run(self, result=None):
+        if result is None:
+            result = self.defaultTestResult()
+        result.startTest(self)
+        try:
+            self.runCompileTest()
+            unittest.loadTestsFromName(self.module).run(result)
         except Exception:
             result.addError(self, sys.exc_info())
             result.stopTest(self)
