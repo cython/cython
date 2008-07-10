@@ -238,6 +238,29 @@ class CythonRunTestCase(CythonCompileTestCase):
         except Exception:
             pass
 
+def collect_unittests(path, suite, selectors):
+    def file_matches(filename):
+        return filename.startswith("Test") and filename.endswith(".py")
+
+    def package_matches(dirname):
+        return dirname == "Tests"
+
+    loader = unittest.TestLoader()
+
+    for dirpath, dirnames, filenames in os.walk(path):
+        parentname = os.path.split(dirpath)[-1]
+        if package_matches(parentname):
+            for f in filenames:
+                if file_matches(f):
+                    filepath = os.path.join(dirpath, f)[:-len(".py")]
+                    modulename = filepath[len(path)+1:].replace(os.path.sep, '.')
+                    if not [ 1 for match in selectors if match(modulename) ]:
+                        continue
+                    module = __import__(modulename)
+                    for x in modulename.split('.')[1:]:
+                        module = getattr(module, x)
+                    suite.addTests(loader.loadTestsFromModule(module))
+
 if __name__ == '__main__':
     from optparse import OptionParser
     parser = OptionParser()
@@ -247,6 +270,12 @@ if __name__ == '__main__':
     parser.add_option("--no-cython", dest="with_cython",
                       action="store_false", default=True,
                       help="do not run the Cython compiler, only the C compiler")
+    parser.add_option("--no-unit", dest="unittests",
+                      action="store_false", default=True,
+                      help="do not run the unit tests")
+    parser.add_option("--no-file", dest="filetests",
+                      action="store_false", default=True,
+                      help="do not run the file based tests")
     parser.add_option("-C", "--coverage", dest="coverage",
                       action="store_true", default=False,
                       help="collect source coverage data for the Compiler")
@@ -296,9 +325,15 @@ if __name__ == '__main__':
     if not selectors:
         selectors = [ lambda x:True ]
 
-    tests = TestBuilder(ROOTDIR, WORKDIR, selectors,
-                        options.annotate_source, options.cleanup_workdir)
-    test_suite = tests.build_suite()
+    test_suite = unittest.TestSuite()
+
+    if options.unittests:
+        collect_unittests(os.getcwd(), test_suite, selectors)
+
+    if options.filetests:
+        filetests = TestBuilder(ROOTDIR, WORKDIR, selectors,
+                                options.annotate_source, options.cleanup_workdir)
+        test_suite.addTests(filetests.build_suite())
 
     unittest.TextTestRunner(verbosity=options.verbosity).run(test_suite)
 

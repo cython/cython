@@ -32,6 +32,7 @@ class CompileError(PyrexError):
     
     def __init__(self, position = None, message = ""):
         self.position = position
+        self.message_only = message
     # Deprecated and withdrawn in 2.6:
     #   self.message = message
         if position:
@@ -91,6 +92,7 @@ def error(position, message):
     #print "Errors.error:", repr(position), repr(message) ###
     global num_errors
     err = CompileError(position, message)
+#    if position is not None: raise Exception(err) # debug
     line = "%s\n" % err
     if listing_file:
         listing_file.write(line)
