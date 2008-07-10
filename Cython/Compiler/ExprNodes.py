@@ -1251,8 +1251,19 @@ class IndexNode(ExprNode):
     #
     #  base     ExprNode
     #  index    ExprNode
+    #  indices  [ExprNode]
+    #  is_buffer_access boolean Whether this is a buffer access.
+    #
+    #  indices is used on buffer access, index on non-buffer access.
+    #  The former contains a clean list of index parameters, the
+    #  latter whatever Python object is needed for index access.
     
-    subexprs = ['base', 'index']
+    subexprs = ['base', 'index', 'indices']
+    indices = None
+
+    def __init__(self, pos, index, *args, **kw):
+        ExprNode.__init__(self, pos, index=index, *args, **kw)
+        self._index = index
     
     def compile_time_value(self, denv):
         base = self.base.compile_time_value(denv)
@@ -1273,33 +1284,45 @@ class IndexNode(ExprNode):
     
     def analyse_target_types(self, env):
         self.analyse_base_and_index_types(env, setting = 1)
-    
+
     def analyse_base_and_index_types(self, env, getting = 0, setting = 0):
         self.is_buffer_access = False
 
         self.base.analyse_types(env)
-        
+
+        skip_child_analysis = False
+        buffer_access = False
         if self.base.type.buffer_options is not None:
             if isinstance(self.index, TupleNode):
                 indices = self.index.args
-#                is_int_indices = 0 == sum([1 for i in self.index.args if not i.type.is_int])
             else:
-#                is_int_indices = self.index.type.is_int
                 indices = [self.index]
-            all_ints = True
-            for index in indices:
-                index.analyse_types(env)
-                if not index.type.is_int:
-                    all_ints = False
-            if all_ints:
-                self.indices = indices
-                self.index = None
-                self.type = self.base.type.buffer_options.dtype
-                self.is_temp = 1
-                self.is_buffer_access = True
+            if len(indices) == self.base.type.buffer_options.ndim:
+                buffer_access = True
+                skip_child_analysis = True
+                for x in indices:
+                    x.analyse_types(env)
+                    if not x.type.is_int:
+                        buffer_access = False
+                if buffer_access:
+                    # self.indices = [
+                    #   x.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
+                    # for x in  indices]
+                    self.indices = indices
+                    self.index = None
+                    self.type = self.base.type.buffer_options.dtype 
+                    self.is_temp = 1
+                    self.is_buffer_access = True
+            
+        # Note: This might be cleaned up by having IndexNode
+        # parsed in a saner way and only construct the tuple if
+        # needed.
 
-        if not self.is_buffer_access:
-            self.index.analyse_types(env) # ok to analyse as tuple
+        if not buffer_access:
+            if isinstance(self.index, TupleNode):
+                self.index.analyse_types(env, skip_children=skip_child_analysis)
+            elif not skip_child_analysis:
+                self.index.analyse_types(env)
             if self.base.type.is_pyobject:
                 if self.index.type.is_int:
                     self.original_index_type = self.index.type
@@ -1339,8 +1362,11 @@ class IndexNode(ExprNode):
         return 1
     
     def calculate_result_code(self):
-        return "(%s[%s])" % (
-            self.base.result_code, self.index.result_code)
+        if self.is_buffer_access:
+            return "<not needed>"
+        else:
+            return "(%s[%s])" % (
+                self.base.result_code, self.index.result_code)
             
     def index_unsigned_parameter(self):
         if self.index.type.is_int:
@@ -2197,10 +2223,10 @@ class SequenceNode(ExprNode):
         for arg in self.args:
             arg.analyse_target_declaration(env)
 
-    def analyse_types(self, env):
+    def analyse_types(self, env, skip_children=False):
         for i in range(len(self.args)):
             arg = self.args[i]
-            arg.analyse_types(env)
+            if not skip_children: arg.analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
         self.type = py_object_type
         self.gil_check(env)
@@ -2305,12 +2331,12 @@ class TupleNode(SequenceNode):
 
     gil_message = "Constructing Python tuple"
 
-    def analyse_types(self, env):
+    def analyse_types(self, env, skip_children=False):
         if len(self.args) == 0:
             self.is_temp = 0
             self.is_literal = 1
         else:
-            SequenceNode.analyse_types(self, env)
+            SequenceNode.analyse_types(self, env, skip_children)
         self.type = tuple_type
             
     def calculate_result_code(self):
@@ -2813,15 +2839,20 @@ def unop_node(pos, operator, operand):
 class TypecastNode(ExprNode):
     #  C type cast
     #
+    #  operand      ExprNode
     #  base_type    CBaseTypeNode
     #  declarator   CDeclaratorNode
-    #  operand      ExprNode
+    #
+    #  If used from a transform, one can if wanted specify the attribute
+    #  "type" directly and leave base_type and declarator to None
     
     subexprs = ['operand']
+    base_type = declarator = type = None
     
     def analyse_types(self, env):
-        base_type = self.base_type.analyse(env)
-        _, self.type = self.declarator.analyse(base_type, env)
+        if self.type is None:
+            base_type = self.base_type.analyse(env)
+            _, self.type = self.declarator.analyse(base_type, env)
         if self.type.is_cfunction:
             error(self.pos,
                 "Cannot cast to a function type")
@@ -3842,6 +3873,10 @@ class CoerceToPyTypeNode(CoercionNode):
 
     gil_message = "Converting to Python object"
 
+    def analyse_types(self, env):
+        # The arg is always already analysed
+        pass
+
     def generate_result_code(self, code):
         function = self.arg.type.to_py_function
         code.putln('%s = %s(%s); %s' % (
@@ -3866,6 +3901,10 @@ class CoerceFromPyTypeNode(CoercionNode):
             error(arg.pos,
                 "Obtaining char * from temporary Python value")
     
+    def analyse_types(self, env):
+        # The arg is always already analysed
+        pass
+
     def generate_result_code(self, code):
         function = self.type.from_py_function
         operand = self.arg.py_result()
@@ -3923,6 +3962,10 @@ class CoerceToTempNode(CoercionNode):
             self.result_ctype = py_object_type
 
     gil_message = "Creating temporary Python reference"
+
+    def analyse_types(self, env):
+        # The arg is always already analysed
+        pass
 
     def generate_result_code(self, code):
         #self.arg.generate_evaluation_code(code) # Already done
