@@ -1093,7 +1093,8 @@ c_returncode_type =   CIntType(2, 1, "T_INT", is_returncode = 1)
 c_anon_enum_type =    CAnonEnumType(-1, 1)
 
 # the Py_buffer type is defined in Builtin.py
-c_py_buffer_ptr_type = CPtrType(CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer"))
+c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer")
+c_py_buffer_ptr_type = CPtrType(c_py_buffer_type)
 
 error_type =    ErrorType()
 

@@ -1953,7 +1953,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_buffer_compatability_functions(self, env, code):
         # will be refactored
-        code.put("""
+        try:
+            env.entries[u'numpy']
+            code.put("""
 static int numpy_getbuffer(PyObject *obj, Py_buffer *view, int flags) {
   /* This function is always called after a type-check; safe to cast */
   PyArrayObject *arr = (PyArrayObject*)obj;
@@ -1971,24 +1973,6 @@ static int numpy_getbuffer(PyObject *obj, Py_buffer *view, int flags) {
   seems safest to retranslate.
                             01234567890123456789012345*/
   const char* base_codes = "?bBhHiIlLqQfdgfdgO";
-
-/*
-enum NPY_TYPES {    NPY_BOOL=0,
-                    NPY_BYTE, NPY_UBYTE,
-                    NPY_SHORT, NPY_USHORT,
-                    NPY_INT, NPY_UINT,
-                    NPY_LONG, NPY_ULONG,
-                    NPY_LONGLONG, NPY_ULONGLONG,
-                    NPY_FLOAT, NPY_DOUBLE, NPY_LONGDOUBLE,
-                    NPY_CFLOAT, NPY_CDOUBLE, NPY_CLONGDOUBLE,
-                    NPY_OBJECT=17,
-                    NPY_STRING, NPY_UNICODE,
-                    NPY_VOID,
-                    NPY_NTYPES,
-                    NPY_NOTYPE,
-                    NPY_CHAR,       special flag 
-                    NPY_USERDEF=256   leave room for characters 
-*/
 
   char* format = (char*)malloc(4);
   char* fp = format;
@@ -2016,30 +2000,34 @@ static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
 }
 
 """)
+        except KeyError:
+            pass
         
         # For now, hard-code numpy imported as "numpy"
-        ndarrtype = env.entries[u'numpy'].as_module.entries['ndarray'].type
-        types = [
-            (ndarrtype.typeptr_cname, "numpy_getbuffer", "numpy_releasebuffer")
-        ]
-        
-#        typeptr_cname = ndarrtype.typeptr_cname
+        types = []
+        try:
+            ndarrtype = env.entries[u'numpy'].as_module.entries['ndarray'].type
+            types.append((ndarrtype.typeptr_cname, "numpy_getbuffer", "numpy_releasebuffer"))
+        except KeyError:
+            pass
         code.putln("static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {")
-        clause = "if"
-        for t, get, release in types:
-            code.putln("%s (__Pyx_TypeTest(obj, %s)) return %s(obj, view, flags);" % (clause, t, get))
-            clause = "else if"
-        code.putln("else {")
+        if len(types) > 0:
+            clause = "if"
+            for t, get, release in types:
+                code.putln("%s (__Pyx_TypeTest(obj, %s)) return %s(obj, view, flags);" % (clause, t, get))
+                clause = "else if"
+            code.putln("else {")
         code.putln("PyErr_Format(PyExc_TypeError, \"'%100s' does not have the buffer interface\", Py_TYPE(obj)->tp_name);")
         code.putln("return -1;")
-        code.putln("}")
+        if len(types) > 0: code.putln("}")
         code.putln("}")
         code.putln("")
         code.putln("static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view) {")
-        clause = "if"
-        for t, get, release in types:
-            code.putln("%s (__Pyx_TypeTest(obj, %s)) %s(obj, view);" % (clause, t, release))
-            clause = "else if"
+        if len(types) > 0:
+            clause = "if"
+            for t, get, release in types:
+                code.putln("%s (__Pyx_TypeTest(obj, %s)) %s(obj, view);" % (clause, t, release))
+                clause = "else if"
         code.putln("}")
         code.putln("")
 

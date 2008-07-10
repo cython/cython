@@ -69,7 +69,11 @@ class BufferTransform(CythonTransform):
     def __call__(self, node):
         assert isinstance(node, ModuleNode)
         
-        cymod = self.context.modules[u'__cython__']
+        try:
+            cymod = self.context.modules[u'__cython__']
+        except KeyError:
+            # No buffer fun for this module
+            return node
         self.bufstruct_type = cymod.entries[u'Py_buffer'].type
         self.tscheckers = {}
         self.ts_funcs = []
@@ -194,9 +198,6 @@ class BufferTransform(CythonTransform):
         return result
         
 
-    buffer_access = TreeFragment(u"""
-        (<unsigned char*>(BUF.buf + OFFSET))[0]
-    """)
     def buffer_index(self, node):
         pos = node.pos
         bufaux = node.base.entry.buffer_aux
@@ -262,8 +263,6 @@ class BufferTransform(CythonTransform):
         else:
             return node
 
-
-
     #
     # Utils for creating type string checkers
     #
@@ -285,12 +284,42 @@ class BufferTransform(CythonTransform):
         funcnode = self.ts_item_checkers.get(dtype)
         if funcnode is None:
             char = dtype.typestring
-            funcnode = self.new_ts_func("item_%s" % self.mangle_dtype_name(dtype), """\
-if (*ts != '%s') {
+            if char is not None and len(char) > 1:
+                # Can use direct comparison
+                funcnode = self.new_ts_func("natitem_%s" % self.mangle_dtype_name(dtype), """\
+  if (*ts != '%s') {
     PyErr_Format(PyExc_TypeError, "Buffer datatype mismatch (rejecting on '%%s')", ts);
   return NULL;
   } else return ts + 1;
 """ % char)
+            else:
+                # Must deduce sign and length; rely on int vs. float to be correctly declared
+                ctype = dtype.declaration_code("")
+                
+                code = """\
+  int ok;
+  switch (*ts) {"""
+                if dtype.is_int:
+                    types = [
+                        ('b', 'char'), ('h', 'short'), ('i', 'int'),
+                        ('l', 'long'), ('q', 'long long')
+                    ]
+                    code += "".join(["""\
+    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 < 0); break;
+    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 > 0); break;
+""" % (char, ctype, against, ctype, char.upper(), ctype, "unsigned " + against, ctype) for
+                                     char, against in types])
+                    code += """\
+    default: ok = 0;
+  }
+  if (!ok) {
+    PyErr_Format(PyExc_TypeError, "Buffer datatype mismatch (rejecting on '%s')", ts);
+    return NULL;
+  } else return ts + 1;
+"""
+                
+                funcnode = self.new_ts_func("tdefitem_%s" % self.mangle_dtype_name(dtype), code)
+                
             self.ts_item_checkers[dtype] = funcnode
         return funcnode.entry.cname
 
@@ -368,13 +397,13 @@ if (*ts != '%s') {
         self.ensure_ts_utils()
         funcnode = self.tscheckers.get(dtype)
         if funcnode is None:
-            assert dtype.is_int or dtype.is_float or dtype.is_struct_or_union
             if dtype.is_struct_or_union:
                 assert False
-            elif dtype.is_typedef:
-                assert False
-            else:
+            elif dtype.is_int or dtype.is_float:
+                # This includes simple typedef-ed types
                 funcnode = self.create_ts_check_simple(dtype)
+            else:
+                assert False
             self.tscheckers[dtype] = funcnode
         return funcnode.entry
 
@@ -383,80 +412,3 @@ if (*ts != '%s') {
 # TODO:
 # - buf must be NULL before getting new buffer
 
-
-## get_buffer_func_type = PyrexTypes.CFuncType(
-##     PyrexTypes.c_int_type,
-##     [PyrexTypes.CFuncTypeArg(EncodedString("obj"), PyrexTypes.py_object_type, (0, 0, None), cname="obj"),
-##     PyrexTypes.CFuncTypeArg(EncodedString("view"), PyrexTypes.c_py_buffer_ptr_type, (0, 0, None), cname="view"), 
-##     PyrexTypes.CFuncTypeArg(EncodedString("flags"), PyrexTypes.c_int_type, (0, 0, None), cname="flags"),
-##     ],
-##     exception_value = "-1"
-## )
-
-## numpy_get_buffer_body = """
-##   PyArrayObject *arr = (PyArrayObject*)obj;
-##   PyArray_Descr *type = (PyArray_Descr*)arr->descr;
-  
-##   view->buf = arr->data;
-##   view->readonly = 0; /*fixme*/
-##   view->format = "B"; /*fixme*/
-##   view->ndim = arr->nd;
-##   view->strides = arr->strides;
-##   view->shape = arr->dimensions;
-##   view->suboffsets = 0;
-  
-##   view->itemsize = type->elsize;
-##   view->internal = 0;
-##   return 0;
-## """
-        
-        # will be refactored
-##         code.put("""
-## static int numpy_getbuffer(PyObject *obj, Py_buffer *view, int flags) {
-##   /* This function is always called after a type-check */
-##   PyArrayObject *arr = (PyArrayObject*)obj;
-##   PyArray_Descr *type = (PyArray_Descr*)arr->descr;
-  
-##   view->buf = arr->data;
-##   view->readonly = 0; /*fixme*/
-##   view->format = "B"; /*fixme*/
-##   view->ndim = arr->nd;
-##   view->strides = arr->strides;
-##   view->shape = arr->dimensions;
-##   view->suboffsets = 0;
-  
-##   view->itemsize = type->elsize;
-##   view->internal = 0;
-##   return 0;
-## }
-
-## static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
-## }
-
-## """)
-        
-##         # For now, hard-code numpy imported as "numpy"
-##         ndarrtype = env.entries[u'numpy'].as_module.entries['ndarray'].type
-##         types = [
-##             (ndarrtype.typeptr_cname, "numpy_getbuffer", "numpy_releasebuffer")
-##         ]
-        
-## #        typeptr_cname = ndarrtype.typeptr_cname
-##         code.putln("static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {")
-##         clause = "if"
-##         for t, get, release in types:
-##             code.putln("%s (__Pyx_TypeTest(obj, %s)) return %s(obj, view, flags);" % (clause, t, get))
-##             clause = "else if"
-##         code.putln("else {")
-##         code.putln("PyErr_Format(PyExc_TypeError, \"'%100s' does not have the buffer interface\", Py_TYPE(obj)->tp_name);")
-##         code.putln("return -1;")
-##         code.putln("}")
-##         code.putln("}")
-##         code.putln("")
-##         code.putln("static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view) {")
-##         clause = "if"
-##         for t, get, release in types:
-##             code.putln("%s (__Pyx_TypeTest(obj, %s)) %s(obj, view);" % (clause, t, release))
-##             clause = "else if"
-##         code.putln("}")
-##         code.putln("")
