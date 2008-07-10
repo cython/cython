@@ -1372,6 +1372,14 @@ def p_statement(s, ctx, first_statement = 0):
         return p_DEF_statement(s)
     elif s.sy == 'IF':
         return p_IF_statement(s, ctx)
+    elif s.sy == 'DECORATOR':
+        if ctx.level not in ('module', 'class', 'c_class', 'property'):
+            s.error('decorator not allowed here')
+        s.level = ctx.level
+        decorators = p_decorators(s)
+        if s.sy != 'def':
+            s.error("Decorators can only be followed by functions ")
+        return p_def_statement(s, decorators)
     else:
         overridable = 0
         if s.sy == 'cdef':
@@ -2103,7 +2111,21 @@ def p_ctypedef_statement(s, ctx):
             declarator = declarator, visibility = visibility,
             in_pxd = ctx.level == 'module_pxd')
 
-def p_def_statement(s):
+def p_decorators(s):
+    decorators = []
+    while s.sy == 'DECORATOR':
+        pos = s.position()
+        s.next()
+        decorator = ExprNodes.NameNode(
+            pos, name = Utils.EncodedString(
+                p_dotted_name(s, as_allowed=0)[2] ))
+        if s.sy == '(':
+            decorator = p_call(s, decorator)
+        decorators.append(Nodes.DecoratorNode(pos, decorator=decorator))
+        s.expect_newline("Expected a newline after decorator")
+    return decorators
+
+def p_def_statement(s, decorators=None):
     # s.sy == 'def'
     pos = s.position()
     s.next()
@@ -2132,7 +2154,7 @@ def p_def_statement(s):
     doc, body = p_suite(s, Ctx(level = 'function'), with_doc = 1)
     return Nodes.DefNode(pos, name = name, args = args, 
         star_arg = star_arg, starstar_arg = starstar_arg,
-        doc = doc, body = body)
+        doc = doc, body = body, decorators = decorators)
 
 def p_py_arg_decl(s):
     pos = s.position()
