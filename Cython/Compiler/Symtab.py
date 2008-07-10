@@ -1,5 +1,5 @@
 #
-#   Pyrex - Symbol Table
+#   Symbol Table
 #
 
 import re
@@ -18,6 +18,14 @@ import __builtin__
 
 possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
+
+class BufferAux:
+    def __init__(self, buffer_info_var, stridevars, shapevars):
+        self.buffer_info_var = buffer_info_var
+        self.stridevars = stridevars
+        self.shapevars = shapevars
+    def __repr__(self):
+        return "<BufferAux %r>" % self.__dict__
 
 class Entry:
     # A symbol table entry in a Scope or ModuleNamespace.
@@ -47,6 +55,7 @@ class Entry:
     # is_self_arg      boolean    Is the "self" arg of an exttype method
     # is_arg           boolean    Is the arg of a method
     # is_local         boolean    Is a local variable
+    # in_closure       boolean    Is referenced in an inner scope
     # is_readonly      boolean    Can't be assigned to
     # func_cname       string     C func implementing Python func
     # pos              position   Source position where declared
@@ -75,6 +84,8 @@ class Entry:
     # defined_in_pxd   boolean    Is defined in a .pxd file (not just declared)
     # api              boolean    Generate C API for C class or function
     # utility_code     string     Utility code needed when this entry is used
+    #
+    # buffer_aux      BufferAux or None  Extra information needed for buffer variables
 
     borrowed = 0
     init = ""
@@ -96,6 +107,7 @@ class Entry:
     is_self_arg = 0
     is_arg = 0
     is_local = 0
+    in_closure = 0
     is_declared_generic = 0
     is_readonly = 0
     func_cname = None
@@ -115,6 +127,7 @@ class Entry:
     api = 0
     utility_code = None
     is_overridable = 0
+    buffer_aux = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -162,6 +175,8 @@ class Scope:
     scope_prefix = ""
     in_cinclude = 0
     nogil = 0
+    
+    temp_prefix = Naming.pyrex_prefix
     
     def __init__(self, name, outer_scope, parent_scope):
         # The outer_scope is the next scope in the lookup chain.
@@ -447,7 +462,14 @@ class Scope:
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
         return (self.lookup_here(name)
-            or (self.outer_scope and self.outer_scope.lookup(name))
+            or (self.outer_scope and self.outer_scope.lookup_from_inner(name))
+            or None)
+
+    def lookup_from_inner(self, name):
+        # Look up name in this scope or an enclosing one.
+        # This is only called from enclosing scopes.
+        return (self.lookup_here(name)
+            or (self.outer_scope and self.outer_scope.lookup_from_inner(name))
             or None)
 
     def lookup_here(self, name):
@@ -562,7 +584,7 @@ class Scope:
                 return entry.cname
         n = self.temp_counter
         self.temp_counter = n + 1
-        cname = "%s%d" % (Naming.pyrex_prefix, n)
+        cname = "%s%d" % (self.temp_prefix, n)
         entry = Entry("", cname, type)
         entry.used = 1
         if type.is_pyobject or type == PyrexTypes.c_py_ssize_t_type:
@@ -608,6 +630,9 @@ class Scope:
         return 0
 
 class PreImportScope(Scope):
+
+    namespace_cname = Naming.preimport_cname
+
     def __init__(self):
         Scope.__init__(self, Options.pre_import, None, None)
         
@@ -615,7 +640,6 @@ class PreImportScope(Scope):
         entry = self.declare(name, name, py_object_type, pos)
         entry.is_variable = True
         entry.is_pyglobal = True
-        entry.namespace_cname = Naming.preimport_cname
         return entry
 
 
@@ -761,6 +785,7 @@ class ModuleScope(Scope):
         self.has_extern_class = 0
         self.cached_builtins = []
         self.undeclared_cached_builtins = []
+        self.namespace_cname = self.module_cname
     
     def qualifying_scope(self):
         return self.parent_module
@@ -876,7 +901,6 @@ class ModuleScope(Scope):
                 raise InternalError(
                     "Non-cdef global variable is not a generic Python object")
             entry.is_pyglobal = 1
-            entry.namespace_cname = self.module_cname
         else:
             entry.is_cglobal = 1
             self.var_entries.append(entry)
@@ -1075,8 +1099,7 @@ class ModuleScope(Scope):
         var_entry.is_readonly = 1
         entry.as_variable = var_entry
         
-
-class LocalScope(Scope):
+class LocalScope(Scope):    
 
     def __init__(self, name, outer_scope):
         Scope.__init__(self, name, outer_scope, outer_scope)
@@ -1119,6 +1142,33 @@ class LocalScope(Scope):
             entry = self.global_scope().lookup_target(name)
             self.entries[name] = entry
         
+    def lookup_from_inner(self, name):
+        entry = self.lookup_here(name)
+        if entry:
+            entry.in_closure = 1
+            return entry
+        else:
+            return (self.outer_scope and self.outer_scope.lookup_from_inner(name)) or None
+            
+    def mangle_closure_cnames(self, scope_var):
+        for entry in self.entries.values():
+            if entry.in_closure:
+                if not hasattr(entry, 'orig_cname'):
+                    entry.orig_cname = entry.cname
+                entry.cname = scope_var + "->" + entry.cname
+                
+
+class GeneratorLocalScope(LocalScope):
+
+    temp_prefix = Naming.cur_scope_cname + "->" + LocalScope.temp_prefix
+    
+    def mangle_closure_cnames(self, scope_var):
+        for entry in self.entries.values() + self.temp_entries:
+            entry.in_closure = 1
+        LocalScope.mangle_closure_cnames(self, scope_var)
+    
+#    def mangle(self, prefix, name):
+#        return "%s->%s" % (Naming.scope_obj_cname, name)
 
 class StructOrUnionScope(Scope):
     #  Namespace of a C struct or union.
@@ -1198,7 +1248,6 @@ class PyClassScope(ClassScope):
         entry = Scope.declare_var(self, name, type, pos, 
             cname, visibility, is_cdef)
         entry.is_pyglobal = 1
-        entry.namespace_cname = self.class_obj_cname
         return entry
 
     def allocate_temp(self, type):
@@ -1295,7 +1344,7 @@ class CClassScope(ClassScope):
             entry.is_pyglobal = 1 # xxx: is_pyglobal changes behaviour in so many places that
                                   # I keep it in for now. is_member should be enough
                                   # later on
-            entry.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
+            self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
             entry.interned_cname = self.intern_identifier(name)
             return entry
 

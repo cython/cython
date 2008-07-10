@@ -25,22 +25,6 @@ from Cython import Utils
 
 module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
 
-# Note: PHASES and TransformSet should be removed soon; but that's for
-# another day and another commit.
-PHASES = [
-    'before_analyse_function', # run in FuncDefNode.generate_function_definitions
-    'after_analyse_function'   # run in FuncDefNode.generate_function_definitions
-]
-
-class TransformSet(dict):
-    def __init__(self):
-        for name in PHASES:
-            self[name] = []
-    def run(self, name, node, **options):
-        assert name in self, "Transform phase %s not defined" % name
-        for transform in self[name]:
-            transform(node, phase=name, **options)
-
 verbose = 0
 
 class Context:
@@ -58,6 +42,8 @@ class Context:
         #self.modules = {"__builtin__" : BuiltinScope()}
         import Builtin
         self.modules = {"__builtin__" : Builtin.builtin_scope}
+        self.pxds = {}
+        self.pyxs = {}
         self.include_directories = include_directories
         self.future_directives = set()
         
@@ -305,55 +291,25 @@ class Context:
         names.reverse()
         return ".".join(names)
 
-    def compile(self, source, options = None, full_module_name = None):
-        # Compile a Pyrex implementation file in this context
-        # and return a CompilationResult.
-        if not options:
-            options = default_options
-        result = CompilationResult()
-        cwd = os.getcwd()
-
-        source = os.path.join(cwd, source)
-        result.main_source_file = source
-
+    def setup_errors(self, options):
         if options.use_listing_file:
             result.listing_file = Utils.replace_suffix(source, ".lis")
             Errors.open_listing_file(result.listing_file,
                 echo_to_stderr = options.errors_to_stderr)
         else:
             Errors.open_listing_file(None)
-        if options.output_file:
-            result.c_file = os.path.join(cwd, options.output_file)
-        else:
-            if options.cplus:
-                c_suffix = ".cpp"
-            else:
-                c_suffix = ".c"
-            result.c_file = Utils.replace_suffix(source, c_suffix)
-        c_stat = None
-        if result.c_file:
-            try:
-                c_stat = os.stat(result.c_file)
-            except EnvironmentError:
-                pass
-        full_module_name = full_module_name or self.extract_module_name(source, options)
-        source = FileSourceDescriptor(source)
-        initial_pos = (source, 1, 0)
-        scope = self.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
-        errors_occurred = False
-        try:
-            tree = self.parse(source, scope, pxd = 0,
-                              full_module_name = full_module_name)
-            tree.process_implementation(scope, options, result)
-        except CompileError:
-            errors_occurred = True
+
+    def teardown_errors(self, errors_occurred, options, result):
+        source_desc = result.compilation_source.source_desc
+        if not isinstance(source_desc, FileSourceDescriptor):
+            raise RuntimeError("Only file sources for code supported")
         Errors.close_listing_file()
         result.num_errors = Errors.num_errors
         if result.num_errors > 0:
             errors_occurred = True
         if errors_occurred and result.c_file:
             try:
-                Utils.castrate_file(result.c_file, os.stat(source.filename))
+                Utils.castrate_file(result.c_file, os.stat(source_desc.filename))
             except EnvironmentError:
                 pass
             result.c_file = None
@@ -366,13 +322,114 @@ class Context:
                     extra_objects = options.objects,
                     verbose_flag = options.show_version,
                     cplus = options.cplus)
+
+    def run_pipeline(self, pipeline, source):
+        errors_occurred = False
+        data = source
+        try:
+            for phase in pipeline:
+                data = phase(data)
+        except CompileError:
+            errors_occurred = True
+        return (errors_occurred, data)
+
+def create_parse(context):
+    def parse(compsrc):
+        source_desc = compsrc.source_desc
+        full_module_name = compsrc.full_module_name
+        initial_pos = (source_desc, 1, 0)
+        scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
+        tree = context.parse(source_desc, scope, pxd = 0, full_module_name = full_module_name)
+        tree.compilation_source = compsrc
+        tree.scope = scope
+        return tree
+    return parse
+
+def create_generate_code(context, options, result):
+    def generate_code(module_node):
+        scope = module_node.scope
+        module_node.process_implementation(options, result)
+        result.compilation_source = module_node.compilation_source
         return result
+    return generate_code
+
+def create_default_pipeline(context, options, result):
+    from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, BufferTransform
+    from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
+    from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor
+    from ModuleNode import check_c_classes
+    
+    return [
+        create_parse(context),
+        NormalizeTree(context),
+        PostParse(context),
+        WithTransform(context),
+        AnalyseDeclarationsTransform(context),
+        check_c_classes,
+        AnalyseExpressionsTransform(context),
+        BufferTransform(context),
+#        CreateClosureClasses(context),
+        create_generate_code(context, options, result)
+    ]
+
+def create_default_resultobj(compilation_source, options):
+    result = CompilationResult()
+    result.main_source_file = compilation_source.source_desc.filename
+    result.compilation_source = compilation_source
+    source_desc = compilation_source.source_desc
+    if options.output_file:
+        result.c_file = os.path.join(compilation_source.cwd, options.output_file)
+    else:
+        if options.cplus:
+            c_suffix = ".cpp"
+        else:
+            c_suffix = ".c"
+        result.c_file = Utils.replace_suffix(source_desc.filename, c_suffix)
+    # The below doesn't make any sense? Why is it there?
+    c_stat = None
+    if result.c_file:
+        try:
+            c_stat = os.stat(result.c_file)
+        except EnvironmentError:
+            pass
+    return result
+
+def run_pipeline(source, options, full_module_name = None):
+    # Set up context
+    context = Context(options.include_path)
+
+    # Set up source object
+    cwd = os.getcwd()
+    source_desc = FileSourceDescriptor(os.path.join(cwd, source))
+    full_module_name = full_module_name or context.extract_module_name(source, options)
+    source = CompilationSource(source_desc, full_module_name, cwd)
+
+    # Set up result object
+    result = create_default_resultobj(source, options)
+    
+    # Get pipeline
+    pipeline = create_default_pipeline(context, options, result)
+
+    context.setup_errors(options)
+    errors_occurred, enddata = context.run_pipeline(pipeline, source)
+    context.teardown_errors(errors_occurred, options, result)
+    return result
 
 #------------------------------------------------------------------------
 #
 #  Main Python entry points
 #
 #------------------------------------------------------------------------
+
+class CompilationSource(object):
+    """
+    Contains the data necesarry to start up a compilation pipeline for
+    a single compilation unit.
+    """
+    def __init__(self, source_desc, full_module_name, cwd):
+        self.source_desc = source_desc
+        self.full_module_name = full_module_name
+        self.cwd = cwd
 
 class CompilationOptions:
     """
@@ -389,7 +446,6 @@ class CompilationOptions:
                                 defaults to true when recursive is true.
     verbose           boolean   Always print source names being compiled
     quiet             boolean   Don't print source names in recursive mode
-    transforms        Transform.TransformSet Transforms to use on the parse tree
     
     Following options are experimental and only used on MacOSX:
     
@@ -427,6 +483,7 @@ class CompilationResult:
     object_file      string or None   Result of compiling the C file
     extension_file   string or None   Result of linking the object file
     num_errors       integer          Number of compilation errors
+    compilation_source CompilationSource
     """
     
     def __init__(self):
@@ -464,8 +521,10 @@ def compile_single(source, options, full_module_name = None):
     Always compiles a single file; does not perform timestamp checking or
     recursion.
     """
-    context = Context(options.include_path)
-    return context.compile(source, options, full_module_name)
+    return run_pipeline(source, options, full_module_name)
+#    context = Context(options.include_path)
+#    return context.compile(source, options, full_module_name)
+
 
 def compile_multiple(sources, options):
     """
@@ -478,21 +537,21 @@ def compile_multiple(sources, options):
     sources = [os.path.abspath(source) for source in sources]
     processed = set()
     results = CompilationResultSet()
-    context = Context(options.include_path)
     recursive = options.recursive
     timestamps = options.timestamps
     if timestamps is None:
         timestamps = recursive
     verbose = options.verbose or ((recursive or timestamps) and not options.quiet)
     for source in sources:
+        context = Context(options.include_path) # to be removed later
         if source not in processed:
             if not timestamps or context.c_file_out_of_date(source):
                 if verbose:
                     sys.stderr.write("Compiling %s\n" % source)
+
                 result = context.compile(source, options)
                 # Compiling multiple sources in one context doesn't quite
                 # work properly yet.
-                context = Context(options.include_path) # to be removed later
                 results.add(source, result)
             processed.add(source)
             if recursive:
@@ -522,7 +581,10 @@ def compile(source, options = None, c_compile = 0, c_link = 0,
             and not options.recursive:
         return compile_single(source, options, full_module_name)
     else:
-        return compile_multiple(source, options)
+        # Hack it for wednesday dev1
+        assert len(source) == 1
+        return compile_single(source[0], options)
+#        return compile_multiple(source, options)
 
 #------------------------------------------------------------------------
 #
@@ -571,9 +633,9 @@ default_options = dict(
     output_file = None,
     annotate = False,
     generate_pxi = 0,
-    transforms = TransformSet(),
     working_path = "",
     recursive = 0,
+    transforms = None, # deprecated
     timestamps = None,
     verbose = 0,
     quiet = 0)
