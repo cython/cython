@@ -1145,16 +1145,22 @@ class IteratorNode(ExprNode):
     
     def generate_result_code(self, code):
         code.putln(
-            "if (PyList_CheckExact(%s)) { %s = 0; %s = %s; Py_INCREF(%s); }" % (
+            "if (PyList_CheckExact(%s) || PyTuple_CheckExact(%s)) {" % (
                 self.sequence.py_result(),
+                self.sequence.py_result()))
+        code.putln(
+            "%s = 0; %s = %s; Py_INCREF(%s);" % (
                 self.counter.result_code,
                 self.result_code,
                 self.sequence.py_result(),
                 self.result_code))
-        code.putln("else { %s = PyObject_GetIter(%s); %s }" % (
+        code.putln("} else {")
+        code.putln("%s = -1; %s = PyObject_GetIter(%s); %s" % (
+                self.counter.result_code,
                 self.result_code,
                 self.sequence.py_result(),
                 code.error_goto_if_null(self.result_code, self.pos)))
+        code.putln("}")
 
 
 class NextNode(AtomicExprNode):
@@ -1173,15 +1179,19 @@ class NextNode(AtomicExprNode):
     
     def generate_result_code(self, code):
         code.putln(
-            "if (PyList_CheckExact(%s)) { if (%s >= PyList_GET_SIZE(%s)) break; %s = PyList_GET_ITEM(%s, %s++); Py_INCREF(%s); }" % (
-                self.iterator.py_result(),
+            "if (likely(%s != -1)) {" % self.iterator.counter.result_code)
+        code.putln(
+            "if (%s >= PySequence_Fast_GET_SIZE(%s)) break;" % (
                 self.iterator.counter.result_code,
-                self.iterator.py_result(),
+                self.iterator.py_result()))
+        code.putln(
+            "%s = PySequence_Fast_GET_ITEM(%s, %s); Py_INCREF(%s); %s++;" % (
                 self.result_code,
                 self.iterator.py_result(),
                 self.iterator.counter.result_code,
-                self.result_code))
-        code.putln("else {")
+                self.result_code,
+                self.iterator.counter.result_code))
+        code.putln("} else {")
         code.putln(
             "%s = PyIter_Next(%s);" % (
                 self.result_code,
