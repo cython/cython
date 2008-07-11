@@ -4050,6 +4050,9 @@ class PersistentNode(ExprNode):
         self.result_ctype = self.arg.result_ctype
         self.is_temp = 1
     
+    def calculate_result_code(self):
+        return self.arg.result_code
+
     def generate_evaluation_code(self, code):
         if self.generate_counter == 0:
             self.arg.generate_evaluation_code(code)
