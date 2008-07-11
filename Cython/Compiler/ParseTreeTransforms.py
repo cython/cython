@@ -219,7 +219,7 @@ class WithTransform(CythonTransform):
 
 class DecoratorTransform(CythonTransform):
 
-    def visit_FuncDefNode(self, func_node):
+    def visit_DefNode(self, func_node):
         if not func_node.decorators:
             return func_node
 
