@@ -4028,6 +4028,56 @@ class CloneNode(CoercionNode):
         
     def release_temp(self, env):
         pass
+        
+class PersistentNode(ExprNode):
+    # A PersistentNode is like a CloneNode except it handles the temporary
+    # allocation itself by keeping track of the number of times it has been 
+    # used. 
+    
+    subexprs = ["arg"]
+    temp_counter = 0
+    generate_counter = 0
+    result_code = None
+    
+    def __init__(self, arg, uses):
+        self.pos = arg.pos
+        self.arg = arg
+        self.uses = uses
+        
+    def analyse_types(self, env):
+        self.arg.analyse_types(env)
+        self.type = self.arg.type
+        self.result_ctype = self.arg.result_ctype
+        self.is_temp = 1
+    
+    def generate_evaluation_code(self, code):
+        if self.generate_counter == 0:
+            self.arg.generate_evaluation_code(code)
+            code.putln("%s = %s;" % (
+                self.result_code, self.arg.result_as(self.ctype())))
+            if self.type.is_pyobject:
+                code.put_incref(self.result_code, self.ctype())
+            self.arg.generate_disposal_code(code)
+        self.generate_counter += 1
+                
+    def generate_disposal_code(self, code):
+        if self.generate_counter == self.uses:
+            if self.type.is_pyobject:
+                code.put_decref_clear(self.result_code, self.ctype())
+
+    def allocate_temps(self, env, result=None):
+        if self.temp_counter == 0:
+            self.arg.allocate_temps(env)
+            if result is None:
+                self.result_code = env.allocate_temp(self.type)
+            else:
+                self.result_code = result
+            self.arg.release_temp(env)
+        self.temp_counter += 1
+        
+    def release_temp(self, env):
+        if self.temp_counter == self.uses:
+            env.release_temp(self.result_code)
     
 #------------------------------------------------------------------------------------
 #
