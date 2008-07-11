@@ -100,9 +100,9 @@ class FlattenInListTransform(Visitor.VisitorTransform):
             eq_or_neq = '!='
         else:
             return node
-            
-        args = node.operand2.args
+
         if isinstance(node.operand2, ExprNodes.TupleNode) or isinstance(node.operand2, ExprNodes.ListNode):
+            args = node.operand2.args
             if len(args) == 0:
                 return ExprNodes.BoolNode(pos = node.pos, value = node.operator == 'not_in')
             else:
