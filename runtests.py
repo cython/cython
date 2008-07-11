@@ -80,6 +80,8 @@ class TestBuilder(object):
         for filename in filenames:
             if not (filename.endswith(".pyx") or filename.endswith(".py")):
                 continue
+            if context == 'pyregr' and not filename.startswith('test_'):
+                continue
             module = os.path.splitext(filename)[0]
             fqmodule = "%s.%s" % (context, module)
             if not [ 1 for match in self.selectors
