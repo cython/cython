@@ -265,7 +265,7 @@ class CythonUnitTestCase(CythonCompileTestCase):
         result.startTest(self)
         try:
             self.runCompileTest()
-            unittest.loadTestsFromName(self.module).run(result)
+            unittest.defaultTestLoader.loadTestsFromName(self.module).run(result)
         except Exception:
             result.addError(self, sys.exc_info())
             result.stopTest(self)
