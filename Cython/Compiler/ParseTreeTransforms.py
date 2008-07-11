@@ -46,8 +46,6 @@ class NormalizeTree(CythonTransform):
         self.visitchildren(node)
         self.is_in_statlist = stacktmp
         if not self.is_in_statlist and not self.is_in_expr:
-            if isinstance(node, TupleNode):
-                print node
             return StatListNode(pos=node.pos, stats=[node])
         else:
             return node
