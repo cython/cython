@@ -149,9 +149,9 @@ class CythonCompileTestCase(unittest.TestCase):
         return source_file
 
     def split_source_and_output(self, directory, module, workdir):
-        source_file = os.path.join(directory, module)
+        source_file = os.path.join(directory, module) + '.pyx'
         source_and_output = open(
-        self.find_module_source_file(source_file), 'rU')
+            self.find_module_source_file(source_file), 'rU')
         out = open(os.path.join(workdir, module + '.pyx'), 'w')
         for line in source_and_output:
             last_line = line
