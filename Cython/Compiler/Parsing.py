@@ -1615,7 +1615,7 @@ def p_c_simple_base_type(s, self_flag, nonempty):
     # Treat trailing [] on type as buffer access
     if s.sy == '[':
         if is_basic:
-            p.error("Basic C types do not support buffer access")
+            s.error("Basic C types do not support buffer access")
         return p_buffer_access(s, type_node)
     else:
         return type_node
