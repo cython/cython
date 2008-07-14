@@ -11,11 +11,11 @@ testclean:
 	rm -fr BUILD
 
 test:	testclean
-	${PYTHON} runtests.py
+	${PYTHON} runtests.py -vv
 
 test3:	testclean
 	${PYTHON} runtests.py --no-cleanup
-	python3.0 runtests.py --no-cython
+	python3.0 runtests.py -vv --no-cython
 
 s5:
 	$(MAKE) -C Doc/s5 slides

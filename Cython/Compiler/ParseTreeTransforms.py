@@ -217,6 +217,26 @@ class WithTransform(CythonTransform):
         
         return result.stats
 
+class DecoratorTransform(CythonTransform):
+
+    def visit_DefNode(self, func_node):
+        if not func_node.decorators:
+            return func_node
+
+        decorator_result = NameNode(func_node.pos, name = func_node.name)
+        for decorator in func_node.decorators[::-1]:
+            decorator_result = SimpleCallNode(
+                decorator.pos,
+                function = decorator.decorator,
+                args = [decorator_result])
+
+        func_name_node = NameNode(func_node.pos, name = func_node.name)
+        reassignment = SingleAssignmentNode(
+            func_node.pos,
+            lhs = func_name_node,
+            rhs = decorator_result)
+        return [func_node, reassignment]
+
 class AnalyseDeclarationsTransform(CythonTransform):
 
     def __call__(self, root):
