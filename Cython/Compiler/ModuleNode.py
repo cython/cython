@@ -2010,6 +2010,7 @@ static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
             types.append((ndarrtype.typeptr_cname, "numpy_getbuffer", "numpy_releasebuffer"))
         except KeyError:
             pass
+        code.putln("#if PY_VERSION_HEX < 0x02060000")
         code.putln("static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {")
         if len(types) > 0:
             clause = "if"
@@ -2030,6 +2031,7 @@ static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
                 clause = "else if"
         code.putln("}")
         code.putln("")
+        code.putln("#endif")
 
 
 #------------------------------------------------------------------------------------

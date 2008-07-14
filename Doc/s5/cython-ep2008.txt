@@ -1,0 +1,401 @@
+==============================================
+The Cython Compiler for C-Extensions in Python
+==============================================
+
+Dr. Stefan Behnel
+-----------------
+
+.. class:: center
+
+  http://www.cython.org/
+
+  cython-dev@codespeak.net
+
+.. footer:: Dr. Stefan Behnel, EuroPython 2008, Vilnius/Lietuva
+
+.. include:: <s5defs.txt>
+
+
+About myself
+============
+
+* Passionate Python developer since 2002
+
+  * after Basic, Logo, Pascal, Prolog, Scheme, Java, ...
+
+* CS studies in Germany, Ireland, France
+
+* PhD in distributed systems in 2007
+
+  * Language design for self-organising systems
+
+  * Darmstadt University of Technologies, Germany
+
+* Current occupations:
+
+  * Employed by Senacor Technologies AG, Germany
+
+    * IT transformations, SOA design, Java-Development, ...
+
+  * »lxml« OpenSource XML toolkit for Python
+
+    * http://codespeak.net/lxml/
+
+  * Cython
+
+
+What is Cython?
+===============
+
+Cython is
+
+* an Open-Source project
+
+  * http://cython.org
+
+* a Python compiler (almost)
+
+  * an enhanced, optimising fork of Pyrex
+
+* an extended Python language for
+
+  * writing fast Python extension modules
+
+  * interfacing Python with C libraries
+
+
+A little bit of history
+=======================
+
+* April 2002: release of Pyrex 0.1 by Greg Ewing
+
+  * Greg considers Pyrex a language in design phase
+
+  * Pyrex became a key language for many projects
+
+    * over the years, many people patched their Pyrex
+
+    * not all patches were answered by Greg (not in time)
+
+* minor forks and enhanced branches followed
+
+  * March 2006: my fork of Pyrex for »lxml« XML toolkit
+
+  * November 2006: »SageX« fork of Pyrex
+
+    * by Robert Bradshaw, William Stein (Univ. Seattle, USA)
+
+    * context: »Sage«, a free mathematics software package
+
+* 28th July 2007: official Cython launch
+
+  * integration of lxml's Pyrex fork into SageX
+
+  * the rest is in http://hg.cython.org/cython-devel/
+
+
+Major Cython Developers
+=======================
+
+* Robert Bradshaw and Stefan Behnel
+
+  * lead developers
+
+* Greg Ewing
+
+  * main developer and maintainer of Pyrex
+
+  * we happily share code and discuss ideas
+
+* Dag Sverre Seljebotn
+
+  * Google Summer-of-Code developer
+
+  * NumPy integration, many ideas and enhancements
+
+* many, *many* others - see
+
+  * http://cython.org/
+
+  * the mailing list archives of Cython and Pyrex
+
+
+How to use Cython
+=================
+
+* you write Python code
+
+  * Cython translates it into C code
+
+  * your C compiler builds a shared library for CPython
+
+  * you import your module
+
+* Cython has support for
+
+  * compile-time includes/imports
+
+    * with dependency tracking
+
+  * distutils
+
+    * *optionally* compile Python code from setup.py!
+
+
+Example: compiling Python code
+==============================
+
+.. sourcecode:: bash
+
+    $ cat worker.py
+
+.. sourcecode:: python
+
+    class HardWorker(object):
+        u"Almost Sisyphus"
+        def __init__(self, task):
+            self.task = task
+
+        def work_hard(self):
+            for i in range(100):
+	        self.task()
+
+.. sourcecode:: bash
+
+    $ cython worker.py
+
+* translates to 842 line `.c file <ep2008/worker.c>`_ (Cython 0.9.8)
+
+  * lots of portability #define's
+
+  * tons of helpful C comments with Python code snippets
+
+  * a lot of code that you don't want to write yourself
+
+
+Portable Code
+=============
+
+* Cython compiler generates C code that compiles
+
+  * with all major compilers (C and C++)
+
+  * on all major platforms
+
+  * in Python 2.3 to 3.0 beta1
+
+* Cython language syntax follows Python 2.6
+
+  * optional Python 3 syntax support is on TODO list
+
+    * get involved to get it quicker!
+
+\... the fastest way to port Python 2 code to Py3 ;-)
+
+
+Python 2 feature support
+========================
+
+* most of Python 2 syntax is supported
+
+  * top-level classes and functions
+
+  * exceptions
+
+  * object operations, arithmetic, ...
+
+* plus some Py3/2.6 features:
+
+  * keyword-only arguments
+
+  * unicode literals via ``__future__`` import
+
+* in recent developer branch:
+
+  * ``with`` statement
+
+  * closures (i.e. local classes and functions) are close!
+
+
+Speed
+=====
+
+Cython generates very efficient C code
+
+* according to PyBench:
+
+  * conditions and loops run 2-8x faster than in Py2.5
+
+  * most benchmarks run 30%-80% faster
+
+  * overall more than 30% faster for plain Python code
+
+* optional type declarations
+
+  * let Cython generate plain C instead of C-API calls
+
+  * make code several times faster than the above
+
+
+Type declarations
+=================
+
+* »cdef« keyword declares
+
+  * local variables with C types
+
+  * functions with C signatures
+
+  * classes as builtin extension types
+
+* Example::
+
+    def stupid_lower_case(char* s):
+        cdef Py_ssize_t size, i
+
+	size = len(s)
+        for i in range(size):
+            if s[i] >= 'A' and s[i] <= 'Z':
+                s[i] += 'a' - 'A'
+        return s
+
+
+Why is this stupid?
+===================
+
+Ask Cython!
+
+.. sourcecode:: bash
+
+    $ cat stupidlowercase.py
+
+::
+
+    def stupid_lower_case(char* s):
+        cdef Py_ssize_t size, i
+
+	size = len(s)
+        for i in range(size):
+            if s[i] >= 'A' and s[i] <= 'Z':
+                s[i] += 'a' - 'A'
+        return s
+
+.. sourcecode:: bash
+
+    $ cython --annotate stupidlowercase.py
+
+=> `stupidlowercase.html <ep2008/stupidlowercase.html>`_
+
+
+Calling C functions
+===================
+
+* Example::
+
+    cdef extern from "Python.h":
+        # copied from the Python C-API docs:
+        object PyUnicode_DecodeASCII(
+            char* s, Py_ssize_t size, char* errors)
+
+    cdef extern from "string.h":
+        int strlen(char *s)
+
+
+    cdef slightly_better_lower_case(char* s):
+        cdef Py_ssize_t i, size = strlen(s)
+        for i in range(size):
+            if s[i] >= 'A' and s[i] <= 'Z':
+                s[i] += 'a' - 'A'
+	return PyUnicode_DecodeASCII(s, size, NULL)
+
+
+Features in work
+================
+
+* Dynamic classes and functions with closures
+
+  .. sourcecode:: python
+
+    def factory(a,b):
+        def closure_function(c):
+            return a+b+c
+        return closure_function
+
+* Native support for new ``buffer`` protocol
+
+  * part of NumPy integration by Dag Seljebotn
+
+  .. sourcecode:: python
+
+    def inplace_negative_grayscale_image(
+                      ndarray[unsigned char, 2] image):
+        cdef int i, j
+        for i in range(image.shape[0]):
+            for j in range(image.shape[1]):
+                arr[i, j] = 255 - arr[i, j]
+
+
+Huge pile of great ideas
+========================
+
+* Cython Enhancement Proposals (CEPs)
+
+  * http://wiki.cython.org/enhancements
+
+* native pickle support for extension classes
+
+* meta-programming facilities
+
+* type inference strategies
+
+* compile-time assertions for optimisations
+
+* object-like C-array handling
+
+* improved C++ integration
+
+* ...
+
+
+Conclusion
+==========
+
+* Cython is a tool for
+
+  * efficiently translating Python code to C
+
+  * easily interfacing to external C libraries
+
+* Use it to
+
+  * speed up existing Python modules
+
+    * concentrate on optimisations, not rewrites!
+
+  * write C extensions for CPython
+
+    * don't change the language just to get fast code!
+
+  * wrap C libraries *in Python*
+
+    * concentrate on the mapping, not the glue!
+
+
+... but Cython is also
+======================
+
+* a great project
+
+* a very open playground for great ideas!
+
+
+Cython
+======
+
+  **Cython**
+
+  **C-Extensions in Python**
+
+  \... use it, and join the project!
+
+  http://cython.org/

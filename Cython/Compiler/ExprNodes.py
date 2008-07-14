@@ -1145,16 +1145,22 @@ class IteratorNode(ExprNode):
     
     def generate_result_code(self, code):
         code.putln(
-            "if (PyList_CheckExact(%s)) { %s = 0; %s = %s; Py_INCREF(%s); }" % (
+            "if (PyList_CheckExact(%s) || PyTuple_CheckExact(%s)) {" % (
                 self.sequence.py_result(),
+                self.sequence.py_result()))
+        code.putln(
+            "%s = 0; %s = %s; Py_INCREF(%s);" % (
                 self.counter.result_code,
                 self.result_code,
                 self.sequence.py_result(),
                 self.result_code))
-        code.putln("else { %s = PyObject_GetIter(%s); %s }" % (
+        code.putln("} else {")
+        code.putln("%s = -1; %s = PyObject_GetIter(%s); %s" % (
+                self.counter.result_code,
                 self.result_code,
                 self.sequence.py_result(),
                 code.error_goto_if_null(self.result_code, self.pos)))
+        code.putln("}")
 
 
 class NextNode(AtomicExprNode):
@@ -1173,15 +1179,19 @@ class NextNode(AtomicExprNode):
     
     def generate_result_code(self, code):
         code.putln(
-            "if (PyList_CheckExact(%s)) { if (%s >= PyList_GET_SIZE(%s)) break; %s = PyList_GET_ITEM(%s, %s++); Py_INCREF(%s); }" % (
-                self.iterator.py_result(),
+            "if (likely(%s != -1)) {" % self.iterator.counter.result_code)
+        code.putln(
+            "if (%s >= PySequence_Fast_GET_SIZE(%s)) break;" % (
                 self.iterator.counter.result_code,
-                self.iterator.py_result(),
+                self.iterator.py_result()))
+        code.putln(
+            "%s = PySequence_Fast_GET_ITEM(%s, %s); Py_INCREF(%s); %s++;" % (
                 self.result_code,
                 self.iterator.py_result(),
                 self.iterator.counter.result_code,
-                self.result_code))
-        code.putln("else {")
+                self.result_code,
+                self.iterator.counter.result_code))
+        code.putln("} else {")
         code.putln(
             "%s = PyIter_Next(%s);" % (
                 self.result_code,
@@ -4018,6 +4028,59 @@ class CloneNode(CoercionNode):
         
     def release_temp(self, env):
         pass
+        
+class PersistentNode(ExprNode):
+    # A PersistentNode is like a CloneNode except it handles the temporary
+    # allocation itself by keeping track of the number of times it has been 
+    # used. 
+    
+    subexprs = ["arg"]
+    temp_counter = 0
+    generate_counter = 0
+    result_code = None
+    
+    def __init__(self, arg, uses):
+        self.pos = arg.pos
+        self.arg = arg
+        self.uses = uses
+        
+    def analyse_types(self, env):
+        self.arg.analyse_types(env)
+        self.type = self.arg.type
+        self.result_ctype = self.arg.result_ctype
+        self.is_temp = 1
+    
+    def calculate_result_code(self):
+        return self.arg.result_code
+
+    def generate_evaluation_code(self, code):
+        if self.generate_counter == 0:
+            self.arg.generate_evaluation_code(code)
+            code.putln("%s = %s;" % (
+                self.result_code, self.arg.result_as(self.ctype())))
+            if self.type.is_pyobject:
+                code.put_incref(self.result_code, self.ctype())
+            self.arg.generate_disposal_code(code)
+        self.generate_counter += 1
+                
+    def generate_disposal_code(self, code):
+        if self.generate_counter == self.uses:
+            if self.type.is_pyobject:
+                code.put_decref_clear(self.result_code, self.ctype())
+
+    def allocate_temps(self, env, result=None):
+        if self.temp_counter == 0:
+            self.arg.allocate_temps(env)
+            if result is None:
+                self.result_code = env.allocate_temp(self.type)
+            else:
+                self.result_code = result
+            self.arg.release_temp(env)
+        self.temp_counter += 1
+        
+    def release_temp(self, env):
+        if self.temp_counter == self.uses:
+            env.release_temp(self.result_code)
     
 #------------------------------------------------------------------------------------
 #
