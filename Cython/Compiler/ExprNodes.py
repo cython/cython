@@ -3133,7 +3133,7 @@ class NumBinopNode(BinopNode):
         "+":		"PyNumber_Add",
         "-":		"PyNumber_Subtract",
         "*":		"PyNumber_Multiply",
-        "/":		"PyNumber_Divide",
+        "/":		"__Pyx_PyNumber_Divide",
         "//":		"PyNumber_FloorDivide",
         "%":		"PyNumber_Remainder",
         "**":       "PyNumber_Power"

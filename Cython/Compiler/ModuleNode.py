@@ -5,6 +5,7 @@
 import os, time
 from cStringIO import StringIO
 from PyrexTypes import CPtrType
+import Future
 
 try:
     set
@@ -467,8 +468,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyInt_AsSsize_t              PyLong_AsSsize_t")
         code.putln("  #define PyInt_AsUnsignedLongMask     PyLong_AsUnsignedLongMask")
         code.putln("  #define PyInt_AsUnsignedLongLongMask PyLong_AsUnsignedLongLongMask")
-        code.putln("  #define PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)")
+        code.putln("  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)")
         code.putln("#else")
+        if Future.division in env.context.future_directives:
+            code.putln("  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)")
+        else:
+            code.putln("  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_Divide(x,y)")
         code.putln("  #define PyBytes_Type                 PyString_Type")
         code.putln("#endif")
 
