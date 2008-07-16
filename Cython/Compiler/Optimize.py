@@ -71,6 +71,8 @@ class SwitchTransform(Visitor.VisitorTransform):
                 cases.append(Nodes.SwitchCaseNode(pos = if_clause.pos,
                                                   conditions = conditions,
                                                   body = if_clause.body))
+        
+        common_var = unwrap_node(common_var)
         return Nodes.SwitchStatNode(pos = node.pos,
                                     test = common_var,
                                     cases = cases,
