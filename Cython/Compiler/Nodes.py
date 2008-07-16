@@ -177,7 +177,7 @@ class Node(object):
             if isinstance(x, Node):
                 return x.dump(level)
             elif isinstance(x, list):
-                return "[%s]" % ", ".join(dump_child(item, level) for item in x)
+                return "[%s]" % ", ".join([dump_child(item, level) for item in x])
             else:
                 return repr(x)
             

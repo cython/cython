@@ -295,7 +295,7 @@ def collect_unittests(path, suite, selectors):
                     module = __import__(modulename)
                     for x in modulename.split('.')[1:]:
                         module = getattr(module, x)
-                    suite.addTests(loader.loadTestsFromModule(module))
+                    suite.addTests([loader.loadTestsFromModule(module)])
 
 if __name__ == '__main__':
     from optparse import OptionParser
@@ -369,7 +369,7 @@ if __name__ == '__main__':
     if options.filetests:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors,
                                 options.annotate_source, options.cleanup_workdir)
-        test_suite.addTests(filetests.build_suite())
+        test_suite.addTests([filetests.build_suite()])
 
     unittest.TextTestRunner(verbosity=options.verbosity).run(test_suite)
 
