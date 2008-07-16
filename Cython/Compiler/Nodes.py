@@ -1920,9 +1920,7 @@ class OverrideCheckNode(StatNode):
                                              function=self.func_node, 
                                              args=[ExprNodes.NameNode(self.pos, name=arg.name) for arg in self.args[first_arg:]])
         self.body = ReturnStatNode(self.pos, value=call_node)
-#        self.func_temp = env.allocate_temp_pyobject()
         self.body.analyse_expressions(env)
-#        env.release_temp(self.func_temp)
         
     def generate_execution_code(self, code):
         # Check to see if we are an extension type
@@ -1946,7 +1944,7 @@ class OverrideCheckNode(StatNode):
         code.putln('if (!%s || %s) {' % (is_builtin_function_or_method, is_overridden))
         self.body.generate_execution_code(code)
         code.putln('}')
-        code.put_decref(self.func_node.result_code, PyrexTypes.py_object_type)
+        code.put_decref_clear(self.func_node.result_code, PyrexTypes.py_object_type)
         code.putln("}")
 
 class ClassDefNode(StatNode, BlockNode):
