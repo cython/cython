@@ -1937,7 +1937,7 @@ class OverrideCheckNode(StatNode):
             code.putln("else {")
         else:
             code.putln("else if (unlikely(Py_TYPE(%s)->tp_dictoffset != 0)) {" % self_arg)
-        err = code.error_goto_if_null(self_arg, self.pos)
+        err = code.error_goto_if_null(self.func_node.result_code, self.pos)
         # need to get attribute manually--scope would return cdef method
         code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (self.func_node.result_code, self_arg, self.py_func.interned_attr_cname, err))
         # It appears that this type is not anywhere exposed in the Python/C API
@@ -1946,7 +1946,7 @@ class OverrideCheckNode(StatNode):
         code.putln('if (!%s || %s) {' % (is_builtin_function_or_method, is_overridden))
         self.body.generate_execution_code(code)
         code.putln('}')
-#        code.put_decref(self.func_temp, PyrexTypes.py_object_type)
+        code.put_decref(self.func_node.result_code, PyrexTypes.py_object_type)
         code.putln("}")
 
 class ClassDefNode(StatNode, BlockNode):
