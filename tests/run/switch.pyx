@@ -25,9 +25,9 @@ __doc__ = u"""
 >>> switch_py(8)
 4
 >>> switch_py(10)
-7
+10
 >>> switch_py(12)
-8
+12
 >>> switch_py(13)
 0
 
@@ -57,9 +57,9 @@ __doc__ = u"""
 >>> switch_c(8)
 4
 >>> switch_c(10)
-7
+10
 >>> switch_c(12)
-8
+12
 >>> switch_c(13)
 0
 """
@@ -86,10 +86,10 @@ def switch_py(x):
         return 3
     elif x in [4,5,7,8]:
         return 4
-    elif x in (10,11): # doesn't work:  (7,8,10,11)
-        return 7
+    elif x in (10,11):
+        return 10
     elif x in (12,):
-        return 8
+        return 12
     else:
         return 0
     return -1
@@ -116,10 +116,10 @@ def switch_c(int x):
         return 3
     elif x in [4,5,7,8]:
         return 4
-    elif x in (10,11): # doesn't work:  (7,8,10,11)
-        return 7
+    elif x in (10,11):
+        return 10
     elif x in (12,):
-        return 8
+        return 12
     else:
         return 0
     return -1
