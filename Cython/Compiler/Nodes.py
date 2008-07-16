@@ -1207,11 +1207,18 @@ class CFuncDefNode(FuncDefNode):
         if self.return_type.is_pyobject:
             return "0"
         else:
-            #return None
-            return self.entry.type.exception_value
+            if self.entry.type.exception_value is not None:
+                return self.entry.type.exception_value
+            elif self.return_type.is_struct_or_union or self.return_type.is_void:
+                return None
+            else:
+                return self.return_type.cast_code(Naming.default_error)
             
     def caller_will_check_exceptions(self):
-        return self.entry.type.exception_check
+        if self.entry.type.exception_value is None:
+            return 1
+        else:
+            return self.entry.type.exception_check
                     
     def generate_optarg_wrapper_function(self, env, code):
         if self.type.optional_arg_count and \
