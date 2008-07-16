@@ -213,6 +213,7 @@ class PrintTree(TreeVisitor):
     def __call__(self, tree, phase=None):
         print("Parse tree dump at phase '%s'" % phase)
         self.visit(tree)
+        return tree
 
     # Don't do anything about process_list, the defaults gives
     # nice-looking name[idx] nodes which will visually appear
