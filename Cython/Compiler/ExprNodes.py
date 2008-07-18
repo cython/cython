@@ -1302,12 +1302,12 @@ class IndexNode(ExprNode):
 
         skip_child_analysis = False
         buffer_access = False
-        if self.base.type.buffer_options is not None:
+        if self.base.type.is_buffer:
             if isinstance(self.index, TupleNode):
                 indices = self.index.args
             else:
                 indices = [self.index]
-            if len(indices) == self.base.type.buffer_options.ndim:
+            if len(indices) == self.base.type.ndim:
                 buffer_access = True
                 skip_child_analysis = True
                 for x in indices:
@@ -1320,7 +1320,7 @@ class IndexNode(ExprNode):
                     # for x in  indices]
                     self.indices = indices
                     self.index = None
-                    self.type = self.base.type.buffer_options.dtype 
+                    self.type = self.base.type.dtype 
                     self.is_temp = 1
                     self.is_buffer_access = True
             

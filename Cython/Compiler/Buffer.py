@@ -9,6 +9,8 @@ import PyrexTypes
 from sets import Set as set
 
 class PureCFuncNode(Node):
+    child_attrs = []
+    
     def __init__(self, pos, cname, type, c_code, visibility='private'):
         self.pos = pos
         self.cname = cname
@@ -97,14 +99,14 @@ class BufferTransform(CythonTransform):
         # on the buffer entry
         bufvars = [(name, entry) for name, entry
                    in scope.entries.iteritems()
-                   if entry.type.buffer_options is not None]
+                   if entry.type.is_buffer]
                    
         for name, entry in bufvars:
             
-            bufopts = entry.type.buffer_options
+            buftype = entry.type
 
             # Get or make a type string checker
-            tschecker = self.tschecker(bufopts.dtype)
+            tschecker = self.tschecker(buftype.dtype)
 
             # Declare auxiliary vars
             bufinfo = scope.declare_var(temp_name_handle(u"%s_bufinfo" % name),
@@ -116,7 +118,7 @@ class BufferTransform(CythonTransform):
             
             stridevars = []
             shapevars = []
-            for idx in range(bufopts.ndim):
+            for idx in range(buftype.ndim):
                 # stride
                 varname = temp_name_handle(u"%s_%s%d" % (name, "stride", idx))
                 var = scope.declare_var(varname, PyrexTypes.c_int_type, node.pos, is_cdef=True)
@@ -216,7 +218,7 @@ class BufferTransform(CythonTransform):
             expr = AddNode(pos, operator='+', operand1=expr, operand2=next)
 
         casted = TypecastNode(pos, operand=expr,
-                              type=PyrexTypes.c_ptr_type(node.base.entry.type.buffer_options.dtype))
+                              type=PyrexTypes.c_ptr_type(node.base.entry.type.dtype))
         result = IndexNode(pos, base=casted, index=IntNode(pos, value='0'))
 
         return result
@@ -411,4 +413,5 @@ class BufferTransform(CythonTransform):
 
 # TODO:
 # - buf must be NULL before getting new buffer
+
 
