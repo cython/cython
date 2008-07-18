@@ -45,12 +45,13 @@ class ErrorWriter(object):
         return self._collect(True, True)
 
 class TestBuilder(object):
-    def __init__(self, rootdir, workdir, selectors, annotate, cleanup_workdir):
+    def __init__(self, rootdir, workdir, selectors, annotate, cleanup_workdir, cleanup_sharedlibs):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
         self.annotate = annotate
         self.cleanup_workdir = cleanup_workdir
+        self.cleanup_sharedlibs = cleanup_sharedlibs
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -101,13 +102,15 @@ class TestBuilder(object):
                     path, workdir, module,
                     expect_errors=expect_errors,
                     annotate=self.annotate,
-                    cleanup_workdir=self.cleanup_workdir)
+                    cleanup_workdir=self.cleanup_workdir,
+                    cleanup_sharedlibs=self.cleanup_sharedlibs)
             suite.addTest(test)
         return suite
 
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, directory, workdir, module,
-                 expect_errors=False, annotate=False, cleanup_workdir=True):
+                 expect_errors=False, annotate=False, cleanup_workdir=True,
+                 cleanup_sharedlibs=True):
         self.directory = directory
         self.workdir = workdir
         self.module = module
@@ -121,9 +124,12 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def tearDown(self):
         cleanup_c_files = WITH_CYTHON and self.cleanup_workdir
+        cleanup_lib_files = self.cleanup_sharedlibs
         if os.path.exists(self.workdir):
             for rmfile in os.listdir(self.workdir):
                 if not cleanup_c_files and rmfile[-2:] in (".c", ".h"):
+                    continue
+                if not cleanup_lib_files and rmfile.endswith(".so") or rmfile.endswith(".dll"):
                     continue
                 if self.annotate and rmfile.endswith(".html"):
                     continue
@@ -303,6 +309,9 @@ if __name__ == '__main__':
     parser.add_option("--no-cleanup", dest="cleanup_workdir",
                       action="store_false", default=True,
                       help="do not delete the generated C files (allows passing --no-cython on next run)")
+    parser.add_option("--no-cleanup-sharedlibs", dest="cleanup_sharedlibs",
+                      action="store_false", default=True,
+                      help="do not delete the generated shared libary files (allows manual module experimentation)")
     parser.add_option("--no-cython", dest="with_cython",
                       action="store_false", default=True,
                       help="do not run the Cython compiler, only the C compiler")
@@ -368,7 +377,8 @@ if __name__ == '__main__':
 
     if options.filetests:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors,
-                                options.annotate_source, options.cleanup_workdir)
+                                options.annotate_source, options.cleanup_workdir,
+                                options.cleanup_sharedlibs)
         test_suite.addTests(filetests.build_suite())
 
     unittest.TextTestRunner(verbosity=options.verbosity).run(test_suite)
