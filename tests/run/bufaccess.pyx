@@ -4,27 +4,36 @@ __doc__ = u"""
     >>> A = MockBuffer("i", range(10), label="A")
     >>> B = MockBuffer("i", range(10), label="B")
     >>> E = ErrorBuffer("E")
+    
     >>> acquire_release(A, B)
     acquired A
     released A
     acquired B
     released B
+
+    Apparently, doctest won't handle mixed exceptions and print
+    stats, so need to circumvent this.
+    >>> A.resetlog()
     >>> acquire_raise(A)
-    acquired A
-    released A
     Traceback (most recent call last):
         ...
     Exception: on purpose
+    >>> A.printlog()
+    acquired A
+    released A
+    
     >>> printbuf_float(MockBuffer("f", [1.0, 1.25, 0.75, 1.0]), (4,))
     acquired
     1.0 1.25 0.75 1.0
     released
+    
     >>> printbuf_int_2d(MockBuffer("i", range(6), (2,3)), (2,3))
     acquired
     0 1 2
     3 4 5
     released
 """
+
 
 def acquire_release(o1, o2):
     cdef object[int] buf
@@ -34,6 +43,7 @@ def acquire_release(o1, o2):
 def acquire_raise(o):
     cdef object[int] buf
     buf = o
+    print "a"
     raise Exception("on purpose")
     
 def printbuf_float(o, shape):
@@ -82,10 +92,11 @@ cdef class MockBuffer:
     cdef Py_ssize_t* strides
     cdef Py_ssize_t* shape
     cdef write_func_ptr wfunc
-    cdef object label
+    cdef object label, log
     
     def __init__(self, typechar, data, shape=None, strides=None, format=None, label=None):
         self.label = label
+        self.log = ""
         if format is None: format = "=%s" % typechar
         self.itemsize, x = typemap[typechar]
         self.wfunc = <write_func_ptr><unsigned long>x
@@ -111,6 +122,7 @@ cdef class MockBuffer:
         self.shape = <Py_ssize_t*>stdlib.malloc(self.ndim * sizeof(Py_ssize_t))
 
     def __getbuffer__(MockBuffer self, Py_buffer* buffer, int flags):
+        global log
         if buffer is NULL:
             print u"locking!"
             return
@@ -124,23 +136,28 @@ cdef class MockBuffer:
         buffer.suboffsets = NULL
         buffer.itemsize = self.itemsize
         buffer.internal = NULL
-        print "acquired",
-        if self.label:
-            print self.label
-        else:
-            print
+        msg = "acquired"
+        if self.label: msg += " " + self.label
+        print msg
+        self.log += msg + "\n"
 
     def __releasebuffer__(MockBuffer self, Py_buffer* buffer):
-        print "released",
-        if self.label:
-            print self.label
-        else:
-            print
+        global log
+        msg = "released"
+        if self.label: msg += " " + self.label
+        print msg
+        self.log += msg + "\n"
         
     cdef fill_buffer(self, typechar, object data):
         cdef char* it = self.buffer
         for value in data:
             it = self.wfunc(it, value)
+
+    def printlog(self):
+        print self.log,
+
+    def resetlog(self):
+        self.log = ""
             
 cdef class ErrorBuffer:
     cdef object label
