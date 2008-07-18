@@ -70,9 +70,9 @@ class CodeWriter(TreeVisitor):
         if len(items) > 0:
             for item in items[:-1]:
                 self.visit(item)
-                if output_rhs and item.rhs is not None:
+                if output_rhs and item.default is not None:
                     self.put(u" = ")
-                    self.visit(item.rhs)
+                    self.visit(item.default)
                 self.put(u", ")
             self.visit(items[-1])
     
