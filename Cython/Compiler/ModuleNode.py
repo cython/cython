@@ -2002,9 +2002,25 @@ static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
 """)
         except KeyError:
             pass
+
+        # Search all types for __getbuffer__ overloads
+        types = []
+        def find_buffer_types(scope):
+            for m in scope.cimported_modules:
+                find_buffer_types(m)
+            for e in scope.type_entries:
+                t = e.type
+                if t.is_extension_type:
+                    release = get = None
+                    for x in t.scope.pyfunc_entries:
+                        if x.name == u"__getbuffer__": get = x.func_cname
+                        elif x.name == u"__releasebuffer__": release = x.func_cname
+                    if get:
+                        types.append((t.typeptr_cname, get, release))
+                                     
+        find_buffer_types(self.scope)
         
         # For now, hard-code numpy imported as "numpy"
-        types = []
         try:
             ndarrtype = env.entries[u'numpy'].as_module.entries['ndarray'].type
             types.append((ndarrtype.typeptr_cname, "numpy_getbuffer", "numpy_releasebuffer"))
@@ -2015,7 +2031,7 @@ static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
         if len(types) > 0:
             clause = "if"
             for t, get, release in types:
-                code.putln("%s (__Pyx_TypeTest(obj, %s)) return %s(obj, view, flags);" % (clause, t, get))
+                code.putln("%s (PyObject_TypeCheck(obj, %s)) return %s(obj, view, flags);" % (clause, t, get))
                 clause = "else if"
             code.putln("else {")
         code.putln("PyErr_Format(PyExc_TypeError, \"'%100s' does not have the buffer interface\", Py_TYPE(obj)->tp_name);")
@@ -2027,8 +2043,9 @@ static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
         if len(types) > 0:
             clause = "if"
             for t, get, release in types:
-                code.putln("%s (__Pyx_TypeTest(obj, %s)) %s(obj, view);" % (clause, t, release))
-                clause = "else if"
+                if release:
+                    code.putln("%s (PyObject_TypeCheck(obj, %s)) %s(obj, view);" % (clause, t, release))
+                    clause = "else if"
         code.putln("}")
         code.putln("")
         code.putln("#endif")

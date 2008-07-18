@@ -627,8 +627,7 @@ class CBufferAccessTypeNode(Node):
     def analyse(self, env):
         base_type = self.base_type_node.analyse(env)
         dtype = self.dtype_node.analyse(env)
-        options = PyrexTypes.BufferOptions(dtype=dtype, ndim=self.ndim)
-        self.type = PyrexTypes.create_buffer_type(base_type, options)
+        self.type = PyrexTypes.BufferType(base_type, dtype=dtype, ndim=self.ndim)
         return self.type
 
 class CComplexBaseTypeNode(CBaseTypeNode):

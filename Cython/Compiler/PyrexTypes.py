@@ -6,21 +6,6 @@ from Cython import Utils
 import Naming
 import copy
 
-class BufferOptions:
-    # dtype         PyrexType
-    # ndim          int
-    def __init__(self, dtype, ndim):
-        self.dtype = dtype
-        self.ndim = ndim
-
-
-def create_buffer_type(base_type, buffer_options):
-    # Make a shallow copy of base_type and then annotate it
-    # with the buffer information
-    result = copy.copy(base_type)
-    result.buffer_options = buffer_options
-    return result
-
 
 class BaseType:
     #
@@ -57,6 +42,7 @@ class PyrexType(BaseType):
     #  is_unicode            boolean     Is a UTF-8 encoded C char * type
     #  is_returncode         boolean     Is used only to signal exceptions
     #  is_error              boolean     Is the dummy error type
+    #  is_buffer             boolean     Is buffer access type
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  default_value         string      Initial value
     #  parsetuple_format     string      Format char for PyArg_ParseTuple
@@ -106,11 +92,11 @@ class PyrexType(BaseType):
     is_unicode = 0
     is_returncode = 0
     is_error = 0
+    is_buffer = 0
     has_attributes = 0
     default_value = ""
     parsetuple_format = ""
     pymemberdef_typecode = None
-    buffer_options = None # can contain a BufferOptions instance
     
     def resolve(self):
         # If a typedef, returns the base type.
@@ -202,6 +188,26 @@ class CTypedefType(BaseType):
     def __getattr__(self, name):
         return getattr(self.typedef_base_type, name)
 
+class BufferType(BaseType):
+    #
+    #  Delegates most attribute
+    #  lookups to the base type. ANYTHING NOT DEFINED
+    #  HERE IS DELEGATED!
+    
+    # dtype         PyrexType
+    # ndim          int
+
+    is_buffer = 1
+
+    def __init__(self, base, dtype, ndim):
+        self.base = base
+        self.dtype = dtype
+        self.ndim = ndim
+    
+    def __getattr__(self, name):
+        return getattr(self.base, name)
+
+    
 class PyObjectType(PyrexType):
     #
     #  Base class for all Python object types (reference-counted).
@@ -927,7 +933,7 @@ class CEnumType(CType):
     #  name           string
     #  cname          string or None
     #  typedef_flag   boolean
-    
+
     is_enum = 1
     signed = 1
     rank = -1 # Ranks below any integer type
