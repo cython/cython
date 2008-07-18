@@ -64,13 +64,17 @@ class CCodeWriter:
         dl = code.count("{") - code.count("}")
         if dl < 0:
             self.level += dl
+        elif dl == 0 and code.startswith('}'):
+            self.level -= 1
         if self.bol:
             self.indent()
         self._write(code)
         self.bol = 0
         if dl > 0:
             self.level += dl
-    
+        elif dl == 0 and code.startswith('}'):
+            self.level += 1
+
     def increase_indent(self):
         self.level = self.level + 1
     
@@ -200,6 +204,8 @@ class CCodeWriter:
     def put_var_declaration(self, entry, static = 0, dll_linkage = None,
             definition = True):
         #print "Code.put_var_declaration:", entry.name, "definition =", definition ###
+        if entry.in_closure:
+            return
         visibility = entry.visibility
         if visibility == 'private' and not definition:
             #print "...private and not definition, skipping" ###

@@ -5,6 +5,7 @@
 import os, time
 from cStringIO import StringIO
 from PyrexTypes import CPtrType
+import Future
 
 try:
     set
@@ -25,6 +26,10 @@ from PyrexTypes import py_object_type
 from Cython.Utils import open_new_file, replace_suffix
 
 
+def check_c_classes(module_node):
+    module_node.scope.check_c_classes()
+    return module_node
+
 class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  doc       string or None
     #  body      StatListNode
@@ -32,6 +37,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  referenced_modules   [ModuleScope]
     #  module_temp_cname    string
     #  full_module_name     string
+    #
+    #  scope                The module scope.
+    #  compilation_source   A CompilationSource (see Main)
 
     child_attrs = ["body"]
     
@@ -44,10 +52,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             env.doc = self.doc
         self.body.analyse_declarations(env)
     
-    def process_implementation(self, env, options, result):
-        self.analyse_declarations(env)
-        env.check_c_classes()
-        self.body.analyse_expressions(env)
+    def process_implementation(self, options, result):
+        env = self.scope
         env.return_type = PyrexTypes.c_void_type
         self.referenced_modules = []
         self.find_referenced_modules(env, self.referenced_modules, {})
@@ -254,6 +260,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_module_cleanup_func(env, code)
         self.generate_filename_table(code)
         self.generate_utility_functions(env, code)
+        self.generate_buffer_compatability_functions(env, code)
 
         self.generate_declarations_for_modules(env, modules, code.h)
 
@@ -433,6 +440,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyBUF_F_CONTIGUOUS (0x0040 | PyBUF_STRIDES)")
         code.putln("  #define PyBUF_ANY_CONTIGUOUS (0x0080 | PyBUF_STRIDES)")
         code.putln("  #define PyBUF_INDIRECT (0x0100 | PyBUF_STRIDES)")
+        code.putln("")
+        code.putln("  static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags);")
+        code.putln("  static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view);")
         code.putln("#endif")
 
         code.put(builtin_module_name_utility_code[0])
@@ -458,8 +468,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyInt_AsSsize_t              PyLong_AsSsize_t")
         code.putln("  #define PyInt_AsUnsignedLongMask     PyLong_AsUnsignedLongMask")
         code.putln("  #define PyInt_AsUnsignedLongLongMask PyLong_AsUnsignedLongLongMask")
-        code.putln("  #define PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)")
+        code.putln("  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)")
         code.putln("#else")
+        if Future.division in env.context.future_directives:
+            code.putln("  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)")
+        else:
+            code.putln("  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_Divide(x,y)")
         code.putln("  #define PyBytes_Type                 PyString_Type")
         code.putln("#endif")
 
@@ -473,6 +487,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#ifndef __cdecl")
         code.putln("  #define __cdecl")
         code.putln("#endif")
+        code.putln('');
+        code.putln('#define %s 0xB0000000B000B0BBLL' % Naming.default_error);
+        code.putln('');
         self.generate_extern_c_macro_definition(code)
         code.putln("#include <math.h>")
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
@@ -1940,6 +1957,90 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.h.put(utility_code[0])
             code.put(utility_code[1])
         code.put(PyrexTypes.type_conversion_functions)
+        code.putln("")
+
+    def generate_buffer_compatability_functions(self, env, code):
+        # will be refactored
+        try:
+            env.entries[u'numpy']
+            code.put("""
+static int numpy_getbuffer(PyObject *obj, Py_buffer *view, int flags) {
+  /* This function is always called after a type-check; safe to cast */
+  PyArrayObject *arr = (PyArrayObject*)obj;
+  PyArray_Descr *type = (PyArray_Descr*)arr->descr;
+
+  
+  int typenum = PyArray_TYPE(obj);
+  if (!PyTypeNum_ISNUMBER(typenum)) {
+    PyErr_Format(PyExc_TypeError, "Only numeric NumPy types currently supported.");
+    return -1;
+  }
+
+  /*
+  NumPy format codes doesn't completely match buffer codes;
+  seems safest to retranslate.
+                            01234567890123456789012345*/
+  const char* base_codes = "?bBhHiIlLqQfdgfdgO";
+
+  char* format = (char*)malloc(4);
+  char* fp = format;
+  *fp++ = type->byteorder;
+  if (PyTypeNum_ISCOMPLEX(typenum)) *fp++ = 'Z';
+  *fp++ = base_codes[typenum];
+  *fp = 0;
+
+  view->buf = arr->data;
+  view->readonly = !PyArray_ISWRITEABLE(obj);
+  view->ndim = PyArray_NDIM(arr);
+  view->strides = PyArray_STRIDES(arr);
+  view->shape = PyArray_DIMS(arr);
+  view->suboffsets = NULL;
+  view->format = format;
+  view->itemsize = type->elsize;
+
+  view->internal = 0;
+  return 0;
+}
+
+static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
+  free((char*)view->format);
+  view->format = NULL;
+}
+
+""")
+        except KeyError:
+            pass
+        
+        # For now, hard-code numpy imported as "numpy"
+        types = []
+        try:
+            ndarrtype = env.entries[u'numpy'].as_module.entries['ndarray'].type
+            types.append((ndarrtype.typeptr_cname, "numpy_getbuffer", "numpy_releasebuffer"))
+        except KeyError:
+            pass
+        code.putln("#if PY_VERSION_HEX < 0x02060000")
+        code.putln("static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {")
+        if len(types) > 0:
+            clause = "if"
+            for t, get, release in types:
+                code.putln("%s (__Pyx_TypeTest(obj, %s)) return %s(obj, view, flags);" % (clause, t, get))
+                clause = "else if"
+            code.putln("else {")
+        code.putln("PyErr_Format(PyExc_TypeError, \"'%100s' does not have the buffer interface\", Py_TYPE(obj)->tp_name);")
+        code.putln("return -1;")
+        if len(types) > 0: code.putln("}")
+        code.putln("}")
+        code.putln("")
+        code.putln("static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view) {")
+        if len(types) > 0:
+            clause = "if"
+            for t, get, release in types:
+                code.putln("%s (__Pyx_TypeTest(obj, %s)) %s(obj, view);" % (clause, t, release))
+                clause = "else if"
+        code.putln("}")
+        code.putln("")
+        code.putln("#endif")
+
 
 #------------------------------------------------------------------------------------
 #

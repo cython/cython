@@ -65,6 +65,7 @@ def make_lexicon():
     escapeseq = Str("\\") + (two_oct | three_oct | two_hex |
                              Str('u') + four_hex | Str('x') + two_hex | AnyChar)
     
+    deco = Str("@")
     bra = Any("([{")
     ket = Any(")]}")
     punct = Any(":,;+-*/|&<>=.%`~^?")
@@ -82,6 +83,7 @@ def make_lexicon():
         (longconst, 'LONG'),
         (fltconst, 'FLOAT'),
         (imagconst, 'IMAG'),
+        (deco, 'DECORATOR'),
         (punct | diphthong, TEXT),
         
         (bra, Method('open_bracket_action')),

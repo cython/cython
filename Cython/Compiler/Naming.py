@@ -8,6 +8,8 @@
 
 pyrex_prefix    = "__pyx_"
 
+temp_prefix       = u"__cyt_"
+
 builtin_prefix    = pyrex_prefix + "builtin_"
 arg_prefix        = pyrex_prefix + "arg_"
 funcdoc_prefix    = pyrex_prefix + "doc_"
@@ -70,6 +72,9 @@ optional_args_cname = pyrex_prefix + "optional_args"
 no_opt_args      = pyrex_prefix + "no_opt_args"
 import_star      = pyrex_prefix + "import_star"
 import_star_set  = pyrex_prefix + "import_star_set"
+cur_scope_cname  = pyrex_prefix + "cur_scope"
+enc_scope_cname  = pyrex_prefix + "enc_scope"
+default_error    = pyrex_prefix + "ERROR"
 
 line_c_macro = "__LINE__"
 

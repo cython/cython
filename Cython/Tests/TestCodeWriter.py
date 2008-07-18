@@ -72,6 +72,9 @@ class TestCodeWriter(CythonTest):
 
     def test_inplace_assignment(self):
         self.t(u"x += 43")
+
+    def test_attribute(self):
+        self.t(u"a.x")
     
 if __name__ == "__main__":
     import unittest
