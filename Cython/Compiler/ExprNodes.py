@@ -972,7 +972,7 @@ class NameNode(AtomicExprNode):
             if entry.is_builtin:
                 namespace = Naming.builtins_cname
             else: # entry.is_pyglobal
-                namespace = entry.namespace_cname
+                namespace = entry.scope.namespace_cname
             code.putln(
                 '%s = __Pyx_GetName(%s, %s); %s' % (
                 self.result_code,
@@ -997,7 +997,7 @@ class NameNode(AtomicExprNode):
         # is_pyglobal seems to be True for module level-globals only.
         # We use this to access class->tp_dict if necessary.
         if entry.is_pyglobal:
-            namespace = self.entry.namespace_cname
+            namespace = self.entry.scope.namespace_cname
             if entry.is_member:
                 # if the entry is a member we have to cheat: SetAttr does not work
                 # on types, so we create a descriptor which is then added to tp_dict
@@ -1060,7 +1060,6 @@ class NameNode(AtomicExprNode):
             else:
                 code.annotate(pos, AnnotationItem('c_call', 'c function', size=len(self.name)))
             
-
 class BackquoteNode(ExprNode):
     #  `expr`
     #
@@ -1146,16 +1145,22 @@ class IteratorNode(ExprNode):
     
     def generate_result_code(self, code):
         code.putln(
-            "if (PyList_CheckExact(%s)) { %s = 0; %s = %s; Py_INCREF(%s); }" % (
+            "if (PyList_CheckExact(%s) || PyTuple_CheckExact(%s)) {" % (
                 self.sequence.py_result(),
+                self.sequence.py_result()))
+        code.putln(
+            "%s = 0; %s = %s; Py_INCREF(%s);" % (
                 self.counter.result_code,
                 self.result_code,
                 self.sequence.py_result(),
                 self.result_code))
-        code.putln("else { %s = PyObject_GetIter(%s); %s }" % (
+        code.putln("} else {")
+        code.putln("%s = -1; %s = PyObject_GetIter(%s); %s" % (
+                self.counter.result_code,
                 self.result_code,
                 self.sequence.py_result(),
                 code.error_goto_if_null(self.result_code, self.pos)))
+        code.putln("}")
 
 
 class NextNode(AtomicExprNode):
@@ -1174,15 +1179,19 @@ class NextNode(AtomicExprNode):
     
     def generate_result_code(self, code):
         code.putln(
-            "if (PyList_CheckExact(%s)) { if (%s >= PyList_GET_SIZE(%s)) break; %s = PyList_GET_ITEM(%s, %s++); Py_INCREF(%s); }" % (
-                self.iterator.py_result(),
+            "if (likely(%s != -1)) {" % self.iterator.counter.result_code)
+        code.putln(
+            "if (%s >= PySequence_Fast_GET_SIZE(%s)) break;" % (
                 self.iterator.counter.result_code,
-                self.iterator.py_result(),
+                self.iterator.py_result()))
+        code.putln(
+            "%s = PySequence_Fast_GET_ITEM(%s, %s); Py_INCREF(%s); %s++;" % (
                 self.result_code,
                 self.iterator.py_result(),
                 self.iterator.counter.result_code,
-                self.result_code))
-        code.putln("else {")
+                self.result_code,
+                self.iterator.counter.result_code))
+        code.putln("} else {")
         code.putln(
             "%s = PyIter_Next(%s);" % (
                 self.result_code,
@@ -1210,6 +1219,9 @@ class ExcValueNode(AtomicExprNode):
         return self.var
 
     def generate_result_code(self, code):
+        pass
+
+    def analyse_types(self, env):
         pass
 
 
@@ -1249,8 +1261,19 @@ class IndexNode(ExprNode):
     #
     #  base     ExprNode
     #  index    ExprNode
+    #  indices  [ExprNode]
+    #  is_buffer_access boolean Whether this is a buffer access.
+    #
+    #  indices is used on buffer access, index on non-buffer access.
+    #  The former contains a clean list of index parameters, the
+    #  latter whatever Python object is needed for index access.
     
-    subexprs = ['base', 'index']
+    subexprs = ['base', 'index', 'indices']
+    indices = None
+
+    def __init__(self, pos, index, *args, **kw):
+        ExprNode.__init__(self, pos, index=index, *args, **kw)
+        self._index = index
     
     def compile_time_value(self, denv):
         base = self.base.compile_time_value(denv)
@@ -1271,38 +1294,73 @@ class IndexNode(ExprNode):
     
     def analyse_target_types(self, env):
         self.analyse_base_and_index_types(env, setting = 1)
-    
+
     def analyse_base_and_index_types(self, env, getting = 0, setting = 0):
+        self.is_buffer_access = False
+
         self.base.analyse_types(env)
-        self.index.analyse_types(env)
-        if self.base.type.is_pyobject:
-            if self.index.type.is_int:
-                self.original_index_type = self.index.type
-                self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
-                if getting:
-                    env.use_utility_code(getitem_int_utility_code)
-                if setting:
-                    env.use_utility_code(setitem_int_utility_code)
+
+        skip_child_analysis = False
+        buffer_access = False
+        if self.base.type.buffer_options is not None:
+            if isinstance(self.index, TupleNode):
+                indices = self.index.args
             else:
-                self.index = self.index.coerce_to_pyobject(env)
-            self.type = py_object_type
-            self.gil_check(env)
-            self.is_temp = 1
-        else:
-            if self.base.type.is_ptr or self.base.type.is_array:
-                self.type = self.base.type.base_type
+                indices = [self.index]
+            if len(indices) == self.base.type.buffer_options.ndim:
+                buffer_access = True
+                skip_child_analysis = True
+                for x in indices:
+                    x.analyse_types(env)
+                    if not x.type.is_int:
+                        buffer_access = False
+                if buffer_access:
+                    # self.indices = [
+                    #   x.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
+                    # for x in  indices]
+                    self.indices = indices
+                    self.index = None
+                    self.type = self.base.type.buffer_options.dtype 
+                    self.is_temp = 1
+                    self.is_buffer_access = True
+            
+        # Note: This might be cleaned up by having IndexNode
+        # parsed in a saner way and only construct the tuple if
+        # needed.
+
+        if not buffer_access:
+            if isinstance(self.index, TupleNode):
+                self.index.analyse_types(env, skip_children=skip_child_analysis)
+            elif not skip_child_analysis:
+                self.index.analyse_types(env)
+            if self.base.type.is_pyobject:
+                if self.index.type.is_int:
+                    self.original_index_type = self.index.type
+                    self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
+                    if getting:
+                        env.use_utility_code(getitem_int_utility_code)
+                    if setting:
+                        env.use_utility_code(setitem_int_utility_code)
+                else:
+                    self.index = self.index.coerce_to_pyobject(env)
+                self.type = py_object_type
+                self.gil_check(env)
+                self.is_temp = 1
             else:
-                error(self.pos,
-                    "Attempting to index non-array type '%s'" %
-                        self.base.type)
-                self.type = PyrexTypes.error_type
-            if self.index.type.is_pyobject:
-                self.index = self.index.coerce_to(
-                    PyrexTypes.c_py_ssize_t_type, env)
-            if not self.index.type.is_int:
-                error(self.pos,
-                    "Invalid index type '%s'" %
-                        self.index.type)
+                if self.base.type.is_ptr or self.base.type.is_array:
+                    self.type = self.base.type.base_type
+                else:
+                    error(self.pos,
+                        "Attempting to index non-array type '%s'" %
+                            self.base.type)
+                    self.type = PyrexTypes.error_type
+                if self.index.type.is_pyobject:
+                    self.index = self.index.coerce_to(
+                        PyrexTypes.c_py_ssize_t_type, env)
+                if not self.index.type.is_int:
+                    error(self.pos,
+                        "Invalid index type '%s'" %
+                            self.index.type)
 
     gil_message = "Indexing Python object"
 
@@ -1314,8 +1372,11 @@ class IndexNode(ExprNode):
         return 1
     
     def calculate_result_code(self):
-        return "(%s[%s])" % (
-            self.base.result_code, self.index.result_code)
+        if self.is_buffer_access:
+            return "<not needed>"
+        else:
+            return "(%s[%s])" % (
+                self.base.result_code, self.index.result_code)
             
     def index_unsigned_parameter(self):
         if self.index.type.is_int:
@@ -1328,11 +1389,17 @@ class IndexNode(ExprNode):
 
     def generate_subexpr_evaluation_code(self, code):
         self.base.generate_evaluation_code(code)
-        self.index.generate_evaluation_code(code)
+        if self.index is not None:
+            self.index.generate_evaluation_code(code)
+        else:
+            for i in self.indices: i.generate_evaluation_code(code)
         
     def generate_subexpr_disposal_code(self, code):
         self.base.generate_disposal_code(code)
-        self.index.generate_disposal_code(code)
+        if self.index is not None:
+            self.index.generate_disposal_code(code)
+        else:
+            for i in self.indices: i.generate_disposal_code(code)
 
     def generate_result_code(self, code):
         if self.type.is_pyobject:
@@ -1601,6 +1668,17 @@ class SimpleCallNode(CallNode):
         if func_type.is_ptr:
             func_type = func_type.base_type
         return func_type
+        
+    def exception_checks(self):
+        func_type = self.function.type
+        exc_val = func_type.exception_value
+        exc_check = func_type.exception_check
+        if exc_val is None and self.function.entry.visibility != 'extern':
+            return_type = func_type.return_type
+            if not return_type.is_struct_or_union and not return_type.is_void:
+                exc_val = return_type.cast_code(Naming.default_error)
+            exc_check = 1
+        return exc_val, exc_check
     
     def analyse_c_function_call(self, env):
         func_type = self.function_type()
@@ -1643,12 +1721,13 @@ class SimpleCallNode(CallNode):
                     "Python object cannot be passed as a varargs parameter")
         # Calc result type and code fragment
         self.type = func_type.return_type
-        if self.type.is_pyobject \
-            or func_type.exception_value is not None \
-            or func_type.exception_check:
+        if self.type.is_pyobject:
+            self.is_temp = 1
+            self.result_ctype = py_object_type
+        else:
+            exc_val, exc_check = self.exception_checks()
+            if self.type.is_pyobject or exc_val is not None or exc_check:
                 self.is_temp = 1
-                if self.type.is_pyobject:
-                    self.result_ctype = py_object_type
         # C++ exception handler
         if func_type.exception_check == '+':
             if func_type.exception_value is None:
@@ -1713,8 +1792,7 @@ class SimpleCallNode(CallNode):
             if self.type.is_pyobject:
                 exc_checks.append("!%s" % self.result_code)
             else:
-                exc_val = func_type.exception_value
-                exc_check = func_type.exception_check
+                exc_val, exc_check = self.exception_checks()
                 if exc_val is not None:
                     exc_checks.append("%s == %s" % (self.result_code, exc_val))
                 if exc_check:
@@ -2166,10 +2244,10 @@ class SequenceNode(ExprNode):
         for arg in self.args:
             arg.analyse_target_declaration(env)
 
-    def analyse_types(self, env):
+    def analyse_types(self, env, skip_children=False):
         for i in range(len(self.args)):
             arg = self.args[i]
-            arg.analyse_types(env)
+            if not skip_children: arg.analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
         self.type = py_object_type
         self.gil_check(env)
@@ -2274,12 +2352,12 @@ class TupleNode(SequenceNode):
 
     gil_message = "Constructing Python tuple"
 
-    def analyse_types(self, env):
+    def analyse_types(self, env, skip_children=False):
         if len(self.args) == 0:
             self.is_temp = 0
             self.is_literal = 1
         else:
-            SequenceNode.analyse_types(self, env)
+            SequenceNode.analyse_types(self, env, skip_children)
         self.type = tuple_type
             
     def calculate_result_code(self):
@@ -2782,15 +2860,20 @@ def unop_node(pos, operator, operand):
 class TypecastNode(ExprNode):
     #  C type cast
     #
+    #  operand      ExprNode
     #  base_type    CBaseTypeNode
     #  declarator   CDeclaratorNode
-    #  operand      ExprNode
+    #
+    #  If used from a transform, one can if wanted specify the attribute
+    #  "type" directly and leave base_type and declarator to None
     
     subexprs = ['operand']
+    base_type = declarator = type = None
     
     def analyse_types(self, env):
-        base_type = self.base_type.analyse(env)
-        _, self.type = self.declarator.analyse(base_type, env)
+        if self.type is None:
+            base_type = self.base_type.analyse(env)
+            _, self.type = self.declarator.analyse(base_type, env)
         if self.type.is_cfunction:
             error(self.pos,
                 "Cannot cast to a function type")
@@ -3061,7 +3144,7 @@ class NumBinopNode(BinopNode):
         "+":		"PyNumber_Add",
         "-":		"PyNumber_Subtract",
         "*":		"PyNumber_Multiply",
-        "/":		"PyNumber_Divide",
+        "/":		"__Pyx_PyNumber_Divide",
         "//":		"PyNumber_FloorDivide",
         "%":		"PyNumber_Remainder",
         "**":       "PyNumber_Power"
@@ -3811,6 +3894,10 @@ class CoerceToPyTypeNode(CoercionNode):
 
     gil_message = "Converting to Python object"
 
+    def analyse_types(self, env):
+        # The arg is always already analysed
+        pass
+
     def generate_result_code(self, code):
         function = self.arg.type.to_py_function
         code.putln('%s = %s(%s); %s' % (
@@ -3835,6 +3922,10 @@ class CoerceFromPyTypeNode(CoercionNode):
             error(arg.pos,
                 "Obtaining char * from temporary Python value")
     
+    def analyse_types(self, env):
+        # The arg is always already analysed
+        pass
+
     def generate_result_code(self, code):
         function = self.type.from_py_function
         operand = self.arg.py_result()
@@ -3893,6 +3984,10 @@ class CoerceToTempNode(CoercionNode):
 
     gil_message = "Creating temporary Python reference"
 
+    def analyse_types(self, env):
+        # The arg is always already analysed
+        pass
+
     def generate_result_code(self, code):
         #self.arg.generate_evaluation_code(code) # Already done
         # by generic generate_subexpr_evaluation_code!
@@ -3944,6 +4039,65 @@ class CloneNode(CoercionNode):
         
     def release_temp(self, env):
         pass
+        
+class PersistentNode(ExprNode):
+    # A PersistentNode is like a CloneNode except it handles the temporary
+    # allocation itself by keeping track of the number of times it has been 
+    # used. 
+    
+    subexprs = ["arg"]
+    temp_counter = 0
+    generate_counter = 0
+    analyse_counter = 0
+    result_code = None
+    
+    def __init__(self, arg, uses):
+        self.pos = arg.pos
+        self.arg = arg
+        self.uses = uses
+        
+    def analyse_types(self, env):
+        if self.analyse_counter == 0:
+            self.arg.analyse_types(env)
+            self.type = self.arg.type
+            self.result_ctype = self.arg.result_ctype
+            self.is_temp = 1
+        self.analyse_counter += 1
+    
+    def calculate_result_code(self):
+        return self.result_code
+
+    def generate_evaluation_code(self, code):
+        if self.generate_counter == 0:
+            self.arg.generate_evaluation_code(code)
+            code.putln("%s = %s;" % (
+                self.result_code, self.arg.result_as(self.ctype())))
+            if self.type.is_pyobject:
+                code.put_incref(self.result_code, self.ctype())
+            self.arg.generate_disposal_code(code)
+        self.generate_counter += 1
+                
+    def generate_disposal_code(self, code):
+        if self.generate_counter == self.uses:
+            if self.type.is_pyobject:
+                code.put_decref_clear(self.result_code, self.ctype())
+
+    def allocate_temps(self, env, result=None):
+        if self.temp_counter == 0:
+            self.arg.allocate_temps(env)
+            self.allocate_temp(env, result)
+            self.arg.release_temp(env)
+        self.temp_counter += 1
+        
+    def allocate_temp(self, env, result=None):
+        if result is None:
+            self.result_code = env.allocate_temp(self.type)
+        else:
+            self.result_code = result
+        
+    def release_temp(self, env):
+        if self.temp_counter == self.uses:
+            env.release_temp(self.result_code)
     
 #------------------------------------------------------------------------------------
 #

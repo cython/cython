@@ -1,9 +1,11 @@
 #
 #   Tree visitor and transform framework
 #
+import inspect
 import Nodes
 import ExprNodes
-import inspect
+import Naming
+from Cython.Utils import EncodedString
 
 class BasicVisitor(object):
     """A generic visitor base class which can be used for visiting any kind of object."""
@@ -129,7 +131,6 @@ class VisitorTransform(TreeVisitor):
     was not, an exception will be raised. (Typically you want to ensure that you
     are within a StatListNode or similar before doing this.)
     """
-    
     def visitchildren(self, parent, attrs=None):
         result = super(VisitorTransform, self).visitchildren(parent, attrs)
         for attr, newnode in result.iteritems():
@@ -150,6 +151,19 @@ class VisitorTransform(TreeVisitor):
     def __call__(self, root):
         return self.visit(root)
 
+class CythonTransform(VisitorTransform):
+    """
+    Certain common conventions and utilitues for Cython transforms.
+    """
+    def __init__(self, context):
+        super(CythonTransform, self).__init__()
+        self.context = context
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
+        return node
+
+
 # Utils
 def ensure_statlist(node):
     if not isinstance(node, Nodes.StatListNode):
@@ -166,12 +180,29 @@ def replace_node(ptr, value):
     else:
         getattr(parent, attrname)[listidx] = value
 
+tmpnamectr = 0
+def temp_name_handle(description=None):
+    global tmpnamectr
+    tmpnamectr += 1
+    if description is not None:
+        name = u"%d_%s" % (tmpnamectr, description)
+    else:
+        name = u"%d" % tmpnamectr
+    return EncodedString(Naming.temp_prefix + name)
+
+def get_temp_name_handle_desc(handle):
+    if not handle.startswith(u"__cyt_"):
+        return None
+    else:
+        idx = handle.find(u"_", 6)
+        return handle[idx+1:]
+    
 class PrintTree(TreeVisitor):
     """Prints a representation of the tree to standard output.
     Subclass and override repr_of to provide more information
     about nodes. """
     def __init__(self):
-        Transform.__init__(self)
+        TreeVisitor.__init__(self)
         self._indent = ""
 
     def indent(self):
@@ -181,6 +212,8 @@ class PrintTree(TreeVisitor):
 
     def __call__(self, tree, phase=None):
         print("Parse tree dump at phase '%s'" % phase)
+        self.visit(tree)
+        return tree
 
     # Don't do anything about process_list, the defaults gives
     # nice-looking name[idx] nodes which will visually appear

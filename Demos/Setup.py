@@ -7,6 +7,7 @@ from Cython.Distutils import build_ext
 ext_modules=[ 
     Extension("primes",       ["primes.pyx"]),
     Extension("spam",         ["spam.pyx"]),
+#    Extension("optargs",      ["optargs.pyx"], language = "c++"),
 ]
 
 for file in glob.glob("*.pyx"):
