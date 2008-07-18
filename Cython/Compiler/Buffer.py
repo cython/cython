@@ -97,12 +97,12 @@ class BufferTransform(CythonTransform):
         # For all buffers, insert extra variables in the scope.
         # The variables are also accessible from the buffer_info
         # on the buffer entry
-        bufvars = [(name, entry) for name, entry
+        bufvars = [entry for name, entry
                    in scope.entries.iteritems()
                    if entry.type.is_buffer]
                    
-        for name, entry in bufvars:
-            
+        for entry in bufvars:
+            name = entry.name
             buftype = entry.type
 
             # Get or make a type string checker
@@ -130,6 +130,7 @@ class BufferTransform(CythonTransform):
             entry.buffer_aux = Symtab.BufferAux(bufinfo, stridevars, 
                                                 shapevars, tschecker)
             entry.buffer_aux.temp_var = temp_var
+        scope.buffer_entries = bufvars
         self.scope = scope
 
     # Notes: The cast to <char*> gets around Cython not supporting const types
@@ -223,10 +224,31 @@ class BufferTransform(CythonTransform):
 
         return result
 
+    buffer_cleanup_fragment = TreeFragment(u"""
+        if BUF is not None:
+            __cython__.PyObject_ReleaseBuffer(<__cython__.PyObject*>BUF, &BUFINFO)
+    """)
+    def funcdef_buffer_cleanup(self, node):
+        pos = node.pos
+        env = node.local_scope
+        cleanups = [self.buffer_cleanup_fragment.substitute({
+                u"BUF" : NameNode(pos, name=entry.name),
+                u"BUFINFO": NameNode(pos, name=entry.buffer_aux.buffer_info_var.name)
+                })
+            for entry in node.local_scope.buffer_entries]
+        cleanup_stats = []
+        for c in cleanups: cleanup_stats += c.stats
+        cleanup = StatListNode(pos, stats=cleanup_stats)
+        cleanup.analyse_expressions(env) 
 
+        result = TryFinallyStatNode.create_analysed(pos, env, body=node.body, finally_clause=cleanup)
+        node.body = result
+        return node
+        
     #
     # Transforms
     #
+    
     def visit_ModuleNode(self, node):
         self.handle_scope(node, node.scope)
         self.visitchildren(node)
@@ -235,7 +257,7 @@ class BufferTransform(CythonTransform):
     def visit_FuncDefNode(self, node):
         self.handle_scope(node, node.local_scope)
         self.visitchildren(node)
-        return node
+        return self.funcdef_buffer_cleanup(node)
 
     def visit_SingleAssignmentNode(self, node):
         # On assignments, two buffer-related things can happen:

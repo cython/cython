@@ -251,6 +251,11 @@ class StatListNode(Node):
     # stats     a list of StatNode
     
     child_attrs = ["stats"]
+
+    def create_analysed(pos, env, *args, **kw):
+        node = StatListNode(pos, *args, **kw)
+        return node # No node-specific analysis necesarry
+    create_analysed = staticmethod(create_analysed)
     
     def analyse_control_flow(self, env):
         for stat in self.stats:
@@ -3522,6 +3527,12 @@ class TryFinallyStatNode(StatNode):
     # There doesn't seem to be any point in disallowing
     # continue in the try block, since we have no problem
     # handling it.
+
+    def create_analysed(pos, env, body, finally_clause):
+        node = TryFinallyStatNode(pos, body=body, finally_clause=finally_clause)
+        node.cleanup_list = []
+        return node
+    create_analysed = staticmethod(create_analysed)
     
     def analyse_control_flow(self, env):
         env.start_branching(self.pos)
