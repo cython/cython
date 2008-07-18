@@ -1,16 +1,54 @@
 cimport __cython__
 
 __doc__ = u"""
-    >>> fb = MockBuffer("=f", "f", [1.0, 1.25, 0.75, 1.0], (2,2))
-    >>> printbuf_float(fb, (2,2))
-    1.0 1.25
-    0.75 1.0
+    >>> A = MockBuffer("i", range(10), label="A")
+    >>> B = MockBuffer("i", range(10), label="B")
+    >>> E = ErrorBuffer("E")
+    >>> acquire_release(A, B)
+    acquired A
+    released A
+    acquired B
+    released B
+    >>> acquire_raise(A)
+    acquired A
+    released A
+    Traceback (most recent call last):
+        ...
+    Exception: on purpose
+    >>> printbuf_float(MockBuffer("f", [1.0, 1.25, 0.75, 1.0]), (4,))
+    acquired
+    1.0 1.25 0.75 1.0
+    released
+    >>> printbuf_int_2d(MockBuffer("i", range(6), (2,3)), (2,3))
+    acquired
+    0 1 2
+    3 4 5
+    released
 """
 
+def acquire_release(o1, o2):
+    cdef object[int] buf
+    buf = o1
+    buf = o2
 
+def acquire_raise(o):
+    cdef object[int] buf
+    buf = o
+    raise Exception("on purpose")
+    
 def printbuf_float(o, shape):
     # should make shape builtin
-    cdef object[float, 2] buf
+    cdef object[float] buf
+    buf = o
+    cdef int i, j
+    for i in range(shape[0]):
+        print buf[i],
+    print
+ 
+
+def printbuf_int_2d(o, shape):
+    # should make shape builtin
+    cdef object[int, 2] buf
     buf = o
     cdef int i, j
     for i in range(shape[0]):
@@ -19,10 +57,21 @@ def printbuf_float(o, shape):
         print
  
 
+ctypedef char* (*write_func_ptr)(char*, object)
+cdef char* write_float(char* buf, object value):
+    (<float*>buf)[0] = <float>value
+    return buf + sizeof(float)
+cdef char* write_int(char* buf, object value):
+    (<int*>buf)[0] = <int>value
+    return buf + sizeof(int)
 
-sizes = {
-    'f': sizeof(float)
-} 
+# long can hold  a pointer on all target platforms,
+# though really we should have a seperate typedef for this..
+# TODO: Should create subclasses of MockBuffer instead.
+typemap = {
+    'f': (sizeof(float), <unsigned long>&write_float),
+    'i': (sizeof(int), <unsigned long>&write_int)
+}
  
 cimport stdlib
 
@@ -32,14 +81,21 @@ cdef class MockBuffer:
     cdef int len, itemsize, ndim
     cdef Py_ssize_t* strides
     cdef Py_ssize_t* shape
+    cdef write_func_ptr wfunc
+    cdef object label
     
-    def __init__(self, format, typechar, data, shape=None, strides=None):
-        self.itemsize = sizes[typechar]
+    def __init__(self, typechar, data, shape=None, strides=None, format=None, label=None):
+        self.label = label
+        if format is None: format = "=%s" % typechar
+        self.itemsize, x = typemap[typechar]
+        self.wfunc = <write_func_ptr><unsigned long>x
         if shape is None: shape = (len(data),)
         if strides is None:
             strides = []
             cumprod = 1
-            for s in shape:
+            rshape = list(shape)
+            rshape.reverse()
+            for s in rshape:
                 strides.append(cumprod)
                 cumprod *= s
             strides.reverse()
@@ -68,11 +124,32 @@ cdef class MockBuffer:
         buffer.suboffsets = NULL
         buffer.itemsize = self.itemsize
         buffer.internal = NULL
+        print "acquired",
+        if self.label:
+            print self.label
+        else:
+            print
+
+    def __releasebuffer__(MockBuffer self, Py_buffer* buffer):
+        print "released",
+        if self.label:
+            print self.label
+        else:
+            print
         
     cdef fill_buffer(self, typechar, object data):
-        cdef int idx = 0
+        cdef char* it = self.buffer
         for value in data:
-            (<float*>(self.buffer + idx))[0] = <float>value
-            idx += sizeof(float)
+            it = self.wfunc(it, value)
             
-            
+cdef class ErrorBuffer:
+    cdef object label
+    
+    def __init__(self, label):
+        self.label = label
+
+    def __getbuffer__(MockBuffer self, Py_buffer* buffer, int flags):
+        raise Exception("acquiring %s" % self.label)
+
+    def __releasebuffer__(MockBuffer self, Py_buffer* buffer):
+        raise Exception("releasing %s" % self.label)
