@@ -8,7 +8,7 @@ from Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
 import ExprNodes
 from ModuleNode import ModuleNode
-from Errors import error, InternalError
+from Errors import error, warning, InternalError
 from Cython import Utils
 import Future
 
@@ -2151,9 +2151,14 @@ def p_property_decl(s):
 
 def p_doc_string(s):
     if s.sy == 'BEGIN_STRING':
-        _, result = p_cat_string_literal(s)
+        pos = s.position()
+        kind, result = p_cat_string_literal(s)
         if s.sy != 'EOF':
             s.expect_newline("Syntax error in doc string")
+        if kind != 'u':
+            # warning(pos, "Python 3 requires docstrings to be unicode strings")
+            if kind == 'b':
+                result.encoding = None # force a unicode string
         return result
     else:
         return None
