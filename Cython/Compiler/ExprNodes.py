@@ -1670,7 +1670,7 @@ class SimpleCallNode(CallNode):
         return func_type
         
     def exception_checks(self):
-        func_type = self.function.type
+        func_type = self.function_type()
         exc_val = func_type.exception_value
         exc_check = func_type.exception_check
         if exc_val is None and self.function.entry.visibility != 'extern':

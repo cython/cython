@@ -358,6 +358,8 @@ class CNameDeclaratorNode(CDeclaratorNode):
     
     child_attrs = ['default']
     
+    default = None
+    
     def analyse(self, base_type, env, nonempty = 0):
         if nonempty and self.name == '':
             # Must have mistaken the name for the type. 
