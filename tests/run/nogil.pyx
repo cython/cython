@@ -1,8 +1,8 @@
 __doc__ = u"""
 >>> test(5)
-89
+47
 >>> test(11)
-95
+53
 """
 
 def test(int x):
