@@ -2,7 +2,12 @@
 __doc__ = """
    >>> test(1, 2)
    4 1 2 2 0
+   >>> A().value
+   4
 """
+
+cdef class A:
+    cdef int value = 4
 
 def test(x, int y):
     if True:
