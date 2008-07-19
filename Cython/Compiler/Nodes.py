@@ -177,7 +177,7 @@ class Node(object):
             if isinstance(x, Node):
                 return x.dump(level)
             elif isinstance(x, list):
-                return "[%s]" % ", ".join(dump_child(item, level) for item in x)
+                return "[%s]" % ", ".join([dump_child(item, level) for item in x])
             else:
                 return repr(x)
             
@@ -357,11 +357,13 @@ class CDeclaratorNode(Node):
 
 
 class CNameDeclaratorNode(CDeclaratorNode):
-    #  name   string             The Pyrex name being declared
-    #  cname  string or None     C name, if specified
-    #  rhs    ExprNode or None   the value assigned on declaration
+    #  name    string             The Pyrex name being declared
+    #  cname   string or None     C name, if specified
+    #  default ExprNode or None   the value assigned on declaration
     
-    child_attrs = []
+    child_attrs = ['default']
+    
+    default = None
     
     def analyse(self, base_type, env, nonempty = 0):
         if nonempty and self.name == '':
@@ -373,25 +375,25 @@ class CNameDeclaratorNode(CDeclaratorNode):
         
     def analyse_expressions(self, env):
         self.entry = env.lookup(self.name)
-        if self.rhs is not None:
-            env.control_flow.set_state(self.rhs.end_pos(), (self.entry.name, 'initalized'), True)
-            env.control_flow.set_state(self.rhs.end_pos(), (self.entry.name, 'source'), 'assignment')
+        if self.default is not None:
+            env.control_flow.set_state(self.default.end_pos(), (self.entry.name, 'initalized'), True)
+            env.control_flow.set_state(self.default.end_pos(), (self.entry.name, 'source'), 'assignment')
             self.entry.used = 1
             if self.type.is_pyobject:
                 self.entry.init_to_none = False
                 self.entry.init = 0
-            self.rhs.analyse_types(env)
-            self.rhs = self.rhs.coerce_to(self.type, env)
-            self.rhs.allocate_temps(env)
-            self.rhs.release_temp(env)
+            self.default.analyse_types(env)
+            self.default = self.default.coerce_to(self.type, env)
+            self.default.allocate_temps(env)
+            self.default.release_temp(env)
 
     def generate_execution_code(self, code):
-        if self.rhs is not None:
-            self.rhs.generate_evaluation_code(code)
+        if self.default is not None:
+            self.default.generate_evaluation_code(code)
             if self.type.is_pyobject:
-                self.rhs.make_owned_reference(code)
-            code.putln('%s = %s;' % (self.entry.cname, self.rhs.result_as(self.entry.type)))
-            self.rhs.generate_post_assignment_code(code)
+                self.default.make_owned_reference(code)
+            code.putln('%s = %s;' % (self.entry.cname, self.default.result_as(self.entry.type)))
+            self.default.generate_post_assignment_code(code)
             code.putln()
 
 class CPtrDeclaratorNode(CDeclaratorNode):
@@ -1211,11 +1213,18 @@ class CFuncDefNode(FuncDefNode):
         if self.return_type.is_pyobject:
             return "0"
         else:
-            #return None
-            return self.entry.type.exception_value
+            if self.entry.type.exception_value is not None:
+                return self.entry.type.exception_value
+            elif self.return_type.is_struct_or_union or self.return_type.is_void:
+                return None
+            else:
+                return self.return_type.cast_code(Naming.default_error)
             
     def caller_will_check_exceptions(self):
-        return self.entry.type.exception_check
+        if self.entry.type.exception_value is None:
+            return 1
+        else:
+            return self.entry.type.exception_check
                     
     def generate_optarg_wrapper_function(self, env, code):
         if self.type.optional_arg_count and \
@@ -1917,9 +1926,7 @@ class OverrideCheckNode(StatNode):
                                              function=self.func_node, 
                                              args=[ExprNodes.NameNode(self.pos, name=arg.name) for arg in self.args[first_arg:]])
         self.body = ReturnStatNode(self.pos, value=call_node)
-#        self.func_temp = env.allocate_temp_pyobject()
         self.body.analyse_expressions(env)
-#        env.release_temp(self.func_temp)
         
     def generate_execution_code(self, code):
         # Check to see if we are an extension type
@@ -1934,7 +1941,7 @@ class OverrideCheckNode(StatNode):
             code.putln("else {")
         else:
             code.putln("else if (unlikely(Py_TYPE(%s)->tp_dictoffset != 0)) {" % self_arg)
-        err = code.error_goto_if_null(self_arg, self.pos)
+        err = code.error_goto_if_null(self.func_node.result_code, self.pos)
         # need to get attribute manually--scope would return cdef method
         code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (self.func_node.result_code, self_arg, self.py_func.interned_attr_cname, err))
         # It appears that this type is not anywhere exposed in the Python/C API
@@ -1943,7 +1950,7 @@ class OverrideCheckNode(StatNode):
         code.putln('if (!%s || %s) {' % (is_builtin_function_or_method, is_overridden))
         self.body.generate_execution_code(code)
         code.putln('}')
-#        code.put_decref(self.func_temp, PyrexTypes.py_object_type)
+        code.put_decref_clear(self.func_node.result_code, PyrexTypes.py_object_type)
         code.putln("}")
 
 class ClassDefNode(StatNode, BlockNode):

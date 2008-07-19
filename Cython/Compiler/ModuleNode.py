@@ -5,6 +5,7 @@
 import os, time
 from cStringIO import StringIO
 from PyrexTypes import CPtrType
+import Future
 
 try:
     set
@@ -467,8 +468,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyInt_AsSsize_t              PyLong_AsSsize_t")
         code.putln("  #define PyInt_AsUnsignedLongMask     PyLong_AsUnsignedLongMask")
         code.putln("  #define PyInt_AsUnsignedLongLongMask PyLong_AsUnsignedLongLongMask")
-        code.putln("  #define PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)")
+        code.putln("  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)")
         code.putln("#else")
+        if Future.division in env.context.future_directives:
+            code.putln("  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)")
+        else:
+            code.putln("  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_Divide(x,y)")
         code.putln("  #define PyBytes_Type                 PyString_Type")
         code.putln("#endif")
 
@@ -482,6 +487,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#ifndef __cdecl")
         code.putln("  #define __cdecl")
         code.putln("#endif")
+        code.putln('');
+        code.putln('#define %s 0xB0000000B000B0BBLL' % Naming.default_error);
+        code.putln('');
         self.generate_extern_c_macro_definition(code)
         code.putln("#include <math.h>")
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
