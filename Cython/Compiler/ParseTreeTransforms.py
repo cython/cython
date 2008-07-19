@@ -91,6 +91,8 @@ class PostParse(CythonTransform):
     as such).
 
     Specifically:
+    - Default values to cdef assignments are turned into single
+    assignments following the declaration.
     - CBufferAccessTypeNode has its options interpreted:
     Any first positional argument goes into the "dtype" attribute,
     any "ndim" keyword argument goes into the "ndim" attribute and
@@ -100,6 +102,23 @@ class PostParse(CythonTransform):
     reorganization that can be refactored into this transform
     if a more pure Abstract Syntax Tree is wanted.
     """
+
+    def visit_CVarDefNode(self, node):
+        # This assumes only plain names and pointers are assignable on
+        # declaration.
+        self.visitchildren(node)
+        stats = [node]
+        for decl in node.declarators:
+            while isinstance(decl, CPtrDeclaratorNode):
+                decl = decl.base
+            if isinstance(decl, CNameDeclaratorNode):
+                if decl.default is not None:
+                    stats.append(SingleAssignmentNode(node.pos,
+                        lhs=NameNode(node.pos, name=decl.name),
+                        rhs=decl.default))
+                    decl.default = None
+        return stats
+            
 
     buffer_options = ("dtype", "ndim") # ordered!
     def visit_CBufferAccessTypeNode(self, node):
@@ -263,7 +282,7 @@ class AnalyseExpressionsTransform(CythonTransform):
         node.body.analyse_expressions(node.local_scope)
         self.visitchildren(node)
         return node
-        
+
 class MarkClosureVisitor(CythonTransform):
     
     needs_closure = False

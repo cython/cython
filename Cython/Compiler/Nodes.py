@@ -388,13 +388,9 @@ class CNameDeclaratorNode(CDeclaratorNode):
             self.default.release_temp(env)
 
     def generate_execution_code(self, code):
-        if self.default is not None:
-            self.default.generate_evaluation_code(code)
-            if self.type.is_pyobject:
-                self.default.make_owned_reference(code)
-            code.putln('%s = %s;' % (self.entry.cname, self.default.result_as(self.entry.type)))
-            self.default.generate_post_assignment_code(code)
-            code.putln()
+        assert self.default is None
+        # PostParse creates assignment statements for any
+        # default values
 
 class CPtrDeclaratorNode(CDeclaratorNode):
     # base     CDeclaratorNode
