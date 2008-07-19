@@ -72,11 +72,6 @@ class NormalizeTree(CythonTransform):
         else:
             return []
 
-    # Eliminate CascadedAssignmentNode
-    def visit_CascadedAssignmentNode(self, node):
-        tmpname = temp_name_handle()
-        
-
 
 class PostParseError(CompileError): pass
 
