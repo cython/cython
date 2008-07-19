@@ -1677,6 +1677,17 @@ class SimpleCallNode(CallNode):
         if func_type.is_ptr:
             func_type = func_type.base_type
         return func_type
+        
+    def exception_checks(self):
+        func_type = self.function_type()
+        exc_val = func_type.exception_value
+        exc_check = func_type.exception_check
+        if exc_val is None and self.function.entry.visibility != 'extern':
+            return_type = func_type.return_type
+            if not return_type.is_struct_or_union and not return_type.is_void:
+                exc_val = return_type.cast_code(Naming.default_error)
+            exc_check = 1
+        return exc_val, exc_check
     
     def analyse_c_function_call(self, env):
         func_type = self.function_type()
@@ -1719,12 +1730,13 @@ class SimpleCallNode(CallNode):
                     "Python object cannot be passed as a varargs parameter")
         # Calc result type and code fragment
         self.type = func_type.return_type
-        if self.type.is_pyobject \
-            or func_type.exception_value is not None \
-            or func_type.exception_check:
+        if self.type.is_pyobject:
+            self.is_temp = 1
+            self.result_ctype = py_object_type
+        else:
+            exc_val, exc_check = self.exception_checks()
+            if self.type.is_pyobject or exc_val is not None or exc_check:
                 self.is_temp = 1
-                if self.type.is_pyobject:
-                    self.result_ctype = py_object_type
         # C++ exception handler
         if func_type.exception_check == '+':
             if func_type.exception_value is None:
@@ -1789,8 +1801,7 @@ class SimpleCallNode(CallNode):
             if self.type.is_pyobject:
                 exc_checks.append("!%s" % self.result_code)
             else:
-                exc_val = func_type.exception_value
-                exc_check = func_type.exception_check
+                exc_val, exc_check = self.exception_checks()
                 if exc_val is not None:
                     exc_checks.append("%s == %s" % (self.result_code, exc_val))
                 if exc_check:
@@ -3142,7 +3153,7 @@ class NumBinopNode(BinopNode):
         "+":		"PyNumber_Add",
         "-":		"PyNumber_Subtract",
         "*":		"PyNumber_Multiply",
-        "/":		"PyNumber_Divide",
+        "/":		"__Pyx_PyNumber_Divide",
         "//":		"PyNumber_FloorDivide",
         "%":		"PyNumber_Remainder",
         "**":       "PyNumber_Power"
@@ -4046,6 +4057,7 @@ class PersistentNode(ExprNode):
     subexprs = ["arg"]
     temp_counter = 0
     generate_counter = 0
+    analyse_counter = 0
     result_code = None
     
     def __init__(self, arg, uses):
@@ -4054,13 +4066,15 @@ class PersistentNode(ExprNode):
         self.uses = uses
         
     def analyse_types(self, env):
-        self.arg.analyse_types(env)
-        self.type = self.arg.type
-        self.result_ctype = self.arg.result_ctype
-        self.is_temp = 1
+        if self.analyse_counter == 0:
+            self.arg.analyse_types(env)
+            self.type = self.arg.type
+            self.result_ctype = self.arg.result_ctype
+            self.is_temp = 1
+        self.analyse_counter += 1
     
     def calculate_result_code(self):
-        return self.arg.result_code
+        return self.result_code
 
     def generate_evaluation_code(self, code):
         if self.generate_counter == 0:
@@ -4080,12 +4094,15 @@ class PersistentNode(ExprNode):
     def allocate_temps(self, env, result=None):
         if self.temp_counter == 0:
             self.arg.allocate_temps(env)
-            if result is None:
-                self.result_code = env.allocate_temp(self.type)
-            else:
-                self.result_code = result
+            self.allocate_temp(env, result)
             self.arg.release_temp(env)
         self.temp_counter += 1
+        
+    def allocate_temp(self, env, result=None):
+        if result is None:
+            self.result_code = env.allocate_temp(self.type)
+        else:
+            self.result_code = result
         
     def release_temp(self, env):
         if self.temp_counter == self.uses:
