@@ -34,6 +34,12 @@ __doc__ = u"""
     acquired
     0 1 2 3 4 5
     released
+
+    >>> cdef_assignment(A, 6)
+    acquired A
+    0 1 2 3 4 5
+    released A
+    
     >>> printbuf_float(MockBuffer("f", [1.0, 1.25, 0.75, 1.0]), (4,))
     acquired
     1.0 1.25 0.75 1.0
@@ -86,11 +92,13 @@ def as_argument_defval(object[int] bufarg=MockBuffer('i', range(6)), int n=6):
         print bufarg[i],
     print
 
+def cdef_assignment(obj, n):
+    cdef object[int] buf = obj
+    cdef int i
+    for i in range(n):
+        print buf[i],
+    print
 
-
-# default values
-# 
-    
 def printbuf_float(o, shape):
     # should make shape builtin
     cdef object[float] buf
