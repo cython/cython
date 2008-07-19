@@ -123,12 +123,26 @@ class CodeWriter(TreeVisitor):
         self.visit(node.rhs)
         self.endline()
     
+    def visit_CascadedAssignmentNode(self, node):
+        self.startline()
+        for lhs in node.lhs_list:
+            self.visit(lhs)
+            self.put(u" = ")
+        self.visit(node.rhs)
+        self.endline()
+    
     def visit_NameNode(self, node):
         self.putname(node.name)
     
     def visit_IntNode(self, node):
         self.put(node.value)
-        
+
+    def visit_StringNode(self, node):
+        value = node.value
+        if value.encoding is not None:
+            value = value.encode(value.encoding)
+        self.put(repr(value))
+
     def visit_IfStatNode(self, node):
         # The IfClauseNode is handled directly without a seperate match
         # for clariy.
