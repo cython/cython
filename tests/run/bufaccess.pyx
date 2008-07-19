@@ -21,7 +21,11 @@ __doc__ = u"""
     >>> A.printlog()
     acquired A
     released A
-    
+
+    >>> print_buffer_as_argument(MockBuffer("i", range(6)), 6)
+    acquired
+    0 1 2 3 4 5
+    released
     >>> printbuf_float(MockBuffer("f", [1.0, 1.25, 0.75, 1.0]), (4,))
     acquired
     1.0 1.25 0.75 1.0
@@ -43,8 +47,16 @@ def acquire_release(o1, o2):
 def acquire_raise(o):
     cdef object[int] buf
     buf = o
-    print "a"
     raise Exception("on purpose")
+
+def print_buffer_as_argument(object[int] bufarg, int n):
+    cdef int i
+    for i in range(n):
+        print bufarg[i],
+    print
+
+# default values
+# 
     
 def printbuf_float(o, shape):
     # should make shape builtin

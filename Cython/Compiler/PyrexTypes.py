@@ -204,8 +204,14 @@ class BufferType(BaseType):
         self.dtype = dtype
         self.ndim = ndim
     
+    def as_argument_type(self):
+        return self
+
     def __getattr__(self, name):
         return getattr(self.base, name)
+
+    def __repr__(self):
+        return "<BufferType %r>" % self.base
 
     
 class PyObjectType(PyrexType):
