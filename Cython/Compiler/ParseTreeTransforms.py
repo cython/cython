@@ -272,6 +272,13 @@ class AnalyseDeclarationsTransform(CythonTransform):
         self.env_stack.pop()
         return node
         
+    # Some nodes are no longer needed after declaration
+    # analysis and can be dropped. The analysis was performed
+    # on these nodes in a seperate recursive process from the
+    # enclosing function or module, so we can simply drop them.
+    def visit_CVarDefNode(self, node):
+        return None
+
 class AnalyseExpressionsTransform(CythonTransform):
     def visit_ModuleNode(self, node):
         node.body.analyse_expressions(node.scope)
