@@ -22,7 +22,15 @@ __doc__ = u"""
     acquired A
     released A
 
-    >>> print_buffer_as_argument(MockBuffer("i", range(6)), 6)
+    >>> as_argument(MockBuffer("i", range(6)), 6)
+    acquired
+    0 1 2 3 4 5
+    released
+    >>> as_argument_defval()
+    acquired
+    0 1 2 3 4 5
+    released
+    >>> as_argument_defval(MockBuffer("i", range(6)), 6)
     acquired
     0 1 2 3 4 5
     released
@@ -38,6 +46,23 @@ __doc__ = u"""
     released
 """
 
+ctypedef char* (*write_func_ptr)(char*, object)
+cdef char* write_float(char* buf, object value):
+    (<float*>buf)[0] = <float>value
+    return buf + sizeof(float)
+cdef char* write_int(char* buf, object value):
+    (<int*>buf)[0] = <int>value
+    return buf + sizeof(int)
+
+# long can hold  a pointer on all target platforms,
+# though really we should have a seperate typedef for this..
+# TODO: Should create subclasses of MockBuffer instead.
+typemap = {
+    'f': (sizeof(float), <unsigned long>&write_float),
+    'i': (sizeof(int), <unsigned long>&write_int)
+}
+ 
+cimport stdlib
 
 def acquire_release(o1, o2):
     cdef object[int] buf
@@ -49,11 +74,19 @@ def acquire_raise(o):
     buf = o
     raise Exception("on purpose")
 
-def print_buffer_as_argument(object[int] bufarg, int n):
+def as_argument(object[int] bufarg, int n):
     cdef int i
     for i in range(n):
         print bufarg[i],
     print
+
+def as_argument_defval(object[int] bufarg=MockBuffer('i', range(6)), int n=6):
+    cdef int i 
+    for i in range(n):
+        print bufarg[i],
+    print
+
+
 
 # default values
 # 
@@ -78,25 +111,6 @@ def printbuf_int_2d(o, shape):
             print buf[i, j],
         print
  
-
-ctypedef char* (*write_func_ptr)(char*, object)
-cdef char* write_float(char* buf, object value):
-    (<float*>buf)[0] = <float>value
-    return buf + sizeof(float)
-cdef char* write_int(char* buf, object value):
-    (<int*>buf)[0] = <int>value
-    return buf + sizeof(int)
-
-# long can hold  a pointer on all target platforms,
-# though really we should have a seperate typedef for this..
-# TODO: Should create subclasses of MockBuffer instead.
-typemap = {
-    'f': (sizeof(float), <unsigned long>&write_float),
-    'i': (sizeof(int), <unsigned long>&write_int)
-}
- 
-cimport stdlib
-
 cdef class MockBuffer:
     cdef object format
     cdef char* buffer
