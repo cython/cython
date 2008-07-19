@@ -487,9 +487,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#ifndef __cdecl")
         code.putln("  #define __cdecl")
         code.putln("#endif")
-        code.putln('');
-        code.putln('#define %s 0xB0000000B000B0BBLL' % Naming.default_error);
-        code.putln('');
         self.generate_extern_c_macro_definition(code)
         code.putln("#include <math.h>")
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))

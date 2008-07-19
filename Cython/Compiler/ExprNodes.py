@@ -1677,17 +1677,6 @@ class SimpleCallNode(CallNode):
         if func_type.is_ptr:
             func_type = func_type.base_type
         return func_type
-        
-    def exception_checks(self):
-        func_type = self.function_type()
-        exc_val = func_type.exception_value
-        exc_check = func_type.exception_check
-        if exc_val is None and self.function.entry.visibility != 'extern':
-            return_type = func_type.return_type
-            if not return_type.is_struct_or_union and not return_type.is_void:
-                exc_val = return_type.cast_code(Naming.default_error)
-            exc_check = 1
-        return exc_val, exc_check
     
     def analyse_c_function_call(self, env):
         func_type = self.function_type()
@@ -1730,13 +1719,12 @@ class SimpleCallNode(CallNode):
                     "Python object cannot be passed as a varargs parameter")
         # Calc result type and code fragment
         self.type = func_type.return_type
-        if self.type.is_pyobject:
-            self.is_temp = 1
-            self.result_ctype = py_object_type
-        else:
-            exc_val, exc_check = self.exception_checks()
-            if self.type.is_pyobject or exc_val is not None or exc_check:
+        if self.type.is_pyobject \
+            or func_type.exception_value is not None \
+            or func_type.exception_check:
                 self.is_temp = 1
+                if self.type.is_pyobject:
+                    self.result_ctype = py_object_type
         # C++ exception handler
         if func_type.exception_check == '+':
             if func_type.exception_value is None:
@@ -1801,7 +1789,8 @@ class SimpleCallNode(CallNode):
             if self.type.is_pyobject:
                 exc_checks.append("!%s" % self.result_code)
             else:
-                exc_val, exc_check = self.exception_checks()
+                exc_val = func_type.exception_value
+                exc_check = func_type.exception_check
                 if exc_val is not None:
                     exc_checks.append("%s == %s" % (self.result_code, exc_val))
                 if exc_check:
