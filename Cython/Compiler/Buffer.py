@@ -208,7 +208,6 @@ class BufferTransform(CythonTransform):
         # Preserve first assignment info on LHS
         if node.first:
             # TODO: Prettier code
-            print acq.stats[4].dump()
             acq.stats[4].first = True
             del acq.stats[0]
             del acq.stats[0]
