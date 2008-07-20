@@ -349,12 +349,6 @@ class CDeclaratorNode(Node):
 
     calling_convention = ""
 
-    def analyse_expressions(self, env):
-        pass
-
-    def generate_execution_code(self, env):
-        pass
-
 
 class CNameDeclaratorNode(CDeclaratorNode):
     #  name    string             The Pyrex name being declared
@@ -373,25 +367,6 @@ class CNameDeclaratorNode(CDeclaratorNode):
         self.type = base_type
         return self, base_type
         
-    def analyse_expressions(self, env):
-        self.entry = env.lookup(self.name)
-        if self.default is not None:
-            env.control_flow.set_state(self.default.end_pos(), (self.entry.name, 'initalized'), True)
-            env.control_flow.set_state(self.default.end_pos(), (self.entry.name, 'source'), 'assignment')
-            self.entry.used = 1
-            if self.type.is_pyobject:
-                self.entry.init_to_none = False
-                self.entry.init = 0
-            self.default.analyse_types(env)
-            self.default = self.default.coerce_to(self.type, env)
-            self.default.allocate_temps(env)
-            self.default.release_temp(env)
-
-    def generate_execution_code(self, code):
-        raise RuntimeError("Deprecated")
-        # PostParse creates assignment statements for any
-        # default values
-
 class CPtrDeclaratorNode(CDeclaratorNode):
     # base     CDeclaratorNode
     
@@ -404,12 +379,6 @@ class CPtrDeclaratorNode(CDeclaratorNode):
         ptr_type = PyrexTypes.c_ptr_type(base_type)
         return self.base.analyse(ptr_type, env, nonempty = nonempty)
         
-    def analyse_expressions(self, env):
-        self.base.analyse_expressions(env)
-
-    def generate_execution_code(self, env):
-        self.base.generate_execution_code(env)
-
 class CArrayDeclaratorNode(CDeclaratorNode):
     # base        CDeclaratorNode
     # dimension   ExprNode
@@ -685,14 +654,6 @@ class CVarDefNode(StatNode):
                 dest_scope.declare_var(name, type, declarator.pos,
                     cname = cname, visibility = self.visibility, is_cdef = 1)
     
-    def analyse_expressions(self, env):
-        for declarator in self.declarators:
-            declarator.analyse_expressions(env)
-    
-    def generate_execution_code(self, code):
-        for declarator in self.declarators:
-            declarator.generate_execution_code(code)
-
 
 class CStructOrUnionDefNode(StatNode):
     #  name          string
