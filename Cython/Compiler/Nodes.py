@@ -102,7 +102,7 @@ class Node(object):
         for attrname in result.child_attrs:
             value = getattr(result, attrname)
             if isinstance(value, list):
-                setattr(result, attrname, value)
+                setattr(result, attrname, [x for x in value])
         return result
     
     
@@ -3307,6 +3307,7 @@ class TryExceptStatNode(StatNode):
         self.gil_check(env)
     
     def analyse_expressions(self, env):
+
         self.body.analyse_expressions(env)
         self.cleanup_list = env.free_temp_entries[:]
         for except_clause in self.except_clauses:
