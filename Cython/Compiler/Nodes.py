@@ -388,7 +388,7 @@ class CNameDeclaratorNode(CDeclaratorNode):
             self.default.release_temp(env)
 
     def generate_execution_code(self, code):
-        assert self.default is None
+        raise RuntimeError("Deprecated")
         # PostParse creates assignment statements for any
         # default values
 
