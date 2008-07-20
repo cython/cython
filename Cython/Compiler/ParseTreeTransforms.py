@@ -138,7 +138,7 @@ class PostParse(CythonTransform):
                         raise PostParseError(decl.pos, ERR_CDEF_INCLASS)
                     stats.append(SingleAssignmentNode(node.pos,
                         lhs=NameNode(node.pos, name=decl.name),
-                        rhs=decl.default))
+                        rhs=decl.default, first=True))
                     decl.default = None
         return stats
 

@@ -809,6 +809,7 @@ class NameNode(AtomicExprNode):
     #  interned_cname  string
     
     is_name = 1
+    skip_assignment_decref = False
 
     def create_analysed_rvalue(pos, env, entry):
         node = NameNode(pos)
@@ -1030,7 +1031,7 @@ class NameNode(AtomicExprNode):
                 rhs.generate_disposal_code(code)
                 
         else:
-            if self.type.is_pyobject:
+            if self.type.is_pyobject and not self.skip_assignment_decref:
                 #print "NameNode.generate_assignment_code: to", self.name ###
                 #print "...from", rhs ###
                 #print "...LHS type", self.type, "ctype", self.ctype() ###
