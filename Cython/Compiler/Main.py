@@ -329,8 +329,9 @@ class Context:
         try:
             for phase in pipeline:
                 data = phase(data)
-        except CompileError:
+        except CompileError, err:
             errors_occurred = True
+            Errors.report_error(err)
         return (errors_occurred, data)
 
 def create_parse(context):

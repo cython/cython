@@ -1,19 +1,17 @@
 
 __doc__ = """
    >>> test(1, 2)
-   4 1 2 2 0
-   >>> A().value
-   4
+   4 1 2 2 0 7 8
 """
 
-cdef class A:
-    cdef int value = 4
+cdef int g = 7
 
 def test(x, int y):
     if True:
         before = 0
     cdef int a = 4, b = x, c = y, *p = &y
-    print a, b, c, p[0], before
+    cdef object o = int(8)
+    print a, b, c, p[0], before, g, o
 
 # Also test that pruning cdefs doesn't hurt 
 def empty():

@@ -82,6 +82,7 @@ ERR_BUF_DUP = '"%s" buffer option already supplied'
 ERR_BUF_MISSING = '"%s" missing'
 ERR_BUF_INT = '"%s" must be an integer'
 ERR_BUF_NONNEG = '"%s" must be non-negative'
+ERR_CDEF_INCLASS = 'Cannot assign default value to cdef class attributes'
 
 class PostParse(CythonTransform):
     """
@@ -92,7 +93,8 @@ class PostParse(CythonTransform):
 
     Specifically:
     - Default values to cdef assignments are turned into single
-    assignments following the declaration.
+    assignments following the declaration (everywhere but in class
+    bodies, where they raise a compile error)
     - CBufferAccessTypeNode has its options interpreted:
     Any first positional argument goes into the "dtype" attribute,
     any "ndim" keyword argument goes into the "ndim" attribute and
@@ -103,9 +105,28 @@ class PostParse(CythonTransform):
     if a more pure Abstract Syntax Tree is wanted.
     """
 
+    # Track our context.
+    in_class_body = False
+    def visit_ClassDefNode(self, node):
+        prev = self.in_class_body
+        self.in_class_body = True
+        self.visitchildren(node)
+        self.in_class_body = prev
+        return node
+
+    def visit_FuncDefNode(self, node):
+        prev = self.in_class_body
+        self.in_class_body = False
+        self.visitchildren(node)
+        self.in_class_body = prev
+        return node
+
+    # cdef variables
     def visit_CVarDefNode(self, node):
         # This assumes only plain names and pointers are assignable on
-        # declaration.
+        # declaration. Also, it makes use of the fact that a cdef decl
+        # must appear before the first use, so we don't have to deal with
+        # "i = 3; cdef int i = i" and can simply move the nodes around.
         self.visitchildren(node)
         stats = [node]
         for decl in node.declarators:
@@ -113,13 +134,15 @@ class PostParse(CythonTransform):
                 decl = decl.base
             if isinstance(decl, CNameDeclaratorNode):
                 if decl.default is not None:
+                    if self.in_class_body:
+                        raise PostParseError(decl.pos, ERR_CDEF_INCLASS)
                     stats.append(SingleAssignmentNode(node.pos,
                         lhs=NameNode(node.pos, name=decl.name),
                         rhs=decl.default))
                     decl.default = None
         return stats
-            
 
+    # buffer access
     buffer_options = ("dtype", "ndim") # ordered!
     def visit_CBufferAccessTypeNode(self, node):
         options = {}
