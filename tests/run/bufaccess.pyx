@@ -39,6 +39,17 @@ __doc__ = u"""
     acquired A
     0 1 2 3 4 5
     released A
+
+    #>>> forin_assignment([A, B, A], 3)
+    acquired A
+    3
+    released A
+    acquired B
+    3
+    released B
+    acquired A
+    3
+    released A   
     
     >>> printbuf_float(MockBuffer("f", [1.0, 1.25, 0.75, 1.0]), (4,))
     acquired
@@ -98,6 +109,11 @@ def cdef_assignment(obj, n):
     for i in range(n):
         print buf[i],
     print
+
+def forin_assignment(objs, int pick):
+    cdef object[int] buf
+    for buf in objs:
+        print buf[pick]
 
 def printbuf_float(o, shape):
     # should make shape builtin
