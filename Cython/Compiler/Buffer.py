@@ -205,6 +205,13 @@ class BufferTransform(CythonTransform):
             u"ACQUIRE": StatListNode(node.pos, stats=acquire_stats),
             u"BUFINFO": NameNode(pos=node.pos, name=buffer_aux.buffer_info_var.name)
         }, pos=node.pos)
+        # Preserve first assignment info on LHS
+        if node.first:
+            # TODO: Prettier code
+            print acq.stats[4].dump()
+            acq.stats[4].first = True
+            del acq.stats[0]
+            del acq.stats[0]
         # Note: The below should probably be refactored into something
         # like fragment.substitute(..., context=self.context), with
         # TreeFragment getting context.pipeline_until_now() and
