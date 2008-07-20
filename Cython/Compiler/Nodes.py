@@ -2231,8 +2231,10 @@ class SingleAssignmentNode(AssignmentNode):
     #
     #  lhs      ExprNode      Left hand side
     #  rhs      ExprNode      Right hand side
+    #  first    bool          Is this guaranteed the first assignment to lhs?
     
     child_attrs = ["lhs", "rhs"]
+    first = False
 
     def analyse_declarations(self, env):
         self.lhs.analyse_target_declaration(env)
@@ -2265,7 +2267,7 @@ class SingleAssignmentNode(AssignmentNode):
 #		self.lhs.allocate_target_temps(env)
 #		self.lhs.release_target_temp(env)
 #		self.rhs.release_temp(env)		
-
+        
     def generate_rhs_evaluation_code(self, code):
         self.rhs.generate_evaluation_code(code)
     

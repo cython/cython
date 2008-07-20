@@ -134,3 +134,16 @@ class FlattenInListTransform(Visitor.VisitorTransform):
     def visit_Node(self, node):
         self.visitchildren(node)
         return node
+
+
+class OptimizeRefcounting(Visitor.CythonTransform):
+    def visit_SingleAssignmentNode(self, node):
+        if node.first:
+            lhs = node.lhs
+            if isinstance(lhs, ExprNodes.NameNode) and lhs.entry.type.is_pyobject:
+                # Have variable initialized to 0 rather than None
+                lhs.entry.init_to_none = False
+                lhs.entry.init = 0
+                # Set a flag in NameNode to skip the decref
+                lhs.skip_assignment_decref = True
+        return node
