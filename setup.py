@@ -23,7 +23,7 @@ else:
     scripts = ["cython.py"]
 
 try:
-    sys.argv.remove("--no-compile")
+    sys.argv.remove("--no-cython-compile")
 except ValueError:
     try:
         from Cython.Compiler.Main import compile
