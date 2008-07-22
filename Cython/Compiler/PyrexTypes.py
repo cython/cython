@@ -203,6 +203,7 @@ class BufferType(BaseType):
         self.base = base
         self.dtype = dtype
         self.ndim = ndim
+        self.buffer_ptr_type = CPtrType(dtype)
     
     def as_argument_type(self):
         return self
