@@ -810,6 +810,7 @@ class NameNode(AtomicExprNode):
     
     is_name = 1
     skip_assignment_decref = False
+    entry = None
 
     def create_analysed_rvalue(pos, env, entry):
         node = NameNode(pos)
@@ -845,7 +846,9 @@ class NameNode(AtomicExprNode):
     def analyse_as_module(self, env):
         # Try to interpret this as a reference to a cimported module.
         # Returns the module scope, or None.
-        entry = env.lookup(self.name)
+        entry = self.entry
+        if not entry:
+            entry = env.lookup(self.name)
         if entry and entry.as_module:
             return entry.as_module
         return None
@@ -853,14 +856,17 @@ class NameNode(AtomicExprNode):
     def analyse_as_extension_type(self, env):
         # Try to interpret this as a reference to an extension type.
         # Returns the extension type, or None.
-        entry = env.lookup(self.name)
+        entry = self.entry
+        if not entry:
+            entry = env.lookup(self.name)
         if entry and entry.is_type and entry.type.is_extension_type:
             return entry.type
         else:
             return None
     
     def analyse_target_declaration(self, env):
-        self.entry = env.lookup_here(self.name)
+        if not self.entry:
+            self.entry = env.lookup_here(self.name)
         if not self.entry:
             self.entry = env.declare_var(self.name, py_object_type, self.pos)
         env.control_flow.set_state(self.pos, (self.name, 'initalized'), True)
@@ -870,10 +876,9 @@ class NameNode(AtomicExprNode):
         if self.entry.is_pyglobal and self.entry.is_member:
             env.use_utility_code(type_cache_invalidation_code)
     
-    def analyse_types(self, env, entry=None):
-        if entry is None:
-            entry = env.lookup(self.name)
-        self.entry = entry
+    def analyse_types(self, env):
+        if self.entry is None:
+            self.entry = env.lookup(self.name)
         if not self.entry:
             self.entry = env.declare_builtin(self.name, self.pos)
         if not self.entry:
