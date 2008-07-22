@@ -6,6 +6,8 @@ import re
 from cStringIO import StringIO
 from Scanning import PyrexScanner, StringSourceDescriptor
 from Symtab import BuiltinScope, ModuleScope
+import Symtab
+import PyrexTypes
 from Visitor import VisitorTransform, temp_name_handle
 from Nodes import Node, StatListNode
 from ExprNodes import NameNode
@@ -108,11 +110,16 @@ class TemplateTransform(VisitorTransform):
         self.substitutions = substitutions
         tempdict = {}
         for key in temps:
-            tempdict[key] = temp_name_handle(key)
-        self.temps = tempdict
+            tempdict[key] = temp_name_handle(key) # pending result_code refactor: Symtab.new_temp(PyrexTypes.py_object_type, key)
+        self.temp_key_to_entries = tempdict
         self.pos = pos
         return super(TemplateTransform, self).__call__(node)
 
+    def get_pos(self, node):
+        if self.pos:
+            return self.pos
+        else:
+            return node.pos
 
     def visit_Node(self, node):
         if node is None:
@@ -135,11 +142,11 @@ class TemplateTransform(VisitorTransform):
             
     
     def visit_NameNode(self, node):
-        tempname = self.temps.get(node.name)
-        if tempname is not None:
+        tempentry = self.temp_key_to_entries.get(node.name)
+        if tempentry is not None:
             # Replace name with temporary
-            node.name = tempname
-            return self.visit_Node(node)
+            return NameNode(self.get_pos(node), name=tempentry)
+            # Pending result_code refactor: return NameNode(self.get_pos(node), entry=tempentry)
         else:
             return self.try_substitution(node, node.name)
 
