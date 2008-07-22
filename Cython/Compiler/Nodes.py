@@ -73,6 +73,7 @@ class Node(object):
     
     is_name = 0
     is_literal = 0
+    temps = None
 
     # All descandants should set child_attrs to a list of the attributes
     # containing nodes considered "children" in the tree. Each such attribute

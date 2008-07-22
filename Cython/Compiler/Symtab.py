@@ -141,6 +141,15 @@ class Entry:
     def redeclared(self, pos):
         error(pos, "'%s' does not match previous declaration" % self.name)
         error(self.pos, "Previous declaration is here")
+
+def new_temp(type, description=""):
+    # Returns a temporary entry which is "floating" and not finally resolved
+    # before the AnchorTemps transform is run. cname will not be available on
+    # the temp before this transform is run. See the mentioned transform for
+    # more docs.
+    e = Entry(name="$" + description, type=type, cname="<temperror>")
+    e.is_variable = True
+    return e
         
 class Scope:
     # name              string             Unqualified name
