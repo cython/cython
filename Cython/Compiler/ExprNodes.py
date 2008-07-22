@@ -893,6 +893,10 @@ class NameNode(AtomicExprNode):
                 % self.name)
             self.type = PyrexTypes.error_type
         self.entry.used = 1
+        if self.entry.type.is_buffer:
+            # Need some temps
+            
+        print self.dump()
         
     def analyse_rvalue_entry(self, env):
         #print "NameNode.analyse_rvalue_entry:", self.name ###
@@ -1311,6 +1315,9 @@ class IndexNode(ExprNode):
         self.analyse_base_and_index_types(env, setting = 1)
 
     def analyse_base_and_index_types(self, env, getting = 0, setting = 0):
+        # Note: This might be cleaned up by having IndexNode
+        # parsed in a saner way and only construct the tuple if
+        # needed.
         self.is_buffer_access = False
 
         self.base.analyse_types(env)
@@ -1318,6 +1325,7 @@ class IndexNode(ExprNode):
         skip_child_analysis = False
         buffer_access = False
         if self.base.type.is_buffer:
+            assert isinstance(self.base, NameNode)
             if isinstance(self.index, TupleNode):
                 indices = self.index.args
             else:
@@ -1329,21 +1337,19 @@ class IndexNode(ExprNode):
                     x.analyse_types(env)
                     if not x.type.is_int:
                         buffer_access = False
-                if buffer_access:
-                    # self.indices = [
-                    #   x.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
-                    # for x in  indices]
-                    self.indices = indices
-                    self.index = None
-                    self.type = self.base.type.dtype 
-                    self.is_temp = 1
-                    self.is_buffer_access = True
-            
-        # Note: This might be cleaned up by having IndexNode
-        # parsed in a saner way and only construct the tuple if
-        # needed.
 
-        if not buffer_access:
+        if buffer_access:
+            self.indices = indices
+            self.index = None
+            self.type = self.base.type.dtype
+            self.is_buffer_access = True
+            self.index_temps = [Symtab.new_temp(i.type) for i in indices]
+            self.temps = self.index_temps
+            if getting:
+                # we only need a temp because result_code isn't refactored to
+                # generation time, but this seems an ok shortcut to take
+                self.is_temp = True
+        else:
             if isinstance(self.index, TupleNode):
                 self.index.analyse_types(env, skip_children=skip_child_analysis)
             elif not skip_child_analysis:
@@ -1388,7 +1394,7 @@ class IndexNode(ExprNode):
     
     def calculate_result_code(self):
         if self.is_buffer_access:
-            return "<not needed>"
+            return "<not used>"
         else:
             return "(%s[%s])" % (
                 self.base.result_code, self.index.result_code)
@@ -1407,7 +1413,8 @@ class IndexNode(ExprNode):
         if self.index is not None:
             self.index.generate_evaluation_code(code)
         else:
-            for i in self.indices: i.generate_evaluation_code(code)
+            for i in self.indices:
+                i.generate_evaluation_code(code)
         
     def generate_subexpr_disposal_code(self, code):
         self.base.generate_disposal_code(code)
@@ -1417,7 +1424,10 @@ class IndexNode(ExprNode):
             for i in self.indices: i.generate_disposal_code(code)
 
     def generate_result_code(self, code):
-        if self.type.is_pyobject:
+        if self.is_buffer_access:
+            valuecode = self.buffer_access_code(code)
+            code.putln("%s = %s;" % (self.result_code, valuecode))
+        elif self.type.is_pyobject:
             if self.index.type.is_int:
                 function = "__Pyx_GetItemInt"
                 index_code = self.index.result_code
@@ -1453,7 +1463,10 @@ class IndexNode(ExprNode):
     
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
-        if self.type.is_pyobject:
+        if self.is_buffer_access:
+            valuecode = self.buffer_access_code(code)
+            code.putln("%s = %s;" % (valuecode, rhs.result_code))
+        elif self.type.is_pyobject:
             self.generate_setitem_code(rhs.py_result(), code)
         else:
             code.putln(
@@ -1478,6 +1491,23 @@ class IndexNode(ExprNode):
                 index_code,
                 code.error_goto(self.pos)))
         self.generate_subexpr_disposal_code(code)
+
+    def buffer_access_code(self, code):
+        # 1. Assign indices to temps
+        for temp, index in zip(self.index_temps, self.indices):
+            code.putln("%s = %s;" % (temp.cname, index.result_code))
+        # 2. Output code to do bounds checking on these
+
+        # 3. Return a code fragment string which does buffer
+        # lookup, which can be used on lhs or rhs of an assignment
+        # in the caller depending on the scenario.
+        bufaux = self.base.entry.buffer_aux
+        offset = " + ".join(["%s * %s" % (idx.cname, stride.cname)
+                             for idx, stride in
+                             zip(self.index_temps, bufaux.stridevars)])
+        ptrcode = "(%s.buf + %s)" % (bufaux.buffer_info_var.cname, offset)
+        valuecode = "*%s" % self.base.type.buffer_ptr_type.cast_code(ptrcode)
+        return valuecode
 
 
 class SliceIndexNode(ExprNode):
