@@ -588,25 +588,6 @@ class NoneNode(PyConstNode):
     def compile_time_value(self, denv):
         return None
     
-class BoolNode(PyConstNode):
-    #  The constant value True or False
-    
-    def compile_time_value(self, denv):
-        return self.value
-    
-    def calculate_result_code(self):
-        if self.value:
-            return "Py_True"
-        else:
-            return "Py_False"
-
-    def coerce_to(self, dst_type, env):
-        value = self.value
-        if dst_type.is_numeric:
-            return IntNode(self.pos, value=int(self.value)).coerce_to(dst_type, env)
-        else:
-            return PyConstNode.coerce_to(self, dst_type, env)
-
 class EllipsisNode(PyConstNode):
     #  '...' in a subscript list.
     
@@ -638,6 +619,16 @@ class ConstNode(AtomicExprNode):
     def generate_result_code(self, code):
         pass
 
+
+class BoolNode(ConstNode):
+    type = PyrexTypes.c_bint_type
+    #  The constant value True or False
+    
+    def compile_time_value(self, denv):
+        return self.value
+    
+    def calculate_result_code(self):
+        return int(self.value)
 
 class NullNode(ConstNode):
     type = PyrexTypes.c_null_ptr_type
