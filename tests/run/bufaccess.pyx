@@ -10,6 +10,18 @@ __doc__ = u"""
     released A
     acquired B
     released B
+"""
+
+__doc__ = u"""
+    >>> A = MockBuffer("i", range(10), label="A")
+    >>> B = MockBuffer("i", range(10), label="B")
+    >>> E = ErrorBuffer("E")
+    
+    >>> acquire_release(A, B)
+    acquired A
+    released A
+    acquired B
+    released B
 
     Apparently, doctest won't handle mixed exceptions and print
     stats, so need to circumvent this.
@@ -63,6 +75,13 @@ __doc__ = u"""
     released
 """
 
+__sdfdoc__ = """
+    >>> printbuf_float(MockBuffer("f", [1.0, 1.25, 0.75, 1.0]), (4,))
+    acquired
+    1.0 1.25 0.75 1.0
+    released
+"""
+
 ctypedef char* (*write_func_ptr)(char*, object)
 cdef char* write_float(char* buf, object value):
     (<float*>buf)[0] = <float>value
@@ -89,6 +108,7 @@ def acquire_release(o1, o2):
 def acquire_raise(o):
     cdef object[int] buf
     buf = o
+    o.printlog()
     raise Exception("on purpose")
 
 def as_argument(object[int] bufarg, int n):

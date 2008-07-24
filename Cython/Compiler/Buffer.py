@@ -8,6 +8,103 @@ from Cython.Compiler.Errors import CompileError
 import PyrexTypes
 from sets import Set as set
 
+def used_buffer_aux_vars(entry):
+    buffer_aux = entry.buffer_aux
+    buffer_aux.buffer_info_var.used = True
+    for s in buffer_aux.shapevars: s.used = True
+    for s in buffer_aux.stridevars: s.used = True
+
+def put_unpack_buffer_aux_into_scope(buffer_aux, code):
+    bufstruct = buffer_aux.buffer_info_var.cname
+
+    code.putln(" ".join(["%s = %s.strides[%d];" %
+                         (s.cname, bufstruct, idx)
+                         for idx, s in enumerate(buffer_aux.stridevars)]))
+    code.putln(" ".join(["%s = %s.shape[%d];" %
+                         (s.cname, bufstruct, idx)
+                         for idx, s in enumerate(buffer_aux.shapevars)]))
+
+def put_zero_buffer_aux_into_scope(buffer_aux, code):
+    # If new buffer is None, set up to access 0
+    # for a "safer segfault" on access
+    code.putln("%s.buf = 0;" % buffer_aux.buffer_info_var.cname) 
+    code.putln(" ".join(["%s = 0;" % s.cname
+                         for s in buffer_aux.stridevars]))
+    code.putln(" ".join(["%s = 0;" % s.cname
+                         for s in buffer_aux.shapevars]))    
+
+def put_acquire_arg_buffer(entry, code, pos):
+    buffer_aux = entry.buffer_aux
+    cname  = entry.cname
+    bufstruct = buffer_aux.buffer_info_var.cname
+    flags = '0'
+    # Acquire any new buffer
+    code.put('if (%s != Py_None) ' % cname)
+    code.begin_block()
+    code.putln('%s.buf = 0;' % bufstruct) # PEP requirement
+    code.put(code.error_goto_if(
+        'PyObject_GetBuffer(%s, &%s, %s) == -1' % (
+        cname, bufstruct, flags), pos))
+    # An exception raised in arg parsing cannot be catched, so no
+    # need to do care about the buffer then.
+    put_unpack_buffer_aux_into_scope(buffer_aux, code)
+    code.end_block()
+
+def put_release_buffer(entry, code):
+    code.putln("if (%s != Py_None) PyObject_ReleaseBuffer(%s, &%s);" % (
+        entry.cname, entry.cname, entry.buffer_aux.buffer_info_var.cname))
+
+def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, is_initialized, pos, code):
+    bufstruct = buffer_aux.buffer_info_var.cname
+    flags = '0'
+
+    if is_initialized:
+        # Release any existing buffer
+        code.put('if (%s != Py_None) ' % lhs_cname)
+        code.begin_block();
+        code.putln('PyObject_ReleaseBuffer(%s, &%s);' % (
+            lhs_cname, bufstruct))
+        code.end_block()
+    # Acquire any new buffer
+    code.put('if (%s != Py_None) ' % rhs_cname)
+    code.begin_block()
+    code.putln('%s.buf = 0;' % bufstruct) # PEP requirement
+    code.put('if (%s) ' % code.unlikely(
+        'PyObject_GetBuffer(%s, &%s, %s) == -1' % (
+            rhs_cname,
+            bufstruct,
+            flags)
+         + ' || %s((char*)%s.format) == NULL' % (
+            buffer_aux.tschecker.cname, bufstruct
+        )))
+    code.begin_block()
+    # If acquisition failed, attempt to reacquire the old buffer
+    # before raising the exception. A failure of reacquisition
+    # will cause the reacquisition exception to be reported, one
+    # can consider working around this later.
+    if is_initialized:
+        put_zero_buffer_aux_into_scope(buffer_aux, code)
+        code.put('if (%s != Py_None && PyObject_GetBuffer(%s, &%s, %s) == -1) ' % (
+            lhs_cname, lhs_cname, bufstruct, flags))
+        code.begin_block()
+        put_zero_buffer_aux_into_scope(buffer_aux, code)
+        code.end_block()
+    else:
+        # our entry had no previous vaule, so set to None when acquisition fails
+        code.putln('%s = Py_None; Py_INCREF(Py_None);' % lhs_cname)
+    code.putln(code.error_goto(pos))
+    code.end_block() # acquisition failure
+    # Unpack indices
+    put_unpack_buffer_aux_into_scope(buffer_aux, code)
+    code.putln('} else {')
+    # If new buffer is None, set up to access 0
+    # for a "safer segfault" on access
+    put_zero_buffer_aux_into_scope(buffer_aux, code)
+    code.end_block()
+
+    # Everything is ok, assign object variable
+    code.putln("%s = %s;" % (lhs_cname, rhs_cname))
+
 class PureCFuncNode(Node):
     child_attrs = []
     
@@ -103,27 +200,25 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
             tschecker = self.tschecker(buftype.dtype)
 
             # Declare auxiliary vars
-            bufinfo = scope.declare_var(temp_name_handle(u"%s_bufinfo" % name),
-                                        self.bufstruct_type, node.pos)
+            cname = scope.mangle(Naming.bufstruct_prefix, name)
+            bufinfo = scope.declare_var(name="$%s" % cname, cname=cname,
+                                        type=self.bufstruct_type, pos=node.pos)
 
-            temp_var =  scope.declare_var(temp_name_handle(u"%s_tmp" % name),
-                                        entry.type, node.pos)
+            bufinfo.used = True
+
+            def var(prefix, idx):
+                cname = scope.mangle(prefix, "%d_%s" % (idx, name))
+                result = scope.declare_var("$%s" % cname, PyrexTypes.c_py_ssize_t_type,
+                                         node.pos, cname=cname, is_cdef=True)
+                result.init = "0"
+                if entry.is_arg:
+                    result.used = True
+                return result
             
+            stridevars = [var(Naming.bufstride_prefix, i) for i in range(entry.type.ndim)]
+            shapevars = [var(Naming.bufshape_prefix, i) for i in range(entry.type.ndim)]            
+            entry.buffer_aux = Symtab.BufferAux(bufinfo, stridevars, shapevars, tschecker)
             
-            stridevars = []
-            shapevars = []
-            for idx in range(buftype.ndim):
-                # stride
-                varname = temp_name_handle(u"%s_%s%d" % (name, "stride", idx))
-                var = scope.declare_var(varname, PyrexTypes.c_int_type, node.pos, is_cdef=True)
-                stridevars.append(var)
-                # shape
-                varname = temp_name_handle(u"%s_%s%d" % (name, "shape", idx))
-                var = scope.declare_var(varname, PyrexTypes.c_uint_type, node.pos, is_cdef=True)
-                shapevars.append(var)
-            entry.buffer_aux = Symtab.BufferAux(bufinfo, stridevars, 
-                                                shapevars, tschecker)
-            entry.buffer_aux.temp_var = temp_var
         scope.buffer_entries = bufvars
         self.scope = scope
 

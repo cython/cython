@@ -828,6 +828,7 @@ class FuncDefNode(StatNode, BlockNode):
         return lenv
                 
     def generate_function_definitions(self, env, code, transforms):
+        import Buffer
         # Generate C code for header and body of function
         code.init_labels()
         lenv = self.local_scope
@@ -876,7 +877,9 @@ class FuncDefNode(StatNode, BlockNode):
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject and lenv.control_flow.get_state((entry.name, 'source')) != 'arg':
                 code.put_var_incref(entry)
-        # ----- Initialise local variables
+            if entry.type.is_buffer:
+                Buffer.put_acquire_arg_buffer(entry, code, self.pos)
+        # ----- Initialise local variables 
         for entry in lenv.var_entries:
             if entry.type.is_pyobject and entry.init_to_none and entry.used:
                 code.put_init_var_to_py_none(entry)
@@ -925,6 +928,8 @@ class FuncDefNode(StatNode, BlockNode):
             for entry in lenv.var_entries:
                 if lenv.control_flow.get_state((entry.name, 'initalized')) is not True:
                     entry.xdecref_cleanup = 1
+        for entry in lenv.buffer_entries:
+            Buffer.put_release_buffer(entry, code)
         code.put_var_decrefs(lenv.var_entries, used_only = 1)
         # Decref any increfed args
         for entry in lenv.arg_entries:
