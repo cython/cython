@@ -894,10 +894,14 @@ class NameNode(AtomicExprNode):
             self.type = PyrexTypes.error_type
         self.entry.used = 1
         if self.entry.type.is_buffer:
-            # Need some temps
-            
-        print self.dump()
-        
+            # Have an rhs temp just in case. All rhs I could
+            # think of had a single symbol result_code but better
+            # safe than sorry. Feel free to change this.
+            import Buffer
+            self.new_buffer_temp = Symtab.new_temp(self.entry.type)
+            self.temps = [self.new_buffer_temp]
+            Buffer.used_buffer_aux_vars(self.entry)
+                
     def analyse_rvalue_entry(self, env):
         #print "NameNode.analyse_rvalue_entry:", self.name ###
         #print "Entry:", self.entry.__dict__ ###
@@ -1012,7 +1016,7 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is None:
             return # There was an error earlier
-
+        
         # is_pyglobal seems to be True for module level-globals only.
         # We use this to access class->tp_dict if necessary.
         if entry.is_pyglobal:
@@ -1054,11 +1058,26 @@ class NameNode(AtomicExprNode):
                         code.put_xdecref(self.result_code, self.ctype())
                 else:
                     code.put_decref(self.result_code, self.ctype())
-            code.putln('%s = %s;' % (self.result_code, rhs.result_as(self.ctype())))
+            if self.type.is_buffer:
+                self.generate_acquire_buffer(rhs, code)
+            else:
+                code.putln('%s = %s;' % (self.result_code, rhs.result_as(self.ctype())))
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
                 print("...generating post-assignment code for %s" % rhs)
             rhs.generate_post_assignment_code(code)
+
+    def generate_acquire_buffer(self, rhs, code):
+        rhstmp = self.new_buffer_temp.cname
+        buffer_aux = self.entry.buffer_aux
+        bufstruct = buffer_aux.buffer_info_var.cname
+        code.putln('%s = %s;' % (rhstmp, rhs.result_as(self.ctype())))
+
+        import Buffer
+        Buffer.put_assign_to_buffer(self.result_code, rhstmp, buffer_aux,
+                                    is_initialized=not self.skip_assignment_decref,
+                                    pos=self.pos, code=code)
+        code.putln("%s = 0;" % rhstmp)
     
     def generate_deletion_code(self, code):
         if self.entry is None:

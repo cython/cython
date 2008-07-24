@@ -211,7 +211,7 @@ class CCodeWriter:
             #print "...private and not definition, skipping" ###
             return
         if not entry.used and visibility == "private":
-            #print "not used and private, skipping" ###
+            #print "not used and private, skipping", entry.cname ###
             return
         storage_class = ""
         if visibility == 'extern':
@@ -352,12 +352,15 @@ class CCodeWriter:
             pos[1],
             cinfo,
             lbl)
-            
-    def error_goto_if(self, cond, pos):
+
+    def unlikely(self, cond):
         if Options.gcc_branch_hints:
-            return "if (unlikely(%s)) %s" % (cond, self.error_goto(pos))
+            return 'unlikely(%s)' % cond
         else:
-            return "if (%s) %s" % (cond, self.error_goto(pos))
+            return cond
+        
+    def error_goto_if(self, cond, pos):
+        return "if (%s) %s" % (self.unlikely(cond), self.error_goto(pos))
             
     def error_goto_if_null(self, cname, pos):
         return self.error_goto_if("!%s" % cname, pos)
