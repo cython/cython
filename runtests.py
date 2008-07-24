@@ -100,7 +100,8 @@ class TestBuilder(object):
                 test = build_test(
                     path, workdir, module,
                     annotate=self.annotate,
-                    cleanup_workdir=self.cleanup_workdir)
+                    cleanup_workdir=self.cleanup_workdir,
+                    cleanup_sharedlibs=self.cleanup_sharedlibs)
             else:
                 test = CythonCompileTestCase(
                     path, workdir, module,
