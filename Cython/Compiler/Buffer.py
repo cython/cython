@@ -116,13 +116,11 @@ def put_access(entry, index_types, index_cnames, tmp_cname, pos, code):
     nonegs = True
     if boundscheck:
         code.putln("%s = -1;" % tmp_cname)
-    code.putln("//HERE")
     for idx, (type, cname, shape) in enumerate(zip(index_types, index_cnames,
                                   bufaux.shapevars)):
         if type.signed != 0:
             nonegs = False
             # not unsigned, deal with negative index
-            if idx > 0: code.put("else ")
             code.putln("if (%s < 0) {" % cname)
             code.putln("%s += %s;" % (cname, shape.cname))
             if boundscheck:
@@ -138,12 +136,10 @@ def put_access(entry, index_types, index_cnames, tmp_cname, pos, code):
                 tmp_cname, idx))
 #    if boundscheck or not nonegs:
 #        code.putln("}")
-    if boundscheck:
+    if boundscheck:  
         code.put("if (%s) " % code.unlikely("%s != -1" % tmp_cname))
         code.begin_block()
-        code.putln('PyErr_Format(PyExc_IndexError, ' +
-                   '"Index out of range (buffer lookup, axis %%d)", %s);' %
-                   tmp_cname);
+        code.putln('__Pyx_BufferIndexError(%s);' % tmp_cname)
         code.putln(code.error_goto(pos))
         code.end_block() 
         
@@ -155,6 +151,19 @@ def put_access(entry, index_types, index_cnames, tmp_cname, pos, code):
     ptrcode = "(%s.buf + %s)" % (bufstruct, offset)
     valuecode = "*%s" % entry.type.buffer_ptr_type.cast_code(ptrcode)
     return valuecode
+
+
+# Utility function to set the right exception
+# The caller should immediately goto_error
+buffer_boundsfail_error_utility_code = [
+"""
+static void __Pyx_BufferIndexError(int axis); /*proto*/
+""","""
+static void __Pyx_BufferIndexError(int axis) {
+  PyErr_Format(PyExc_IndexError,
+     "Out of bounds on buffer access (axis %d)", axis);
+}
+"""]
 
 
 class PureCFuncNode(Node):
@@ -275,6 +284,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
         self.scope = scope
 
     def visit_ModuleNode(self, node):
+        node.scope.use_utility_code(buffer_boundsfail_error_utility_code)
         self.handle_scope(node, node.scope)
         self.visitchildren(node)
         return node
