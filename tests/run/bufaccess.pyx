@@ -1,31 +1,72 @@
 cimport __cython__
 
-__doc__ = u"""
+
+cimport stdlib
+# Add all test_X function docstrings as unit tests
+
+__test__ = {}
+setup_string = """
     >>> A = IntMockBuffer("A", range(6))
     >>> B = IntMockBuffer("B", range(6))
+    >>> C = IntMockBuffer("C", range(6), (2,3))
     >>> E = ErrorBuffer("E")
+
+"""
     
+def testcase(func):
+    __test__[func.__name__] = setup_string + func.__doc__
+    return func
+
+@testcase
+def acquire_release(o1, o2):
+    """
     >>> acquire_release(A, B)
     acquired A
     released A
     acquired B
     released B
+    """
+    cdef object[int] buf
+    buf = o1
+    buf = o2
 
-Apparently, doctest won't handle mixed exceptions and print
-stats, so need to circumvent this.
-    >>> #A.resetlog()
-    >>> #acquire_raise(A)
+#@testcase
+def acquire_raise(o):
+    """
+    Apparently, doctest won't handle mixed exceptions and print
+    stats, so need to circumvent this.
+    
+    >>> A.resetlog()
+    >>> acquire_raise(A)
     Traceback (most recent call last):
         ...
     Exception: on purpose
-    >>> #A.printlog()
+    >>> A.printlog()
     acquired A
     released A
 
+    """
+    cdef object[int] buf
+    buf = o
+    o.printlog()
+    raise Exception("on purpose")
+
+@testcase
+def as_argument(object[int] bufarg, int n):
+    """
     >>> as_argument(A, 6)
     acquired A
     0 1 2 3 4 5
     released A
+    """
+    cdef int i
+    for i in range(n):
+        print bufarg[i],
+    print
+
+@testcase
+def as_argument_defval(object[int] bufarg=IntMockBuffer('default', range(6)), int n=6):
+    """
     >>> as_argument_defval()
     acquired default
     0 1 2 3 4 5
@@ -34,36 +75,101 @@ stats, so need to circumvent this.
     acquired A
     0 1 2 3 4 5
     released A
+    """
+    cdef int i 
+    for i in range(n):
+        print bufarg[i],
+    print
 
+@testcase
+def cdef_assignment(obj, n):
+    """
     >>> cdef_assignment(A, 6)
     acquired A
     0 1 2 3 4 5
     released A
-
-    >>> #forin_assignment([A, B, A], 3)
-    acquired A
-    3
-    released A
-    acquired B
-    3
-    released B
-    acquired A
-    3
-    released A   
     
-    >>> printbuf_float(FloatMockBuffer("F", [1.0, 1.25, 0.75, 1.0]), (4,))
-    acquired F
-    1.0 1.25 0.75 1.0
-    released F
+    """
+    cdef object[int] buf = obj
+    cdef int i
+    for i in range(n):
+        print buf[i],
+    print
 
-    >>> C = IntMockBuffer("C", range(6), (2,3))
+@testcase
+def forin_assignment(objs, int pick):
+    """
+    >>> as_argument_defval()
+    acquired default
+    0 1 2 3 4 5
+    released default
+    >>> as_argument_defval(A, 6)
+    acquired A
+    0 1 2 3 4 5
+    released A
+    """
+    cdef object[int] buf
+    for buf in objs:
+        print buf[pick]
+
+@testcase
+def cascaded_buffer_assignment(obj):
+    """
+    >>> cascaded_buffer_assignment(A)
+    acquired A
+    acquired A
+    released A
+    released A
+    """
+    cdef object[int] a, b
+    a = b = obj
+
+@testcase
+def tuple_buffer_assignment1(a, b):
+    """
+    >>> tuple_buffer_assignment1(A, B)
+    acquired A
+    acquired B
+    released A
+    released B
+    """
+    cdef object[int] x, y
+    x, y = a, b
+
+@testcase
+def tuple_buffer_assignment2(tup):
+    """
+    >>> tuple_buffer_assignment2((A, B))
+    acquired A
+    acquired B
+    released A
+    released B
+    """
+    cdef object[int] x, y
+    x, y = tup
+ 
+@testcase
+def printbuf_int_2d(o, shape):
+    """
     >>> printbuf_int_2d(C, (2,3))
     acquired C
     0 1 2
     3 4 5
     released C
+    """
+    # should make shape builtin
+    cdef object[int, 2] buf
+    buf = o
+    cdef int i, j
+    for i in range(shape[0]):
+        for j in range(shape[1]):
+            print buf[i, j],
+        print
 
-Check negative indexing:
+@testcase
+def get_int_2d(object[int, 2] buf, int i, int j):
+    """
+    Check negative indexing:
     >>> get_int_2d(C, 1, 1)
     acquired C
     released C
@@ -81,7 +187,7 @@ Check negative indexing:
     released C
     0
 
-Out-of-bounds errors:
+    Out-of-bounds errors:
     >>> get_int_2d(C, 2, 0)
     Traceback (most recent call last):
         ...
@@ -90,8 +196,14 @@ Out-of-bounds errors:
     Traceback (most recent call last):
         ...
     IndexError: Out of bounds on buffer access (axis 1)
+    
+    """
+    return buf[i, j]
 
-Unsigned indexing:
+@testcase
+def get_int_2d_uintindex(object[int, 2] buf, unsigned int i, unsigned int j):
+    """
+    Unsigned indexing:
     >>> get_int_2d_uintindex(C, 0, 0)
     acquired C
     released C
@@ -100,47 +212,55 @@ Unsigned indexing:
     acquired C
     released C
     5
-     
-"""
+    """
+    # This is most interesting with regards to the C code
+    # generated.
+    return buf[i, j]
 
-cimport stdlib
 
-def acquire_release(o1, o2):
-    cdef object[int] buf
-    buf = o1
-    buf = o2
+#
+# Buffer type mismatch examples. Varying the type and access
+# method simultaneously, the odds of an interaction is virtually
+# zero.
+#
+@testcase
+def fmtst1(buf):
+    """
+    >>> fmtst1(IntMockBuffer("A", range(3)))
+    Traceback (most recent call last):
+        ...
+    TypeError: Buffer datatype mismatch (rejecting on 'i')
+    """
+    cdef object[float] a = buf
 
-def acquire_raise(o):
-    cdef object[int] buf
-    buf = o
-    o.printlog()
-    raise Exception("on purpose")
+@testcase
+def fmtst2(object[int] buf):
+    """
+    >>> fmtst1(FloatMockBuffer("A", range(3)))
+    Traceback (most recent call last):
+        ...
+    TypeError: Buffer datatype mismatch (rejecting on 'f')
+    """
 
-def as_argument(object[int] bufarg, int n):
-    cdef int i
-    for i in range(n):
-        print bufarg[i],
-    print
+@testcase
+def ndim1(object[int, 2] buf):
+    """
+    >>> ndim1(IntMockBuffer("A", range(3)))
+    Traceback (most recent call last):
+        ...
+    TypeError: Buffer datatype mismatch (rejecting on 'f')
+    """
 
-def as_argument_defval(object[int] bufarg=IntMockBuffer('default', range(6)), int n=6):
-    cdef int i 
-    for i in range(n):
-        print bufarg[i],
-    print
 
-def cdef_assignment(obj, n):
-    cdef object[int] buf = obj
-    cdef int i
-    for i in range(n):
-        print buf[i],
-    print
-
-def forin_assignment(objs, int pick):
-    cdef object[int] buf
-    for buf in objs:
-        print buf[pick]
-
+@testcase
 def printbuf_float(o, shape):
+    """
+    >>> printbuf_float(FloatMockBuffer("F", [1.0, 1.25, 0.75, 1.0]), (4,))
+    acquired F
+    1.0 1.25 0.75 1.0
+    released F
+    """
+
     # should make shape builtin
     cdef object[float] buf
     buf = o
@@ -148,26 +268,7 @@ def printbuf_float(o, shape):
     for i in range(shape[0]):
         print buf[i],
     print
- 
 
-def printbuf_int_2d(o, shape):
-    # should make shape builtin
-    cdef object[int, 2] buf
-    buf = o
-    cdef int i, j
-    for i in range(shape[0]):
-        for j in range(shape[1]):
-            print buf[i, j],
-        print
-
-def get_int_2d(object[int, 2] buf, int i, int j):
-    return buf[i, j]
-
-
-def get_int_2d_uintindex(object[int, 2] buf, unsigned int i, unsigned int j):
-    # This is most interesting with regards to the C code
-    # generated.
-    return buf[i, j]
 
 cdef class MockBuffer:
     cdef object format
@@ -274,3 +375,4 @@ cdef class ErrorBuffer:
 
     def __releasebuffer__(MockBuffer self, Py_buffer* buffer):
         raise Exception("releasing %s" % self.label)
+
