@@ -91,7 +91,15 @@ Out-of-bounds errors:
         ...
     IndexError: Out of bounds on buffer access (axis 1)
 
-    
+Unsigned indexing:
+    >>> get_int_2d_uintindex(C, 0, 0)
+    acquired C
+    released C
+    0
+    >>> get_int_2d_uintindex(C, 1, 2)
+    acquired C
+    released C
+    5
      
 """
 
@@ -154,7 +162,13 @@ def printbuf_int_2d(o, shape):
 
 def get_int_2d(object[int, 2] buf, int i, int j):
     return buf[i, j]
- 
+
+
+def get_int_2d_uintindex(object[int, 2] buf, unsigned int i, unsigned int j):
+    # This is most interesting with regards to the C code
+    # generated.
+    return buf[i, j]
+
 cdef class MockBuffer:
     cdef object format
     cdef char* buffer

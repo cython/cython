@@ -128,7 +128,7 @@ def put_access(entry, index_types, index_cnames, tmp_cname, pos, code):
                     code.unlikely("%s < 0" % cname), tmp_cname, idx))
             code.put("} else ")
         else:
-            if idx > 0: code.put("} else ")
+            if idx > 0: code.put("else ")
         if boundscheck:
             # check bounds in positive direction
             code.putln("if (%s) %s = %d;" % (
