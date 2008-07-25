@@ -90,7 +90,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, is_initialized, pos, 
         put_zero_buffer_aux_into_scope(buffer_aux, code)
         code.end_block()
     else:
-        # our entry had no previous vaule, so set to None when acquisition fails
+        # our entry had no previous value, so set to None when acquisition fails
         code.putln('%s = Py_None; Py_INCREF(Py_None);' % lhs_cname)
     code.putln(code.error_goto(pos))
     code.end_block() # acquisition failure
@@ -104,6 +104,58 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, is_initialized, pos, 
 
     # Everything is ok, assign object variable
     code.putln("%s = %s;" % (lhs_cname, rhs_cname))
+
+
+def put_access(entry, index_types, index_cnames, tmp_cname, pos, code):
+    """Returns a c string which can be used to access the buffer
+    for reading or writing"""
+    bufaux = entry.buffer_aux
+    bufstruct = bufaux.buffer_info_var.cname
+    # Check bounds and fix negative indices
+    boundscheck = True
+    nonegs = True
+    if boundscheck:
+        code.putln("%s = -1;" % tmp_cname)
+    code.putln("//HERE")
+    for idx, (type, cname, shape) in enumerate(zip(index_types, index_cnames,
+                                  bufaux.shapevars)):
+        if type.signed != 0:
+            nonegs = False
+            # not unsigned, deal with negative index
+            if idx > 0: code.put("else ")
+            code.putln("if (%s < 0) {" % cname)
+            code.putln("%s += %s;" % (cname, shape.cname))
+            if boundscheck:
+                code.putln("if (%s) %s = %d;" % (
+                    code.unlikely("%s < 0" % cname), tmp_cname, idx))
+            code.put("} else ")
+        else:
+            if idx > 0: code.put("} else ")
+        if boundscheck:
+            # check bounds in positive direction
+            code.putln("if (%s) %s = %d;" % (
+                code.unlikely("%s >= %s" % (cname, shape.cname)),
+                tmp_cname, idx))
+#    if boundscheck or not nonegs:
+#        code.putln("}")
+    if boundscheck:
+        code.put("if (%s) " % code.unlikely("%s != -1" % tmp_cname))
+        code.begin_block()
+        code.putln('PyErr_Format(PyExc_IndexError, ' +
+                   '"Index out of range (buffer lookup, axis %%d)", %s);' %
+                   tmp_cname);
+        code.putln(code.error_goto(pos))
+        code.end_block() 
+        
+    # Create buffer lookup and return it
+
+    offset = " + ".join(["%s * %s" % (idx, stride.cname)
+                         for idx, stride in
+                         zip(index_cnames, bufaux.stridevars)])
+    ptrcode = "(%s.buf + %s)" % (bufstruct, offset)
+    valuecode = "*%s" % entry.type.buffer_ptr_type.cast_code(ptrcode)
+    return valuecode
+
 
 class PureCFuncNode(Node):
     child_attrs = []

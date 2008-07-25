@@ -337,6 +337,12 @@ class CCodeWriter:
         self.putln("#ifndef %s" % guard)
         self.putln("#define %s" % guard)
     
+    def unlikely(self, cond):
+        if Options.gcc_branch_hints:
+            return 'unlikely(%s)' % cond
+        else:
+            return cond
+        
     def error_goto(self, pos):
         lbl = self.error_label
         self.use_label(lbl)
@@ -353,12 +359,6 @@ class CCodeWriter:
             cinfo,
             lbl)
 
-    def unlikely(self, cond):
-        if Options.gcc_branch_hints:
-            return 'unlikely(%s)' % cond
-        else:
-            return cond
-        
     def error_goto_if(self, cond, pos):
         return "if (%s) %s" % (self.unlikely(cond), self.error_goto(pos))
             
