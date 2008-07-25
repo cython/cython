@@ -1,20 +1,8 @@
 cimport __cython__
 
 __doc__ = u"""
-    >>> A = MockBuffer("i", range(10), label="A")
-    >>> B = MockBuffer("i", range(10), label="B")
-    >>> E = ErrorBuffer("E")
-    
-    >>> acquire_release(A, B)
-    acquired A
-    released A
-    acquired B
-    released B
-"""
-
-__doc__ = u"""
-    >>> A = MockBuffer("i", range(10), label="A")
-    >>> B = MockBuffer("i", range(10), label="B")
+    >>> A = IntMockBuffer("A", range(6))
+    >>> B = IntMockBuffer("B", range(6))
     >>> E = ErrorBuffer("E")
     
     >>> acquire_release(A, B)
@@ -34,18 +22,18 @@ stats, so need to circumvent this.
     acquired A
     released A
 
-    >>> as_argument(MockBuffer("i", range(6)), 6)
-    acquired
+    >>> as_argument(A, 6)
+    acquired A
     0 1 2 3 4 5
-    released
+    released A
     >>> as_argument_defval()
-    acquired
+    acquired default
     0 1 2 3 4 5
-    released
-    >>> as_argument_defval(MockBuffer("i", range(6)), 6)
-    acquired
+    released default
+    >>> as_argument_defval(A, 6)
+    acquired A
     0 1 2 3 4 5
-    released
+    released A
 
     >>> cdef_assignment(A, 6)
     acquired A
@@ -63,60 +51,50 @@ stats, so need to circumvent this.
     3
     released A   
     
-    >>> #printbuf_float(MockBuffer("f", [1.0, 1.25, 0.75, 1.0]), (4,))
-    acquired
+    >>> printbuf_float(FloatMockBuffer("F", [1.0, 1.25, 0.75, 1.0]), (4,))
+    acquired F
     1.0 1.25 0.75 1.0
-    released
+    released F
 
-    >>> #C = MockBuffer("i", range(6), (2,3)), (2,3)
-    >>> #printbuf_int_2d(C)
-    acquired
+    >>> C = IntMockBuffer("C", range(6), (2,3))
+    >>> printbuf_int_2d(C, (2,3))
+    acquired C
     0 1 2
     3 4 5
-    released
+    released C
 
 Check negative indexing:
     >>> get_int_2d(C, 1, 1)
+    acquired C
+    released C
     4
     >>> get_int_2d(C, -1, 0)
+    acquired C
+    released C
     3
     >>> get_int_2d(C, -1, -2)
+    acquired C
+    released C
     4
     >>> get_int_2d(C, -2, -3)
+    acquired C
+    released C
     0
 
 Out-of-bounds errors:
     >>> get_int_2d(C, 2, 0)
     Traceback (most recent call last):
         ...
-    IndexError: on purpose
+    IndexError: Out of bounds on buffer access (axis 0)
+    >>> get_int_2d(C, 0, -4)
+    Traceback (most recent call last):
+        ...
+    IndexError: Out of bounds on buffer access (axis 1)
+
     
      
 """
 
-__sdfdoc__ = """
-    >>> printbuf_float(MockBuffer("f", [1.0, 1.25, 0.75, 1.0]), (4,))
-    acquired
-    1.0 1.25 0.75 1.0
-    released
-"""
-
-ctypedef char* (*write_func_ptr)(char*, object)
-cdef char* write_float(char* buf, object value):
-    (<float*>buf)[0] = <float>value
-    return buf + sizeof(float)
-cdef char* write_int(char* buf, object value):
-    (<int*>buf)[0] = <int>value
-    return buf + sizeof(int)
-
-# long can hold  a pointer on all target platforms,
-# though really we should have a seperate typedef for this..
-# TODO: Should create subclasses of MockBuffer instead.
-typemap = {
-    'f': (sizeof(float), <unsigned long>&write_float),
-    'i': (sizeof(int), <unsigned long>&write_int)
-}
- 
 cimport stdlib
 
 def acquire_release(o1, o2):
@@ -136,7 +114,7 @@ def as_argument(object[int] bufarg, int n):
         print bufarg[i],
     print
 
-def as_argument_defval(object[int] bufarg=MockBuffer('i', range(6)), int n=6):
+def as_argument_defval(object[int] bufarg=IntMockBuffer('default', range(6)), int n=6):
     cdef int i 
     for i in range(n):
         print bufarg[i],
@@ -173,6 +151,9 @@ def printbuf_int_2d(o, shape):
         for j in range(shape[1]):
             print buf[i, j],
         print
+
+def get_int_2d(object[int, 2] buf, int i, int j):
+    return buf[i, j]
  
 cdef class MockBuffer:
     cdef object format
@@ -180,15 +161,13 @@ cdef class MockBuffer:
     cdef int len, itemsize, ndim
     cdef Py_ssize_t* strides
     cdef Py_ssize_t* shape
-    cdef write_func_ptr wfunc
     cdef object label, log
     
-    def __init__(self, typechar, data, shape=None, strides=None, format=None, label=None):
+    def __init__(self, label, data, shape=None, strides=None, format=None):
         self.label = label
         self.log = ""
-        if format is None: format = "=%s" % typechar
-        self.itemsize, x = typemap[typechar]
-        self.wfunc = <write_func_ptr><unsigned long>x
+        self.itemsize = self.get_itemsize()
+        if format is None: format = self.get_default_format()
         if shape is None: shape = (len(data),)
         if strides is None:
             strides = []
@@ -203,7 +182,7 @@ cdef class MockBuffer:
         self.format = format
         self.len = len(data) * self.itemsize
         self.buffer = <char*>stdlib.malloc(self.len)
-        self.fill_buffer(typechar, data)
+        self.fill_buffer(data)
         self.ndim = len(shape)
         self.strides = <Py_ssize_t*>stdlib.malloc(self.ndim * sizeof(Py_ssize_t))
         for i, x in enumerate(strides):
@@ -211,9 +190,11 @@ cdef class MockBuffer:
         self.shape = <Py_ssize_t*>stdlib.malloc(self.ndim * sizeof(Py_ssize_t))
         for i, x in enumerate(shape):
             self.shape[i] = x
-
+    def __dealloc__(self):
+        stdlib.free(self.strides)
+        stdlib.free(self.shape)
+        
     def __getbuffer__(MockBuffer self, Py_buffer* buffer, int flags):
-        global log
         if buffer is NULL:
             print u"locking!"
             return
@@ -227,28 +208,46 @@ cdef class MockBuffer:
         buffer.suboffsets = NULL
         buffer.itemsize = self.itemsize
         buffer.internal = NULL
-        msg = "acquired"
-        if self.label: msg += " " + self.label
+        msg = "acquired %s" % self.label
         print msg
         self.log += msg + "\n"
 
     def __releasebuffer__(MockBuffer self, Py_buffer* buffer):
-        global log
-        msg = "released"
-        if self.label: msg += " " + self.label
+        msg = "released %s" % self.label
         print msg
         self.log += msg + "\n"
         
-    cdef fill_buffer(self, typechar, object data):
+    cdef fill_buffer(self, object data):
         cdef char* it = self.buffer
         for value in data:
-            it = self.wfunc(it, value)
+            self.write(it, value)
+            it += self.itemsize
 
     def printlog(self):
         print self.log,
 
     def resetlog(self):
         self.log = ""
+
+    cdef int write(self, char* buf, object value) except -1: raise Exception()
+    cdef get_itemsize(self):
+        print "ERROR, not subclassed", self.__class__
+    cdef get_default_format(self):
+        print "ERROR, not subclassed", self.__class__
+    
+cdef class FloatMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<float*>buf)[0] = <float>value
+        return 0
+    cdef get_itemsize(self): return sizeof(float)
+    cdef get_default_format(self): return "=f"
+
+cdef class IntMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<int*>buf)[0] = <int>value
+        return 0
+    cdef get_itemsize(self): return sizeof(int)
+    cdef get_default_format(self): return "=i"
             
 cdef class ErrorBuffer:
     cdef object label
