@@ -1044,20 +1044,21 @@ class NameNode(AtomicExprNode):
                 rhs.generate_disposal_code(code)
                 
         else:
-            if self.type.is_pyobject and not self.skip_assignment_decref:
+            if self.type.is_pyobject:
+                rhs.make_owned_reference(code)
                 #print "NameNode.generate_assignment_code: to", self.name ###
                 #print "...from", rhs ###
                 #print "...LHS type", self.type, "ctype", self.ctype() ###
                 #print "...RHS type", rhs.type, "ctype", rhs.ctype() ###
-                rhs.make_owned_reference(code)
-                if entry.is_local and not Options.init_local_none:
-                    initalized = entry.scope.control_flow.get_state((entry.name, 'initalized'), self.pos)
-                    if initalized is True:
+                if not self.skip_assignment_decref:
+                    if entry.is_local and not Options.init_local_none:
+                        initalized = entry.scope.control_flow.get_state((entry.name, 'initalized'), self.pos)
+                        if initalized is True:
+                            code.put_decref(self.result_code, self.ctype())
+                        elif initalized is None:
+                            code.put_xdecref(self.result_code, self.ctype())
+                    else:
                         code.put_decref(self.result_code, self.ctype())
-                    elif initalized is None:
-                        code.put_xdecref(self.result_code, self.ctype())
-                else:
-                    code.put_decref(self.result_code, self.ctype())
             if self.type.is_buffer:
                 self.generate_acquire_buffer(rhs, code)
             else:
