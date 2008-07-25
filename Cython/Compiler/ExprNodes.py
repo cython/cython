@@ -1363,7 +1363,9 @@ class IndexNode(ExprNode):
             self.type = self.base.type.dtype
             self.is_buffer_access = True
             self.index_temps = [Symtab.new_temp(i.type) for i in indices]
-            self.temps = self.index_temps
+            self.tmpint = Symtab.new_temp(PyrexTypes.c_int_type)
+            
+            self.temps = self.index_temps + [self.tmpint]
             if getting:
                 # we only need a temp because result_code isn't refactored to
                 # generation time, but this seems an ok shortcut to take
@@ -1440,7 +1442,8 @@ class IndexNode(ExprNode):
         if self.index is not None:
             self.index.generate_disposal_code(code)
         else:
-            for i in self.indices: i.generate_disposal_code(code)
+            for i in self.indices:
+                i.generate_disposal_code(code)
 
     def generate_result_code(self, code):
         if self.is_buffer_access:
@@ -1512,20 +1515,15 @@ class IndexNode(ExprNode):
         self.generate_subexpr_disposal_code(code)
 
     def buffer_access_code(self, code):
-        # 1. Assign indices to temps
+        # Assign indices to temps
         for temp, index in zip(self.index_temps, self.indices):
             code.putln("%s = %s;" % (temp.cname, index.result_code))
-        # 2. Output code to do bounds checking on these
-
-        # 3. Return a code fragment string which does buffer
-        # lookup, which can be used on lhs or rhs of an assignment
-        # in the caller depending on the scenario.
-        bufaux = self.base.entry.buffer_aux
-        offset = " + ".join(["%s * %s" % (idx.cname, stride.cname)
-                             for idx, stride in
-                             zip(self.index_temps, bufaux.stridevars)])
-        ptrcode = "(%s.buf + %s)" % (bufaux.buffer_info_var.cname, offset)
-        valuecode = "*%s" % self.base.type.buffer_ptr_type.cast_code(ptrcode)
+        # Generate buffer access code using these temps
+        import Buffer
+        valuecode = Buffer.put_access(entry=self.base.entry,
+                                      index_types=[i.type for i in self.index_temps],
+                                      index_cnames=[i.cname for i in self.index_temps],
+                                      pos=self.pos, tmp_cname=self.tmpint.cname, code=code)
         return valuecode
 
 

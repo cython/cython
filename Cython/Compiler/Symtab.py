@@ -225,6 +225,7 @@ class Scope:
         self.num_to_entry = {}
         self.obj_to_entry = {}
         self.pystring_entries = []
+        self.buffer_entries = []
         self.control_flow = ControlFlow.LinearControlFlow()
         
     def start_branching(self, pos):

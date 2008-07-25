@@ -23,14 +23,14 @@ __doc__ = u"""
     acquired B
     released B
 
-    Apparently, doctest won't handle mixed exceptions and print
-    stats, so need to circumvent this.
-    >>> A.resetlog()
-    >>> acquire_raise(A)
+Apparently, doctest won't handle mixed exceptions and print
+stats, so need to circumvent this.
+    >>> #A.resetlog()
+    >>> #acquire_raise(A)
     Traceback (most recent call last):
         ...
     Exception: on purpose
-    >>> A.printlog()
+    >>> #A.printlog()
     acquired A
     released A
 
@@ -52,7 +52,7 @@ __doc__ = u"""
     0 1 2 3 4 5
     released A
 
-    #>>> forin_assignment([A, B, A], 3)
+    >>> #forin_assignment([A, B, A], 3)
     acquired A
     3
     released A
@@ -63,16 +63,35 @@ __doc__ = u"""
     3
     released A   
     
-    >>> printbuf_float(MockBuffer("f", [1.0, 1.25, 0.75, 1.0]), (4,))
+    >>> #printbuf_float(MockBuffer("f", [1.0, 1.25, 0.75, 1.0]), (4,))
     acquired
     1.0 1.25 0.75 1.0
     released
-    
-    >>> printbuf_int_2d(MockBuffer("i", range(6), (2,3)), (2,3))
+
+    >>> #C = MockBuffer("i", range(6), (2,3)), (2,3)
+    >>> #printbuf_int_2d(C)
     acquired
     0 1 2
     3 4 5
     released
+
+Check negative indexing:
+    >>> get_int_2d(C, 1, 1)
+    4
+    >>> get_int_2d(C, -1, 0)
+    3
+    >>> get_int_2d(C, -1, -2)
+    4
+    >>> get_int_2d(C, -2, -3)
+    0
+
+Out-of-bounds errors:
+    >>> get_int_2d(C, 2, 0)
+    Traceback (most recent call last):
+        ...
+    IndexError: on purpose
+    
+     
 """
 
 __sdfdoc__ = """
@@ -190,6 +209,8 @@ cdef class MockBuffer:
         for i, x in enumerate(strides):
             self.strides[i] = x
         self.shape = <Py_ssize_t*>stdlib.malloc(self.ndim * sizeof(Py_ssize_t))
+        for i, x in enumerate(shape):
+            self.shape[i] = x
 
     def __getbuffer__(MockBuffer self, Py_buffer* buffer, int flags):
         global log
