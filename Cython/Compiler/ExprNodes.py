@@ -588,25 +588,6 @@ class NoneNode(PyConstNode):
     def compile_time_value(self, denv):
         return None
     
-class BoolNode(PyConstNode):
-    #  The constant value True or False
-    
-    def compile_time_value(self, denv):
-        return self.value
-    
-    def calculate_result_code(self):
-        if self.value:
-            return "Py_True"
-        else:
-            return "Py_False"
-
-    def coerce_to(self, dst_type, env):
-        value = self.value
-        if dst_type.is_numeric:
-            return IntNode(self.pos, value=int(self.value)).coerce_to(dst_type, env)
-        else:
-            return PyConstNode.coerce_to(self, dst_type, env)
-
 class EllipsisNode(PyConstNode):
     #  '...' in a subscript list.
     
@@ -638,6 +619,16 @@ class ConstNode(AtomicExprNode):
     def generate_result_code(self, code):
         pass
 
+
+class BoolNode(ConstNode):
+    type = PyrexTypes.c_bint_type
+    #  The constant value True or False
+    
+    def compile_time_value(self, denv):
+        return self.value
+    
+    def calculate_result_code(self):
+        return int(self.value)
 
 class NullNode(ConstNode):
     type = PyrexTypes.c_null_ptr_type
@@ -1217,20 +1208,24 @@ class NextNode(AtomicExprNode):
         self.is_temp = 1
     
     def generate_result_code(self, code):
-        code.putln(
-            "if (likely(%s != -1)) {" % self.iterator.counter.result_code)
-        code.putln(
-            "if (%s >= PySequence_Fast_GET_SIZE(%s)) break;" % (
-                self.iterator.counter.result_code,
-                self.iterator.py_result()))
-        code.putln(
-            "%s = PySequence_Fast_GET_ITEM(%s, %s); Py_INCREF(%s); %s++;" % (
-                self.result_code,
-                self.iterator.py_result(),
-                self.iterator.counter.result_code,
-                self.result_code,
-                self.iterator.counter.result_code))
-        code.putln("} else {")
+        for py_type in ["List", "Tuple"]:
+            code.putln(
+                "if (likely(Py%s_CheckExact(%s))) {" % (py_type, self.iterator.py_result()))
+            code.putln(
+                "if (%s >= Py%s_GET_SIZE(%s)) break;" % (
+                    self.iterator.counter.result_code,
+                    py_type,
+                    self.iterator.py_result()))
+            code.putln(
+                "%s = Py%s_GET_ITEM(%s, %s); Py_INCREF(%s); %s++;" % (
+                    self.result_code,
+                    py_type,
+                    self.iterator.py_result(),
+                    self.iterator.counter.result_code,
+                    self.result_code,
+                    self.iterator.counter.result_code))
+            code.put("} else ")
+        code.putln("{")
         code.putln(
             "%s = PyIter_Next(%s);" % (
                 self.result_code,

@@ -49,20 +49,20 @@ class ContextManager:
         return self.value
 
 def no_as():
-    with ContextManager("value"):
-        print "hello"
+    with ContextManager(u"value"):
+        print u"hello"
         
 def basic():
-    with ContextManager("value") as x:
+    with ContextManager(u"value") as x:
         print x
 
 def with_exception(exit_ret):
     try:
-        with ContextManager("value", exit_ret=exit_ret) as value:
+        with ContextManager(u"value", exit_ret=exit_ret) as value:
             print value
             raise MyException()
     except:
-        print "outer except"
+        print u"outer except"
 
 def multitarget():
     with ContextManager((1, 2, (3, (4, 5)))) as (a, b, (c, (d, e))):

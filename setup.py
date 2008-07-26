@@ -11,11 +11,14 @@ if sys.platform == "win32":
 setup_args = {}
 
 if sys.version_info < (2,4):
-    compiler_dir = os.path.join(get_python_lib(prefix=''), 'Cython/Compiler')
+    cython_dir = os.path.join(get_python_lib(prefix=''), 'Cython')
+    compiler_dir = os.path.join(cython_dir, 'Compiler')
     setup_args['data_files'] = [
-        {compiler_dir : ['Cython/Compiler/Lexicon.pickle']}]
+        {compiler_dir : ['Cython/Compiler/Lexicon.pickle'],
+         cython_dir   : ['Cython/Includes/*.pxd']}]
 else:
-    setup_args['package_data'] = {'Cython.Compiler' : ['Lexicon.pickle']}
+    setup_args['package_data'] = {'Cython.Compiler' : ['Lexicon.pickle'],
+                                  'Cython' : ['Includes/*.pxd']}
 
 if os.name == "posix":
     scripts = ["bin/cython"]
@@ -23,7 +26,7 @@ else:
     scripts = ["cython.py"]
 
 try:
-    sys.argv.remove("--no-compile")
+    sys.argv.remove("--no-cython-compile")
 except ValueError:
     try:
         from Cython.Compiler.Main import compile

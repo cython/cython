@@ -16,7 +16,6 @@
 
 cdef extern from "sys/types.h":
     ctypedef unsigned int size_t
-    ctypedef int          ssize_t
 
 cdef extern from "stdio.h":
     ctypedef struct FILE:
@@ -26,7 +25,6 @@ cdef extern from "Python.h":
 
     # XXX: This is platform dependent.
     ctypedef unsigned short Py_UNICODE
-    ctypedef ssize_t        Py_ssize_t
 
     ctypedef struct PyTypeObject:
         pass
