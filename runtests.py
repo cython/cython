@@ -286,7 +286,7 @@ class CythonUnitTestCase(CythonCompileTestCase):
         except Exception:
             pass
 
-def collect_unittests(path, suite, selectors):
+def collect_unittests(path, module_prefix, suite, selectors):
     def file_matches(filename):
         return filename.startswith("Test") and filename.endswith(".py")
 
@@ -301,7 +301,7 @@ def collect_unittests(path, suite, selectors):
             for f in filenames:
                 if file_matches(f):
                     filepath = os.path.join(dirpath, f)[:-len(".py")]
-                    modulename = filepath[len(path)+1:].replace(os.path.sep, '.')
+                    modulename = module_prefix + filepath[len(path)+1:].replace(os.path.sep, '.')
                     if not [ 1 for match in selectors if match(modulename) ]:
                         continue
                     module = __import__(modulename)
@@ -360,6 +360,8 @@ if __name__ == '__main__':
     # RUN ALL TESTS!
     ROOTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]), 'tests')
     WORKDIR = os.path.join(os.getcwd(), 'BUILD')
+    UNITTEST_MODULE = "Cython"
+    UNITTEST_ROOT = os.path.join(os.getcwd(), UNITTEST_MODULE)
     if WITH_CYTHON:
         if os.path.exists(WORKDIR):
             shutil.rmtree(WORKDIR, ignore_errors=True)
@@ -382,7 +384,7 @@ if __name__ == '__main__':
     test_suite = unittest.TestSuite()
 
     if options.unittests:
-        collect_unittests(os.getcwd(), test_suite, selectors)
+        collect_unittests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors)
 
     if options.filetests:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors,
