@@ -20,6 +20,8 @@ possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
 
 class BufferAux:
+    writable_needed = False
+    
     def __init__(self, buffer_info_var, stridevars, shapevars, tschecker):
         self.buffer_info_var = buffer_info_var
         self.stridevars = stridevars

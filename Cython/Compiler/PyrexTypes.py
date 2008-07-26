@@ -198,7 +198,7 @@ class BufferType(BaseType):
     # ndim          int
 
     is_buffer = 1
-
+    writable = True
     def __init__(self, base, dtype, ndim):
         self.base = base
         self.dtype = dtype
