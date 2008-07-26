@@ -182,7 +182,7 @@ class PostParse(CythonTransform):
             node.ndim = int(ndimnode.value)
         else:
             node.ndim = 1
-        
+       
         # We're done with the parse tree args
         node.positional_args = None
         node.keyword_args = None

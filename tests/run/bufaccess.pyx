@@ -1,7 +1,18 @@
 cimport __cython__
 
+# Tests the buffer access syntax functionality by constructing
+# mock buffer objects.
+#
+# Note that the buffers are mock objects created for testing
+# the buffer access behaviour -- for instance there is no flag
+# checking in the buffer objects (why test our test case?), rather
+# what we want to test is what is passed into the flags argument.
+#
+
+
 
 cimport stdlib
+cimport python_buffer
 # Add all test_X function docstrings as unit tests
 
 __test__ = {}
@@ -251,6 +262,50 @@ def ndim1(object[int, 2] buf):
     ValueError: Buffer has wrong number of dimensions (expected 2, got 1)
     """
 
+#
+# Test which flags are passed.
+#
+@testcase
+def readonly(obj):
+    """
+    >>> R = UnsignedShortMockBuffer("R", range(27), shape=(3, 3, 3))
+    >>> readonly(R)
+    acquired R
+    25
+    released R
+    >>> R.recieved_flags
+    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES']
+    """
+    cdef object[unsigned short int, 3] buf = obj
+    print buf[2, 2, 1]
+
+@testcase
+def writable(obj):
+    """
+    >>> R = UnsignedShortMockBuffer("R", range(27), shape=(3, 3, 3))
+    >>> writable(R)
+    acquired R
+    released R
+    >>> R.recieved_flags
+    ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
+    """
+    cdef object[unsigned short int, 3] buf = obj
+    buf[2, 2, 1] = 23
+
+
+#
+# Coercions
+#
+@testcase
+def coercions(object[unsigned char] uc):
+    """
+TODO    
+    """
+    print type(uc[0])
+    uc[0] = -1
+    print uc[0]
+    uc[0] = <int>3.14
+    print uc[0]
 
 @testcase
 def printbuf_float(o, shape):
@@ -270,6 +325,14 @@ def printbuf_float(o, shape):
     print
 
 
+available_flags = (
+    ('FORMAT', python_buffer.PyBUF_FORMAT),
+    ('INDIRECT', python_buffer.PyBUF_INDIRECT),
+    ('ND', python_buffer.PyBUF_ND),
+    ('STRIDES', python_buffer.PyBUF_STRIDES),
+    ('WRITABLE', python_buffer.PyBUF_WRITABLE)
+)
+
 cdef class MockBuffer:
     cdef object format
     cdef char* buffer
@@ -277,6 +340,7 @@ cdef class MockBuffer:
     cdef Py_ssize_t* strides
     cdef Py_ssize_t* shape
     cdef object label, log
+    cdef readonly object recieved_flags
     
     def __init__(self, label, data, shape=None, strides=None, format=None):
         self.label = label
@@ -313,6 +377,12 @@ cdef class MockBuffer:
         if buffer is NULL:
             print u"locking!"
             return
+
+        self.recieved_flags = []
+        for name, value in available_flags:
+            if (value & flags) == value:
+                self.recieved_flags.append(name)
+        
         buffer.buf = self.buffer
         buffer.len = self.len
         buffer.readonly = 0
@@ -363,6 +433,13 @@ cdef class IntMockBuffer(MockBuffer):
         return 0
     cdef get_itemsize(self): return sizeof(int)
     cdef get_default_format(self): return "=i"
+
+cdef class UnsignedShortMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<unsigned short*>buf)[0] = <unsigned short>value
+        return 0
+    cdef get_itemsize(self): return sizeof(unsigned short)
+    cdef get_default_format(self): return "=H"
             
 cdef class ErrorBuffer:
     cdef object label

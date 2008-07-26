@@ -8,6 +8,11 @@ from Cython.Compiler.Errors import CompileError
 import PyrexTypes
 from sets import Set as set
 
+def get_flags(buffer_aux, buffer_type):
+    flags = 'PyBUF_FORMAT | PyBUF_INDIRECT'
+    if buffer_aux.writable_needed: flags += "| PyBUF_WRITABLE"
+    return flags
+        
 def used_buffer_aux_vars(entry):
     buffer_aux = entry.buffer_aux
     buffer_aux.buffer_info_var.used = True
@@ -33,19 +38,26 @@ def put_zero_buffer_aux_into_scope(buffer_aux, code):
     code.putln(" ".join(["%s = 0;" % s.cname
                          for s in buffer_aux.shapevars]))    
 
+def getbuffer_cond_code(obj_cname, buffer_aux, flags, ndim):
+    bufstruct = buffer_aux.buffer_info_var.cname
+    checker = buffer_aux.tschecker
+    return "PyObject_GetBuffer(%s, &%s, %s) == -1  || %s(&%s, %d) == -1" % (
+        obj_cname, bufstruct, flags, checker, bufstruct, ndim)
+                   
 def put_acquire_arg_buffer(entry, code, pos):
     buffer_aux = entry.buffer_aux
     cname  = entry.cname
     bufstruct = buffer_aux.buffer_info_var.cname
-    flags = '0'
+    flags = get_flags(buffer_aux, entry.type)
     # Acquire any new buffer
     code.put('if (%s != Py_None) ' % cname)
     code.begin_block()
     code.putln('%s.buf = 0;' % bufstruct) # PEP requirement
-    code.put(code.error_goto_if(
-        'PyObject_GetBuffer(%s, &%s, %s) == -1  || %s(&%s, %d) == -1' % (
-        cname, bufstruct, flags, buffer_aux.tschecker, bufstruct, entry.type.ndim),
-        pos))
+    code.put(code.error_goto_if(getbuffer_cond_code(cname,
+                                                    buffer_aux,
+                                                    flags,
+                                                    entry.type.ndim),
+                                pos))
     # An exception raised in arg parsing cannot be catched, so no
     # need to do care about the buffer then.
     put_unpack_buffer_aux_into_scope(buffer_aux, code)
@@ -58,7 +70,7 @@ def put_release_buffer(entry, code):
 def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
                          is_initialized, pos, code):
     bufstruct = buffer_aux.buffer_info_var.cname
-    flags = '0'
+    flags = get_flags(buffer_aux, buffer_type)
 
     if is_initialized:
         # Release any existing buffer
@@ -71,14 +83,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
     code.put('if (%s != Py_None) ' % rhs_cname)
     code.begin_block()
     code.putln('%s.buf = 0;' % bufstruct) # PEP requirement
-    code.put('if (%s) ' % code.unlikely(
-        'PyObject_GetBuffer(%s, &%s, %s) == -1' % (
-            rhs_cname,
-            bufstruct,
-            flags)
-         + ' || %s(&%s, %d) == -1' % (
-            buffer_aux.tschecker, bufstruct, buffer_type.ndim 
-        )))
+    code.put('if (%s) ' % code.unlikely(getbuffer_cond_code(rhs_cname, buffer_aux, flags, buffer_type.ndim)))
     code.begin_block()
     # If acquisition failed, attempt to reacquire the old buffer
     # before raising the exception. A failure of reacquisition
@@ -86,8 +91,8 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
     # can consider working around this later.
     if is_initialized:
         put_zero_buffer_aux_into_scope(buffer_aux, code)
-        code.put('if (%s != Py_None && PyObject_GetBuffer(%s, &%s, %s) == -1) ' % (
-            lhs_cname, lhs_cname, bufstruct, flags))
+        code.put('if (%s != Py_None && (%s)) ' % (rhs_cname, 
+            getbuffer_cond_code(rhs_cname, buffer_aux, flags, buffer_type.ndim)))
         code.begin_block()
         put_zero_buffer_aux_into_scope(buffer_aux, code)
         code.end_block()

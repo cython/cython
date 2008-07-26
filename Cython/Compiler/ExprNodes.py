@@ -1371,6 +1371,11 @@ class IndexNode(ExprNode):
                 # we only need a temp because result_code isn't refactored to
                 # generation time, but this seems an ok shortcut to take
                 self.is_temp = True
+            if setting:
+                if not self.base.entry.type.writable:
+                    error(self.pos, "Writing to readonly buffer")
+                else:
+                    self.base.entry.buffer_aux.writable_needed = True
         else:
             if isinstance(self.index, TupleNode):
                 self.index.analyse_types(env, skip_children=skip_child_analysis)
