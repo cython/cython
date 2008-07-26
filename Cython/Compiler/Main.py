@@ -46,6 +46,13 @@ class Context:
         self.pyxs = {}
         self.include_directories = include_directories
         self.future_directives = set()
+
+        import os.path
+
+        standard_include_path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), '..', 'Includes'))
+        self.include_directories = include_directories + [standard_include_path]
+
         
     def find_module(self, module_name, 
             relative_to = None, pos = None, need_pxd = 1):
@@ -613,6 +620,7 @@ def main(command_line = 0):
     else:
         options = CompilationOptions(default_options)
         sources = args
+
     if options.show_version:
         sys.stderr.write("Cython version %s\n" % Version.version)
     if options.working_path!="":
