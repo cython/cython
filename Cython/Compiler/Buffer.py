@@ -43,8 +43,9 @@ def put_acquire_arg_buffer(entry, code, pos):
     code.begin_block()
     code.putln('%s.buf = 0;' % bufstruct) # PEP requirement
     code.put(code.error_goto_if(
-        'PyObject_GetBuffer(%s, &%s, %s) == -1' % (
-        cname, bufstruct, flags), pos))
+        'PyObject_GetBuffer(%s, &%s, %s) == -1  || %s(&%s, %d) == -1' % (
+        cname, bufstruct, flags, buffer_aux.tschecker, bufstruct, entry.type.ndim),
+        pos))
     # An exception raised in arg parsing cannot be catched, so no
     # need to do care about the buffer then.
     put_unpack_buffer_aux_into_scope(buffer_aux, code)
@@ -54,7 +55,8 @@ def put_release_buffer(entry, code):
     code.putln("if (%s != Py_None) PyObject_ReleaseBuffer(%s, &%s);" % (
         entry.cname, entry.cname, entry.buffer_aux.buffer_info_var.cname))
 
-def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, is_initialized, pos, code):
+def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
+                         is_initialized, pos, code):
     bufstruct = buffer_aux.buffer_info_var.cname
     flags = '0'
 
@@ -74,8 +76,8 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, is_initialized, pos, 
             rhs_cname,
             bufstruct,
             flags)
-         + ' || %s((char*)%s.format) == NULL' % (
-            buffer_aux.tschecker.cname, bufstruct
+         + ' || %s(&%s, %d) == -1' % (
+            buffer_aux.tschecker, bufstruct, buffer_type.ndim 
         )))
     code.begin_block()
     # If acquisition failed, attempt to reacquire the old buffer
@@ -156,9 +158,9 @@ def put_access(entry, index_types, index_cnames, tmp_cname, pos, code):
 # Utility function to set the right exception
 # The caller should immediately goto_error
 buffer_boundsfail_error_utility_code = [
-"""
+"""\
 static void __Pyx_BufferIndexError(int axis); /*proto*/
-""","""
+""","""\
 static void __Pyx_BufferIndexError(int axis) {
   PyErr_Format(PyExc_IndexError,
      "Out of bounds on buffer access (axis %d)", axis);
@@ -166,51 +168,61 @@ static void __Pyx_BufferIndexError(int axis) {
 """]
 
 
-class PureCFuncNode(Node):
-    child_attrs = []
-    
-    def __init__(self, pos, cname, type, c_code, visibility='private'):
-        self.pos = pos
-        self.cname = cname
-        self.type = type
-        self.c_code = c_code
-        self.visibility = visibility
-        self.entry = None
+#
+# Buffer type checking. Utility code for checking that acquired
+# buffers match our assumptions. We only need to check ndim and
+# the format string; the access mode/flags is checked by the
+# exporter.
+#
+buffer_check_utility_code = ["""\
+static const char* __Pyx_ConsumeWhitespace(const char* ts); /*proto*/
+static const char* __Pyx_BufferTypestringCheckEndian(const char* ts); /*proto*/
+static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim); /*proto*/
+""", """
+static const char* __Pyx_ConsumeWhitespace(const char* ts) {
+  while (1) {
+    switch (*ts) {
+      case 10:
+      case 13:
+      case ' ':
+        ++ts;
+      default:
+        return ts;
+    }
+  }
+}
 
-    def analyse_expressions(self, env):
-        if not self.entry:
-            self.entry = env.declare_cfunction(
-                            "<pure c function:%s>" % self.cname,
-                            self.type, self.pos, cname=self.cname,
-                            defining=True, visibility=self.visibility)
+static const char* __Pyx_BufferTypestringCheckEndian(const char* ts) {
+  int ok = 1;
+  switch (*ts) {
+    case '@':
+    case '=':
+      ++ts; break;
+    case '<':
+      if (__BYTE_ORDER == __LITTLE_ENDIAN) ++ts;
+      else ok = 0;
+      break;
+    case '>':
+    case '!':
+      if (__BYTE_ORDER == __BIG_ENDIAN) ++ts;
+      else ok = 0;
+      break;
+  }
+  if (!ok) {
+    PyErr_Format(PyExc_ValueError, "Buffer has wrong endianness (rejecting on '%s')", ts);
+    return NULL;
+  }
+  return ts;
+}
 
-    def generate_function_definitions(self, env, code, transforms):
-        assert self.type.optional_arg_count == 0
-        visibility = self.entry.visibility
-        if visibility != 'private':
-            storage_class = "%s " % Naming.extern_c_macro
-        else:
-            storage_class = "static "
-        arg_decls = [arg.declaration_code() for arg in self.type.args]
-        sig = self.type.return_type.declaration_code(
-            self.type.function_header_code(self.cname, ", ".join(arg_decls)))
-        code.putln("")
-        code.putln("%s%s {" % (storage_class, sig))
-        code.put(self.c_code)
-        code.putln("}")
+static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim) {
+  PyErr_Format(PyExc_ValueError,
+               "Buffer has wrong number of dimensions (expected %d, got %d)",
+               expected_ndim, buffer->ndim);
+}
 
-    def generate_execution_code(self, code):
-        pass
+"""]
 
-
-tschecker_functype = PyrexTypes.CFuncType(
-    PyrexTypes.c_char_ptr_type,
-    [PyrexTypes.CFuncTypeArg(EncodedString("ts"), PyrexTypes.c_char_ptr_type,
-                             (0, 0, None), cname="ts")],
-    exception_value = "NULL"
-)  
-
-tsprefix = "__Pyx_tsc"
 
 class IntroduceBufferAuxiliaryVars(CythonTransform):
 
@@ -227,6 +239,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
             return node
         self.bufstruct_type = cymod.entries[u'Py_buffer'].type
         self.tscheckers = {}
+        self.tsfuncs = set()
         self.ts_funcs = []
         self.ts_item_checkers = {}
         self.module_scope = node.scope
@@ -258,7 +271,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
             buftype = entry.type
 
             # Get or make a type string checker
-            tschecker = self.tschecker(buftype.dtype)
+            tschecker = self.buffer_type_checker(buftype.dtype, scope)
 
             # Declare auxiliary vars
             cname = scope.mangle(Naming.bufstruct_prefix, name)
@@ -297,36 +310,34 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
     #
     # Utils for creating type string checkers
     #
-    
-    def new_ts_func(self, name, code):
-        cname = "%s_%s" % (tsprefix, name)
-        funcnode = PureCFuncNode(self.module_pos, cname, tschecker_functype, code)
-        funcnode.analyse_expressions(self.module_scope)
-        self.ts_funcs.append(funcnode)
-        return funcnode        
-    
     def mangle_dtype_name(self, dtype):
         # Use prefixes to seperate user defined types from builtins
         # (consider "typedef float unsigned_int")
-        return dtype.declaration_code("").replace(" ", "_")
-        
-    def get_ts_check_item(self, dtype):
+        if dtype.typestring is None:
+            prefix = "nn_"
+        else:
+            prefix = ""
+        return prefix + dtype.declaration_code("").replace(" ", "_")
+
+    def get_ts_check_item(self, dtype, env):
         # See if we can consume one (unnamed) dtype as next item
+        # Put native types and structs in seperate namespaces (as one could create a struct named unsigned_int...)
+        name = "__Pyx_BufferTypestringCheck_item_%s" % self.mangle_dtype_name(dtype)
         funcnode = self.ts_item_checkers.get(dtype)
-        if funcnode is None:
+        if not name in self.tsfuncs:
             char = dtype.typestring
-            if char is not None and len(char) == 1:
+            if char is not None:
                 # Can use direct comparison
-                funcnode = self.new_ts_func("natitem_%s" % self.mangle_dtype_name(dtype), """\
+                code = """\
   if (*ts != '%s') {
-    PyErr_Format(PyExc_TypeError, "Buffer datatype mismatch (rejecting on '%%s')", ts);
-  return NULL;
+    PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (rejecting on '%%s')", ts);
+    return NULL;
   } else return ts + 1;
-""" % char)
+""" % char
             else:
-                # Must deduce sign and length; rely on int vs. float to be correctly declared
+                # Cannot trust declared size; but rely on int vs float and
+                # signed/unsigned to be correctly declared
                 ctype = dtype.declaration_code("")
-                
                 code = """\
   int ok;
   switch (*ts) {"""
@@ -335,108 +346,77 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
                         ('b', 'char'), ('h', 'short'), ('i', 'int'),
                         ('l', 'long'), ('q', 'long long')
                     ]
-                    code += "".join(["""\
-    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 < 0); break;
-    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 > 0); break;
-""" % (char, ctype, against, ctype, char.upper(), ctype, "unsigned " + against, ctype) for
-                                     char, against in types])
+                    if dtype.signed == 0:
+                        code += "".join(["\n    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 > 0); break;" %
+                                     (char.upper(), ctype, against, ctype) for char, against in types])
+                    else:
+                        code += "".join(["\n    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 < 0); break;" %
+                                     (char, ctype, against, ctype) for char, against in types])
                     code += """\
     default: ok = 0;
   }
   if (!ok) {
-    PyErr_Format(PyExc_TypeError, "Buffer datatype mismatch (rejecting on '%s')", ts);
+    PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (rejecting on '%s')", ts);
     return NULL;
   } else return ts + 1;
 """
-                
-                funcnode = self.new_ts_func("tdefitem_%s" % self.mangle_dtype_name(dtype), code)
-                
-            self.ts_item_checkers[dtype] = funcnode
-        return funcnode.entry.cname
+            env.use_utility_code(["""\
+static const char* %s(const char* ts); /*proto*/
+""" % name, """
+static const char* %s(const char* ts) {
+%s
+}
+""" % (name, code)])
+            self.tsfuncs.add(name)
 
-    ts_consume_whitespace_cname = None
-    ts_check_endian_cname = None
+        return name
 
-    def ensure_ts_utils(self):
-        # Makes sure that the typechecker utils are in scope
-        # (and constructs them if not)
-        if self.ts_consume_whitespace_cname is None:
-            self.ts_consume_whitespace_cname = self.new_ts_func("consume_whitespace", """\
-  while (1) {
-    switch (*ts) {
-      case 10:
-      case 13:
-      case ' ':
-        ++ts;
-      default:
-        return ts;
-    }
-  }
-""").entry.cname
-        if self.ts_check_endian_cname is None:
-            self.ts_check_endian_cname = self.new_ts_func("check_endian", """\
-  int ok = 1;
-  switch (*ts) {
-    case '@':
-    case '=':
-      ++ts; break;
-    case '<':
-      if (__BYTE_ORDER == __LITTLE_ENDIAN) ++ts;
-      else ok = 0;
-      break;
-    case '>':
-    case '!':
-      if (__BYTE_ORDER == __BIG_ENDIAN) ++ts;
-      else ok = 0;
-      break;
-  }
-  if (!ok) {
-    PyErr_Format(PyExc_TypeError, "Data has wrong endianness (rejecting on '%s')", ts);
-    return NULL;
-  }
-  return ts;
-""").entry.cname
-            
-    def create_ts_check_simple(self, dtype):
+    def get_ts_check_simple(self, dtype, env):
         # Check whole string for single unnamed item
-        consume_whitespace = self.ts_consume_whitespace_cname
-        check_endian = self.ts_check_endian_cname
-        check_item = self.get_ts_check_item(dtype)
-        return self.new_ts_func("simple_%s" % self.mangle_dtype_name(dtype), """\
-  ts = %(consume_whitespace)s(ts);
-  ts = %(check_endian)s(ts);
-  if (!ts) return NULL;
-  ts = %(consume_whitespace)s(ts);
-  ts = %(check_item)s(ts);
-  if (!ts) return NULL;
-  ts = %(consume_whitespace)s(ts);
-  if (*ts != 0) {
-    PyErr_Format(PyExc_TypeError, "Data too long (rejecting on '%%s')", ts);
-    return NULL;
+        name = "__Pyx_BufferTypestringCheck_simple_%s" % self.mangle_dtype_name(dtype)
+        if not name in self.tsfuncs:
+            itemchecker = self.get_ts_check_item(dtype, env)
+            utilcode = ["""
+static int %s(Py_buffer* buf, int e_nd); /*proto*/
+""" % name,"""
+static int %(name)s(Py_buffer* buf, int e_nd) {
+  const char* ts = buf->format;
+  if (buf->ndim != e_nd) {
+    __Pyx_BufferNdimError(buf, e_nd);
+    return -1;
   }
-  return ts;
-""" % locals())
+  ts = __Pyx_ConsumeWhitespace(ts);
+  ts = __Pyx_BufferTypestringCheckEndian(ts);
+  if (!ts) return -1;
+  ts = __Pyx_ConsumeWhitespace(ts);
+  ts = %(itemchecker)s(ts);
+  if (!ts) return -1;
+  ts = __Pyx_ConsumeWhitespace(ts);
+  if (*ts != 0) {
+    PyErr_Format(PyExc_ValueError,
+        "Expected non-struct buffer data type (rejecting on '%%s')", ts);
+    return -1;
+  }
+  return 0;
+}""" % locals()]
+            env.use_utility_code(buffer_check_utility_code)
+            env.use_utility_code(utilcode)
+            self.tsfuncs.add(name)
+        return name
 
-    def tschecker(self, dtype):
-        # Creates a type string checker function for the given type.
-        # Each checker is created as a function entry in the module scope
-        # and a PureCNode and put in the self.ts_checkers dict.
-        # Also the entry is returned.
-        #
-        # TODO: __eq__ and __hash__ for types
-
-        self.ensure_ts_utils()
-        funcnode = self.tscheckers.get(dtype)
-        if funcnode is None:
-            if dtype.is_struct_or_union:
-                assert False
-            elif dtype.is_int or dtype.is_float:
-                # This includes simple typedef-ed types
-                funcnode = self.create_ts_check_simple(dtype)
-            else:
-                assert False
-            self.tscheckers[dtype] = funcnode
-        return funcnode.entry
+    def buffer_type_checker(self, dtype, env):
+        # Creates a type checker function for the given type.
+        # Each checker is created as utility code. However, as each function
+        # is dynamically constructed we also keep a set self.tsfuncs containing
+        # the right functions for the types that are already created.
+        if dtype.is_struct_or_union:
+            assert False
+        elif dtype.is_int or dtype.is_float:
+            # This includes simple typedef-ed types
+            funcname = self.get_ts_check_simple(dtype, env)
+        else:
+            assert False
+        return funcname
 
     
 

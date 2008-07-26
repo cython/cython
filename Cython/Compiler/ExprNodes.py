@@ -1075,7 +1075,7 @@ class NameNode(AtomicExprNode):
         code.putln('%s = %s;' % (rhstmp, rhs.result_as(self.ctype())))
 
         import Buffer
-        Buffer.put_assign_to_buffer(self.result_code, rhstmp, buffer_aux,
+        Buffer.put_assign_to_buffer(self.result_code, rhstmp, buffer_aux, self.entry.type,
                                     is_initialized=not self.skip_assignment_decref,
                                     pos=self.pos, code=code)
         code.putln("%s = 0;" % rhstmp)

@@ -229,17 +229,17 @@ def fmtst1(buf):
     >>> fmtst1(IntMockBuffer("A", range(3)))
     Traceback (most recent call last):
         ...
-    TypeError: Buffer datatype mismatch (rejecting on 'i')
+    ValueError: Buffer datatype mismatch (rejecting on 'i')
     """
     cdef object[float] a = buf
 
 @testcase
 def fmtst2(object[int] buf):
     """
-    >>> fmtst1(FloatMockBuffer("A", range(3)))
+    >>> fmtst2(FloatMockBuffer("A", range(3)))
     Traceback (most recent call last):
         ...
-    TypeError: Buffer datatype mismatch (rejecting on 'f')
+    ValueError: Buffer datatype mismatch (rejecting on 'f')
     """
 
 @testcase
@@ -248,7 +248,7 @@ def ndim1(object[int, 2] buf):
     >>> ndim1(IntMockBuffer("A", range(3)))
     Traceback (most recent call last):
         ...
-    TypeError: Buffer datatype mismatch (rejecting on 'f')
+    ValueError: Buffer has wrong number of dimensions (expected 2, got 1)
     """
 
 
