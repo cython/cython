@@ -1,5 +1,3 @@
-cimport __cython__
-
 # Tests the buffer access syntax functionality by constructing
 # mock buffer objects.
 #

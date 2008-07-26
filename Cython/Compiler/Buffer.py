@@ -237,12 +237,6 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
 
     def __call__(self, node):
         assert isinstance(node, ModuleNode)
-        try:
-            cymod = self.context.modules[u'__cython__']
-        except KeyError:
-            # No buffer fun for this module
-            return node
-        self.bufstruct_type = cymod.entries[u'Py_buffer'].type
         self.tscheckers = {}
         self.tsfuncs = set()
         self.ts_funcs = []
@@ -281,7 +275,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
             # Declare auxiliary vars
             cname = scope.mangle(Naming.bufstruct_prefix, name)
             bufinfo = scope.declare_var(name="$%s" % cname, cname=cname,
-                                        type=self.bufstruct_type, pos=node.pos)
+                                        type=PyrexTypes.c_py_buffer_type, pos=node.pos)
 
             bufinfo.used = True
 

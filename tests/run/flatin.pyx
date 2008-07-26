@@ -23,9 +23,9 @@ __doc__ = u"""
 """
 
 def test_in(s):
-    if s in ('ABC', 'BCD'):
+    if s in (u'ABC', u'BCD'):
         return 1
-    elif s.upper() in ('ABC', 'BCD'):
+    elif s.upper() in (u'ABC', u'BCD'):
         return 2
     elif len(s) in (1,2):
         return 3
@@ -35,9 +35,9 @@ def test_in(s):
         return 5
 
 def test_not_in(s):
-    if s not in ('ABC', 'BCD', 'CDE', 'CDEF'):
+    if s not in (u'ABC', u'BCD', u'CDE', u'CDEF'):
         return 1
-    elif s.upper() not in ('ABC', 'BCD', 'CDEF'):
+    elif s.upper() not in (u'ABC', u'BCD', u'CDEF'):
         return 2
     elif len(s) not in [3]:
         return 3
