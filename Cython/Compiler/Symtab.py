@@ -15,6 +15,7 @@ from TypeSlots import \
     get_special_method_signature, get_property_accessor_signature
 import ControlFlow
 import __builtin__
+from sets import Set as set
 
 possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
@@ -626,9 +627,12 @@ class Scope:
         return [entry for entry in self.temp_entries
             if entry not in self.free_temp_entries]
     
-    def use_utility_code(self, new_code):
-        self.global_scope().use_utility_code(new_code)
+    def use_utility_code(self, new_code, name=None):
+        self.global_scope().use_utility_code(new_code, name)
     
+    def has_utility_code(self, name):
+        return self.global_scope().has_utility_code(name)
+
     def generate_library_function_declarations(self, code):
         # Generate extern decls for C library funcs used.
         #if self.pow_function_used:
@@ -748,6 +752,7 @@ class ModuleScope(Scope):
     # doc_cname            string             C name of module doc string
     # const_counter        integer            Counter for naming constants
     # utility_code_used    [string]           Utility code to be included
+    # utility_code_names   set(string)        (Optional) names for named (often generated) utility code
     # default_entries      [Entry]            Function argument default entries
     # python_include_files [string]           Standard  Python headers to be included
     # include_files        [string]           Other C headers to be included
@@ -782,6 +787,7 @@ class ModuleScope(Scope):
         self.doc_cname = Naming.moddoc_cname
         self.const_counter = 1
         self.utility_code_used = []
+        self.utility_code_names = set()
         self.default_entries = []
         self.module_entries = {}
         self.python_include_files = ["Python.h", "structmember.h"]
@@ -940,13 +946,25 @@ class ModuleScope(Scope):
         self.const_counter = n + 1
         return "%s%s%d" % (Naming.const_prefix, prefix, n)
     
-    def use_utility_code(self, new_code):
+    def use_utility_code(self, new_code, name=None):
         #  Add string to list of utility code to be included,
-        #  if not already there (tested using 'is').
+        #  if not already there (tested using the provided name,
+        #  or 'is' if name=None -- if the utility code is dynamically
+        #  generated, use the name, otherwise it is not needed).
+        if name is not None:
+            if name in self.utility_code_names:
+                return
         for old_code in self.utility_code_used:
             if old_code is new_code:
                 return
         self.utility_code_used.append(new_code)
+        self.utility_code_names.add(name)
+
+    def has_utility_code(self, name):
+        # Checks if utility code (that is registered by name) has
+        # previously been registered. This is useful if the utility code
+        # is dynamically generated to avoid re-generation.
+        return name in self.utility_code_names
     
     def declare_c_class(self, name, pos, defining = 0, implementing = 0,
         module_name = None, base_type = None, objstruct_cname = None,
