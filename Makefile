@@ -2,6 +2,7 @@ PYTHON?=python
 
 clean:
 	@echo Cleaning Source
+	@rm -fr build
 	@rm -f *.pyc */*.pyc */*/*.pyc 
 	@rm -f *~ */*~ */*/*~
 	@rm -f core */core
