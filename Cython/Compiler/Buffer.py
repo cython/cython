@@ -141,9 +141,22 @@ def put_acquire_arg_buffer(entry, code, pos):
     # need to do care about the buffer then.
     put_unpack_buffer_aux_into_scope(buffer_aux, code)
 
+#def put_release_buffer_normal(entry, code):
+#    code.putln("if (%s != Py_None) PyObject_ReleaseBuffer(%s, &%s);" % (
+#        entry.cname,
+#        entry.cname,
+#        entry.buffer_aux.buffer_info_var.cname))
+
 def put_release_buffer(entry, code):
-    code.putln("if (%s != Py_None) PyObject_ReleaseBuffer(%s, &%s);" % (
-        entry.cname, entry.cname, entry.buffer_aux.buffer_info_var.cname))
+    code.putln(dedent("""\
+        if (%s != Py_None) {
+          PyObject *__pyx_type, *__pyx_value, *__pyx_tb;
+          PyErr_Fetch(&__pyx_type, &__pyx_value, &__pyx_tb);
+          PyObject_ReleaseBuffer(%s, &%s);
+          PyErr_Restore(__pyx_type, __pyx_value, __pyx_tb);
+        }""" % (entry.cname,
+                entry.cname,
+                entry.buffer_aux.buffer_info_var.cname)))
 
 def put_assign_to_buffer(lhs_cname, rhs_cname, retcode_cname, buffer_aux, buffer_type,
                          is_initialized, pos, code):
