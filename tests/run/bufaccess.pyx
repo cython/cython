@@ -46,8 +46,7 @@ def acquire_release(o1, o2):
     buf = o1
     buf = o2
 
-#TODO!
-#@testcase
+@testcase
 def acquire_raise(o):
     """
     Apparently, doctest won't handle mixed exceptions and print
@@ -61,11 +60,9 @@ def acquire_raise(o):
     >>> A.printlog()
     acquired A
     released A
-
     """
     cdef object[int] buf
     buf = o
-    o.printlog()
     raise Exception("on purpose")
 
 @testcase
@@ -614,7 +611,7 @@ cdef class MockBuffer:
 
     def __releasebuffer__(MockBuffer self, Py_buffer* buffer):
         msg = "released %s" % self.label
-        print msg
+        print msg 
         self.log += msg + "\n"
 
     def printlog(self):
