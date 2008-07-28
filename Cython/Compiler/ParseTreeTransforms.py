@@ -83,7 +83,7 @@ ERR_BUF_MISSING = '"%s" missing'
 ERR_BUF_INT = '"%s" must be an integer'
 ERR_BUF_NONNEG = '"%s" must be non-negative'
 ERR_CDEF_INCLASS = 'Cannot assign default value to cdef class attributes'
-
+ERR_BUF_LOCALONLY = 'Buffer types only allowed as function local variables'
 class PostParse(CythonTransform):
     """
     Basic interpretation of the parse tree, as well as validity
@@ -106,19 +106,25 @@ class PostParse(CythonTransform):
     """
 
     # Track our context.
-    in_class_body = False
-    def visit_ClassDefNode(self, node):
-        prev = self.in_class_body
-        self.in_class_body = True
+    scope_type = None # can be either of 'module', 'function', 'class'
+
+    def visit_ModuleNode(self, node):
+        self.scope_type = 'module'
         self.visitchildren(node)
-        self.in_class_body = prev
+        return node
+    
+    def visit_ClassDefNode(self, node):
+        prev = self.scope_type
+        self.scope_type = 'class'
+        self.visitchildren(node)
+        self.scope_type = prev
         return node
 
     def visit_FuncDefNode(self, node):
-        prev = self.in_class_body
-        self.in_class_body = False
+        prev = self.scope_type
+        self.scope_type = 'function'
         self.visitchildren(node)
-        self.in_class_body = prev
+        self.scope_type = prev
         return node
 
     # cdef variables
@@ -127,14 +133,20 @@ class PostParse(CythonTransform):
         # declaration. Also, it makes use of the fact that a cdef decl
         # must appear before the first use, so we don't have to deal with
         # "i = 3; cdef int i = i" and can simply move the nodes around.
-        self.visitchildren(node)
+        try:
+            self.visitchildren(node)
+        except PostParseError, e:
+            # An error in a cdef clause is ok, simply remove the declaration
+            # and try to move on to report more errors
+            self.context.nonfatal_error(e)
+            return None
         stats = [node]
         for decl in node.declarators:
             while isinstance(decl, CPtrDeclaratorNode):
                 decl = decl.base
             if isinstance(decl, CNameDeclaratorNode):
                 if decl.default is not None:
-                    if self.in_class_body:
+                    if self.scope_type == 'class':
                         raise PostParseError(decl.pos, ERR_CDEF_INCLASS)
                     stats.append(SingleAssignmentNode(node.pos,
                         lhs=NameNode(node.pos, name=decl.name),
@@ -145,10 +157,13 @@ class PostParse(CythonTransform):
     # buffer access
     buffer_options = ("dtype", "ndim") # ordered!
     def visit_CBufferAccessTypeNode(self, node):
+        if not self.scope_type == 'function':
+            raise PostParseError(node.pos, ERR_BUF_LOCALONLY)
+        
         options = {}
         # Fetch positional arguments
         if len(node.positional_args) > len(self.buffer_options):
-            self.context.error(ERR_BUF_TOO_MANY)
+            raise PostParseError(node.pos, ERR_BUF_TOO_MANY)
         for arg, unicode_name in zip(node.positional_args, self.buffer_options):
             name = str(unicode_name)
             options[name] = arg
@@ -156,17 +171,16 @@ class PostParse(CythonTransform):
         for item in node.keyword_args.key_value_pairs:
             name = str(item.key.value)
             if not name in self.buffer_options:
-                raise PostParseError(item.key.pos,
-                                     ERR_BUF_UNKNOWN % name)
+                raise PostParseError(item.key.pos, ERR_BUF_OPTION_UNKNOWN % name)
             if name in options.keys():
-                raise PostParseError(item.key.pos,
-                                     ERR_BUF_DUP % key)
+                raise PostParseError(item.key.pos, ERR_BUF_DUP % key)
             options[name] = item.value
 
         provided = options.keys()
         # get dtype
         dtype = options.get("dtype")
-        if dtype is None: raise PostParseError(node.pos, ERR_BUF_MISSING % 'dtype')
+        if dtype is None:
+            raise PostParseError(node.pos, ERR_BUF_MISSING % 'dtype')
         node.dtype_node = dtype
 
         # get ndim

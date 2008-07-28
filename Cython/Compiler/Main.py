@@ -330,6 +330,9 @@ class Context:
                     verbose_flag = options.show_version,
                     cplus = options.cplus)
 
+    def nonfatal_error(self, exc):
+        return Errors.report_error(exc)
+
     def run_pipeline(self, pipeline, source):
         errors_occurred = False
         data = source
