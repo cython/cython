@@ -890,7 +890,8 @@ class NameNode(AtomicExprNode):
             # safe than sorry. Feel free to change this.
             import Buffer
             self.new_buffer_temp = Symtab.new_temp(self.entry.type)
-            self.temps = [self.new_buffer_temp]
+            self.retcode_temp = Symtab.new_temp(PyrexTypes.c_int_type)
+            self.temps = [self.new_buffer_temp, self.retcode_temp]
             Buffer.used_buffer_aux_vars(self.entry)
                 
     def analyse_rvalue_entry(self, env):
@@ -1035,6 +1036,16 @@ class NameNode(AtomicExprNode):
                 rhs.generate_disposal_code(code)
                 
         else:
+            if self.type.is_buffer:
+                # Generate code for doing the buffer release/acquisition.
+                # This might raise an exception in which case the assignment (done
+                # below) will not happen.
+                #
+                # The reason this is not in a typetest-like node is because the
+                # variables that the acquired buffer info is stored to is allocated
+                # per entry and coupled with it.
+                self.generate_acquire_buffer(rhs, code)
+
             if self.type.is_pyobject:
                 rhs.make_owned_reference(code)
                 #print "NameNode.generate_assignment_code: to", self.name ###
@@ -1050,10 +1061,7 @@ class NameNode(AtomicExprNode):
                             code.put_xdecref(self.result_code, self.ctype())
                     else:
                         code.put_decref(self.result_code, self.ctype())
-            if self.type.is_buffer:
-                self.generate_acquire_buffer(rhs, code)
-            else:
-                code.putln('%s = %s;' % (self.result_code, rhs.result_as(self.ctype())))
+            code.putln('%s = %s;' % (self.result_code, rhs.result_as(self.ctype())))
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
                 print("...generating post-assignment code for %s" % rhs)
@@ -1066,7 +1074,7 @@ class NameNode(AtomicExprNode):
         code.putln('%s = %s;' % (rhstmp, rhs.result_as(self.ctype())))
 
         import Buffer
-        Buffer.put_assign_to_buffer(self.result_code, rhstmp, buffer_aux, self.entry.type,
+        Buffer.put_assign_to_buffer(self.result_code, rhstmp, self.retcode_temp.cname, buffer_aux, self.entry.type,
                                     is_initialized=not self.skip_assignment_decref,
                                     pos=self.pos, code=code)
         code.putln("%s = 0;" % rhstmp)

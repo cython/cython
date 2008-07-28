@@ -26,6 +26,9 @@ def testcase(func):
     __test__[func.__name__] = setup_string + func.__doc__
     return func
 
+def testcas(a):
+    pass
+
 @testcase
 def acquire_release(o1, o2):
     """
@@ -34,11 +37,16 @@ def acquire_release(o1, o2):
     released A
     acquired B
     released B
+    >>> acquire_release(None, None)
+    >>> acquire_release(None, B)
+    acquired B
+    released B
     """
     cdef object[int] buf
     buf = o1
     buf = o2
 
+#TODO!
 #@testcase
 def acquire_raise(o):
     """
@@ -59,6 +67,134 @@ def acquire_raise(o):
     buf = o
     o.printlog()
     raise Exception("on purpose")
+
+@testcase
+def acquire_failure1():
+    """
+    >>> acquire_failure1()
+    acquired working
+    0 3
+    0 3
+    released working
+    """
+    cdef object[int] buf
+    buf = IntMockBuffer("working", range(4))
+    print buf[0], buf[3]
+    try:
+        buf = ErrorBuffer()
+        assert False
+    except Exception:
+        print buf[0], buf[3]
+
+@testcase
+def acquire_failure2():
+    """
+    >>> acquire_failure2()
+    acquired working
+    0 3
+    0 3
+    released working
+    """
+    cdef object[int] buf = IntMockBuffer("working", range(4))
+    print buf[0], buf[3]
+    try:
+        buf = ErrorBuffer()
+        assert False
+    except Exception:
+        print buf[0], buf[3]
+
+@testcase
+def acquire_failure3():
+    """
+    >>> acquire_failure3()
+    acquired working
+    0 3
+    released working
+    acquired working
+    0 3
+    released working
+    """
+    cdef object[int] buf
+    buf = IntMockBuffer("working", range(4))
+    print buf[0], buf[3]
+    try:
+        buf = 3
+        assert False
+    except Exception:
+        print buf[0], buf[3]
+
+@testcase
+def acquire_failure4():
+    """
+    >>> acquire_failure4()
+    acquired working
+    0 3
+    released working
+    acquired working
+    0 3
+    released working
+    """
+    cdef object[int] buf = IntMockBuffer("working", range(4))
+    print buf[0], buf[3]
+    try:
+        buf = 2
+        assert False
+    except Exception:
+        print buf[0], buf[3]
+
+@testcase
+def acquire_failure5():
+    """
+    >>> acquire_failure5()
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer acquisition failed on assignment; and then reacquiring the old buffer failed too!
+    """
+    cdef object[int] buf
+    buf = IntMockBuffer("working", range(4))
+    buf.fail = True
+    buf = 3
+
+
+@testcase
+def acquire_nonbuffer1(first, second=None):
+    """
+    >>> acquire_nonbuffer1(3)
+    Traceback (most recent call last):
+      ...
+    TypeError: 'int' does not have the buffer interface
+    >>> acquire_nonbuffer1(type)
+    Traceback (most recent call last):
+      ...
+    TypeError: 'type' does not have the buffer interface
+    >>> acquire_nonbuffer1(None, 2)
+    Traceback (most recent call last):
+      ...
+    TypeError: 'int' does not have the buffer interface
+    """
+    cdef object[int] buf
+    buf = first
+    buf = second
+
+@testcase
+def acquire_nonbuffer2():
+    """
+    >>> acquire_nonbuffer2()
+    acquired working
+    0 3
+    released working
+    acquired working
+    0 3
+    released working
+    """
+    cdef object[int] buf = IntMockBuffer("working", range(4))
+    print buf[0], buf[3]
+    try:
+        buf = ErrorBuffer
+        assert False
+    except Exception:
+        print buf[0], buf[3]
+
 
 @testcase
 def as_argument(object[int] bufarg, int n):
@@ -331,14 +467,19 @@ available_flags = (
     ('WRITABLE', python_buffer.PyBUF_WRITABLE)
 )
 
+cimport stdio
+
 cdef class MockBuffer:
     cdef object format
-    cdef char* buffer
+    cdef void* buffer
     cdef int len, itemsize, ndim
     cdef Py_ssize_t* strides
     cdef Py_ssize_t* shape
+    cdef Py_ssize_t* suboffsets
     cdef object label, log
+    
     cdef readonly object recieved_flags
+    cdef public object fail
     
     def __init__(self, label, data, shape=None, strides=None, format=None):
         self.label = label
@@ -356,27 +497,78 @@ cdef class MockBuffer:
                 cumprod *= s
             strides.reverse()
         strides = [x * self.itemsize for x in strides]
+        suboffsets = [-1] * len(shape)
+
+        datashape = [len(data)]
+        p = data
+        while True:
+            p = p[0]
+            if isinstance(p, list): datashape.append(len(p))
+            else: break
+        if len(datashape) > 1:
+            # indirect access
+            self.ndim = len(datashape)
+            shape = datashape
+            self.buffer = self.create_indirect_buffer(data, shape)
+            self.suboffsets = self.list_to_sizebuf(suboffsets)
+        else:
+            # strided and/or simple access
+            self.buffer = self.create_buffer(data)
+            self.ndim = len(shape)
+            self.suboffsets = NULL
+            
         self.format = format
         self.len = len(data) * self.itemsize
-        self.buffer = <char*>stdlib.malloc(self.len)
-        self.fill_buffer(data)
-        self.ndim = len(shape)
-        self.strides = <Py_ssize_t*>stdlib.malloc(self.ndim * sizeof(Py_ssize_t))
-        for i, x in enumerate(strides):
-            self.strides[i] = x
-        self.shape = <Py_ssize_t*>stdlib.malloc(self.ndim * sizeof(Py_ssize_t))
-        for i, x in enumerate(shape):
-            self.shape[i] = x
+
+        self.strides = self.list_to_sizebuf(strides)
+        self.shape = self.list_to_sizebuf(shape)
+            
     def __dealloc__(self):
         stdlib.free(self.strides)
         stdlib.free(self.shape)
-        
+        if self.suboffsets != NULL:
+            stdlib.free(self.suboffsets)
+            # must recursively free indirect...
+        else:
+            stdlib.free(self.buffer)
+    
+    cdef void* create_buffer(self, data):
+        cdef char* buf = <char*>stdlib.malloc(len(data) * self.itemsize)
+        cdef char* it = buf
+        for value in data:
+            self.write(it, value)
+            it += self.itemsize
+        return buf
+
+    cdef void* create_indirect_buffer(self, data, shape):
+        cdef void** buf
+
+        assert shape[0] == len(data)
+        if len(shape) == 1:
+            return self.create_buffer(data)
+        else:
+            shape = shape[1:]
+            buf = <void**>stdlib.malloc(len(data) * sizeof(void*))
+            for idx, subdata in enumerate(data):
+                buf[idx] = self.create_indirect_buffer(subdata, shape)
+            return buf
+
+    cdef Py_ssize_t* list_to_sizebuf(self, l):
+        cdef Py_ssize_t* buf = <Py_ssize_t*>stdlib.malloc(len(l) * sizeof(Py_ssize_t))
+        for i, x in enumerate(l):
+            buf[i] = x
+        return buf
+
     def __getbuffer__(MockBuffer self, Py_buffer* buffer, int flags):
+        if self.fail:
+            raise ValueError("Failing on purpose")
+        
         if buffer is NULL:
             print u"locking!"
             return
 
         self.recieved_flags = []
+        cdef int value
         for name, value in available_flags:
             if (value & flags) == value:
                 self.recieved_flags.append(name)
@@ -388,7 +580,7 @@ cdef class MockBuffer:
         buffer.ndim = self.ndim
         buffer.shape = self.shape
         buffer.strides = self.strides
-        buffer.suboffsets = NULL
+        buffer.suboffsets = self.suboffsets
         buffer.itemsize = self.itemsize
         buffer.internal = NULL
         msg = "acquired %s" % self.label
@@ -399,12 +591,6 @@ cdef class MockBuffer:
         msg = "released %s" % self.label
         print msg
         self.log += msg + "\n"
-        
-    cdef fill_buffer(self, object data):
-        cdef char* it = self.buffer
-        for value in data:
-            self.write(it, value)
-            it += self.itemsize
 
     def printlog(self):
         print self.log,
