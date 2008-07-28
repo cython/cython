@@ -294,24 +294,6 @@ def tuple_buffer_assignment2(tup):
     x, y = tup
  
 @testcase
-def printbuf_int_2d(o, shape):
-    """
-    >>> printbuf_int_2d(C, (2,3))
-    acquired C
-    0 1 2
-    3 4 5
-    released C
-    """
-    # should make shape builtin
-    cdef object[int, 2] buf
-    buf = o
-    cdef int i, j
-    for i in range(shape[0]):
-        for j in range(shape[1]):
-            print buf[i, j],
-        print
-
-@testcase
 def get_int_2d(object[int, 2] buf, int i, int j):
     """
     Check negative indexing:
@@ -441,6 +423,46 @@ TODO
     uc[0] = <int>3.14
     print uc[0]
 
+
+#
+# Testing that accessing data using various types of buffer access
+# all works.
+#
+
+
+@testcase
+def printbuf_int_2d(o, shape):
+    """
+    Strided:
+    
+    >>> printbuf_int_2d(IntMockBuffer("A", range(6), (2,3)), (2,3))
+    acquired A
+    0 1 2
+    3 4 5
+    released A
+    >>> printbuf_int_2d(IntMockBuffer("A", range(100), (3,3), strides=(20,5)), (3,3))
+    acquired A
+    0 5 10
+    20 25 30
+    40 45 50
+    released A
+
+    Indirect:
+    >>> printbuf_int_2d(IntMockBuffer("A", [[1,2],[3,4]]), (2,2))
+    acquired A
+    1 2
+    3 4
+    released A
+    """
+    # should make shape builtin
+    cdef object[int, 2] buf
+    buf = o
+    cdef int i, j
+    for i in range(shape[0]):
+        for j in range(shape[1]):
+            print buf[i, j],
+        print
+
 @testcase
 def printbuf_float(o, shape):
     """
@@ -510,7 +532,11 @@ cdef class MockBuffer:
             self.ndim = len(datashape)
             shape = datashape
             self.buffer = self.create_indirect_buffer(data, shape)
+            suboffsets = [0] * (self.ndim-1) + [-1]
+            strides = [sizeof(void*)] * (self.ndim-1) + [self.itemsize]
             self.suboffsets = self.list_to_sizebuf(suboffsets)
+            #  printf("%ld; %ld %ld %ld %ld %ld", i0, s0, o0, i1, s1, o1);
+
         else:
             # strided and/or simple access
             self.buffer = self.create_buffer(data)
@@ -542,7 +568,6 @@ cdef class MockBuffer:
 
     cdef void* create_indirect_buffer(self, data, shape):
         cdef void** buf
-
         assert shape[0] == len(data)
         if len(shape) == 1:
             return self.create_buffer(data)
