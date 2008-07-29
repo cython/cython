@@ -313,11 +313,12 @@ def explicitly_release_buffer():
 @testcase
 def get_int_2d(object[int, 2] buf, int i, int j):
     """
-    Check negative indexing:
     >>> get_int_2d(C, 1, 1)
     acquired C
     released C
     4
+
+    Check negative indexing:
     >>> get_int_2d(C, -1, 0)
     acquired C
     released C
@@ -361,6 +362,57 @@ def get_int_2d_uintindex(object[int, 2] buf, unsigned int i, unsigned int j):
     # generated.
     return buf[i, j]
 
+@testcase
+def set_int_2d(object[int, 2] buf, int i, int j, int value):
+    """
+    Uses get_int_2d to read back the value afterwards. For pure
+    unit test, one should support reading in MockBuffer instead.
+    
+    >>> set_int_2d(C, 1, 1, 10)
+    acquired C
+    released C
+    >>> get_int_2d(C, 1, 1)
+    acquired C
+    released C
+    10
+
+    Check negative indexing:
+    >>> set_int_2d(C, -1, 0, 3)
+    acquired C
+    released C
+    >>> get_int_2d(C, -1, 0)
+    acquired C
+    released C
+    3
+
+    >>> set_int_2d(C, -1, -2, 8)
+    acquired C
+    released C
+    >>> get_int_2d(C, -1, -2)
+    acquired C
+    released C
+    8
+    
+    >>> set_int_2d(C, -2, -3, 9)
+    acquired C
+    released C
+    >>> get_int_2d(C, -2, -3)
+    acquired C
+    released C
+    9
+
+    Out-of-bounds errors:
+    >>> set_int_2d(C, 2, 0, 19)
+    Traceback (most recent call last):
+        ...
+    IndexError: Out of bounds on buffer access (axis 0)
+    >>> set_int_2d(C, 0, -4, 19)
+    Traceback (most recent call last):
+        ...
+    IndexError: Out of bounds on buffer access (axis 1)
+    
+    """
+    buf[i, j] = value
 
 #
 # Buffer type mismatch examples. Varying the type and access
