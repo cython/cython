@@ -19,6 +19,7 @@ class CCodeWriter:
     # error_label      string          error catch point label
     # continue_label   string          loop continue point label
     # break_label      string          loop break point label
+    # return_from_error_cleanup_label string
     # label_counter    integer         counter for naming labels
     # in_try_finally   boolean         inside try of try...finally
     # filename_table   {string : int}  for finding filename table indexes

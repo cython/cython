@@ -829,9 +829,13 @@ class FuncDefNode(StatNode, BlockNode):
                 
     def generate_function_definitions(self, env, code, transforms):
         import Buffer
+
+        lenv = self.local_scope
+
         # Generate C code for header and body of function
         code.init_labels()
-        lenv = self.local_scope
+        code.return_from_error_cleanup_label = code.new_label()
+            
         # ----- Top-level constants used by this function
         code.mark_pos(self.pos)
         self.generate_interned_num_decls(lenv, code)
@@ -899,12 +903,23 @@ class FuncDefNode(StatNode, BlockNode):
             val = self.return_type.default_value
             if val:
                 code.putln("%s = %s;" % (Naming.retval_cname, val))
-        #code.putln("goto %s;" % code.return_label)
         # ----- Error cleanup
         if code.error_label in code.labels_used:
             code.put_goto(code.return_label)
             code.put_label(code.error_label)
             code.put_var_xdecrefs(lenv.temp_entries)
+
+            # Clean up buffers -- this calls a Python function
+            # so need to save and restore error state
+            buffers_present = len(lenv.buffer_entries) > 0
+            if buffers_present:
+                code.putln("{ PyObject *__pyx_type, *__pyx_value, *__pyx_tb;")
+                code.putln("PyErr_Fetch(&__pyx_type, &__pyx_value, &__pyx_tb);")
+                for entry in lenv.buffer_entries:
+                    code.putln("%s;" % Buffer.get_release_buffer_code(entry))
+                    #code.putln("%s = 0;" % entry.cname)
+                code.putln("PyErr_Restore(__pyx_type, __pyx_value, __pyx_tb);}")
+
             err_val = self.error_value()
             exc_check = self.caller_will_check_exceptions()
             if err_val is not None or exc_check:
@@ -922,14 +937,22 @@ class FuncDefNode(StatNode, BlockNode):
                     "%s = %s;" % (
                         Naming.retval_cname, 
                         err_val))
-        # ----- Return cleanup
+            if buffers_present:
+                # Else, non-error return will be an empty clause
+                code.put_goto(code.return_from_error_cleanup_label)
+
+        # ----- Non-error return cleanup
+        # PS! If adding something here, modify the conditions for the
+        # goto statement in error cleanup above
         code.put_label(code.return_label)
+        for entry in lenv.buffer_entries:
+            code.putln("%s;" % Buffer.get_release_buffer_code(entry))
+        # ----- Return cleanup for both error and no-error return
+        code.put_label(code.return_from_error_cleanup_label)
         if not Options.init_local_none:
             for entry in lenv.var_entries:
                 if lenv.control_flow.get_state((entry.name, 'initalized')) is not True:
                     entry.xdecref_cleanup = 1
-        for entry in lenv.buffer_entries:
-            Buffer.put_release_buffer(entry, code)
         code.put_var_decrefs(lenv.var_entries, used_only = 1)
         # Decref any increfed args
         for entry in lenv.arg_entries:
