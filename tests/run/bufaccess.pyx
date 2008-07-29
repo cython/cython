@@ -29,6 +29,11 @@ def testcase(func):
 def testcas(a):
     pass
 
+
+#
+# Buffer acquire and release tests
+#
+
 @testcase
 def acquire_release(o1, o2):
     """
@@ -289,7 +294,22 @@ def tuple_buffer_assignment2(tup):
     """
     cdef object[int] x, y
     x, y = tup
- 
+
+@testcase
+def explicitly_release_buffer():
+    """
+    >>> explicitly_release_buffer()
+    acquired A
+    released A
+    After release
+    """
+    cdef object[int] x = IntMockBuffer("A", range(10))
+    x = None
+    print "After release"
+
+#
+# Index bounds checking
+# 
 @testcase
 def get_int_2d(object[int, 2] buf, int i, int j):
     """
