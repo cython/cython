@@ -7,7 +7,14 @@ from Cython.Utils import EncodedString
 from Cython.Compiler.Errors import CompileError
 import PyrexTypes
 from sets import Set as set
-from textwrap import dedent
+import textwrap
+
+def dedent(text, reindent=0):
+    text = textwrap.dedent(text)
+    if reindent > 0:
+        indent = " " * reindent
+        text = '\n'.join([indent + x for x in text.split('\n')])
+    return text
 
 class IntroduceBufferAuxiliaryVars(CythonTransform):
 
@@ -199,7 +206,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, retcode_cname, buffer_aux, buffer
         code.put('if (%s) ' % code.unlikely("%s == -1" % (getbuffer % lhs_cname)))
         code.begin_block()
         code.putln('Py_XDECREF(__pyx_type); Py_XDECREF(__pyx_value); Py_XDECREF(__pyx_tb);')
-        code.putln('PyErr_Format(PyExc_ValueError, "Buffer acquisition failed on assignment; and then reacquiring the old buffer failed too!");')
+        code.putln('__Pyx_RaiseBufferFallbackError();')
         code.putln('} else {')
         code.putln('PyErr_Restore(__pyx_type, __pyx_value, __pyx_tb);')
         code.end_block()
@@ -284,83 +291,6 @@ def use_empty_bufstruct_code(env, max_ndim):
     """) % (", ".join(["0"] * max_ndim), ", ".join(["-1"] * max_ndim))
     env.use_utility_code([code, ""])
 
-# Utility function to set the right exception
-# The caller should immediately goto_error
-access_utility_code = [
-"""\
-static void __Pyx_BufferIndexError(int axis); /*proto*/
-""","""\
-static void __Pyx_BufferIndexError(int axis) {
-  PyErr_Format(PyExc_IndexError,
-     "Out of bounds on buffer access (axis %d)", axis);
-}
-"""]
-
-#
-# Buffer type checking. Utility code for checking that acquired
-# buffers match our assumptions. We only need to check ndim and
-# the format string; the access mode/flags is checked by the
-# exporter.
-#
-buffer_check_utility_code = ["""\
-static void __Pyx_ZeroBuffer(Py_buffer* buf); /*proto*/
-static const char* __Pyx_ConsumeWhitespace(const char* ts); /*proto*/
-static const char* __Pyx_BufferTypestringCheckEndian(const char* ts); /*proto*/
-static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim); /*proto*/
-""", """
-static void __Pyx_ZeroBuffer(Py_buffer* buf) {
-  buf->buf = NULL;
-  buf->strides = __Pyx_zeros;
-  buf->shape = __Pyx_zeros;
-  buf->suboffsets = __Pyx_minusones;
-}
-
-static const char* __Pyx_ConsumeWhitespace(const char* ts) {
-  while (1) {
-    switch (*ts) {
-      case 10:
-      case 13:
-      case ' ':
-        ++ts;
-      default:
-        return ts;
-    }
-  }
-}
-
-static const char* __Pyx_BufferTypestringCheckEndian(const char* ts) {
-  int ok = 1;
-  switch (*ts) {
-    case '@':
-    case '=':
-      ++ts; break;
-    case '<':
-      if (__BYTE_ORDER == __LITTLE_ENDIAN) ++ts;
-      else ok = 0;
-      break;
-    case '>':
-    case '!':
-      if (__BYTE_ORDER == __BIG_ENDIAN) ++ts;
-      else ok = 0;
-      break;
-  }
-  if (!ok) {
-    PyErr_Format(PyExc_ValueError, "Buffer has wrong endianness (rejecting on '%s')", ts);
-    return NULL;
-  }
-  return ts;
-}
-
-static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim) {
-  PyErr_Format(PyExc_ValueError,
-               "Buffer has wrong number of dimensions (expected %d, got %d)",
-               expected_ndim, buffer->ndim);
-}
-
-"""]
-
-
-
 def get_buf_lookup_full(env, nd):
     """
     Generates and registers as utility a buffer lookup function for the right number
@@ -410,19 +340,19 @@ def get_ts_check_item(dtype, env):
         char = dtype.typestring
         if char is not None:
                 # Can use direct comparison
-            code = """\
-  if (*ts != '%s') {
-    PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (rejecting on '%%s')", ts);
-    return NULL;
-  } else return ts + 1;
-""" % char
+            code = dedent("""\
+                if (*ts != '%s') {
+                  PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (rejecting on '%%s')", ts);
+                  return NULL;
+                } else return ts + 1;
+            """, 2) % char
         else:
             # Cannot trust declared size; but rely on int vs float and
             # signed/unsigned to be correctly declared
             ctype = dtype.declaration_code("")
-            code = """\
-  int ok;
-  switch (*ts) {"""
+            code = dedent("""\
+                int ok;
+                switch (*ts) {""", 2)
             if dtype.is_int:
                 types = [
                     ('b', 'char'), ('h', 'short'), ('i', 'int'),
@@ -434,21 +364,21 @@ def get_ts_check_item(dtype, env):
                 else:
                     code += "".join(["\n    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 < 0); break;" %
                                  (char, ctype, against, ctype) for char, against in types])
-                code += """\
-    default: ok = 0;
-  }
-  if (!ok) {
-    PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (rejecting on '%s')", ts);
-    return NULL;
-  } else return ts + 1;
-"""
-        env.use_utility_code(["""\
-static const char* %s(const char* ts); /*proto*/
-""" % name, """
-static const char* %s(const char* ts) {
-%s
-}
-""" % (name, code)], name=name)
+                code += dedent("""\
+                      default: ok = 0;
+                    }
+                    if (!ok) {
+                      PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (rejecting on '%s')", ts);
+                      return NULL;
+                    } else return ts + 1;
+                """, 2)
+        env.use_utility_code([dedent("""\
+            static const char* %s(const char* ts); /*proto*/
+        """) % name, dedent("""
+            static const char* %s(const char* ts) {
+            %s
+            }
+        """) % (name, code)], name=name)
 
     return name
 
@@ -464,7 +394,7 @@ def get_getbuffer_code(dtype, env):
 
     name = "__Pyx_GetBuffer_%s" % mangle_dtype_name(dtype)
     if not env.has_utility_code(name):
-        env.use_utility_code(buffer_check_utility_code)
+        env.use_utility_code(acquire_utility_code)
         itemchecker = get_ts_check_item(dtype, env)
         utilcode = [dedent("""
         static int %s(PyObject* obj, Py_buffer* buf, int flags, int nd); /*proto*/
@@ -592,40 +522,128 @@ static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
     except KeyError:
         pass
 
-    code = """
-#if PY_VERSION_HEX < 0x02060000
-static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
-"""
+    code = dedent("""
+        #if PY_VERSION_HEX < 0x02060000
+        static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
+    """)
     if len(types) > 0:
         clause = "if"
         for t, get, release in types:
             code += "  %s (PyObject_TypeCheck(obj, %s)) return %s(obj, view, flags);\n" % (clause, t, get)
             clause = "else if"
         code += "  else {\n"
-    code += """\
-  PyErr_Format(PyExc_TypeError, "'%100s' does not have the buffer interface", Py_TYPE(obj)->tp_name);
-  return -1;
-"""
+    code += dedent("""\
+        PyErr_Format(PyExc_TypeError, "'%100s' does not have the buffer interface", Py_TYPE(obj)->tp_name);
+        return -1;
+    """, 2)
     if len(types) > 0: code += "  }"
-    code += """
-}
+    code += dedent("""
+        }
 
-static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view) {
-"""
+        static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view) {
+    """)
     if len(types) > 0:
         clause = "if"
         for t, get, release in types:
             if release:
                 code += "%s (PyObject_TypeCheck(obj, %s)) %s(obj, view);" % (clause, t, release)
                 clause = "else if"
-    code += """
+    code += dedent("""
+        }
+
+        #endif
+    """)
+                   
+    env.use_utility_code([dedent("""\
+        #if PY_VERSION_HEX < 0x02060000
+        static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
+        static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view);
+        #endif
+    """) ,code], codename)
+
+#
+# Static utility code
+#
+
+
+# Utility function to set the right exception
+# The caller should immediately goto_error
+access_utility_code = [
+"""\
+static void __Pyx_BufferIndexError(int axis); /*proto*/
+""","""\
+static void __Pyx_BufferIndexError(int axis) {
+  PyErr_Format(PyExc_IndexError,
+     "Out of bounds on buffer access (axis %d)", axis);
 }
 
-#endif
-"""
-    env.use_utility_code(["""\
-#if PY_VERSION_HEX < 0x02060000
-static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
-static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view);
-#endif
-""" ,code], codename)
+"""]
+
+#
+# Buffer type checking. Utility code for checking that acquired
+# buffers match our assumptions. We only need to check ndim and
+# the format string; the access mode/flags is checked by the
+# exporter.
+#
+acquire_utility_code = ["""\
+static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf); /*proto*/
+static INLINE const char* __Pyx_ConsumeWhitespace(const char* ts); /*proto*/
+static INLINE const char* __Pyx_BufferTypestringCheckEndian(const char* ts); /*proto*/
+static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim); /*proto*/
+static void __Pyx_RaiseBufferFallbackError(void); /*proto*/
+""", """
+static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf) {
+  buf->buf = NULL;
+  buf->strides = __Pyx_zeros;
+  buf->shape = __Pyx_zeros;
+  buf->suboffsets = __Pyx_minusones;
+}
+
+static INLINE const char* __Pyx_ConsumeWhitespace(const char* ts) {
+  while (1) {
+    switch (*ts) {
+      case 10:
+      case 13:
+      case ' ':
+        ++ts;
+      default:
+        return ts;
+    }
+  }
+}
+
+static INLINE const char* __Pyx_BufferTypestringCheckEndian(const char* ts) {
+  int ok = 1;
+  switch (*ts) {
+    case '@':
+    case '=':
+      ++ts; break;
+    case '<':
+      if (__BYTE_ORDER == __LITTLE_ENDIAN) ++ts;
+      else ok = 0;
+      break;
+    case '>':
+    case '!':
+      if (__BYTE_ORDER == __BIG_ENDIAN) ++ts;
+      else ok = 0;
+      break;
+  }
+  if (!ok) {
+    PyErr_Format(PyExc_ValueError, "Buffer has wrong endianness (rejecting on '%s')", ts);
+    return NULL;
+  }
+  return ts;
+}
+
+static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim) {
+  PyErr_Format(PyExc_ValueError,
+               "Buffer has wrong number of dimensions (expected %d, got %d)",
+               expected_ndim, buffer->ndim);
+}
+
+static void __Pyx_RaiseBufferFallbackError(void) {
+  PyErr_Format(PyExc_ValueError,
+     "Buffer acquisition failed on assignment; and then reacquiring the old buffer failed too!");
+}
+
+"""]

@@ -164,6 +164,7 @@ def copy_code_tree(node):
 INDENT_RE = re.compile(ur"^ *")
 def strip_common_indent(lines):
     "Strips empty lines and common indentation from the list of strings given in lines"
+    # TODO: Facilitate textwrap.indent instead
     lines = [x for x in lines if x.strip() != u""]
     minindent = min([len(INDENT_RE.match(x).group(0)) for x in lines])
     lines = [x[minindent:] for x in lines]
