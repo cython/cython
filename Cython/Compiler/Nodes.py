@@ -967,10 +967,10 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("return %s;" % Naming.retval_cname)
         code.putln("}")
         # ----- Python version
+        code.exit_cfunc_scope()
         if self.py_func:
             self.py_func.generate_function_definitions(env, code, transforms)
         self.generate_optarg_wrapper_function(env, code)
-        code.exit_cfunc_scope()
         
     def put_stararg_decrefs(self, code):
         pass

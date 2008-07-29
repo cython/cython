@@ -17,32 +17,34 @@ special_chars = [(u'<', u'\xF0', u'&lt;'),
 
 class AnnotationCCodeWriter(CCodeWriter):
 
-    def __init__(self, f):
-        CCodeWriter.__init__(self, self)
-        self.buffer = StringIO()
-        self.real_f = f
-        self.annotations = []
-        self.last_pos = None
-        self.code = {}
-        
-    def getvalue(self):
-        return self.real_f.getvalue()
-        
+    def __init__(self, create_from=None, buffer=None):
+        CCodeWriter.__init__(self, create_from, buffer)
+        self.annotation_buffer = StringIO()
+        if create_from is None:
+            self.annotations = []
+            self.last_pos = None
+            self.code = {}
+        else:
+            # When forking, keep references to the same database
+            self.annotation_buffer = create_from.annotation_buffer
+            self.annotations = create_from.annotations
+            self.code = create_from.code
+
+    def create_new(self, create_from, buffer):
+        return AnnotationCCodeWriter(create_from, buffer)
+
     def write(self, s):
-        self.real_f.write(s)
-        self.buffer.write(s)
+        CCodeWriter.write(self, s)
+        self.annotation_buffer.write(s)
         
     def mark_pos(self, pos):
 #        if pos is not None:
 #            CCodeWriter.mark_pos(self, pos)
 #        return
         if self.last_pos:
-            try:
-                code = self.code[self.last_pos[1]]
-            except KeyError:
-                code = ""
-            self.code[self.last_pos[1]] = code + self.buffer.getvalue()
-        self.buffer = StringIO()
+            code = self.code.get(self.last_pos[1], "")
+            self.code[self.last_pos[1]] = code + self.annotation_buffer.getvalue()
+        self.annotation_buffer = StringIO()
         self.last_pos = pos
 
     def annotate(self, pos, item):
