@@ -11,18 +11,7 @@ from TypeSlots import method_coexist
 from Scanning import SourceDescriptor
 from Cython.StringIOTree import StringIOTree
 
-
-class CFunctionScope:
-    """
-    Used by CCodeWriters to keep track of state within a
-    C function. This means:
-    - labels
-    - temporary variables
-
-    When a code writer forks, it inherits the same scope.
-    """
-
-class CCodeWriter:
+class CCodeWriter(object):
     """
     Utility class to output C code. Each codewriter is forkable (see
     StringIOTree).
@@ -40,7 +29,9 @@ class CCodeWriter:
     - utility code: Same story as with labels and temps; use enter_implementation
       and exit_implementation.
     - marker: Only kept in last fork.
-    - filename_table, filename_list: Decision to be made.
+    - filename_table, filename_list, input_file_contents: All forks share
+      the same instances simultaneously.
+    - 
     """ 
     
     # f                file            output file
@@ -68,12 +59,12 @@ class CCodeWriter:
     def __init__(self, create_from=None, buffer=None):
         if buffer is None: buffer = StringIOTree()
         self.buffer = buffer
-        self._write = self.buffer.write
+        self.marker = None
+        self.last_marker_line = 0
         if create_from is None:
+            # Root CCodeWriter
             self.level = 0
             self.bol = 1
-            self.marker = None
-            self.last_marker_line = 0
             self.filename_table = {}
             self.filename_list = []
             self.exc_vars = None
@@ -84,16 +75,29 @@ class CCodeWriter:
             c = create_from
             self.level = c.level
             self.bol = c.bol
+            self.in_cfunc = c.in_cfunc
+            # Note: NOT copying but sharing instance
+            self.filename_table = c.filename_table
+            self.filename_list = []
+            self.input_file_contents = c.input_file_contents
             # Leave other state alone
 
-    def create_fork_spinoff(self, buffer):
-        result = CCodeWriter
+    def create_new(self, create_from, buffer):
+        # polymorphic constructor -- very slightly more versatile
+        # than using __class__
+        return CCodeWriter(create_from, buffer)
 
     def copyto(self, f):
         self.buffer.copyto(f)
 
+    def getvalue(self):
+        return self.buffer.getvalue()
+
+    def write(self, s):
+        self.buffer.write(s)
+        
     def fork(self):
-        other = CCodeWriter(create_from=self, buffer=self.buffer.fork())
+        other = self.create_new(create_from=self, buffer=self.buffer.fork())
         # If we need to do something with our own state on fork, do it here
         return other
 
@@ -122,13 +126,13 @@ class CCodeWriter:
             self.emit_marker()
         if code:
             self.put(code)
-        self._write("\n");
+        self.write("\n");
         self.bol = 1
     
     def emit_marker(self):
-        self._write("\n");
+        self.write("\n");
         self.indent()
-        self._write("/* %s */\n" % self.marker[1])
+        self.write("/* %s */\n" % self.marker[1])
         self.last_marker_line = self.marker[0]
         self.marker = None
 
@@ -140,7 +144,7 @@ class CCodeWriter:
             self.level -= 1
         if self.bol:
             self.indent()
-        self._write(code)
+        self.write(code)
         self.bol = 0
         if dl > 0:
             self.level += dl
@@ -162,7 +166,7 @@ class CCodeWriter:
         self.putln("}")
     
     def indent(self):
-        self._write("  " * self.level)
+        self.write("  " * self.level)
 
     def get_py_version_hex(self, pyversion):
         return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]

@@ -212,7 +212,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("")
             h_code.putln("#endif")
             
-            h_code.copy_to(open_new_file(result.api_file))
+            h_code.copyto(open_new_file(result.api_file))
     
     def generate_cclass_header_code(self, type, h_code):
         h_code.putln("%s DL_IMPORT(PyTypeObject) %s;" % (
@@ -239,8 +239,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code = Annotate.AnnotationCCodeWriter()
         else:
             code = Code.CCodeWriter()
-        code.h = Code.CCodeWriter()
-        self.generate_module_preamble(env, modules, code.h)
+        h_code = code.fork()
+        self.generate_module_preamble(env, modules, h_code)
 
         code.putln("")
         code.putln("/* Implementation of %s */" % env.qualified_name)
@@ -262,13 +262,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.mark_pos(None)
         self.generate_module_cleanup_func(env, code)
         self.generate_filename_table(code)
-        self.generate_utility_functions(env, code)
+        self.generate_utility_functions(env, code, h_code)
 
-        self.generate_declarations_for_modules(env, modules, code.h)
+        self.generate_declarations_for_modules(env, modules, h_code)
+        h_code.write('\n')
 
         f = open_new_file(result.c_file)
-        code.h.copyto(f)
-        f.write("\n")
         code.copyto(f)
         f.close()
         result.c_file_generated = 1
@@ -1947,7 +1946,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "%s = &%s;" % (
                     type.typeptr_cname, type.typeobj_cname))
     
-    def generate_utility_functions(self, env, code):
+    def generate_utility_functions(self, env, code, h_code):
         code.putln("")
         code.putln("/* Runtime support code */")
         code.putln("")
@@ -1956,7 +1955,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             (Naming.filetable_cname, Naming.filenames_cname))
         code.putln("}")
         for utility_code in env.utility_code_used:
-            code.h.put(utility_code[0])
+            h_code.put(utility_code[0])
             code.put(utility_code[1])
         code.put(PyrexTypes.type_conversion_functions)
         code.putln("")
