@@ -24,51 +24,42 @@ class StringIOTree(object):
     def write(self, what):
         self.stream.write(what)
 
-    def fork(self, count=2):
-        # Shuffle around the embedded StringIO objects so that
-        # references to self keep writing at the end.
+    def fork(self):
+        # Save what we have written until now
+        # (would it be more efficient to check with len(self.stream.getvalue())?
+        # leaving it out for now)
         self.prepended_children.append(StringIOTree(self.stream))
+        # Construct the new forked object to return
+        other = StringIOTree()
+        self.prepended_children.append(other)
         self.stream = StringIO()
-        tines = [StringIOTree() for i in range(1, count)]
-        self.prepended_children.extend(tines)
-        tines.append(self)
-        return tines
+        return other
 
 __doc__ = r"""
 Implements a forkable buffer. When you know you need to "get back" to a place
-and write more later, simply call fork() and get.
-
-The last buffer returned from fork() will always be the object itself; i.e.,
-if code elsewhere has references to the buffer and writes to it later it will
-always end up at the end just as if the fork never happened.
-
+and write more later, simply call fork() at that spot and get a new
+StringIOTree object that is "left behind", *behind* the object that is
+forked.
 
 EXAMPLE:
 
->>> a = StringIOTree()
->>> a.write('first\n')
->>> b, c = a.fork()
->>> c.write('third\n')
->>> b.write('second\n')
->>> print a.getvalue()
+>>> pyrex = StringIOTree()
+>>> pyrex.write('first\n')
+>>> cython = pyrex.fork()
+>>> pyrex.write('third\n')
+>>> cython.write('second\n')
+>>> print pyrex.getvalue()
 first
 second
 third
 <BLANKLINE>
 
->>> a.write('fourth\n')
->>> print a.getvalue()
-first
-second
-third
-fourth
-<BLANKLINE>
-
->>> d, e, f = b.fork(3)
->>> d.write('alpha\n')
->>> f.write('gamma\n')
->>> e.write('beta\n')
->>> print b.getvalue()
+>>> b = cython.fork()
+>>> a = b.fork()
+>>> a.write('alpha\n')
+>>> cython.write('gamma\n')
+>>> b.write('beta\n')
+>>> print cython.getvalue()
 second
 alpha
 beta
@@ -76,7 +67,7 @@ gamma
 <BLANKLINE>
 
 >>> out = StringIO()
->>> a.copyto(out)
+>>> pyrex.copyto(out)
 >>> print out.getvalue()
 first
 second
@@ -84,7 +75,6 @@ alpha
 beta
 gamma
 third
-fourth
 <BLANKLINE>
 """
             

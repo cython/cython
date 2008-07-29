@@ -833,7 +833,7 @@ class FuncDefNode(StatNode, BlockNode):
         lenv = self.local_scope
 
         # Generate C code for header and body of function
-        code.init_labels()
+        code.enter_cfunc_scope()
         code.return_from_error_cleanup_label = code.new_label()
             
         # ----- Top-level constants used by this function
@@ -970,6 +970,7 @@ class FuncDefNode(StatNode, BlockNode):
         if self.py_func:
             self.py_func.generate_function_definitions(env, code, transforms)
         self.generate_optarg_wrapper_function(env, code)
+        code.exit_cfunc_scope()
         
     def put_stararg_decrefs(self, code):
         pass
