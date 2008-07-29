@@ -309,6 +309,32 @@ def collect_unittests(path, module_prefix, suite, selectors):
                         module = getattr(module, x)
                     suite.addTests([loader.loadTestsFromModule(module)])
 
+def collect_doctests(path, module_prefix, suite, selectors):
+    def package_matches(dirname):
+        return dirname not in ("Mac", "Distutils", "Plex")
+    def file_matches(filename):
+        return (filename.endswith(".py") and not ('~' in filename
+                or '#' in filename or filename.startswith('.')))
+    import doctest, types
+    for dirpath, dirnames, filenames in os.walk(path):
+        parentname = os.path.split(dirpath)[-1]
+        if package_matches(parentname):
+            for f in filenames:
+                if file_matches(f):
+                    if not f.endswith('.py'): continue
+                    filepath = os.path.join(dirpath, f)[:-len(".py")]
+                    modulename = module_prefix + filepath[len(path)+1:].replace(os.path.sep, '.')
+                    if not [ 1 for match in selectors if match(modulename) ]:
+                        continue
+                    module = __import__(modulename)
+                    for x in modulename.split('.')[1:]:
+                        module = getattr(module, x)
+                    if hasattr(module, "__doc__") or hasattr(module, "__test__"):
+                        try:
+                            suite.addTests(doctest.DocTestSuite(module))
+                        except ValueError: # no tests
+                            pass
+
 if __name__ == '__main__':
     from optparse import OptionParser
     parser = OptionParser()
@@ -324,6 +350,9 @@ if __name__ == '__main__':
     parser.add_option("--no-unit", dest="unittests",
                       action="store_false", default=True,
                       help="do not run the unit tests")
+    parser.add_option("--no-doctest", dest="doctests",
+                      action="store_false", default=True,
+                      help="do not run the doctests")
     parser.add_option("--no-file", dest="filetests",
                       action="store_false", default=True,
                       help="do not run the file based tests")
@@ -385,6 +414,9 @@ if __name__ == '__main__':
 
     if options.unittests:
         collect_unittests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors)
+
+    if options.doctests:
+        collect_doctests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors)
 
     if options.filetests:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors,
