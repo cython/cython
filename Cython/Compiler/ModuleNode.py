@@ -97,7 +97,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         h_extension_types = h_entries(env.c_class_entries)
         if h_types or h_vars or h_funcs or h_extension_types:
             result.h_file = replace_suffix(result.c_file, ".h")
-            h_code = Code.CCodeWriter(open_new_file(result.h_file))
+            h_code = Code.CCodeWriter()
             if options.generate_pxi:
                 result.i_file = replace_suffix(result.c_file, ".pxi")
                 i_code = Code.PyrexCodeWriter(result.i_file)
@@ -129,6 +129,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("PyMODINIT_FUNC init%s(void);" % env.module_name)
             h_code.putln("")
             h_code.putln("#endif")
+            
+            h_code.copyto(open_new_file(result.h_file))
     
     def generate_public_declaration(self, entry, h_code, i_code):
         h_code.putln("%s %s;" % (
@@ -156,7 +158,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 has_api_extension_types = 1
         if api_funcs or has_api_extension_types:
             result.api_file = replace_suffix(result.c_file, "_api.h")
-            h_code = Code.CCodeWriter(open_new_file(result.api_file))
+            h_code = Code.CCodeWriter()
             name = self.api_name(env)
             guard = Naming.api_guard_prefix + name
             h_code.put_h_guard(guard)
@@ -209,6 +211,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("}")
             h_code.putln("")
             h_code.putln("#endif")
+            
+            h_code.copy_to(open_new_file(result.api_file))
     
     def generate_cclass_header_code(self, type, h_code):
         h_code.putln("%s DL_IMPORT(PyTypeObject) %s;" % (
@@ -232,11 +236,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_c_code(self, env, options, result):
         modules = self.referenced_modules
         if Options.annotate or options.annotate:
-            code = Annotate.AnnotationCCodeWriter(StringIO())
+            code = Annotate.AnnotationCCodeWriter()
         else:
-            code = Code.CCodeWriter(StringIO())
-        code.h = Code.CCodeWriter(StringIO())
-        code.init_labels()
+            code = Code.CCodeWriter()
+        code.h = Code.CCodeWriter()
         self.generate_module_preamble(env, modules, code.h)
 
         code.putln("")
@@ -264,9 +267,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_declarations_for_modules(env, modules, code.h)
 
         f = open_new_file(result.c_file)
-        f.write(code.h.f.getvalue())
+        code.h.copyto(f)
         f.write("\n")
-        f.write(code.f.getvalue())
+        code.copyto(f)
         f.close()
         result.c_file_generated = 1
         if Options.annotate or options.annotate:
@@ -1479,6 +1482,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("0")
         code.putln("};")
         code.putln()
+        code.enter_cfunc_scope() # as we need labels
         code.putln("static int %s(PyObject *o, PyObject* py_name, char *name) {" % Naming.import_star_set)
         code.putln("char** type_name = %s_type_names;" % Naming.import_star)
         code.putln("while (*type_name) {")
@@ -1529,8 +1533,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("return -1;")
         code.putln("}")
         code.putln(import_star_utility_code)
+        code.exit_cfunc_scope() # done with labels
 
     def generate_module_init_func(self, imported_modules, env, code):
+        code.enter_cfunc_scope()
         code.putln("")
         header2 = "PyMODINIT_FUNC init%s(void)" % env.module_name
         header3 = "PyMODINIT_FUNC PyInit_%s(void)" % env.module_name
@@ -1584,6 +1590,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("/*--- Execution code ---*/")
         code.mark_pos(None)
+        
         self.body.generate_execution_code(code)
 
         if Options.generate_cleanup_code:
@@ -1603,6 +1610,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("return NULL;")
         code.putln("#endif")
         code.putln('}')
+        code.exit_cfunc_scope()
 
     def generate_module_cleanup_func(self, env, code):
         if not Options.generate_cleanup_code:

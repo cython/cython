@@ -9,9 +9,43 @@ from Cython.Utils import open_new_file, open_source_file
 from PyrexTypes import py_object_type, typecast
 from TypeSlots import method_coexist
 from Scanning import SourceDescriptor
+from Cython.StringIOTree import StringIOTree
+
+
+class CFunctionScope:
+    """
+    Used by CCodeWriters to keep track of state within a
+    C function. This means:
+    - labels
+    - temporary variables
+
+    When a code writer forks, it inherits the same scope.
+    """
 
 class CCodeWriter:
+    """
+    Utility class to output C code. Each codewriter is forkable (see
+    StringIOTree).
+
+    When forking a code writer one must care about the state that is
+    kept:
+    - formatting state (level, bol) is cloned and modifyable in
+      all forked copies
+    - labels, temps, exc_vars: One must construct a scope in which these can
+      exist by calling enter_cfunc_scope/exit_cfunc_scope (these are for
+      sanity checking and forward compatabilty). When a fork happens, only
+      the *last* fork will maintain this created scope, while the other
+      instances "looses" their ability to use temps and labels (as this
+      is sufficient for current usecases).
+    - utility code: Same story as with labels and temps; use enter_implementation
+      and exit_implementation.
+    - marker: Only kept in last fork.
+    - filename_table, filename_list: Decision to be made.
+    """ 
+    
     # f                file            output file
+    # buffer           StringIOTree
+    
     # level            int             indentation level
     # bol              bool            beginning of line?
     # marker           string          comment to emit before next line
@@ -31,20 +65,57 @@ class CCodeWriter:
    
     in_try_finally = 0
     
-    def __init__(self, f):
-        #self.f = open_new_file(outfile_name)
-        self.f = f
-        self._write = f.write
-        self.level = 0
-        self.bol = 1
-        self.marker = None
-        self.last_marker_line = 0
-        self.label_counter = 1
+    def __init__(self, create_from=None, buffer=None):
+        if buffer is None: buffer = StringIOTree()
+        self.buffer = buffer
+        self._write = self.buffer.write
+        if create_from is None:
+            self.level = 0
+            self.bol = 1
+            self.marker = None
+            self.last_marker_line = 0
+            self.filename_table = {}
+            self.filename_list = []
+            self.exc_vars = None
+            self.input_file_contents = {}
+            self.in_cfunc = False
+        else:
+            # Clone formatting state
+            c = create_from
+            self.level = c.level
+            self.bol = c.bol
+            # Leave other state alone
+
+    def create_fork_spinoff(self, buffer):
+        result = CCodeWriter
+
+    def copyto(self, f):
+        self.buffer.copyto(f)
+
+    def fork(self):
+        other = CCodeWriter(create_from=self, buffer=self.buffer.fork())
+        # If we need to do something with our own state on fork, do it here
+        return other
+
+    def enter_cfunc_scope(self):
+        assert not self.in_cfunc
+        self.in_cfunc = True
         self.error_label = None
-        self.filename_table = {}
-        self.filename_list = []
-        self.exc_vars = None
-        self.input_file_contents = {}
+        self.label_counter = 0
+        self.labels_used = {}
+        self.return_label = self.new_label()
+        self.new_error_label()
+        self.continue_label = None
+        self.break_label = None
+    
+    def exit_cfunc_scope(self):
+        self.in_cfunc = False
+        del self.error_label
+        del self.label_counter
+        del self.labels_used
+        del self.return_label
+        del self.continue_label
+        del self.break_label
 
     def putln(self, code = ""):
         if self.marker and self.bol:
@@ -124,14 +195,6 @@ class CCodeWriter:
             source_desc.get_escaped_description(), line, u'\n'.join(lines))
         self.marker = (line, marker)
 
-    def init_labels(self):
-        self.label_counter = 0
-        self.labels_used = {}
-        self.return_label = self.new_label()
-        self.new_error_label()
-        self.continue_label = None
-        self.break_label = None
-    
     def new_label(self):
         n = self.label_counter
         self.label_counter = n + 1
