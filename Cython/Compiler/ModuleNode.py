@@ -1547,8 +1547,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(header3)
         code.putln("#endif")
         code.putln("{")
-
-        code.put_var_declarations(env.temp_entries)
+        tempdecl_code = code.insertion_point()
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
 
         code.putln("/*--- Libary function declarations ---*/")
@@ -1609,6 +1608,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("return NULL;")
         code.putln("#endif")
         code.putln('}')
+        
+        tempdecl_code.put_var_declarations(env.temp_entries)
+        tempdecl_code.put_temp_declarations(code.func)
+
         code.exit_cfunc_scope()
 
     def generate_module_cleanup_func(self, env, code):
