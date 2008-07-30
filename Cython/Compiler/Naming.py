@@ -8,6 +8,9 @@
 
 pyrex_prefix    = "__pyx_"
 
+
+codewriter_temp_prefix = "_tmp"
+
 temp_prefix       = u"__cyt_"
 
 builtin_prefix    = pyrex_prefix + "builtin_"
