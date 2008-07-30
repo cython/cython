@@ -1075,6 +1075,7 @@ class NameNode(AtomicExprNode):
                                     is_initialized=not self.skip_assignment_decref,
                                     pos=self.pos, code=code)
         code.putln("%s = 0;" % rhstmp)
+        code.func.release_temp(rhstmp)
     
     def generate_deletion_code(self, code):
         if self.entry is None:
