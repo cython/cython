@@ -370,7 +370,6 @@ def create_default_pipeline(context, options, result):
     from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
     from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
     from Optimize import FlattenInListTransform, SwitchTransform, OptimizeRefcounting
-    from CodeGeneration import AnchorTemps
     from Buffer import IntroduceBufferAuxiliaryVars
     from ModuleNode import check_c_classes
     def printit(x): print x.dump()
@@ -389,7 +388,6 @@ def create_default_pipeline(context, options, result):
 #        BufferTransform(context),
         SwitchTransform(),
         OptimizeRefcounting(context),
-        AnchorTemps(context),
 #        CreateClosureClasses(context),
         create_generate_code(context, options, result)
     ]

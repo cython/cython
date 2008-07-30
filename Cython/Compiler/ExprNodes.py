@@ -889,9 +889,6 @@ class NameNode(AtomicExprNode):
             # think of had a single symbol result_code but better
             # safe than sorry. Feel free to change this.
             import Buffer
-            self.new_buffer_temp = Symtab.new_temp(self.entry.type)
-            self.retcode_temp = Symtab.new_temp(PyrexTypes.c_int_type)
-            self.temps = [self.new_buffer_temp, self.retcode_temp]
             Buffer.used_buffer_aux_vars(self.entry)
                 
     def analyse_rvalue_entry(self, env):
@@ -1068,13 +1065,13 @@ class NameNode(AtomicExprNode):
             rhs.generate_post_assignment_code(code)
 
     def generate_acquire_buffer(self, rhs, code):
-        rhstmp = self.new_buffer_temp.cname
+        rhstmp = code.func.allocate_temp(self.entry.type)
         buffer_aux = self.entry.buffer_aux
         bufstruct = buffer_aux.buffer_info_var.cname
         code.putln('%s = %s;' % (rhstmp, rhs.result_as(self.ctype())))
 
         import Buffer
-        Buffer.put_assign_to_buffer(self.result_code, rhstmp, self.retcode_temp.cname, buffer_aux, self.entry.type,
+        Buffer.put_assign_to_buffer(self.result_code, rhstmp, buffer_aux, self.entry.type,
                                     is_initialized=not self.skip_assignment_decref,
                                     pos=self.pos, code=code)
         code.putln("%s = 0;" % rhstmp)
@@ -1366,10 +1363,7 @@ class IndexNode(ExprNode):
             self.index = None
             self.type = self.base.type.dtype
             self.is_buffer_access = True
-            self.index_temps = [Symtab.new_temp(i.type) for i in indices]
-            self.tmpint = Symtab.new_temp(PyrexTypes.c_int_type)
-            
-            self.temps = self.index_temps + [self.tmpint]
+           
             if getting:
                 # we only need a temp because result_code isn't refactored to
                 # generation time, but this seems an ok shortcut to take
@@ -1525,14 +1519,15 @@ class IndexNode(ExprNode):
 
     def buffer_access_code(self, code):
         # Assign indices to temps
-        for temp, index in zip(self.index_temps, self.indices):
-            code.putln("%s = %s;" % (temp.cname, index.result_code))
+        index_temps = [code.func.allocate_temp(i.type) for i in self.indices]
+        for temp, index in zip(index_temps, self.indices):
+            code.putln("%s = %s;" % (temp, index.result_code))
         # Generate buffer access code using these temps
         import Buffer
         valuecode = Buffer.put_access(entry=self.base.entry,
-                                      index_types=[i.type for i in self.index_temps],
-                                      index_cnames=[i.cname for i in self.index_temps],
-                                      pos=self.pos, tmp_cname=self.tmpint.cname, code=code)
+                                      index_signeds=[i.type.signed for i in self.indices],
+                                      index_cnames=index_temps,
+                                      pos=self.pos, code=code)
         return valuecode
 
 

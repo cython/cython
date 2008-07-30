@@ -160,7 +160,7 @@ def get_release_buffer_code(entry):
         entry.cname,
         entry.buffer_aux.buffer_info_var.cname)
 
-def put_assign_to_buffer(lhs_cname, rhs_cname, retcode_cname, buffer_aux, buffer_type,
+def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
                          is_initialized, pos, code):
     """
     Generate code for reassigning a buffer variables. This only deals with getting
@@ -193,27 +193,31 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, retcode_cname, buffer_aux, buffer
             lhs_cname, bufstruct))
         code.end_block()
         # Acquire
+        retcode_cname = code.func.allocate_temp(PyrexTypes.c_int_type)
         code.putln("%s = %s;" % (retcode_cname, getbuffer % rhs_cname))
+        code.putln('if (%s) ' % (code.unlikely("%s < 0" % retcode_cname)))
         # If acquisition failed, attempt to reacquire the old buffer
         # before raising the exception. A failure of reacquisition
         # will cause the reacquisition exception to be reported, one
         # can consider working around this later.
-        code.putln('if (%s) ' % (code.unlikely("%s < 0" % retcode_cname)))
         code.begin_block()
-        # In anticipation of a better temp system, create non-consistent C code for now
-        code.putln('PyObject *__pyx_type, *__pyx_value, *__pyx_tb;')
-        code.putln('PyErr_Fetch(&__pyx_type, &__pyx_value, &__pyx_tb);')
+        type, value, tb = [code.func.allocate_temp(PyrexTypes.py_object_type)
+                           for i in range(3)]
+        code.putln('PyErr_Fetch(&%s, &%s, &%s);' % (type, value, tb))
         code.put('if (%s) ' % code.unlikely("%s == -1" % (getbuffer % lhs_cname)))
         code.begin_block()
-        code.putln('Py_XDECREF(__pyx_type); Py_XDECREF(__pyx_value); Py_XDECREF(__pyx_tb);')
+        code.putln('Py_XDECREF(%s); Py_XDECREF(%s); Py_XDECREF(%s);' % (type, value, tb))
         code.putln('__Pyx_RaiseBufferFallbackError();')
         code.putln('} else {')
-        code.putln('PyErr_Restore(__pyx_type, __pyx_value, __pyx_tb);')
+        code.putln('PyErr_Restore(%s, %s, %s);' % (type, value, tb))
+        for t in (type, value, tb):
+            code.func.release_temp(t)
         code.end_block()
         # Unpack indices
         code.end_block()
         put_unpack_buffer_aux_into_scope(buffer_aux, code)
         code.putln(code.error_goto_if_neg(retcode_cname, pos))
+        code.func.release_temp(retcode_cname)
     else:
         # Our entry had no previous value, so set to None when acquisition fails.
         # In this case, auxiliary vars should be set up right in initialization to a zero-buffer,
@@ -227,7 +231,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, retcode_cname, buffer_aux, buffer
         code.putln('}')
 
 
-def put_access(entry, index_types, index_cnames, tmp_cname, pos, code):
+def put_access(entry, index_signeds, index_cnames, pos, code):
     """Returns a c string which can be used to access the buffer
     for reading or writing.
 
@@ -241,11 +245,12 @@ def put_access(entry, index_types, index_cnames, tmp_cname, pos, code):
     # Check bounds and fix negative indices
     boundscheck = True
     nonegs = True
+    tmp_cname = code.func.allocate_temp(PyrexTypes.c_int_type)
     if boundscheck:
         code.putln("%s = -1;" % tmp_cname)
-    for idx, (type, cname, shape) in enumerate(zip(index_types, index_cnames,
+    for idx, (signed, cname, shape) in enumerate(zip(index_signeds, index_cnames,
                                   bufaux.shapevars)):
-        if type.signed != 0:
+        if signed != 0:
             nonegs = False
             # not unsigned, deal with negative index
             code.putln("if (%s < 0) {" % cname)
@@ -268,7 +273,8 @@ def put_access(entry, index_types, index_cnames, tmp_cname, pos, code):
         code.begin_block()
         code.putln('__Pyx_BufferIndexError(%s);' % tmp_cname)
         code.putln(code.error_goto(pos))
-        code.end_block() 
+        code.end_block()
+    code.func.release_temp(tmp_cname)
         
     # Create buffer lookup and return it
 

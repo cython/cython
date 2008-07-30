@@ -10,10 +10,13 @@ from PyrexTypes import py_object_type, typecast
 from TypeSlots import method_coexist
 from Scanning import SourceDescriptor
 from Cython.StringIOTree import StringIOTree
+from sets import Set as set
 
 class FunctionContext(object):
     # Not used for now, perhaps later
-    def __init__(self):
+    def __init__(self, names_taken=set()):
+        self.names_taken = names_taken
+        
         self.error_label = None
         self.label_counter = 0
         self.labels_used = {}
@@ -22,8 +25,10 @@ class FunctionContext(object):
         self.continue_label = None
         self.break_label = None
 
-        self.temps_allocated = []
-        self.temps_free = {} # type -> list of free vars 
+        self.temps_allocated = [] # of (name, type)
+        self.temps_free = {} # type -> list of free vars
+        self.temps_used_type = {} # name -> type
+        self.temp_counter = 0
 
     def new_label(self):
         n = self.label_counter
@@ -82,13 +87,36 @@ class FunctionContext(object):
         return lbl in self.labels_used
 
     def allocate_temp(self, type):
+        """
+        Allocates a temporary (which may create a new one or get a previously
+        allocated and released one of the same type). Type is simply registered
+        and handed back, but will usually be a PyrexType.
+
+        A C string referring to the variable is returned.
+        """
         freelist = self.temps_free.get(type)
         if freelist is not None and len(freelist) > 0:
-            return freelist.pop()
+            result = freelist.pop()
         else:
-            pass
+            while True:
+                self.temp_counter += 1
+                result = "%s%d" % (Naming.codewriter_temp_prefix, self.temp_counter)
+                if not result in self.names_taken: break
+            self.temps_allocated.append((result, type))
+        self.temps_used_type[result] = type
+        return result
 
-
+    def release_temp(self, name):
+        """
+        Releases a temporary so that it can be reused by other code needing
+        a temp of the same type.
+        """
+        type = self.temps_used_type[name]
+        freelist = self.temps_free.get(type)
+        if freelist is None:
+            freelist = []
+            self.temps_free[type] = freelist
+        freelist.append(name)
 
 def funccontext_property(name):
     def get(self):
@@ -332,7 +360,15 @@ class CCodeWriter(object):
         if entry.init is not None:
             self.put(" = %s" % entry.type.literal_code(entry.init))
         self.putln(";")
-    
+
+    def put_temp_declarations(self, func_context):
+        for name, type in func_context.temps_allocated:
+            decl = type.declaration_code(name)
+            if type.is_pyobject:
+                self.putln("%s = NULL;" % decl)
+            else:
+                self.putln("%s;" % decl)
+
     def entry_as_pyobject(self, entry):
         type = entry.type
         if (not entry.is_self_arg and not entry.type.is_complete()) \

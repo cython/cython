@@ -866,7 +866,7 @@ class FuncDefNode(StatNode, BlockNode):
                     (self.return_type.declaration_code(
                         Naming.retval_cname),
                     init))
-        code.put_var_declarations(lenv.temp_entries)
+        tempvardecl_code = code.insertion_point()
         self.generate_keyword_list(code)
         # ----- Extern library function declarations
         lenv.generate_library_function_declarations(code)
@@ -966,6 +966,9 @@ class FuncDefNode(StatNode, BlockNode):
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
         code.putln("}")
+        # ----- Go back and insert temp variable declarations
+        tempvardecl_code.put_var_declarations(lenv.temp_entries)
+        tempvardecl_code.put_temp_declarations(code.func)
         # ----- Python version
         code.exit_cfunc_scope()
         if self.py_func:
