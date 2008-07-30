@@ -196,14 +196,18 @@ class BufferType(BaseType):
     
     # dtype         PyrexType
     # ndim          int
+    # mode          str
+    # is_buffer     boolean
+    # writable      boolean
 
     is_buffer = 1
     writable = True
-    def __init__(self, base, dtype, ndim):
+    def __init__(self, base, dtype, ndim, mode):
         self.base = base
         self.dtype = dtype
         self.ndim = ndim
         self.buffer_ptr_type = CPtrType(dtype)
+        self.mode = mode
     
     def as_argument_type(self):
         return self

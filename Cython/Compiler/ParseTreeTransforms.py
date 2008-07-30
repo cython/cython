@@ -84,6 +84,7 @@ ERR_BUF_INT = '"%s" must be an integer'
 ERR_BUF_NONNEG = '"%s" must be non-negative'
 ERR_CDEF_INCLASS = 'Cannot assign default value to cdef class attributes'
 ERR_BUF_LOCALONLY = 'Buffer types only allowed as function local variables'
+ERR_BUF_MODEHELP = 'Only allowed buffer modes are "full" or "strided" (as a compile-time string)'
 class PostParse(CythonTransform):
     """
     Basic interpretation of the parse tree, as well as validity
@@ -155,7 +156,7 @@ class PostParse(CythonTransform):
         return stats
 
     # buffer access
-    buffer_options = ("dtype", "ndim") # ordered!
+    buffer_options = ("dtype", "ndim", "mode") # ordered!
     def visit_CBufferAccessTypeNode(self, node):
         if not self.scope_type == 'function':
             raise PostParseError(node.pos, ERR_BUF_LOCALONLY)
@@ -176,7 +177,6 @@ class PostParse(CythonTransform):
                 raise PostParseError(item.key.pos, ERR_BUF_DUP % key)
             options[name] = item.value
 
-        provided = options.keys()
         # get dtype
         dtype = options.get("dtype")
         if dtype is None:
@@ -184,7 +184,7 @@ class PostParse(CythonTransform):
         node.dtype_node = dtype
 
         # get ndim
-        if "ndim" in provided:
+        if "ndim" in options:
             ndimnode = options["ndim"]
             if not isinstance(ndimnode, IntNode):
                 # Compile-time values (DEF) are currently resolved by the parser,
@@ -196,6 +196,17 @@ class PostParse(CythonTransform):
             node.ndim = int(ndimnode.value)
         else:
             node.ndim = 1
+
+        if "mode" in options:
+            modenode = options["mode"]
+            if not isinstance(modenode, StringNode):
+                raise PostParseError(modenode.pos, ERR_BUF_MODEHELP)
+            mode = modenode.value
+            if not mode in ('full', 'strided'):
+                raise PostParseError(modenode.pos, ERR_BUF_MODEHELP)
+            node.mode = mode
+        else:
+            node.mode = 'full'
        
         # We're done with the parse tree args
         node.positional_args = None

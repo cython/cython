@@ -477,6 +477,19 @@ def writable(obj):
     cdef object[unsigned short int, 3] buf = obj
     buf[2, 2, 1] = 23
 
+@testcase
+def strided(object[int, 1, 'strided'] buf):
+    """
+    >>> A = IntMockBuffer("A", range(4))
+    >>> strided(A)
+    acquired A
+    released A
+    2
+    >>> A.recieved_flags
+    ['FORMAT', 'ND', 'STRIDES']
+    """
+    return buf[2]
+
 
 #
 # Coercions

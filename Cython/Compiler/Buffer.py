@@ -80,11 +80,18 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
                     result.used = True
                 return result
             
+
             stridevars = [var(Naming.bufstride_prefix, i, "0") for i in range(entry.type.ndim)]
             shapevars = [var(Naming.bufshape_prefix, i, "0") for i in range(entry.type.ndim)]            
-            suboffsetvars = [var(Naming.bufsuboffset_prefix, i, "-1") for i in range(entry.type.ndim)]
             entry.buffer_aux = Symtab.BufferAux(bufinfo, stridevars, shapevars, tschecker)
-            entry.buffer_aux.lookup = get_buf_lookup_full(scope, entry.type.ndim)
+            mode = entry.type.mode
+            if mode == 'full':
+                suboffsetvars = [var(Naming.bufsuboffset_prefix, i, "-1") for i in range(entry.type.ndim)]
+                entry.buffer_aux.lookup = get_buf_lookup_full(scope, entry.type.ndim)
+            elif mode == 'strided':
+                suboffsetvars = None
+                entry.buffer_aux.lookup = get_buf_lookup_strided(scope, entry.type.ndim)
+
             entry.buffer_aux.suboffsetvars = suboffsetvars
             entry.buffer_aux.get_buffer_cname = tschecker
             
@@ -105,7 +112,13 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
 
 
 def get_flags(buffer_aux, buffer_type):
-    flags = 'PyBUF_FORMAT | PyBUF_INDIRECT'
+    flags = 'PyBUF_FORMAT'
+    if buffer_type.mode == 'full':
+        flags += '| PyBUF_INDIRECT'
+    elif buffer_type.mode == 'strided':
+        flags += '| PyBUF_STRIDES'
+    else:
+        assert False
     if buffer_aux.writable_needed: flags += "| PyBUF_WRITABLE"
     return flags
         
@@ -116,14 +129,17 @@ def used_buffer_aux_vars(entry):
     for s in buffer_aux.stridevars: s.used = True
     for s in buffer_aux.suboffsetvars: s.used = True
 
-def put_unpack_buffer_aux_into_scope(buffer_aux, code):
+def put_unpack_buffer_aux_into_scope(buffer_aux, mode, code):
+    # Generate code to copy the needed struct info into local
+    # variables.
     bufstruct = buffer_aux.buffer_info_var.cname
 
-    # __pyx_bstride_0_buf = __pyx_bstruct_buf.strides[0] and so on
+    varspec = [("strides", buffer_aux.stridevars),
+               ("shape", buffer_aux.shapevars)]
+    if mode == 'full':
+        varspec.append(("suboffsets", buffer_aux.suboffsetvars))
 
-    for field, vars in (("strides", buffer_aux.stridevars),
-                        ("shape", buffer_aux.shapevars),
-                        ("suboffsets", buffer_aux.suboffsetvars)):
+    for field, vars in varspec:
         code.putln(" ".join(["%s = %s.%s[%d];" %
                              (s.cname, bufstruct, field, idx)
                              for idx, s in enumerate(vars)]))
@@ -146,7 +162,7 @@ def put_acquire_arg_buffer(entry, code, pos):
                                 pos))
     # An exception raised in arg parsing cannot be catched, so no
     # need to do care about the buffer then.
-    put_unpack_buffer_aux_into_scope(buffer_aux, code)
+    put_unpack_buffer_aux_into_scope(buffer_aux, entry.type.mode, code)
 
 #def put_release_buffer_normal(entry, code):
 #    code.putln("if (%s != Py_None) PyObject_ReleaseBuffer(%s, &%s);" % (
@@ -215,7 +231,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
         code.end_block()
         # Unpack indices
         code.end_block()
-        put_unpack_buffer_aux_into_scope(buffer_aux, code)
+        put_unpack_buffer_aux_into_scope(buffer_aux, buffer_type.mode, code)
         code.putln(code.error_goto_if_neg(retcode_cname, pos))
         code.func.release_temp(retcode_cname)
     else:
@@ -227,7 +243,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
         code.putln(code.error_goto(pos))
         code.put('} else {')
         # Unpack indices
-        put_unpack_buffer_aux_into_scope(buffer_aux, code)
+        put_unpack_buffer_aux_into_scope(buffer_aux, buffer_type.mode, code)
         code.putln('}')
 
 
@@ -266,8 +282,6 @@ def put_access(entry, index_signeds, index_cnames, pos, code):
             code.putln("if (%s) %s = %d;" % (
                 code.unlikely("%s >= %s" % (cname, shape.cname)),
                 tmp_cname, idx))
-#    if boundscheck or not nonegs:
-#        code.putln("}")
     if boundscheck:  
         code.put("if (%s) " % code.unlikely("%s != -1" % tmp_cname))
         code.begin_block()
@@ -275,16 +289,20 @@ def put_access(entry, index_signeds, index_cnames, pos, code):
         code.putln(code.error_goto(pos))
         code.end_block()
     code.func.release_temp(tmp_cname)
-        
-    # Create buffer lookup and return it
 
-    offset = " + ".join(["%s * %s" % (idx, stride.cname)
-                         for idx, stride in
-                         zip(index_cnames, bufaux.stridevars)])
-    ptrcode = "(%s.buf + %s)" % (bufstruct, offset)
+    # Create buffer lookup and return it
+    params = []
+    if entry.type.mode == 'full':
+        for i, s, o in zip(index_cnames, bufaux.stridevars, bufaux.suboffsetvars):
+            params.append(i)
+            params.append(s.cname)
+            params.append(o.cname)
+    else:
+        for i, s in zip(index_cnames, bufaux.stridevars):
+            params.append(i)
+            params.append(s.cname)
     ptrcode = "%s(%s.buf, %s)" % (bufaux.lookup, bufstruct, 
-                          ", ".join([", ".join([i, s.cname, o.cname]) for i, s, o in
-                                     zip(index_cnames, bufaux.stridevars, bufaux.suboffsetvars)]))
+                          ", ".join(params))
     valuecode = "*%s" % entry.type.buffer_ptr_type.cast_code(ptrcode)
     return valuecode
 
@@ -296,6 +314,25 @@ def use_empty_bufstruct_code(env, max_ndim):
         Py_ssize_t __Pyx_minusones[] = {%s};
     """) % (", ".join(["0"] * max_ndim), ", ".join(["-1"] * max_ndim))
     env.use_utility_code([code, ""])
+
+
+def get_buf_lookup_strided(env, nd):
+    """
+    Generates and registers as utility a buffer lookup function for the right number
+    of dimensions. The function gives back a void* at the right location.
+    """
+    name = "__Pyx_BufPtrStrided_%dd" % nd
+    if not env.has_utility_code(name):
+        # _i_ndex, _s_tride
+        args = ", ".join(["i%d, s%d" % (i, i) for i in range(nd)])
+        offset = " + ".join(["i%d * s%d" % (i, i) for i in range(nd)])
+        proto = dedent("""\
+        #define %s(buf, %s) ((char*)buf + %s)
+        """) % (name, args, offset) 
+        env.use_utility_code([proto, ""], name=name)
+        
+    return name
+
 
 def get_buf_lookup_full(env, nd):
     """
