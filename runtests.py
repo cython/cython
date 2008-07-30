@@ -85,6 +85,7 @@ class TestBuilder(object):
         for filename in filenames:
             if not (filename.endswith(".pyx") or filename.endswith(".py")):
                 continue
+            if filename.startswith('.'): continue # certain emacs backup files
             if context == 'pyregr' and not filename.startswith('test_'):
                 continue
             module = os.path.splitext(filename)[0]
