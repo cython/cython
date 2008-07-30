@@ -9,7 +9,7 @@
 pyrex_prefix    = "__pyx_"
 
 
-codewriter_temp_prefix = "_tmp"
+codewriter_temp_prefix = pyrex_prefix + "t_"
 
 temp_prefix       = u"__cyt_"
 
