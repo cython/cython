@@ -25,7 +25,7 @@ class AnnotationCCodeWriter(CCodeWriter):
             self.last_pos = None
             self.code = {}
         else:
-            # When forking, keep references to the same database
+            # When creating an insertion point, keep references to the same database
             self.annotation_buffer = create_from.annotation_buffer
             self.annotations = create_from.annotations
             self.code = create_from.code

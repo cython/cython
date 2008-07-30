@@ -11,27 +11,107 @@ from TypeSlots import method_coexist
 from Scanning import SourceDescriptor
 from Cython.StringIOTree import StringIOTree
 
+class FunctionContext(object):
+    # Not used for now, perhaps later
+    def __init__(self):
+        self.error_label = None
+        self.label_counter = 0
+        self.labels_used = {}
+        self.return_label = self.new_label()
+        self.new_error_label()
+        self.continue_label = None
+        self.break_label = None
+
+        self.temps_allocated = []
+        self.temps_free = {} # type -> list of free vars 
+
+    def new_label(self):
+        n = self.label_counter
+        self.label_counter = n + 1
+        return "%s%d" % (Naming.label_prefix, n)
+    
+    def new_error_label(self):
+        old_err_lbl = self.error_label
+        self.error_label = self.new_label()
+        return old_err_lbl
+    
+    def get_loop_labels(self):
+        return (
+            self.continue_label,
+            self.break_label)
+    
+    def set_loop_labels(self, labels):
+        (self.continue_label,
+         self.break_label) = labels
+    
+    def new_loop_labels(self):
+        old_labels = self.get_loop_labels()
+        self.set_loop_labels(
+            (self.new_label(), 
+             self.new_label()))
+        return old_labels
+    
+    def get_all_labels(self):
+        return (
+            self.continue_label,
+            self.break_label,
+            self.return_label,
+            self.error_label)
+
+    def set_all_labels(self, labels):
+        (self.continue_label,
+         self.break_label,
+         self.return_label,
+         self.error_label) = labels
+
+    def all_new_labels(self):
+        old_labels = self.get_all_labels()
+        new_labels = []
+        for old_label in old_labels:
+            if old_label:
+                new_labels.append(self.new_label())
+            else:
+                new_labels.append(old_label)
+        self.set_all_labels(new_labels)
+        return old_labels
+    
+    def use_label(self, lbl):
+        self.labels_used[lbl] = 1
+        
+    def label_used(self, lbl):
+        return lbl in self.labels_used
+
+    def allocate_temp(self, type):
+        freelist = self.temps_free.get(type)
+        if freelist is not None and len(freelist) > 0:
+            return freelist.pop()
+        else:
+            pass
+
+
+
+def funccontext_property(name):
+    def get(self):
+        return getattr(self.func, name)
+    def set(self, value):
+        setattr(self.func, name, value)
+    return property(get, set)
+
 class CCodeWriter(object):
     """
-    Utility class to output C code. Each codewriter is forkable (see
-    StringIOTree).
+    Utility class to output C code.
 
-    When forking a code writer one must care about the state that is
+    When creating an insertion point one must care about the state that is
     kept:
-    - formatting state (level, bol) is cloned and modifyable in
-      all forked copies
+    - formatting state (level, bol) is cloned and used in insertion points
+      as well
     - labels, temps, exc_vars: One must construct a scope in which these can
       exist by calling enter_cfunc_scope/exit_cfunc_scope (these are for
-      sanity checking and forward compatabilty). When a fork happens, only
-      the *last* fork will maintain this created scope, while the other
-      instances "looses" their ability to use temps and labels (as this
-      is sufficient for current usecases).
-    - utility code: Same story as with labels and temps; use enter_implementation
-      and exit_implementation.
-    - marker: Only kept in last fork.
-    - filename_table, filename_list, input_file_contents: All forks share
-      the same instances simultaneously.
-    - 
+      sanity checking and forward compatabilty). Created insertion points
+      looses this scope and cannot access it.
+    - marker: Not copied to insertion point
+    - filename_table, filename_list, input_file_contents: All codewriters
+      coming from the same root share the same instances simultaneously.
     """ 
     
     # f                file            output file
@@ -52,7 +132,8 @@ class CCodeWriter(object):
     # exc_vars         (string * 3)    exception variables for reraise, or None
     # input_file_contents dict         contents (=list of lines) of any file that was used as input
     #                                  to create this output C code.  This is
-    #                                  used to annotate the comments. 
+    #                                  used to annotate the comments.
+    # func             FunctionContext contains labels and temps context info
    
     in_try_finally = 0
     
@@ -61,6 +142,7 @@ class CCodeWriter(object):
         self.buffer = buffer
         self.marker = None
         self.last_marker_line = 0
+        self.func = None
         if create_from is None:
             # Root CCodeWriter
             self.level = 0
@@ -69,13 +151,11 @@ class CCodeWriter(object):
             self.filename_list = []
             self.exc_vars = None
             self.input_file_contents = {}
-            self.in_cfunc = False
         else:
             # Clone formatting state
             c = create_from
             self.level = c.level
             self.bol = c.bol
-            self.in_cfunc = c.in_cfunc
             # Note: NOT copying but sharing instance
             self.filename_table = c.filename_table
             self.filename_list = []
@@ -95,31 +175,39 @@ class CCodeWriter(object):
 
     def write(self, s):
         self.buffer.write(s)
-        
-    def fork(self):
-        other = self.create_new(create_from=self, buffer=self.buffer.fork())
-        # If we need to do something with our own state on fork, do it here
+
+    def insertion_point(self):
+        other = self.create_new(create_from=self, buffer=self.buffer.insertion_point())
         return other
 
+
+    # Properties delegated to function scope
+    label_counter = funccontext_property("label_counter")
+    return_label = funccontext_property("return_label")
+    error_label = funccontext_property("error_label")
+    labels_used = funccontext_property("labels_used")
+    continue_label = funccontext_property("continue_label")
+    break_label = funccontext_property("break_label")
+
+
+    # Functions delegated to function scope
+    def new_label(self):               return self.func.new_label()
+    def new_error_label(self):         return self.func.new_error_label()
+    def get_loop_labels(self):         return self.func.get_loop_labels()
+    def set_loop_labels(self, labels): return self.func.set_loop_labels(labels)
+    def new_loop_labels(self):         return self.func.new_loop_labels()
+    def get_all_labels(self):          return self.func.get_all_labels()
+    def set_all_labels(self, labels):  return self.func.set_all_labels(labels)
+    def all_new_labels(self):          return self.func.all_new_labels()
+    def use_label(self, lbl):          return self.func.use_label(lbl)
+    def label_used(self, lbl):         return self.func.label_used(lbl)
+
+
     def enter_cfunc_scope(self):
-        assert not self.in_cfunc
-        self.in_cfunc = True
-        self.error_label = None
-        self.label_counter = 0
-        self.labels_used = {}
-        self.return_label = self.new_label()
-        self.new_error_label()
-        self.continue_label = None
-        self.break_label = None
+        self.func = FunctionContext()
     
     def exit_cfunc_scope(self):
-        self.in_cfunc = False
-        del self.error_label
-        del self.label_counter
-        del self.labels_used
-        del self.return_label
-        del self.continue_label
-        del self.break_label
+        self.func = None
 
     def putln(self, code = ""):
         if self.marker and self.bol:
@@ -199,68 +287,13 @@ class CCodeWriter(object):
             source_desc.get_escaped_description(), line, u'\n'.join(lines))
         self.marker = (line, marker)
 
-    def new_label(self):
-        n = self.label_counter
-        self.label_counter = n + 1
-        return "%s%d" % (Naming.label_prefix, n)
-    
-    def new_error_label(self):
-        old_err_lbl = self.error_label
-        self.error_label = self.new_label()
-        return old_err_lbl
-    
-    def get_loop_labels(self):
-        return (
-            self.continue_label,
-            self.break_label)
-    
-    def set_loop_labels(self, labels):
-        (self.continue_label,
-         self.break_label) = labels
-    
-    def new_loop_labels(self):
-        old_labels = self.get_loop_labels()
-        self.set_loop_labels(
-            (self.new_label(), 
-             self.new_label()))
-        return old_labels
-    
-    def get_all_labels(self):
-        return (
-            self.continue_label,
-            self.break_label,
-            self.return_label,
-            self.error_label)
-
-    def set_all_labels(self, labels):
-        (self.continue_label,
-         self.break_label,
-         self.return_label,
-         self.error_label) = labels
-
-    def all_new_labels(self):
-        old_labels = self.get_all_labels()
-        new_labels = []
-        for old_label in old_labels:
-            if old_label:
-                new_labels.append(self.new_label())
-            else:
-                new_labels.append(old_label)
-        self.set_all_labels(new_labels)
-        return old_labels
-    
-    def use_label(self, lbl):
-        self.labels_used[lbl] = 1
-        
-    def label_used(self, lbl):
-        return lbl in self.labels_used
         
     def put_label(self, lbl):
-        if lbl in self.labels_used:
+        if lbl in self.func.labels_used:
             self.putln("%s:;" % lbl)
     
     def put_goto(self, lbl):
-        self.use_label(lbl)
+        self.func.use_label(lbl)
         self.putln("goto %s;" % lbl)
     
     def put_var_declarations(self, entries, static = 0, dll_linkage = None,
@@ -412,8 +445,8 @@ class CCodeWriter(object):
             return cond
         
     def error_goto(self, pos):
-        lbl = self.error_label
-        self.use_label(lbl)
+        lbl = self.func.error_label
+        self.func.use_label(lbl)
         if Options.c_line_in_traceback:
             cinfo = " %s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
         else:

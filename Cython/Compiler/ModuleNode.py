@@ -239,7 +239,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code = Annotate.AnnotationCCodeWriter()
         else:
             code = Code.CCodeWriter()
-        h_code = code.fork()
+        h_code = code.insertion_point()
         self.generate_module_preamble(env, modules, h_code)
 
         code.putln("")
