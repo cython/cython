@@ -22,6 +22,7 @@ from Scanning import PyrexScanner, FileSourceDescriptor
 from Errors import PyrexError, CompileError, error
 from Symtab import BuiltinScope, ModuleScope
 from Cython import Utils
+from Cython.Utils import open_new_file, replace_suffix
 
 module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
 
@@ -31,6 +32,20 @@ def dumptree(t):
     # For quick debugging in pipelines
     print t.dump()
     return t
+
+class CompilationData:
+    #  Bundles the information that is passed from transform to transform.
+    #  (For now, this is only)
+
+    #  While Context contains every pxd ever loaded, path information etc.,
+    #  this only contains the data related to a single compilation pass
+    #
+    #  pyx                   ModuleNode              Main code tree of this compilation.
+    #  pxds                  {string : ModuleNode}   Trees for the pxds used in the pyx.
+    #  codewriter            CCodeWriter             Where to output final code.
+    #  options               CompilationOptions
+    #  result                CompilationResult
+    pass
 
 class Context:
     #  This class encapsulates the context needed for compiling
@@ -49,6 +64,8 @@ class Context:
         self.modules = {"__builtin__" : Builtin.builtin_scope}
         self.include_directories = include_directories
         self.future_directives = set()
+
+        self.pxds = {} # full name -> node tree
 
         standard_include_path = os.path.abspath(
             os.path.join(os.path.dirname(__file__), '..', 'Includes'))
@@ -87,9 +104,26 @@ class Context:
             ]
 
     def create_pyx_pipeline(self, options, result):
-        return [create_parse(self)] + self.create_pipeline(pxd=False) + [
-            create_generate_code(self, options, result)
-            ]
+        def generate_pyx_code(module_node):
+            module_node.process_implementation(options, result)
+            result.compilation_source = module_node.compilation_source
+            return result
+
+        def inject_pxd_code(module_node):
+            from Nodes import CCommentNode
+            from textwrap import dedent
+            stats = module_node.body.stats
+            for name, (statlistnode, scope) in self.pxds.iteritems():
+                #stats.append(CCommentNode('Code from cimported "%s"' % name, header=True))
+                stats.append(statlistnode)
+            return module_node
+
+        return ([
+                create_parse(self)
+            ] + self.create_pipeline(pxd=False) + [
+                inject_pxd_code,
+                generate_pyx_code,
+            ])
 
     def create_pxd_pipeline(self, scope, module_name):
         def parse_pxd(source_desc):
@@ -98,7 +132,14 @@ class Context:
             tree.scope = scope
             tree.is_pxd = True
             return tree
-        return [parse_pxd] + self.create_pipeline(pxd=True)
+
+        from CodeGeneration import ExtractPxdCode
+
+        # The pxd pipeline ends up with a CCodeWriter containing the
+        # code of the pxd, as well as a pxd scope.
+        return [parse_pxd] + self.create_pipeline(pxd=True) + [
+            ExtractPxdCode(self)
+            ]
 
     def process_pxd(self, source_desc, scope, module_name):
         pipeline = self.create_pxd_pipeline(scope, module_name)
@@ -171,7 +212,8 @@ class Context:
                     if debug_find_module:
                         print("Context.find_module: Parsing %s" % pxd_pathname)
                     source_desc = FileSourceDescriptor(pxd_pathname)
-                    self.process_pxd(source_desc, scope, module_name)
+                    errors_occured, (pxd_codenodes, pxd_scope) = self.process_pxd(source_desc, scope, module_name)
+                    self.pxds[module_name] = (pxd_codenodes, pxd_scope)
                 except CompileError:
                     pass
         return scope
@@ -405,14 +447,6 @@ def create_parse(context):
         tree.is_pxd = False
         return tree
     return parse
-
-def create_generate_code(context, options, result):
-    def generate_code(module_node):
-        scope = module_node.scope
-        module_node.process_implementation(options, result)
-        result.compilation_source = module_node.compilation_source
-        return result
-    return generate_code
 
 def create_default_resultobj(compilation_source, options):
     result = CompilationResult()
