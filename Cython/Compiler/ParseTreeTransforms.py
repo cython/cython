@@ -213,6 +213,42 @@ class PostParse(CythonTransform):
         node.keyword_args = None
         return node
 
+class PxdPostParse(CythonTransform):
+    """
+    Basic interpretation/validity checking that should only be
+    done on pxd trees.
+    """
+    ERR_FUNCDEF_NOT_ALLOWED = 'function definition not allowed here'
+
+    def __call__(self, node):
+        self.scope_type = 'pxd'
+        return super(PxdPostParse, self).__call__(node)
+
+    def visit_CClassDefNode(self, node):
+        old = self.scope_type
+        self.scope_type = 'cclass'
+        self.visitchildren(node)
+        self.scope_type = old
+        return node
+
+    def visit_FuncDefNode(self, node):
+        # FuncDefNode always come with an implementation (without
+        # an imp they are CVarDefNodes..)
+        ok = False
+
+        if (isinstance(node, DefNode) and self.scope_type == 'cclass'
+            and node.name in ('__getbuffer__', '__releasebuffer__')):
+            ok = True
+
+
+        if not ok:
+            self.context.nonfatal_error(PostParseError(node.pos,
+                self.ERR_FUNCDEF_NOT_ALLOWED))
+            return None
+        else:
+            return node
+
+
 class WithTransform(CythonTransform):
 
     # EXCINFO is manually set to a variable that contains
