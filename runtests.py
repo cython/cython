@@ -287,7 +287,18 @@ def collect_unittests(path, suite, selectors):
 
     loader = unittest.TestLoader()
 
+    skipped_dirs = []
+
     for dirpath, dirnames, filenames in os.walk(path):
+        if dirpath != path and "__init__.py" not in filenames:
+            skipped_dirs.append(dirpath + os.path.sep)
+            continue
+        skip = False
+        for dir in skipped_dirs:
+            if dirpath.startswith(dir):
+                skip = True
+        if skip:
+            continue
         parentname = os.path.split(dirpath)[-1]
         if package_matches(parentname):
             for f in filenames:
