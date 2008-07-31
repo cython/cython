@@ -27,7 +27,8 @@ def make_lexicon():
     
     name = letter + Rep(letter | digit)
     intconst = decimal | (Str("0x") + Rep1(hexdigit))
-    longconst = intconst + Str("L")
+    intsuffix = (Opt(Any("Uu")) + Opt(Any("Ll")) + Opt(Any("Ll"))) | (Opt(Any("Ll")) + Opt(Any("Ll")) + Opt(Any("Uu")))
+    intliteral = intconst + intsuffix
     fltconst = (decimal_fract + Opt(exponent)) | (decimal + exponent)
     imagconst = (intconst | fltconst) + Any("jJ")
     
@@ -79,8 +80,7 @@ def make_lexicon():
     
     return Lexicon([
         (name, 'IDENT'),
-        (intconst, 'INT'),
-        (longconst, 'LONG'),
+        (intliteral, 'INT'),
         (fltconst, 'FLOAT'),
         (imagconst, 'IMAG'),
         (deco, 'DECORATOR'),

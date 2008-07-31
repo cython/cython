@@ -1718,10 +1718,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     
     def generate_intern_code(self, env, code):
         for entry in env.pynum_entries:
-            code.putln("%s = PyInt_FromLong(%s); %s;" % (
-                entry.cname,
-                entry.init,
-                code.error_goto_if_null(entry.cname, self.pos)))
+            if entry.init[-1] == "L":
+                code.putln('%s = PyLong_FromString("%s", 0, 0); %s;' % (
+                    entry.cname,
+                    entry.init,
+                    code.error_goto_if_null(entry.cname, self.pos)))
+            else:
+                code.putln("%s = PyInt_FromLong(%s); %s;" % (
+                    entry.cname,
+                    entry.init,
+                    code.error_goto_if_null(entry.cname, self.pos)))
     
     def generate_string_init_code(self, env, code):
         if env.all_pystring_entries:

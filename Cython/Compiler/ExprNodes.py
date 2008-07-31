@@ -646,13 +646,19 @@ class CharNode(ConstNode):
 
 
 class IntNode(ConstNode):
+
+    # unsigned     "" or "U"
+    # longness     "" or "L" or "LL"
+
+    unsigned = ""
+    longness = ""
     type = PyrexTypes.c_long_type
 
     def coerce_to(self, dst_type, env):
         # Arrange for a Python version of the string to be pre-allocated
         # when coercing to a Python type.
         if dst_type.is_pyobject:
-            self.entry = env.get_py_num(self.value)
+            self.entry = env.get_py_num(self.value, self.longness)
             self.type = PyrexTypes.py_object_type
         # We still need to perform normal coerce_to processing on the
         # result, because we might be coercing to an extension type,
@@ -663,7 +669,7 @@ class IntNode(ConstNode):
         if self.type.is_pyobject:
             return self.entry.cname
         else:
-            return str(self.value)
+            return str(self.value) + self.unsigned + self.longness
 
     def compile_time_value(self, denv):
         return int(self.value, 0)
