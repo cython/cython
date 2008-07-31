@@ -1169,20 +1169,24 @@ class NextNode(AtomicExprNode):
         self.is_temp = 1
     
     def generate_result_code(self, code):
-        code.putln(
-            "if (likely(%s != -1)) {" % self.iterator.counter.result_code)
-        code.putln(
-            "if (%s >= PySequence_Fast_GET_SIZE(%s)) break;" % (
-                self.iterator.counter.result_code,
-                self.iterator.py_result()))
-        code.putln(
-            "%s = PySequence_Fast_GET_ITEM(%s, %s); Py_INCREF(%s); %s++;" % (
-                self.result_code,
-                self.iterator.py_result(),
-                self.iterator.counter.result_code,
-                self.result_code,
-                self.iterator.counter.result_code))
-        code.putln("} else {")
+        for py_type in ["List", "Tuple"]:
+            code.putln(
+                "if (likely(Py%s_CheckExact(%s))) {" % (py_type, self.iterator.py_result()))
+            code.putln(
+                "if (%s >= Py%s_GET_SIZE(%s)) break;" % (
+                    self.iterator.counter.result_code,
+                    py_type,
+                    self.iterator.py_result()))
+            code.putln(
+                "%s = Py%s_GET_ITEM(%s, %s); Py_INCREF(%s); %s++;" % (
+                    self.result_code,
+                    py_type,
+                    self.iterator.py_result(),
+                    self.iterator.counter.result_code,
+                    self.result_code,
+                    self.iterator.counter.result_code))
+            code.put("} else ")
+        code.putln("{")
         code.putln(
             "%s = PyIter_Next(%s);" % (
                 self.result_code,
