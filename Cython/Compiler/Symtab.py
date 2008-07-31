@@ -544,9 +544,11 @@ class Scope:
         self.interned_nums.append(entry)
         return entry
         
-    def get_py_num(self, value):
+    def get_py_num(self, value, longness):
         # Get entry for int constant. Returns an existing
         # one if possible, otherwise creates a new one.
+        if longness or Utils.long_literal(value):
+            value += "L"
         genv = self.global_scope()
         entry = genv.num_to_entry.get(value)
         if not entry:

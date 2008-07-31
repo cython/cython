@@ -115,3 +115,13 @@ def escape_byte_string(s):
         else:
             append(c)
     return ''.join(l)
+
+def long_literal(value):
+    if isinstance(value, basestring):
+        if len(value) < 2:
+            value = int(value)
+        elif value[0] == 0:
+            return int(value, 8)
+        elif value[1] in 'xX':
+            return int(value[2:], 16)
+    return not -2**31 <= value < 2**31

@@ -466,11 +466,18 @@ def p_atom(s):
     elif sy == 'INT':
         value = s.systring
         s.next()
-        return ExprNodes.IntNode(pos, value = value)
-    elif sy == 'LONG':
-        value = s.systring
-        s.next()
-        return ExprNodes.LongNode(pos, value = value)
+        unsigned = ""
+        longness = ""
+        while value[-1] in "UuLl":
+            if value[-1] in "Ll":
+                longness += "L"
+            else:
+                unsigned += "U"
+            value = value[:-1]
+        return ExprNodes.IntNode(pos, 
+                                 value = value,
+                                 unsigned = unsigned,
+                                 longness = longness)
     elif sy == 'FLOAT':
         value = s.systring
         s.next()
@@ -516,7 +523,7 @@ def p_name(s, name):
             elif isinstance(value, int):
                 return ExprNodes.IntNode(pos, value = rep)
             elif isinstance(value, long):
-                return ExprNodes.LongNode(pos, value = rep)
+                return ExprNodes.IntNode(pos, value = rep, longness = "L")
             elif isinstance(value, float):
                 return ExprNodes.FloatNode(pos, value = rep)
             elif isinstance(value, unicode):
