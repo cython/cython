@@ -217,6 +217,12 @@ class PxdPostParse(CythonTransform):
     """
     Basic interpretation/validity checking that should only be
     done on pxd trees.
+
+    A lot of this checking currently happens in the parser; but
+    what is listed below happens here.
+
+    - "def" functions are let through only if they fill the
+    getbuffer/releasebuffer slots
     """
     ERR_FUNCDEF_NOT_ALLOWED = 'function definition not allowed here'
 
@@ -239,7 +245,6 @@ class PxdPostParse(CythonTransform):
         if (isinstance(node, DefNode) and self.scope_type == 'cclass'
             and node.name in ('__getbuffer__', '__releasebuffer__')):
             ok = True
-
 
         if not ok:
             self.context.nonfatal_error(PostParseError(node.pos,
