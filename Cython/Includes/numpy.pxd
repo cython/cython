@@ -17,7 +17,7 @@ cdef extern from "numpy/arrayobject.h":
             object weakreflist
 
         def __getbuffer__(self, Py_buffer* info, int flags):
-       
+            print "hello" + str(43) + "asdf" + "three"
             pass
 
 

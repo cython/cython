@@ -199,21 +199,15 @@ class BlockNode:
 
     def generate_const_definitions(self, env, code):
         if env.const_entries:
-            code.putln("")
             for entry in env.const_entries:
                 if not entry.is_interned:
-                    code.put_var_declaration(entry, static = 1)
+                    code.globalstate.add_const_definition(entry)
 
     def generate_interned_string_decls(self, env, code):
         entries = env.global_scope().new_interned_string_entries
         if entries:
-            code.putln("")
             for entry in entries:
-                code.put_var_declaration(entry, static = 1)
-            code.putln("")
-            for entry in entries:
-                code.putln(
-                    "static PyObject *%s;" % entry.pystring_cname)
+                code.globalstate.add_interned_string_decl(entry)
             del entries[:]
 
     def generate_py_string_decls(self, env, code):
@@ -221,11 +215,9 @@ class BlockNode:
             return # earlier error
         entries = env.pystring_entries
         if entries:
-            code.putln("")
             for entry in entries:
                 if not entry.is_interned:
-                    code.putln(
-                        "static PyObject *%s;" % entry.pystring_cname)
+                    code.globalstate.add_py_string_decl(entry)
 
     def generate_interned_num_decls(self, env, code):
         #  Flush accumulated interned nums from the global scope
@@ -233,18 +225,14 @@ class BlockNode:
         genv = env.global_scope()
         entries = genv.interned_nums
         if entries:
-            code.putln("")
             for entry in entries:
-                code.putln(
-                    "static PyObject *%s;" % entry.cname)
+                code.globalstate.add_interned_num_decl(entry)
             del entries[:]
 
     def generate_cached_builtins_decls(self, env, code):
         entries = env.global_scope().undeclared_cached_builtins
-        if len(entries) > 0:
-            code.putln("")
         for entry in entries:
-            code.putln("static PyObject *%s;" % entry.cname)
+            code.globalstate.add_cached_builtin_decl(entry)
         del entries[:]
         
 
