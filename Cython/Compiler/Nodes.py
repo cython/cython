@@ -969,7 +969,7 @@ class FuncDefNode(StatNode, BlockNode):
         code.putln("}")
         # ----- Go back and insert temp variable declarations
         tempvardecl_code.put_var_declarations(lenv.temp_entries)
-        tempvardecl_code.put_temp_declarations(code.func)
+        tempvardecl_code.put_temp_declarations(code.funcstate)
         # ----- Python version
         code.exit_cfunc_scope()
         if self.py_func:
@@ -2634,7 +2634,7 @@ class ContinueStatNode(StatNode):
         pass
     
     def generate_execution_code(self, code):
-        if code.in_try_finally:
+        if code.funcstate.in_try_finally:
             error(self.pos, "continue statement inside try of try...finally")
         elif not code.continue_label:
             error(self.pos, "continue statement not inside loop")
@@ -2797,7 +2797,7 @@ class ReraiseStatNode(StatNode):
     gil_message = "Raising exception"
 
     def generate_execution_code(self, code):
-        vars = code.exc_vars
+        vars = code.funcstate.exc_vars
         if vars:
             code.putln("__Pyx_Raise(%s, %s, %s);" % tuple(vars))
             code.putln(code.error_goto(self.pos))
@@ -3478,10 +3478,10 @@ class ExceptClauseNode(Node):
             self.excinfo_tuple.generate_evaluation_code(code)
             self.excinfo_target.generate_assignment_code(self.excinfo_tuple, code)
 
-        old_exc_vars = code.exc_vars
-        code.exc_vars = self.exc_vars
+        old_exc_vars = code.funcstate.exc_vars
+        code.funcstate.exc_vars = self.exc_vars
         self.body.generate_execution_code(code)
-        code.exc_vars = old_exc_vars
+        code.funcstate.exc_vars = old_exc_vars
         for var in self.exc_vars:
             code.putln("Py_DECREF(%s); %s = 0;" % (var, var))
         code.put_goto(end_label)
@@ -3556,11 +3556,11 @@ class TryFinallyStatNode(StatNode):
         code.putln(
             "/*try:*/ {")
         if self.disallow_continue_in_try_finally:
-            was_in_try_finally = code.in_try_finally
-            code.in_try_finally = 1
+            was_in_try_finally = code.funcstate.in_try_finally
+            code.funcstate.in_try_finally = 1
         self.body.generate_execution_code(code)
         if self.disallow_continue_in_try_finally:
-            code.in_try_finally = was_in_try_finally
+            code.funcstate.in_try_finally = was_in_try_finally
         code.putln(
             "}")
         code.putln(

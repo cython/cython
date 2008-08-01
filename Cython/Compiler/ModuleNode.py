@@ -529,8 +529,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_filename_table(self, code):
         code.putln("")
         code.putln("static const char *%s[] = {" % Naming.filenames_cname)
-        if code.filename_list:
-            for source_desc in code.filename_list:
+        if code.globalstate.filename_list:
+            for source_desc in code.globalstate.filename_list:
                 filename = os.path.basename(source_desc.get_filenametable_entry())
                 escaped_filename = filename.replace("\\", "\\\\").replace('"', r'\"')
                 code.putln('"%s",' % 
@@ -1610,7 +1610,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('}')
         
         tempdecl_code.put_var_declarations(env.temp_entries)
-        tempdecl_code.put_temp_declarations(code.func)
+        tempdecl_code.put_temp_declarations(code.funcstate)
 
         code.exit_cfunc_scope()
 
