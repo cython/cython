@@ -12,7 +12,16 @@ from Scanning import SourceDescriptor
 from Cython.StringIOTree import StringIOTree
 from sets import Set as set
 
-class FunctionContext(object):
+class FunctionState(object):
+    # return_label     string          function return point label
+    # error_label      string          error catch point label
+    # continue_label   string          loop continue point label
+    # break_label      string          loop break point label
+    # return_from_error_cleanup_label string
+    # label_counter    integer         counter for naming labels
+    # in_try_finally   boolean         inside try of try...finally
+    # exc_vars         (string * 3)    exception variables for reraise, or None
+
     # Not used for now, perhaps later
     def __init__(self, names_taken=set()):
         self.names_taken = names_taken
@@ -24,6 +33,9 @@ class FunctionContext(object):
         self.new_error_label()
         self.continue_label = None
         self.break_label = None
+
+        self.in_try_finally = 0
+        self.exc_vars = None
 
         self.temps_allocated = [] # of (name, type)
         self.temps_free = {} # type -> list of free vars
@@ -118,11 +130,44 @@ class FunctionContext(object):
             self.temps_free[type] = freelist
         freelist.append(name)
 
+class GlobalState(object):
+    # filename_table   {string : int}  for finding filename table indexes
+    # filename_list    [string]        filenames in filename table order
+    # input_file_contents dict         contents (=list of lines) of any file that was used as input
+    #                                  to create this output C code.  This is
+    #                                  used to annotate the comments.
+
+    def __init__(self):
+        self.filename_table = {}
+        self.filename_list = []
+        self.input_file_contents = {}
+
+    def lookup_filename(self, filename):
+        try:
+            index = self.filename_table[filename]
+        except KeyError:
+            index = len(self.filename_list)
+            self.filename_list.append(filename)
+            self.filename_table[filename] = index
+        return index
+
+    def commented_file_contents(self, source_desc):
+        try:
+            return self.input_file_contents[source_desc]
+        except KeyError:
+            F = [u' * ' + line.rstrip().replace(
+                    u'*/', u'*[inserted by cython to avoid comment closer]/'
+                    ).encode('ASCII', 'replace') # + Py2 auto-decode to unicode
+                 for line in source_desc.get_lines()]
+            self.input_file_contents[source_desc] = F
+            return F
+
+
 def funccontext_property(name):
     def get(self):
-        return getattr(self.func, name)
+        return getattr(self.funcstate, name)
     def set(self, value):
-        setattr(self.func, name, value)
+        setattr(self.funcstate, name, value)
     return property(get, set)
 
 class CCodeWriter(object):
@@ -148,47 +193,29 @@ class CCodeWriter(object):
     # level            int             indentation level
     # bol              bool            beginning of line?
     # marker           string          comment to emit before next line
-    # return_label     string          function return point label
-    # error_label      string          error catch point label
-    # continue_label   string          loop continue point label
-    # break_label      string          loop break point label
-    # return_from_error_cleanup_label string
-    # label_counter    integer         counter for naming labels
-    # in_try_finally   boolean         inside try of try...finally
-    # filename_table   {string : int}  for finding filename table indexes
-    # filename_list    [string]        filenames in filename table order
-    # exc_vars         (string * 3)    exception variables for reraise, or None
-    # input_file_contents dict         contents (=list of lines) of any file that was used as input
-    #                                  to create this output C code.  This is
-    #                                  used to annotate the comments.
-    # func             FunctionContext contains labels and temps context info
+    # funcstate        FunctionState   contains state local to a C function used for code
+    #                                  generation (labels and temps state etc.)
+    # globalstate      GlobalState     contains state global for a C file (input file info,
+    #                                  utility code, declared constants etc.)
    
-    in_try_finally = 0
-    
     def __init__(self, create_from=None, buffer=None):
         if buffer is None: buffer = StringIOTree()
         self.buffer = buffer
         self.marker = None
         self.last_marker_line = 0
-        self.func = None
+        
+        self.funcstate = None # always start with no function state
         if create_from is None:
             # Root CCodeWriter
             self.level = 0
             self.bol = 1
-            self.filename_table = {}
-            self.filename_list = []
-            self.exc_vars = None
-            self.input_file_contents = {}
+            self.globalstate = GlobalState()
         else:
+            # Use same global state
+            self.globalstate = create_from.globalstate
             # Clone formatting state
-            c = create_from
-            self.level = c.level
-            self.bol = c.bol
-            # Note: NOT copying but sharing instance
-            self.filename_table = c.filename_table
-            self.filename_list = []
-            self.input_file_contents = c.input_file_contents
-            # Leave other state alone
+            self.level = create_from.level
+            self.bol = create_from.bol
 
     def create_new(self, create_from, buffer):
         # polymorphic constructor -- very slightly more versatile
@@ -216,26 +243,26 @@ class CCodeWriter(object):
     labels_used = funccontext_property("labels_used")
     continue_label = funccontext_property("continue_label")
     break_label = funccontext_property("break_label")
-
+    return_from_error_cleanup_label = funccontext_property("return_from_error_cleanup_label")
 
     # Functions delegated to function scope
-    def new_label(self):               return self.func.new_label()
-    def new_error_label(self):         return self.func.new_error_label()
-    def get_loop_labels(self):         return self.func.get_loop_labels()
-    def set_loop_labels(self, labels): return self.func.set_loop_labels(labels)
-    def new_loop_labels(self):         return self.func.new_loop_labels()
-    def get_all_labels(self):          return self.func.get_all_labels()
-    def set_all_labels(self, labels):  return self.func.set_all_labels(labels)
-    def all_new_labels(self):          return self.func.all_new_labels()
-    def use_label(self, lbl):          return self.func.use_label(lbl)
-    def label_used(self, lbl):         return self.func.label_used(lbl)
+    def new_label(self):               return self.funcstate.new_label()
+    def new_error_label(self):         return self.funcstate.new_error_label()
+    def get_loop_labels(self):         return self.funcstate.get_loop_labels()
+    def set_loop_labels(self, labels): return self.funcstate.set_loop_labels(labels)
+    def new_loop_labels(self):         return self.funcstate.new_loop_labels()
+    def get_all_labels(self):          return self.funcstate.get_all_labels()
+    def set_all_labels(self, labels):  return self.funcstate.set_all_labels(labels)
+    def all_new_labels(self):          return self.funcstate.all_new_labels()
+    def use_label(self, lbl):          return self.funcstate.use_label(lbl)
+    def label_used(self, lbl):         return self.funcstate.label_used(lbl)
 
 
     def enter_cfunc_scope(self):
-        self.func = FunctionContext()
+        self.funcstate = FunctionState()
     
     def exit_cfunc_scope(self):
-        self.func = None
+        self.funcstate = None
 
     def putln(self, code = ""):
         if self.marker and self.bol:
@@ -287,17 +314,6 @@ class CCodeWriter(object):
     def get_py_version_hex(self, pyversion):
         return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
 
-    def commented_file_contents(self, source_desc):
-        try:
-            return self.input_file_contents[source_desc]
-        except KeyError:
-            F = [u' * ' + line.rstrip().replace(
-                    u'*/', u'*[inserted by cython to avoid comment closer]/'
-                    ).encode('ASCII', 'replace') # + Py2 auto-decode to unicode
-                 for line in source_desc.get_lines()]
-            self.input_file_contents[source_desc] = F
-            return F
-
     def mark_pos(self, pos):
         if pos is None:
             return
@@ -305,7 +321,7 @@ class CCodeWriter(object):
         if self.last_marker_line == line:
             return
         assert isinstance(source_desc, SourceDescriptor)
-        contents = self.commented_file_contents(source_desc)
+        contents = self.globalstate.commented_file_contents(source_desc)
 
         lines = contents[max(0,line-3):line] # line numbers start at 1
         lines[-1] += u'             # <<<<<<<<<<<<<<'
@@ -317,11 +333,11 @@ class CCodeWriter(object):
 
         
     def put_label(self, lbl):
-        if lbl in self.func.labels_used:
+        if lbl in self.funcstate.labels_used:
             self.putln("%s:;" % lbl)
     
     def put_goto(self, lbl):
-        self.func.use_label(lbl)
+        self.funcstate.use_label(lbl)
         self.putln("goto %s;" % lbl)
     
     def put_var_declarations(self, entries, static = 0, dll_linkage = None,
@@ -481,8 +497,8 @@ class CCodeWriter(object):
             return cond
         
     def error_goto(self, pos):
-        lbl = self.func.error_label
-        self.func.use_label(lbl)
+        lbl = self.funcstate.error_label
+        self.funcstate.use_label(lbl)
         if Options.c_line_in_traceback:
             cinfo = " %s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
         else:
@@ -509,13 +525,7 @@ class CCodeWriter(object):
         return self.error_goto_if("PyErr_Occurred()", pos)
     
     def lookup_filename(self, filename):
-        try:
-            index = self.filename_table[filename]
-        except KeyError:
-            index = len(self.filename_list)
-            self.filename_list.append(filename)
-            self.filename_table[filename] = index
-        return index
+        return self.globalstate.lookup_filename(filename)
 
 
 class PyrexCodeWriter:
