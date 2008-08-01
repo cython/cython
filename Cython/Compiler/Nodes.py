@@ -935,7 +935,8 @@ class FuncDefNode(StatNode, BlockNode):
         # goto statement in error cleanup above
         code.put_label(code.return_label)
         for entry in lenv.buffer_entries:
-            code.putln("%s;" % Buffer.get_release_buffer_code(entry))
+            if entry.used:
+                code.putln("%s;" % Buffer.get_release_buffer_code(entry))
         # ----- Return cleanup for both error and no-error return
         code.put_label(code.return_from_error_cleanup_label)
         if not Options.init_local_none:

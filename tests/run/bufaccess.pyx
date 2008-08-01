@@ -35,6 +35,15 @@ def testcas(a):
 #
 
 @testcase
+def nousage():
+    """
+    >>> True
+    True
+    """
+    cdef object[int, 2] buf
+    # this used not to compile
+
+@testcase
 def acquire_release(o1, o2):
     """
     >>> acquire_release(A, B)
