@@ -113,7 +113,7 @@ class Context:
             from textwrap import dedent
             stats = module_node.body.stats
             for name, (statlistnode, scope) in self.pxds.iteritems():
-                stats.append(statlistnode)
+                 stats.append(statlistnode)
             return module_node
 
         return ([
@@ -136,27 +136,28 @@ class Context:
         # The pxd pipeline ends up with a CCodeWriter containing the
         # code of the pxd, as well as a pxd scope.
         return [parse_pxd] + self.create_pipeline(pxd=True) + [
-            ExtractPxdCode(self)
+            ExtractPxdCode(self),
             ]
 
     def process_pxd(self, source_desc, scope, module_name):
         pipeline = self.create_pxd_pipeline(scope, module_name)
-        return self.run_pipeline(pipeline, source_desc)
-        
+        result = self.run_pipeline(pipeline, source_desc)
+        return result
+    
     def nonfatal_error(self, exc):
         return Errors.report_error(exc)
 
     def run_pipeline(self, pipeline, source):
-        errors_occurred = False
+        err = None
         data = source
         try:
             for phase in pipeline:
                 if phase is not None:
                     data = phase(data)
         except CompileError, err:
-            errors_occurred = True
+            # err is set
             Errors.report_error(err)
-        return (errors_occurred, data)
+        return (err, data)
 
     def find_module(self, module_name, 
             relative_to = None, pos = None, need_pxd = 1):
@@ -210,7 +211,10 @@ class Context:
                     if debug_find_module:
                         print("Context.find_module: Parsing %s" % pxd_pathname)
                     source_desc = FileSourceDescriptor(pxd_pathname)
-                    errors_occured, (pxd_codenodes, pxd_scope) = self.process_pxd(source_desc, scope, module_name)
+                    err, result = self.process_pxd(source_desc, scope, module_name)
+                    if err:
+                        raise err
+                    (pxd_codenodes, pxd_scope) = result
                     self.pxds[module_name] = (pxd_codenodes, pxd_scope)
                 except CompileError:
                     pass
@@ -409,15 +413,15 @@ class Context:
         else:
             Errors.open_listing_file(None)
 
-    def teardown_errors(self, errors_occurred, options, result):
+    def teardown_errors(self, err, options, result):
         source_desc = result.compilation_source.source_desc
         if not isinstance(source_desc, FileSourceDescriptor):
             raise RuntimeError("Only file sources for code supported")
         Errors.close_listing_file()
         result.num_errors = Errors.num_errors
         if result.num_errors > 0:
-            errors_occurred = True
-        if errors_occurred and result.c_file:
+            err = True
+        if err and result.c_file:
             try:
                 Utils.castrate_file(result.c_file, os.stat(source_desc.filename))
             except EnvironmentError:
@@ -485,8 +489,8 @@ def run_pipeline(source, options, full_module_name = None):
     pipeline = context.create_pyx_pipeline(options, result)
 
     context.setup_errors(options)
-    errors_occurred, enddata = context.run_pipeline(pipeline, source)
-    context.teardown_errors(errors_occurred, options, result)
+    err, enddata = context.run_pipeline(pipeline, source)
+    context.teardown_errors(err, options, result)
     return result
 
 #------------------------------------------------------------------------

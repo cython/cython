@@ -492,12 +492,12 @@ def use_py2_buffer_functions(env):
     find_buffer_types(env)
 
     # For now, hard-code numpy imported as "numpy"
-    try:
-        ndarrtype = env.entries[u'numpy'].as_module.entries['ndarray'].type
-        types.append((ndarrtype.typeptr_cname, "numpy_getbuffer", "numpy_releasebuffer"))
-        env.use_utility_code(numpy_code)
-    except KeyError:
-        pass
+#    try:
+#        ndarrtype = env.entries[u'numpy'].as_module.entries['ndarray'].type
+#        types.append((ndarrtype.typeptr_cname, "numpy_getbuffer", "numpy_releasebuffer"))
+#        env.use_utility_code(numpy_code)
+#    except KeyError:
+#        pass
 
     code = dedent("""
         #if PY_VERSION_HEX < 0x02060000
