@@ -34,14 +34,18 @@ def testcas(a):
 # Buffer acquire and release tests
 #
 
-@testcase
 def nousage():
     """
-    >>> True
-    True
+    The challenge here is just compilation.
     """
     cdef object[int, 2] buf
-    # this used not to compile
+
+def printbuf():
+    """
+    Just compilation.
+    """
+    cdef object[int, 2] buf
+    print buf
 
 @testcase
 def acquire_release(o1, o2):

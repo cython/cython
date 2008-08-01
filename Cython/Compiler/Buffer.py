@@ -119,7 +119,8 @@ def used_buffer_aux_vars(entry):
     buffer_aux.buffer_info_var.used = True
     for s in buffer_aux.shapevars: s.used = True
     for s in buffer_aux.stridevars: s.used = True
-    for s in buffer_aux.suboffsetvars: s.used = True
+    if buffer_aux.suboffsetvars:
+        for s in buffer_aux.suboffsetvars: s.used = True
 
 def put_unpack_buffer_aux_into_scope(buffer_aux, mode, code):
     # Generate code to copy the needed struct info into local

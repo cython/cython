@@ -885,9 +885,6 @@ class NameNode(AtomicExprNode):
             self.type = PyrexTypes.error_type
         self.entry.used = 1
         if self.entry.type.is_buffer:
-            # Have an rhs temp just in case. All rhs I could
-            # think of had a single symbol result_code but better
-            # safe than sorry. Feel free to change this.
             import Buffer
             Buffer.used_buffer_aux_vars(self.entry)
                 
@@ -964,6 +961,9 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry:
             entry.used = 1
+            if entry.type.is_buffer:
+                import Buffer
+                Buffer.used_buffer_aux_vars(entry)
             if entry.utility_code:
                 env.use_utility_code(entry.utility_code)
         
