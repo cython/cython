@@ -30,8 +30,8 @@ class AnnotationCCodeWriter(CCodeWriter):
             self.annotations = create_from.annotations
             self.code = create_from.code
 
-    def create_new(self, create_from, buffer):
-        return AnnotationCCodeWriter(create_from, buffer)
+    def create_new(self, create_from, buffer, copy_formatting):
+        return AnnotationCCodeWriter(create_from, buffer, copy_formatting)
 
     def write(self, s):
         CCodeWriter.write(self, s)
