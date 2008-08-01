@@ -127,6 +127,7 @@ class FunctionState(object):
         freelist = self.temps_free.get(type)
         if freelist is None:
             freelist = []
+
             self.temps_free[type] = freelist
         freelist.append(name)
 
@@ -136,11 +137,15 @@ class GlobalState(object):
     # input_file_contents dict         contents (=list of lines) of any file that was used as input
     #                                  to create this output C code.  This is
     #                                  used to annotate the comments.
+    # used_utility_code set(string|int) Ids of used utility code (to avoid reinsertion)
+    # utilprotowriter CCodeWriter
+    # utildefwriter   CCodeWriter
 
     def __init__(self):
         self.filename_table = {}
         self.filename_list = []
         self.input_file_contents = {}
+        self.used_utility_code = set()
 
     def lookup_filename(self, filename):
         try:
@@ -161,6 +166,58 @@ class GlobalState(object):
                  for line in source_desc.get_lines()]
             self.input_file_contents[source_desc] = F
             return F
+
+    def use_utility_code(self, codetup, name=None):
+        """
+        Adds the given utility code to the C file if needed.
+
+        codetup should unpack into one prototype code part and one
+        definition code part, both strings inserted directly in C.
+
+        If name is provided, it is used as an identifier to avoid inserting
+        code twice. Otherwise, id(codetup) is used as such an identifier.
+        """
+        if name is None: name = id(codetup)
+        if self.check_utility_code_needed_and_register(name):
+            proto, _def = codetup
+            self.utilprotowriter.put(proto)
+            self.utildefwriter.put(_def)
+
+    def has_utility_code(self, name):
+        return name in self.used_utility_code
+
+    def use_generated_code(self, func, name, *args, **kw):
+        """
+        Requests that the utility code that func can generate is used in the C
+        file. func is called like this:
+
+        func(proto, definition, name, *args, **kw)
+
+        where proto and definition are two CCodeWriter instances; the
+        former should have the prototype written to it and the other the definition.
+        
+        The call might happen at some later point (if compiling multiple modules
+        into a cache for instance), and will only happen once per utility code.
+
+        name is used to identify the utility code, so that it isn't regenerated
+        when the same code is requested again.
+        """
+        if self.check_utility_code_needed_and_register(name):
+            func(self.utilprotowriter, self.utildefwriter,
+                 name, *args, **kw)
+
+    def check_utility_code_needed_and_register(self, name):
+        if name in self.used_utility_code:
+            return False
+        else:
+            self.used_utility_code.add(name)
+            return True
+
+    def put_utility_code_protos(self, writer):
+        writer.insert(self.utilprotowriter)
+
+    def put_utility_code_defs(self, writer):
+        writer.insert(self.utildefwriter)
 
 
 def funccontext_property(name):
@@ -198,29 +255,34 @@ class CCodeWriter(object):
     # globalstate      GlobalState     contains state global for a C file (input file info,
     #                                  utility code, declared constants etc.)
    
-    def __init__(self, create_from=None, buffer=None):
+    def __init__(self, create_from=None, buffer=None, copy_formatting=False):
         if buffer is None: buffer = StringIOTree()
         self.buffer = buffer
         self.marker = None
         self.last_marker_line = 0
         
-        self.funcstate = None # always start with no function state
+        self.funcstate = None
+        self.level = 0
+        self.bol = 1
         if create_from is None:
             # Root CCodeWriter
-            self.level = 0
-            self.bol = 1
             self.globalstate = GlobalState()
+            # These needs to be constructed after all state is set, as
+            # the construction copies over the state
+            self.globalstate.utilprotowriter = self.new_writer()
+            self.globalstate.utildefwriter = self.new_writer()
         else:
             # Use same global state
             self.globalstate = create_from.globalstate
             # Clone formatting state
-            self.level = create_from.level
-            self.bol = create_from.bol
+            if copy_formatting:
+                self.level = create_from.level
+                self.bol = create_from.bol
 
-    def create_new(self, create_from, buffer):
+    def create_new(self, create_from, buffer, copy_formatting):
         # polymorphic constructor -- very slightly more versatile
         # than using __class__
-        return CCodeWriter(create_from, buffer)
+        return CCodeWriter(create_from, buffer, copy_formatting)
 
     def copyto(self, f):
         self.buffer.copyto(f)
@@ -232,9 +294,25 @@ class CCodeWriter(object):
         self.buffer.write(s)
 
     def insertion_point(self):
-        other = self.create_new(create_from=self, buffer=self.buffer.insertion_point())
+        other = self.create_new(create_from=self, buffer=self.buffer.insertion_point(), copy_formatting=True)
         return other
 
+    def new_writer(self):
+        """
+        Creates a new CCodeWriter connected to the same global state, which
+        can later be inserted using insert.
+        """
+        return CCodeWriter(create_from=self)
+
+    def insert(self, writer):
+        """
+        Inserts the contents of another code writer (created with
+        the same global state) in the current location.
+
+        It is ok to write to the inserted writer also after insertion.
+        """
+        assert writer.globalstate is self.globalstate
+        self.buffer.insert(writer.buffer)
 
     # Properties delegated to function scope
     label_counter = funccontext_property("label_counter")
