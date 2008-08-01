@@ -248,6 +248,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_interned_num_decls(env, code)
         self.generate_interned_string_decls(env, code)
         self.generate_py_string_decls(env, code)
+
+        code.globalstate.insert_global_var_declarations_into(code)
+        
         self.generate_cached_builtins_decls(env, code)
         self.body.generate_function_definitions(env, code, options.transforms)
         code.mark_pos(None)
@@ -1447,6 +1450,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "};")
 
     def generate_py_string_table(self, env, code):
+#        raise Exception()
         entries = env.all_pystring_entries
         if entries:
             code.putln("")

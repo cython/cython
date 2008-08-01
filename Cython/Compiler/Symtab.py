@@ -732,6 +732,8 @@ class BuiltinScope(Scope):
         "True":   ["Py_True", py_object_type],
     }
 
+const_counter = 1 # As a temporary solution for compiling code in pxds
+
 class ModuleScope(Scope):
     # module_name          string             Python name of the module
     # module_cname         string             C name of Python module object
@@ -739,7 +741,7 @@ class ModuleScope(Scope):
     # method_table_cname   string             C name of method table
     # doc                  string             Module doc string
     # doc_cname            string             C name of module doc string
-    # const_counter        integer            Counter for naming constants
+    # const_counter        integer            Counter for naming constants (PS: MOVED TO GLOBAL)
     # utility_code_list    [((string, string), string)] Queuing utility codes for forwarding to Code.py
     # default_entries      [Entry]            Function argument default entries
     # python_include_files [string]           Standard  Python headers to be included
@@ -773,7 +775,6 @@ class ModuleScope(Scope):
         self.method_table_cname = Naming.methtable_cname
         self.doc = ""
         self.doc_cname = Naming.moddoc_cname
-        self.const_counter = 1
         self.utility_code_list = []
         self.default_entries = []
         self.module_entries = {}
@@ -927,10 +928,11 @@ class ModuleScope(Scope):
         return entry
         
     def new_const_cname(self):
+        global const_counter
         # Create a new globally-unique name for a constant.
         prefix=''
-        n = self.const_counter
-        self.const_counter = n + 1
+        n = const_counter
+        const_counter = n + 1
         return "%s%s%d" % (Naming.const_prefix, prefix, n)
     
     def use_utility_code(self, new_code, name=None):

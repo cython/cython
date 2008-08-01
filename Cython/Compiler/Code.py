@@ -137,15 +137,81 @@ class GlobalState(object):
     # input_file_contents dict         contents (=list of lines) of any file that was used as input
     #                                  to create this output C code.  This is
     #                                  used to annotate the comments.
+    #
     # used_utility_code set(string|int) Ids of used utility code (to avoid reinsertion)
     # utilprotowriter CCodeWriter
     # utildefwriter   CCodeWriter
+    #
+    # declared_cnames  {string:Entry}  used in a transition phase to merge pxd-declared
+    #                                  constants etc. into the pyx-declared ones (i.e,
+    #                                  check if constants are already added).
+    #                                  In time, hopefully the literals etc. will be
+    #                                  supplied directly instead.
 
-    def __init__(self):
+    
+    # interned_strings
+    # consts
+    # py_string_decls
+    # interned_nums
+    # cached_builtins
+
+    def __init__(self, rootwriter):
         self.filename_table = {}
         self.filename_list = []
         self.input_file_contents = {}
         self.used_utility_code = set()
+        self.declared_cnames = {}
+
+    def initwriters(self, rootwriter):
+        self.utilprotowriter = rootwriter.new_writer()
+        self.utildefwriter = rootwriter.new_writer()
+        self.decls_writer = rootwriter.new_writer()
+
+    #
+    # Global constants, interned objects, etc.
+    #
+    def insert_global_var_declarations_into(self, code):
+        code.insert(self.decls_writer)
+
+    # The functions below are there in a transition phase only
+    # and will be deprecated. They are called from Nodes.BlockNode.
+    # The copy&paste duplication is intentional in order to be able
+    # to see quickly how BlockNode worked, until this is replaced.
+    def should_declare(self, cname, entry):
+        if cname in self.declared_cnames:
+            other = self.declared_cnames[cname]
+            assert entry.type == other.type
+            assert entry.init == other.init
+            return False
+        else:
+            self.declared_cnames[cname] = entry
+            return True
+
+    def add_const_definition(self, entry):
+        if self.should_declare(entry.cname, entry):
+            self.decls_writer.put_var_declaration(entry, static = 1)
+
+    def add_interned_string_decl(self, entry):
+        if self.should_declare(entry.cname, entry):
+            self.decls_writer.put_var_declaration(entry, static = 1)
+        if self.should_declare(entry.pystring_cname, entry):
+            self.decls_writer.putln("static PyObject *%s;" % entry.pystring_cname)
+
+    def add_py_string_decl(self, entry):
+        if self.should_declare(entry.pystring_cname, entry):
+            self.decls_writer.putln("static PyObject *%s;" % entry.pystring_cname)
+        
+    def add_interned_num_decl(self, entry):
+        if self.should_declare(entry.cname, entry):
+            self.decls_writer.putln("static PyObject *%s;" % entry.cname)
+
+    def add_cached_builtin_decl(self, entry):
+        if self.should_declare(entry.cname, entry):
+            self.decls_writer.putln("static PyObject *%s;" % entry.cname)
+
+    #
+    # File name state
+    #
 
     def lookup_filename(self, filename):
         try:
@@ -164,9 +230,14 @@ class GlobalState(object):
                     u'*/', u'*[inserted by cython to avoid comment closer]/'
                     ).encode('ASCII', 'replace') # + Py2 auto-decode to unicode
                  for line in source_desc.get_lines()]
+            if len(F) == 0: F.append(u'')
             self.input_file_contents[source_desc] = F
             return F
 
+    #
+    # Utility code state
+    #
+    
     def use_utility_code(self, codetup, name=None):
         """
         Adds the given utility code to the C file if needed.
@@ -266,11 +337,9 @@ class CCodeWriter(object):
         self.bol = 1
         if create_from is None:
             # Root CCodeWriter
-            self.globalstate = GlobalState()
-            # These needs to be constructed after all state is set, as
-            # the construction copies over the state
-            self.globalstate.utilprotowriter = self.new_writer()
-            self.globalstate.utildefwriter = self.new_writer()
+            self.globalstate = GlobalState(self)
+            self.globalstate.initwriters(self)
+            # ^^^ need seperate step because this will reference self.globalstate
         else:
             # Use same global state
             self.globalstate = create_from.globalstate
@@ -400,7 +469,6 @@ class CCodeWriter(object):
             return
         assert isinstance(source_desc, SourceDescriptor)
         contents = self.globalstate.commented_file_contents(source_desc)
-
         lines = contents[max(0,line-3):line] # line numbers start at 1
         lines[-1] += u'             # <<<<<<<<<<<<<<'
         lines += contents[line:line+2]
