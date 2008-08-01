@@ -3875,33 +3875,6 @@ class FromImportStatNode(StatNode):
         self.module.generate_disposal_code(code)
 
 
-class CForeignScopeNode(StatNode):
-    """
-    Used for wrapping FuncDefNodes from pxds so that they generate their
-    code in the right scope.
-    """
-    pass
-
-class CCommentNode(StatNode):
-    # not working!
-    def __init__(self, comment, header=False):
-        self.pos 
-        assert '/' not in comment # todo: better escaping
-        if header:
-            from textwrap import dedent
-            comment = dedent("""
-            /*
-             *   %s
-             */
-            """) % comment
-        else:
-            comment = "/* %s */" % comment
-        self.comment = comment
-      
-    def generate_execution_code(self, code):
-        code.putln(self.header)
-    
-
 #------------------------------------------------------------------------------------
 #
 #  Runtime support code

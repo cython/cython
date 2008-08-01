@@ -110,11 +110,9 @@ class Context:
             return result
 
         def inject_pxd_code(module_node):
-            from Nodes import CCommentNode
             from textwrap import dedent
             stats = module_node.body.stats
             for name, (statlistnode, scope) in self.pxds.iteritems():
-                #stats.append(CCommentNode('Code from cimported "%s"' % name, header=True))
                 stats.append(statlistnode)
             return module_node
 
