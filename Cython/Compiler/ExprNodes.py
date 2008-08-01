@@ -1065,7 +1065,7 @@ class NameNode(AtomicExprNode):
             rhs.generate_post_assignment_code(code)
 
     def generate_acquire_buffer(self, rhs, code):
-        rhstmp = code.func.allocate_temp(self.entry.type)
+        rhstmp = code.funcstate.allocate_temp(self.entry.type)
         buffer_aux = self.entry.buffer_aux
         bufstruct = buffer_aux.buffer_info_var.cname
         code.putln('%s = %s;' % (rhstmp, rhs.result_as(self.ctype())))
@@ -1075,7 +1075,7 @@ class NameNode(AtomicExprNode):
                                     is_initialized=not self.skip_assignment_decref,
                                     pos=self.pos, code=code)
         code.putln("%s = 0;" % rhstmp)
-        code.func.release_temp(rhstmp)
+        code.funcstate.release_temp(rhstmp)
     
     def generate_deletion_code(self, code):
         if self.entry is None:
@@ -1520,7 +1520,7 @@ class IndexNode(ExprNode):
 
     def buffer_access_code(self, code):
         # Assign indices to temps
-        index_temps = [code.func.allocate_temp(i.type) for i in self.indices]
+        index_temps = [code.funcstate.allocate_temp(i.type) for i in self.indices]
         for temp, index in zip(index_temps, self.indices):
             code.putln("%s = %s;" % (temp, index.result_code))
         # Generate buffer access code using these temps

@@ -529,8 +529,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_filename_table(self, code):
         code.putln("")
         code.putln("static const char *%s[] = {" % Naming.filenames_cname)
-        if code.filename_list:
-            for source_desc in code.filename_list:
+        if code.globalstate.filename_list:
+            for source_desc in code.globalstate.filename_list:
                 filename = os.path.basename(source_desc.get_filenametable_entry())
                 escaped_filename = filename.replace("\\", "\\\\").replace('"', r'\"')
                 code.putln('"%s",' % 
@@ -1610,7 +1610,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('}')
         
         tempdecl_code.put_var_declarations(env.temp_entries)
-        tempdecl_code.put_temp_declarations(code.func)
+        tempdecl_code.put_temp_declarations(code.funcstate)
 
         code.exit_cfunc_scope()
 
@@ -1950,6 +1950,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     type.typeptr_cname, type.typeobj_cname))
     
     def generate_utility_functions(self, env, code, h_code):
+        for codetup, name in env.utility_code_list:
+            code.globalstate.use_utility_code(codetup, name)
+       
+        code.globalstate.put_utility_code_protos(h_code)
         code.putln("")
         code.putln("/* Runtime support code */")
         code.putln("")
@@ -1957,9 +1961,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s = %s;" % 
             (Naming.filetable_cname, Naming.filenames_cname))
         code.putln("}")
-        for utility_code in env.utility_code_used:
-            h_code.put(utility_code[0])
-            code.put(utility_code[1])
+        code.globalstate.put_utility_code_defs(code)
         code.put(PyrexTypes.type_conversion_functions)
         code.putln("")
 
