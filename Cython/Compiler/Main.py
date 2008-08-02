@@ -113,7 +113,14 @@ class Context:
             from textwrap import dedent
             stats = module_node.body.stats
             for name, (statlistnode, scope) in self.pxds.iteritems():
+                # Copy over function nodes to the module
+                # (this seems strange -- I believe the right concept is to split
+                # ModuleNode into a ModuleNode and a CodeGenerator, and tell that
+                # CodeGenerator to generate code both from the pyx and pxd ModuleNodes.
                  stats.append(statlistnode)
+                 # Until utility code is moved to code generation phase everywhere,
+                 # we need to copy it over to the main scope
+                 module_node.scope.utility_code_list.extend(scope.utility_code_list)
             return module_node
 
         return ([
