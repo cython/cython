@@ -806,6 +806,15 @@ class NameNode(AtomicExprNode):
     #  interned_cname  string
     
     is_name = 1
+    skip_assignment_decref = False
+    entry = None
+
+    def create_analysed_rvalue(pos, env, entry):
+        node = NameNode(pos)
+        node.analyse_types(env, entry=entry)
+        return node
+    
+    create_analysed_rvalue = staticmethod(create_analysed_rvalue)
     
     def compile_time_value(self, denv):
         try:
@@ -834,7 +843,9 @@ class NameNode(AtomicExprNode):
     def analyse_as_module(self, env):
         # Try to interpret this as a reference to a cimported module.
         # Returns the module scope, or None.
-        entry = env.lookup(self.name)
+        entry = self.entry
+        if not entry:
+            entry = env.lookup(self.name)
         if entry and entry.as_module:
             return entry.as_module
         return None
@@ -842,14 +853,17 @@ class NameNode(AtomicExprNode):
     def analyse_as_extension_type(self, env):
         # Try to interpret this as a reference to an extension type.
         # Returns the extension type, or None.
-        entry = env.lookup(self.name)
+        entry = self.entry
+        if not entry:
+            entry = env.lookup(self.name)
         if entry and entry.is_type and entry.type.is_extension_type:
             return entry.type
         else:
             return None
     
     def analyse_target_declaration(self, env):
-        self.entry = env.lookup_here(self.name)
+        if not self.entry:
+            self.entry = env.lookup_here(self.name)
         if not self.entry:
             self.entry = env.declare_var(self.name, py_object_type, self.pos)
         env.control_flow.set_state(self.pos, (self.name, 'initalized'), True)
@@ -860,7 +874,8 @@ class NameNode(AtomicExprNode):
             env.use_utility_code(type_cache_invalidation_code)
     
     def analyse_types(self, env):
-        self.entry = env.lookup(self.name)
+        if self.entry is None:
+            self.entry = env.lookup(self.name)
         if not self.entry:
             self.entry = env.declare_builtin(self.name, self.pos)
         if not self.entry:
@@ -875,7 +890,13 @@ class NameNode(AtomicExprNode):
                 % self.name)
             self.type = PyrexTypes.error_type
         self.entry.used = 1
-        
+        if self.entry.type.is_buffer:
+            # Have an rhs temp just in case. All rhs I could
+            # think of had a single symbol result_code but better
+            # safe than sorry. Feel free to change this.
+            import Buffer
+            Buffer.used_buffer_aux_vars(self.entry)
+                
     def analyse_rvalue_entry(self, env):
         #print "NameNode.analyse_rvalue_entry:", self.name ###
         #print "Entry:", self.entry.__dict__ ###
@@ -990,7 +1011,7 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is None:
             return # There was an error earlier
-
+        
         # is_pyglobal seems to be True for module level-globals only.
         # We use this to access class->tp_dict if necessary.
         if entry.is_pyglobal:
@@ -1018,25 +1039,49 @@ class NameNode(AtomicExprNode):
                 rhs.generate_disposal_code(code)
                 
         else:
+            if self.type.is_buffer:
+                # Generate code for doing the buffer release/acquisition.
+                # This might raise an exception in which case the assignment (done
+                # below) will not happen.
+                #
+                # The reason this is not in a typetest-like node is because the
+                # variables that the acquired buffer info is stored to is allocated
+                # per entry and coupled with it.
+                self.generate_acquire_buffer(rhs, code)
+
             if self.type.is_pyobject:
+                rhs.make_owned_reference(code)
                 #print "NameNode.generate_assignment_code: to", self.name ###
                 #print "...from", rhs ###
                 #print "...LHS type", self.type, "ctype", self.ctype() ###
                 #print "...RHS type", rhs.type, "ctype", rhs.ctype() ###
-                rhs.make_owned_reference(code)
-                if entry.is_local and not Options.init_local_none:
-                    initalized = entry.scope.control_flow.get_state((entry.name, 'initalized'), self.pos)
-                    if initalized is True:
+                if not self.skip_assignment_decref:
+                    if entry.is_local and not Options.init_local_none:
+                        initalized = entry.scope.control_flow.get_state((entry.name, 'initalized'), self.pos)
+                        if initalized is True:
+                            code.put_decref(self.result_code, self.ctype())
+                        elif initalized is None:
+                            code.put_xdecref(self.result_code, self.ctype())
+                    else:
                         code.put_decref(self.result_code, self.ctype())
-                    elif initalized is None:
-                        code.put_xdecref(self.result_code, self.ctype())
-                else:
-                    code.put_decref(self.result_code, self.ctype())
             code.putln('%s = %s;' % (self.result_code, rhs.result_as(self.ctype())))
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
                 print("...generating post-assignment code for %s" % rhs)
             rhs.generate_post_assignment_code(code)
+
+    def generate_acquire_buffer(self, rhs, code):
+        rhstmp = code.func.allocate_temp(self.entry.type)
+        buffer_aux = self.entry.buffer_aux
+        bufstruct = buffer_aux.buffer_info_var.cname
+        code.putln('%s = %s;' % (rhstmp, rhs.result_as(self.ctype())))
+
+        import Buffer
+        Buffer.put_assign_to_buffer(self.result_code, rhstmp, buffer_aux, self.entry.type,
+                                    is_initialized=not self.skip_assignment_decref,
+                                    pos=self.pos, code=code)
+        code.putln("%s = 0;" % rhstmp)
+        code.func.release_temp(rhstmp)
     
     def generate_deletion_code(self, code):
         if self.entry is None:
@@ -1297,39 +1342,45 @@ class IndexNode(ExprNode):
         self.analyse_base_and_index_types(env, setting = 1)
 
     def analyse_base_and_index_types(self, env, getting = 0, setting = 0):
+        # Note: This might be cleaned up by having IndexNode
+        # parsed in a saner way and only construct the tuple if
+        # needed.
         self.is_buffer_access = False
 
         self.base.analyse_types(env)
 
         skip_child_analysis = False
         buffer_access = False
-        if self.base.type.buffer_options is not None:
+        if self.base.type.is_buffer:
+            assert isinstance(self.base, NameNode)
             if isinstance(self.index, TupleNode):
                 indices = self.index.args
             else:
                 indices = [self.index]
-            if len(indices) == self.base.type.buffer_options.ndim:
+            if len(indices) == self.base.type.ndim:
                 buffer_access = True
                 skip_child_analysis = True
                 for x in indices:
                     x.analyse_types(env)
                     if not x.type.is_int:
                         buffer_access = False
-                if buffer_access:
-                    # self.indices = [
-                    #   x.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
-                    # for x in  indices]
-                    self.indices = indices
-                    self.index = None
-                    self.type = self.base.type.buffer_options.dtype 
-                    self.is_temp = 1
-                    self.is_buffer_access = True
-            
-        # Note: This might be cleaned up by having IndexNode
-        # parsed in a saner way and only construct the tuple if
-        # needed.
 
-        if not buffer_access:
+        if buffer_access:
+            self.indices = indices
+            self.index = None
+            self.type = self.base.type.dtype
+            self.is_buffer_access = True
+           
+            if getting:
+                # we only need a temp because result_code isn't refactored to
+                # generation time, but this seems an ok shortcut to take
+                self.is_temp = True
+            if setting:
+                if not self.base.entry.type.writable:
+                    error(self.pos, "Writing to readonly buffer")
+                else:
+                    self.base.entry.buffer_aux.writable_needed = True
+        else:
             if isinstance(self.index, TupleNode):
                 self.index.analyse_types(env, skip_children=skip_child_analysis)
             elif not skip_child_analysis:
@@ -1374,7 +1425,7 @@ class IndexNode(ExprNode):
     
     def calculate_result_code(self):
         if self.is_buffer_access:
-            return "<not needed>"
+            return "<not used>"
         else:
             return "(%s[%s])" % (
                 self.base.result_code, self.index.result_code)
@@ -1393,17 +1444,22 @@ class IndexNode(ExprNode):
         if self.index is not None:
             self.index.generate_evaluation_code(code)
         else:
-            for i in self.indices: i.generate_evaluation_code(code)
+            for i in self.indices:
+                i.generate_evaluation_code(code)
         
     def generate_subexpr_disposal_code(self, code):
         self.base.generate_disposal_code(code)
         if self.index is not None:
             self.index.generate_disposal_code(code)
         else:
-            for i in self.indices: i.generate_disposal_code(code)
+            for i in self.indices:
+                i.generate_disposal_code(code)
 
     def generate_result_code(self, code):
-        if self.type.is_pyobject:
+        if self.is_buffer_access:
+            valuecode = self.buffer_access_code(code)
+            code.putln("%s = %s;" % (self.result_code, valuecode))
+        elif self.type.is_pyobject:
             if self.index.type.is_int:
                 function = "__Pyx_GetItemInt"
                 index_code = self.index.result_code
@@ -1439,7 +1495,10 @@ class IndexNode(ExprNode):
     
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
-        if self.type.is_pyobject:
+        if self.is_buffer_access:
+            valuecode = self.buffer_access_code(code)
+            code.putln("%s = %s;" % (valuecode, rhs.result_code))
+        elif self.type.is_pyobject:
             self.generate_setitem_code(rhs.py_result(), code)
         else:
             code.putln(
@@ -1464,6 +1523,19 @@ class IndexNode(ExprNode):
                 index_code,
                 code.error_goto(self.pos)))
         self.generate_subexpr_disposal_code(code)
+
+    def buffer_access_code(self, code):
+        # Assign indices to temps
+        index_temps = [code.func.allocate_temp(i.type) for i in self.indices]
+        for temp, index in zip(index_temps, self.indices):
+            code.putln("%s = %s;" % (temp, index.result_code))
+        # Generate buffer access code using these temps
+        import Buffer
+        valuecode = Buffer.put_access(entry=self.base.entry,
+                                      index_signeds=[i.type.signed for i in self.indices],
+                                      index_cnames=index_temps,
+                                      pos=self.pos, code=code)
+        return valuecode
 
 
 class SliceIndexNode(ExprNode):

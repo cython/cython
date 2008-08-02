@@ -46,12 +46,13 @@ class ErrorWriter(object):
 
 class TestBuilder(object):
     def __init__(self, rootdir, workdir, selectors, annotate,
-                 cleanup_workdir, with_pyregr):
+                 cleanup_workdir, cleanup_sharedlibs, with_pyregr):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
         self.annotate = annotate
         self.cleanup_workdir = cleanup_workdir
+        self.cleanup_sharedlibs = cleanup_sharedlibs
         self.with_pyregr = with_pyregr
 
     def build_suite(self):
@@ -84,6 +85,7 @@ class TestBuilder(object):
         for filename in filenames:
             if not (filename.endswith(".pyx") or filename.endswith(".py")):
                 continue
+            if filename.startswith('.'): continue # certain emacs backup files
             if context == 'pyregr' and not filename.startswith('test_'):
                 continue
             module = os.path.splitext(filename)[0]
@@ -99,25 +101,29 @@ class TestBuilder(object):
                 test = build_test(
                     path, workdir, module,
                     annotate=self.annotate,
-                    cleanup_workdir=self.cleanup_workdir)
+                    cleanup_workdir=self.cleanup_workdir,
+                    cleanup_sharedlibs=self.cleanup_sharedlibs)
             else:
                 test = CythonCompileTestCase(
                     path, workdir, module,
                     expect_errors=expect_errors,
                     annotate=self.annotate,
-                    cleanup_workdir=self.cleanup_workdir)
+                    cleanup_workdir=self.cleanup_workdir,
+                    cleanup_sharedlibs=self.cleanup_sharedlibs)
             suite.addTest(test)
         return suite
 
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, directory, workdir, module,
-                 expect_errors=False, annotate=False, cleanup_workdir=True):
+                 expect_errors=False, annotate=False, cleanup_workdir=True,
+                 cleanup_sharedlibs=True):
         self.directory = directory
         self.workdir = workdir
         self.module = module
         self.expect_errors = expect_errors
         self.annotate = annotate
         self.cleanup_workdir = cleanup_workdir
+        self.cleanup_sharedlibs = cleanup_sharedlibs
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -125,9 +131,12 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def tearDown(self):
         cleanup_c_files = WITH_CYTHON and self.cleanup_workdir
+        cleanup_lib_files = self.cleanup_sharedlibs
         if os.path.exists(self.workdir):
             for rmfile in os.listdir(self.workdir):
                 if not cleanup_c_files and rmfile[-2:] in (".c", ".h"):
+                    continue
+                if not cleanup_lib_files and rmfile.endswith(".so") or rmfile.endswith(".dll"):
                     continue
                 if self.annotate and rmfile.endswith(".html"):
                     continue
@@ -278,7 +287,7 @@ class CythonUnitTestCase(CythonCompileTestCase):
         except Exception:
             pass
 
-def collect_unittests(path, suite, selectors):
+def collect_unittests(path, module_prefix, suite, selectors):
     def file_matches(filename):
         return filename.startswith("Test") and filename.endswith(".py")
 
@@ -304,7 +313,7 @@ def collect_unittests(path, suite, selectors):
             for f in filenames:
                 if file_matches(f):
                     filepath = os.path.join(dirpath, f)[:-len(".py")]
-                    modulename = filepath[len(path)+1:].replace(os.path.sep, '.')
+                    modulename = module_prefix + filepath[len(path)+1:].replace(os.path.sep, '.')
                     if not [ 1 for match in selectors if match(modulename) ]:
                         continue
                     module = __import__(modulename)
@@ -312,18 +321,50 @@ def collect_unittests(path, suite, selectors):
                         module = getattr(module, x)
                     suite.addTests([loader.loadTestsFromModule(module)])
 
+def collect_doctests(path, module_prefix, suite, selectors):
+    def package_matches(dirname):
+        return dirname not in ("Mac", "Distutils", "Plex")
+    def file_matches(filename):
+        return (filename.endswith(".py") and not ('~' in filename
+                or '#' in filename or filename.startswith('.')))
+    import doctest, types
+    for dirpath, dirnames, filenames in os.walk(path):
+        parentname = os.path.split(dirpath)[-1]
+        if package_matches(parentname):
+            for f in filenames:
+                if file_matches(f):
+                    if not f.endswith('.py'): continue
+                    filepath = os.path.join(dirpath, f)[:-len(".py")]
+                    modulename = module_prefix + filepath[len(path)+1:].replace(os.path.sep, '.')
+                    if not [ 1 for match in selectors if match(modulename) ]:
+                        continue
+                    module = __import__(modulename)
+                    for x in modulename.split('.')[1:]:
+                        module = getattr(module, x)
+                    if hasattr(module, "__doc__") or hasattr(module, "__test__"):
+                        try:
+                            suite.addTests(doctest.DocTestSuite(module))
+                        except ValueError: # no tests
+                            pass
+
 if __name__ == '__main__':
     from optparse import OptionParser
     parser = OptionParser()
     parser.add_option("--no-cleanup", dest="cleanup_workdir",
                       action="store_false", default=True,
                       help="do not delete the generated C files (allows passing --no-cython on next run)")
+    parser.add_option("--no-cleanup-sharedlibs", dest="cleanup_sharedlibs",
+                      action="store_false", default=True,
+                      help="do not delete the generated shared libary files (allows manual module experimentation)")
     parser.add_option("--no-cython", dest="with_cython",
                       action="store_false", default=True,
                       help="do not run the Cython compiler, only the C compiler")
     parser.add_option("--no-unit", dest="unittests",
                       action="store_false", default=True,
                       help="do not run the unit tests")
+    parser.add_option("--no-doctest", dest="doctests",
+                      action="store_false", default=True,
+                      help="do not run the doctests")
     parser.add_option("--no-file", dest="filetests",
                       action="store_false", default=True,
                       help="do not run the file based tests")
@@ -360,6 +401,8 @@ if __name__ == '__main__':
     # RUN ALL TESTS!
     ROOTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]), 'tests')
     WORKDIR = os.path.join(os.getcwd(), 'BUILD')
+    UNITTEST_MODULE = "Cython"
+    UNITTEST_ROOT = os.path.join(os.getcwd(), UNITTEST_MODULE)
     if WITH_CYTHON:
         if os.path.exists(WORKDIR):
             shutil.rmtree(WORKDIR, ignore_errors=True)
@@ -382,13 +425,15 @@ if __name__ == '__main__':
     test_suite = unittest.TestSuite()
 
     if options.unittests:
-        collect_unittests(os.getcwd(), test_suite, selectors)
+        collect_unittests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors)
+
+    if options.doctests:
+        collect_doctests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors)
 
     if options.filetests:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors,
-                                options.annotate_source,
-                                options.cleanup_workdir,
-                                options.pyregr)
+                                options.annotate_source, options.cleanup_workdir,
+                                options.cleanup_sharedlibs, options.pyregr)
         test_suite.addTests([filetests.build_suite()])
 
     unittest.TextTestRunner(verbosity=options.verbosity).run(test_suite)

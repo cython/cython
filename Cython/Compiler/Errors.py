@@ -33,6 +33,7 @@ class CompileError(PyrexError):
     def __init__(self, position = None, message = ""):
         self.position = position
         self.message_only = message
+        self.reported = False
     # Deprecated and withdrawn in 2.6:
     #   self.message = message
         if position:
@@ -88,17 +89,23 @@ def close_listing_file():
         listing_file.close()
         listing_file = None
 
-def error(position, message):
-    #print "Errors.error:", repr(position), repr(message) ###
+def report_error(err):
     global num_errors
-    err = CompileError(position, message)
-#    if position is not None: raise Exception(err) # debug
+    # See Main.py for why dual reporting occurs. Quick fix for now.
+    if err.reported: return
+    err.reported = True
     line = "%s\n" % err
     if listing_file:
         listing_file.write(line)
     if echo_file:
         echo_file.write(line)
     num_errors = num_errors + 1
+
+def error(position, message):
+    #print "Errors.error:", repr(position), repr(message) ###
+    err = CompileError(position, message)
+#    if position is not None: raise Exception(err) # debug
+    report_error(err)
     return err
 
 LEVEL=1 # warn about all errors level 1 or higher

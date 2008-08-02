@@ -97,7 +97,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         h_extension_types = h_entries(env.c_class_entries)
         if h_types or h_vars or h_funcs or h_extension_types:
             result.h_file = replace_suffix(result.c_file, ".h")
-            h_code = Code.CCodeWriter(open_new_file(result.h_file))
+            h_code = Code.CCodeWriter()
             if options.generate_pxi:
                 result.i_file = replace_suffix(result.c_file, ".pxi")
                 i_code = Code.PyrexCodeWriter(result.i_file)
@@ -129,6 +129,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("PyMODINIT_FUNC init%s(void);" % env.module_name)
             h_code.putln("")
             h_code.putln("#endif")
+            
+            h_code.copyto(open_new_file(result.h_file))
     
     def generate_public_declaration(self, entry, h_code, i_code):
         h_code.putln("%s %s;" % (
@@ -156,7 +158,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 has_api_extension_types = 1
         if api_funcs or has_api_extension_types:
             result.api_file = replace_suffix(result.c_file, "_api.h")
-            h_code = Code.CCodeWriter(open_new_file(result.api_file))
+            h_code = Code.CCodeWriter()
             name = self.api_name(env)
             guard = Naming.api_guard_prefix + name
             h_code.put_h_guard(guard)
@@ -209,6 +211,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             h_code.putln("}")
             h_code.putln("")
             h_code.putln("#endif")
+            
+            h_code.copyto(open_new_file(result.api_file))
     
     def generate_cclass_header_code(self, type, h_code):
         h_code.putln("%s DL_IMPORT(PyTypeObject) %s;" % (
@@ -232,12 +236,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_c_code(self, env, options, result):
         modules = self.referenced_modules
         if Options.annotate or options.annotate:
-            code = Annotate.AnnotationCCodeWriter(StringIO())
+            code = Annotate.AnnotationCCodeWriter()
         else:
-            code = Code.CCodeWriter(StringIO())
-        code.h = Code.CCodeWriter(StringIO())
-        code.init_labels()
-        self.generate_module_preamble(env, modules, code.h)
+            code = Code.CCodeWriter()
+        h_code = code.insertion_point()
+        self.generate_module_preamble(env, modules, h_code)
 
         code.putln("")
         code.putln("/* Implementation of %s */" % env.qualified_name)
@@ -259,15 +262,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.mark_pos(None)
         self.generate_module_cleanup_func(env, code)
         self.generate_filename_table(code)
-        self.generate_utility_functions(env, code)
-        self.generate_buffer_compatability_functions(env, code)
+        self.generate_utility_functions(env, code, h_code)
 
-        self.generate_declarations_for_modules(env, modules, code.h)
+        self.generate_declarations_for_modules(env, modules, h_code)
+        h_code.write('\n')
 
         f = open_new_file(result.c_file)
-        f.write(code.h.f.getvalue())
-        f.write("\n")
-        f.write(code.f.getvalue())
+        code.copyto(f)
         f.close()
         result.c_file_generated = 1
         if Options.annotate or options.annotate:
@@ -441,8 +442,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyBUF_ANY_CONTIGUOUS (0x0080 | PyBUF_STRIDES)")
         code.putln("  #define PyBUF_INDIRECT (0x0100 | PyBUF_STRIDES)")
         code.putln("")
-        code.putln("  static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags);")
-        code.putln("  static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view);")
         code.putln("#endif")
 
         code.put(builtin_module_name_utility_code[0])
@@ -1485,6 +1484,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("0")
         code.putln("};")
         code.putln()
+        code.enter_cfunc_scope() # as we need labels
         code.putln("static int %s(PyObject *o, PyObject* py_name, char *name) {" % Naming.import_star_set)
         code.putln("char** type_name = %s_type_names;" % Naming.import_star)
         code.putln("while (*type_name) {")
@@ -1535,8 +1535,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("return -1;")
         code.putln("}")
         code.putln(import_star_utility_code)
+        code.exit_cfunc_scope() # done with labels
 
     def generate_module_init_func(self, imported_modules, env, code):
+        code.enter_cfunc_scope()
         code.putln("")
         header2 = "PyMODINIT_FUNC init%s(void)" % env.module_name
         header3 = "PyMODINIT_FUNC PyInit_%s(void)" % env.module_name
@@ -1548,8 +1550,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(header3)
         code.putln("#endif")
         code.putln("{")
-
-        code.put_var_declarations(env.temp_entries)
+        tempdecl_code = code.insertion_point()
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
 
         code.putln("/*--- Libary function declarations ---*/")
@@ -1590,6 +1591,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("/*--- Execution code ---*/")
         code.mark_pos(None)
+        
         self.body.generate_execution_code(code)
 
         if Options.generate_cleanup_code:
@@ -1609,6 +1611,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("return NULL;")
         code.putln("#endif")
         code.putln('}')
+        
+        tempdecl_code.put_var_declarations(env.temp_entries)
+        tempdecl_code.put_temp_declarations(code.func)
+
+        code.exit_cfunc_scope()
 
     def generate_module_cleanup_func(self, env, code):
         if not Options.generate_cleanup_code:
@@ -1951,7 +1958,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "%s = &%s;" % (
                     type.typeptr_cname, type.typeobj_cname))
     
-    def generate_utility_functions(self, env, code):
+    def generate_utility_functions(self, env, code, h_code):
         code.putln("")
         code.putln("/* Runtime support code */")
         code.putln("")
@@ -1960,93 +1967,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             (Naming.filetable_cname, Naming.filenames_cname))
         code.putln("}")
         for utility_code in env.utility_code_used:
-            code.h.put(utility_code[0])
+            h_code.put(utility_code[0])
             code.put(utility_code[1])
         code.put(PyrexTypes.type_conversion_functions)
         code.putln("")
-
-    def generate_buffer_compatability_functions(self, env, code):
-        # will be refactored
-        try:
-            env.entries[u'numpy']
-            code.put("""
-static int numpy_getbuffer(PyObject *obj, Py_buffer *view, int flags) {
-  /* This function is always called after a type-check; safe to cast */
-  PyArrayObject *arr = (PyArrayObject*)obj;
-  PyArray_Descr *type = (PyArray_Descr*)arr->descr;
-
-  
-  int typenum = PyArray_TYPE(obj);
-  if (!PyTypeNum_ISNUMBER(typenum)) {
-    PyErr_Format(PyExc_TypeError, "Only numeric NumPy types currently supported.");
-    return -1;
-  }
-
-  /*
-  NumPy format codes doesn't completely match buffer codes;
-  seems safest to retranslate.
-                            01234567890123456789012345*/
-  const char* base_codes = "?bBhHiIlLqQfdgfdgO";
-
-  char* format = (char*)malloc(4);
-  char* fp = format;
-  *fp++ = type->byteorder;
-  if (PyTypeNum_ISCOMPLEX(typenum)) *fp++ = 'Z';
-  *fp++ = base_codes[typenum];
-  *fp = 0;
-
-  view->buf = arr->data;
-  view->readonly = !PyArray_ISWRITEABLE(obj);
-  view->ndim = PyArray_NDIM(arr);
-  view->strides = PyArray_STRIDES(arr);
-  view->shape = PyArray_DIMS(arr);
-  view->suboffsets = NULL;
-  view->format = format;
-  view->itemsize = type->elsize;
-
-  view->internal = 0;
-  return 0;
-}
-
-static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
-  free((char*)view->format);
-  view->format = NULL;
-}
-
-""")
-        except KeyError:
-            pass
-        
-        # For now, hard-code numpy imported as "numpy"
-        types = []
-        try:
-            ndarrtype = env.entries[u'numpy'].as_module.entries['ndarray'].type
-            types.append((ndarrtype.typeptr_cname, "numpy_getbuffer", "numpy_releasebuffer"))
-        except KeyError:
-            pass
-        code.putln("#if PY_VERSION_HEX < 0x02060000")
-        code.putln("static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {")
-        if len(types) > 0:
-            clause = "if"
-            for t, get, release in types:
-                code.putln("%s (__Pyx_TypeTest(obj, %s)) return %s(obj, view, flags);" % (clause, t, get))
-                clause = "else if"
-            code.putln("else {")
-        code.putln("PyErr_Format(PyExc_TypeError, \"'%100s' does not have the buffer interface\", Py_TYPE(obj)->tp_name);")
-        code.putln("return -1;")
-        if len(types) > 0: code.putln("}")
-        code.putln("}")
-        code.putln("")
-        code.putln("static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view) {")
-        if len(types) > 0:
-            clause = "if"
-            for t, get, release in types:
-                code.putln("%s (__Pyx_TypeTest(obj, %s)) %s(obj, view);" % (clause, t, release))
-                clause = "else if"
-        code.putln("}")
-        code.putln("")
-        code.putln("#endif")
-
 
 #------------------------------------------------------------------------------------
 #

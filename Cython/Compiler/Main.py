@@ -46,6 +46,13 @@ class Context:
         self.pyxs = {}
         self.include_directories = include_directories
         self.future_directives = set()
+
+        import os.path
+
+        standard_include_path = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), '..', 'Includes'))
+        self.include_directories = include_directories + [standard_include_path]
+
         
     def find_module(self, module_name, 
             relative_to = None, pos = None, need_pxd = 1):
@@ -323,14 +330,18 @@ class Context:
                     verbose_flag = options.show_version,
                     cplus = options.cplus)
 
+    def nonfatal_error(self, exc):
+        return Errors.report_error(exc)
+
     def run_pipeline(self, pipeline, source):
         errors_occurred = False
         data = source
         try:
             for phase in pipeline:
                 data = phase(data)
-        except CompileError:
+        except CompileError, err:
             errors_occurred = True
+            Errors.report_error(err)
         return (errors_occurred, data)
 
 def create_parse(context):
@@ -358,22 +369,25 @@ def create_default_pipeline(context, options, result):
     from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse
     from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
     from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
-    from Optimize import FlattenInListTransform, SwitchTransform
-    from Buffer import BufferTransform
+    from Optimize import FlattenInListTransform, SwitchTransform, OptimizeRefcounting
+    from Buffer import IntroduceBufferAuxiliaryVars
     from ModuleNode import check_c_classes
-    
+    def printit(x): print x.dump()
     return [
         create_parse(context),
+#        printit,
         NormalizeTree(context),
         PostParse(context),
         FlattenInListTransform(),
         WithTransform(context),
         DecoratorTransform(context),
         AnalyseDeclarationsTransform(context),
+        IntroduceBufferAuxiliaryVars(context),
         check_c_classes,
         AnalyseExpressionsTransform(context),
-        BufferTransform(context),
-        SwitchTransform(), 
+#        BufferTransform(context),
+        SwitchTransform(),
+        OptimizeRefcounting(context),
 #        CreateClosureClasses(context),
         create_generate_code(context, options, result)
     ]
@@ -607,6 +621,7 @@ def main(command_line = 0):
     else:
         options = CompilationOptions(default_options)
         sources = args
+
     if options.show_version:
         sys.stderr.write("Cython version %s\n" % Version.version)
     if options.working_path!="":

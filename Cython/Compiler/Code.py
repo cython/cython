@@ -9,128 +9,27 @@ from Cython.Utils import open_new_file, open_source_file
 from PyrexTypes import py_object_type, typecast
 from TypeSlots import method_coexist
 from Scanning import SourceDescriptor
+from Cython.StringIOTree import StringIOTree
+from sets import Set as set
 
-class CCodeWriter:
-    # f                file            output file
-    # level            int             indentation level
-    # bol              bool            beginning of line?
-    # marker           string          comment to emit before next line
-    # return_label     string          function return point label
-    # error_label      string          error catch point label
-    # continue_label   string          loop continue point label
-    # break_label      string          loop break point label
-    # label_counter    integer         counter for naming labels
-    # in_try_finally   boolean         inside try of try...finally
-    # filename_table   {string : int}  for finding filename table indexes
-    # filename_list    [string]        filenames in filename table order
-    # exc_vars         (string * 3)    exception variables for reraise, or None
-    # input_file_contents dict         contents (=list of lines) of any file that was used as input
-    #                                  to create this output C code.  This is
-    #                                  used to annotate the comments. 
-   
-    in_try_finally = 0
-    
-    def __init__(self, f):
-        #self.f = open_new_file(outfile_name)
-        self.f = f
-        self._write = f.write
-        self.level = 0
-        self.bol = 1
-        self.marker = None
-        self.last_marker_line = 0
-        self.label_counter = 1
+class FunctionContext(object):
+    # Not used for now, perhaps later
+    def __init__(self, names_taken=set()):
+        self.names_taken = names_taken
+        
         self.error_label = None
-        self.filename_table = {}
-        self.filename_list = []
-        self.exc_vars = None
-        self.input_file_contents = {}
-
-    def putln(self, code = ""):
-        if self.marker and self.bol:
-            self.emit_marker()
-        if code:
-            self.put(code)
-        self._write("\n");
-        self.bol = 1
-    
-    def emit_marker(self):
-        self._write("\n");
-        self.indent()
-        self._write("/* %s */\n" % self.marker[1])
-        self.last_marker_line = self.marker[0]
-        self.marker = None
-
-    def put(self, code):
-        dl = code.count("{") - code.count("}")
-        if dl < 0:
-            self.level += dl
-        elif dl == 0 and code.startswith('}'):
-            self.level -= 1
-        if self.bol:
-            self.indent()
-        self._write(code)
-        self.bol = 0
-        if dl > 0:
-            self.level += dl
-        elif dl == 0 and code.startswith('}'):
-            self.level += 1
-
-    def increase_indent(self):
-        self.level = self.level + 1
-    
-    def decrease_indent(self):
-        self.level = self.level - 1
-    
-    def begin_block(self):
-        self.putln("{")
-        self.increase_indent()
-    
-    def end_block(self):
-        self.decrease_indent()
-        self.putln("}")
-    
-    def indent(self):
-        self._write("  " * self.level)
-
-    def get_py_version_hex(self, pyversion):
-        return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
-
-    def commented_file_contents(self, source_desc):
-        try:
-            return self.input_file_contents[source_desc]
-        except KeyError:
-            F = [u' * ' + line.rstrip().replace(
-                    u'*/', u'*[inserted by cython to avoid comment closer]/'
-                    ).encode('ASCII', 'replace') # + Py2 auto-decode to unicode
-                 for line in source_desc.get_lines()]
-            self.input_file_contents[source_desc] = F
-            return F
-
-    def mark_pos(self, pos):
-        if pos is None:
-            return
-        source_desc, line, col = pos
-        if self.last_marker_line == line:
-            return
-        assert isinstance(source_desc, SourceDescriptor)
-        contents = self.commented_file_contents(source_desc)
-
-        lines = contents[max(0,line-3):line] # line numbers start at 1
-        lines[-1] += u'             # <<<<<<<<<<<<<<'
-        lines += contents[line:line+2]
-
-        marker = u'"%s":%d\n%s\n' % (
-            source_desc.get_escaped_description(), line, u'\n'.join(lines))
-        self.marker = (line, marker)
-
-    def init_labels(self):
         self.label_counter = 0
         self.labels_used = {}
         self.return_label = self.new_label()
         self.new_error_label()
         self.continue_label = None
         self.break_label = None
-    
+
+        self.temps_allocated = [] # of (name, type)
+        self.temps_free = {} # type -> list of free vars
+        self.temps_used_type = {} # name -> type
+        self.temp_counter = 0
+
     def new_label(self):
         n = self.label_counter
         self.label_counter = n + 1
@@ -186,13 +85,243 @@ class CCodeWriter:
         
     def label_used(self, lbl):
         return lbl in self.labels_used
+
+    def allocate_temp(self, type):
+        """
+        Allocates a temporary (which may create a new one or get a previously
+        allocated and released one of the same type). Type is simply registered
+        and handed back, but will usually be a PyrexType.
+
+        A C string referring to the variable is returned.
+        """
+        freelist = self.temps_free.get(type)
+        if freelist is not None and len(freelist) > 0:
+            result = freelist.pop()
+        else:
+            while True:
+                self.temp_counter += 1
+                result = "%s%d" % (Naming.codewriter_temp_prefix, self.temp_counter)
+                if not result in self.names_taken: break
+            self.temps_allocated.append((result, type))
+        self.temps_used_type[result] = type
+        return result
+
+    def release_temp(self, name):
+        """
+        Releases a temporary so that it can be reused by other code needing
+        a temp of the same type.
+        """
+        type = self.temps_used_type[name]
+        freelist = self.temps_free.get(type)
+        if freelist is None:
+            freelist = []
+            self.temps_free[type] = freelist
+        freelist.append(name)
+
+def funccontext_property(name):
+    def get(self):
+        return getattr(self.func, name)
+    def set(self, value):
+        setattr(self.func, name, value)
+    return property(get, set)
+
+class CCodeWriter(object):
+    """
+    Utility class to output C code.
+
+    When creating an insertion point one must care about the state that is
+    kept:
+    - formatting state (level, bol) is cloned and used in insertion points
+      as well
+    - labels, temps, exc_vars: One must construct a scope in which these can
+      exist by calling enter_cfunc_scope/exit_cfunc_scope (these are for
+      sanity checking and forward compatabilty). Created insertion points
+      looses this scope and cannot access it.
+    - marker: Not copied to insertion point
+    - filename_table, filename_list, input_file_contents: All codewriters
+      coming from the same root share the same instances simultaneously.
+    """ 
+    
+    # f                file            output file
+    # buffer           StringIOTree
+    
+    # level            int             indentation level
+    # bol              bool            beginning of line?
+    # marker           string          comment to emit before next line
+    # return_label     string          function return point label
+    # error_label      string          error catch point label
+    # continue_label   string          loop continue point label
+    # break_label      string          loop break point label
+    # return_from_error_cleanup_label string
+    # label_counter    integer         counter for naming labels
+    # in_try_finally   boolean         inside try of try...finally
+    # filename_table   {string : int}  for finding filename table indexes
+    # filename_list    [string]        filenames in filename table order
+    # exc_vars         (string * 3)    exception variables for reraise, or None
+    # input_file_contents dict         contents (=list of lines) of any file that was used as input
+    #                                  to create this output C code.  This is
+    #                                  used to annotate the comments.
+    # func             FunctionContext contains labels and temps context info
+   
+    in_try_finally = 0
+    
+    def __init__(self, create_from=None, buffer=None):
+        if buffer is None: buffer = StringIOTree()
+        self.buffer = buffer
+        self.marker = None
+        self.last_marker_line = 0
+        self.func = None
+        if create_from is None:
+            # Root CCodeWriter
+            self.level = 0
+            self.bol = 1
+            self.filename_table = {}
+            self.filename_list = []
+            self.exc_vars = None
+            self.input_file_contents = {}
+        else:
+            # Clone formatting state
+            c = create_from
+            self.level = c.level
+            self.bol = c.bol
+            # Note: NOT copying but sharing instance
+            self.filename_table = c.filename_table
+            self.filename_list = []
+            self.input_file_contents = c.input_file_contents
+            # Leave other state alone
+
+    def create_new(self, create_from, buffer):
+        # polymorphic constructor -- very slightly more versatile
+        # than using __class__
+        return CCodeWriter(create_from, buffer)
+
+    def copyto(self, f):
+        self.buffer.copyto(f)
+
+    def getvalue(self):
+        return self.buffer.getvalue()
+
+    def write(self, s):
+        self.buffer.write(s)
+
+    def insertion_point(self):
+        other = self.create_new(create_from=self, buffer=self.buffer.insertion_point())
+        return other
+
+
+    # Properties delegated to function scope
+    label_counter = funccontext_property("label_counter")
+    return_label = funccontext_property("return_label")
+    error_label = funccontext_property("error_label")
+    labels_used = funccontext_property("labels_used")
+    continue_label = funccontext_property("continue_label")
+    break_label = funccontext_property("break_label")
+
+
+    # Functions delegated to function scope
+    def new_label(self):               return self.func.new_label()
+    def new_error_label(self):         return self.func.new_error_label()
+    def get_loop_labels(self):         return self.func.get_loop_labels()
+    def set_loop_labels(self, labels): return self.func.set_loop_labels(labels)
+    def new_loop_labels(self):         return self.func.new_loop_labels()
+    def get_all_labels(self):          return self.func.get_all_labels()
+    def set_all_labels(self, labels):  return self.func.set_all_labels(labels)
+    def all_new_labels(self):          return self.func.all_new_labels()
+    def use_label(self, lbl):          return self.func.use_label(lbl)
+    def label_used(self, lbl):         return self.func.label_used(lbl)
+
+
+    def enter_cfunc_scope(self):
+        self.func = FunctionContext()
+    
+    def exit_cfunc_scope(self):
+        self.func = None
+
+    def putln(self, code = ""):
+        if self.marker and self.bol:
+            self.emit_marker()
+        if code:
+            self.put(code)
+        self.write("\n");
+        self.bol = 1
+    
+    def emit_marker(self):
+        self.write("\n");
+        self.indent()
+        self.write("/* %s */\n" % self.marker[1])
+        self.last_marker_line = self.marker[0]
+        self.marker = None
+
+    def put(self, code):
+        dl = code.count("{") - code.count("}")
+        if dl < 0:
+            self.level += dl
+        elif dl == 0 and code.startswith('}'):
+            self.level -= 1
+        if self.bol:
+            self.indent()
+        self.write(code)
+        self.bol = 0
+        if dl > 0:
+            self.level += dl
+        elif dl == 0 and code.startswith('}'):
+            self.level += 1
+
+    def increase_indent(self):
+        self.level = self.level + 1
+    
+    def decrease_indent(self):
+        self.level = self.level - 1
+    
+    def begin_block(self):
+        self.putln("{")
+        self.increase_indent()
+    
+    def end_block(self):
+        self.decrease_indent()
+        self.putln("}")
+    
+    def indent(self):
+        self.write("  " * self.level)
+
+    def get_py_version_hex(self, pyversion):
+        return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
+
+    def commented_file_contents(self, source_desc):
+        try:
+            return self.input_file_contents[source_desc]
+        except KeyError:
+            F = [u' * ' + line.rstrip().replace(
+                    u'*/', u'*[inserted by cython to avoid comment closer]/'
+                    ).encode('ASCII', 'replace') # + Py2 auto-decode to unicode
+                 for line in source_desc.get_lines()]
+            self.input_file_contents[source_desc] = F
+            return F
+
+    def mark_pos(self, pos):
+        if pos is None:
+            return
+        source_desc, line, col = pos
+        if self.last_marker_line == line:
+            return
+        assert isinstance(source_desc, SourceDescriptor)
+        contents = self.commented_file_contents(source_desc)
+
+        lines = contents[max(0,line-3):line] # line numbers start at 1
+        lines[-1] += u'             # <<<<<<<<<<<<<<'
+        lines += contents[line:line+2]
+
+        marker = u'"%s":%d\n%s\n' % (
+            source_desc.get_escaped_description(), line, u'\n'.join(lines))
+        self.marker = (line, marker)
+
         
     def put_label(self, lbl):
-        if lbl in self.labels_used:
+        if lbl in self.func.labels_used:
             self.putln("%s:;" % lbl)
     
     def put_goto(self, lbl):
-        self.use_label(lbl)
+        self.func.use_label(lbl)
         self.putln("goto %s;" % lbl)
     
     def put_var_declarations(self, entries, static = 0, dll_linkage = None,
@@ -211,7 +340,7 @@ class CCodeWriter:
             #print "...private and not definition, skipping" ###
             return
         if not entry.used and visibility == "private":
-            #print "not used and private, skipping" ###
+            #print "not used and private, skipping", entry.cname ###
             return
         storage_class = ""
         if visibility == 'extern':
@@ -231,7 +360,15 @@ class CCodeWriter:
         if entry.init is not None:
             self.put(" = %s" % entry.type.literal_code(entry.init))
         self.putln(";")
-    
+
+    def put_temp_declarations(self, func_context):
+        for name, type in func_context.temps_allocated:
+            decl = type.declaration_code(name)
+            if type.is_pyobject:
+                self.putln("%s = NULL;" % decl)
+            else:
+                self.putln("%s;" % decl)
+
     def entry_as_pyobject(self, entry):
         type = entry.type
         if (not entry.is_self_arg and not entry.type.is_complete()) \
@@ -337,9 +474,15 @@ class CCodeWriter:
         self.putln("#ifndef %s" % guard)
         self.putln("#define %s" % guard)
     
+    def unlikely(self, cond):
+        if Options.gcc_branch_hints:
+            return 'unlikely(%s)' % cond
+        else:
+            return cond
+        
     def error_goto(self, pos):
-        lbl = self.error_label
-        self.use_label(lbl)
+        lbl = self.func.error_label
+        self.func.use_label(lbl)
         if Options.c_line_in_traceback:
             cinfo = " %s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
         else:
@@ -352,12 +495,9 @@ class CCodeWriter:
             pos[1],
             cinfo,
             lbl)
-            
+
     def error_goto_if(self, cond, pos):
-        if Options.gcc_branch_hints:
-            return "if (unlikely(%s)) %s" % (cond, self.error_goto(pos))
-        else:
-            return "if (%s) %s" % (cond, self.error_goto(pos))
+        return "if (%s) %s" % (self.unlikely(cond), self.error_goto(pos))
             
     def error_goto_if_null(self, cname, pos):
         return self.error_goto_if("!%s" % cname, pos)
