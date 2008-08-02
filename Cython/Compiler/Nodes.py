@@ -1543,6 +1543,10 @@ class DefNode(FuncDefNode):
     def generate_argument_parsing_code(self, env, code):
         # Generate PyArg_ParseTuple call for generic
         # arguments, if any.
+        if self.entry.signature.has_dummy_arg:
+            # get rid of unused argument warning
+            code.putln("%s = %s;" % (Naming.self_cname, Naming.self_cname))
+
         old_error_label = code.new_error_label()
         our_error_label = code.error_label
         end_label = code.new_label()
