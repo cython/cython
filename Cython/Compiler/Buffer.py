@@ -29,8 +29,6 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
         self.max_ndim = 0
         result = super(IntroduceBufferAuxiliaryVars, self).__call__(node)
         if self.buffers_exists:
-            if "endian.h" not in node.scope.include_files:
-                node.scope.include_files.append("endian.h")
             use_py2_buffer_functions(node.scope)
             use_empty_bufstruct_code(node.scope, self.max_ndim)
             node.scope.use_utility_code(access_utility_code)
@@ -656,18 +654,20 @@ static INLINE const char* __Pyx_ConsumeWhitespace(const char* ts) {
 }
 
 static INLINE const char* __Pyx_BufferTypestringCheckEndian(const char* ts) {
+  int num = 1;
+  int little_endian = ((char*)&num)[0];
   int ok = 1;
   switch (*ts) {
     case '@':
     case '=':
       ++ts; break;
     case '<':
-      if (__BYTE_ORDER == __LITTLE_ENDIAN) ++ts;
+      if (little_endian) ++ts;
       else ok = 0;
       break;
     case '>':
     case '!':
-      if (__BYTE_ORDER == __BIG_ENDIAN) ++ts;
+      if (!little_endian) ++ts;
       else ok = 0;
       break;
   }
