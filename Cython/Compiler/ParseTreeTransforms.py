@@ -82,7 +82,9 @@ ERR_BUF_DUP = '"%s" buffer option already supplied'
 ERR_BUF_MISSING = '"%s" missing'
 ERR_BUF_INT = '"%s" must be an integer'
 ERR_BUF_NONNEG = '"%s" must be non-negative'
-
+ERR_CDEF_INCLASS = 'Cannot assign default value to cdef class attributes'
+ERR_BUF_LOCALONLY = 'Buffer types only allowed as function local variables'
+ERR_BUF_MODEHELP = 'Only allowed buffer modes are "full" or "strided" (as a compile-time string)'
 class PostParse(CythonTransform):
     """
     Basic interpretation of the parse tree, as well as validity
@@ -91,6 +93,9 @@ class PostParse(CythonTransform):
     as such).
 
     Specifically:
+    - Default values to cdef assignments are turned into single
+    assignments following the declaration (everywhere but in class
+    bodies, where they raise a compile error)
     - CBufferAccessTypeNode has its options interpreted:
     Any first positional argument goes into the "dtype" attribute,
     any "ndim" keyword argument goes into the "ndim" attribute and
@@ -101,12 +106,65 @@ class PostParse(CythonTransform):
     if a more pure Abstract Syntax Tree is wanted.
     """
 
-    buffer_options = ("dtype", "ndim") # ordered!
+    # Track our context.
+    scope_type = None # can be either of 'module', 'function', 'class'
+
+    def visit_ModuleNode(self, node):
+        self.scope_type = 'module'
+        self.visitchildren(node)
+        return node
+    
+    def visit_ClassDefNode(self, node):
+        prev = self.scope_type
+        self.scope_type = 'class'
+        self.visitchildren(node)
+        self.scope_type = prev
+        return node
+
+    def visit_FuncDefNode(self, node):
+        prev = self.scope_type
+        self.scope_type = 'function'
+        self.visitchildren(node)
+        self.scope_type = prev
+        return node
+
+    # cdef variables
+    def visit_CVarDefNode(self, node):
+        # This assumes only plain names and pointers are assignable on
+        # declaration. Also, it makes use of the fact that a cdef decl
+        # must appear before the first use, so we don't have to deal with
+        # "i = 3; cdef int i = i" and can simply move the nodes around.
+        try:
+            self.visitchildren(node)
+        except PostParseError, e:
+            # An error in a cdef clause is ok, simply remove the declaration
+            # and try to move on to report more errors
+            self.context.nonfatal_error(e)
+            return None
+        stats = [node]
+        for decl in node.declarators:
+            while isinstance(decl, CPtrDeclaratorNode):
+                decl = decl.base
+            if isinstance(decl, CNameDeclaratorNode):
+                if decl.default is not None:
+                    if self.scope_type == 'class':
+                        raise PostParseError(decl.pos, ERR_CDEF_INCLASS)
+                    stats.append(SingleAssignmentNode(node.pos,
+                        lhs=NameNode(node.pos, name=decl.name),
+                        rhs=decl.default, first=True))
+                    decl.default = None
+        return stats
+
+    # buffer access
+    buffer_options = ("dtype", "ndim", "mode") # ordered!
     def visit_CBufferAccessTypeNode(self, node):
+        if not self.scope_type == 'function':
+            raise PostParseError(node.pos, ERR_BUF_LOCALONLY)
+        
         options = {}
         # Fetch positional arguments
         if len(node.positional_args) > len(self.buffer_options):
-            self.context.error(ERR_BUF_TOO_MANY)
+            raise PostParseError(node.pos, ERR_BUF_TOO_MANY)
         for arg, unicode_name in zip(node.positional_args, self.buffer_options):
             name = str(unicode_name)
             options[name] = arg
@@ -114,21 +172,19 @@ class PostParse(CythonTransform):
         for item in node.keyword_args.key_value_pairs:
             name = str(item.key.value)
             if not name in self.buffer_options:
-                raise PostParseError(item.key.pos,
-                                     ERR_BUF_UNKNOWN % name)
+                raise PostParseError(item.key.pos, ERR_BUF_OPTION_UNKNOWN % name)
             if name in options.keys():
-                raise PostParseError(item.key.pos,
-                                     ERR_BUF_DUP % key)
+                raise PostParseError(item.key.pos, ERR_BUF_DUP % key)
             options[name] = item.value
 
-        provided = options.keys()
         # get dtype
         dtype = options.get("dtype")
-        if dtype is None: raise PostParseError(node.pos, ERR_BUF_MISSING % 'dtype')
+        if dtype is None:
+            raise PostParseError(node.pos, ERR_BUF_MISSING % 'dtype')
         node.dtype_node = dtype
 
         # get ndim
-        if "ndim" in provided:
+        if "ndim" in options:
             ndimnode = options["ndim"]
             if not isinstance(ndimnode, IntNode):
                 # Compile-time values (DEF) are currently resolved by the parser,
@@ -140,7 +196,18 @@ class PostParse(CythonTransform):
             node.ndim = int(ndimnode.value)
         else:
             node.ndim = 1
-        
+
+        if "mode" in options:
+            modenode = options["mode"]
+            if not isinstance(modenode, StringNode):
+                raise PostParseError(modenode.pos, ERR_BUF_MODEHELP)
+            mode = modenode.value
+            if not mode in ('full', 'strided'):
+                raise PostParseError(modenode.pos, ERR_BUF_MODEHELP)
+            node.mode = mode
+        else:
+            node.mode = 'full'
+       
         # We're done with the parse tree args
         node.positional_args = None
         node.keyword_args = None
@@ -253,6 +320,13 @@ class AnalyseDeclarationsTransform(CythonTransform):
         self.env_stack.pop()
         return node
         
+    # Some nodes are no longer needed after declaration
+    # analysis and can be dropped. The analysis was performed
+    # on these nodes in a seperate recursive process from the
+    # enclosing function or module, so we can simply drop them.
+    def visit_CVarDefNode(self, node):
+        return None
+
 class AnalyseExpressionsTransform(CythonTransform):
     def visit_ModuleNode(self, node):
         node.body.analyse_expressions(node.scope)
@@ -263,7 +337,7 @@ class AnalyseExpressionsTransform(CythonTransform):
         node.body.analyse_expressions(node.local_scope)
         self.visitchildren(node)
         return node
-        
+
 class MarkClosureVisitor(CythonTransform):
     
     needs_closure = False

@@ -8,6 +8,9 @@
 
 pyrex_prefix    = "__pyx_"
 
+
+codewriter_temp_prefix = pyrex_prefix + "t_"
+
 temp_prefix       = u"__cyt_"
 
 builtin_prefix    = pyrex_prefix + "builtin_"
@@ -31,6 +34,10 @@ prop_set_prefix   = pyrex_prefix + "setprop_"
 type_prefix       = pyrex_prefix + "t_"
 typeobj_prefix    = pyrex_prefix + "type_"
 var_prefix        = pyrex_prefix + "v_"
+bufstruct_prefix  = pyrex_prefix + "bstruct_"
+bufstride_prefix  = pyrex_prefix + "bstride_"
+bufshape_prefix   = pyrex_prefix + "bshape_"
+bufsuboffset_prefix  = pyrex_prefix + "boffset_"
 vtable_prefix     = pyrex_prefix + "vtable_"
 vtabptr_prefix    = pyrex_prefix + "vtabptr_"
 vtabstruct_prefix = pyrex_prefix + "vtabstruct_"

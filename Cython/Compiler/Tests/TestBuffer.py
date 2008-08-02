@@ -47,21 +47,35 @@ class TestBufferParsing(CythonTest):
         self.not_parseable("Non-keyword arg following keyword arg",
                            u"cdef object[foo=1, 2] x")
 
+
+# See also tests/error/e_bufaccess.pyx and tets/run/bufaccess.pyx
 class TestBufferOptions(CythonTest):
     # Tests the full parsing of the options within the brackets
 
-    def parse_opts(self, opts):
-        s = u"cdef object[%s] x" % opts
-        root = self.fragment(s, pipeline=[PostParse(self)]).root
-        buftype = root.stats[0].base_type
-        self.assert_(isinstance(buftype, CBufferAccessTypeNode))
-        self.assert_(isinstance(buftype.base_type_node, CSimpleBaseTypeNode))
-        self.assertEqual(u"object", buftype.base_type_node.name)
-        return buftype
+    def nonfatal_error(self, error):
+        # We're passing self as context to transform to trap this
+        self.error = error
+        self.assert_(self.expect_error)
+
+    def parse_opts(self, opts, expect_error=False):
+        s = u"def f():\n  cdef object[%s] x" % opts
+        self.expect_error = expect_error
+        root = self.fragment(s, pipeline=[NormalizeTree(self), PostParse(self)]).root
+        if not expect_error:
+            vardef = root.stats[0].body.stats[0]
+            assert isinstance(vardef, CVarDefNode) # use normal assert as this is to validate the test code
+            buftype = vardef.base_type
+            self.assert_(isinstance(buftype, CBufferAccessTypeNode))
+            self.assert_(isinstance(buftype.base_type_node, CSimpleBaseTypeNode))
+            self.assertEqual(u"object", buftype.base_type_node.name)
+            return buftype
+        else:
+            self.assert_(len(root.stats[0].body.stats) == 0)
 
     def non_parse(self, expected_err, opts):
-        e = self.should_fail(lambda: self.parse_opts(opts))
-        self.assertEqual(expected_err, e.message_only)
+        self.parse_opts(opts, expect_error=True)
+#        e = self.should_fail(lambda: self.parse_opts(opts))
+        self.assertEqual(expected_err, self.error.message_only)
         
     def test_basic(self):
         buf = self.parse_opts(u"unsigned short int, 3")
@@ -86,10 +100,12 @@ class TestBufferOptions(CythonTest):
     def test_use_DEF(self):
         t = self.fragment(u"""
         DEF ndim = 3
-        cdef object[int, ndim] x
-        cdef object[ndim=ndim, dtype=int] y
-        """, pipeline=[PostParse(self)]).root
-        self.assert_(t.stats[1].base_type.ndim == 3)
-        self.assert_(t.stats[2].base_type.ndim == 3)
+        def f():
+            cdef object[int, ndim] x
+            cdef object[ndim=ndim, dtype=int] y
+        """, pipeline=[NormalizeTree(self), PostParse(self)]).root
+        stats = t.stats[0].body.stats
+        self.assert_(stats[0].base_type.ndim == 3)
+        self.assert_(stats[1].base_type.ndim == 3)
 
-    # add exotic and impossible combinations as they come along
+    # add exotic and impossible combinations as they come along...
