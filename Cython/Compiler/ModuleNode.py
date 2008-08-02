@@ -242,6 +242,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         h_code = code.insertion_point()
         self.generate_module_preamble(env, modules, h_code)
 
+        code.globalstate.module_pos = self.pos
+
         code.putln("")
         code.putln("/* Implementation of %s */" % env.qualified_name)
         self.generate_const_definitions(env, code)
@@ -270,6 +272,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_declarations_for_modules(env, modules, h_code)
         h_code.write('\n')
 
+        code.globalstate.close_global_decls()
+        
         f = open_new_file(result.c_file)
         code.copyto(f)
         f.close()
@@ -1450,27 +1454,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "};")
 
     def generate_py_string_table(self, env, code):
-#        raise Exception()
-        entries = env.all_pystring_entries
-        if entries:
-            code.putln("")
-            code.putln(
-                "static __Pyx_StringTabEntry %s[] = {" %
-                    Naming.stringtab_cname)
-            for entry in entries:
-                code.putln(
-                    "{&%s, %s, sizeof(%s), %d, %d, %d}," % (
-                        entry.pystring_cname,
-                        entry.cname,
-                        entry.cname,
-                        entry.type.is_unicode,
-                        entry.is_interned,
-                        entry.is_identifier
-                        ))
-            code.putln(
-                "{0, 0, 0, 0, 0}")
-            code.putln(
-                "};")
+        code.globalstate.insert_py_string_table_into(code)
 
     def generate_filename_init_prototype(self, code):
         code.putln("");
@@ -1539,6 +1523,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.exit_cfunc_scope() # done with labels
 
     def generate_module_init_func(self, imported_modules, env, code):
+        # Insert code stream of __Pyx_InitGlobals
+        code.globalstate.insert_initglobals_into(code)
+        
         code.enter_cfunc_scope()
         code.putln("")
         header2 = "PyMODINIT_FUNC init%s(void)" % env.module_name
@@ -1558,14 +1545,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.generate_library_function_declarations(code)
         self.generate_filename_init_call(code)
 
+        code.putln("/*--- Initialize various global constants etc. ---*/")
+        code.putln(code.error_goto_if_neg("__Pyx_InitGlobals()", self.pos))
+
         code.putln("/*--- Module creation code ---*/")
         self.generate_module_creation_code(env, code)
-
-        code.putln("/*--- Intern code ---*/")
-        self.generate_intern_code(env, code)
-
-        code.putln("/*--- String init code ---*/")
-        self.generate_string_init_code(env, code)
 
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
@@ -1726,21 +1710,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "if (!%s) %s;" % (
                     Naming.preimport_cname,
                     code.error_goto(self.pos)));
-    
-    def generate_intern_code(self, env, code):
-        for entry in env.pynum_entries:
-            code.putln("%s = PyInt_FromLong(%s); %s;" % (
-                entry.cname,
-                entry.init,
-                code.error_goto_if_null(entry.cname, self.pos)))
-    
-    def generate_string_init_code(self, env, code):
-        if env.all_pystring_entries:
-            env.use_utility_code(Nodes.init_string_tab_utility_code)
-            code.putln(
-                "if (__Pyx_InitStrings(%s) < 0) %s;" % (
-                    Naming.stringtab_cname,
-                    code.error_goto(self.pos)))
 
     def generate_builtin_init_code(self, env, code):
         # Lookup and cache builtin objects.
