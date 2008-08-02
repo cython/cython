@@ -1457,7 +1457,9 @@ class CClassScope(ClassScope):
         return entry
     
     def declare_property(self, name, doc, pos):
-        entry = self.declare(name, name, py_object_type, pos)
+        entry = self.lookup_here(name)
+        if entry is None:
+            entry = self.declare(name, name, py_object_type, pos)
         entry.is_property = 1
         entry.doc = doc
         entry.scope = PropertyScope(name, 
