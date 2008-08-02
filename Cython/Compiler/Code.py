@@ -161,11 +161,23 @@ class GlobalState(object):
         self.input_file_contents = {}
         self.used_utility_code = set()
         self.declared_cnames = {}
+        self.pystring_table_needed = False
 
     def initwriters(self, rootwriter):
         self.utilprotowriter = rootwriter.new_writer()
         self.utildefwriter = rootwriter.new_writer()
         self.decls_writer = rootwriter.new_writer()
+        self.pystring_table = rootwriter.new_writer()
+        self.initwriter = rootwriter.new_writer()
+
+        self.initwriter.enter_cfunc_scope()
+        self.initwriter.putln("").putln("static int __Pyx_InitGlobals(void) {")
+
+        (self.pystring_table
+         .putln("")
+         .putln("static __Pyx_StringTabEntry %s[] = {" %
+                Naming.stringtab_cname)
+        )
 
     #
     # Global constants, interned objects, etc.
@@ -173,10 +185,41 @@ class GlobalState(object):
     def insert_global_var_declarations_into(self, code):
         code.insert(self.decls_writer)
 
+    def close_global_decls(self):
+        # This is called when it is known that no more global declarations will
+        # declared (but can be called before or after insert_XXX).
+        if self.pystring_table_needed:
+            self.pystring_table.putln("{0, 0, 0, 0, 0}").putln("};")
+            import Nodes
+            self.use_utility_code(Nodes.init_string_tab_utility_code)
+            self.initwriter.putln(
+                "if (__Pyx_InitStrings(%s) < 0) %s;" % (
+                    Naming.stringtab_cname,
+                    self.initwriter.error_goto(self.module_pos)))
+
+        (self.initwriter
+         .putln("return 0;")
+         .put_label(self.initwriter.error_label)
+         .putln("return -1;")
+         .putln("}")
+         )
+        self.initwriter.exit_cfunc_scope()
+         
+    def insert_py_string_table_into(self, code):
+        if self.pystring_table_needed:
+            code.insert(self.pystring_table)
+
+    def insert_initglobals_into(self, code):
+        code.insert(self.initwriter)
+
+    def put_pyobject_decl(self, entry):
+        self.decls_writer.putln("static PyObject *%s;" % entry.cname)
+
     # The functions below are there in a transition phase only
     # and will be deprecated. They are called from Nodes.BlockNode.
     # The copy&paste duplication is intentional in order to be able
-    # to see quickly how BlockNode worked, until this is replaced.
+    # to see quickly how BlockNode worked, until this is replaced.    
+
     def should_declare(self, cname, entry):
         if cname in self.declared_cnames:
             other = self.declared_cnames[cname]
@@ -194,20 +237,33 @@ class GlobalState(object):
     def add_interned_string_decl(self, entry):
         if self.should_declare(entry.cname, entry):
             self.decls_writer.put_var_declaration(entry, static = 1)
-        if self.should_declare(entry.pystring_cname, entry):
-            self.decls_writer.putln("static PyObject *%s;" % entry.pystring_cname)
+        self.add_py_string_decl(entry)
 
     def add_py_string_decl(self, entry):
         if self.should_declare(entry.pystring_cname, entry):
             self.decls_writer.putln("static PyObject *%s;" % entry.pystring_cname)
-        
+            self.pystring_table_needed = True
+            self.pystring_table.putln("{&%s, %s, sizeof(%s), %d, %d, %d}," % (
+                entry.pystring_cname,
+                entry.cname,
+                entry.cname,
+                entry.type.is_unicode,
+                entry.is_interned,
+                entry.is_identifier
+                ))
+                       
     def add_interned_num_decl(self, entry):
         if self.should_declare(entry.cname, entry):
-            self.decls_writer.putln("static PyObject *%s;" % entry.cname)
-
+            self.initwriter.putln("%s = PyInt_FromLong(%s); %s;" % (
+                entry.cname,
+                entry.init,
+                self.initwriter.error_goto_if_null(entry.cname, self.module_pos))) # todo: fix pos
+            self.put_pyobject_decl(entry)
+        
     def add_cached_builtin_decl(self, entry):
         if self.should_declare(entry.cname, entry):
-            self.decls_writer.putln("static PyObject *%s;" % entry.cname)
+            self.put_pyobject_decl(entry)
+
 
     #
     # File name state
@@ -418,6 +474,7 @@ class CCodeWriter(object):
             self.put(code)
         self.write("\n");
         self.bol = 1
+        return self
     
     def emit_marker(self):
         self.write("\n");
@@ -425,6 +482,7 @@ class CCodeWriter(object):
         self.write("/* %s */\n" % self.marker[1])
         self.last_marker_line = self.marker[0]
         self.marker = None
+        return self
 
     def put(self, code):
         dl = code.count("{") - code.count("}")
@@ -440,20 +498,25 @@ class CCodeWriter(object):
             self.level += dl
         elif dl == 0 and code.startswith('}'):
             self.level += 1
+        return self
 
     def increase_indent(self):
         self.level = self.level + 1
+        return self
     
     def decrease_indent(self):
         self.level = self.level - 1
+        return self
     
     def begin_block(self):
         self.putln("{")
         self.increase_indent()
+        return self
     
     def end_block(self):
         self.decrease_indent()
         self.putln("}")
+        return self
     
     def indent(self):
         self.write("  " * self.level)
@@ -481,10 +544,12 @@ class CCodeWriter(object):
     def put_label(self, lbl):
         if lbl in self.funcstate.labels_used:
             self.putln("%s:;" % lbl)
+        return self
     
     def put_goto(self, lbl):
         self.funcstate.use_label(lbl)
         self.putln("goto %s;" % lbl)
+        return self
     
     def put_var_declarations(self, entries, static = 0, dll_linkage = None,
             definition = True):
