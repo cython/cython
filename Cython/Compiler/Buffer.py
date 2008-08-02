@@ -212,6 +212,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
         code.put('if (%s) ' % code.unlikely("%s == -1" % (getbuffer % lhs_cname)))
         code.begin_block()
         code.putln('Py_XDECREF(%s); Py_XDECREF(%s); Py_XDECREF(%s);' % (type, value, tb))
+        code.globalstate.use_utility_code(raise_buffer_fallback_code)
         code.putln('__Pyx_RaiseBufferFallbackError();')
         code.putln('} else {')
         code.putln('PyErr_Restore(%s, %s, %s);' % (type, value, tb))
@@ -567,7 +568,6 @@ static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf); /*proto*/
 static INLINE const char* __Pyx_ConsumeWhitespace(const char* ts); /*proto*/
 static INLINE const char* __Pyx_BufferTypestringCheckEndian(const char* ts); /*proto*/
 static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim); /*proto*/
-static void __Pyx_RaiseBufferFallbackError(void); /*proto*/
 """, """
 static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf) {
   buf->buf = NULL;
@@ -618,6 +618,11 @@ static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim) {
                expected_ndim, buffer->ndim);
 }
 
+"""]
+
+raise_buffer_fallback_code = ["""
+static void __Pyx_RaiseBufferFallbackError(void); /*proto*/
+""","""
 static void __Pyx_RaiseBufferFallbackError(void) {
   PyErr_Format(PyExc_ValueError,
      "Buffer acquisition failed on assignment; and then reacquiring the old buffer failed too!");
