@@ -2,23 +2,39 @@ cdef extern from "Python.h":
     ctypedef int Py_intptr_t
     
 cdef extern from "numpy/arrayobject.h":
-    ctypedef void PyArrayObject
-    int PyArray_TYPE(PyObject* arr)
-    
+    ctypedef Py_intptr_t npy_intp
+    ctypedef struct PyArray_Descr:
+        int elsize
+
     ctypedef class numpy.ndarray [object PyArrayObject]:
         cdef:
             char *data
             int nd
-            Py_intptr_t *dimensions
-            Py_intptr_t *strides
+            npy_intp *dimensions 
+            npy_intp *strides
             object base
             # descr not implemented yet here...
             int flags
             int itemsize
             object weakreflist
+            PyArray_Descr* descr
 
-        def __getbuffer__(self, Py_buffer* info, int flags):
+        def __getbuffer__(ndarray self, Py_buffer* info, int flags):
+            if sizeof(npy_intp) != sizeof(Py_ssize_t):
+                raise RuntimeError("Py_intptr_t and Py_ssize_t differs in size, numpy.pxd does not support this")
+
             cdef int typenum = PyArray_TYPE(self)
+            
+            info.buf = <void*>self.data
+            info.ndim = 2
+            info.strides = <Py_ssize_t*>self.strides
+            info.shape = <Py_ssize_t*>self.dimensions
+            info.suboffsets = NULL
+            info.format = "i"
+            info.itemsize = self.descr.elsize
+            info.readonly = not PyArray_ISWRITEABLE(self)
+
+            # PS TODO TODO!: Py_ssize_t vs Py_intptr_t
 
             
 ##   PyArrayObject *arr = (PyArrayObject*)obj;
@@ -58,7 +74,8 @@ cdef extern from "numpy/arrayobject.h":
 ##             print "hello" + str(43) + "asdf" + "three"
 ##             pass
 
-
+    cdef int PyArray_TYPE(ndarray arr)
+    cdef int PyArray_ISWRITEABLE(ndarray arr)
 
     ctypedef unsigned int npy_uint8
     ctypedef unsigned int npy_uint16
