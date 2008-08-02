@@ -624,13 +624,27 @@ class CVarDefNode(StatNode):
     #  declarators   [CDeclaratorNode]
     #  in_pxd        boolean
     #  api           boolean
+    #  need_properties [entry]
 
     child_attrs = ["base_type", "declarators"]
+    need_properties = []
     
     def analyse_declarations(self, env, dest_scope = None):
         if not dest_scope:
             dest_scope = env
+        self.dest_scope = dest_scope
         base_type = self.base_type.analyse(env)
+        
+        if (dest_scope.is_c_class_scope
+                and self.visibility == 'public' 
+                and base_type.is_pyobject 
+                and (base_type.is_builtin_type or base_type.is_extension_type)):
+            need_property = True
+            visibility = 'private'
+        else:
+            need_property = False
+            visibility = self.visibility
+            
         for declarator in self.declarators:
             name_declarator, type = declarator.analyse(base_type, env)
             if not type.is_complete():
@@ -653,8 +667,10 @@ class CVarDefNode(StatNode):
                 if self.in_pxd and self.visibility != 'extern':
                     error(self.pos, 
                         "Only 'extern' C variable declaration allowed in .pxd file")
-                dest_scope.declare_var(name, type, declarator.pos,
-                    cname = cname, visibility = self.visibility, is_cdef = 1)
+                entry = dest_scope.declare_var(name, type, declarator.pos,
+                            cname = cname, visibility = visibility, is_cdef = 1)
+                if need_property:
+                    self.need_properties.append(entry)
     
 
 class CStructOrUnionDefNode(StatNode):

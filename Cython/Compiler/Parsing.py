@@ -2299,6 +2299,15 @@ def p_doc_string(s):
         return result
     else:
         return None
+        
+def p_code(s, level=None):
+    s.add_type_name("object")
+    s.add_type_name("Py_buffer")
+    body = p_statement_list(s, Ctx(level = level), first_statement = 1)
+    if s.sy != 'EOF':
+        s.error("Syntax error in statement [%s,%s]" % (
+            repr(s.sy), repr(s.systring)))
+    return body
 
 def p_module(s, pxd, full_module_name):
     s.add_type_name("object")
