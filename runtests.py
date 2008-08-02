@@ -343,7 +343,7 @@ def collect_doctests(path, module_prefix, suite, selectors):
                         module = getattr(module, x)
                     if hasattr(module, "__doc__") or hasattr(module, "__test__"):
                         try:
-                            suite.addTests(doctest.DocTestSuite(module))
+                            suite.addTest(doctest.DocTestSuite(module))
                         except ValueError: # no tests
                             pass
 
