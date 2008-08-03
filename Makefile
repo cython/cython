@@ -2,8 +2,8 @@ PYTHON?=python
 
 all:    local 
 
-local: 
-        ${PYTHON} setup.py build_ext --inplace
+local:
+	${PYTHON} setup.py build_ext --inplace
 
 clean:
 	@echo Cleaning Source
