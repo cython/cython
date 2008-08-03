@@ -1467,7 +1467,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         entry.is_identifier
                         ))
             code.putln(
-                "{0, 0, 0, 0, 0}")
+                "{0, 0, 0, 0, 0, 0}")
             code.putln(
                 "};")
 
