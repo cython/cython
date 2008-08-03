@@ -121,7 +121,9 @@ def long_literal(value):
         if len(value) < 2:
             value = int(value)
         elif value[0] == 0:
-            return int(value, 8)
+            value = int(value, 8)
         elif value[1] in 'xX':
-            return int(value[2:], 16)
+            value = int(value[2:], 16)
+        else:
+            value = int(value)
     return not -2**31 <= value < 2**31
