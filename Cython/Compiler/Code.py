@@ -168,7 +168,12 @@ class GlobalState(object):
         self.utildefwriter = rootwriter.new_writer()
         self.decls_writer = rootwriter.new_writer()
         self.pystring_table = rootwriter.new_writer()
+        self.init_cached_builtins_writer = rootwriter.new_writer()
         self.initwriter = rootwriter.new_writer()
+
+        if Options.cache_builtins:
+            self.init_cached_builtins_writer.enter_cfunc_scope()
+            self.init_cached_builtins_writer.putln("static int __Pyx_InitCachedBuiltins(void) {")
 
         self.initwriter.enter_cfunc_scope()
         self.initwriter.putln("").putln("static int __Pyx_InitGlobals(void) {")
@@ -197,19 +202,28 @@ class GlobalState(object):
                     Naming.stringtab_cname,
                     self.initwriter.error_goto(self.module_pos)))
 
+        if Options.cache_builtins:
+            (self.init_cached_builtins_writer
+             .putln("return 0;")
+             .put_label(self.init_cached_builtins_writer.error_label)
+             .putln("return -1;")
+             .putln("}")
+             .exit_cfunc_scope()
+             )
+
         (self.initwriter
          .putln("return 0;")
          .put_label(self.initwriter.error_label)
          .putln("return -1;")
          .putln("}")
+         .exit_cfunc_scope()
          )
-        self.initwriter.exit_cfunc_scope()
          
-    def insert_py_string_table_into(self, code):
+    def insert_initcode_into(self, code):
         if self.pystring_table_needed:
             code.insert(self.pystring_table)
-
-    def insert_initglobals_into(self, code):
+        if Options.cache_builtins:
+            code.insert(self.init_cached_builtins_writer)
         code.insert(self.initwriter)
 
     def put_pyobject_decl(self, entry):
@@ -268,8 +282,16 @@ class GlobalState(object):
             self.put_pyobject_decl(entry)
         
     def add_cached_builtin_decl(self, entry):
-        if self.should_declare(entry.cname, entry):
-            self.put_pyobject_decl(entry)
+        if Options.cache_builtins:
+            if self.should_declare(entry.cname, entry):
+                self.put_pyobject_decl(entry)
+                self.init_cached_builtins_writer.putln('%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
+                    entry.cname,
+                    Naming.builtins_cname,
+                    entry.interned_cname,
+                    entry.cname,
+                    self.init_cached_builtins_writer.error_goto(entry.pos)))
+
 
     #
     # File name state
