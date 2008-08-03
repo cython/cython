@@ -92,4 +92,4 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef float        npy_float128
 
 
-ctypedef npy_int64 Tint64
+ctypedef npy_int64 int64
