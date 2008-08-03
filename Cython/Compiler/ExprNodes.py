@@ -2951,6 +2951,7 @@ class TypecastNode(ExprNode):
                 self.operand = self.operand.coerce_to_pyobject(env)
             else:
                 warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.operand.type, self.type))
+                self.operand = self.operand.coerce_to_simple(env)
         elif from_py and not to_py:
             if self.type.from_py_function:
                 self.operand = self.operand.coerce_to(self.type, env)
