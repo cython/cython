@@ -842,8 +842,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         #if need_self_cast:
         #	self.generate_self_cast(scope, code)
         if type.vtabslot_cname:
-            if base_type:
-                struct_type_cast = "(struct %s*)" % base_type.vtabstruct_cname
+            vtab_base_type = type
+            while vtab_base_type.base_type and vtab_base_type.base_type.vtabstruct_cname:
+                vtab_base_type = vtab_base_type.base_type
+            if vtab_base_type is not type:
+                struct_type_cast = "(struct %s*)" % vtab_base_type.vtabstruct_cname
             else:
                 struct_type_cast = ""
             code.putln("p->%s = %s%s;" % (
