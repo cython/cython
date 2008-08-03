@@ -1,11 +1,17 @@
 PYTHON?=python
 
+all:    local 
+
+local: 
+        ${PYTHON} setup.py build_ext --inplace
+
 clean:
 	@echo Cleaning Source
 	@rm -fr build
 	@rm -f *.pyc */*.pyc */*/*.pyc 
 	@rm -f *~ */*~ */*/*~
 	@rm -f core */core
+	@rm -f Cython/Plex/Scanners.{so,pyd}
 	@(cd Demos; $(MAKE) clean)
 
 testclean:
