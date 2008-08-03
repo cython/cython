@@ -401,7 +401,7 @@ class Scope:
         if entry and not entry.type.is_cfunction:
             # This is legal Python, but for now will produce invalid C.
             error(pos, "'%s' already declared" % name)
-        entry = self.declare_var(name, py_object_type, pos)
+        entry = self.declare_var(name, py_object_type, pos, visibility='extern')
         entry.signature = pyfunction_signature
         self.pyfunc_entries.append(entry)
         return entry
