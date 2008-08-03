@@ -256,7 +256,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_cached_builtins_decls(env, code)
         self.body.generate_function_definitions(env, code, options.transforms)
         code.mark_pos(None)
-        self.generate_py_string_table(env, code)
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)
         self.generate_filename_init_prototype(code)
@@ -1456,9 +1455,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "};")
 
-    def generate_py_string_table(self, env, code):
-        code.globalstate.insert_py_string_table_into(code)
-
     def generate_filename_init_prototype(self, code):
         code.putln("");
         code.putln("static void %s(void); /*proto*/" % Naming.fileinit_cname)
@@ -1527,7 +1523,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_module_init_func(self, imported_modules, env, code):
         # Insert code stream of __Pyx_InitGlobals
-        code.globalstate.insert_initglobals_into(code)
+        code.globalstate.insert_initcode_into(code)
         
         code.enter_cfunc_scope()
         code.putln("")
@@ -1556,8 +1552,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
-            self.generate_builtin_init_code(env, code)
-            
+            code.putln(code.error_goto_if_neg("__Pyx_InitCachedBuiltins()",
+                                              self.pos))
+                
         code.putln("%s = 0;" % Naming.skip_dispatch_cname);
 
         code.putln("/*--- Global init code ---*/")
@@ -1714,19 +1711,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     Naming.preimport_cname,
                     code.error_goto(self.pos)));
 
-    def generate_builtin_init_code(self, env, code):
-        # Lookup and cache builtin objects.
-        if Options.cache_builtins:
-            for entry in env.cached_builtins:
-                #assert entry.interned_cname is not None
-                code.putln(
-                    '%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
-                    entry.cname,
-                    Naming.builtins_cname,
-                    entry.interned_cname,
-                    entry.cname,
-                    code.error_goto(entry.pos)))
-    
     def generate_global_init_code(self, env, code):
         # Generate code to initialise global PyObject *
         # variables to None.
