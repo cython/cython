@@ -628,7 +628,7 @@ class BoolNode(ConstNode):
         return self.value
     
     def calculate_result_code(self):
-        return int(self.value)
+        return str(int(self.value))
 
 class NullNode(ConstNode):
     type = PyrexTypes.c_null_ptr_type
