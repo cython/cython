@@ -672,6 +672,7 @@ class CVarDefNode(StatNode):
                             cname = cname, visibility = visibility, is_cdef = 1)
                 if need_property:
                     self.need_properties.append(entry)
+                    entry.needs_property = 1
     
 
 class CStructOrUnionDefNode(StatNode):
@@ -979,7 +980,7 @@ class FuncDefNode(StatNode, BlockNode):
         self.put_stararg_decrefs(code)
         if acquire_gil:
             code.putln("PyGILState_Release(_save);")
-        code.putln("/* TODO: decref scope object */")
+        # code.putln("/* TODO: decref scope object */")
         # ----- Return
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
@@ -2116,6 +2117,15 @@ class CClassDefNode(ClassDefNode):
 
         if self.doc and Options.docstrings:
             scope.doc = embed_position(self.pos, self.doc)
+            
+        if has_body and not self.in_pxd:
+            # transforms not yet run on pxd files
+            from ParseTreeTransforms import AnalyseDeclarationsTransform
+            transform = AnalyseDeclarationsTransform(None)
+            for entry in scope.var_entries:
+                if hasattr(entry, 'needs_property'):
+                    property = transform.create_Property(entry)
+                    self.body.stats.append(property)
 
         if has_body:
             self.body.analyse_declarations(scope)
