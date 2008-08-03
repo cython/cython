@@ -490,14 +490,6 @@ def use_py2_buffer_functions(env):
 
     find_buffer_types(env)
 
-    # For now, hard-code numpy imported as "numpy"
-#    try:
-#        ndarrtype = env.entries[u'numpy'].as_module.entries['ndarray'].type
-#        types.append((ndarrtype.typeptr_cname, "numpy_getbuffer", "numpy_releasebuffer"))
-#        env.use_utility_code(numpy_code)
-#    except KeyError:
-#        pass
-
     code = dedent("""
         #if PY_VERSION_HEX < 0x02060000
         static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
@@ -630,52 +622,3 @@ static void __Pyx_RaiseBufferFallbackError(void) {
 
 """]
 
-
-numpy_code = ["""
-static int numpy_getbuffer(PyObject *obj, Py_buffer *view, int flags);
-static void numpy_releasebuffer(PyObject *obj, Py_buffer *view);
-""","""
-static int numpy_getbuffer(PyObject *obj, Py_buffer *view, int flags) {
-  /* This function is always called after a type-check; safe to cast */
-  PyArrayObject *arr = (PyArrayObject*)obj;
-  PyArray_Descr *type = (PyArray_Descr*)arr->descr;
-
-  
-  int typenum = PyArray_TYPE(obj);
-  if (!PyTypeNum_ISNUMBER(typenum)) {
-    PyErr_Format(PyExc_TypeError, "Only numeric NumPy types currently supported.");
-    return -1;
-  }
-
-  /*
-  NumPy format codes doesn't completely match buffer codes;
-  seems safest to retranslate.
-                            01234567890123456789012345*/
-  const char* base_codes = "?bBhHiIlLqQfdgfdgO";
-
-  char* format = (char*)malloc(4);
-  char* fp = format;
-  *fp++ = type->byteorder;
-  if (PyTypeNum_ISCOMPLEX(typenum)) *fp++ = 'Z';
-  *fp++ = base_codes[typenum];
-  *fp = 0;
-
-  view->buf = arr->data;
-  view->readonly = !PyArray_ISWRITEABLE(obj);
-  view->ndim = PyArray_NDIM(arr);
-  view->strides = PyArray_STRIDES(arr);
-  view->shape = PyArray_DIMS(arr);
-  view->suboffsets = NULL;
-  view->format = format;
-  view->itemsize = type->elsize;
-
-  view->internal = 0;
-  return 0;
-}
-
-static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
-  free((char*)view->format);
-  view->format = NULL;
-}
-
-"""]
