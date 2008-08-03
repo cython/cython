@@ -342,6 +342,14 @@ class DecoratorTransform(CythonTransform):
 
 class AnalyseDeclarationsTransform(CythonTransform):
 
+    basic_property = TreeFragment(u"""
+property NAME:
+    def __get__(self):
+        return ATTR
+    def __set__(self, value):
+        ATTR = value
+    """, level='c_class')
+
     def __call__(self, root):
         self.env_stack = [root.scope]
         return super(AnalyseDeclarationsTransform, self).__call__(root)        
@@ -366,7 +374,28 @@ class AnalyseDeclarationsTransform(CythonTransform):
     # on these nodes in a seperate recursive process from the
     # enclosing function or module, so we can simply drop them.
     def visit_CVarDefNode(self, node):
-        return None
+        if node.need_properties:
+            # cdef public attributes may need type testing on 
+            # assignment, so we create a property accesss
+            # mechanism for them. 
+            stats = []
+            for entry in node.need_properties:
+                property = self.create_Property(entry)
+                property.analyse_declarations(node.dest_scope)
+                self.visit(property)
+                stats.append(property)
+            return StatListNode(pos=node.pos, stats=stats)
+        else:
+            return None
+            
+    def create_Property(self, entry):
+        property = self.basic_property.substitute({
+                u"ATTR": AttributeNode(pos=entry.pos,
+                                       obj=NameNode(pos=entry.pos, name="self"), 
+                                       attribute=entry.name),
+            }, pos=entry.pos).stats[0]
+        property.name = entry.name
+        return property
 
 class AnalyseExpressionsTransform(CythonTransform):
     def visit_ModuleNode(self, node):

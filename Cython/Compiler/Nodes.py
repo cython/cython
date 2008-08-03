@@ -350,8 +350,13 @@ class CNameDeclaratorNode(CDeclaratorNode):
     
     def analyse(self, base_type, env, nonempty = 0):
         if nonempty and self.name == '':
-            # Must have mistaken the name for the type. 
-            self.name = base_type.name
+            raise RuntimeError
+            # May have mistaken the name for the type. 
+            if base_type.is_ptr or base_type.is_array or base_type.is_buffer:
+                error(self.pos, "Missing argument name.")
+            elif base_type.is_void:
+                error(self.pos, "Use spam() rather than spam(void) to declare a function with no arguments.")
+            self.name = base_type.declaration_code("", for_display=1, pyrex=1)
             base_type = py_object_type
         self.type = base_type
         return self, base_type
@@ -412,7 +417,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
     def analyse(self, return_type, env, nonempty = 0):
         func_type_args = []
         for arg_node in self.args:
-            name_declarator, type = arg_node.analyse(env, nonempty = nonempty)
+            name_declarator, type = arg_node.analyse(env)
             name = name_declarator.name
             if name_declarator.cname:
                 error(self.pos, 
@@ -612,13 +617,28 @@ class CVarDefNode(StatNode):
     #  declarators   [CDeclaratorNode]
     #  in_pxd        boolean
     #  api           boolean
+    #  need_properties [entry]
 
     child_attrs = ["base_type", "declarators"]
+    need_properties = ()
     
     def analyse_declarations(self, env, dest_scope = None):
         if not dest_scope:
             dest_scope = env
+        self.dest_scope = dest_scope
         base_type = self.base_type.analyse(env)
+        
+        if (dest_scope.is_c_class_scope
+                and self.visibility == 'public' 
+                and base_type.is_pyobject 
+                and (base_type.is_builtin_type or base_type.is_extension_type)):
+            self.need_properties = []
+            need_property = True
+            visibility = 'private'
+        else:
+            need_property = False
+            visibility = self.visibility
+            
         for declarator in self.declarators:
             name_declarator, type = declarator.analyse(base_type, env)
             if not type.is_complete():
@@ -641,8 +661,11 @@ class CVarDefNode(StatNode):
                 if self.in_pxd and self.visibility != 'extern':
                     error(self.pos, 
                         "Only 'extern' C variable declaration allowed in .pxd file")
-                dest_scope.declare_var(name, type, declarator.pos,
-                    cname = cname, visibility = self.visibility, is_cdef = 1)
+                entry = dest_scope.declare_var(name, type, declarator.pos,
+                            cname = cname, visibility = visibility, is_cdef = 1)
+                if need_property:
+                    self.need_properties.append(entry)
+                    entry.needs_property = 1
     
 
 class CStructOrUnionDefNode(StatNode):
@@ -951,7 +974,7 @@ class FuncDefNode(StatNode, BlockNode):
         self.put_stararg_decrefs(code)
         if acquire_gil:
             code.putln("PyGILState_Release(_save);")
-        code.putln("/* TODO: decref scope object */")
+        # code.putln("/* TODO: decref scope object */")
         # ----- Return
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
@@ -1532,6 +1555,10 @@ class DefNode(FuncDefNode):
     def generate_argument_parsing_code(self, env, code):
         # Generate PyArg_ParseTuple call for generic
         # arguments, if any.
+        if self.entry.signature.has_dummy_arg:
+            # get rid of unused argument warning
+            code.putln("%s = %s;" % (Naming.self_cname, Naming.self_cname))
+
         old_error_label = code.new_error_label()
         our_error_label = code.error_label
         end_label = code.new_label()
@@ -2084,6 +2111,15 @@ class CClassDefNode(ClassDefNode):
 
         if self.doc and Options.docstrings:
             scope.doc = embed_position(self.pos, self.doc)
+            
+        if has_body and not self.in_pxd:
+            # transforms not yet run on pxd files
+            from ParseTreeTransforms import AnalyseDeclarationsTransform
+            transform = AnalyseDeclarationsTransform(None)
+            for entry in scope.var_entries:
+                if hasattr(entry, 'needs_property'):
+                    property = transform.create_Property(entry)
+                    self.body.stats.append(property)
 
         if has_body:
             self.body.analyse_declarations(scope)

@@ -189,7 +189,7 @@ class GlobalState(object):
         # This is called when it is known that no more global declarations will
         # declared (but can be called before or after insert_XXX).
         if self.pystring_table_needed:
-            self.pystring_table.putln("{0, 0, 0, 0, 0}").putln("};")
+            self.pystring_table.putln("{0, 0, 0, 0, 0, 0}").putln("};")
             import Nodes
             self.use_utility_code(Nodes.init_string_tab_utility_code)
             self.initwriter.putln(
@@ -254,16 +254,22 @@ class GlobalState(object):
                        
     def add_interned_num_decl(self, entry):
         if self.should_declare(entry.cname, entry):
-            self.initwriter.putln("%s = PyInt_FromLong(%s); %s;" % (
-                entry.cname,
-                entry.init,
-                self.initwriter.error_goto_if_null(entry.cname, self.module_pos))) # todo: fix pos
+            if entry.init[-1] == "L":
+                self.initwriter.putln('%s = PyLong_FromString("%s", 0, 0); %s;' % (
+                    entry.cname,
+                    entry.init,
+                    self.initwriter.error_goto_if_null(entry.cname, self.module_pos)))
+            else:
+                self.initwriter.putln("%s = PyInt_FromLong(%s); %s;" % (
+                    entry.cname,
+                    entry.init,
+                    self.initwriter.error_goto_if_null(entry.cname, self.module_pos)))
+            
             self.put_pyobject_decl(entry)
         
     def add_cached_builtin_decl(self, entry):
         if self.should_declare(entry.cname, entry):
             self.put_pyobject_decl(entry)
-
 
     #
     # File name state

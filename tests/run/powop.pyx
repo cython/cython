@@ -34,9 +34,9 @@ def h(i):
     return 5 ** i
 
 def constant_py():
-    result = 2L ** 10
+    result = (<object>2) ** 10
     return result
 
 def constant_long():
-    result = 2L ** 36
+    result = (<object>2L) ** 36
     return result

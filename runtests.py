@@ -296,7 +296,18 @@ def collect_unittests(path, module_prefix, suite, selectors):
 
     loader = unittest.TestLoader()
 
+    skipped_dirs = []
+
     for dirpath, dirnames, filenames in os.walk(path):
+        if dirpath != path and "__init__.py" not in filenames:
+            skipped_dirs.append(dirpath + os.path.sep)
+            continue
+        skip = False
+        for dir in skipped_dirs:
+            if dirpath.startswith(dir):
+                skip = True
+        if skip:
+            continue
         parentname = os.path.split(dirpath)[-1]
         if package_matches(parentname):
             for f in filenames:
@@ -332,7 +343,7 @@ def collect_doctests(path, module_prefix, suite, selectors):
                         module = getattr(module, x)
                     if hasattr(module, "__doc__") or hasattr(module, "__test__"):
                         try:
-                            suite.addTests(doctest.DocTestSuite(module))
+                            suite.addTest(doctest.DocTestSuite(module))
                         except ValueError: # no tests
                             pass
 
