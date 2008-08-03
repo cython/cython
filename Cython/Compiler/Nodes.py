@@ -627,7 +627,7 @@ class CVarDefNode(StatNode):
     #  need_properties [entry]
 
     child_attrs = ["base_type", "declarators"]
-    need_properties = []
+    need_properties = ()
     
     def analyse_declarations(self, env, dest_scope = None):
         if not dest_scope:
@@ -639,6 +639,7 @@ class CVarDefNode(StatNode):
                 and self.visibility == 'public' 
                 and base_type.is_pyobject 
                 and (base_type.is_builtin_type or base_type.is_extension_type)):
+            self.need_properties = []
             need_property = True
             visibility = 'private'
         else:
