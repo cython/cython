@@ -254,7 +254,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.globalstate.insert_global_var_declarations_into(code)
         
         self.generate_cached_builtins_decls(env, code)
-        self.body.generate_function_definitions(env, code, options.transforms)
+        self.body.generate_function_definitions(env, code)
         code.mark_pos(None)
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)

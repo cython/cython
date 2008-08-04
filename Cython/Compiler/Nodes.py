@@ -260,10 +260,10 @@ class StatListNode(Node):
         for stat in self.stats:
             stat.analyse_expressions(env)
     
-    def generate_function_definitions(self, env, code, transforms):
+    def generate_function_definitions(self, env, code):
         #print "StatListNode.generate_function_definitions" ###
         for stat in self.stats:
-            stat.generate_function_definitions(env, code, transforms)
+            stat.generate_function_definitions(env, code)
             
     def generate_execution_code(self, code):
         #print "StatListNode.generate_execution_code" ###
@@ -289,7 +289,7 @@ class StatNode(Node):
     #        Emit C code for executable statements.
     #
     
-    def generate_function_definitions(self, env, code, transforms):
+    def generate_function_definitions(self, env, code):
         pass
     
     def generate_execution_code(self, code):
@@ -839,7 +839,7 @@ class FuncDefNode(StatNode, BlockNode):
         self.local_scope = lenv
         return lenv
                 
-    def generate_function_definitions(self, env, code, transforms):
+    def generate_function_definitions(self, env, code):
         import Buffer
 
         lenv = self.local_scope
@@ -985,7 +985,7 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Python version
         code.exit_cfunc_scope()
         if self.py_func:
-            self.py_func.generate_function_definitions(env, code, transforms)
+            self.py_func.generate_function_definitions(env, code)
         self.generate_optarg_wrapper_function(env, code)
         
     def put_stararg_decrefs(self, code):
@@ -2015,10 +2015,9 @@ class PyClassDefNode(ClassDefNode):
         #self.classobj.release_temp(env)
         #self.target.release_target_temp(env)
     
-    def generate_function_definitions(self, env, code, transforms):
+    def generate_function_definitions(self, env, code):
         self.generate_py_string_decls(self.scope, code)
-        self.body.generate_function_definitions(
-            self.scope, code, transforms)
+        self.body.generate_function_definitions(self.scope, code)
     
     def generate_execution_code(self, code):
         self.dict.generate_evaluation_code(code)
@@ -2134,11 +2133,11 @@ class CClassDefNode(ClassDefNode):
             scope = self.entry.type.scope
             self.body.analyse_expressions(scope)
     
-    def generate_function_definitions(self, env, code, transforms):
+    def generate_function_definitions(self, env, code):
         self.generate_py_string_decls(self.entry.type.scope, code)
         if self.body:
             self.body.generate_function_definitions(
-                self.entry.type.scope, code, transforms)
+                self.entry.type.scope, code)
     
     def generate_execution_code(self, code):
         # This is needed to generate evaluation code for
@@ -2172,8 +2171,8 @@ class PropertyNode(StatNode):
     def analyse_expressions(self, env):
         self.body.analyse_expressions(env)
     
-    def generate_function_definitions(self, env, code, transforms):
-        self.body.generate_function_definitions(env, code, transforms)
+    def generate_function_definitions(self, env, code):
+        self.body.generate_function_definitions(env, code)
 
     def generate_execution_code(self, code):
         pass

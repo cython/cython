@@ -721,7 +721,6 @@ default_options = dict(
     generate_pxi = 0,
     working_path = "",
     recursive = 0,
-    transforms = None, # deprecated
     timestamps = None,
     verbose = 0,
     quiet = 0)
