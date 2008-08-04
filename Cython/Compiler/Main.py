@@ -23,6 +23,7 @@ from Errors import PyrexError, CompileError, error
 from Symtab import BuiltinScope, ModuleScope
 from Cython import Utils
 from Cython.Utils import open_new_file, replace_suffix
+import CythonScope
 
 module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
 
@@ -60,8 +61,9 @@ class Context:
     
     def __init__(self, include_directories, pragma_overrides):
         #self.modules = {"__builtin__" : BuiltinScope()}
-        import Builtin
+        import Builtin, CythonScope
         self.modules = {"__builtin__" : Builtin.builtin_scope}
+        self.modules["cython"] = CythonScope.create_cython_scope(self)
         self.include_directories = include_directories
         self.future_directives = set()
         self.pragma_overrides = pragma_overrides
@@ -77,7 +79,7 @@ class Context:
         from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
-        from ParseTreeTransforms import ResolveOptions
+        from ParseTreeTransforms import ResolveOptions, SpecialFunctions
         from Optimize import FlattenInListTransform, SwitchTransform, OptimizeRefcounting
         from Buffer import IntroduceBufferAuxiliaryVars
         from ModuleNode import check_c_classes
@@ -103,6 +105,7 @@ class Context:
             AnalyseExpressionsTransform(self),
             SwitchTransform(),
             OptimizeRefcounting(self),
+            SpecialFunctions(self),
             #        CreateClosureClasses(context),
             ]
 
@@ -127,7 +130,7 @@ class Context:
             return module_node
 
         return ([
-                create_parse(self)
+                create_parse(self),
             ] + self.create_pipeline(pxd=False) + [
                 inject_pxd_code,
                 generate_pyx_code,
@@ -182,6 +185,7 @@ class Context:
         if debug_find_module:
             print("Context.find_module: module_name = %s, relative_to = %s, pos = %s, need_pxd = %s" % (
                     module_name, relative_to, pos, need_pxd))
+
         scope = None
         pxd_pathname = None
         if not module_name_pattern.match(module_name):
