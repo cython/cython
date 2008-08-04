@@ -235,7 +235,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
         code.putln('}')
 
 
-def put_access(entry, index_signeds, index_cnames, pos, code):
+def put_access(entry, index_signeds, index_cnames, options, pos, code):
     """Returns a c string which can be used to access the buffer
     for reading or writing.
 
@@ -244,46 +244,43 @@ def put_access(entry, index_signeds, index_cnames, pos, code):
     body. The lookup however is delegated to a inline function that is instantiated
     once per ndim (lookup with suboffsets tend to get quite complicated).
     """
-    code.globalstate.use_utility_code(access_utility_code)
     bufaux = entry.buffer_aux
     bufstruct = bufaux.buffer_info_var.cname
-    # Check bounds and fix negative indices
-    boundscheck = True
-    nonegs = True
-    tmp_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type)
 
-    if boundscheck:
+    if options['boundscheck']:
+        # Check bounds and fix negative indices.
+        # We allocate a temporary which is initialized to -1, meaning OK (!).
+        # If an error occurs, the temp is set to the dimension index the
+        # error is occuring at.
+        tmp_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type)
         code.putln("%s = -1;" % tmp_cname)
-    for idx, (signed, cname, shape) in enumerate(zip(index_signeds, index_cnames,
-                                  bufaux.shapevars)):
-        if signed != 0:
-            nonegs = False
-            # not unsigned, deal with negative index
-            code.putln("if (%s < 0) {" % cname)
-            code.putln("%s += %s;" % (cname, shape.cname))
-            if boundscheck:
+        for dim, (signed, cname, shape) in enumerate(zip(index_signeds, index_cnames,
+                                                         bufaux.shapevars)):
+            if signed != 0:
+                # not unsigned, deal with negative index
+                code.putln("if (%s < 0) {" % cname)
+                code.putln("%s += %s;" % (cname, shape.cname))
                 code.putln("if (%s) %s = %d;" % (
-                    code.unlikely("%s < 0" % cname), tmp_cname, idx))
-            code.put("} else ")
-        else:
-            if idx > 0: code.put("else ")
-        if boundscheck:
+                    code.unlikely("%s < 0" % cname), tmp_cname, dim))
+                code.put("} else ")
             # check bounds in positive direction
             code.putln("if (%s) %s = %d;" % (
                 code.unlikely("%s >= %s" % (cname, shape.cname)),
-                tmp_cname, idx))
-    if boundscheck:  
+                tmp_cname, dim))
+        code.globalstate.use_utility_code(raise_indexerror_code)
         code.put("if (%s) " % code.unlikely("%s != -1" % tmp_cname))
         code.begin_block()
-        code.putln('__Pyx_BufferIndexError(%s);' % tmp_cname)
+        code.putln('__Pyx_RaiseBufferIndexError(%s);' % tmp_cname)
         code.putln(code.error_goto(pos))
         code.end_block()
-    code.funcstate.release_temp(tmp_cname)
-
-
-
-    
-
+        code.funcstate.release_temp(tmp_cname)
+    else:
+        # Only fix negative indices.
+        for signed, cname, shape in zip(index_signeds, index_cnames,
+                                        bufaux.shapevars):
+            if signed != 0:
+                code.putln("if (%s < 0) %s += %s;" % (cname, cname, shape.cname))
+        
     # Create buffer lookup and return it
     params = []
     nd = entry.type.ndim
@@ -536,11 +533,11 @@ def use_py2_buffer_functions(env):
 
 # Utility function to set the right exception
 # The caller should immediately goto_error
-access_utility_code = [
+raise_indexerror_code = [
 """\
-static void __Pyx_BufferIndexError(int axis); /*proto*/
+static void __Pyx_RaiseBufferIndexError(int axis); /*proto*/
 ""","""\
-static void __Pyx_BufferIndexError(int axis) {
+static void __Pyx_RaiseBufferIndexError(int axis) {
   PyErr_Format(PyExc_IndexError,
      "Out of bounds on buffer access (axis %d)", axis);
 }
