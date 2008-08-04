@@ -576,6 +576,76 @@ def printbuf_float(o, shape):
     print
 
 
+#
+# Typedefs
+#
+ctypedef int cytypedef_int
+cdef extern from "bufaccess.h":
+    ctypedef cytypedef_int htypedef_short # Defined as short, but Cython doesn't know this!
+ctypedef htypedef_short cytypedef2
+
+@testcase
+def printbuf_cytypedef_int(object[cytypedef_int] buf, shape):
+    """
+    >>> printbuf_cytypedef_int(IntMockBuffer("A", range(3)), (3,))
+    acquired A
+    0 1 2
+    released A
+    >>> printbuf_cytypedef_int(ShortMockBuffer("B", range(3)), (3,))
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer datatype mismatch (rejecting on 'h')
+    
+    """
+    cdef int i
+    for i in range(shape[0]):
+        print buf[i],
+    print
+
+@testcase
+def printbuf_htypedef_short(object[htypedef_short] buf, shape):
+    """
+    >>> printbuf_htypedef_short(ShortMockBuffer("A", range(3)), (3,))
+    acquired A
+    0 1 2
+    released A
+    >>> printbuf_htypedef_short(IntMockBuffer("B", range(3)), (3,))
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer datatype mismatch (rejecting on 'i')
+    """
+    
+    cdef int i
+    for i in range(shape[0]):
+        print buf[i],
+    print
+
+@testcase
+def printbuf_cytypedef2(object[cytypedef2] buf, shape):
+    """
+    >>> printbuf_cytypedef2(ShortMockBuffer("A", range(3)), (3,))
+    acquired A
+    0 1 2
+    released A
+    >>> printbuf_cytypedef2(IntMockBuffer("B", range(3)), (3,))
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer datatype mismatch (rejecting on 'i')
+    """
+    
+    cdef int i
+    for i in range(shape[0]):
+        print buf[i],
+    print
+
+
+
+
+#
+# Testcase support code
+#
+
+
 available_flags = (
     ('FORMAT', python_buffer.PyBUF_FORMAT),
     ('INDIRECT', python_buffer.PyBUF_INDIRECT),
@@ -735,6 +805,13 @@ cdef class IntMockBuffer(MockBuffer):
         return 0
     cdef get_itemsize(self): return sizeof(int)
     cdef get_default_format(self): return "=i"
+
+cdef class ShortMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<short*>buf)[0] = <short>value
+        return 0
+    cdef get_itemsize(self): return sizeof(short)
+    cdef get_default_format(self): return "=h"
 
 cdef class UnsignedShortMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
