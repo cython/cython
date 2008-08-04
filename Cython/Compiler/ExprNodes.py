@@ -1525,6 +1525,7 @@ class IndexNode(ExprNode):
         self.generate_subexpr_disposal_code(code)
 
     def buffer_access_code(self, code):
+        print self.options
         # Assign indices to temps
         index_temps = [code.funcstate.allocate_temp(i.type) for i in self.indices]
         for temp, index in zip(index_temps, self.indices):

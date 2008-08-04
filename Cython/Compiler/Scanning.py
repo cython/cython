@@ -429,12 +429,13 @@ class PyrexScanner(Scanner):
     def looking_at_type_name(self):
         return self.sy == 'IDENT' and self.systring in self.type_names
     
-    def error(self, message, pos = None):
+    def error(self, message, pos = None, fatal = True):
         if pos is None:
             pos = self.position()
         if self.sy == 'INDENT':
-            error(pos, "Possible inconsistent indentation")
-        raise error(pos, message)
+            err = error(pos, "Possible inconsistent indentation")
+        err = error(pos, message)
+        if fatal: raise err
         
     def expect(self, what, message = None):
         if self.sy == what:

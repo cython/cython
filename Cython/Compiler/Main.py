@@ -58,12 +58,13 @@ class Context:
     #  include_directories   [string]
     #  future_directives     [object]
     
-    def __init__(self, include_directories):
+    def __init__(self, include_directories, pragma_overrides):
         #self.modules = {"__builtin__" : BuiltinScope()}
         import Builtin
         self.modules = {"__builtin__" : Builtin.builtin_scope}
         self.include_directories = include_directories
         self.future_directives = set()
+        self.pragma_overrides = pragma_overrides
 
         self.pxds = {} # full name -> node tree
 
@@ -76,6 +77,7 @@ class Context:
         from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
+        from ParseTreeTransforms import ResolveOptions
         from Optimize import FlattenInListTransform, SwitchTransform, OptimizeRefcounting
         from Buffer import IntroduceBufferAuxiliaryVars
         from ModuleNode import check_c_classes
@@ -91,6 +93,7 @@ class Context:
             NormalizeTree(self),
             PostParse(self),
             _specific_post_parse,
+            ResolveOptions(self, self.pragma_overrides),
             FlattenInListTransform(),
             WithTransform(self),
             DecoratorTransform(self),
@@ -481,7 +484,7 @@ def create_default_resultobj(compilation_source, options):
 
 def run_pipeline(source, options, full_module_name = None):
     # Set up context
-    context = Context(options.include_path)
+    context = Context(options.include_path, options.pragma_overrides)
 
     # Set up source object
     cwd = os.getcwd()
@@ -531,6 +534,7 @@ class CompilationOptions:
                                 defaults to true when recursive is true.
     verbose           boolean   Always print source names being compiled
     quiet             boolean   Don't print source names in recursive mode
+    pragma_overrides  dict      Overrides for pragma options (see Options.py)
     
     Following options are experimental and only used on MacOSX:
     
@@ -723,7 +727,9 @@ default_options = dict(
     recursive = 0,
     timestamps = None,
     verbose = 0,
-    quiet = 0)
+    quiet = 0,
+    pragma_overrides = {}
+)
 if sys.platform == "mac":
     from Cython.Mac.MacSystem import c_compile, c_link, CCompilerError
     default_options['use_listing_file'] = 1

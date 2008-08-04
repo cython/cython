@@ -6,6 +6,7 @@ from Cython.Compiler.TreeFragment import TreeFragment
 from Cython.Utils import EncodedString
 from Cython.Compiler.Errors import CompileError
 from sets import Set as set
+import copy
 
 class NormalizeTree(CythonTransform):
     """
@@ -253,6 +254,37 @@ class PxdPostParse(CythonTransform):
         else:
             return node
 
+class ResolveOptions(CythonTransform):
+    """
+    After parsing, options can be stored in a number of places:
+    - #cython-comments at the top of the file (stored in ModuleNode)
+    - Command-line arguments overriding these
+    - @cython.optionname decorators
+    - with cython.optionname: statements
+
+    This transform is responsible for annotating each node with an
+    "options" attribute linking it to a dict containing the exact
+    options that are in effect for that node. Any corresponding decorators
+    or with statements are removed in the process.
+    """
+
+    def __init__(self, context, compilation_option_overrides):
+        super(ResolveOptions, self).__init__(context)
+        self.compilation_option_overrides = compilation_option_overrides
+
+    def visit_ModuleNode(self, node):
+        options = copy.copy(Options.option_defaults)
+        options.update(node.option_comments)
+        options.update(self.compilation_option_overrides)
+        self.options = options
+        node.options = options
+        self.visitchildren(node)
+        return node
+
+    def visit_Node(self, node):
+        node.options = self.options
+        self.visitchildren(node)
+        return node
 
 class WithTransform(CythonTransform):
 
