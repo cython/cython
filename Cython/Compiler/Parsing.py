@@ -1620,15 +1620,19 @@ def p_c_simple_base_type(s, self_flag, nonempty):
 
 
     # Treat trailing [] on type as buffer access
-    if not is_basic and s.sy == '[':
+    if s.sy == '[':
         return p_buffer_access(s, type_node)
     else:
         return type_node
 
-def p_buffer_access(s, type_node):
+def p_buffer_access(s, base_type_node):
     # s.sy == '['
     pos = s.position()
     s.next()
+    if s.sy == ']':
+        # not buffer, could be [] on C type nameless array arguments
+        s.put_back('[', '[')
+        return base_type_node
     positional_args, keyword_args = (
         p_positional_and_keyword_args(s, (']',), (0,), ('dtype',))
     )
@@ -1643,7 +1647,7 @@ def p_buffer_access(s, type_node):
     result = Nodes.CBufferAccessTypeNode(pos,
         positional_args = positional_args,
         keyword_args = keyword_dict,
-        base_type_node = type_node)
+        base_type_node = base_type_node)
     return result
     
 

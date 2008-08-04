@@ -58,6 +58,7 @@ class TestBufferOptions(CythonTest):
         self.assert_(self.expect_error)
 
     def parse_opts(self, opts, expect_error=False):
+        assert opts != ""
         s = u"def f():\n  cdef object[%s] x" % opts
         self.expect_error = expect_error
         root = self.fragment(s, pipeline=[NormalizeTree(self), PostParse(self)]).root
@@ -89,9 +90,6 @@ class TestBufferOptions(CythonTest):
         self.assert_(buf.dtype_node.signed == 0 and buf.dtype_node.longness == -1)
         self.assertEqual(3, buf.ndim)
         
-    def test_dtype(self):
-        self.non_parse(ERR_BUF_MISSING % 'dtype', u"")
-    
     def test_ndim(self):
         self.parse_opts(u"int, 2")
         self.non_parse(ERR_BUF_INT % 'ndim', u"int, 'a'")
