@@ -354,7 +354,6 @@ def get_int_2d(object[int, 2] buf, int i, int j):
     Traceback (most recent call last):
         ...
     IndexError: Out of bounds on buffer access (axis 1)
-    
     """
     return buf[i, j]
 
@@ -500,6 +499,10 @@ def strided(object[int, 1, 'strided'] buf):
     2
     >>> A.recieved_flags
     ['FORMAT', 'ND', 'STRIDES']
+
+    Check that the suboffsets were patched back prior to release.
+    >>> A.release_ok
+    True
     """
     return buf[2]
 
@@ -663,11 +666,12 @@ cdef class MockBuffer:
     cdef Py_ssize_t* suboffsets
     cdef object label, log
     
-    cdef readonly object recieved_flags
+    cdef readonly object recieved_flags, release_ok
     cdef public object fail
     
     def __init__(self, label, data, shape=None, strides=None, format=None):
         self.label = label
+        self.release_ok = True
         self.log = ""
         self.itemsize = self.get_itemsize()
         if format is None: format = self.get_default_format()
@@ -776,6 +780,8 @@ cdef class MockBuffer:
         self.log += msg + "\n"
 
     def __releasebuffer__(MockBuffer self, Py_buffer* buffer):
+        if buffer.suboffsets != self.suboffsets:
+            self.release_ok = False
         msg = "released %s" % self.label
         print msg 
         self.log += msg + "\n"
