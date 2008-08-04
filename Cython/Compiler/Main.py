@@ -79,7 +79,7 @@ class Context:
         from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
-        from ParseTreeTransforms import ResolveOptions, SpecialFunctions
+        from ParseTreeTransforms import ResolveOptions
         from Optimize import FlattenInListTransform, SwitchTransform, OptimizeRefcounting
         from Buffer import IntroduceBufferAuxiliaryVars
         from ModuleNode import check_c_classes
@@ -105,7 +105,7 @@ class Context:
             AnalyseExpressionsTransform(self),
             SwitchTransform(),
             OptimizeRefcounting(self),
-            SpecialFunctions(self),
+#            SpecialFunctions(self),
             #        CreateClosureClasses(context),
             ]
 
