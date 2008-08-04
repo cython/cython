@@ -149,6 +149,7 @@ class CTypedefType(BaseType):
     #  typedef_base_type   PyrexType
     
     is_typedef = 1
+    typestring = None # Because typedefs are not known exactly
     
     def __init__(self, cname, base_type):
         self.typedef_cname = cname
@@ -1043,6 +1044,7 @@ class ErrorType(PyrexType):
     exception_check	= 0
     to_py_function = "dummy"
     from_py_function = "dummy"
+    typestring = None
     
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
