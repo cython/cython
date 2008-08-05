@@ -383,6 +383,13 @@ if __name__ == '__main__':
 
     options, cmd_args = parser.parse_args()
 
+    if sys.version_info[0] >= 3:
+        # make sure we do not import (or run) Cython itself
+        options.doctests    = False
+        options.with_cython = False
+        options.unittests   = False
+        options.pyregr      = False
+
     if options.coverage:
         import coverage
         coverage.erase()
