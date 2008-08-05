@@ -330,20 +330,17 @@ class ResolveOptions(CythonTransform):
             return None
 
     def visit_with_options(self, node, options):
-        if not options:
-            return self.visit_Node(node)
-        else:
-            oldoptions = self.options
-            newoptions = copy.copy(oldoptions)
-            newoptions.update(options)
-            self.options = newoptions
-            node = self.visit_Node(node)
-            self.options = oldoptions
+        oldoptions = self.options
+        newoptions = copy.copy(oldoptions)
+        newoptions.update(options)
+        self.options = newoptions
+        node = self.visit_Node(node)
+        self.options = oldoptions
         return node  
  
     # Handle decorators
     def visit_DefNode(self, node):
-        options = {}
+        options = []
         
         if node.decorators:
             # Split the decorators into two lists -- real decorators and options
@@ -351,14 +348,21 @@ class ResolveOptions(CythonTransform):
             for dec in node.decorators:
                 option = self.try_to_parse_option(dec.decorator)
                 if option is not None:
-                    name, value = option
-                    options[name] = value
+                    options.append(option)
                 else:
                     realdecs.append(dec)
             node.decorators = realdecs
 
-        return self.visit_with_options(node, options)
-
+        if options:
+            optdict = {}
+            options.reverse() # Decorators coming first take precedence
+            for option in options:
+                name, value = option
+                optdict[name] = value
+            return self.visit_with_options(node, options)
+        else:
+            return self.visit_Node(node)
+                                   
     # Handle with statements
     def visit_WithStatNode(self, node):
         option = self.try_to_parse_option(node.manager)

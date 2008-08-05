@@ -543,6 +543,7 @@ def safe_get(object[int] buf, int idx):
 
 @testcase
 @cython.boundscheck(False)
+@cython.boundscheck(True)
 def unsafe_get(object[int] buf, int idx):
     """
     Access outside of the area the buffer publishes.
