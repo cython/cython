@@ -19,3 +19,10 @@ def h(object[int, 2] buf):
     print buf[3, 2]
     with cy.boundscheck(True):
         print buf[3,2]
+
+from cython cimport boundscheck as bc
+
+def i(object[int] buf):
+    with bc(True):
+        print buf[3]
+    
