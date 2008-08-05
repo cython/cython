@@ -276,6 +276,7 @@ class ResolveOptions(CythonTransform):
         super(ResolveOptions, self).__init__(context)
         self.compilation_option_overrides = compilation_option_overrides
         self.cython_module_names = set()
+        self.option_names = {}
 
     def visit_ModuleNode(self, node):
         options = copy.copy(Options.option_defaults)
@@ -294,8 +295,21 @@ class ResolveOptions(CythonTransform):
             else:
                 modname = u"cython"
             self.cython_module_names.add(modname)
-        elif node.as_name and node.as_name in self.cython_module_names:
-            self.cython_module_names.remove(node.as_name)
+        return node
+    
+    def visit_FromCImportStatNode(self, node):
+        if node.module_name == u"cython":
+            newimp = []
+            for pos, name, as_name, kind in node.imported_names:
+                if name in Options.option_types:
+                    self.option_names[as_name] = name
+                    if kind is not None:
+                        self.context.nonfatal_error(PostParseError(pos,
+                            "Compiler option imports must be plain imports"))
+                    return None
+                else:
+                    newimp.append((pos, name, as_name, kind))
+            node.imported_names = newimpo
         return node
 
     def visit_Node(self, node):
@@ -307,11 +321,17 @@ class ResolveOptions(CythonTransform):
         # If node is the contents of an option (in a with statement or
         # decorator), returns (optionname, value).
         # Otherwise, returns None
-        if (isinstance(node, SimpleCallNode) and
-              isinstance(node.function, AttributeNode) and
-              isinstance(node.function.obj, NameNode) and
-              node.function.obj.name in self.cython_module_names):
-            optname = node.function.attribute
+        optname = None
+        if isinstance(node, SimpleCallNode):
+            if (isinstance(node.function, AttributeNode) and
+                  isinstance(node.function.obj, NameNode) and
+                  node.function.obj.name in self.cython_module_names):
+                optname = node.function.attribute
+            elif (isinstance(node.function, NameNode) and
+                  node.function.name in self.option_names):
+                optname = self.option_names[node.function.name]
+
+        if optname:
             optiontype = Options.option_types.get(optname)
             if optiontype:
                 args = node.args
@@ -322,12 +342,8 @@ class ResolveOptions(CythonTransform):
                     return (optname, args[0].value)
                 else:
                     assert False
-            else:
-                return None
-            options.append((dec.function.attribute, dec.args, dec.function.pos))
-            return False
-        else:
-            return None
+
+        return None
 
     def visit_with_options(self, node, options):
         oldoptions = self.options
