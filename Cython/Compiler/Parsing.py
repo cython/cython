@@ -2125,9 +2125,13 @@ def p_decorators(s):
     while s.sy == 'DECORATOR':
         pos = s.position()
         s.next()
-        decorator = ExprNodes.NameNode(
-            pos, name = Utils.EncodedString(
-                p_dotted_name(s, as_allowed=0)[2] ))
+        decstring = p_dotted_name(s, as_allowed=0)[2]
+        names = decstring.split('.')
+        decorator = ExprNodes.NameNode(pos, name=Utils.EncodedString(names[0]))
+        for name in names[1:]:
+            decorator = ExprNodes.AttributeNode(pos,
+                                           attribute=Utils.EncodedString(name),
+                                           obj=decorator)
         if s.sy == '(':
             decorator = p_call(s, decorator)
         decorators.append(Nodes.DecoratorNode(pos, decorator=decorator))
