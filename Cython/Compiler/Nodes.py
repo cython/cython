@@ -362,13 +362,8 @@ class CNameDeclaratorNode(CDeclaratorNode):
     
     def analyse(self, base_type, env, nonempty = 0):
         if nonempty and self.name == '':
-            raise RuntimeError
-            # May have mistaken the name for the type. 
-            if base_type.is_ptr or base_type.is_array or base_type.is_buffer:
-                error(self.pos, "Missing argument name.")
-            elif base_type.is_void:
-                error(self.pos, "Use spam() rather than spam(void) to declare a function with no arguments.")
-            self.name = base_type.declaration_code("", for_display=1, pyrex=1)
+            # Must have mistaken the name for the type. 
+            self.name = base_type.name
             base_type = py_object_type
         self.type = base_type
         return self, base_type
@@ -429,7 +424,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
     def analyse(self, return_type, env, nonempty = 0):
         func_type_args = []
         for arg_node in self.args:
-            name_declarator, type = arg_node.analyse(env)
+            name_declarator, type = arg_node.analyse(env, nonempty = nonempty)
             name = name_declarator.name
             if name_declarator.cname:
                 error(self.pos, 
