@@ -1629,7 +1629,7 @@ def p_buffer_access(s, base_type_node):
     # s.sy == '['
     pos = s.position()
     s.next()
-    if s.sy == ']':
+    if s.sy == ']' or s.sy == 'INT':
         # not buffer, could be [] on C type nameless array arguments
         s.put_back('[', '[')
         return base_type_node
