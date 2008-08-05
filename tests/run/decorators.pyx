@@ -13,6 +13,10 @@ __doc__ = u"""
   6
   >>> h.HERE
   1
+  >>> i(4)
+  3
+  >>> i.HERE
+  1
 """
 
 class wrap:
@@ -47,3 +51,13 @@ def g(a,b):
 @decorate2(1,2)
 def h(a,b):
     return a+b+3
+
+class A:
+    def decorate(self, func):
+        return decorate(func)
+
+
+a = A()
+@a.decorate
+def i(x):
+    return x - 1

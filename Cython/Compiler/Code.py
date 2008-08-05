@@ -42,14 +42,17 @@ class FunctionState(object):
         self.temps_used_type = {} # name -> type
         self.temp_counter = 0
 
-    def new_label(self):
+    def new_label(self, name=None):
         n = self.label_counter
         self.label_counter = n + 1
-        return "%s%d" % (Naming.label_prefix, n)
+        label = "%s%d" % (Naming.label_prefix, n)
+        if name is not None:
+            label += '_' + name
+        return label
     
     def new_error_label(self):
         old_err_lbl = self.error_label
-        self.error_label = self.new_label()
+        self.error_label = self.new_label('error')
         return old_err_lbl
     
     def get_loop_labels(self):
@@ -477,7 +480,7 @@ class CCodeWriter(object):
     return_from_error_cleanup_label = funccontext_property("return_from_error_cleanup_label")
 
     # Functions delegated to function scope
-    def new_label(self):               return self.funcstate.new_label()
+    def new_label(self, name=None):    return self.funcstate.new_label(name)
     def new_error_label(self):         return self.funcstate.new_error_label()
     def get_loop_labels(self):         return self.funcstate.get_loop_labels()
     def set_loop_labels(self, labels): return self.funcstate.set_loop_labels(labels)
