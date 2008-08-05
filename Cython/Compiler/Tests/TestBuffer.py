@@ -25,10 +25,6 @@ class TestBufferParsing(CythonTest):
 #        print bufnode.dump()
         # should put more here...
         
-    def test_type_fail(self):
-        self.not_parseable("Expected: type",
-                           u"cdef object[2] x")
-    
     def test_type_pos(self):
         self.parse(u"cdef object[short unsigned int, 3] x")
 
