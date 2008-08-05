@@ -266,11 +266,16 @@ class ResolveOptions(CythonTransform):
     "options" attribute linking it to a dict containing the exact
     options that are in effect for that node. Any corresponding decorators
     or with statements are removed in the process.
+
+    Note that we have to run this prior to analysis, and so some minor
+    duplication of functionality has to occur: We manually track cimports
+    to correctly intercept @cython... and with cython...
     """
 
     def __init__(self, context, compilation_option_overrides):
         super(ResolveOptions, self).__init__(context)
         self.compilation_option_overrides = compilation_option_overrides
+        self.cython_module_names = set()
 
     def visit_ModuleNode(self, node):
         options = copy.copy(Options.option_defaults)
@@ -281,10 +286,90 @@ class ResolveOptions(CythonTransform):
         self.visitchildren(node)
         return node
 
+    # Track cimports of the cython module.
+    def visit_CImportStatNode(self, node):
+        if node.module_name == u"cython":
+            if node.as_name:
+                modname = node.as_name
+            else:
+                modname = u"cython"
+            self.cython_module_names.add(modname)
+        elif node.as_name and node.as_name in self.cython_module_names:
+            self.cython_module_names.remove(node.as_name)
+        return node
+
     def visit_Node(self, node):
         node.options = self.options
         self.visitchildren(node)
         return node
+
+    def try_to_parse_option(self, node):
+        # If node is the contents of an option (in a with statement or
+        # decorator), returns (optionname, value).
+        # Otherwise, returns None
+        if (isinstance(node, SimpleCallNode) and
+              isinstance(node.function, AttributeNode) and
+              isinstance(node.function.obj, NameNode) and
+              node.function.obj.name in self.cython_module_names):
+            optname = node.function.attribute
+            optiontype = Options.option_types.get(optname)
+            if optiontype:
+                args = node.args
+                if optiontype is bool:
+                    if len(args) != 1 or not isinstance(args[0], BoolNode):
+                        raise PostParseError(dec.function.pos,
+                            'The %s option takes one compile-time boolean argument' % optname)
+                    return (optname, args[0].value)
+                else:
+                    assert False
+            else:
+                return None
+            options.append((dec.function.attribute, dec.args, dec.function.pos))
+            return False
+        else:
+            return None
+
+    def visit_with_options(self, node, options):
+        if not options:
+            return self.visit_Node(node)
+        else:
+            oldoptions = self.options
+            newoptions = copy.copy(oldoptions)
+            newoptions.update(options)
+            self.options = newoptions
+            node = self.visit_Node(node)
+            self.options = oldoptions
+        return node  
+ 
+    # Handle decorators
+    def visit_DefNode(self, node):
+        options = {}
+        
+        if node.decorators:
+            # Split the decorators into two lists -- real decorators and options
+            realdecs = []
+            for dec in node.decorators:
+                option = self.try_to_parse_option(dec.decorator)
+                if option is not None:
+                    name, value = option
+                    options[name] = value
+                else:
+                    realdecs.append(dec)
+            node.decorators = realdecs
+
+        return self.visit_with_options(node, options)
+
+    # Handle with statements
+    def visit_WithStatNode(self, node):
+        option = self.try_to_parse_option(node.manager)
+        if option is not None:
+            if node.target is not None:
+                raise PostParseError(node.pos, "Compiler option with statements cannot contain 'as'")
+            name, value = option
+            self.visit_with_options(node.body, {name:value})
+            return node.body.stats
+        else:
+            return self.visit_Node(node)
 
 class WithTransform(CythonTransform):
 
