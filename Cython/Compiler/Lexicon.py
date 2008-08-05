@@ -97,13 +97,13 @@ def make_lexicon():
         #(stringlit, 'STRING'),
         (beginstring, Method('begin_string_action')),
         
-        (option_comment, 'option_comment'),
+        (option_comment, Method('option_comment')),
         (comment, IGNORE),
         (spaces, IGNORE),
         (escaped_newline, IGNORE),
         
         State('INDENT', [
-            (option_comment + lineterm, 'option_comment'),
+            (option_comment + lineterm, Method('option_comment')),
             (Opt(spaces) + Opt(comment) + lineterm, IGNORE),
             (indentation, Method('indentation_action')),
             (Eof, Method('eof_action'))

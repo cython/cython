@@ -10,6 +10,9 @@ def f(object[int, 2] buf):
 
 @cy.boundscheck(True)
 def g(object[int, 2] buf):
+    # Please leave this comment, 
+#cython: this should have no special meaning
+    # even if the above line doesn't follow indentation.
     print buf[3, 2]
 
 def h(object[int, 2] buf):

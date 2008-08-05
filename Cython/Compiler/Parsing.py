@@ -507,8 +507,6 @@ def p_atom(s):
     elif sy == 'NULL':
         s.next()
         return ExprNodes.NullNode(pos)
-    elif sy == 'option_comment':
-        s.error("#cython option comments only allowed at beginning of file")
     else:
         s.error("Expected an identifier or literal")
 
@@ -2342,6 +2340,7 @@ def p_module(s, pxd, full_module_name):
         level = 'module'
 
     option_comments = p_option_comments(s)
+    s.parse_option_comments = False
     body = p_statement_list(s, Ctx(level = level), first_statement = 1)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
