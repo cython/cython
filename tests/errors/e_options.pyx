@@ -17,6 +17,5 @@ _ERRORS = u"""
 2:0: Expected "=" in option "nonexistant"
 3:0: Unknown option: "some"
 10:0: Must pass a boolean value for option "boundscheck"
-14:0: #cython option comments only allowed at beginning of file
 """
 
