@@ -12,6 +12,8 @@
 cimport stdlib
 cimport python_buffer
 cimport stdio
+cimport cython
+
 
 __test__ = {}
 setup_string = """
@@ -506,7 +508,71 @@ def strided(object[int, 1, 'strided'] buf):
     """
     return buf[2]
 
+#
+# Test compiler options for bounds checking. We create an array with a
+# safe "boundary" (memory
+# allocated outside of what it published) and then check whether we get back
+# what we stored in the memory or an error.
 
+@testcase
+def safe_get(object[int] buf, int idx):
+    """
+    >>> A = IntMockBuffer(None, range(10), shape=(3,), offset=5)
+
+    Validate our testing buffer...
+    >>> safe_get(A, 0)
+    5
+    >>> safe_get(A, 2)
+    7
+    >>> safe_get(A, -3)
+    5
+
+    Access outside it. This is already done above for bounds check
+    testing but we include it to tell the story right.
+
+    >>> safe_get(A, -4)
+    Traceback (most recent call last):
+        ...
+    IndexError: Out of bounds on buffer access (axis 0)
+    >>> safe_get(A, 3)
+    Traceback (most recent call last):
+        ...
+    IndexError: Out of bounds on buffer access (axis 0)
+    """
+    return buf[idx]
+
+@testcase
+@cython.boundscheck(False)
+def unsafe_get(object[int] buf, int idx):
+    """
+    Access outside of the area the buffer publishes.
+    >>> A = IntMockBuffer(None, range(10), shape=(3,), offset=5)
+    >>> unsafe_get(A, -4)
+    4
+    >>> unsafe_get(A, -5)
+    3
+    >>> unsafe_get(A, 3)
+    8
+    """
+    return buf[idx]
+
+@testcase
+def mixed_get(object[int] buf, int unsafe_idx, int safe_idx):
+    """
+    >>> A = IntMockBuffer(None, range(10), shape=(3,), offset=5)
+    >>> mixed_get(A, -4, 0)
+    (4, 5)
+    >>> mixed_get(A, 0, -4)
+    Traceback (most recent call last):
+        ...
+    IndexError: Out of bounds on buffer access (axis 0)
+    """
+    with cython.boundscheck(False):
+        one = buf[unsafe_idx]
+    with cython.boundscheck(True):
+        two = buf[safe_idx]
+    return (one, two)
+        
 #
 # Coercions
 #
@@ -658,7 +724,7 @@ available_flags = (
 )
 
 cdef class MockBuffer:
-    cdef object format
+    cdef object format, offset
     cdef void* buffer
     cdef int len, itemsize, ndim
     cdef Py_ssize_t* strides
@@ -669,10 +735,11 @@ cdef class MockBuffer:
     cdef readonly object recieved_flags, release_ok
     cdef public object fail
     
-    def __init__(self, label, data, shape=None, strides=None, format=None):
+    def __init__(self, label, data, shape=None, strides=None, format=None, offset=0):
         self.label = label
         self.release_ok = True
         self.log = ""
+        self.offset = offset
         self.itemsize = self.get_itemsize()
         if format is None: format = self.get_default_format()
         if shape is None: shape = (len(data),)
@@ -765,7 +832,7 @@ cdef class MockBuffer:
             if (value & flags) == value:
                 self.recieved_flags.append(name)
         
-        buffer.buf = self.buffer
+        buffer.buf = <void*>(<char*>self.buffer + (<int>self.offset * self.itemsize))
         buffer.len = self.len
         buffer.readonly = 0
         buffer.format = <char*>self.format
@@ -775,16 +842,18 @@ cdef class MockBuffer:
         buffer.suboffsets = self.suboffsets
         buffer.itemsize = self.itemsize
         buffer.internal = NULL
-        msg = "acquired %s" % self.label
-        print msg
-        self.log += msg + "\n"
+        if self.label:
+            msg = "acquired %s" % self.label
+            print msg
+            self.log += msg + "\n"
 
     def __releasebuffer__(MockBuffer self, Py_buffer* buffer):
         if buffer.suboffsets != self.suboffsets:
             self.release_ok = False
-        msg = "released %s" % self.label
-        print msg 
-        self.log += msg + "\n"
+        if self.label:
+            msg = "released %s" % self.label
+            print msg 
+            self.log += msg + "\n"
 
     def printlog(self):
         print self.log,
