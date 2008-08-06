@@ -5,6 +5,7 @@ from Cython.Compiler.ExprNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment
 from Cython.Utils import EncodedString
 from Cython.Compiler.Errors import CompileError
+import Interpreter
 import PyrexTypes
 from sets import Set as set
 import textwrap
@@ -104,7 +105,73 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
         self.visitchildren(node)
         return node
 
+#
+# Analysis
+#
+buffer_options = ("dtype", "ndim", "mode") # ordered!
+buffer_defaults = {"ndim": 1, "mode": "full"}
 
+ERR_BUF_OPTION_UNKNOWN = '"%s" is not a buffer option'
+ERR_BUF_TOO_MANY = 'Too many buffer options'
+ERR_BUF_DUP = '"%s" buffer option already supplied'
+ERR_BUF_MISSING = '"%s" missing'
+ERR_BUF_MODE = 'Only allowed buffer modes are "full" or "strided" (as a compile-time string)'
+ERR_BUF_NDIM = 'ndim must be a non-negative integer'
+
+def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, need_complete=True):
+    """
+    Must be called during type analysis, as analyse is called
+    on the dtype argument.
+
+    posargs and dictargs should consist of a list and a dict
+    of tuples (value, pos). Defaults should be a dict of values.
+
+    Returns a dict containing all the options a buffer can have and
+    its value (with the positions stripped).
+    """
+    if defaults is None:
+        defaults = buffer_defaults
+    
+    posargs, dictargs = Interpreter.interpret_compiletime_options(posargs, dictargs, type_env=env)
+    
+    if len(posargs) > len(buffer_options):
+        raise CompileError(posargs[-1][1], ERR_BUF_TOO_MANY)
+
+    options = {}
+    for name, (value, pos) in dictargs.iteritems():
+        if not name in buffer_options:
+            raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
+        options[name] = value
+    
+    for name, (value, pos) in zip(buffer_options, posargs):
+        if not name in buffer_options:
+            raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
+        if name in options:
+            raise CompileError(pos, ERR_BUF_DUP % name)
+        options[name] = value
+
+    # Check that they are all there and copy defaults
+    for name in buffer_options:
+        if not name in options:
+            try:
+                options[name] = defaults[name]
+            except KeyError:
+                if need_complete:
+                    raise CompileError(globalpos, ERR_BUF_MISSING % name)
+
+    ndim = options["ndim"]
+    if not isinstance(ndim, int) or ndim < 0:
+        raise CompileError(globalpos, ERR_BUF_NDIM)
+
+    if not options["mode"] in ('full', 'strided'):
+        raise CompileError(globalpos, ERR_BUF_MODE)
+
+    return options
+    
+
+#
+# Code generation
+#
 
 
 def get_flags(buffer_aux, buffer_type):

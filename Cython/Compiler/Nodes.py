@@ -573,29 +573,33 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
         else:
             return PyrexTypes.error_type
 
-class CBufferAccessTypeNode(Node):
+class CBufferAccessTypeNode(CBaseTypeNode):
     #  After parsing:
     #  positional_args  [ExprNode]        List of positional arguments
     #  keyword_args     DictNode          Keyword arguments
     #  base_type_node   CBaseTypeNode
 
-    #  After PostParse:
-    #  dtype_node       CBaseTypeNode
-    #  ndim             int
-
     #  After analysis:
-    #  type             PyrexType.PyrexType
+    #  type             PyrexType.BufferType   ...containing the right options
 
-    child_attrs = ["base_type_node", "positional_args", "keyword_args",
-                   "dtype_node"]
+
+    child_attrs = ["base_type_node", "positional_args",
+                   "keyword_args", "dtype_node"]
 
     dtype_node = None
     
     def analyse(self, env):
         base_type = self.base_type_node.analyse(env)
-        dtype = self.dtype_node.analyse(env)
-        self.type = PyrexTypes.BufferType(base_type, dtype=dtype, ndim=self.ndim,
-                                          mode=self.mode)
+        import Buffer
+
+        options = Buffer.analyse_buffer_options(
+            self.pos,
+            env,
+            self.positional_args,
+            self.keyword_args,
+            base_type.buffer_defaults)
+        
+        self.type = PyrexTypes.BufferType(base_type, **options)
         return self.type
 
 class CComplexBaseTypeNode(CBaseTypeNode):
@@ -628,7 +632,6 @@ class CVarDefNode(StatNode):
             dest_scope = env
         self.dest_scope = dest_scope
         base_type = self.base_type.analyse(env)
-        
         if (dest_scope.is_c_class_scope
                 and self.visibility == 'public' 
                 and base_type.is_pyobject 
@@ -2051,16 +2054,26 @@ class CClassDefNode(ClassDefNode):
     #  body               StatNode or None
     #  entry              Symtab.Entry
     #  base_type          PyExtensionType or None
-    #  bufferdefaults     dict or None      Declares defaults for a buffer
+    #  buffer_defaults_node DictNode or None Declares defaults for a buffer
+    #  buffer_defaults_pos
 
-    
     child_attrs = ["body"]
-    bufferdefaults = None
+    buffer_defaults_node = None
+    buffer_defaults_pos = None
 
     def analyse_declarations(self, env):
         #print "CClassDefNode.analyse_declarations:", self.class_name
         #print "...visibility =", self.visibility
         #print "...module_name =", self.module_name
+
+        import Buffer
+        if self.buffer_defaults_node:
+            buffer_defaults = Buffer.analyse_buffer_options(self.buffer_defaults_pos,
+                                                            env, [], self.buffer_defaults_node,
+                                                            need_complete=False)
+        else:
+            buffer_defaults = None
+
         if env.in_cinclude and not self.objstruct_name:
             error(self.pos, "Object struct name specification required for "
                 "C class defined in 'extern from' block")
@@ -2112,7 +2125,8 @@ class CClassDefNode(ClassDefNode):
             typeobj_cname = self.typeobj_name,
             visibility = self.visibility,
             typedef_flag = self.typedef_flag,
-            api = self.api)
+            api = self.api,
+            buffer_defaults = buffer_defaults)
         if home_scope is not env and self.visibility == 'extern':
             env.add_imported_entry(self.class_name, self.entry, pos)
         scope = self.entry.type.scope
