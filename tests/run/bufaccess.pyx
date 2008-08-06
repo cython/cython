@@ -709,10 +709,8 @@ def printbuf_cytypedef2(object[cytypedef2] buf, shape):
     print
 
 
-
-
 #
-# Testcase support code
+# Testcase support code (more tests below!, because of scope rules)
 #
 
 
@@ -895,6 +893,9 @@ cdef class UnsignedShortMockBuffer(MockBuffer):
         return 0
     cdef get_itemsize(self): return sizeof(unsigned short)
     cdef get_default_format(self): return "=H"
+
+cdef class IntStridedMockBuffer(MockBuffer):
+    cdef __cythonbufferdefaults__ = {"mode" : "strided"}
             
 cdef class ErrorBuffer:
     cdef object label
@@ -907,4 +908,51 @@ cdef class ErrorBuffer:
 
     def __releasebuffer__(MockBuffer self, Py_buffer* buffer):
         raise Exception("releasing %s" % self.label)
+
+#
+# Typed buffers
+#
+@testcase
+def typedbuffer1(obj):
+    """
+    >>> typedbuffer1(IntMockBuffer("A", range(10)))
+    acquired A
+    released A
+    >>> typedbuffer1(None)
+    >>> typedbuffer1(4)
+    Traceback (most recent call last):
+       ...
+    TypeError: Cannot convert int to bufaccess.IntMockBuffer
+    """
+    cdef IntMockBuffer[int, 1] buf = obj
+
+@testcase
+def typedbuffer2(IntMockBuffer[int, 1] obj):
+    """
+    >>> typedbuffer2(IntMockBuffer("A", range(10)))
+    acquired A
+    released A
+    >>> typedbuffer2(None)
+    >>> typedbuffer2(4)
+    Traceback (most recent call last):
+       ...
+    TypeError: Argument 'obj' has incorrect type (expected bufaccess.IntMockBuffer, got int)
+    """
+    pass
+
+#
+# Test __cythonbufferdefaults__
+#
+@testcase
+def bufdefaults1(IntStridedMockBuffer[int, 1] buf):
+    """
+    >>> A = IntStridedMockBuffer("A", range(10))
+    >>> bufdefaults1(A)
+    acquired A
+    released A
+    >>> A.recieved_flags
+    ['FORMAT', 'ND', 'STRIDES']
+    """
+    pass
+    
 
