@@ -9,6 +9,12 @@ import PyrexTypes
 from sets import Set as set
 import textwrap
 
+# Code cleanup ideas:
+# - One could be more smart about casting in some places
+# - Start using CCodeWriters to generate utility functions
+# - Create a struct type per ndim rather than keeping loose local vars
+
+
 def dedent(text, reindent=0):
     text = textwrap.dedent(text)
     if reindent > 0:
@@ -140,7 +146,7 @@ def put_acquire_arg_buffer(entry, code, pos):
     buffer_aux = entry.buffer_aux
     getbuffer_cname = get_getbuffer_code(entry.type.dtype, code)
     # Acquire any new buffer
-    code.putln(code.error_goto_if("%s(%s, &%s, %s, %d) == -1" % (
+    code.putln(code.error_goto_if("%s((PyObject*)%s, &%s, %s, %d) == -1" % (
         getbuffer_cname,
         entry.cname,
         entry.buffer_aux.buffer_info_var.cname,
@@ -157,7 +163,7 @@ def put_acquire_arg_buffer(entry, code, pos):
 #        entry.buffer_aux.buffer_info_var.cname))
 
 def get_release_buffer_code(entry):
-    return "__Pyx_ReleaseBuffer(%s, &%s)" % (
+    return "__Pyx_ReleaseBuffer((PyObject*)%s, &%s)" % (
         entry.cname,
         entry.buffer_aux.buffer_info_var.cname)
 
@@ -176,12 +182,12 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
     - Old buffer released, new acquired which fails, reaqcuire old lhs buffer
       (which may or may not succeed).
     """
-    
+
     code.globalstate.use_utility_code(acquire_utility_code)
     bufstruct = buffer_aux.buffer_info_var.cname
     flags = get_flags(buffer_aux, buffer_type)
 
-    getbuffer = "%s(%%s, &%s, %s, %d)" % (get_getbuffer_code(buffer_type.dtype, code),
+    getbuffer = "%s((PyObject*)%%s, &%s, %s, %d)" % (get_getbuffer_code(buffer_type.dtype, code),
                                           # note: object is filled in later (%%s)
                                           bufstruct,
                                           flags,
@@ -189,7 +195,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
 
     if is_initialized:
         # Release any existing buffer
-        code.putln('__Pyx_ReleaseBuffer(%s, &%s);' % (
+        code.putln('__Pyx_ReleaseBuffer((PyObject*)%s, &%s);' % (
             lhs_cname, bufstruct))
         # Acquire
         retcode_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type)
@@ -223,7 +229,10 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
         # In this case, auxiliary vars should be set up right in initialization to a zero-buffer,
         # so it suffices to set the buf field to NULL.
         code.putln('if (%s) {' % code.unlikely("%s == -1" % (getbuffer % rhs_cname)))
-        code.putln('%s = Py_None; Py_INCREF(Py_None); %s.buf = NULL;' % (lhs_cname, bufstruct))
+        code.putln('%s = %s; Py_INCREF(Py_None); %s.buf = NULL;' %
+                   (lhs_cname,
+                    PyrexTypes.typecast(buffer_type, PyrexTypes.py_object_type, "Py_None"),
+                    bufstruct))
         code.putln(code.error_goto(pos))
         code.put('} else {')
         # Unpack indices
