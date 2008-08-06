@@ -117,6 +117,7 @@ ERR_BUF_DUP = '"%s" buffer option already supplied'
 ERR_BUF_MISSING = '"%s" missing'
 ERR_BUF_MODE = 'Only allowed buffer modes are "full" or "strided" (as a compile-time string)'
 ERR_BUF_NDIM = 'ndim must be a non-negative integer'
+ERR_BUF_DTYPE = 'dtype must be "object", numeric type or a struct'
 
 def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, need_complete=True):
     """
@@ -159,11 +160,16 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
                 if need_complete:
                     raise CompileError(globalpos, ERR_BUF_MISSING % name)
 
-    ndim = options["ndim"]
-    if not isinstance(ndim, int) or ndim < 0:
+    dtype = options.get("dtype")
+    if dtype and dtype.is_extension_type:
+        raise CompileError(globalpos, ERR_BUF_DTYPE)
+
+    ndim = options.get("ndim")
+    if ndim and (not isinstance(ndim, int) or ndim < 0):
         raise CompileError(globalpos, ERR_BUF_NDIM)
 
-    if not options["mode"] in ('full', 'strided'):
+    mode = options.get("mode")
+    if mode and not (mode in ('full', 'strided')):
         raise CompileError(globalpos, ERR_BUF_MODE)
 
     return options
@@ -307,14 +313,18 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
         code.putln('}')
 
 
-def put_access(entry, index_signeds, index_cnames, options, pos, code):
-    """Returns a c string which can be used to access the buffer
-    for reading or writing.
+def put_buffer_lookup_code(entry, index_signeds, index_cnames, options, pos, code):
+    """
+    Generates code to process indices and calculate an offset into
+    a buffer. Returns a C string which gives a pointer which can be
+    read from or written to at will (it is an expression so caller should
+    store it in a temporary if it is used more than once).
 
     As the bounds checking can have any number of combinations of unsigned
     arguments, smart optimizations etc. we insert it directly in the function
     body. The lookup however is delegated to a inline function that is instantiated
     once per ndim (lookup with suboffsets tend to get quite complicated).
+
     """
     bufaux = entry.buffer_aux
     bufstruct = bufaux.buffer_info_var.cname
@@ -371,12 +381,11 @@ def put_access(entry, index_signeds, index_cnames, options, pos, code):
         funcname = "__Pyx_BufPtrStrided%dd" % nd
         funcgen = buf_lookup_strided_code
         
+    # Make sure the utility code is available
     code.globalstate.use_generated_code(funcgen, name=funcname, nd=nd)
 
     ptrcode = "%s(%s.buf, %s)" % (funcname, bufstruct, ", ".join(params))
-    valuecode = "*%s" % entry.type.buffer_ptr_type.cast_code(ptrcode)
-    return valuecode
-
+    return entry.type.buffer_ptr_type.cast_code(ptrcode)
 
 
 def use_empty_bufstruct_code(env, max_ndim):
@@ -421,11 +430,16 @@ def buf_lookup_full_code(proto, defin, name, nd):
 def mangle_dtype_name(dtype):
     # Use prefixes to seperate user defined types from builtins
     # (consider "typedef float unsigned_int")
-    if dtype.typestring is None:
-        prefix = "nn_"
+    if dtype.is_pyobject:
+        return "object"
+    elif dtype.is_ptr:
+        return "ptr"
     else:
-        prefix = ""
-    return prefix + dtype.declaration_code("").replace(" ", "_")
+        if dtype.typestring is None:
+            prefix = "nn_"
+        else:
+            prefix = ""
+        return prefix + dtype.declaration_code("").replace(" ", "_")
 
 def get_ts_check_item(dtype, writer):
     # See if we can consume one (unnamed) dtype as next item

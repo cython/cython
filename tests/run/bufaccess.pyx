@@ -14,6 +14,7 @@ cimport python_buffer
 cimport stdio
 cimport cython
 
+cimport refcount
 
 __test__ = {}
 setup_string = """
@@ -708,6 +709,62 @@ def printbuf_cytypedef2(object[cytypedef2] buf, shape):
         print buf[i],
     print
 
+#
+# Object access
+#
+from python_ref cimport Py_INCREF, Py_DECREF
+def addref(*args):
+    for item in args: Py_INCREF(item)
+def decref(*args):
+    for item in args: Py_DECREF(item)
+
+def get_refcount(x):
+    return refcount.CyTest_GetRefcount(x)
+
+@testcase
+def printbuf_object(object[object] buf, shape):
+    """
+    Only play with unique objects, interned numbers etc. will have
+    unpredictable refcounts.
+
+    ObjectMockBuffer doesn't do anything about increfing/decrefing,
+    we to the "buffer implementor" refcounting directly in the
+    testcase.
+
+    >>> a, b, c = "globally_unique_string_23234123", {4:23}, [34,3]
+    >>> get_refcount(a), get_refcount(b), get_refcount(c)
+    (2, 2, 2)
+    >>> A = ObjectMockBuffer(None, [a, b, c])
+    >>> printbuf_object(A, (3,))
+    'globally_unique_string_23234123' 2
+    {4: 23} 2
+    [34, 3] 2
+    """
+    cdef int i
+    for i in range(shape[0]):
+        print repr(buf[i]), refcount.CyTest_GetRefcount(buf[i])
+
+@testcase
+def assign_to_object(object[object] buf, int idx, obj):
+    """
+    See comments on printbuf_object above.
+
+    >>> a, b = [1, 2, 3], [4, 5, 6]
+    >>> get_refcount(a), get_refcount(b)
+    (2, 2)
+    >>> addref(a)
+    >>> A = ObjectMockBuffer(None, [1, a]) # 1, ...,otherwise it thinks nested lists...    
+    >>> get_refcount(a), get_refcount(b)
+    (3, 2)
+    >>> assign_to_object(A, 1, b)
+    >>> get_refcount(a), get_refcount(b)
+    (2, 3)
+    >>> decref(b)
+    """
+    buf[idx] = obj
+    
+
+
 
 #
 # Testcase support code (more tests below!, because of scope rules)
@@ -735,6 +792,8 @@ cdef class MockBuffer:
     cdef public object fail
     
     def __init__(self, label, data, shape=None, strides=None, format=None, offset=0):
+        # It is important not to store references to data after the constructor
+        # as refcounting is checked on object buffers.
         self.label = label
         self.release_ok = True
         self.log = ""
@@ -893,6 +952,18 @@ cdef class UnsignedShortMockBuffer(MockBuffer):
         return 0
     cdef get_itemsize(self): return sizeof(unsigned short)
     cdef get_default_format(self): return "=H"
+
+cdef extern from *:
+    void* addr_of_pyobject "(void*)"(object)
+
+cdef class ObjectMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<void**>buf)[0] = addr_of_pyobject(value)
+        return 0
+
+    cdef get_itemsize(self): return sizeof(void*)
+    cdef get_default_format(self): return "=O"
+        
 
 cdef class IntStridedMockBuffer(IntMockBuffer):
     cdef __cythonbufferdefaults__ = {"mode" : "strided"}

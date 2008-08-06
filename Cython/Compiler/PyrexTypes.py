@@ -231,6 +231,7 @@ class PyObjectType(PyrexType):
     parsetuple_format = "O"
     pymemberdef_typecode = "T_OBJECT"
     buffer_defaults = None
+    typestring = "O"
     
     def __str__(self):
         return "Python object"
