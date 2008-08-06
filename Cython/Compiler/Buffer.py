@@ -157,8 +157,7 @@ def put_acquire_arg_buffer(entry, code, pos):
 #        entry.buffer_aux.buffer_info_var.cname))
 
 def get_release_buffer_code(entry):
-    return "if (%s != Py_None) __Pyx_ReleaseBuffer(%s, &%s)" % (
-        entry.cname,
+    return "__Pyx_ReleaseBuffer(%s, &%s)" % (
         entry.cname,
         entry.buffer_aux.buffer_info_var.cname)
 
@@ -190,11 +189,8 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
 
     if is_initialized:
         # Release any existing buffer
-        code.put('if (%s != Py_None) ' % lhs_cname)
-        code.begin_block();
         code.putln('__Pyx_ReleaseBuffer(%s, &%s);' % (
             lhs_cname, bufstruct))
-        code.end_block()
         # Acquire
         retcode_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type)
         code.putln("%s = %s;" % (retcode_cname, getbuffer % rhs_cname))
@@ -558,6 +554,7 @@ static INLINE const char* __Pyx_BufferTypestringCheckEndian(const char* ts); /*p
 static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim); /*proto*/
 """, """
 static INLINE void __Pyx_ReleaseBuffer(PyObject* obj, Py_buffer* info) {
+  if (info->buf == NULL) return;
   if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
   PyObject_ReleaseBuffer(obj, info);
 }
