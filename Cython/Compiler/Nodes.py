@@ -894,8 +894,6 @@ class FuncDefNode(StatNode, BlockNode):
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject and lenv.control_flow.get_state((entry.name, 'source')) != 'arg':
                 code.put_var_incref(entry)
-            if entry.type.is_buffer:
-                Buffer.put_acquire_arg_buffer(entry, code, self.pos)
         # ----- Initialise local variables 
         for entry in lenv.var_entries:
             if entry.type.is_pyobject and entry.init_to_none and entry.used:
@@ -904,6 +902,10 @@ class FuncDefNode(StatNode, BlockNode):
                 code.putln("%s.buf = NULL;" % entry.buffer_aux.buffer_info_var.cname)
         # ----- Check and convert arguments
         self.generate_argument_type_tests(code)
+        # ----- Acquire buffer arguments
+        for entry in lenv.arg_entries:
+            if entry.type.is_buffer:
+                Buffer.put_acquire_arg_buffer(entry, code, self.pos)        
         # ----- Function body
         self.body.generate_execution_code(code)
         # ----- Default return value
