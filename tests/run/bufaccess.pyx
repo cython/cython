@@ -944,14 +944,14 @@ cdef class ShortMockBuffer(MockBuffer):
         (<short*>buf)[0] = <short>value
         return 0
     cdef get_itemsize(self): return sizeof(short)
-    cdef get_default_format(self): return "=h"
+    cdef get_default_format(self): return "h" # Try without endian specifier
 
 cdef class UnsignedShortMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         (<unsigned short*>buf)[0] = <unsigned short>value
         return 0
     cdef get_itemsize(self): return sizeof(unsigned short)
-    cdef get_default_format(self): return "=H"
+    cdef get_default_format(self): return "=1H" # Try with repeat count
 
 cdef extern from *:
     void* addr_of_pyobject "(void*)"(object)
