@@ -900,6 +900,8 @@ class FuncDefNode(StatNode, BlockNode):
         for entry in lenv.var_entries:
             if entry.type.is_pyobject and entry.init_to_none and entry.used:
                 code.put_init_var_to_py_none(entry)
+            if entry.type.is_buffer and entry.buffer_aux.buffer_info_var.used:
+                code.putln("%s.buf = NULL;" % entry.buffer_aux.buffer_info_var.cname)
         # ----- Check and convert arguments
         self.generate_argument_type_tests(code)
         # ----- Function body
@@ -2047,8 +2049,11 @@ class CClassDefNode(ClassDefNode):
     #  body               StatNode or None
     #  entry              Symtab.Entry
     #  base_type          PyExtensionType or None
+    #  bufferdefaults     dict or None      Declares defaults for a buffer
+
     
     child_attrs = ["body"]
+    bufferdefaults = None
 
     def analyse_declarations(self, env):
         #print "CClassDefNode.analyse_declarations:", self.class_name
