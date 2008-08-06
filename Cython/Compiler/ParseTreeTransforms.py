@@ -77,15 +77,10 @@ class NormalizeTree(CythonTransform):
 class PostParseError(CompileError): pass
 
 # error strings checked by unit tests, so define them
-ERR_BUF_OPTION_UNKNOWN = '"%s" is not a buffer option'
-ERR_BUF_TOO_MANY = 'Too many buffer options'
-ERR_BUF_DUP = '"%s" buffer option already supplied'
-ERR_BUF_MISSING = '"%s" missing'
-ERR_BUF_INT = '"%s" must be an integer'
-ERR_BUF_NONNEG = '"%s" must be non-negative'
 ERR_CDEF_INCLASS = 'Cannot assign default value to cdef class attributes'
 ERR_BUF_LOCALONLY = 'Buffer types only allowed as function local variables'
-ERR_BUF_MODEHELP = 'Only allowed buffer modes are "full" or "strided" (as a compile-time string)'
+ERR_BUF_DEFAULTS = 'Invalid buffer defaults specification (see docs)'
+ERR_INVALID_SPECIALATTR_TYPE = 'Special attributes must not have a type declared'
 class PostParse(CythonTransform):
     """
     Basic interpretation of the parse tree, as well as validity
@@ -97,10 +92,24 @@ class PostParse(CythonTransform):
     - Default values to cdef assignments are turned into single
     assignments following the declaration (everywhere but in class
     bodies, where they raise a compile error)
-    - CBufferAccessTypeNode has its options interpreted:
+    
+    - Interpret some node structures into Python runtime values.
+    Some nodes take compile-time arguments (currently:
+    CBufferAccessTypeNode[args] and __cythonbufferdefaults__ = {args}),
+    which should be interpreted. This happens in a general way
+    and other steps should be taken to ensure validity.
+
+    Type arguments cannot be interpreted in this way.
+
+    - For __cythonbufferdefaults__ the arguments are checked for
+    validity.
+
+    CBufferAccessTypeNode has its options interpreted:
     Any first positional argument goes into the "dtype" attribute,
     any "ndim" keyword argument goes into the "ndim" attribute and
     so on. Also it is checked that the option combination is valid.
+    - __cythonbufferdefaults__ attributes are parsed and put into the
+    type information.
 
     Note: Currently Parsing.py does a lot of interpretation and
     reorganization that can be refactored into this transform
@@ -110,6 +119,12 @@ class PostParse(CythonTransform):
     # Track our context.
     scope_type = None # can be either of 'module', 'function', 'class'
 
+    def __init__(self, context):
+        super(PostParse, self).__init__(context)
+        self.specialattribute_handlers = {
+            '__cythonbufferdefaults__' : self.handle_bufferdefaults
+        }
+
     def visit_ModuleNode(self, node):
         self.scope_type = 'module'
         self.visitchildren(node)
@@ -118,8 +133,10 @@ class PostParse(CythonTransform):
     def visit_ClassDefNode(self, node):
         prev = self.scope_type
         self.scope_type = 'class'
+        self.classnode = node
         self.visitchildren(node)
         self.scope_type = prev
+        del self.classnode
         return node
 
     def visit_FuncDefNode(self, node):
@@ -130,6 +147,12 @@ class PostParse(CythonTransform):
         return node
 
     # cdef variables
+    def handle_bufferdefaults(self, decl):
+        if not isinstance(decl.default, DictNode):
+            raise PostParseError(decl.pos, ERR_BUF_DEFAULTS)
+        self.classnode.buffer_defaults_node = decl.default
+        self.classnode.buffer_defaults_pos = decl.pos
+
     def visit_CVarDefNode(self, node):
         # This assumes only plain names and pointers are assignable on
         # declaration. Also, it makes use of the fact that a cdef decl
@@ -137,81 +160,39 @@ class PostParse(CythonTransform):
         # "i = 3; cdef int i = i" and can simply move the nodes around.
         try:
             self.visitchildren(node)
+            stats = [node]
+            newdecls = []
+            for decl in node.declarators:
+                declbase = decl
+                while isinstance(declbase, CPtrDeclaratorNode):
+                    declbase = declbase.base
+                if isinstance(declbase, CNameDeclaratorNode):
+                    if declbase.default is not None:
+                        if self.scope_type == 'class':
+                            if isinstance(self.classnode, CClassDefNode):
+                                handler = self.specialattribute_handlers.get(decl.name)
+                                if handler:
+                                    if decl is not declbase:
+                                        raise PostParseError(decl.pos, ERR_INVALID_SPECIALATTR_TYPE)
+                                    handler(decl)
+                                    continue # Remove declaration
+                            raise PostParseError(decl.pos, ERR_CDEF_INCLASS)
+                        stats.append(SingleAssignmentNode(node.pos,
+                            lhs=NameNode(node.pos, name=declbase.name),
+                            rhs=declbase.default, first=True))
+                        declbase.default = None
+                newdecls.append(decl)
+            node.declarators = newdecls
+            return stats
         except PostParseError, e:
             # An error in a cdef clause is ok, simply remove the declaration
             # and try to move on to report more errors
             self.context.nonfatal_error(e)
             return None
-        stats = [node]
-        for decl in node.declarators:
-            while isinstance(decl, CPtrDeclaratorNode):
-                decl = decl.base
-            if isinstance(decl, CNameDeclaratorNode):
-                if decl.default is not None:
-                    if self.scope_type == 'class':
-                        raise PostParseError(decl.pos, ERR_CDEF_INCLASS)
-                    stats.append(SingleAssignmentNode(node.pos,
-                        lhs=NameNode(node.pos, name=decl.name),
-                        rhs=decl.default, first=True))
-                    decl.default = None
-        return stats
 
-    # buffer access
-    buffer_options = ("dtype", "ndim", "mode") # ordered!
     def visit_CBufferAccessTypeNode(self, node):
         if not self.scope_type == 'function':
             raise PostParseError(node.pos, ERR_BUF_LOCALONLY)
-        
-        options = {}
-        # Fetch positional arguments
-        if len(node.positional_args) > len(self.buffer_options):
-            raise PostParseError(node.pos, ERR_BUF_TOO_MANY)
-        for arg, unicode_name in zip(node.positional_args, self.buffer_options):
-            name = str(unicode_name)
-            options[name] = arg
-        # Fetch named arguments
-        for item in node.keyword_args.key_value_pairs:
-            name = str(item.key.value)
-            if not name in self.buffer_options:
-                raise PostParseError(item.key.pos, ERR_BUF_OPTION_UNKNOWN % name)
-            if name in options.keys():
-                raise PostParseError(item.key.pos, ERR_BUF_DUP % key)
-            options[name] = item.value
-
-        # get dtype
-        dtype = options.get("dtype")
-        if dtype is None:
-            raise PostParseError(node.pos, ERR_BUF_MISSING % 'dtype')
-        node.dtype_node = dtype
-
-        # get ndim
-        if "ndim" in options:
-            ndimnode = options["ndim"]
-            if not isinstance(ndimnode, IntNode):
-                # Compile-time values (DEF) are currently resolved by the parser,
-                # so nothing more to do here
-                raise PostParseError(ndimnode.pos, ERR_BUF_INT % 'ndim')
-            ndim_value = int(ndimnode.value)
-            if ndim_value < 0:
-                raise PostParseError(ndimnode.pos, ERR_BUF_NONNEG % 'ndim')
-            node.ndim = int(ndimnode.value)
-        else:
-            node.ndim = 1
-
-        if "mode" in options:
-            modenode = options["mode"]
-            if not isinstance(modenode, StringNode):
-                raise PostParseError(modenode.pos, ERR_BUF_MODEHELP)
-            mode = modenode.value
-            if not mode in ('full', 'strided'):
-                raise PostParseError(modenode.pos, ERR_BUF_MODEHELP)
-            node.mode = mode
-        else:
-            node.mode = 'full'
-       
-        # We're done with the parse tree args
-        node.positional_args = None
-        node.keyword_args = None
         return node
 
 class PxdPostParse(CythonTransform):

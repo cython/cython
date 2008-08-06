@@ -946,7 +946,8 @@ class ModuleScope(Scope):
 
     def declare_c_class(self, name, pos, defining = 0, implementing = 0,
         module_name = None, base_type = None, objstruct_cname = None,
-        typeobj_cname = None, visibility = 'private', typedef_flag = 0, api = 0):
+        typeobj_cname = None, visibility = 'private', typedef_flag = 0, api = 0,
+        buffer_defaults = None):
         #
         #  Look for previous declaration as a type
         #
@@ -970,6 +971,7 @@ class ModuleScope(Scope):
         if not entry:
             type = PyrexTypes.PyExtensionType(name, typedef_flag, base_type)
             type.pos = pos
+            type.buffer_defaults = buffer_defaults
             if visibility == 'extern':
                 type.module_name = module_name
             else:

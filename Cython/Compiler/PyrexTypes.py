@@ -224,11 +224,13 @@ class PyObjectType(PyrexType):
     #
     #  Base class for all Python object types (reference-counted).
     #
+    #  buffer_defaults  dict or None     Default options for bu
     
     is_pyobject = 1
     default_value = "0"
     parsetuple_format = "O"
     pymemberdef_typecode = "T_OBJECT"
+    buffer_defaults = None
     
     def __str__(self):
         return "Python object"
@@ -271,6 +273,7 @@ class BuiltinObjectType(PyObjectType):
         return "<%s>"% self.cname
         
     def assignable_from(self, src_type):
+
         if isinstance(src_type, BuiltinObjectType):
             return src_type.name == self.name
         else:

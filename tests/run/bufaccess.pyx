@@ -894,7 +894,7 @@ cdef class UnsignedShortMockBuffer(MockBuffer):
     cdef get_itemsize(self): return sizeof(unsigned short)
     cdef get_default_format(self): return "=H"
 
-cdef class IntStridedMockBuffer(MockBuffer):
+cdef class IntStridedMockBuffer(IntMockBuffer):
     cdef __cythonbufferdefaults__ = {"mode" : "strided"}
             
 cdef class ErrorBuffer:
@@ -946,6 +946,10 @@ def typedbuffer2(IntMockBuffer[int, 1] obj):
 @testcase
 def bufdefaults1(IntStridedMockBuffer[int, 1] buf):
     """
+    For IntStridedMockBuffer, mode should be
+    "strided" by defaults which should show
+    up in the flags.
+    
     >>> A = IntStridedMockBuffer("A", range(10))
     >>> bufdefaults1(A)
     acquired A
