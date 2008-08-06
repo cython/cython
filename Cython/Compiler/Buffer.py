@@ -450,6 +450,7 @@ def get_ts_check_item(dtype, writer):
         if char is not None:
                 # Can use direct comparison
             code = dedent("""\
+                if (*ts == '1') ++ts;
                 if (*ts != '%s') {
                   PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (rejecting on '%%s')", ts);
                   return NULL;
@@ -461,6 +462,7 @@ def get_ts_check_item(dtype, writer):
             ctype = dtype.declaration_code("")
             code = dedent("""\
                 int ok;
+                if (*ts == '1') ++ts;
                 switch (*ts) {""", 2)
             if dtype.is_int:
                 types = [
