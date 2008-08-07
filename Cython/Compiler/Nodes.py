@@ -944,6 +944,8 @@ class FuncDefNode(StatNode, BlockNode):
             if err_val is not None or exc_check:
                 code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
             else:
+                warning(self.entry.pos, "Unraisable exception in function '%s'." \
+                            % self.entry.qualified_name, 0)
                 code.putln(
                     '__Pyx_WriteUnraisable("%s");' % 
                         self.entry.qualified_name)
