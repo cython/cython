@@ -1,18 +1,22 @@
 __doc__ = u"""
->>> test_c(u'abc')
+>>> test_c('abc')
 fileabc
 typeabc
->>> print test_file_py(u'abc')
+>>> print test_file_py('abc')
 abc
->>> print range(u'abc')
+>>> print range('abc')
 rangeabc
 """
 
 
 def test_file_py(file):
+    assert isinstance(file, str), \
+        "not a string, found '%s' instead" % file.__class__.__name__
     return file
 
 cdef test_file_c(file):
+    assert isinstance(file, str), \
+        "not a string, found '%s' instead" % file.__class__.__name__
     return u'file' + file
 
 
