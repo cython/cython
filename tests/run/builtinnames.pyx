@@ -10,12 +10,12 @@ rangeabc
 
 
 def test_file_py(file):
-    assert isinstance(file, str), \
+    assert isinstance(file, (str, unicode)), \
         u"not a string, found '%s' instead" % file.__class__.__name__
     return file
 
 cdef test_file_c(file):
-    assert isinstance(file, str), \
+    assert isinstance(file, (str, unicode)), \
         u"not a string, found '%s' instead" % file.__class__.__name__
     return u'file' + file
 
