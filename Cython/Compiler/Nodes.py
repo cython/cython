@@ -771,7 +771,7 @@ class CEnumDefItemNode(StatNode):
         else:
             value = self.name
         entry = env.declare_const(self.name, enum_entry.type, 
-            value, self.pos, cname = self.cname)
+            value, self.pos, cname = self.cname, visibility = enum_entry.visibility)
         enum_entry.enum_values.append(entry)
 
 

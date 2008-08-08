@@ -22,7 +22,7 @@ class SwitchTransform(Visitor.VisitorTransform):
     """
     This transformation tries to turn long if statements into C switch statements. 
     The requirement is that every clause be an (or of) var == value, where the var
-    is common among all clauses and both var and value are not Python objects. 
+    is common among all clauses and both var and value are ints. 
     """
     def extract_conditions(self, cond):
     
@@ -65,6 +65,8 @@ class SwitchTransform(Visitor.VisitorTransform):
             if var is None:
                 return node
             elif common_var is not None and not is_common_value(var, common_var):
+                return node
+            elif not var.type.is_int or sum([not cond.type.is_int for cond in conditions]):
                 return node
             else:
                 common_var = var
