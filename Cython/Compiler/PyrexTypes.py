@@ -287,6 +287,13 @@ class BuiltinObjectType(PyObjectType):
     def type_test_code(self, arg):
         return 'likely(Py%s_CheckExact(%s)) || (%s) == Py_None || (PyErr_Format(PyExc_TypeError, "Expected %s, got %%s", Py_TYPE(%s)->tp_name), 0)' % (self.name[0].upper() + self.name[1:], arg, arg, self.name, arg)
 
+    def declaration_code(self, entity_code, 
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        if pyrex or for_display:
+            return self.base_declaration_code(self.name, entity_code)
+        else:
+            return "%s *%s" % (public_decl("PyObject", dll_linkage), entity_code)
+
 
 class PyExtensionType(PyObjectType):
     #
