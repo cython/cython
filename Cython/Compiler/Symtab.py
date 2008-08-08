@@ -286,14 +286,14 @@ class Scope:
     def qualify_name(self, name):
         return "%s.%s" % (self.qualified_name, name)
     
-    def declare_const(self, name, type, value, pos, cname = None):
+    def declare_const(self, name, type, value, pos, cname = None, visibility = 'private'):
         # Add an entry for a named constant.
         if not cname:
             if self.in_cinclude:
                 cname = name
             else:
                 cname = self.mangle(Naming.enum_prefix, name)
-        entry = self.declare(name, cname, type, pos, 'private')
+        entry = self.declare(name, cname, type, pos, visibility)
         entry.is_const = 1
         entry.value = value
         return entry
