@@ -4448,9 +4448,9 @@ static void __Pyx_AddTraceback(const char *funcname) {
     if (!py_srcfile) goto bad;
     if (%(CLINENO)s) {
         #if PY_MAJOR_VERSION < 3
-        py_funcname = PyString_FromFormat( "%%s (%%s:%%u)", funcname, %(CFILENAME)s, %(CLINENO)s);
+        py_funcname = PyString_FromFormat( "%%s (%%s:%%d)", funcname, %(CFILENAME)s, %(CLINENO)s);
         #else
-        py_funcname = PyUnicode_FromFormat( "%%s (%%s:%%u)", funcname, %(CFILENAME)s, %(CLINENO)s);
+        py_funcname = PyUnicode_FromFormat( "%%s (%%s:%%d)", funcname, %(CFILENAME)s, %(CLINENO)s);
         #endif
     }
     else {
