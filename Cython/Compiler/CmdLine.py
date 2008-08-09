@@ -35,7 +35,7 @@ Options:
                                  are searched from)
 
   -D, --no-docstrings            Remove docstrings.
-  -a, --annotate                 Produce an colorized version of the source.
+  -a, --annotate                 Produce a colorized HTML version of the source.
   --convert-range                Convert for loops using range() function to for...from loops. 
   --cplus                        Output a c++ rather than c file.
 """
