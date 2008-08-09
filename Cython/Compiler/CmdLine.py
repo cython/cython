@@ -21,6 +21,7 @@ Options:
   -t, --timestamps               Only compile newer source files (implied with -r)
   -f, --force                    Compile all source files (overrides implied -t)
   -q, --quiet                    Don't print module names in recursive mode
+  -v, --verbose                  Be verbose, print file names on multiple compilation
   -p, --embed-positions          If specified, the positions in Cython files of each
                                  function definition is embedded in its docstring.
   -z, --pre-import <module>      If specified, assume undeclared names in this 
