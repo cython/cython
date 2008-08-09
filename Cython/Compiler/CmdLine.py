@@ -12,7 +12,7 @@ Cython language.  Cython is based on Pyrex by Greg Ewing.
 Usage: cython [options] sourcefile.pyx ...
 
 Options:
-  -v, --version                  Display version number of cython compiler
+  -V, --version                  Display version number of cython compiler
   -l, --create-listing           Write error messages to a listing file
   -I, --include-dir <directory>  Search for include files in named directory
                                  (multiply include directories are allowed).
@@ -96,7 +96,7 @@ def parse_command_line(args):
     while args:
         if args[0].startswith("-"):
             option = pop_arg()
-            if option in ("-v", "--version"):
+            if option in ("-V", "--version"):
                 options.show_version = 1
             elif option in ("-l", "--create-listing"):
                 options.use_listing_file = 1
@@ -121,6 +121,8 @@ def parse_command_line(args):
                 options.timestamps = 1
             elif option in ("-f", "--force"):
                 options.timestamps = 0
+            elif option in ("-v", "--verbose"):
+                options.verbose += 1
             elif option in ("-p", "--embed-positions"):
                 Options.embed_pos_in_docstring = 1
             elif option in ("-z", "--pre-import"):
