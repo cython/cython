@@ -255,11 +255,18 @@ class CCodeWriter(object):
         self.last_marker_line = self.marker[0]
         self.marker = None
 
+    def put_safe(self, code):
+        # put code, but ignore {}
+        self.write(code)
+        self.bol = 0
+
     def put(self, code):
+        fix_indent = False
         dl = code.count("{") - code.count("}")
         if dl < 0:
             self.level += dl
         elif dl == 0 and code.startswith('}'):
+            fix_indent = True
             self.level -= 1
         if self.bol:
             self.indent()
@@ -267,7 +274,7 @@ class CCodeWriter(object):
         self.bol = 0
         if dl > 0:
             self.level += dl
-        elif dl == 0 and code.startswith('}'):
+        elif fix_indent:
             self.level += 1
 
     def increase_indent(self):
@@ -361,7 +368,7 @@ class CCodeWriter(object):
         self.put(entry.type.declaration_code(entry.cname,
             dll_linkage = dll_linkage))
         if entry.init is not None:
-            self.put(" = %s" % entry.type.literal_code(entry.init))
+            self.put_safe(" = %s" % entry.type.literal_code(entry.init))
         self.putln(";")
 
     def put_temp_declarations(self, func_context):
