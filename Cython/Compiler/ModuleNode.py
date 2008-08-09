@@ -417,6 +417,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define Py_SIZE(ob)   ((PyVarObject*)(ob))->ob_size)")
         code.putln("  #define PyVarObject_HEAD_INIT(type, size) \\")
         code.putln("          PyObject_HEAD_INIT(type) size,")
+        code.putln("  #define PyType_Modified(t)")
         code.putln("")
         code.putln("  typedef struct {")
         code.putln("     void *buf;")
