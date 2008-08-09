@@ -870,8 +870,6 @@ class NameNode(AtomicExprNode):
         env.control_flow.set_state(self.pos, (self.name, 'source'), 'assignment')
         if self.entry.is_declared_generic:
             self.result_ctype = py_object_type
-        if self.entry.is_pyglobal and self.entry.is_member:
-            env.use_utility_code(type_cache_invalidation_code)
     
     def analyse_types(self, env):
         if self.entry is None:
@@ -1025,7 +1023,7 @@ class NameNode(AtomicExprNode):
                         self.interned_cname,
                         rhs.py_result()))
                 # in Py2.6+, we need to invalidate the method cache
-                code.putln("__Pyx_TypeModified(%s);" %
+                code.putln("PyType_Modified(%s);" %
                            entry.scope.parent_type.typeptr_cname)
             else: 
                 code.put_error_if_neg(self.pos,
@@ -4406,43 +4404,6 @@ static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     }
 }
 """,""
-]
-
-#------------------------------------------------------------------------------------
-
-type_cache_invalidation_code = [
-"""
-#if PY_VERSION_HEX >= 0x02060000
-/* #define __Pyx_TypeModified(t) PyType_Modified(t) */  /* Py3.0beta1 */
-static void __Pyx_TypeModified(PyTypeObject* type); /*proto*/
-#else
-  #define __Pyx_TypeModified(t)
-#endif
-""","""
-#if PY_VERSION_HEX >= 0x02060000
-/* copied from typeobject.c in Python 3.0a5 */
-static void __Pyx_TypeModified(PyTypeObject* type) {
-    PyObject *raw, *ref;
-    Py_ssize_t i, n;
-
-    if (!PyType_HasFeature(type, Py_TPFLAGS_VALID_VERSION_TAG))
-        return;
-
-    raw = type->tp_subclasses;
-    if (raw != NULL) {
-        n = PyList_GET_SIZE(raw);
-        for (i = 0; i < n; i++) {
-            ref = PyList_GET_ITEM(raw, i);
-            ref = PyWeakref_GET_OBJECT(ref);
-            if (ref != Py_None) {
-                __Pyx_TypeModified((PyTypeObject *)ref);
-            }
-        }
-    }
-    type->tp_flags &= ~Py_TPFLAGS_VALID_VERSION_TAG;
-}
-#endif
-"""
 ]
 
 #------------------------------------------------------------------------------------
