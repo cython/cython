@@ -100,7 +100,7 @@ class EncodedString(unicode):
 #            getattr(other, 'encoding', '') == self.encoding
 
 def escape_byte_string(s):
-    s = s.replace('\0', r'\x00')
+    s = s.replace('\0', r'\000').replace('\x0A', r'\012').replace('\x0C', r'\014')
     try:
         s.decode("ASCII")
         return s
@@ -111,7 +111,7 @@ def escape_byte_string(s):
     for c in s:
         o = ord(c)
         if o >= 128:
-            append('\\x%X' % o)
+            append('\\%3o' % o)
         else:
             append(c)
     return ''.join(l)
