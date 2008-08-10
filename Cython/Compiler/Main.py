@@ -70,7 +70,9 @@ class Context:
         scope = None
         pxd_pathname = None
         if not module_name_pattern.match(module_name):
-            raise CompileError((path, 0, 0),
+            if pos is None:
+                pos = (module_name, 0, 0)
+            raise CompileError(pos,
                 "'%s' is not a valid module name" % module_name)
         if "." not in module_name and relative_to:
             if debug_find_module:
