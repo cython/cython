@@ -373,6 +373,9 @@ if __name__ == '__main__':
     parser.add_option("--no-pyregr", dest="pyregr",
                       action="store_false", default=True,
                       help="do not run the regression tests of CPython in tests/pyregr/")
+    parser.add_option("--sys-pyregr", dest="system_pyregr",
+                      action="store_true", default=False,
+                      help="run the regression tests of the CPython installation")
     parser.add_option("-C", "--coverage", dest="coverage",
                       action="store_true", default=False,
                       help="collect source coverage data for the Compiler")
@@ -443,7 +446,16 @@ if __name__ == '__main__':
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors,
                                 options.annotate_source, options.cleanup_workdir,
                                 options.cleanup_sharedlibs, options.pyregr)
-        test_suite.addTests([filetests.build_suite()])
+        test_suite.addTest(filetests.build_suite())
+
+    if options.system_pyregr:
+        filetests = TestBuilder(ROOTDIR, WORKDIR, selectors,
+                                options.annotate_source, options.cleanup_workdir,
+                                options.cleanup_sharedlibs, True)
+        test_suite.addTest(
+            filetests.handle_directory(
+                os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test'),
+                'pyregr'))
 
     unittest.TextTestRunner(verbosity=options.verbosity).run(test_suite)
 
