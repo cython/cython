@@ -259,6 +259,7 @@ class CythonRunTestCase(CythonCompileTestCase):
         result.startTest(self)
         try:
             self.runCompileTest()
+            print('running doctests in %s ...' % self.module)
             doctest.DocTestSuite(self.module).run(result)
         except Exception:
             result.addError(self, sys.exc_info())
@@ -270,7 +271,7 @@ class CythonRunTestCase(CythonCompileTestCase):
 
 class CythonUnitTestCase(CythonCompileTestCase):
     def shortDescription(self):
-        return "compiling and running unit tests in " + self.module
+        return "compiling tests in " + self.module
 
     def run(self, result=None):
         if result is None:
@@ -278,6 +279,7 @@ class CythonUnitTestCase(CythonCompileTestCase):
         result.startTest(self)
         try:
             self.runCompileTest()
+            print('running tests in %s ...' % self.module)
             unittest.defaultTestLoader.loadTestsFromName(self.module).run(result)
         except Exception:
             result.addError(self, sys.exc_info())
