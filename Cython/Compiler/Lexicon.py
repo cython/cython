@@ -64,7 +64,8 @@ def make_lexicon():
     two_hex = hexdigit + hexdigit
     four_hex = two_hex + two_hex
     escapeseq = Str("\\") + (two_oct | three_oct | two_hex |
-                             Str('u') + four_hex | Str('x') + two_hex | AnyChar)
+                             Str('u') + four_hex | Str('x') + two_hex |
+                             Str('U') + four_hex + four_hex | AnyChar)
     
     deco = Str("@")
     bra = Any("([{")

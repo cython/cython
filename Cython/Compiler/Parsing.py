@@ -2,7 +2,9 @@
 #   Pyrex Parser
 #
 
-import os, re
+import os
+import re
+import sys
 from types import ListType, TupleType
 from Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
@@ -604,18 +606,17 @@ def p_string_literal(s):
                     chars.append(systr)
                 elif c == '\n':
                     pass
-                elif c in 'ux':
-                    if kind == 'u':
-                        try:
-                            chars.append(
-                                systr.encode("ASCII").decode('unicode_escape'))
-                        except UnicodeDecodeError:
+                elif c in 'Uux':
+                    if kind == 'u' or c == 'x':
+                        chrval = int(systr[2:], 16)
+                        if chrval > sys.maxunicode:
                             s.error("Invalid unicode escape '%s'" % systr,
                                     pos = pos)
-                    elif c == 'x':
-                        chars.append('\\x0' + systr[2:])
+                        strval = unichr(chrval)
                     else:
-                        chars.append(systr)
+                        # unicode escapes in plain byte strings are not unescaped
+                        strval = systr
+                    chars.append(strval.replace('\\', '\\\\'))
                 else:
                     chars.append(r'\\' + systr[1:])
         elif sy == 'NEWLINE':
