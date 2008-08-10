@@ -47,34 +47,21 @@ EXAMPLE:
 >>> b = a.insertion_point()
 >>> a.write('third\n')
 >>> b.write('second\n')
->>> print a.getvalue()
-first
-second
-third
-<BLANKLINE>
+>>> a.getvalue().split()
+['first', 'second', 'third']
 
 >>> c = b.insertion_point()
 >>> d = c.insertion_point()
 >>> d.write('alpha\n')
 >>> b.write('gamma\n')
 >>> c.write('beta\n')
->>> print b.getvalue()
-second
-alpha
-beta
-gamma
-<BLANKLINE>
+>>> b.getvalue().split()
+['second', 'alpha', 'beta', 'gamma']
 
 >>> out = StringIO()
 >>> a.copyto(out)
->>> print out.getvalue()
-first
-second
-alpha
-beta
-gamma
-third
-<BLANKLINE>
+>>> out.getvalue().split()
+['first', 'second', 'alpha', 'beta', 'gamma', 'third']
 """
             
 if __name__ == "__main__":
