@@ -1,10 +1,10 @@
 __doc__ = u"""
 
 >>> py_strings = [
-... '\\x1234',
-... '\\x0A12\\x0C34',
-... '\\x0A57',
-... 'abc\\x12def',
+... b'\\x1234',
+... b'\\x0A12\\x0C34',
+... b'\\x0A57',
+... b'abc\\x12def',
 ... u'\\u1234',
 ... u'\\U00041234',
 ... b'\\u1234',
@@ -18,15 +18,15 @@ __doc__ = u"""
 
 import sys
 if sys.version_info[0] < 3:
-    __doc__ = __doc__.replace(" b'", " '")
+    __doc__ = __doc__.replace(u" b'", u" '")
 else:
-    __doc__ = __doc__.replace(" u'", " '")
+    __doc__ = __doc__.replace(u" u'", u" '")
 
 c_strings = [
-'\x1234',
-'\x0A12\x0C34',
-'\x0A57',
-'abc\x12def',
+b'\x1234',
+b'\x0A12\x0C34',
+b'\x0A57',
+b'abc\x12def',
 u'\u1234',
 u'\U00041234',
 b'\u1234',
