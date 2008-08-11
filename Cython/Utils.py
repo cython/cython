@@ -99,8 +99,26 @@ class EncodedString(unicode):
 #        return unicode.__eq__(self, other) and \
 #            getattr(other, 'encoding', '') == self.encoding
 
+def _to_oct_sequence(s):
+    return ''.join(['\\%03o' % ord(c) for c in s])
+
+_c_special = ('\0', '??', '<:', ':>', '<%', '%>', '%:', '%:')
+_c_special_replacements = zip(_c_special, map(_to_oct_sequence, _c_special))
+
+def _build_special_test():
+    subexps = []
+    for special in _c_special + ('\n','\r','\t'):
+        regexp = ''.join(['[%s]' % c for c in special ])
+        subexps.append(regexp)
+    return re.compile('(' + '|'.join(subexps) + ')').search
+
+_has_specials = _build_special_test()
+
 def escape_byte_string(s):
-    s = s.replace('\0', r'\000').replace('\x0A', r'\012').replace('\x0C', r'\014')
+    if _has_specials(s):
+        s = s.replace('\n', r'\n').replace('\r', r'\r').replace('\t', r'\t')
+        for special, replacement in _c_special_replacements:
+            s = s.replace(special, replacement)
     try:
         s.decode("ASCII")
         return s
