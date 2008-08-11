@@ -259,7 +259,7 @@ class CythonRunTestCase(CythonCompileTestCase):
         result.startTest(self)
         try:
             self.runCompileTest()
-            print('running doctests in %s ...' % self.module)
+            sys.stderr.write('running doctests in %s ...\n' % self.module)
             doctest.DocTestSuite(self.module).run(result)
         except Exception:
             result.addError(self, sys.exc_info())
@@ -279,7 +279,7 @@ class CythonUnitTestCase(CythonCompileTestCase):
         result.startTest(self)
         try:
             self.runCompileTest()
-            print('running tests in %s ...' % self.module)
+            sys.stderr.write('running tests in %s ...\n' % self.module)
             unittest.defaultTestLoader.loadTestsFromName(self.module).run(result)
         except Exception:
             result.addError(self, sys.exc_info())
@@ -423,11 +423,11 @@ if __name__ == '__main__':
 
     if WITH_CYTHON:
         from Cython.Compiler.Version import version
-        print("Running tests against Cython %s" % version)
+        sys.stderr.write("Running tests against Cython %s\n" % version)
     else:
-        print("Running tests without Cython.")
-    print("Python %s" % sys.version)
-    print("")
+        sys.stderr.write("Running tests without Cython.\n")
+    sys.stderr.write("Python %s\n" % sys.version)
+    sys.stderr.write("\n")
 
     import re
     selectors = [ re.compile(r, re.I|re.U).search for r in cmd_args ]
