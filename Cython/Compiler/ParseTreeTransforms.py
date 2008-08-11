@@ -5,7 +5,10 @@ from Cython.Compiler.ExprNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment
 from Cython.Utils import EncodedString
 from Cython.Compiler.Errors import CompileError
-from sets import Set as set
+try:
+    set
+except NameError:
+    from sets import Set as set
 
 class NormalizeTree(CythonTransform):
     """

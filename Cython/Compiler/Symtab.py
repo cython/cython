@@ -15,7 +15,10 @@ from TypeSlots import \
     get_special_method_signature, get_property_accessor_signature
 import ControlFlow
 import __builtin__
-from sets import Set as set
+try:
+    set
+except NameError:
+    from sets import Set as set
 
 possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
