@@ -6,9 +6,13 @@ from Cython.Compiler.TreeFragment import TreeFragment
 from Cython.Utils import EncodedString
 from Cython.Compiler.Errors import CompileError
 import PyrexTypes
-from sets import Set as set
-import textwrap
 
+try:
+    set
+except NameError:
+    from sets import Set as set
+
+import textwrap
 def dedent(text, reindent=0):
     text = textwrap.dedent(text)
     if reindent > 0:
