@@ -38,7 +38,10 @@ def hash_source_file(path):
     # Try to calculate a hash code for the given source file.
     # Returns an empty string if the file cannot be accessed.
     #print "Hashing", path ###
-    import md5
+    try:
+        from hashlib import md5 as new_md5
+    except ImportError:
+        from md5 import new as new_md5
     try:
         try:
             f = open(path, "rU")
@@ -54,7 +57,7 @@ def hash_source_file(path):
     # tabs by a single space.
     import re
     text = re.sub("[ \t]+", " ", text)
-    hash = md5.new(text).hexdigest()
+    hash = new_md5(text).hexdigest()
     return hash
 
 def open_pickled_lexicon(expected_hash):

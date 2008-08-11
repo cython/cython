@@ -10,7 +10,10 @@ from PyrexTypes import py_object_type, typecast
 from TypeSlots import method_coexist
 from Scanning import SourceDescriptor
 from Cython.StringIOTree import StringIOTree
-from sets import Set as set
+try:
+    set
+except NameError:
+    from sets import Set as set
 
 class FunctionContext(object):
     # Not used for now, perhaps later
