@@ -1024,7 +1024,7 @@ class UnicodeType(BuiltinObjectType):
     is_string = 1
     is_unicode = 1
     
-    parsetuple_format = "O"
+    parsetuple_format = "U"
 
     def __init__(self):
         BuiltinObjectType.__init__(self, "unicode", "PyUnicodeObject")
