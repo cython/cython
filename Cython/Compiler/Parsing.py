@@ -492,6 +492,8 @@ def p_atom(s):
         kind, value = p_cat_string_literal(s)
         if kind == 'c':
             return ExprNodes.CharNode(pos, value = value)
+        elif kind == 'u':
+            return ExprNodes.UnicodeNode(pos, value = value)
         else:
             return ExprNodes.StringNode(pos, value = value)
     elif sy == 'IDENT':
