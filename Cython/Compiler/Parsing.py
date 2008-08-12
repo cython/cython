@@ -610,7 +610,7 @@ def p_string_literal(s):
                 elif c in 'Uux':
                     if kind == 'u' or c == 'x':
                         chrval = int(systr[2:], 16)
-                        if chrval > sys.maxunicode:
+                        if chrval > 1114111: # sys.maxunicode:
                             s.error("Invalid unicode escape '%s'" % systr,
                                     pos = pos)
                         strval = unichr(chrval)
