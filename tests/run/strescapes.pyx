@@ -4,6 +4,11 @@ __doc__ = u"""
 ... b'\\x1234',
 ... b'\\x0A12\\x0C34',
 ... b'\\x0A57',
+... b'\\x0A',
+... b'\\'',
+... b"\\'",
+... b"\\"",
+... b'\\"',
 ... b'abc\\x12def',
 ... u'\\u1234',
 ... u'\\U00001234',
@@ -28,14 +33,19 @@ __doc__ = u"""
 
 import sys
 if sys.version_info[0] < 3:
-    __doc__ = __doc__.replace(u" b'", u" '")
+    __doc__ = __doc__.replace(u" b'", u" '").replace(u' b"', u' "')
 else:
-    __doc__ = __doc__.replace(u" u'", u" '")
+    __doc__ = __doc__.replace(u" u'", u" '").replace(u' u"', u' "')
 
 c_strings = [
 (b'\x1234', 3),
 (b'\x0A12\x0C34', 6),
 (b'\x0A57', 3),
+(b'\x0A', 1),
+(b'\'', 1),
+(b"\'", 1),
+(b"\"", 1),
+(b'\"', 1),
 (b'abc\x12def', 7),
 (u'\u1234', 1),
 (u'\U00001234', 1),
