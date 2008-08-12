@@ -585,25 +585,28 @@ def p_string_literal(s):
         sy = s.sy
         #print "p_string_literal: sy =", sy, repr(s.systring) ###
         if sy == 'CHARS':
-            systr = s.systring
-            if len(systr) == 1 and systr in "'\"\n":
-                chars.append('\\')
-            chars.append(systr)
+            chars.append(s.systring)
         elif sy == 'ESCAPE':
             systr = s.systring
             if is_raw:
                 if systr == '\\\n':
-                    chars.append(r'\\\n')
-                elif systr == r'\"':
-                    chars.append(r'\\\"')
-                elif systr == r'\\':
-                    chars.append(r'\\\\')
+                    chars.append('\n')
+                elif systr == '\\\"':
+                    chars.append('"')
+                elif systr == '\\\'':
+                    chars.append("'")
+                elif systr == '\\\\':
+                    chars.append('\\')
                 else:
-                    chars.append('\\' + systr)
+                    chars.append(systr)
             else:
                 c = systr[1]
-                if c in "'\"\\abfnrtv01234567":
-                    chars.append(systr)
+                if c in "01234567":
+                    chars.append(chr(int(systr[1:])))
+                elif c in "'\"\\":
+                    chars.append(c)
+                elif c in "abfnrtv":
+                    chars.append(Utils.char_from_escape_sequence(systr))
                 elif c == '\n':
                     pass
                 elif c in 'Uux':
@@ -616,11 +619,11 @@ def p_string_literal(s):
                     else:
                         # unicode escapes in plain byte strings are not unescaped
                         strval = systr
-                    chars.append(strval.replace('\\', '\\\\'))
+                    chars.append(strval)
                 else:
                     chars.append(r'\\' + systr[1:])
         elif sy == 'NEWLINE':
-            chars.append(r'\n')
+            chars.append('\n')
         elif sy == 'END_STRING':
             break
         elif sy == 'EOF':
@@ -629,8 +632,11 @@ def p_string_literal(s):
             s.error(
                 "Unexpected token %r:%r in string literal" %
                     (sy, s.systring))
+    string = u''.join(chars)
+    if kind == 'c' and len(string) != 1:
+        error(pos, u"invalid character literal: %r" % string)
     s.next()
-    value = Utils.EncodedString( u''.join(chars) )
+    value = Utils.EncodedString(string)
     if kind != 'u':
         value.encoding = s.source_encoding
     #print "p_string_literal: value =", repr(value) ###

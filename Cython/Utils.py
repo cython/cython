@@ -99,25 +99,39 @@ class EncodedString(unicode):
 #        return unicode.__eq__(self, other) and \
 #            getattr(other, 'encoding', '') == self.encoding
 
-def _to_oct_sequence(s):
+char_from_escape_sequence = {
+    r'\a' : '\a',
+    r'\b' : '\b',
+    r'\f' : '\f',
+    r'\n' : '\n',
+    r'\r' : '\r',
+    r'\t' : '\t',
+    r'\v' : '\v',
+    }.get
+
+def _to_escape_sequence(s):
     if s in '\n\r\t':
         return repr(s)[1:-1]
+    elif s == '"':
+        return r'\"'
     else:
+        # oct passes much better than hex
         return ''.join(['\\%03o' % ord(c) for c in s])
 
-_c_special = ('\0', '\n','\r','\t', '??', '<:', ':>', '<%', '%>', '%:', '%:')
-_c_special_replacements = zip(_c_special, map(_to_oct_sequence, _c_special))
+_c_special = ('\0', '\n', '\r', '\t', '??', '"')
+_c_special_replacements = zip(_c_special, map(_to_escape_sequence, _c_special))
 
-def _build_special_test():
+def _build_specials_test():
     subexps = []
     for special in _c_special:
         regexp = ''.join(['[%s]' % c for c in special])
         subexps.append(regexp)
-    return re.compile('(' + '|'.join(subexps) + ')').search
+    return re.compile('|'.join(subexps)).search
 
-_has_specials = _build_special_test()
+_has_specials = _build_specials_test()
 
 def escape_byte_string(s):
+    s = s.replace('\\', '\\\\')
     if _has_specials(s):
         for special, replacement in _c_special_replacements:
             s = s.replace(special, replacement)

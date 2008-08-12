@@ -642,7 +642,13 @@ class CharNode(ConstNode):
         return ord(self.value)
     
     def calculate_result_code(self):
-        return "'%s'" % self.value
+        if self.value == "'":
+            return r"'\''"
+        char = ord(self.value)
+        if char < 32:
+            return "'\\x%02X'" % char
+        else:
+            return "'%s'" % self.value
 
 
 class IntNode(ConstNode):
