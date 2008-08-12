@@ -14,6 +14,7 @@ from Builtin import list_type, tuple_type, dict_type
 import Symtab
 import Options
 from Annotate import AnnotationItem
+from Cython import Utils
 
 from Cython.Debugging import print_call_chain
 from DebugFlags import debug_disposal_code, debug_temp_alloc, \
@@ -639,16 +640,10 @@ class CharNode(ConstNode):
     type = PyrexTypes.c_char_type
     
     def compile_time_value(self, denv):
-        return ord(self.value)
+        return ord(self.value.byteencode())
     
     def calculate_result_code(self):
-        if self.value == "'":
-            return r"'\''"
-        char = ord(self.value)
-        if char < 32:
-            return "'\\x%02X'" % char
-        else:
-            return "'%s'" % self.value
+        return "'%s'" % Utils.escape_character(self.value.byteencode())
 
 
 class IntNode(ConstNode):

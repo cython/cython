@@ -115,7 +115,7 @@ def _to_escape_sequence(s):
     elif s == '"':
         return r'\"'
     else:
-        # oct passes much better than hex
+        # within a character sequence, oct passes much better than hex
         return ''.join(['\\%03o' % ord(c) for c in s])
 
 _c_special = ('\0', '\n', '\r', '\t', '??', '"')
@@ -129,6 +129,17 @@ def _build_specials_test():
     return re.compile('|'.join(subexps)).search
 
 _has_specials = _build_specials_test()
+
+def escape_character(c):
+    if c in '\n\r\t\\':
+        return repr(c)[1:-1]
+    elif c == "'":
+        return "\\'"
+    elif ord(c) < 32:
+        # hex works well for characters
+        return "\\x%02X" % ord(c)
+    else:
+        return c
 
 def escape_byte_string(s):
     s = s.replace('\\', '\\\\')
