@@ -4274,11 +4274,12 @@ static int __Pyx_CheckKeywordStrings(
     }
     if (unlikely(!kw_allowed) && unlikely(key)) {
         PyErr_Format(PyExc_TypeError,
-                     "'%s' is an invalid keyword argument for this function",
         #if PY_MAJOR_VERSION < 3
+                     "'%s' is an invalid keyword argument for this function",
                      PyString_AsString(key));
         #else
-                     PyUnicode_AsString(key));
+                     "'%U' is an invalid keyword argument for this function",
+                     key);
         #endif
         return 0;
     }
