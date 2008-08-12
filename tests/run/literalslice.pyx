@@ -4,8 +4,8 @@ __doc__ = u"""
 
   >>> test_unicode_ascii(2)
   u'c'
-  >>> test_unicode(0)
-  u'\u00fc'
+  >>> test_unicode(2)
+  u'\u00e4'
 
   >>> test_int_list(2)
   3
