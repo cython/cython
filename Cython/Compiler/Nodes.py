@@ -12,7 +12,8 @@ import TypeSlots
 from PyrexTypes import py_object_type, error_type, CTypedefType, CFuncType
 from Symtab import ModuleScope, LocalScope, GeneratorLocalScope, \
     StructOrUnionScope, PyClassScope, CClassScope
-from Cython.Utils import open_new_file, replace_suffix, EncodedString
+from Cython.Utils import open_new_file, replace_suffix
+from Cython.Utils import EncodedString, escape_byte_string
 import Options
 import ControlFlow
 
@@ -1522,7 +1523,7 @@ class DefNode(FuncDefNode):
             code.putln(
                 'static char %s[] = "%s";' % (
                     self.entry.doc_cname,
-                    self.entry.doc))
+                    escape_byte_string(self.entry.doc.utf8encode())))
         if with_pymethdef:
             code.put(
                 "static PyMethodDef %s = " % 
