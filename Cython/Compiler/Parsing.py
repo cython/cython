@@ -590,13 +590,11 @@ def p_string_literal(s):
             systr = s.systring
             if is_raw:
                 if systr == '\\\n':
-                    chars.append('\n')
+                    chars.append('\\\n')
                 elif systr == '\\\"':
                     chars.append('"')
                 elif systr == '\\\'':
                     chars.append("'")
-                elif systr == '\\\\':
-                    chars.append('\\')
                 else:
                     chars.append(systr)
             else:
