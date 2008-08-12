@@ -738,6 +738,29 @@ class StringNode(ConstNode):
             return self.entry.cname
 
 
+class UnicodeNode(PyConstNode):
+    #  entry   Symtab.Entry
+
+    type = PyrexTypes.c_unicode_type
+
+    def analyse_types(self, env):
+        self.entry = env.add_string_const(self.value)
+        env.add_py_string(self.entry)
+
+    def calculate_result_code(self):
+        return self.entry.pystring_cname
+    
+    def _coerce_to(self, dst_type, env):
+        if not dst_type.is_pyobject:
+            node = StringNode(self.pos, entry = entry, type = py_object_type)
+            return ConstNode.coerce_to(node, dst_type, env)
+        else:
+            return self
+        # We still need to perform normal coerce_to processing on the
+        # result, because we might be coercing to an extension type,
+        # in which case a type test node will be needed.
+
+
 class IdentifierStringNode(ConstNode):
     # A Python string that behaves like an identifier, e.g. for
     # keyword arguments in a call, or for imported names
