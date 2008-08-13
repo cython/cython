@@ -603,7 +603,7 @@ def p_string_literal(s):
             else:
                 c = systr[1]
                 if c in "01234567":
-                    chars.append(chr(int(systr[1:])))
+                    chars.append(chr(int(systr[1:], 8)))
                 elif c in "'\"\\":
                     chars.append(c)
                 elif c in "abfnrtv":

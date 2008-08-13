@@ -759,6 +759,9 @@ class UnicodeNode(PyConstNode):
         # We still need to perform normal coerce_to processing on the
         # result, because we might be coercing to an extension type,
         # in which case a type test node will be needed.
+        
+    def compile_time_value(self, env):
+        return self.value
 
 
 class IdentifierStringNode(ConstNode):
@@ -1370,6 +1373,9 @@ class IndexNode(ExprNode):
         self.is_buffer_access = False
 
         self.base.analyse_types(env)
+        # Handle the case where base is a literal char* (and we expect a string, not an int)
+        if isinstance(self.base, StringNode):
+            self.base = self.base.coerce_to_pyobject(env)
 
         skip_child_analysis = False
         buffer_access = False
