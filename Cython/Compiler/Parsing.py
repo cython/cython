@@ -1888,7 +1888,7 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0, kw_only = 0)
         if 'pxd' in s.level:
             if s.sy not in ['*', '?']:
                 error(pos, "default values cannot be specified in pxd files, use ? or *")
-            default = 1
+            default = ExprNodes.BoolNode(1)
             s.next()
         else:
             default = p_simple_expr(s)

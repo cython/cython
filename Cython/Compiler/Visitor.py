@@ -28,6 +28,10 @@ class BasicVisitor(object):
                 if m is not None:
                     break
             else:
+                print type(self), type(obj)
+                print self.access_path
+                print self.access_path[-1][0].pos
+                print self.access_path[-1][0].__dict__
                 raise RuntimeError("Visitor does not accept object: %s" % obj)
             self.dispatch_table[mname] = m
         return m(obj)
