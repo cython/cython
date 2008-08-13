@@ -632,7 +632,6 @@ def compile_multiple(sources, options):
         if source not in processed:
             # Compiling multiple sources in one context doesn't quite
             # work properly yet.
-            context = Context(options.include_path) # to be removed later
             if not timestamps or context.c_file_out_of_date(source):
                 if verbose:
                     sys.stderr.write("Compiling %s\n" % source)
