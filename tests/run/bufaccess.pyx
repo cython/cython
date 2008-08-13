@@ -7,7 +7,7 @@
 # what we want to test is what is passed into the flags argument.
 #
 
-
+from __future__ import unicode_literals
 
 cimport stdlib
 cimport python_buffer
@@ -17,7 +17,7 @@ cimport cython
 cimport refcount
 
 __test__ = {}
-setup_string = """
+setup_string = u"""
     >>> A = IntMockBuffer("A", range(6))
     >>> B = IntMockBuffer("B", range(6))
     >>> C = IntMockBuffer("C", range(6), (2,3))
@@ -81,6 +81,8 @@ def acquire_raise(o):
     >>> A.printlog()
     acquired A
     released A
+    <BLANKLINE>
+    
     """
     cdef object[int] buf
     buf = o
@@ -219,37 +221,37 @@ def as_argument(object[int] bufarg, int n):
     """
     >>> as_argument(A, 6)
     acquired A
-    0 1 2 3 4 5
+    0 1 2 3 4 5 END
     released A
     """
     cdef int i
     for i in range(n):
         print bufarg[i],
-    print
+    print 'END'
 
 @testcase
 def as_argument_defval(object[int] bufarg=IntMockBuffer('default', range(6)), int n=6):
     """
     >>> as_argument_defval()
     acquired default
-    0 1 2 3 4 5
+    0 1 2 3 4 5 END
     released default
     >>> as_argument_defval(A, 6)
     acquired A
-    0 1 2 3 4 5
+    0 1 2 3 4 5 END
     released A
     """
     cdef int i 
     for i in range(n):
         print bufarg[i],
-    print
+    print 'END'
 
 @testcase
 def cdef_assignment(obj, n):
     """
     >>> cdef_assignment(A, 6)
     acquired A
-    0 1 2 3 4 5
+    0 1 2 3 4 5 END
     released A
     
     """
@@ -257,18 +259,23 @@ def cdef_assignment(obj, n):
     cdef int i
     for i in range(n):
         print buf[i],
-    print
+    print 'END'
 
 @testcase
 def forin_assignment(objs, int pick):
     """
-    >>> as_argument_defval()
-    acquired default
-    0 1 2 3 4 5
-    released default
-    >>> as_argument_defval(A, 6)
+    >>> forin_assignment([A, B, A, A], 2)
     acquired A
-    0 1 2 3 4 5
+    2
+    released A
+    acquired B
+    2
+    released B
+    acquired A
+    2
+    released A
+    acquired A
+    2
     released A
     """
     cdef object[int] buf
@@ -473,7 +480,7 @@ def readonly(obj):
     acquired R
     25
     released R
-    >>> R.recieved_flags
+    >>> [str(x) for x in R.recieved_flags]  # Works in both py2 and py3
     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES']
     """
     cdef object[unsigned short int, 3] buf = obj
@@ -486,7 +493,7 @@ def writable(obj):
     >>> writable(R)
     acquired R
     released R
-    >>> R.recieved_flags
+    >>> [str(x) for x in R.recieved_flags] # Py2/3
     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
     """
     cdef object[unsigned short int, 3] buf = obj
@@ -500,7 +507,7 @@ def strided(object[int, 1, 'strided'] buf):
     acquired A
     released A
     2
-    >>> A.recieved_flags
+    >>> [str(x) for x in A.recieved_flags] # Py2/3
     ['FORMAT', 'ND', 'STRIDES']
 
     Check that the suboffsets were patched back prior to release.
@@ -603,21 +610,21 @@ def printbuf_int_2d(o, shape):
     
     >>> printbuf_int_2d(IntMockBuffer("A", range(6), (2,3)), (2,3))
     acquired A
-    0 1 2
-    3 4 5
+    0 1 2 END
+    3 4 5 END
     released A
     >>> printbuf_int_2d(IntMockBuffer("A", range(100), (3,3), strides=(20,5)), (3,3))
     acquired A
-    0 5 10
-    20 25 30
-    40 45 50
+    0 5 10 END
+    20 25 30 END
+    40 45 50 END
     released A
 
     Indirect:
     >>> printbuf_int_2d(IntMockBuffer("A", [[1,2],[3,4]]), (2,2))
     acquired A
-    1 2
-    3 4
+    1 2 END
+    3 4 END
     released A
     """
     # should make shape builtin
@@ -627,14 +634,14 @@ def printbuf_int_2d(o, shape):
     for i in range(shape[0]):
         for j in range(shape[1]):
             print buf[i, j],
-        print
+        print 'END'
 
 @testcase
 def printbuf_float(o, shape):
     """
     >>> printbuf_float(FloatMockBuffer("F", [1.0, 1.25, 0.75, 1.0]), (4,))
     acquired F
-    1.0 1.25 0.75 1.0
+    1.0 1.25 0.75 1.0 END
     released F
     """
 
@@ -644,7 +651,7 @@ def printbuf_float(o, shape):
     cdef int i, j
     for i in range(shape[0]):
         print buf[i],
-    print
+    print "END"
 
 
 #
@@ -660,7 +667,7 @@ def printbuf_cytypedef_int(object[cytypedef_int] buf, shape):
     """
     >>> printbuf_cytypedef_int(IntMockBuffer("A", range(3)), (3,))
     acquired A
-    0 1 2
+    0 1 2 END
     released A
     >>> printbuf_cytypedef_int(ShortMockBuffer("B", range(3)), (3,))
     Traceback (most recent call last):
@@ -671,14 +678,14 @@ def printbuf_cytypedef_int(object[cytypedef_int] buf, shape):
     cdef int i
     for i in range(shape[0]):
         print buf[i],
-    print
+    print 'END'
 
 @testcase
 def printbuf_htypedef_short(object[htypedef_short] buf, shape):
     """
     >>> printbuf_htypedef_short(ShortMockBuffer("A", range(3)), (3,))
     acquired A
-    0 1 2
+    0 1 2 END
     released A
     >>> printbuf_htypedef_short(IntMockBuffer("B", range(3)), (3,))
     Traceback (most recent call last):
@@ -689,14 +696,14 @@ def printbuf_htypedef_short(object[htypedef_short] buf, shape):
     cdef int i
     for i in range(shape[0]):
         print buf[i],
-    print
+    print 'END'
 
 @testcase
 def printbuf_cytypedef2(object[cytypedef2] buf, shape):
     """
     >>> printbuf_cytypedef2(ShortMockBuffer("A", range(3)), (3,))
     acquired A
-    0 1 2
+    0 1 2 END
     released A
     >>> printbuf_cytypedef2(IntMockBuffer("B", range(3)), (3,))
     Traceback (most recent call last):
@@ -707,7 +714,7 @@ def printbuf_cytypedef2(object[cytypedef2] buf, shape):
     cdef int i
     for i in range(shape[0]):
         print buf[i],
-    print
+    print 'END'
 
 #
 # Object access
@@ -914,7 +921,7 @@ cdef class MockBuffer:
             self.log += msg + "\n"
 
     def printlog(self):
-        print self.log,
+        print self.log
 
     def resetlog(self):
         self.log = ""
@@ -930,28 +937,28 @@ cdef class FloatMockBuffer(MockBuffer):
         (<float*>buf)[0] = <float>value
         return 0
     cdef get_itemsize(self): return sizeof(float)
-    cdef get_default_format(self): return "=f"
+    cdef get_default_format(self): return b"=f"
 
 cdef class IntMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         (<int*>buf)[0] = <int>value
         return 0
     cdef get_itemsize(self): return sizeof(int)
-    cdef get_default_format(self): return "=i"
+    cdef get_default_format(self): return b"=i"
 
 cdef class ShortMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         (<short*>buf)[0] = <short>value
         return 0
     cdef get_itemsize(self): return sizeof(short)
-    cdef get_default_format(self): return "h" # Try without endian specifier
+    cdef get_default_format(self): return b"h" # Try without endian specifier
 
 cdef class UnsignedShortMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         (<unsigned short*>buf)[0] = <unsigned short>value
         return 0
     cdef get_itemsize(self): return sizeof(unsigned short)
-    cdef get_default_format(self): return "=1H" # Try with repeat count
+    cdef get_default_format(self): return b"=1H" # Try with repeat count
 
 cdef extern from *:
     void* addr_of_pyobject "(void*)"(object)
@@ -962,7 +969,7 @@ cdef class ObjectMockBuffer(MockBuffer):
         return 0
 
     cdef get_itemsize(self): return sizeof(void*)
-    cdef get_default_format(self): return "=O"
+    cdef get_default_format(self): return b"=O"
         
 
 cdef class IntStridedMockBuffer(IntMockBuffer):
@@ -1025,7 +1032,7 @@ def bufdefaults1(IntStridedMockBuffer[int, 1] buf):
     >>> bufdefaults1(A)
     acquired A
     released A
-    >>> A.recieved_flags
+    >>> [str(x) for x in A.recieved_flags]
     ['FORMAT', 'ND', 'STRIDES']
     """
     pass
