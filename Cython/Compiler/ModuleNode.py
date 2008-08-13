@@ -23,7 +23,7 @@ import Version
 
 from Errors import error, warning
 from PyrexTypes import py_object_type
-from Cython.Utils import open_new_file, replace_suffix
+from Cython.Utils import open_new_file, replace_suffix, escape_byte_string
 
 
 def check_c_classes(module_node):
@@ -423,6 +423,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define Py_SIZE(ob)   ((PyVarObject*)(ob))->ob_size)")
         code.putln("  #define PyVarObject_HEAD_INIT(type, size) \\")
         code.putln("          PyObject_HEAD_INIT(type) size,")
+        code.putln("  #define PyType_Modified(t)")
         code.putln("")
         code.putln("  typedef struct {")
         code.putln("     void *buf;")
@@ -513,7 +514,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static const char **%s;' % Naming.filetable_cname)
         if env.doc:
             code.putln('')
-            code.putln('static char %s[] = "%s";' % (env.doc_cname, env.doc))
+            code.putln('static char %s[] = "%s";' % (
+                    env.doc_cname, escape_byte_string(env.doc.utf8encode())))
     
     def generate_extern_c_macro_definition(self, code):
         name = Naming.extern_c_macro

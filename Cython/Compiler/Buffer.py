@@ -7,7 +7,12 @@ from Cython.Utils import EncodedString
 from Cython.Compiler.Errors import CompileError
 import Interpreter
 import PyrexTypes
-from sets import Set as set
+
+try:
+    set
+except NameError:
+    from sets import Set as set
+
 import textwrap
 
 # Code cleanup ideas:
