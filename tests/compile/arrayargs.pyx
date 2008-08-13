@@ -11,3 +11,9 @@ cdef extern from *:
 
     ctypedef MyStruct* MyStructP
     cdef void baz(MyStructP[])
+
+cdef struct OtherStruct:
+    int a
+
+a = sizeof(int[23][34])
+b = sizeof(OtherStruct[43])

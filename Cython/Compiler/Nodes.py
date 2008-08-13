@@ -12,7 +12,8 @@ import TypeSlots
 from PyrexTypes import py_object_type, error_type, CTypedefType, CFuncType
 from Symtab import ModuleScope, LocalScope, GeneratorLocalScope, \
     StructOrUnionScope, PyClassScope, CClassScope
-from Cython.Utils import open_new_file, replace_suffix, EncodedString
+from Cython.Utils import open_new_file, replace_suffix
+from Cython.Utils import EncodedString, escape_byte_string
 import Options
 import ControlFlow
 
@@ -762,7 +763,7 @@ class CEnumDefItemNode(StatNode):
         else:
             value = self.name
         entry = env.declare_const(self.name, enum_entry.type, 
-            value, self.pos, cname = self.cname)
+            value, self.pos, cname = self.cname, visibility = enum_entry.visibility)
         enum_entry.enum_values.append(entry)
 
 
@@ -945,6 +946,8 @@ class FuncDefNode(StatNode, BlockNode):
             if err_val is not None or exc_check:
                 code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
             else:
+                warning(self.entry.pos, "Unraisable exception in function '%s'." \
+                            % self.entry.qualified_name, 0)
                 code.putln(
                     '__Pyx_WriteUnraisable("%s");' % 
                         self.entry.qualified_name)
@@ -1516,7 +1519,7 @@ class DefNode(FuncDefNode):
             code.putln(
                 'static char %s[] = "%s";' % (
                     self.entry.doc_cname,
-                    self.entry.doc))
+                    escape_byte_string(self.entry.doc.utf8encode())))
         if with_pymethdef:
             code.put(
                 "static PyMethodDef %s = " % 
@@ -4281,11 +4284,12 @@ static int __Pyx_CheckKeywordStrings(
     }
     if (unlikely(!kw_allowed) && unlikely(key)) {
         PyErr_Format(PyExc_TypeError,
-                     "'%s' is an invalid keyword argument for this function",
         #if PY_MAJOR_VERSION < 3
+                     "'%s' is an invalid keyword argument for this function",
                      PyString_AsString(key));
         #else
-                     PyUnicode_AsString(key));
+                     "'%U' is an invalid keyword argument for this function",
+                     key);
         #endif
         return 0;
     }
@@ -4456,9 +4460,9 @@ static void __Pyx_AddTraceback(const char *funcname) {
     if (!py_srcfile) goto bad;
     if (%(CLINENO)s) {
         #if PY_MAJOR_VERSION < 3
-        py_funcname = PyString_FromFormat( "%%s (%%s:%%u)", funcname, %(CFILENAME)s, %(CLINENO)s);
+        py_funcname = PyString_FromFormat( "%%s (%%s:%%d)", funcname, %(CFILENAME)s, %(CLINENO)s);
         #else
-        py_funcname = PyUnicode_FromFormat( "%%s (%%s:%%u)", funcname, %(CFILENAME)s, %(CLINENO)s);
+        py_funcname = PyUnicode_FromFormat( "%%s (%%s:%%d)", funcname, %(CFILENAME)s, %(CLINENO)s);
         #endif
     }
     else {

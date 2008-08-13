@@ -2,7 +2,9 @@
 #   Pyrex Parser
 #
 
-import os, re
+import os
+import re
+import sys
 from types import ListType, TupleType
 from Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
@@ -491,6 +493,8 @@ def p_atom(s):
         kind, value = p_cat_string_literal(s)
         if kind == 'c':
             return ExprNodes.CharNode(pos, value = value)
+        elif kind == 'u':
+            return ExprNodes.UnicodeNode(pos, value = value)
         else:
             return ExprNodes.StringNode(pos, value = value)
     elif sy == 'IDENT':
@@ -584,43 +588,43 @@ def p_string_literal(s):
         sy = s.sy
         #print "p_string_literal: sy =", sy, repr(s.systring) ###
         if sy == 'CHARS':
-            systr = s.systring
-            if len(systr) == 1 and systr in "'\"\n":
-                chars.append('\\')
-            chars.append(systr)
+            chars.append(s.systring)
         elif sy == 'ESCAPE':
             systr = s.systring
             if is_raw:
                 if systr == '\\\n':
-                    chars.append(r'\\\n')
-                elif systr == r'\"':
-                    chars.append(r'\\\"')
-                elif systr == r'\\':
-                    chars.append(r'\\\\')
+                    chars.append('\\\n')
+                elif systr == '\\\"':
+                    chars.append('"')
+                elif systr == '\\\'':
+                    chars.append("'")
                 else:
-                    chars.append('\\' + systr)
+                    chars.append(systr)
             else:
                 c = systr[1]
-                if c in "'\"\\abfnrtv01234567":
-                    chars.append(systr)
+                if c in "01234567":
+                    chars.append(chr(int(systr[1:])))
+                elif c in "'\"\\":
+                    chars.append(c)
+                elif c in "abfnrtv":
+                    chars.append(Utils.char_from_escape_sequence(systr))
                 elif c == '\n':
                     pass
-                elif c in 'ux':
-                    if kind == 'u':
-                        try:
-                            chars.append(
-                                systr.encode("ASCII").decode('unicode_escape'))
-                        except UnicodeDecodeError:
+                elif c in 'Uux':
+                    if kind == 'u' or c == 'x':
+                        chrval = int(systr[2:], 16)
+                        if chrval > 1114111: # sys.maxunicode:
                             s.error("Invalid unicode escape '%s'" % systr,
                                     pos = pos)
-                    elif c == 'x':
-                        chars.append('\\x0' + systr[2:])
+                        strval = unichr(chrval)
                     else:
-                        chars.append(systr)
+                        # unicode escapes in plain byte strings are not unescaped
+                        strval = systr
+                    chars.append(strval)
                 else:
                     chars.append(r'\\' + systr[1:])
         elif sy == 'NEWLINE':
-            chars.append(r'\n')
+            chars.append('\n')
         elif sy == 'END_STRING':
             break
         elif sy == 'EOF':
@@ -629,8 +633,11 @@ def p_string_literal(s):
             s.error(
                 "Unexpected token %r:%r in string literal" %
                     (sy, s.systring))
+    string = u''.join(chars)
+    if kind == 'c' and len(string) != 1:
+        error(pos, u"invalid character literal: %r" % string)
     s.next()
-    value = Utils.EncodedString( u''.join(chars) )
+    value = Utils.EncodedString(string)
     if kind != 'u':
         value.encoding = s.source_encoding
     #print "p_string_literal: value =", repr(value) ###
@@ -1630,7 +1637,7 @@ def p_buffer_access(s, base_type_node):
     # s.sy == '['
     pos = s.position()
     s.next()
-    if s.sy == ']':
+    if s.sy == ']' or s.sy == 'INT':
         # not buffer, could be [] on C type nameless array arguments
         s.put_back('[', '[')
         return base_type_node

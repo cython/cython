@@ -12,7 +12,7 @@ Cython language.  Cython is based on Pyrex by Greg Ewing.
 Usage: cython [options] sourcefile.pyx ...
 
 Options:
-  -v, --version                  Display version number of cython compiler
+  -V, --version                  Display version number of cython compiler
   -l, --create-listing           Write error messages to a listing file
   -I, --include-dir <directory>  Search for include files in named directory
                                  (multiply include directories are allowed).
@@ -21,6 +21,7 @@ Options:
   -t, --timestamps               Only compile newer source files (implied with -r)
   -f, --force                    Compile all source files (overrides implied -t)
   -q, --quiet                    Don't print module names in recursive mode
+  -v, --verbose                  Be verbose, print file names on multiple compilation
   -p, --embed-positions          If specified, the positions in Cython files of each
                                  function definition is embedded in its docstring.
   -z, --pre-import <module>      If specified, assume undeclared names in this 
@@ -34,7 +35,7 @@ Options:
                                  are searched from)
 
   -D, --no-docstrings            Remove docstrings.
-  -a, --annotate                 Produce an colorized version of the source.
+  -a, --annotate                 Produce a colorized HTML version of the source.
   --convert-range                Convert for loops using range() function to for...from loops. 
   --cplus                        Output a c++ rather than c file.
   -O, --option <name>=<value>[,<name=value,...] Overrides an optimization/code generation option
@@ -72,7 +73,7 @@ def parse_command_line(args):
     while args:
         if args[0].startswith("-"):
             option = pop_arg()
-            if option in ("-v", "--version"):
+            if option in ("-V", "--version"):
                 options.show_version = 1
             elif option in ("-l", "--create-listing"):
                 options.use_listing_file = 1
@@ -97,6 +98,8 @@ def parse_command_line(args):
                 options.timestamps = 1
             elif option in ("-f", "--force"):
                 options.timestamps = 0
+            elif option in ("-v", "--verbose"):
+                options.verbose += 1
             elif option in ("-p", "--embed-positions"):
                 Options.embed_pos_in_docstring = 1
             elif option in ("-z", "--pre-import"):
