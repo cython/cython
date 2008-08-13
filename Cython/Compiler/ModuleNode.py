@@ -23,7 +23,7 @@ import Version
 
 from Errors import error, warning
 from PyrexTypes import py_object_type
-from Cython.Utils import open_new_file, replace_suffix, escape_byte_string
+from Cython.Utils import open_new_file, replace_suffix, escape_byte_string, EncodedString
 
 
 def check_c_classes(module_node):
@@ -45,9 +45,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     
     def analyse_declarations(self, env):
         if Options.embed_pos_in_docstring:
-            env.doc = 'File: %s (starting at line %s)'%Nodes.relative_position(self.pos)
+            env.doc = EncodedString(u'File: %s (starting at line %s)' % Nodes.relative_position(self.pos))
             if not self.doc is None:
-                env.doc = env.doc + '\\n' + self.doc
+                env.doc = EncodedString(env.doc + u'\\n' + self.doc)
+                env.doc.encoding = self.doc.encoding
         else:
             env.doc = self.doc
         self.body.analyse_declarations(env)
