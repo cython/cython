@@ -622,7 +622,7 @@ def p_string_literal(s):
                         strval = systr
                     chars.append(strval)
                 else:
-                    chars.append(r'\\' + systr[1:])
+                    chars.append('\\' + systr[1:])
         elif sy == 'NEWLINE':
             chars.append('\n')
         elif sy == 'END_STRING':
