@@ -241,7 +241,7 @@ def put_acquire_arg_buffer(entry, code, pos):
 #        entry.buffer_aux.buffer_info_var.cname))
 
 def get_release_buffer_code(entry):
-    return "__Pyx_ReleaseBuffer((PyObject*)%s, &%s)" % (
+    return "__Pyx_SafeReleaseBuffer((PyObject*)%s, &%s)" % (
         entry.cname,
         entry.buffer_aux.buffer_info_var.cname)
 
@@ -273,7 +273,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
 
     if is_initialized:
         # Release any existing buffer
-        code.putln('__Pyx_ReleaseBuffer((PyObject*)%s, &%s);' % (
+        code.putln('__Pyx_SafeReleaseBuffer((PyObject*)%s, &%s);' % (
             lhs_cname, bufstruct))
         # Acquire
         retcode_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type)
@@ -522,7 +522,7 @@ def get_getbuffer_code(dtype, code):
             return 0;
           }
           buf->buf = NULL;
-          if (PyObject_GetBuffer(obj, buf, flags) == -1) goto fail;
+          if (__Pyx_GetBuffer(obj, buf, flags) == -1) goto fail;
           if (buf->ndim != nd) {
             __Pyx_BufferNdimError(buf, nd);
             goto fail;
@@ -581,8 +581,8 @@ def use_py2_buffer_functions(env):
     find_buffer_types(env)
 
     code = dedent("""
-        #if PY_VERSION_HEX < 0x02060000
-        static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
+        #if (PY_MAJOR_VERSION < 3) && !(Py_TPFLAGS_DEFAULT & Py_TPFLAGS_HAVE_NEWBUFFER)
+        static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
     """)
     if len(types) > 0:
         clause = "if"
@@ -598,7 +598,7 @@ def use_py2_buffer_functions(env):
     code += dedent("""
         }
 
-        static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view) {
+        static void __Pyx_ReleaseBuffer(PyObject *obj, Py_buffer *view) {
     """)
     if len(types) > 0:
         clause = "if"
@@ -613,9 +613,12 @@ def use_py2_buffer_functions(env):
     """)
                    
     env.use_utility_code([dedent("""\
-        #if PY_VERSION_HEX < 0x02060000
-        static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
-        static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view);
+        #if (PY_MAJOR_VERSION < 3) && !(Py_TPFLAGS_DEFAULT & Py_TPFLAGS_HAVE_NEWBUFFER)
+        static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
+        static void __Pyx_ReleaseBuffer(PyObject *obj, Py_buffer *view);
+        #else
+        #define __Pyx_GetBuffer PyObject_GetBuffer
+        #define __Pyx_ReleaseBuffer PyObject_ReleaseBuffer
         #endif
     """), code], codename)
 
@@ -644,16 +647,16 @@ static void __Pyx_RaiseBufferIndexError(int axis) {
 # exporter.
 #
 acquire_utility_code = ["""\
-static INLINE void __Pyx_ReleaseBuffer(PyObject* obj, Py_buffer* info);
+static INLINE void __Pyx_SafeReleaseBuffer(PyObject* obj, Py_buffer* info);
 static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf); /*proto*/
 static INLINE const char* __Pyx_ConsumeWhitespace(const char* ts); /*proto*/
 static INLINE const char* __Pyx_BufferTypestringCheckEndian(const char* ts); /*proto*/
 static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim); /*proto*/
 """, """
-static INLINE void __Pyx_ReleaseBuffer(PyObject* obj, Py_buffer* info) {
+static INLINE void __Pyx_SafeReleaseBuffer(PyObject* obj, Py_buffer* info) {
   if (info->buf == NULL) return;
   if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
-  PyObject_ReleaseBuffer(obj, info);
+  __Pyx_ReleaseBuffer(obj, info);
 }
 
 static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf) {
