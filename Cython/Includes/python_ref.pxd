@@ -1,6 +1,8 @@
 cdef extern from "Python.h":
-    ctypedef void PyObject
     ctypedef void PyTypeObject
+    ctypedef struct PyObject:
+        Py_ssize_t ob_refcnt
+        PyTypeObject *ob_type
     ctypedef struct FILE    
 
 

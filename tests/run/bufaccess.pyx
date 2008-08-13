@@ -14,7 +14,7 @@ cimport python_buffer
 cimport stdio
 cimport cython
 
-cimport refcount
+from python_ref cimport PyObject
 
 __test__ = {}
 setup_string = """
@@ -719,7 +719,7 @@ def decref(*args):
     for item in args: Py_DECREF(item)
 
 def get_refcount(x):
-    return refcount.CyTest_GetRefcount(x)
+    return (<PyObject*>x).ob_refcnt
 
 @testcase
 def printbuf_object(object[object] buf, shape):
@@ -742,7 +742,7 @@ def printbuf_object(object[object] buf, shape):
     """
     cdef int i
     for i in range(shape[0]):
-        print repr(buf[i]), refcount.CyTest_GetRefcount(buf[i])
+        print repr(buf[i]), (<PyObject*>buf[i]).ob_refcnt
 
 @testcase
 def assign_to_object(object[object] buf, int idx, obj):

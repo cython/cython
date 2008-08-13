@@ -359,7 +359,7 @@ class ResolveOptions(CythonTransform):
             for option in options:
                 name, value = option
                 optdict[name] = value
-            return self.visit_with_options(node, options)
+            return self.visit_with_options(node, optdict)
         else:
             return self.visit_Node(node)
                                    
