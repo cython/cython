@@ -708,8 +708,7 @@ class StringNode(ConstNode):
     def coerce_to(self, dst_type, env):
         if dst_type.is_int:
             if not self.type.is_pyobject and len(self.entry.init) == 1:
-                # we use the *encoded* value here
-                return CharNode(self.pos, value=self.entry.init)
+                return CharNode(self.pos, value=self.value)
             else:
                 error(self.pos, "Only coerce single-character ascii strings can be used as ints.")
                 return self
