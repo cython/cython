@@ -118,32 +118,28 @@
 # just to be sure you understand what is going on.
 #
 #################################################################
-cdef extern from "Python.h":
-    ctypedef void PyObject
-    ctypedef void PyTypeObject
-    ctypedef struct FILE
 
 
-include 'python_ref.pxi'
-include 'python_exc.pxi'
-include 'python_module.pxi'
-include 'python_mem.pxi'
-include 'python_tuple.pxi'
-include 'python_list.pxi'
-include 'python_object.pxi'
-include 'python_sequence.pxi'
-include 'python_mapping.pxi'
-include 'python_iterator.pxi'
-include 'python_type.pxi'
-include 'python_number.pxi'
-include 'python_int.pxi'
-include 'python_bool.pxi'
-include 'python_long.pxi'
-include 'python_float.pxi'
-include 'python_complex.pxi'
-include 'python_string.pxi'
-include 'python_dict.pxi'
-include 'python_instance.pxi'
-include 'python_function.pxi'
-include 'python_method.pxi'
-include 'python_set.pxi'
+from python_ref cimport *
+from python_exc cimport *
+from python_module cimport *
+from python_mem cimport *
+from python_tuple cimport *
+from python_list cimport *
+from python_object cimport *
+from python_sequence cimport *
+from python_mapping cimport *
+from python_iterator cimport *
+from python_type cimport *
+from python_number cimport *
+from python_int cimport *
+from python_bool cimport *
+from python_long cimport *
+from python_float cimport *
+from python_complex cimport *
+from python_string cimport *
+from python_dict cimport *
+from python_instance cimport *
+from python_function cimport *
+from python_method cimport *
+from python_set cimport *
