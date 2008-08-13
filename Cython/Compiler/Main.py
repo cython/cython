@@ -189,7 +189,9 @@ class Context:
         scope = None
         pxd_pathname = None
         if not module_name_pattern.match(module_name):
-            raise CompileError((path, 0, 0),
+            if pos is None:
+                pos = (module_name, 0, 0)
+            raise CompileError(pos,
                 "'%s' is not a valid module name" % module_name)
         if "." not in module_name and relative_to:
             if debug_find_module:
@@ -477,13 +479,6 @@ def create_default_resultobj(compilation_source, options):
         else:
             c_suffix = ".c"
         result.c_file = Utils.replace_suffix(source_desc.filename, c_suffix)
-    # The below doesn't make any sense? Why is it there?
-    c_stat = None
-    if result.c_file:
-        try:
-            c_stat = os.stat(result.c_file)
-        except EnvironmentError:
-            pass
     return result
 
 def run_pipeline(source, options, full_module_name = None):
@@ -615,8 +610,6 @@ def compile_single(source, options, full_module_name = None):
     recursion.
     """
     return run_pipeline(source, options, full_module_name)
-#    context = Context(options.include_path)
-#    return context.compile(source, options, full_module_name)
 
 
 def compile_multiple(sources, options):
@@ -636,15 +629,14 @@ def compile_multiple(sources, options):
         timestamps = recursive
     verbose = options.verbose or ((recursive or timestamps) and not options.quiet)
     for source in sources:
-        context = Context(options.include_path) # to be removed later
         if source not in processed:
+            # Compiling multiple sources in one context doesn't quite
+            # work properly yet.
             if not timestamps or context.c_file_out_of_date(source):
                 if verbose:
                     sys.stderr.write("Compiling %s\n" % source)
 
-                result = context.compile(source, options)
-                # Compiling multiple sources in one context doesn't quite
-                # work properly yet.
+                result = run_pipeline(source, options)
                 results.add(source, result)
             processed.add(source)
             if recursive:
@@ -674,10 +666,7 @@ def compile(source, options = None, c_compile = 0, c_link = 0,
             and not options.recursive:
         return compile_single(source, options, full_module_name)
     else:
-        # Hack it for wednesday dev1
-        assert len(source) == 1
-        return compile_single(source[0], options)
-#        return compile_multiple(source, options)
+        return compile_multiple(source, options)
 
 #------------------------------------------------------------------------
 #

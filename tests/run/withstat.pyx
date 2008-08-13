@@ -12,12 +12,12 @@ exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
 >>> with_exception(None)
 enter
 value
-exit <type 'type'> <class 'withstat.MyException'> <type 'traceback'>
+exit <type 'type'> <type 'MyException'> <type 'traceback'>
 outer except
 >>> with_exception(True)
 enter
 value
-exit <type 'type'> <class 'withstat.MyException'> <type 'traceback'>
+exit <type 'type'> <type 'MyException'> <type 'traceback'>
 >>> multitarget()
 enter
 1 2 3 4 5
@@ -32,20 +32,23 @@ enter
 exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
 """
 
+def typename(t):
+    return u"<type '%s'>" % type(t).__name__
+
 class MyException(Exception):
     pass
 
-class ContextManager:
+class ContextManager(object):
     def __init__(self, value, exit_ret = None):
         self.value = value
         self.exit_ret = exit_ret
 
     def __exit__(self, a, b, tb):
-        print "exit", type(a), type(b), type(tb)
+        print u"exit", typename(a), typename(b), typename(tb)
         return self.exit_ret
         
     def __enter__(self):
-        print "enter"
+        print u"enter"
         return self.value
 
 def no_as():

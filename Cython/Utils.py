@@ -99,8 +99,53 @@ class EncodedString(unicode):
 #        return unicode.__eq__(self, other) and \
 #            getattr(other, 'encoding', '') == self.encoding
 
+char_from_escape_sequence = {
+    r'\a' : '\a',
+    r'\b' : '\b',
+    r'\f' : '\f',
+    r'\n' : '\n',
+    r'\r' : '\r',
+    r'\t' : '\t',
+    r'\v' : '\v',
+    }.get
+
+def _to_escape_sequence(s):
+    if s in '\n\r\t':
+        return repr(s)[1:-1]
+    elif s == '"':
+        return r'\"'
+    else:
+        # within a character sequence, oct passes much better than hex
+        return ''.join(['\\%03o' % ord(c) for c in s])
+
+_c_special = ('\0', '\n', '\r', '\t', '??', '"')
+_c_special_replacements = zip(_c_special, map(_to_escape_sequence, _c_special))
+
+def _build_specials_test():
+    subexps = []
+    for special in _c_special:
+        regexp = ''.join(['[%s]' % c for c in special])
+        subexps.append(regexp)
+    return re.compile('|'.join(subexps)).search
+
+_has_specials = _build_specials_test()
+
+def escape_character(c):
+    if c in '\n\r\t\\':
+        return repr(c)[1:-1]
+    elif c == "'":
+        return "\\'"
+    elif ord(c) < 32:
+        # hex works well for characters
+        return "\\x%02X" % ord(c)
+    else:
+        return c
+
 def escape_byte_string(s):
-    s = s.replace('\0', r'\x00')
+    s = s.replace('\\', '\\\\')
+    if _has_specials(s):
+        for special, replacement in _c_special_replacements:
+            s = s.replace(special, replacement)
     try:
         s.decode("ASCII")
         return s
@@ -111,7 +156,7 @@ def escape_byte_string(s):
     for c in s:
         o = ord(c)
         if o >= 128:
-            append('\\x%X' % o)
+            append('\\%3o' % o)
         else:
             append(c)
     return ''.join(l)
