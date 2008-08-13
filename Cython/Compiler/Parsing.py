@@ -1627,8 +1627,13 @@ def p_c_simple_base_type(s, self_flag, nonempty):
         longness = longness, is_self_arg = self_flag)
 
 
-    # Treat trailing [] on type as buffer access
-    if s.sy == '[':
+    # Treat trailing [] on type as buffer access if it appears in a context
+    # where declarator names are required (so that it cannot mean int[] or
+    # sizeof(int[SIZE]))...
+    #
+    # (This means that buffers cannot occur where there can be empty declarators,
+    # which is an ok restriction to make.)
+    if nonempty and s.sy == '[':
         return p_buffer_access(s, type_node)
     else:
         return type_node
@@ -1637,10 +1642,6 @@ def p_buffer_access(s, base_type_node):
     # s.sy == '['
     pos = s.position()
     s.next()
-    if s.sy == ']' or s.sy == 'INT':
-        # not buffer, could be [] on C type nameless array arguments
-        s.put_back('[', '[')
-        return base_type_node
     positional_args, keyword_args = (
         p_positional_and_keyword_args(s, (']',), (0,), ('dtype',))
     )
