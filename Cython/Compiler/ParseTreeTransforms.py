@@ -5,7 +5,10 @@ from Cython.Compiler.ExprNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment
 from Cython.Utils import EncodedString
 from Cython.Compiler.Errors import CompileError
-from sets import Set as set
+try:
+    set
+except NameError:
+    from sets import Set as set
 import copy
 
 class NormalizeTree(CythonTransform):
@@ -356,7 +359,7 @@ class ResolveOptions(CythonTransform):
             for option in options:
                 name, value = option
                 optdict[name] = value
-            return self.visit_with_options(node, options)
+            return self.visit_with_options(node, optdict)
         else:
             return self.visit_Node(node)
                                    

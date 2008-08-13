@@ -15,7 +15,10 @@ from TypeSlots import \
     get_special_method_signature, get_property_accessor_signature
 import ControlFlow
 import __builtin__
-from sets import Set as set
+try:
+    set
+except NameError:
+    from sets import Set as set
 
 possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
@@ -287,14 +290,14 @@ class Scope:
     def qualify_name(self, name):
         return "%s.%s" % (self.qualified_name, name)
     
-    def declare_const(self, name, type, value, pos, cname = None):
+    def declare_const(self, name, type, value, pos, cname = None, visibility = 'private'):
         # Add an entry for a named constant.
         if not cname:
             if self.in_cinclude:
                 cname = name
             else:
                 cname = self.mangle(Naming.enum_prefix, name)
-        entry = self.declare(name, cname, type, pos, 'private')
+        entry = self.declare(name, cname, type, pos, visibility)
         entry.is_const = 1
         entry.value = value
         return entry
@@ -502,7 +505,7 @@ class Scope:
         else:
             cname = self.new_const_cname()
         if value.is_unicode:
-            c_type = PyrexTypes.c_utf8_char_array_type
+            c_type = PyrexTypes.c_unicode_type
             value = value.utf8encode()
         else:
             c_type = PyrexTypes.c_char_array_type

@@ -265,6 +265,7 @@ class CythonRunTestCase(CythonCompileTestCase):
         try:
             self.runCompileTest()
             if not self.cythononly:
+                sys.stderr.write('running doctests in %s ...\n' % self.module)
                 doctest.DocTestSuite(self.module).run(result)
         except Exception:
             result.addError(self, sys.exc_info())
@@ -276,7 +277,7 @@ class CythonRunTestCase(CythonCompileTestCase):
 
 class CythonUnitTestCase(CythonCompileTestCase):
     def shortDescription(self):
-        return "compiling and running unit tests in " + self.module
+        return "compiling tests in " + self.module
 
     def run(self, result=None):
         if result is None:
@@ -284,6 +285,7 @@ class CythonUnitTestCase(CythonCompileTestCase):
         result.startTest(self)
         try:
             self.runCompileTest()
+            sys.stderr.write('running tests in %s ...\n' % self.module)
             unittest.defaultTestLoader.loadTestsFromName(self.module).run(result)
         except Exception:
             result.addError(self, sys.exc_info())
@@ -380,6 +382,9 @@ if __name__ == '__main__':
     parser.add_option("--cython-only", dest="cythononly",
                       action="store_true", default=False,
                       help="only compile pyx to c, do not run C compiler or run the tests")
+    parser.add_option("--sys-pyregr", dest="system_pyregr",
+                      action="store_true", default=False,
+                      help="run the regression tests of the CPython installation")
     parser.add_option("-C", "--coverage", dest="coverage",
                       action="store_true", default=False,
                       help="collect source coverage data for the Compiler")
@@ -391,6 +396,13 @@ if __name__ == '__main__':
                       help="display test progress, pass twice to print test names")
 
     options, cmd_args = parser.parse_args()
+
+    if sys.version_info[0] >= 3:
+        # make sure we do not import (or run) Cython itself
+        options.doctests    = False
+        options.with_cython = False
+        options.unittests   = False
+        options.pyregr      = False
 
     if options.coverage:
         import coverage
@@ -420,11 +432,11 @@ if __name__ == '__main__':
 
     if WITH_CYTHON:
         from Cython.Compiler.Version import version
-        print("Running tests against Cython %s" % version)
+        sys.stderr.write("Running tests against Cython %s\n" % version)
     else:
-        print("Running tests without Cython.")
-    print("Python %s" % sys.version)
-    print("")
+        sys.stderr.write("Running tests without Cython.\n")
+    sys.stderr.write("Python %s\n" % sys.version)
+    sys.stderr.write("\n")
 
     import re
     selectors = [ re.compile(r, re.I|re.U).search for r in cmd_args ]
@@ -443,7 +455,16 @@ if __name__ == '__main__':
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors,
                                 options.annotate_source, options.cleanup_workdir,
                                 options.cleanup_sharedlibs, options.pyregr, options.cythononly)
-        test_suite.addTests([filetests.build_suite()])
+        test_suite.addTest(filetests.build_suite())
+
+    if options.system_pyregr:
+        filetests = TestBuilder(ROOTDIR, WORKDIR, selectors,
+                                options.annotate_source, options.cleanup_workdir,
+                                options.cleanup_sharedlibs, True)
+        test_suite.addTest(
+            filetests.handle_directory(
+                os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test'),
+                'pyregr'))
 
     unittest.TextTestRunner(verbosity=options.verbosity).run(test_suite)
 
