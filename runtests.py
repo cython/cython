@@ -454,13 +454,15 @@ if __name__ == '__main__':
     if options.filetests:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors,
                                 options.annotate_source, options.cleanup_workdir,
-                                options.cleanup_sharedlibs, options.pyregr, options.cythononly)
+                                options.cleanup_sharedlibs, options.pyregr,
+                                options.cythononly)
         test_suite.addTest(filetests.build_suite())
 
     if options.system_pyregr:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors,
                                 options.annotate_source, options.cleanup_workdir,
-                                options.cleanup_sharedlibs, True)
+                                options.cleanup_sharedlibs, True,
+                                options.cythononly)
         test_suite.addTest(
             filetests.handle_directory(
                 os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test'),
