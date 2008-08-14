@@ -306,6 +306,7 @@ class PyrexScanner(Scanner):
             self.compile_time_env = initial_compile_time_env()
             self.compile_time_eval = 1
             self.compile_time_expr = 0
+        self.parse_option_comments = True
         self.source_encoding = source_encoding
         self.trace = trace_scanner
         self.indentation_stack = [0]
@@ -314,6 +315,13 @@ class PyrexScanner(Scanner):
         self.begin('INDENT')
         self.sy = ''
         self.next()
+
+    def option_comment(self, text):
+        # #cython:-comments should be treated as literals until
+        # parse_option_comments is set to False, at which point
+        # they should be ignored.
+        if self.parse_option_comments:
+            self.produce('option_comment', text)    
     
     def current_level(self):
         return self.indentation_stack[-1]
@@ -432,12 +440,13 @@ class PyrexScanner(Scanner):
     def looking_at_type_name(self):
         return self.sy == 'IDENT' and self.systring in self.type_names
     
-    def error(self, message, pos = None):
+    def error(self, message, pos = None, fatal = True):
         if pos is None:
             pos = self.position()
         if self.sy == 'INDENT':
-            error(pos, "Possible inconsistent indentation")
-        raise error(pos, message)
+            err = error(pos, "Possible inconsistent indentation")
+        err = error(pos, message)
+        if fatal: raise err
         
     def expect(self, what, message = None):
         if self.sy == what:

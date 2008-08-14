@@ -13,6 +13,7 @@ from ModuleNode import ModuleNode
 from Errors import error, warning, InternalError
 from Cython import Utils
 import Future
+import Options
 
 class Ctx(object):
     #  Parsing context
@@ -602,7 +603,7 @@ def p_string_literal(s):
             else:
                 c = systr[1]
                 if c in "01234567":
-                    chars.append(chr(int(systr[1:])))
+                    chars.append(chr(int(systr[1:], 8)))
                 elif c in "'\"\\":
                     chars.append(c)
                 elif c in "abfnrtv":
@@ -621,7 +622,7 @@ def p_string_literal(s):
                         strval = systr
                     chars.append(strval)
                 else:
-                    chars.append(r'\\' + systr[1:])
+                    chars.append('\\' + systr[1:])
         elif sy == 'NEWLINE':
             chars.append('\n')
         elif sy == 'END_STRING':
@@ -1412,7 +1413,7 @@ def p_statement(s, ctx, first_statement = 0):
             if ctx.api:
                 error(s.pos, "'api' not allowed with this statement")
             elif s.sy == 'def':
-                if ctx.level not in ('module', 'class', 'c_class', 'property'):
+                if ctx.level not in ('module', 'class', 'c_class', 'c_class_pxd', 'property'):
                     s.error('def statement not allowed here')
                 s.level = ctx.level
                 return p_def_statement(s)
@@ -1626,8 +1627,13 @@ def p_c_simple_base_type(s, self_flag, nonempty):
         longness = longness, is_self_arg = self_flag)
 
 
-    # Treat trailing [] on type as buffer access
-    if s.sy == '[':
+    # Treat trailing [] on type as buffer access if it appears in a context
+    # where declarator names are required (so that it cannot mean int[] or
+    # sizeof(int[SIZE]))...
+    #
+    # (This means that buffers cannot occur where there can be empty declarators,
+    # which is an ok restriction to make.)
+    if nonempty and s.sy == '[':
         return p_buffer_access(s, type_node)
     else:
         return type_node
@@ -1636,10 +1642,6 @@ def p_buffer_access(s, base_type_node):
     # s.sy == '['
     pos = s.position()
     s.next()
-    if s.sy == ']' or s.sy == 'INT':
-        # not buffer, could be [] on C type nameless array arguments
-        s.put_back('[', '[')
-        return base_type_node
     positional_args, keyword_args = (
         p_positional_and_keyword_args(s, (']',), (0,), ('dtype',))
     )
@@ -1887,7 +1889,7 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0, kw_only = 0)
         if 'pxd' in s.level:
             if s.sy not in ['*', '?']:
                 error(pos, "default values cannot be specified in pxd files, use ? or *")
-            default = 1
+            default = ExprNodes.BoolNode(1)
             s.next()
         else:
             default = p_simple_expr(s)
@@ -2324,6 +2326,17 @@ def p_code(s, level=None):
             repr(s.sy), repr(s.systring)))
     return body
 
+def p_option_comments(s):
+    result = {}
+    while s.sy == 'option_comment':
+        opts = s.systring[len("#cython:"):]
+        try:
+            result.update(Options.parse_option_list(opts))
+        except ValueError, e:
+            s.error(e.message, fatal=False)
+        s.next()
+    return result
+
 def p_module(s, pxd, full_module_name):
     s.add_type_name("object")
     s.add_type_name("Py_buffer")
@@ -2333,11 +2346,16 @@ def p_module(s, pxd, full_module_name):
         level = 'module_pxd'
     else:
         level = 'module'
+
+    option_comments = p_option_comments(s)
+    s.parse_option_comments = False
     body = p_statement_list(s, Ctx(level = level), first_statement = 1)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
             repr(s.sy), repr(s.systring)))
-    return ModuleNode(pos, doc = doc, body = body, full_module_name = full_module_name)
+    return ModuleNode(pos, doc = doc, body = body,
+                      full_module_name = full_module_name,
+                      option_comments = option_comments)
 
 #----------------------------------------------
 #

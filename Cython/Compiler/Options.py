@@ -1,5 +1,5 @@
 #
-#  Pyrex - Compilation-wide options
+#  Cython - Compilation-wide options and pragma declarations
 #
 
 cache_builtins = 1  #  Perform lookups on builtin names only once
@@ -52,3 +52,58 @@ optimize_simple_methods = 1
 
 # Append the c file and line number to the traceback for exceptions. 
 c_line_in_traceback = 1
+
+
+# Declare pragmas
+option_types = {
+    'boundscheck' : bool
+}
+
+option_defaults = {
+    'boundscheck' : True
+}
+
+def parse_option_list(s):
+    """
+    Parses a comma-seperated list of pragma options. Whitespace
+    is not considered.
+
+    >>> parse_option_list('      ')
+    {}
+    >>> (parse_option_list('boundscheck=True') ==
+    ... {'boundscheck': True})
+    True
+    >>> parse_option_list('  asdf')
+    Traceback (most recent call last):
+       ...
+    ValueError: Expected "=" in option "asdf"
+    >>> parse_option_list('boundscheck=hey')
+    Traceback (most recent call last):
+       ...
+    ValueError: Must pass a boolean value for option "boundscheck"
+    >>> parse_option_list('unknown=True')
+    Traceback (most recent call last):
+       ...
+    ValueError: Unknown option: "unknown"
+    """
+    result = {}
+    for item in s.split(','):
+        item = item.strip()
+        if not item: continue
+        if not '=' in item: raise ValueError('Expected "=" in option "%s"' % item)
+        name, value = item.strip().split('=')
+        try:
+            type = option_types[name]
+        except KeyError:
+            raise ValueError('Unknown option: "%s"' % name)
+        if type is bool:
+            value = value.lower()
+            if value in ('true', 'yes'):
+                value = True
+            elif value in ('false', 'no'):
+                value = False
+            else: raise ValueError('Must pass a boolean value for option "%s"' % name)
+            result[name] = value
+        else:
+            assert False
+    return result

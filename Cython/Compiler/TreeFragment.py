@@ -20,7 +20,7 @@ Support for parsing strings into code trees.
 
 class StringParseContext(Main.Context):
     def __init__(self, include_directories, name):
-        Main.Context.__init__(self, include_directories)
+        Main.Context.__init__(self, include_directories, {})
         self.module_name = name
         
     def find_module(self, module_name, relative_to = None, pos = None, need_pxd = 1):

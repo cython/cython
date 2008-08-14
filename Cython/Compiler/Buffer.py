@@ -5,6 +5,7 @@ from Cython.Compiler.ExprNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment
 from Cython.Utils import EncodedString
 from Cython.Compiler.Errors import CompileError
+import Interpreter
 import PyrexTypes
 
 try:
@@ -13,6 +14,13 @@ except NameError:
     from sets import Set as set
 
 import textwrap
+
+# Code cleanup ideas:
+# - One could be more smart about casting in some places
+# - Start using CCodeWriters to generate utility functions
+# - Create a struct type per ndim rather than keeping loose local vars
+
+
 def dedent(text, reindent=0):
     text = textwrap.dedent(text)
     if reindent > 0:
@@ -35,7 +43,6 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
         if self.buffers_exists:
             use_py2_buffer_functions(node.scope)
             use_empty_bufstruct_code(node.scope, self.max_ndim)
-            node.scope.use_utility_code(access_utility_code)
         return result
 
 
@@ -62,15 +69,12 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
             if buftype.ndim > self.max_ndim:
                 self.max_ndim = buftype.ndim
 
-            # Get or make a type string checker
-            tschecker = buffer_type_checker(buftype.dtype, scope)
-
             # Declare auxiliary vars
             cname = scope.mangle(Naming.bufstruct_prefix, name)
             bufinfo = scope.declare_var(name="$%s" % cname, cname=cname,
                                         type=PyrexTypes.c_py_buffer_type, pos=node.pos)
-
-            bufinfo.used = True
+            if entry.is_arg:
+                bufinfo.used = True # otherwise, NameNode will mark whether it is used
 
             def var(prefix, idx, initval):
                 cname = scope.mangle(prefix, "%d_%s" % (idx, name))
@@ -85,17 +89,13 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
 
             stridevars = [var(Naming.bufstride_prefix, i, "0") for i in range(entry.type.ndim)]
             shapevars = [var(Naming.bufshape_prefix, i, "0") for i in range(entry.type.ndim)]            
-            entry.buffer_aux = Symtab.BufferAux(bufinfo, stridevars, shapevars, tschecker)
             mode = entry.type.mode
             if mode == 'full':
                 suboffsetvars = [var(Naming.bufsuboffset_prefix, i, "-1") for i in range(entry.type.ndim)]
-                entry.buffer_aux.lookup = get_buf_lookup_full(scope, entry.type.ndim)
             elif mode == 'strided':
                 suboffsetvars = None
-                entry.buffer_aux.lookup = get_buf_lookup_strided(scope, entry.type.ndim)
 
-            entry.buffer_aux.suboffsetvars = suboffsetvars
-            entry.buffer_aux.get_buffer_cname = tschecker
+            entry.buffer_aux = Symtab.BufferAux(bufinfo, stridevars, shapevars, suboffsetvars)
             
         scope.buffer_entries = bufvars
         self.scope = scope
@@ -110,7 +110,79 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
         self.visitchildren(node)
         return node
 
+#
+# Analysis
+#
+buffer_options = ("dtype", "ndim", "mode") # ordered!
+buffer_defaults = {"ndim": 1, "mode": "full"}
 
+ERR_BUF_OPTION_UNKNOWN = '"%s" is not a buffer option'
+ERR_BUF_TOO_MANY = 'Too many buffer options'
+ERR_BUF_DUP = '"%s" buffer option already supplied'
+ERR_BUF_MISSING = '"%s" missing'
+ERR_BUF_MODE = 'Only allowed buffer modes are "full" or "strided" (as a compile-time string)'
+ERR_BUF_NDIM = 'ndim must be a non-negative integer'
+ERR_BUF_DTYPE = 'dtype must be "object", numeric type or a struct'
+
+def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, need_complete=True):
+    """
+    Must be called during type analysis, as analyse is called
+    on the dtype argument.
+
+    posargs and dictargs should consist of a list and a dict
+    of tuples (value, pos). Defaults should be a dict of values.
+
+    Returns a dict containing all the options a buffer can have and
+    its value (with the positions stripped).
+    """
+    if defaults is None:
+        defaults = buffer_defaults
+    
+    posargs, dictargs = Interpreter.interpret_compiletime_options(posargs, dictargs, type_env=env)
+    
+    if len(posargs) > len(buffer_options):
+        raise CompileError(posargs[-1][1], ERR_BUF_TOO_MANY)
+
+    options = {}
+    for name, (value, pos) in dictargs.iteritems():
+        if not name in buffer_options:
+            raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
+        options[name] = value
+    
+    for name, (value, pos) in zip(buffer_options, posargs):
+        if not name in buffer_options:
+            raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
+        if name in options:
+            raise CompileError(pos, ERR_BUF_DUP % name)
+        options[name] = value
+
+    # Check that they are all there and copy defaults
+    for name in buffer_options:
+        if not name in options:
+            try:
+                options[name] = defaults[name]
+            except KeyError:
+                if need_complete:
+                    raise CompileError(globalpos, ERR_BUF_MISSING % name)
+
+    dtype = options.get("dtype")
+    if dtype and dtype.is_extension_type:
+        raise CompileError(globalpos, ERR_BUF_DTYPE)
+
+    ndim = options.get("ndim")
+    if ndim and (not isinstance(ndim, int) or ndim < 0):
+        raise CompileError(globalpos, ERR_BUF_NDIM)
+
+    mode = options.get("mode")
+    if mode and not (mode in ('full', 'strided')):
+        raise CompileError(globalpos, ERR_BUF_MODE)
+
+    return options
+    
+
+#
+# Code generation
+#
 
 
 def get_flags(buffer_aux, buffer_type):
@@ -129,7 +201,8 @@ def used_buffer_aux_vars(entry):
     buffer_aux.buffer_info_var.used = True
     for s in buffer_aux.shapevars: s.used = True
     for s in buffer_aux.stridevars: s.used = True
-    for s in buffer_aux.suboffsetvars: s.used = True
+    if buffer_aux.suboffsetvars:
+        for s in buffer_aux.suboffsetvars: s.used = True
 
 def put_unpack_buffer_aux_into_scope(buffer_aux, mode, code):
     # Generate code to copy the needed struct info into local
@@ -146,24 +219,19 @@ def put_unpack_buffer_aux_into_scope(buffer_aux, mode, code):
                              (s.cname, bufstruct, field, idx)
                              for idx, s in enumerate(vars)]))
 
-def getbuffer_cond_code(obj_cname, buffer_aux, flags, ndim):
-    bufstruct = buffer_aux.buffer_info_var.cname
-    return "%s(%s, &%s, %s, %d) == -1" % (
-        buffer_aux.get_buffer_cname, obj_cname, bufstruct, flags, ndim)
-                   
 def put_acquire_arg_buffer(entry, code, pos):
+    code.globalstate.use_utility_code(acquire_utility_code)
     buffer_aux = entry.buffer_aux
-    cname  = entry.cname
-    bufstruct = buffer_aux.buffer_info_var.cname
-    flags = get_flags(buffer_aux, entry.type)
+    getbuffer_cname = get_getbuffer_code(entry.type.dtype, code)
     # Acquire any new buffer
-    code.putln(code.error_goto_if(getbuffer_cond_code(cname,
-                                                    buffer_aux,
-                                                    flags,
-                                                    entry.type.ndim),
-                                pos))
+    code.putln(code.error_goto_if("%s((PyObject*)%s, &%s, %s, %d) == -1" % (
+        getbuffer_cname,
+        entry.cname,
+        entry.buffer_aux.buffer_info_var.cname,
+        get_flags(buffer_aux, entry.type),
+        entry.type.ndim), pos))
     # An exception raised in arg parsing cannot be catched, so no
-    # need to do care about the buffer then.
+    # need to care about the buffer then.
     put_unpack_buffer_aux_into_scope(buffer_aux, entry.type.mode, code)
 
 #def put_release_buffer_normal(entry, code):
@@ -173,8 +241,7 @@ def put_acquire_arg_buffer(entry, code, pos):
 #        entry.buffer_aux.buffer_info_var.cname))
 
 def get_release_buffer_code(entry):
-    return "if (%s != Py_None) PyObject_ReleaseBuffer(%s, &%s)" % (
-        entry.cname,
+    return "__Pyx_SafeReleaseBuffer((PyObject*)%s, &%s)" % (
         entry.cname,
         entry.buffer_aux.buffer_info_var.cname)
 
@@ -193,25 +260,23 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
     - Old buffer released, new acquired which fails, reaqcuire old lhs buffer
       (which may or may not succeed).
     """
-    
+
+    code.globalstate.use_utility_code(acquire_utility_code)
     bufstruct = buffer_aux.buffer_info_var.cname
     flags = get_flags(buffer_aux, buffer_type)
 
-    getbuffer = "%s(%%s, &%s, %s, %d)" % (buffer_aux.get_buffer_cname,
-                                          # note: object is filled in later
+    getbuffer = "%s((PyObject*)%%s, &%s, %s, %d)" % (get_getbuffer_code(buffer_type.dtype, code),
+                                          # note: object is filled in later (%%s)
                                           bufstruct,
                                           flags,
                                           buffer_type.ndim)
 
     if is_initialized:
         # Release any existing buffer
-        code.put('if (%s != Py_None) ' % lhs_cname)
-        code.begin_block();
-        code.putln('PyObject_ReleaseBuffer(%s, &%s);' % (
+        code.putln('__Pyx_SafeReleaseBuffer((PyObject*)%s, &%s);' % (
             lhs_cname, bufstruct))
-        code.end_block()
         # Acquire
-        retcode_cname = code.func.allocate_temp(PyrexTypes.c_int_type)
+        retcode_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type)
         code.putln("%s = %s;" % (retcode_cname, getbuffer % rhs_cname))
         code.putln('if (%s) ' % (code.unlikely("%s < 0" % retcode_cname)))
         # If acquisition failed, attempt to reacquire the old buffer
@@ -219,29 +284,33 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
         # will cause the reacquisition exception to be reported, one
         # can consider working around this later.
         code.begin_block()
-        type, value, tb = [code.func.allocate_temp(PyrexTypes.py_object_type)
+        type, value, tb = [code.funcstate.allocate_temp(PyrexTypes.py_object_type)
                            for i in range(3)]
         code.putln('PyErr_Fetch(&%s, &%s, &%s);' % (type, value, tb))
         code.put('if (%s) ' % code.unlikely("%s == -1" % (getbuffer % lhs_cname)))
         code.begin_block()
         code.putln('Py_XDECREF(%s); Py_XDECREF(%s); Py_XDECREF(%s);' % (type, value, tb))
+        code.globalstate.use_utility_code(raise_buffer_fallback_code)
         code.putln('__Pyx_RaiseBufferFallbackError();')
         code.putln('} else {')
         code.putln('PyErr_Restore(%s, %s, %s);' % (type, value, tb))
         for t in (type, value, tb):
-            code.func.release_temp(t)
+            code.funcstate.release_temp(t)
         code.end_block()
         # Unpack indices
         code.end_block()
         put_unpack_buffer_aux_into_scope(buffer_aux, buffer_type.mode, code)
         code.putln(code.error_goto_if_neg(retcode_cname, pos))
-        code.func.release_temp(retcode_cname)
+        code.funcstate.release_temp(retcode_cname)
     else:
         # Our entry had no previous value, so set to None when acquisition fails.
         # In this case, auxiliary vars should be set up right in initialization to a zero-buffer,
         # so it suffices to set the buf field to NULL.
         code.putln('if (%s) {' % code.unlikely("%s == -1" % (getbuffer % rhs_cname)))
-        code.putln('%s = Py_None; Py_INCREF(Py_None); %s.buf = NULL;' % (lhs_cname, bufstruct))
+        code.putln('%s = %s; Py_INCREF(Py_None); %s.buf = NULL;' %
+                   (lhs_cname,
+                    PyrexTypes.typecast(buffer_type, PyrexTypes.py_object_type, "Py_None"),
+                    bufstruct))
         code.putln(code.error_goto(pos))
         code.put('} else {')
         # Unpack indices
@@ -249,65 +318,79 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
         code.putln('}')
 
 
-def put_access(entry, index_signeds, index_cnames, pos, code):
-    """Returns a c string which can be used to access the buffer
-    for reading or writing.
+def put_buffer_lookup_code(entry, index_signeds, index_cnames, options, pos, code):
+    """
+    Generates code to process indices and calculate an offset into
+    a buffer. Returns a C string which gives a pointer which can be
+    read from or written to at will (it is an expression so caller should
+    store it in a temporary if it is used more than once).
 
     As the bounds checking can have any number of combinations of unsigned
     arguments, smart optimizations etc. we insert it directly in the function
     body. The lookup however is delegated to a inline function that is instantiated
     once per ndim (lookup with suboffsets tend to get quite complicated).
+
     """
     bufaux = entry.buffer_aux
     bufstruct = bufaux.buffer_info_var.cname
-    # Check bounds and fix negative indices
-    boundscheck = True
-    nonegs = True
-    tmp_cname = code.func.allocate_temp(PyrexTypes.c_int_type)
-    if boundscheck:
+
+    if options['boundscheck']:
+        # Check bounds and fix negative indices.
+        # We allocate a temporary which is initialized to -1, meaning OK (!).
+        # If an error occurs, the temp is set to the dimension index the
+        # error is occuring at.
+        tmp_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type)
         code.putln("%s = -1;" % tmp_cname)
-    for idx, (signed, cname, shape) in enumerate(zip(index_signeds, index_cnames,
-                                  bufaux.shapevars)):
-        if signed != 0:
-            nonegs = False
-            # not unsigned, deal with negative index
-            code.putln("if (%s < 0) {" % cname)
-            code.putln("%s += %s;" % (cname, shape.cname))
-            if boundscheck:
+        for dim, (signed, cname, shape) in enumerate(zip(index_signeds, index_cnames,
+                                                         bufaux.shapevars)):
+            if signed != 0:
+                # not unsigned, deal with negative index
+                code.putln("if (%s < 0) {" % cname)
+                code.putln("%s += %s;" % (cname, shape.cname))
                 code.putln("if (%s) %s = %d;" % (
-                    code.unlikely("%s < 0" % cname), tmp_cname, idx))
-            code.put("} else ")
-        else:
-            if idx > 0: code.put("else ")
-        if boundscheck:
+                    code.unlikely("%s < 0" % cname), tmp_cname, dim))
+                code.put("} else ")
             # check bounds in positive direction
             code.putln("if (%s) %s = %d;" % (
                 code.unlikely("%s >= %s" % (cname, shape.cname)),
-                tmp_cname, idx))
-    if boundscheck:  
+                tmp_cname, dim))
+        code.globalstate.use_utility_code(raise_indexerror_code)
         code.put("if (%s) " % code.unlikely("%s != -1" % tmp_cname))
         code.begin_block()
-        code.putln('__Pyx_BufferIndexError(%s);' % tmp_cname)
+        code.putln('__Pyx_RaiseBufferIndexError(%s);' % tmp_cname)
         code.putln(code.error_goto(pos))
         code.end_block()
-    code.func.release_temp(tmp_cname)
-
+        code.funcstate.release_temp(tmp_cname)
+    else:
+        # Only fix negative indices.
+        for signed, cname, shape in zip(index_signeds, index_cnames,
+                                        bufaux.shapevars):
+            if signed != 0:
+                code.putln("if (%s < 0) %s += %s;" % (cname, cname, shape.cname))
+        
     # Create buffer lookup and return it
     params = []
+    nd = entry.type.ndim
     if entry.type.mode == 'full':
         for i, s, o in zip(index_cnames, bufaux.stridevars, bufaux.suboffsetvars):
             params.append(i)
             params.append(s.cname)
             params.append(o.cname)
+
+        funcname = "__Pyx_BufPtrFull%dd" % nd
+        funcgen = buf_lookup_full_code
     else:
         for i, s in zip(index_cnames, bufaux.stridevars):
             params.append(i)
             params.append(s.cname)
-    ptrcode = "%s(%s.buf, %s)" % (bufaux.lookup, bufstruct, 
-                          ", ".join(params))
-    valuecode = "*%s" % entry.type.buffer_ptr_type.cast_code(ptrcode)
-    return valuecode
+        funcname = "__Pyx_BufPtrStrided%dd" % nd
+        funcgen = buf_lookup_strided_code
+        
+    # Make sure the utility code is available
+    code.globalstate.use_generated_code(funcgen, name=funcname, nd=nd)
 
+    ptrcode = "%s(%s.buf, %s)" % (funcname, bufstruct, ", ".join(params))
+    return entry.type.buffer_ptr_type.cast_code(ptrcode)
 
 
 def use_empty_bufstruct_code(env, max_ndim):
@@ -315,54 +398,35 @@ def use_empty_bufstruct_code(env, max_ndim):
         Py_ssize_t __Pyx_zeros[] = {%s};
         Py_ssize_t __Pyx_minusones[] = {%s};
     """) % (", ".join(["0"] * max_ndim), ", ".join(["-1"] * max_ndim))
-    env.use_utility_code([code, ""])
+    env.use_utility_code([code, ""], "empty_bufstruct_code")
 
 
-def get_buf_lookup_strided(env, nd):
+def buf_lookup_strided_code(proto, defin, name, nd):
     """
-    Generates and registers as utility a buffer lookup function for the right number
+    Generates a buffer lookup function for the right number
     of dimensions. The function gives back a void* at the right location.
     """
-    name = "__Pyx_BufPtrStrided_%dd" % nd
-    if not env.has_utility_code(name):
-        # _i_ndex, _s_tride
-        args = ", ".join(["i%d, s%d" % (i, i) for i in range(nd)])
-        offset = " + ".join(["i%d * s%d" % (i, i) for i in range(nd)])
-        proto = dedent("""\
-        #define %s(buf, %s) ((char*)buf + %s)
-        """) % (name, args, offset) 
-        env.use_utility_code([proto, ""], name=name)
-        
-    return name
+    # _i_ndex, _s_tride
+    args = ", ".join(["i%d, s%d" % (i, i) for i in range(nd)])
+    offset = " + ".join(["i%d * s%d" % (i, i) for i in range(nd)])
+    proto.putln("#define %s(buf, %s) ((char*)buf + %s)" % (name, args, offset))
 
-
-def get_buf_lookup_full(env, nd):
+def buf_lookup_full_code(proto, defin, name, nd):
     """
-    Generates and registers as utility a buffer lookup function for the right number
+    Generates a buffer lookup function for the right number
     of dimensions. The function gives back a void* at the right location.
     """
-    name = "__Pyx_BufPtrFull_%dd" % nd
-    if not env.has_utility_code(name):
-        # _i_ndex, _s_tride, sub_o_ffset
-        args = ", ".join(["Py_ssize_t i%d, Py_ssize_t s%d, Py_ssize_t o%d" % (i, i, i) for i in range(nd)])
-        proto = dedent("""\
-        static INLINE void* %s(void* buf, %s);
-        """) % (name, args) 
-
-        func = dedent("""
+    # _i_ndex, _s_tride, sub_o_ffset
+    args = ", ".join(["Py_ssize_t i%d, Py_ssize_t s%d, Py_ssize_t o%d" % (i, i, i) for i in range(nd)])
+    proto.putln("static INLINE void* %s(void* buf, %s);" % (name, args))
+    defin.putln(dedent("""
         static INLINE void* %s(void* buf, %s) {
           char* ptr = (char*)buf;
         """) % (name, args) + "".join([dedent("""\
           ptr += s%d * i%d;
           if (o%d >= 0) ptr = *((char**)ptr) + o%d; 
         """) % (i, i, i, i) for i in range(nd)]
-        ) + "\nreturn ptr;\n}"
-
-        env.use_utility_code([proto, func], name=name)
-        
-    return name
-
-
+        ) + "\nreturn ptr;\n}")
 
 
 #
@@ -371,21 +435,27 @@ def get_buf_lookup_full(env, nd):
 def mangle_dtype_name(dtype):
     # Use prefixes to seperate user defined types from builtins
     # (consider "typedef float unsigned_int")
-    if dtype.typestring is None:
-        prefix = "nn_"
+    if dtype.is_pyobject:
+        return "object"
+    elif dtype.is_ptr:
+        return "ptr"
     else:
-        prefix = ""
-    return prefix + dtype.declaration_code("").replace(" ", "_")
+        if dtype.typestring is None:
+            prefix = "nn_"
+        else:
+            prefix = ""
+        return prefix + dtype.declaration_code("").replace(" ", "_")
 
-def get_ts_check_item(dtype, env):
+def get_ts_check_item(dtype, writer):
     # See if we can consume one (unnamed) dtype as next item
     # Put native types and structs in seperate namespaces (as one could create a struct named unsigned_int...)
     name = "__Pyx_BufferTypestringCheck_item_%s" % mangle_dtype_name(dtype)
-    if not env.has_utility_code(name):
+    if not writer.globalstate.has_utility_code(name):
         char = dtype.typestring
         if char is not None:
                 # Can use direct comparison
             code = dedent("""\
+                if (*ts == '1') ++ts;
                 if (*ts != '%s') {
                   PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (rejecting on '%%s')", ts);
                   return NULL;
@@ -397,6 +467,7 @@ def get_ts_check_item(dtype, env):
             ctype = dtype.declaration_code("")
             code = dedent("""\
                 int ok;
+                if (*ts == '1') ++ts;
                 switch (*ts) {""", 2)
             if dtype.is_int:
                 types = [
@@ -417,7 +488,7 @@ def get_ts_check_item(dtype, env):
                       return NULL;
                     } else return ts + 1;
                 """, 2)
-        env.use_utility_code([dedent("""\
+        writer.globalstate.use_utility_code([dedent("""\
             static const char* %s(const char* ts); /*proto*/
         """) % name, dedent("""
             static const char* %s(const char* ts) {
@@ -427,7 +498,7 @@ def get_ts_check_item(dtype, env):
 
     return name
 
-def get_getbuffer_code(dtype, env):
+def get_getbuffer_code(dtype, code):
     """
     Generate a utility function for getting a buffer for the given dtype.
     The function will:
@@ -438,9 +509,9 @@ def get_getbuffer_code(dtype, env):
     """
 
     name = "__Pyx_GetBuffer_%s" % mangle_dtype_name(dtype)
-    if not env.has_utility_code(name):
-        env.use_utility_code(acquire_utility_code)
-        itemchecker = get_ts_check_item(dtype, env)
+    if not code.globalstate.has_utility_code(name):
+        code.globalstate.use_utility_code(acquire_utility_code)
+        itemchecker = get_ts_check_item(dtype, code)
         utilcode = [dedent("""
         static int %s(PyObject* obj, Py_buffer* buf, int flags, int nd); /*proto*/
         """) % name, dedent("""
@@ -451,7 +522,7 @@ def get_getbuffer_code(dtype, env):
             return 0;
           }
           buf->buf = NULL;
-          if (PyObject_GetBuffer(obj, buf, flags) == -1) goto fail;
+          if (__Pyx_GetBuffer(obj, buf, flags) == -1) goto fail;
           if (buf->ndim != nd) {
             __Pyx_BufferNdimError(buf, nd);
             goto fail;
@@ -475,72 +546,21 @@ def get_getbuffer_code(dtype, env):
           __Pyx_ZeroBuffer(buf);
           return -1;
         }""") % locals()]
-        env.use_utility_code(utilcode, name)
+        code.globalstate.use_utility_code(utilcode, name)
     return name
 
-def buffer_type_checker(dtype, env):
+def buffer_type_checker(dtype, code):
     # Creates a type checker function for the given type.
     if dtype.is_struct_or_union:
         assert False
     elif dtype.is_int or dtype.is_float:
         # This includes simple typedef-ed types
-        funcname = get_getbuffer_code(dtype, env)
+        funcname = get_getbuffer_code(dtype, code)
     else:
         assert False
     return funcname
 
 def use_py2_buffer_functions(env):
-    # will be refactored
-    try:
-        env.entries[u'numpy']
-        env.use_utility_code(["","""
-static int numpy_getbuffer(PyObject *obj, Py_buffer *view, int flags) {
-  /* This function is always called after a type-check; safe to cast */
-  PyArrayObject *arr = (PyArrayObject*)obj;
-  PyArray_Descr *type = (PyArray_Descr*)arr->descr;
-
-  
-  int typenum = PyArray_TYPE(obj);
-  if (!PyTypeNum_ISNUMBER(typenum)) {
-    PyErr_Format(PyExc_TypeError, "Only numeric NumPy types currently supported.");
-    return -1;
-  }
-
-  /*
-  NumPy format codes doesn't completely match buffer codes;
-  seems safest to retranslate.
-                            01234567890123456789012345*/
-  const char* base_codes = "?bBhHiIlLqQfdgfdgO";
-
-  char* format = (char*)malloc(4);
-  char* fp = format;
-  *fp++ = type->byteorder;
-  if (PyTypeNum_ISCOMPLEX(typenum)) *fp++ = 'Z';
-  *fp++ = base_codes[typenum];
-  *fp = 0;
-
-  view->buf = arr->data;
-  view->readonly = !PyArray_ISWRITEABLE(obj);
-  view->ndim = PyArray_NDIM(arr);
-  view->strides = PyArray_STRIDES(arr);
-  view->shape = PyArray_DIMS(arr);
-  view->suboffsets = NULL;
-  view->format = format;
-  view->itemsize = type->elsize;
-
-  view->internal = 0;
-  return 0;
-}
-
-static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
-  free((char*)view->format);
-  view->format = NULL;
-}
-
-"""])
-    except KeyError:
-        pass
-
     codename = "PyObject_GetBuffer" # just a representative unique key
 
     # Search all types for __getbuffer__ overloads
@@ -560,16 +580,9 @@ static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
 
     find_buffer_types(env)
 
-    # For now, hard-code numpy imported as "numpy"
-    try:
-        ndarrtype = env.entries[u'numpy'].as_module.entries['ndarray'].type
-        types.append((ndarrtype.typeptr_cname, "numpy_getbuffer", "numpy_releasebuffer"))
-    except KeyError:
-        pass
-
     code = dedent("""
-        #if PY_VERSION_HEX < 0x02060000
-        static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
+        #if (PY_MAJOR_VERSION < 3) && !(Py_TPFLAGS_DEFAULT & Py_TPFLAGS_HAVE_NEWBUFFER)
+        static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
     """)
     if len(types) > 0:
         clause = "if"
@@ -585,7 +598,7 @@ static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
     code += dedent("""
         }
 
-        static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view) {
+        static void __Pyx_ReleaseBuffer(PyObject *obj, Py_buffer *view) {
     """)
     if len(types) > 0:
         clause = "if"
@@ -600,11 +613,14 @@ static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
     """)
                    
     env.use_utility_code([dedent("""\
-        #if PY_VERSION_HEX < 0x02060000
-        static int PyObject_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
-        static void PyObject_ReleaseBuffer(PyObject *obj, Py_buffer *view);
+        #if (PY_MAJOR_VERSION < 3) && !(Py_TPFLAGS_DEFAULT & Py_TPFLAGS_HAVE_NEWBUFFER)
+        static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
+        static void __Pyx_ReleaseBuffer(PyObject *obj, Py_buffer *view);
+        #else
+        #define __Pyx_GetBuffer PyObject_GetBuffer
+        #define __Pyx_ReleaseBuffer PyObject_ReleaseBuffer
         #endif
-    """) ,code], codename)
+    """), code], codename)
 
 #
 # Static utility code
@@ -613,11 +629,11 @@ static void numpy_releasebuffer(PyObject *obj, Py_buffer *view) {
 
 # Utility function to set the right exception
 # The caller should immediately goto_error
-access_utility_code = [
+raise_indexerror_code = [
 """\
-static void __Pyx_BufferIndexError(int axis); /*proto*/
+static void __Pyx_RaiseBufferIndexError(int axis); /*proto*/
 ""","""\
-static void __Pyx_BufferIndexError(int axis) {
+static void __Pyx_RaiseBufferIndexError(int axis) {
   PyErr_Format(PyExc_IndexError,
      "Out of bounds on buffer access (axis %d)", axis);
 }
@@ -631,12 +647,18 @@ static void __Pyx_BufferIndexError(int axis) {
 # exporter.
 #
 acquire_utility_code = ["""\
+static INLINE void __Pyx_SafeReleaseBuffer(PyObject* obj, Py_buffer* info);
 static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf); /*proto*/
 static INLINE const char* __Pyx_ConsumeWhitespace(const char* ts); /*proto*/
 static INLINE const char* __Pyx_BufferTypestringCheckEndian(const char* ts); /*proto*/
 static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim); /*proto*/
-static void __Pyx_RaiseBufferFallbackError(void); /*proto*/
 """, """
+static INLINE void __Pyx_SafeReleaseBuffer(PyObject* obj, Py_buffer* info) {
+  if (info->buf == NULL) return;
+  if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
+  __Pyx_ReleaseBuffer(obj, info);
+}
+
 static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf) {
   buf->buf = NULL;
   buf->strides = __Pyx_zeros;
@@ -688,9 +710,15 @@ static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim) {
                expected_ndim, buffer->ndim);
 }
 
+"""]
+
+raise_buffer_fallback_code = ["""
+static void __Pyx_RaiseBufferFallbackError(void); /*proto*/
+""","""
 static void __Pyx_RaiseBufferFallbackError(void) {
   PyErr_Format(PyExc_ValueError,
      "Buffer acquisition failed on assignment; and then reacquiring the old buffer failed too!");
 }
 
 """]
+

@@ -15,11 +15,13 @@ _ERRORS = u"""
 1:11: Buffer types only allowed as function local variables
 3:15: Buffer types only allowed as function local variables
 6:27: "fakeoption" is not a buffer option
-7:22: "ndim" must be non-negative
-8:15: "dtype" missing
-9:21: "ndim" must be an integer
-10:15: Too many buffer options
-11:24: Only allowed buffer modes are "full" or "strided" (as a compile-time string)
-12:28: Only allowed buffer modes are "full" or "strided" (as a compile-time string)
 """
+#TODO:
+#7:22: "ndim" must be non-negative
+#8:15: "dtype" missing
+#9:21: "ndim" must be an integer
+#10:15: Too many buffer options
+#11:24: Only allowed buffer modes are "full" or "strided" (as a compile-time string)
+#12:28: Only allowed buffer modes are "full" or "strided" (as a compile-time string)
+#"""
 

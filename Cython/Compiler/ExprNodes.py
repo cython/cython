@@ -10,7 +10,7 @@ import Naming
 from Nodes import Node
 import PyrexTypes
 from PyrexTypes import py_object_type, c_long_type, typecast, error_type
-from Builtin import list_type, tuple_type, dict_type
+from Builtin import list_type, tuple_type, dict_type, unicode_type
 import Symtab
 import Options
 from Annotate import AnnotationItem
@@ -708,8 +708,7 @@ class StringNode(ConstNode):
     def coerce_to(self, dst_type, env):
         if dst_type.is_int:
             if not self.type.is_pyobject and len(self.entry.init) == 1:
-                # we use the *encoded* value here
-                return CharNode(self.pos, value=self.entry.init)
+                return CharNode(self.pos, value=self.value)
             else:
                 error(self.pos, "Only coerce single-character ascii strings can be used as ints.")
                 return self
@@ -741,7 +740,7 @@ class StringNode(ConstNode):
 class UnicodeNode(PyConstNode):
     #  entry   Symtab.Entry
 
-    type = PyrexTypes.c_unicode_type
+    type = unicode_type
 
     def analyse_types(self, env):
         self.entry = env.add_string_const(self.value)
@@ -759,6 +758,9 @@ class UnicodeNode(PyConstNode):
         # We still need to perform normal coerce_to processing on the
         # result, because we might be coercing to an extension type,
         # in which case a type test node will be needed.
+        
+    def compile_time_value(self, env):
+        return self.value
 
 
 class IdentifierStringNode(ConstNode):
@@ -913,9 +915,6 @@ class NameNode(AtomicExprNode):
             self.type = PyrexTypes.error_type
         self.entry.used = 1
         if self.entry.type.is_buffer:
-            # Have an rhs temp just in case. All rhs I could
-            # think of had a single symbol result_code but better
-            # safe than sorry. Feel free to change this.
             import Buffer
             Buffer.used_buffer_aux_vars(self.entry)
                 
@@ -992,6 +991,9 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry:
             entry.used = 1
+            if entry.type.is_buffer:
+                import Buffer
+                Buffer.used_buffer_aux_vars(entry)
             if entry.utility_code:
                 env.use_utility_code(entry.utility_code)
         
@@ -1093,7 +1095,7 @@ class NameNode(AtomicExprNode):
             rhs.generate_post_assignment_code(code)
 
     def generate_acquire_buffer(self, rhs, code):
-        rhstmp = code.func.allocate_temp(self.entry.type)
+        rhstmp = code.funcstate.allocate_temp(self.entry.type)
         buffer_aux = self.entry.buffer_aux
         bufstruct = buffer_aux.buffer_info_var.cname
         code.putln('%s = %s;' % (rhstmp, rhs.result_as(self.ctype())))
@@ -1103,7 +1105,7 @@ class NameNode(AtomicExprNode):
                                     is_initialized=not self.skip_assignment_decref,
                                     pos=self.pos, code=code)
         code.putln("%s = 0;" % rhstmp)
-        code.func.release_temp(rhstmp)
+        code.funcstate.release_temp(rhstmp)
     
     def generate_deletion_code(self, code):
         if self.entry is None:
@@ -1370,6 +1372,9 @@ class IndexNode(ExprNode):
         self.is_buffer_access = False
 
         self.base.analyse_types(env)
+        # Handle the case where base is a literal char* (and we expect a string, not an int)
+        if isinstance(self.base, StringNode):
+            self.base = self.base.coerce_to_pyobject(env)
 
         skip_child_analysis = False
         buffer_access = False
@@ -1392,6 +1397,7 @@ class IndexNode(ExprNode):
             self.index = None
             self.type = self.base.type.dtype
             self.is_buffer_access = True
+            self.buffer_type = self.base.entry.type
            
             if getting:
                 # we only need a temp because result_code isn't refactored to
@@ -1479,8 +1485,13 @@ class IndexNode(ExprNode):
 
     def generate_result_code(self, code):
         if self.is_buffer_access:
-            valuecode = self.buffer_access_code(code)
-            code.putln("%s = %s;" % (self.result_code, valuecode))
+            ptrcode = self.buffer_lookup_code(code)
+            code.putln("%s = *%s;" % (
+                self.result_code,
+                self.buffer_type.buffer_ptr_type.cast_code(ptrcode)))
+            # Must incref the value we pulled out.
+            if self.buffer_type.dtype.is_pyobject:
+                code.putln("Py_INCREF((PyObject*)%s);" % self.result_code)
         elif self.type.is_pyobject:
             if self.index.type.is_int:
                 function = "__Pyx_GetItemInt"
@@ -1518,8 +1529,26 @@ class IndexNode(ExprNode):
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
         if self.is_buffer_access:
-            valuecode = self.buffer_access_code(code)
-            code.putln("%s = %s;" % (valuecode, rhs.result_code))
+            ptrexpr = self.buffer_lookup_code(code)
+            if self.buffer_type.dtype.is_pyobject:
+                # Must manage refcounts. Decref what is already there
+                # and incref what we put in.
+                ptr = code.funcstate.allocate_temp(self.buffer_type.buffer_ptr_type)
+                if rhs.is_temp:
+                    rhs_code = code.funcstate.allocate_temp(rhs.type)
+                else:
+                    rhs_code = rhs.result_code
+                code.putln("%s = %s;" % (ptr, ptrexpr))
+                code.putln("Py_DECREF(*%s); Py_INCREF(%s);" % (
+                    ptr, rhs_code
+                    ))
+                code.putln("*%s = %s;" % (ptr, rhs_code))
+                if rhs.is_temp:
+                    code.funcstate.release_temp(rhs_code)
+                code.funcstate.release_temp(ptr)
+            else: 
+                # Simple case
+                code.putln("*%s = %s;" % (ptrexpr, rhs.result_code))
         elif self.type.is_pyobject:
             self.generate_setitem_code(rhs.py_result(), code)
         else:
@@ -1546,19 +1575,18 @@ class IndexNode(ExprNode):
                 code.error_goto(self.pos)))
         self.generate_subexpr_disposal_code(code)
 
-    def buffer_access_code(self, code):
+    def buffer_lookup_code(self, code):
         # Assign indices to temps
-        index_temps = [code.func.allocate_temp(i.type) for i in self.indices]
+        index_temps = [code.funcstate.allocate_temp(i.type) for i in self.indices]
         for temp, index in zip(index_temps, self.indices):
             code.putln("%s = %s;" % (temp, index.result_code))
         # Generate buffer access code using these temps
         import Buffer
-        valuecode = Buffer.put_access(entry=self.base.entry,
-                                      index_signeds=[i.type.signed for i in self.indices],
-                                      index_cnames=index_temps,
-                                      pos=self.pos, code=code)
-        return valuecode
-
+        return Buffer.put_buffer_lookup_code(entry=self.base.entry,
+                                             index_signeds=[i.type.signed for i in self.indices],
+                                             index_cnames=index_temps,
+                                             options=self.options,
+                                             pos=self.pos, code=code)
 
 class SliceIndexNode(ExprNode):
     #  2-element slice indexing

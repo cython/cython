@@ -104,7 +104,7 @@ def report_error(err):
 def error(position, message):
     #print "Errors.error:", repr(position), repr(message) ###
     err = CompileError(position, message)
-#    if position is not None: raise Exception(err) # debug
+    #if position is not None: raise Exception(err) # debug
     report_error(err)
     return err
 

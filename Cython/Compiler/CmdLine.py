@@ -38,6 +38,7 @@ Options:
   -a, --annotate                 Produce a colorized HTML version of the source.
   --convert-range                Convert for loops using range() function to for...from loops. 
   --cplus                        Output a c++ rather than c file.
+  -O, --option <name>=<value>[,<name=value,...] Overrides an optimization/code generation option
 """
 #The following experimental options are supported only on MacOSX:
 #  -C, --compile    Compile generated .c file to .o file
@@ -45,37 +46,12 @@ Options:
 #  -+, --cplus      Use C++ compiler for compiling and linking
 #  Additional .o files to link may be supplied when using -X."""
 
-#The following options are very experimental and is used for plugging in code
-#into different transform stages.
-#  -T phase:factory At the phase given, hand off the tree to the transform returned
-#                   when calling factory without arguments. Factory should be fully
-#                   specified (ie Module.SubModule.factory) and the containing module
-#                   will be imported. This option can be repeated to add more transforms,
-#                   transforms for the same phase will be used in the order they are given.
-
 def bad_usage():
     sys.stderr.write(usage)
     sys.exit(1)
 
 def parse_command_line(args):
 
-    def parse_add_transform(transforms, param):
-        from Main import PHASES
-        def import_symbol(fqn):
-            modsplitpt = fqn.rfind(".")
-            if modsplitpt == -1: bad_usage()
-            modulename = fqn[:modsplitpt]
-            symbolname = fqn[modsplitpt+1:]
-            module = __import__(modulename, globals(), locals(), [symbolname])
-            return getattr(module, symbolname)
-    
-        stagename, factoryname = param.split(":")
-        if not stagename in PHASES:
-            bad_usage()
-        factory = import_symbol(factoryname)
-        transform = factory()
-        transforms[stagename].append(transform)
-    
     from Cython.Compiler.Main import \
         CompilationOptions, default_options
 
@@ -138,9 +114,12 @@ def parse_command_line(args):
                 Options.annotate = True
             elif option == "--convert-range":
                 Options.convert_range = True
-            elif option.startswith("-T"):
-                parse_add_transform(options.transforms, get_param(option))
-                # Note: this can occur multiple times, each time appends
+            elif option in ("-O", "--option"):
+                try:
+                    options.pragma_overrides = Options.parse_option_list(pop_arg())
+                except ValueError, e:
+                    sys.stderr.write("Error in option string: %s\n" % e.message)
+                    sys.exit(1)
             else:
                 bad_usage()
         else:
