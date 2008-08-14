@@ -1,6 +1,6 @@
 __doc__ = u"""
 >>> s = test()
->>> assert s == ''.join([chr(i) for i in range(1,49)]), s
+>>> assert s == ''.join([chr(i) for i in range(1,49)]), repr(s)
 """
 
 def test():
