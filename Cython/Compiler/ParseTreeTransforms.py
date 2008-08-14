@@ -9,6 +9,7 @@ try:
     set
 except NameError:
     from sets import Set as set
+import copy
 
 class NormalizeTree(CythonTransform):
     """
@@ -79,15 +80,10 @@ class NormalizeTree(CythonTransform):
 class PostParseError(CompileError): pass
 
 # error strings checked by unit tests, so define them
-ERR_BUF_OPTION_UNKNOWN = '"%s" is not a buffer option'
-ERR_BUF_TOO_MANY = 'Too many buffer options'
-ERR_BUF_DUP = '"%s" buffer option already supplied'
-ERR_BUF_MISSING = '"%s" missing'
-ERR_BUF_INT = '"%s" must be an integer'
-ERR_BUF_NONNEG = '"%s" must be non-negative'
 ERR_CDEF_INCLASS = 'Cannot assign default value to cdef class attributes'
 ERR_BUF_LOCALONLY = 'Buffer types only allowed as function local variables'
-ERR_BUF_MODEHELP = 'Only allowed buffer modes are "full" or "strided" (as a compile-time string)'
+ERR_BUF_DEFAULTS = 'Invalid buffer defaults specification (see docs)'
+ERR_INVALID_SPECIALATTR_TYPE = 'Special attributes must not have a type declared'
 class PostParse(CythonTransform):
     """
     Basic interpretation of the parse tree, as well as validity
@@ -99,10 +95,24 @@ class PostParse(CythonTransform):
     - Default values to cdef assignments are turned into single
     assignments following the declaration (everywhere but in class
     bodies, where they raise a compile error)
-    - CBufferAccessTypeNode has its options interpreted:
+    
+    - Interpret some node structures into Python runtime values.
+    Some nodes take compile-time arguments (currently:
+    CBufferAccessTypeNode[args] and __cythonbufferdefaults__ = {args}),
+    which should be interpreted. This happens in a general way
+    and other steps should be taken to ensure validity.
+
+    Type arguments cannot be interpreted in this way.
+
+    - For __cythonbufferdefaults__ the arguments are checked for
+    validity.
+
+    CBufferAccessTypeNode has its options interpreted:
     Any first positional argument goes into the "dtype" attribute,
     any "ndim" keyword argument goes into the "ndim" attribute and
     so on. Also it is checked that the option combination is valid.
+    - __cythonbufferdefaults__ attributes are parsed and put into the
+    type information.
 
     Note: Currently Parsing.py does a lot of interpretation and
     reorganization that can be refactored into this transform
@@ -112,6 +122,12 @@ class PostParse(CythonTransform):
     # Track our context.
     scope_type = None # can be either of 'module', 'function', 'class'
 
+    def __init__(self, context):
+        super(PostParse, self).__init__(context)
+        self.specialattribute_handlers = {
+            '__cythonbufferdefaults__' : self.handle_bufferdefaults
+        }
+
     def visit_ModuleNode(self, node):
         self.scope_type = 'module'
         self.visitchildren(node)
@@ -120,8 +136,10 @@ class PostParse(CythonTransform):
     def visit_ClassDefNode(self, node):
         prev = self.scope_type
         self.scope_type = 'class'
+        self.classnode = node
         self.visitchildren(node)
         self.scope_type = prev
+        del self.classnode
         return node
 
     def visit_FuncDefNode(self, node):
@@ -132,6 +150,12 @@ class PostParse(CythonTransform):
         return node
 
     # cdef variables
+    def handle_bufferdefaults(self, decl):
+        if not isinstance(decl.default, DictNode):
+            raise PostParseError(decl.pos, ERR_BUF_DEFAULTS)
+        self.classnode.buffer_defaults_node = decl.default
+        self.classnode.buffer_defaults_pos = decl.pos
+
     def visit_CVarDefNode(self, node):
         # This assumes only plain names and pointers are assignable on
         # declaration. Also, it makes use of the fact that a cdef decl
@@ -139,82 +163,217 @@ class PostParse(CythonTransform):
         # "i = 3; cdef int i = i" and can simply move the nodes around.
         try:
             self.visitchildren(node)
+            stats = [node]
+            newdecls = []
+            for decl in node.declarators:
+                declbase = decl
+                while isinstance(declbase, CPtrDeclaratorNode):
+                    declbase = declbase.base
+                if isinstance(declbase, CNameDeclaratorNode):
+                    if declbase.default is not None:
+                        if self.scope_type == 'class':
+                            if isinstance(self.classnode, CClassDefNode):
+                                handler = self.specialattribute_handlers.get(decl.name)
+                                if handler:
+                                    if decl is not declbase:
+                                        raise PostParseError(decl.pos, ERR_INVALID_SPECIALATTR_TYPE)
+                                    handler(decl)
+                                    continue # Remove declaration
+                            raise PostParseError(decl.pos, ERR_CDEF_INCLASS)
+                        stats.append(SingleAssignmentNode(node.pos,
+                            lhs=NameNode(node.pos, name=declbase.name),
+                            rhs=declbase.default, first=True))
+                        declbase.default = None
+                newdecls.append(decl)
+            node.declarators = newdecls
+            return stats
         except PostParseError, e:
             # An error in a cdef clause is ok, simply remove the declaration
             # and try to move on to report more errors
             self.context.nonfatal_error(e)
             return None
-        stats = [node]
-        for decl in node.declarators:
-            while isinstance(decl, CPtrDeclaratorNode):
-                decl = decl.base
-            if isinstance(decl, CNameDeclaratorNode):
-                if decl.default is not None:
-                    if self.scope_type == 'class':
-                        raise PostParseError(decl.pos, ERR_CDEF_INCLASS)
-                    stats.append(SingleAssignmentNode(node.pos,
-                        lhs=NameNode(node.pos, name=decl.name),
-                        rhs=decl.default, first=True))
-                    decl.default = None
-        return stats
 
-    # buffer access
-    buffer_options = ("dtype", "ndim", "mode") # ordered!
     def visit_CBufferAccessTypeNode(self, node):
         if not self.scope_type == 'function':
             raise PostParseError(node.pos, ERR_BUF_LOCALONLY)
-        
-        options = {}
-        # Fetch positional arguments
-        if len(node.positional_args) > len(self.buffer_options):
-            raise PostParseError(node.pos, ERR_BUF_TOO_MANY)
-        for arg, unicode_name in zip(node.positional_args, self.buffer_options):
-            name = str(unicode_name)
-            options[name] = arg
-        # Fetch named arguments
-        for item in node.keyword_args.key_value_pairs:
-            name = str(item.key.value)
-            if not name in self.buffer_options:
-                raise PostParseError(item.key.pos, ERR_BUF_OPTION_UNKNOWN % name)
-            if name in options.keys():
-                raise PostParseError(item.key.pos, ERR_BUF_DUP % key)
-            options[name] = item.value
-
-        # get dtype
-        dtype = options.get("dtype")
-        if dtype is None:
-            raise PostParseError(node.pos, ERR_BUF_MISSING % 'dtype')
-        node.dtype_node = dtype
-
-        # get ndim
-        if "ndim" in options:
-            ndimnode = options["ndim"]
-            if not isinstance(ndimnode, IntNode):
-                # Compile-time values (DEF) are currently resolved by the parser,
-                # so nothing more to do here
-                raise PostParseError(ndimnode.pos, ERR_BUF_INT % 'ndim')
-            ndim_value = int(ndimnode.value)
-            if ndim_value < 0:
-                raise PostParseError(ndimnode.pos, ERR_BUF_NONNEG % 'ndim')
-            node.ndim = int(ndimnode.value)
-        else:
-            node.ndim = 1
-
-        if "mode" in options:
-            modenode = options["mode"]
-            if not isinstance(modenode, StringNode):
-                raise PostParseError(modenode.pos, ERR_BUF_MODEHELP)
-            mode = modenode.value
-            if not mode in ('full', 'strided'):
-                raise PostParseError(modenode.pos, ERR_BUF_MODEHELP)
-            node.mode = mode
-        else:
-            node.mode = 'full'
-       
-        # We're done with the parse tree args
-        node.positional_args = None
-        node.keyword_args = None
         return node
+
+class PxdPostParse(CythonTransform):
+    """
+    Basic interpretation/validity checking that should only be
+    done on pxd trees.
+
+    A lot of this checking currently happens in the parser; but
+    what is listed below happens here.
+
+    - "def" functions are let through only if they fill the
+    getbuffer/releasebuffer slots
+    """
+    ERR_FUNCDEF_NOT_ALLOWED = 'function definition not allowed here'
+
+    def __call__(self, node):
+        self.scope_type = 'pxd'
+        return super(PxdPostParse, self).__call__(node)
+
+    def visit_CClassDefNode(self, node):
+        old = self.scope_type
+        self.scope_type = 'cclass'
+        self.visitchildren(node)
+        self.scope_type = old
+        return node
+
+    def visit_FuncDefNode(self, node):
+        # FuncDefNode always come with an implementation (without
+        # an imp they are CVarDefNodes..)
+        ok = False
+
+        if (isinstance(node, DefNode) and self.scope_type == 'cclass'
+            and node.name in ('__getbuffer__', '__releasebuffer__')):
+            ok = True
+
+        if not ok:
+            self.context.nonfatal_error(PostParseError(node.pos,
+                self.ERR_FUNCDEF_NOT_ALLOWED))
+            return None
+        else:
+            return node
+
+class ResolveOptions(CythonTransform):
+    """
+    After parsing, options can be stored in a number of places:
+    - #cython-comments at the top of the file (stored in ModuleNode)
+    - Command-line arguments overriding these
+    - @cython.optionname decorators
+    - with cython.optionname: statements
+
+    This transform is responsible for annotating each node with an
+    "options" attribute linking it to a dict containing the exact
+    options that are in effect for that node. Any corresponding decorators
+    or with statements are removed in the process.
+
+    Note that we have to run this prior to analysis, and so some minor
+    duplication of functionality has to occur: We manually track cimports
+    to correctly intercept @cython... and with cython...
+    """
+
+    def __init__(self, context, compilation_option_overrides):
+        super(ResolveOptions, self).__init__(context)
+        self.compilation_option_overrides = compilation_option_overrides
+        self.cython_module_names = set()
+        self.option_names = {}
+
+    def visit_ModuleNode(self, node):
+        options = copy.copy(Options.option_defaults)
+        options.update(node.option_comments)
+        options.update(self.compilation_option_overrides)
+        self.options = options
+        node.options = options
+        self.visitchildren(node)
+        return node
+
+    # Track cimports of the cython module.
+    def visit_CImportStatNode(self, node):
+        if node.module_name == u"cython":
+            if node.as_name:
+                modname = node.as_name
+            else:
+                modname = u"cython"
+            self.cython_module_names.add(modname)
+        return node
+    
+    def visit_FromCImportStatNode(self, node):
+        if node.module_name == u"cython":
+            newimp = []
+            for pos, name, as_name, kind in node.imported_names:
+                if name in Options.option_types:
+                    self.option_names[as_name] = name
+                    if kind is not None:
+                        self.context.nonfatal_error(PostParseError(pos,
+                            "Compiler option imports must be plain imports"))
+                    return None
+                else:
+                    newimp.append((pos, name, as_name, kind))
+            node.imported_names = newimpo
+        return node
+
+    def visit_Node(self, node):
+        node.options = self.options
+        self.visitchildren(node)
+        return node
+
+    def try_to_parse_option(self, node):
+        # If node is the contents of an option (in a with statement or
+        # decorator), returns (optionname, value).
+        # Otherwise, returns None
+        optname = None
+        if isinstance(node, SimpleCallNode):
+            if (isinstance(node.function, AttributeNode) and
+                  isinstance(node.function.obj, NameNode) and
+                  node.function.obj.name in self.cython_module_names):
+                optname = node.function.attribute
+            elif (isinstance(node.function, NameNode) and
+                  node.function.name in self.option_names):
+                optname = self.option_names[node.function.name]
+
+        if optname:
+            optiontype = Options.option_types.get(optname)
+            if optiontype:
+                args = node.args
+                if optiontype is bool:
+                    if len(args) != 1 or not isinstance(args[0], BoolNode):
+                        raise PostParseError(dec.function.pos,
+                            'The %s option takes one compile-time boolean argument' % optname)
+                    return (optname, args[0].value)
+                else:
+                    assert False
+
+        return None
+
+    def visit_with_options(self, node, options):
+        oldoptions = self.options
+        newoptions = copy.copy(oldoptions)
+        newoptions.update(options)
+        self.options = newoptions
+        node = self.visit_Node(node)
+        self.options = oldoptions
+        return node  
+ 
+    # Handle decorators
+    def visit_DefNode(self, node):
+        options = []
+        
+        if node.decorators:
+            # Split the decorators into two lists -- real decorators and options
+            realdecs = []
+            for dec in node.decorators:
+                option = self.try_to_parse_option(dec.decorator)
+                if option is not None:
+                    options.append(option)
+                else:
+                    realdecs.append(dec)
+            node.decorators = realdecs
+
+        if options:
+            optdict = {}
+            options.reverse() # Decorators coming first take precedence
+            for option in options:
+                name, value = option
+                optdict[name] = value
+            return self.visit_with_options(node, optdict)
+        else:
+            return self.visit_Node(node)
+                                   
+    # Handle with statements
+    def visit_WithStatNode(self, node):
+        option = self.try_to_parse_option(node.manager)
+        if option is not None:
+            if node.target is not None:
+                raise PostParseError(node.pos, "Compiler option with statements cannot contain 'as'")
+            name, value = option
+            self.visit_with_options(node.body, {name:value})
+            return node.body.stats
+        else:
+            return self.visit_Node(node)
 
 class WithTransform(CythonTransform):
 

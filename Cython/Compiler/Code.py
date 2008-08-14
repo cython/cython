@@ -15,7 +15,16 @@ try:
 except NameError:
     from sets import Set as set
 
-class FunctionContext(object):
+class FunctionState(object):
+    # return_label     string          function return point label
+    # error_label      string          error catch point label
+    # continue_label   string          loop continue point label
+    # break_label      string          loop break point label
+    # return_from_error_cleanup_label string
+    # label_counter    integer         counter for naming labels
+    # in_try_finally   boolean         inside try of try...finally
+    # exc_vars         (string * 3)    exception variables for reraise, or None
+
     # Not used for now, perhaps later
     def __init__(self, names_taken=set()):
         self.names_taken = names_taken
@@ -27,6 +36,9 @@ class FunctionContext(object):
         self.new_error_label()
         self.continue_label = None
         self.break_label = None
+
+        self.in_try_finally = 0
+        self.exc_vars = None
 
         self.temps_allocated = [] # of (name, type)
         self.temps_free = {} # type -> list of free vars
@@ -121,14 +133,259 @@ class FunctionContext(object):
         freelist = self.temps_free.get(type)
         if freelist is None:
             freelist = []
+
             self.temps_free[type] = freelist
         freelist.append(name)
 
+class GlobalState(object):
+    # filename_table   {string : int}  for finding filename table indexes
+    # filename_list    [string]        filenames in filename table order
+    # input_file_contents dict         contents (=list of lines) of any file that was used as input
+    #                                  to create this output C code.  This is
+    #                                  used to annotate the comments.
+    #
+    # used_utility_code set(string|int) Ids of used utility code (to avoid reinsertion)
+    # utilprotowriter CCodeWriter
+    # utildefwriter   CCodeWriter
+    #
+    # declared_cnames  {string:Entry}  used in a transition phase to merge pxd-declared
+    #                                  constants etc. into the pyx-declared ones (i.e,
+    #                                  check if constants are already added).
+    #                                  In time, hopefully the literals etc. will be
+    #                                  supplied directly instead.
+
+    
+    # interned_strings
+    # consts
+    # py_string_decls
+    # interned_nums
+    # cached_builtins
+
+    def __init__(self, rootwriter):
+        self.filename_table = {}
+        self.filename_list = []
+        self.input_file_contents = {}
+        self.used_utility_code = set()
+        self.declared_cnames = {}
+        self.pystring_table_needed = False
+
+    def initwriters(self, rootwriter):
+        self.utilprotowriter = rootwriter.new_writer()
+        self.utildefwriter = rootwriter.new_writer()
+        self.decls_writer = rootwriter.new_writer()
+        self.pystring_table = rootwriter.new_writer()
+        self.init_cached_builtins_writer = rootwriter.new_writer()
+        self.initwriter = rootwriter.new_writer()
+
+        if Options.cache_builtins:
+            self.init_cached_builtins_writer.enter_cfunc_scope()
+            self.init_cached_builtins_writer.putln("static int __Pyx_InitCachedBuiltins(void) {")
+
+        self.initwriter.enter_cfunc_scope()
+        self.initwriter.putln("").putln("static int __Pyx_InitGlobals(void) {")
+
+        (self.pystring_table
+         .putln("")
+         .putln("static __Pyx_StringTabEntry %s[] = {" %
+                Naming.stringtab_cname)
+        )
+
+    #
+    # Global constants, interned objects, etc.
+    #
+    def insert_global_var_declarations_into(self, code):
+        code.insert(self.decls_writer)
+
+    def close_global_decls(self):
+        # This is called when it is known that no more global declarations will
+        # declared (but can be called before or after insert_XXX).
+        if self.pystring_table_needed:
+            self.pystring_table.putln("{0, 0, 0, 0, 0, 0}").putln("};")
+            import Nodes
+            self.use_utility_code(Nodes.init_string_tab_utility_code)
+            self.initwriter.putln(
+                "if (__Pyx_InitStrings(%s) < 0) %s;" % (
+                    Naming.stringtab_cname,
+                    self.initwriter.error_goto(self.module_pos)))
+
+        if Options.cache_builtins:
+            (self.init_cached_builtins_writer
+             .putln("return 0;")
+             .put_label(self.init_cached_builtins_writer.error_label)
+             .putln("return -1;")
+             .putln("}")
+             .exit_cfunc_scope()
+             )
+
+        (self.initwriter
+         .putln("return 0;")
+         .put_label(self.initwriter.error_label)
+         .putln("return -1;")
+         .putln("}")
+         .exit_cfunc_scope()
+         )
+         
+    def insert_initcode_into(self, code):
+        if self.pystring_table_needed:
+            code.insert(self.pystring_table)
+        if Options.cache_builtins:
+            code.insert(self.init_cached_builtins_writer)
+        code.insert(self.initwriter)
+
+    def put_pyobject_decl(self, entry):
+        self.decls_writer.putln("static PyObject *%s;" % entry.cname)
+
+    # The functions below are there in a transition phase only
+    # and will be deprecated. They are called from Nodes.BlockNode.
+    # The copy&paste duplication is intentional in order to be able
+    # to see quickly how BlockNode worked, until this is replaced.    
+
+    def should_declare(self, cname, entry):
+        if cname in self.declared_cnames:
+            other = self.declared_cnames[cname]
+            assert entry.type == other.type
+            assert entry.init == other.init
+            return False
+        else:
+            self.declared_cnames[cname] = entry
+            return True
+
+    def add_const_definition(self, entry):
+        if self.should_declare(entry.cname, entry):
+            self.decls_writer.put_var_declaration(entry, static = 1)
+
+    def add_interned_string_decl(self, entry):
+        if self.should_declare(entry.cname, entry):
+            self.decls_writer.put_var_declaration(entry, static = 1)
+        self.add_py_string_decl(entry)
+
+    def add_py_string_decl(self, entry):
+        if self.should_declare(entry.pystring_cname, entry):
+            self.decls_writer.putln("static PyObject *%s;" % entry.pystring_cname)
+            self.pystring_table_needed = True
+            self.pystring_table.putln("{&%s, %s, sizeof(%s), %d, %d, %d}," % (
+                entry.pystring_cname,
+                entry.cname,
+                entry.cname,
+                entry.type.is_unicode,
+                entry.is_interned,
+                entry.is_identifier
+                ))
+                       
+    def add_interned_num_decl(self, entry):
+        if self.should_declare(entry.cname, entry):
+            if entry.init[-1] == "L":
+                self.initwriter.putln('%s = PyLong_FromString("%s", 0, 0); %s;' % (
+                    entry.cname,
+                    entry.init,
+                    self.initwriter.error_goto_if_null(entry.cname, self.module_pos)))
+            else:
+                self.initwriter.putln("%s = PyInt_FromLong(%s); %s;" % (
+                    entry.cname,
+                    entry.init,
+                    self.initwriter.error_goto_if_null(entry.cname, self.module_pos)))
+            
+            self.put_pyobject_decl(entry)
+        
+    def add_cached_builtin_decl(self, entry):
+        if Options.cache_builtins:
+            if self.should_declare(entry.cname, entry):
+                self.put_pyobject_decl(entry)
+                self.init_cached_builtins_writer.putln('%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
+                    entry.cname,
+                    Naming.builtins_cname,
+                    entry.interned_cname,
+                    entry.cname,
+                    self.init_cached_builtins_writer.error_goto(entry.pos)))
+
+
+    #
+    # File name state
+    #
+
+    def lookup_filename(self, filename):
+        try:
+            index = self.filename_table[filename]
+        except KeyError:
+            index = len(self.filename_list)
+            self.filename_list.append(filename)
+            self.filename_table[filename] = index
+        return index
+
+    def commented_file_contents(self, source_desc):
+        try:
+            return self.input_file_contents[source_desc]
+        except KeyError:
+            F = [u' * ' + line.rstrip().replace(
+                    u'*/', u'*[inserted by cython to avoid comment closer]/'
+                    ).encode('ASCII', 'replace') # + Py2 auto-decode to unicode
+                 for line in source_desc.get_lines()]
+            if len(F) == 0: F.append(u'')
+            self.input_file_contents[source_desc] = F
+            return F
+
+    #
+    # Utility code state
+    #
+    
+    def use_utility_code(self, codetup, name=None):
+        """
+        Adds the given utility code to the C file if needed.
+
+        codetup should unpack into one prototype code part and one
+        definition code part, both strings inserted directly in C.
+
+        If name is provided, it is used as an identifier to avoid inserting
+        code twice. Otherwise, id(codetup) is used as such an identifier.
+        """
+        if name is None: name = id(codetup)
+        if self.check_utility_code_needed_and_register(name):
+            proto, _def = codetup
+            self.utilprotowriter.put(proto)
+            self.utildefwriter.put(_def)
+
+    def has_utility_code(self, name):
+        return name in self.used_utility_code
+
+    def use_generated_code(self, func, name, *args, **kw):
+        """
+        Requests that the utility code that func can generate is used in the C
+        file. func is called like this:
+
+        func(proto, definition, name, *args, **kw)
+
+        where proto and definition are two CCodeWriter instances; the
+        former should have the prototype written to it and the other the definition.
+        
+        The call might happen at some later point (if compiling multiple modules
+        into a cache for instance), and will only happen once per utility code.
+
+        name is used to identify the utility code, so that it isn't regenerated
+        when the same code is requested again.
+        """
+        if self.check_utility_code_needed_and_register(name):
+            func(self.utilprotowriter, self.utildefwriter,
+                 name, *args, **kw)
+
+    def check_utility_code_needed_and_register(self, name):
+        if name in self.used_utility_code:
+            return False
+        else:
+            self.used_utility_code.add(name)
+            return True
+
+    def put_utility_code_protos(self, writer):
+        writer.insert(self.utilprotowriter)
+
+    def put_utility_code_defs(self, writer):
+        writer.insert(self.utildefwriter)
+
+
 def funccontext_property(name):
     def get(self):
-        return getattr(self.func, name)
+        return getattr(self.funcstate, name)
     def set(self, value):
-        setattr(self.func, name, value)
+        setattr(self.funcstate, name, value)
     return property(get, set)
 
 class CCodeWriter(object):
@@ -154,52 +411,37 @@ class CCodeWriter(object):
     # level            int             indentation level
     # bol              bool            beginning of line?
     # marker           string          comment to emit before next line
-    # return_label     string          function return point label
-    # error_label      string          error catch point label
-    # continue_label   string          loop continue point label
-    # break_label      string          loop break point label
-    # return_from_error_cleanup_label string
-    # label_counter    integer         counter for naming labels
-    # in_try_finally   boolean         inside try of try...finally
-    # filename_table   {string : int}  for finding filename table indexes
-    # filename_list    [string]        filenames in filename table order
-    # exc_vars         (string * 3)    exception variables for reraise, or None
-    # input_file_contents dict         contents (=list of lines) of any file that was used as input
-    #                                  to create this output C code.  This is
-    #                                  used to annotate the comments.
-    # func             FunctionContext contains labels and temps context info
+    # funcstate        FunctionState   contains state local to a C function used for code
+    #                                  generation (labels and temps state etc.)
+    # globalstate      GlobalState     contains state global for a C file (input file info,
+    #                                  utility code, declared constants etc.)
    
-    in_try_finally = 0
-    
-    def __init__(self, create_from=None, buffer=None):
+    def __init__(self, create_from=None, buffer=None, copy_formatting=False):
         if buffer is None: buffer = StringIOTree()
         self.buffer = buffer
         self.marker = None
         self.last_marker_line = 0
-        self.func = None
+        
+        self.funcstate = None
+        self.level = 0
+        self.bol = 1
         if create_from is None:
             # Root CCodeWriter
-            self.level = 0
-            self.bol = 1
-            self.filename_table = {}
-            self.filename_list = []
-            self.exc_vars = None
-            self.input_file_contents = {}
+            self.globalstate = GlobalState(self)
+            self.globalstate.initwriters(self)
+            # ^^^ need seperate step because this will reference self.globalstate
         else:
+            # Use same global state
+            self.globalstate = create_from.globalstate
             # Clone formatting state
-            c = create_from
-            self.level = c.level
-            self.bol = c.bol
-            # Note: NOT copying but sharing instance
-            self.filename_table = c.filename_table
-            self.filename_list = []
-            self.input_file_contents = c.input_file_contents
-            # Leave other state alone
+            if copy_formatting:
+                self.level = create_from.level
+                self.bol = create_from.bol
 
-    def create_new(self, create_from, buffer):
+    def create_new(self, create_from, buffer, copy_formatting):
         # polymorphic constructor -- very slightly more versatile
         # than using __class__
-        return CCodeWriter(create_from, buffer)
+        return CCodeWriter(create_from, buffer, copy_formatting)
 
     def copyto(self, f):
         self.buffer.copyto(f)
@@ -211,9 +453,25 @@ class CCodeWriter(object):
         self.buffer.write(s)
 
     def insertion_point(self):
-        other = self.create_new(create_from=self, buffer=self.buffer.insertion_point())
+        other = self.create_new(create_from=self, buffer=self.buffer.insertion_point(), copy_formatting=True)
         return other
 
+    def new_writer(self):
+        """
+        Creates a new CCodeWriter connected to the same global state, which
+        can later be inserted using insert.
+        """
+        return CCodeWriter(create_from=self)
+
+    def insert(self, writer):
+        """
+        Inserts the contents of another code writer (created with
+        the same global state) in the current location.
+
+        It is ok to write to the inserted writer also after insertion.
+        """
+        assert writer.globalstate is self.globalstate
+        self.buffer.insert(writer.buffer)
 
     # Properties delegated to function scope
     label_counter = funccontext_property("label_counter")
@@ -222,26 +480,26 @@ class CCodeWriter(object):
     labels_used = funccontext_property("labels_used")
     continue_label = funccontext_property("continue_label")
     break_label = funccontext_property("break_label")
-
+    return_from_error_cleanup_label = funccontext_property("return_from_error_cleanup_label")
 
     # Functions delegated to function scope
-    def new_label(self, name=None):    return self.func.new_label(name)
-    def new_error_label(self):         return self.func.new_error_label()
-    def get_loop_labels(self):         return self.func.get_loop_labels()
-    def set_loop_labels(self, labels): return self.func.set_loop_labels(labels)
-    def new_loop_labels(self):         return self.func.new_loop_labels()
-    def get_all_labels(self):          return self.func.get_all_labels()
-    def set_all_labels(self, labels):  return self.func.set_all_labels(labels)
-    def all_new_labels(self):          return self.func.all_new_labels()
-    def use_label(self, lbl):          return self.func.use_label(lbl)
-    def label_used(self, lbl):         return self.func.label_used(lbl)
+    def new_label(self, name=None):    return self.funcstate.new_label(name)
+    def new_error_label(self):         return self.funcstate.new_error_label()
+    def get_loop_labels(self):         return self.funcstate.get_loop_labels()
+    def set_loop_labels(self, labels): return self.funcstate.set_loop_labels(labels)
+    def new_loop_labels(self):         return self.funcstate.new_loop_labels()
+    def get_all_labels(self):          return self.funcstate.get_all_labels()
+    def set_all_labels(self, labels):  return self.funcstate.set_all_labels(labels)
+    def all_new_labels(self):          return self.funcstate.all_new_labels()
+    def use_label(self, lbl):          return self.funcstate.use_label(lbl)
+    def label_used(self, lbl):         return self.funcstate.label_used(lbl)
 
 
     def enter_cfunc_scope(self):
-        self.func = FunctionContext()
+        self.funcstate = FunctionState()
     
     def exit_cfunc_scope(self):
-        self.func = None
+        self.funcstate = None
 
     def putln(self, code = ""):
         if self.marker and self.bol:
@@ -250,6 +508,7 @@ class CCodeWriter(object):
             self.put(code)
         self.write("\n");
         self.bol = 1
+        return self
     
     def emit_marker(self):
         self.write("\n");
@@ -257,6 +516,7 @@ class CCodeWriter(object):
         self.write("/* %s */\n" % self.marker[1])
         self.last_marker_line = self.marker[0]
         self.marker = None
+        return self
 
     def put_safe(self, code):
         # put code, but ignore {}
@@ -279,37 +539,31 @@ class CCodeWriter(object):
             self.level += dl
         elif fix_indent:
             self.level += 1
+        return self
 
     def increase_indent(self):
         self.level = self.level + 1
+        return self
     
     def decrease_indent(self):
         self.level = self.level - 1
+        return self
     
     def begin_block(self):
         self.putln("{")
         self.increase_indent()
+        return self
     
     def end_block(self):
         self.decrease_indent()
         self.putln("}")
+        return self
     
     def indent(self):
         self.write("  " * self.level)
 
     def get_py_version_hex(self, pyversion):
         return "0x%02X%02X%02X%02X" % (tuple(pyversion) + (0,0,0,0))[:4]
-
-    def commented_file_contents(self, source_desc):
-        try:
-            return self.input_file_contents[source_desc]
-        except KeyError:
-            F = [u' * ' + line.rstrip().replace(
-                    u'*/', u'*[inserted by cython to avoid comment closer]/'
-                    ).encode('ASCII', 'replace') # + Py2 auto-decode to unicode
-                 for line in source_desc.get_lines()]
-            self.input_file_contents[source_desc] = F
-            return F
 
     def mark_pos(self, pos):
         if pos is None:
@@ -318,8 +572,7 @@ class CCodeWriter(object):
         if self.last_marker_line == line:
             return
         assert isinstance(source_desc, SourceDescriptor)
-        contents = self.commented_file_contents(source_desc)
-
+        contents = self.globalstate.commented_file_contents(source_desc)
         lines = contents[max(0,line-3):line] # line numbers start at 1
         lines[-1] += u'             # <<<<<<<<<<<<<<'
         lines += contents[line:line+2]
@@ -330,12 +583,14 @@ class CCodeWriter(object):
 
         
     def put_label(self, lbl):
-        if lbl in self.func.labels_used:
+        if lbl in self.funcstate.labels_used:
             self.putln("%s:;" % lbl)
+        return self
     
     def put_goto(self, lbl):
-        self.func.use_label(lbl)
+        self.funcstate.use_label(lbl)
         self.putln("goto %s;" % lbl)
+        return self
     
     def put_var_declarations(self, entries, static = 0, dll_linkage = None,
             definition = True):
@@ -494,8 +749,8 @@ class CCodeWriter(object):
             return cond
         
     def error_goto(self, pos):
-        lbl = self.func.error_label
-        self.func.use_label(lbl)
+        lbl = self.funcstate.error_label
+        self.funcstate.use_label(lbl)
         if Options.c_line_in_traceback:
             cinfo = " %s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
         else:
@@ -522,13 +777,7 @@ class CCodeWriter(object):
         return self.error_goto_if("PyErr_Occurred()", pos)
     
     def lookup_filename(self, filename):
-        try:
-            index = self.filename_table[filename]
-        except KeyError:
-            index = len(self.filename_list)
-            self.filename_list.append(filename)
-            self.filename_table[filename] = index
-        return index
+        return self.globalstate.lookup_filename(filename)
 
 
 class PyrexCodeWriter:

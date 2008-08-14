@@ -7,8 +7,7 @@ class StringIOTree(object):
 
     def __init__(self, stream=None):
         self.prepended_children = []
-        if stream is None: stream = StringIO()
-        self.stream = stream
+        self.stream = stream # if set to None, it will be constructed on first write
 
     def getvalue(self):
         return ("".join([x.getvalue() for x in self.prepended_children]) +
@@ -19,20 +18,44 @@ class StringIOTree(object):
         needs to happen."""
         for child in self.prepended_children:
             child.copyto(target)
-        target.write(self.stream.getvalue())
+        if self.stream:
+            target.write(self.stream.getvalue())
 
     def write(self, what):
+        if not self.stream:
+            self.stream = StringIO()
         self.stream.write(what)
 
+    def commit(self):
+        # Save what we have written until now so that the buffer
+        # itself is empty -- this makes it ready for insertion
+        if self.stream:
+            self.prepended_children.append(StringIOTree(self.stream))
+            self.stream = None
+
+    def insert(self, iotree):
+        """
+        Insert a StringIOTree (and all of its contents) at this location.
+        Further writing to self appears after what is inserted.
+        """
+        self.commit()
+        self.prepended_children.append(iotree)
+
     def insertion_point(self):
+        """
+        Returns a new StringIOTree, which is left behind at the current position
+        (it what is written to the result will appear right before whatever is
+        next written to self).
+
+        Calling getvalue() or copyto() on the result will only return the
+        contents written to it.
+        """
         # Save what we have written until now
-        # (would it be more efficient to check with len(self.stream.getvalue())?
-        # leaving it out for now)
-        self.prepended_children.append(StringIOTree(self.stream))
+        # This is so that getvalue on the result doesn't include it.
+        self.commit()
         # Construct the new forked object to return
         other = StringIOTree()
         self.prepended_children.append(other)
-        self.stream = StringIO()
         return other
 
 __doc__ = r"""
@@ -57,13 +80,11 @@ EXAMPLE:
 >>> c.write('beta\n')
 >>> b.getvalue().split()
 ['second', 'alpha', 'beta', 'gamma']
-
+>>> i = StringIOTree()
+>>> d.insert(i)
+>>> i.write('inserted\n')
 >>> out = StringIO()
 >>> a.copyto(out)
 >>> out.getvalue().split()
-['first', 'second', 'alpha', 'beta', 'gamma', 'third']
+['first', 'second', 'alpha', 'inserted', 'beta', 'gamma', 'third']
 """
-            
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()

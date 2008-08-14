@@ -149,6 +149,7 @@ class CTypedefType(BaseType):
     #  typedef_base_type   PyrexType
     
     is_typedef = 1
+    typestring = None # Because typedefs are not known exactly
     
     def __init__(self, cname, base_type):
         self.typedef_cname = cname
@@ -223,11 +224,14 @@ class PyObjectType(PyrexType):
     #
     #  Base class for all Python object types (reference-counted).
     #
+    #  buffer_defaults  dict or None     Default options for bu
     
     is_pyobject = 1
     default_value = "0"
     parsetuple_format = "O"
     pymemberdef_typecode = "T_OBJECT"
+    buffer_defaults = None
+    typestring = "O"
     
     def __str__(self):
         return "Python object"
@@ -270,6 +274,7 @@ class BuiltinObjectType(PyObjectType):
         return "<%s>"% self.cname
         
     def assignable_from(self, src_type):
+
         if isinstance(src_type, BuiltinObjectType):
             return src_type.name == self.name
         else:
@@ -998,6 +1003,19 @@ class CStringType:
         return '"%s"' % Utils.escape_byte_string(value)
 
 
+class CUTF8CharArrayType(CStringType, CArrayType):
+    #  C 'char []' type.
+    
+    parsetuple_format = "s"
+    pymemberdef_typecode = "T_STRING_INPLACE"
+    is_unicode = 1
+    
+    to_py_function = "PyUnicode_DecodeUTF8"
+    exception_value = "NULL"
+    
+    def __init__(self, size):
+        CArrayType.__init__(self, c_char_type, size)
+
 class CCharArrayType(CStringType, CArrayType):
     #  C 'char []' type.
     
@@ -1018,29 +1036,6 @@ class CCharPtrType(CStringType, CPtrType):
         CPtrType.__init__(self, c_char_type)
 
 
-class UnicodeType(BuiltinObjectType):
-    #  The Python unicode type.
-
-    is_string = 1
-    is_unicode = 1
-    
-    parsetuple_format = "U"
-
-    def __init__(self):
-        BuiltinObjectType.__init__(self, "unicode", "PyUnicodeObject")
-
-    def literal_code(self, value):
-        assert isinstance(value, str)
-        return '"%s"' % Utils.escape_byte_string(value)
-
-    def declaration_code(self, entity_code, 
-            for_display = 0, dll_linkage = None, pyrex = 0):
-        if pyrex or for_display:
-            return self.base_declaration_code(self.name, entity_code)
-        else:
-            return "%s %s[]" % (public_decl("char", dll_linkage), entity_code)
-
-
 class ErrorType(PyrexType):
     # Used to prevent propagation of error messages.
     
@@ -1049,6 +1044,7 @@ class ErrorType(PyrexType):
     exception_check	= 0
     to_py_function = "dummy"
     from_py_function = "dummy"
+    typestring = None
     
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -1105,8 +1101,8 @@ c_longdouble_type =  CFloatType(8, typestring="g")
 
 c_null_ptr_type =     CNullPtrType(c_void_type)
 c_char_array_type =   CCharArrayType(None)
-c_unicode_type =      UnicodeType()
 c_char_ptr_type =     CCharPtrType()
+c_utf8_char_array_type = CUTF8CharArrayType(None)
 c_char_ptr_ptr_type = CPtrType(c_char_ptr_type)
 c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
 c_int_ptr_type =      CPtrType(c_int_type)

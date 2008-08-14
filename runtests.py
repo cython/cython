@@ -46,7 +46,7 @@ class ErrorWriter(object):
 
 class TestBuilder(object):
     def __init__(self, rootdir, workdir, selectors, annotate,
-                 cleanup_workdir, cleanup_sharedlibs, with_pyregr):
+                 cleanup_workdir, cleanup_sharedlibs, with_pyregr, cythononly):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
@@ -54,6 +54,7 @@ class TestBuilder(object):
         self.cleanup_workdir = cleanup_workdir
         self.cleanup_sharedlibs = cleanup_sharedlibs
         self.with_pyregr = with_pyregr
+        self.cythononly = cythononly
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -102,21 +103,23 @@ class TestBuilder(object):
                     path, workdir, module,
                     annotate=self.annotate,
                     cleanup_workdir=self.cleanup_workdir,
-                    cleanup_sharedlibs=self.cleanup_sharedlibs)
+                    cleanup_sharedlibs=self.cleanup_sharedlibs,
+                    cythononly=self.cythononly)
             else:
                 test = CythonCompileTestCase(
                     path, workdir, module,
                     expect_errors=expect_errors,
                     annotate=self.annotate,
                     cleanup_workdir=self.cleanup_workdir,
-                    cleanup_sharedlibs=self.cleanup_sharedlibs)
+                    cleanup_sharedlibs=self.cleanup_sharedlibs,
+                    cythononly=self.cythononly)
             suite.addTest(test)
         return suite
 
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, directory, workdir, module,
                  expect_errors=False, annotate=False, cleanup_workdir=True,
-                 cleanup_sharedlibs=True):
+                 cleanup_sharedlibs=True, cythononly=False):
         self.directory = directory
         self.workdir = workdir
         self.module = module
@@ -124,6 +127,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.annotate = annotate
         self.cleanup_workdir = cleanup_workdir
         self.cleanup_sharedlibs = cleanup_sharedlibs
+        self.cythononly = cythononly
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -247,7 +251,8 @@ class CythonCompileTestCase(unittest.TestCase):
                 unexpected_error = errors[len(expected_errors)]
                 self.assertEquals(None, unexpected_error)
         else:
-            self.run_distutils(module, workdir, incdir)
+            if not self.cythononly:
+                self.run_distutils(module, workdir, incdir)
 
 class CythonRunTestCase(CythonCompileTestCase):
     def shortDescription(self):
@@ -259,8 +264,9 @@ class CythonRunTestCase(CythonCompileTestCase):
         result.startTest(self)
         try:
             self.runCompileTest()
-            sys.stderr.write('running doctests in %s ...\n' % self.module)
-            doctest.DocTestSuite(self.module).run(result)
+            if not self.cythononly:
+                sys.stderr.write('running doctests in %s ...\n' % self.module)
+                doctest.DocTestSuite(self.module).run(result)
         except Exception:
             result.addError(self, sys.exc_info())
             result.stopTest(self)
@@ -372,7 +378,10 @@ if __name__ == '__main__':
                       help="do not run the file based tests")
     parser.add_option("--no-pyregr", dest="pyregr",
                       action="store_false", default=True,
-                      help="do not run the regression tests of CPython in tests/pyregr/")
+                      help="do not run the regression tests of CPython in tests/pyregr/")    
+    parser.add_option("--cython-only", dest="cythononly",
+                      action="store_true", default=False,
+                      help="only compile pyx to c, do not run C compiler or run the tests")
     parser.add_option("--sys-pyregr", dest="system_pyregr",
                       action="store_true", default=False,
                       help="run the regression tests of the CPython installation")
@@ -445,7 +454,7 @@ if __name__ == '__main__':
     if options.filetests:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors,
                                 options.annotate_source, options.cleanup_workdir,
-                                options.cleanup_sharedlibs, options.pyregr)
+                                options.cleanup_sharedlibs, options.pyregr, options.cythononly)
         test_suite.addTest(filetests.build_suite())
 
     if options.system_pyregr:

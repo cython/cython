@@ -26,11 +26,12 @@ nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
 class BufferAux:
     writable_needed = False
     
-    def __init__(self, buffer_info_var, stridevars, shapevars, tschecker):
+    def __init__(self, buffer_info_var, stridevars, shapevars,
+                 suboffsetvars):
         self.buffer_info_var = buffer_info_var
         self.stridevars = stridevars
         self.shapevars = shapevars
-        self.tschecker = tschecker
+        self.suboffsetvars = suboffsetvars
         
     def __repr__(self):
         return "<BufferAux %r>" % self.__dict__
@@ -504,7 +505,7 @@ class Scope:
         else:
             cname = self.new_const_cname()
         if value.is_unicode:
-            c_type = PyrexTypes.c_unicode_type
+            c_type = PyrexTypes.c_utf8_char_array_type
             value = value.utf8encode()
         else:
             c_type = PyrexTypes.c_char_array_type
@@ -629,9 +630,6 @@ class Scope:
     
     def use_utility_code(self, new_code, name=None):
         self.global_scope().use_utility_code(new_code, name)
-    
-    def has_utility_code(self, name):
-        return self.global_scope().has_utility_code(name)
 
     def generate_library_function_declarations(self, code):
         # Generate extern decls for C library funcs used.
@@ -743,6 +741,8 @@ class BuiltinScope(Scope):
         "True":   ["Py_True", py_object_type],
     }
 
+const_counter = 1 # As a temporary solution for compiling code in pxds
+
 class ModuleScope(Scope):
     # module_name          string             Python name of the module
     # module_cname         string             C name of Python module object
@@ -750,9 +750,8 @@ class ModuleScope(Scope):
     # method_table_cname   string             C name of method table
     # doc                  string             Module doc string
     # doc_cname            string             C name of module doc string
-    # const_counter        integer            Counter for naming constants
-    # utility_code_used    [string]           Utility code to be included
-    # utility_code_names   set(string)        (Optional) names for named (often generated) utility code
+    # const_counter        integer            Counter for naming constants (PS: MOVED TO GLOBAL)
+    # utility_code_list    [((string, string), string)] Queuing utility codes for forwarding to Code.py
     # default_entries      [Entry]            Function argument default entries
     # python_include_files [string]           Standard  Python headers to be included
     # include_files        [string]           Other C headers to be included
@@ -785,9 +784,7 @@ class ModuleScope(Scope):
         self.method_table_cname = Naming.methtable_cname
         self.doc = ""
         self.doc_cname = Naming.moddoc_cname
-        self.const_counter = 1
-        self.utility_code_used = []
-        self.utility_code_names = set()
+        self.utility_code_list = []
         self.default_entries = []
         self.module_entries = {}
         self.python_include_files = ["Python.h", "structmember.h"]
@@ -940,35 +937,20 @@ class ModuleScope(Scope):
         return entry
         
     def new_const_cname(self):
+        global const_counter
         # Create a new globally-unique name for a constant.
         prefix=''
-        n = self.const_counter
-        self.const_counter = n + 1
+        n = const_counter
+        const_counter = n + 1
         return "%s%s%d" % (Naming.const_prefix, prefix, n)
     
     def use_utility_code(self, new_code, name=None):
-        #  Add string to list of utility code to be included,
-        #  if not already there (tested using the provided name,
-        #  or 'is' if name=None -- if the utility code is dynamically
-        #  generated, use the name, otherwise it is not needed).
-        if name is not None:
-            if name in self.utility_code_names:
-                return
-        for old_code in self.utility_code_used:
-            if old_code is new_code:
-                return
-        self.utility_code_used.append(new_code)
-        self.utility_code_names.add(name)
+        self.utility_code_list.append((new_code, name))
 
-    def has_utility_code(self, name):
-        # Checks if utility code (that is registered by name) has
-        # previously been registered. This is useful if the utility code
-        # is dynamically generated to avoid re-generation.
-        return name in self.utility_code_names
-    
     def declare_c_class(self, name, pos, defining = 0, implementing = 0,
         module_name = None, base_type = None, objstruct_cname = None,
-        typeobj_cname = None, visibility = 'private', typedef_flag = 0, api = 0):
+        typeobj_cname = None, visibility = 'private', typedef_flag = 0, api = 0,
+        buffer_defaults = None):
         #
         #  Look for previous declaration as a type
         #
@@ -992,6 +974,7 @@ class ModuleScope(Scope):
         if not entry:
             type = PyrexTypes.PyExtensionType(name, typedef_flag, base_type)
             type.pos = pos
+            type.buffer_defaults = buffer_defaults
             if visibility == 'extern':
                 type.module_name = module_name
             else:

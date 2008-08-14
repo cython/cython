@@ -7,14 +7,17 @@
 # what we want to test is what is passed into the flags argument.
 #
 
-
+from __future__ import unicode_literals
 
 cimport stdlib
 cimport python_buffer
-# Add all test_X function docstrings as unit tests
+cimport stdio
+cimport cython
+
+from python_ref cimport PyObject
 
 __test__ = {}
-setup_string = """
+setup_string = u"""
     >>> A = IntMockBuffer("A", range(6))
     >>> B = IntMockBuffer("B", range(6))
     >>> C = IntMockBuffer("C", range(6), (2,3))
@@ -33,6 +36,19 @@ def testcas(a):
 #
 # Buffer acquire and release tests
 #
+
+def nousage():
+    """
+    The challenge here is just compilation.
+    """
+    cdef object[int, 2] buf
+
+def printbuf():
+    """
+    Just compilation.
+    """
+    cdef object[int, 2] buf
+    print buf
 
 @testcase
 def acquire_release(o1, o2):
@@ -65,6 +81,8 @@ def acquire_raise(o):
     >>> A.printlog()
     acquired A
     released A
+    <BLANKLINE>
+    
     """
     cdef object[int] buf
     buf = o
@@ -203,37 +221,37 @@ def as_argument(object[int] bufarg, int n):
     """
     >>> as_argument(A, 6)
     acquired A
-    0 1 2 3 4 5
+    0 1 2 3 4 5 END
     released A
     """
     cdef int i
     for i in range(n):
         print bufarg[i],
-    print
+    print 'END'
 
 @testcase
 def as_argument_defval(object[int] bufarg=IntMockBuffer('default', range(6)), int n=6):
     """
     >>> as_argument_defval()
     acquired default
-    0 1 2 3 4 5
+    0 1 2 3 4 5 END
     released default
     >>> as_argument_defval(A, 6)
     acquired A
-    0 1 2 3 4 5
+    0 1 2 3 4 5 END
     released A
     """
     cdef int i 
     for i in range(n):
         print bufarg[i],
-    print
+    print 'END'
 
 @testcase
 def cdef_assignment(obj, n):
     """
     >>> cdef_assignment(A, 6)
     acquired A
-    0 1 2 3 4 5
+    0 1 2 3 4 5 END
     released A
     
     """
@@ -241,18 +259,23 @@ def cdef_assignment(obj, n):
     cdef int i
     for i in range(n):
         print buf[i],
-    print
+    print 'END'
 
 @testcase
 def forin_assignment(objs, int pick):
     """
-    >>> as_argument_defval()
-    acquired default
-    0 1 2 3 4 5
-    released default
-    >>> as_argument_defval(A, 6)
+    >>> forin_assignment([A, B, A, A], 2)
     acquired A
-    0 1 2 3 4 5
+    2
+    released A
+    acquired B
+    2
+    released B
+    acquired A
+    2
+    released A
+    acquired A
+    2
     released A
     """
     cdef object[int] buf
@@ -341,7 +364,6 @@ def get_int_2d(object[int, 2] buf, int i, int j):
     Traceback (most recent call last):
         ...
     IndexError: Out of bounds on buffer access (axis 1)
-    
     """
     return buf[i, j]
 
@@ -458,7 +480,7 @@ def readonly(obj):
     acquired R
     25
     released R
-    >>> R.recieved_flags
+    >>> [str(x) for x in R.recieved_flags]  # Works in both py2 and py3
     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES']
     """
     cdef object[unsigned short int, 3] buf = obj
@@ -471,7 +493,7 @@ def writable(obj):
     >>> writable(R)
     acquired R
     released R
-    >>> R.recieved_flags
+    >>> [str(x) for x in R.recieved_flags] # Py2/3
     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
     """
     cdef object[unsigned short int, 3] buf = obj
@@ -485,12 +507,81 @@ def strided(object[int, 1, 'strided'] buf):
     acquired A
     released A
     2
-    >>> A.recieved_flags
+    >>> [str(x) for x in A.recieved_flags] # Py2/3
     ['FORMAT', 'ND', 'STRIDES']
+
+    Check that the suboffsets were patched back prior to release.
+    >>> A.release_ok
+    True
     """
     return buf[2]
 
+#
+# Test compiler options for bounds checking. We create an array with a
+# safe "boundary" (memory
+# allocated outside of what it published) and then check whether we get back
+# what we stored in the memory or an error.
 
+@testcase
+def safe_get(object[int] buf, int idx):
+    """
+    >>> A = IntMockBuffer(None, range(10), shape=(3,), offset=5)
+
+    Validate our testing buffer...
+    >>> safe_get(A, 0)
+    5
+    >>> safe_get(A, 2)
+    7
+    >>> safe_get(A, -3)
+    5
+
+    Access outside it. This is already done above for bounds check
+    testing but we include it to tell the story right.
+
+    >>> safe_get(A, -4)
+    Traceback (most recent call last):
+        ...
+    IndexError: Out of bounds on buffer access (axis 0)
+    >>> safe_get(A, 3)
+    Traceback (most recent call last):
+        ...
+    IndexError: Out of bounds on buffer access (axis 0)
+    """
+    return buf[idx]
+
+@testcase
+@cython.boundscheck(False)
+@cython.boundscheck(True)
+def unsafe_get(object[int] buf, int idx):
+    """
+    Access outside of the area the buffer publishes.
+    >>> A = IntMockBuffer(None, range(10), shape=(3,), offset=5)
+    >>> unsafe_get(A, -4)
+    4
+    >>> unsafe_get(A, -5)
+    3
+    >>> unsafe_get(A, 3)
+    8
+    """
+    return buf[idx]
+
+@testcase
+def mixed_get(object[int] buf, int unsafe_idx, int safe_idx):
+    """
+    >>> A = IntMockBuffer(None, range(10), shape=(3,), offset=5)
+    >>> mixed_get(A, -4, 0)
+    (4, 5)
+    >>> mixed_get(A, 0, -4)
+    Traceback (most recent call last):
+        ...
+    IndexError: Out of bounds on buffer access (axis 0)
+    """
+    with cython.boundscheck(False):
+        one = buf[unsafe_idx]
+    with cython.boundscheck(True):
+        two = buf[safe_idx]
+    return (one, two)
+        
 #
 # Coercions
 #
@@ -519,21 +610,21 @@ def printbuf_int_2d(o, shape):
     
     >>> printbuf_int_2d(IntMockBuffer("A", range(6), (2,3)), (2,3))
     acquired A
-    0 1 2
-    3 4 5
+    0 1 2 END
+    3 4 5 END
     released A
     >>> printbuf_int_2d(IntMockBuffer("A", range(100), (3,3), strides=(20,5)), (3,3))
     acquired A
-    0 5 10
-    20 25 30
-    40 45 50
+    0 5 10 END
+    20 25 30 END
+    40 45 50 END
     released A
 
     Indirect:
     >>> printbuf_int_2d(IntMockBuffer("A", [[1,2],[3,4]]), (2,2))
     acquired A
-    1 2
-    3 4
+    1 2 END
+    3 4 END
     released A
     """
     # should make shape builtin
@@ -543,14 +634,14 @@ def printbuf_int_2d(o, shape):
     for i in range(shape[0]):
         for j in range(shape[1]):
             print buf[i, j],
-        print
+        print 'END'
 
 @testcase
 def printbuf_float(o, shape):
     """
     >>> printbuf_float(FloatMockBuffer("F", [1.0, 1.25, 0.75, 1.0]), (4,))
     acquired F
-    1.0 1.25 0.75 1.0
+    1.0 1.25 0.75 1.0 END
     released F
     """
 
@@ -560,7 +651,131 @@ def printbuf_float(o, shape):
     cdef int i, j
     for i in range(shape[0]):
         print buf[i],
-    print
+    print "END"
+
+
+#
+# Typedefs
+#
+ctypedef int cytypedef_int
+cdef extern from "bufaccess.h":
+    ctypedef cytypedef_int htypedef_short # Defined as short, but Cython doesn't know this!
+ctypedef htypedef_short cytypedef2
+
+@testcase
+def printbuf_cytypedef_int(object[cytypedef_int] buf, shape):
+    """
+    >>> printbuf_cytypedef_int(IntMockBuffer("A", range(3)), (3,))
+    acquired A
+    0 1 2 END
+    released A
+    >>> printbuf_cytypedef_int(ShortMockBuffer("B", range(3)), (3,))
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer datatype mismatch (rejecting on 'h')
+    
+    """
+    cdef int i
+    for i in range(shape[0]):
+        print buf[i],
+    print 'END'
+
+@testcase
+def printbuf_htypedef_short(object[htypedef_short] buf, shape):
+    """
+    >>> printbuf_htypedef_short(ShortMockBuffer("A", range(3)), (3,))
+    acquired A
+    0 1 2 END
+    released A
+    >>> printbuf_htypedef_short(IntMockBuffer("B", range(3)), (3,))
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer datatype mismatch (rejecting on 'i')
+    """
+    
+    cdef int i
+    for i in range(shape[0]):
+        print buf[i],
+    print 'END'
+
+@testcase
+def printbuf_cytypedef2(object[cytypedef2] buf, shape):
+    """
+    >>> printbuf_cytypedef2(ShortMockBuffer("A", range(3)), (3,))
+    acquired A
+    0 1 2 END
+    released A
+    >>> printbuf_cytypedef2(IntMockBuffer("B", range(3)), (3,))
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer datatype mismatch (rejecting on 'i')
+    """
+    
+    cdef int i
+    for i in range(shape[0]):
+        print buf[i],
+    print 'END'
+
+#
+# Object access
+#
+from python_ref cimport Py_INCREF, Py_DECREF
+def addref(*args):
+    for item in args: Py_INCREF(item)
+def decref(*args):
+    for item in args: Py_DECREF(item)
+
+def get_refcount(x):
+    return (<PyObject*>x).ob_refcnt
+
+@testcase
+def printbuf_object(object[object] buf, shape):
+    """
+    Only play with unique objects, interned numbers etc. will have
+    unpredictable refcounts.
+
+    ObjectMockBuffer doesn't do anything about increfing/decrefing,
+    we to the "buffer implementor" refcounting directly in the
+    testcase.
+
+    >>> a, b, c = "globally_unique_string_23234123", {4:23}, [34,3]
+    >>> get_refcount(a), get_refcount(b), get_refcount(c)
+    (2, 2, 2)
+    >>> A = ObjectMockBuffer(None, [a, b, c])
+    >>> printbuf_object(A, (3,))
+    'globally_unique_string_23234123' 2
+    {4: 23} 2
+    [34, 3] 2
+    """
+    cdef int i
+    for i in range(shape[0]):
+        print repr(buf[i]), (<PyObject*>buf[i]).ob_refcnt
+
+@testcase
+def assign_to_object(object[object] buf, int idx, obj):
+    """
+    See comments on printbuf_object above.
+
+    >>> a, b = [1, 2, 3], [4, 5, 6]
+    >>> get_refcount(a), get_refcount(b)
+    (2, 2)
+    >>> addref(a)
+    >>> A = ObjectMockBuffer(None, [1, a]) # 1, ...,otherwise it thinks nested lists...    
+    >>> get_refcount(a), get_refcount(b)
+    (3, 2)
+    >>> assign_to_object(A, 1, b)
+    >>> get_refcount(a), get_refcount(b)
+    (2, 3)
+    >>> decref(b)
+    """
+    buf[idx] = obj
+    
+
+
+
+#
+# Testcase support code (more tests below!, because of scope rules)
+#
 
 
 available_flags = (
@@ -571,10 +786,8 @@ available_flags = (
     ('WRITABLE', python_buffer.PyBUF_WRITABLE)
 )
 
-cimport stdio
-
 cdef class MockBuffer:
-    cdef object format
+    cdef object format, offset
     cdef void* buffer
     cdef int len, itemsize, ndim
     cdef Py_ssize_t* strides
@@ -582,12 +795,16 @@ cdef class MockBuffer:
     cdef Py_ssize_t* suboffsets
     cdef object label, log
     
-    cdef readonly object recieved_flags
+    cdef readonly object recieved_flags, release_ok
     cdef public object fail
     
-    def __init__(self, label, data, shape=None, strides=None, format=None):
+    def __init__(self, label, data, shape=None, strides=None, format=None, offset=0):
+        # It is important not to store references to data after the constructor
+        # as refcounting is checked on object buffers.
         self.label = label
+        self.release_ok = True
         self.log = ""
+        self.offset = offset
         self.itemsize = self.get_itemsize()
         if format is None: format = self.get_default_format()
         if shape is None: shape = (len(data),)
@@ -680,7 +897,7 @@ cdef class MockBuffer:
             if (value & flags) == value:
                 self.recieved_flags.append(name)
         
-        buffer.buf = self.buffer
+        buffer.buf = <void*>(<char*>self.buffer + (<int>self.offset * self.itemsize))
         buffer.len = self.len
         buffer.readonly = 0
         buffer.format = <char*>self.format
@@ -690,17 +907,21 @@ cdef class MockBuffer:
         buffer.suboffsets = self.suboffsets
         buffer.itemsize = self.itemsize
         buffer.internal = NULL
-        msg = "acquired %s" % self.label
-        print msg
-        self.log += msg + "\n"
+        if self.label:
+            msg = "acquired %s" % self.label
+            print msg
+            self.log += msg + "\n"
 
     def __releasebuffer__(MockBuffer self, Py_buffer* buffer):
-        msg = "released %s" % self.label
-        print msg 
-        self.log += msg + "\n"
+        if buffer.suboffsets != self.suboffsets:
+            self.release_ok = False
+        if self.label:
+            msg = "released %s" % self.label
+            print msg 
+            self.log += msg + "\n"
 
     def printlog(self):
-        print self.log,
+        print self.log
 
     def resetlog(self):
         self.log = ""
@@ -716,21 +937,43 @@ cdef class FloatMockBuffer(MockBuffer):
         (<float*>buf)[0] = <float>value
         return 0
     cdef get_itemsize(self): return sizeof(float)
-    cdef get_default_format(self): return "=f"
+    cdef get_default_format(self): return b"=f"
 
 cdef class IntMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         (<int*>buf)[0] = <int>value
         return 0
     cdef get_itemsize(self): return sizeof(int)
-    cdef get_default_format(self): return "=i"
+    cdef get_default_format(self): return b"=i"
+
+cdef class ShortMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<short*>buf)[0] = <short>value
+        return 0
+    cdef get_itemsize(self): return sizeof(short)
+    cdef get_default_format(self): return b"h" # Try without endian specifier
 
 cdef class UnsignedShortMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         (<unsigned short*>buf)[0] = <unsigned short>value
         return 0
     cdef get_itemsize(self): return sizeof(unsigned short)
-    cdef get_default_format(self): return "=H"
+    cdef get_default_format(self): return b"=1H" # Try with repeat count
+
+cdef extern from *:
+    void* addr_of_pyobject "(void*)"(object)
+
+cdef class ObjectMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<void**>buf)[0] = addr_of_pyobject(value)
+        return 0
+
+    cdef get_itemsize(self): return sizeof(void*)
+    cdef get_default_format(self): return b"=O"
+        
+
+cdef class IntStridedMockBuffer(IntMockBuffer):
+    cdef __cythonbufferdefaults__ = {"mode" : "strided"}
             
 cdef class ErrorBuffer:
     cdef object label
@@ -743,4 +986,55 @@ cdef class ErrorBuffer:
 
     def __releasebuffer__(MockBuffer self, Py_buffer* buffer):
         raise Exception("releasing %s" % self.label)
+
+#
+# Typed buffers
+#
+@testcase
+def typedbuffer1(obj):
+    """
+    >>> typedbuffer1(IntMockBuffer("A", range(10)))
+    acquired A
+    released A
+    >>> typedbuffer1(None)
+    >>> typedbuffer1(4)
+    Traceback (most recent call last):
+       ...
+    TypeError: Cannot convert int to bufaccess.IntMockBuffer
+    """
+    cdef IntMockBuffer[int, 1] buf = obj
+
+@testcase
+def typedbuffer2(IntMockBuffer[int, 1] obj):
+    """
+    >>> typedbuffer2(IntMockBuffer("A", range(10)))
+    acquired A
+    released A
+    >>> typedbuffer2(None)
+    >>> typedbuffer2(4)
+    Traceback (most recent call last):
+       ...
+    TypeError: Argument 'obj' has incorrect type (expected bufaccess.IntMockBuffer, got int)
+    """
+    pass
+
+#
+# Test __cythonbufferdefaults__
+#
+@testcase
+def bufdefaults1(IntStridedMockBuffer[int, 1] buf):
+    """
+    For IntStridedMockBuffer, mode should be
+    "strided" by defaults which should show
+    up in the flags.
+    
+    >>> A = IntStridedMockBuffer("A", range(10))
+    >>> bufdefaults1(A)
+    acquired A
+    released A
+    >>> [str(x) for x in A.recieved_flags]
+    ['FORMAT', 'ND', 'STRIDES']
+    """
+    pass
+    
 
