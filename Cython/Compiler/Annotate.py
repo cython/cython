@@ -17,8 +17,8 @@ special_chars = [(u'<', u'\xF0', u'&lt;'),
 
 class AnnotationCCodeWriter(CCodeWriter):
 
-    def __init__(self, create_from=None, buffer=None):
-        CCodeWriter.__init__(self, create_from, buffer)
+    def __init__(self, create_from=None, buffer=None, copy_formatting=True):
+        CCodeWriter.__init__(self, create_from, buffer, copy_formatting=True)
         self.annotation_buffer = StringIO()
         if create_from is None:
             self.annotations = []
