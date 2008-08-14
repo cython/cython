@@ -505,7 +505,7 @@ class Scope:
         else:
             cname = self.new_const_cname()
         if value.is_unicode:
-            c_type = PyrexTypes.c_unicode_type
+            c_type = PyrexTypes.c_utf8_char_array_type
             value = value.utf8encode()
         else:
             c_type = PyrexTypes.c_char_array_type
