@@ -47,7 +47,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.embed_pos_in_docstring:
             env.doc = EncodedString(u'File: %s (starting at line %s)' % Nodes.relative_position(self.pos))
             if not self.doc is None:
-                env.doc = EncodedString(env.doc + u'\\n' + self.doc)
+                env.doc = EncodedString(env.doc + u'\n' + self.doc)
                 env.doc.encoding = self.doc.encoding
         else:
             env.doc = self.doc

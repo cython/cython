@@ -63,7 +63,7 @@ def embed_position(pos, docstring):
         # reuse the string encoding of the original docstring
         doc = EncodedString(pos_line)
     else:
-        doc = EncodedString(pos_line + u'\\n' + docstring)
+        doc = EncodedString(pos_line + u'\n' + docstring)
     doc.encoding = encoding
     return doc
 
