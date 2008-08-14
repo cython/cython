@@ -10,7 +10,7 @@ import Naming
 from Nodes import Node
 import PyrexTypes
 from PyrexTypes import py_object_type, c_long_type, typecast, error_type
-from Builtin import list_type, tuple_type, dict_type
+from Builtin import list_type, tuple_type, dict_type, unicode_type
 import Symtab
 import Options
 from Annotate import AnnotationItem
@@ -740,7 +740,7 @@ class StringNode(ConstNode):
 class UnicodeNode(PyConstNode):
     #  entry   Symtab.Entry
 
-    type = PyrexTypes.c_unicode_type
+    type = unicode_type
 
     def analyse_types(self, env):
         self.entry = env.add_string_const(self.value)
