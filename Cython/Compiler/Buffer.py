@@ -115,6 +115,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
 #
 buffer_options = ("dtype", "ndim", "mode") # ordered!
 buffer_defaults = {"ndim": 1, "mode": "full"}
+buffer_positional_options_count = 1 # anything beyond this needs keyword argument
 
 ERR_BUF_OPTION_UNKNOWN = '"%s" is not a buffer option'
 ERR_BUF_TOO_MANY = 'Too many buffer options'
@@ -140,7 +141,7 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
     
     posargs, dictargs = Interpreter.interpret_compiletime_options(posargs, dictargs, type_env=env)
     
-    if len(posargs) > len(buffer_options):
+    if len(posargs) > buffer_positional_options_count:
         raise CompileError(posargs[-1][1], ERR_BUF_TOO_MANY)
 
     options = {}
