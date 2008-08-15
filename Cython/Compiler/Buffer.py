@@ -478,7 +478,8 @@ def get_ts_check_item(dtype, writer):
             elif dtype.is_float:
                 types = [('f', 'float'), ('d', 'double'), ('g', 'long double')]
             else:
-                assert False
+                assert dtype.is_error
+                return name
             if dtype.signed == 0:
                 code += "".join(["\n    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 > 0); break;" %
                                  (char.upper(), ctype, against, ctype) for char, against in types])

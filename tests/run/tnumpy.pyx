@@ -92,6 +92,15 @@ try:
     >>> test_dtype('g', inc1_longdouble)
     >>> test_dtype('O', inc1_object)
 
+    >>> test_dtype(np.int, inc1_int_t)
+    >>> test_dtype(np.long, inc1_long_t)
+    >>> test_dtype(np.float, inc1_float_t)
+    >>> test_dtype(np.double, inc1_double_t)
+    >>> test_dtype(np.longdouble, inc1_longdouble_t)
+
+    >>> test_dtype(np.int32, inc1_int32_t)
+    >>> test_dtype(np.float64, inc1_float64_t)
+
     Unsupported types:
     >>> test_dtype(np.complex, inc1_byte)
     Traceback (most recent call last):
@@ -103,7 +112,6 @@ try:
     Traceback (most recent call last):
        ...
     ValueError: only objects, int and float dtypes supported for ndarray buffer access so far (dtype is 20)
-
     
 """
 except:
@@ -154,10 +162,24 @@ def inc1_float(np.ndarray[float] arr):                  arr[1] += 1
 def inc1_double(np.ndarray[double] arr):                arr[1] += 1
 def inc1_longdouble(np.ndarray[long double] arr):       arr[1] += 1
 
+
 def inc1_object(np.ndarray[object] arr):
     o = arr[1]
     o += 1
     arr[1] = o # unfortunately, += segfaults for objects
+
+
+def inc1_int_t(np.ndarray[np.int_t] arr):               arr[1] += 1
+def inc1_long_t(np.ndarray[np.long_t] arr):             arr[1] += 1
+def inc1_float_t(np.ndarray[np.float_t] arr):           arr[1] += 1
+def inc1_double_t(np.ndarray[np.double_t] arr):         arr[1] += 1
+def inc1_longdouble_t(np.ndarray[np.longdouble_t] arr): arr[1] += 1
+
+# The tests below only work on platforms that has the given types
+def inc1_int32_t(np.ndarray[np.int32_t] arr):           arr[1] += 1
+def inc1_float64_t(np.ndarray[np.float64_t] arr):       arr[1] += 1
+
+    
 def test_dtype(dtype, inc1):
     a = np.array([0, 10], dtype=dtype)
     inc1(a)
