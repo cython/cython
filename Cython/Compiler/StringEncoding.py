@@ -142,3 +142,6 @@ def escape_byte_string(s):
         else:
             append(c)
     return ''.join(l)
+
+def split_docstring(s):
+    return '\\n\"\"'.join(s.split(r'\n'))
