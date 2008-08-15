@@ -1,3 +1,6 @@
+from stdlib cimport malloc, free
+
+
 cdef extern from "Python.h":
     ctypedef int Py_intptr_t
     
@@ -5,6 +8,15 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef Py_intptr_t npy_intp
     ctypedef struct PyArray_Descr:
         int elsize
+        char byteorder
+        
+        
+    ctypedef class numpy.ndarray [object PyArrayObject]
+
+    int PyArray_NDIM(ndarray)
+    bint PyTypeNum_ISNUMBER(int)
+    bint PyTypeNum_ISCOMPLEX(int)
+
 
     ctypedef class numpy.ndarray [object PyArrayObject]:
         cdef:
@@ -24,15 +36,33 @@ cdef extern from "numpy/arrayobject.h":
                 raise RuntimeError("Py_intptr_t and Py_ssize_t differs in size, numpy.pxd does not support this")
 
             cdef int typenum = PyArray_TYPE(self)
+            # NumPy format codes doesn't completely match buffer codes;
+            # seems safest to retranslate.
+            cdef char* base_codes = "?bBhHiIlLqQfdgfdgO"
+            if not base_codes[typenum] == 'O' and not PyTypeNum_ISNUMBER(typenum):
+                raise ValueError, "Only numeric and object NumPy types currently supported."
             
             info.buf = <void*>self.data
-            info.ndim = 2
+            info.ndim = PyArray_NDIM(self)
             info.strides = <Py_ssize_t*>self.strides
             info.shape = <Py_ssize_t*>self.dimensions
             info.suboffsets = NULL
-            info.format = "i"
             info.itemsize = self.descr.elsize
             info.readonly = not PyArray_ISWRITEABLE(self)
+            
+            cdef char* fp
+            fp = info.format = <char*>malloc(4)
+            fp[0] = self.descr.byteorder
+            cdef bint is_complex = not not PyTypeNum_ISCOMPLEX(typenum)
+            if is_complex:
+                fp[1] = 'Z'
+            fp[1+is_complex] = base_codes[typenum]
+            fp[2+is_complex] = 0
+            
+
+        def __releasebuffer__(ndarray self, Py_buffer* info):
+            free(info.format)
+
 
             # PS TODO TODO!: Py_ssize_t vs Py_intptr_t
 

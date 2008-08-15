@@ -453,14 +453,18 @@ def get_ts_check_item(dtype, writer):
     if not writer.globalstate.has_utility_code(name):
         char = dtype.typestring
         if char is not None:
-                # Can use direct comparison
+            # Can use direct comparison
+            if char is 'O':
+                byteorder = '|'
+            else:
+                byteorder = '1'
             code = dedent("""\
-                if (*ts == '1') ++ts;
+                if (*ts == '%s') ++ts;
                 if (*ts != '%s') {
-                  PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (rejecting on '%%s')", ts);
+                  PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (expecting '%s' got '%%s')", ts);
                   return NULL;
                 } else return ts + 1;
-            """, 2) % char
+            """, 2) % (byteorder, char, char)
         else:
             # Cannot trust declared size; but rely on int vs float and
             # signed/unsigned to be correctly declared
