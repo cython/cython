@@ -1595,6 +1595,9 @@ class IndexNode(ExprNode):
             code.putln("%s = %s;" % (temp, index.result_code))
         # Generate buffer access code using these temps
         import Buffer
+        assert self.options is not None
+        # The above could happen because child_attrs is wrong somewhere so that
+        # options are not propagated.
         return Buffer.put_buffer_lookup_code(entry=self.base.entry,
                                              index_signeds=[i.type.signed for i in self.indices],
                                              index_cnames=index_temps,
@@ -2577,6 +2580,8 @@ class ListComprehensionNode(SequenceNode):
     subexprs = []
     is_sequence_constructor = 0 # not unpackable
 
+    child_attrs = ["loop", "append"]
+
     def analyse_types(self, env): 
         self.type = list_type
         self.is_temp = 1
@@ -2602,6 +2607,8 @@ class ListComprehensionNode(SequenceNode):
 
 class ListComprehensionAppendNode(ExprNode):
 
+    # Need to be careful to avoid infinite recursion:
+    # target must not be in child_attrs/subexprs
     subexprs = ['expr']
     
     def analyse_types(self, env):

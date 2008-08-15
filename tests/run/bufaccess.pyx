@@ -331,7 +331,7 @@ def explicitly_release_buffer():
     print "After release"
 
 #
-# Index bounds checking
+# Getting items and index bounds checking
 # 
 @testcase
 def get_int_2d(object[int, 2] buf, int i, int j):
@@ -435,6 +435,15 @@ def set_int_2d(object[int, 2] buf, int i, int j, int value):
     
     """
     buf[i, j] = value
+
+@testcase
+def list_comprehension(object[int] buf, len):
+    """
+    >>> list_comprehension(IntMockBuffer(None, [1,2,3]), 3)
+    1|2|3
+    """
+    cdef int i
+    print "|".join([str(buf[i]) for i in range(len)])
 
 #
 # Buffer type mismatch examples. Varying the type and access
