@@ -144,7 +144,8 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
         raise CompileError(posargs[-1][1], ERR_BUF_TOO_MANY)
 
     options = {}
-    for name, (value, pos) in dictargs.iteritems():
+    for unicode_name, (value, pos) in dictargs.iteritems():
+        name = str(unicode_name)
         if not name in buffer_options:
             raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
         options[name] = value
