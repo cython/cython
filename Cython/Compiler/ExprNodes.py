@@ -1534,30 +1534,34 @@ class IndexNode(ExprNode):
                 value_code,
                 self.index_unsigned_parameter(),
                 code.error_goto(self.pos)))
-    
+
+    def generate_buffer_setitem_code(self, rhs, code, op=""):
+        # Used from generate_assignment_code and InPlaceAssignmentNode
+        ptrexpr = self.buffer_lookup_code(code)
+        if self.buffer_type.dtype.is_pyobject:
+            # Must manage refcounts. Decref what is already there
+            # and incref what we put in.
+            ptr = code.funcstate.allocate_temp(self.buffer_type.buffer_ptr_type)
+            if rhs.is_temp:
+                rhs_code = code.funcstate.allocate_temp(rhs.type)
+            else:
+                rhs_code = rhs.result_code
+            code.putln("%s = %s;" % (ptr, ptrexpr))
+            code.putln("Py_DECREF(*%s); Py_INCREF(%s);" % (
+                ptr, rhs_code
+                ))
+            code.putln("*%s %s= %s;" % (ptr, op, rhs_code))
+            if rhs.is_temp:
+                code.funcstate.release_temp(rhs_code)
+            code.funcstate.release_temp(ptr)
+        else: 
+            # Simple case
+            code.putln("*%s %s= %s;" % (ptrexpr, op, rhs.result_code))
+
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
         if self.is_buffer_access:
-            ptrexpr = self.buffer_lookup_code(code)
-            if self.buffer_type.dtype.is_pyobject:
-                # Must manage refcounts. Decref what is already there
-                # and incref what we put in.
-                ptr = code.funcstate.allocate_temp(self.buffer_type.buffer_ptr_type)
-                if rhs.is_temp:
-                    rhs_code = code.funcstate.allocate_temp(rhs.type)
-                else:
-                    rhs_code = rhs.result_code
-                code.putln("%s = %s;" % (ptr, ptrexpr))
-                code.putln("Py_DECREF(*%s); Py_INCREF(%s);" % (
-                    ptr, rhs_code
-                    ))
-                code.putln("*%s = %s;" % (ptr, rhs_code))
-                if rhs.is_temp:
-                    code.funcstate.release_temp(rhs_code)
-                code.funcstate.release_temp(ptr)
-            else: 
-                # Simple case
-                code.putln("*%s = %s;" % (ptrexpr, rhs.result_code))
+            self.generate_buffer_setitem_code(rhs, code)
         elif self.type.is_pyobject:
             self.generate_setitem_code(rhs.py_result(), code)
         else:
@@ -3946,6 +3950,7 @@ class CoercionNode(ExprNode):
     def __init__(self, arg):
         self.pos = arg.pos
         self.arg = arg
+        self.options = arg.options
         if debug_coercion:
             print("%s Coercing %s" % (self, self.arg))
             
