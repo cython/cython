@@ -102,3 +102,22 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef float        npy_float96
     ctypedef float        npy_float128
 
+
+ctypedef npy_int8   int8_t
+ctypedef npy_int16  int16_t
+ctypedef npy_int32  int32_t
+ctypedef npy_int64  int64_t
+ctypedef npy_int96  int96_t
+ctypedef npy_int128 int128_t
+
+ctypedef npy_uint8   uint8_t
+ctypedef npy_uint16  uint16_t
+ctypedef npy_uint32  uint32_t
+ctypedef npy_uint64  uint64_t
+ctypedef npy_uint96  uint96_t
+ctypedef npy_uint128 uint128_t
+
+ctypedef npy_float32 float32_t
+ctypedef npy_float64 float64_t
+ctypedef npy_float80 float80_t
+ctypedef npy_float128 float128_t
