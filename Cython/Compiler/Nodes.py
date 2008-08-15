@@ -71,12 +71,10 @@ class Node(object):
     #  pos         (string, int, int)   Source file position
     #  is_name     boolean              Is a NameNode
     #  is_literal  boolean              Is a ConstNode
-    #  options     dict                 Compiler directives for this node
     
     is_name = 0
     is_literal = 0
     temps = None
-    options = {}
 
     # All descandants should set child_attrs to a list of the attributes
     # containing nodes considered "children" in the tree. Each such attribute
@@ -2519,13 +2517,12 @@ class InPlaceAssignmentNode(AssignmentNode):
     def generate_execution_code(self, code):
         self.rhs.generate_evaluation_code(code)
         self.dup.generate_subexpr_evaluation_code(code)
-        # self.dup.generate_result_code is run only if it is not buffer access
+        self.dup.generate_result_code(code)
         if self.operator == "**":
             extra = ", Py_None"
         else:
             extra = ""
         if self.lhs.type.is_pyobject:
-            self.dup.generate_result_code(code)
             code.putln(
                 "%s = %s(%s, %s%s); %s" % (
                     self.result.result_code, 
@@ -2548,12 +2545,7 @@ class InPlaceAssignmentNode(AssignmentNode):
                 else:
                     error(self.pos, "No C inplace power operator")
             # have to do assignment directly to avoid side-effects
-            import ExprNodes
-            if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
-                self.lhs.generate_buffer_assignment_code(self.rhs, code, c_op)
-            else:
-                self.dup.generate_result_code(code)
-                code.putln("%s %s= %s;" % (self.lhs.result_code, c_op, self.rhs.result_code) )
+            code.putln("%s %s= %s;" % (self.lhs.result_code, c_op, self.rhs.result_code) )
             self.rhs.generate_disposal_code(code)
         if self.dup.is_temp:
             self.dup.generate_subexpr_disposal_code(code)
@@ -2563,23 +2555,11 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.dup = self.lhs
         self.dup.analyse_types(env)
         if isinstance(self.lhs, ExprNodes.NameNode):
-            target_lhs = ExprNodes.NameNode(self.dup.pos,
-                                            name = self.dup.name,
-                                            is_temp = self.dup.is_temp,
-                                            entry = self.dup.entry,
-                                            options = self.dup.options)
+            target_lhs = ExprNodes.NameNode(self.dup.pos, name = self.dup.name, is_temp = self.dup.is_temp, entry = self.dup.entry)
         elif isinstance(self.lhs, ExprNodes.AttributeNode):
-            target_lhs = ExprNodes.AttributeNode(self.dup.pos,
-                                                 obj = ExprNodes.CloneNode(self.lhs.obj),
-                                                 attribute = self.dup.attribute,
-                                                 is_temp = self.dup.is_temp,
-                                                 options = self.dup.options)
+            target_lhs = ExprNodes.AttributeNode(self.dup.pos, obj = ExprNodes.CloneNode(self.lhs.obj), attribute = self.dup.attribute, is_temp = self.dup.is_temp)
         elif isinstance(self.lhs, ExprNodes.IndexNode):
-                target_lhs = ExprNodes.IndexNode(self.dup.pos,
-                                                 base = ExprNodes.CloneNode(self.dup.base),
-                                                 index = ExprNodes.CloneNode(self.lhs._index),
-                                                 is_temp = self.dup.is_temp,
-                                                 options = self.dup.options)
+            target_lhs = ExprNodes.IndexNode(self.dup.pos, base = ExprNodes.CloneNode(self.dup.base), index = ExprNodes.CloneNode(self.lhs.index), is_temp = self.dup.is_temp)
         self.lhs = target_lhs
         return self.dup
     
