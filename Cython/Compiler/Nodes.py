@@ -2555,11 +2555,29 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.dup = self.lhs
         self.dup.analyse_types(env)
         if isinstance(self.lhs, ExprNodes.NameNode):
-            target_lhs = ExprNodes.NameNode(self.dup.pos, name = self.dup.name, is_temp = self.dup.is_temp, entry = self.dup.entry)
+            target_lhs = ExprNodes.NameNode(self.dup.pos,
+                                            name = self.dup.name,
+                                            is_temp = self.dup.is_temp,
+                                            entry = self.dup.entry)
         elif isinstance(self.lhs, ExprNodes.AttributeNode):
-            target_lhs = ExprNodes.AttributeNode(self.dup.pos, obj = ExprNodes.CloneNode(self.lhs.obj), attribute = self.dup.attribute, is_temp = self.dup.is_temp)
+            target_lhs = ExprNodes.AttributeNode(self.dup.pos,
+                                                 obj = ExprNodes.CloneNode(self.lhs.obj),
+                                                 attribute = self.dup.attribute,
+                                                 is_temp = self.dup.is_temp)
         elif isinstance(self.lhs, ExprNodes.IndexNode):
-            target_lhs = ExprNodes.IndexNode(self.dup.pos, base = ExprNodes.CloneNode(self.dup.base), index = ExprNodes.CloneNode(self.lhs.index), is_temp = self.dup.is_temp)
+            if self.lhs.index:
+                index = ExprNodes.CloneNode(self.lhs.index)
+            else:
+                index = None
+            if self.lhs.indices:
+                indices = [ExprNodes.CloneNode(x) for x in self.lhs.indices]
+            else:
+                indices = []
+            target_lhs = ExprNodes.IndexNode(self.dup.pos,
+                                             base = ExprNodes.CloneNode(self.dup.base),
+                                             index = index,
+                                             indices = indices,
+                                             is_temp = self.dup.is_temp)
         self.lhs = target_lhs
         return self.dup
     
