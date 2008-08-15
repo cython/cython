@@ -596,11 +596,22 @@ TODO
     uc[0] = <int>3.14
     print uc[0]
 
+    cdef char* ch = "asfd"
+    cdef object[object] objbuf
+    objbuf[3] = ch
+
 
 #
 # Testing that accessing data using various types of buffer access
 # all works.
 #
+
+def printbuf_int(object[int] buf, shape):
+    # Utility func
+    cdef int i
+    for i in range(shape[0]):
+        print buf[i],
+    print 'END'
 
 
 @testcase
@@ -652,6 +663,24 @@ def printbuf_float(o, shape):
     for i in range(shape[0]):
         print buf[i],
     print "END"
+
+
+#
+# Test assignments
+#
+@testcase
+def inplace_operators(object[int] buf):
+    """
+    >>> buf = IntMockBuffer(None, [2, 2])
+    >>> inplace_operators(buf)
+    >>> printbuf_int(buf, (2,))
+    0 3 END
+    """
+    cdef int j = 0
+    buf[1] += 1
+    buf[j] *= 2
+    buf[0] -= 4
+
 
 
 #
