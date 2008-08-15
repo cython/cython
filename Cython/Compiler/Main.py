@@ -397,8 +397,8 @@ class Context:
             finally:
                 f.close()
         except UnicodeDecodeError, msg:
-            import traceback
-            traceback.print_exc()
+            #import traceback
+            #traceback.print_exc()
             error((source_desc, 0, 0), "Decoding error, missing or incorrect coding=<encoding-name> at top of source (%s)" % msg)
         if Errors.num_errors > 0:
             raise CompileError
