@@ -447,7 +447,7 @@ def fmtst1(buf):
     >>> fmtst1(IntMockBuffer("A", range(3)))
     Traceback (most recent call last):
         ...
-    ValueError: Buffer datatype mismatch (rejecting on 'i')
+    ValueError: Buffer datatype mismatch (expected 'f', got 'i')
     """
     cdef object[float] a = buf
 
@@ -457,7 +457,7 @@ def fmtst2(object[int] buf):
     >>> fmtst2(FloatMockBuffer("A", range(3)))
     Traceback (most recent call last):
         ...
-    ValueError: Buffer datatype mismatch (rejecting on 'f')
+    ValueError: Buffer datatype mismatch (expected 'i', got 'f')
     """
 
 @testcase

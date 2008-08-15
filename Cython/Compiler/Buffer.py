@@ -454,17 +454,13 @@ def get_ts_check_item(dtype, writer):
         char = dtype.typestring
         if char is not None:
             # Can use direct comparison
-            if char is 'O':
-                byteorder = '|'
-            else:
-                byteorder = '1'
             code = dedent("""\
-                if (*ts == '%s') ++ts;
+                if (*ts == '1') ++ts;
                 if (*ts != '%s') {
-                  PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (expecting '%s' got '%%s')", ts);
+                  PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (expected '%s', got '%%s')", ts);
                   return NULL;
                 } else return ts + 1;
-            """, 2) % (byteorder, char, char)
+            """, 2) % (char, char)
         else:
             # Cannot trust declared size; but rely on int vs float and
             # signed/unsigned to be correctly declared
@@ -541,7 +537,7 @@ def get_getbuffer_code(dtype, code):
           ts = __Pyx_ConsumeWhitespace(ts);
           if (*ts != 0) {
             PyErr_Format(PyExc_ValueError,
-              "Expected non-struct buffer data type (rejecting on '%%s')", ts);
+              "Expected non-struct buffer data type (expected end, got '%%s')", ts);
             goto fail;
           }
           if (buf->suboffsets == NULL) buf->suboffsets = __Pyx_minusones;
