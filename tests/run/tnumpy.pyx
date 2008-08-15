@@ -27,7 +27,7 @@ try:
     a 1 {}
 
     Test various forms of slicing, picking etc.
-    >>> a = np.arange(10, dtype=np.long).reshape(2, 5)
+    >>> a = np.arange(10, dtype='l').reshape(2, 5)
     >>> print_long_2d(a)
     0 1 2 3 4
     5 6 7 8 9
@@ -40,8 +40,70 @@ try:
     0 2 4
     >>> print_long_2d(a[::4, :])
     0 1 2 3 4
-    >>> print_long_2d(a[4:1:-1, :])
-    4 3 2
+    >>> print_long_2d(a[:, 1:5:2])
+    1 3
+    6 8
+    >>> print_long_2d(a[:, 5:1:-2])
+    4 2
+    9 7
+    >>> print_long_2d(a[:, [3, 1]])
+    3 1
+    8 6
+    >>> print_long_2d(a.T)
+    0 5
+    1 6
+    2 7
+    3 8
+    4 9
+
+    Write to slices
+    >>> b = a.copy()
+    >>> put_range_long_1d(b[:, 3])
+    >>> print b
+    [[0 1 2 0 4]
+     [5 6 7 1 9]]
+    >>> put_range_long_1d(b[::-1, 3])
+    >>> print b
+    [[0 1 2 1 4]
+     [5 6 7 0 9]]
+    >>> a = np.zeros(9, dtype='l')
+    >>> put_range_long_1d(a[1::3])
+    >>> print a
+    [0 0 0 0 1 0 0 2 0]
+
+    Write to picked subarrays. This should NOT change the original
+    array as picking creates a new mutable copy.
+    >>> a = np.zeros(10, dtype='l').reshape(2, 5)
+    >>> put_range_long_1d(a[[0, 0, 1, 1, 0], [0, 1, 2, 4, 3]])
+    >>> print a
+    [[0 0 0 0 0]
+     [0 0 0 0 0]]
+    
+    >>> test_dtype('b', inc1_byte)
+    >>> test_dtype('B', inc1_ubyte)
+    >>> test_dtype('h', inc1_short)
+    >>> test_dtype('H', inc1_ushort)
+    >>> test_dtype('i', inc1_int)
+    >>> test_dtype('I', inc1_uint)
+    >>> test_dtype('l', inc1_long)
+    >>> test_dtype('L', inc1_ulong)
+    >>> test_dtype('f', inc1_float)
+    >>> test_dtype('d', inc1_double)
+    >>> test_dtype('g', inc1_longdouble)
+    >>> test_dtype('O', inc1_object)
+
+    Unsupported types:
+    >>> test_dtype(np.complex, inc1_byte)
+    Traceback (most recent call last):
+       ...
+    ValueError: only objects, int and float dtypes supported for ndarray buffer access so far (dtype is 15)
+
+    >>> a = np.zeros((10,), dtype=np.dtype('i4,i4'))
+    >>> inc1_byte(a)
+    Traceback (most recent call last):
+       ...
+    ValueError: only objects, int and float dtypes supported for ndarray buffer access so far (dtype is 20)
+
     
 """
 except:
@@ -63,7 +125,40 @@ def obj_array():
     print buf[0], buf[1], buf[2]
 
 
-def print_long_2d(np.ndarray[long, 2] arr):
+def print_long_2d(np.ndarray[long, ndim=2] arr):
     cdef int i, j
     for i in range(arr.shape[0]):
-        print " ".join([arr[i, j] for j in range(arr.shape[1])])
+        print " ".join([str(arr[i, j]) for j in range(arr.shape[1])])
+
+def put_range_long_1d(np.ndarray[long] arr):
+    """Writes 0,1,2,... to array and returns array"""
+    cdef int value = 0, i
+    for i in range(arr.shape[0]):
+        arr[i] = value
+        value += 1
+
+
+# Exhaustive dtype tests -- increments element [1] by 1 for all dtypes
+def inc1_byte(np.ndarray[char] arr):                    arr[1] += 1
+def inc1_ubyte(np.ndarray[unsigned char] arr):          arr[1] += 1
+def inc1_short(np.ndarray[short] arr):                  arr[1] += 1
+def inc1_ushort(np.ndarray[unsigned short] arr):        arr[1] += 1
+def inc1_int(np.ndarray[int] arr):                      arr[1] += 1
+def inc1_uint(np.ndarray[unsigned int] arr):            arr[1] += 1
+def inc1_long(np.ndarray[long] arr):                    arr[1] += 1
+def inc1_ulong(np.ndarray[unsigned long] arr):          arr[1] += 1
+def inc1_longlong(np.ndarray[long long] arr):           arr[1] += 1
+def inc1_ulonglong(np.ndarray[unsigned long long] arr): arr[1] += 1
+
+def inc1_float(np.ndarray[float] arr):                  arr[1] += 1
+def inc1_double(np.ndarray[double] arr):                arr[1] += 1
+def inc1_longdouble(np.ndarray[long double] arr):       arr[1] += 1
+
+def inc1_object(np.ndarray[object] arr):
+    o = arr[1]
+    o += 1
+    arr[1] = o # unfortunately, += segfaults for objects
+def test_dtype(dtype, inc1):
+    a = np.array([0, 10], dtype=dtype)
+    inc1(a)
+    if a[1] != 11: print "failed!"
