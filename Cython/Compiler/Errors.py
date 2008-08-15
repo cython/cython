@@ -63,11 +63,16 @@ class InternalError(Exception):
     def __init__(self, message):
         Exception.__init__(self, "Internal compiler error: %s"
             % message)
-            
+
+class AbortCompilationError(Exception):
+    """
+    Raised in order to abort compilation.
+    """
 
 listing_file = None
 num_errors = 0
 echo_file = None
+last_error = None
 
 def open_listing_file(path, echo_to_stderr = 1):
     # Begin a new error listing. If path is None, no file
@@ -90,7 +95,7 @@ def close_listing_file():
         listing_file = None
 
 def report_error(err):
-    global num_errors
+    global num_errors, last_error
     # See Main.py for why dual reporting occurs. Quick fix for now.
     if err.reported: return
     err.reported = True
@@ -100,6 +105,7 @@ def report_error(err):
     if echo_file:
         echo_file.write(line)
     num_errors = num_errors + 1
+    last_error = err
 
 def error(position, message):
     #print "Errors.error:", repr(position), repr(message) ###
