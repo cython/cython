@@ -3,9 +3,9 @@
 #           and associated know-how.
 #
 
-from Cython import Utils
 import Naming
 import PyrexTypes
+import StringEncoding
 import sys
 
 class Signature:
@@ -311,7 +311,7 @@ class DocStringSlot(SlotDescriptor):
                 doc = scope.doc.utf8encode()
             else:
                 doc = scope.doc.byteencode()
-            return '"%s"' % Utils.escape_byte_string(doc)
+            return '"%s"' % StringEncoding.escape_byte_string(doc)
         else:
             return "0"
 

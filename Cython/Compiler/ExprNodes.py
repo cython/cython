@@ -6,6 +6,7 @@ import operator
 from string import join
 
 from Errors import error, warning, InternalError
+import StringEncoding
 import Naming
 from Nodes import Node
 import PyrexTypes
@@ -14,7 +15,6 @@ from Builtin import list_type, tuple_type, dict_type, unicode_type
 import Symtab
 import Options
 from Annotate import AnnotationItem
-from Cython import Utils
 
 from Cython.Debugging import print_call_chain
 from DebugFlags import debug_disposal_code, debug_temp_alloc, \
@@ -640,10 +640,10 @@ class CharNode(ConstNode):
     type = PyrexTypes.c_char_type
     
     def compile_time_value(self, denv):
-        return ord(self.value.byteencode())
+        return ord(self.value)
     
     def calculate_result_code(self):
-        return "'%s'" % Utils.escape_character(self.value.byteencode())
+        return "'%s'" % StringEncoding.escape_character(self.value)
 
 
 class IntNode(ConstNode):

@@ -17,7 +17,7 @@ from Cython.Plex.Errors import UnrecognizedInput
 from Errors import CompileError, error
 from Lexicon import string_prefixes, raw_prefixes, make_lexicon
 
-from Cython import Utils
+from StringEncoding import EncodedString
 
 plex_version = getattr(Plex, '_version', None)
 #print "Plex version:", plex_version ###
@@ -413,7 +413,7 @@ class PyrexScanner(Scanner):
             if systring in self.resword_dict:
                 sy = systring
             else:
-                systring = Utils.EncodedString(systring)
+                systring = EncodedString(systring)
                 systring.encoding = self.source_encoding
         self.sy = sy
         self.systring = systring

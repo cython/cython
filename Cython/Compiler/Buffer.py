@@ -3,7 +3,7 @@ from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import *
 from Cython.Compiler.ExprNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment
-from Cython.Utils import EncodedString
+from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import CompileError
 import Interpreter
 import PyrexTypes

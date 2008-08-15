@@ -23,7 +23,8 @@ import Version
 
 from Errors import error, warning
 from PyrexTypes import py_object_type
-from Cython.Utils import open_new_file, replace_suffix, escape_byte_string, EncodedString
+from Cython.Utils import open_new_file, replace_suffix
+from StringEncoding import escape_byte_string, EncodedString
 
 
 def check_c_classes(module_node):
@@ -514,9 +515,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static const char *%s;' % Naming.filename_cname)
         code.putln('static const char **%s;' % Naming.filetable_cname)
         if env.doc:
+            docstr = env.doc
+            if not isinstance(docstr, str):
+                docstr = docstr.utf8encode()
             code.putln('')
             code.putln('static char %s[] = "%s";' % (
-                    env.doc_cname, escape_byte_string(env.doc.utf8encode())))
+                    env.doc_cname, escape_byte_string(docstr)))
     
     def generate_extern_c_macro_definition(self, code):
         name = Naming.extern_c_macro
