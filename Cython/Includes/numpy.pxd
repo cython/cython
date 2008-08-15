@@ -82,6 +82,22 @@ cdef extern from "numpy/arrayobject.h":
     cdef npy_intp PyArray_DIMS(ndarray arr)
     cdef Py_ssize_t PyArray_ITEMSIZE(ndarray arr)
 
+    ctypedef signed int   npy_byte
+    ctypedef signed int   npy_short
+    ctypedef signed int   npy_int
+    ctypedef signed int   npy_long
+    ctypedef signed int   npy_longlong
+
+    ctypedef unsigned int npy_ubyte
+    ctypedef unsigned int npy_ushort
+    ctypedef unsigned int npy_uint
+    ctypedef unsigned int npy_ulong
+    ctypedef unsigned int npy_ulonglong
+
+    ctypedef float        npy_float
+    ctypedef float        npy_double
+    ctypedef float        npy_longdouble
+
     ctypedef signed int   npy_int8
     ctypedef signed int   npy_int16
     ctypedef signed int   npy_int32
@@ -102,22 +118,40 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef float        npy_float96
     ctypedef float        npy_float128
 
+# Typedefs that matches the runtime dtype objects in
+# the numpy module.
 
-ctypedef npy_int8   int8_t
-ctypedef npy_int16  int16_t
-ctypedef npy_int32  int32_t
-ctypedef npy_int64  int64_t
-ctypedef npy_int96  int96_t
-ctypedef npy_int128 int128_t
+# The ones that are commented out needs an IFDEF function
+# in Cython to enable them only on the right systems.
 
-ctypedef npy_uint8   uint8_t
-ctypedef npy_uint16  uint16_t
-ctypedef npy_uint32  uint32_t
-ctypedef npy_uint64  uint64_t
-ctypedef npy_uint96  uint96_t
-ctypedef npy_uint128 uint128_t
+ctypedef npy_int8       int8_t
+ctypedef npy_int16      int16_t
+ctypedef npy_int32      int32_t
+ctypedef npy_int64      int64_t
+#ctypedef npy_int96      int96_t
+#ctypedef npy_int128     int128_t
 
-ctypedef npy_float32 float32_t
-ctypedef npy_float64 float64_t
-ctypedef npy_float80 float80_t
-ctypedef npy_float128 float128_t
+ctypedef npy_uint8      uint8_t
+ctypedef npy_uint16     uint16_t
+ctypedef npy_uint32     uint32_t
+ctypedef npy_uint64     uint64_t
+#ctypedef npy_uint96     uint96_t
+#ctypedef npy_uint128    uint128_t
+
+ctypedef npy_float32    float32_t
+ctypedef npy_float64    float64_t
+#ctypedef npy_float80    float80_t
+#ctypedef npy_float128   float128_t
+
+# The int types are mapped a bit surprising --
+# numpy.int corresponds to 'l' and numpy.long to 'q'
+ctypedef npy_long       int_t
+ctypedef npy_longlong   long_t
+
+ctypedef npy_ulong      uint_t
+ctypedef npy_ulonglong  ulong_t
+
+ctypedef npy_double      float_t
+ctypedef npy_double     double_t
+ctypedef npy_longdouble longdouble_t
+

@@ -601,6 +601,7 @@ class CBufferAccessTypeNode(CBaseTypeNode):
     
     def analyse(self, env):
         base_type = self.base_type_node.analyse(env)
+        if base_type.is_error: return base_type
         import Buffer
 
         options = Buffer.analyse_buffer_options(
