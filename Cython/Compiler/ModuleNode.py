@@ -422,7 +422,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if PY_VERSION_HEX < 0x02060000")
         code.putln("  #define Py_REFCNT(ob) (((PyObject*)(ob))->ob_refcnt)")
         code.putln("  #define Py_TYPE(ob)   (((PyObject*)(ob))->ob_type)")
-        code.putln("  #define Py_SIZE(ob)   ((PyVarObject*)(ob))->ob_size)")
+        code.putln("  #define Py_SIZE(ob)   (((PyVarObject*)(ob))->ob_size)")
         code.putln("  #define PyVarObject_HEAD_INIT(type, size) \\")
         code.putln("          PyObject_HEAD_INIT(type) size,")
         code.putln("  #define PyType_Modified(t)")
