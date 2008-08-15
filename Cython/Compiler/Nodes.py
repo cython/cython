@@ -2532,7 +2532,10 @@ class InPlaceAssignmentNode(AssignmentNode):
             extra = ", Py_None"
         else:
             extra = ""
+        import ExprNodes
         if self.lhs.type.is_pyobject:
+            if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
+                error(self.pos, "In-place operators not allowed on object buffers in this release.")
             self.dup.generate_result_code(code)
             code.putln(
                 "%s = %s(%s, %s%s); %s" % (
@@ -2556,7 +2559,6 @@ class InPlaceAssignmentNode(AssignmentNode):
                 else:
                     error(self.pos, "No C inplace power operator")
             # have to do assignment directly to avoid side-effects
-            import ExprNodes
             if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
                 self.lhs.generate_buffer_setitem_code(self.rhs, code, c_op)
             else:
