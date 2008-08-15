@@ -1369,6 +1369,10 @@ class IndexNode(ExprNode):
         # Note: This might be cleaned up by having IndexNode
         # parsed in a saner way and only construct the tuple if
         # needed.
+
+        # Note that this function must leave IndexNode in a cloneable state.
+        # For buffers, self.index is packed out on the initial analysis, and
+        # when cloning self.indices is copied.
         self.is_buffer_access = False
 
         self.base.analyse_types(env)
@@ -1379,11 +1383,16 @@ class IndexNode(ExprNode):
         skip_child_analysis = False
         buffer_access = False
         if self.base.type.is_buffer:
-            assert isinstance(self.base, NameNode)
-            if isinstance(self.index, TupleNode):
-                indices = self.index.args
+            assert hasattr(self.base, "entry") # Must be a NameNode-like node
+            if self.indices:
+                indices = self.indices
             else:
-                indices = [self.index]
+                # On cloning, indices is cloned. Otherwise, unpack index into indices
+                assert not isinstance(self.index, CloneNode)
+                if isinstance(self.index, TupleNode):
+                    indices = self.index.args
+                else:
+                    indices = [self.index]
             if len(indices) == self.base.type.ndim:
                 buffer_access = True
                 skip_child_analysis = True
@@ -1469,7 +1478,7 @@ class IndexNode(ExprNode):
 
     def generate_subexpr_evaluation_code(self, code):
         self.base.generate_evaluation_code(code)
-        if self.index is not None:
+        if not self.indices:
             self.index.generate_evaluation_code(code)
         else:
             for i in self.indices:
@@ -1477,7 +1486,7 @@ class IndexNode(ExprNode):
         
     def generate_subexpr_disposal_code(self, code):
         self.base.generate_disposal_code(code)
-        if self.index is not None:
+        if not self.indices:
             self.index.generate_disposal_code(code)
         else:
             for i in self.indices:
