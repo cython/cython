@@ -657,19 +657,22 @@ def printbuf_float(o, shape):
 #
 # Typedefs
 #
-ctypedef int cytypedef_int
+# Test three layers of typedefs going through a h file for plain int, and
+# simply a header file typedef for floats and unsigned.
+
+ctypedef int td_cy_int
 cdef extern from "bufaccess.h":
-    ctypedef cytypedef_int htypedef_short # Defined as short, but Cython doesn't know this!
-ctypedef htypedef_short cytypedef2
+    ctypedef td_cy_int td_h_short # Defined as short, but Cython doesn't know this!
+    ctypedef float td_h_double # Defined as double
+    ctypedef unsigned int td_h_ushort # Defined as unsigned short
+ctypedef td_h_short td_h_cy_short
 
 @testcase
-def printbuf_cytypedef_int(object[cytypedef_int] buf, shape):
+def printbuf_td_cy_int(object[td_cy_int] buf, shape):
     """
-    >>> printbuf_cytypedef_int(IntMockBuffer("A", range(3)), (3,))
-    acquired A
+    >>> printbuf_td_cy_int(IntMockBuffer(None, range(3)), (3,))
     0 1 2 END
-    released A
-    >>> printbuf_cytypedef_int(ShortMockBuffer("B", range(3)), (3,))
+    >>> printbuf_td_cy_int(ShortMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
     ValueError: Buffer datatype mismatch (rejecting on 'h')
@@ -681,40 +684,65 @@ def printbuf_cytypedef_int(object[cytypedef_int] buf, shape):
     print 'END'
 
 @testcase
-def printbuf_htypedef_short(object[htypedef_short] buf, shape):
+def printbuf_td_h_short(object[td_h_short] buf, shape):
     """
-    >>> printbuf_htypedef_short(ShortMockBuffer("A", range(3)), (3,))
-    acquired A
+    >>> printbuf_td_h_short(ShortMockBuffer(None, range(3)), (3,))
     0 1 2 END
-    released A
-    >>> printbuf_htypedef_short(IntMockBuffer("B", range(3)), (3,))
+    >>> printbuf_td_h_short(IntMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
     ValueError: Buffer datatype mismatch (rejecting on 'i')
-    """
-    
+    """    
     cdef int i
     for i in range(shape[0]):
         print buf[i],
     print 'END'
 
 @testcase
-def printbuf_cytypedef2(object[cytypedef2] buf, shape):
+def printbuf_td_h_cy_short(object[td_h_cy_short] buf, shape):
     """
-    >>> printbuf_cytypedef2(ShortMockBuffer("A", range(3)), (3,))
-    acquired A
+    >>> printbuf_td_h_cy_short(ShortMockBuffer(None, range(3)), (3,))
     0 1 2 END
-    released A
-    >>> printbuf_cytypedef2(IntMockBuffer("B", range(3)), (3,))
+    >>> printbuf_td_h_cy_short(IntMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
     ValueError: Buffer datatype mismatch (rejecting on 'i')
     """
-    
     cdef int i
     for i in range(shape[0]):
         print buf[i],
     print 'END'
+
+@testcase
+def printbuf_td_h_ushort(object[td_h_ushort] buf, shape):
+    """
+    >>> printbuf_td_h_ushort(UnsignedShortMockBuffer(None, range(3)), (3,))
+    0 1 2 END
+    >>> printbuf_td_h_ushort(ShortMockBuffer(None, range(3)), (3,))
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer datatype mismatch (rejecting on 'h')
+    """
+    cdef int i
+    for i in range(shape[0]):
+        print buf[i],
+    print 'END'
+
+@testcase
+def printbuf_td_h_double(object[td_h_double] buf, shape):
+    """
+    >>> printbuf_td_h_double(DoubleMockBuffer(None, [0.25, 1, 3.125]), (3,))
+    0.25 1.0 3.125 END
+    >>> printbuf_td_h_double(FloatMockBuffer(None, [0.25, 1, 3.125]), (3,))
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer datatype mismatch (rejecting on 'f')
+    """
+    cdef int i
+    for i in range(shape[0]):
+        print buf[i],
+    print 'END'
+
 
 #
 # Object access
@@ -932,13 +960,6 @@ cdef class MockBuffer:
     cdef get_default_format(self):
         print "ERROR, not subclassed", self.__class__
     
-cdef class FloatMockBuffer(MockBuffer):
-    cdef int write(self, char* buf, object value) except -1:
-        (<float*>buf)[0] = <float>value
-        return 0
-    cdef get_itemsize(self): return sizeof(float)
-    cdef get_default_format(self): return b"=f"
-
 cdef class IntMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         (<int*>buf)[0] = <int>value
@@ -959,6 +980,21 @@ cdef class UnsignedShortMockBuffer(MockBuffer):
         return 0
     cdef get_itemsize(self): return sizeof(unsigned short)
     cdef get_default_format(self): return b"=1H" # Try with repeat count
+
+cdef class FloatMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<float*>buf)[0] = <float>value
+        return 0
+    cdef get_itemsize(self): return sizeof(float)
+    cdef get_default_format(self): return b"f"
+
+cdef class DoubleMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<double*>buf)[0] = <double>value
+        return 0
+    cdef get_itemsize(self): return sizeof(double)
+    cdef get_default_format(self): return b"d"
+
 
 cdef extern from *:
     void* addr_of_pyobject "(void*)"(object)

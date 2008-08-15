@@ -474,20 +474,26 @@ def get_ts_check_item(dtype, writer):
                     ('b', 'char'), ('h', 'short'), ('i', 'int'),
                     ('l', 'long'), ('q', 'long long')
                 ]
-                if dtype.signed == 0:
-                    code += "".join(["\n    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 > 0); break;" %
+            elif dtype.is_float:
+                types = [('f', 'float'), ('d', 'double'), ('g', 'long double')]
+            else:
+                assert False
+            if dtype.signed == 0:
+                code += "".join(["\n    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 > 0); break;" %
                                  (char.upper(), ctype, against, ctype) for char, against in types])
-                else:
-                    code += "".join(["\n    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 < 0); break;" %
+            else:
+                code += "".join(["\n    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 < 0); break;" %
                                  (char, ctype, against, ctype) for char, against in types])
-                code += dedent("""\
-                      default: ok = 0;
-                    }
-                    if (!ok) {
-                      PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (rejecting on '%s')", ts);
-                      return NULL;
-                    } else return ts + 1;
+            code += dedent("""\
+                default: ok = 0;
+                }
+                if (!ok) {
+                    PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (rejecting on '%s')", ts);
+                    return NULL;
+                } else return ts + 1;
                 """, 2)
+            
+
         writer.globalstate.use_utility_code([dedent("""\
             static const char* %s(const char* ts); /*proto*/
         """) % name, dedent("""
