@@ -1379,7 +1379,7 @@ class IndexNode(ExprNode):
         skip_child_analysis = False
         buffer_access = False
         if self.base.type.is_buffer:
-            assert isinstance(self.base, NameNode)
+            assert hasattr(self.base, "entry") # Must be a NameNode-like node
             if isinstance(self.index, TupleNode):
                 indices = self.index.args
             else:
@@ -1394,7 +1394,7 @@ class IndexNode(ExprNode):
 
         if buffer_access:
             self.indices = indices
-            self.index = None
+            self.index = None # note that original is kept in _index, which is used for cloning
             self.type = self.base.type.dtype
             self.is_buffer_access = True
             self.buffer_type = self.base.entry.type
@@ -1469,19 +1469,19 @@ class IndexNode(ExprNode):
 
     def generate_subexpr_evaluation_code(self, code):
         self.base.generate_evaluation_code(code)
-        if self.index is not None:
-            self.index.generate_evaluation_code(code)
-        else:
+        if self.indices:
             for i in self.indices:
                 i.generate_evaluation_code(code)
-        
+        else:
+            self.index.generate_evaluation_code(code)       
+
     def generate_subexpr_disposal_code(self, code):
         self.base.generate_disposal_code(code)
-        if self.index is not None:
-            self.index.generate_disposal_code(code)
-        else:
+        if self.indices:
             for i in self.indices:
                 i.generate_disposal_code(code)
+        else:
+            self.index.generate_disposal_code(code)
 
     def generate_result_code(self, code):
         if self.is_buffer_access:
@@ -1525,30 +1525,34 @@ class IndexNode(ExprNode):
                 value_code,
                 self.index_unsigned_parameter(),
                 code.error_goto(self.pos)))
-    
+
+    def generate_buffer_assignment_code(self, rhs, code, op=""):
+        # Used from generate_assignment_code and InPlaceAssignmentNode
+        ptrexpr = self.buffer_lookup_code(code)
+        if self.buffer_type.dtype.is_pyobject:
+            # Must manage refcounts. Decref what is already there
+            # and incref what we put in.
+            ptr = code.funcstate.allocate_temp(self.buffer_type.buffer_ptr_type)
+            if rhs.is_temp: #TODO: REMOVE
+                rhs_code = code.funcstate.allocate_temp(rhs.type)
+            else:
+                rhs_code = rhs.result_code
+            code.putln("%s = %s;" % (ptr, ptrexpr))
+            code.putln("Py_DECREF(*%s); Py_INCREF(%s);" % (
+                ptr, rhs_code
+                ))
+            code.putln("*%s %s= %s;" % (ptr, op, rhs_code))
+            if rhs.is_temp:
+                code.funcstate.release_temp(rhs_code)
+            code.funcstate.release_temp(ptr)
+        else: 
+            # Simple case
+            code.putln("*%s %s= %s;" % (ptrexpr, op, rhs.result_code))
+
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
         if self.is_buffer_access:
-            ptrexpr = self.buffer_lookup_code(code)
-            if self.buffer_type.dtype.is_pyobject:
-                # Must manage refcounts. Decref what is already there
-                # and incref what we put in.
-                ptr = code.funcstate.allocate_temp(self.buffer_type.buffer_ptr_type)
-                if rhs.is_temp:
-                    rhs_code = code.funcstate.allocate_temp(rhs.type)
-                else:
-                    rhs_code = rhs.result_code
-                code.putln("%s = %s;" % (ptr, ptrexpr))
-                code.putln("Py_DECREF(*%s); Py_INCREF(%s);" % (
-                    ptr, rhs_code
-                    ))
-                code.putln("*%s = %s;" % (ptr, rhs_code))
-                if rhs.is_temp:
-                    code.funcstate.release_temp(rhs_code)
-                code.funcstate.release_temp(ptr)
-            else: 
-                # Simple case
-                code.putln("*%s = %s;" % (ptrexpr, rhs.result_code))
+            self.generate_buffer_assignment_code(rhs, code)
         elif self.type.is_pyobject:
             self.generate_setitem_code(rhs.py_result(), code)
         else:
@@ -3937,6 +3941,7 @@ class CoercionNode(ExprNode):
     def __init__(self, arg):
         self.pos = arg.pos
         self.arg = arg
+        self.options = arg.options
         if debug_coercion:
             print("%s Coercing %s" % (self, self.arg))
             
