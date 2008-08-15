@@ -41,13 +41,13 @@ def nousage():
     """
     The challenge here is just compilation.
     """
-    cdef object[int, 2] buf
+    cdef object[int, ndim=2] buf
 
 def printbuf():
     """
     Just compilation.
     """
-    cdef object[int, 2] buf
+    cdef object[int, ndim=2] buf
     print buf
 
 @testcase
@@ -334,7 +334,7 @@ def explicitly_release_buffer():
 # Getting items and index bounds checking
 # 
 @testcase
-def get_int_2d(object[int, 2] buf, int i, int j):
+def get_int_2d(object[int, ndim=2] buf, int i, int j):
     """
     >>> get_int_2d(C, 1, 1)
     acquired C
@@ -368,7 +368,7 @@ def get_int_2d(object[int, 2] buf, int i, int j):
     return buf[i, j]
 
 @testcase
-def get_int_2d_uintindex(object[int, 2] buf, unsigned int i, unsigned int j):
+def get_int_2d_uintindex(object[int, ndim=2] buf, unsigned int i, unsigned int j):
     """
     Unsigned indexing:
     >>> get_int_2d_uintindex(C, 0, 0)
@@ -385,7 +385,7 @@ def get_int_2d_uintindex(object[int, 2] buf, unsigned int i, unsigned int j):
     return buf[i, j]
 
 @testcase
-def set_int_2d(object[int, 2] buf, int i, int j, int value):
+def set_int_2d(object[int, ndim=2] buf, int i, int j, int value):
     """
     Uses get_int_2d to read back the value afterwards. For pure
     unit test, one should support reading in MockBuffer instead.
@@ -470,7 +470,7 @@ def fmtst2(object[int] buf):
     """
 
 @testcase
-def ndim1(object[int, 2] buf):
+def ndim1(object[int, ndim=2] buf):
     """
     >>> ndim1(IntMockBuffer("A", range(3)))
     Traceback (most recent call last):
@@ -492,7 +492,7 @@ def readonly(obj):
     >>> [str(x) for x in R.recieved_flags]  # Works in both py2 and py3
     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES']
     """
-    cdef object[unsigned short int, 3] buf = obj
+    cdef object[unsigned short int, ndim=3] buf = obj
     print buf[2, 2, 1]
 
 @testcase
@@ -505,11 +505,11 @@ def writable(obj):
     >>> [str(x) for x in R.recieved_flags] # Py2/3
     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
     """
-    cdef object[unsigned short int, 3] buf = obj
+    cdef object[unsigned short int, ndim=3] buf = obj
     buf[2, 2, 1] = 23
 
 @testcase
-def strided(object[int, 1, 'strided'] buf):
+def strided(object[int, ndim=1, mode='strided'] buf):
     """
     >>> A = IntMockBuffer("A", range(4))
     >>> strided(A)
@@ -648,7 +648,7 @@ def printbuf_int_2d(o, shape):
     released A
     """
     # should make shape builtin
-    cdef object[int, 2] buf
+    cdef object[int, ndim=2] buf
     buf = o
     cdef int i, j
     for i in range(shape[0]):
@@ -1076,10 +1076,10 @@ def typedbuffer1(obj):
        ...
     TypeError: Cannot convert int to bufaccess.IntMockBuffer
     """
-    cdef IntMockBuffer[int, 1] buf = obj
+    cdef IntMockBuffer[int, ndim=1] buf = obj
 
 @testcase
-def typedbuffer2(IntMockBuffer[int, 1] obj):
+def typedbuffer2(IntMockBuffer[int, ndim=1] obj):
     """
     >>> typedbuffer2(IntMockBuffer("A", range(10)))
     acquired A
@@ -1096,7 +1096,7 @@ def typedbuffer2(IntMockBuffer[int, 1] obj):
 # Test __cythonbufferdefaults__
 #
 @testcase
-def bufdefaults1(IntStridedMockBuffer[int, 1] buf):
+def bufdefaults1(IntStridedMockBuffer[int, ndim=1] buf):
     """
     For IntStridedMockBuffer, mode should be
     "strided" by defaults which should show
