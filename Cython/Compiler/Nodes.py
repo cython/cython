@@ -176,10 +176,13 @@ class Node(object):
             self._end_pos = pos
             return pos
 
-    def dump(self, level=0, filter_out=("pos",)):
+    def dump(self, level=0, filter_out=("pos",), cutoff=100):
+        if cutoff == 0:
+            return "<...nesting level cutoff...>"
+        
         def dump_child(x, level):
             if isinstance(x, Node):
-                return x.dump(level)
+                return x.dump(level, filter_out, cutoff-1)
             elif isinstance(x, list):
                 return "[%s]" % ", ".join([dump_child(item, level) for item in x])
             else:
