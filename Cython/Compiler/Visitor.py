@@ -5,7 +5,7 @@ import inspect
 import Nodes
 import ExprNodes
 import Naming
-from Cython.Utils import EncodedString
+from StringEncoding import EncodedString
 
 class BasicVisitor(object):
     """A generic visitor base class which can be used for visiting any kind of object."""

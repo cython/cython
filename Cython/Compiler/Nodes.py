@@ -13,7 +13,7 @@ from PyrexTypes import py_object_type, error_type, CTypedefType, CFuncType
 from Symtab import ModuleScope, LocalScope, GeneratorLocalScope, \
     StructOrUnionScope, PyClassScope, CClassScope
 from Cython.Utils import open_new_file, replace_suffix
-from Cython.Utils import EncodedString, escape_byte_string
+from StringEncoding import EncodedString, escape_byte_string
 import Options
 import ControlFlow
 
@@ -1516,10 +1516,13 @@ class DefNode(FuncDefNode):
         if proto_only:
             return
         if self.entry.doc and Options.docstrings:
+            docstr = self.entry.doc
+            if not isinstance(docstr, str):
+                docstr = docstr.utf8encode()
             code.putln(
                 'static char %s[] = "%s";' % (
                     self.entry.doc_cname,
-                    escape_byte_string(self.entry.doc.utf8encode())))
+                    escape_byte_string(docstr)))
         if with_pymethdef:
             code.put(
                 "static PyMethodDef %s = " % 
