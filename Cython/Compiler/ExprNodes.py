@@ -3086,6 +3086,20 @@ class SizeofTypeNode(SizeofNode):
     subexprs = []
     
     def analyse_types(self, env):
+        # we may have incorrectly interpreted a dotted name as a type rather than an attribute
+        # this could be better handled by more uniformly treating types as runtime-available objects
+        if self.base_type.module_path:
+            path = self.base_type.module_path
+            obj = env.lookup(path[0])
+            if obj.as_module is None:
+                operand = NameNode(pos=self.pos, name=path[0])
+                for attr in path[1:]:
+                    operand = AttributeNode(pos=self.pos, obj=operand, attribute=attr)
+                operand = AttributeNode(pos=self.pos, obj=operand, attribute=self.base_type.name)
+                self.operand = operand
+                self.__class__ = SizeofVarNode
+                self.analyse_types(env)
+                return
         base_type = self.base_type.analyse(env)
         _, arg_type = self.declarator.analyse(base_type, env)
         self.arg_type = arg_type
