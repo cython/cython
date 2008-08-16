@@ -2359,7 +2359,7 @@ def p_compiler_directive_comments(s):
             try:
                 value = Options.parse_option_value(str(name), str(m.group(2).strip()))
             except ValueError, e:
-                s.error(e.message, fatal=False)
+                s.error(e.args[0], fatal=False)
             if value is not None: # can be False!
                 result[name] = value
         s.next()
