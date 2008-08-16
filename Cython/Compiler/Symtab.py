@@ -440,7 +440,7 @@ class Scope:
         if api:
             entry.api = 1
         if not defining and not in_pxd and visibility != 'extern':
-            error(pos, "Non-extern C function declared but not defined")
+            error(pos, "Non-extern C function '%s' declared but not defined" % name)
         return entry
     
     def add_cfunction(self, name, type, pos, cname, visibility):
@@ -686,7 +686,7 @@ class BuiltinScope(Scope):
         # If python_equiv == "*", the Python equivalent has the same name
         # as the entry, otherwise it has the name specified by python_equiv.
         name = EncodedString(name)
-        entry = self.declare_cfunction(name, type, None, cname)
+        entry = self.declare_cfunction(name, type, None, cname, visibility='extern')
         entry.utility_code = utility_code
         if python_equiv:
             if python_equiv == "*":
