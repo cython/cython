@@ -63,6 +63,30 @@ option_defaults = {
     'boundscheck' : True
 }
 
+def parse_option_value(name, value):
+    """
+    Parses value as an option value for the given name and returns
+    the interpreted value. None is returned if the option does not exist.    
+
+    >>> print parse_option_value('nonexisting', 'asdf asdfd')
+    None
+    >>> parse_option_value('boundscheck', 'True')
+    True
+    >>> parse_option_value('boundscheck', 'true')
+    Traceback (most recent call last):
+       ...
+    ValueError: boundscheck directive must be set to True or False
+    
+    """
+    type = option_types.get(name)
+    if not type: return None
+    if type is bool:
+        if value == "True": return True
+        elif value == "False": return False
+        else: raise ValueError("%s directive must be set to True or False" % name)
+    else:
+        assert False
+
 def parse_option_list(s):
     """
     Parses a comma-seperated list of pragma options. Whitespace

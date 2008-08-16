@@ -2346,14 +2346,20 @@ def p_code(s, level=None):
             repr(s.sy), repr(s.systring)))
     return body
 
-def p_option_comments(s):
+COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*([a-z]+)\s*=(.*)$")
+
+def p_compiler_directive_comments(s):
     result = {}
-    while s.sy == 'option_comment':
-        opts = s.systring[len("#cython:"):]
-        try:
-            result.update(Options.parse_option_list(opts))
-        except ValueError, e:
-            s.error(e.message, fatal=False)
+    while s.sy == 'commentline':
+        m = COMPILER_DIRECTIVE_COMMENT_RE.match(s.systring)
+        if m:
+            name = m.group(1)
+            try:
+                value = Options.parse_option_value(str(name), str(m.group(2).strip()))
+            except ValueError, e:
+                s.error(e.args[0], fatal=False)
+            if value is not None: # can be False!
+                result[name] = value
         s.next()
     return result
 
@@ -2367,8 +2373,8 @@ def p_module(s, pxd, full_module_name):
     else:
         level = 'module'
 
-    option_comments = p_option_comments(s)
-    s.parse_option_comments = False
+    option_comments = p_compiler_directive_comments(s)
+    s.parse_comments = False
     body = p_statement_list(s, Ctx(level = level), first_statement = 1)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (

@@ -306,7 +306,7 @@ class PyrexScanner(Scanner):
             self.compile_time_env = initial_compile_time_env()
             self.compile_time_eval = 1
             self.compile_time_expr = 0
-        self.parse_option_comments = True
+        self.parse_comments = True
         self.source_encoding = source_encoding
         self.trace = trace_scanner
         self.indentation_stack = [0]
@@ -316,12 +316,9 @@ class PyrexScanner(Scanner):
         self.sy = ''
         self.next()
 
-    def option_comment(self, text):
-        # #cython:-comments should be treated as literals until
-        # parse_option_comments is set to False, at which point
-        # they should be ignored.
-        if self.parse_option_comments:
-            self.produce('option_comment', text)    
+    def commentline(self, text):
+        if self.parse_comments:
+            self.produce('commentline', text)    
     
     def current_level(self):
         return self.indentation_stack[-1]

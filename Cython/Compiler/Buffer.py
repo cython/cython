@@ -115,6 +115,7 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
 #
 buffer_options = ("dtype", "ndim", "mode") # ordered!
 buffer_defaults = {"ndim": 1, "mode": "full"}
+buffer_positional_options_count = 1 # anything beyond this needs keyword argument
 
 ERR_BUF_OPTION_UNKNOWN = '"%s" is not a buffer option'
 ERR_BUF_TOO_MANY = 'Too many buffer options'
@@ -140,11 +141,12 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
     
     posargs, dictargs = Interpreter.interpret_compiletime_options(posargs, dictargs, type_env=env)
     
-    if len(posargs) > len(buffer_options):
+    if len(posargs) > buffer_positional_options_count:
         raise CompileError(posargs[-1][1], ERR_BUF_TOO_MANY)
 
     options = {}
-    for name, (value, pos) in dictargs.iteritems():
+    for unicode_name, (value, pos) in dictargs.iteritems():
+        name = str(unicode_name)
         if not name in buffer_options:
             raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
         options[name] = value
@@ -453,14 +455,14 @@ def get_ts_check_item(dtype, writer):
     if not writer.globalstate.has_utility_code(name):
         char = dtype.typestring
         if char is not None:
-                # Can use direct comparison
+            # Can use direct comparison
             code = dedent("""\
                 if (*ts == '1') ++ts;
                 if (*ts != '%s') {
-                  PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (rejecting on '%%s')", ts);
+                  PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (expected '%s', got '%%s')", ts);
                   return NULL;
                 } else return ts + 1;
-            """, 2) % char
+            """, 2) % (char, char)
         else:
             # Cannot trust declared size; but rely on int vs float and
             # signed/unsigned to be correctly declared
@@ -474,20 +476,27 @@ def get_ts_check_item(dtype, writer):
                     ('b', 'char'), ('h', 'short'), ('i', 'int'),
                     ('l', 'long'), ('q', 'long long')
                 ]
-                if dtype.signed == 0:
-                    code += "".join(["\n    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 > 0); break;" %
+            elif dtype.is_float:
+                types = [('f', 'float'), ('d', 'double'), ('g', 'long double')]
+            else:
+                assert dtype.is_error
+                return name
+            if dtype.signed == 0:
+                code += "".join(["\n    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 > 0); break;" %
                                  (char.upper(), ctype, against, ctype) for char, against in types])
-                else:
-                    code += "".join(["\n    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 < 0); break;" %
+            else:
+                code += "".join(["\n    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 < 0); break;" %
                                  (char, ctype, against, ctype) for char, against in types])
-                code += dedent("""\
-                      default: ok = 0;
-                    }
-                    if (!ok) {
-                      PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (rejecting on '%s')", ts);
-                      return NULL;
-                    } else return ts + 1;
+            code += dedent("""\
+                default: ok = 0;
+                }
+                if (!ok) {
+                    PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (rejecting on '%s')", ts);
+                    return NULL;
+                } else return ts + 1;
                 """, 2)
+            
+
         writer.globalstate.use_utility_code([dedent("""\
             static const char* %s(const char* ts); /*proto*/
         """) % name, dedent("""
@@ -537,7 +546,7 @@ def get_getbuffer_code(dtype, code):
           ts = __Pyx_ConsumeWhitespace(ts);
           if (*ts != 0) {
             PyErr_Format(PyExc_ValueError,
-              "Expected non-struct buffer data type (rejecting on '%%s')", ts);
+              "Expected non-struct buffer data type (expected end, got '%%s')", ts);
             goto fail;
           }
           if (buf->suboffsets == NULL) buf->suboffsets = __Pyx_minusones;
