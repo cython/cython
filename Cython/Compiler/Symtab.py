@@ -686,7 +686,7 @@ class BuiltinScope(Scope):
         # If python_equiv == "*", the Python equivalent has the same name
         # as the entry, otherwise it has the name specified by python_equiv.
         name = EncodedString(name)
-        entry = self.declare_cfunction(name, type, None, cname)
+        entry = self.declare_cfunction(name, type, None, cname, visibility='extern')
         entry.utility_code = utility_code
         if python_equiv:
             if python_equiv == "*":
