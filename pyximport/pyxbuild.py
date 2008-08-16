@@ -10,7 +10,7 @@ from distutils.dist import Distribution
 from distutils.errors import DistutilsArgError, DistutilsError, CCompilerError
 from distutils.extension import Extension
 from distutils.util import grok_environment_error
-from Pyrex.Distutils import build_ext
+from Cython.Distutils import build_ext
 import shutil
 
 DEBUG = 0

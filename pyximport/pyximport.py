@@ -55,7 +55,7 @@ def _load_pyrex(name, filename):
 def get_distutils_extension(modname, pyxfilename):
 
     extra = "_" + md5.md5(open(pyxfilename).read()).hexdigest()  
-    modname = modname + extra
+#    modname = modname + extra
 
     extension_mod = handle_special_build(modname, pyxfilename)
 
