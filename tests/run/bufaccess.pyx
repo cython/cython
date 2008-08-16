@@ -41,13 +41,13 @@ def nousage():
     """
     The challenge here is just compilation.
     """
-    cdef object[int, 2] buf
+    cdef object[int, ndim=2] buf
 
 def printbuf():
     """
     Just compilation.
     """
-    cdef object[int, 2] buf
+    cdef object[int, ndim=2] buf
     print buf
 
 @testcase
@@ -331,10 +331,10 @@ def explicitly_release_buffer():
     print "After release"
 
 #
-# Index bounds checking
+# Getting items and index bounds checking
 # 
 @testcase
-def get_int_2d(object[int, 2] buf, int i, int j):
+def get_int_2d(object[int, ndim=2] buf, int i, int j):
     """
     >>> get_int_2d(C, 1, 1)
     acquired C
@@ -368,7 +368,7 @@ def get_int_2d(object[int, 2] buf, int i, int j):
     return buf[i, j]
 
 @testcase
-def get_int_2d_uintindex(object[int, 2] buf, unsigned int i, unsigned int j):
+def get_int_2d_uintindex(object[int, ndim=2] buf, unsigned int i, unsigned int j):
     """
     Unsigned indexing:
     >>> get_int_2d_uintindex(C, 0, 0)
@@ -385,7 +385,7 @@ def get_int_2d_uintindex(object[int, 2] buf, unsigned int i, unsigned int j):
     return buf[i, j]
 
 @testcase
-def set_int_2d(object[int, 2] buf, int i, int j, int value):
+def set_int_2d(object[int, ndim=2] buf, int i, int j, int value):
     """
     Uses get_int_2d to read back the value afterwards. For pure
     unit test, one should support reading in MockBuffer instead.
@@ -436,6 +436,15 @@ def set_int_2d(object[int, 2] buf, int i, int j, int value):
     """
     buf[i, j] = value
 
+@testcase
+def list_comprehension(object[int] buf, len):
+    """
+    >>> list_comprehension(IntMockBuffer(None, [1,2,3]), 3)
+    1|2|3
+    """
+    cdef int i
+    print "|".join([str(buf[i]) for i in range(len)])
+
 #
 # Buffer type mismatch examples. Varying the type and access
 # method simultaneously, the odds of an interaction is virtually
@@ -447,7 +456,7 @@ def fmtst1(buf):
     >>> fmtst1(IntMockBuffer("A", range(3)))
     Traceback (most recent call last):
         ...
-    ValueError: Buffer datatype mismatch (rejecting on 'i')
+    ValueError: Buffer datatype mismatch (expected 'f', got 'i')
     """
     cdef object[float] a = buf
 
@@ -457,11 +466,11 @@ def fmtst2(object[int] buf):
     >>> fmtst2(FloatMockBuffer("A", range(3)))
     Traceback (most recent call last):
         ...
-    ValueError: Buffer datatype mismatch (rejecting on 'f')
+    ValueError: Buffer datatype mismatch (expected 'i', got 'f')
     """
 
 @testcase
-def ndim1(object[int, 2] buf):
+def ndim1(object[int, ndim=2] buf):
     """
     >>> ndim1(IntMockBuffer("A", range(3)))
     Traceback (most recent call last):
@@ -483,7 +492,7 @@ def readonly(obj):
     >>> [str(x) for x in R.recieved_flags]  # Works in both py2 and py3
     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES']
     """
-    cdef object[unsigned short int, 3] buf = obj
+    cdef object[unsigned short int, ndim=3] buf = obj
     print buf[2, 2, 1]
 
 @testcase
@@ -496,11 +505,11 @@ def writable(obj):
     >>> [str(x) for x in R.recieved_flags] # Py2/3
     ['FORMAT', 'INDIRECT', 'ND', 'STRIDES', 'WRITABLE']
     """
-    cdef object[unsigned short int, 3] buf = obj
+    cdef object[unsigned short int, ndim=3] buf = obj
     buf[2, 2, 1] = 23
 
 @testcase
-def strided(object[int, 1, 'strided'] buf):
+def strided(object[int, ndim=1, mode='strided'] buf):
     """
     >>> A = IntMockBuffer("A", range(4))
     >>> strided(A)
@@ -596,11 +605,22 @@ TODO
     uc[0] = <int>3.14
     print uc[0]
 
+    cdef char* ch = "asfd"
+    cdef object[object] objbuf
+    objbuf[3] = ch
+
 
 #
 # Testing that accessing data using various types of buffer access
 # all works.
 #
+
+def printbuf_int(object[int] buf, shape):
+    # Utility func
+    cdef int i
+    for i in range(shape[0]):
+        print buf[i],
+    print 'END'
 
 
 @testcase
@@ -628,7 +648,7 @@ def printbuf_int_2d(o, shape):
     released A
     """
     # should make shape builtin
-    cdef object[int, 2] buf
+    cdef object[int, ndim=2] buf
     buf = o
     cdef int i, j
     for i in range(shape[0]):
@@ -655,21 +675,42 @@ def printbuf_float(o, shape):
 
 
 #
+# Test assignments
+#
+@testcase
+def inplace_operators(object[int] buf):
+    """
+    >>> buf = IntMockBuffer(None, [2, 2])
+    >>> inplace_operators(buf)
+    >>> printbuf_int(buf, (2,))
+    0 3 END
+    """
+    cdef int j = 0
+    buf[1] += 1
+    buf[j] *= 2
+    buf[0] -= 4
+
+
+
+#
 # Typedefs
 #
-ctypedef int cytypedef_int
+# Test three layers of typedefs going through a h file for plain int, and
+# simply a header file typedef for floats and unsigned.
+
+ctypedef int td_cy_int
 cdef extern from "bufaccess.h":
-    ctypedef cytypedef_int htypedef_short # Defined as short, but Cython doesn't know this!
-ctypedef htypedef_short cytypedef2
+    ctypedef td_cy_int td_h_short # Defined as short, but Cython doesn't know this!
+    ctypedef float td_h_double # Defined as double
+    ctypedef unsigned int td_h_ushort # Defined as unsigned short
+ctypedef td_h_short td_h_cy_short
 
 @testcase
-def printbuf_cytypedef_int(object[cytypedef_int] buf, shape):
+def printbuf_td_cy_int(object[td_cy_int] buf, shape):
     """
-    >>> printbuf_cytypedef_int(IntMockBuffer("A", range(3)), (3,))
-    acquired A
+    >>> printbuf_td_cy_int(IntMockBuffer(None, range(3)), (3,))
     0 1 2 END
-    released A
-    >>> printbuf_cytypedef_int(ShortMockBuffer("B", range(3)), (3,))
+    >>> printbuf_td_cy_int(ShortMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
     ValueError: Buffer datatype mismatch (rejecting on 'h')
@@ -681,40 +722,65 @@ def printbuf_cytypedef_int(object[cytypedef_int] buf, shape):
     print 'END'
 
 @testcase
-def printbuf_htypedef_short(object[htypedef_short] buf, shape):
+def printbuf_td_h_short(object[td_h_short] buf, shape):
     """
-    >>> printbuf_htypedef_short(ShortMockBuffer("A", range(3)), (3,))
-    acquired A
+    >>> printbuf_td_h_short(ShortMockBuffer(None, range(3)), (3,))
     0 1 2 END
-    released A
-    >>> printbuf_htypedef_short(IntMockBuffer("B", range(3)), (3,))
+    >>> printbuf_td_h_short(IntMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
     ValueError: Buffer datatype mismatch (rejecting on 'i')
-    """
-    
+    """    
     cdef int i
     for i in range(shape[0]):
         print buf[i],
     print 'END'
 
 @testcase
-def printbuf_cytypedef2(object[cytypedef2] buf, shape):
+def printbuf_td_h_cy_short(object[td_h_cy_short] buf, shape):
     """
-    >>> printbuf_cytypedef2(ShortMockBuffer("A", range(3)), (3,))
-    acquired A
+    >>> printbuf_td_h_cy_short(ShortMockBuffer(None, range(3)), (3,))
     0 1 2 END
-    released A
-    >>> printbuf_cytypedef2(IntMockBuffer("B", range(3)), (3,))
+    >>> printbuf_td_h_cy_short(IntMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
     ValueError: Buffer datatype mismatch (rejecting on 'i')
     """
-    
     cdef int i
     for i in range(shape[0]):
         print buf[i],
     print 'END'
+
+@testcase
+def printbuf_td_h_ushort(object[td_h_ushort] buf, shape):
+    """
+    >>> printbuf_td_h_ushort(UnsignedShortMockBuffer(None, range(3)), (3,))
+    0 1 2 END
+    >>> printbuf_td_h_ushort(ShortMockBuffer(None, range(3)), (3,))
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer datatype mismatch (rejecting on 'h')
+    """
+    cdef int i
+    for i in range(shape[0]):
+        print buf[i],
+    print 'END'
+
+@testcase
+def printbuf_td_h_double(object[td_h_double] buf, shape):
+    """
+    >>> printbuf_td_h_double(DoubleMockBuffer(None, [0.25, 1, 3.125]), (3,))
+    0.25 1.0 3.125 END
+    >>> printbuf_td_h_double(FloatMockBuffer(None, [0.25, 1, 3.125]), (3,))
+    Traceback (most recent call last):
+       ...
+    ValueError: Buffer datatype mismatch (rejecting on 'f')
+    """
+    cdef int i
+    for i in range(shape[0]):
+        print buf[i],
+    print 'END'
+
 
 #
 # Object access
@@ -932,13 +998,6 @@ cdef class MockBuffer:
     cdef get_default_format(self):
         print "ERROR, not subclassed", self.__class__
     
-cdef class FloatMockBuffer(MockBuffer):
-    cdef int write(self, char* buf, object value) except -1:
-        (<float*>buf)[0] = <float>value
-        return 0
-    cdef get_itemsize(self): return sizeof(float)
-    cdef get_default_format(self): return b"=f"
-
 cdef class IntMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         (<int*>buf)[0] = <int>value
@@ -959,6 +1018,21 @@ cdef class UnsignedShortMockBuffer(MockBuffer):
         return 0
     cdef get_itemsize(self): return sizeof(unsigned short)
     cdef get_default_format(self): return b"=1H" # Try with repeat count
+
+cdef class FloatMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<float*>buf)[0] = <float>value
+        return 0
+    cdef get_itemsize(self): return sizeof(float)
+    cdef get_default_format(self): return b"f"
+
+cdef class DoubleMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<double*>buf)[0] = <double>value
+        return 0
+    cdef get_itemsize(self): return sizeof(double)
+    cdef get_default_format(self): return b"d"
+
 
 cdef extern from *:
     void* addr_of_pyobject "(void*)"(object)
@@ -1002,10 +1076,10 @@ def typedbuffer1(obj):
        ...
     TypeError: Cannot convert int to bufaccess.IntMockBuffer
     """
-    cdef IntMockBuffer[int, 1] buf = obj
+    cdef IntMockBuffer[int, ndim=1] buf = obj
 
 @testcase
-def typedbuffer2(IntMockBuffer[int, 1] obj):
+def typedbuffer2(IntMockBuffer[int, ndim=1] obj):
     """
     >>> typedbuffer2(IntMockBuffer("A", range(10)))
     acquired A
@@ -1022,7 +1096,7 @@ def typedbuffer2(IntMockBuffer[int, 1] obj):
 # Test __cythonbufferdefaults__
 #
 @testcase
-def bufdefaults1(IntStridedMockBuffer[int, 1] buf):
+def bufdefaults1(IntStridedMockBuffer[int, ndim=1] buf):
     """
     For IntStridedMockBuffer, mode should be
     "strided" by defaults which should show
