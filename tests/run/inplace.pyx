@@ -16,6 +16,13 @@ __doc__ = u"""
 
     >>> smoketest()
     10
+
+    >>> test_side_effects()
+    side effect 1
+    c side effect 2
+    side effect 3
+    c side effect 4
+    ([0, 11, 102, 3, 4], [0, 1, 2, 13, 104])
 """
 
 def f(a,b):
@@ -83,3 +90,23 @@ def smoketest():
     print a.buf[1]
     stdlib.free(buf)
 
+
+def side_effect(x):
+    print "side effect", x
+    return x
+    
+cdef int c_side_effect(int x):
+    print "c side effect", x
+    return x
+    
+def test_side_effects():
+    a = range(5)
+    a[side_effect(1)] += 10
+    a[c_side_effect(2)] += 100
+    cdef int i
+    cdef int b[5]
+    for i from 0 <= i < 5:
+        b[i] = i
+    b[side_effect(3)] += 10
+    b[c_side_effect(4)] += 100
+    return a, [b[i] for i from 0 <= i < 5]
