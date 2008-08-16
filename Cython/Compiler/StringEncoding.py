@@ -144,4 +144,6 @@ def escape_byte_string(s):
     return ''.join(l)
 
 def split_docstring(s):
+    if len(s) < 2047:
+        return s
     return '\\n\"\"'.join(s.split(r'\n'))
