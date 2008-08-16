@@ -533,9 +533,7 @@ def p_name(s, name):
                 return ExprNodes.IntNode(pos, value = rep, longness = "L")
             elif isinstance(value, float):
                 return ExprNodes.FloatNode(pos, value = rep)
-            elif isinstance(value, unicode):
-                return ExprNodes.StringNode(pos, value = value)
-            elif isinstance(value, str):
+            elif isinstance(value, (str, unicode)):
                 return ExprNodes.StringNode(pos, value = value)
             else:
                 error(pos, "Invalid type for compile-time constant: %s"
