@@ -3041,7 +3041,7 @@ class SwitchCaseNode(StatNode):
     def annotate(self, code):
         for cond in self.conditions:
             cond.annotate(code)
-        body.annotate(code)
+        self.body.annotate(code)
 
 class SwitchStatNode(StatNode):
     # Generated in the optimization of an if-elif-else node
@@ -3065,7 +3065,8 @@ class SwitchStatNode(StatNode):
         self.test.annotate(code)
         for case in self.cases:
             case.annotate(code)
-        self.else_clause.annotate(code)
+        if self.else_clause is not None:
+            self.else_clause.annotate(code)
             
 class LoopNode:
     
