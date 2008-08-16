@@ -1,5 +1,5 @@
-#     boundscheck  =  False
-# ignoreme = OK
+# cython: boundscheck  =  False
+# cython: ignoreme = OK
 
 # This testcase is most useful if you inspect the generated C file
 
@@ -17,7 +17,7 @@ def f(object[int, ndim=2] buf):
 @cy.boundscheck(True)
 def g(object[int, ndim=2] buf):
     # The below line should have no meaning 
-# boundscheck = False
+# cython: boundscheck = False
     # even if the above line doesn't follow indentation.
     print buf[3, 2] # bc
 

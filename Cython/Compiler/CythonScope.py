@@ -13,7 +13,7 @@ class CythonScope(ModuleScope):
         self.shape_entry = self.declare_cfunction('shape',
                                                   shape_func_type,
                                                   pos=None,
-                                                  visibility='extern',
+                                                  defining = 1,
                                                   cname='<error>')
 
 def create_cython_scope(context):
