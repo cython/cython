@@ -290,7 +290,7 @@ class PyrexScanner(Scanner):
     resword_dict = build_resword_dict()
 
     def __init__(self, file, filename, parent_scanner = None, 
-                 scope = None, context = None, source_encoding=None):
+                 scope = None, context = None, source_encoding=None, parse_comments=True):
         Scanner.__init__(self, get_lexicon(), file, filename)
         if parent_scanner:
             self.context = parent_scanner.context
@@ -306,7 +306,7 @@ class PyrexScanner(Scanner):
             self.compile_time_env = initial_compile_time_env()
             self.compile_time_eval = 1
             self.compile_time_expr = 0
-        self.parse_comments = True
+        self.parse_comments = parse_comments
         self.source_encoding = source_encoding
         self.trace = trace_scanner
         self.indentation_stack = [0]
