@@ -1272,6 +1272,7 @@ def p_include_statement(s, ctx):
             f = Utils.open_source_file(include_file_path, mode="rU")
             source_desc = FileSourceDescriptor(include_file_path)
             s2 = PyrexScanner(f, source_desc, s, source_encoding=f.encoding)
+            s2.parse_comments = s.parse_comments
             try:
                 tree = p_statement_list(s2, ctx)
             finally:
@@ -2346,7 +2347,7 @@ def p_code(s, level=None):
             repr(s.sy), repr(s.systring)))
     return body
 
-COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*([a-z]+)\s*=(.*)$")
+COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*cython:\s*([a-z]+)\s*=(.*)$")
 
 def p_compiler_directive_comments(s):
     result = {}
