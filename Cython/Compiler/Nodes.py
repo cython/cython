@@ -2151,15 +2151,6 @@ class CClassDefNode(ClassDefNode):
         if self.doc and Options.docstrings:
             scope.doc = embed_position(self.pos, self.doc)
             
-        if has_body and not self.in_pxd:
-            # transforms not yet run on pxd files
-            from ParseTreeTransforms import AnalyseDeclarationsTransform
-            transform = AnalyseDeclarationsTransform(None)
-            for entry in scope.var_entries:
-                if hasattr(entry, 'needs_property'):
-                    property = transform.create_Property(entry)
-                    self.body.stats.append(property)
-
         if has_body:
             self.body.analyse_declarations(scope)
             if self.in_pxd:
