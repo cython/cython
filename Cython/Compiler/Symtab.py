@@ -440,7 +440,7 @@ class Scope:
         if api:
             entry.api = 1
         if not defining and not in_pxd and visibility != 'extern':
-            error(pos, "Non-extern C function declared but not defined")
+            error(pos, "Non-extern C function '%s' declared but not defined" % name)
         return entry
     
     def add_cfunction(self, name, type, pos, cname, visibility):
