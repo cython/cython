@@ -24,12 +24,12 @@ setup(
     url = "http://www.prescod.net/pyximport",
     license = "Python",
     keywords = "pyrex import hook",
-    scripts = ["pyxrun"],
-    data_files = [("examples/multi_file_extension", 
-		  ["README", "ccode.c", "test.pyx", "test.pyxbld"]),
-		 ("examples/dependencies",
-		  ["README", "test.pyx", "test.pyxdep", "header.h",
-			"header2.h", "header3.h", "header4.h"])
-		],
+#    scripts = ["pyxrun"],
+#    data_files = [("examples/multi_file_extension", 
+#         ["README", "ccode.c", "test.pyx", "test.pyxbld"]),
+#       ("examples/dependencies",
+#         ["README", "test.pyx", "test.pyxdep", "header.h",
+#           "header2.h", "header3.h", "header4.h"])
+#		],
     py_modules = ["pyximport", "pyxbuild"])
 
