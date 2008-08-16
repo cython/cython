@@ -1271,8 +1271,7 @@ def p_include_statement(s, ctx):
             s.included_files.append(include_file_name)
             f = Utils.open_source_file(include_file_path, mode="rU")
             source_desc = FileSourceDescriptor(include_file_path)
-            s2 = PyrexScanner(f, source_desc, s, source_encoding=f.encoding)
-            s2.parse_comments = s.parse_comments
+            s2 = PyrexScanner(f, source_desc, s, source_encoding=f.encoding, parse_comments=s.parse_comments)
             try:
                 tree = p_statement_list(s2, ctx)
             finally:
