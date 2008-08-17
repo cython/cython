@@ -22,3 +22,6 @@ include runtests.py
 
 include Cython/Mac/Makefile
 include Cython/Mac/_Filemodule_patched.c
+
+recursive-include pyximport *.py
+include pyximport/PKG-INFO pyximport/README
