@@ -14,10 +14,10 @@ try:
     >>> three_dim()
     [[[  0.   1.   2.   3.]
       [  4.   5.   6.   7.]]
-    <BLANKLINE>
+    <_BLANKLINE_>
      [[  8.   9.  10.  11.]
       [ 12.  13.  14.  15.]]
-    <BLANKLINE>
+    <_BLANKLINE_>
      [[ 16.  17.  18.  19.]
       [ 20.  21.  22.  23.]]]
     6.0 0.0 13.0 8.0
@@ -96,6 +96,7 @@ try:
     >>> test_dtype(np.long, inc1_long_t)
     >>> test_dtype(np.float, inc1_float_t)
     >>> test_dtype(np.double, inc1_double_t)
+
     >>> test_dtype(np.longdouble, inc1_longdouble_t)
 
     >>> test_dtype(np.int32, inc1_int32_t)
@@ -117,6 +118,13 @@ try:
 except:
     __doc__ = ""
 
+def ndarray_str(arr):
+    """
+    Since Py2.3 doctest don't support <BLANKLINE>, manually replace blank lines
+    with <_BLANKLINE_>
+    """
+    return str(arr).replace('\n\n', '\n<_BLANKLINE_>\n')    
+
 def basic():
     cdef object[int, ndim=2] buf = np.arange(10, dtype='i').reshape((2, 5))
     print buf
@@ -124,7 +132,7 @@ def basic():
 
 def three_dim():
     cdef object[double, ndim=3] buf = np.arange(24, dtype='d').reshape((3,2,4))
-    print buf
+    print ndarray_str(buf)
     print buf[0, 1, 2], buf[0, 0, 0], buf[1, 1, 1], buf[1, 0, 0]
 
 def obj_array():
