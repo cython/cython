@@ -98,11 +98,9 @@ setup(
     'Cython.Tests',
     'Cython.Compiler.Tests',
     ],
+  
+  # pyximport
+  py_modules = ["pyximport/pyximport", "pyximport/pyxbuild"],
+  
   **setup_args
   )
-
-
-# Now install pyximport
-os.chdir('pyximport')
-os.spawnlp(os.P_WAIT, 'python', 'python', 'Setup.py', *sys.argv[1:])
-os.chdir('..')
