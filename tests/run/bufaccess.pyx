@@ -81,7 +81,6 @@ def acquire_raise(o):
     >>> A.printlog()
     acquired A
     released A
-    <BLANKLINE>
     
     """
     cdef object[int] buf
@@ -443,7 +442,7 @@ def list_comprehension(object[int] buf, len):
     1|2|3
     """
     cdef int i
-    print "|".join([str(buf[i]) for i in range(len)])
+    print u"|".join([unicode(buf[i]) for i in range(len)])
 
 #
 # Buffer type mismatch examples. Varying the type and access
@@ -900,8 +899,6 @@ cdef class MockBuffer:
             suboffsets = [0] * (self.ndim-1) + [-1]
             strides = [sizeof(void*)] * (self.ndim-1) + [self.itemsize]
             self.suboffsets = self.list_to_sizebuf(suboffsets)
-            #  printf("%ld; %ld %ld %ld %ld %ld", i0, s0, o0, i1, s1, o1);
-
         else:
             # strided and/or simple access
             self.buffer = self.create_buffer(data)
@@ -987,7 +984,7 @@ cdef class MockBuffer:
             self.log += msg + "\n"
 
     def printlog(self):
-        print self.log
+        print self.log[:-1]
 
     def resetlog(self):
         self.log = ""
