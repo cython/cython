@@ -12,6 +12,12 @@ distutils_distro = Distribution()
 TEST_DIRS = ['compile', 'errors', 'run', 'pyregr']
 TEST_RUN_DIRS = ['run', 'pyregr']
 
+# Lists external modules, and a matcher matching tests
+# which should be excluded if the module is not present.
+EXT_DEP_MODULES = {
+    'numpy' : re.compile('.*\.numpy_.*').match
+}
+
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
 
@@ -45,11 +51,12 @@ class ErrorWriter(object):
         return self._collect(True, True)
 
 class TestBuilder(object):
-    def __init__(self, rootdir, workdir, selectors, annotate,
+    def __init__(self, rootdir, workdir, selectors, exclude_selectors, annotate,
                  cleanup_workdir, cleanup_sharedlibs, with_pyregr, cythononly):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
+        self.exclude_selectors = exclude_selectors
         self.annotate = annotate
         self.cleanup_workdir = cleanup_workdir
         self.cleanup_sharedlibs = cleanup_sharedlibs
@@ -94,6 +101,9 @@ class TestBuilder(object):
             if not [ 1 for match in self.selectors
                      if match(fqmodule) ]:
                 continue
+            if self.exclude_selectors:
+                if [1 for match in self.exclude_selectors if match(fqmodule)]:
+                    continue
             if context in TEST_RUN_DIRS:
                 if module.startswith("test_"):
                     build_test = CythonUnitTestCase
@@ -355,6 +365,23 @@ def collect_doctests(path, module_prefix, suite, selectors):
                         except ValueError: # no tests
                             pass
 
+class MissingDependencyExcluder:
+    def __init__(self, deps):
+        # deps: { module name : matcher func }
+        self.exclude_matchers = []
+        for mod, matcher in deps.items():
+            try:
+                __import__(mod)
+            except ImportError:
+                self.exclude_matchers.append(matcher)
+        self.tests_missing_deps = []
+    def __call__(self, testname):
+        for matcher in self.exclude_matchers:
+            if matcher(testname):
+                self.tests_missing_deps.append(testname)
+                return True
+        return False
+
 if __name__ == '__main__':
     from optparse import OptionParser
     parser = OptionParser()
@@ -443,6 +470,12 @@ if __name__ == '__main__':
     if not selectors:
         selectors = [ lambda x:True ]
 
+    # Chech which external modules are not present and exclude tests
+    # which depends on them (by prefix)
+
+    missing_dep_excluder = MissingDependencyExcluder(EXT_DEP_MODULES) 
+    exclude_selectors = [missing_dep_excluder] # want to pring msg at exit
+
     test_suite = unittest.TestSuite()
 
     if options.unittests:
@@ -452,7 +485,7 @@ if __name__ == '__main__':
         collect_doctests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors)
 
     if options.filetests:
-        filetests = TestBuilder(ROOTDIR, WORKDIR, selectors,
+        filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                 options.annotate_source, options.cleanup_workdir,
                                 options.cleanup_sharedlibs, options.pyregr,
                                 options.cythononly)
@@ -478,3 +511,8 @@ if __name__ == '__main__':
                     name.startswith('Cython.Compiler.') and 
                     name[len('Cython.Compiler.'):] not in ignored_modules ]
         coverage.report(modules, show_missing=0)
+
+    if missing_dep_excluder.tests_missing_deps:
+        sys.stderr.write("Following tests excluded because of missing dependencies on your system:\n")
+        for test in missing_dep_excluder.tests_missing_deps:
+            sys.stderr.write("   %s\n" % test)
