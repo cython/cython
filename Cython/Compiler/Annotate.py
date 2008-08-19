@@ -19,8 +19,8 @@ class AnnotationCCodeWriter(CCodeWriter):
 
     def __init__(self, create_from=None, buffer=None, copy_formatting=True):
         CCodeWriter.__init__(self, create_from, buffer, copy_formatting=True)
-        self.annotation_buffer = StringIO()
         if create_from is None:
+            self.annotation_buffer = StringIO()
             self.annotations = []
             self.last_pos = None
             self.code = {}
@@ -29,7 +29,8 @@ class AnnotationCCodeWriter(CCodeWriter):
             self.annotation_buffer = create_from.annotation_buffer
             self.annotations = create_from.annotations
             self.code = create_from.code
-
+            self.last_pos = create_from.last_pos
+    
     def create_new(self, create_from, buffer, copy_formatting):
         return AnnotationCCodeWriter(create_from, buffer, copy_formatting)
 
