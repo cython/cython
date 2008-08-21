@@ -1052,10 +1052,10 @@ cdef class ErrorBuffer:
     def __init__(self, label):
         self.label = label
 
-    def __getbuffer__(MockBuffer self, Py_buffer* buffer, int flags):
+    def __getbuffer__(ErrorBuffer self, Py_buffer* buffer, int flags):
         raise Exception("acquiring %s" % self.label)
 
-    def __releasebuffer__(MockBuffer self, Py_buffer* buffer):
+    def __releasebuffer__(ErrorBuffer self, Py_buffer* buffer):
         raise Exception("releasing %s" % self.label)
 
 #
