@@ -8,5 +8,5 @@ elif x == 4:
     print 34
 
 _ERRORS = """
-3:19: undeclared name not builtin: NONEXISTING
+4:23: undeclared name not builtin: NONEXISTING
 """

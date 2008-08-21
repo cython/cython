@@ -84,11 +84,6 @@ class Context:
         from Buffer import IntroduceBufferAuxiliaryVars
         from ModuleNode import check_c_classes
 
-        def abort_if_errors(t):
-            if Errors.num_errors > 0:
-                raise Errors.AbortCompilationError()
-            return t
-
         if pxd:
             _check_c_classes = None
             _specific_post_parse = PxdPostParse(self)
@@ -128,10 +123,10 @@ class Context:
                 # (this seems strange -- I believe the right concept is to split
                 # ModuleNode into a ModuleNode and a CodeGenerator, and tell that
                 # CodeGenerator to generate code both from the pyx and pxd ModuleNodes.
-                stats.append(statlistnode)
-                # Until utility code is moved to code generation phase everywhere,
-                # we need to copy it over to the main scope
-                module_node.scope.utility_code_list.extend(scope.utility_code_list)
+                 stats.append(statlistnode)
+                 # Until utility code is moved to code generation phase everywhere,
+                 # we need to copy it over to the main scope
+                 module_node.scope.utility_code_list.extend(scope.utility_code_list)
             return module_node
 
         return ([
@@ -172,16 +167,10 @@ class Context:
             for phase in pipeline:
                 if phase is not None:
                     data = phase(data)
-                print Errors.num_errors
         except CompileError, err:
-            print "hello", err
+            # err is set
             Errors.report_error(err)
-            raise err
-        except Errors.AbortCompilationError:
-            print "abort", Errors.num_errors
-            pass
-        print "normal"
-        return data
+        return (err, data)
 
     def find_module(self, module_name, 
             relative_to = None, pos = None, need_pxd = 1):
@@ -238,7 +227,10 @@ class Context:
                     if debug_find_module:
                         print("Context.find_module: Parsing %s" % pxd_pathname)
                     source_desc = FileSourceDescriptor(pxd_pathname)
-                    pxd_codenodes, pxd_scope = self.process_pxd(source_desc, scope, module_name)
+                    err, result = self.process_pxd(source_desc, scope, module_name)
+                    if err:
+                        raise err
+                    (pxd_codenodes, pxd_scope) = result
                     self.pxds[module_name] = (pxd_codenodes, pxd_scope)
                 except CompileError:
                     pass
@@ -407,7 +399,7 @@ class Context:
         except UnicodeDecodeError, msg:
             error((source_desc, 0, 0), "Decoding error, missing or incorrect coding=<encoding-name> at top of source (%s)" % msg)
         if Errors.num_errors > 0:
-            raise Errors.AbortCompilationError()
+            raise CompileError
         return tree
 
     def extract_module_name(self, path, options):
@@ -437,13 +429,15 @@ class Context:
         else:
             Errors.open_listing_file(None)
 
-    def teardown_errors(self, options, result):
+    def teardown_errors(self, err, options, result):
         source_desc = result.compilation_source.source_desc
         if not isinstance(source_desc, FileSourceDescriptor):
             raise RuntimeError("Only file sources for code supported")
         Errors.close_listing_file()
         result.num_errors = Errors.num_errors
-        if result.num_errors > 0 and result.c_file:
+        if result.num_errors > 0:
+            err = True
+        if err and result.c_file:
             try:
                 Utils.castrate_file(result.c_file, os.stat(source_desc.filename))
             except EnvironmentError:
@@ -504,13 +498,8 @@ def run_pipeline(source, options, full_module_name = None):
     pipeline = context.create_pyx_pipeline(options, result)
 
     context.setup_errors(options)
-    try:
-        enddata = context.run_pipeline(pipeline, source)
-    except Errors.CompileError:
-        pass
-    except Errors.AbortCompilationError:
-        pass
-    context.teardown_errors(options, result)
+    err, enddata = context.run_pipeline(pipeline, source)
+    context.teardown_errors(err, options, result)
     return result
 
 #------------------------------------------------------------------------
