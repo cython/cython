@@ -3297,6 +3297,8 @@ class ForFromStatNode(LoopNode, StatNode):
         #			"Cannot assign integer to variable of type '%s'" % target_type)
         if target_type.is_numeric:
             self.is_py_target = 0
+            if isinstance(self.target, ExprNodes.IndexNode) and self.target.is_buffer_access:
+                raise error(self.pos, "Buffer indexing not allowed as for loop target.")
             self.loopvar_name = self.target.entry.cname
             self.py_loopvar_node = None
         else:
