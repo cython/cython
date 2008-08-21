@@ -2,7 +2,7 @@
 #   Pyrex - Types
 #
 
-from Cython import Utils
+import StringEncoding
 import Naming
 import copy
 
@@ -1000,7 +1000,7 @@ class CStringType:
 
     def literal_code(self, value):
         assert isinstance(value, str)
-        return '"%s"' % Utils.escape_byte_string(value)
+        return '"%s"' % StringEncoding.escape_byte_string(value)
 
 
 class CUTF8CharArrayType(CStringType, CArrayType):

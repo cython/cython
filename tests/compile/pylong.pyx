@@ -1,0 +1,20 @@
+cdef extern from "Python.h":
+    ctypedef struct PyTypeObject:
+        pass
+
+    ctypedef struct PyObject:
+        Py_ssize_t ob_refcnt 
+        PyTypeObject *ob_type
+
+cdef extern from "longintrepr.h":
+    cdef struct _longobject:
+        int ob_refcnt 
+        PyTypeObject *ob_type
+        int ob_size
+        unsigned int *ob_digit
+
+def test(temp = long(0)):
+    cdef _longobject *l 
+    l = <_longobject *> temp 
+    print sizeof(l.ob_size) 
+    print sizeof(l.ob_digit[0])

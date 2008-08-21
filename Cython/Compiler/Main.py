@@ -19,7 +19,7 @@ import Errors
 import Parsing
 import Version
 from Scanning import PyrexScanner, FileSourceDescriptor
-from Errors import PyrexError, CompileError, error
+from Errors import PyrexError, CompileError, InternalError, error
 from Symtab import BuiltinScope, ModuleScope
 from Cython import Utils
 from Cython.Utils import open_new_file, replace_suffix
@@ -170,6 +170,10 @@ class Context:
         except CompileError, err:
             # err is set
             Errors.report_error(err)
+        except InternalError, err:
+            # Only raise if there was not an earlier error
+            if Errors.num_errors == 0:
+                raise
         return (err, data)
 
     def find_module(self, module_name, 
@@ -397,6 +401,8 @@ class Context:
             finally:
                 f.close()
         except UnicodeDecodeError, msg:
+            #import traceback
+            #traceback.print_exc()
             error((source_desc, 0, 0), "Decoding error, missing or incorrect coding=<encoding-name> at top of source (%s)" % msg)
         if Errors.num_errors > 0:
             raise CompileError

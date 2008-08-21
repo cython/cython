@@ -38,7 +38,7 @@ Options:
   -a, --annotate                 Produce a colorized HTML version of the source.
   --convert-range                Convert for loops using range() function to for...from loops. 
   --cplus                        Output a c++ rather than c file.
-  -O, --option <name>=<value>[,<name=value,...] Overrides an optimization/code generation option
+  -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
 """
 #The following experimental options are supported only on MacOSX:
 #  -C, --compile    Compile generated .c file to .o file
@@ -114,11 +114,11 @@ def parse_command_line(args):
                 Options.annotate = True
             elif option == "--convert-range":
                 Options.convert_range = True
-            elif option in ("-O", "--option"):
+            elif option in ("-X", "--directive"):
                 try:
                     options.pragma_overrides = Options.parse_option_list(pop_arg())
                 except ValueError, e:
-                    sys.stderr.write("Error in option string: %s\n" % e.message)
+                    sys.stderr.write("Error in compiler directive: %s\n" % e.message)
                     sys.exit(1)
             else:
                 bad_usage()

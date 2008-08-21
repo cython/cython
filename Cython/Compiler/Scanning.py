@@ -17,7 +17,7 @@ from Cython.Plex.Errors import UnrecognizedInput
 from Errors import CompileError, error
 from Lexicon import string_prefixes, raw_prefixes, make_lexicon
 
-from Cython import Utils
+from StringEncoding import EncodedString
 
 plex_version = getattr(Plex, '_version', None)
 #print "Plex version:", plex_version ###
@@ -290,7 +290,7 @@ class PyrexScanner(Scanner):
     resword_dict = build_resword_dict()
 
     def __init__(self, file, filename, parent_scanner = None, 
-                 scope = None, context = None, source_encoding=None):
+                 scope = None, context = None, source_encoding=None, parse_comments=True):
         Scanner.__init__(self, get_lexicon(), file, filename)
         if parent_scanner:
             self.context = parent_scanner.context
@@ -306,7 +306,7 @@ class PyrexScanner(Scanner):
             self.compile_time_env = initial_compile_time_env()
             self.compile_time_eval = 1
             self.compile_time_expr = 0
-        self.parse_option_comments = True
+        self.parse_comments = parse_comments
         self.source_encoding = source_encoding
         self.trace = trace_scanner
         self.indentation_stack = [0]
@@ -316,12 +316,9 @@ class PyrexScanner(Scanner):
         self.sy = ''
         self.next()
 
-    def option_comment(self, text):
-        # #cython:-comments should be treated as literals until
-        # parse_option_comments is set to False, at which point
-        # they should be ignored.
-        if self.parse_option_comments:
-            self.produce('option_comment', text)    
+    def commentline(self, text):
+        if self.parse_comments:
+            self.produce('commentline', text)    
     
     def current_level(self):
         return self.indentation_stack[-1]
@@ -413,7 +410,7 @@ class PyrexScanner(Scanner):
             if systring in self.resword_dict:
                 sy = systring
             else:
-                systring = Utils.EncodedString(systring)
+                systring = EncodedString(systring)
                 systring.encoding = self.source_encoding
         self.sy = sy
         self.systring = systring

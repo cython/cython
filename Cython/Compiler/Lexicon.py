@@ -79,9 +79,7 @@ def make_lexicon():
     escaped_newline = Str("\\\n")
     lineterm = Eol + Opt(Str("\n"))
 
-    comment_start = Str("#")
-    comment = comment_start + Rep(AnyBut("\n"))    
-    option_comment = comment_start + Str("cython:") + Rep(AnyBut("\n"))
+    comment = Str("#") + Rep(AnyBut("\n"))    
     
     return Lexicon([
         (name, 'IDENT'),
@@ -98,13 +96,12 @@ def make_lexicon():
         #(stringlit, 'STRING'),
         (beginstring, Method('begin_string_action')),
         
-        (option_comment, Method('option_comment')),
         (comment, IGNORE),
         (spaces, IGNORE),
         (escaped_newline, IGNORE),
         
         State('INDENT', [
-            (option_comment + lineterm, Method('option_comment')),
+            (comment + lineterm, Method('commentline')),
             (Opt(spaces) + Opt(comment) + lineterm, IGNORE),
             (indentation, Method('indentation_action')),
             (Eof, Method('eof_action'))

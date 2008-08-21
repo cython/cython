@@ -98,6 +98,9 @@ setup(
     'Cython.Tests',
     'Cython.Compiler.Tests',
     ],
+  
+  # pyximport
+  py_modules = ["pyximport/pyximport", "pyximport/pyxbuild"],
+  
   **setup_args
   )
-

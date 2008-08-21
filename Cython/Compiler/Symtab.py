@@ -5,6 +5,7 @@
 import re
 from Cython import Utils
 from Errors import warning, error, InternalError
+from StringEncoding import EncodedString
 import Options
 import Naming
 import PyrexTypes
@@ -439,7 +440,7 @@ class Scope:
         if api:
             entry.api = 1
         if not defining and not in_pxd and visibility != 'extern':
-            error(pos, "Non-extern C function declared but not defined")
+            error(pos, "Non-extern C function '%s' declared but not defined" % name)
         return entry
     
     def add_cfunction(self, name, type, pos, cname, visibility):
@@ -684,14 +685,14 @@ class BuiltinScope(Scope):
             utility_code = None):
         # If python_equiv == "*", the Python equivalent has the same name
         # as the entry, otherwise it has the name specified by python_equiv.
-        name = Utils.EncodedString(name)
-        entry = self.declare_cfunction(name, type, None, cname)
+        name = EncodedString(name)
+        entry = self.declare_cfunction(name, type, None, cname, visibility='extern')
         entry.utility_code = utility_code
         if python_equiv:
             if python_equiv == "*":
                 python_equiv = name
             else:
-                python_equiv = Utils.EncodedString(python_equiv)
+                python_equiv = EncodedString(python_equiv)
             var_entry = Entry(python_equiv, python_equiv, py_object_type)
             var_entry.is_variable = 1
             var_entry.is_builtin = 1
@@ -699,7 +700,7 @@ class BuiltinScope(Scope):
         return entry
         
     def declare_builtin_type(self, name, cname):
-        name = Utils.EncodedString(name)
+        name = EncodedString(name)
         type = PyrexTypes.BuiltinObjectType(name, cname)
         type.set_scope(CClassScope(name, outer_scope=None, visibility='extern'))
         self.type_names[name] = 1
@@ -1370,7 +1371,7 @@ class CClassScope(ClassScope):
         if name == "__new__":
             warning(pos, "__new__ method of extension type will change semantics "
                 "in a future version of Pyrex and Cython. Use __cinit__ instead.")
-            name = Utils.EncodedString("__cinit__")
+            name = EncodedString("__cinit__")
         entry = self.declare_var(name, py_object_type, pos, visibility='extern')
         special_sig = get_special_method_signature(name)
         if special_sig:
@@ -1387,7 +1388,7 @@ class CClassScope(ClassScope):
     
     def lookup_here(self, name):
         if name == "__new__":
-            name = Utils.EncodedString("__cinit__")
+            name = EncodedString("__cinit__")
         return ClassScope.lookup_here(self, name)
     
     def declare_cfunction(self, name, type, pos,

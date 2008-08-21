@@ -13,7 +13,7 @@ from PyrexTypes import py_object_type, error_type, CTypedefType, CFuncType
 from Symtab import ModuleScope, LocalScope, GeneratorLocalScope, \
     StructOrUnionScope, PyClassScope, CClassScope
 from Cython.Utils import open_new_file, replace_suffix
-from Cython.Utils import EncodedString, escape_byte_string
+from StringEncoding import EncodedString, escape_byte_string, split_docstring
 import Options
 import ControlFlow
 
@@ -71,10 +71,12 @@ class Node(object):
     #  pos         (string, int, int)   Source file position
     #  is_name     boolean              Is a NameNode
     #  is_literal  boolean              Is a ConstNode
+    #  options     dict                 Compiler directives in effect for this node
     
     is_name = 0
     is_literal = 0
     temps = None
+    options = None
 
     # All descandants should set child_attrs to a list of the attributes
     # containing nodes considered "children" in the tree. Each such attribute
@@ -174,10 +176,18 @@ class Node(object):
             self._end_pos = pos
             return pos
 
-    def dump(self, level=0, filter_out=("pos",)):
+    def dump(self, level=0, filter_out=("pos",), cutoff=100, encountered=None):
+        if cutoff == 0:
+            return "<...nesting level cutoff...>"
+        if encountered is None:
+            encountered = set()
+        if id(self) in encountered:
+            return "<%s (%d) -- already output>" % (self.__class__.__name__, id(self))
+        encountered.add(id(self))
+        
         def dump_child(x, level):
             if isinstance(x, Node):
-                return x.dump(level)
+                return x.dump(level, filter_out, cutoff-1, encountered)
             elif isinstance(x, list):
                 return "[%s]" % ", ".join([dump_child(item, level) for item in x])
             else:
@@ -591,6 +601,7 @@ class CBufferAccessTypeNode(CBaseTypeNode):
     
     def analyse(self, env):
         base_type = self.base_type_node.analyse(env)
+        if base_type.is_error: return base_type
         import Buffer
 
         options = Buffer.analyse_buffer_options(
@@ -1516,10 +1527,13 @@ class DefNode(FuncDefNode):
         if proto_only:
             return
         if self.entry.doc and Options.docstrings:
+            docstr = self.entry.doc
+            if not isinstance(docstr, str):
+                docstr = docstr.utf8encode()
             code.putln(
                 'static char %s[] = "%s";' % (
                     self.entry.doc_cname,
-                    escape_byte_string(self.entry.doc.utf8encode())))
+                    split_docstring(escape_byte_string(docstr))))
         if with_pymethdef:
             code.put(
                 "static PyMethodDef %s = " % 
@@ -2137,15 +2151,6 @@ class CClassDefNode(ClassDefNode):
         if self.doc and Options.docstrings:
             scope.doc = embed_position(self.pos, self.doc)
             
-        if has_body and not self.in_pxd:
-            # transforms not yet run on pxd files
-            from ParseTreeTransforms import AnalyseDeclarationsTransform
-            transform = AnalyseDeclarationsTransform(None)
-            for entry in scope.var_entries:
-                if hasattr(entry, 'needs_property'):
-                    property = transform.create_Property(entry)
-                    self.body.stats.append(property)
-
         if has_body:
             self.body.analyse_declarations(scope)
             if self.in_pxd:
@@ -2514,12 +2519,16 @@ class InPlaceAssignmentNode(AssignmentNode):
     def generate_execution_code(self, code):
         self.rhs.generate_evaluation_code(code)
         self.dup.generate_subexpr_evaluation_code(code)
-        self.dup.generate_result_code(code)
+        # self.dup.generate_result_code is run only if it is not buffer access
         if self.operator == "**":
             extra = ", Py_None"
         else:
             extra = ""
+        import ExprNodes
         if self.lhs.type.is_pyobject:
+            if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
+                error(self.pos, "In-place operators not allowed on object buffers in this release.")
+            self.dup.generate_result_code(code)
             code.putln(
                 "%s = %s(%s, %s%s); %s" % (
                     self.result.result_code, 
@@ -2542,7 +2551,11 @@ class InPlaceAssignmentNode(AssignmentNode):
                 else:
                     error(self.pos, "No C inplace power operator")
             # have to do assignment directly to avoid side-effects
-            code.putln("%s %s= %s;" % (self.lhs.result_code, c_op, self.rhs.result_code) )
+            if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
+                self.lhs.generate_buffer_setitem_code(self.rhs, code, c_op)
+            else:
+                self.dup.generate_result_code(code)
+                code.putln("%s %s= %s;" % (self.lhs.result_code, c_op, self.rhs.result_code) )
             self.rhs.generate_disposal_code(code)
         if self.dup.is_temp:
             self.dup.generate_subexpr_disposal_code(code)
@@ -2552,11 +2565,32 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.dup = self.lhs
         self.dup.analyse_types(env)
         if isinstance(self.lhs, ExprNodes.NameNode):
-            target_lhs = ExprNodes.NameNode(self.dup.pos, name = self.dup.name, is_temp = self.dup.is_temp, entry = self.dup.entry)
+            target_lhs = ExprNodes.NameNode(self.dup.pos,
+                                            name = self.dup.name,
+                                            is_temp = self.dup.is_temp,
+                                            entry = self.dup.entry,
+                                            options = self.dup.options)
         elif isinstance(self.lhs, ExprNodes.AttributeNode):
-            target_lhs = ExprNodes.AttributeNode(self.dup.pos, obj = ExprNodes.CloneNode(self.lhs.obj), attribute = self.dup.attribute, is_temp = self.dup.is_temp)
+            target_lhs = ExprNodes.AttributeNode(self.dup.pos,
+                                                 obj = ExprNodes.CloneNode(self.lhs.obj),
+                                                 attribute = self.dup.attribute,
+                                                 is_temp = self.dup.is_temp,
+                                                 options = self.dup.options)
         elif isinstance(self.lhs, ExprNodes.IndexNode):
-            target_lhs = ExprNodes.IndexNode(self.dup.pos, base = ExprNodes.CloneNode(self.dup.base), index = ExprNodes.CloneNode(self.lhs.index), is_temp = self.dup.is_temp)
+            if self.lhs.index:
+                index = ExprNodes.CloneNode(self.lhs.index)
+            else:
+                index = None
+            if self.lhs.indices:
+                indices = [ExprNodes.CloneNode(x) for x in self.lhs.indices]
+            else:
+                indices = []
+            target_lhs = ExprNodes.IndexNode(self.dup.pos,
+                                             base = ExprNodes.CloneNode(self.dup.base),
+                                             index = index,
+                                             indices = indices,
+                                             is_temp = self.dup.is_temp,
+                                             options = self.dup.options)
         self.lhs = target_lhs
         return self.dup
     
@@ -3007,7 +3041,7 @@ class SwitchCaseNode(StatNode):
     def annotate(self, code):
         for cond in self.conditions:
             cond.annotate(code)
-        body.annotate(code)
+        self.body.annotate(code)
 
 class SwitchStatNode(StatNode):
     # Generated in the optimization of an if-elif-else node
@@ -3031,7 +3065,8 @@ class SwitchStatNode(StatNode):
         self.test.annotate(code)
         for case in self.cases:
             case.annotate(code)
-        self.else_clause.annotate(code)
+        if self.else_clause is not None:
+            self.else_clause.annotate(code)
             
 class LoopNode:
     
