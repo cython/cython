@@ -6,6 +6,7 @@ import operator
 from string import join
 
 from Errors import error, warning, InternalError
+import StringEncoding
 import Naming
 from Nodes import Node
 import PyrexTypes
@@ -14,7 +15,6 @@ from Builtin import list_type, tuple_type, dict_type, unicode_type
 import Symtab
 import Options
 from Annotate import AnnotationItem
-from Cython import Utils
 
 from Cython.Debugging import print_call_chain
 from DebugFlags import debug_disposal_code, debug_temp_alloc, \
@@ -640,10 +640,10 @@ class CharNode(ConstNode):
     type = PyrexTypes.c_char_type
     
     def compile_time_value(self, denv):
-        return ord(self.value.byteencode())
+        return ord(self.value)
     
     def calculate_result_code(self):
-        return "'%s'" % Utils.escape_character(self.value.byteencode())
+        return "'%s'" % StringEncoding.escape_character(self.value)
 
 
 class IntNode(ConstNode):
@@ -1369,6 +1369,10 @@ class IndexNode(ExprNode):
         # Note: This might be cleaned up by having IndexNode
         # parsed in a saner way and only construct the tuple if
         # needed.
+
+        # Note that this function must leave IndexNode in a cloneable state.
+        # For buffers, self.index is packed out on the initial analysis, and
+        # when cloning self.indices is copied.
         self.is_buffer_access = False
 
         self.base.analyse_types(env)
@@ -1379,11 +1383,16 @@ class IndexNode(ExprNode):
         skip_child_analysis = False
         buffer_access = False
         if self.base.type.is_buffer:
-            assert isinstance(self.base, NameNode)
-            if isinstance(self.index, TupleNode):
-                indices = self.index.args
+            assert hasattr(self.base, "entry") # Must be a NameNode-like node
+            if self.indices:
+                indices = self.indices
             else:
-                indices = [self.index]
+                # On cloning, indices is cloned. Otherwise, unpack index into indices
+                assert not isinstance(self.index, CloneNode)
+                if isinstance(self.index, TupleNode):
+                    indices = self.index.args
+                else:
+                    indices = [self.index]
             if len(indices) == self.base.type.ndim:
                 buffer_access = True
                 skip_child_analysis = True
@@ -1469,7 +1478,7 @@ class IndexNode(ExprNode):
 
     def generate_subexpr_evaluation_code(self, code):
         self.base.generate_evaluation_code(code)
-        if self.index is not None:
+        if not self.indices:
             self.index.generate_evaluation_code(code)
         else:
             for i in self.indices:
@@ -1477,7 +1486,7 @@ class IndexNode(ExprNode):
         
     def generate_subexpr_disposal_code(self, code):
         self.base.generate_disposal_code(code)
-        if self.index is not None:
+        if not self.indices:
             self.index.generate_disposal_code(code)
         else:
             for i in self.indices:
@@ -1525,30 +1534,34 @@ class IndexNode(ExprNode):
                 value_code,
                 self.index_unsigned_parameter(),
                 code.error_goto(self.pos)))
-    
+
+    def generate_buffer_setitem_code(self, rhs, code, op=""):
+        # Used from generate_assignment_code and InPlaceAssignmentNode
+        ptrexpr = self.buffer_lookup_code(code)
+        if self.buffer_type.dtype.is_pyobject:
+            # Must manage refcounts. Decref what is already there
+            # and incref what we put in.
+            ptr = code.funcstate.allocate_temp(self.buffer_type.buffer_ptr_type)
+            if rhs.is_temp:
+                rhs_code = code.funcstate.allocate_temp(rhs.type)
+            else:
+                rhs_code = rhs.result_code
+            code.putln("%s = %s;" % (ptr, ptrexpr))
+            code.putln("Py_DECREF(*%s); Py_INCREF(%s);" % (
+                ptr, rhs_code
+                ))
+            code.putln("*%s %s= %s;" % (ptr, op, rhs_code))
+            if rhs.is_temp:
+                code.funcstate.release_temp(rhs_code)
+            code.funcstate.release_temp(ptr)
+        else: 
+            # Simple case
+            code.putln("*%s %s= %s;" % (ptrexpr, op, rhs.result_code))
+
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
         if self.is_buffer_access:
-            ptrexpr = self.buffer_lookup_code(code)
-            if self.buffer_type.dtype.is_pyobject:
-                # Must manage refcounts. Decref what is already there
-                # and incref what we put in.
-                ptr = code.funcstate.allocate_temp(self.buffer_type.buffer_ptr_type)
-                if rhs.is_temp:
-                    rhs_code = code.funcstate.allocate_temp(rhs.type)
-                else:
-                    rhs_code = rhs.result_code
-                code.putln("%s = %s;" % (ptr, ptrexpr))
-                code.putln("Py_DECREF(*%s); Py_INCREF(%s);" % (
-                    ptr, rhs_code
-                    ))
-                code.putln("*%s = %s;" % (ptr, rhs_code))
-                if rhs.is_temp:
-                    code.funcstate.release_temp(rhs_code)
-                code.funcstate.release_temp(ptr)
-            else: 
-                # Simple case
-                code.putln("*%s = %s;" % (ptrexpr, rhs.result_code))
+            self.generate_buffer_setitem_code(rhs, code)
         elif self.type.is_pyobject:
             self.generate_setitem_code(rhs.py_result(), code)
         else:
@@ -1582,6 +1595,9 @@ class IndexNode(ExprNode):
             code.putln("%s = %s;" % (temp, index.result_code))
         # Generate buffer access code using these temps
         import Buffer
+        assert self.options is not None
+        # The above could happen because child_attrs is wrong somewhere so that
+        # options are not propagated.
         return Buffer.put_buffer_lookup_code(entry=self.base.entry,
                                              index_signeds=[i.type.signed for i in self.indices],
                                              index_cnames=index_temps,
@@ -2564,6 +2580,8 @@ class ListComprehensionNode(SequenceNode):
     subexprs = []
     is_sequence_constructor = 0 # not unpackable
 
+    child_attrs = ["loop", "append"]
+
     def analyse_types(self, env): 
         self.type = list_type
         self.is_temp = 1
@@ -2589,6 +2607,8 @@ class ListComprehensionNode(SequenceNode):
 
 class ListComprehensionAppendNode(ExprNode):
 
+    # Need to be careful to avoid infinite recursion:
+    # target must not be in child_attrs/subexprs
     subexprs = ['expr']
     
     def analyse_types(self, env):
@@ -3066,6 +3086,20 @@ class SizeofTypeNode(SizeofNode):
     subexprs = []
     
     def analyse_types(self, env):
+        # we may have incorrectly interpreted a dotted name as a type rather than an attribute
+        # this could be better handled by more uniformly treating types as runtime-available objects
+        if self.base_type.module_path:
+            path = self.base_type.module_path
+            obj = env.lookup(path[0])
+            if obj.as_module is None:
+                operand = NameNode(pos=self.pos, name=path[0])
+                for attr in path[1:]:
+                    operand = AttributeNode(pos=self.pos, obj=operand, attribute=attr)
+                operand = AttributeNode(pos=self.pos, obj=operand, attribute=self.base_type.name)
+                self.operand = operand
+                self.__class__ = SizeofVarNode
+                self.analyse_types(env)
+                return
         base_type = self.base_type.analyse(env)
         _, arg_type = self.declarator.analyse(base_type, env)
         self.arg_type = arg_type
@@ -3937,6 +3971,7 @@ class CoercionNode(ExprNode):
     def __init__(self, arg):
         self.pos = arg.pos
         self.arg = arg
+        self.options = arg.options
         if debug_coercion:
             print("%s Coercing %s" % (self, self.arg))
             

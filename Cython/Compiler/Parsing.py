@@ -9,6 +9,8 @@ from types import ListType, TupleType
 from Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
 import ExprNodes
+import StringEncoding
+from StringEncoding import EncodedString, BytesLiteral
 from ModuleNode import ModuleNode
 from Errors import error, warning, InternalError
 from Cython import Utils
@@ -280,7 +282,7 @@ def p_trailer(s, node1):
         return p_index(s, node1)
     else: # s.sy == '.'
         s.next()
-        name = Utils.EncodedString( p_ident(s) )
+        name = EncodedString( p_ident(s) )
         return ExprNodes.AttributeNode(pos, 
             obj = node1, attribute = name)
 
@@ -302,7 +304,7 @@ def p_call(s, function):
             if not arg.is_name:
                 s.error("Expected an identifier before '='",
                     pos = arg.pos)
-            encoded_name = Utils.EncodedString(arg.name)
+            encoded_name = EncodedString(arg.name)
             keyword = ExprNodes.IdentifierStringNode(arg.pos, 
                 value = encoded_name)
             arg = p_simple_expr(s)
@@ -498,7 +500,7 @@ def p_atom(s):
         else:
             return ExprNodes.StringNode(pos, value = value)
     elif sy == 'IDENT':
-        name = Utils.EncodedString( s.systring )
+        name = EncodedString( s.systring )
         s.next()
         if name == "None":
             return ExprNodes.NoneNode(pos)
@@ -531,7 +533,7 @@ def p_name(s, name):
                 return ExprNodes.IntNode(pos, value = rep, longness = "L")
             elif isinstance(value, float):
                 return ExprNodes.FloatNode(pos, value = rep)
-            elif isinstance(value, unicode):
+            elif isinstance(value, (str, unicode)):
                 return ExprNodes.StringNode(pos, value = value)
             else:
                 error(pos, "Invalid type for compile-time constant: %s"
@@ -549,11 +551,21 @@ def p_cat_string_literal(s):
             if next_kind == 'c':
                 error(s.position(),
                       "Cannot concatenate char literal with another string or char literal")
-            elif next_kind == 'u':
+            elif next_kind != kind:
+                # we have to switch to unicode now
+                if kind == 'b':
+                    # concatenating a unicode string to byte strings
+                    strings = [u''.join([s.decode(s.encoding) for s in strings])]
+                elif kind == 'u':
+                    # concatenating a byte string to unicode strings
+                    strings.append(next_value.decode(next_value.encoding))
                 kind = 'u'
-            strings.append(next_value)
-        value = Utils.EncodedString( u''.join(strings) )
-        if kind != 'u':
+            else:
+                strings.append(next_value)
+        if kind == 'u':
+            value = EncodedString( u''.join(strings) )
+        else:
+            value = BytesLiteral( ''.join(strings) )
             value.encoding = s.source_encoding
     return kind, value
 
@@ -582,7 +594,10 @@ def p_string_literal(s):
             kind = 'u'
     elif kind == '':
         kind = 'b'
-    chars = []
+    if kind == 'u':
+        chars = StringEncoding.UnicodeLiteralBuilder()
+    else:
+        chars = StringEncoding.BytesLiteralBuilder(s.source_encoding)
     while 1:
         s.next()
         sy = s.sy
@@ -590,41 +605,46 @@ def p_string_literal(s):
         if sy == 'CHARS':
             chars.append(s.systring)
         elif sy == 'ESCAPE':
+            has_escape = True
             systr = s.systring
             if is_raw:
-                if systr == '\\\n':
-                    chars.append('\\\n')
-                elif systr == '\\\"':
-                    chars.append('"')
-                elif systr == '\\\'':
-                    chars.append("'")
+                if systr == u'\\\n':
+                    chars.append(u'\\\n')
+                elif systr == u'\\\"':
+                    chars.append(u'"')
+                elif systr == u'\\\'':
+                    chars.append(u"'")
                 else:
                     chars.append(systr)
             else:
                 c = systr[1]
-                if c in "01234567":
-                    chars.append(chr(int(systr[1:], 8)))
-                elif c in "'\"\\":
+                if c in u"01234567":
+                    chars.append_charval( int(systr[1:], 8) )
+                elif c in u"'\"\\":
                     chars.append(c)
-                elif c in "abfnrtv":
-                    chars.append(Utils.char_from_escape_sequence(systr))
-                elif c == '\n':
+                elif c in u"abfnrtv":
+                    chars.append(
+                        StringEncoding.char_from_escape_sequence(systr))
+                elif c == u'\n':
                     pass
-                elif c in 'Uux':
+                elif c in u'Uux':
                     if kind == 'u' or c == 'x':
                         chrval = int(systr[2:], 16)
                         if chrval > 1114111: # sys.maxunicode:
                             s.error("Invalid unicode escape '%s'" % systr,
                                     pos = pos)
-                        strval = unichr(chrval)
+                        elif chrval > 65535:
+                            warning(s.position(),
+                                    "Unicode characters above 65535 are not "
+                                    "necessarily portable across Python installations", 1)
+                        chars.append_charval(chrval)
                     else:
                         # unicode escapes in plain byte strings are not unescaped
-                        strval = systr
-                    chars.append(strval)
+                        chars.append(systr)
                 else:
-                    chars.append('\\' + systr[1:])
+                    chars.append(u'\\' + systr[1:])
         elif sy == 'NEWLINE':
-            chars.append('\n')
+            chars.append(u'\n')
         elif sy == 'END_STRING':
             break
         elif sy == 'EOF':
@@ -633,13 +653,13 @@ def p_string_literal(s):
             s.error(
                 "Unexpected token %r:%r in string literal" %
                     (sy, s.systring))
-    string = u''.join(chars)
-    if kind == 'c' and len(string) != 1:
-        error(pos, u"invalid character literal: %r" % string)
+    if kind == 'c':
+        value = chars.getchar()
+        if len(value) != 1:
+            error(pos, u"invalid character literal: %r" % value)
+    else:
+        value = chars.getstring()
     s.next()
-    value = Utils.EncodedString(string)
-    if kind != 'u':
-        value.encoding = s.source_encoding
     #print "p_string_literal: value =", repr(value) ###
     return kind, value
 
@@ -943,7 +963,7 @@ def p_import_statement(s):
         items.append(p_dotted_name(s, as_allowed = 1))
     stats = []
     for pos, target_name, dotted_name, as_name in items:
-        dotted_name = Utils.EncodedString(dotted_name)
+        dotted_name = EncodedString(dotted_name)
         if kind == 'cimport':
             stat = Nodes.CImportStatNode(pos, 
                 module_name = dotted_name,
@@ -951,7 +971,7 @@ def p_import_statement(s):
         else:
             if as_name and "." in dotted_name:
                 name_list = ExprNodes.ListNode(pos, args = [
-                    ExprNodes.StringNode(pos, value = Utils.EncodedString("*"))])
+                    ExprNodes.StringNode(pos, value = EncodedString("*"))])
             else:
                 name_list = None
             stat = Nodes.SingleAssignmentNode(pos,
@@ -984,7 +1004,7 @@ def p_from_import_statement(s, first_statement = 0):
     while s.sy == ',':
         s.next()
         imported_names.append(p_imported_name(s, is_cimport))
-    dotted_name = Utils.EncodedString(dotted_name)
+    dotted_name = EncodedString(dotted_name)
     if dotted_name == '__future__':
         if not first_statement:
             s.error("from __future__ imports must occur at the beginning of the file")
@@ -1011,7 +1031,7 @@ def p_from_import_statement(s, first_statement = 0):
         imported_name_strings = []
         items = []
         for (name_pos, name, as_name, kind) in imported_names:
-            encoded_name = Utils.EncodedString(name)
+            encoded_name = EncodedString(name)
             imported_name_strings.append(
                 ExprNodes.IdentifierStringNode(name_pos, value = encoded_name))
             items.append(
@@ -1020,7 +1040,7 @@ def p_from_import_statement(s, first_statement = 0):
                                     name = as_name or name)))
         import_list = ExprNodes.ListNode(
             imported_names[0][0], args = imported_name_strings)
-        dotted_name = Utils.EncodedString(dotted_name)
+        dotted_name = EncodedString(dotted_name)
         return Nodes.FromImportStatNode(pos,
             module = ExprNodes.ImportNode(dotted_name_pos,
                 module_name = ExprNodes.IdentifierStringNode(pos, value = dotted_name),
@@ -1251,7 +1271,7 @@ def p_include_statement(s, ctx):
             s.included_files.append(include_file_name)
             f = Utils.open_source_file(include_file_path, mode="rU")
             source_desc = FileSourceDescriptor(include_file_path)
-            s2 = PyrexScanner(f, source_desc, s, source_encoding=f.encoding)
+            s2 = PyrexScanner(f, source_desc, s, source_encoding=f.encoding, parse_comments=s.parse_comments)
             try:
                 tree = p_statement_list(s2, ctx)
             finally:
@@ -1520,7 +1540,7 @@ def p_positional_and_keyword_args(s, end_sy_set, type_positions=(), type_keyword
                 else:
                     arg = p_simple_expr(s)
                 keyword_node = ExprNodes.IdentifierStringNode(arg.pos,
-                                value = Utils.EncodedString(ident))
+                                value = EncodedString(ident))
                 keyword_args.append((keyword_node, arg))
                 was_keyword = True
             else:
@@ -2136,10 +2156,10 @@ def p_decorators(s):
         s.next()
         decstring = p_dotted_name(s, as_allowed=0)[2]
         names = decstring.split('.')
-        decorator = ExprNodes.NameNode(pos, name=Utils.EncodedString(names[0]))
+        decorator = ExprNodes.NameNode(pos, name=EncodedString(names[0]))
         for name in names[1:]:
             decorator = ExprNodes.AttributeNode(pos,
-                                           attribute=Utils.EncodedString(name),
+                                           attribute=EncodedString(name),
                                            obj=decorator)
         if s.sy == '(':
             decorator = p_call(s, decorator)
@@ -2187,7 +2207,7 @@ def p_class_statement(s):
     # s.sy == 'class'
     pos = s.position()
     s.next()
-    class_name = Utils.EncodedString( p_ident(s) )
+    class_name = EncodedString( p_ident(s) )
     class_name.encoding = s.source_encoding
     if s.sy == '(':
         s.next()
@@ -2326,14 +2346,20 @@ def p_code(s, level=None):
             repr(s.sy), repr(s.systring)))
     return body
 
-def p_option_comments(s):
+COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*cython:\s*([a-z]+)\s*=(.*)$")
+
+def p_compiler_directive_comments(s):
     result = {}
-    while s.sy == 'option_comment':
-        opts = s.systring[len("#cython:"):]
-        try:
-            result.update(Options.parse_option_list(opts))
-        except ValueError, e:
-            s.error(e.message, fatal=False)
+    while s.sy == 'commentline':
+        m = COMPILER_DIRECTIVE_COMMENT_RE.match(s.systring)
+        if m:
+            name = m.group(1)
+            try:
+                value = Options.parse_option_value(str(name), str(m.group(2).strip()))
+            except ValueError, e:
+                s.error(e.args[0], fatal=False)
+            if value is not None: # can be False!
+                result[name] = value
         s.next()
     return result
 
@@ -2347,8 +2373,8 @@ def p_module(s, pxd, full_module_name):
     else:
         level = 'module'
 
-    option_comments = p_option_comments(s)
-    s.parse_option_comments = False
+    option_comments = p_compiler_directive_comments(s)
+    s.parse_comments = False
     body = p_statement_list(s, Ctx(level = level), first_statement = 1)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (

@@ -6,6 +6,7 @@ include setup.py
 include bin/cython bin/update_references
 include cython.py
 include Cython/Compiler/Lexicon.pickle
+include Cython/Includes/*.pxd
 include Doc/*
 
 include Demos/*.pyx
@@ -16,9 +17,11 @@ include Demos/embed/*
 include Demos/Setup.py
 include Demos/Makefile*
 include Tools/*
-recursive-include Includes *
 recursive-include tests *.pyx *.pxd *.pxi *.h *.BROKEN
 include runtests.py
 
 include Cython/Mac/Makefile
 include Cython/Mac/_Filemodule_patched.c
+
+recursive-include pyximport *.py
+include pyximport/PKG-INFO pyximport/README

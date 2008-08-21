@@ -23,7 +23,8 @@ import Version
 
 from Errors import error, warning
 from PyrexTypes import py_object_type
-from Cython.Utils import open_new_file, replace_suffix, escape_byte_string, EncodedString
+from Cython.Utils import open_new_file, replace_suffix
+from StringEncoding import escape_byte_string, EncodedString
 
 
 def check_c_classes(module_node):
@@ -421,7 +422,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if PY_VERSION_HEX < 0x02060000")
         code.putln("  #define Py_REFCNT(ob) (((PyObject*)(ob))->ob_refcnt)")
         code.putln("  #define Py_TYPE(ob)   (((PyObject*)(ob))->ob_type)")
-        code.putln("  #define Py_SIZE(ob)   ((PyVarObject*)(ob))->ob_size)")
+        code.putln("  #define Py_SIZE(ob)   (((PyVarObject*)(ob))->ob_size)")
         code.putln("  #define PyVarObject_HEAD_INIT(type, size) \\")
         code.putln("          PyObject_HEAD_INIT(type) size,")
         code.putln("  #define PyType_Modified(t)")
@@ -488,12 +489,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyMethod_New(func, self, klass) PyInstanceMethod_New(func)")
         code.putln("#endif")
 
-        code.putln("#ifndef __stdcall")
-        code.putln("  #define __stdcall")
+        code.putln("#if !defined(WIN32) && !defined(MS_WINDOWS)")
+        code.putln("  #ifndef __stdcall")
+        code.putln("    #define __stdcall")
+        code.putln("  #endif")
+        code.putln("  #ifndef __cdecl")
+        code.putln("    #define __cdecl")
+        code.putln("  #endif")
+        code.putln("#else")
+        code.putln("  #define _USE_MATH_DEFINES")
         code.putln("#endif")
-        code.putln("#ifndef __cdecl")
-        code.putln("  #define __cdecl")
-        code.putln("#endif")
+        
         self.generate_extern_c_macro_definition(code)
         code.putln("#include <math.h>")
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
@@ -514,9 +520,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static const char *%s;' % Naming.filename_cname)
         code.putln('static const char **%s;' % Naming.filetable_cname)
         if env.doc:
+            docstr = env.doc
+            if not isinstance(docstr, str):
+                docstr = docstr.utf8encode()
             code.putln('')
             code.putln('static char %s[] = "%s";' % (
-                    env.doc_cname, escape_byte_string(env.doc.utf8encode())))
+                    env.doc_cname, escape_byte_string(docstr)))
     
     def generate_extern_c_macro_definition(self, code):
         name = Naming.extern_c_macro
