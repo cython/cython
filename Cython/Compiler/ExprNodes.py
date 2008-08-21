@@ -830,10 +830,12 @@ class NameNode(AtomicExprNode):
     #
     #  entry           Entry     Symbol table entry
     #  interned_cname  string
+    #  possible_var_values object See Optimize.FindPossibleVariableValues
     
     is_name = 1
     skip_assignment_decref = False
     entry = None
+    possible_var_values = None
 
     def create_analysed_rvalue(pos, env, entry):
         node = NameNode(pos)
@@ -2073,6 +2075,7 @@ class AttributeNode(ExprNode):
     #
     #  obj          ExprNode
     #  attribute    string
+    #  needs_none_check boolean        Used if obj is an extension type.
     #
     #  Used internally:
     #
@@ -2089,6 +2092,7 @@ class AttributeNode(ExprNode):
     result = "<error>"
     entry = None
     is_called = 0
+    needs_none_check = True
 
     def coerce_to(self, dst_type, env):
         #  If coercing to a generic pyobject and this is a cpdef function
@@ -2317,6 +2321,15 @@ class AttributeNode(ExprNode):
                     self.obj.py_result(),
                     self.interned_attr_cname,
                     code.error_goto_if_null(self.result_code, self.pos)))
+        else:
+            # result_code contains what is needed, but we may need to insert
+            # a check and raise an exception
+            if self.obj.type.is_extension_type and self.needs_none_check:
+                code.globalstate.use_utility_code(raise_noneattr_error_utility_code)
+                code.putln("if (%s) {" % code.unlikely("%s == Py_None") % self.obj.result_as(PyrexTypes.py_object_type))
+                code.putln("__Pyx_RaiseNoneAttributeError(\"%s\");" % self.attribute.encode("UTF-8")) # todo: fix encoding
+                code.putln(code.error_goto(self.pos))
+                code.putln("}")
     
     def generate_assignment_code(self, rhs, code):
         self.obj.generate_evaluation_code(code)
@@ -4550,4 +4563,14 @@ static INLINE int __Pyx_SetItemInt(PyObject *o, Py_ssize_t i, PyObject *v, int i
 }
 """,
 """
+"""]
+#------------------------------------------------------------------------------------
+
+raise_noneattr_error_utility_code = [
+"""
+static INLINE void __Pyx_RaiseNoneAttributeError(char* attrname);
+""", """
+static INLINE void __Pyx_RaiseNoneAttributeError(char* attrname) {
+    PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%s'", attrname);
+}
 """]
