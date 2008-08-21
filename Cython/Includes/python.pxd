@@ -117,6 +117,7 @@
 #
 #################################################################
 
+from python_version cimport *
 from python_ref cimport *
 from python_exc cimport *
 from python_module cimport *
