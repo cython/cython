@@ -4451,7 +4451,7 @@ static int __Pyx_CheckKeywords(
                 #if PY_MAJOR_VERSION >= 3
                 PyObject* utf8_key = PyUnicode_AsUTF8String(key);
                 if (!utf8_key) return -1;
-                if (strcmp(*name, PyString_AS_STRING(utf8_key)) == 0) {
+                if (strcmp(*name, PyBytes_AS_STRING(utf8_key)) == 0) {
                      Py_DECREF(utf8_key);
                      break;
                 }
