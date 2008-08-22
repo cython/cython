@@ -136,6 +136,7 @@ from python_long cimport *
 from python_float cimport *
 from python_complex cimport *
 from python_string cimport *
+from python_unicode cimport *
 from python_dict cimport *
 from python_instance cimport *
 from python_function cimport *
