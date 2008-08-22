@@ -31,9 +31,9 @@ __doc__ = u"""
     TypeError: swallow() takes exactly 3 positional arguments (4 given)
     >>> swallow(1,2,3, a=1, b=2)
     (1, 2, 3, (('a', 1), ('b', 2)))
-    >>> swallow(1,2,3, x=1) #doctest: +ELLIPSIS
+    >>> swallow(1,2,3, x=1)
     Traceback (most recent call last):
-    TypeError: keyword parameter 'x' was given by position and by name
+    TypeError: swallow() got multiple values for keyword argument 'x'
 
     >>> creosote(1,2,3)
     (1, 2, 3, (), ())
@@ -43,9 +43,9 @@ __doc__ = u"""
     (1, 2, 3, (), (('a', 1),))
     >>> creosote(1,2,3,4, a=1, b=2)
     (1, 2, 3, (4,), (('a', 1), ('b', 2)))
-    >>> creosote(1,2,3,4, x=1) #doctest: +ELLIPSIS
+    >>> creosote(1,2,3,4, x=1)
     Traceback (most recent call last):
-    TypeError: keyword parameter 'x' was given by position and by name
+    TypeError: creosote() got multiple values for keyword argument 'x'
 
     >>> onlyt(1)
     (1,)
@@ -83,10 +83,6 @@ __doc__ = u"""
     >>> tk(1, a=1, b=2)
     (1, ('a', 1), ('b', 2))
 """
-
-import sys, re
-if sys.version_info >= (2,6):
-    __doc__ = re.sub(u"(ELLIPSIS[^>]*Error: )[^\n]*\n", u"\\1...\n", __doc__, re.M)
 
 cdef sorteditems(d):
     l = list(d.items())

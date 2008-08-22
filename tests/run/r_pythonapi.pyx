@@ -11,7 +11,7 @@ if sys.version_info[0] >= 3:
 cdef extern from "string.h":
     void memcpy(char *d, char *s, int n)
 
-from python cimport PyUnicode_DecodeUTF8
+from python_unicode cimport PyUnicode_DecodeUTF8
     
 def spam():
     cdef char buf[12]
