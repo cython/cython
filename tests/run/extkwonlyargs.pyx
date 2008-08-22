@@ -40,7 +40,7 @@ __doc__ = u"""
     TypeError: f() takes at most 2 positional arguments (3 given)
     >>> f(1,2)
     Traceback (most recent call last):
-    TypeError: required keyword argument 'c' is missing
+    TypeError: f() needs keyword-only argument c
     >>> f(1,2, c=1, e=2)
     Traceback (most recent call last):
     TypeError: 'e' is an invalid keyword argument for this function
@@ -54,10 +54,10 @@ __doc__ = u"""
     TypeError: g() takes at most 2 positional arguments (3 given)
     >>> g(1,2)
     Traceback (most recent call last):
-    TypeError: required keyword argument 'c' is missing
+    TypeError: g() needs keyword-only argument c
     >>> g(1,2, c=1)
     Traceback (most recent call last):
-    TypeError: required keyword argument 'f' is missing
+    TypeError: g() needs keyword-only argument f
 
     >>> h(1,2, c=1, f=2)
     >>> h(1,2, c=1, f=2, e=3)
@@ -66,10 +66,10 @@ __doc__ = u"""
 
     >>> h(1,2,3)
     Traceback (most recent call last):
-    TypeError: required keyword argument 'c' is missing
+    TypeError: h() needs keyword-only argument c
     >>> h(1,2, d=1)
     Traceback (most recent call last):
-    TypeError: required keyword argument 'c' is missing
+    TypeError: h() needs keyword-only argument c
 
     >>> k(1,2, c=1, f=2)
     >>> k(1,2, c=1, f=2, e=3)
@@ -78,10 +78,10 @@ __doc__ = u"""
 
     >>> k(1,2,3)
     Traceback (most recent call last):
-    TypeError: required keyword argument 'f' is missing
+    TypeError: k() needs keyword-only argument f
     >>> k(1,2, d=1)
     Traceback (most recent call last):
-    TypeError: required keyword argument 'f' is missing
+    TypeError: k() needs keyword-only argument f
 """
 
 cdef class Ext:
