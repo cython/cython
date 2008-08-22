@@ -1336,7 +1336,6 @@ class DefNode(FuncDefNode):
         self.declare_pyfunction(env)
         self.analyse_signature(env)
         self.return_type = self.entry.signature.return_type()
-        env.use_utility_code(raise_argtuple_invalid_utility_code)
         env.use_utility_code(raise_keyword_required_utility_code)
         if self.num_required_kw_args:
             env.use_utility_code(check_required_keywords_utility_code)
@@ -1836,6 +1835,7 @@ class DefNode(FuncDefNode):
             code.putln('}')
         else:
             # check if we have all required positional arguments
+            code.globalstate.use_utility_code(raise_argtuple_invalid_utility_code)
             exact_count = not self.star_arg and min_positional_args == max_positional_args
             code.putln('} else if (unlikely(PyTuple_GET_SIZE(%s) < %d)) {' % (
                     Naming.args_cname, min_positional_args))
@@ -1863,6 +1863,7 @@ class DefNode(FuncDefNode):
                                        has_fixed_pos_count, code):
         # make sure supernumerous positional arguments do not run
         # into keyword-only arguments and provide a helpful message
+        code.globalstate.use_utility_code(raise_argtuple_invalid_utility_code)
         code.putln("if (unlikely(PyTuple_GET_SIZE(%s) > %d)) {" % (
                 Naming.args_cname, max_positional_args))
         code.putln('__Pyx_RaiseArgtupleInvalid("%s", %d, 0, %d, PyTuple_GET_SIZE(%s));' % (
