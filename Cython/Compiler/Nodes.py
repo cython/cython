@@ -1683,7 +1683,7 @@ class DefNode(FuncDefNode):
 
     def generate_stararg_copy_code(self, code):
         if not self.star_arg:
-            self.generate_positional_args_check(0, code)
+            self.generate_positional_args_check(0, True, code)
 
         code.globalstate.use_utility_code(keyword_string_check_utility_code)
 
@@ -1760,7 +1760,9 @@ class DefNode(FuncDefNode):
         max_args = max_positional_args + len(kw_only_args)
 
         if not self.star_arg:
-            self.generate_positional_args_check(max_positional_args, code)
+            has_fixed_positional_count = min_positional_args == max_positional_args
+            self.generate_positional_args_check(
+                max_positional_args, has_fixed_positional_count, code)
 
         if self.star_arg or self.starstar_arg:
             self.generate_stararg_getting_code(max_positional_args, code)
@@ -1834,10 +1836,11 @@ class DefNode(FuncDefNode):
             code.putln('}')
         else:
             # check if we have all required positional arguments
+            exact_count = not self.star_arg and min_positional_args == max_positional_args
             code.putln('} else if (unlikely(PyTuple_GET_SIZE(%s) < %d)) {' % (
                     Naming.args_cname, min_positional_args))
-            code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, PyTuple_GET_SIZE(%s)); ' % (
-                    self.name.utf8encode(), min_positional_args,
+            code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, PyTuple_GET_SIZE(%s)); ' % (
+                    self.name.utf8encode(), exact_count, min_positional_args,
                     max_positional_args, Naming.args_cname))
             code.putln(code.error_goto(self.pos))
 
@@ -1856,13 +1859,15 @@ class DefNode(FuncDefNode):
             code.putln('}')
         return
 
-    def generate_positional_args_check(self, max_positional_args, code):
+    def generate_positional_args_check(self, max_positional_args,
+                                       has_fixed_pos_count, code):
         # make sure supernumerous positional arguments do not run
         # into keyword-only arguments and provide a helpful message
         code.putln("if (unlikely(PyTuple_GET_SIZE(%s) > %d)) {" % (
                 Naming.args_cname, max_positional_args))
-        code.putln('__Pyx_RaiseArgtupleInvalid("%s", 0, %d, PyTuple_GET_SIZE(%s));' % (
-                self.name.utf8encode(), max_positional_args, Naming.args_cname))
+        code.putln('__Pyx_RaiseArgtupleInvalid("%s", %d, 0, %d, PyTuple_GET_SIZE(%s));' % (
+                self.name.utf8encode(), has_fixed_pos_count,
+                max_positional_args, Naming.args_cname))
         code.putln("return %s;" % self.error_value())
         code.putln("}")
 
@@ -4303,41 +4308,39 @@ static INLINE int __Pyx_SplitStarArg(
 
 raise_argtuple_invalid_utility_code = [
 """
-static INLINE void __Pyx_RaiseArgtupleInvalid(char* func_name,
+static void __Pyx_RaiseArgtupleInvalid(char* func_name, int exact,
     Py_ssize_t num_min, Py_ssize_t num_max, Py_ssize_t num_found); /*proto*/
 ""","""
-static INLINE void __Pyx_RaiseArgtupleInvalid(
+static void __Pyx_RaiseArgtupleInvalid(
     char* func_name,
+    int exact,
     Py_ssize_t num_min,
     Py_ssize_t num_max,
     Py_ssize_t num_found)
 {
     Py_ssize_t num_expected;
-    char* message;
+    char *message, *number, *more_or_less;
+
+    message =
+        #if PY_VERSION_HEX < 0x02050000
+            "%s() takes %s %d positional argument%s (%d given)";
+        #else
+            "%s() takes %s %zd positional argument%s (%zd given)";
+        #endif
 
     if (num_found < num_min) {
         num_expected = num_min;
-        message =
-        #if PY_VERSION_HEX < 0x02050000
-            "%s() takes at least %d positional arguments (%d given)";
-        #elif PY_MAJOR_VERSION >= 3
-            "%U() takes at most %zd positional arguments (%zd given)";
-        #else
-            "%s() takes at least %zd positional arguments (%zd given)";
-        #endif
+        more_or_less = "at least";
     } else {
         num_expected = num_max;
-        message =
-        #if PY_VERSION_HEX < 0x02050000
-            "%s() takes at most %d positional arguments (%d given)";
-        #elif PY_MAJOR_VERSION >= 3
-            "%U() takes at most %zd positional arguments (%zd given)";
-        #else
-            "%s() takes at most %zd positional arguments (%zd given)";
-        #endif
+        more_or_less = "at most";
     }
-    PyErr_Format(PyExc_TypeError, message, func_name,
-                 num_expected, num_found);
+    if (exact) {
+        more_or_less = "exactly";
+    }
+    number = (num_expected == 1) ? "" : "s";
+    PyErr_Format(PyExc_TypeError, message, func_name, more_or_less,
+                 num_expected, number, num_found);
 }
 """]
 

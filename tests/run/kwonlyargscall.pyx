@@ -3,7 +3,7 @@ __doc__ = u"""
     1 2 3
     >>> call4(b)
     Traceback (most recent call last):
-    TypeError: b() takes at most 3 positional arguments (4 given)
+    TypeError: b() takes exactly 3 positional arguments (4 given)
 
     >>> call2(c)
     1 2 1
@@ -20,7 +20,7 @@ __doc__ = u"""
 
     >>> call3(d)
     Traceback (most recent call last):
-    TypeError: d() takes at most 2 positional arguments (3 given)
+    TypeError: d() takes exactly 2 positional arguments (3 given)
     >>> call2d(d)
     Traceback (most recent call last):
     TypeError: 'd' is an invalid keyword argument for this function
@@ -46,7 +46,7 @@ __doc__ = u"""
 
     >>> call3(f)
     Traceback (most recent call last):
-    TypeError: f() takes at most 2 positional arguments (3 given)
+    TypeError: f() takes exactly 2 positional arguments (3 given)
     >>> call2(f)
     Traceback (most recent call last):
     TypeError: f() needs keyword-only argument c
@@ -63,7 +63,7 @@ __doc__ = u"""
 
     >>> call3(g)
     Traceback (most recent call last):
-    TypeError: g() takes at most 2 positional arguments (3 given)
+    TypeError: g() takes exactly 2 positional arguments (3 given)
     >>> call2(g)
     Traceback (most recent call last):
     TypeError: g() needs keyword-only argument c
@@ -103,10 +103,6 @@ __doc__ = u"""
     Traceback (most recent call last):
     TypeError: k() needs keyword-only argument f
 """
-
-import sys, re
-if sys.version_info >= (2,6):
-    __doc__ = re.sub(u"Error: (.*)exactly(.*)", u"Error: \\1at most\\2", __doc__)
 
 # the calls:
 
