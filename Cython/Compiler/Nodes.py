@@ -1336,18 +1336,10 @@ class DefNode(FuncDefNode):
         self.declare_pyfunction(env)
         self.analyse_signature(env)
         self.return_type = self.entry.signature.return_type()
-        env.use_utility_code(raise_argtuple_too_long_utility_code)
-        env.use_utility_code(keyword_check_utility_code)
-        env.use_utility_code(check_double_keywords_utility_code)
-        if self.signature_has_generic_args():
-            if self.star_arg:
-                env.use_utility_code(get_stararg_utility_code)
-            if not self.signature_has_nongeneric_args():
-                env.use_utility_code(keyword_string_check_utility_code)
-            elif self.starstar_arg:
-                env.use_utility_code(split_keywords_utility_code)
+        env.use_utility_code(raise_argtuple_invalid_utility_code)
+        env.use_utility_code(raise_keyword_required_utility_code)
         if self.num_required_kw_args:
-            env.use_utility_code(check_keywords_utility_code)
+            env.use_utility_code(check_required_keywords_utility_code)
 
     def analyse_signature(self, env):
         any_type_tests_needed = 0
@@ -1560,17 +1552,14 @@ class DefNode(FuncDefNode):
                     Naming.kwdlist_cname)
             for arg in self.args:
                 if arg.is_generic:
-                    code.put(
-                        '"%s",' % 
-                            arg.name.utf8encode())
+                    code.put('"%s",' % arg.name.utf8encode())
                     if arg.kw_only and not arg.default:
                         has_reqd_kwds = 1
                         flag = "1"
                     else:
                         flag = "0"
                     reqd_kw_flags.append(flag)
-            code.putln(
-                "0};")
+            code.putln("0};")
             if has_reqd_kwds:
                 flags_name = Naming.reqd_kwds_cname
                 self.reqd_kw_flags_cname = flags_name
@@ -1696,6 +1685,8 @@ class DefNode(FuncDefNode):
         if not self.star_arg:
             self.generate_positional_args_check(0, code)
 
+        code.globalstate.use_utility_code(keyword_string_check_utility_code)
+
         code.putln(
             "if (unlikely(%s) && unlikely(!__Pyx_CheckKeywordStrings(%s, \"%s\", %d))) return %s;" % (
                 Naming.kwds_cname, Naming.kwds_cname, self.name,
@@ -1721,6 +1712,7 @@ class DefNode(FuncDefNode):
 
     def generate_stararg_getting_code(self, max_positional_args, code):
         if self.star_arg:
+            code.globalstate.use_utility_code(split_stararg_utility_code)
             star_arg_cname = self.star_arg.entry.cname
             code.putln("if (likely(PyTuple_GET_SIZE(%s) <= %d)) {" % (
                     Naming.args_cname, max_positional_args))
@@ -1738,6 +1730,7 @@ class DefNode(FuncDefNode):
             self.star_arg.entry.xdecref_cleanup = 0
 
         if self.starstar_arg:
+            code.globalstate.use_utility_code(split_keywords_utility_code)
             handle_error = 1
             code.put(
                 'if (unlikely(__Pyx_SplitKeywords(&%s, %s, &%s, %s, PyTuple_GET_SIZE(%s), "%s") < 0)) ' % (
@@ -1772,6 +1765,9 @@ class DefNode(FuncDefNode):
         if self.star_arg or self.starstar_arg:
             self.generate_stararg_getting_code(max_positional_args, code)
 
+        code.globalstate.use_utility_code(raise_double_keywords_utility_code)
+        code.globalstate.use_utility_code(keyword_check_utility_code)
+
         # --- optimised code when we receive keyword arguments
         code.putln("if (unlikely(%s) && (PyDict_Size(%s) > 0)) {" % (
                 Naming.kwds_cname, Naming.kwds_cname))
@@ -1787,7 +1783,7 @@ class DefNode(FuncDefNode):
                    Naming.args_cname)
         code.putln("if (unlikely(PyDict_GetItemString(%s, %s[arg]))) {" % (
                 Naming.kwds_cname, Naming.kwdlist_cname))
-        code.put(      '__Pyx_RaiseDoubleKeywordsError("%s", %s[arg]); ' % (
+        code.put('__Pyx_RaiseDoubleKeywordsError("%s", %s[arg]); ' % (
                 self.name.utf8encode(), Naming.kwdlist_cname))
         code.putln(code.error_goto(self.pos))
         code.putln('}')
@@ -1799,6 +1795,12 @@ class DefNode(FuncDefNode):
         code.putln('values[arg] = PyDict_GetItemString(%s, %s[arg]);' % (
                 Naming.kwds_cname, Naming.kwdlist_cname))
         code.putln('if (values[arg]) kw_args--;');
+        if self.num_required_kw_args:
+            code.putln('else if (%s[arg]) {' % Naming.reqd_kwds_cname)
+            code.put('__Pyx_RaiseKeywordRequired("%s", %s[arg]); ' %(
+                    self.name.utf8encode(), Naming.kwdlist_cname))
+            code.putln(code.error_goto(self.pos))
+            code.putln('}')
         code.putln('}')
 
         # raise an error if not all keywords were read
@@ -1810,28 +1812,12 @@ class DefNode(FuncDefNode):
 
         # convert arg values to their final type and assign them
         default_seen = False
-        i = 0
-        for arg in self.args:
-            if arg.is_self_arg:
-                continue
+        for i, arg in enumerate(tuple(positional_args) + tuple(kw_only_args)):
             if arg.default:
-                default_seen = True
-            if default_seen:
                 code.putln("if (values[%d]) {" % i)
             self.generate_arg_assignment(arg, "values[%d]" % i, code)
-            if default_seen:
-                if not arg.default:
-                    code.putln('} else {')
-                    if arg.kw_only:
-                        code.put('PyErr_Format(PyExc_TypeError, "%s() needs keyword-only argument %s"); ' % (
-                                 self.name.utf8encode(), arg.name.utf8encode()))
-                    else:
-                        code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d); ' % (
-                                self.name.utf8encode(), min_positional_args,
-                                max_positional_args, i))
-                    code.putln(code.error_goto(self.pos))
+            if arg.default:
                 code.putln('}')
-            i += 1
 
         # --- optimised code when we do not receive any keyword arguments
         if self.num_required_kw_args:
@@ -1839,9 +1825,10 @@ class DefNode(FuncDefNode):
             for arg in self.args:
                 if arg.kw_only and not arg.default:
                     required_arg = arg
+                    break
             code.putln('} else {')
-            code.put('PyErr_Format(PyExc_TypeError, "%s() needs keyword-only argument %s");' % (
-                     self.name.utf8encode(), required_arg.name.utf8encode()))
+            code.putln('__Pyx_RaiseKeywordRequired("%s", "%s");' % (
+                    self.name.utf8encode(), required_arg.name.utf8encode()))
             code.putln(code.error_goto(self.pos))
             code.putln('}')
         else:
@@ -4282,7 +4269,7 @@ static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed
 #  new reference in *args2.  Does not touch any of its arguments on
 #  failure.
 
-get_stararg_utility_code = [
+split_stararg_utility_code = [
 """
 static INLINE int __Pyx_SplitStarArg(PyObject **args, Py_ssize_t nargs, PyObject **args2); /*proto*/
 ""","""
@@ -4313,7 +4300,7 @@ static INLINE int __Pyx_SplitStarArg(
 #  many or too few positional arguments were found.  This handles
 #  Py_ssize_t formatting correctly.
 
-raise_argtuple_too_long_utility_code = [
+raise_argtuple_invalid_utility_code = [
 """
 static INLINE void __Pyx_RaiseArgtupleInvalid(char* func_name,
     Py_ssize_t num_min, Py_ssize_t num_max, Py_ssize_t num_found); /*proto*/
@@ -4324,27 +4311,59 @@ static INLINE void __Pyx_RaiseArgtupleInvalid(
     Py_ssize_t num_max,
     Py_ssize_t num_found)
 {
+    Py_ssize_t num_expected;
+    char* message;
+
     if (num_found < num_min) {
-        PyErr_Format(PyExc_TypeError,
+        num_expected = num_min;
+        message =
         #if PY_VERSION_HEX < 0x02050000
-            "%s() takes at least %d positional arguments (%d given)",
+            "%s() takes at least %d positional arguments (%d given)";
         #elif PY_MAJOR_VERSION >= 3
-            "%U() takes at most %zd positional arguments (%zd given)",
+            "%U() takes at most %zd positional arguments (%zd given)";
         #else
-            "%s() takes at least %zd positional arguments (%zd given)",
+            "%s() takes at least %zd positional arguments (%zd given)";
         #endif
-            func_name, num_min, num_found);
     } else {
-        PyErr_Format(PyExc_TypeError,
+        num_expected = num_max;
+        message =
         #if PY_VERSION_HEX < 0x02050000
-            "%s() takes at most %d positional arguments (%d given)",
+            "%s() takes at most %d positional arguments (%d given)";
         #elif PY_MAJOR_VERSION >= 3
-            "%U() takes at most %zd positional arguments (%zd given)",
+            "%U() takes at most %zd positional arguments (%zd given)";
         #else
-            "%s() takes at most %zd positional arguments (%zd given)",
+            "%s() takes at most %zd positional arguments (%zd given)";
         #endif
-            func_name, num_max, num_found);
     }
+    PyErr_Format(PyExc_TypeError, message, func_name,
+                 num_expected, num_found);
+}
+"""]
+
+raise_keyword_required_utility_code = [
+"""
+static INLINE void __Pyx_RaiseKeywordRequired(char* func_name, char* kw_name); /*proto*/
+""","""
+static INLINE void __Pyx_RaiseKeywordRequired(
+    char* func_name,
+    char* kw_name)
+{
+    PyErr_Format(PyExc_TypeError,
+        "%s() needs keyword-only argument %s", func_name, kw_name);
+}
+"""]
+
+raise_double_keywords_utility_code = [
+"""
+static INLINE void __Pyx_RaiseDoubleKeywordsError(
+    const char* func_name, const char* kw_name); /*proto*/
+""","""
+static INLINE void __Pyx_RaiseDoubleKeywordsError(
+    const char* func_name,
+    const char* kw_name)
+{
+    PyErr_Format(PyExc_TypeError,
+        "%s() got multiple values for keyword argument '%s'", func_name, kw_name);
 }
 """]
 
@@ -4539,8 +4558,7 @@ arg_passed_twice:
         "%s() got multiple values for keyword argument '%s'", func_name, *p);
     goto bad;
 missing_kwarg:
-    PyErr_Format(PyExc_TypeError,
-        "%s() needs keyword-only argument %s", func_name, *p);
+    __Pyx_RaiseKeywordRequired(func_name, *p);
 bad:
     Py_XDECREF(s);
     Py_XDECREF(kwds1);
@@ -4549,7 +4567,7 @@ bad:
 }
 """]
 
-check_keywords_utility_code = [
+check_required_keywords_utility_code = [
 """
 static INLINE int __Pyx_CheckRequiredKeywords(PyObject *kwds, char *kwd_list[],
     char rqd_kwds[], Py_ssize_t num_posargs, char* func_name); /*proto*/
@@ -4588,38 +4606,7 @@ arg_passed_twice:
         "%s() got multiple values for keyword argument '%s'", func_name, *p);
     return -1;
 missing_kwarg:
-    PyErr_Format(PyExc_TypeError,
-        "required keyword argument '%s' is missing", *p);
-    return -1;
-}
-"""]
-
-check_double_keywords_utility_code = [
-"""
-static INLINE int __Pyx_CheckDoubleKeywords(PyObject *kwds, char *kwd_list[],
-    Py_ssize_t num_posargs, const char* func_name); /*proto*/
-static int __Pyx_RaiseDoubleKeywordsError(const char* func_name,
-                                          const char* kw_name); /*proto*/
-""","""
-static INLINE int __Pyx_CheckDoubleKeywords(
-    PyObject *kwds,
-    char *kwd_list[],
-    Py_ssize_t num_posargs,
-    const char* func_name)
-{
-    int i;
-    char** p = kwd_list;
-    for (i=0; i < num_posargs && *p; i++, p++) {
-        if (PyDict_GetItemString(kwds, *p))
-            return __Pyx_RaiseDoubleKeywordsError(func_name, *p);
-    }
-
-    return 0;
-}
-
-static int __Pyx_RaiseDoubleKeywordsError(const char* func_name, const char* kw_name) {
-    PyErr_Format(PyExc_TypeError,
-        "%s() got multiple values for keyword argument '%s'", func_name, kw_name);
+    __Pyx_RaiseKeywordRequired(func_name, *p);
     return -1;
 }
 """]
