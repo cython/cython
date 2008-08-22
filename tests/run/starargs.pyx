@@ -1,13 +1,13 @@
 __doc__ = u"""
     >>> spam(1,2,3)
     (1, 2, 3)
-    >>> spam(1,2) #doctest: +ELLIPSIS
+    >>> spam(1,2)
     Traceback (most recent call last):
-    TypeError: spam() takes at least 3 positional arguments (2 given)
+    TypeError: spam() takes exactly 3 positional arguments (2 given)
     >>> spam(1,2,3,4)
     Traceback (most recent call last):
-    TypeError: spam() takes at most 3 positional arguments (4 given)
-    >>> spam(1,2,3, a=1) #doctest: +ELLIPSIS
+    TypeError: spam() takes exactly 3 positional arguments (4 given)
+    >>> spam(1,2,3, a=1)
     Traceback (most recent call last):
     TypeError: 'a' is an invalid keyword argument for this function
 
@@ -17,10 +17,10 @@ __doc__ = u"""
     (1, 2, 3, (4,))
     >>> grail(1,2,3,4,5,6,7,8,9)
     (1, 2, 3, (4, 5, 6, 7, 8, 9))
-    >>> grail(1,2) #doctest: +ELLIPSIS
+    >>> grail(1,2)
     Traceback (most recent call last):
     TypeError: grail() takes at least 3 positional arguments (2 given)
-    >>> grail(1,2,3, a=1) #doctest: +ELLIPSIS
+    >>> grail(1,2,3, a=1)
     Traceback (most recent call last):
     TypeError: 'a' is an invalid keyword argument for this function
 
@@ -28,7 +28,7 @@ __doc__ = u"""
     (1, 2, 3, ())
     >>> swallow(1,2,3,4)
     Traceback (most recent call last):
-    TypeError: swallow() takes at most 3 positional arguments (4 given)
+    TypeError: swallow() takes exactly 3 positional arguments (4 given)
     >>> swallow(1,2,3, a=1, b=2)
     (1, 2, 3, (('a', 1), ('b', 2)))
     >>> swallow(1,2,3, x=1) #doctest: +ELLIPSIS
@@ -64,13 +64,13 @@ __doc__ = u"""
     (('a', 1), ('b', 2))
     >>> onlyk(1)
     Traceback (most recent call last):
-    TypeError: onlyk() takes at most 0 positional arguments (1 given)
+    TypeError: onlyk() takes exactly 0 positional arguments (1 given)
     >>> onlyk(1, 2)
     Traceback (most recent call last):
-    TypeError: onlyk() takes at most 0 positional arguments (2 given)
+    TypeError: onlyk() takes exactly 0 positional arguments (2 given)
     >>> onlyk(1, a=1, b=2)
     Traceback (most recent call last):
-    TypeError: onlyk() takes at most 0 positional arguments (1 given)
+    TypeError: onlyk() takes exactly 0 positional arguments (1 given)
 
     >>> tk(a=1)
     (('a', 1),)

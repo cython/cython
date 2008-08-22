@@ -2,7 +2,7 @@ __doc__ = u"""
     >>> b(1,2,3)
     >>> b(1,2,3,4)
     Traceback (most recent call last):
-    TypeError: b() takes at most 3 positional arguments (4 given)
+    TypeError: b() takes exactly 3 positional arguments (4 given)
 
     >>> c(1,2)
     >>> c(1,2,3)
@@ -15,7 +15,7 @@ __doc__ = u"""
 
     >>> d(1,2,3)
     Traceback (most recent call last):
-    TypeError: d() takes at most 2 positional arguments (3 given)
+    TypeError: d() takes exactly 2 positional arguments (3 given)
     >>> d(1,2, d=1)
     Traceback (most recent call last):
     TypeError: 'd' is an invalid keyword argument for this function
@@ -34,7 +34,7 @@ __doc__ = u"""
 
     >>> f(1,2,3)
     Traceback (most recent call last):
-    TypeError: f() takes at most 2 positional arguments (3 given)
+    TypeError: f() takes exactly 2 positional arguments (3 given)
     >>> f(1,2)
     Traceback (most recent call last):
     TypeError: f() needs keyword-only argument c
@@ -48,7 +48,7 @@ __doc__ = u"""
 
     >>> g(1,2,3)
     Traceback (most recent call last):
-    TypeError: g() takes at most 2 positional arguments (3 given)
+    TypeError: g() takes exactly 2 positional arguments (3 given)
     >>> g(1,2)
     Traceback (most recent call last):
     TypeError: g() needs keyword-only argument c
@@ -79,6 +79,16 @@ __doc__ = u"""
     >>> k(1,2, d=1)
     Traceback (most recent call last):
     TypeError: k() needs keyword-only argument f
+
+    >>> l(a=1, b=2)
+    >>> l(a=1, b=2, c=1)
+
+    >>> l(1,2,3)
+    Traceback (most recent call last):
+    TypeError: l() takes exactly 0 positional arguments (3 given)
+    >>> l(1,2, d=1)
+    Traceback (most recent call last):
+    TypeError: l() takes exactly 0 positional arguments (2 given)
 """
 
 def b(a, b, c):
@@ -103,4 +113,7 @@ def h(a, b, *args, c, d = 42, e = 17, f, **kwds):
     pass
 
 def k(a, b, c=1, *args, d = 42, e = 17, f, **kwds):
+    pass
+
+def l(*, a, b, c = 88):
     pass
