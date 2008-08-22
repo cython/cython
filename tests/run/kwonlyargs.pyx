@@ -2,20 +2,20 @@ __doc__ = u"""
     >>> b(1,2,3)
     >>> b(1,2,3,4)
     Traceback (most recent call last):
-    TypeError: function takes exactly 3 arguments (4 given)
+    TypeError: b() takes at most 3 positional arguments (4 given)
 
     >>> c(1,2)
     >>> c(1,2,3)
     >>> c(1,2,3,4)
     Traceback (most recent call last):
-    TypeError: function takes at most 3 arguments (4 given)
+    TypeError: c() takes at most 3 positional arguments (4 given)
 
     >>> d(1,2)
     >>> d(1,2, c=1)
 
     >>> d(1,2,3)
     Traceback (most recent call last):
-    TypeError: function takes at most 2 positional arguments (3 given)
+    TypeError: d() takes at most 2 positional arguments (3 given)
     >>> d(1,2, d=1)
     Traceback (most recent call last):
     TypeError: 'd' is an invalid keyword argument for this function
@@ -27,14 +27,14 @@ __doc__ = u"""
     >>> e(1,2,3)
     >>> e(1,2,3,4)
     Traceback (most recent call last):
-    TypeError: function takes at most 3 positional arguments (4 given)
+    TypeError: e() takes at most 3 positional arguments (4 given)
 
     >>> f(1,2, c=1)
     >>> f(1,2, c=1, d=2)
 
     >>> f(1,2,3)
     Traceback (most recent call last):
-    TypeError: function takes at most 2 positional arguments (3 given)
+    TypeError: f() takes at most 2 positional arguments (3 given)
     >>> f(1,2)
     Traceback (most recent call last):
     TypeError: required keyword argument 'c' is missing
@@ -48,7 +48,7 @@ __doc__ = u"""
 
     >>> g(1,2,3)
     Traceback (most recent call last):
-    TypeError: function takes at most 2 positional arguments (3 given)
+    TypeError: g() takes at most 2 positional arguments (3 given)
     >>> g(1,2)
     Traceback (most recent call last):
     TypeError: required keyword argument 'c' is missing
@@ -80,10 +80,6 @@ __doc__ = u"""
     Traceback (most recent call last):
     TypeError: required keyword argument 'f' is missing
 """
-
-import sys, re
-if sys.version_info >= (2,6):
-    __doc__ = re.sub(u"Error: (.*)exactly(.*)", u"Error: \\1at most\\2", __doc__)
 
 def b(a, b, c):
     pass

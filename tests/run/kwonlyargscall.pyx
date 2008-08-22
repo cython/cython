@@ -2,20 +2,20 @@ __doc__ = u"""
     >>> call3(b)
     >>> call4(b)
     Traceback (most recent call last):
-    TypeError: function takes exactly 3 arguments (4 given)
+    TypeError: b() takes at most 3 positional arguments (4 given)
 
     >>> call2(c)
     >>> call3(c)
     >>> call4(c)
     Traceback (most recent call last):
-    TypeError: function takes at most 3 arguments (4 given)
+    TypeError: c() takes at most 3 positional arguments (4 given)
 
     >>> call2(d)
     >>> call2c(d)
 
     >>> call3(d)
     Traceback (most recent call last):
-    TypeError: function takes at most 2 positional arguments (3 given)
+    TypeError: d() takes at most 2 positional arguments (3 given)
     >>> call2d(d)
     Traceback (most recent call last):
     TypeError: 'd' is an invalid keyword argument for this function
@@ -27,14 +27,14 @@ __doc__ = u"""
     >>> call3(e)
     >>> call4(e)
     Traceback (most recent call last):
-    TypeError: function takes at most 3 positional arguments (4 given)
+    TypeError: e() takes at most 3 positional arguments (4 given)
 
     >>> call2c(f)
     >>> call2cd(f)
 
     >>> call3(f)
     Traceback (most recent call last):
-    TypeError: function takes at most 2 positional arguments (3 given)
+    TypeError: f() takes at most 2 positional arguments (3 given)
     >>> call2(f)
     Traceback (most recent call last):
     TypeError: required keyword argument 'c' is missing
@@ -48,7 +48,7 @@ __doc__ = u"""
 
     >>> call3(g)
     Traceback (most recent call last):
-    TypeError: function takes at most 2 positional arguments (3 given)
+    TypeError: g() takes at most 2 positional arguments (3 given)
     >>> call2(g)
     Traceback (most recent call last):
     TypeError: required keyword argument 'c' is missing
@@ -131,6 +131,10 @@ def call2cefd(f):
 
 def call2cfex(f):
     f(1,2, c=1, f=2, e=0, x=25)
+
+def call6argscfexy(f):
+    args = (1,2,3,4,5,6)
+    f(*args, c=1, f=2, e=3, x=25, y=11)
 
 def call6cfexy(f):
     f(1,2,3,4,5,6, c=1, f=2, e=3, x=25, y=11)
