@@ -1805,13 +1805,14 @@ class DefNode(FuncDefNode):
 
         # raise an error if not all keywords were read
         code.putln('if (unlikely(kw_args > 0)) {')
-        code.put('if (!__Pyx_CheckKeywords(%s, "%s", %s)) ' % (
+        # __Pyx_CheckKeywords() this does more than strictly
+        # necessary, but this is not performance critical at all
+        code.put('__Pyx_CheckKeywords(%s, "%s", %s); ' % (
                 Naming.kwds_cname, self.name.utf8encode(), Naming.kwdlist_cname))
         code.putln(code.error_goto(self.pos))
         code.putln('}')
 
         # convert arg values to their final type and assign them
-        default_seen = False
         for i, arg in enumerate(tuple(positional_args) + tuple(kw_only_args)):
             if arg.default:
                 code.putln("if (values[%d]) {" % i)
@@ -1827,7 +1828,7 @@ class DefNode(FuncDefNode):
                     required_arg = arg
                     break
             code.putln('} else {')
-            code.putln('__Pyx_RaiseKeywordRequired("%s", "%s");' % (
+            code.put('__Pyx_RaiseKeywordRequired("%s", "%s"); ' % (
                     self.name.utf8encode(), required_arg.name.utf8encode()))
             code.putln(code.error_goto(self.pos))
             code.putln('}')
