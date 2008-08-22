@@ -412,6 +412,9 @@ if __name__ == '__main__':
     parser.add_option("--sys-pyregr", dest="system_pyregr",
                       action="store_true", default=False,
                       help="run the regression tests of the CPython installation")
+    parser.add_option("-x", "--exclude", dest="exclude",
+                      action="append", metavar="PATTERN",
+                      help="exclude tests matching the PATTERN")
     parser.add_option("-C", "--coverage", dest="coverage",
                       action="store_true", default=False,
                       help="collect source coverage data for the Compiler")
@@ -475,6 +478,9 @@ if __name__ == '__main__':
 
     missing_dep_excluder = MissingDependencyExcluder(EXT_DEP_MODULES) 
     exclude_selectors = [missing_dep_excluder] # want to pring msg at exit
+
+    if options.exclude:
+        exclude_selectors += [ re.compile(r, re.I|re.U).search for r in options.exclude ]
 
     test_suite = unittest.TestSuite()
 
