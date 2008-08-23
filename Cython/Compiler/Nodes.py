@@ -4526,7 +4526,7 @@ static int __Pyx_SplitKeywords(
     Py_ssize_t num_posargs,
     char* func_name)
 {
-    PyObject *s = 0, *x = 0, *kwds1 = 0;
+    PyObject *x = 0, *kwds1 = 0;
     int i;
     PyObject ***p;
     
