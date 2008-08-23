@@ -44,7 +44,7 @@ vtabstruct_prefix = pyrex_prefix + "vtabstruct_"
 opt_arg_prefix    = pyrex_prefix + "opt_args_"
 
 args_cname       = pyrex_prefix + "args"
-kwdlist_cname    = pyrex_prefix + "argnames"
+pykwdlist_cname  = pyrex_prefix + "pyargnames"
 obj_base_cname   = pyrex_prefix + "base"
 builtins_cname   = pyrex_prefix + "b"
 preimport_cname  = pyrex_prefix + "i"

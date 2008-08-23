@@ -1325,6 +1325,9 @@ class DefNode(FuncDefNode):
             if name_declarator.cname:
                 error(self.pos,
                     "Python function argument cannot have C name specification")
+            arg.name_entry = env.get_string_const(
+                arg.name, identifier = True)
+            env.add_py_string(arg.name_entry, identifier = True)
             arg.type = type.as_argument_type()
             arg.hdr_type = None
             arg.needs_conversion = 0
@@ -1547,11 +1550,11 @@ class DefNode(FuncDefNode):
             reqd_kw_flags = []
             has_reqd_kwds = False
             code.put(
-                "static char *%s[] = {" %
-                    Naming.kwdlist_cname)
+                "static PyObject **%s[] = {" %
+                    Naming.pykwdlist_cname)
             for arg in self.args:
                 if arg.is_generic:
-                    code.put('"%s",' % arg.name.utf8encode())
+                    code.put('&%s,' % arg.name_entry.pystring_cname)
                     if arg.kw_only and not arg.default:
                         has_reqd_kwds = 1
                         flag = "1"
@@ -1734,7 +1737,7 @@ class DefNode(FuncDefNode):
             code.put(
                 'if (unlikely(__Pyx_SplitKeywords(&%s, %s, &%s, %s, PyTuple_GET_SIZE(%s), "%s") < 0)) ' % (
                     Naming.kwds_cname,
-                    Naming.kwdlist_cname,
+                    Naming.pykwdlist_cname,
                     self.starstar_arg.entry.cname,
                     self.reqd_kw_flags_cname,
                     Naming.args_cname,
@@ -1782,10 +1785,10 @@ class DefNode(FuncDefNode):
                    Naming.args_cname)
         code.putln("values[arg] = PyTuple_GET_ITEM(%s, arg);" %
                    Naming.args_cname)
-        code.putln("if (unlikely(PyDict_GetItemString(%s, %s[arg]))) {" % (
-                Naming.kwds_cname, Naming.kwdlist_cname))
-        code.put('__Pyx_RaiseDoubleKeywordsError("%s", %s[arg]); ' % (
-                self.name.utf8encode(), Naming.kwdlist_cname))
+        code.putln("if (unlikely(PyDict_GetItem(%s, *%s[arg]))) {" % (
+                Naming.kwds_cname, Naming.pykwdlist_cname))
+        code.put('__Pyx_RaiseDoubleKeywordsError("%s", *%s[arg]); ' % (
+                self.name.utf8encode(), Naming.pykwdlist_cname))
         code.putln(code.error_goto(self.pos))
         code.putln('}')
         code.putln('}')
@@ -1793,13 +1796,13 @@ class DefNode(FuncDefNode):
         # parse remaining positional args from the keyword dictionary
         code.putln("for (arg=PyTuple_GET_SIZE(%s); arg < %d; arg++) {" % (
                 Naming.args_cname, max_args))
-        code.putln('values[arg] = PyDict_GetItemString(%s, %s[arg]);' % (
-                Naming.kwds_cname, Naming.kwdlist_cname))
+        code.putln('values[arg] = PyDict_GetItem(%s, *%s[arg]);' % (
+                Naming.kwds_cname, Naming.pykwdlist_cname))
         code.putln('if (values[arg]) kw_args--;');
         if self.num_required_kw_args:
             code.putln('else if (%s[arg]) {' % Naming.reqd_kwds_cname)
-            code.put('__Pyx_RaiseKeywordRequired("%s", %s[arg]); ' %(
-                    self.name.utf8encode(), Naming.kwdlist_cname))
+            code.put('__Pyx_RaiseKeywordRequired("%s", *%s[arg]); ' %(
+                    self.name.utf8encode(), Naming.pykwdlist_cname))
             code.putln(code.error_goto(self.pos))
             code.putln('}')
         code.putln('}')
@@ -1809,7 +1812,7 @@ class DefNode(FuncDefNode):
         # __Pyx_CheckKeywords() this does more than strictly
         # necessary, but this is not performance critical at all
         code.put('__Pyx_CheckKeywords(%s, "%s", %s); ' % (
-                Naming.kwds_cname, self.name.utf8encode(), Naming.kwdlist_cname))
+                Naming.kwds_cname, self.name.utf8encode(), Naming.pykwdlist_cname))
         code.putln(code.error_goto(self.pos))
         code.putln('}')
 
@@ -1824,13 +1827,14 @@ class DefNode(FuncDefNode):
         # --- optimised code when we do not receive any keyword arguments
         if self.num_required_kw_args:
             # simple case: keywords required but none passed
-            for arg in self.args:
-                if arg.kw_only and not arg.default:
+            for i, arg in enumerate(kw_only_args):
+                if not arg.default:
                     required_arg = arg
                     break
             code.putln('} else {')
-            code.put('__Pyx_RaiseKeywordRequired("%s", "%s"); ' % (
-                    self.name.utf8encode(), required_arg.name.utf8encode()))
+            code.put('__Pyx_RaiseKeywordRequired("%s", *%s[%d]); ' % (
+                    self.name.utf8encode(), Naming.pykwdlist_cname,
+                    len(positional_args) + i))
             code.putln(code.error_goto(self.pos))
             code.putln('}')
         else:
@@ -4349,28 +4353,38 @@ static void __Pyx_RaiseArgtupleInvalid(
 
 raise_keyword_required_utility_code = [
 """
-static INLINE void __Pyx_RaiseKeywordRequired(char* func_name, char* kw_name); /*proto*/
+static INLINE void __Pyx_RaiseKeywordRequired(char* func_name, PyObject* kw_name); /*proto*/
 ""","""
 static INLINE void __Pyx_RaiseKeywordRequired(
     char* func_name,
-    char* kw_name)
+    PyObject* kw_name)
 {
     PyErr_Format(PyExc_TypeError,
-        "%s() needs keyword-only argument %s", func_name, kw_name);
+        #if PY_MAJOR_VERSION >= 3
+        "%s() needs keyword-only argument %U", func_name, kw_name);
+        #else
+        "%s() needs keyword-only argument %s", func_name,
+        PyString_AS_STRING(kw_name));
+        #endif
 }
 """]
 
 raise_double_keywords_utility_code = [
 """
 static INLINE void __Pyx_RaiseDoubleKeywordsError(
-    const char* func_name, const char* kw_name); /*proto*/
+    const char* func_name, PyObject* kw_name); /*proto*/
 ""","""
 static INLINE void __Pyx_RaiseDoubleKeywordsError(
     const char* func_name,
-    const char* kw_name)
+    PyObject* kw_name)
 {
     PyErr_Format(PyExc_TypeError,
-        "%s() got multiple values for keyword argument '%s'", func_name, kw_name);
+        #if PY_MAJOR_VERSION >= 3
+        "%s() got multiple values for keyword argument '%U'", func_name, kw_name);
+        #else
+        "%s() got multiple values for keyword argument '%s'", func_name,
+        PyString_AS_STRING(kw_name));
+        #endif
 }
 """]
 
@@ -4426,56 +4440,53 @@ static int __Pyx_CheckKeywordStrings(
 keyword_check_utility_code = [
 """
 static int __Pyx_CheckKeywords(PyObject *kwdict, const char* function_name,
-    char** argnames); /*proto*/
+    PyObject** argnames[]); /*proto*/
 ""","""
 static int __Pyx_CheckKeywords(
     PyObject *kwdict,
     const char* function_name,
-    char** argnames)
+    PyObject** argnames[])
 {
     PyObject* key = 0;
     Py_ssize_t pos = 0;
-    char** name;
+    PyObject*** name;
     while (PyDict_Next(kwdict, &pos, &key, 0)) {
         #if PY_MAJOR_VERSION < 3
-        if (unlikely(!PyString_Check(key))) {
+        if (unlikely(!PyString_CheckExact(key)) && unlikely(!PyString_Check(key))) {
         #else
-        if (unlikely(!PyUnicode_Check(key))) {
+        if (unlikely(!PyUnicode_CheckExact(key)) && unlikely(!PyUnicode_Check(key))) {
         #endif
             PyErr_Format(PyExc_TypeError,
                          "%s() keywords must be strings", function_name);
             return 0;
         } else if (argnames) {
             name = argnames;
-            while (*name) {
-                #if PY_MAJOR_VERSION >= 3
-                PyObject* utf8_key = PyUnicode_AsUTF8String(key);
-                if (!utf8_key) return -1;
-                if (strcmp(*name, PyBytes_AS_STRING(utf8_key)) == 0) {
-                     Py_DECREF(utf8_key);
-                     break;
-                }
-                Py_DECREF(utf8_key);
-                #else
-                if (strcmp(*name, PyString_AS_STRING(key)) == 0)
-                    break;
-                #endif
-                name++;
-            }
+            while (*name && (**name != key)) name++;
             if (!*name) {
-                PyErr_Format(PyExc_TypeError,
-                #if PY_MAJOR_VERSION < 3
-                             "'%s' is an invalid keyword argument for this function",
-                             PyString_AS_STRING(key));
-                #else
-                             "'%U' is an invalid keyword argument for this function",
-                             key);
-                #endif
-                return 0;
+                for (name = argnames; *name; name++) {
+                    #if PY_MAJOR_VERSION >= 3
+                    if (PyUnicode_Compare(**name, key) == 0) break;
+                    #else
+                    if (strcmp(PyString_AS_STRING(**name),
+                               PyString_AS_STRING(key)) == 0) break;
+                    #endif
+                }
+                if (!*name)
+                    goto invalid_keyword;
             }
         }
     }
     return 1;
+invalid_keyword:
+    PyErr_Format(PyExc_TypeError,
+    #if PY_MAJOR_VERSION < 3
+        "'%s' is an invalid keyword argument for this function",
+        PyString_AS_STRING(key));
+    #else
+        "'%U' is an invalid keyword argument for this function",
+        key);
+    #endif
+    return 0;
 }
 """]
 
@@ -4503,13 +4514,13 @@ static int __Pyx_CheckKeywords(
 
 split_keywords_utility_code = [
 """
-static int __Pyx_SplitKeywords(PyObject **kwds, char *kwd_list[], \
+static int __Pyx_SplitKeywords(PyObject **kwds, PyObject **kwd_list[], \
     PyObject **kwds2, char rqd_kwds[],
     Py_ssize_t num_posargs, char* func_name); /*proto*/
 ""","""
 static int __Pyx_SplitKeywords(
     PyObject **kwds,
-    char *kwd_list[], 
+    PyObject **kwd_list[],
     PyObject **kwds2,
     char rqd_kwds[],
     Py_ssize_t num_posargs,
@@ -4517,7 +4528,7 @@ static int __Pyx_SplitKeywords(
 {
     PyObject *s = 0, *x = 0, *kwds1 = 0;
     int i;
-    char **p;
+    PyObject ***p;
     
     if (*kwds) {
         kwds1 = PyDict_New();
@@ -4527,25 +4538,18 @@ static int __Pyx_SplitKeywords(
         if (!*kwds2)
             goto bad;
         for (i = 0, p = kwd_list; *p; i++, p++) {
-            #if PY_MAJOR_VERSION < 3
-            s = PyString_FromString(*p);
-            #else
-            s = PyUnicode_FromString(*p);
-            #endif
-            x = PyDict_GetItem(*kwds, s);
+            x = PyDict_GetItem(*kwds, **p);
             if (x) {
                 if (i < num_posargs)
                     goto arg_passed_twice;
-                if (PyDict_SetItem(kwds1, s, x) < 0)
+                if (PyDict_SetItem(kwds1, **p, x) < 0)
                     goto bad;
-                if (PyDict_DelItem(*kwds2, s) < 0)
+                if (PyDict_DelItem(*kwds2, **p) < 0)
                     goto bad;
             }
             else if (rqd_kwds && rqd_kwds[i])
                 goto missing_kwarg;
-            Py_DECREF(s);
         }
-        s = 0;
     }
     else {
         if (rqd_kwds) {
@@ -4561,13 +4565,11 @@ static int __Pyx_SplitKeywords(
     *kwds = kwds1;
     return 0;
 arg_passed_twice:
-    PyErr_Format(PyExc_TypeError,
-        "%s() got multiple values for keyword argument '%s'", func_name, *p);
+    __Pyx_RaiseDoubleKeywordsError(func_name, **p);
     goto bad;
 missing_kwarg:
-    __Pyx_RaiseKeywordRequired(func_name, *p);
+    __Pyx_RaiseKeywordRequired(func_name, **p);
 bad:
-    Py_XDECREF(s);
     Py_XDECREF(kwds1);
     Py_XDECREF(*kwds2);
     return -1;
@@ -4576,27 +4578,27 @@ bad:
 
 check_required_keywords_utility_code = [
 """
-static INLINE int __Pyx_CheckRequiredKeywords(PyObject *kwds, char *kwd_list[],
+static INLINE int __Pyx_CheckRequiredKeywords(PyObject *kwds, PyObject **kwd_list[],
     char rqd_kwds[], Py_ssize_t num_posargs, char* func_name); /*proto*/
 ""","""
 static INLINE int __Pyx_CheckRequiredKeywords(
     PyObject *kwds,
-    char *kwd_list[],
+    PyObject **kwd_list[],
     char rqd_kwds[],
     Py_ssize_t num_posargs,
     char* func_name)
 {
     int i;
-    char **p;
+    PyObject ***p;
 
     if (kwds) {
         p = kwd_list;
         for (i=0; i < num_posargs && *p; i++, p++) {
-            if (PyDict_GetItemString(kwds, *p))
+            if (PyDict_GetItem(kwds, **p))
                 goto arg_passed_twice;
         }
         while (*p) {
-            if (rqd_kwds[i] && !PyDict_GetItemString(kwds, *p))
+            if (rqd_kwds[i] && !PyDict_GetItem(kwds, **p))
                 goto missing_kwarg;
             i++; p++;
         }
@@ -4609,11 +4611,10 @@ static INLINE int __Pyx_CheckRequiredKeywords(
 
     return 0;
 arg_passed_twice:
-    PyErr_Format(PyExc_TypeError,
-        "%s() got multiple values for keyword argument '%s'", func_name, *p);
+    __Pyx_RaiseDoubleKeywordsError(func_name, **p);
     return -1;
 missing_kwarg:
-    __Pyx_RaiseKeywordRequired(func_name, *p);
+    __Pyx_RaiseKeywordRequired(func_name, **p);
     return -1;
 }
 """]
