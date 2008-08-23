@@ -1768,8 +1768,7 @@ class DefNode(FuncDefNode):
         code.putln("Py_ssize_t kw_args = PyDict_Size(%s);" %
                    Naming.kwds_cname)
 
-        # parse the tuple first, then start parsing the arg tuple and
-        # check that positional args are not also passed as kw args
+        # parse the tuple and check that there are not too many
         code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
         for i in range(max_positional_args-1, -1, -1):
             code.putln('case %d:' % (i+1))
@@ -1826,11 +1825,12 @@ class DefNode(FuncDefNode):
             # pure error case: keywords required but not passed
             code.putln('} else {')
             if not self.star_arg and not self.starstar_arg:
+                # optional args missing?
                 self.generate_positional_args_check(
                     max_positional_args, has_fixed_positional_count, code)
-            # simple case: keywords required but none passed
             for i, arg in enumerate(kw_only_args):
                 if not arg.default:
+                    # required keyword-only argument missing
                     code.put('__Pyx_RaiseKeywordRequired("%s", *%s[%d]); ' % (
                             self.name.utf8encode(), Naming.pykwdlist_cname,
                             len(positional_args) + i))
