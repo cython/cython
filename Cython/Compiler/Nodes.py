@@ -1823,8 +1823,9 @@ class DefNode(FuncDefNode):
 
         # --- optimised code when we do not receive any keyword arguments
         if self.num_required_kw_args:
+            # pure error case: keywords required but not passed
             code.putln('} else {')
-            if not self.star_arg:
+            if not self.star_arg and not self.starstar_arg:
                 self.generate_positional_args_check(
                     max_positional_args, has_fixed_positional_count, code)
             # simple case: keywords required but none passed
