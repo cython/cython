@@ -1611,11 +1611,12 @@ class DefNode(FuncDefNode):
                               % arg.type)
 
             self.generate_tuple_and_keyword_parsing_code(
-                positional_args, kw_only_args, code)
+                positional_args, kw_only_args, end_label, code)
 
         code.error_label = old_error_label
         if code.label_used(our_error_label):
-            code.put_goto(end_label)
+            if not code.label_used(end_label):
+                code.put_goto(end_label)
             code.put_label(our_error_label)
             if has_star_or_kw_args:
                 self.put_stararg_decrefs(code)
@@ -1627,6 +1628,7 @@ class DefNode(FuncDefNode):
                         code.put_var_decref(self.starstar_arg.entry)
             code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
             code.putln("return %s;" % self.error_value())
+        if code.label_used(end_label):
             code.put_label(end_label)
 
     def generate_arg_assignment(self, arg, item, code):
@@ -1690,8 +1692,9 @@ class DefNode(FuncDefNode):
             self.star_arg.entry.xdecref_cleanup = 0
 
     def generate_tuple_and_keyword_parsing_code(self, positional_args,
-                                                kw_only_args, code):
+                                                kw_only_args, success_label, code):
         all_args = tuple(positional_args) + tuple(kw_only_args)
+        argtuple_error_label = code.new_label("argtuple_error")
 
         min_positional_args = self.num_required_args - self.num_required_kw_args
         if len(self.args) > 0 and self.args[0].is_self_arg:
@@ -1760,11 +1763,7 @@ class DefNode(FuncDefNode):
                 code.putln('case 0:')
             code.putln('break;')
             code.put('default: ') # more arguments than allowed
-            code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, PyTuple_GET_SIZE(%s)); ' % (
-                    self.name.utf8encode(), has_fixed_positional_count,
-                    min_positional_args, max_positional_args,
-                    Naming.args_cname))
-            code.putln(code.error_goto(self.pos))
+            code.put_goto(argtuple_error_label)
         code.putln('}')
 
         # now fill up the arguments with values from the kw dict
@@ -1779,13 +1778,8 @@ class DefNode(FuncDefNode):
                     i, Naming.kwds_cname, Naming.pykwdlist_cname, i))
             if i < min_positional_args:
                 code.putln('if (likely(values[%d])) kw_args--;' % i);
-                code.putln('else {')
-                code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, PyTuple_GET_SIZE(%s)); ' % (
-                        self.name.utf8encode(), has_fixed_positional_count,
-                        min_positional_args, max_positional_args,
-                        Naming.args_cname))
-                code.putln(code.error_goto(self.pos))
-                code.putln('}')
+                code.put('else ')
+                code.put_goto(argtuple_error_label)
             else:
                 code.putln('if (values[%d]) kw_args--;' % i);
                 if arg.kw_only and not arg.default:
@@ -1834,11 +1828,7 @@ class DefNode(FuncDefNode):
                 compare = '<'
             code.putln('} else if (PyTuple_GET_SIZE(%s) %s %d) {' % (
                     Naming.args_cname, compare, min_positional_args))
-            code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, PyTuple_GET_SIZE(%s)); ' % (
-                    self.name.utf8encode(), has_fixed_positional_count,
-                    min_positional_args, max_positional_args,
-                    Naming.args_cname))
-            code.putln(code.error_goto(self.pos))
+            code.put_goto(argtuple_error_label)
 
         if self.num_required_kw_args:
             # pure error case: keywords required but not passed
@@ -1877,15 +1867,20 @@ class DefNode(FuncDefNode):
                 if min_positional_args == 0:
                     code.putln('case 0:')
                 code.putln('break;')
-                code.put('default:')
-                code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, PyTuple_GET_SIZE(%s)); ' % (
-                        self.name.utf8encode(), has_fixed_positional_count,
-                        min_positional_args, max_positional_args,
-                        Naming.args_cname))
-                code.putln(code.error_goto(self.pos))
+                code.put('default: ')
+                code.put_goto(argtuple_error_label)
             code.putln('}')
 
         code.putln('}')
+
+        if code.label_used(argtuple_error_label):
+            code.put_goto(success_label)
+            code.put_label(argtuple_error_label)
+            code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, PyTuple_GET_SIZE(%s)); ' % (
+                    self.name.utf8encode(), has_fixed_positional_count,
+                    min_positional_args, max_positional_args,
+                    Naming.args_cname))
+            code.putln(code.error_goto(self.pos))
 
     def generate_positional_args_check(self, max_positional_args,
                                        has_fixed_pos_count, code):
