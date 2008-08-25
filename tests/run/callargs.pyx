@@ -47,9 +47,16 @@ __doc__ = u"""
   0
   >>> test_noargs(g)
   0
+
+  # and some errors:
+
   >>> test_noargs(h)
   Traceback (most recent call last):
   TypeError: h() takes at least 3 positional arguments (0 given)
+
+  >>> h(1,2, d=5)
+  Traceback (most recent call last):
+  TypeError: h() takes at least 3 positional arguments (2 given)
 """
 
 def e(*args, **kwargs):
