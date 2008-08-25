@@ -949,10 +949,6 @@ cdef class MockBuffer:
     def __getbuffer__(MockBuffer self, Py_buffer* buffer, int flags):
         if self.fail:
             raise ValueError("Failing on purpose")
-        
-        if buffer is NULL:
-            print u"locking!"
-            return
 
         self.recieved_flags = []
         cdef int value
@@ -961,6 +957,7 @@ cdef class MockBuffer:
                 self.recieved_flags.append(name)
         
         buffer.buf = <void*>(<char*>self.buffer + (<int>self.offset * self.itemsize))
+        buffer.obj = self
         buffer.len = self.len
         buffer.readonly = 0
         buffer.format = <char*>self.format
