@@ -1,10 +1,16 @@
 __doc__ = u"""
+    >>> call0abc(b)
+    1 2 3
     >>> call3(b)
     1 2 3
     >>> call4(b)
     Traceback (most recent call last):
     TypeError: b() takes exactly 3 positional arguments (4 given)
 
+    >>> call0ab(c)
+    1 2 1
+    >>> call0abc(c)
+    1 2 3
     >>> call2(c)
     1 2 1
     >>> call3(c)
@@ -13,6 +19,8 @@ __doc__ = u"""
     Traceback (most recent call last):
     TypeError: c() takes at most 3 positional arguments (4 given)
 
+    >>> call0abc(d)
+    1 2 3
     >>> call2(d)
     1 2 88
     >>> call2c(d)
@@ -25,6 +33,8 @@ __doc__ = u"""
     Traceback (most recent call last):
     TypeError: 'd' is an invalid keyword argument for this function
 
+    >>> call0abc(e)
+    1 2 3 []
     >>> call2(e)
     1 2 88 []
     >>> call2c(e)
@@ -39,6 +49,8 @@ __doc__ = u"""
     Traceback (most recent call last):
     TypeError: e() takes at most 3 positional arguments (4 given)
 
+    >>> call0abc(f)
+    1 2 3 42
     >>> call2c(f)
     1 2 1 42
     >>> call2cd(f)
@@ -105,6 +117,12 @@ __doc__ = u"""
 """
 
 # the calls:
+
+def call0ab(f):
+    f(a=1,b=2)
+
+def call0abc(f):
+    f(a=1,b=2,c=3)
 
 def call2(f):
     f(1,2)
