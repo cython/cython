@@ -25,11 +25,11 @@ setup_string = u"""
 
 """
     
-def testcase2(func):
+def testcase(func):
     __test__[func.__name__] = setup_string + func.__doc__
     return func
 
-def testcase(a):
+def testcas(a):
     pass
 
 
@@ -50,7 +50,7 @@ def printbuf():
     cdef object[int, ndim=2] buf
     print buf
 
-@testcase2
+@testcase
 def acquire_release(o1, o2):
     """
     >>> acquire_release(A, B)
