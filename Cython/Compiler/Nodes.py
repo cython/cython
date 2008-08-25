@@ -1756,12 +1756,8 @@ class DefNode(FuncDefNode):
             code.putln('case %d:' % (i+1))
             code.putln("values[%d] = PyTuple_GET_ITEM(%s, %d);" % (
                     i, Naming.args_cname, i))
-        if self.star_arg:
-            code.putln('case 0: break;')
-        else:
-            if min_positional_args == 0:
-                code.putln('case 0:')
-            code.putln('break;')
+        code.putln('case 0: break;')
+        if not self.star_arg:
             code.put('default: ') # more arguments than allowed
             code.put_goto(argtuple_error_label)
         code.putln('}')
