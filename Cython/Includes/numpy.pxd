@@ -43,6 +43,7 @@ cdef extern from "numpy/arrayobject.h":
                 raise RuntimeError("Py_intptr_t and Py_ssize_t differs in size, numpy.pxd does not support this")
 
             info.buf = PyArray_DATA(self)
+            # info.obj = None # this is automatic
             info.ndim = PyArray_NDIM(self)
             info.strides = <Py_ssize_t*>PyArray_STRIDES(self)
             info.shape = <Py_ssize_t*>PyArray_DIMS(self)

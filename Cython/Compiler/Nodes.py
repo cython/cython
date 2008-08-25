@@ -860,6 +860,9 @@ class FuncDefNode(StatNode, BlockNode):
 
         lenv = self.local_scope
 
+        is_getbuffer_slot = (self.entry.name == "__getbuffer__" and
+                             self.entry.scope.is_c_class_scope)
+
         # Generate C code for header and body of function
         code.enter_cfunc_scope()
         code.return_from_error_cleanup_label = code.new_label()
@@ -902,6 +905,9 @@ class FuncDefNode(StatNode, BlockNode):
         acquire_gil = self.need_gil_acquisition(lenv)
         if acquire_gil:
             code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
+        # ----- Automatic lead-ins for certain special functions
+        if is_getbuffer_slot:
+            self.getbuffer_init(code)
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must 
@@ -971,17 +977,27 @@ class FuncDefNode(StatNode, BlockNode):
                     "%s = %s;" % (
                         Naming.retval_cname, 
                         err_val))
-            if buffers_present:
-                # Else, non-error return will be an empty clause
+
+            if is_getbuffer_slot:
+                self.getbuffer_error_cleanup(code)
+
+            # If we are using the non-error cleanup section we should
+            # jump past it if we have an error. The if-test below determine
+            # whether this section is used.
+            if buffers_present or is_getbuffer_slot:
                 code.put_goto(code.return_from_error_cleanup_label)
 
+
         # ----- Non-error return cleanup
-        # PS! If adding something here, modify the conditions for the
-        # goto statement in error cleanup above
+        # If you add anything here, remember to add a condition to the
+        # if-test above in the error block (so that it can jump past this
+        # block).
         code.put_label(code.return_label)
         for entry in lenv.buffer_entries:
             if entry.used:
                 code.putln("%s;" % Buffer.get_release_buffer_code(entry))
+        if is_getbuffer_slot:
+            self.getbuffer_normal_cleanup(code)
         # ----- Return cleanup for both error and no-error return
         code.put_label(code.return_from_error_cleanup_label)
         if not Options.init_local_none:
@@ -1042,8 +1058,27 @@ class FuncDefNode(StatNode, BlockNode):
         # For Python class methods, create and store function object
         if self.assmt:
             self.assmt.generate_execution_code(code)
-    
 
+    #
+    # Special code for the __getbuffer__ call
+    #
+    def getbuffer_init(self, code):
+        info = self.local_scope.arg_entries[1].cname
+        # Python 3.0 betas have a bug in memoryview which makes it call
+        # getbuffer with a NULL parameter. For now we work around this;
+        # the following line should be removed when this bug is fixed.
+        code.putln("if (%s == NULL) return 0;" % info) 
+        code.putln("%s->obj = Py_None; Py_INCREF(Py_None);" % info)
+
+    def getbuffer_error_cleanup(self, code):
+        info = self.local_scope.arg_entries[1].cname
+        code.putln("Py_DECREF(%s->obj); %s->obj = NULL;" %
+                   (info, info))
+
+    def getbuffer_normal_cleanup(self, code):
+        info = self.local_scope.arg_entries[1].cname
+        code.putln("if (%s->obj == Py_None) { Py_DECREF(Py_None); %s->obj = NULL; }" %
+                   (info, info))
 
 class CFuncDefNode(FuncDefNode):
     #  C function definition.
