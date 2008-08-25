@@ -114,6 +114,21 @@ __doc__ = u"""
     >>> call2d(k)
     Traceback (most recent call last):
     TypeError: k() needs keyword-only argument f
+
+    >>> call0abc(m)
+    1 2 3
+    >>> call2c(m)
+    1 2 1
+
+    >>> call3(m)
+    Traceback (most recent call last):
+    TypeError: m() takes at most 2 positional arguments (3 given)
+    >>> call2(m)
+    Traceback (most recent call last):
+    TypeError: m() needs keyword-only argument c
+    >>> call2cd(m)
+    Traceback (most recent call last):
+    TypeError: 'd' is an invalid keyword argument for this function
 """
 
 # the calls:
@@ -212,3 +227,6 @@ def k(a, b, c=1, *args, d = 42, e = 17, f, **kwds):
     kwlist = list(kwds.items())
     kwlist.sort()
     print a,b,c,d,e,f, args, kwlist
+
+def m(a, b=1, *, c):
+    print a,b,c

@@ -1753,10 +1753,10 @@ class DefNode(FuncDefNode):
         if self.star_arg:
             code.putln('default:')
         for i in range(max_positional_args-1, -1, -1):
-            code.putln('case %d:' % (i+1))
+            code.put('case %2d: ' % (i+1))
             code.putln("values[%d] = PyTuple_GET_ITEM(%s, %d);" % (
                     i, Naming.args_cname, i))
-        code.putln('case 0: break;')
+        code.putln('case  0: break;')
         if not self.star_arg:
             code.put('default: ') # more arguments than allowed
             code.put_goto(argtuple_error_label)
@@ -1769,7 +1769,7 @@ class DefNode(FuncDefNode):
                 if self.star_arg and i == max_positional_args:
                     code.putln('default:')
                 else:
-                    code.putln('case %d:' % i)
+                    code.putln('case %2d:' % i)
             code.putln('values[%d] = PyDict_GetItem(%s, *%s[%d]);' % (
                     i, Naming.kwds_cname, Naming.pykwdlist_cname, i))
             if i < min_positional_args:
@@ -1828,11 +1828,11 @@ class DefNode(FuncDefNode):
 
         if self.num_required_kw_args:
             # pure error case: keywords required but not passed
+            if max_positional_args > min_positional_args and not self.star_arg:
+                code.putln('} else if (PyTuple_GET_SIZE(%s) > %d) {' % (
+                        Naming.args_cname, max_positional_args))
+                code.put_goto(argtuple_error_label)
             code.putln('} else {')
-            if not self.star_arg and not self.starstar_arg:
-                # optional args missing?
-                self.generate_positional_args_check(
-                    max_positional_args, has_fixed_positional_count, code)
             for i, arg in enumerate(kw_only_args):
                 if not arg.default:
                     # required keyword-only argument missing
@@ -1856,12 +1856,15 @@ class DefNode(FuncDefNode):
             reversed_args = list(enumerate(positional_args))[::-1]
             for i, arg in reversed_args:
                 if i >= min_positional_args-1:
-                    code.putln('case %d:' % (i+1))
+                    if min_positional_args > 1:
+                        code.putln('case %2d:' % (i+1)) # pure code beautification
+                    else:
+                        code.put('case %2d: ' % (i+1))
                 item = "PyTuple_GET_ITEM(%s, %d)" % (Naming.args_cname, i)
                 self.generate_arg_assignment(arg, item, code)
             if not self.star_arg:
                 if min_positional_args == 0:
-                    code.putln('case 0:')
+                    code.put('case  0: ')
                 code.putln('break;')
                 code.put('default: ')
                 code.put_goto(argtuple_error_label)
