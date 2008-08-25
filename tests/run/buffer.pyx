@@ -8,18 +8,16 @@ if sys.version_info[0] >= 3:
     __doc__ += u"""
 >>> ms = memoryview(s)
 >>> ms.tobytes()
-bytearray(b'abcdefg')
+b'abcdefg'
 
 >>> m1 = memoryview(b1)
 >>> m1.tobytes()
-locking!
-bytearray(b'abcdefg')
+b'abcdefg'
 
 >>> m2 = memoryview(b2)
 >>> m2.tobytes()
-locking!
-unlocking!
-bytearray(b'abcdefg')
+releasing!
+b'abcdefg'
 
 >>> del m1
 >>> del m2
@@ -30,10 +28,8 @@ s = "abcdefg"
 
 cdef class TestBuffer:
     def __getbuffer__(self, Py_buffer* buffer, int flags):
-        if buffer is NULL:
-            print u"locking!"
-            return
         buffer.buf = <char*>s
+        buffer.obj = self
         buffer.len = len(s)
         buffer.readonly = 0
         buffer.format = "B"
@@ -46,7 +42,4 @@ cdef class TestBuffer:
 
 cdef class TestBufferRelease(TestBuffer):
     def __releasebuffer__(self, Py_buffer* buffer):
-        if buffer is NULL:
-            print u"unlocking!"
-        else:
-            print u"releasing!"
+        print u"releasing!"
