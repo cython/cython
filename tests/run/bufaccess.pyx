@@ -25,11 +25,11 @@ setup_string = u"""
 
 """
     
-def testcase(func):
+def testcase2(func):
     __test__[func.__name__] = setup_string + func.__doc__
     return func
 
-def testcas(a):
+def testcase(a):
     pass
 
 
@@ -50,7 +50,7 @@ def printbuf():
     cdef object[int, ndim=2] buf
     print buf
 
-@testcase
+@testcase2
 def acquire_release(o1, o2):
     """
     >>> acquire_release(A, B)
@@ -949,11 +949,10 @@ cdef class MockBuffer:
     def __getbuffer__(MockBuffer self, Py_buffer* buffer, int flags):
         if self.fail:
             raise ValueError("Failing on purpose")
-        
-        if buffer is NULL:
-            print u"locking!"
-            return
 
+        if buffer == NULL:
+            return
+        
         self.recieved_flags = []
         cdef int value
         for name, value in available_flags:
@@ -961,6 +960,7 @@ cdef class MockBuffer:
                 self.recieved_flags.append(name)
         
         buffer.buf = <void*>(<char*>self.buffer + (<int>self.offset * self.itemsize))
+        buffer.obj = self
         buffer.len = self.len
         buffer.readonly = 0
         buffer.format = <char*>self.format

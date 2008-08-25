@@ -242,9 +242,7 @@ def put_acquire_arg_buffer(entry, code, pos):
 #        entry.buffer_aux.buffer_info_var.cname))
 
 def get_release_buffer_code(entry):
-    return "__Pyx_SafeReleaseBuffer((PyObject*)%s, &%s)" % (
-        entry.cname,
-        entry.buffer_aux.buffer_info_var.cname)
+    return "__Pyx_SafeReleaseBuffer(&%s)" % entry.buffer_aux.buffer_info_var.cname
 
 def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
                          is_initialized, pos, code):
@@ -274,8 +272,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
 
     if is_initialized:
         # Release any existing buffer
-        code.putln('__Pyx_SafeReleaseBuffer((PyObject*)%s, &%s);' % (
-            lhs_cname, bufstruct))
+        code.putln('__Pyx_SafeReleaseBuffer(&%s);' % bufstruct)
         # Acquire
         retcode_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type)
         code.putln("%s = %s;" % (retcode_cname, getbuffer % rhs_cname))
@@ -606,7 +603,9 @@ def use_py2_buffer_functions(env):
     code += dedent("""
         }
 
-        static void __Pyx_ReleaseBuffer(PyObject *obj, Py_buffer *view) {
+        static void __Pyx_ReleaseBuffer(Py_buffer *view) {
+          PyObject* obj = view->obj;
+          if (obj) {
     """)
     if len(types) > 0:
         clause = "if"
@@ -615,6 +614,9 @@ def use_py2_buffer_functions(env):
                 code += "%s (PyObject_TypeCheck(obj, %s)) %s(obj, view);" % (clause, t, release)
                 clause = "else if"
     code += dedent("""
+            Py_DECREF(obj);
+            view->obj = NULL;
+          }
         }
 
         #endif
@@ -623,10 +625,10 @@ def use_py2_buffer_functions(env):
     env.use_utility_code([dedent("""\
         #if (PY_MAJOR_VERSION < 3) && !(Py_TPFLAGS_DEFAULT & Py_TPFLAGS_HAVE_NEWBUFFER)
         static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
-        static void __Pyx_ReleaseBuffer(PyObject *obj, Py_buffer *view);
+        static void __Pyx_ReleaseBuffer(Py_buffer *view);
         #else
         #define __Pyx_GetBuffer PyObject_GetBuffer
-        #define __Pyx_ReleaseBuffer PyObject_ReleaseBuffer
+        #define __Pyx_ReleaseBuffer PyBuffer_Release
         #endif
     """), code], codename)
 
@@ -655,20 +657,21 @@ static void __Pyx_RaiseBufferIndexError(int axis) {
 # exporter.
 #
 acquire_utility_code = ["""\
-static INLINE void __Pyx_SafeReleaseBuffer(PyObject* obj, Py_buffer* info);
+static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
 static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf); /*proto*/
 static INLINE const char* __Pyx_ConsumeWhitespace(const char* ts); /*proto*/
 static INLINE const char* __Pyx_BufferTypestringCheckEndian(const char* ts); /*proto*/
 static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim); /*proto*/
 """, """
-static INLINE void __Pyx_SafeReleaseBuffer(PyObject* obj, Py_buffer* info) {
+static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
   if (info->buf == NULL) return;
   if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
-  __Pyx_ReleaseBuffer(obj, info);
+  __Pyx_ReleaseBuffer(info);
 }
 
 static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf) {
   buf->buf = NULL;
+  buf->obj = NULL;
   buf->strides = __Pyx_zeros;
   buf->shape = __Pyx_zeros;
   buf->suboffsets = __Pyx_minusones;
