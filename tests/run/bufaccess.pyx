@@ -950,9 +950,6 @@ cdef class MockBuffer:
         if self.fail:
             raise ValueError("Failing on purpose")
 
-        if buffer == NULL:
-            return
-        
         self.recieved_flags = []
         cdef int value
         for name, value in available_flags:
