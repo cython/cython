@@ -1561,7 +1561,7 @@ class DefNode(FuncDefNode):
 
         old_error_label = code.new_error_label()
         our_error_label = code.error_label
-        end_label = code.new_label()
+        end_label = code.new_label("argument_unpacking_done")
 
         has_kwonly_args = self.num_kwonly_args > 0
         has_star_or_kw_args = self.star_arg is not None \
