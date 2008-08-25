@@ -1060,7 +1060,7 @@ class FuncDefNode(StatNode, BlockNode):
             self.assmt.generate_execution_code(code)
 
     #
-    # Special code for the __getbuffer__ call
+    # Special code for the __getbuffer__ function
     #
     def getbuffer_init(self, code):
         info = self.local_scope.arg_entries[1].cname
