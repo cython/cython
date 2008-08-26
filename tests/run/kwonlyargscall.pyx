@@ -1,4 +1,7 @@
 __doc__ = u"""
+    >>> call0ab(b)
+    Traceback (most recent call last):
+    TypeError: b() takes exactly 3 positional arguments (2 given)
     >>> call0abc(b)
     1 2 3
     >>> call3(b)
@@ -21,6 +24,8 @@ __doc__ = u"""
 
     >>> call0abc(d)
     1 2 3
+    >>> call0ab(d)
+    1 2 88
     >>> call2(d)
     1 2 88
     >>> call2c(d)
