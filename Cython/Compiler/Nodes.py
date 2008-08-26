@@ -1356,9 +1356,6 @@ class DefNode(FuncDefNode):
             if name_declarator.cname:
                 error(self.pos,
                     "Python function argument cannot have C name specification")
-            arg.name_entry = env.get_string_const(
-                arg.name, identifier = True)
-            env.add_py_string(arg.name_entry, identifier = True)
             arg.type = type.as_argument_type()
             arg.hdr_type = None
             arg.needs_conversion = 0
@@ -1490,6 +1487,10 @@ class DefNode(FuncDefNode):
                 arg.entry = self.declare_argument(env, arg)
             arg.entry.used = 1
             arg.entry.is_self_arg = arg.is_self_arg
+            if not arg.is_self_arg:
+                arg.name_entry = env.get_string_const(
+                    arg.name, identifier = True)
+                env.add_py_string(arg.name_entry, identifier = True)
             if arg.hdr_type:
                 if arg.is_self_arg or \
                     (arg.type.is_extension_type and not arg.hdr_type.is_extension_type):
