@@ -1732,6 +1732,8 @@ class DefNode(FuncDefNode):
         if len(self.args) > 0 and self.args[0].is_self_arg:
             min_positional_args -= 1
         max_positional_args = len(positional_args)
+        has_fixed_positional_count = not self.star_arg and \
+            min_positional_args == max_positional_args
 
         code.globalstate.use_utility_code(raise_double_keywords_utility_code)
         code.globalstate.use_utility_code(raise_argtuple_invalid_utility_code)
@@ -1749,6 +1751,7 @@ class DefNode(FuncDefNode):
                     Naming.kwds_cname, Naming.kwds_cname))
         self.generate_keyword_unpacking_code(
             min_positional_args, max_positional_args,
+            has_fixed_positional_count,
             positional_args, kw_only_args, argtuple_error_label, code)
 
         # --- optimised code when we do not receive any keyword arguments
@@ -1812,8 +1815,6 @@ class DefNode(FuncDefNode):
         if code.label_used(argtuple_error_label):
             code.put_goto(success_label)
             code.put_label(argtuple_error_label)
-            has_fixed_positional_count = not self.star_arg and \
-                min_positional_args == max_positional_args
             code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, PyTuple_GET_SIZE(%s)); ' % (
                     self.name.utf8encode(), has_fixed_positional_count,
                     min_positional_args, max_positional_args,
@@ -1850,8 +1851,8 @@ class DefNode(FuncDefNode):
             code.putln('}')
 
     def generate_keyword_unpacking_code(self, min_positional_args, max_positional_args,
-                                        positional_args, kw_only_args,
-                                        argtuple_error_label, code):
+                                        has_fixed_positional_count, positional_args,
+                                        kw_only_args, argtuple_error_label, code):
         all_args = tuple(positional_args) + tuple(kw_only_args)
         max_args = len(all_args)
 
@@ -1886,8 +1887,20 @@ class DefNode(FuncDefNode):
                     i, Naming.kwds_cname, Naming.pykwdlist_cname, i))
             if i < min_positional_args:
                 code.putln('if (likely(values[%d])) kw_args--;' % i);
-                code.put('else ')
-                code.put_goto(argtuple_error_label)
+                if i == 0:
+                    # special case: we know arg 0 is missing
+                    code.put('else ')
+                    code.put_goto(argtuple_error_label)
+                else:
+                    # provide the correct number of values (args or
+                    # kwargs) that were passed into positional
+                    # arguments up to this point
+                    code.putln('else {')
+                    code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, %d); ' % (
+                            self.name.utf8encode(), has_fixed_positional_count,
+                            min_positional_args, max_positional_args, i))
+                    code.putln(code.error_goto(self.pos))
+                    code.putln('}')
             else:
                 code.putln('if (values[%d]) kw_args--;' % i);
                 if arg.kw_only and not arg.default:
@@ -4325,51 +4338,17 @@ static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed
 
 #------------------------------------------------------------------------------------
 #
-#  __Pyx_SplitStarArg splits the args tuple into two parts, one part
-#  suitable for passing to PyArg_ParseTupleAndKeywords, and the other
-#  containing any extra arguments. On success, replaces the borrowed
-#  reference *args with references to a new tuple, and passes back a
-#  new reference in *args2.  Does not touch any of its arguments on
-#  failure.
-
-split_stararg_utility_code = [
-"""
-static INLINE int __Pyx_SplitStarArg(PyObject **args, Py_ssize_t nargs, PyObject **args2); /*proto*/
-""","""
-static INLINE int __Pyx_SplitStarArg(
-    PyObject **args, 
-    Py_ssize_t nargs,
-    PyObject **args2)
-{
-    PyObject *args1 = 0;
-    args1 = PyTuple_GetSlice(*args, 0, nargs);
-    if (!args1) {
-        *args2 = 0;
-        return -1;
-    }
-    *args2 = PyTuple_GetSlice(*args, nargs, PyTuple_GET_SIZE(*args));
-    if (!*args2) {
-        Py_DECREF(args1);
-        return -1;
-    }
-    *args = args1;
-    return 0;
-}
-"""]
-
-#------------------------------------------------------------------------------------
-#
 #  __Pyx_RaiseArgtupleInvalid raises the correct exception when too
 #  many or too few positional arguments were found.  This handles
 #  Py_ssize_t formatting correctly.
 
 raise_argtuple_invalid_utility_code = [
 """
-static void __Pyx_RaiseArgtupleInvalid(char* func_name, int exact,
+static void __Pyx_RaiseArgtupleInvalid(const char* func_name, int exact,
     Py_ssize_t num_min, Py_ssize_t num_max, Py_ssize_t num_found); /*proto*/
 ""","""
 static void __Pyx_RaiseArgtupleInvalid(
-    char* func_name,
+    const char* func_name,
     int exact,
     Py_ssize_t num_min,
     Py_ssize_t num_max,
@@ -4403,10 +4382,10 @@ static void __Pyx_RaiseArgtupleInvalid(
 
 raise_keyword_required_utility_code = [
 """
-static INLINE void __Pyx_RaiseKeywordRequired(char* func_name, PyObject* kw_name); /*proto*/
+static INLINE void __Pyx_RaiseKeywordRequired(const char* func_name, PyObject* kw_name); /*proto*/
 ""","""
 static INLINE void __Pyx_RaiseKeywordRequired(
-    char* func_name,
+    const char* func_name,
     PyObject* kw_name)
 {
     PyErr_Format(PyExc_TypeError,
@@ -4501,16 +4480,16 @@ static int __Pyx_CheckKeywordStrings(
 split_keywords_utility_code = [
 """
 static int __Pyx_SplitKeywords(PyObject *kwds, PyObject **argnames[], \
-    PyObject *kwds2, Py_ssize_t num_pos_args, char* function_name); /*proto*/
+    PyObject *kwds2, Py_ssize_t num_pos_args, const char* function_name); /*proto*/
 ""","""
 static int __Pyx_SplitKeywords(
     PyObject *kwds,
     PyObject **argnames[],
     PyObject *kwds2,
     Py_ssize_t num_pos_args,
-    char* function_name)
+    const char* function_name)
 {
-    PyObject* key = 0, *value = 0;
+    PyObject *key = 0, *value = 0;
     Py_ssize_t pos = 0;
     PyObject*** name;
 
@@ -4520,18 +4499,18 @@ static int __Pyx_SplitKeywords(
         #else
         if (unlikely(!PyUnicode_CheckExact(key)) && unlikely(!PyUnicode_Check(key))) {
         #endif
-            PyErr_Format(PyExc_TypeError,
-                         "%s() keywords must be strings", function_name);
-            return 0;
+            goto invalid_keyword_type;
         } else {
             name = argnames;
             while (*name && (**name != key)) name++;
             if (!*name) {
                 for (name = argnames; *name; name++) {
                     #if PY_MAJOR_VERSION >= 3
-                    if (PyUnicode_Compare(**name, key) == 0) break;
+                    if (PyUnicode_GET_SIZE(**name) == PyUnicode_GET_SIZE(key)) &&
+                        PyUnicode_Compare(**name, key) == 0) break;
                     #else
-                    if (strcmp(PyString_AS_STRING(**name),
+                    if (PyString_GET_SIZE(**name) == PyString_GET_SIZE(key) &&
+                        strcmp(PyString_AS_STRING(**name),
                                PyString_AS_STRING(key)) == 0) break;
                     #endif
                 }
@@ -4539,19 +4518,23 @@ static int __Pyx_SplitKeywords(
                     if (kwds2) {
                         if (unlikely(PyDict_SetItem(kwds2, key, value))) goto bad;
                     } else {
-                        goto split_kw_invalid_keyword;
+                        goto invalid_keyword;
                     }
                 }
             }
             if (*name && ((name-argnames) < num_pos_args))
-                goto split_kw_arg_passed_twice;
+                goto arg_passed_twice;
             }
     }
     return 0;
-split_kw_arg_passed_twice:
+arg_passed_twice:
     __Pyx_RaiseDoubleKeywordsError(function_name, **name);
     goto bad;
-split_kw_invalid_keyword:
+invalid_keyword_type:
+    PyErr_Format(PyExc_TypeError,
+        "%s() keywords must be strings", function_name);
+    goto bad;
+invalid_keyword:
     PyErr_Format(PyExc_TypeError,
     #if PY_MAJOR_VERSION < 3
         "'%s' is an invalid keyword argument for this function",

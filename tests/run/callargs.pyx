@@ -57,6 +57,19 @@ __doc__ = u"""
   >>> h(1,2, d=5)
   Traceback (most recent call last):
   TypeError: h() takes at least 3 positional arguments (2 given)
+
+  >>> test_int_kwargs(e)
+  Traceback (most recent call last):
+  TypeError: e() keywords must be strings
+  >>> test_int_kwargs(f)
+  Traceback (most recent call last):
+  TypeError: f() keywords must be strings
+  >>> test_int_kwargs(g)
+  Traceback (most recent call last):
+  TypeError: g() keywords must be strings
+  >>> test_int_kwargs(h)
+  Traceback (most recent call last):
+  TypeError: h() keywords must be strings
 """
 
 def e(*args, **kwargs):
@@ -103,3 +116,6 @@ def test_kw(f):
 
 def test_noargs(f):
     f()
+
+def test_int_kwargs(f):
+    f(a=1,b=2,c=3, **{10:20,30:40})
