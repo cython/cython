@@ -1423,7 +1423,7 @@ class IndexNode(ExprNode):
             elif not skip_child_analysis:
                 self.index.analyse_types(env)
             if self.base.type.is_pyobject:
-                if self.index.type.is_int:
+                if self.index.type.is_int and not self.index.type.is_longlong:
                     self.original_index_type = self.index.type
                     self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
                     if getting:
