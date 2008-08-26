@@ -4344,10 +4344,10 @@ static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed
 
 raise_argtuple_invalid_utility_code = [
 """
-static void __Pyx_RaiseArgtupleInvalid(const char* func_name, int exact,
+static INLINE void __Pyx_RaiseArgtupleInvalid(const char* func_name, int exact,
     Py_ssize_t num_min, Py_ssize_t num_max, Py_ssize_t num_found); /*proto*/
 ""","""
-static void __Pyx_RaiseArgtupleInvalid(
+static INLINE void __Pyx_RaiseArgtupleInvalid(
     const char* func_name,
     int exact,
     Py_ssize_t num_min,
@@ -4355,14 +4355,7 @@ static void __Pyx_RaiseArgtupleInvalid(
     Py_ssize_t num_found)
 {
     Py_ssize_t num_expected;
-    char *message, *number, *more_or_less;
-
-    message =
-        #if PY_VERSION_HEX < 0x02050000
-            "%s() takes %s %d positional argument%s (%d given)";
-        #else
-            "%s() takes %s %zd positional argument%s (%zd given)";
-        #endif
+    char *number, *more_or_less;
 
     if (num_found < num_min) {
         num_expected = num_min;
@@ -4375,8 +4368,13 @@ static void __Pyx_RaiseArgtupleInvalid(
         more_or_less = "exactly";
     }
     number = (num_expected == 1) ? "" : "s";
-    PyErr_Format(PyExc_TypeError, message, func_name, more_or_less,
-                 num_expected, number, num_found);
+    PyErr_Format(PyExc_TypeError,
+        #if PY_VERSION_HEX < 0x02050000
+            "%s() takes %s %d positional argument%s (%d given)",
+        #else
+            "%s() takes %s %zd positional argument%s (%zd given)",
+        #endif
+        func_name, more_or_less, num_expected, number, num_found);
 }
 """]
 
