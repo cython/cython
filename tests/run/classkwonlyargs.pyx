@@ -21,7 +21,7 @@ __doc__ = u"""
     TypeError: d() takes exactly 3 positional arguments (4 given)
     >>> d(1,2, d=1)
     Traceback (most recent call last):
-    TypeError: 'd' is an invalid keyword argument for this function
+    TypeError: d() got an unexpected keyword argument 'd'
 
     >>> e(1,2)
     >>> e(1,2, c=1)
@@ -43,7 +43,7 @@ __doc__ = u"""
     TypeError: f() needs keyword-only argument c
     >>> f(1,2, c=1, e=2)
     Traceback (most recent call last):
-    TypeError: 'e' is an invalid keyword argument for this function
+    TypeError: f() got an unexpected keyword argument 'e'
 
     >>> g(1,2, c=1, f=2)
     >>> g(1,2, c=1, e=0, f=2, d=11)

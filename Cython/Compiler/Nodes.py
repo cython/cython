@@ -1685,12 +1685,6 @@ class DefNode(FuncDefNode):
     def generate_arg_decref(self, arg, code):
         if arg:
             code.put_var_decref(arg.entry)
-    
-    def arg_address(self, arg):
-        if arg:
-            return "&%s" % arg.entry.cname
-        else:
-            return 0
 
     def generate_stararg_copy_code(self, code):
         if not self.star_arg:
@@ -1703,9 +1697,17 @@ class DefNode(FuncDefNode):
 
         code.globalstate.use_utility_code(keyword_string_check_utility_code)
 
+        if self.starstar_arg:
+            if self.star_arg:
+                kwarg_check = "unlikely(%s)" % Naming.kwds_cname
+            else:
+                kwarg_check = "%s" % Naming.kwds_cname
+        else:
+            kwarg_check = "unlikely(%s) && unlikely(PyDict_Size(%s) > 0)" % (
+                Naming.kwds_cname, Naming.kwds_cname)
         code.putln(
-            "if (unlikely(%s) && unlikely(!__Pyx_CheckKeywordStrings(%s, \"%s\", %d))) return %s;" % (
-                Naming.kwds_cname, Naming.kwds_cname, self.name,
+            "if (%s && unlikely(!__Pyx_CheckKeywordStrings(%s, \"%s\", %d))) return %s;" % (
+                kwarg_check, Naming.kwds_cname, self.name,
                 bool(self.starstar_arg), self.error_value()))
 
         if self.starstar_arg:
@@ -4423,10 +4425,10 @@ static INLINE void __Pyx_RaiseDoubleKeywordsError(
 
 keyword_string_check_utility_code = [
 """
-static int __Pyx_CheckKeywordStrings(PyObject *kwdict,
+static INLINE int __Pyx_CheckKeywordStrings(PyObject *kwdict,
     const char* function_name, int kw_allowed); /*proto*/
 ""","""
-static int __Pyx_CheckKeywordStrings(
+static INLINE int __Pyx_CheckKeywordStrings(
     PyObject *kwdict,
     const char* function_name,
     int kw_allowed)
@@ -4435,27 +4437,29 @@ static int __Pyx_CheckKeywordStrings(
     Py_ssize_t pos = 0;
     while (PyDict_Next(kwdict, &pos, &key, 0)) {
         #if PY_MAJOR_VERSION < 3
-        if (unlikely(!PyString_Check(key))) {
+        if (unlikely(!PyString_CheckExact(key)) && unlikely(!PyString_Check(key)))
         #else
-        if (unlikely(!PyUnicode_Check(key))) {
+        if (unlikely(!PyUnicode_CheckExact(key)) && unlikely(!PyUnicode_Check(key)))
         #endif
-            PyErr_Format(PyExc_TypeError,
-                         "%s() keywords must be strings", function_name);
-            return 0;
-        }
+            goto invalid_keyword_type;
     }
-    if (unlikely(!kw_allowed) && unlikely(key)) {
-        PyErr_Format(PyExc_TypeError,
-        #if PY_MAJOR_VERSION < 3
-                     "'%s' is an invalid keyword argument for this function",
-                     PyString_AsString(key));
-        #else
-                     "'%U' is an invalid keyword argument for this function",
-                     key);
-        #endif
-        return 0;
-    }
+    if ((!kw_allowed) && unlikely(key))
+        goto invalid_keyword;
     return 1;
+invalid_keyword_type:
+    PyErr_Format(PyExc_TypeError,
+        "%s() keywords must be strings", function_name);
+    return 0;
+invalid_keyword:
+    PyErr_Format(PyExc_TypeError,
+    #if PY_MAJOR_VERSION < 3
+        "%s() got an unexpected keyword argument '%s'",
+        function_name, PyString_AsString(key));
+    #else
+        "%s() got an unexpected keyword argument '%U'",
+        function_name, key);
+    #endif
+    return 0;
 }
 """]
 
@@ -4535,11 +4539,11 @@ invalid_keyword_type:
 invalid_keyword:
     PyErr_Format(PyExc_TypeError,
     #if PY_MAJOR_VERSION < 3
-        "'%s' is an invalid keyword argument for this function",
-        PyString_AS_STRING(key));
+        "%s() got an unexpected keyword argument '%s'",
+        function_name, PyString_AsString(key));
     #else
-        "'%U' is an invalid keyword argument for this function",
-        key);
+        "%s() got an unexpected keyword argument '%U'",
+        function_name, key);
     #endif
 bad:
     return -1;

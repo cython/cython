@@ -36,7 +36,7 @@ __doc__ = u"""
     TypeError: d() takes exactly 2 positional arguments (3 given)
     >>> call2d(d)
     Traceback (most recent call last):
-    TypeError: 'd' is an invalid keyword argument for this function
+    TypeError: d() got an unexpected keyword argument 'd'
 
     >>> call0abc(e)
     1 2 3 []
@@ -69,7 +69,7 @@ __doc__ = u"""
     TypeError: f() needs keyword-only argument c
     >>> call2ce(f)
     Traceback (most recent call last):
-    TypeError: 'e' is an invalid keyword argument for this function
+    TypeError: f() got an unexpected keyword argument 'e'
 
     >>> call2cf(g)
     1 2 1 42 17 2 []
@@ -133,7 +133,7 @@ __doc__ = u"""
     TypeError: m() needs keyword-only argument c
     >>> call2cd(m)
     Traceback (most recent call last):
-    TypeError: 'd' is an invalid keyword argument for this function
+    TypeError: m() got an unexpected keyword argument 'd'
 """
 
 # the calls:
