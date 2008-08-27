@@ -58,6 +58,26 @@ __doc__ = u"""
   Traceback (most recent call last):
   TypeError: h() takes at least 3 positional arguments (2 given)
 
+  >>> f(1,2, d=5)
+  Traceback (most recent call last):
+  TypeError: f() got an unexpected keyword argument 'd'
+  >>> f(1, d=5)
+  Traceback (most recent call last):
+  TypeError: f() got an unexpected keyword argument 'd'
+  >>> f(d=5)
+  Traceback (most recent call last):
+  TypeError: f() got an unexpected keyword argument 'd'
+
+  >>> g(1,2, d=5)
+  Traceback (most recent call last):
+  TypeError: g() takes exactly 0 positional arguments (2 given)
+  >>> g(1,2)
+  Traceback (most recent call last):
+  TypeError: g() takes exactly 0 positional arguments (2 given)
+  >>> g(1)
+  Traceback (most recent call last):
+  TypeError: g() takes exactly 0 positional arguments (1 given)
+
   >>> test_int_kwargs(e)
   Traceback (most recent call last):
   TypeError: e() keywords must be strings

@@ -9,7 +9,7 @@ __doc__ = u"""
     TypeError: spam() takes exactly 3 positional arguments (4 given)
     >>> spam(1,2,3, a=1)
     Traceback (most recent call last):
-    TypeError: 'a' is an invalid keyword argument for this function
+    TypeError: spam() got an unexpected keyword argument 'a'
 
     >>> grail(1,2,3)
     (1, 2, 3, ())
@@ -22,7 +22,7 @@ __doc__ = u"""
     TypeError: grail() takes at least 3 positional arguments (2 given)
     >>> grail(1,2,3, a=1)
     Traceback (most recent call last):
-    TypeError: 'a' is an invalid keyword argument for this function
+    TypeError: grail() got an unexpected keyword argument 'a'
 
     >>> swallow(1,2,3)
     (1, 2, 3, ())
@@ -53,10 +53,10 @@ __doc__ = u"""
     (1, 2)
     >>> onlyt(a=1)
     Traceback (most recent call last):
-    TypeError: 'a' is an invalid keyword argument for this function
+    TypeError: onlyt() got an unexpected keyword argument 'a'
     >>> onlyt(1, a=2)
     Traceback (most recent call last):
-    TypeError: 'a' is an invalid keyword argument for this function
+    TypeError: onlyt() got an unexpected keyword argument 'a'
 
     >>> onlyk(a=1)
     (('a', 1),)
