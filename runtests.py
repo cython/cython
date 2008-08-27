@@ -498,7 +498,7 @@ if __name__ == '__main__':
         test_suite.addTest(filetests.build_suite())
 
     if options.system_pyregr:
-        filetests = TestBuilder(ROOTDIR, WORKDIR, selectors,
+        filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                 options.annotate_source, options.cleanup_workdir,
                                 options.cleanup_sharedlibs, True,
                                 options.cythononly)
