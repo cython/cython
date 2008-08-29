@@ -2619,7 +2619,7 @@ class ListComprehensionAppendNode(ExprNode):
         self.is_temp = 1
     
     def generate_result_code(self, code):
-        code.putln("%s = PyList_Append(%s, %s); %s" %
+        code.putln("%s = PyList_Append(%s, (PyObject*)%s); %s" %
             (self.result_code,
             self.target.result_code,
             self.expr.result_code,
