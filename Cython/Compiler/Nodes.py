@@ -4515,7 +4515,7 @@ static int __Pyx_SplitKeywords(
             if (!*name) {
                 for (name = argnames; *name; name++) {
                     #if PY_MAJOR_VERSION >= 3
-                    if (PyUnicode_GET_SIZE(**name) == PyUnicode_GET_SIZE(key)) &&
+                    if (PyUnicode_GET_SIZE(**name) == PyUnicode_GET_SIZE(key) &&
                         PyUnicode_Compare(**name, key) == 0) break;
                     #else
                     if (PyString_GET_SIZE(**name) == PyString_GET_SIZE(key) &&
