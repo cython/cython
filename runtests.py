@@ -52,7 +52,8 @@ class ErrorWriter(object):
 
 class TestBuilder(object):
     def __init__(self, rootdir, workdir, selectors, exclude_selectors, annotate,
-                 cleanup_workdir, cleanup_sharedlibs, with_pyregr, cythononly):
+                 cleanup_workdir, cleanup_sharedlibs, with_pyregr, cython_only,
+                 languages):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
@@ -61,7 +62,8 @@ class TestBuilder(object):
         self.cleanup_workdir = cleanup_workdir
         self.cleanup_sharedlibs = cleanup_sharedlibs
         self.with_pyregr = with_pyregr
-        self.cythononly = cythononly
+        self.cython_only = cython_only
+        self.languages = languages
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -106,49 +108,56 @@ class TestBuilder(object):
                     continue
             if context in TEST_RUN_DIRS:
                 if module.startswith("test_"):
-                    build_test = CythonUnitTestCase
+                    test_class = CythonUnitTestCase
                 else:
-                    build_test = CythonRunTestCase
-                test = build_test(
-                    path, workdir, module,
-                    annotate=self.annotate,
-                    cleanup_workdir=self.cleanup_workdir,
-                    cleanup_sharedlibs=self.cleanup_sharedlibs,
-                    cythononly=self.cythononly)
+                    test_class = CythonRunTestCase
             else:
-                test = CythonCompileTestCase(
-                    path, workdir, module,
-                    expect_errors=expect_errors,
-                    annotate=self.annotate,
-                    cleanup_workdir=self.cleanup_workdir,
-                    cleanup_sharedlibs=self.cleanup_sharedlibs,
-                    cythononly=self.cythononly)
-            suite.addTest(test)
+                test_class = CythonCompileTestCase
+            for test in self.build_tests(test_class, path, workdir,
+                                         module, expect_errors):
+                suite.addTest(test)
         return suite
 
+    def build_tests(self, test_class, path, workdir, module, expect_errors):
+        tests = [ self.build_test(test_class, path, workdir, module,
+                                  language, expect_errors)
+                  for language in self.languages ]
+        return tests
+
+    def build_test(self, test_class, path, workdir, module,
+                   language, expect_errors):
+        return test_class(path, workdir, module,
+                          language=language,
+                          expect_errors=expect_errors,
+                          annotate=self.annotate,
+                          cleanup_workdir=self.cleanup_workdir,
+                          cleanup_sharedlibs=self.cleanup_sharedlibs,
+                          cython_only=self.cython_only)
+
 class CythonCompileTestCase(unittest.TestCase):
-    def __init__(self, directory, workdir, module,
+    def __init__(self, directory, workdir, module, language='c',
                  expect_errors=False, annotate=False, cleanup_workdir=True,
-                 cleanup_sharedlibs=True, cythononly=False):
+                 cleanup_sharedlibs=True, cython_only=False):
         self.directory = directory
         self.workdir = workdir
         self.module = module
+        self.language = language
         self.expect_errors = expect_errors
         self.annotate = annotate
         self.cleanup_workdir = cleanup_workdir
         self.cleanup_sharedlibs = cleanup_sharedlibs
-        self.cythononly = cythononly
+        self.cython_only = cython_only
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
-        return "compiling " + self.module
+        return "compiling (%s) %s" % (self.language, self.module)
 
     def tearDown(self):
         cleanup_c_files = WITH_CYTHON and self.cleanup_workdir
         cleanup_lib_files = self.cleanup_sharedlibs
         if os.path.exists(self.workdir):
             for rmfile in os.listdir(self.workdir):
-                if not cleanup_c_files and rmfile[-2:] in (".c", ".h"):
+                if not cleanup_c_files and rmfile[-2:] in (".c", ".h", ".cpp"):
                     continue
                 if not cleanup_lib_files and rmfile.endswith(".so") or rmfile.endswith(".dll"):
                     continue
@@ -202,13 +211,15 @@ class CythonCompileTestCase(unittest.TestCase):
             include_dirs.append(incdir)
         source = self.find_module_source_file(
             os.path.join(directory, module + '.pyx'))
-        target = os.path.join(targetdir, module + '.c')
+        target = os.path.join(targetdir, module + '.' + self.language)
         options = CompilationOptions(
             pyrex_default_options,
             include_path = include_dirs,
             output_file = target,
             annotate = annotate,
-            use_listing_file = False, cplus = False, generate_pxi = False)
+            use_listing_file = False,
+            cplus = self.language == 'cpp',
+            generate_pxi = False)
         cython_compile(source, options=options,
                        full_module_name=module)
 
@@ -224,7 +235,7 @@ class CythonCompileTestCase(unittest.TestCase):
 
             extension = Extension(
                 module,
-                sources = [module + '.c'],
+                sources = [module + '.' + self.language],
                 extra_compile_args = CFLAGS,
                 )
             build_extension.extensions = [extension]
@@ -261,12 +272,12 @@ class CythonCompileTestCase(unittest.TestCase):
                 unexpected_error = errors[len(expected_errors)]
                 self.assertEquals(None, unexpected_error)
         else:
-            if not self.cythononly:
+            if not self.cython_only:
                 self.run_distutils(module, workdir, incdir)
 
 class CythonRunTestCase(CythonCompileTestCase):
     def shortDescription(self):
-        return "compiling and running " + self.module
+        return "compiling (%s) and running %s" % (self.language, self.module)
 
     def run(self, result=None):
         if result is None:
@@ -274,7 +285,7 @@ class CythonRunTestCase(CythonCompileTestCase):
         result.startTest(self)
         try:
             self.runCompileTest()
-            if not self.cythononly:
+            if not self.cython_only:
                 sys.stderr.write('running doctests in %s ...\n' % self.module)
                 doctest.DocTestSuite(self.module).run(result)
         except Exception:
@@ -287,7 +298,7 @@ class CythonRunTestCase(CythonCompileTestCase):
 
 class CythonUnitTestCase(CythonCompileTestCase):
     def shortDescription(self):
-        return "compiling tests in " + self.module
+        return "compiling (%s) tests in %s" % (self.language, self.module)
 
     def run(self, result=None):
         if result is None:
@@ -394,6 +405,12 @@ if __name__ == '__main__':
     parser.add_option("--no-cython", dest="with_cython",
                       action="store_false", default=True,
                       help="do not run the Cython compiler, only the C compiler")
+    parser.add_option("--no-c", dest="use_c",
+                      action="store_false", default=True,
+                      help="do not test C compilation")
+    parser.add_option("--no-cpp", dest="use_cpp",
+                      action="store_false", default=True,
+                      help="do not test C++ compilation")
     parser.add_option("--no-unit", dest="unittests",
                       action="store_false", default=True,
                       help="do not run the unit tests")
@@ -406,7 +423,7 @@ if __name__ == '__main__':
     parser.add_option("--no-pyregr", dest="pyregr",
                       action="store_false", default=True,
                       help="do not run the regression tests of CPython in tests/pyregr/")    
-    parser.add_option("--cython-only", dest="cythononly",
+    parser.add_option("--cython-only", dest="cython_only",
                       action="store_true", default=False,
                       help="only compile pyx to c, do not run C compiler or run the tests")
     parser.add_option("--sys-pyregr", dest="system_pyregr",
@@ -482,6 +499,12 @@ if __name__ == '__main__':
     if options.exclude:
         exclude_selectors += [ re.compile(r, re.I|re.U).search for r in options.exclude ]
 
+    languages = []
+    if options.use_c:
+        languages.append('c')
+    if options.use_cpp:
+        languages.append('cpp')
+
     test_suite = unittest.TestSuite()
 
     if options.unittests:
@@ -490,18 +513,18 @@ if __name__ == '__main__':
     if options.doctests:
         collect_doctests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors)
 
-    if options.filetests:
+    if options.filetests and languages:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                 options.annotate_source, options.cleanup_workdir,
                                 options.cleanup_sharedlibs, options.pyregr,
-                                options.cythononly)
+                                options.cython_only, languages)
         test_suite.addTest(filetests.build_suite())
 
-    if options.system_pyregr:
+    if options.system_pyregr and languages:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                 options.annotate_source, options.cleanup_workdir,
                                 options.cleanup_sharedlibs, True,
-                                options.cythononly)
+                                options.cython_only, languages)
         test_suite.addTest(
             filetests.handle_directory(
                 os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test'),
