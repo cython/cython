@@ -157,8 +157,9 @@ class CythonCompileTestCase(unittest.TestCase):
         cleanup_lib_files = self.cleanup_sharedlibs
         if os.path.exists(self.workdir):
             for rmfile in os.listdir(self.workdir):
-                if not cleanup_c_files and rmfile[-2:] in (".c", ".h", ".cpp"):
-                    continue
+                if not cleanup_c_files:
+                    if rmfile[-2:] in (".c", ".h") or rmfile[-4:] == ".cpp":
+                        continue
                 if not cleanup_lib_files and rmfile.endswith(".so") or rmfile.endswith(".dll"):
                     continue
                 if self.annotate and rmfile.endswith(".html"):
