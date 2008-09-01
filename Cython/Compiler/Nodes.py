@@ -3778,6 +3778,11 @@ class TryFinallyStatNode(StatNode):
                     "PyObject *%s, *%s, *%s;" % Naming.exc_vars)
                 code.putln(
                     "int %s;" % Naming.exc_lineno_name)
+                exc_var_init_zero = ''.join(["%s = 0; " % var for var in Naming.exc_vars])
+                exc_var_init_zero += '%s = 0;' % Naming.exc_lineno_name
+                code.putln(exc_var_init_zero)
+            else:
+                exc_var_init_zero = None
             code.use_label(catch_label)
             code.putln(
                     "__pyx_why = 0; goto %s;" % catch_label)
@@ -3788,9 +3793,10 @@ class TryFinallyStatNode(StatNode):
                     self.put_error_catcher(code, 
                         new_error_label, i+1, catch_label)
                 else:
-                    code.putln(
-                        "%s: __pyx_why = %s; goto %s;" % (
-                            new_label,
+                    code.put('%s: ' % new_label)
+                    if exc_var_init_zero:
+                        code.putln(exc_var_init_zero)
+                    code.putln("__pyx_why = %s; goto %s;" % (
                             i+1,
                             catch_label))
             code.put_label(catch_label)
