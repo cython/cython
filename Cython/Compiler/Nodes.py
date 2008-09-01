@@ -4364,7 +4364,7 @@ static INLINE void __Pyx_RaiseArgtupleInvalid(
     Py_ssize_t num_found)
 {
     Py_ssize_t num_expected;
-    char *number, *more_or_less;
+    const char *number, *more_or_less;
 
     if (num_found < num_min) {
         num_expected = num_min;
