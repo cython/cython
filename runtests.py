@@ -85,8 +85,6 @@ class TestBuilder(object):
         workdir = os.path.join(self.workdir, context)
         if not os.path.exists(workdir):
             os.makedirs(workdir)
-        if workdir not in sys.path:
-            sys.path.insert(0, workdir)
 
         expect_errors = (context == 'errors')
         suite = unittest.TestSuite()
@@ -126,6 +124,9 @@ class TestBuilder(object):
 
     def build_test(self, test_class, path, workdir, module,
                    language, expect_errors):
+        workdir = os.path.join(workdir, language)
+        if not os.path.exists(workdir):
+            os.makedirs(workdir)
         return test_class(path, workdir, module,
                           language=language,
                           expect_errors=expect_errors,
@@ -152,7 +153,19 @@ class CythonCompileTestCase(unittest.TestCase):
     def shortDescription(self):
         return "compiling (%s) %s" % (self.language, self.module)
 
+    def setUp(self):
+        if self.workdir not in sys.path:
+            sys.path.insert(0, self.workdir)
+
     def tearDown(self):
+        try:
+            sys.path.remove(self.workdir)
+        except ValueError:
+            pass
+        try:
+            del sys.modules[self.module]
+        except KeyError:
+            pass
         cleanup_c_files = WITH_CYTHON and self.cleanup_workdir
         cleanup_lib_files = self.cleanup_sharedlibs
         if os.path.exists(self.workdir):
@@ -187,6 +200,10 @@ class CythonCompileTestCase(unittest.TestCase):
             source_file = source_file[:-1]
         return source_file
 
+    def build_target_filename(self, module_name):
+        target = '%s.%s' % (module_name, self.language)
+        return target
+
     def split_source_and_output(self, directory, module, workdir):
         source_file = os.path.join(directory, module) + '.pyx'
         source_and_output = open(
@@ -212,7 +229,7 @@ class CythonCompileTestCase(unittest.TestCase):
             include_dirs.append(incdir)
         source = self.find_module_source_file(
             os.path.join(directory, module + '.pyx'))
-        target = os.path.join(targetdir, module + '.' + self.language)
+        target = os.path.join(targetdir, self.build_target_filename(module))
         options = CompilationOptions(
             pyrex_default_options,
             include_path = include_dirs,
@@ -236,7 +253,7 @@ class CythonCompileTestCase(unittest.TestCase):
 
             extension = Extension(
                 module,
-                sources = [module + '.' + self.language],
+                sources = [self.build_target_filename(module)],
                 extra_compile_args = CFLAGS,
                 )
             build_extension.extensions = [extension]
@@ -285,6 +302,7 @@ class CythonRunTestCase(CythonCompileTestCase):
             result = self.defaultTestResult()
         result.startTest(self)
         try:
+            self.setUp()
             self.runCompileTest()
             if not self.cython_only:
                 sys.stderr.write('running doctests in %s ...\n' % self.module)
@@ -306,6 +324,7 @@ class CythonUnitTestCase(CythonCompileTestCase):
             result = self.defaultTestResult()
         result.startTest(self)
         try:
+            self.setUp()
             self.runCompileTest()
             sys.stderr.write('running tests in %s ...\n' % self.module)
             unittest.defaultTestLoader.loadTestsFromName(self.module).run(result)
