@@ -4579,9 +4579,12 @@ static void __Pyx_WriteUnraisable(const char *name) {
     ctx = PyUnicode_FromString(name);
     #endif
     __Pyx_ErrRestore(old_exc, old_val, old_tb);
-    if (!ctx)
-        ctx = Py_None;
-    PyErr_WriteUnraisable(ctx);
+    if (!ctx) {
+        PyErr_WriteUnraisable(Py_None);
+    } else {
+        PyErr_WriteUnraisable(ctx);
+        Py_DECREF(ctx);
+    }
 }
 """]
 
