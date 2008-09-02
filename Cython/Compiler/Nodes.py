@@ -4881,11 +4881,9 @@ void INLINE __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb
     *type = tstate->exc_type;
     *value = tstate->exc_value;
     *tb = tstate->exc_traceback;
-    if (*type) {
-        Py_INCREF(*type);
-        Py_XINCREF(*value);
-        Py_XINCREF(*tb);
-    }
+    Py_XINCREF(*type);
+    Py_XINCREF(*value);
+    Py_XINCREF(*tb);
 }
 
 void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb) {
