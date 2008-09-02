@@ -3527,6 +3527,7 @@ class TryExceptStatNode(StatNode):
         if self.else_clause:
             self.else_clause.analyse_control_flow(env)
         env.finish_branching(self.end_pos())
+        env.use_utility_code(reset_exception_utility_code)
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
@@ -3549,22 +3550,33 @@ class TryExceptStatNode(StatNode):
     gil_message = "Try-except statement"
 
     def generate_execution_code(self, code):
+        old_return_label = code.return_label
         old_error_label = code.new_error_label()
         our_error_label = code.error_label
-        end_label = code.new_label()
+        except_end_label = code.new_label('exception_handled')
+        except_error_label = code.new_label('except_error')
+        except_return_label = code.new_label('except_return')
+        try_end_label = code.new_label('try')
+
+        code.putln("{")
+        code.putln("PyObject %s;" %
+                   ', '.join(['*%s' % var for var in Naming.exc_save_vars]))
+        code.putln("__Pyx_ExceptionSave(%s);" %
+                   ', '.join(['&%s' % var for var in Naming.exc_save_vars]))
         code.putln(
             "/*try:*/ {")
         self.body.generate_execution_code(code)
         code.putln(
             "}")
-        code.error_label = old_error_label
+        code.error_label = except_error_label
+        code.return_label = except_return_label
         if self.else_clause:
             code.putln(
                 "/*else:*/ {")
             self.else_clause.generate_execution_code(code)
             code.putln(
                 "}")
-        code.put_goto(end_label)
+        code.put_goto(try_end_label)
         code.put_label(our_error_label)
         code.put_var_xdecrefs_clear(self.cleanup_list)
         default_clause_seen = 0
@@ -3574,10 +3586,31 @@ class TryExceptStatNode(StatNode):
             else:
                 if default_clause_seen:
                     error(except_clause.pos, "Default except clause not last")
-            except_clause.generate_handling_code(code, end_label)
+            except_clause.generate_handling_code(code, except_end_label)
         if not default_clause_seen:
             code.put_goto(code.error_label)
-        code.put_label(end_label)
+
+        if code.label_used(except_error_label):
+            code.put_label(except_error_label)
+            for var in Naming.exc_save_vars:
+                code.put_xdecref(var, py_object_type)
+            code.put_goto(old_error_label)
+
+        if code.label_used(except_return_label):
+            code.put_label(except_return_label)
+            code.putln("__Pyx_ExceptionReset(%s);" %
+                       ', '.join(Naming.exc_save_vars))
+            code.put_goto(old_return_label)
+
+        if code.label_used(except_end_label):
+            code.put_label(except_end_label)
+            code.putln("__Pyx_ExceptionReset(%s);" %
+                       ', '.join(Naming.exc_save_vars))
+        code.put_label(try_end_label)
+        code.putln("}")
+
+        code.return_label = old_return_label
+        code.error_label = old_error_label
 
     def annotate(self, code):
         self.body.annotate(code)
@@ -4656,7 +4689,7 @@ static void __Pyx_AddTraceback(const char *funcname) {
     );
     if (!py_code) goto bad;
     py_frame = PyFrame_New(
-        PyThreadState_Get(), /*PyThreadState *tstate,*/
+        PyThreadState_GET(), /*PyThreadState *tstate,*/
         py_code,             /*PyCodeObject *code,*/
         py_globals,          /*PyObject *globals,*/
         0                    /*PyObject *locals*/
@@ -4834,6 +4867,40 @@ bad:
     return -1;
 }
 
+"""]
+
+#------------------------------------------------------------------------------------
+
+reset_exception_utility_code = [
+"""
+void INLINE __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
+void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
+""","""
+void INLINE __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb) {
+    PyThreadState *tstate = PyThreadState_GET();
+    *type = tstate->exc_type;
+    *value = tstate->exc_value;
+    *tb = tstate->exc_traceback;
+    if (*type) {
+        Py_INCREF(*type);
+        Py_XINCREF(*value);
+        Py_XINCREF(*tb);
+    }
+}
+
+void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb) {
+    PyObject *tmp_type, *tmp_value, *tmp_tb;
+    PyThreadState *tstate = PyThreadState_GET();
+    tmp_type = tstate->exc_type;
+    tmp_value = tstate->exc_value;
+    tmp_tb = tstate->exc_traceback;
+    tstate->exc_type = type;
+    tstate->exc_value = value;
+    tstate->exc_traceback = tb;
+    Py_XDECREF(tmp_type);
+    Py_XDECREF(tmp_value);
+    Py_XDECREF(tmp_tb);
+}
 """]
 
 #------------------------------------------------------------------------------------
