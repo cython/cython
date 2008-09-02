@@ -95,6 +95,10 @@ exc_lineno_name = pyrex_prefix + "exc_lineno"
 
 exc_vars = (exc_type_name, exc_value_name, exc_tb_name)
 
+exc_save_vars = (pyrex_prefix + 'save_exc_type',
+                 pyrex_prefix + 'save_exc_value',
+                 pyrex_prefix + 'save_exc_tb')
+
 api_name        = pyrex_prefix + "capi__"
 
 h_guard_prefix   = "__PYX_HAVE__"
