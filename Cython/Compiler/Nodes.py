@@ -919,6 +919,8 @@ class FuncDefNode(StatNode, BlockNode):
         for entry in lenv.var_entries:
             if entry.type.is_pyobject and entry.init_to_none and entry.used:
                 code.put_init_var_to_py_none(entry)
+        # ----- Initialise local buffer auxiliary variables
+        for entry in lenv.var_entries + lenv.arg_entries:
             if entry.type.is_buffer and entry.buffer_aux.buffer_info_var.used:
                 code.putln("%s.buf = NULL;" % entry.buffer_aux.buffer_info_var.cname)
         # ----- Check and convert arguments
