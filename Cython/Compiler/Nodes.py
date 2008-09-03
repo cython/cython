@@ -3538,11 +3538,16 @@ class TryExceptStatNode(StatNode):
         self.gil_check(env)
     
     def analyse_expressions(self, env):
-
         self.body.analyse_expressions(env)
         self.cleanup_list = env.free_temp_entries[:]
+        default_clause_seen = 0
         for except_clause in self.except_clauses:
             except_clause.analyse_expressions(env)
+            if default_clause_seen:
+                error(except_clause.pos, "default 'except:' must be last")
+            if not except_clause.pattern:
+                default_clause_seen = 1
+        self.has_default_clause = default_clause_seen
         if self.else_clause:
             self.else_clause.analyse_expressions(env)
         self.gil_check(env)
@@ -3579,19 +3584,13 @@ class TryExceptStatNode(StatNode):
         code.put_goto(try_end_label)
         code.put_label(our_error_label)
         code.put_var_xdecrefs_clear(self.cleanup_list)
-        default_clause_seen = 0
         for except_clause in self.except_clauses:
-            if not except_clause.pattern:
-                default_clause_seen = 1
-            else:
-                if default_clause_seen:
-                    error(except_clause.pos, "Default except clause not last")
             except_clause.generate_handling_code(code, except_end_label)
-        if not default_clause_seen:
-            code.put_goto(code.error_label)
 
-        if code.label_used(except_error_label):
-            code.put_label(except_error_label)
+        error_label_used = code.label_used(except_error_label)
+        if error_label_used or not self.has_default_clause:
+            if error_label_used:
+                code.put_label(except_error_label)
             for var in Naming.exc_save_vars:
                 code.put_xdecref(var, py_object_type)
             code.put_goto(old_error_label)
