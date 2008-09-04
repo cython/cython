@@ -461,6 +461,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define Py_TPFLAGS_HAVE_INDEX 0")
         code.putln("#endif")
 
+        code.putln("#if (PY_VERSION_HEX < 0x02060000) || (PY_MAJOR_VERSION >= 3)")
+        code.putln("  #define Py_TPFLAGS_HAVE_NEWBUFFER 0")
+        code.putln("#endif")
+
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("  #define PyBaseString_Type            PyUnicode_Type")
         code.putln("  #define PyString_Type                PyBytes_Type")

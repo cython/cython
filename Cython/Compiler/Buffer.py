@@ -566,6 +566,9 @@ def buffer_type_checker(dtype, code):
     return funcname
 
 def use_py2_buffer_functions(env):
+    # Emulation of PyObject_GetBuffer and PyBuffer_Release for Python 2.
+    # For >= 2.6 we do double mode -- use the new buffer interface on objects
+    # which has the right tp_flags set, but emulation otherwise.
     codename = "PyObject_GetBuffer" # just a representative unique key
 
     # Search all types for __getbuffer__ overloads
@@ -586,8 +589,12 @@ def use_py2_buffer_functions(env):
     find_buffer_types(env)
 
     code = dedent("""
-        #if (PY_MAJOR_VERSION < 3) && !(Py_TPFLAGS_DEFAULT & Py_TPFLAGS_HAVE_NEWBUFFER)
+        #if PY_MAJOR_VERSION < 3
         static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
+          #if PY_VERSION_HEX >= 0x02060000
+          if (Py_TYPE(obj)->tp_flags & Py_TPFLAGS_HAVE_NEWBUFFER)
+              return PyObject_GetBuffer(obj, view, flags);
+          #endif
     """)
     if len(types) > 0:
         clause = "if"
@@ -623,7 +630,7 @@ def use_py2_buffer_functions(env):
     """)
                    
     env.use_utility_code([dedent("""\
-        #if (PY_MAJOR_VERSION < 3) && !(Py_TPFLAGS_DEFAULT & Py_TPFLAGS_HAVE_NEWBUFFER)
+        #if PY_MAJOR_VERSION < 3
         static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
         static void __Pyx_ReleaseBuffer(Py_buffer *view);
         #else
