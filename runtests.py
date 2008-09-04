@@ -117,9 +117,13 @@ class TestBuilder(object):
         return suite
 
     def build_tests(self, test_class, path, workdir, module, expect_errors):
+        if expect_errors:
+            languages = self.languages[:1]
+        else:
+            languages = self.languages
         tests = [ self.build_test(test_class, path, workdir, module,
                                   language, expect_errors)
-                  for language in self.languages ]
+                  for language in languages ]
         return tests
 
     def build_test(self, test_class, path, workdir, module,
