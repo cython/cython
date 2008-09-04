@@ -3527,7 +3527,6 @@ class TryExceptStatNode(StatNode):
         if self.else_clause:
             self.else_clause.analyse_control_flow(env)
         env.finish_branching(self.end_pos())
-        env.use_utility_code(reset_exception_utility_code)
 
     def analyse_declarations(self, env):
         self.body.analyse_declarations(env)
@@ -3536,6 +3535,7 @@ class TryExceptStatNode(StatNode):
         if self.else_clause:
             self.else_clause.analyse_declarations(env)
         self.gil_check(env)
+        env.use_utility_code(reset_exception_utility_code)
     
     def analyse_expressions(self, env):
         self.body.analyse_expressions(env)
