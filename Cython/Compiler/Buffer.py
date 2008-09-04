@@ -534,12 +534,11 @@ def get_getbuffer_code(dtype, code):
           }
           ts = buf->format;
           ts = __Pyx_ConsumeWhitespace(ts);
-          ts = __Pyx_BufferTypestringCheckEndian(ts);
           if (!ts) goto fail;
-          ts = __Pyx_ConsumeWhitespace(ts);
           ts = %(itemchecker)s(ts);
           if (!ts) goto fail;
           ts = __Pyx_ConsumeWhitespace(ts);
+          if (!ts) goto fail;
           if (*ts != 0) {
             PyErr_Format(PyExc_ValueError,
               "Expected non-struct buffer data type (expected end, got '%%s')", ts);
@@ -667,7 +666,6 @@ acquire_utility_code = ["""\
 static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
 static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf); /*proto*/
 static INLINE const char* __Pyx_ConsumeWhitespace(const char* ts); /*proto*/
-static INLINE const char* __Pyx_BufferTypestringCheckEndian(const char* ts); /*proto*/
 static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim); /*proto*/
 """, """
 static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
@@ -687,39 +685,22 @@ static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf) {
 static INLINE const char* __Pyx_ConsumeWhitespace(const char* ts) {
   while (1) {
     switch (*ts) {
+      case '@':
       case 10:
       case 13:
       case ' ':
         ++ts;
+        break;
+      case '=':
+      case '<':
+      case '>':
+      case '!':
+        PyErr_SetString(PyExc_ValueError, "Buffer acquisition error: Only native byte order, size and alignment supported.");
+        return NULL;               
       default:
         return ts;
     }
   }
-}
-
-static INLINE const char* __Pyx_BufferTypestringCheckEndian(const char* ts) {
-  int num = 1;
-  int little_endian = ((char*)&num)[0];
-  int ok = 1;
-  switch (*ts) {
-    case '@':
-    case '=':
-      ++ts; break;
-    case '<':
-      if (little_endian) ++ts;
-      else ok = 0;
-      break;
-    case '>':
-    case '!':
-      if (!little_endian) ++ts;
-      else ok = 0;
-      break;
-  }
-  if (!ok) {
-    PyErr_Format(PyExc_ValueError, "Buffer has wrong endianness (rejecting on '%s')", ts);
-    return NULL;
-  }
-  return ts;
 }
 
 static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim) {
