@@ -872,7 +872,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 code.put_init_var_to_py_none(entry, "p->%s")
         entry = scope.lookup_here("__new__")
-        if entry:
+        if entry and entry.is_special:
             if entry.trivial_signature:
                 cinit_args = "o, %s, NULL" % Naming.empty_tuple
             else:
