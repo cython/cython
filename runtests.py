@@ -460,8 +460,11 @@ if __name__ == '__main__':
                       action="store_true", default=False,
                       help="collect source coverage data for the Compiler")
     parser.add_option("-A", "--annotate", dest="annotate_source",
-                      action="store_true", default=False,
+                      action="store_true", default=True,
                       help="generate annotated HTML versions of the test source files")
+    parser.add_option("--no-annotate", dest="annotate_source",
+                      action="store_false",
+                      help="do not generate annotated HTML versions of the test source files")
     parser.add_option("-v", "--verbose", dest="verbosity",
                       action="count", default=0,
                       help="display test progress, pass twice to print test names")
