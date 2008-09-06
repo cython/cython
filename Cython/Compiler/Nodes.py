@@ -4364,9 +4364,12 @@ static void __Pyx_ReRaise(void) {
 
 arg_type_test_utility_code = [
 """
-static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed, char *name, int exact); /*proto*/
+static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed,
+    const char *name, int exact); /*proto*/
 ""","""
-static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed, char *name, int exact) {
+static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed,
+    const char *name, int exact)
+{
     if (!type) {
         PyErr_Format(PyExc_SystemError, "Missing type object");
         return 0;
