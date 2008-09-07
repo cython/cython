@@ -56,9 +56,8 @@ class SwitchTransform(Visitor.VisitorTransform):
         
     def visit_IfStatNode(self, node):
         self.visitchildren(node)
-        if len(node.if_clauses) < 3:
-            return node
         common_var = None
+        case_count = 0
         cases = []
         for if_clause in node.if_clauses:
             var, conditions = self.extract_conditions(if_clause.condition)
@@ -70,9 +69,12 @@ class SwitchTransform(Visitor.VisitorTransform):
                 return node
             else:
                 common_var = var
+                case_count += len(conditions)
                 cases.append(Nodes.SwitchCaseNode(pos = if_clause.pos,
                                                   conditions = conditions,
                                                   body = if_clause.body))
+        if case_count < 2:
+            return node
         
         common_var = unwrap_node(common_var)
         return Nodes.SwitchStatNode(pos = node.pos,
