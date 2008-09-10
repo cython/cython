@@ -1958,11 +1958,11 @@ builtin_module_name_utility_code = [
 
 import_module_utility_code = [
 """
-static PyObject *__Pyx_ImportModule(char *name); /*proto*/
+static PyObject *__Pyx_ImportModule(const char *name); /*proto*/
 ""","""
 #ifndef __PYX_HAVE_RT_ImportModule
 #define __PYX_HAVE_RT_ImportModule
-static PyObject *__Pyx_ImportModule(char *name) {
+static PyObject *__Pyx_ImportModule(const char *name) {
     PyObject *py_name = 0;
     PyObject *py_module = 0;
 
@@ -1987,11 +1987,11 @@ bad:
 
 type_import_utility_code = [
 """
-static PyTypeObject *__Pyx_ImportType(char *module_name, char *class_name, long size);  /*proto*/
+static PyTypeObject *__Pyx_ImportType(const char *module_name, char *class_name, long size);  /*proto*/
 ""","""
 #ifndef __PYX_HAVE_RT_ImportType
 #define __PYX_HAVE_RT_ImportType
-static PyTypeObject *__Pyx_ImportType(char *module_name, char *class_name,
+static PyTypeObject *__Pyx_ImportType(const char *module_name, char *class_name,
     long size)
 {
     PyObject *py_module = 0;
