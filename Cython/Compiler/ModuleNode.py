@@ -1987,29 +1987,29 @@ bad:
 
 type_import_utility_code = [
 """
-static PyTypeObject *__Pyx_ImportType(const char *module_name, char *class_name, long size);  /*proto*/
+static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name, long size);  /*proto*/
 ""","""
 #ifndef __PYX_HAVE_RT_ImportType
 #define __PYX_HAVE_RT_ImportType
-static PyTypeObject *__Pyx_ImportType(const char *module_name, char *class_name,
+static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name,
     long size)
 {
     PyObject *py_module = 0;
     PyObject *result = 0;
     PyObject *py_name = 0;
 
-    #if PY_MAJOR_VERSION < 3
-    py_name = PyString_FromString(module_name);
-    #else
-    py_name = PyUnicode_FromString(module_name);
-    #endif
-    if (!py_name)
-        goto bad;
-
     py_module = __Pyx_ImportModule(module_name);
     if (!py_module)
         goto bad;
-    result = PyObject_GetAttrString(py_module, class_name);
+    #if PY_MAJOR_VERSION < 3
+    py_name = PyString_FromString(class_name);
+    #else
+    py_name = PyUnicode_FromString(class_name);
+    #endif
+    if (!py_name)
+        goto bad;
+    result = PyObject_GetAttr(py_module, py_name);
+    Py_DECREF(py_name);
     if (!result)
         goto bad;
     if (!PyType_Check(result)) {
@@ -2026,7 +2026,6 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, char *class_name,
     }
     return (PyTypeObject *)result;
 bad:
-    Py_XDECREF(py_name);
     Py_XDECREF(result);
     return 0;
 }
