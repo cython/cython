@@ -330,6 +330,35 @@ def explicitly_release_buffer():
     print "After release"
 
 #
+# Format strings
+#
+@testcase
+def alignment_string(object[int] buf):
+    """
+    >>> alignment_string(IntMockBuffer(None, [1,2], format="@i"))
+    2
+    >>> alignment_string(IntMockBuffer(None, [1,2], format="@i@@"))
+    2
+    >>> alignment_string(IntMockBuffer(None, [1,2], format=">i"))
+    Traceback (most recent call last):
+        ...    
+    ValueError: Buffer acquisition error: Only native byte order, size and alignment supported.
+    >>> alignment_string(IntMockBuffer(None, [1,2], format="<i"))
+    Traceback (most recent call last):
+        ...    
+    ValueError: Buffer acquisition error: Only native byte order, size and alignment supported.
+    >>> alignment_string(IntMockBuffer(None, [1,2], format="=i"))
+    Traceback (most recent call last):
+        ...    
+    ValueError: Buffer acquisition error: Only native byte order, size and alignment supported.
+    >>> alignment_string(IntMockBuffer(None, [1,2], format="!i"))
+    Traceback (most recent call last):
+        ...    
+    ValueError: Buffer acquisition error: Only native byte order, size and alignment supported.
+    """ 
+    print buf[1]
+
+#
 # Getting items and index bounds checking
 # 
 @testcase
@@ -949,10 +978,6 @@ cdef class MockBuffer:
     def __getbuffer__(MockBuffer self, Py_buffer* buffer, int flags):
         if self.fail:
             raise ValueError("Failing on purpose")
-        
-        if buffer is NULL:
-            print u"locking!"
-            return
 
         self.recieved_flags = []
         cdef int value
@@ -961,6 +986,7 @@ cdef class MockBuffer:
                 self.recieved_flags.append(name)
         
         buffer.buf = <void*>(<char*>self.buffer + (<int>self.offset * self.itemsize))
+        buffer.obj = self
         buffer.len = self.len
         buffer.readonly = 0
         buffer.format = <char*>self.format
@@ -1000,7 +1026,7 @@ cdef class IntMockBuffer(MockBuffer):
         (<int*>buf)[0] = <int>value
         return 0
     cdef get_itemsize(self): return sizeof(int)
-    cdef get_default_format(self): return b"=i"
+    cdef get_default_format(self): return b"@i"
 
 cdef class ShortMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
@@ -1014,7 +1040,7 @@ cdef class UnsignedShortMockBuffer(MockBuffer):
         (<unsigned short*>buf)[0] = <unsigned short>value
         return 0
     cdef get_itemsize(self): return sizeof(unsigned short)
-    cdef get_default_format(self): return b"=1H" # Try with repeat count
+    cdef get_default_format(self): return b"@1H" # Try with repeat count
 
 cdef class FloatMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
@@ -1040,7 +1066,7 @@ cdef class ObjectMockBuffer(MockBuffer):
         return 0
 
     cdef get_itemsize(self): return sizeof(void*)
-    cdef get_default_format(self): return b"=O"
+    cdef get_default_format(self): return b"@O"
         
 
 cdef class IntStridedMockBuffer(IntMockBuffer):
@@ -1052,10 +1078,10 @@ cdef class ErrorBuffer:
     def __init__(self, label):
         self.label = label
 
-    def __getbuffer__(MockBuffer self, Py_buffer* buffer, int flags):
+    def __getbuffer__(ErrorBuffer self, Py_buffer* buffer, int flags):
         raise Exception("acquiring %s" % self.label)
 
-    def __releasebuffer__(MockBuffer self, Py_buffer* buffer):
+    def __releasebuffer__(ErrorBuffer self, Py_buffer* buffer):
         raise Exception("releasing %s" % self.label)
 
 #

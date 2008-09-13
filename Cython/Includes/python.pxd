@@ -1,13 +1,11 @@
 #####################################################################
 #
-# These are the "SageX" pxi files for (most of) the Python/C API.
-#
-#    SageX = SAGE Pyrex, which is a fork of Pyrex for use in SAGE.
+# These are the Cython pxd files for (most of) the Python/C API.
 #
 # REFERENCE COUNTING:
 #
 #   JUST TO SCARE YOU:
-#   If you are going to use any of the Python/C API in your SageX
+#   If you are going to use any of the Python/C API in your Cython
 #   program, you might be responsible for doing reference counting.
 #   Read http://docs.python.org/api/refcounts.html which is so
 #   important I've copied it below.
@@ -15,10 +13,10 @@
 # For all the declaration below, whenver the Py_ function returns
 # a *new reference* to a PyObject*, the return type is "object".
 # When the function returns a borrowed reference, the return
-# type is PyObject*.  When SageX sees "object" as a return type
+# type is PyObject*.  When Cython sees "object" as a return type
 # it doesn't increment the reference count.  When it sees PyObject*
 # in order to use the result you must explicitly cast to <object>,
-# and when you do that SageX increments the reference count wether
+# and when you do that Cython increments the reference count wether
 # you want it to or not, forcing you to an explicit DECREF (or leak memory).
 # To avoid this we make the above convention.  Note, you can
 # always locally override this convention by putting something like
@@ -26,10 +24,10 @@
 #     cdef extern from "Python.h":
 #         PyObject* PyNumber_Add(PyObject *o1, PyObject *o2)
 #
-# in your file after any .pxi includes.  SageX will use the latest
+# in your file after any .pxi includes.  Cython will use the latest
 # declaration. 
 #
-# SageX takes care of this automatically for anything of type object.
+# Cython takes care of this automatically for anything of type object.
 ## More precisely, I think the correct convention for
 ## using the Python/C API from Pyrex is as follows.
 ##
@@ -119,7 +117,7 @@
 #
 #################################################################
 
-
+from python_version cimport *
 from python_ref cimport *
 from python_exc cimport *
 from python_module cimport *
@@ -138,6 +136,7 @@ from python_long cimport *
 from python_float cimport *
 from python_complex cimport *
 from python_string cimport *
+from python_unicode cimport *
 from python_dict cimport *
 from python_instance cimport *
 from python_function cimport *
