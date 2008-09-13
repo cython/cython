@@ -1027,7 +1027,7 @@ class FuncDefNode(StatNode, BlockNode):
         code.exit_cfunc_scope()
         if self.py_func:
             self.py_func.generate_function_definitions(env, code)
-        self.generate_optarg_wrapper_function(env, code)
+        self.generate_wrapper_functions(code)
 
     def declare_argument(self, env, arg):
         if arg.type.is_void:
@@ -1036,7 +1036,8 @@ class FuncDefNode(StatNode, BlockNode):
             error(arg.pos,
                 "Argument type '%s' is incomplete" % arg.type)
         return env.declare_arg(arg.name, arg.type, arg.pos)
-    def generate_optarg_wrapper_function(self, env, code):
+        
+    def generate_wrapper_functions(self, code):
         pass
 
     def generate_execution_code(self, code):
@@ -1093,6 +1094,7 @@ class CFuncDefNode(FuncDefNode):
     #  with_gil      boolean    Acquire GIL around body
     #  type          CFuncType
     #  py_func       wrapper for calling from Python
+    #  overridable   whether or not this is a cpdef function
     
     child_attrs = ["base_type", "declarator", "body", "py_func"]
 
@@ -1188,21 +1190,22 @@ class CFuncDefNode(FuncDefNode):
         if self.overridable:
             self.py_func.analyse_expressions(env)
 
-    def generate_function_header(self, code, with_pymethdef, with_opt_args = 1):
+    def generate_function_header(self, code, with_pymethdef, with_opt_args = 1, with_dispatch = 1, cname = None):
         arg_decls = []
         type = self.type
         visibility = self.entry.visibility
         for arg in type.args[:len(type.args)-type.optional_arg_count]:
             arg_decls.append(arg.declaration_code())
+        if with_dispatch and self.overridable:
+            arg_decls.append(PyrexTypes.c_int_type.declaration_code(Naming.skip_dispatch_cname))
         if type.optional_arg_count and with_opt_args:
             arg_decls.append(type.op_arg_struct.declaration_code(Naming.optional_args_cname))
         if type.has_varargs:
             arg_decls.append("...")
         if not arg_decls:
             arg_decls = ["void"]
-        cname = self.entry.func_cname
-        if not with_opt_args:
-            cname += Naming.no_opt_args
+        if cname is None:
+            cname = self.entry.func_cname
         entity = type.function_header_code(cname, string.join(arg_decls, ", "))
         if visibility == 'public':
             dll_linkage = "DL_EXPORT"
@@ -1279,20 +1282,38 @@ class CFuncDefNode(FuncDefNode):
             
     def caller_will_check_exceptions(self):
         return self.entry.type.exception_check
-                    
-    def generate_optarg_wrapper_function(self, env, code):
-        if self.type.optional_arg_count and \
-                self.type.original_sig and not self.type.original_sig.optional_arg_count:
+        
+    def generate_wrapper_functions(self, code):
+        # If the C signature of a function has changed, we need to generate
+        # wrappers to put in the slots here. 
+        k = 0
+        entry = self.entry
+        func_type = entry.type
+        while entry.prev_entry is not None:
+            k += 1
+            entry = entry.prev_entry
+            entry.func_cname = "%s%swrap_%s" % (self.entry.func_cname, Naming.pyrex_prefix, k)
             code.putln()
-            self.generate_function_header(code, 0, with_opt_args = 0)
+            self.generate_function_header(code, 
+                                          0,
+                                          with_dispatch = entry.type.is_overridable, 
+                                          with_opt_args = entry.type.optional_arg_count, 
+                                          cname = entry.func_cname)
             if not self.return_type.is_void:
                 code.put('return ')
             args = self.type.args
             arglist = [arg.cname for arg in args[:len(args)-self.type.optional_arg_count]]
-            arglist.append('NULL')
+            if entry.type.is_overridable:
+                arglist.append(Naming.skip_dispatch_cname)
+            elif func_type.is_overridable:
+                arglist.append('0')
+            if entry.type.optional_arg_count:
+                arglist.append(Naming.optional_args_cname)
+            elif func_type.optional_arg_count:
+                arglist.append('NULL')
             code.putln('%s(%s);' % (self.entry.func_cname, ', '.join(arglist)))
             code.putln('}')
-
+        
 
 class PyArgDeclNode(Node):
     # Argument which must be a Python object (used
@@ -2070,7 +2091,7 @@ class OverrideCheckNode(StatNode):
         else:
             self_arg = "((PyObject *)%s)" % self.args[0].cname
         code.putln("/* Check if called by wrapper */")
-        code.putln("if (unlikely(%s)) %s = 0;" % (Naming.skip_dispatch_cname, Naming.skip_dispatch_cname))
+        code.putln("if (unlikely(%s)) ;" % Naming.skip_dispatch_cname)
         code.putln("/* Check if overriden in Python */")
         if self.py_func.is_module_scope:
             code.putln("else {")

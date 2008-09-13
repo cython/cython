@@ -732,7 +732,7 @@ class CFuncType(CType):
             return 1
         if not other_type.is_cfunction:
             return 0
-        if not self.is_overridable and other_type.is_overridable:
+        if self.is_overridable != other_type.is_overridable:
             return 0
         nargs = len(self.args)
         if nargs != len(other_type.args):
@@ -846,6 +846,8 @@ class CFuncType(CType):
         for arg in self.args[:len(self.args)-self.optional_arg_count]:
             arg_decl_list.append(
                 arg.type.declaration_code("", for_display, pyrex = pyrex))
+        if self.is_overridable:
+            arg_decl_list.append("int %s" % Naming.skip_dispatch_cname)
         if self.optional_arg_count:
             arg_decl_list.append(self.op_arg_struct.declaration_code(Naming.optional_args_cname))
         if self.has_varargs:
