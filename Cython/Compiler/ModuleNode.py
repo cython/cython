@@ -3,7 +3,6 @@
 #
 
 import os, time
-from cStringIO import StringIO
 from PyrexTypes import CPtrType
 import Future
 
@@ -240,7 +239,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.annotate or options.annotate:
             code = Annotate.AnnotationCCodeWriter()
         else:
-            code = Code.CCodeWriter()
+            code = Code.CCodeWriter(emit_linenums=options.emit_linenums)
         h_code = code.insertion_point()
         self.generate_module_preamble(env, modules, h_code)
 

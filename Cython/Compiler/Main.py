@@ -727,7 +727,8 @@ default_options = dict(
     timestamps = None,
     verbose = 0,
     quiet = 0,
-    pragma_overrides = {}
+    pragma_overrides = {},
+    emit_linenums = False,
 )
 if sys.platform == "mac":
     from Cython.Mac.MacSystem import c_compile, c_link, CCompilerError

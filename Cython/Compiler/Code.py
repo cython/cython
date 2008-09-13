@@ -161,13 +161,14 @@ class GlobalState(object):
     # interned_nums
     # cached_builtins
 
-    def __init__(self, rootwriter):
+    def __init__(self, rootwriter, emit_linenums=False):
         self.filename_table = {}
         self.filename_list = []
         self.input_file_contents = {}
         self.used_utility_code = set()
         self.declared_cnames = {}
         self.pystring_table_needed = False
+        self.emit_linenums = emit_linenums
 
     def initwriters(self, rootwriter):
         self.utilprotowriter = rootwriter.new_writer()
@@ -378,6 +379,8 @@ class GlobalState(object):
         writer.insert(self.utilprotowriter)
 
     def put_utility_code_defs(self, writer):
+        if self.emit_linenums:
+            writer.write('\n#line 1 "cython_utility"\n')
         writer.insert(self.utildefwriter)
 
 
@@ -403,7 +406,7 @@ class CCodeWriter(object):
     - marker: Not copied to insertion point
     - filename_table, filename_list, input_file_contents: All codewriters
       coming from the same root share the same instances simultaneously.
-    """ 
+    """
     
     # f                file            output file
     # buffer           StringIOTree
@@ -415,19 +418,21 @@ class CCodeWriter(object):
     #                                  generation (labels and temps state etc.)
     # globalstate      GlobalState     contains state global for a C file (input file info,
     #                                  utility code, declared constants etc.)
+    # emit_linenums    boolean         whether or not to write #line pragmas 
    
-    def __init__(self, create_from=None, buffer=None, copy_formatting=False):
+    def __init__(self, create_from=None, buffer=None, copy_formatting=False, emit_linenums=None):
         if buffer is None: buffer = StringIOTree()
         self.buffer = buffer
         self.marker = None
         self.last_marker_line = 0
+        self.source_desc = ""
         
         self.funcstate = None
         self.level = 0
         self.bol = 1
         if create_from is None:
             # Root CCodeWriter
-            self.globalstate = GlobalState(self)
+            self.globalstate = GlobalState(self, emit_linenums=emit_linenums)
             self.globalstate.initwriters(self)
             # ^^^ need seperate step because this will reference self.globalstate
         else:
@@ -437,6 +442,10 @@ class CCodeWriter(object):
             if copy_formatting:
                 self.level = create_from.level
                 self.bol = create_from.bol
+        if emit_linenums is None:
+            self.emit_linenums = self.globalstate.emit_linenums
+        else:
+            self.emit_linenums = emit_linenums
 
     def create_new(self, create_from, buffer, copy_formatting):
         # polymorphic constructor -- very slightly more versatile
@@ -504,6 +513,8 @@ class CCodeWriter(object):
     def putln(self, code = ""):
         if self.marker and self.bol:
             self.emit_marker()
+        if self.emit_linenums and self.last_marker_line != 0:
+            self.write('\n#line %s "%s"\n' % (self.last_marker_line, self.source_desc))
         if code:
             self.put(code)
         self.write("\n");
@@ -580,7 +591,8 @@ class CCodeWriter(object):
         marker = u'"%s":%d\n%s\n' % (
             source_desc.get_escaped_description(), line, u'\n'.join(lines))
         self.marker = (line, marker)
-
+        if self.emit_linenums:
+            self.source_desc = source_desc.get_escaped_description()
         
     def put_label(self, lbl):
         if lbl in self.funcstate.labels_used:
