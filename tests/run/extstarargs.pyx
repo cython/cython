@@ -5,15 +5,15 @@ __doc__ = u"""
 
     >>> spam(1,2,3)
     (1, 2, 3)
-    >>> spam(1,2) #doctest: +ELLIPSIS
+    >>> spam(1,2)
     Traceback (most recent call last):
-    TypeError: function takes exactly 3 arguments (2 given)
+    TypeError: spam() takes exactly 3 positional arguments (2 given)
     >>> spam(1,2,3,4)
     Traceback (most recent call last):
-    TypeError: function takes exactly 3 arguments (4 given)
+    TypeError: spam() takes exactly 3 positional arguments (4 given)
     >>> spam(1,2,3, a=1) #doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'a' is an invalid keyword argument for this function
+    TypeError: spam() got an unexpected keyword argument 'a'
 
     >>> grail(1,2,3)
     (1, 2, 3, ())
@@ -21,23 +21,23 @@ __doc__ = u"""
     (1, 2, 3, (4,))
     >>> grail(1,2,3,4,5,6,7,8,9)
     (1, 2, 3, (4, 5, 6, 7, 8, 9))
-    >>> grail(1,2) #doctest: +ELLIPSIS
+    >>> grail(1,2)
     Traceback (most recent call last):
-    TypeError: function takes exactly 3 arguments (2 given)
+    TypeError: grail() takes at least 3 positional arguments (2 given)
     >>> grail(1,2,3, a=1) #doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'a' is an invalid keyword argument for this function
+    TypeError: grail() got an unexpected keyword argument 'a'
 
     >>> swallow(1,2,3)
     (1, 2, 3, ())
     >>> swallow(1,2,3,4)
     Traceback (most recent call last):
-    TypeError: function takes at most 3 positional arguments (4 given)
+    TypeError: swallow() takes exactly 3 positional arguments (4 given)
     >>> swallow(1,2,3, a=1, b=2)
     (1, 2, 3, (('a', 1), ('b', 2)))
-    >>> swallow(1,2,3, x=1) #doctest: +ELLIPSIS
+    >>> swallow(1,2,3, x=1)
     Traceback (most recent call last):
-    TypeError: keyword parameter 'x' was given by position and by name
+    TypeError: swallow() got multiple values for keyword argument 'x'
 
     >>> creosote(1,2,3)
     (1, 2, 3, (), ())
@@ -47,9 +47,9 @@ __doc__ = u"""
     (1, 2, 3, (), (('a', 1),))
     >>> creosote(1,2,3,4, a=1, b=2)
     (1, 2, 3, (4,), (('a', 1), ('b', 2)))
-    >>> creosote(1,2,3,4, x=1) #doctest: +ELLIPSIS
+    >>> creosote(1,2,3,4, x=1)
     Traceback (most recent call last):
-    TypeError: keyword parameter 'x' was given by position and by name
+    TypeError: creosote() got multiple values for keyword argument 'x'
 
     >>> onlyt(1)
     (1,)
@@ -57,10 +57,10 @@ __doc__ = u"""
     (1, 2)
     >>> onlyt(a=1)
     Traceback (most recent call last):
-    TypeError: 'a' is an invalid keyword argument for this function
+    TypeError: onlyt() got an unexpected keyword argument 'a'
     >>> onlyt(1, a=2)
     Traceback (most recent call last):
-    TypeError: 'a' is an invalid keyword argument for this function
+    TypeError: onlyt() got an unexpected keyword argument 'a'
 
     >>> onlyk(a=1)
     (('a', 1),)
@@ -68,13 +68,13 @@ __doc__ = u"""
     (('a', 1), ('b', 2))
     >>> onlyk(1)
     Traceback (most recent call last):
-    TypeError: function takes at most 0 positional arguments (1 given)
+    TypeError: onlyk() takes exactly 0 positional arguments (1 given)
     >>> onlyk(1, 2)
     Traceback (most recent call last):
-    TypeError: function takes at most 0 positional arguments (2 given)
+    TypeError: onlyk() takes exactly 0 positional arguments (2 given)
     >>> onlyk(1, a=1, b=2)
     Traceback (most recent call last):
-    TypeError: function takes at most 0 positional arguments (1 given)
+    TypeError: onlyk() takes exactly 0 positional arguments (1 given)
 
     >>> tk(a=1)
     (('a', 1),)
@@ -87,10 +87,6 @@ __doc__ = u"""
     >>> tk(1, a=1, b=2)
     (1, ('a', 1), ('b', 2))
 """
-
-import sys, re
-if sys.version_info >= (2,6):
-    __doc__ = re.sub(u"Error: (.*)exactly(.*)", u"Error: \\1at most\\2", __doc__)
 
 import sys, re
 if sys.version_info >= (2,6):

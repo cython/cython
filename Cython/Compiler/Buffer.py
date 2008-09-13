@@ -242,9 +242,7 @@ def put_acquire_arg_buffer(entry, code, pos):
 #        entry.buffer_aux.buffer_info_var.cname))
 
 def get_release_buffer_code(entry):
-    return "__Pyx_SafeReleaseBuffer((PyObject*)%s, &%s)" % (
-        entry.cname,
-        entry.buffer_aux.buffer_info_var.cname)
+    return "__Pyx_SafeReleaseBuffer(&%s)" % entry.buffer_aux.buffer_info_var.cname
 
 def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
                          is_initialized, pos, code):
@@ -274,8 +272,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
 
     if is_initialized:
         # Release any existing buffer
-        code.putln('__Pyx_SafeReleaseBuffer((PyObject*)%s, &%s);' % (
-            lhs_cname, bufstruct))
+        code.putln('__Pyx_SafeReleaseBuffer(&%s);' % bufstruct)
         # Acquire
         retcode_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type)
         code.putln("%s = %s;" % (retcode_cname, getbuffer % rhs_cname))
@@ -537,12 +534,11 @@ def get_getbuffer_code(dtype, code):
           }
           ts = buf->format;
           ts = __Pyx_ConsumeWhitespace(ts);
-          ts = __Pyx_BufferTypestringCheckEndian(ts);
           if (!ts) goto fail;
-          ts = __Pyx_ConsumeWhitespace(ts);
           ts = %(itemchecker)s(ts);
           if (!ts) goto fail;
           ts = __Pyx_ConsumeWhitespace(ts);
+          if (!ts) goto fail;
           if (*ts != 0) {
             PyErr_Format(PyExc_ValueError,
               "Expected non-struct buffer data type (expected end, got '%%s')", ts);
@@ -569,6 +565,9 @@ def buffer_type_checker(dtype, code):
     return funcname
 
 def use_py2_buffer_functions(env):
+    # Emulation of PyObject_GetBuffer and PyBuffer_Release for Python 2.
+    # For >= 2.6 we do double mode -- use the new buffer interface on objects
+    # which has the right tp_flags set, but emulation otherwise.
     codename = "PyObject_GetBuffer" # just a representative unique key
 
     # Search all types for __getbuffer__ overloads
@@ -589,8 +588,12 @@ def use_py2_buffer_functions(env):
     find_buffer_types(env)
 
     code = dedent("""
-        #if (PY_MAJOR_VERSION < 3) && !(Py_TPFLAGS_DEFAULT & Py_TPFLAGS_HAVE_NEWBUFFER)
+        #if PY_MAJOR_VERSION < 3
         static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
+          #if PY_VERSION_HEX >= 0x02060000
+          if (Py_TYPE(obj)->tp_flags & Py_TPFLAGS_HAVE_NEWBUFFER)
+              return PyObject_GetBuffer(obj, view, flags);
+          #endif
     """)
     if len(types) > 0:
         clause = "if"
@@ -606,7 +609,9 @@ def use_py2_buffer_functions(env):
     code += dedent("""
         }
 
-        static void __Pyx_ReleaseBuffer(PyObject *obj, Py_buffer *view) {
+        static void __Pyx_ReleaseBuffer(Py_buffer *view) {
+          PyObject* obj = view->obj;
+          if (obj) {
     """)
     if len(types) > 0:
         clause = "if"
@@ -615,18 +620,21 @@ def use_py2_buffer_functions(env):
                 code += "%s (PyObject_TypeCheck(obj, %s)) %s(obj, view);" % (clause, t, release)
                 clause = "else if"
     code += dedent("""
+            Py_DECREF(obj);
+            view->obj = NULL;
+          }
         }
 
         #endif
     """)
                    
     env.use_utility_code([dedent("""\
-        #if (PY_MAJOR_VERSION < 3) && !(Py_TPFLAGS_DEFAULT & Py_TPFLAGS_HAVE_NEWBUFFER)
+        #if PY_MAJOR_VERSION < 3
         static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
-        static void __Pyx_ReleaseBuffer(PyObject *obj, Py_buffer *view);
+        static void __Pyx_ReleaseBuffer(Py_buffer *view);
         #else
         #define __Pyx_GetBuffer PyObject_GetBuffer
-        #define __Pyx_ReleaseBuffer PyObject_ReleaseBuffer
+        #define __Pyx_ReleaseBuffer PyBuffer_Release
         #endif
     """), code], codename)
 
@@ -655,20 +663,20 @@ static void __Pyx_RaiseBufferIndexError(int axis) {
 # exporter.
 #
 acquire_utility_code = ["""\
-static INLINE void __Pyx_SafeReleaseBuffer(PyObject* obj, Py_buffer* info);
+static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
 static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf); /*proto*/
 static INLINE const char* __Pyx_ConsumeWhitespace(const char* ts); /*proto*/
-static INLINE const char* __Pyx_BufferTypestringCheckEndian(const char* ts); /*proto*/
 static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim); /*proto*/
 """, """
-static INLINE void __Pyx_SafeReleaseBuffer(PyObject* obj, Py_buffer* info) {
+static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
   if (info->buf == NULL) return;
   if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
-  __Pyx_ReleaseBuffer(obj, info);
+  __Pyx_ReleaseBuffer(info);
 }
 
 static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf) {
   buf->buf = NULL;
+  buf->obj = NULL;
   buf->strides = __Pyx_zeros;
   buf->shape = __Pyx_zeros;
   buf->suboffsets = __Pyx_minusones;
@@ -677,39 +685,22 @@ static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf) {
 static INLINE const char* __Pyx_ConsumeWhitespace(const char* ts) {
   while (1) {
     switch (*ts) {
+      case '@':
       case 10:
       case 13:
       case ' ':
         ++ts;
+        break;
+      case '=':
+      case '<':
+      case '>':
+      case '!':
+        PyErr_SetString(PyExc_ValueError, "Buffer acquisition error: Only native byte order, size and alignment supported.");
+        return NULL;               
       default:
         return ts;
     }
   }
-}
-
-static INLINE const char* __Pyx_BufferTypestringCheckEndian(const char* ts) {
-  int num = 1;
-  int little_endian = ((char*)&num)[0];
-  int ok = 1;
-  switch (*ts) {
-    case '@':
-    case '=':
-      ++ts; break;
-    case '<':
-      if (little_endian) ++ts;
-      else ok = 0;
-      break;
-    case '>':
-    case '!':
-      if (!little_endian) ++ts;
-      else ok = 0;
-      break;
-  }
-  if (!ok) {
-    PyErr_Format(PyExc_ValueError, "Buffer has wrong endianness (rejecting on '%s')", ts);
-    return NULL;
-  }
-  return ts;
 }
 
 static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim) {
