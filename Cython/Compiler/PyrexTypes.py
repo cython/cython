@@ -1181,11 +1181,16 @@ def widest_numeric_type(type1, type2):
     # Given two numeric types, return the narrowest type
     # encompassing both of them.
     if type1.is_enum and type2.is_enum:
-        widest_type = c_int_type
-    elif type2.rank > type1.rank:
-        widest_type = type2
+        return c_int_type
+    elif type1 is type2:
+        return type1
+    elif (type1.signed and type2.signed) or (not type1.signed and not type2.signed):
+        if type2.rank > type1.rank:
+            return type2
+        else:
+            return type1
     else:
-        widest_type = type1
+        return sign_and_rank_to_type[min(type1.signed, type2.signed), max(type1.rank, type2.rank)]
     return widest_type
 
 def simple_c_type(signed, longness, name):
