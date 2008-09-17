@@ -553,6 +553,54 @@ def strided(object[int, ndim=1, mode='strided'] buf):
     """
     return buf[2]
 
+@testcase
+def c_contig(object[int, ndim=1, mode='c'] buf):
+    """
+    >>> A = IntMockBuffer(None, range(4))
+    >>> c_contig(A)
+    2
+    >>> [str(x) for x in A.recieved_flags]
+    ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS']
+    """
+    return buf[2]
+    
+@testcase
+def c_contig_2d(object[int, ndim=2, mode='c'] buf):
+    """
+    Multi-dim has seperate implementation
+    
+    >>> A = IntMockBuffer(None, range(12), shape=(3,4))
+    >>> c_contig_2d(A)
+    7
+    >>> [str(x) for x in A.recieved_flags]
+    ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS']
+    """
+    return buf[1, 3]
+
+@testcase
+def f_contig(object[int, ndim=1, mode='fortran'] buf):
+    """
+    >>> A = IntMockBuffer(None, range(4))
+    >>> f_contig(A)
+    2
+    >>> [str(x) for x in A.recieved_flags]
+    ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS']
+    """
+    return buf[2]
+
+@testcase
+def f_contig_2d(object[int, ndim=2, mode='fortran'] buf):
+    """
+    Must set up strides manually to ensure Fortran ordering.
+    
+    >>> A = IntMockBuffer(None, range(12), shape=(4,3), strides=(1, 4))
+    >>> f_contig_2d(A)
+    7
+    >>> [str(x) for x in A.recieved_flags]
+    ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS']
+    """
+    return buf[3, 1]
+
 #
 # Test compiler options for bounds checking. We create an array with a
 # safe "boundary" (memory
@@ -877,6 +925,8 @@ available_flags = (
     ('INDIRECT', python_buffer.PyBUF_INDIRECT),
     ('ND', python_buffer.PyBUF_ND),
     ('STRIDES', python_buffer.PyBUF_STRIDES),
+    ('C_CONTIGUOUS', python_buffer.PyBUF_C_CONTIGUOUS),
+    ('F_CONTIGUOUS', python_buffer.PyBUF_F_CONTIGUOUS),
     ('WRITABLE', python_buffer.PyBUF_WRITABLE)
 )
 
@@ -913,7 +963,6 @@ cdef class MockBuffer:
             strides.reverse()
         strides = [x * self.itemsize for x in strides]
         suboffsets = [-1] * len(shape)
-
         datashape = [len(data)]
         p = data
         while True:
