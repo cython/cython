@@ -89,6 +89,14 @@ class EmbedSignature(CythonTransform):
         else:
             return signature
 
+
+    def __call__(self, node):
+        if not Options.docstrings:
+            return node
+        else:
+            self.visitchildren(node)
+            return node
+        
     def visit_ClassDefNode(self, node):
         oldincls = self.is_in_class
         oldname = self.class_name
@@ -105,6 +113,9 @@ class EmbedSignature(CythonTransform):
         return node
 
     def visit_FuncDefNode(self, node):
+        if not node.options['embedsignature']:
+            return node
+        
         signature = None
         if type(node) is DefNode: # def FOO(...):
             special_method = (self.is_in_class and \
@@ -126,7 +137,6 @@ class EmbedSignature(CythonTransform):
         else: # should not fall here ...
             assert False
         if signature:
-            if Options.docstrings and node.options['embedsignature']:
-                new_doc  = self._embed_signature(signature, node.doc)
-                node.doc = EncodedString(new_doc) # XXX
+            new_doc  = self._embed_signature(signature, node.doc)
+            node.doc = EncodedString(new_doc) # XXX
         return node
