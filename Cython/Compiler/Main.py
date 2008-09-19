@@ -80,6 +80,7 @@ class Context:
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
         from ParseTreeTransforms import ResolveOptions
+        from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, OptimizeRefcounting
         from Buffer import IntroduceBufferAuxiliaryVars
         from ModuleNode import check_c_classes
@@ -96,6 +97,7 @@ class Context:
             PostParse(self),
             _specific_post_parse,
             ResolveOptions(self, self.pragma_overrides),
+            EmbedSignature(self),
             FlattenInListTransform(),
             WithTransform(self),
             DecoratorTransform(self),
