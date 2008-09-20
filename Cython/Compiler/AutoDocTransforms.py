@@ -17,11 +17,31 @@ class EmbedSignature(CythonTransform):
         self.is_in_class = False
         self.class_name = None
 
+    def _fmt_basic_c_type_modifiers(self, ctype):
+        longness = ctype.longness
+        modifiers = ''
+        if longness < 0:
+            modifiers = 'short '
+        elif longness > 0:
+            modifiers = 'long ' * longness
+        signed = ctype.signed
+        if signed == 0:
+            modifiers = 'unsigned ' + modifiers
+        elif signed == 2:
+            modifiers = 'signed ' + modifiers
+        return modifiers[:-1] # strip final space
+
     def _fmt_arg_type(self, arg):
         try:
-            return arg.base_type.name
+            base_type = arg.base_type
+            arg_type = base_type.name
         except AttributeError:
-            return ""
+            return ''
+        if base_type.is_basic_c_type:
+            modifiers = self._fmt_basic_c_type_modifiers(base_type)
+            if modifiers:
+                arg_type = '%s %s' % (modifiers, arg_type)
+        return arg_type
 
     def _fmt_arg_name(self, arg):
         try:
@@ -68,6 +88,15 @@ class EmbedSignature(CythonTransform):
             arglist.append('**%s' % kargs.name)
         return arglist
 
+    def _fmt_ret_type(self, ret):
+        ret_type = ret.name
+        if ret_type is None:
+            return ''
+        modifiers = self._fmt_basic_c_type_modifiers(ret)
+        if modifiers:
+            ret_type = '%s %s' % (modifiers, ret_type)
+        return ret_type
+
     def _fmt_signature(self, cls_name, func_name, args,
                        npargs=0, pargs=None,
                        nkargs=0, kargs=None,
@@ -75,12 +104,14 @@ class EmbedSignature(CythonTransform):
         arglist = self._fmt_arglist(args,
                                     npargs, pargs,
                                     nkargs, kargs)
-        arglist = ', '.join(arglist)
-        func_doc = '%s(%s)' % (func_name, arglist)
+        arglist_doc = ', '.join(arglist)
+        func_doc = '%s(%s)' % (func_name, arglist_doc)
         if cls_name:
-            func_doc = ('%s.' % cls_name) + func_doc
+            func_doc = '%s.%s' % (cls_name, func_doc)
         if return_type:
-            func_doc = func_doc + ' -> %s' % return_type
+            ret_doc = self._fmt_ret_type(return_type)
+            if ret_doc:
+                func_doc = '%s -> %s' % (func_doc, ret_doc)
         return func_doc
 
     def _embed_signature(self, signature, node_doc):
@@ -133,7 +164,7 @@ class EmbedSignature(CythonTransform):
                 signature = self._fmt_signature(
                     self.class_name, node.declarator.base.name,
                     node.declarator.args,
-                    return_type=node.base_type.name)
+                    return_type=node.base_type)
         else: # should not fall here ...
             assert False
         if signature:
