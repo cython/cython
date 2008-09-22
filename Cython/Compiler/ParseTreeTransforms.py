@@ -238,7 +238,7 @@ class PxdPostParse(CythonTransform):
         else:
             return node
 
-class ResolveOptions(CythonTransform):
+class InterpretCompilerDirectives(CythonTransform):
     """
     After parsing, options can be stored in a number of places:
     - #cython-comments at the top of the file (stored in ModuleNode)
@@ -246,28 +246,38 @@ class ResolveOptions(CythonTransform):
     - @cython.optionname decorators
     - with cython.optionname: statements
 
-    This transform is responsible for annotating each node with an
-    "options" attribute linking it to a dict containing the exact
-    options that are in effect for that node. Any corresponding decorators
-    or with statements are removed in the process.
+    This transform is responsible for interpreting these various sources
+    and store the option in two ways:
+    - Set the directives attribute of the ModuleNode for global directives.
+    - Use a CompilerDirectivesNode to override directives for a subtree.
+
+    (The first one is primarily to not have to modify with the tree
+    structure, so that ModuleNode stay on top.)
+
+    The directives are stored in dictionaries from name to value in effect.
+    Each such dictionary is always filled in for all possible directives,
+    using default values where no value is given by the user.
+
+    The available directives are controlled in Options.py.
 
     Note that we have to run this prior to analysis, and so some minor
     duplication of functionality has to occur: We manually track cimports
-    to correctly intercept @cython... and with cython...
+    and which names the "cython" module may have been imported to.
     """
 
     def __init__(self, context, compilation_option_overrides):
-        super(ResolveOptions, self).__init__(context)
+        super(InterpretCompilerDirectives, self).__init__(context)
         self.compilation_option_overrides = compilation_option_overrides
         self.cython_module_names = set()
         self.option_names = {}
 
+    # Set up processing and handle the cython: comments.
     def visit_ModuleNode(self, node):
         options = copy.copy(Options.option_defaults)
         options.update(node.option_comments)
         options.update(self.compilation_option_overrides)
         self.options = options
-        node.options = options
+        node.directives = options
         self.visitchildren(node)
         return node
 
@@ -297,7 +307,6 @@ class ResolveOptions(CythonTransform):
         return node
 
     def visit_Node(self, node):
-        node.options = self.options
         self.visitchildren(node)
         return node
 
@@ -329,14 +338,17 @@ class ResolveOptions(CythonTransform):
 
         return None
 
-    def visit_with_options(self, node, options):
+    def visit_with_options(self, body, options):
         oldoptions = self.options
         newoptions = copy.copy(oldoptions)
         newoptions.update(options)
         self.options = newoptions
-        node = self.visit_Node(node)
+        assert isinstance(body, StatListNode), body
+        retbody = self.visit_Node(body)
+        directive = CompilerDirectivesNode(pos=retbody.pos, body=retbody,
+                                           directives=options)
         self.options = oldoptions
-        return node  
+        return directive
  
     # Handle decorators
     def visit_DefNode(self, node):
@@ -359,7 +371,8 @@ class ResolveOptions(CythonTransform):
             for option in options:
                 name, value = option
                 optdict[name] = value
-            return self.visit_with_options(node, optdict)
+            body = StatListNode(node.pos, stats=[node])
+            return self.visit_with_options(body, optdict)
         else:
             return self.visit_Node(node)
                                    
@@ -370,8 +383,7 @@ class ResolveOptions(CythonTransform):
             if node.target is not None:
                 raise PostParseError(node.pos, "Compiler option with statements cannot contain 'as'")
             name, value = option
-            self.visit_with_options(node.body, {name:value})
-            return node.body.stats
+            return self.visit_with_options(node.body, {name:value})
         else:
             return self.visit_Node(node)
 
@@ -427,7 +439,7 @@ class WithTransform(CythonTransform):
                 u'BODY' : node.body,
                 u'TARGET' : node.target,
                 u'EXCINFO' : excinfo_namenode
-                }, pos = node.pos)
+                }, pos=node.pos)
             # Set except excinfo target to EXCINFO
             result.stats[4].body.stats[0].except_clauses[0].excinfo_target = excinfo_target
         else:
@@ -435,7 +447,7 @@ class WithTransform(CythonTransform):
                 u'EXPR' : node.manager,
                 u'BODY' : node.body,
                 u'EXCINFO' : excinfo_namenode
-                }, pos = node.pos)
+                }, pos=node.pos)
             # Set except excinfo target to EXCINFO
             result.stats[4].body.stats[0].except_clauses[0].excinfo_target = excinfo_target
         

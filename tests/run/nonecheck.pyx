@@ -3,13 +3,24 @@ Tests accessing attributes of extension type variables
 set to None
 
 >>> obj = MyClass(2, 3)
->>> func(obj)
+>>> getattr_(obj)
 2
->>> func(None)
+>>> getattr_(None)
 Traceback (most recent call last):
    ...
 AttributeError: 'NoneType' object has no attribute 'a'
 
+>>> setattr_(obj)
+>>> getattr_(obj)
+10
+>>> setattr_(None)
+Traceback (most recent call last):
+   ...
+AttributeError: 'NoneType' object has no attribute 'a'
+
+
+
+>>> obj = MyClass(2, 3)
 >>> checking(obj)
 2
 2
@@ -23,18 +34,26 @@ AttributeError: 'NoneType' object has no attribute 'a'
 
 """
 
+cimport cython
+
 cdef class MyClass:
     cdef int a, b
     def __init__(self, a, b):
         self.a = a
         self.b = b
 
-def func(MyClass var):
+@cython.nonecheck(True)
+def getattr_(MyClass var):
     print var.a
+
+@cython.nonecheck(True)
+def setattr_(MyClass var):
+    var.a = 10
 
 def some():
     return MyClass(4, 5)
 
+@cython.nonecheck(True)
 def checking(MyClass var):
     state = (var is None)
     if not state:
@@ -44,6 +63,7 @@ def checking(MyClass var):
     else:
         print "var is None"
 
+@cython.nonecheck(True)
 def check_and_assign(MyClass var):
     if var is not None:
         print var.a

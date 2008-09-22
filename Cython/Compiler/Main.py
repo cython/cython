@@ -79,9 +79,8 @@ class Context:
         from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
-        from ParseTreeTransforms import ResolveOptions
+        from ParseTreeTransforms import InterpretCompilerDirectives
         from Optimize import FlattenInListTransform, SwitchTransform, OptimizeRefcounting
-        from Optimize import OptimizeNoneChecking, FindPossibleVariableValues
         from Buffer import IntroduceBufferAuxiliaryVars
         from ModuleNode import check_c_classes
 
@@ -96,7 +95,7 @@ class Context:
             NormalizeTree(self),
             PostParse(self),
             _specific_post_parse,
-            ResolveOptions(self, self.pragma_overrides),
+            InterpretCompilerDirectives(self, self.pragma_overrides),
             FlattenInListTransform(),
             WithTransform(self),
             DecoratorTransform(self),
@@ -105,9 +104,7 @@ class Context:
             _check_c_classes,
             AnalyseExpressionsTransform(self),
             SwitchTransform(),
-            FindPossibleVariableValues(self),
             OptimizeRefcounting(self),
-            OptimizeNoneChecking(self),
 #            SpecialFunctions(self),
             #        CreateClosureClasses(context),
             ]

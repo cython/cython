@@ -178,6 +178,8 @@ class Scope:
     #                                        Python strings in this scope
     # control_flow     ControlFlow  Used for keeping track of environment state
     # nogil             boolean            In a nogil section
+    # directives       dict                Helper variable for the recursive
+    #                                      analysis, contains directive values.
 
     is_py_class_scope = 0
     is_c_class_scope = 0
@@ -185,6 +187,7 @@ class Scope:
     scope_prefix = ""
     in_cinclude = 0
     nogil = 0
+    directives = {}
     
     temp_prefix = Naming.pyrex_prefix
     

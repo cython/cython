@@ -56,11 +56,13 @@ c_line_in_traceback = 1
 
 # Declare pragmas
 option_types = {
-    'boundscheck' : bool
+    'boundscheck' : bool,
+    'nonecheck' : bool
 }
 
 option_defaults = {
-    'boundscheck' : True
+    'boundscheck' : True,
+    'nonecheck' : False
 }
 
 def parse_option_value(name, value):
