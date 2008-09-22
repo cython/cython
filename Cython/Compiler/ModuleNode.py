@@ -41,6 +41,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #
     #  scope                The module scope.
     #  compilation_source   A CompilationSource (see Main)
+    #  directives           Top-level compiler directives
 
     child_attrs = ["body"]
     
@@ -52,6 +53,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.doc.encoding = self.doc.encoding
         else:
             env.doc = self.doc
+        env.directives = self.directives
         self.body.analyse_declarations(env)
     
     def process_implementation(self, options, result):
@@ -245,6 +247,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_module_preamble(env, modules, h_code)
 
         code.globalstate.module_pos = self.pos
+        code.globalstate.directives = self.directives
 
         code.putln("")
         code.putln("/* Implementation of %s */" % env.qualified_name)

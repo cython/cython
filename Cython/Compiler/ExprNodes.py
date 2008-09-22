@@ -830,12 +830,10 @@ class NameNode(AtomicExprNode):
     #
     #  entry           Entry     Symbol table entry
     #  interned_cname  string
-    #  possible_var_values object See Optimize.FindPossibleVariableValues
     
     is_name = 1
     skip_assignment_decref = False
     entry = None
-    possible_var_values = None
 
     def create_analysed_rvalue(pos, env, entry):
         node = NameNode(pos)
@@ -1597,13 +1595,12 @@ class IndexNode(ExprNode):
             code.putln("%s = %s;" % (temp, index.result_code))
         # Generate buffer access code using these temps
         import Buffer
-        assert self.options is not None
         # The above could happen because child_attrs is wrong somewhere so that
         # options are not propagated.
         return Buffer.put_buffer_lookup_code(entry=self.base.entry,
                                              index_signeds=[i.type.signed for i in self.indices],
                                              index_cnames=index_temps,
-                                             options=self.options,
+                                             options=code.globalstate.directives,
                                              pos=self.pos, code=code)
 
 class SliceIndexNode(ExprNode):
@@ -2076,6 +2073,7 @@ class AttributeNode(ExprNode):
     #  obj          ExprNode
     #  attribute    string
     #  needs_none_check boolean        Used if obj is an extension type.
+    #                                  If set to True, it is known that the type is not None.
     #
     #  Used internally:
     #
@@ -2324,12 +2322,10 @@ class AttributeNode(ExprNode):
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
-            if self.obj.type.is_extension_type and self.needs_none_check:
-                code.globalstate.use_utility_code(raise_noneattr_error_utility_code)
-                code.putln("if (%s) {" % code.unlikely("%s == Py_None") % self.obj.result_as(PyrexTypes.py_object_type))
-                code.putln("__Pyx_RaiseNoneAttributeError(\"%s\");" % self.attribute.encode("UTF-8")) # todo: fix encoding
-                code.putln(code.error_goto(self.pos))
-                code.putln("}")
+            if (self.obj.type.is_extension_type
+                  and self.needs_none_check
+                  and code.globalstate.directives['nonecheck']):
+                self.put_nonecheck(code)
     
     def generate_assignment_code(self, rhs, code):
         self.obj.generate_evaluation_code(code)
@@ -2341,6 +2337,11 @@ class AttributeNode(ExprNode):
                     rhs.py_result()))
             rhs.generate_disposal_code(code)
         else:
+            if (self.obj.type.is_extension_type
+                  and self.needs_none_check
+                  and code.globalstate.directives['nonecheck']):
+                self.put_nonecheck(code)
+
             select_code = self.result_code
             if self.type.is_pyobject:
                 rhs.make_owned_reference(code)
@@ -2369,6 +2370,14 @@ class AttributeNode(ExprNode):
             code.annotate(self.pos, AnnotationItem('py_attr', 'python attribute', size=len(self.attribute)))
         else:
             code.annotate(self.pos, AnnotationItem('c_attr', 'c attribute', size=len(self.attribute)))
+
+    def put_nonecheck(self, code):
+        code.globalstate.use_utility_code(raise_noneattr_error_utility_code)
+        code.putln("if (%s) {" % code.unlikely("%s == Py_None") % self.obj.result_as(PyrexTypes.py_object_type))
+        code.putln("__Pyx_RaiseNoneAttributeError(\"%s\");" % self.attribute.encode("UTF-8")) # todo: fix encoding
+        code.putln(code.error_goto(self.pos))
+        code.putln("}")
+
 
 #-------------------------------------------------------------------
 #
@@ -3984,7 +3993,6 @@ class CoercionNode(ExprNode):
     def __init__(self, arg):
         self.pos = arg.pos
         self.arg = arg
-        self.options = arg.options
         if debug_coercion:
             print("%s Coercing %s" % (self, self.arg))
             

@@ -111,6 +111,7 @@ class TreeVisitor(BasicVisitor):
                     childretval = [self.visitchild(x, parent, attr, idx) for idx, x in enumerate(child)]
                 else:
                     childretval = self.visitchild(child, parent, attr, None)
+                    assert not isinstance(childretval, list), 'Cannot insert list here: %s in %r' % (attr, parent)
                 result[attr] = childretval
         return result
 

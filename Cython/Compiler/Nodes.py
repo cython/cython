@@ -71,12 +71,10 @@ class Node(object):
     #  pos         (string, int, int)   Source file position
     #  is_name     boolean              Is a NameNode
     #  is_literal  boolean              Is a ConstNode
-    #  options     dict                 Compiler directives in effect for this node
     
     is_name = 0
     is_literal = 0
     temps = None
-    options = None
 
     # All descandants should set child_attrs to a list of the attributes
     # containing nodes considered "children" in the tree. Each such attribute
@@ -204,6 +202,53 @@ class Node(object):
                 res += "%s  %s: %s\n" % (indent, key, dump_child(value, level + 1))
             res += "%s>" % indent
             return res
+
+class CompilerDirectivesNode(Node):
+    """
+    Sets compiler directives for the children nodes
+    """
+    #  directives     {string:value}  A dictionary holding the right value for
+    #                                 *all* possible directives.
+    #  body           Node
+    child_attrs = ["body"]
+
+    def analyse_control_flow(self, env):
+        old = env.directives
+        env.directives = self.directives
+        self.body.analyse_control_flow(env)
+        env.directives = old
+
+    def analyse_declarations(self, env):
+        old = env.directives
+        env.directives = self.directives
+        self.body.analyse_declarations(env)
+        env.directives = old
+    
+    def analyse_expressions(self, env):
+        old = env.directives
+        env.directives = self.directives
+        self.body.analyse_expressions(env)
+        env.directives = old
+
+    def generate_function_definitions(self, env, code):
+        env_old = env.directives
+        code_old = code.globalstate.directives
+        code.globalstate.directives = self.directives
+        self.body.generate_function_definitions(env, code)
+        env.directives = env_old
+        code.globalstate.directives = code_old
+            
+    def generate_execution_code(self, code):
+        old = code.globalstate.directives
+        code.globalstate.directives = self.directives
+        self.body.generate_execution_code(code)
+        code.globalstate.directives = old
+            
+    def annotate(self, code):
+        old = code.globalstate.directives
+        code.globalstate.directives = self.directives
+        self.body.annotate(code)
+        code.globalstate.directives = old
         
 class BlockNode:
     #  Mixin class for nodes representing a declaration block.
@@ -2568,14 +2613,12 @@ class InPlaceAssignmentNode(AssignmentNode):
             target_lhs = ExprNodes.NameNode(self.dup.pos,
                                             name = self.dup.name,
                                             is_temp = self.dup.is_temp,
-                                            entry = self.dup.entry,
-                                            options = self.dup.options)
+                                            entry = self.dup.entry)
         elif isinstance(self.lhs, ExprNodes.AttributeNode):
             target_lhs = ExprNodes.AttributeNode(self.dup.pos,
                                                  obj = ExprNodes.CloneNode(self.lhs.obj),
                                                  attribute = self.dup.attribute,
-                                                 is_temp = self.dup.is_temp,
-                                                 options = self.dup.options)
+                                                 is_temp = self.dup.is_temp)
         elif isinstance(self.lhs, ExprNodes.IndexNode):
             if self.lhs.index:
                 index = ExprNodes.CloneNode(self.lhs.index)
@@ -2589,8 +2632,7 @@ class InPlaceAssignmentNode(AssignmentNode):
                                              base = ExprNodes.CloneNode(self.dup.base),
                                              index = index,
                                              indices = indices,
-                                             is_temp = self.dup.is_temp,
-                                             options = self.dup.options)
+                                             is_temp = self.dup.is_temp)
         self.lhs = target_lhs
         return self.dup
     
