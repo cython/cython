@@ -3,7 +3,6 @@
 #
 
 import os, time
-from cStringIO import StringIO
 from PyrexTypes import CPtrType
 import Future
 
@@ -44,6 +43,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  directives           Top-level compiler directives
 
     child_attrs = ["body"]
+    directives = None
     
     def analyse_declarations(self, env):
         if Options.embed_pos_in_docstring:
@@ -242,7 +242,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.annotate or options.annotate:
             code = Annotate.AnnotationCCodeWriter()
         else:
-            code = Code.CCodeWriter()
+            code = Code.CCodeWriter(emit_linenums=options.emit_linenums)
         h_code = code.insertion_point()
         self.generate_module_preamble(env, modules, h_code)
 
@@ -432,14 +432,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln("  typedef struct {")
         code.putln("     void *buf;")
+        code.putln("     PyObject *obj;")
         code.putln("     Py_ssize_t len;")
+        code.putln("     Py_ssize_t itemsize;")
         code.putln("     int readonly;")
-        code.putln("     const char *format;")
         code.putln("     int ndim;")
+        code.putln("     char *format;")
         code.putln("     Py_ssize_t *shape;")
         code.putln("     Py_ssize_t *strides;")
         code.putln("     Py_ssize_t *suboffsets;")
-        code.putln("     Py_ssize_t itemsize;")
         code.putln("     void *internal;")
         code.putln("  } Py_buffer;")
         code.putln("")
@@ -461,6 +462,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("  #define Py_TPFLAGS_CHECKTYPES 0")
         code.putln("  #define Py_TPFLAGS_HAVE_INDEX 0")
+        code.putln("#endif")
+
+        code.putln("#if (PY_VERSION_HEX < 0x02060000) || (PY_MAJOR_VERSION >= 3)")
+        code.putln("  #define Py_TPFLAGS_HAVE_NEWBUFFER 0")
         code.putln("#endif")
 
         code.putln("#if PY_MAJOR_VERSION >= 3")
@@ -761,10 +766,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     dll_linkage = dll_linkage)
                 if entry.visibility == 'private':
                     storage_class = "static "
-                elif entry.visibility == 'extern':
-                    storage_class = "%s " % Naming.extern_c_macro
                 else:
-                    storage_class = ""
+                    storage_class = "%s " % Naming.extern_c_macro
                 code.putln("%s%s; /*proto*/" % (
                     storage_class,
                     header))
@@ -872,7 +875,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             else:
                 code.put_init_var_to_py_none(entry, "p->%s")
         entry = scope.lookup_here("__new__")
-        if entry:
+        if entry and entry.is_special:
             if entry.trivial_signature:
                 cinit_args = "o, %s, NULL" % Naming.empty_tuple
             else:
@@ -1958,11 +1961,11 @@ builtin_module_name_utility_code = [
 
 import_module_utility_code = [
 """
-static PyObject *__Pyx_ImportModule(char *name); /*proto*/
+static PyObject *__Pyx_ImportModule(const char *name); /*proto*/
 ""","""
 #ifndef __PYX_HAVE_RT_ImportModule
 #define __PYX_HAVE_RT_ImportModule
-static PyObject *__Pyx_ImportModule(char *name) {
+static PyObject *__Pyx_ImportModule(const char *name) {
     PyObject *py_name = 0;
     PyObject *py_module = 0;
 
@@ -1987,29 +1990,32 @@ bad:
 
 type_import_utility_code = [
 """
-static PyTypeObject *__Pyx_ImportType(char *module_name, char *class_name, long size);  /*proto*/
+static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name, long size);  /*proto*/
 ""","""
 #ifndef __PYX_HAVE_RT_ImportType
 #define __PYX_HAVE_RT_ImportType
-static PyTypeObject *__Pyx_ImportType(char *module_name, char *class_name,
+static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name,
     long size)
 {
     PyObject *py_module = 0;
     PyObject *result = 0;
     PyObject *py_name = 0;
 
-    #if PY_MAJOR_VERSION < 3
-    py_name = PyString_FromString(module_name);
-    #else
-    py_name = PyUnicode_FromString(module_name);
-    #endif
-    if (!py_name)
-        goto bad;
-
     py_module = __Pyx_ImportModule(module_name);
     if (!py_module)
         goto bad;
-    result = PyObject_GetAttrString(py_module, class_name);
+    #if PY_MAJOR_VERSION < 3
+    py_name = PyString_FromString(class_name);
+    #else
+    py_name = PyUnicode_FromString(class_name);
+    #endif
+    if (!py_name)
+        goto bad;
+    result = PyObject_GetAttr(py_module, py_name);
+    Py_DECREF(py_name);
+    py_name = 0;
+    Py_DECREF(py_module);
+    py_module = 0;
     if (!result)
         goto bad;
     if (!PyType_Check(result)) {
@@ -2026,7 +2032,7 @@ static PyTypeObject *__Pyx_ImportType(char *module_name, char *class_name,
     }
     return (PyTypeObject *)result;
 bad:
-    Py_XDECREF(py_name);
+    Py_XDECREF(py_module);
     Py_XDECREF(result);
     return 0;
 }

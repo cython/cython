@@ -29,6 +29,7 @@ class PyrexType(BaseType):
     #  is_extension_type     boolean     Is a Python extension type
     #  is_numeric            boolean     Is a C numeric type
     #  is_int                boolean     Is a C integer type
+    #  is_longlong           boolean     Is a long long or unsigned long long.
     #  is_float              boolean     Is a C floating point type
     #  is_void               boolean     Is the C void type
     #  is_array              boolean     Is a C array type
@@ -79,6 +80,7 @@ class PyrexType(BaseType):
     is_builtin_type = 0
     is_numeric = 0
     is_int = 0
+    is_longlong = 0
     is_float = 0
     is_void = 0
     is_array = 0
@@ -553,12 +555,14 @@ class CULongType(CUIntType):
 
 class CLongLongType(CUIntType):
 
+    is_longlong = 1
     to_py_function = "PyLong_FromLongLong"
     from_py_function = "__pyx_PyInt_AsLongLong"
 
 
 class CULongLongType(CUIntType):
 
+    is_longlong = 1
     to_py_function = "PyLong_FromUnsignedLongLong"
     from_py_function = "__pyx_PyInt_AsUnsignedLongLong"
 
@@ -728,7 +732,7 @@ class CFuncType(CType):
             return 1
         if not other_type.is_cfunction:
             return 0
-        if not self.is_overridable and other_type.is_overridable:
+        if self.is_overridable != other_type.is_overridable:
             return 0
         nargs = len(self.args)
         if nargs != len(other_type.args):
@@ -842,6 +846,8 @@ class CFuncType(CType):
         for arg in self.args[:len(self.args)-self.optional_arg_count]:
             arg_decl_list.append(
                 arg.type.declaration_code("", for_display, pyrex = pyrex))
+        if self.is_overridable:
+            arg_decl_list.append("int %s" % Naming.skip_dispatch_cname)
         if self.optional_arg_count:
             arg_decl_list.append(self.op_arg_struct.declaration_code(Naming.optional_args_cname))
         if self.has_varargs:
@@ -1175,11 +1181,16 @@ def widest_numeric_type(type1, type2):
     # Given two numeric types, return the narrowest type
     # encompassing both of them.
     if type1.is_enum and type2.is_enum:
-        widest_type = c_int_type
-    elif type2.rank > type1.rank:
-        widest_type = type2
+        return c_int_type
+    elif type1 is type2:
+        return type1
+    elif (type1.signed and type2.signed) or (not type1.signed and not type2.signed):
+        if type2.rank > type1.rank:
+            return type2
+        else:
+            return type1
     else:
-        widest_type = type1
+        return sign_and_rank_to_type[min(type1.signed, type2.signed), max(type1.rank, type2.rank)]
     return widest_type
 
 def simple_c_type(signed, longness, name):

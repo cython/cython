@@ -1423,7 +1423,7 @@ class IndexNode(ExprNode):
             elif not skip_child_analysis:
                 self.index.analyse_types(env)
             if self.base.type.is_pyobject:
-                if self.index.type.is_int:
+                if self.index.type.is_int and not self.index.type.is_longlong:
                     self.original_index_type = self.index.type
                     self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
                     if getting:
@@ -1886,6 +1886,9 @@ class SimpleCallNode(CallNode):
                 arg_code = actual_arg.result_as(formal_arg.type)
                 arg_list_code.append(arg_code)
                 
+        if func_type.is_overridable:
+            arg_list_code.append(str(int(self.wrapper_call or self.function.entry.is_unbound_cmethod)))
+                
         if func_type.optional_arg_count:
             if expected_nargs == actual_nargs:
                 optional_args = 'NULL'
@@ -1897,9 +1900,9 @@ class SimpleCallNode(CallNode):
             arg_list_code.append(actual_arg.result_code)
         result = "%s(%s)" % (self.function.result_code,
             join(arg_list_code, ", "))
-        if self.wrapper_call or \
-                self.function.entry.is_unbound_cmethod and self.function.entry.type.is_overridable:
-            result = "(%s = 1, %s)" % (Naming.skip_dispatch_cname, result)
+#        if self.wrapper_call or \
+#                self.function.entry.is_unbound_cmethod and self.function.entry.type.is_overridable:
+#            result = "(%s = 1, %s)" % (Naming.skip_dispatch_cname, result)
         return result
     
     def generate_result_code(self, code):
@@ -2641,7 +2644,7 @@ class ListComprehensionAppendNode(ExprNode):
         self.is_temp = 1
     
     def generate_result_code(self, code):
-        code.putln("%s = PyList_Append(%s, %s); %s" %
+        code.putln("%s = PyList_Append(%s, (PyObject*)%s); %s" %
             (self.result_code,
             self.target.result_code,
             self.expr.result_code,

@@ -80,7 +80,7 @@ class NormalizeTree(CythonTransform):
 class PostParseError(CompileError): pass
 
 # error strings checked by unit tests, so define them
-ERR_CDEF_INCLASS = 'Cannot assign default value to cdef class attributes'
+ERR_CDEF_INCLASS = 'Cannot assign default value to fields in cdef classes, structs or unions'
 ERR_BUF_LOCALONLY = 'Buffer types only allowed as function local variables'
 ERR_BUF_DEFAULTS = 'Invalid buffer defaults specification (see docs)'
 ERR_INVALID_SPECIALATTR_TYPE = 'Special attributes must not have a type declared'
@@ -130,31 +130,33 @@ class PostParse(CythonTransform):
 
     def visit_ModuleNode(self, node):
         self.scope_type = 'module'
+        self.scope_node = node
         self.visitchildren(node)
+        return node
+
+    def visit_scope(self, node, scope_type):
+        prev = self.scope_type, self.scope_node
+        self.scope_type = scope_type
+        self.scope_node = node
+        self.visitchildren(node)
+        self.scope_type, self.scope_node = prev
         return node
     
     def visit_ClassDefNode(self, node):
-        prev = self.scope_type
-        self.scope_type = 'class'
-        self.classnode = node
-        self.visitchildren(node)
-        self.scope_type = prev
-        del self.classnode
-        return node
+        return self.visit_scope(node, 'class')
 
     def visit_FuncDefNode(self, node):
-        prev = self.scope_type
-        self.scope_type = 'function'
-        self.visitchildren(node)
-        self.scope_type = prev
-        return node
+        return self.visit_scope(node, 'function')
+
+    def visit_CStructOrUnionDefNode(self, node):
+        return self.visit_scope(node, 'struct')
 
     # cdef variables
     def handle_bufferdefaults(self, decl):
         if not isinstance(decl.default, DictNode):
             raise PostParseError(decl.pos, ERR_BUF_DEFAULTS)
-        self.classnode.buffer_defaults_node = decl.default
-        self.classnode.buffer_defaults_pos = decl.pos
+        self.scope_node.buffer_defaults_node = decl.default
+        self.scope_node.buffer_defaults_pos = decl.pos
 
     def visit_CVarDefNode(self, node):
         # This assumes only plain names and pointers are assignable on
@@ -171,8 +173,8 @@ class PostParse(CythonTransform):
                     declbase = declbase.base
                 if isinstance(declbase, CNameDeclaratorNode):
                     if declbase.default is not None:
-                        if self.scope_type == 'class':
-                            if isinstance(self.classnode, CClassDefNode):
+                        if self.scope_type in ('class', 'struct'):
+                            if isinstance(self.scope_node, CClassDefNode):
                                 handler = self.specialattribute_handlers.get(decl.name)
                                 if handler:
                                     if decl is not declbase:
@@ -346,7 +348,7 @@ class InterpretCompilerDirectives(CythonTransform):
         assert isinstance(body, StatListNode), body
         retbody = self.visit_Node(body)
         directive = CompilerDirectivesNode(pos=retbody.pos, body=retbody,
-                                           directives=options)
+                                           directives=newoptions)
         self.options = oldoptions
         return directive
  

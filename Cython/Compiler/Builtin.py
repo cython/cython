@@ -104,14 +104,15 @@ builtin_types_table = [
 builtin_structs_table = [
     ('Py_buffer', 'Py_buffer',
      [("buf",        PyrexTypes.c_void_ptr_type),
+      ("obj",        PyrexTypes.py_object_type),
       ("len",        PyrexTypes.c_py_ssize_t_type),
+      ("itemsize",   PyrexTypes.c_py_ssize_t_type),
       ("readonly",   PyrexTypes.c_bint_type),
-      ("format",     PyrexTypes.c_char_ptr_type),
       ("ndim",       PyrexTypes.c_int_type),
+      ("format",     PyrexTypes.c_char_ptr_type),
       ("shape",      PyrexTypes.c_py_ssize_t_ptr_type),
       ("strides",    PyrexTypes.c_py_ssize_t_ptr_type),
       ("suboffsets", PyrexTypes.c_py_ssize_t_ptr_type),
-      ("itemsize",   PyrexTypes.c_py_ssize_t_type),
       ("internal",   PyrexTypes.c_void_ptr_type),
       ])
 ]

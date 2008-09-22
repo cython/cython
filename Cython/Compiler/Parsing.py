@@ -229,6 +229,8 @@ def p_typecast(s):
     pos = s.position()
     s.next()
     base_type = p_c_base_type(s)
+    if base_type.name is None:
+        s.error("Unknown type")
     declarator = p_c_declarator(s, empty = 1)
     if s.sy == '?':
         s.next()
@@ -297,32 +299,37 @@ def p_call(s, function):
     keyword_args = []
     star_arg = None
     starstar_arg = None
-    while s.sy not in ('*', '**', ')'):
-        arg = p_simple_expr(s)
-        if s.sy == '=':
+    while s.sy not in ('**', ')'):
+        if s.sy == '*':
+            if star_arg:
+                s.error("only one star-arg parameter allowed",
+                    pos = s.position())
             s.next()
-            if not arg.is_name:
-                s.error("Expected an identifier before '='",
-                    pos = arg.pos)
-            encoded_name = EncodedString(arg.name)
-            keyword = ExprNodes.IdentifierStringNode(arg.pos, 
-                value = encoded_name)
-            arg = p_simple_expr(s)
-            keyword_args.append((keyword, arg))
+            star_arg = p_simple_expr(s)
         else:
-            if keyword_args:
-                s.error("Non-keyword arg following keyword arg",
-                    pos = arg.pos)
-            positional_args.append(arg)
+            arg = p_simple_expr(s)
+            if s.sy == '=':
+                s.next()
+                if not arg.is_name:
+                    s.error("Expected an identifier before '='",
+                        pos = arg.pos)
+                encoded_name = EncodedString(arg.name)
+                keyword = ExprNodes.IdentifierStringNode(arg.pos, 
+                    value = encoded_name)
+                arg = p_simple_expr(s)
+                keyword_args.append((keyword, arg))
+            else:
+                if keyword_args:
+                    s.error("Non-keyword arg following keyword arg",
+                        pos = arg.pos)
+                if star_arg:
+                    s.error("Non-keyword arg following star-arg",
+                        pos = arg.pos)
+                positional_args.append(arg)
         if s.sy != ',':
             break
         s.next()
 
-    if s.sy == '*':
-        s.next()
-        star_arg = p_simple_expr(s)
-        if s.sy == ',':
-            s.next()
     if s.sy == '**':
         s.next()
         starstar_arg = p_simple_expr(s)
@@ -1738,7 +1745,7 @@ def p_c_declarator(s, ctx = Ctx(), empty = 0, is_type = 0, cmethod_flag = 0,
     if s.sy == '(':
         s.next()
         if s.sy == ')' or looking_at_type(s):
-            base = Nodes.CNameDeclaratorNode(pos, name = "", cname = None)
+            base = Nodes.CNameDeclaratorNode(pos, name = EncodedString(u""), cname = None)
             result = p_c_func_declarator(s, pos, ctx, base, cmethod_flag)
         else:
             result = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
@@ -1808,7 +1815,7 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
     else:
         rhs = None
         if s.sy == 'IDENT':
-            name = s.systring
+            name = EncodedString(s.systring)
             if is_type:
                 s.add_type_name(name)
             if empty:
@@ -2171,7 +2178,7 @@ def p_def_statement(s, decorators=None):
     # s.sy == 'def'
     pos = s.position()
     s.next()
-    name = p_ident(s)
+    name = EncodedString( p_ident(s) )
     #args = []
     s.expect('(');
     args = p_c_arg_list(s, in_pyfunc = 1, nonempty_declarators = 1)
