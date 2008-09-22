@@ -44,7 +44,7 @@ vtabstruct_prefix = pyrex_prefix + "vtabstruct_"
 opt_arg_prefix    = pyrex_prefix + "opt_args_"
 
 args_cname       = pyrex_prefix + "args"
-kwdlist_cname    = pyrex_prefix + "argnames"
+pykwdlist_cname  = pyrex_prefix + "pyargnames"
 obj_base_cname   = pyrex_prefix + "base"
 builtins_cname   = pyrex_prefix + "b"
 preimport_cname  = pyrex_prefix + "i"
@@ -76,7 +76,6 @@ print_function_kwargs   = pyrex_prefix + "print_kwargs"
 cleanup_cname    = pyrex_prefix + "module_cleanup"
 pymoduledef_cname = pyrex_prefix + "moduledef"
 optional_args_cname = pyrex_prefix + "optional_args"
-no_opt_args      = pyrex_prefix + "no_opt_args"
 import_star      = pyrex_prefix + "import_star"
 import_star_set  = pyrex_prefix + "import_star_set"
 cur_scope_cname  = pyrex_prefix + "cur_scope"
@@ -94,6 +93,10 @@ exc_tb_name     = pyrex_prefix + "exc_tb"
 exc_lineno_name = pyrex_prefix + "exc_lineno"
 
 exc_vars = (exc_type_name, exc_value_name, exc_tb_name)
+
+exc_save_vars = (pyrex_prefix + 'save_exc_type',
+                 pyrex_prefix + 'save_exc_value',
+                 pyrex_prefix + 'save_exc_tb')
 
 api_name        = pyrex_prefix + "capi__"
 

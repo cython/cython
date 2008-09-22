@@ -127,13 +127,15 @@ class SlotDescriptor:
     #  flag                          Py_TPFLAGS_XXX value indicating presence of slot
     #  py3k                          Indicates presence of slot in Python 3
     #  py2                           Indicates presence of slot in Python 2
+    #  ifdef                         Full #ifdef string that slot is wrapped in. Using this causes py3k, py2 and flags to be ignored.)
 
-    def __init__(self, slot_name, dynamic = 0, flag = None, py3k = True, py2 = True):
+    def __init__(self, slot_name, dynamic = 0, flag = None, py3k = True, py2 = True, ifdef = None):
         self.slot_name = slot_name
         self.is_initialised_dynamically = dynamic
         self.flag = flag
         self.py3k = py3k
         self.py2  = py2
+        self.ifdef = ifdef
 
     def generate(self, scope, code):
         if self.is_initialised_dynamically:
@@ -143,16 +145,17 @@ class SlotDescriptor:
         flag = self.flag
         py3k = self.py3k
         py2  = self.py2
-        if not py3k:
-            code.putln("#if PY_MAJOR_VERSION < 3")
-        elif not py2:
-            code.putln("#if PY_MAJOR_VERSION >= 3")
-        if flag:
-            code.putln("#if (PY_MAJOR_VERSION >= 3) || (Py_TPFLAGS_DEFAULT & %s)" % flag)
+        if self.ifdef:
+            code.putln("#if %s" % self.ifdef)
+        else:
+            if not py3k:
+                code.putln("#if PY_MAJOR_VERSION < 3")
+            elif not py2:
+                code.putln("#if PY_MAJOR_VERSION >= 3")
+            if flag:
+                code.putln("#if (PY_MAJOR_VERSION >= 3) || (Py_TPFLAGS_DEFAULT & %s)" % flag)
         code.putln("%s, /*%s*/" % (value, self.slot_name))
-        if flag:
-            code.putln("#endif")
-        if not py3k or not py2:
+        if flag or (not py3k or not py2) or self.ifdef:
             code.putln("#endif")
 
     # Some C implementations have trouble statically 
@@ -199,8 +202,8 @@ class MethodSlot(SlotDescriptor):
     #  method_name  string           The __xxx__ name of the method
     #  default      string or None   Default value of the slot
     
-    def __init__(self, signature, slot_name, method_name, default = None, flag = None, py3k=True, py2=True):
-        SlotDescriptor.__init__(self, slot_name, flag = flag, py3k = py3k, py2=py2)
+    def __init__(self, signature, slot_name, method_name, default = None, flag = None, py3k=True, py2=True, ifdef=None):
+        SlotDescriptor.__init__(self, slot_name, flag = flag, py3k = py3k, py2=py2, ifdef=ifdef)
         self.signature = signature
         self.slot_name = slot_name
         self.method_name = method_name
@@ -296,7 +299,7 @@ class TypeFlagsSlot(SlotDescriptor):
     #  Descriptor for the type flags slot.
     
     def slot_code(self, scope):
-        value = "Py_TPFLAGS_DEFAULT|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_BASETYPE"
+        value = "Py_TPFLAGS_DEFAULT|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_NEWBUFFER"
         if scope.needs_gc():
             value += "|Py_TPFLAGS_HAVE_GC"
         return value
@@ -609,8 +612,8 @@ PyBufferProcs = (
     MethodSlot(getsegcountproc, "bf_getsegcount", "__getsegcount__", py3k = False),
     MethodSlot(getcharbufferproc, "bf_getcharbuffer", "__getcharbuffer__", py3k = False),
 
-    MethodSlot(getbufferproc, "bf_getbuffer", "__getbuffer__", flag = "Py_TPFLAGS_HAVE_NEWBUFFER"),
-    MethodSlot(releasebufferproc, "bf_releasebuffer", "__releasebuffer__", flag = "Py_TPFLAGS_HAVE_NEWBUFFER"),
+    MethodSlot(getbufferproc, "bf_getbuffer", "__getbuffer__", ifdef = "PY_VERSION_HEX >= 0x02060000"),
+    MethodSlot(releasebufferproc, "bf_releasebuffer", "__releasebuffer__", ifdef = "PY_VERSION_HEX >= 0x02060000")
 )
 
 #------------------------------------------------------------------------------------------

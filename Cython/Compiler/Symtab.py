@@ -138,6 +138,7 @@ class Entry:
     utility_code = None
     is_overridable = 0
     buffer_aux = None
+    prev_entry = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -280,7 +281,7 @@ class Scope:
         if name and dict.has_key(name):
             if visibility == 'extern':
                 warning(pos, "'%s' redeclared " % name, 0)
-            else:
+            elif visibility != 'ignore':
                 error(pos, "'%s' redeclared " % name)
         entry = Entry(name, cname, type, pos = pos)
         entry.in_cinclude = self.in_cinclude
@@ -1414,22 +1415,8 @@ class CClassScope(ClassScope):
                 if type.same_c_signature_as(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
                     pass
                 elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
-                    if type.optional_arg_count and not type.original_sig.optional_arg_count:
-                        # Need to put a wrapper taking no optional arguments 
-                        # into the method table.
-                        wrapper_func_cname = self.mangle(Naming.func_prefix, name) + Naming.no_opt_args
-                        wrapper_func_name = name + Naming.no_opt_args
-                        if entry.type.optional_arg_count:
-                            old_entry = self.lookup_here(wrapper_func_name)
-                            old_entry.func_cname = wrapper_func_cname
-                        else:
-                            entry.func_cname = wrapper_func_cname
-                            entry.name = wrapper_func_name
-                            entry = self.add_cfunction(name, type, pos, cname or name, visibility)
-                            defining = 1
-                    entry.type = type
-#                if type.narrower_c_signature_than(entry.type, as_cmethod = 1):
-#                    entry.type = type
+                    entry = self.add_cfunction(name, type, pos, cname or name, visibility='ignore')
+                    defining = 1
                 else:
                     error(pos, "Signature not compatible with previous declaration")
                     error(entry.pos, "Previous declaration is here")
@@ -1445,8 +1432,10 @@ class CClassScope(ClassScope):
         
     def add_cfunction(self, name, type, pos, cname, visibility):
         # Add a cfunction entry without giving it a func_cname.
+        prev_entry = self.lookup_here(name)
         entry = ClassScope.add_cfunction(self, name, type, pos, cname, visibility)
         entry.is_cmethod = 1
+        entry.prev_entry = prev_entry
         return entry
     
     def declare_property(self, name, doc, pos):
