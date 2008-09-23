@@ -439,7 +439,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
                 error(self.dimension.pos, "Array dimension not integer")
-            size = self.dimension.result_code
+            size = self.dimension.result()
         else:
             size = None
         if not base_type.is_complete():
@@ -529,7 +529,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                             "Exception value must be a Python exception or cdef function with no arguments.")
                     exc_val = self.exception_value
                 else:
-                    exc_val = self.exception_value.result_code
+                    exc_val = self.exception_value.result()
                     if not return_type.assignable_from(self.exception_value.type):
                         error(self.exception_value.pos,
                             "Exception value incompatible with function return type")
@@ -815,7 +815,7 @@ class CEnumDefItemNode(StatNode):
             if not self.value.type.is_int:
                 self.value = self.value.coerce_to(PyrexTypes.c_int_type, env)
                 self.value.analyse_const_expression(env)
-            value = self.value.result_code
+            value = self.value.result()
         else:
             value = self.name
         entry = env.declare_const(self.name, enum_entry.type, 
@@ -1100,7 +1100,7 @@ class FuncDefNode(StatNode, BlockNode):
                     if default.is_temp and default.type.is_pyobject:
                         code.putln(
                             "%s = 0;" %
-                                default.result_code)
+                                default.result())
         # For Python class methods, create and store function object
         if self.assmt:
             self.assmt.generate_execution_code(code)
@@ -2142,16 +2142,16 @@ class OverrideCheckNode(StatNode):
             code.putln("else {")
         else:
             code.putln("else if (unlikely(Py_TYPE(%s)->tp_dictoffset != 0)) {" % self_arg)
-        err = code.error_goto_if_null(self.func_node.result_code, self.pos)
+        err = code.error_goto_if_null(self.func_node.result(), self.pos)
         # need to get attribute manually--scope would return cdef method
-        code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (self.func_node.result_code, self_arg, self.py_func.interned_attr_cname, err))
+        code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (self.func_node.result(), self_arg, self.py_func.interned_attr_cname, err))
         # It appears that this type is not anywhere exposed in the Python/C API
-        is_builtin_function_or_method = '(strcmp(Py_TYPE(%s)->tp_name, "builtin_function_or_method") == 0)' % self.func_node.result_code
-        is_overridden = '(PyCFunction_GET_FUNCTION(%s) != (void *)&%s)' % (self.func_node.result_code, self.py_func.entry.func_cname)
+        is_builtin_function_or_method = '(strcmp(Py_TYPE(%s)->tp_name, "builtin_function_or_method") == 0)' % self.func_node.result()
+        is_overridden = '(PyCFunction_GET_FUNCTION(%s) != (void *)&%s)' % (self.func_node.result(), self.py_func.entry.func_cname)
         code.putln('if (!%s || %s) {' % (is_builtin_function_or_method, is_overridden))
         self.body.generate_execution_code(code)
         code.putln('}')
-        code.put_decref_clear(self.func_node.result_code, PyrexTypes.py_object_type)
+        code.put_decref_clear(self.func_node.result(), PyrexTypes.py_object_type)
         code.putln("}")
 
 class ClassDefNode(StatNode, BlockNode):
@@ -2208,8 +2208,8 @@ class PyClassDefNode(ClassDefNode):
         self.classobj.analyse_expressions(env)
         genv = env.global_scope()
         cenv = self.scope
-        cenv.class_dict_cname = self.dict.result_code
-        cenv.namespace_cname = cenv.class_obj_cname = self.classobj.result_code
+        cenv.class_dict_cname = self.dict.result()
+        cenv.namespace_cname = cenv.class_obj_cname = self.classobj.result()
         self.body.analyse_expressions(cenv)
         self.target.analyse_target_expression(env, self.classobj)
         self.dict.release_temp(env)
@@ -2418,8 +2418,8 @@ class ExprStatNode(StatNode):
     
     def generate_execution_code(self, code):
         self.expr.generate_evaluation_code(code)
-        if not self.expr.is_temp and self.expr.result_code:
-            code.putln("%s;" % self.expr.result_code)
+        if not self.expr.is_temp and self.expr.result():
+            code.putln("%s;" % self.expr.result())
         self.expr.generate_disposal_code(code)
 
     def annotate(self, code):
@@ -2673,8 +2673,8 @@ class InPlaceAssignmentNode(AssignmentNode):
         elif self.rhs.type.is_pyobject:
             self.rhs = self.rhs.coerce_to(self.lhs.type, env)
         if self.lhs.type.is_pyobject:
-             self.result = ExprNodes.PyTempNode(self.pos, env).coerce_to(self.lhs.type, env)
-             self.result.allocate_temps(env)
+             self.result_value = ExprNodes.PyTempNode(self.pos, env).coerce_to(self.lhs.type, env)
+             self.result_value.allocate_temps(env)
 #        if use_temp:
 #            self.rhs = self.rhs.coerce_to_temp(env)
         self.rhs.allocate_temps(env)
@@ -2689,7 +2689,7 @@ class InPlaceAssignmentNode(AssignmentNode):
             self.dup.release_subexpr_temps(env)
 #        self.rhs.release_temp(env)
         if self.lhs.type.is_pyobject:
-            self.result.release_temp(env)
+            self.result_value.release_temp(env)
 
     def generate_execution_code(self, code):
         self.rhs.generate_evaluation_code(code)
@@ -2706,16 +2706,16 @@ class InPlaceAssignmentNode(AssignmentNode):
             self.dup.generate_result_code(code)
             code.putln(
                 "%s = %s(%s, %s%s); %s" % (
-                    self.result.result_code, 
+                    self.result_value.result(), 
                     self.py_operation_function(), 
                     self.dup.py_result(),
                     self.rhs.py_result(),
                     extra,
-                    code.error_goto_if_null(self.result.py_result(), self.pos)))
-            self.result.generate_evaluation_code(code) # May be a type check...
+                    code.error_goto_if_null(self.result_value.py_result(), self.pos)))
+            self.result_value.generate_evaluation_code(code) # May be a type check...
             self.rhs.generate_disposal_code(code)
             self.dup.generate_disposal_code(code)
-            self.lhs.generate_assignment_code(self.result, code)
+            self.lhs.generate_assignment_code(self.result_value, code)
         else: 
             c_op = self.operator
             if c_op == "//":
@@ -2730,7 +2730,7 @@ class InPlaceAssignmentNode(AssignmentNode):
                 self.lhs.generate_buffer_setitem_code(self.rhs, code, c_op)
             else:
                 self.dup.generate_result_code(code)
-                code.putln("%s %s= %s;" % (self.lhs.result_code, c_op, self.rhs.result_code) )
+                code.putln("%s %s= %s;" % (self.lhs.result(), c_op, self.rhs.result()) )
             self.rhs.generate_disposal_code(code)
         if self.dup.is_temp:
             self.dup.generate_subexpr_disposal_code(code)
@@ -3090,7 +3090,7 @@ class AssertStatNode(StatNode):
         self.cond.generate_evaluation_code(code)
         code.putln(
             "if (unlikely(!%s)) {" %
-                self.cond.result_code)
+                self.cond.result())
         if self.value:
             self.value.generate_evaluation_code(code)
             code.putln(
@@ -3185,7 +3185,7 @@ class IfClauseNode(Node):
         self.condition.generate_evaluation_code(code)
         code.putln(
             "if (%s) {" %
-                self.condition.result_code)
+                self.condition.result())
         self.body.generate_execution_code(code)
         #code.putln(
         #	"goto %s;" %
@@ -3283,7 +3283,7 @@ class WhileStatNode(LoopNode, StatNode):
         self.condition.generate_evaluation_code(code)
         code.putln(
             "if (!%s) break;" %
-                self.condition.result_code)
+                self.condition.result())
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
         code.putln("}")
@@ -3480,7 +3480,7 @@ class ForFromStatNode(LoopNode, StatNode):
             c_loopvar_node = ExprNodes.TempNode(self.pos, 
                 PyrexTypes.c_long_type, env)
             c_loopvar_node.allocate_temps(env)
-            self.loopvar_name = c_loopvar_node.result_code
+            self.loopvar_name = c_loopvar_node.result()
             self.py_loopvar_node = \
                 ExprNodes.CloneNode(c_loopvar_node).coerce_to_pyobject(env)
         self.bound1.allocate_temps(env)
@@ -3509,12 +3509,12 @@ class ForFromStatNode(LoopNode, StatNode):
         offset, incop = self.relation_table[self.relation1]
         if self.step is not None:
             self.step.generate_evaluation_code(code)
-            incop = "%s=%s" % (incop[0], self.step.result_code)
+            incop = "%s=%s" % (incop[0], self.step.result())
         code.putln(
             "for (%s = %s%s; %s %s %s; %s%s) {" % (
                 self.loopvar_name,
-                self.bound1.result_code, offset,
-                self.loopvar_name, self.relation2, self.bound2.result_code,
+                self.bound1.result(), offset,
+                self.loopvar_name, self.relation2, self.bound2.result(),
                 self.loopvar_name, incop))
         if self.py_loopvar_node:
             self.py_loopvar_node.generate_evaluation_code(code)
@@ -4180,10 +4180,10 @@ class FromImportStatNode(StatNode):
         for cname, target in self.interned_items:
             code.putln(
                 '%s = PyObject_GetAttr(%s, %s); %s' % (
-                    self.item.result_code, 
+                    self.item.result(), 
                     self.module.py_result(),
                     cname,
-                    code.error_goto_if_null(self.item.result_code, self.pos)))
+                    code.error_goto_if_null(self.item.result(), self.pos)))
             target.generate_assignment_code(self.item, code)
         self.module.generate_disposal_code(code)
 
