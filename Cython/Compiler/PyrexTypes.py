@@ -197,20 +197,24 @@ class BufferType(BaseType):
     #  lookups to the base type. ANYTHING NOT DEFINED
     #  HERE IS DELEGATED!
     
-    # dtype         PyrexType
-    # ndim          int
-    # mode          str
-    # is_buffer     boolean
-    # writable      boolean
+    # dtype            PyrexType
+    # ndim             int
+    # mode             str
+    # negative_indices bool
+    # cast             bool
+    # is_buffer        bool
+    # writable         bool
 
     is_buffer = 1
     writable = True
-    def __init__(self, base, dtype, ndim, mode):
+    def __init__(self, base, dtype, ndim, mode, negative_indices, cast):
         self.base = base
         self.dtype = dtype
         self.ndim = ndim
         self.buffer_ptr_type = CPtrType(dtype)
         self.mode = mode
+        self.negative_indices = negative_indices
+        self.cast = cast
     
     def as_argument_type(self):
         return self
