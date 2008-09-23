@@ -140,7 +140,15 @@ class FlattenInListTransform(Visitor.VisitorTransform):
         return node
 
 
-class OptimizeRefcounting(Visitor.CythonTransform):
+class FinalOptimizePhase(Visitor.CythonTransform):
+    """
+    This visitor handles several commuting optimizations, and is run
+    just before the C code generation phase. 
+    
+    The optimizations currently implemented in this class are: 
+        - Eliminate None assignment and refcounting for first assignment. 
+        - isinstance -> typecheck for cdef types
+    """
     def visit_SingleAssignmentNode(self, node):
         if node.first:
             lhs = node.lhs
@@ -152,3 +160,22 @@ class OptimizeRefcounting(Visitor.CythonTransform):
                 lhs.skip_assignment_decref = True
         return node
 
+    def visit_SimpleCallNode(self, node):
+        self.visitchildren(node)
+        if node.function.type.is_cfunction:
+            if node.function.name == 'isinstance':
+                type_arg = node.args[1]
+                if type_arg.type.is_builtin_type and type_arg.type.name == 'type':
+                    object_module = self.context.find_module('python_object')
+                    node.function.entry = object_module.lookup('PyObject_TypeCheck')
+                    node.function.type = node.function.entry.type
+                    PyTypeObjectPtr = PyrexTypes.CPtrType(object_module.lookup('PyTypeObject').type)
+                    node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
+                    # Remove when result_code stuff is put in its proper place...
+                    node.function.result_code = node.function.entry.cname
+                    node.args[1].result_code = node.args[1].arg.result_as(PyTypeObjectPtr)
+                    if node.is_temp:
+                        node.allocate_temp(None, node.result_code)
+                    else:
+                        node.allocate_temp(None)
+        return node

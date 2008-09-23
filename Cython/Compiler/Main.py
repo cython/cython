@@ -81,7 +81,7 @@ class Context:
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
         from ParseTreeTransforms import InterpretCompilerDirectives
         from AutoDocTransforms import EmbedSignature
-        from Optimize import FlattenInListTransform, SwitchTransform, OptimizeRefcounting
+        from Optimize import FlattenInListTransform, SwitchTransform, FinalOptimizePhase
         from Buffer import IntroduceBufferAuxiliaryVars
         from ModuleNode import check_c_classes
 
@@ -106,7 +106,7 @@ class Context:
             _check_c_classes,
             AnalyseExpressionsTransform(self),
             SwitchTransform(),
-            OptimizeRefcounting(self),
+            FinalOptimizePhase(self),
 #            SpecialFunctions(self),
             #        CreateClosureClasses(context),
             ]
