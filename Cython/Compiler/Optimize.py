@@ -171,11 +171,4 @@ class FinalOptimizePhase(Visitor.CythonTransform):
                     node.function.type = node.function.entry.type
                     PyTypeObjectPtr = PyrexTypes.CPtrType(object_module.lookup('PyTypeObject').type)
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
-                    # Remove when result_code stuff is put in its proper place...
-                    node.function.result_code = node.function.entry.cname
-                    node.args[1].result_code = node.args[1].arg.result_as(PyTypeObjectPtr)
-                    if node.is_temp:
-                        node.allocate_temp(None, node.result_code)
-                    else:
-                        node.allocate_temp(None)
         return node
