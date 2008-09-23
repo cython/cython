@@ -16,12 +16,11 @@ class BasicVisitor(object):
         self.dispatch_table = {}
      
     def visit(self, obj):
-        pattern = "visit_%s"
         cls = obj.__class__
-        mname = pattern % cls.__name__
-        m = self.dispatch_table.get(mname)
+        m = self.dispatch_table.get(cls.__name__)
         if m is None:
             # Must resolve, try entire hierarchy
+            pattern = "visit_%s"
             mro = inspect.getmro(cls)
             for cls in mro:
                 m = getattr(self, pattern % cls.__name__, None)
@@ -33,7 +32,7 @@ class BasicVisitor(object):
                 print self.access_path[-1][0].pos
                 print self.access_path[-1][0].__dict__
                 raise RuntimeError("Visitor does not accept object: %s" % obj)
-            self.dispatch_table[mname] = m
+            self.dispatch_table[cls.__name__] = m
         return m(obj)
 
 class TreeVisitor(BasicVisitor):
