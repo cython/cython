@@ -943,7 +943,32 @@ def assign_to_object(object[object] buf, int idx, obj):
     """
     buf[idx] = obj
     
+#
+# cast option
+#
+@testcase
+def buffer_cast(object[unsigned int, cast=True] buf, int idx):
+    """
+    Round-trip a signed int through unsigned int buffer access.
 
+    >>> A = IntMockBuffer(None, [-100])
+    >>> buffer_cast(A, 0)
+    -100
+    """
+    cdef unsigned int data = buf[idx]
+    return <int>data
+
+@testcase
+def buffer_cast_fails(object[char, cast=True] buf):
+    """
+    Cannot cast between datatype of different sizes.
+    
+    >>> buffer_cast_fails(IntMockBuffer(None, [0]))
+    Traceback (most recent call last):
+        ...
+    ValueError: Attempted cast of buffer to datatype of different size.
+    """
+    return buf[0]
 
 
 #
@@ -1101,6 +1126,13 @@ cdef class MockBuffer:
     cdef get_default_format(self):
         print "ERROR, not subclassed", self.__class__
     
+cdef class CharMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<char*>buf)[0] = <int>value
+        return 0
+    cdef get_itemsize(self): return sizeof(char)
+    cdef get_default_format(self): return b"@b"
+
 cdef class IntMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         (<int*>buf)[0] = <int>value
