@@ -6,8 +6,7 @@ import re
 from Cython import Utils
 from Errors import warning, error, InternalError
 from StringEncoding import EncodedString
-import Options
-import Naming
+import Options, Naming
 import PyrexTypes
 from PyrexTypes import py_object_type
 import TypeSlots
@@ -711,7 +710,7 @@ class BuiltinScope(Scope):
         entry = self.declare_type(name, type, None, visibility='extern')
 
         var_entry = Entry(name = entry.name,
-            type = py_object_type,
+            type = self.lookup('type').type, # make sure "type" is the first type declared...
             pos = entry.pos,
             cname = "((PyObject*)%s)" % entry.type.typeptr_cname)
         var_entry.is_variable = 1
@@ -1110,8 +1109,9 @@ class ModuleScope(Scope):
         # variable entry attached to it. For the variable entry,
         # we use a read-only C global variable whose name is an
         # expression that refers to the type object.
+        import Builtin
         var_entry = Entry(name = entry.name,
-            type = py_object_type,
+            type = Builtin.type_type,
             pos = entry.pos,
             cname = "((PyObject*)%s)" % entry.type.typeptr_cname)
         var_entry.is_variable = 1
