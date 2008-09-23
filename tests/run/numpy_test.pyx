@@ -137,6 +137,13 @@ try:
     Traceback (most recent call last):
        ...
     ValueError: only objects, int and float dtypes supported for ndarray buffer access so far (dtype is 20)
+
+    >>> test_good_cast()
+    True
+    >>> test_bad_cast()
+    Traceback (most recent call last):
+        ...
+    ValueError: Attempted cast of buffer to datatype of different size.
     
 """
 except:
@@ -225,3 +232,15 @@ def test_dtype(dtype, inc1):
     a = np.array([0, 10], dtype=dtype)
     inc1(a)
     if a[1] != 11: print "failed!"
+
+
+def test_good_cast():
+    # Check that a signed int can round-trip through casted unsigned int access
+    cdef np.ndarray[unsigned int, cast=True] arr = np.array([-100], dtype='i')
+    cdef unsigned int data = arr[0]
+    return -100 == <int>data
+
+def test_bad_cast():
+    # This should raise an exception
+    cdef np.ndarray[long, cast=True] arr = np.array([1], dtype='b')
+    
