@@ -205,12 +205,13 @@ class BufferType(BaseType):
 
     is_buffer = 1
     writable = True
-    def __init__(self, base, dtype, ndim, mode):
+    def __init__(self, base, dtype, ndim, mode, negative_indices):
         self.base = base
         self.dtype = dtype
         self.ndim = ndim
         self.buffer_ptr_type = CPtrType(dtype)
         self.mode = mode
+        self.negative_indices = negative_indices
     
     def as_argument_type(self):
         return self

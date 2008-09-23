@@ -474,6 +474,25 @@ def list_comprehension(object[int] buf, len):
     print u"|".join([unicode(buf[i]) for i in range(len)])
 
 #
+# The negative_indices buffer option
+#
+@testcase
+def no_negative_indices(object[int, negative_indices=False] buf, int idx):
+    """
+    The most interesting thing here is to inspect the C source and
+    make sure optimal code is produced.
+    
+    >>> A = IntMockBuffer(None, range(6))
+    >>> no_negative_indices(A, 3)
+    3
+    >>> no_negative_indices(A, -1)
+    Traceback (most recent call last):
+        ...
+    IndexError: Out of bounds on buffer access (axis 0)
+    """
+    return buf[idx]
+
+#
 # Buffer type mismatch examples. Varying the type and access
 # method simultaneously, the odds of an interaction is virtually
 # zero.
@@ -635,7 +654,7 @@ def safe_get(object[int] buf, int idx):
     return buf[idx]
 
 @testcase
-@cython.boundscheck(False)
+@cython.boundscheck(False) # outer decorators should take precedence
 @cython.boundscheck(True)
 def unsafe_get(object[int] buf, int idx):
     """
@@ -647,6 +666,18 @@ def unsafe_get(object[int] buf, int idx):
     3
     >>> unsafe_get(A, 3)
     8
+    """
+    return buf[idx]
+
+@testcase
+@cython.boundscheck(False)
+def unsafe_get_nonegative(object[int, negative_indices=False] buf, int idx):
+    """
+    Also inspect the C source to see that it is optimal...
+    
+    >>> A = IntMockBuffer(None, range(10), shape=(3,), offset=5)
+    >>> unsafe_get_nonegative(A, -2)
+    3
     """
     return buf[idx]
 
@@ -1076,6 +1107,13 @@ cdef class IntMockBuffer(MockBuffer):
         return 0
     cdef get_itemsize(self): return sizeof(int)
     cdef get_default_format(self): return b"@i"
+
+cdef class UnsignedIntMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<unsigned int*>buf)[0] = <unsigned int>value
+        return 0
+    cdef get_itemsize(self): return sizeof(unsigned int)
+    cdef get_default_format(self): return b"@I"
 
 cdef class ShortMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:

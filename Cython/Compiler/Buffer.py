@@ -113,8 +113,8 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
 #
 # Analysis
 #
-buffer_options = ("dtype", "ndim", "mode") # ordered!
-buffer_defaults = {"ndim": 1, "mode": "full"}
+buffer_options = ("dtype", "ndim", "mode", "negative_indices") # ordered!
+buffer_defaults = {"ndim": 1, "mode": "full", "negative_indices": True}
 buffer_positional_options_count = 1 # anything beyond this needs keyword argument
 
 ERR_BUF_OPTION_UNKNOWN = '"%s" is not a buffer option'
@@ -124,6 +124,7 @@ ERR_BUF_MISSING = '"%s" missing'
 ERR_BUF_MODE = 'Only allowed buffer modes are: "c", "fortran", "full", "strided" (as a compile-time string)'
 ERR_BUF_NDIM = 'ndim must be a non-negative integer'
 ERR_BUF_DTYPE = 'dtype must be "object", numeric type or a struct'
+ERR_BUF_NEGATIVE_INDICES = 'negative_indices must be a boolean'
 
 def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, need_complete=True):
     """
@@ -177,6 +178,10 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
     mode = options.get("mode")
     if mode and not (mode in ('full', 'strided', 'c', 'fortran')):
         raise CompileError(globalpos, ERR_BUF_MODE)
+
+    negative_indices = options.get("negative_indices")
+    if mode and not isinstance(negative_indices, bool):
+        raise CompileError(globalpos, ERR_BUF_NEGATIVE_INDICES)
 
     return options
     
@@ -336,6 +341,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, options, pos, cod
     """
     bufaux = entry.buffer_aux
     bufstruct = bufaux.buffer_info_var.cname
+    negative_indices = entry.type.negative_indices
 
     if options['boundscheck']:
         # Check bounds and fix negative indices.
@@ -349,9 +355,12 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, options, pos, cod
             if signed != 0:
                 # not unsigned, deal with negative index
                 code.putln("if (%s < 0) {" % cname)
-                code.putln("%s += %s;" % (cname, shape.cname))
-                code.putln("if (%s) %s = %d;" % (
-                    code.unlikely("%s < 0" % cname), tmp_cname, dim))
+                if negative_indices:
+                    code.putln("%s += %s;" % (cname, shape.cname))
+                    code.putln("if (%s) %s = %d;" % (
+                        code.unlikely("%s < 0" % cname), tmp_cname, dim))
+                else:
+                    code.putln("%s = %d;" % (tmp_cname, dim))
                 code.put("} else ")
             # check bounds in positive direction
             code.putln("if (%s) %s = %d;" % (
@@ -364,7 +373,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, options, pos, cod
         code.putln(code.error_goto(pos))
         code.end_block()
         code.funcstate.release_temp(tmp_cname)
-    else:
+    elif negative_indices:
         # Only fix negative indices.
         for signed, cname, shape in zip(index_signeds, index_cnames,
                                         bufaux.shapevars):
