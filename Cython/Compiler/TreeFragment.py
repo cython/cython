@@ -158,7 +158,7 @@ class TemplateTransform(VisitorTransform):
             return self.try_substitution(node, node.name)
         else:
             # Replace name with temporary
-            return self.tempblock.get_ref_node(tmpidx, self.get_pos(node))
+            return self.tempblock.new_ref_node(tmpidx, self.get_pos(node))
 
     def visit_ExprStatNode(self, node):
         # If an expression-as-statement consists of only a replaceable

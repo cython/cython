@@ -58,7 +58,7 @@ class TempsBlockNode(Node):
         self.handles = [TempHandle(t) for t in types]
         Node.__init__(self, pos, body=body)
 
-    def get_ref_node(self, index, pos):
+    def new_ref_node(self, index, pos):
         handle = self.handles[index]
         return TempRefNode(pos, handle=handle, type=handle.type)
 
