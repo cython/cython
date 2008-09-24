@@ -1,4 +1,4 @@
-from Cython.Compiler.Visitor import TreeVisitor, get_temp_name_handle_desc
+from Cython.Compiler.Visitor import TreeVisitor
 from Cython.Compiler.Nodes import *
 from Cython.Compiler.ExprNodes import *
 
@@ -37,6 +37,7 @@ class CodeWriter(TreeVisitor):
         self.result = result
         self.numindents = 0
         self.tempnames = {}
+        self.tempblockindex = 0
     
     def write(self, tree):
         self.visit(tree)
@@ -60,12 +61,6 @@ class CodeWriter(TreeVisitor):
         self.startline(s)
         self.endline()
 
-    def putname(self, name):
-        tmpdesc = get_temp_name_handle_desc(name)
-        if tmpdesc is not None:
-            name = self.tempnames.setdefault(tmpdesc, u"$" +tmpdesc)
-        self.put(name)
-    
     def comma_seperated_list(self, items, output_rhs=False):
         if len(items) > 0:
             for item in items[:-1]:
@@ -132,7 +127,7 @@ class CodeWriter(TreeVisitor):
         self.endline()
     
     def visit_NameNode(self, node):
-        self.putname(node.name)
+        self.put(node.name)
     
     def visit_IntNode(self, node):
         self.put(node.value)
@@ -312,3 +307,18 @@ class CodeWriter(TreeVisitor):
         self.visit(node.operand)
         self.put(u")")
 
+    def visit_TempsBlockNode(self, node):
+        """
+        Temporaries are output like $1_1', where the first number is
+        an index of the TempsBlockNode and the second number is an index
+        of the temporary which that block allocates.
+        """
+        idx = 0
+        for handle in node.handles:
+            self.tempnames[handle] = "$%d_%d" % (self.tempblockindex, idx)
+            idx += 1
+        self.tempblockindex += 1
+        self.visit(node.body)
+
+    def visit_TempRefNode(self, node):
+        self.put(self.tempnames[node.handle])

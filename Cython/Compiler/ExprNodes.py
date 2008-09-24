@@ -206,10 +206,10 @@ class ExprNode(Node):
         return self.saved_subexpr_nodes
         
     def result(self):
-		if self.is_temp:
-			return self.result_code
-		else:
-			return self.calculate_result_code()
+        if self.is_temp:
+            return self.result_code
+        else:
+            return self.calculate_result_code()
     
     def result_as(self, type = None):
         #  Return the result code cast to the specified C type.

@@ -8,11 +8,12 @@ from Scanning import PyrexScanner, StringSourceDescriptor
 from Symtab import BuiltinScope, ModuleScope
 import Symtab
 import PyrexTypes
-from Visitor import VisitorTransform, temp_name_handle
+from Visitor import VisitorTransform
 from Nodes import Node, StatListNode
 from ExprNodes import NameNode
 import Parsing
 import Main
+import UtilNodes
 
 """
 Support for parsing strings into code trees.
@@ -111,12 +112,18 @@ class TemplateTransform(VisitorTransform):
 
     def __call__(self, node, substitutions, temps, pos):
         self.substitutions = substitutions
-        tempdict = {}
-        for key in temps:
-            tempdict[key] = temp_name_handle(key) # pending result_code refactor: Symtab.new_temp(PyrexTypes.py_object_type, key)
-        self.temp_key_to_entries = tempdict
         self.pos = pos
-        return super(TemplateTransform, self).__call__(node)
+
+
+        self.temps = temps
+        if len(temps) > 0:
+            self.tempblock = UtilNodes.TempsBlockNode(self.get_pos(node),
+                                                      [PyrexTypes.py_object_type for x in temps],
+                                                      body=None)
+            self.tempblock.body = super(TemplateTransform, self).__call__(node)
+            return self.tempblock
+        else:
+            return super(TemplateTransform, self).__call__(node)
 
     def get_pos(self, node):
         if self.pos:
@@ -145,13 +152,13 @@ class TemplateTransform(VisitorTransform):
             
     
     def visit_NameNode(self, node):
-        tempentry = self.temp_key_to_entries.get(node.name)
-        if tempentry is not None:
-            # Replace name with temporary
-            return NameNode(self.get_pos(node), name=tempentry)
-            # Pending result_code refactor: return NameNode(self.get_pos(node), entry=tempentry)
-        else:
+        try:
+            tmpidx = self.temps.index(node.name)
+        except:
             return self.try_substitution(node, node.name)
+        else:
+            # Replace name with temporary
+            return self.tempblock.get_ref_node(tmpidx, self.get_pos(node))
 
     def visit_ExprStatNode(self, node):
         # If an expression-as-statement consists of only a replaceable

@@ -1,6 +1,7 @@
 from Cython.TestUtils import CythonTest
 from Cython.Compiler.TreeFragment import *
 from Cython.Compiler.Nodes import *
+from Cython.Compiler.UtilNodes import *
 import Cython.Compiler.Naming as Naming
 
 class TestTreeFragments(CythonTest):
@@ -54,10 +55,10 @@ class TestTreeFragments(CythonTest):
             x = TMP
         """)
         T = F.substitute(temps=[u"TMP"])
-        s = T.stats
-        self.assert_(s[0].expr.name == Naming.temp_prefix +  u"1_TMP", s[0].expr.name)
-        self.assert_(s[1].rhs.name == Naming.temp_prefix + u"1_TMP")
-        self.assert_(s[0].expr.name !=  u"TMP")
+        s = T.body.stats
+        self.assert_(isinstance(s[0].expr, TempRefNode))
+        self.assert_(isinstance(s[1].rhs, TempRefNode))
+        self.assert_(s[0].expr.handle is s[1].rhs.handle)
 
 if __name__ == "__main__":
     import unittest

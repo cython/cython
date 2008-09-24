@@ -4188,6 +4188,7 @@ class FromImportStatNode(StatNode):
         self.module.generate_disposal_code(code)
 
 
+
 #------------------------------------------------------------------------------------
 #
 #  Runtime support code
