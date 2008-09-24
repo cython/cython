@@ -1,7 +1,8 @@
-from Cython.Compiler.Visitor import VisitorTransform, temp_name_handle, CythonTransform
+from Cython.Compiler.Visitor import VisitorTransform, CythonTransform
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import *
 from Cython.Compiler.ExprNodes import *
+from Cython.Compiler.UtilNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import CompileError
@@ -409,7 +410,7 @@ class WithTransform(CythonTransform):
         finally:
             if EXC:
                 EXIT(None, None, None)
-    """, temps=[u'MGR', u'EXC', u"EXIT", u"SYS)"],
+    """, temps=[u'MGR', u'EXC', u"EXIT"],
     pipeline=[NormalizeTree(None)])
 
     template_with_target = TreeFragment(u"""
@@ -428,32 +429,33 @@ class WithTransform(CythonTransform):
         finally:
             if EXC:
                 EXIT(None, None, None)
-    """, temps=[u'MGR', u'EXC', u"EXIT", u"VALUE", u"SYS"],
+    """, temps=[u'MGR', u'EXC', u"EXIT", u"VALUE"],
     pipeline=[NormalizeTree(None)])
 
     def visit_WithStatNode(self, node):
-        excinfo_name = temp_name_handle('EXCINFO')
-        excinfo_namenode = NameNode(pos=node.pos, name=excinfo_name)
-        excinfo_target = NameNode(pos=node.pos, name=excinfo_name)
+        excinfo_tempblock = TempsBlockNode(node.pos, [PyrexTypes.py_object_type], None)
         if node.target is not None:
             result = self.template_with_target.substitute({
                 u'EXPR' : node.manager,
                 u'BODY' : node.body,
                 u'TARGET' : node.target,
-                u'EXCINFO' : excinfo_namenode
+                u'EXCINFO' : excinfo_tempblock.get_ref_node(0, node.pos)
                 }, pos=node.pos)
             # Set except excinfo target to EXCINFO
-            result.stats[4].body.stats[0].except_clauses[0].excinfo_target = excinfo_target
+            result.body.stats[4].body.stats[0].except_clauses[0].excinfo_target = (
+             excinfo_tempblock.get_ref_node(0, node.pos))
         else:
             result = self.template_without_target.substitute({
                 u'EXPR' : node.manager,
                 u'BODY' : node.body,
-                u'EXCINFO' : excinfo_namenode
+                u'EXCINFO' : excinfo_tempblock.get_ref_node(0, node.pos)
                 }, pos=node.pos)
             # Set except excinfo target to EXCINFO
-            result.stats[4].body.stats[0].except_clauses[0].excinfo_target = excinfo_target
-        
-        return result.stats
+            result.body.stats[4].body.stats[0].except_clauses[0].excinfo_target = (
+                excinfo_tempblock.get_ref_node(0, node.pos))
+
+        excinfo_tempblock.body = result
+        return excinfo_tempblock
 
 class DecoratorTransform(CythonTransform):
 

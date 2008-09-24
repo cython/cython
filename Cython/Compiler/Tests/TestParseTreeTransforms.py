@@ -92,23 +92,23 @@ class TestWithTransform(TransformTest):
         with x:
             y = z ** 3
         """)
-        
+
         self.assertCode(u"""
 
-        $MGR = x
-        $EXIT = $MGR.__exit__
-        $MGR.__enter__()
-        $EXC = True
+        $1_0 = x
+        $1_2 = $1_0.__exit__
+        $1_0.__enter__()
+        $1_1 = True
         try:
             try:
                 y = z ** 3
             except:
-                $EXC = False
-                if (not $EXIT($EXCINFO)):
+                $1_1 = False
+                if (not $1_2($0_0)):
                     raise
         finally:
-            if $EXC:
-                $EXIT(None, None, None)
+            if $1_1:
+                $1_2(None, None, None)
 
         """, t)
 
@@ -119,21 +119,21 @@ class TestWithTransform(TransformTest):
         """)
         self.assertCode(u"""
 
-        $MGR = x
-        $EXIT = $MGR.__exit__
-        $VALUE = $MGR.__enter__()
-        $EXC = True
+        $1_0 = x
+        $1_2 = $1_0.__exit__
+        $1_3 = $1_0.__enter__()
+        $1_1 = True
         try:
             try:
-                y = $VALUE
+                y = $1_3
                 y = z ** 3
             except:
-                $EXC = False
-                if (not $EXIT($EXCINFO)):
+                $1_1 = False
+                if (not $1_2($0_0)):
                     raise
         finally:
-            if $EXC:
-                $EXIT(None, None, None)
+            if $1_1:
+                $1_2(None, None, None)
 
         """, t)
                           
