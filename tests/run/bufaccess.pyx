@@ -358,6 +358,20 @@ def alignment_string(object[int] buf):
     """ 
     print buf[1]
 
+@testcase
+def wrong_string(object[int] buf):
+    """
+    >>> wrong_string(IntMockBuffer(None, [1,2], format="iasdf"))
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer format string specifies more data than 'int' can hold (expected end, got 'asdf')
+    >>> wrong_string(IntMockBuffer(None, [1,2], format="$$"))
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer datatype mismatch (expected 'i', got '$$')
+    """
+    print buf[1]
+
 #
 # Getting items and index bounds checking
 # 
@@ -1056,7 +1070,6 @@ cdef class DoubleMockBuffer(MockBuffer):
     cdef get_itemsize(self): return sizeof(double)
     cdef get_default_format(self): return b"d"
 
-
 cdef extern from *:
     void* addr_of_pyobject "(void*)"(object)
 
@@ -1135,3 +1148,69 @@ def bufdefaults1(IntStridedMockBuffer[int, ndim=1] buf):
     pass
     
 
+#
+# Structs
+#
+cdef struct MyStruct:
+    char a
+    char b
+    long long int c
+    int d
+    int e
+
+cdef class MyStructMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        cdef MyStruct* s
+        s = <MyStruct*>buf;
+        s.a, s.b, s.c, s.d, s.e = value
+        return 0
+    
+    cdef get_itemsize(self): return sizeof(MyStruct)
+    cdef get_default_format(self): return b"2bq2i"
+
+@testcase
+def basic_struct(object[MyStruct] buf):
+    """
+    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
+    Traceback (most recent call last):
+        ...
+    ValueError: Struct buffer dtypes not implemented yet!
+
+    # 1 2 3 4 5
+    """
+    print buf[0].a, buf[0].b, buf[0].c, buf[0].d, buf[0].e
+
+cdef struct LongComplex:
+    long double real
+    long double imag
+
+cdef class LongComplexMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        cdef LongComplex* s
+        s = <LongComplex*>buf;
+        s.real, s.imag = value
+        return 0
+    
+    cdef get_itemsize(self): return sizeof(LongComplex)
+    cdef get_default_format(self): return b"Zg"
+
+@testcase
+def complex_struct_dtype(object[LongComplex] buf):
+    """
+    Note that the format string is "Zg" rather than "2g"...
+    >>> complex_struct_dtype(LongComplexMockBuffer(None, [(0, -1)]))
+    0.0 -1.0
+    """
+    print buf[0].real, buf[0].imag
+
+
+@testcase
+def complex_struct_inplace(object[LongComplex] buf):
+    """
+    >>> complex_struct_dtype(LongComplexMockBuffer(None, [(0, -1)]))
+    1.0 1.0
+    """
+    buf[0].real += 1
+    buf[0].imag += 2
+    print buf[0].real, buf[0].imag
+    

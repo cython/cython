@@ -168,6 +168,7 @@ class GlobalState(object):
         self.used_utility_code = set()
         self.declared_cnames = {}
         self.pystring_table_needed = False
+        self.in_utility_code_generation = False
 
     def initwriters(self, rootwriter):
         self.utilprotowriter = rootwriter.new_writer()
@@ -344,10 +345,10 @@ class GlobalState(object):
             self.utilprotowriter.put(proto)
             self.utildefwriter.put(_def)
 
-    def has_utility_code(self, name):
+    def has_code(self, name):
         return name in self.used_utility_code
 
-    def use_generated_code(self, func, name, *args, **kw):
+    def use_code_from(self, func, name, *args, **kw):
         """
         Requests that the utility code that func can generate is used in the C
         file. func is called like this:
