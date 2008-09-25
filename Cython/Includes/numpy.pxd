@@ -1,3 +1,5 @@
+cimport python_buffer as pybuf
+
 cdef extern from "Python.h":
     ctypedef int Py_intptr_t
     
@@ -19,7 +21,11 @@ cdef extern from "numpy/arrayobject.h":
         NPY_NTYPES,
         NPY_NOTYPE,
         NPY_CHAR,  
-        NPY_USERDEF
+        NPY_USERDEF,
+
+        NPY_C_CONTIGUOUS,
+        NPY_F_CONTIGUOUS
+        
 
     ctypedef class numpy.ndarray [object PyArrayObject]:
         cdef __cythonbufferdefaults__ = {"mode": "strided"}
@@ -29,18 +35,26 @@ cdef extern from "numpy/arrayobject.h":
             int ndim "nd"
             npy_intp *shape "dimensions" 
             npy_intp *strides
+            int flags
 
         # Note: This syntax (function definition in pxd files) is an
         # experimental exception made for __getbuffer__ and __releasebuffer__
         # -- the details of this may change.
         def __getbuffer__(ndarray self, Py_buffer* info, int flags):
             # This implementation of getbuffer is geared towards Cython
-            # requirements, and does not yet fullfill the PEP (specifically,
-            # Cython always requests and we always provide strided access,
-            # so the flags are not even checked).
-            
+            # requirements, and does not yet fullfill the PEP.
+            # In particular strided access is always provided regardless
+            # of flags
             if sizeof(npy_intp) != sizeof(Py_ssize_t):
                 raise RuntimeError("Py_intptr_t and Py_ssize_t differs in size, numpy.pxd does not support this")
+
+            if ((flags & pybuf.PyBUF_C_CONTIGUOUS == pybuf.PyBUF_C_CONTIGUOUS)
+                and not PyArray_CHKFLAGS(self, NPY_C_CONTIGUOUS)):
+                raise ValueError("ndarray is not C contiguous")
+                
+            if ((flags & pybuf.PyBUF_F_CONTIGUOUS == pybuf.PyBUF_F_CONTIGUOUS)
+                and not PyArray_CHKFLAGS(self, NPY_F_CONTIGUOUS)):
+                raise ValueError("ndarray is not Fortran contiguous")
 
             info.buf = PyArray_DATA(self)
             # info.obj = None # this is automatic
@@ -85,6 +99,7 @@ cdef extern from "numpy/arrayobject.h":
     cdef npy_intp PyArray_STRIDES(ndarray arr)
     cdef npy_intp PyArray_DIMS(ndarray arr)
     cdef Py_ssize_t PyArray_ITEMSIZE(ndarray arr)
+    cdef int PyArray_CHKFLAGS(ndarray arr, int flags)
 
     ctypedef signed int   npy_byte
     ctypedef signed int   npy_short

@@ -197,20 +197,24 @@ class BufferType(BaseType):
     #  lookups to the base type. ANYTHING NOT DEFINED
     #  HERE IS DELEGATED!
     
-    # dtype         PyrexType
-    # ndim          int
-    # mode          str
-    # is_buffer     boolean
-    # writable      boolean
+    # dtype            PyrexType
+    # ndim             int
+    # mode             str
+    # negative_indices bool
+    # cast             bool
+    # is_buffer        bool
+    # writable         bool
 
     is_buffer = 1
     writable = True
-    def __init__(self, base, dtype, ndim, mode):
+    def __init__(self, base, dtype, ndim, mode, negative_indices, cast):
         self.base = base
         self.dtype = dtype
         self.ndim = ndim
         self.buffer_ptr_type = CPtrType(dtype)
         self.mode = mode
+        self.negative_indices = negative_indices
+        self.cast = cast
     
     def as_argument_type(self):
         return self
@@ -732,7 +736,7 @@ class CFuncType(CType):
             return 1
         if not other_type.is_cfunction:
             return 0
-        if not self.is_overridable and other_type.is_overridable:
+        if self.is_overridable != other_type.is_overridable:
             return 0
         nargs = len(self.args)
         if nargs != len(other_type.args):
@@ -846,6 +850,8 @@ class CFuncType(CType):
         for arg in self.args[:len(self.args)-self.optional_arg_count]:
             arg_decl_list.append(
                 arg.type.declaration_code("", for_display, pyrex = pyrex))
+        if self.is_overridable:
+            arg_decl_list.append("int %s" % Naming.skip_dispatch_cname)
         if self.optional_arg_count:
             arg_decl_list.append(self.op_arg_struct.declaration_code(Naming.optional_args_cname))
         if self.has_varargs:
@@ -1184,11 +1190,16 @@ def widest_numeric_type(type1, type2):
     # Given two numeric types, return the narrowest type
     # encompassing both of them.
     if type1.is_enum and type2.is_enum:
-        widest_type = c_int_type
-    elif type2.rank > type1.rank:
-        widest_type = type2
+        return c_int_type
+    elif type1 is type2:
+        return type1
+    elif (type1.signed and type2.signed) or (not type1.signed and not type2.signed):
+        if type2.rank > type1.rank:
+            return type2
+        else:
+            return type1
     else:
-        widest_type = type1
+        return sign_and_rank_to_type[min(type1.signed, type2.signed), max(type1.rank, type2.rank)]
     return widest_type
 
 def simple_c_type(signed, longness, name):

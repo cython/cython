@@ -6,8 +6,7 @@ import re
 from Cython import Utils
 from Errors import warning, error, InternalError
 from StringEncoding import EncodedString
-import Options
-import Naming
+import Options, Naming
 import PyrexTypes
 from PyrexTypes import py_object_type
 import TypeSlots
@@ -138,6 +137,7 @@ class Entry:
     utility_code = None
     is_overridable = 0
     buffer_aux = None
+    prev_entry = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -178,6 +178,8 @@ class Scope:
     #                                        Python strings in this scope
     # control_flow     ControlFlow  Used for keeping track of environment state
     # nogil             boolean            In a nogil section
+    # directives       dict                Helper variable for the recursive
+    #                                      analysis, contains directive values.
 
     is_py_class_scope = 0
     is_c_class_scope = 0
@@ -185,6 +187,7 @@ class Scope:
     scope_prefix = ""
     in_cinclude = 0
     nogil = 0
+    directives = {}
     
     temp_prefix = Naming.pyrex_prefix
     
@@ -277,7 +280,7 @@ class Scope:
         if name and dict.has_key(name):
             if visibility == 'extern':
                 warning(pos, "'%s' redeclared " % name, 0)
-            else:
+            elif visibility != 'ignore':
                 error(pos, "'%s' redeclared " % name)
         entry = Entry(name, cname, type, pos = pos)
         entry.in_cinclude = self.in_cinclude
@@ -707,7 +710,7 @@ class BuiltinScope(Scope):
         entry = self.declare_type(name, type, None, visibility='extern')
 
         var_entry = Entry(name = entry.name,
-            type = py_object_type,
+            type = self.lookup('type').type, # make sure "type" is the first type declared...
             pos = entry.pos,
             cname = "((PyObject*)%s)" % entry.type.typeptr_cname)
         var_entry.is_variable = 1
@@ -1106,8 +1109,9 @@ class ModuleScope(Scope):
         # variable entry attached to it. For the variable entry,
         # we use a read-only C global variable whose name is an
         # expression that refers to the type object.
+        import Builtin
         var_entry = Entry(name = entry.name,
-            type = py_object_type,
+            type = Builtin.type_type,
             pos = entry.pos,
             cname = "((PyObject*)%s)" % entry.type.typeptr_cname)
         var_entry.is_variable = 1
@@ -1411,22 +1415,8 @@ class CClassScope(ClassScope):
                 if type.same_c_signature_as(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
                     pass
                 elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
-                    if type.optional_arg_count and not type.original_sig.optional_arg_count:
-                        # Need to put a wrapper taking no optional arguments 
-                        # into the method table.
-                        wrapper_func_cname = self.mangle(Naming.func_prefix, name) + Naming.no_opt_args
-                        wrapper_func_name = name + Naming.no_opt_args
-                        if entry.type.optional_arg_count:
-                            old_entry = self.lookup_here(wrapper_func_name)
-                            old_entry.func_cname = wrapper_func_cname
-                        else:
-                            entry.func_cname = wrapper_func_cname
-                            entry.name = wrapper_func_name
-                            entry = self.add_cfunction(name, type, pos, cname or name, visibility)
-                            defining = 1
-                    entry.type = type
-#                if type.narrower_c_signature_than(entry.type, as_cmethod = 1):
-#                    entry.type = type
+                    entry = self.add_cfunction(name, type, pos, cname or name, visibility='ignore')
+                    defining = 1
                 else:
                     error(pos, "Signature not compatible with previous declaration")
                     error(entry.pos, "Previous declaration is here")
@@ -1442,8 +1432,10 @@ class CClassScope(ClassScope):
         
     def add_cfunction(self, name, type, pos, cname, visibility):
         # Add a cfunction entry without giving it a func_cname.
+        prev_entry = self.lookup_here(name)
         entry = ClassScope.add_cfunction(self, name, type, pos, cname, visibility)
         entry.is_cmethod = 1
+        entry.prev_entry = prev_entry
         return entry
     
     def declare_property(self, name, doc, pos):

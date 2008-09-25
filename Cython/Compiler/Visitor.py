@@ -16,12 +16,11 @@ class BasicVisitor(object):
         self.dispatch_table = {}
      
     def visit(self, obj):
-        pattern = "visit_%s"
         cls = obj.__class__
-        mname = pattern % cls.__name__
-        m = self.dispatch_table.get(mname)
+        m = self.dispatch_table.get(cls.__name__)
         if m is None:
             # Must resolve, try entire hierarchy
+            pattern = "visit_%s"
             mro = inspect.getmro(cls)
             for cls in mro:
                 m = getattr(self, pattern % cls.__name__, None)
@@ -33,7 +32,7 @@ class BasicVisitor(object):
                 print self.access_path[-1][0].pos
                 print self.access_path[-1][0].__dict__
                 raise RuntimeError("Visitor does not accept object: %s" % obj)
-            self.dispatch_table[mname] = m
+            self.dispatch_table[cls.__name__] = m
         return m(obj)
 
 class TreeVisitor(BasicVisitor):
@@ -111,6 +110,7 @@ class TreeVisitor(BasicVisitor):
                     childretval = [self.visitchild(x, parent, attr, idx) for idx, x in enumerate(child)]
                 else:
                     childretval = self.visitchild(child, parent, attr, None)
+                    assert not isinstance(childretval, list), 'Cannot insert list here: %s in %r' % (attr, parent)
                 result[attr] = childretval
         return result
 
@@ -163,9 +163,24 @@ class CythonTransform(VisitorTransform):
         super(CythonTransform, self).__init__()
         self.context = context
 
+    def __call__(self, node):
+        import ModuleNode
+        if isinstance(node, ModuleNode.ModuleNode):
+            self.current_directives = node.directives
+        return super(CythonTransform, self).__call__(node)
+
+    def visit_CompilerDirectivesNode(self, node):
+        old = self.current_directives
+        self.current_directives = node.directives
+        self.visitchildren(node)
+        self.current_directives = old
+        return node
+
     def visit_Node(self, node):
         self.visitchildren(node)
         return node
+
+
 
 
 # Utils

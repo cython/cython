@@ -229,6 +229,8 @@ def p_typecast(s):
     pos = s.position()
     s.next()
     base_type = p_c_base_type(s)
+    if base_type.name is None:
+        s.error("Unknown type")
     declarator = p_c_declarator(s, empty = 1)
     if s.sy == '?':
         s.next()

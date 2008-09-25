@@ -488,6 +488,25 @@ def list_comprehension(object[int] buf, len):
     print u"|".join([unicode(buf[i]) for i in range(len)])
 
 #
+# The negative_indices buffer option
+#
+@testcase
+def no_negative_indices(object[int, negative_indices=False] buf, int idx):
+    """
+    The most interesting thing here is to inspect the C source and
+    make sure optimal code is produced.
+    
+    >>> A = IntMockBuffer(None, range(6))
+    >>> no_negative_indices(A, 3)
+    3
+    >>> no_negative_indices(A, -1)
+    Traceback (most recent call last):
+        ...
+    IndexError: Out of bounds on buffer access (axis 0)
+    """
+    return buf[idx]
+
+#
 # Buffer type mismatch examples. Varying the type and access
 # method simultaneously, the odds of an interaction is virtually
 # zero.
@@ -567,6 +586,54 @@ def strided(object[int, ndim=1, mode='strided'] buf):
     """
     return buf[2]
 
+@testcase
+def c_contig(object[int, ndim=1, mode='c'] buf):
+    """
+    >>> A = IntMockBuffer(None, range(4))
+    >>> c_contig(A)
+    2
+    >>> [str(x) for x in A.recieved_flags]
+    ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS']
+    """
+    return buf[2]
+    
+@testcase
+def c_contig_2d(object[int, ndim=2, mode='c'] buf):
+    """
+    Multi-dim has seperate implementation
+    
+    >>> A = IntMockBuffer(None, range(12), shape=(3,4))
+    >>> c_contig_2d(A)
+    7
+    >>> [str(x) for x in A.recieved_flags]
+    ['FORMAT', 'ND', 'STRIDES', 'C_CONTIGUOUS']
+    """
+    return buf[1, 3]
+
+@testcase
+def f_contig(object[int, ndim=1, mode='fortran'] buf):
+    """
+    >>> A = IntMockBuffer(None, range(4))
+    >>> f_contig(A)
+    2
+    >>> [str(x) for x in A.recieved_flags]
+    ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS']
+    """
+    return buf[2]
+
+@testcase
+def f_contig_2d(object[int, ndim=2, mode='fortran'] buf):
+    """
+    Must set up strides manually to ensure Fortran ordering.
+    
+    >>> A = IntMockBuffer(None, range(12), shape=(4,3), strides=(1, 4))
+    >>> f_contig_2d(A)
+    7
+    >>> [str(x) for x in A.recieved_flags]
+    ['FORMAT', 'ND', 'STRIDES', 'F_CONTIGUOUS']
+    """
+    return buf[3, 1]
+
 #
 # Test compiler options for bounds checking. We create an array with a
 # safe "boundary" (memory
@@ -601,7 +668,7 @@ def safe_get(object[int] buf, int idx):
     return buf[idx]
 
 @testcase
-@cython.boundscheck(False)
+@cython.boundscheck(False) # outer decorators should take precedence
 @cython.boundscheck(True)
 def unsafe_get(object[int] buf, int idx):
     """
@@ -613,6 +680,18 @@ def unsafe_get(object[int] buf, int idx):
     3
     >>> unsafe_get(A, 3)
     8
+    """
+    return buf[idx]
+
+@testcase
+@cython.boundscheck(False)
+def unsafe_get_nonegative(object[int, negative_indices=False] buf, int idx):
+    """
+    Also inspect the C source to see that it is optimal...
+    
+    >>> A = IntMockBuffer(None, range(10), shape=(3,), offset=5)
+    >>> unsafe_get_nonegative(A, -2)
+    3
     """
     return buf[idx]
 
@@ -878,7 +957,32 @@ def assign_to_object(object[object] buf, int idx, obj):
     """
     buf[idx] = obj
     
+#
+# cast option
+#
+@testcase
+def buffer_cast(object[unsigned int, cast=True] buf, int idx):
+    """
+    Round-trip a signed int through unsigned int buffer access.
 
+    >>> A = IntMockBuffer(None, [-100])
+    >>> buffer_cast(A, 0)
+    -100
+    """
+    cdef unsigned int data = buf[idx]
+    return <int>data
+
+@testcase
+def buffer_cast_fails(object[char, cast=True] buf):
+    """
+    Cannot cast between datatype of different sizes.
+    
+    >>> buffer_cast_fails(IntMockBuffer(None, [0]))
+    Traceback (most recent call last):
+        ...
+    ValueError: Attempted cast of buffer to datatype of different size.
+    """
+    return buf[0]
 
 
 #
@@ -891,6 +995,8 @@ available_flags = (
     ('INDIRECT', python_buffer.PyBUF_INDIRECT),
     ('ND', python_buffer.PyBUF_ND),
     ('STRIDES', python_buffer.PyBUF_STRIDES),
+    ('C_CONTIGUOUS', python_buffer.PyBUF_C_CONTIGUOUS),
+    ('F_CONTIGUOUS', python_buffer.PyBUF_F_CONTIGUOUS),
     ('WRITABLE', python_buffer.PyBUF_WRITABLE)
 )
 
@@ -927,7 +1033,6 @@ cdef class MockBuffer:
             strides.reverse()
         strides = [x * self.itemsize for x in strides]
         suboffsets = [-1] * len(shape)
-
         datashape = [len(data)]
         p = data
         while True:
@@ -1035,12 +1140,26 @@ cdef class MockBuffer:
     cdef get_default_format(self):
         print "ERROR, not subclassed", self.__class__
     
+cdef class CharMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<char*>buf)[0] = <int>value
+        return 0
+    cdef get_itemsize(self): return sizeof(char)
+    cdef get_default_format(self): return b"@b"
+
 cdef class IntMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         (<int*>buf)[0] = <int>value
         return 0
     cdef get_itemsize(self): return sizeof(int)
     cdef get_default_format(self): return b"@i"
+
+cdef class UnsignedIntMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        (<unsigned int*>buf)[0] = <unsigned int>value
+        return 0
+    cdef get_itemsize(self): return sizeof(unsigned int)
+    cdef get_default_format(self): return b"@I"
 
 cdef class ShortMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
