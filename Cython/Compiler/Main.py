@@ -79,8 +79,9 @@ class Context:
         from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
-        from ParseTreeTransforms import ResolveOptions
-        from Optimize import FlattenInListTransform, SwitchTransform, OptimizeRefcounting
+        from ParseTreeTransforms import InterpretCompilerDirectives
+        from AutoDocTransforms import EmbedSignature
+        from Optimize import FlattenInListTransform, SwitchTransform, FinalOptimizePhase
         from Buffer import IntroduceBufferAuxiliaryVars
         from ModuleNode import check_c_classes
 
@@ -95,7 +96,8 @@ class Context:
             NormalizeTree(self),
             PostParse(self),
             _specific_post_parse,
-            ResolveOptions(self, self.pragma_overrides),
+            InterpretCompilerDirectives(self, self.pragma_overrides),
+            EmbedSignature(self),
             FlattenInListTransform(),
             WithTransform(self),
             DecoratorTransform(self),
@@ -104,7 +106,7 @@ class Context:
             _check_c_classes,
             AnalyseExpressionsTransform(self),
             SwitchTransform(),
-            OptimizeRefcounting(self),
+            FinalOptimizePhase(self),
 #            SpecialFunctions(self),
             #        CreateClosureClasses(context),
             ]
@@ -727,7 +729,8 @@ default_options = dict(
     timestamps = None,
     verbose = 0,
     quiet = 0,
-    pragma_overrides = {}
+    pragma_overrides = {},
+    emit_linenums = False,
 )
 if sys.platform == "mac":
     from Cython.Mac.MacSystem import c_compile, c_link, CCompilerError

@@ -11,3 +11,5 @@ build/
 *.orig
 *.rej
 *.dep
+
+tags

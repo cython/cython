@@ -233,7 +233,7 @@ cdef extern from "Python.h":
     # pointer of type PyTypeObject*, except when the incremented
     # reference count is needed.
 
-    bint PyObject_TypeCheck(object o, object type) #	object o, PyTypeObject *type)
+    bint PyObject_TypeCheck(object o, PyTypeObject *type)
     # Return true if the object o is of type type or a subtype of
     # type. Both parameters must be non-NULL.
 

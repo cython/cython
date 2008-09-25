@@ -78,6 +78,30 @@ try:
     >>> print a
     [[0 0 0 0 0]
      [0 0 0 0 0]]
+
+    Test contiguous access modes:
+    >>> c_arr = np.array(np.arange(12, dtype='i').reshape(3,4), order='C')
+    >>> f_arr = np.array(np.arange(12, dtype='i').reshape(3,4), order='F')
+    >>> test_c_contig(c_arr)
+    0 1 2 3
+    4 5 6 7
+    8 9 10 11
+    >>> test_f_contig(f_arr)
+    0 1 2 3
+    4 5 6 7
+    8 9 10 11
+    >>> test_c_contig(f_arr)
+    Traceback (most recent call last):
+       ...
+    ValueError: ndarray is not C contiguous
+    >>> test_f_contig(c_arr)
+    Traceback (most recent call last):
+       ...
+    ValueError: ndarray is not Fortran contiguous
+    >>> test_c_contig(c_arr[::2,::2])
+    Traceback (most recent call last):
+       ...
+    ValueError: ndarray is not C contiguous
     
     >>> test_dtype('b', inc1_byte)
     >>> test_dtype('B', inc1_ubyte)
@@ -111,6 +135,13 @@ try:
     Traceback (most recent call last):
        ...
     ValueError: only objects, int and float dtypes supported for ndarray buffer access so far (dtype is 20)
+
+    >>> test_good_cast()
+    True
+    >>> test_bad_cast()
+    Traceback (most recent call last):
+        ...
+    ValueError: Attempted cast of buffer to datatype of different size.
     
 """
 except:
@@ -151,6 +182,15 @@ def put_range_long_1d(np.ndarray[long] arr):
         arr[i] = value
         value += 1
 
+def test_c_contig(np.ndarray[int, ndim=2, mode='c'] arr):
+    cdef int i, j
+    for i in range(arr.shape[0]):
+        print " ".join([str(arr[i, j]) for j in range(arr.shape[1])])
+
+def test_f_contig(np.ndarray[int, ndim=2, mode='fortran'] arr):
+    cdef int i, j
+    for i in range(arr.shape[0]):
+        print " ".join([str(arr[i, j]) for j in range(arr.shape[1])])
 
 cdef struct cfloat:
     float real
@@ -224,3 +264,13 @@ def test_dtype(dtype, inc1):
         a = np.array([0, 10], dtype=dtype)
         inc1(a)
         if a[1] != 11: print "failed!"
+
+def test_good_cast():
+    # Check that a signed int can round-trip through casted unsigned int access
+    cdef np.ndarray[unsigned int, cast=True] arr = np.array([-100], dtype='i')
+    cdef unsigned int data = arr[0]
+    return -100 == <int>data
+
+def test_bad_cast():
+    # This should raise an exception
+    cdef np.ndarray[long, cast=True] arr = np.array([1], dtype='b')

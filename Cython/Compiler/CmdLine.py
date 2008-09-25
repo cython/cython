@@ -36,7 +36,7 @@ Options:
 
   -D, --no-docstrings            Remove docstrings.
   -a, --annotate                 Produce a colorized HTML version of the source.
-  --convert-range                Convert for loops using range() function to for...from loops. 
+  --line-directives              Produce #line directives pointing to the .pyx source
   --cplus                        Output a c++ rather than c file.
   -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
 """
@@ -114,6 +114,8 @@ def parse_command_line(args):
                 Options.annotate = True
             elif option == "--convert-range":
                 Options.convert_range = True
+            elif option == "--line-directives":
+                options.emit_linenums = True
             elif option in ("-X", "--directive"):
                 try:
                     options.pragma_overrides = Options.parse_option_list(pop_arg())

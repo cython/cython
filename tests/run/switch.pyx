@@ -62,6 +62,33 @@ __doc__ = u"""
 12
 >>> switch_c(13)
 0
+
+>>> switch_or(0)
+0
+>>> switch_or(1)
+1
+>>> switch_or(2)
+1
+>>> switch_or(3)
+1
+>>> switch_or(4)
+0
+
+>>> switch_short(0)
+0
+>>> switch_short(1)
+1
+>>> switch_short(2)
+2
+>>> switch_short(3)
+0
+
+>>> switch_off(0)
+0
+>>> switch_off(1)
+1
+>>> switch_off(2)
+0
 """
 
 def switch_simple_py(x):
@@ -120,6 +147,29 @@ def switch_c(int x):
         return 10
     elif x in (12,):
         return 12
+    else:
+        return 0
+    return -1
+
+def switch_or(int x):
+    if x == 1 or x == 2 or x == 3:
+        return 1
+    else:
+        return 0
+    return -1
+
+def switch_short(int x):
+    if x == 1:
+        return 1
+    elif 2 == x:
+        return 2
+    else:
+        return 0
+    return -1
+
+def switch_off(int x):
+    if x == 1:
+        return 1
     else:
         return 0
     return -1
