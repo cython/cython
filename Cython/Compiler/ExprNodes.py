@@ -1498,6 +1498,8 @@ class IndexNode(ExprNode):
 
     def generate_result_code(self, code):
         if self.is_buffer_access:
+            if code.globalstate.directives['nonecheck']:
+                self.put_nonecheck(code)
             ptrcode = self.buffer_lookup_code(code)
             code.putln("%s = *%s;" % (
                 self.result(),
@@ -1541,6 +1543,8 @@ class IndexNode(ExprNode):
 
     def generate_buffer_setitem_code(self, rhs, code, op=""):
         # Used from generate_assignment_code and InPlaceAssignmentNode
+        if code.globalstate.directives['nonecheck']:
+            self.put_nonecheck(code)
         ptrexpr = self.buffer_lookup_code(code)
         if self.buffer_type.dtype.is_pyobject:
             # Must manage refcounts. Decref what is already there
@@ -1606,6 +1610,13 @@ class IndexNode(ExprNode):
                                              index_cnames=index_temps,
                                              options=code.globalstate.directives,
                                              pos=self.pos, code=code)
+
+    def put_nonecheck(self, code):
+        code.globalstate.use_utility_code(raise_noneindex_error_utility_code)
+        code.putln("if (%s) {" % code.unlikely("%s == Py_None") % self.base.result_as(PyrexTypes.py_object_type))
+        code.putln("__Pyx_RaiseNoneIndexingError();")
+        code.putln(code.error_goto(self.pos))
+        code.putln("}")
 
 class SliceIndexNode(ExprNode):
     #  2-element slice indexing
@@ -4585,5 +4596,14 @@ static INLINE void __Pyx_RaiseNoneAttributeError(char* attrname);
 """, """
 static INLINE void __Pyx_RaiseNoneAttributeError(char* attrname) {
     PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%s'", attrname);
+}
+"""]
+
+raise_noneindex_error_utility_code = [
+"""
+static INLINE void __Pyx_RaiseNoneIndexingError();
+""", """
+static INLINE void __Pyx_RaiseNoneIndexingError() {
+    PyErr_SetString(PyExc_TypeError, "'NoneType' object is unsubscriptable");
 }
 """]
