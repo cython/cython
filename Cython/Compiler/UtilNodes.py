@@ -14,6 +14,9 @@ class TempHandle(object):
     def __init__(self, type):
         self.type = type
 
+    def ref(self, pos):
+        return TempRefNode(pos, handle=self, type=self.type)
+
 class TempRefNode(ExprNode):
     # handle   TempHandle
     subexprs = []
@@ -52,29 +55,17 @@ class TempsBlockNode(Node):
     The variables can be referred to using a TempRefNode
     (which can be constructed by calling get_ref_node).
     """
+
+    # temps   [TempHandle]
+    # body    StatNode
+    
     child_attrs = ["body"]
 
-    def __init__(self, pos, types, body):
-        self.handles = [TempHandle(t) for t in types]
-        Node.__init__(self, pos, body=body)
-
-    def new_ref_node(self, index, pos):
-        handle = self.handles[index]
-        return TempRefNode(pos, handle=handle, type=handle.type)
-
-    def append_temp(self, type, pos):
-        """
-        Appends a new temporary which this block manages, and returns
-        its index.
-        """
-        self.handle.append(TempHandle(type))
-        return len(self.handle) - 1
-
     def generate_execution_code(self, code):
-        for handle in self.handles:
+        for handle in self.temps:
             handle.temp = code.funcstate.allocate_temp(handle.type)
         self.body.generate_execution_code(code)
-        for handle in self.handles:
+        for handle in self.temps:
             code.funcstate.release_temp(handle.temp)
 
     def analyse_control_flow(self, env):
