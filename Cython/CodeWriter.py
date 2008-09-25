@@ -314,7 +314,7 @@ class CodeWriter(TreeVisitor):
         of the temporary which that block allocates.
         """
         idx = 0
-        for handle in node.handles:
+        for handle in node.temps:
             self.tempnames[handle] = "$%d_%d" % (self.tempblockindex, idx)
             idx += 1
         self.tempblockindex += 1

@@ -113,17 +113,19 @@ class TemplateTransform(VisitorTransform):
     def __call__(self, node, substitutions, temps, pos):
         self.substitutions = substitutions
         self.pos = pos
-
-
-        self.temps = temps
-        if len(temps) > 0:
-            self.tempblock = UtilNodes.TempsBlockNode(self.get_pos(node),
-                                                      [PyrexTypes.py_object_type for x in temps],
-                                                      body=None)
-            self.tempblock.body = super(TemplateTransform, self).__call__(node)
-            return self.tempblock
-        else:
-            return super(TemplateTransform, self).__call__(node)
+        tempmap = {}
+        temphandles = []
+        for temp in temps:
+            handle = UtilNodes.TempHandle(PyrexTypes.py_object_type)
+            tempmap[temp] = handle
+            temphandles.append(handle)
+        self.tempmap = tempmap
+        result = super(TemplateTransform, self).__call__(node)
+        if temps:
+            result = UtilNodes.TempsBlockNode(self.get_pos(node),
+                                              temps=temphandles,
+                                              body=result)
+        return result
 
     def get_pos(self, node):
         if self.pos:
@@ -150,15 +152,13 @@ class TemplateTransform(VisitorTransform):
         else:
             return self.visit_Node(node) # make copy as usual
             
-    
     def visit_NameNode(self, node):
-        try:
-            tmpidx = self.temps.index(node.name)
-        except:
-            return self.try_substitution(node, node.name)
-        else:
+        temphandle = self.tempmap.get(node.name)
+        if temphandle:
             # Replace name with temporary
-            return self.tempblock.new_ref_node(tmpidx, self.get_pos(node))
+            return temphandle.ref(self.get_pos(node))
+        else:
+            return self.try_substitution(node, node.name)
 
     def visit_ExprStatNode(self, node):
         # If an expression-as-statement consists of only a replaceable

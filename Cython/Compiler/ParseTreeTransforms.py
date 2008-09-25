@@ -433,29 +433,28 @@ class WithTransform(CythonTransform):
     pipeline=[NormalizeTree(None)])
 
     def visit_WithStatNode(self, node):
-        excinfo_tempblock = TempsBlockNode(node.pos, [PyrexTypes.py_object_type], None)
+        excinfo_temp = TempHandle(PyrexTypes.py_object_type)
         if node.target is not None:
             result = self.template_with_target.substitute({
                 u'EXPR' : node.manager,
                 u'BODY' : node.body,
                 u'TARGET' : node.target,
-                u'EXCINFO' : excinfo_tempblock.new_ref_node(0, node.pos)
+                u'EXCINFO' : excinfo_temp.ref(node.pos)
                 }, pos=node.pos)
             # Set except excinfo target to EXCINFO
             result.body.stats[4].body.stats[0].except_clauses[0].excinfo_target = (
-             excinfo_tempblock.new_ref_node(0, node.pos))
+                excinfo_temp.ref(node.pos))
         else:
             result = self.template_without_target.substitute({
                 u'EXPR' : node.manager,
                 u'BODY' : node.body,
-                u'EXCINFO' : excinfo_tempblock.new_ref_node(0, node.pos)
+                u'EXCINFO' : excinfo_temp.ref(node.pos)
                 }, pos=node.pos)
             # Set except excinfo target to EXCINFO
             result.body.stats[4].body.stats[0].except_clauses[0].excinfo_target = (
-                excinfo_tempblock.new_ref_node(0, node.pos))
+                excinfo_temp.ref(node.pos))
 
-        excinfo_tempblock.body = result
-        return excinfo_tempblock
+        return TempsBlockNode(node.pos, temps=[excinfo_temp], body=result)
 
 class DecoratorTransform(CythonTransform):
 
