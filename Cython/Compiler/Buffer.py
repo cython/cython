@@ -385,7 +385,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, options, pos, cod
         funcgen = buf_lookup_strided_code
         
     # Make sure the utility code is available
-    code.globalstate.use_generated_code(funcgen, name=funcname, nd=nd)
+    code.globalstate.use_code_from(funcgen, name=funcname, nd=nd)
 
     ptrcode = "%s(%s.buf, %s)" % (funcname, bufstruct, ", ".join(params))
     return entry.type.buffer_ptr_type.cast_code(ptrcode)
@@ -446,14 +446,14 @@ def mangle_dtype_name(dtype):
 
 def get_ts_check_item(dtype, writer):
     # See if we can consume one (unnamed) dtype as next item
-    # Put native types and structs in seperate namespaces (as one could create a struct named unsigned_int...)
-    name = "__Pyx_BufferTypestringCheck_item_%s" % mangle_dtype_name(dtype)
-    if not writer.globalstate.has_utility_code(name):
+    # Put native and custom types in seperate namespaces (as one could create a type named unsigned_int...)
+    name = "__Pyx_CheckTypestringItem_%s" % mangle_dtype_name(dtype)
+    if not writer.globalstate.has_code(name):
         char = dtype.typestring
         if char is not None:
+            assert len(char) == 1
             # Can use direct comparison
             code = dedent("""\
-                if (*ts == '1') ++ts;
                 if (*ts != '%s') {
                   PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (expected '%s', got '%%s')", ts);
                   return NULL;
@@ -465,7 +465,6 @@ def get_ts_check_item(dtype, writer):
             ctype = dtype.declaration_code("")
             code = dedent("""\
                 int ok;
-                if (*ts == '1') ++ts;
                 switch (*ts) {""", 2)
             if dtype.is_int:
                 types = [
@@ -475,8 +474,7 @@ def get_ts_check_item(dtype, writer):
             elif dtype.is_float:
                 types = [('f', 'float'), ('d', 'double'), ('g', 'long double')]
             else:
-                assert dtype.is_error
-                return name
+                assert False
             if dtype.signed == 0:
                 code += "".join(["\n    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 > 0); break;" %
                                  (char.upper(), ctype, against, ctype) for char, against in types])
@@ -503,6 +501,51 @@ def get_ts_check_item(dtype, writer):
 
     return name
 
+def create_typestringchecker(protocode, defcode, name, dtype):
+    if dtype.is_error: return
+    simple = dtype.is_int or dtype.is_float or dtype.is_pyobject or dtype.is_extension_type or dtype.is_ptr
+    complex_possible = dtype.is_struct_or_union and dtype.can_be_complex()
+    # Cannot add utility code recursively...
+    if simple:
+        itemchecker = get_ts_check_item(dtype, protocode)
+    else:
+        protocode.globalstate.use_utility_code(parse_typestring_repeat_code)
+        fields = dtype.scope.var_entries
+        field_checkers = [get_ts_check_item(x.type, protocode) for x in fields]
+        
+    protocode.putln("static const char* %s(const char* ts); /*proto*/" % name)
+    defcode.putln("static const char* %s(const char* ts) {" % name)
+    if simple:
+        defcode.putln("ts = __Pyx_ConsumeWhitespace(ts); if (!ts) return NULL;")
+        defcode.putln("if (*ts == '1') ++ts;")
+        defcode.putln("ts = %s(ts); if (!ts) return NULL;" % itemchecker)
+    else:
+        defcode.putln("int repeat; char type;")
+        defcode.putln("ts = __Pyx_ConsumeWhitespace(ts); if (!ts) return NULL;")
+        if complex_possible:
+            # Could be a struct representing a complex number, so allow
+            # for parsing a "Zf" spec.
+            real_t, imag_t = [x.type.declaration_code("") for x in fields]
+            defcode.putln("if (*ts == 'Z' && sizeof(%s) == sizeof(%s)) {" % (real_t, imag_t))
+            defcode.putln("ts = %s(ts + 1); if (!ts) return NULL;" % field_checkers[0])
+            defcode.putln("} else {")
+        defcode.putln('PyErr_SetString(PyExc_ValueError, "Struct buffer dtypes not implemented yet!");')
+        defcode.putln('return NULL;')
+        # Code for parsing as a struct.
+#        for field, checker in zip(fields, field_checkers):
+#            defcode.put(dedent("""\
+#                if (repeat == 0) {
+#                    ts = __Pyx_ParseTypestringRepeat(ts, &repeat); if (!ts) return NULL;
+#                    ts = %s(ts); if (!ts) return NULL;
+#                }
+#            """) % checker)
+            
+        if complex_possible:
+            defcode.putln("}")
+
+    defcode.putln("return ts;")
+    defcode.putln("}")
+
 def get_getbuffer_code(dtype, code):
     """
     Generate a utility function for getting a buffer for the given dtype.
@@ -514,9 +557,15 @@ def get_getbuffer_code(dtype, code):
     """
 
     name = "__Pyx_GetBuffer_%s" % mangle_dtype_name(dtype)
-    if not code.globalstate.has_utility_code(name):
+    if not code.globalstate.has_code(name):
         code.globalstate.use_utility_code(acquire_utility_code)
-        itemchecker = get_ts_check_item(dtype, code)
+
+        typestringchecker = "__Pyx_CheckTypestring_%s" % mangle_dtype_name(dtype)
+        code.globalstate.use_code_from(create_typestringchecker,
+                                       typestringchecker,
+                                       dtype=dtype)
+
+        dtype_name = str(dtype)
         utilcode = [dedent("""
         static int %s(PyObject* obj, Py_buffer* buf, int flags, int nd); /*proto*/
         """) % name, dedent("""
@@ -533,15 +582,11 @@ def get_getbuffer_code(dtype, code):
             goto fail;
           }
           ts = buf->format;
+          ts = %(typestringchecker)s(ts); if (!ts) goto fail;
           ts = __Pyx_ConsumeWhitespace(ts);
-          if (!ts) goto fail;
-          ts = %(itemchecker)s(ts);
-          if (!ts) goto fail;
-          ts = __Pyx_ConsumeWhitespace(ts);
-          if (!ts) goto fail;
           if (*ts != 0) {
             PyErr_Format(PyExc_ValueError,
-              "Expected non-struct buffer data type (expected end, got '%%s')", ts);
+              "Buffer format string specifies more data than '%(dtype_name)s' can hold (expected end, got '%%s')", ts);
             goto fail;
           }
           if (buf->suboffsets == NULL) buf->suboffsets = __Pyx_minusones;
@@ -709,6 +754,26 @@ static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim) {
                expected_ndim, buffer->ndim);
 }
 
+"""]
+
+
+parse_typestring_repeat_code = ["""
+static INLINE const char* __Pyx_ParseTypestringRepeat(const char* ts, int* out_count); /*proto*/
+""","""
+static INLINE const char* __Pyx_ParseTypestringRepeat(const char* ts, int* out_count) {
+    int count;
+    if (*ts < '0' || *ts > '9') {
+        count = 1;
+    } else {
+        count = *ts++ - '0';
+        while (*ts >= '0' && *ts < '9') {
+            count *= 10;
+            count += *ts++ - '0';
+        }
+    }
+    *out_count = count;
+    return ts;
+}
 """]
 
 raise_buffer_fallback_code = ["""

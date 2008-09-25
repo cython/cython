@@ -91,6 +91,9 @@ try:
     >>> test_dtype('d', inc1_double)
     >>> test_dtype('g', inc1_longdouble)
     >>> test_dtype('O', inc1_object)
+    >>> test_dtype('F', inc1_cfloat) # numpy format codes differ from buffer ones here
+    >>> test_dtype('D', inc1_cdouble)
+    >>> test_dtype('G', inc1_clongdouble)
 
     >>> test_dtype(np.int, inc1_int_t)
     >>> test_dtype(np.long, inc1_long_t)
@@ -103,11 +106,6 @@ try:
     >>> test_dtype(np.float64, inc1_float64_t)
 
     Unsupported types:
-    >>> test_dtype(np.complex, inc1_byte)
-    Traceback (most recent call last):
-       ...
-    ValueError: only objects, int and float dtypes supported for ndarray buffer access so far (dtype is 15)
-
     >>> a = np.zeros((10,), dtype=np.dtype('i4,i4'))
     >>> inc1_byte(a)
     Traceback (most recent call last):
@@ -154,7 +152,19 @@ def put_range_long_1d(np.ndarray[long] arr):
         value += 1
 
 
-# Exhaustive dtype tests -- increments element [1] by 1 for all dtypes
+cdef struct cfloat:
+    float real
+    float imag
+
+cdef struct cdouble:
+    double real
+    double imag
+
+cdef struct clongdouble:
+    long double real
+    long double imag
+
+# Exhaustive dtype tests -- increments element [1] by 1 (or 1+1j) for all dtypes
 def inc1_byte(np.ndarray[char] arr):                    arr[1] += 1
 def inc1_ubyte(np.ndarray[unsigned char] arr):          arr[1] += 1
 def inc1_short(np.ndarray[short] arr):                  arr[1] += 1
@@ -170,6 +180,23 @@ def inc1_float(np.ndarray[float] arr):                  arr[1] += 1
 def inc1_double(np.ndarray[double] arr):                arr[1] += 1
 def inc1_longdouble(np.ndarray[long double] arr):       arr[1] += 1
 
+def inc1_cfloat(np.ndarray[cfloat] arr):
+    arr[1].real += 1
+    arr[1].imag += 1
+    
+def inc1_cdouble(np.ndarray[cdouble] arr):
+    arr[1].real += 1
+    arr[1].imag += 1
+
+def inc1_clongdouble(np.ndarray[clongdouble] arr):
+    print arr[1].real
+    print arr[1].imag
+    cdef long double x
+    x = arr[1].real + 1
+    arr[1].real = x
+    arr[1].imag = arr[1].imag + 1
+    print arr[1].real
+    print arr[1].imag
 
 def inc1_object(np.ndarray[object] arr):
     o = arr[1]
@@ -189,6 +216,11 @@ def inc1_float64_t(np.ndarray[np.float64_t] arr):       arr[1] += 1
 
     
 def test_dtype(dtype, inc1):
-    a = np.array([0, 10], dtype=dtype)
-    inc1(a)
-    if a[1] != 11: print "failed!"
+    if dtype in ('F', 'D', 'G'):
+        a = np.array([0, 10+10j], dtype=dtype)
+        inc1(a)
+        if a[1] != (11 + 11j): print "failed!", a[1]
+    else:
+        a = np.array([0, 10], dtype=dtype)
+        inc1(a)
+        if a[1] != 11: print "failed!"
