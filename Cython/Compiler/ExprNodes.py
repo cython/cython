@@ -560,6 +560,64 @@ class ExprNode(Node):
         return self.result_in_temp()
 
 
+class NewTempExprNode(ExprNode):
+    backwards_compatible_result = None
+    
+    def result(self):
+        if self.is_temp:
+            return self.temp_code
+        else:
+            return self.calculate_result_code()
+
+    def allocate_target_temps(self, env, rhs):
+        self.allocate_subexpr_temps(env)
+        rhs.release_temp(rhs)
+        self.releasesubexpr_temps(env)
+
+    def allocate_temps(self, env, result = None):
+        self.allocate_subexpr_temps(env)
+        self.backwards_compatible_result = result
+        if self.is_temp:
+            self.release_subexpr_temps(env)
+
+    def allocate_temp(self, env, result = None):
+        assert result is None
+
+    def release_temp(self, env):
+        pass
+
+    def generate_result_code(self, code):
+        if self.is_temp:
+            type = self.type
+            if not type.is_void:
+                if type.is_pyobject:
+                    type = PyrexTypes.py_object_type
+                if self.backwards_compatible_result:
+                    self.temp_code = self.backwards_compatible_result
+                else:
+                    self.temp_code = code.funcstate.allocate_temp(type)
+            else:
+                self.temp_code = None
+
+    def generate_disposal_code(self, code):
+        if self.is_temp:
+            if not self.backwards_compatible_result:
+                code.funcstate.release_temp(self.temp_code)
+        else:
+            self.generate_subexpr_disposal_code(code)
+
+    def generate_post_assignment_code(self, code):
+        if self.is_temp:
+            if self.type.is_pyobject:
+                code.putln("%s = 0;" % self.temp_code)
+            if not self.backwards_compatible_result:
+                code.funcstate.release_temp(self.temp_code)
+        else:
+            self.generate_subexpr_disposal_code(code)
+
+    
+        
+
 class AtomicExprNode(ExprNode):
     #  Abstract base class for expression nodes which have
     #  no sub-expressions.
@@ -3220,7 +3278,7 @@ def get_compile_time_binop(node):
                 % node.operator)
     return func
 
-class BinopNode(ExprNode):
+class BinopNode(NewTempExprNode):
     #  operator     string
     #  operand1     ExprNode
     #  operand2     ExprNode
@@ -3270,6 +3328,7 @@ class BinopNode(ExprNode):
         self.operand2.check_const()
     
     def generate_result_code(self, code):
+        NewTempExprNode.generate_result_code(self, code)
         #print "BinopNode.generate_result_code:", self.operand1, self.operand2 ###
         if self.operand1.type.is_pyobject:
             function = self.py_operation_function()
