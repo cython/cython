@@ -534,6 +534,7 @@ property NAME:
         return property
 
 class AnalyseExpressionsTransform(CythonTransform):
+
     def visit_ModuleNode(self, node):
         node.body.analyse_expressions(node.scope)
         self.visitchildren(node)
@@ -591,3 +592,31 @@ class CreateClosureClasses(CythonTransform):
         return node
         
 
+class EnvTransform(CythonTransform):
+    """
+    This transformation keeps a stack of the environments. 
+    """
+    def __call__(self, root):
+        self.env_stack = [root.scope]
+        return super(EnvTransform, self).__call__(root)        
+    
+    def visit_FuncDefNode(self, node):
+        self.env_stack.append(node.local_scope)
+        self.visitchildren(node)
+        self.env_stack.pop()
+        return node
+
+
+class TransformBuiltinMethods(EnvTransform):
+
+    def visit_SimpleCallNode(self, node):
+        self.visitchildren(node)
+        if isinstance(node.function, ExprNodes.NameNode):
+            if node.function.name == 'locals':
+                pos = node.pos
+                lenv = self.env_stack[-1]
+                items = [ExprNodes.DictItemNode(pos, 
+                                                key=ExprNodes.IdentifierStringNode(pos, value=var),
+                                                value=ExprNodes.NameNode(pos, name=var)) for var in lenv.entries]
+                return ExprNodes.DictNode(pos, key_value_pairs=items)
+        return node
