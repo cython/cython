@@ -11,6 +11,7 @@ Contents:
    :maxdepth: 2
 
    docs/overview
+   docs/tutorial
    docs/language_basics
    docs/extension_types
    docs/sharing_declarations

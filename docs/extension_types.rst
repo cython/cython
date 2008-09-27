@@ -107,8 +107,8 @@ The same consideration applies to local variables, for example,::
         cdef Shrubbery sh2
         sh2 = Shrubbery()
         sh2.width = sh1.width
-    sh2.height = sh1.height
-    return sh2
+        sh2.height = sh1.height
+        return sh2
 
 Extension types and None
 ------------------------
