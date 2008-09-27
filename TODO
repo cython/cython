@@ -1,4 +1,4 @@
-* Make a Pygments lexer for cython/pyrex so we get nice color coding.
+* Make a Pygments lexer for cython/pyrex so we get nice color coding. [Partially Done]
 * Fix up the latex style file so that boxes are not messed up when we have
   code examples.
 * Put on my writing hat, and do an overhaul of the structure of the docs so

@@ -17,8 +17,8 @@ Contents:
    docs/extension_types
    docs/sharing_declarations
    docs/external_C_code
-   docs/wrapping_CPlusPlus
    docs/source_files_and_compilation
+   docs/wrapping_CPlusPlus
    docs/limitations
    docs/pyrex_differences
    docs/early_binding_for_speed
