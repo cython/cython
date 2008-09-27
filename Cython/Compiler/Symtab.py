@@ -167,7 +167,6 @@ class Scope:
     # temp_counter      integer            Counter for naming temp vars
     # cname_to_entry    {string : Entry}   Temp cname to entry mapping
     # int_to_entry      {int : Entry}      Temp cname to entry mapping
-    # pow_function_used boolean            The C pow() function is used
     # return_type       PyrexType or None  Return type of function owning scope
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
@@ -221,7 +220,6 @@ class Scope:
         #self.pending_temp_entries = [] # TEMPORARY
         self.temp_counter = 1
         self.cname_to_entry = {}
-        self.pow_function_used = 0
         self.string_to_entry = {}
         self.identifier_to_entry = {}
         self.num_to_entry = {}
@@ -637,8 +635,6 @@ class Scope:
 
     def generate_library_function_declarations(self, code):
         # Generate extern decls for C library funcs used.
-        #if self.pow_function_used:
-        #	code.putln("%s double pow(double, double);" % Naming.extern_c_macro)
         pass
         
     def defines_any(self, names):

@@ -3414,21 +3414,26 @@ class FloorDivNode(NumBinopNode):
             self.operand2.result())
 
 
-class ModNode(IntBinopNode):
+class ModNode(NumBinopNode):
     #  '%' operator.
     
     def is_py_operation(self):
         return (self.operand1.type.is_string
             or self.operand2.type.is_string
-            or IntBinopNode.is_py_operation(self))
+            or NumBinopNode.is_py_operation(self))
 
+    def calculate_result_code(self):
+        if self.operand1.type.is_float or self.operand2.type.is_float:
+            return "fmod(%s, %s)" % (
+                self.operand1.result(), 
+                self.operand2.result())
+        else:
+            return "(%s %% %s)" % (
+                self.operand1.result(), 
+                self.operand2.result())
 
 class PowNode(NumBinopNode):
     #  '**' operator.
-
-    def analyse_types(self, env):
-        env.pow_function_used = 1
-        NumBinopNode.analyse_types(self, env)
 
     def compute_c_result_type(self, type1, type2):
         if self.c_types_okay(type1, type2):
