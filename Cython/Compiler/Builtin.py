@@ -30,6 +30,7 @@ builtin_function_table = [
     ('issubclass', "OO",   "b",     "PyObject_IsSubclass"),
     ('iter',       "O",    "O",     "PyObject_GetIter"),
     ('len',        "O",    "Z",     "PyObject_Length"),
+    ('locals',     "",     "O",     "__pyx_locals"),
     #('map',       "",     "",      ""),
     #('max',       "",     "",      ""),
     #('min',       "",     "",      ""),

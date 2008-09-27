@@ -79,7 +79,7 @@ class Context:
         from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
-        from ParseTreeTransforms import InterpretCompilerDirectives
+        from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, FinalOptimizePhase
         from Buffer import IntroduceBufferAuxiliaryVars
@@ -102,6 +102,7 @@ class Context:
             WithTransform(self),
             DecoratorTransform(self),
             AnalyseDeclarationsTransform(self),
+            TransformBuiltinMethods(self),
             IntroduceBufferAuxiliaryVars(self),
             _check_c_classes,
             AnalyseExpressionsTransform(self),
