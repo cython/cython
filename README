@@ -1,3 +1,6 @@
 This is a collection of all the assorted pyrex/cython documentation assembled into
 a unified Python style Sphinx project. It is hoped that this will become the default
 documentation for the Cython tool set.
+
+Curently the files are hosted at:
+http://hg.cython.org/cython-docs

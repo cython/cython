@@ -12,6 +12,7 @@ Contents:
 
    docs/overview
    docs/tutorial
+   docs/numpy_tutorial
    docs/language_basics
    docs/extension_types
    docs/sharing_declarations

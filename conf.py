@@ -14,14 +14,22 @@
 import sys
 
 # If your extensions are in another directory, add it here.
-#sys.path.append('some/directory')
+sys.path.append('sphinxext')
+
+# Import support for ipython console session syntax highlighting (lives
+# in the sphinxext directory defined above)
+import ipython_console_highlighting
+
+# support cython highlighting
+import cython_highlighting
+
 
 # General configuration
 # ---------------------
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-#extensions = []
+extensions = ['ipython_console_highlighting', 'cython_highlighting']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['.templates']
