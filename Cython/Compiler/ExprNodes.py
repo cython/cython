@@ -601,6 +601,8 @@ class NewTempExprNode(ExprNode):
 
     def generate_disposal_code(self, code):
         if self.is_temp:
+            if self.type.is_pyobject:
+                code.put_decref_clear(self.result(), self.ctype())
             if not self.backwards_compatible_result:
                 code.funcstate.release_temp(self.temp_code)
         else:
