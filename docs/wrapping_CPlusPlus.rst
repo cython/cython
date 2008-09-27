@@ -1,3 +1,5 @@
+.. highlight:: cython
+
 .. _wrapping-cplusplus-label:
 
 Wrapping C++ Classes in Cython

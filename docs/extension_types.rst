@@ -1,9 +1,10 @@
+.. highlight:: cython
 
 Extension Types
 ===============
 
 Introduction
-------------
+-------------
 
 As well as creating normal user-defined classes with the Python class
 statement, Cython also lets you create new built-in Python types, known as
@@ -34,7 +35,7 @@ extension types to wrap arbitrary C data structures and provide a Python-like
 interface to them.  
 
 Attributes
-----------
+-----------
 
 Attributes of an extension type are stored directly in the object's C struct.
 The set of attributes is fixed at compile time; you can't add attributes to an

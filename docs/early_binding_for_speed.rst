@@ -1,3 +1,5 @@
+.. highlight:: cython
+
 .. _early-binding-speed-label:
 
 Early Binding for Speed
@@ -17,7 +19,9 @@ slowness compared to 'early binding' languages such as C++.
 However with Cython it is possible to gain significant speed-ups through the
 use of 'early binding' programming techniques.
 
-For example, consider the following (silly) code example::
+For example, consider the following (silly) code example:
+
+.. sourcecode:: cython
 
     cdef class Rectangle:
         cdef int x0, y0
@@ -38,7 +42,9 @@ In the :func:`rectArea` method, the call to :meth:`rect.area` and the
 :meth:`.area` method contain a lot of Python overhead.
 
 However, in Cython, it is possible to eliminate a lot of this overhead in cases
-where calls occur within Cython code. For example::
+where calls occur within Cython code. For example:
+
+.. sourcecode:: cython
 
     cdef class Rectangle:
         cdef int x0, y0
@@ -71,7 +77,9 @@ Rectangle. By using this declaration, instead of just dynamically assigning to
 But Cython offers us more simplicity again, by allowing us to declare
 dual-access methods - methods that can be efficiently called at C level, but
 can also be accessed from pure Python code at the cost of the Python access
-overheads. Consider this code::
+overheads. Consider this code:
+
+.. sourcecode:: cython
 
     cdef class Rectangle:
         cdef int x0, y0
@@ -90,7 +98,7 @@ overheads. Consider this code::
         rect = Rectangle(x0, y0, x1, y1)
         return rect.area()
 
-.. note:: 
+.. Note:: 
 
     in earlier versions of Cython, the :keyword:`cpdef` keyword is
     :keyword:`rdef` - but has the same effect).

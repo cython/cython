@@ -1,3 +1,5 @@
+.. highlight:: cython
+
 .. _language-basics-label:
 
 Language Basics

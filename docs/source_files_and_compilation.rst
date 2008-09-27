@@ -1,3 +1,5 @@
+.. highlight:: cython
+
 .. _compilation_label:
 
 ****************************

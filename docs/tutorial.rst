@@ -1,3 +1,5 @@
+.. highlight:: cython
+
 .. _tutorial_label:
 
 *********
@@ -107,7 +109,10 @@ Here's a small example showing some of what can be done. It's a routine for
 finding prime numbers. You tell it how many primes you want, and it returns
 them as a Python list.
 
-:file:`primes.pyx`: :: 
+:file:`primes.pyx`: 
+
+.. sourcecode:: cython
+    :linenos:
 
     def primes(int kmax):
         cdef int n, k, i

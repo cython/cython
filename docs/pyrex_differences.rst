@@ -1,3 +1,5 @@
+.. highlight:: cython
+
 Differences between Cython and Pyrex
 ====================================
 

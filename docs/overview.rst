@@ -1,3 +1,5 @@
+.. highlight:: cython
+
 .. _overview-label:
 
 ********

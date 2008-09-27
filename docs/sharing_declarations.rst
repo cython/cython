@@ -1,3 +1,5 @@
+.. highlight:: cython
+
 .. _sharing-declarations-label:
 
 Sharing Declarations Between Cython Modules

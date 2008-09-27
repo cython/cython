@@ -1,3 +1,5 @@
+.. highlight:: cython
+
 .. _numpy_tute-label:
 
 **************************
@@ -220,9 +222,7 @@ Adding types
 =============
 
 To add types we use custom Cython syntax, so we are now breaking Python source
-compatibility. Here's :file:`convolve2.pyx`. *Read the comments!* 
-
-.. code-block:: cython
+compatibility. Here's :file:`convolve2.pyx`. *Read the comments!*  ::
 
     from __future__ import division
     import numpy as np
@@ -339,9 +339,7 @@ not provided then one-dimensional is assumed).
 
 More information on this syntax [:enhancements/buffer:can be found here].
 
-Showing the changes needed to produce :file:`convolve3.pyx` only:
-
-.. sourcecode:: cython
+Showing the changes needed to produce :file:`convolve3.pyx` only::
 
     ...
     def naive_convolve(np.ndarray[DTYPE_t, ndim=2] f, np.ndarray[DTYPE_t, ndim=2] g):
@@ -374,9 +372,7 @@ The array lookups are still slowed down by two factors:
 2. Negative indices are checked for and handled correctly.  The code above is
    explicitly coded so that it doesn't use negative indices, and it
    (hopefully) always access within bounds. We can add a decorator to disable
-   bounds checking:
-
-   .. sourcecode:: cython
+   bounds checking::
 
         ...
         cimport cython
@@ -395,9 +391,7 @@ positive, by casting the variables to unsigned integer types (if you do have
 negative values, then this casting will create a very large positive value
 instead and you will attempt to access out-of-bounds values). Casting is done
 with a special ``<>``-syntax. The code below is changed to use either
-unsigned ints or casting as appropriate:
-
-.. sourcecode:: cython
+unsigned ints or casting as appropriate::
 
         ...
         cdef int s, t                                                                            # changed
@@ -456,9 +450,7 @@ function call.)
 More generic code
 ==================
 
-It would be possible to do:
-
-.. sourcecode:: cython
+It would be possible to do::
 
     def naive_convolve(object[DTYPE_t, ndim=2] f, ...):
 

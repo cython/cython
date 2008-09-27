@@ -1,3 +1,5 @@
+.. highlight:: cython
+
 Interfacing with External C Code
 ================================
 
