@@ -1,10 +1,13 @@
 .. highlight:: cython
 
+.. _extension-types:
+
+******************
 Extension Types
-===============
+******************
 
 Introduction
--------------
+==============
 
 As well as creating normal user-defined classes with the Python class
 statement, Cython also lets you create new built-in Python types, known as
@@ -35,7 +38,7 @@ extension types to wrap arbitrary C data structures and provide a Python-like
 interface to them.  
 
 Attributes
------------
+============
 
 Attributes of an extension type are stored directly in the object's C struct.
 The set of attributes is fixed at compile time; you can't add attributes to an
@@ -75,7 +78,7 @@ and the depth attribute readable but not writable.
     are always readable and writable by direct access.
 
 Type declarations
------------------
+===================
 
 Before you can directly access the attributes of an extension type, the Cython
 compiler must know that you have an instance of that type, and not just a
@@ -112,7 +115,7 @@ The same consideration applies to local variables, for example,::
         return sh2
 
 Extension types and None
-------------------------
+=========================
 
 When you declare a parameter or C variable as being of an extension type,
 Cython will allow it to take on the value ``None`` as well as values of its
@@ -171,7 +174,7 @@ with checking that it has the right type.
       will invoke Python operations and therefore be much slower.
 
 Special methods
----------------
+================
 
 Although the principles are similar, there are substantial differences between
 many of the :meth:`__xxx__` special methods of extension types and their Python
@@ -180,7 +183,7 @@ read it carefully before attempting to use any special methods in your
 extension types.
 
 Properties
-----------
+============
 
 There is a special syntax for defining properties in an extension class::
 
@@ -251,7 +254,7 @@ when it is deleted.::
     We don't have: []
 
 Subclassing
------------
+=============
 
 An extension type may inherit from a built-in type or another extension type::
 
@@ -316,7 +319,7 @@ method using the usual Python technique, i.e.::
     Parrot.describe(self)
 
 Forward-declaring extension types
----------------------------------
+===================================
 
 Extension types can be forward-declared, like :keyword:`struct` and
 :keyword:`union` types. This will be necessary if you have two extension types
@@ -342,7 +345,7 @@ definition, for example,::
         # attributes and methods
 
 Making extension types weak-referenceable
------------------------------------------
+==========================================
 
 By default, extension types do not support having weak references made to
 them. You can enable weak referencing by declaring a C attribute of type
@@ -355,7 +358,7 @@ object called :attr:`__weakref__`. For example,::
         cdef object __weakref__
 
 Public and external extension types
------------------------------------
+====================================
 
 Extension types can be declared extern or public. An extern extension type
 declaration makes an extension type defined in external C code available to a
@@ -373,7 +376,7 @@ objects defined in the Python core or in a non-Cython extension module.
     In Pyrex versions before 0.8, extern extension types were also used to
     reference extension types defined in another Pyrex module. While you can still
     do that, Cython provides a better mechanism for this. See
-    :ref:`sharing-declarations-label`.
+    :ref:`sharing-declarations`.
 
 Here is an example which will let you get at the C-level members of the
 built-in complex object.::

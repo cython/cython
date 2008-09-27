@@ -1,6 +1,6 @@
 .. highlight:: cython
 
-.. _tutorial_label:
+.. _tutorial:
 
 *********
 Tutorial
@@ -13,7 +13,7 @@ The fundamental nature of Cython can be summed up as follows: Cython is Python
 with C data types.
 
 Cython is Python: Almost any piece of Python code is also valid Cython code.
-(There are a few :ref:`cython-limitations-label`, but this approximation will
+(There are a few :ref:`cython-limitations`, but this approximation will
 serve for now.) The Cython compiler will convert it into C code which makes
 equivalent calls to the Python/C API. 
 
@@ -38,7 +38,8 @@ So lets start with the canonical python hello world::
     print "Hello World"
 
 So the first thing to do is rename the file to :file:`helloworld.pyx`. Now we
-need to make the :file:`setup.py`, which is like a python Makefile.::
+need to make the :file:`setup.py`, which is like a python Makefile (for more
+information see :ref:`compilation`)::
 
     from distutils.core import setup
     from distutils.extension import Extension
@@ -53,8 +54,8 @@ To use this to build your Cython file use the commandline options::
 
     $ python setup.py build_ext --inplace
 
-Which will leave a file in your local directory called `helloworld.so` in unix
-or `helloworld.dll` in Windows. Now to use this file start the python
+Which will leave a file in your local directory called :file:`helloworld.so` in unix
+or :file:`helloworld.dll` in Windows. Now to use this file: start the python
 interpreter and simply import it as if it was a regular python module::
 
     >>> import helloworld
@@ -138,5 +139,5 @@ take a look at the C code generated for this module.
 Language Details
 ================
 
-For more about the Cython language, see :ref:`language-basics-label`.
+For more about the Cython language, see :ref:`language-basics`.
 

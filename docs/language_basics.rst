@@ -1,12 +1,13 @@
 .. highlight:: cython
 
-.. _language-basics-label:
+.. _language-basics:
 
+*****************
 Language Basics
-===============
+*****************
 
 Python functions vs. C functions
---------------------------------
+==================================
 
 There are two kinds of function definition in Cython:
 
@@ -123,7 +124,7 @@ an anonymous :keyword:`enum` declaration for this purpose, for example,::
         ctypedef int *IntPtr
 
 Grouping multiple C declarations
-================================
+==================================
 
 If you have a series of declarations that all begin with :keyword:`cdef`, you
 can group them into a :keyword:`cdef` block like this::
@@ -422,7 +423,7 @@ The include statement
 ----------------------
 
 .. warning:: 
-    This feature is deprecated. Use :ref:`sharing-declarations-label` instead.
+    This feature is deprecated. Use :ref:`sharing-declarations` instead.
 
 A Cython source file can include material from other files using the include
 statement, for example::
@@ -440,7 +441,7 @@ the level of the include statement that is including the file.
 
     There are other mechanisms available for splitting Cython code into
     separate parts that may be more appropriate in many cases. See
-    :ref:`sharing-declarations-label`.
+    :ref:`sharing-declarations`.
 
 Keyword-only arguments
 ----------------------

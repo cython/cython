@@ -1,6 +1,6 @@
 .. highlight:: cython
 
-.. _overview-label:
+.. _overview:
 
 ********
 Overview
@@ -24,9 +24,9 @@ and for fast C modules that speed up the execution of Python code.
 Future Plans
 ============
 Cython is not finished. Substantial tasks remaining. See
-:ref:`cython-limitations-label` for a current list. 
+:ref:`cython-limitations` for a current list. 
 
 .. rubric:: Footnotes
 
-.. [#] For differences with Pyrex see :ref:`pyrex-differences-label`.
+.. [#] For differences with Pyrex see :ref:`pyrex-differences`.
 

@@ -1,6 +1,6 @@
 .. highlight:: cython
 
-.. _cython-limitations-label:
+.. _cython-limitations:
 
 *************
 Limitations

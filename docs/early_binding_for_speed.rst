@@ -1,9 +1,10 @@
 .. highlight:: cython
 
-.. _early-binding-speed-label:
+.. _early-binding-for-speed:
 
+**************************
 Early Binding for Speed
-=======================
+**************************
 
 As a dynamic language, Python encourages a programming style of considering
 classes and objects in terms of their methods and attributes, more than where
@@ -98,7 +99,7 @@ overheads. Consider this code:
         rect = Rectangle(x0, y0, x1, y1)
         return rect.area()
 
-.. Note:: 
+.. note:: 
 
     in earlier versions of Cython, the :keyword:`cpdef` keyword is
     :keyword:`rdef` - but has the same effect).

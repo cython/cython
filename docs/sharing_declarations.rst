@@ -1,9 +1,10 @@
 .. highlight:: cython
 
-.. _sharing-declarations-label:
+.. _sharing-declarations:
 
+********************************************
 Sharing Declarations Between Cython Modules
-===========================================
+********************************************
 
 This section describes a new set of facilities for making C declarations,
 functions and extension types in one Cython module available for use in
@@ -11,7 +12,7 @@ another Cython module. These facilities are closely modelled on the Python
 import mechanism, and can be thought of as a compile-time version of it.
 
 Definition and Implementation files
------------------------------------
+====================================
 
 A Cython module can be split into two parts: a definition file with a ``.pxd``
 suffix, containing C declarations that are to be available to other Cython
@@ -21,7 +22,7 @@ module's definition file, it imports it using the :keyword:`cimport`
 statement.
 
 What a Definition File contains
--------------------------------
+================================
 
 A definition file can contain:
 
@@ -43,14 +44,14 @@ Python class definitions, or any executable statements.
     declaration if you want to make something available to external C code.
 
 What an Implementation File contains
-------------------------------------
+======================================
 
 An implementation file can contain any kind of Cython statement, although there
 are some restrictions on the implementation part of an extension type if the
 corresponding definition file also defines that type (see below). 
 
 The cimport statement
----------------------
+=======================
 
 The :keyword:`cimport` statement is used in a definition or
 implementation file to gain access to names declared in another definition

@@ -1,6 +1,6 @@
 .. highlight:: cython
 
-.. _compilation_label:
+.. _compilation:
 
 ****************************
 Source Files and Compilation
@@ -44,7 +44,7 @@ would be::
     ) 
 
 To understand the :file:`setup.py` more fully look at the official
-``distutils`` documentation. To compile the extension for use in the
+:mod:`distutils` documentation. To compile the extension for use in the
 current directory use::
 
     $ python setup.py build_ext --inplace
@@ -52,15 +52,36 @@ current directory use::
 Cython Files Depending on C Files
 ===================================
 
-TODO
+When you have come C files that have been wrapped with cython and you want to
+compile them into your extension the basic :file:`setup.py` file to do this
+would be::
+
+    from distutils.core import setup
+    from distutils.extension import Extension
+    from Cython.Distutils import build_ext
+
+    sourcefiles = ['example.pyx', 'helper.c', 'another_helper.c']
+
+    setup(
+        cmdclass = {'build_ext': build_ext},
+        ext_modules = [Extension("example", sourcefiles)]
+    )
+
+Notice that the files have been given a name, this is not necessary, but it
+makes the file easier to format if the list gets long.
+
+If any of the files depend on include paths information can be passed to the
+:obj:`Extension` class through the :keyword:`include_dirs` option, which is a
+list of paths to the include directories.
+
 
 Multiple Cython Files in a Package
 ===================================
 
 TODO
 
-Distributing Pyrex modules
-===========================
+Distributing Cython modules
+============================
 It is strongly recommended that you distribute the generated ``.c`` files as well
 as your Cython sources, so that users can install your module without needing
 to have Cython available.

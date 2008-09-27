@@ -1,9 +1,6 @@
-.. Cython documentation master file, created by sphinx-quickstart on Fri Apr 25 12:49:32 2008.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
-Welcome to Cython's documentation!
-================================================
+Welcome to Cython's Users Guide
+=================================
 
 Contents:
 

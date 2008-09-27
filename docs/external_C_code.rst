@@ -1,7 +1,10 @@
 .. highlight:: cython
 
+.. external-C-code:
+
+**********************************
 Interfacing with External C Code
-================================
+**********************************
 
 One of the main uses of Cython is wrapping existing libraries of C code. This
 is achieved by using external declarations to declare the C functions and
@@ -15,7 +18,7 @@ Cython module can be used as a bridge to allow Python code to call C code, it
 can also be used to allow C code to call Python code.
 
 External declarations
----------------------
+=======================
 
 By default, C functions and variables declared at the module level are local
 to the module (i.e. they have the C static storage class). They can also be
@@ -26,7 +29,7 @@ declared extern to specify that they are defined elsewhere, for example::
     cdef extern void order_spam(int tons)
 
 Referencing C header files
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------
 
 When you use an extern definition on its own as in the examples above, Cython
 includes a declaration for it in the generated C file. This can cause problems
@@ -143,7 +146,7 @@ A few more tricks and tips:
         ...
 
 Styles of struct, union and enum declaration
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------------------------
 
 There are two main ways that structs, unions and enums can be declared in C
 header files: using a tag name, or using a typedef. There are also some
@@ -198,7 +201,7 @@ Note that in all the cases below, you refer to the type in Cython code simply
 as :ctype:`Foo`, not ``struct Foo``.
 
 Accessing Python/C API routines
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------------
 
 One particular use of the ``cdef extern from`` statement is for gaining access to
 routines in the Python/C API. For example,::
@@ -210,14 +213,14 @@ routines in the Python/C API. For example,::
 will allow you to create Python strings containing null bytes.
 
 Special Types
-^^^^^^^^^^^^^
+--------------
 
 Cython predefines the name ``Py_ssize_t`` for use with Python/C API routines. To
 make your extensions compatible with 64-bit systems, you should always use
 this type where it is specified in the documentation of Python/C API routines.
 
 Windows Calling Conventions
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------
 
 The ``__stdcall`` and ``__cdecl`` calling convention specifiers can be used in
 Cython, with the same syntax as used by C compilers on Windows, for example,::
@@ -230,7 +233,7 @@ If ``__stdcall`` is used, the function is only considered compatible with
 other ``__stdcall`` functions of the same signature.
 
 Resolving naming conflicts - C name specifications
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------------------------------
 
 Each Cython module has a single module-level namespace for both Python and C
 names. This can be inconvenient if you want to wrap some external C functions
@@ -274,7 +277,7 @@ enums, struct and union members, and enum values. For example,::
       second "beta" = 3
 
 Using Cython Declarations from C
---------------------------------
+==================================
 
 Cython provides two methods for making C declarations from a Cython module
 available for use by external C code – public declarations and C API
@@ -287,7 +290,7 @@ declarations.
     :keyword:`cimport` statement for that. Sharing Declarations Between Cython Modules.
 
 Public Declarations
-^^^^^^^^^^^^^^^^^^^
+---------------------
 
 You can make C types, variables and functions defined in a Cython module
 accessible to C code that is linked with the module, by declaring them with
@@ -313,7 +316,7 @@ file consists of the full dotted name of the module, e.g. a module called
 :mod:`foo.spam` would have a header file called :file:`foo.spam.h`.
 
 C API Declarations
-^^^^^^^^^^^^^^^^^^
+-------------------
 
 The other way of making declarations available to C code is to declare them
 with the :keyword:`api` keyword. You can use this keyword with C functions and
@@ -381,8 +384,8 @@ E.g. a module called :mod:`foo.spam` would have an API header file called
 :file:`foo.spam_api.h` and an importing function called
 :func:`import_foo__spam`.
 
-Multiple public and api declarations
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Multiple public and API declarations
+--------------------------------------
 
 You can declare a whole group of items as :keyword:`public` and/or
 :keyword:`api` all at once by enclosing them in a :keyword:`cdef` block, for
@@ -393,11 +396,11 @@ example,::
         char *get_lunch(float tomato_size)
 
 This can be a useful thing to do in a ``.pxd`` file (see
-:ref:`sharing-declarations-label`) to make the module's public interface
+:ref:`sharing-declarations`) to make the module's public interface
 available by all three methods.
 
 Acquiring and Releasing the GIL
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------------
 
 Cython provides facilities for releasing the Global Interpreter Lock (GIL)
 before calling C code, and for acquiring the GIL in functions that are to be
@@ -428,7 +431,7 @@ header::
         ...
 
 Declaring a function as callable without the GIL
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+--------------------------------------------------
 
 You can specify :keyword:`nogil` in a C function header or function type to
 declare that it is safe to call without the GIL.::

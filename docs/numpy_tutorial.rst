@@ -1,6 +1,6 @@
 .. highlight:: cython
 
-.. _numpy_tute-label:
+.. _numpy_tutorial:
 
 **************************
 Cython for NumPy users
@@ -34,6 +34,7 @@ The style of this tutorial will not fit everybody, so you can also consider:
 
 Cython at a glance
 ====================
+
 Cython is a compiler which compiles Python-like code files to C code. Still,
 ''Cython is not a Python to C translator''. That is, it doesn't take your full
 program and "turns it into C" -- rather, the result makes full use of the
@@ -56,6 +57,7 @@ functions and generator functions).
 
 Your Cython environment
 ========================
+
 Using Cython consists of these steps:
 
 1. Write a :file:`.pyx` source file
