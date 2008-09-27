@@ -77,10 +77,6 @@ Other Current Limitations
 
 * The :func:`globals` and :func:`locals` functions cannot be used.
 * Class and function definitions cannot be placed inside control structures.
-* Special methods of extension types cannot have functioning docstrings.
-* The use of string literals as comments is not recommended at present,
-  because Cython doesn't optimize them away, and won't even accept them in places
-  where executable statements are not allowed.
 
 Semantic differences between Python and Cython
 ----------------------------------------------

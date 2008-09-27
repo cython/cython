@@ -77,6 +77,8 @@ yields::
     4
     6
     8
+
+.. note:: see :ref:`automatic-range-conversion`
        
 
 Boolean int type (e.g. it acts like a c int, but coerces to/from python as a boolean)
@@ -168,7 +170,9 @@ of step) can be determined.
     This may change the semantics if the range causes
     assignment to ``i`` to overflow. Specifically, if this option is set, an error
     will be raised before the loop is entered, whereas without this option the loop
-    will execute until a overflowing value is encountered. 
+    will execute until a overflowing value is encountered. If this effects you
+    change ``Cython/Compiler/Options.py`` (eventually there will be a better
+    way to set this).
 
 More friendly type casting
 --------------------------
@@ -259,4 +263,13 @@ Cython supports PEP 3120 and PEP 263, i.e. you can start your Cython source
 file with an encoding comment and generally write your source code in UTF-8.
 This impacts the encoding of byte strings and the conversion of unicode string
 literals like ``u'abcd'`` to unicode objects.
+
+Automatic ``typecheck``
+========================
+
+Rather than introducing a new keyword :keyword:`typecheck` as explained in the
+`Pyrex docs
+<http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/version/Doc/Manual/special_methods.html>`_,
+Cython emits a (non-spoofable and faster) typecheck whenever
+:func:`isinstance` is used with an extension type as the second parameter.
 
