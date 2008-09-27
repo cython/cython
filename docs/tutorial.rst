@@ -30,17 +30,15 @@ available to you -- even in the midst of manipulating C data.
 Cython Hello World
 ===================
 
-As Cython can accept almost any valid plain python file (though see the
-`exceptions`), one of the hardest things in getting started is just figuring
-out how to compile your file.
+As Cython can accept almost any valid python source file, one of the hardest
+things in getting started is just figuring out how to compile your extension.
 
 So lets start with the canonical python hello world::
 
     print "Hello World"
 
 So the first thing to do is rename the file to :file:`helloworld.pyx`. Now we
-need to make the :file:`setup.py`, which is like a python Makefile if you are
-familiar.::
+need to make the :file:`setup.py`, which is like a python Makefile.::
 
     from distutils.core import setup
     from distutils.extension import Extension
@@ -55,42 +53,31 @@ To use this to build your Cython file use the commandline options::
 
     $ python setup.py build_ext --inplace
 
-Which will leave a file in your local directory called `helloworld.so`. Now to
-use this file start the python interpreter and::
+Which will leave a file in your local directory called `helloworld.so` in unix
+or `helloworld.dll` in Windows. Now to use this file start the python
+interpreter and simply import it as if it was a regular python module::
 
     >>> import helloworld
     "Hello World"
 
-Congratulations! You know know how to build a Cython extension. But So Far
-this example doesn't really show us why we would even want to use Cython, so
-lets do a more realistic example.
+Congratulations! You now know how to build a Cython extension. But So Far
+this example doesn't really give a feeling why one would ever want to use Cython, so
+lets create a more realistic example.
 
 Fibonacci Fun
 ==============
 
-From the official Python tutorial a simple fibonacci function is defined as::
+From the official Python tutorial a simple fibonacci function is defined as:
 
-    def fib(n):
-        """Print the Fibonacci series up to n."""
-        a, b = 0, 1
-        while b < n:
-            print b,
-            a, b = b, a + b
+.. literalinclude:: ../examples/tutorial/fib1/fib.pyx
 
 Now following the steps for the Hello World example we first rename the file
 to have a `.pyx` extension, lets say :file:`fib.pyx`, then we create the
 :file:`setup.py` file. Using the file created for the Hello World example, all
 that you need to change is the name of the Cython filename, and the resulting
-module name, doing this we have::
+module name, doing this we have:
 
-    from distutils.core import setup
-    from distutils.extension import Extension
-    from Cython.Distutils import build_ext
-
-    setup(
-        cmdclass = {'build_ext': build_ext},
-        ext_modules = [Extension("fib", ["fib.pyx"])]
-    )
+.. literalinclude:: ../examples/tutorial/fib1/setup.py
 
 Build the extension with the same command used for the helloworld.pyx::
 
@@ -111,27 +98,8 @@ them as a Python list.
 
 :file:`primes.pyx`: 
 
-.. sourcecode:: cython
+.. literalinclude:: ../examples/tutorial/primes/primes.pyx
     :linenos:
-
-    def primes(int kmax):
-        cdef int n, k, i
-        cdef int p[1000]
-        result = []
-        if kmax > 1000:
-            kmax = 1000
-        k = 0
-        n = 2
-        while k < kmax:
-            i = 0
-            while i < k and n % p[i] != 0:
-                i = i + 1
-            if i == k:
-               p[k] = n
-               k = k + 1
-               result.append(n)
-            n = n + 1
-        return result
 
 You'll see that it starts out just like a normal Python function definition,
 except that the parameter ``kmax`` is declared to be of type ``int`` . This

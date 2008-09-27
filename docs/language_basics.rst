@@ -292,23 +292,36 @@ Keep in mind that there are some differences in operator precedence between
 Python and C, and that Cython uses the Python precedences, not the C ones.
 
 Integer for-loops
------------------
+------------------
 
 You should be aware that a for-loop such as::
 
     for i in range(n):
         ...
 
-won't be very fast, even if i and n are declared as C integers, because range
-is a Python function. For iterating over ranges of integers, Cython has another
-form of for-loop::
+won't be very fast if ``i`` is not a :keyword:`cdef` integer type.
+For iterating over ranges of integers, Cython has another form of for-loop::
 
     for i from 0 <= i < n:
         ...
 
+or::
+
+    for i from 0 <= i < n by s:
+        ...
+
+where ``s`` is some integer step size.
+
 If the loop variable and the lower and upper bounds are all C integers, this
 form of loop will be much faster, because Cython will translate it into pure C
-code.
+code. 
+
+.. note::
+    This is not necessary if ``i`` is a C integer type and ``n`` can be
+    determined at compile time. Just use the idiomatic :func:`range` loop, if
+    you are worried that the loop is not being converted correctly use the
+    annotate feature of the cython commandline (``-a``) to easily see the
+    generated C code. See :ref:`automatic-range-conversion`
 
 Some things to note about the for-from loop:
 
@@ -322,9 +335,6 @@ Some things to note about the for-from loop:
 Like other Python looping statements, break and continue may be used in the
 body, and the loop may have an else clause.
 
-.. note::
-    
-    See :ref:`automatic-range-conversion`
 
 Error return values
 -------------------
@@ -409,7 +419,10 @@ return value and raise it yourself, for example,::
         raise SpamError("Couldn't open the spam file")
 
 The include statement
----------------------
+----------------------
+
+.. warning:: 
+    This feature is deprecated. Use :ref:`sharing-declarations-label` instead.
 
 A Cython source file can include material from other files using the include
 statement, for example::

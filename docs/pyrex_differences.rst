@@ -1,5 +1,7 @@
 .. highlight:: cython
 
+.. _pyrex-differences-label:
+
 Differences between Cython and Pyrex
 ====================================
 
@@ -16,20 +18,6 @@ at http://www.python.org/dev/peps/pep-0202/ . Looping is optimized if ``A`` is
 a list. Also, use the :keyword:`for` ... :keyword:`from` syntax too, e.g.::
 
     [i*i for i from 0 <= i < 10] 
-
-In-place operators
-------------------
-
-The following is now legal::
-
-    x += 10
-       
-for all single-character operators, for both python and :keyword:`cdef` variables. Side
-effects behave properly, i.e. for::
-
-    L[foo()] += bar()
-
-:func:`foo` is called exactly once, before :func:`bar`. 
 
 Conditional expressions "x if b else y" (python 2.5)
 ----------------------------------------------------
@@ -168,13 +156,9 @@ See :ref:`early-binding-speed-label` for explanation and usage tips.
 
 .. _automatic-range-conversion:
 
-(Optional) automatic range conversion
+Automatic range conversion
 -------------------------------------
 
-::
-
-    $cython --convert-range
-       
 This will convert statements of the form ``for i in range(...)`` to ``for i
 from ...`` when ``i`` is any cdef'd integer type, and the direction (i.e. sign
 of step) can be determined. 
