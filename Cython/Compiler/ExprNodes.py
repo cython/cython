@@ -168,6 +168,7 @@ class ExprNode(Node):
     
     saved_subexpr_nodes = None
     is_temp = 0
+    is_target = 0
 
     def get_child_attrs(self):
         return self.subexprs
@@ -206,10 +207,10 @@ class ExprNode(Node):
         return self.saved_subexpr_nodes
         
     def result(self):
-        if self.is_temp:
-            return self.result_code
-        else:
+        if not self.is_temp or self.is_target:
             return self.calculate_result_code()
+        else: # i.e. self.is_temp:
+            return self.result_code
     
     def result_as(self, type = None):
         #  Return the result code cast to the specified C type.
@@ -335,7 +336,7 @@ class ExprNode(Node):
         if debug_temp_alloc:
             print("%s Allocating target temps" % self)
         self.allocate_subexpr_temps(env)
-        self.result_code = self.target_code()
+        self.is_target = True
         if rhs:
             rhs.release_temp(env)
         self.release_subexpr_temps(env)
