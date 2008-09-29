@@ -229,14 +229,10 @@ def inc1_cdouble(np.ndarray[cdouble] arr):
     arr[1].imag += 1
 
 def inc1_clongdouble(np.ndarray[clongdouble] arr):
-    print arr[1].real
-    print arr[1].imag
     cdef long double x
     x = arr[1].real + 1
     arr[1].real = x
     arr[1].imag = arr[1].imag + 1
-    print arr[1].real
-    print arr[1].imag
 
 def inc1_object(np.ndarray[object] arr):
     o = arr[1]

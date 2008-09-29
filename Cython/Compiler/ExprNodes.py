@@ -1472,12 +1472,9 @@ class IndexNode(ExprNode):
             self.type = self.base.type.dtype
             self.is_buffer_access = True
             self.buffer_type = self.base.entry.type
-           
-            if getting:
-                # we only need a temp because result_code isn't refactored to
-                # generation time, but this seems an ok shortcut to take
+
+            if getting and self.type.is_pyobject:
                 self.is_temp = True
-                self.result_ctype = PyrexTypes.c_ptr_type(self.type)
             if setting:
                 if not self.base.entry.type.writable:
                     error(self.pos, "Writing to readonly buffer")
@@ -1528,7 +1525,7 @@ class IndexNode(ExprNode):
 
     def calculate_result_code(self):
         if self.is_buffer_access:
-            return "<not used>"
+            return "(*%s)" % self.buffer_ptr_code
         else:
             return "(%s[%s])" % (
                 self.base.result(), self.index.result())
@@ -1562,12 +1559,10 @@ class IndexNode(ExprNode):
         if self.is_buffer_access:
             if code.globalstate.directives['nonecheck']:
                 self.put_nonecheck(code)
-            ptrcode = self.buffer_lookup_code(code)
-            code.putln("%s = *%s;" % (
-                self.result(),
-                self.buffer_type.buffer_ptr_type.cast_code(ptrcode)))
-            # Must incref the value we pulled out.
-            if self.buffer_type.dtype.is_pyobject:
+            self.buffer_ptr_code = self.buffer_lookup_code(code)
+            if self.type.is_pyobject:
+                # is_temp is True, so must pull out value and incref it.
+                code.putln("%s = *%s;" % (self.result(), self.buffer_ptr_code))
                 code.putln("Py_INCREF((PyObject*)%s);" % self.result())
         elif self.type.is_pyobject:
             if self.index.type.is_int:
