@@ -4275,7 +4275,7 @@ class CloneNode(CoercionNode):
         if hasattr(arg, 'entry'):
             self.entry = arg.entry
     
-    def calculate_result_code(self):
+    def result(self):
         return self.arg.result()
         
     def analyse_types(self, env):
@@ -4295,7 +4295,7 @@ class CloneNode(CoercionNode):
         pass
                 
     def allocate_temps(self, env):
-        self.result_code = self.calculate_result_code()
+        pass
         
     def release_temp(self, env):
         pass
