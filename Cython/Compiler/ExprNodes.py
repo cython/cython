@@ -431,9 +431,13 @@ class ExprNode(Node):
         #  its sub-expressions, and dispose of any
         #  temporary results of its sub-expressions.
         self.generate_subexpr_evaluation_code(code)
+        self.pre_generate_result_code(code)
         self.generate_result_code(code)
         if self.is_temp:
             self.generate_subexpr_disposal_code(code)
+
+    def pre_generate_result_code(self, code):
+        pass
     
     def generate_subexpr_evaluation_code(self, code):
         for node in self.subexpr_nodes():
@@ -573,7 +577,7 @@ class NewTempExprNode(ExprNode):
     def allocate_target_temps(self, env, rhs):
         self.allocate_subexpr_temps(env)
         rhs.release_temp(rhs)
-        self.releasesubexpr_temps(env)
+        self.release_subexpr_temps(env)
 
     def allocate_temps(self, env, result = None):
         self.allocate_subexpr_temps(env)
@@ -587,7 +591,7 @@ class NewTempExprNode(ExprNode):
     def release_temp(self, env):
         pass
 
-    def generate_result_code(self, code):
+    def pre_generate_result_code(self, code):
         if self.is_temp:
             type = self.type
             if not type.is_void:
@@ -3327,7 +3331,6 @@ class BinopNode(NewTempExprNode):
         self.operand2.check_const()
     
     def generate_result_code(self, code):
-        NewTempExprNode.generate_result_code(self, code)
         #print "BinopNode.generate_result_code:", self.operand1, self.operand2 ###
         if self.operand1.type.is_pyobject:
             function = self.py_operation_function()
