@@ -24,8 +24,14 @@ setup_string = u"""
     >>> E = ErrorBuffer("E")
 
 """
+
+import re
+exclude = []#re.compile('object').search]
     
 def testcase(func):
+    for e in exclude:
+        if e(func.__name__):
+            return func
     __test__[func.__name__] = setup_string + func.__doc__
     return func
 
@@ -1326,7 +1332,7 @@ def complex_struct_dtype(object[LongComplex] buf):
 @testcase
 def complex_struct_inplace(object[LongComplex] buf):
     """
-    >>> complex_struct_dtype(LongComplexMockBuffer(None, [(0, -1)]))
+    >>> complex_struct_inplace(LongComplexMockBuffer(None, [(0, -1)]))
     1.0 1.0
     """
     buf[0].real += 1
