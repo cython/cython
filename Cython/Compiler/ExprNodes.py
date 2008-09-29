@@ -168,6 +168,7 @@ class ExprNode(Node):
     
     saved_subexpr_nodes = None
     is_temp = 0
+    is_target = 0
 
     def get_child_attrs(self):
         return self.subexprs
@@ -206,10 +207,10 @@ class ExprNode(Node):
         return self.saved_subexpr_nodes
         
     def result(self):
-		if self.is_temp:
-			return self.result_code
-		else:
-			return self.calculate_result_code()
+        if not self.is_temp or self.is_target:
+            return self.calculate_result_code()
+        else: # i.e. self.is_temp:
+            return self.result_code
     
     def result_as(self, type = None):
         #  Return the result code cast to the specified C type.
@@ -335,7 +336,7 @@ class ExprNode(Node):
         if debug_temp_alloc:
             print("%s Allocating target temps" % self)
         self.allocate_subexpr_temps(env)
-        self.result_code = self.target_code()
+        self.is_target = True
         if rhs:
             rhs.release_temp(env)
         self.release_subexpr_temps(env)
@@ -559,6 +560,66 @@ class ExprNode(Node):
         #  reference, or temporary.
         return self.result_in_temp()
 
+
+class NewTempExprNode(ExprNode):
+    backwards_compatible_result = None
+    
+    def result(self):
+        if self.is_temp:
+            return self.temp_code
+        else:
+            return self.calculate_result_code()
+
+    def allocate_target_temps(self, env, rhs):
+        self.allocate_subexpr_temps(env)
+        rhs.release_temp(rhs)
+        self.releasesubexpr_temps(env)
+
+    def allocate_temps(self, env, result = None):
+        self.allocate_subexpr_temps(env)
+        self.backwards_compatible_result = result
+        if self.is_temp:
+            self.release_subexpr_temps(env)
+
+    def allocate_temp(self, env, result = None):
+        assert result is None
+
+    def release_temp(self, env):
+        pass
+
+    def generate_result_code(self, code):
+        if self.is_temp:
+            type = self.type
+            if not type.is_void:
+                if type.is_pyobject:
+                    type = PyrexTypes.py_object_type
+                if self.backwards_compatible_result:
+                    self.temp_code = self.backwards_compatible_result
+                else:
+                    self.temp_code = code.funcstate.allocate_temp(type)
+            else:
+                self.temp_code = None
+
+    def generate_disposal_code(self, code):
+        if self.is_temp:
+            if self.type.is_pyobject:
+                code.put_decref_clear(self.result(), self.ctype())
+            if not self.backwards_compatible_result:
+                code.funcstate.release_temp(self.temp_code)
+        else:
+            self.generate_subexpr_disposal_code(code)
+
+    def generate_post_assignment_code(self, code):
+        if self.is_temp:
+            if self.type.is_pyobject:
+                code.putln("%s = 0;" % self.temp_code)
+            if not self.backwards_compatible_result:
+                code.funcstate.release_temp(self.temp_code)
+        else:
+            self.generate_subexpr_disposal_code(code)
+
+    
+        
 
 class AtomicExprNode(ExprNode):
     #  Abstract base class for expression nodes which have
@@ -1499,7 +1560,8 @@ class IndexNode(ExprNode):
 
     def generate_result_code(self, code):
         if self.is_buffer_access:
-            # buffer_pointer_code is returned by result()
+            if code.globalstate.directives['nonecheck']:
+                self.put_nonecheck(code)
             ptrcode = self.buffer_lookup_code(code)
             code.putln("%s = *%s;" % (
                 self.result(),
@@ -1543,6 +1605,8 @@ class IndexNode(ExprNode):
 
     def generate_buffer_setitem_code(self, rhs, code, op=""):
         # Used from generate_assignment_code and InPlaceAssignmentNode
+        if code.globalstate.directives['nonecheck']:
+            self.put_nonecheck(code)
         ptrexpr = self.buffer_lookup_code(code)
         if self.buffer_type.dtype.is_pyobject:
             # Must manage refcounts. Decref what is already there
@@ -1608,6 +1672,13 @@ class IndexNode(ExprNode):
                                              index_cnames=index_temps,
                                              options=code.globalstate.directives,
                                              pos=self.pos, code=code)
+
+    def put_nonecheck(self, code):
+        code.globalstate.use_utility_code(raise_noneindex_error_utility_code)
+        code.putln("if (%s) {" % code.unlikely("%s == Py_None") % self.base.result_as(PyrexTypes.py_object_type))
+        code.putln("__Pyx_RaiseNoneIndexingError();")
+        code.putln(code.error_goto(self.pos))
+        code.putln("}")
 
 class SliceIndexNode(ExprNode):
     #  2-element slice indexing
@@ -3211,7 +3282,7 @@ def get_compile_time_binop(node):
                 % node.operator)
     return func
 
-class BinopNode(ExprNode):
+class BinopNode(NewTempExprNode):
     #  operator     string
     #  operand1     ExprNode
     #  operand2     ExprNode
@@ -3261,6 +3332,7 @@ class BinopNode(ExprNode):
         self.operand2.check_const()
     
     def generate_result_code(self, code):
+        NewTempExprNode.generate_result_code(self, code)
         #print "BinopNode.generate_result_code:", self.operand1, self.operand2 ###
         if self.operand1.type.is_pyobject:
             function = self.py_operation_function()
@@ -4587,5 +4659,14 @@ static INLINE void __Pyx_RaiseNoneAttributeError(char* attrname);
 """, """
 static INLINE void __Pyx_RaiseNoneAttributeError(char* attrname) {
     PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%s'", attrname);
+}
+"""]
+
+raise_noneindex_error_utility_code = [
+"""
+static INLINE void __Pyx_RaiseNoneIndexingError();
+""", """
+static INLINE void __Pyx_RaiseNoneIndexingError() {
+    PyErr_SetString(PyExc_TypeError, "'NoneType' object is unsubscriptable");
 }
 """]

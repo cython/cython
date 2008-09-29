@@ -8,11 +8,12 @@ from Scanning import PyrexScanner, StringSourceDescriptor
 from Symtab import BuiltinScope, ModuleScope
 import Symtab
 import PyrexTypes
-from Visitor import VisitorTransform, temp_name_handle
+from Visitor import VisitorTransform
 from Nodes import Node, StatListNode
 from ExprNodes import NameNode
 import Parsing
 import Main
+import UtilNodes
 
 """
 Support for parsing strings into code trees.
@@ -111,12 +112,20 @@ class TemplateTransform(VisitorTransform):
 
     def __call__(self, node, substitutions, temps, pos):
         self.substitutions = substitutions
-        tempdict = {}
-        for key in temps:
-            tempdict[key] = temp_name_handle(key) # pending result_code refactor: Symtab.new_temp(PyrexTypes.py_object_type, key)
-        self.temp_key_to_entries = tempdict
         self.pos = pos
-        return super(TemplateTransform, self).__call__(node)
+        tempmap = {}
+        temphandles = []
+        for temp in temps:
+            handle = UtilNodes.TempHandle(PyrexTypes.py_object_type)
+            tempmap[temp] = handle
+            temphandles.append(handle)
+        self.tempmap = tempmap
+        result = super(TemplateTransform, self).__call__(node)
+        if temps:
+            result = UtilNodes.TempsBlockNode(self.get_pos(node),
+                                              temps=temphandles,
+                                              body=result)
+        return result
 
     def get_pos(self, node):
         if self.pos:
@@ -143,13 +152,11 @@ class TemplateTransform(VisitorTransform):
         else:
             return self.visit_Node(node) # make copy as usual
             
-    
     def visit_NameNode(self, node):
-        tempentry = self.temp_key_to_entries.get(node.name)
-        if tempentry is not None:
+        temphandle = self.tempmap.get(node.name)
+        if temphandle:
             # Replace name with temporary
-            return NameNode(self.get_pos(node), name=tempentry)
-            # Pending result_code refactor: return NameNode(self.get_pos(node), entry=tempentry)
+            return temphandle.ref(self.get_pos(node))
         else:
             return self.try_substitution(node, node.name)
 

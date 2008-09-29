@@ -199,23 +199,6 @@ def replace_node(ptr, value):
     else:
         getattr(parent, attrname)[listidx] = value
 
-tmpnamectr = 0
-def temp_name_handle(description=None):
-    global tmpnamectr
-    tmpnamectr += 1
-    if description is not None:
-        name = u"%d_%s" % (tmpnamectr, description)
-    else:
-        name = u"%d" % tmpnamectr
-    return EncodedString(Naming.temp_prefix + name)
-
-def get_temp_name_handle_desc(handle):
-    if not handle.startswith(u"__cyt_"):
-        return None
-    else:
-        idx = handle.find(u"_", 6)
-        return handle[idx+1:]
-    
 class PrintTree(TreeVisitor):
     """Prints a representation of the tree to standard output.
     Subclass and override repr_of to provide more information

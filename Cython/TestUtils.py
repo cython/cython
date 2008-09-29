@@ -47,10 +47,16 @@ class CythonTest(unittest.TestCase):
         self.assertEqual(len(expected), len(result),
             "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(expected), u"\n".join(result)))
 
-    def assertCode(self, expected, result_tree):
+    def codeToLines(self, tree):
         writer = CodeWriter()
-        writer.write(result_tree)
-        result_lines = writer.result.lines
+        writer.write(tree)
+        return writer.result.lines
+
+    def codeToString(self, tree):
+        return "\n".join(self.codeToLines(tree))
+
+    def assertCode(self, expected, result_tree):
+        result_lines = self.codeToLines(result_tree)
                 
         expected_lines = strip_common_indent(expected.split("\n"))
         

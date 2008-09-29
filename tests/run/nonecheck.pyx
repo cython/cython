@@ -32,6 +32,16 @@ Traceback (most recent call last):
    ...
 AttributeError: 'NoneType' object has no attribute 'a'
 
+>>> check_buffer_get(None)
+Traceback (most recent call last):
+   ...
+TypeError: 'NoneType' object is unsubscriptable
+
+>>> check_buffer_set(None)
+Traceback (most recent call last):
+   ...
+TypeError: 'NoneType' object is unsubscriptable
+
 """
 
 cimport cython
@@ -69,4 +79,12 @@ def check_and_assign(MyClass var):
         print var.a
         var = None
         print var.a
+
+@cython.nonecheck(True)
+def check_buffer_get(object[int] buf):
+    return buf[0]
+
+@cython.nonecheck(True)
+def check_buffer_set(object[int] buf):
+    buf[0] = 1
 
