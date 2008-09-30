@@ -1031,14 +1031,6 @@ def p_from_import_statement(s, first_statement = 0):
                 s.context.future_directives.add(directive)
         return Nodes.PassStatNode(pos)
     elif kind == 'cimport':
-        for (name_pos, name, as_name, kind) in imported_names:
-            local_name = as_name or name
-            if local_name == "*" and False:
-                module = s.context.find_module(dotted_name)
-                for type in module.type_entries:
-                    s.add_type_name(type.name)
-            else:
-                s.add_type_name(local_name)
         return Nodes.FromCImportStatNode(pos,
             module_name = dotted_name,
             imported_names = imported_names)
@@ -1856,8 +1848,6 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
         rhs = None
         if s.sy == 'IDENT':
             name = EncodedString(s.systring)
-            if is_type:
-                s.add_type_name(name)
             if empty:
                 error(s.position(), "Declarator should be empty")
             s.next()
@@ -2042,7 +2032,6 @@ def p_c_enum_definition(s, pos, ctx):
     if s.sy == 'IDENT':
         name = s.systring
         s.next()
-        s.add_type_name(name)
         cname = p_opt_cname(s)
     else:
         name = None
@@ -2092,7 +2081,6 @@ def p_c_struct_or_union_definition(s, pos, ctx):
     s.next()
     name = p_ident(s)
     cname = p_opt_cname(s)
-    s.add_type_name(name)
     attributes = None
     if s.sy == ':':
         s.next()
@@ -2286,7 +2274,6 @@ def p_c_class_definition(s, pos,  ctx):
         as_name = p_ident(s)
     else:
         as_name = class_name
-    s.add_type_name(as_name)
     objstruct_name = None
     typeobj_name = None
     base_class_module = None
@@ -2387,8 +2374,6 @@ def p_doc_string(s):
         return None
         
 def p_code(s, level=None):
-    s.add_type_name("object")
-    s.add_type_name("Py_buffer")
     body = p_statement_list(s, Ctx(level = level), first_statement = 1)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
@@ -2413,8 +2398,6 @@ def p_compiler_directive_comments(s):
     return result
 
 def p_module(s, pxd, full_module_name):
-    s.add_type_name("object")
-    s.add_type_name("Py_buffer")
     pos = s.position()
     doc = p_doc_string(s)
     if pxd:
