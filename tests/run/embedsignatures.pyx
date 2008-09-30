@@ -48,7 +48,7 @@ __doc__ = ur"""
     'with_doc_2(a, b, c)\n\n    Existing string\n    '
 
     >>> types.__doc__
-    'types(Ext a, int b, unsigned short int c, float d, e)'
+    'types(Ext a, int b, unsigned short c, float d, e)'
 
     >>> print (f_c.__doc__)
     f_c(char c) -> char
@@ -61,13 +61,13 @@ __doc__ = ur"""
 
 
     >>> print (f_s.__doc__)
-    f_s(short int s) -> short int
+    f_s(short s) -> short
 
     >>> print (f_us.__doc__)
-    f_us(unsigned short int s) -> unsigned short int
+    f_us(unsigned short s) -> unsigned short
 
     >>> print (f_ss.__doc__)
-    f_ss(signed short int s) -> signed short int
+    f_ss(signed short s) -> signed short
 
 
     >>> print (f_i.__doc__)
@@ -81,23 +81,23 @@ __doc__ = ur"""
 
 
     >>> print (f_l.__doc__)
-    f_l(long int l) -> long int
+    f_l(long l) -> long
 
     >>> print (f_ul.__doc__)
-    f_ul(unsigned long int l) -> unsigned long int
+    f_ul(unsigned long l) -> unsigned long
 
     >>> print (f_sl.__doc__)
-    f_sl(signed long int l) -> signed long int
+    f_sl(signed long l) -> signed long
 
 
     >>> print (f_L.__doc__)
-    f_L(long long int L) -> long long int
+    f_L(long long L) -> long long
 
     >>> print (f_uL.__doc__)
-    f_uL(unsigned long long int L) -> unsigned long long int
+    f_uL(unsigned long long L) -> unsigned long long
 
     >>> print (f_sL.__doc__)
-    f_sL(signed long long int L) -> signed long long int
+    f_sL(signed long long L) -> signed long long
 
 
     >>> print (f_f.__doc__)
