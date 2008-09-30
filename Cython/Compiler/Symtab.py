@@ -313,6 +313,7 @@ class Scope:
         entry.is_type = 1
         if defining:
             self.type_entries.append(entry)
+        # here we would set as_variable to an object representing this type
         return entry
     
     def declare_typedef(self, name, base_type, pos, cname = None,
