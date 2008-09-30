@@ -32,7 +32,7 @@ import cython_highlighting
 extensions = ['ipython_console_highlighting', 'cython_highlighting']
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['.templates']
+templates_path = ['_templates']
 
 # The suffix of source filenames.
 source_suffix = '.rst'
@@ -42,7 +42,7 @@ master_doc = 'index'
 
 # General substitutions.
 project = 'Cython'
-copyright = '2008, Stefan Behnel, Robert Bradshaw, William Stein, Gary Furnish, Dag Seljebotn, Gabriel Gellner, Greg Ewing'
+copyright = '2008, Stefan Behnel, Robert Bradshaw, Grew Ewing, William Stein, Gary Furnish, Dag Seljebotn, Gabriel Gellner'
 
 # The default replacements for |version| and |release|, also used in various
 # other places throughout the built documents.
@@ -50,7 +50,7 @@ copyright = '2008, Stefan Behnel, Robert Bradshaw, William Stein, Gary Furnish, 
 # The short X.Y version.
 version = '0.9.8.1'
 # The full version, including alpha/beta/rc tags.
-release = '0.9.8.1'
+release = '0.9.8.1.1'
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -78,6 +78,9 @@ pygments_style = 'sphinx'
 
 # Options for HTML output
 # -----------------------
+
+# suffix for generated files
+html_file_suffix = '.html'
 
 # The style sheet to use for HTML and HTML Help pages. A file of that name
 # must exist either in Sphinx' static/ path, or in one of the custom paths
@@ -114,7 +117,10 @@ html_favicon = '_static/favicon.ico'
 #html_additional_pages = {}
 
 # If false, no module index is generated.
-#html_use_modindex = True
+html_use_modindex = False 
+
+# Don't generate and index
+html_use_index = False
 
 # If true, the reST sources are included in the HTML build as _sources/<name>.
 #html_copy_source = True

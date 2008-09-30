@@ -65,6 +65,10 @@ Congratulations! You now know how to build a Cython extension. But So Far
 this example doesn't really give a feeling why one would ever want to use Cython, so
 lets create a more realistic example.
 
+:mod:`pyximport`: Cython Compilation the Easy Way
+==================================================
+
+
 Fibonacci Fun
 ==============
 
