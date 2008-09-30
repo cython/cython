@@ -719,21 +719,27 @@ class BuiltinScope(Scope):
 
     def builtin_scope(self):
         return self
-        
+
     builtin_entries = {
+
+        "type":   ["((PyObject*)&PyType_Type)", py_object_type],
+
+        "bool":   ["((PyObject*)&PyBool_Type)", py_object_type],
         "int":    ["((PyObject*)&PyInt_Type)", py_object_type],
         "long":   ["((PyObject*)&PyLong_Type)", py_object_type],
         "float":  ["((PyObject*)&PyFloat_Type)", py_object_type],
-        
-        "str":    ["((PyObject*)&PyBytes_Type)", py_object_type],
+        "complex":["((PyObject*)&PyComplex_Type)", py_object_type],
+
+        "bytes":  ["((PyObject*)&PyBytes_Type)", py_object_type],
+        "str":    ["((PyObject*)&PyString_Type)", py_object_type],
         "unicode":["((PyObject*)&PyUnicode_Type)", py_object_type],
+
         "tuple":  ["((PyObject*)&PyTuple_Type)", py_object_type],
         "list":   ["((PyObject*)&PyList_Type)", py_object_type],
         "dict":   ["((PyObject*)&PyDict_Type)", py_object_type],
         "set":    ["((PyObject*)&PySet_Type)", py_object_type],
         "frozenset":   ["((PyObject*)&PyFrozenSet_Type)", py_object_type],
-        
-        "type":   ["((PyObject*)&PyType_Type)", py_object_type],
+
         "slice":  ["((PyObject*)&PySlice_Type)", py_object_type],
         "file":   ["((PyObject*)&PyFile_Type)", py_object_type],
 
