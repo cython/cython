@@ -280,7 +280,6 @@ class BuiltinObjectType(PyObjectType):
         return "<%s>"% self.cname
         
     def assignable_from(self, src_type):
-
         if isinstance(src_type, BuiltinObjectType):
             return src_type.name == self.name
         else:
