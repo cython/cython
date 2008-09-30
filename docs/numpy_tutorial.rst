@@ -74,7 +74,7 @@ However there are several options to automate these steps:
    <http://www.sagemath.org/doc/prog/node40.html>`_.  
 2. A version of `pyximport <http://www.prescod.net/pyximport/>`_ is shipped
    with Cython, so that you can import pyx-files dynamically into Python and
-   have them compiled automatically.
+   have them compiled automatically (See :ref:`pyximport`).
 3. Cython supports distutils so that you can very easily create build scripts
    which automate the process, this is the preferred method for full programs.
 4. Manual compilation (see below)
@@ -90,7 +90,7 @@ Installation
 
 Unless you are used to some other automatic method:
 `download Cython <http://cython.org/#download>`_ (0.9.8.1.1 or later), unpack it,
-and run the usual {{{python setup.py install}}}. This will install a
+and run the usual ```python setup.py install``. This will install a
 ``cython`` executable on your system. It is also possible to use Cython from
 the source directory without installing (simply launch :file:`cython.py` in the
 root directory).
