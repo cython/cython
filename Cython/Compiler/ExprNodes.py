@@ -289,6 +289,11 @@ class ExprNode(Node):
         # If this node can be interpreted as a reference to a
         # cimported module, return its scope, else None.
         return None
+        
+    def analyse_as_type(self, env):
+        # If this node can be interpreted as a reference to a
+        # type, return that type, else None.
+        return None
     
     def analyse_as_extension_type(self, env):
         # If this node can be interpreted as a reference to an
@@ -879,6 +884,15 @@ class NameNode(AtomicExprNode):
         if entry and entry.as_module:
             return entry.as_module
         return None
+        
+    def analyse_as_type(self, env):
+        entry = self.entry
+        if not entry:
+            entry = env.lookup(self.name)
+        if entry and entry.is_type:
+            return entry.type
+        else:
+            return None
     
     def analyse_as_extension_type(self, env):
         # Try to interpret this as a reference to an extension type.
@@ -1362,6 +1376,12 @@ class IndexNode(ExprNode):
     
     def analyse_target_declaration(self, env):
         pass
+        
+    def analyse_as_type(self, env):
+        base_type = self.base.analyse_as_type(env)
+        if base_type and not base_type.is_pyobject:
+            return PyrexTypes.CArrayType(base_type, int(self.index.compile_time_value(env)))
+        return None
     
     def analyse_types(self, env):
         self.analyse_base_and_index_types(env, getting = 1)
@@ -2182,6 +2202,14 @@ class AttributeNode(ExprNode):
                 self.mutate_into_name_node(env, ubcm_entry, None)
                 return 1
         return 0
+        
+    def analyse_as_type(self, env):
+        module_scope = self.obj.analyse_as_module(env)
+        if module_scope:
+            entry = module_scope.lookup_here(self.attribute)
+            if entry and entry.is_type:
+                return entry.type
+        return None
     
     def analyse_as_extension_type(self, env):
         # Try to interpret this as a reference to an extension type
@@ -3107,6 +3135,8 @@ class TypecastNode(ExprNode):
 
 class SizeofNode(ExprNode):
     #  Abstract base class for sizeof(x) expression nodes.
+    
+    type = PyrexTypes.c_int_type
 
     def check_const(self):
         pass
@@ -3126,7 +3156,7 @@ class SizeofTypeNode(SizeofNode):
     def analyse_types(self, env):
         # we may have incorrectly interpreted a dotted name as a type rather than an attribute
         # this could be better handled by more uniformly treating types as runtime-available objects
-        if self.base_type.module_path:
+        if self.base_type.module_path and 0:
             path = self.base_type.module_path
             obj = env.lookup(path[0])
             if obj.as_module is None:
@@ -3141,13 +3171,16 @@ class SizeofTypeNode(SizeofNode):
         base_type = self.base_type.analyse(env)
         _, arg_type = self.declarator.analyse(base_type, env)
         self.arg_type = arg_type
+        self.check_type()
+        
+    def check_type(self):
+        arg_type = self.arg_type
         if arg_type.is_pyobject and not arg_type.is_extension_type:
             error(self.pos, "Cannot take sizeof Python object")
         elif arg_type.is_void:
             error(self.pos, "Cannot take sizeof void")
         elif not arg_type.is_complete():
             error(self.pos, "Cannot take sizeof incomplete type '%s'" % arg_type)
-        self.type = PyrexTypes.c_int_type
         
     def calculate_result_code(self):
         if self.arg_type.is_extension_type:
@@ -3167,8 +3200,15 @@ class SizeofVarNode(SizeofNode):
     subexprs = ['operand']
     
     def analyse_types(self, env):
-        self.operand.analyse_types(env)
-        self.type = PyrexTypes.c_int_type
+        # We may actually be looking at a type rather than a variable...
+        # If we are, traditional analysis would fail...
+        operand_as_type = self.operand.analyse_as_type(env)
+        if operand_as_type:
+            self.arg_type = operand_as_type
+            self.__class__ = SizeofTypeNode
+            self.check_type()
+        else:
+            self.operand.analyse_types(env)
     
     def calculate_result_code(self):
         return "(sizeof(%s))" % self.operand.result()
