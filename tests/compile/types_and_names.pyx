@@ -1,18 +1,12 @@
-cdef struct point:
-    double x
-    double y
-    double z
-
 print sizeof(point*)
 
-cdef extern from *:
-    cdef foo(int, int i, 
-             list, list L, 
-             point, point p, point* ps)
+cdef foo(int i0, int i, list L0, list L, point p0, point p, point* ps):
+    pass
              
 cdef class A:
     cdef list
     cdef list L
+    # Possibly empty declarators
     cdef point(self, int, int i, list, list L, point, point p, point* ps):
         pass
     
