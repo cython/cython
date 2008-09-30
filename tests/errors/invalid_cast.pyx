@@ -1,6 +1,6 @@
 def f():
-    a = <foao>x
+    a = <foao>True
 
 _ERRORS = """
-2:13: Unknown type
+2:9: 'foao' is not a type identifier
 """

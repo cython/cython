@@ -411,8 +411,10 @@ class CNameDeclaratorNode(CDeclaratorNode):
                 error(self.pos, "Missing argument name")
             elif base_type.is_void:
                 error(self.pos, "Use spam() rather than spam(void) to declare a function with no arguments.")
-            self.name = base_type.declaration_code("", for_display=1, pyrex=1)
-            base_type = py_object_type
+            else:
+                print "here"
+                self.name = base_type.declaration_code("", for_display=1, pyrex=1)
+                base_type = py_object_type
         self.type = base_type
         return self, base_type
         
@@ -570,7 +572,19 @@ class CArgDeclNode(Node):
 
     def analyse(self, env, nonempty = 0):
         #print "CArgDeclNode.analyse: is_self_arg =", self.is_self_arg ###
-        base_type = self.base_type.analyse(env)
+        # The parser may missinterpret names as types...
+        # We fix that here.
+        if isinstance(self.declarator, CNameDeclaratorNode) and self.declarator.name == '':
+            if nonempty:
+                self.declarator.name = self.base_type.name
+                self.base_type.name = None
+                self.base_type.is_basic_c_type = False
+            could_be_name = True
+        else:
+            could_be_name = False
+        base_type = self.base_type.analyse(env, could_be_name = could_be_name)
+        if self.base_type.arg_name:
+            self.declarator.name = self.base_type.arg_name
         return self.declarator.analyse(base_type, env, nonempty = nonempty)
 
     def annotate(self, code):
@@ -597,8 +611,9 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
     # is_self_arg      boolean      Is self argument of C method
 
     child_attrs = []
+    arg_name = None   # in case the argument name was interpreted as a type
     
-    def analyse(self, env):
+    def analyse(self, env, could_be_name = False):
         # Return type descriptor.
         #print "CSimpleBaseTypeNode.analyse: is_self_arg =", self.is_self_arg ###
         type = None
@@ -615,13 +630,22 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
             else:
                 type = py_object_type
         else:
-            scope = env.find_imported_module(self.module_path, self.pos)
+            if self.module_path:
+                scope = env.find_imported_module(self.module_path, self.pos)
+            else:
+                scope = env
             if scope:
                 if scope.is_c_class_scope:
                     scope = scope.global_scope()
-                entry = scope.find(self.name, self.pos)
+                entry = scope.lookup(self.name)
                 if entry and entry.is_type:
                     type = entry.type
+                elif could_be_name:
+                    if self.is_self_arg and env.is_c_class_scope:
+                        type = env.parent_type
+                    else:
+                        type = py_object_type
+                    self.arg_name = self.name
                 else:
                     error(self.pos, "'%s' is not a type identifier" % self.name)
         if type:
@@ -644,7 +668,7 @@ class CBufferAccessTypeNode(CBaseTypeNode):
 
     dtype_node = None
     
-    def analyse(self, env):
+    def analyse(self, env, could_be_name = False):
         base_type = self.base_type_node.analyse(env)
         if base_type.is_error: return base_type
         import Buffer
@@ -665,8 +689,8 @@ class CComplexBaseTypeNode(CBaseTypeNode):
     
     child_attrs = ["base_type", "declarator"]
 
-    def analyse(self, env):
-        base = self.base_type.analyse(env)
+    def analyse(self, env, could_be_name = False):
+        base = self.base_type.analyse(env, could_be_name)
         _, type = self.declarator.analyse(base, env)
         return type
 
