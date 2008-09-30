@@ -1,53 +1,18 @@
-import re
-
 from Cython.Compiler.Visitor import CythonTransform
 from Cython.Compiler.Nodes import DefNode, CFuncDefNode
 from Cython.Compiler.Errors import CompileError
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler import Options
+from Cython.Compiler import PyrexTypes
+
 
 
 class EmbedSignature(CythonTransform):
 
-    SPECIAL_METHOD_RE = re.compile(r'__\w+__')
-
     def __init__(self, context):
         super(EmbedSignature, self).__init__(context)
         self.denv = None # XXX
-        self.is_in_class = False
         self.class_name = None
-
-    def _fmt_basic_c_type_modifiers(self, ctype):
-        longness = ctype.longness
-        modifiers = ''
-        if longness < 0:
-            modifiers = 'short '
-        elif longness > 0:
-            modifiers = 'long ' * longness
-        signed = ctype.signed
-        if signed == 0:
-            modifiers = 'unsigned ' + modifiers
-        elif signed == 2:
-            modifiers = 'signed ' + modifiers
-        return modifiers[:-1] # strip final space
-
-    def _fmt_arg_type(self, arg):
-        try:
-            base_type = arg.base_type
-            arg_type = base_type.name
-        except AttributeError:
-            return ''
-        if base_type.is_basic_c_type:
-            modifiers = self._fmt_basic_c_type_modifiers(base_type)
-            if modifiers:
-                arg_type = '%s %s' % (modifiers, arg_type)
-        return arg_type
-
-    def _fmt_arg_name(self, arg):
-        try:
-            return arg.declarator.name
-        except AttributeError:
-            return arg.declarator.base.name
 
     def _fmt_arg_defv(self, arg):
         if not arg.default:
@@ -63,14 +28,14 @@ class EmbedSignature(CythonTransform):
                 return '<???>'
 
     def _fmt_arg(self, arg):
-        arg_type = self._fmt_arg_type(arg)
-        arg_name = self._fmt_arg_name(arg)
-        arg_defv = self._fmt_arg_defv(arg)
-        doc = arg_name
-        if arg_type:
-            doc = ('%s ' % arg_type) + doc
-        if arg_defv:
-            doc = doc + ('=%s' % arg_defv)
+        if arg.type is PyrexTypes.py_object_type or arg.is_self_arg:
+            doc = arg.name
+        else:
+            doc = arg.type.declaration_code(arg.name, for_display=1)
+        if arg.default:
+            arg_defv = self._fmt_arg_defv(arg)
+            if arg_defv:
+                doc = doc + ('=%s' % arg_defv)
         return doc
 
     def _fmt_arglist(self, args,
@@ -89,13 +54,10 @@ class EmbedSignature(CythonTransform):
         return arglist
 
     def _fmt_ret_type(self, ret):
-        ret_type = ret.name
-        if ret_type is None:
-            return ''
-        modifiers = self._fmt_basic_c_type_modifiers(ret)
-        if modifiers:
-            ret_type = '%s %s' % (modifiers, ret_type)
-        return ret_type
+        if ret is PyrexTypes.py_object_type:
+            return None
+        else:
+            return ret.declaration_code("", for_display=1)
 
     def _fmt_signature(self, cls_name, func_name, args,
                        npargs=0, pargs=None,
@@ -128,9 +90,7 @@ class EmbedSignature(CythonTransform):
             return super(EmbedSignature, self).__call__(node)
         
     def visit_ClassDefNode(self, node):
-        oldincls = self.is_in_class
         oldname = self.class_name
-        self.is_in_class = True
         try:
             # PyClassDefNode
             self.class_name = node.name
@@ -138,7 +98,6 @@ class EmbedSignature(CythonTransform):
             # CClassDefNode
             self.class_name = node.class_name
         self.visitchildren(node)
-        self.is_in_class = oldincls
         self.class_name = oldname
         return node
 
@@ -148,9 +107,7 @@ class EmbedSignature(CythonTransform):
         
         signature = None
         if type(node) is DefNode: # def FOO(...):
-            special_method = (self.is_in_class and \
-                              self.SPECIAL_METHOD_RE.match(node.name))
-            if not special_method:
+            if not node.entry.is_special:
                 nkargs = getattr(node, 'num_kwonly_args', 0)
                 npargs = len(node.args) - nkargs
                 signature = self._fmt_signature(
@@ -163,10 +120,12 @@ class EmbedSignature(CythonTransform):
                 signature = self._fmt_signature(
                     self.class_name, node.declarator.base.name,
                     node.declarator.args,
-                    return_type=node.base_type)
+                    return_type=node.return_type)
         else: # should not fall here ...
             assert False
         if signature:
-            new_doc  = self._embed_signature(signature, node.doc)
-            node.doc = EncodedString(new_doc) # XXX
+            new_doc  = self._embed_signature(signature, node.entry.doc)
+            node.entry.doc = EncodedString(new_doc)
+            if hasattr(node, 'py_func') and node.py_func is not None:
+                node.py_func.entry.doc = EncodedString(new_doc)
         return node

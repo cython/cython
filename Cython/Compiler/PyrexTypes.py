@@ -472,6 +472,8 @@ class CNumericType(CType):
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
         base = public_decl(self.sign_and_name(), dll_linkage)
+        if for_display and self.is_longlong:
+            base = base.replace('PY_LONG_LONG', 'long long')
         return self.base_declaration_code(base,  entity_code)
 
 
@@ -556,7 +558,7 @@ class CULongType(CUIntType):
     from_py_function = "PyInt_AsUnsignedLongMask"
 
 
-class CLongLongType(CUIntType):
+class CLongLongType(CIntType):
 
     is_longlong = 1
     to_py_function = "PyLong_FromLongLong"
