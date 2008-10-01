@@ -308,6 +308,14 @@ class InterpretCompilerDirectives(CythonTransform):
                     newimp.append((pos, name, as_name, kind))
             node.imported_names = newimpo
         return node
+        
+    def visit_SingleAssignmentNode(self, node):
+        if (isinstance(node.rhs, ImportNode) and
+                node.rhs.module_name.value == u'cython'):
+            self.cython_module_names.add(node.lhs.name)
+        else:
+            self.visitchildren(node)
+            return node
 
     def visit_Node(self, node):
         self.visitchildren(node)
@@ -318,7 +326,7 @@ class InterpretCompilerDirectives(CythonTransform):
         # decorator), returns (optionname, value).
         # Otherwise, returns None
         optname = None
-        if isinstance(node, SimpleCallNode):
+        if isinstance(node, CallNode):
             if (isinstance(node.function, AttributeNode) and
                   isinstance(node.function.obj, NameNode) and
                   node.function.obj.name in self.cython_module_names):
@@ -330,12 +338,25 @@ class InterpretCompilerDirectives(CythonTransform):
         if optname:
             optiontype = Options.option_types.get(optname)
             if optiontype:
-                args = node.args
+                if isinstance(node, SimpleCallNode):
+                    args = node.args
+                    kwds = None
+                else:
+                    if node.starstar_arg or not isinstance(node.positional_args, TupleNode):
+                        raise PostParseError(dec.function.pos,
+                            'Compile-time keyword arguments must be explicit.' % optname)
+                    args = node.positional_args.args
+                    kwds = node.keyword_args
                 if optiontype is bool:
-                    if len(args) != 1 or not isinstance(args[0], BoolNode):
+                    if kwds is not None or len(args) != 1 or not isinstance(args[0], BoolNode):
                         raise PostParseError(dec.function.pos,
                             'The %s option takes one compile-time boolean argument' % optname)
                     return (optname, args[0].value)
+                elif optiontype is dict:
+                    if len(args) != 0:
+                        raise PostParseError(dec.function.pos,
+                            'The %s option takes no prepositional arguments' % optname)
+                    return optname, dict([(key.value, value) for key, value in kwds.key_value_pairs])
                 else:
                     assert False
 
@@ -367,7 +388,7 @@ class InterpretCompilerDirectives(CythonTransform):
                 else:
                     realdecs.append(dec)
             node.decorators = realdecs
-
+        
         if options:
             optdict = {}
             options.reverse() # Decorators coming first take precedence
@@ -499,12 +520,19 @@ property NAME:
         lenv = node.create_local_scope(self.env_stack[-1])
         node.body.analyse_control_flow(lenv) # this will be totally refactored
         node.declare_arguments(lenv)
+        for var, type_node in node.directive_locals.items():
+            if not lenv.lookup_here(var):   # don't redeclare args
+                type = type_node.analyse_as_type(lenv)
+                if type:
+                    lenv.declare_var(var, type, type_node.pos)
+                else:
+                    error(type_node.pos, "Not a type")
         node.body.analyse_declarations(lenv)
         self.env_stack.append(lenv)
         self.visitchildren(node)
         self.env_stack.pop()
         return node
-        
+    
     # Some nodes are no longer needed after declaration
     # analysis and can be dropped. The analysis was performed
     # on these nodes in a seperate recursive process from the

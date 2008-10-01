@@ -289,8 +289,8 @@ class PyrexScanner(Scanner):
     resword_dict = build_resword_dict()
 
     def __init__(self, file, filename, parent_scanner = None, 
-                 scope = None, context = None, source_encoding=None, parse_comments=True):
-        Scanner.__init__(self, get_lexicon(), file, filename)
+                 scope = None, context = None, source_encoding=None, parse_comments=True, initial_pos=None):
+        Scanner.__init__(self, get_lexicon(), file, filename, initial_pos)
         if parent_scanner:
             self.context = parent_scanner.context
             self.included_files = parent_scanner.included_files

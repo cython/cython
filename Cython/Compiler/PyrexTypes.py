@@ -1168,6 +1168,7 @@ modifiers_and_name_to_type = {
     (1, 0, "int"): c_int_type, 
     (1, 1, "int"): c_long_type,
     (1, 2, "int"): c_longlong_type,
+    (1, 0, "long"): c_long_type,
     (1, 0, "Py_ssize_t"): c_py_ssize_t_type,
     (1, 0, "float"): c_float_type, 
     (1, 0, "double"): c_double_type,
@@ -1216,6 +1217,19 @@ def c_ptr_type(base_type):
         return c_char_ptr_type
     else:
         return CPtrType(base_type)
+        
+def Node_to_type(node, env):
+    from ExprNodes import NameNode, AttributeNode, StringNode, error
+    if isinstance(node, StringNode):
+        node = NameNode(node.pos, name=node.value)
+    if isinstance(node, NameNode) and node.name in rank_to_type_name:
+        return simple_c_type(1, 0, node.name)
+    elif isinstance(node, (AttributeNode, NameNode)):
+        node.analyze_types(env)
+        if not node.entry.is_type:
+            pass
+    else:
+        error(node.pos, "Bad type")
 
 def public_decl(base, dll_linkage):
     if dll_linkage:
