@@ -29,7 +29,7 @@ class StringParseContext(Main.Context):
             raise AssertionError("Not yet supporting any cimports/includes from string code snippets")
         return ModuleScope(module_name, parent_module = None, context = self)
         
-def parse_from_strings(name, code, pxds={}, level=None):
+def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None):
     """
     Utility method to parse a (unicode) string of code. This is mostly
     used for internal Cython compiler purposes (creating code snippets
@@ -47,7 +47,8 @@ def parse_from_strings(name, code, pxds={}, level=None):
     encoding = "UTF-8"
 
     module_name = name
-    initial_pos = (name, 1, 0)
+    if initial_pos is None:
+        initial_pos = (name, 1, 0)
     code_source = StringSourceDescriptor(name, code)
 
     context = StringParseContext([], name)
@@ -56,7 +57,7 @@ def parse_from_strings(name, code, pxds={}, level=None):
     buf = StringIO(code.encode(encoding))
 
     scanner = PyrexScanner(buf, code_source, source_encoding = encoding,
-                     scope = scope, context = context)
+                     scope = scope, context = context, initial_pos = initial_pos)
     if level is None:
         tree = Parsing.p_module(scanner, 0, module_name)
     else:
@@ -181,7 +182,7 @@ def strip_common_indent(lines):
     return lines
     
 class TreeFragment(object):
-    def __init__(self, code, name="(tree fragment)", pxds={}, temps=[], pipeline=[], level=None):
+    def __init__(self, code, name="(tree fragment)", pxds={}, temps=[], pipeline=[], level=None, initial_pos=None):
         if isinstance(code, unicode):
             def fmt(x): return u"\n".join(strip_common_indent(x.split(u"\n"))) 
             
@@ -189,8 +190,7 @@ class TreeFragment(object):
             fmt_pxds = {}
             for key, value in pxds.iteritems():
                 fmt_pxds[key] = fmt(value)
-                
-            mod = t = parse_from_strings(name, fmt_code, fmt_pxds, level=level)
+            mod = t = parse_from_strings(name, fmt_code, fmt_pxds, level=level, initial_pos=initial_pos)
             if level is None:
                 t = t.body # Make sure a StatListNode is at the top
             if not isinstance(t, StatListNode):

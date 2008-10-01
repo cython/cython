@@ -2,5 +2,11 @@
 #   Cython -- Main Program, generic
 #
 
-from Cython.Compiler.Main import main
-main(command_line = 1)
+if __name__ == '__main__':
+
+    from Cython.Compiler.Main import main
+    main(command_line = 1)
+
+else:
+    # Void cython.* directives. 
+    from Cython.Shadow import *

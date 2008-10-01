@@ -713,6 +713,15 @@ class StringNode(ConstNode):
     
     def analyse_types(self, env):
         self.entry = env.add_string_const(self.value)
+        
+    def analyse_as_type(self, env):
+        from TreeFragment import TreeFragment
+        pos = (self.pos[0], self.pos[1], self.pos[2]-7)
+        declaration = TreeFragment(u"sizeof(%s)" % self.value, name=pos[0].filename, initial_pos=pos)
+        sizeof_node = declaration.root.stats[0].expr
+        sizeof_node.analyse_types(env)
+        if isinstance(sizeof_node, SizeofTypeNode):
+            return sizeof_node.arg_type
     
     def coerce_to(self, dst_type, env):
         if dst_type.is_int:
@@ -886,6 +895,8 @@ class NameNode(AtomicExprNode):
         return None
         
     def analyse_as_type(self, env):
+        if self.name in PyrexTypes.rank_to_type_name:
+            return PyrexTypes.simple_c_type(1, 0, self.name)
         entry = self.entry
         if not entry:
             entry = env.lookup(self.name)
@@ -2767,6 +2778,9 @@ class DictItemNode(ExprNode):
     def generate_disposal_code(self, code):
         self.key.generate_disposal_code(code)
         self.value.generate_disposal_code(code)
+        
+    def __iter__(self):
+        return iter([self.key, self.value])
 
 
 class ClassNode(ExprNode):

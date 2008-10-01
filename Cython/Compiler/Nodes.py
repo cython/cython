@@ -1166,11 +1166,16 @@ class CFuncDefNode(FuncDefNode):
     #  overridable   whether or not this is a cpdef function
     
     child_attrs = ["base_type", "declarator", "body", "py_func"]
-
+    
     def unqualified_name(self):
         return self.entry.name
         
     def analyse_declarations(self, env):
+        if 'locals' in env.directives:
+            directive_locals = env.directives['locals']
+        else:
+            directive_locals = {}
+        self.directive_locals = directive_locals
         base_type = self.base_type.analyse(env)
         # The 2 here is because we need both function and argument names. 
         name_declarator, type = self.declarator.analyse(base_type, env, nonempty = 2 * (self.body is not None))
@@ -1442,11 +1447,27 @@ class DefNode(FuncDefNode):
     entry = None
     
     def analyse_declarations(self, env):
+        if 'locals' in env.directives:
+            directive_locals = env.directives['locals']
+        else:
+            directive_locals = {}
+        self.directive_locals = directive_locals
         for arg in self.args:
             base_type = arg.base_type.analyse(env)
             name_declarator, type = \
                 arg.declarator.analyse(base_type, env)
             arg.name = name_declarator.name
+            if arg.name in directive_locals:
+                type_node = directive_locals[arg.name]
+                other_type = type_node.analyse_as_type(env)
+                if other_type is None:
+                    error(type_node.pos, "Not a type")
+                elif (type is not PyrexTypes.py_object_type 
+                        and not type.same_as(other_type)):
+                    error(arg.base_type.pos, "Signature does not agree with previous declaration")
+                    error(type_node.pos, "Previous declaration here")
+                else:
+                    type = other_type
             if name_declarator.cname:
                 error(self.pos,
                     "Python function argument cannot have C name specification")

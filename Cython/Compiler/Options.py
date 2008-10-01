@@ -58,13 +58,15 @@ c_line_in_traceback = 1
 option_types = {
     'boundscheck' : bool,
     'nonecheck' : bool,
-    'embedsignature' : bool
+    'embedsignature' : bool,
+    'locals' : dict,
 }
 
 option_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
     'embedsignature' : False,
+    'locals' : {}
 }
 
 def parse_option_value(name, value):
