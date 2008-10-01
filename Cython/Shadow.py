@@ -1,3 +1,5 @@
+compiled = False
+
 def empty_decorator(x):
     return x
 
@@ -7,6 +9,10 @@ def locals(**arg_types):
 def cast(type, arg):
     # can/should we emulate anything here?
     return arg
+
+def sizeof(arg):
+    # can/should we emulate anything here?
+    return 1
 
 py_int = int
 py_long = long

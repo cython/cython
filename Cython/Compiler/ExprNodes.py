@@ -3166,11 +3166,12 @@ class SizeofTypeNode(SizeofNode):
     #  declarator  CDeclaratorNode
     
     subexprs = []
+    arg_type = None
     
     def analyse_types(self, env):
         # we may have incorrectly interpreted a dotted name as a type rather than an attribute
         # this could be better handled by more uniformly treating types as runtime-available objects
-        if self.base_type.module_path and 0:
+        if 0 and self.base_type.module_path:
             path = self.base_type.module_path
             obj = env.lookup(path[0])
             if obj.as_module is None:
@@ -3182,9 +3183,10 @@ class SizeofTypeNode(SizeofNode):
                 self.__class__ = SizeofVarNode
                 self.analyse_types(env)
                 return
-        base_type = self.base_type.analyse(env)
-        _, arg_type = self.declarator.analyse(base_type, env)
-        self.arg_type = arg_type
+        if self.arg_type is None:
+            base_type = self.base_type.analyse(env)
+            _, arg_type = self.declarator.analyse(base_type, env)
+            self.arg_type = arg_type
         self.check_type()
         
     def check_type(self):
