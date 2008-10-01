@@ -282,6 +282,7 @@ class InterpretCompilerDirectives(CythonTransform):
         self.options = options
         node.directives = options
         self.visitchildren(node)
+        node.cython_module_names = self.cython_module_names
         return node
 
     # Track cimports of the cython module.
@@ -637,8 +638,29 @@ class EnvTransform(CythonTransform):
 
 class TransformBuiltinMethods(EnvTransform):
 
-    def visit_SimpleCallNode(self, node):
+    def cython_attribute(self, node):
+        if (isinstance(node, AttributeNode) and 
+            isinstance(node.obj, NameNode) and
+            node.obj.name in self.cython_module_names):
+            return node.attribute
+    
+    def visit_ModuleNode(self, node):
+        self.cython_module_names = node.cython_module_names
         self.visitchildren(node)
+        return node
+        
+    def visit_AttributeNode(self, node):
+        attribute = self.cython_attribute(node)
+        if attribute:
+            if attribute == u'compiled':
+                node = BoolNode(node.pos, value=True)
+            else:
+                error(node.function.pos, u"'%s' not a valid cython attribute" % function)
+        return node
+
+    def visit_SimpleCallNode(self, node):
+
+        # locals
         if isinstance(node.function, ExprNodes.NameNode):
             if node.function.name == 'locals':
                 pos = node.pos
@@ -647,4 +669,30 @@ class TransformBuiltinMethods(EnvTransform):
                                                 key=ExprNodes.IdentifierStringNode(pos, value=var),
                                                 value=ExprNodes.NameNode(pos, name=var)) for var in lenv.entries]
                 return ExprNodes.DictNode(pos, key_value_pairs=items)
+
+        # cython.foo
+        function = self.cython_attribute(node.function)
+        if function:
+            if function == u'cast':
+                if len(node.args) != 2:
+                    error(node.function.pos, u"cast takes exactly two arguments" % function)
+                else:
+                    type = node.args[0].analyse_as_type(self.env_stack[-1])
+                    if type:
+                        node = TypecastNode(node.function.pos, type=type, operand=node.args[1])
+                    else:
+                        error(node.args[0].pos, "Not a type")
+            elif function == u'sizeof':
+                if len(node.args) != 1:
+                    error(node.function.pos, u"sizeof takes exactly one argument" % function)
+                else:
+                    type = node.args[0].analyse_as_type(self.env_stack[-1])
+                    if type:
+                        node = SizeofTypeNode(node.function.pos, arg_type=type)
+                    else:
+                        node = SizeofVarNode(node.function.pos, operand=node.args[0])
+            else:
+                error(node.function.pos, u"'%s' not a valid cython language construct" % function)
+        
+        self.visitchildren(node)
         return node

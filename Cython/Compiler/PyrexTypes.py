@@ -1168,7 +1168,6 @@ modifiers_and_name_to_type = {
     (1, 0, "int"): c_int_type, 
     (1, 1, "int"): c_long_type,
     (1, 2, "int"): c_longlong_type,
-    (1, 0, "long"): c_long_type,
     (1, 0, "Py_ssize_t"): c_py_ssize_t_type,
     (1, 0, "float"): c_float_type, 
     (1, 0, "double"): c_double_type,
@@ -1181,6 +1180,9 @@ modifiers_and_name_to_type = {
     (2, 1, "int"): c_slong_type,
     (2, 2, "int"): c_slonglong_type,
     (2, 0, "Py_ssize_t"): c_py_ssize_t_type,
+    
+    (1, 0, "long"): c_long_type,
+    (1, 0, "bint"): c_bint_type,
 }
 
 def widest_numeric_type(type1, type2):
