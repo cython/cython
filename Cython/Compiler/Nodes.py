@@ -412,7 +412,6 @@ class CNameDeclaratorNode(CDeclaratorNode):
             elif base_type.is_void:
                 error(self.pos, "Use spam() rather than spam(void) to declare a function with no arguments.")
             else:
-                print "here"
                 self.name = base_type.declaration_code("", for_display=1, pyrex=1)
                 base_type = py_object_type
         self.type = base_type
@@ -569,23 +568,28 @@ class CArgDeclNode(Node):
 
     is_self_arg = 0
     is_generic = 1
+    type = None
+    name_declarator = None
 
     def analyse(self, env, nonempty = 0):
         #print "CArgDeclNode.analyse: is_self_arg =", self.is_self_arg ###
-        # The parser may missinterpret names as types...
-        # We fix that here.
-        if isinstance(self.declarator, CNameDeclaratorNode) and self.declarator.name == '':
-            if nonempty:
-                self.declarator.name = self.base_type.name
-                self.base_type.name = None
-                self.base_type.is_basic_c_type = False
-            could_be_name = True
+        if self.type is None:
+            # The parser may missinterpret names as types...
+            # We fix that here.
+            if isinstance(self.declarator, CNameDeclaratorNode) and self.declarator.name == '':
+                if nonempty:
+                    self.declarator.name = self.base_type.name
+                    self.base_type.name = None
+                    self.base_type.is_basic_c_type = False
+                could_be_name = True
+            else:
+                could_be_name = False
+            base_type = self.base_type.analyse(env, could_be_name = could_be_name)
+            if self.base_type.arg_name:
+                self.declarator.name = self.base_type.arg_name
+            return self.declarator.analyse(base_type, env, nonempty = nonempty)
         else:
-            could_be_name = False
-        base_type = self.base_type.analyse(env, could_be_name = could_be_name)
-        if self.base_type.arg_name:
-            self.declarator.name = self.base_type.arg_name
-        return self.declarator.analyse(base_type, env, nonempty = nonempty)
+            return self.name_declarator, self.type
 
     def annotate(self, code):
         if self.default:
@@ -601,6 +605,14 @@ class CBaseTypeNode(Node):
     #     Returns the type.
     
     pass
+    
+class CAnalysedBaseTypeNode(Node):
+    # type            type
+    
+    child_attrs = []
+    
+    def analyse(self, env, could_be_name = False):
+        return self.type
 
 class CSimpleBaseTypeNode(CBaseTypeNode):
     # name             string
@@ -1429,6 +1441,8 @@ class DefNode(FuncDefNode):
     reqd_kw_flags_cname = "0"
     is_wrapper = 0
     decorators = None
+    entry = None
+    
 
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
@@ -1443,8 +1457,45 @@ class DefNode(FuncDefNode):
         self.num_kwonly_args = k
         self.num_required_kw_args = rk
         self.num_required_args = r
-    
-    entry = None
+        
+    def as_cfunction(self, cfunc):
+        if self.star_arg:
+            error(self.star_arg.pos, "cdef function cannot have star argument")
+        if self.starstar_arg:
+            error(self.starstar_arg.pos, "cdef function cannot have starstar argument")
+        if len(self.args) != len(cfunc.type.args) or cfunc.type.has_varargs:
+            error(self.pos, "wrong number of arguments")
+            error(declarator.pos, "previous declaration here")
+        for formal_arg, type_arg in zip(self.args, cfunc.type.args):
+            name_declarator, type = formal_arg.analyse(cfunc.scope, nonempty=1)
+            if type is PyrexTypes.py_object_type or formal_arg.is_self:
+                formal_arg.type = type_arg.type
+                formal_arg.name_declarator = name_declarator
+        import ExprNodes
+        if cfunc.type.exception_value is None:
+            exception_value = None
+        else:
+            exception_value = ExprNodes.ConstNode(self.pos, value=cfunc.type.exception_value, type=cfunc.type.return_type)
+        declarator = CFuncDeclaratorNode(self.pos, 
+                                         base = CNameDeclaratorNode(self.pos, name=self.name, cname=None),
+                                         args = self.args,
+                                         has_varargs = False,
+                                         exception_check = cfunc.type.exception_check,
+                                         exception_value = exception_value,
+                                         with_gil = cfunc.type.with_gil,
+                                         nogil = cfunc.type.nogil)
+        return CFuncDefNode(self.pos, 
+                            modifiers = [],
+                            base_type = CAnalysedBaseTypeNode(self.pos, type=cfunc.type.return_type),
+                            declarator = declarator,
+                            body = self.body,
+                            doc = self.doc,
+                            overridable = cfunc.type.is_overridable,
+                            type = cfunc.type,
+                            with_gil = cfunc.type.with_gil,
+                            nogil = cfunc.type.nogil,
+                            visibility = 'private',
+                            api = False)
     
     def analyse_declarations(self, env):
         if 'locals' in env.directives:
@@ -2235,6 +2286,43 @@ class PyClassDefNode(ClassDefNode):
             bases = bases, dict = self.dict, doc = doc_node)
         self.target = ExprNodes.NameNode(pos, name = name)
         
+    def as_cclass(self):
+        """
+        Return this node as if it were declared as an extension class"
+        """
+        bases = self.classobj.bases.args
+        if len(bases) == 0:
+            base_class_name = None
+            base_class_module = None
+        elif len(bases) == 1:
+            base = bases[0]
+            path = []
+            while isinstance(base, ExprNodes.AttributeNode):
+                path.insert(0, base.attribute)
+                base = base.obj
+            if isinstance(base, ExprNodes.NameNode):
+                path.insert(0, base.name)
+                base_class_name = path[-1]
+                if len(path) > 1:
+                    base_class_module = u'.'.join(path[:-1])
+                else:
+                    base_class_module = None
+            else:
+                error(self.classobj.bases.args.pos, "Invalid base class")
+        else:
+            error(self.classobj.bases.args.pos, "C class may only have one base class")
+            return None
+        
+        return CClassDefNode(self.pos, 
+                             visibility = 'private',
+                             module_name = None,
+                             class_name = self.name,
+                             base_class_module = base_class_module,
+                             base_class_name = base_class_name,
+                             body = self.body,
+                             in_pxd = False,
+                             doc = self.doc)
+        
     def create_scope(self, env):
         genv = env
         while env.is_py_class_scope or env.is_c_class_scope:
@@ -2297,6 +2385,10 @@ class CClassDefNode(ClassDefNode):
     child_attrs = ["body"]
     buffer_defaults_node = None
     buffer_defaults_pos = None
+    typedef_flag = False
+    api = False
+    objstruct_name = None
+    typeobj_name = None
 
     def analyse_declarations(self, env):
         #print "CClassDefNode.analyse_declarations:", self.class_name
