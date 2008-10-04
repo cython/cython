@@ -15,6 +15,12 @@ class CythonScope(ModuleScope):
                                                   pos=None,
                                                   defining = 1,
                                                   cname='<error>')
+                                                  
+    def lookup_type(self, name):
+        # This function should go away when types are all first-level objects. 
+        type = parse_basic_type(name)
+        if type:
+            return type
 
 def create_cython_scope(context):
     return CythonScope(context)

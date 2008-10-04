@@ -502,6 +502,11 @@ class Scope:
         if not entry:
             entry = self.declare_var(name, py_object_type, None)
         return entry
+        
+    def lookup_type(self, name):
+        entry = self.lookup(name)
+        if entry and entry.is_type:
+            return entry.type
 
     def add_string_const(self, value, identifier = False):
         # Add an entry for a string constant.

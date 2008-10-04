@@ -2597,9 +2597,68 @@ class SingleAssignmentNode(AssignmentNode):
     
     child_attrs = ["lhs", "rhs"]
     first = False
+    declaration_only = False
 
     def analyse_declarations(self, env):
-        self.lhs.analyse_target_declaration(env)
+        import ExprNodes
+        
+        # handle declarations of the form x = cython.foo()
+        if isinstance(self.rhs, ExprNodes.CallNode):
+            func_name = self.rhs.function.as_cython_attribute()
+            if func_name:
+                args, kwds = self.rhs.explicit_args_kwds()
+                
+                if func_name in ['declare', 'typedef']:
+                    self.declaration_only = True
+                    if len(args) != 1 or kwds is not None:
+                        error(rhs.pos, "Can only declare one type at a time.")
+                        return
+                    type = args[0].analyse_as_type(env)
+                    if type is None:
+                        error(args[0].pos, "Unknown type")
+                        return
+                    lhs = self.lhs
+                    if func_name == 'declare':
+                        if isinstance(lhs, ExprNodes.NameNode):
+                            vars = [(lhs.name, lhs.pos)]
+                        elif isinstance(lhs, ExprNodes.TupleNode):
+                            vars = [(var.name, var.pos) for var in lhs.args]
+                        else:
+                            error(lhs.pos, "Invalid declaration")
+                            return
+                        for var, pos in vars:
+                            env.declare_var(var, type, pos, is_cdef = True)
+                    else:
+                        if not isinstance(lhs, ExprNodes.NameNode):
+                            error(lhs.pos, "Invalid declaration.")
+                        env.declare_typedef(lhs.name, type, self.pos, 'private')
+                    
+                elif func_name in ['struct', 'union']:
+                    self.declaration_only = True
+                    if len(args) > 0 or kwds is None:
+                        error(rhs.pos, "Struct or union members must be given by name.")
+                        return
+                    members = []
+                    for member, type_node in kwds.key_value_pairs:
+                        type = type_node.analyse_as_type(env)
+                        if type is None:
+                            error(type_node.pos, "Unknown type")
+                        else:
+                            members.append((member.value, type, member.pos))
+                    if len(members) < len(kwds.key_value_pairs):
+                        return
+                    if not isinstance(self.lhs, ExprNodes.NameNode):
+                        error(self.lhs.pos, "Invalid declaration.")
+                    name = self.lhs.name
+                    scope = StructOrUnionScope(name)
+                    env.declare_struct_or_union(name, func_name, scope, False, self.rhs.pos)
+                    for member, type, pos in members:
+                        scope.declare_var(member, type, pos)
+                    
+        if self.declaration_only:
+            return
+        else:
+            self.lhs.analyse_target_declaration(env)
     
     def analyse_types(self, env, use_temp = 0):
         self.rhs.analyse_types(env)
