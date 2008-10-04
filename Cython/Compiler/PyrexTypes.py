@@ -1182,6 +1182,7 @@ modifiers_and_name_to_type = {
     (2, 0, "Py_ssize_t"): c_py_ssize_t_type,
     
     (1, 0, "long"): c_long_type,
+    (1, 0, "longlong"): c_longlong_type,
     (1, 0, "bint"): c_bint_type,
 }
 
@@ -1205,6 +1206,21 @@ def simple_c_type(signed, longness, name):
     # Find type descriptor for simple type given name and modifiers.
     # Returns None if arguments don't make sense.
     return modifiers_and_name_to_type.get((signed, longness, name))
+    
+def parse_basic_type(name):
+    base = None
+    if name.startswith('p_'):
+        base = parse_basic_type(name[2:])
+    elif name.startswith('p'):
+        base = parse_basic_type(name[1:])
+    elif name.endswith('*'):
+        base = parse_basic_type(name[:-1])
+    if base:
+        return CPtrType(base)
+    elif name.startswith('u'):
+        return simple_c_type(0, 0, name[1:])
+    else:
+        return simple_c_type(1, 0, name)
 
 def c_array_type(base_type, size):
     # Construct a C array type.

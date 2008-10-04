@@ -313,10 +313,18 @@ class InterpretCompilerDirectives(CythonTransform):
     def visit_SingleAssignmentNode(self, node):
         if (isinstance(node.rhs, ImportNode) and
                 node.rhs.module_name.value == u'cython'):
-            self.cython_module_names.add(node.lhs.name)
+            node = CImportStatNode(node.pos, 
+                                   module_name = u'cython',
+                                   as_name = node.lhs.name)
+            self.visit_CImportStatNode(node)
         else:
             self.visitchildren(node)
-            return node
+        return node
+            
+    def visit_NameNode(self, node):
+        if node.name in self.cython_module_names:
+            node.is_cython_module = True
+        return node
 
     def visit_Node(self, node):
         self.visitchildren(node)
@@ -339,15 +347,7 @@ class InterpretCompilerDirectives(CythonTransform):
         if optname:
             optiontype = Options.option_types.get(optname)
             if optiontype:
-                if isinstance(node, SimpleCallNode):
-                    args = node.args
-                    kwds = None
-                else:
-                    if node.starstar_arg or not isinstance(node.positional_args, TupleNode):
-                        raise PostParseError(dec.function.pos,
-                            'Compile-time keyword arguments must be explicit.' % optname)
-                    args = node.positional_args.args
-                    kwds = node.keyword_args
+                args, kwds = node.explicit_args_kwds()
                 if optiontype is bool:
                     if kwds is not None or len(args) != 1 or not isinstance(args[0], BoolNode):
                         raise PostParseError(dec.function.pos,
@@ -516,7 +516,7 @@ property NAME:
         node.analyse_declarations(self.env_stack[-1])
         self.visitchildren(node)
         return node
-
+        
     def visit_FuncDefNode(self, node):
         lenv = node.create_local_scope(self.env_stack[-1])
         node.body.analyse_control_flow(lenv) # this will be totally refactored
@@ -686,24 +686,20 @@ class EnvTransform(CythonTransform):
 
 class TransformBuiltinMethods(EnvTransform):
 
-    def cython_attribute(self, node):
-        if (isinstance(node, AttributeNode) and 
-            isinstance(node.obj, NameNode) and
-            node.obj.name in self.cython_module_names):
-            return node.attribute
+    def visit_SingleAssignmentNode(self, node):
+        if node.declaration_only:
+            return None
+        else:
+            self.visitchildren(node)
+            return node
     
-    def visit_ModuleNode(self, node):
-        self.cython_module_names = node.cython_module_names
-        self.visitchildren(node)
-        return node
-        
     def visit_AttributeNode(self, node):
-        attribute = self.cython_attribute(node)
+        attribute = node.as_cython_attribute()
         if attribute:
             if attribute == u'compiled':
                 node = BoolNode(node.pos, value=True)
             else:
-                error(node.function.pos, u"'%s' not a valid cython attribute" % function)
+                error(node.pos, u"'%s' not a valid cython attribute" % attribute)
         return node
 
     def visit_SimpleCallNode(self, node):
@@ -719,7 +715,7 @@ class TransformBuiltinMethods(EnvTransform):
                 return ExprNodes.DictNode(pos, key_value_pairs=items)
 
         # cython.foo
-        function = self.cython_attribute(node.function)
+        function = node.function.as_cython_attribute()
         if function:
             if function == u'cast':
                 if len(node.args) != 2:
@@ -739,6 +735,11 @@ class TransformBuiltinMethods(EnvTransform):
                         node = SizeofTypeNode(node.function.pos, arg_type=type)
                     else:
                         node = SizeofVarNode(node.function.pos, operand=node.args[0])
+            elif function == 'address':
+                if len(node.args) != 1:
+                    error(node.function.pos, u"sizeof takes exactly one argument" % function)
+                else:
+                    node = AmpersandNode(node.function.pos, operand=node.args[0])
             else:
                 error(node.function.pos, u"'%s' not a valid cython language construct" % function)
         
