@@ -573,6 +573,54 @@ class AnalyseExpressionsTransform(CythonTransform):
         node.body.analyse_expressions(node.local_scope)
         self.visitchildren(node)
         return node
+        
+class AlignFunctionDefinitions(CythonTransform):
+    """
+    This class takes the signatures from a .pxd file and applies them to 
+    the def methods in a .py file. 
+    """
+    
+    def visit_ModuleNode(self, node):
+        self.scope = node.scope
+        self.visitchildren(node)
+        return node
+    
+    def visit_PyClassDefNode(self, node):
+        pxd_def = self.scope.lookup(node.name)
+        if pxd_def:
+            if pxd_def.is_cclass:
+                return self.visit_CClassDefNode(node.as_cclass(), pxd_def)
+            else:
+                error(node.pos, "'%s' redeclared" % node.name)
+                error(pxd_def.pos, "previous declaration here")
+                return None
+        self.visitchildren(node)
+        return node
+        
+    def visit_CClassDefNode(self, node, pxd_def=None):
+        if pxd_def is None:
+            pxd_def = self.scope.lookup(node.class_name)
+        if pxd_def:
+            outer_scope = self.scope
+            self.scope = pxd_def.type.scope
+        self.visitchildren(node)
+        if pxd_def:
+            self.scope = outer_scope
+        return node
+        
+    def visit_DefNode(self, node):
+        pxd_def = self.scope.lookup(node.name)
+        if pxd_def:
+            if pxd_def.is_cfunction:
+                node = node.as_cfunction(pxd_def)
+            else:
+                error(node.pos, "'%s' redeclared" % node.name)
+                error(pxd_def.pos, "previous declaration here")
+                return None
+        # Enable this when internal def functions are allowed. 
+        # self.visitchildren(node)
+        return node
+        
 
 class MarkClosureVisitor(CythonTransform):
     

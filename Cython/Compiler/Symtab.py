@@ -56,6 +56,7 @@ class Entry:
     # is_cmethod       boolean    Is a C method of an extension type
     # is_unbound_cmethod boolean  Is an unbound C method of an extension type
     # is_type          boolean    Is a type definition
+    # is_cclass        boolean    Is an extension class
     # is_const         boolean    Is a constant
     # is_property      boolean    Is a property of an extension type:
     # doc_cname        string or None  C const holding the docstring
@@ -108,6 +109,7 @@ class Entry:
     is_cmethod = 0
     is_unbound_cmethod = 0
     is_type = 0
+    is_cclass = 0
     is_const = 0
     is_property = 0
     doc_cname = None
@@ -989,6 +991,7 @@ class ModuleScope(Scope):
             type.typeptr_cname = self.mangle(Naming.typeptr_prefix, name)
             entry = self.declare_type(name, type, pos, visibility = visibility,
                 defining = 0)
+            entry.is_cclass = True
             if objstruct_cname:
                 type.objstruct_cname = objstruct_cname
             elif not entry.in_cinclude:
