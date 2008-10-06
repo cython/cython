@@ -1306,17 +1306,23 @@ cdef class MyStructMockBuffer(MockBuffer):
 def basic_struct(object[MyStruct] buf):
     """
     >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
+    1 2 3 4 5
+    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="bbqii"))
+    1 2 3 4 5
+    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="i"))
     Traceback (most recent call last):
         ...
-    ValueError: Struct buffer dtypes not implemented yet!
-
-    # 1 2 3 4 5
+    ValueError: Buffer datatype mismatch (expected 'b', got 'i')
     """
     print buf[0].a, buf[0].b, buf[0].c, buf[0].d, buf[0].e
 
 cdef struct LongComplex:
     long double real
     long double imag
+
+cdef struct MixedComplex:
+    long double real
+    float imag
 
 cdef class LongComplexMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
@@ -1337,6 +1343,17 @@ def complex_struct_dtype(object[LongComplex] buf):
     """
     print buf[0].real, buf[0].imag
 
+@testcase
+def mixed_complex_struct_dtype(object[MixedComplex] buf):
+    """
+    Triggering a specific execution path for this case.
+ 
+    >>> mixed_complex_struct_dtype(LongComplexMockBuffer(None, [(0, -1)]))
+    Traceback (most recent call last):
+        ...
+    ValueError: Cannot store complex number in 'MixedComplex' as 'long double' differs from 'float' in size.
+    """
+    print buf[0].real, buf[0].imag
 
 @testcase
 def complex_struct_inplace(object[LongComplex] buf):
