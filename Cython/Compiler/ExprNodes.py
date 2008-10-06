@@ -568,6 +568,9 @@ class ExprNode(Node):
         #  a constant, local var, C global var, struct member
         #  reference, or temporary.
         return self.result_in_temp()
+        
+    def as_cython_attribute(self):
+        return None
 
 
 class NewTempExprNode(ExprNode):
@@ -780,6 +783,9 @@ class StringNode(ConstNode):
         self.entry = env.add_string_const(self.value)
         
     def analyse_as_type(self, env):
+        type = PyrexTypes.parse_basic_type(self.value)
+        if type is not None:    
+            return type
         from TreeFragment import TreeFragment
         pos = (self.pos[0], self.pos[1], self.pos[2]-7)
         declaration = TreeFragment(u"sizeof(%s)" % self.value, name=pos[0].filename, initial_pos=pos)
@@ -914,7 +920,8 @@ class NameNode(AtomicExprNode):
     #  entry           Entry     Symbol table entry
     #  interned_cname  string
     
-    is_name = 1
+    is_name = True
+    is_cython_module = False
     skip_assignment_decref = False
     entry = None
 
@@ -960,8 +967,9 @@ class NameNode(AtomicExprNode):
         return None
         
     def analyse_as_type(self, env):
-        if self.name in PyrexTypes.rank_to_type_name:
-            return PyrexTypes.simple_c_type(1, 0, self.name)
+        type = PyrexTypes.parse_basic_type(self.name)
+        if type:
+            return type
         entry = self.entry
         if not entry:
             entry = env.lookup(self.name)
@@ -1869,6 +1877,21 @@ class SimpleCallNode(CallNode):
             return function(*args)
         except Exception, e:
             self.compile_time_value_error(e)
+            
+    def analyse_as_type(self, env):
+        attr = self.function.as_cython_attribute()
+        if attr == 'pointer':
+            if len(self.args) != 1:
+                error(self.args.pos, "only one type allowed.")
+            else:
+                type = self.args[0].analyse_as_type(env)
+                if not type:
+                    error(self.args[0].pos, "Unknown type")
+                else:
+                    return PyrexTypes.CPtrType(type)
+
+    def explicit_args_kwds(self):
+        return self.args, None
 
     def analyse_types(self, env):
         function = self.function
@@ -2098,6 +2121,12 @@ class GeneralCallNode(CallNode):
             return function(*positional_args, **keyword_args)
         except Exception, e:
             self.compile_time_value_error(e)
+            
+    def explicit_args_kwds(self):
+        if self.starstar_arg or not isinstance(self.positional_args, TupleNode):
+            raise PostParseError(self.pos,
+                'Compile-time keyword arguments must be explicit.')
+        return self.positional_args.args, self.keyword_args
 
     def analyse_types(self, env):
         self.function.analyse_types(env)
@@ -2201,6 +2230,10 @@ class AttributeNode(ExprNode):
     is_called = 0
     needs_none_check = True
 
+    def as_cython_attribute(self):
+        if isinstance(self.obj, NameNode) and self.obj.is_cython_module:
+            return self.attribute
+
     def coerce_to(self, dst_type, env):
         #  If coercing to a generic pyobject and this is a cpdef function
         #  we can create the corresponding attribute
@@ -2278,9 +2311,7 @@ class AttributeNode(ExprNode):
     def analyse_as_type(self, env):
         module_scope = self.obj.analyse_as_module(env)
         if module_scope:
-            entry = module_scope.lookup_here(self.attribute)
-            if entry and entry.is_type:
-                return entry.type
+            return module_scope.lookup_type(self.attribute)
         return None
     
     def analyse_as_extension_type(self, env):

@@ -74,12 +74,13 @@ class Context:
             os.path.join(os.path.dirname(__file__), '..', 'Includes'))
         self.include_directories = include_directories + [standard_include_path]
 
-    def create_pipeline(self, pxd):
+    def create_pipeline(self, pxd, py=False):
         from Visitor import PrintTree
         from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
         from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
+        from ParseTreeTransforms import AlignFunctionDefinitions
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, FinalOptimizePhase
         from Buffer import IntroduceBufferAuxiliaryVars
@@ -91,11 +92,17 @@ class Context:
         else:
             _check_c_classes = check_c_classes
             _specific_post_parse = None
+            
+        if py and not pxd:
+            _align_function_definitions = AlignFunctionDefinitions(self)
+        else:
+            _align_function_definitions = None
  
         return [
             NormalizeTree(self),
             PostParse(self),
             _specific_post_parse,
+            _align_function_definitions,
             InterpretCompilerDirectives(self, self.pragma_overrides),
             FlattenInListTransform(),
             WithTransform(self),
@@ -112,7 +119,7 @@ class Context:
             #        CreateClosureClasses(context),
             ]
 
-    def create_pyx_pipeline(self, options, result):
+    def create_pyx_pipeline(self, options, result, py=False):
         def generate_pyx_code(module_node):
             module_node.process_implementation(options, result)
             result.compilation_source = module_node.compilation_source
@@ -134,7 +141,7 @@ class Context:
 
         return ([
                 create_parse(self),
-            ] + self.create_pipeline(pxd=False) + [
+            ] + self.create_pipeline(pxd=False, py=py) + [
                 inject_pxd_code,
                 generate_pyx_code,
             ])
@@ -154,6 +161,10 @@ class Context:
         return [parse_pxd] + self.create_pipeline(pxd=True) + [
             ExtractPxdCode(self),
             ]
+            
+    def create_py_pipeline(self, options, result):
+        return self.create_pyx_pipeline(options, result, py=True)
+
 
     def process_pxd(self, source_desc, scope, module_name):
         pipeline = self.create_pxd_pipeline(scope, module_name)
@@ -504,7 +515,10 @@ def run_pipeline(source, options, full_module_name = None):
     result = create_default_resultobj(source, options)
     
     # Get pipeline
-    pipeline = context.create_pyx_pipeline(options, result)
+    if source_desc.filename.endswith(".py"):
+        pipeline = context.create_py_pipeline(options, result)
+    else:
+        pipeline = context.create_pyx_pipeline(options, result)
 
     context.setup_errors(options)
     err, enddata = context.run_pipeline(pipeline, source)
