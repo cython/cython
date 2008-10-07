@@ -2549,6 +2549,22 @@ class ExprStatNode(StatNode):
 
     child_attrs = ["expr"]
     
+    def analyse_declarations(self, env):
+        import ExprNodes
+        if isinstance(self.expr, ExprNodes.GeneralCallNode):
+            func = self.expr.function.as_cython_attribute()
+            if func == u'declare':
+                args, kwds = self.expr.explicit_args_kwds()
+                if len(args):
+                    error(self.expr.pos, "Variable names must be specified.")
+                for var, type_node in kwds.key_value_pairs:
+                    type = type_node.analyse_as_type(env)
+                    if type is None:
+                        error(type_node.pos, "Unknown type")
+                    else:
+                        env.declare_var(var.value, type, var.pos, is_cdef = True)
+                self.__class__ = PassStatNode
+    
     def analyse_expressions(self, env):
         self.expr.analyse_expressions(env)
         self.expr.release_temp(env)
@@ -2609,8 +2625,7 @@ class SingleAssignmentNode(AssignmentNode):
                 args, kwds = self.rhs.explicit_args_kwds()
                 
                 if func_name in ['declare', 'typedef']:
-                    self.declaration_only = True
-                    if len(args) != 1 or kwds is not None:
+                    if len(args) > 2 or kwds is not None:
                         error(rhs.pos, "Can only declare one type at a time.")
                         return
                     type = args[0].analyse_as_type(env)
@@ -2628,7 +2643,13 @@ class SingleAssignmentNode(AssignmentNode):
                             return
                         for var, pos in vars:
                             env.declare_var(var, type, pos, is_cdef = True)
+                        if len(args) == 2:
+                            # we have a value
+                            self.rhs = args[1]
+                        else:
+                            self.declaration_only = True
                     else:
+                        self.declaration_only = True
                         if not isinstance(lhs, ExprNodes.NameNode):
                             error(lhs.pos, "Invalid declaration.")
                         env.declare_typedef(lhs.name, type, self.pos, 'private')
