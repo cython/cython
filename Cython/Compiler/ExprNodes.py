@@ -2680,6 +2680,15 @@ class ListNode(SequenceNode):
             for i in range(len(self.args)):
                 arg = self.args[i]
                 self.args[i] = arg.coerce_to(base_type, env)
+        elif dst_type.is_struct:
+            if len(self.args) > len(dst_type.scope.var_entries):
+                error(self.pos, "Too may members for '%s'" % dst_type)
+            else:
+                if len(self.args) < len(dst_type.scope.var_entries):
+                    warning(self.pos, "Too few members for '%s'" % dst_type, 1)
+                for i, (arg, member) in enumerate(zip(self.args, dst_type.scope.var_entries)):
+                    self.args[i] = arg.coerce_to(member.type, env)
+            self.type = dst_type
         else:
             self.type = error_type
             error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
@@ -2703,13 +2712,19 @@ class ListNode(SequenceNode):
                     (self.result(),
                     i,
                     arg.py_result()))
-        else:
+        elif self.type.is_ptr:
             code.putln("%s = (%s[]) {" % (self.result(), self.type.base_type))
-            for i, arg in enumerate(self.args):
+            for arg in self.args:
                 code.put(arg.result())
                 code.put(", ")
             code.putln();
             code.putln("};")
+        else:
+            for arg, member in zip(self.args, self.type.scope.var_entries):
+                code.putln("%s.%s = %s;" % (
+                        self.result(),
+                        member.cname,
+                        arg.result()))
                 
     def generate_subexpr_disposal_code(self, code):
         # We call generate_post_assignment_code here instead
