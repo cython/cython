@@ -37,6 +37,7 @@ class PyrexType(BaseType):
     #  is_null_ptr           boolean     Is the type of NULL
     #  is_cfunction          boolean     Is a C function type
     #  is_struct_or_union    boolean     Is a C struct or union type
+    #  is_struct             boolean     Is a C struct type
     #  is_enum               boolean     Is a C enum type
     #  is_typedef            boolean     Is a typedef type
     #  is_string             boolean     Is a C char * type
@@ -88,6 +89,7 @@ class PyrexType(BaseType):
     is_null_ptr = 0
     is_cfunction = 0
     is_struct_or_union = 0
+    is_struct = 0
     is_enum = 0
     is_typedef = 0
     is_string = 0
@@ -929,6 +931,7 @@ class CStructOrUnionType(CType):
         self.kind = kind
         self.scope = scope
         self.typedef_flag = typedef_flag
+        self.is_struct = kind == 'struct'
         
     def __repr__(self):
         return "<CStructOrUnionType %s %s%s>" % (self.name, self.cname,
