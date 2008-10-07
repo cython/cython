@@ -857,6 +857,7 @@ class NameNode(AtomicExprNode):
     
     is_name = True
     is_cython_module = False
+    cython_attribute = None
     skip_assignment_decref = False
     entry = None
 
@@ -864,6 +865,9 @@ class NameNode(AtomicExprNode):
         node = NameNode(pos)
         node.analyse_types(env, entry=entry)
         return node
+        
+    def as_cython_attribute(self):
+        return self.cython_attribute
     
     create_analysed_rvalue = staticmethod(create_analysed_rvalue)
     

@@ -300,16 +300,32 @@ class InterpretCompilerDirectives(CythonTransform):
             newimp = []
             for pos, name, as_name, kind in node.imported_names:
                 if name in Options.option_types:
+                    if as_name is None:
+                        as_name = name
                     self.option_names[as_name] = name
                     if kind is not None:
                         self.context.nonfatal_error(PostParseError(pos,
                             "Compiler option imports must be plain imports"))
-                    return None
                 else:
                     newimp.append((pos, name, as_name, kind))
-            node.imported_names = newimpo
+            if not newimp:
+                return None
+            node.imported_names = newimp
         return node
         
+    def visit_FromImportStatNode(self, node):
+        if node.module.module_name.value == u"cython":
+            newimp = []
+            for true_name, name_node in node.items:
+                if true_name in Options.option_types:
+                    self.option_names[name_node.name] = true_name
+                else:
+                    newimp.append((true_name, name_node))
+            if not newimp:
+                return None
+            node.items = newimp
+        return node
+
     def visit_SingleAssignmentNode(self, node):
         if (isinstance(node.rhs, ImportNode) and
                 node.rhs.module_name.value == u'cython'):
@@ -324,8 +340,10 @@ class InterpretCompilerDirectives(CythonTransform):
     def visit_NameNode(self, node):
         if node.name in self.cython_module_names:
             node.is_cython_module = True
+        else:
+            node.cython_attribute = self.option_names.get(node.name)
         return node
-
+        
     def visit_Node(self, node):
         self.visitchildren(node)
         return node
@@ -336,13 +354,15 @@ class InterpretCompilerDirectives(CythonTransform):
         # Otherwise, returns None
         optname = None
         if isinstance(node, CallNode):
-            if (isinstance(node.function, AttributeNode) and
-                  isinstance(node.function.obj, NameNode) and
-                  node.function.obj.name in self.cython_module_names):
-                optname = node.function.attribute
-            elif (isinstance(node.function, NameNode) and
-                  node.function.name in self.option_names):
-                optname = self.option_names[node.function.name]
+            self.visit(node.function)
+            optname = node.function.as_cython_attribute()
+#            if (isinstance(node.function, AttributeNode) and
+#                  isinstance(node.function.obj, NameNode) and
+#                  node.function.obj.name in self.cython_module_names):
+#                optname = node.function.attribute
+#            elif (isinstance(node.function, NameNode) and
+#                  node.function.name in self.option_names):
+#                optname = self.option_names[node.function.name]
 
         if optname:
             optiontype = Options.option_types.get(optname)
