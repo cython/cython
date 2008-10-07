@@ -1047,6 +1047,17 @@ class CCharPtrType(CStringType, CPtrType):
         CPtrType.__init__(self, c_char_type)
 
 
+class UnspecifiedType(PyrexType):
+    # Used as a placeholder until the type can be determined.
+        
+    def declaration_code(self, entity_code, 
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        return "<unspecified>"
+    
+    def same_as_resolved_type(self, other_type):
+        return False
+        
+
 class ErrorType(PyrexType):
     # Used to prevent propagation of error messages.
     
@@ -1127,6 +1138,7 @@ c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer
 c_py_buffer_ptr_type = CPtrType(c_py_buffer_type)
 
 error_type =    ErrorType()
+unspecified_type = UnspecifiedType()
 
 lowest_float_rank = 6
 

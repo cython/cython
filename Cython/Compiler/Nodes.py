@@ -2552,7 +2552,7 @@ class ExprStatNode(StatNode):
     def analyse_declarations(self, env):
         import ExprNodes
         if isinstance(self.expr, ExprNodes.GeneralCallNode):
-            func = self.expr.function.as_cython_attribute()
+            func = self.expr.function.magic_cython_method()
             if func == u'declare':
                 args, kwds = self.expr.explicit_args_kwds()
                 if len(args):
@@ -2620,7 +2620,7 @@ class SingleAssignmentNode(AssignmentNode):
         
         # handle declarations of the form x = cython.foo()
         if isinstance(self.rhs, ExprNodes.CallNode):
-            func_name = self.rhs.function.as_cython_attribute()
+            func_name = self.rhs.function.magic_cython_method()
             if func_name:
                 args, kwds = self.rhs.explicit_args_kwds()
                 

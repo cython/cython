@@ -355,7 +355,7 @@ class InterpretCompilerDirectives(CythonTransform):
         optname = None
         if isinstance(node, CallNode):
             self.visit(node.function)
-            optname = node.function.as_cython_attribute()
+            optname = node.function.magic_cython_method()
 #            if (isinstance(node.function, AttributeNode) and
 #                  isinstance(node.function.obj, NameNode) and
 #                  node.function.obj.name in self.cython_module_names):
@@ -714,7 +714,7 @@ class TransformBuiltinMethods(EnvTransform):
             return node
     
     def visit_AttributeNode(self, node):
-        attribute = node.as_cython_attribute()
+        attribute = node.magic_cython_method()
         if attribute:
             if attribute == u'compiled':
                 node = BoolNode(node.pos, value=True)
@@ -735,7 +735,7 @@ class TransformBuiltinMethods(EnvTransform):
                 return ExprNodes.DictNode(pos, key_value_pairs=items)
 
         # cython.foo
-        function = node.function.as_cython_attribute()
+        function = node.function.magic_cython_method()
         if function:
             if function == u'cast':
                 if len(node.args) != 2:
