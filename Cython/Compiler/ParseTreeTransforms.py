@@ -719,12 +719,12 @@ class TransformBuiltinMethods(EnvTransform):
             if attribute == u'compiled':
                 node = BoolNode(node.pos, value=True)
             else:
-                error(node.pos, u"'%s' not a valid cython attribute" % attribute)
+                error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
         return node
 
     def visit_SimpleCallNode(self, node):
 
-        # locals
+        # locals builtin
         if isinstance(node.function, ExprNodes.NameNode):
             if node.function.name == 'locals':
                 pos = node.pos

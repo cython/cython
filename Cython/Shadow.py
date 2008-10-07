@@ -21,11 +21,14 @@ def sizeof(arg):
 def address(arg):
     return pointer(type(arg))([arg])
     
-def declare(type):
-    if callable(type):
-        return type()
+def declare(type=None, value=None, **kwds):
+    if type and callable(type):
+        if value:
+            return type(value)
+        else:
+            return type()
     else:
-        return None
+        return value
 
 # Emulated types
 
