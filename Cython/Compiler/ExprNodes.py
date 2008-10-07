@@ -564,7 +564,7 @@ class ExprNode(Node):
         #  reference, or temporary.
         return self.result_in_temp()
         
-    def as_cython_attribute(self):
+    def magic_cython_method(self):
         return None
 
 
@@ -866,7 +866,7 @@ class NameNode(AtomicExprNode):
         node.analyse_types(env, entry=entry)
         return node
         
-    def as_cython_attribute(self):
+    def magic_cython_method(self):
         return self.cython_attribute
     
     create_analysed_rvalue = staticmethod(create_analysed_rvalue)
@@ -1822,7 +1822,7 @@ class SimpleCallNode(CallNode):
             self.compile_time_value_error(e)
             
     def analyse_as_type(self, env):
-        attr = self.function.as_cython_attribute()
+        attr = self.function.magic_cython_method()
         if attr == 'pointer':
             if len(self.args) != 1:
                 error(self.args.pos, "only one type allowed.")
@@ -2173,7 +2173,7 @@ class AttributeNode(ExprNode):
     is_called = 0
     needs_none_check = True
 
-    def as_cython_attribute(self):
+    def magic_cython_method(self):
         if isinstance(self.obj, NameNode) and self.obj.is_cython_module:
             return self.attribute
 
@@ -2659,26 +2659,57 @@ class ListNode(SequenceNode):
     gil_message = "Constructing Python list"
 
     def analyse_types(self, env):
-        SequenceNode.analyse_types(self, env)
-        self.type = list_type
+        for arg in self.args:
+            arg.analyse_types(env)
+        self.is_temp = 1
+        self.type = PyrexTypes.unspecified_type
+        
+    def coerce_to(self, dst_type, env):
+        if dst_type.is_pyobject:
+            self.gil_check(env)
+            self.type = list_type
+            for i in range(len(self.args)):
+                arg = self.args[i]
+                if not arg.type.is_pyobject:
+                    self.args[i] = arg.coerce_to_pyobject(env)
+            if not self.type.subtype_of(dst_type):
+                error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
+        elif dst_type.is_ptr:
+            base_type = dst_type.base_type
+            self.type = dst_type
+            for i in range(len(self.args)):
+                arg = self.args[i]
+                self.args[i] = arg.coerce_to(base_type, env)
+        else:
+            self.type = error_type
+            error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
+        return self
 
     def compile_time_value(self, denv):
         return self.compile_time_value_list(denv)
 
     def generate_operation_code(self, code):
-        code.putln("%s = PyList_New(%s); %s" %
-            (self.result(),
-            len(self.args),
-            code.error_goto_if_null(self.result(), self.pos)))
-        for i in range(len(self.args)):
-            arg = self.args[i]
-            #if not arg.is_temp:
-            if not arg.result_in_temp():
-                code.put_incref(arg.result(), arg.ctype())
-            code.putln("PyList_SET_ITEM(%s, %s, %s);" %
+        if self.type.is_pyobject:
+            code.putln("%s = PyList_New(%s); %s" %
                 (self.result(),
-                i,
-                arg.py_result()))
+                len(self.args),
+                code.error_goto_if_null(self.result(), self.pos)))
+            for i in range(len(self.args)):
+                arg = self.args[i]
+                #if not arg.is_temp:
+                if not arg.result_in_temp():
+                    code.put_incref(arg.result(), arg.ctype())
+                code.putln("PyList_SET_ITEM(%s, %s, %s);" %
+                    (self.result(),
+                    i,
+                    arg.py_result()))
+        else:
+            code.putln("%s = (%s[]) {" % (self.result(), self.type.base_type))
+            for i, arg in enumerate(self.args):
+                code.put(arg.result())
+                code.put(", ")
+            code.putln();
+            code.putln("};")
                 
     def generate_subexpr_disposal_code(self, code):
         # We call generate_post_assignment_code here instead
