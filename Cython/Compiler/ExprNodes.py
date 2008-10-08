@@ -570,7 +570,7 @@ class ExprNode(Node):
         #  reference, or temporary.
         return self.result_in_temp()
         
-    def magic_cython_method(self):
+    def as_cython_attribute(self):
         return None
 
 
@@ -939,7 +939,7 @@ class NameNode(AtomicExprNode):
         node.analyse_types(env, entry=entry)
         return node
         
-    def magic_cython_method(self):
+    def as_cython_attribute(self):
         return self.cython_attribute
     
     create_analysed_rvalue = staticmethod(create_analysed_rvalue)
@@ -979,7 +979,10 @@ class NameNode(AtomicExprNode):
         return None
         
     def analyse_as_type(self, env):
-        type = PyrexTypes.parse_basic_type(self.name)
+        if self.cython_attribute:
+            type = PyrexTypes.parse_basic_type(self.cython_attribute)
+        else:
+            type = PyrexTypes.parse_basic_type(self.name)
         if type:
             return type
         entry = self.entry
@@ -1907,7 +1910,7 @@ class SimpleCallNode(CallNode):
             self.compile_time_value_error(e)
             
     def analyse_as_type(self, env):
-        attr = self.function.magic_cython_method()
+        attr = self.function.as_cython_attribute()
         if attr == 'pointer':
             if len(self.args) != 1:
                 error(self.args.pos, "only one type allowed.")
@@ -2262,7 +2265,7 @@ class AttributeNode(ExprNode):
     is_called = 0
     needs_none_check = True
 
-    def magic_cython_method(self):
+    def as_cython_attribute(self):
         if isinstance(self.obj, NameNode) and self.obj.is_cython_module:
             return self.attribute
 

@@ -1251,6 +1251,7 @@ modifiers_and_name_to_type = {
     (2, 0, "Py_ssize_t"): c_py_ssize_t_type,
     
     (1, 0, "long"): c_long_type,
+    (1, 0, "short"): c_short_type,
     (1, 0, "longlong"): c_longlong_type,
     (1, 0, "bint"): c_bint_type,
 }

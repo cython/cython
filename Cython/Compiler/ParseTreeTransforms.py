@@ -267,6 +267,7 @@ class InterpretCompilerDirectives(CythonTransform):
     duplication of functionality has to occur: We manually track cimports
     and which names the "cython" module may have been imported to.
     """
+    special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof', 'cast', 'address', 'pointer', 'compiled', 'NULL'])
 
     def __init__(self, context, compilation_option_overrides):
         super(InterpretCompilerDirectives, self).__init__(context)
@@ -299,7 +300,9 @@ class InterpretCompilerDirectives(CythonTransform):
         if node.module_name == u"cython":
             newimp = []
             for pos, name, as_name, kind in node.imported_names:
-                if name in Options.option_types:
+                if (name in Options.option_types or 
+                        name in self.special_methods or
+                        PyrexTypes.parse_basic_type(name)):
                     if as_name is None:
                         as_name = name
                     self.option_names[as_name] = name
@@ -316,11 +319,13 @@ class InterpretCompilerDirectives(CythonTransform):
     def visit_FromImportStatNode(self, node):
         if node.module.module_name.value == u"cython":
             newimp = []
-            for true_name, name_node in node.items:
-                if true_name in Options.option_types:
-                    self.option_names[name_node.name] = true_name
+            for name, name_node in node.items:
+                if (name in Options.option_types or 
+                        name in self.special_methods or
+                        PyrexTypes.parse_basic_type(name)):
+                    self.option_names[name_node.name] = name
                 else:
-                    newimp.append((true_name, name_node))
+                    newimp.append((name, name_node))
             if not newimp:
                 return None
             node.items = newimp
@@ -355,14 +360,7 @@ class InterpretCompilerDirectives(CythonTransform):
         optname = None
         if isinstance(node, CallNode):
             self.visit(node.function)
-            optname = node.function.magic_cython_method()
-#            if (isinstance(node.function, AttributeNode) and
-#                  isinstance(node.function.obj, NameNode) and
-#                  node.function.obj.name in self.cython_module_names):
-#                optname = node.function.attribute
-#            elif (isinstance(node.function, NameNode) and
-#                  node.function.name in self.option_names):
-#                optname = self.option_names[node.function.name]
+            optname = node.function.as_cython_attribute()
 
         if optname:
             optiontype = Options.option_types.get(optname)
@@ -714,11 +712,19 @@ class TransformBuiltinMethods(EnvTransform):
             return node
     
     def visit_AttributeNode(self, node):
-        attribute = node.magic_cython_method()
+        return self.visit_cython_attribute(node)
+
+    def visit_NameNode(self, node):
+        return self.visit_cython_attribute(node)
+        
+    def visit_cython_attribute(self, node):
+        attribute = node.as_cython_attribute()
         if attribute:
             if attribute == u'compiled':
                 node = BoolNode(node.pos, value=True)
-            else:
+            elif attribute == u'NULL':
+                node = NullNode(node.pos)
+            elif not PyrexTypes.parse_basic_type(attribute):
                 error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
         return node
 
@@ -735,11 +741,11 @@ class TransformBuiltinMethods(EnvTransform):
                 return ExprNodes.DictNode(pos, key_value_pairs=items)
 
         # cython.foo
-        function = node.function.magic_cython_method()
+        function = node.function.as_cython_attribute()
         if function:
             if function == u'cast':
                 if len(node.args) != 2:
-                    error(node.function.pos, u"cast takes exactly two arguments" % function)
+                    error(node.function.pos, u"cast takes exactly two arguments")
                 else:
                     type = node.args[0].analyse_as_type(self.env_stack[-1])
                     if type:
