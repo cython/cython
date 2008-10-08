@@ -966,7 +966,13 @@ class CStructOrUnionType(CType):
             code.putln("Py_DECREF(res);")
             code.putln("return NULL;")
             code.putln("}")
-            self._convert_code = self.declaration_code('') + ';\n' + header+";", code.buffer.getvalue()
+            proto = header + ";"
+            # This is a bit of a hack, we need a forward declaration
+            # due to the way things are ordered in the module...
+            entry = env.lookup(self.name)
+            if entry.visibility != 'extern':
+                proto = self.declaration_code('') + ';\n' + proto
+            self._convert_code = proto, code.buffer.getvalue()
         
         env.use_utility_code(self._convert_code)
         return True
