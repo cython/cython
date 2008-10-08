@@ -6,6 +6,7 @@ import operator
 from string import join
 
 from Errors import error, warning, InternalError
+from Errors import hold_errors, release_errors, held_errors, report_error
 import StringEncoding
 import Naming
 from Nodes import Node
@@ -668,7 +669,10 @@ class IntNode(ConstNode):
     type = PyrexTypes.c_long_type
 
     def coerce_to(self, dst_type, env):
-        # Arrange for a Python version of the string to be pre-allocated
+        if dst_type.is_numeric:
+            self.type = PyrexTypes.c_long_type
+            return self
+        # Arrange for a Python version of the number to be pre-allocated
         # when coercing to a Python type.
         if dst_type.is_pyobject:
             self.entry = env.get_py_num(self.value, self.longness)
@@ -730,6 +734,10 @@ class StringNode(ConstNode):
             return sizeof_node.arg_type
     
     def coerce_to(self, dst_type, env):
+        if dst_type == PyrexTypes.c_char_ptr_type:
+            self.type = PyrexTypes.c_char_ptr_type
+            return self
+            
         if dst_type.is_int:
             if not self.type.is_pyobject and len(self.entry.init) == 1:
                 return CharNode(self.pos, value=self.value)
@@ -752,7 +760,7 @@ class StringNode(ConstNode):
         # but whose type is a Python type instead of a C type.
         entry = self.entry
         env.add_py_string(entry)
-        return StringNode(self.pos, entry = entry, type = py_object_type)
+        return StringNode(self.pos, value = self.value, entry = entry, type = py_object_type)
             
     def calculate_result_code(self):
         if self.type.is_pyobject:
@@ -1206,6 +1214,7 @@ class ImportNode(ExprNode):
         self.module_name = self.module_name.coerce_to_pyobject(env)
         if self.name_list:
             self.name_list.analyse_types(env)
+            self.name_list.coerce_to_pyobject(env)
         self.type = py_object_type
         self.gil_check(env)
         self.is_temp = 1
@@ -2655,30 +2664,38 @@ class TupleNode(SequenceNode):
 
 class ListNode(SequenceNode):
     #  List constructor.
+    
+    # obj_conversion_errors    [PyrexError]   used internally
+    # orignial_args            [ExprNode]     used internally
 
     gil_message = "Constructing Python list"
 
+    def analyse_expressions(self, env):
+        ExprNode.analyse_expressions(self, env)
+        self.coerce_to_pyobject(env)
+
     def analyse_types(self, env):
-        for arg in self.args:
-            arg.analyse_types(env)
-        self.is_temp = 1
-        self.type = PyrexTypes.unspecified_type
+        hold_errors()
+        self.original_args = list(self.args)
+        SequenceNode.analyse_types(self, env)
+        self.type = list_type
+        self.obj_conversion_errors = held_errors()
+        release_errors(ignore=True)
         
     def coerce_to(self, dst_type, env):
         if dst_type.is_pyobject:
-            self.gil_check(env)
-            self.type = list_type
-            for i in range(len(self.args)):
-                arg = self.args[i]
-                if not arg.type.is_pyobject:
-                    self.args[i] = arg.coerce_to_pyobject(env)
+            for err in self.obj_conversion_errors:
+                report_error(err)
+            self.obj_conversion_errors = []
             if not self.type.subtype_of(dst_type):
                 error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
         elif dst_type.is_ptr:
             base_type = dst_type.base_type
             self.type = dst_type
-            for i in range(len(self.args)):
+            for i in range(len(self.original_args)):
                 arg = self.args[i]
+                if isinstance(arg, CoerceToPyTypeNode):
+                    arg = arg.arg
                 self.args[i] = arg.coerce_to(base_type, env)
         elif dst_type.is_struct:
             if len(self.args) > len(dst_type.scope.var_entries):
@@ -2686,7 +2703,9 @@ class ListNode(SequenceNode):
             else:
                 if len(self.args) < len(dst_type.scope.var_entries):
                     warning(self.pos, "Too few members for '%s'" % dst_type, 1)
-                for i, (arg, member) in enumerate(zip(self.args, dst_type.scope.var_entries)):
+                for i, (arg, member) in enumerate(zip(self.original_args, dst_type.scope.var_entries)):
+                    if isinstance(arg, CoerceToPyTypeNode):
+                        arg = arg.arg
                     self.args[i] = arg.coerce_to(member.type, env)
             self.type = dst_type
         else:
@@ -2699,6 +2718,8 @@ class ListNode(SequenceNode):
 
     def generate_operation_code(self, code):
         if self.type.is_pyobject:
+            for err in self.obj_conversion_errors:
+                report_error(err)
             code.putln("%s = PyList_New(%s); %s" %
                 (self.result(),
                 len(self.args),
@@ -2719,12 +2740,14 @@ class ListNode(SequenceNode):
                 code.put(", ")
             code.putln();
             code.putln("};")
-        else:
+        elif self.type.is_struct or 1:
             for arg, member in zip(self.args, self.type.scope.var_entries):
                 code.putln("%s.%s = %s;" % (
                         self.result(),
                         member.cname,
                         arg.result()))
+        else:
+            raise InternalError("List type never specified")
                 
     def generate_subexpr_disposal_code(self, code):
         # We call generate_post_assignment_code here instead
@@ -4217,7 +4240,7 @@ class PyTypeTestNode(CoercionNode):
     def generate_post_assignment_code(self, code):
         self.arg.generate_post_assignment_code(code)
                 
-                
+
 class CoerceToPyTypeNode(CoercionNode):
     #  This node is used to convert a C data type
     #  to a Python object.
@@ -4402,7 +4425,7 @@ class PersistentNode(ExprNode):
             self.result_ctype = self.arg.result_ctype
             self.is_temp = 1
         self.analyse_counter += 1
-    
+        
     def calculate_result_code(self):
         return self.result()
 

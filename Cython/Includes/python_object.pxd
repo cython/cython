@@ -1,7 +1,7 @@
 cdef extern from "Python.h":
     ctypedef void PyObject
     ctypedef void PyTypeObject
-    ctypedef struct FILE    
+    ctypedef struct FILE
     
     #####################################################################
     # 6.1 Object Protocol

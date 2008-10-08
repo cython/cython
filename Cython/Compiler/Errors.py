@@ -90,16 +90,19 @@ def close_listing_file():
         listing_file = None
 
 def report_error(err):
-    global num_errors
-    # See Main.py for why dual reporting occurs. Quick fix for now.
-    if err.reported: return
-    err.reported = True
-    line = "%s\n" % err
-    if listing_file:
-        listing_file.write(line)
-    if echo_file:
-        echo_file.write(line)
-    num_errors = num_errors + 1
+    if error_stack:
+        error_stack[-1].append(err)
+    else:
+        global num_errors
+        # See Main.py for why dual reporting occurs. Quick fix for now.
+        if err.reported: return
+        err.reported = True
+        line = "%s\n" % err
+        if listing_file:
+            listing_file.write(line)
+        if echo_file:
+            echo_file.write(line)
+        num_errors = num_errors + 1
 
 def error(position, message):
     #print "Errors.error:", repr(position), repr(message) ###
@@ -120,3 +123,19 @@ def warning(position, message, level=0):
     if echo_file:
         echo_file.write(line)
     return warn
+
+# These functions can be used to momentarily suppress errors. 
+
+error_stack = []
+
+def hold_errors():
+    error_stack.append([])
+
+def release_errors(ignore=False):
+    held_errors = error_stack.pop()
+    if not ignore:
+        for err in held_errors:
+            report_error(err)
+
+def held_errors():
+    return error_stack[-1]
