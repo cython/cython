@@ -2752,7 +2752,7 @@ class ListNode(SequenceNode):
                 error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
         elif dst_type.is_ptr:
             base_type = dst_type.base_type
-            self.type = dst_type
+            self.type = PyrexTypes.CArrayType(base_type, len(self.args))
             for i in range(len(self.original_args)):
                 arg = self.args[i]
                 if isinstance(arg, CoerceToPyTypeNode):
@@ -2773,6 +2773,14 @@ class ListNode(SequenceNode):
             self.type = error_type
             error(self.pos, "Cannot coerce list to type '%s'" % dst_type)
         return self
+        
+    def release_temp(self, env):
+        if self.type.is_array:
+            # To be valid C++, we must allocate the memory on the stack 
+            # manually and be sure not to reuse it for something else. 
+            pass
+        else:
+            SequenceNode.release_temp(self, env)
 
     def compile_time_value(self, denv):
         return self.compile_time_value_list(denv)
@@ -2794,13 +2802,12 @@ class ListNode(SequenceNode):
                     (self.result(),
                     i,
                     arg.py_result()))
-        elif self.type.is_ptr:
-            code.putln("%s = (%s[]) {" % (self.result(), self.type.base_type))
-            for arg in self.args:
-                code.put(arg.result())
-                code.put(", ")
-            code.putln();
-            code.putln("};")
+        elif self.type.is_array:
+            for i, arg in enumerate(self.args):
+                code.putln("%s[%s] = %s;" % (
+                                self.result(),
+                                i,
+                                arg.result()))
         elif self.type.is_struct or 1:
             for arg, member in zip(self.args, self.type.scope.var_entries):
                 code.putln("%s.%s = %s;" % (
