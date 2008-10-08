@@ -17,16 +17,15 @@ cimport cython
 from python_ref cimport PyObject
 
 __test__ = {}
-setup_string = u"""
-    >>> A = IntMockBuffer("A", range(6))
-    >>> B = IntMockBuffer("B", range(6))
-    >>> C = IntMockBuffer("C", range(6), (2,3))
-    >>> E = ErrorBuffer("E")
 
-"""
+import re
+exclude = []#re.compile('object').search]
     
 def testcase(func):
-    __test__[func.__name__] = setup_string + func.__doc__
+    for e in exclude:
+        if e(func.__name__):
+            return func
+    __test__[func.__name__] = func.__doc__
     return func
 
 def testcas(a):
@@ -53,6 +52,8 @@ def printbuf():
 @testcase
 def acquire_release(o1, o2):
     """
+    >>> A = IntMockBuffer("A", range(6))
+    >>> B = IntMockBuffer("B", range(6))
     >>> acquire_release(A, B)
     acquired A
     released A
@@ -73,6 +74,7 @@ def acquire_raise(o):
     Apparently, doctest won't handle mixed exceptions and print
     stats, so need to circumvent this.
     
+    >>> A = IntMockBuffer("A", range(6))
     >>> A.resetlog()
     >>> acquire_raise(A)
     Traceback (most recent call last):
@@ -218,6 +220,7 @@ def acquire_nonbuffer2():
 @testcase
 def as_argument(object[int] bufarg, int n):
     """
+    >>> A = IntMockBuffer("A", range(6))
     >>> as_argument(A, 6)
     acquired A
     0 1 2 3 4 5 END
@@ -235,6 +238,7 @@ def as_argument_defval(object[int] bufarg=IntMockBuffer('default', range(6)), in
     acquired default
     0 1 2 3 4 5 END
     released default
+    >>> A = IntMockBuffer("A", range(6))
     >>> as_argument_defval(A, 6)
     acquired A
     0 1 2 3 4 5 END
@@ -248,6 +252,7 @@ def as_argument_defval(object[int] bufarg=IntMockBuffer('default', range(6)), in
 @testcase
 def cdef_assignment(obj, n):
     """
+    >>> A = IntMockBuffer("A", range(6))
     >>> cdef_assignment(A, 6)
     acquired A
     0 1 2 3 4 5 END
@@ -263,6 +268,8 @@ def cdef_assignment(obj, n):
 @testcase
 def forin_assignment(objs, int pick):
     """
+    >>> A = IntMockBuffer("A", range(6))
+    >>> B = IntMockBuffer("B", range(6))
     >>> forin_assignment([A, B, A, A], 2)
     acquired A
     2
@@ -284,6 +291,7 @@ def forin_assignment(objs, int pick):
 @testcase
 def cascaded_buffer_assignment(obj):
     """
+    >>> A = IntMockBuffer("A", range(6))
     >>> cascaded_buffer_assignment(A)
     acquired A
     acquired A
@@ -296,6 +304,8 @@ def cascaded_buffer_assignment(obj):
 @testcase
 def tuple_buffer_assignment1(a, b):
     """
+    >>> A = IntMockBuffer("A", range(6))
+    >>> B = IntMockBuffer("B", range(6))
     >>> tuple_buffer_assignment1(A, B)
     acquired A
     acquired B
@@ -308,6 +318,8 @@ def tuple_buffer_assignment1(a, b):
 @testcase
 def tuple_buffer_assignment2(tup):
     """
+    >>> A = IntMockBuffer("A", range(6))
+    >>> B = IntMockBuffer("B", range(6))
     >>> tuple_buffer_assignment2((A, B))
     acquired A
     acquired B
@@ -358,12 +370,27 @@ def alignment_string(object[int] buf):
     """ 
     print buf[1]
 
+@testcase
+def wrong_string(object[int] buf):
+    """
+    >>> wrong_string(IntMockBuffer(None, [1,2], format="iasdf"))
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer format string specifies more data than 'int' can hold (expected end, got 'asdf')
+    >>> wrong_string(IntMockBuffer(None, [1,2], format="$$"))
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer datatype mismatch (expected 'i', got '$$')
+    """
+    print buf[1]
+
 #
 # Getting items and index bounds checking
 # 
 @testcase
 def get_int_2d(object[int, ndim=2] buf, int i, int j):
     """
+    >>> C = IntMockBuffer("C", range(6), (2,3))
     >>> get_int_2d(C, 1, 1)
     acquired C
     released C
@@ -399,6 +426,7 @@ def get_int_2d(object[int, ndim=2] buf, int i, int j):
 def get_int_2d_uintindex(object[int, ndim=2] buf, unsigned int i, unsigned int j):
     """
     Unsigned indexing:
+    >>> C = IntMockBuffer("C", range(6), (2,3))
     >>> get_int_2d_uintindex(C, 0, 0)
     acquired C
     released C
@@ -418,6 +446,7 @@ def set_int_2d(object[int, ndim=2] buf, int i, int j, int value):
     Uses get_int_2d to read back the value afterwards. For pure
     unit test, one should support reading in MockBuffer instead.
     
+    >>> C = IntMockBuffer("C", range(6), (2,3))
     >>> set_int_2d(C, 1, 1, 10)
     acquired C
     released C
@@ -1175,7 +1204,6 @@ cdef class DoubleMockBuffer(MockBuffer):
     cdef get_itemsize(self): return sizeof(double)
     cdef get_default_format(self): return b"d"
 
-
 cdef extern from *:
     void* addr_of_pyobject "(void*)"(object)
 
@@ -1254,3 +1282,86 @@ def bufdefaults1(IntStridedMockBuffer[int, ndim=1] buf):
     pass
     
 
+#
+# Structs
+#
+cdef struct MyStruct:
+    char a
+    char b
+    long long int c
+    int d
+    int e
+
+cdef class MyStructMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        cdef MyStruct* s
+        s = <MyStruct*>buf;
+        s.a, s.b, s.c, s.d, s.e = value
+        return 0
+    
+    cdef get_itemsize(self): return sizeof(MyStruct)
+    cdef get_default_format(self): return b"2bq2i"
+
+@testcase
+def basic_struct(object[MyStruct] buf):
+    """
+    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
+    1 2 3 4 5
+    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="bbqii"))
+    1 2 3 4 5
+    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="i"))
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer datatype mismatch (expected 'b', got 'i')
+    """
+    print buf[0].a, buf[0].b, buf[0].c, buf[0].d, buf[0].e
+
+cdef struct LongComplex:
+    long double real
+    long double imag
+
+cdef struct MixedComplex:
+    long double real
+    float imag
+
+cdef class LongComplexMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        cdef LongComplex* s
+        s = <LongComplex*>buf;
+        s.real, s.imag = value
+        return 0
+    
+    cdef get_itemsize(self): return sizeof(LongComplex)
+    cdef get_default_format(self): return b"Zg"
+
+@testcase
+def complex_struct_dtype(object[LongComplex] buf):
+    """
+    Note that the format string is "Zg" rather than "2g"...
+    >>> complex_struct_dtype(LongComplexMockBuffer(None, [(0, -1)]))
+    0.0 -1.0
+    """
+    print buf[0].real, buf[0].imag
+
+@testcase
+def mixed_complex_struct_dtype(object[MixedComplex] buf):
+    """
+    Triggering a specific execution path for this case.
+ 
+    >>> mixed_complex_struct_dtype(LongComplexMockBuffer(None, [(0, -1)]))
+    Traceback (most recent call last):
+        ...
+    ValueError: Cannot store complex number in 'MixedComplex' as 'long double' differs from 'float' in size.
+    """
+    print buf[0].real, buf[0].imag
+
+@testcase
+def complex_struct_inplace(object[LongComplex] buf):
+    """
+    >>> complex_struct_inplace(LongComplexMockBuffer(None, [(0, -1)]))
+    1.0 1.0
+    """
+    buf[0].real += 1
+    buf[0].imag += 2
+    print buf[0].real, buf[0].imag
+    
