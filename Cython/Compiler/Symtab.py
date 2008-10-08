@@ -359,8 +359,6 @@ class Scope:
                     self.type_entries.append(entry)
         if not scope and not entry.type.scope:
             self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
-        if scope and self.outer_scope:
-            scope.module_scope = self
         return entry
     
     def check_previous_typedef_flag(self, entry, typedef_flag, pos):
@@ -1207,8 +1205,6 @@ class GeneratorLocalScope(LocalScope):
 class StructOrUnionScope(Scope):
     #  Namespace of a C struct or union.
     
-    module_scope = None
-
     def __init__(self, name="?"):
         Scope.__init__(self, name, None, None)
 
@@ -1221,10 +1217,6 @@ class StructOrUnionScope(Scope):
             type = PyrexTypes.CPtrType(type)
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
-        if self.module_scope:
-            py_name = self.module_scope.get_string_const(name, identifier=True)
-            self.module_scope.add_py_string(py_name)
-            entry.py_name = py_name
         self.var_entries.append(entry)
         if type.is_pyobject and not allow_pyobject:
             error(pos,

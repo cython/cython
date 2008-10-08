@@ -953,9 +953,11 @@ class CStructOrUnionType(CType):
             code.putln("res = PyDict_New(); if (res == NULL) return NULL;")
             for member in self.scope.var_entries:
                 if member.type.to_py_function and member.type.create_convert_utility_code(env):
+                    interned_name = env.get_string_const(member.name, identifier=True)
+                    env.add_py_string(interned_name)
                     code.putln("member = %s(s.%s); if (member == NULL) goto bad;" % (
                                                 member.type.to_py_function, member.cname))
-                    code.putln("if (PyDict_SetItem(res, %s, member) < 0) goto bad;" % member.py_name.pystring_cname)
+                    code.putln("if (PyDict_SetItem(res, %s, member) < 0) goto bad;" % interned_name.pystring_cname)
                     code.putln("Py_DECREF(member);")
                 else:
                     self.to_py_function = None
