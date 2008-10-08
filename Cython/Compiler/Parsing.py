@@ -518,11 +518,10 @@ def p_atom(s):
             return ExprNodes.BoolNode(pos, value=True)
         elif name == "False":
             return ExprNodes.BoolNode(pos, value=False)
+        elif name == "NULL":
+            return ExprNodes.NullNode(pos)
         else:
             return p_name(s, name)
-    elif sy == 'NULL':
-        s.next()
-        return ExprNodes.NullNode(pos)
     else:
         s.error("Expected an identifier or literal")
 
