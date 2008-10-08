@@ -2880,6 +2880,8 @@ class DictNode(ExprNode):
     #  Dictionary constructor.
     #
     #  key_value_pairs  [DictItemNode]
+    #
+    # obj_conversion_errors    [PyrexError]   used internally
     
     subexprs = ['key_value_pairs']
     
@@ -2892,11 +2894,52 @@ class DictNode(ExprNode):
             self.compile_time_value_error(e)
     
     def analyse_types(self, env):
+        hold_errors()
         for item in self.key_value_pairs:
             item.analyse_types(env)
-        self.type = dict_type
         self.gil_check(env)
+        self.obj_conversion_errors = held_errors()
+        release_errors(ignore=True)
+        self.type = dict_type
         self.is_temp = 1
+        
+    def coerce_to(self, dst_type, env):
+        if dst_type.is_pyobject:
+            self.release_errors()
+            if not self.type.subtype_of(dst_type):
+                error(self.pos, "Cannot interpret dict as type '%s'" % dst_type)
+        elif dst_type.is_struct_or_union:
+            self.type = dst_type
+            if not dst_type.is_struct and len(self.key_value_pairs) != 1:
+                error(self.pos, "Exactly one field must be specified to convert to union '%s'" % dst_type)
+            elif dst_type.is_struct and len(self.key_value_pairs) < len(dst_type.scope.var_entries):
+                warning(self.pos, "Not all members given for struct '%s'" % dst_type, 1)
+            for item in self.key_value_pairs:
+                if isinstance(item.key, CoerceToPyTypeNode):
+                    item.key = item.key.arg
+                if isinstance(item.key, (StringNode, IdentifierStringNode)):
+                    item.key = NameNode(pos=item.key.pos, name=item.key.value)
+                if not isinstance(item.key, NameNode):
+                    print item.key
+                    error(item.key.pos, "Struct field must be a name")
+                else:
+                    member = dst_type.scope.lookup_here(item.key.name)
+                    if not member:
+                        error(item.key.pos, "struct '%s' has no field '%s'" % (dst_type, item.key.name))
+                    else:
+                        value = item.value
+                        if isinstance(value, CoerceToPyTypeNode):
+                            value = value.arg
+                        item.value = value.coerce_to(member.type, env)
+        else:
+            self.type = error_type
+            error(self.pos, "Cannot interpret dict as type '%s'" % dst_type)
+        return self
+    
+    def release_errors(self):
+        for err in self.obj_conversion_errors:
+            report_error(err)
+        self.obj_conversion_errors = []
 
     gil_message = "Constructing Python dict"
 
@@ -2913,17 +2956,25 @@ class DictNode(ExprNode):
     def generate_evaluation_code(self, code):
         #  Custom method used here because key-value
         #  pairs are evaluated and used one at a time.
-        code.putln(
-            "%s = PyDict_New(); %s" % (
-                self.result(),
-                code.error_goto_if_null(self.result(), self.pos)))
+        if self.type.is_pyobject:
+            self.release_errors()
+            code.putln(
+                "%s = PyDict_New(); %s" % (
+                    self.result(),
+                    code.error_goto_if_null(self.result(), self.pos)))
         for item in self.key_value_pairs:
             item.generate_evaluation_code(code)
-            code.put_error_if_neg(self.pos, 
-                "PyDict_SetItem(%s, %s, %s)" % (
-                    self.result(),
-                    item.key.py_result(),
-                    item.value.py_result()))
+            if self.type.is_pyobject:
+                code.put_error_if_neg(self.pos, 
+                    "PyDict_SetItem(%s, %s, %s)" % (
+                        self.result(),
+                        item.key.py_result(),
+                        item.value.py_result()))
+            else:
+                code.putln("%s.%s = %s;" % (
+                        self.result(),
+                        item.key.name,
+                        item.value.result()))
             item.generate_disposal_code(code)
             
     def annotate(self, code):
