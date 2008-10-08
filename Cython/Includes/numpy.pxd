@@ -69,20 +69,23 @@ cdef extern from "numpy/arrayobject.h":
             # made available from this pxd file yet.
             cdef int t = PyArray_TYPE(self)
             cdef char* f = NULL  
-            if   t == NPY_BYTE:       f = "b"
-            elif t == NPY_UBYTE:      f = "B"
-            elif t == NPY_SHORT:      f = "h"
-            elif t == NPY_USHORT:     f = "H"
-            elif t == NPY_INT:        f = "i"
-            elif t == NPY_UINT:       f = "I"
-            elif t == NPY_LONG:       f = "l"
-            elif t == NPY_ULONG:      f = "L"
-            elif t == NPY_LONGLONG:   f = "q"
-            elif t == NPY_ULONGLONG:  f = "Q"
-            elif t == NPY_FLOAT:      f = "f"
-            elif t == NPY_DOUBLE:     f = "d"
-            elif t == NPY_LONGDOUBLE: f = "g"
-            elif t == NPY_OBJECT:     f = "O"
+            if   t == NPY_BYTE:        f = "b"
+            elif t == NPY_UBYTE:       f = "B"
+            elif t == NPY_SHORT:       f = "h"
+            elif t == NPY_USHORT:      f = "H"
+            elif t == NPY_INT:         f = "i"
+            elif t == NPY_UINT:        f = "I"
+            elif t == NPY_LONG:        f = "l"
+            elif t == NPY_ULONG:       f = "L"
+            elif t == NPY_LONGLONG:    f = "q"
+            elif t == NPY_ULONGLONG:   f = "Q"
+            elif t == NPY_FLOAT:       f = "f"
+            elif t == NPY_DOUBLE:      f = "d"
+            elif t == NPY_LONGDOUBLE:  f = "g"
+            elif t == NPY_CFLOAT:      f = "Zf"
+            elif t == NPY_CDOUBLE:     f = "Zd"
+            elif t == NPY_CLONGDOUBLE: f = "Zg"
+            elif t == NPY_OBJECT:      f = "O"
 
             if f == NULL:
                 raise ValueError("only objects, int and float dtypes supported for ndarray buffer access so far (dtype is %d)" % t)

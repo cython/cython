@@ -169,6 +169,7 @@ class ExprNode(Node):
     
     saved_subexpr_nodes = None
     is_temp = 0
+    is_target = 0
 
     def get_child_attrs(self):
         return self.subexprs
@@ -207,10 +208,10 @@ class ExprNode(Node):
         return self.saved_subexpr_nodes
         
     def result(self):
-        if self.is_temp:
-            return self.result_code
-        else:
+        if not self.is_temp or self.is_target:
             return self.calculate_result_code()
+        else: # i.e. self.is_temp:
+            return self.result_code
     
     def result_as(self, type = None):
         #  Return the result code cast to the specified C type.
@@ -341,7 +342,7 @@ class ExprNode(Node):
         if debug_temp_alloc:
             print("%s Allocating target temps" % self)
         self.allocate_subexpr_temps(env)
-        self.result_code = self.target_code()
+        self.is_target = True
         if rhs:
             rhs.release_temp(env)
         self.release_subexpr_temps(env)
@@ -436,9 +437,13 @@ class ExprNode(Node):
         #  its sub-expressions, and dispose of any
         #  temporary results of its sub-expressions.
         self.generate_subexpr_evaluation_code(code)
+        self.pre_generate_result_code(code)
         self.generate_result_code(code)
         if self.is_temp:
             self.generate_subexpr_disposal_code(code)
+
+    def pre_generate_result_code(self, code):
+        pass
     
     def generate_subexpr_evaluation_code(self, code):
         for node in self.subexpr_nodes():
@@ -568,6 +573,66 @@ class ExprNode(Node):
     def magic_cython_method(self):
         return None
 
+
+class NewTempExprNode(ExprNode):
+    backwards_compatible_result = None
+    
+    def result(self):
+        if self.is_temp:
+            return self.temp_code
+        else:
+            return self.calculate_result_code()
+
+    def allocate_target_temps(self, env, rhs):
+        self.allocate_subexpr_temps(env)
+        rhs.release_temp(rhs)
+        self.release_subexpr_temps(env)
+
+    def allocate_temps(self, env, result = None):
+        self.allocate_subexpr_temps(env)
+        self.backwards_compatible_result = result
+        if self.is_temp:
+            self.release_subexpr_temps(env)
+
+    def allocate_temp(self, env, result = None):
+        assert result is None
+
+    def release_temp(self, env):
+        pass
+
+    def pre_generate_result_code(self, code):
+        if self.is_temp:
+            type = self.type
+            if not type.is_void:
+                if type.is_pyobject:
+                    type = PyrexTypes.py_object_type
+                if self.backwards_compatible_result:
+                    self.temp_code = self.backwards_compatible_result
+                else:
+                    self.temp_code = code.funcstate.allocate_temp(type)
+            else:
+                self.temp_code = None
+
+    def generate_disposal_code(self, code):
+        if self.is_temp:
+            if self.type.is_pyobject:
+                code.put_decref_clear(self.result(), self.ctype())
+            if not self.backwards_compatible_result:
+                code.funcstate.release_temp(self.temp_code)
+        else:
+            self.generate_subexpr_disposal_code(code)
+
+    def generate_post_assignment_code(self, code):
+        if self.is_temp:
+            if self.type.is_pyobject:
+                code.putln("%s = 0;" % self.temp_code)
+            if not self.backwards_compatible_result:
+                code.funcstate.release_temp(self.temp_code)
+        else:
+            self.generate_subexpr_disposal_code(code)
+
+    
+        
 
 class AtomicExprNode(ExprNode):
     #  Abstract base class for expression nodes which have
@@ -1463,10 +1528,8 @@ class IndexNode(ExprNode):
             self.type = self.base.type.dtype
             self.is_buffer_access = True
             self.buffer_type = self.base.entry.type
-           
-            if getting:
-                # we only need a temp because result_code isn't refactored to
-                # generation time, but this seems an ok shortcut to take
+
+            if getting and self.type.is_pyobject:
                 self.is_temp = True
             if setting:
                 if not self.base.entry.type.writable:
@@ -1515,10 +1578,10 @@ class IndexNode(ExprNode):
     
     def is_lvalue(self):
         return 1
-    
+
     def calculate_result_code(self):
         if self.is_buffer_access:
-            return "<not used>"
+            return "(*%s)" % self.buffer_ptr_code
         else:
             return "(%s[%s])" % (
                 self.base.result(), self.index.result())
@@ -1552,12 +1615,10 @@ class IndexNode(ExprNode):
         if self.is_buffer_access:
             if code.globalstate.directives['nonecheck']:
                 self.put_nonecheck(code)
-            ptrcode = self.buffer_lookup_code(code)
-            code.putln("%s = *%s;" % (
-                self.result(),
-                self.buffer_type.buffer_ptr_type.cast_code(ptrcode)))
-            # Must incref the value we pulled out.
-            if self.buffer_type.dtype.is_pyobject:
+            self.buffer_ptr_code = self.buffer_lookup_code(code)
+            if self.type.is_pyobject:
+                # is_temp is True, so must pull out value and incref it.
+                code.putln("%s = *%s;" % (self.result(), self.buffer_ptr_code))
                 code.putln("Py_INCREF((PyObject*)%s);" % self.result())
         elif self.type.is_pyobject:
             if self.index.type.is_int:
@@ -3380,7 +3441,7 @@ def get_compile_time_binop(node):
                 % node.operator)
     return func
 
-class BinopNode(ExprNode):
+class BinopNode(NewTempExprNode):
     #  operator     string
     #  operand1     ExprNode
     #  operand2     ExprNode
@@ -4377,7 +4438,7 @@ class CloneNode(CoercionNode):
         if hasattr(arg, 'entry'):
             self.entry = arg.entry
     
-    def calculate_result_code(self):
+    def result(self):
         return self.arg.result()
         
     def analyse_types(self, env):
@@ -4397,7 +4458,7 @@ class CloneNode(CoercionNode):
         pass
                 
     def allocate_temps(self, env):
-        self.result_code = self.calculate_result_code()
+        pass
         
     def release_temp(self, env):
         pass

@@ -101,6 +101,7 @@ class PyrexType(BaseType):
     default_value = ""
     parsetuple_format = ""
     pymemberdef_typecode = None
+    typestring = None
     
     def resolve(self):
         # If a typedef, returns the base type.
@@ -139,7 +140,6 @@ class PyrexType(BaseType):
         # A type is incomplete if it is an unsized array,
         # a struct whose attributes are not defined, etc.
         return 1
-
 
 class CTypedefType(BaseType):
     #
@@ -964,6 +964,11 @@ class CStructOrUnionType(CType):
     
     def attributes_known(self):
         return self.is_complete()
+
+    def can_be_complex(self):
+        # Does the struct consist of exactly two floats?
+        fields = self.scope.var_entries
+        return len(fields) == 2 and fields[0].type.is_float and fields[1].type.is_float
 
 
 class CEnumType(CType):
