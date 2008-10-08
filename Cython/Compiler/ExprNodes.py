@@ -1862,6 +1862,21 @@ class CallNode(ExprNode):
         # Make sure we're not in a nogil environment
         if env.nogil:
             error(self.pos, "Calling gil-requiring function without gil")
+    
+    def analyse_as_type_constructor(self, env):
+        type = self.function.analyse_as_type(env)
+        if type and type.is_struct_or_union:
+            args, kwds = self.explicit_args_kwds()
+            items = []
+            for arg, member in zip(args, type.scope.var_entries):
+                items.append(DictItemNode(pos=arg.pos, key=NameNode(pos=arg.pos, name=member.name), value=arg))
+            if kwds:
+                items += kwds.key_value_pairs
+            self.key_value_pairs = items
+            self.__class__ = DictNode
+            self.analyse_types(env)
+            self.coerce_to(type, env)
+            return True
 
 
 class SimpleCallNode(CallNode):
@@ -1907,6 +1922,8 @@ class SimpleCallNode(CallNode):
         return self.args, None
 
     def analyse_types(self, env):
+        if self.analyse_as_type_constructor(env):
+            return
         function = self.function
         function.is_called = 1
         self.function.analyse_types(env)
@@ -2142,6 +2159,8 @@ class GeneralCallNode(CallNode):
         return self.positional_args.args, self.keyword_args
 
     def analyse_types(self, env):
+        if self.analyse_as_type_constructor(env):
+            return
         self.function.analyse_types(env)
         self.positional_args.analyse_types(env)
         if self.keyword_args:
