@@ -404,7 +404,10 @@ class CType(PyrexType):
     from_py_function = None
     exception_value = None
     exception_check = 1
-    
+
+    def create_convert_utility_code(self, env):
+        return True
+        
     def error_condition(self, result_code):
         conds = []
         if self.is_string:
@@ -932,6 +935,41 @@ class CStructOrUnionType(CType):
         self.scope = scope
         self.typedef_flag = typedef_flag
         self.is_struct = kind == 'struct'
+        if self.is_struct:
+            self.to_py_function = "%s_to_py_%s" % (Naming.convert_func_prefix, self.cname)
+        self.exception_check = True
+        self._convert_code = None
+        
+    def create_convert_utility_code(self, env):
+        if env.outer_scope is None:
+            return False
+        if self._convert_code is None:
+            import Code
+            code = Code.CCodeWriter()
+            header = "static PyObject* %s(%s)" % (self.to_py_function, self.declaration_code('s'))
+            code.putln("%s {" % header)
+            code.putln("PyObject* res;")
+            code.putln("PyObject* member;")
+            code.putln("res = PyDict_New(); if (res == NULL) return NULL;")
+            for member in self.scope.var_entries:
+                if member.type.to_py_function and member.type.create_convert_utility_code(env):
+                    code.putln("member = %s(s.%s); if (member == NULL) goto bad;" % (
+                                                member.type.to_py_function, member.cname))
+                    code.putln("if (PyDict_SetItem(res, %s, member) < 0) goto bad;" % member.py_name.pystring_cname)
+                    code.putln("Py_DECREF(member);")
+                else:
+                    self.to_py_function = None
+                    return False
+            code.putln("return res;")
+            code.putln("bad:")
+            code.putln("Py_XDECREF(member);")
+            code.putln("Py_DECREF(res);")
+            code.putln("return NULL;")
+            code.putln("}")
+            self._convert_code = self.declaration_code('') + ';\n' + header+";", code.buffer.getvalue()
+        
+        env.use_utility_code(self._convert_code)
+        return True
         
     def __repr__(self):
         return "<CStructOrUnionType %s %s%s>" % (self.name, self.cname,
@@ -1075,6 +1113,9 @@ class ErrorType(PyrexType):
     to_py_function = "dummy"
     from_py_function = "dummy"
     typestring = None
+    
+    def create_convert_utility_code(self, env):
+        return True
     
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):

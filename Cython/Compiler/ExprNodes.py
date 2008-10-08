@@ -3351,7 +3351,8 @@ class TypecastNode(ExprNode):
         if from_py and not to_py and self.operand.is_ephemeral() and not self.type.is_numeric:
             error(self.pos, "Casting temporary Python object to non-numeric non-Python type")
         if to_py and not from_py:
-            if self.operand.type.to_py_function:
+            if (self.operand.type.to_py_function and
+                    self.operand.type.create_convert_utility_code(env)):
                 self.result_ctype = py_object_type
                 self.operand = self.operand.coerce_to_pyobject(env)
             else:
@@ -4388,10 +4389,10 @@ class CoerceToPyTypeNode(CoercionNode):
         self.type = py_object_type
         self.gil_check(env)
         self.is_temp = 1
-        if not arg.type.to_py_function:
+        if not arg.type.to_py_function or not arg.type.create_convert_utility_code(env):
             error(arg.pos,
                 "Cannot convert '%s' to Python object" % arg.type)
-
+        
     gil_message = "Converting to Python object"
 
     def analyse_types(self, env):

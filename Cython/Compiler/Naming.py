@@ -42,6 +42,7 @@ vtable_prefix     = pyrex_prefix + "vtable_"
 vtabptr_prefix    = pyrex_prefix + "vtabptr_"
 vtabstruct_prefix = pyrex_prefix + "vtabstruct_"
 opt_arg_prefix    = pyrex_prefix + "opt_args_"
+convert_func_prefix = pyrex_prefix + "convert_"
 
 args_cname       = pyrex_prefix + "args"
 pykwdlist_cname  = pyrex_prefix + "pyargnames"
