@@ -2552,7 +2552,7 @@ class ExprStatNode(StatNode):
     def analyse_declarations(self, env):
         import ExprNodes
         if isinstance(self.expr, ExprNodes.GeneralCallNode):
-            func = self.expr.function.magic_cython_method()
+            func = self.expr.function.as_cython_attribute()
             if func == u'declare':
                 args, kwds = self.expr.explicit_args_kwds()
                 if len(args):
@@ -2620,7 +2620,7 @@ class SingleAssignmentNode(AssignmentNode):
         
         # handle declarations of the form x = cython.foo()
         if isinstance(self.rhs, ExprNodes.CallNode):
-            func_name = self.rhs.function.magic_cython_method()
+            func_name = self.rhs.function.as_cython_attribute()
             if func_name:
                 args, kwds = self.rhs.explicit_args_kwds()
                 
@@ -2652,7 +2652,7 @@ class SingleAssignmentNode(AssignmentNode):
                         self.declaration_only = True
                         if not isinstance(lhs, ExprNodes.NameNode):
                             error(lhs.pos, "Invalid declaration.")
-                        env.declare_typedef(lhs.name, type, self.pos, 'private')
+                        env.declare_typedef(lhs.name, type, self.pos, visibility='private')
                     
                 elif func_name in ['struct', 'union']:
                     self.declaration_only = True
