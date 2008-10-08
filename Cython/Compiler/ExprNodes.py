@@ -2914,12 +2914,12 @@ class DictNode(ExprNode):
     
     def analyse_types(self, env):
         hold_errors()
+        self.type = dict_type
         for item in self.key_value_pairs:
             item.analyse_types(env)
         self.gil_check(env)
         self.obj_conversion_errors = held_errors()
         release_errors(ignore=True)
-        self.type = dict_type
         self.is_temp = 1
         
     def coerce_to(self, dst_type, env):
