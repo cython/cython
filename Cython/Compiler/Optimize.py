@@ -162,12 +162,16 @@ class FinalOptimizePhase(Visitor.CythonTransform):
 
     def visit_SimpleCallNode(self, node):
         self.visitchildren(node)
-        if node.function.type.is_cfunction and isinstance(node.function, ExprNodes.NameNode):
+        if 0 and node.function.type.is_cfunction and isinstance(node.function, ExprNodes.NameNode):
             if node.function.name == 'isinstance':
                 type_arg = node.args[1]
                 if type_arg.type.is_builtin_type and type_arg.type.name == 'type':
+                    print type_arg.pos
                     object_module = self.context.find_module('python_object')
+                    print object_module
+                    print object_module.entries
                     node.function.entry = object_module.lookup('PyObject_TypeCheck')
+                    print node.function.entry
                     node.function.type = node.function.entry.type
                     PyTypeObjectPtr = PyrexTypes.CPtrType(object_module.lookup('PyTypeObject').type)
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
