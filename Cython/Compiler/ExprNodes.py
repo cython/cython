@@ -746,6 +746,10 @@ class IntNode(ConstNode):
         # result, because we might be coercing to an extension type,
         # in which case a type test node will be needed.
         return ConstNode.coerce_to(self, dst_type, env)
+        
+    def coerce_to_boolean(self, env):
+        self.type = PyrexTypes.c_bint_type
+        return self
 
     def calculate_result_code(self):
         if self.type.is_pyobject:
@@ -3780,6 +3784,12 @@ class BoolBinopNode(ExprNode):
         else:
             return self.operand1.compile_time_value(denv) \
                 or self.operand2.compile_time_value(denv)
+    
+    def coerce_to_boolean(self, env):
+        self.operand1 = self.operand1.coerce_to_boolean(env)
+        self.operand2 = self.operand2.coerce_to_boolean(env)
+        self.type = PyrexTypes.c_bint_type
+        return self
 
     def analyse_types(self, env):
         self.operand1.analyse_types(env)
@@ -4397,6 +4407,9 @@ class CoerceToPyTypeNode(CoercionNode):
                 "Cannot convert '%s' to Python object" % arg.type)
         
     gil_message = "Converting to Python object"
+    
+    def coerce_to_boolean(self, env):
+        return self.arg.coerce_to_boolean(env)
 
     def analyse_types(self, env):
         # The arg is always already analysed
@@ -4491,6 +4504,12 @@ class CoerceToTempNode(CoercionNode):
     def analyse_types(self, env):
         # The arg is always already analysed
         pass
+        
+    def coerce_to_boolean(self, env):
+        self.arg = self.arg.coerce_to_boolean(env)
+        self.type = self.arg.type
+        self.result_ctype = self.type
+        return self
 
     def generate_result_code(self, code):
         #self.arg.generate_evaluation_code(code) # Already done
