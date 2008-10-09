@@ -4409,7 +4409,7 @@ class CoerceToPyTypeNode(CoercionNode):
     gil_message = "Converting to Python object"
     
     def coerce_to_boolean(self, env):
-        return self.arg.coerce_to_boolean(env)
+        return self.arg.coerce_to_boolean(env).coerce_to_temp(env)
 
     def analyse_types(self, env):
         # The arg is always already analysed
