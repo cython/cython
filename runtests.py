@@ -18,6 +18,10 @@ EXT_DEP_MODULES = {
     'numpy' : re.compile('.*\.numpy_.*').match
 }
 
+VER_DEP_MODULES = {
+    (2,4) : lambda x: x in ['run.set']
+}
+
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
 
@@ -417,6 +421,22 @@ class MissingDependencyExcluder:
                 return True
         return False
 
+class VersionDependencyExcluder:
+    def __init__(self, deps):
+        # deps: { version : matcher func }
+        from sys import version_info
+        self.exclude_matchers = []
+        for ver, matcher in deps.items():
+            if version_info < ver:
+                self.exclude_matchers.append(matcher)
+        self.tests_missing_deps = []
+    def __call__(self, testname):
+        for matcher in self.exclude_matchers:
+            if matcher(testname):
+                self.tests_missing_deps.append(testname)
+                return True
+        return False
+
 if __name__ == '__main__':
     from optparse import OptionParser
     parser = OptionParser()
@@ -521,7 +541,8 @@ if __name__ == '__main__':
     # which depends on them (by prefix)
 
     missing_dep_excluder = MissingDependencyExcluder(EXT_DEP_MODULES) 
-    exclude_selectors = [missing_dep_excluder] # want to pring msg at exit
+    version_dep_excluder = VersionDependencyExcluder(VER_DEP_MODULES) 
+    exclude_selectors = [missing_dep_excluder, version_dep_excluder] # want to pring msg at exit
 
     if options.exclude:
         exclude_selectors += [ re.compile(r, re.I|re.U).search for r in options.exclude ]
