@@ -5,6 +5,7 @@
 from Symtab import BuiltinScope, StructOrUnionScope
 from TypeSlots import Signature
 import PyrexTypes
+import __builtin__
 
 builtin_function_table = [
     # name,        args,   return,  C API func,           py equiv = "*"
@@ -105,17 +106,22 @@ builtin_types_table = [
                                     ("keys",  "O",   "O", "PyDict_Keys"),
                                     ("values","O",   "O", "PyDict_Values")]),
 
-    ("set",       "PySet_Type",    [("clear",   "O",  "i", "PySet_Clear"), 
-                                    ("discard", "OO", "i", "PySet_Discard"),
-                                    ("add",     "OO", "i", "PySet_Add"),
-                                    ("pop",     "O",  "O", "PySet_Pop")]),
-    
-    ("frozenset", "PyFrozenSet_Type", []),
-
     ("slice",   "PySlice_Type",    []),
     ("file",    "PyFile_Type",     []),
 
 ]
+
+if 'set' in __builtin__.__dict__:
+    builtin_types_table += [
+        ("set",       "PySet_Type",    [("clear",   "O",  "i", "PySet_Clear"), 
+                                        ("discard", "OO", "i", "PySet_Discard"),
+                                        ("add",     "OO", "i", "PySet_Add"),
+                                        ("pop",     "O",  "O", "PySet_Pop")]),
+        
+        ("frozenset", "PyFrozenSet_Type", []),
+    ]
+
+
         
 builtin_structs_table = [
     ('Py_buffer', 'Py_buffer',
