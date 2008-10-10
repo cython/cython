@@ -2834,7 +2834,7 @@ class ListNode(SequenceNode):
                                 self.result(),
                                 i,
                                 arg.result()))
-        elif self.type.is_struct or 1:
+        elif self.type.is_struct:
             for arg, member in zip(self.args, self.type.scope.var_entries):
                 code.putln("%s.%s = %s;" % (
                         self.result(),
