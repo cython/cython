@@ -6,7 +6,6 @@ import StringEncoding
 import Naming
 import copy
 
-
 class BaseType:
     #
     #  Base class for all Pyrex types including pseudo-types.
@@ -297,7 +296,12 @@ class BuiltinObjectType(PyObjectType):
         return type.is_pyobject and self.assignable_from(type)
         
     def type_test_code(self, arg):
-        return 'likely(Py%s_CheckExact(%s)) || (%s) == Py_None || (PyErr_Format(PyExc_TypeError, "Expected %s, got %%s", Py_TYPE(%s)->tp_name), 0)' % (self.name[0].upper() + self.name[1:], arg, arg, self.name, arg)
+        type = self.name.capitalize()
+        if type == 'Set': 
+            type = 'AnySet'
+        elif type == 'Frozenset':
+            type = 'FrozenSet'
+        return 'likely(Py%s_CheckExact(%s)) || (%s) == Py_None || (PyErr_Format(PyExc_TypeError, "Expected %s, got %%s", Py_TYPE(%s)->tp_name), 0)' % (type, arg, arg, self.name, arg)
 
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):

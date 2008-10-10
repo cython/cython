@@ -105,14 +105,18 @@ builtin_types_table = [
                                     ("keys",  "O",   "O", "PyDict_Keys"),
                                     ("values","O",   "O", "PyDict_Values")]),
 
-    ("set",       "PySet_Type",       []),
+    ("set",       "PySet_Type",    [("clear",   "O",  "i", "PySet_Clear"), 
+                                    ("discard", "OO", "i", "PySet_Discard"),
+                                    ("add",     "OO", "i", "PySet_Add"),
+                                    ("pop",     "O",  "O", "PySet_Pop")]),
+    
     ("frozenset", "PyFrozenSet_Type", []),
 
     ("slice",   "PySlice_Type",    []),
     ("file",    "PyFile_Type",     []),
 
 ]
-
+        
 builtin_structs_table = [
     ('Py_buffer', 'Py_buffer',
      [("buf",        PyrexTypes.c_void_ptr_type),
