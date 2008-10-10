@@ -23,7 +23,7 @@ The style of this tutorial will not fit everybody, so you can also consider:
 * Robert Bradshaw's `slides on cython for SciPy2008 
   <http://wiki.sagemath.org/scipy08?action=AttachFile&do=get&target=scipy-cython.tgz>`_ 
   (a higher-level and quicker introduction)
-* Basic Cython documentation (see `<http://cython.org Cython front page>`_).
+* Basic Cython documentation (see `Cython front page <http://cython.org>`_).
 * ``[:enhancements/buffer:Spec for the efficient indexing]``
 
 .. Note:: 
