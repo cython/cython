@@ -505,63 +505,6 @@ def mangle_dtype_name(dtype):
             prefix = ""
         return prefix + dtype.declaration_code("").replace(" ", "_")
 
-def get_ts_check_item(dtype, writer):
-    # See if we can consume one (unnamed) dtype as next item
-    # Put native and custom types in seperate namespaces (as one could create a type named unsigned_int...)
-    name = "__Pyx_CheckTypestringItem_%s" % mangle_dtype_name(dtype)
-    if not writer.globalstate.has_code(name):
-        char = dtype.typestring
-        if char is not None:
-            assert len(char) == 1
-            # Can use direct comparison
-            code = dedent("""\
-                if (*ts != '%s') {
-                  PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (expected '%s', got '%%s')", ts);
-                  return NULL;
-                } else return ts + 1;
-            """, 2) % (char, char)
-        else:
-            # Cannot trust declared size; but rely on int vs float and
-            # signed/unsigned to be correctly declared
-            ctype = dtype.declaration_code("")
-            code = dedent("""\
-                int ok;
-                switch (*ts) {""", 2)
-            if dtype.is_int:
-                types = [
-                    ('b', 'char'), ('h', 'short'), ('i', 'int'),
-                    ('l', 'long'), ('q', 'long long')
-                ]
-            elif dtype.is_float:
-                types = [('f', 'float'), ('d', 'double'), ('g', 'long double')]
-            else:
-                assert False
-            if dtype.signed == 0:
-                code += "".join(["\n    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 > 0); break;" %
-                                 (char.upper(), ctype, against, ctype) for char, against in types])
-            else:
-                code += "".join(["\n    case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 < 0); break;" %
-                                 (char, ctype, against, ctype) for char, against in types])
-            code += dedent("""\
-                default: ok = 0;
-                }
-                if (!ok) {
-                    PyErr_Format(PyExc_ValueError, "Buffer datatype mismatch (rejecting on '%s')", ts);
-                    return NULL;
-                } else return ts + 1;
-                """, 2)
-            
-
-        writer.globalstate.use_utility_code([dedent("""\
-            static const char* %s(const char* ts); /*proto*/
-        """) % name, dedent("""
-            static const char* %s(const char* ts) {
-            %s
-            }
-        """) % (name, code)], name=name)
-
-    return name
-
 def get_typestringchecker(code, dtype):
     """
     Returns the name of a typestring checker with the given type; emitting
