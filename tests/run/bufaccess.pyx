@@ -1292,6 +1292,15 @@ cdef struct MyStruct:
     int d
     int e
 
+cdef struct SmallStruct:
+    int a
+    int b
+
+cdef struct NestedStruct:
+    SmallStruct x
+    SmallStruct y
+    int z
+
 cdef class MyStructMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
         cdef MyStruct* s
@@ -1301,6 +1310,16 @@ cdef class MyStructMockBuffer(MockBuffer):
     
     cdef get_itemsize(self): return sizeof(MyStruct)
     cdef get_default_format(self): return b"2bq2i"
+
+cdef class NestedStructMockBuffer(MockBuffer):
+    cdef int write(self, char* buf, object value) except -1:
+        cdef NestedStruct* s
+        s = <NestedStruct*>buf;
+        s.x.a, s.x.b, s.y.a, s.y.b, s.z = value
+        return 0
+    
+    cdef get_itemsize(self): return sizeof(NestedStruct)
+    cdef get_default_format(self): return b"2T{ii}i"
 
 @testcase
 def basic_struct(object[MyStruct] buf):
@@ -1315,6 +1334,21 @@ def basic_struct(object[MyStruct] buf):
     ValueError: Buffer datatype mismatch (expected 'b', got 'i')
     """
     print buf[0].a, buf[0].b, buf[0].c, buf[0].d, buf[0].e
+
+@testcase
+def nested_struct(object[NestedStruct] buf):
+    """
+    >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
+    1 2 3 4 5
+    >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="T{ii}T{2i}i"))
+    1 2 3 4 5
+    >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="iiiii"))
+    Traceback (most recent call last):
+        ...
+    ValueError: Expected start of SmallStruct, got 'iiiii'
+    """
+    print buf[0].x.a, buf[0].x.b, buf[0].y.a, buf[0].y.b, buf[0].z
+
 
 cdef struct LongComplex:
     long double real
