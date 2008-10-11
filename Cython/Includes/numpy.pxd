@@ -126,7 +126,7 @@ cdef extern from "numpy/arrayobject.h":
                         except StopIteration:
                             stack.pop()
                             if len(stack) > 0:
-                                f[0] = "}"
+                                f[0] = 125 #"}"
                                 f += 1
                                 iterator = stack[-1]
                             else:
@@ -138,30 +138,31 @@ cdef extern from "numpy/arrayobject.h":
                         t = descr.type_num
                         if f - info.format > 240: # this should leave room for "T{" and "}" as well
                             raise RuntimeError("Format string allocated too short.")
-                        
-                        if   t == NPY_BYTE:        f[0] = "b"
-                        elif t == NPY_UBYTE:       f[0] = "B"
-                        elif t == NPY_SHORT:       f[0] = "h"
-                        elif t == NPY_USHORT:      f[0] = "H"
-                        elif t == NPY_INT:         f[0] = "i"
-                        elif t == NPY_UINT:        f[0] = "I"
-                        elif t == NPY_LONG:        f[0] = "l"
-                        elif t == NPY_ULONG:       f[0] = "L"
-                        elif t == NPY_LONGLONG:    f[0] = "q"
-                        elif t == NPY_ULONGLONG:   f[0] = "Q"
-                        elif t == NPY_FLOAT:       f[0] = "f"
-                        elif t == NPY_DOUBLE:      f[0] = "d"
-                        elif t == NPY_LONGDOUBLE:  f[0] = "g"
-                        elif t == NPY_CFLOAT:      f[0] = "Z"; f[1] = "f"; f += 1
-                        elif t == NPY_CDOUBLE:     f[0] = "Z"; f[1] = "d"; f += 1
-                        elif t == NPY_CLONGDOUBLE: f[0] = "Z"; f[1] = "g"; f += 1
-                        elif t == NPY_OBJECT:      f[0] = "O"
+
+                        # Until ticket #99 is fixed, use integers to avoid warnings
+                        if   t == NPY_BYTE:        f[0] =  98 #"b"
+                        elif t == NPY_UBYTE:       f[0] =  66 #"B"
+                        elif t == NPY_SHORT:       f[0] = 104 #"h"
+                        elif t == NPY_USHORT:      f[0] =  72 #"H"
+                        elif t == NPY_INT:         f[0] = 105 #"i"
+                        elif t == NPY_UINT:        f[0] =  73 #"I"
+                        elif t == NPY_LONG:        f[0] = 108 #"l"
+                        elif t == NPY_ULONG:       f[0] = 76  #"L"
+                        elif t == NPY_LONGLONG:    f[0] = 113 #"q"
+                        elif t == NPY_ULONGLONG:   f[0] = 81  #"Q"
+                        elif t == NPY_FLOAT:       f[0] = 102 #"f"
+                        elif t == NPY_DOUBLE:      f[0] = 100 #"d"
+                        elif t == NPY_LONGDOUBLE:  f[0] = 103 #"g"
+                        elif t == NPY_CFLOAT:      f[0] = 90; f[1] = 102; f += 1
+                        elif t == NPY_CDOUBLE:     f[0] = 90; f[1] = 100; f += 1
+                        elif t == NPY_CLONGDOUBLE: f[0] = 90; f[1] = 103; f += 1
+                        elif t == NPY_OBJECT:      f[0] = 79 #"O"
                         else:
                             raise ValueError("unknown dtype code in numpy.pxd (%d)" % t)
                         f += 1
                     else:
-                        f[0] = "T"
-                        f[1] = "{"
+                        f[0] = 84 #"T"
+                        f[1] = 123 #"{"
                         f += 2
                         stack.append(iter(descr.fields.iteritems()))
                 
