@@ -129,12 +129,22 @@ try:
     >>> test_dtype(np.int32, inc1_int32_t)
     >>> test_dtype(np.float64, inc1_float64_t)
 
-    Unsupported types:
-    >>> a = np.zeros((10,), dtype=np.dtype('i4,i4'))
-    >>> inc1_byte(a)
+    >>> test_recordarray()
+    
+    >>> test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
+            ('a', np.dtype('i,i')),\
+            ('b', np.dtype('i,i'))\
+        ])))
+    array([((0, 0), (0, 0)), ((1, 2), (1, 4)), ((1, 2), (1, 4))], 
+          dtype=[('a', [('f0', '<i4'), ('f1', '<i4')]), ('b', [('f0', '<i4'), ('f1', '<i4')])])
+
+    >>> test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
+            ('a', np.dtype('i,f')),\
+            ('b', np.dtype('i,i'))\
+        ])))
     Traceback (most recent call last):
-       ...
-    ValueError: only objects, int and float dtypes supported for ndarray buffer access so far (dtype is 20)
+        ...
+    ValueError: Buffer datatype mismatch (expected 'i', got 'f}T{ii}')
 
     >>> test_good_cast()
     True
@@ -260,6 +270,49 @@ def test_dtype(dtype, inc1):
         a = np.array([0, 10], dtype=dtype)
         inc1(a)
         if a[1] != 11: print "failed!"
+
+cdef struct DoubleInt:
+    int x, y
+
+def test_recordarray():
+    cdef object[DoubleInt] arr
+    arr = np.array([(5,5), (4, 6)], dtype=np.dtype('i,i'))
+    cdef DoubleInt rec
+    rec = arr[0]
+    if rec.x != 5: print "failed"
+    if rec.y != 5: print "failed"
+    rec.y += 5
+    arr[1] = rec
+    arr[0].x -= 2
+    arr[0].y += 3
+    if arr[0].x != 3: print "failed"
+    if arr[0].y != 8: print "failed"
+    if arr[1].x != 5: print "failed"
+    if arr[1].y != 10: print "failed"
+
+cdef struct NestedStruct:
+    DoubleInt a
+    DoubleInt b
+
+cdef struct BadDoubleInt:
+    float x
+    int y
+
+cdef struct BadNestedStruct:
+    DoubleInt a
+    BadDoubleInt b
+
+def test_nested_dtypes(obj):
+    cdef object[NestedStruct] arr = obj
+    arr[1].a.x = 1
+    arr[1].a.y = 2
+    arr[1].b.x = arr[0].a.y + 1
+    arr[1].b.y = 4
+    arr[2] = arr[1]
+    return arr
+
+def test_bad_nested_dtypes():
+    cdef object[BadNestedStruct] arr
 
 def test_good_cast():
     # Check that a signed int can round-trip through casted unsigned int access

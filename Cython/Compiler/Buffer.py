@@ -562,14 +562,31 @@ def get_ts_check_item(dtype, writer):
 
     return name
 
+def get_typestringchecker(code, dtype):
+    """
+    Returns the name of a typestring checker with the given type; emitting
+    it to code if needed.
+    """
+    name = "__Pyx_CheckTypestring_%s" % mangle_dtype_name(dtype)
+    code.globalstate.use_code_from(create_typestringchecker,
+                                   name,
+                                   dtype=dtype)
+    return name
+
 def create_typestringchecker(protocode, defcode, name, dtype):
+
+    def put_assert(cond, msg):
+        defcode.putln("if (!(%s)) {" % cond)
+        msg += ", got '%s'"
+        defcode.putln('PyErr_Format(PyExc_ValueError, "%s", ts);' % msg)
+        defcode.putln("return NULL;")
+        defcode.putln("}")
+    
     if dtype.is_error: return
-    simple = dtype.is_int or dtype.is_float or dtype.is_pyobject or dtype.is_extension_type or dtype.is_ptr
+    simple = dtype.is_simple_buffer_dtype()
     complex_possible = dtype.is_struct_or_union and dtype.can_be_complex()
     # Cannot add utility code recursively...
-    if simple:
-        itemchecker = get_ts_check_item(dtype, protocode)
-    else:
+    if not simple:
         dtype_t = dtype.declaration_code("")
         protocode.globalstate.use_utility_code(parse_typestring_repeat_code)
         fields = dtype.scope.var_entries
@@ -580,18 +597,58 @@ def create_typestringchecker(protocode, defcode, name, dtype):
         prevtype = None
         for f in fields:
             if n and f.type != prevtype:
-                field_blocks.append((n, prevtype, get_ts_check_item(prevtype, protocode)))
+                field_blocks.append((n, prevtype, get_typestringchecker(protocode, prevtype)))
                 n = 0
             prevtype = f.type
             n += 1
-        field_blocks.append((n, f.type, get_ts_check_item(f.type, protocode)))
+        field_blocks.append((n, f.type, get_typestringchecker(protocode, f.type)))
         
     protocode.putln("static const char* %s(const char* ts); /*proto*/" % name)
     defcode.putln("static const char* %s(const char* ts) {" % name)
     if simple:
+        defcode.putln("int ok;")
         defcode.putln("ts = __Pyx_ConsumeWhitespace(ts); if (!ts) return NULL;")
         defcode.putln("if (*ts == '1') ++ts;")
-        defcode.putln("ts = %s(ts); if (!ts) return NULL;" % itemchecker)
+        if dtype.typestring is not None:
+            assert len(dtype.typestring) == 1
+            # Can use direct comparison
+            defcode.putln("ok = (*ts == '%s');" % dtype.typestring)
+        else:
+            # Cannot trust declared size; but rely on int vs float and
+            # signed/unsigned to be correctly declared. Use a switch statement
+            # on all possible format codes to validate that the size is ok.
+            # (Note that many codes may map to same size, e.g. 'i' and 'l'
+            # may both be four bytes).
+            ctype = dtype.declaration_code("")
+            defcode.putln("switch (*ts) {")
+            if dtype.is_int:
+                types = [
+                    ('b', 'char'), ('h', 'short'), ('i', 'int'),
+                    ('l', 'long'), ('q', 'long long')
+                ]
+            elif dtype.is_float:
+                types = [('f', 'float'), ('d', 'double'), ('g', 'long double')]
+            else:
+                assert False
+            if dtype.signed == 0:
+                for char, against in types:
+                    defcode.putln("case '%s': ok = (sizeof(%s) == sizeof(unsigned %s) && (%s)-1 > 0); break;" %
+                                  (char.upper(), ctype, against, ctype))
+            else:
+                for char, against in types:
+                    defcode.putln("case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 < 0); break;" %
+                                  (char, ctype, against, ctype))
+            defcode.putln("default: ok = 0;")
+            defcode.putln("}")
+        defcode.putln("if (!ok) {")
+        if dtype.typestring is not None:
+            errmsg = "Buffer datatype mismatch (expected '%s', got '%%s')" % dtype.typestring
+        else:
+            errmsg = "Buffer datatype mismatch (rejecting on '%s')"
+        defcode.putln('PyErr_Format(PyExc_ValueError, "%s", ts);' % errmsg)
+        defcode.putln("return NULL;");
+        defcode.putln("}")
+        defcode.putln("++ts;")
     elif complex_possible:
         # Could be a struct representing a complex number, so allow
         # for parsing a "Zf" spec.
@@ -623,15 +680,25 @@ def create_typestringchecker(protocode, defcode, name, dtype):
     else:
         defcode.putln("int n, count;")
         defcode.putln("ts = __Pyx_ConsumeWhitespace(ts); if (!ts) return NULL;")
+
         for n, type, checker in field_blocks:
             if n == 1:
                 defcode.putln("if (*ts == '1') ++ts;")
-                defcode.putln("ts = %s(ts); if (!ts) return NULL;" % checker)
             else:
                 defcode.putln("n = %d;" % n);
                 defcode.putln("do {")
                 defcode.putln("ts = __Pyx_ParseTypestringRepeat(ts, &count); n -= count;")
-                defcode.putln("ts = %s(ts); if (!ts) return NULL;" % checker)
+
+            simple = type.is_simple_buffer_dtype()
+            if not simple:
+                put_assert("*ts == 'T' && *(ts+1) == '{'", "Expected start of %s" % type.declaration_code("", for_display=True))
+                defcode.putln("ts += 2;")
+            defcode.putln("ts = %s(ts); if (!ts) return NULL;" % checker)
+            if not simple:
+                put_assert("*ts == '}'", "Expected end of '%s'" % type.declaration_code("", for_display=True))
+                defcode.putln("++ts;")
+
+            if n > 1:
                 defcode.putln("} while (n > 0);");
         defcode.putln("ts = __Pyx_ConsumeWhitespace(ts); if (!ts) return NULL;")
 
@@ -651,11 +718,7 @@ def get_getbuffer_code(dtype, code):
     name = "__Pyx_GetBuffer_%s" % mangle_dtype_name(dtype)
     if not code.globalstate.has_code(name):
         code.globalstate.use_utility_code(acquire_utility_code)
-        typestringchecker = "__Pyx_CheckTypestring_%s" % mangle_dtype_name(dtype)
-        code.globalstate.use_code_from(create_typestringchecker,
-                                       typestringchecker,
-                                       dtype=dtype)
-
+        typestringchecker = get_typestringchecker(code, dtype)
         dtype_name = str(dtype)
         dtype_cname = dtype.declaration_code("")
         utilcode = [dedent("""

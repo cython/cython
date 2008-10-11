@@ -1,4 +1,5 @@
 cimport python_buffer as pybuf
+cimport stdlib
 
 cdef extern from "Python.h":
     ctypedef int Py_intptr_t
@@ -26,6 +27,11 @@ cdef extern from "numpy/arrayobject.h":
         NPY_C_CONTIGUOUS,
         NPY_F_CONTIGUOUS
         
+    ctypedef class numpy.dtype [object PyArray_Descr]:
+        cdef int type_num
+        cdef object fields
+        cdef object names
+
 
     ctypedef class numpy.ndarray [object PyArrayObject]:
         cdef __cythonbufferdefaults__ = {"mode": "strided"}
@@ -36,6 +42,7 @@ cdef extern from "numpy/arrayobject.h":
             npy_intp *shape "dimensions" 
             npy_intp *strides
             int flags
+            dtype descr
 
         # Note: This syntax (function definition in pxd files) is an
         # experimental exception made for __getbuffer__ and __releasebuffer__
@@ -57,7 +64,6 @@ cdef extern from "numpy/arrayobject.h":
                 raise ValueError("ndarray is not Fortran contiguous")
 
             info.buf = PyArray_DATA(self)
-            # info.obj = None # this is automatic
             info.ndim = PyArray_NDIM(self)
             info.strides = <Py_ssize_t*>PyArray_STRIDES(self)
             info.shape = <Py_ssize_t*>PyArray_DIMS(self)
@@ -65,31 +71,104 @@ cdef extern from "numpy/arrayobject.h":
             info.itemsize = PyArray_ITEMSIZE(self)
             info.readonly = not PyArray_ISWRITEABLE(self)
 
-            # Formats that are not tested and working in Cython are not
-            # made available from this pxd file yet.
-            cdef int t = PyArray_TYPE(self)
-            cdef char* f = NULL  
-            if   t == NPY_BYTE:        f = "b"
-            elif t == NPY_UBYTE:       f = "B"
-            elif t == NPY_SHORT:       f = "h"
-            elif t == NPY_USHORT:      f = "H"
-            elif t == NPY_INT:         f = "i"
-            elif t == NPY_UINT:        f = "I"
-            elif t == NPY_LONG:        f = "l"
-            elif t == NPY_ULONG:       f = "L"
-            elif t == NPY_LONGLONG:    f = "q"
-            elif t == NPY_ULONGLONG:   f = "Q"
-            elif t == NPY_FLOAT:       f = "f"
-            elif t == NPY_DOUBLE:      f = "d"
-            elif t == NPY_LONGDOUBLE:  f = "g"
-            elif t == NPY_CFLOAT:      f = "Zf"
-            elif t == NPY_CDOUBLE:     f = "Zd"
-            elif t == NPY_CLONGDOUBLE: f = "Zg"
-            elif t == NPY_OBJECT:      f = "O"
+            cdef int t
+            cdef char* f = NULL
+            cdef dtype descr = self.descr
+            cdef list stack
 
-            if f == NULL:
-                raise ValueError("only objects, int and float dtypes supported for ndarray buffer access so far (dtype is %d)" % t)
-            info.format = f
+            cdef bint hasfields = PyDataType_HASFIELDS(descr)
+
+            # Ugly hack warning:
+            # Cython currently will not support helper functions in
+            # pxd files -- so we must keep our own, manual stack!
+            # In addition, avoid allocation of the stack in the common
+            # case that we are dealing with a single non-nested datatype...
+            # (this would look much prettier if we could use utility
+            # functions).
+
+            
+            if not hasfields:
+                info.obj = None # do not call releasebuffer
+                t = descr.type_num
+                if   t == NPY_BYTE:        f = "b"
+                elif t == NPY_UBYTE:       f = "B"
+                elif t == NPY_SHORT:       f = "h"
+                elif t == NPY_USHORT:      f = "H"
+                elif t == NPY_INT:         f = "i"
+                elif t == NPY_UINT:        f = "I"
+                elif t == NPY_LONG:        f = "l"
+                elif t == NPY_ULONG:       f = "L"
+                elif t == NPY_LONGLONG:    f = "q"
+                elif t == NPY_ULONGLONG:   f = "Q"
+                elif t == NPY_FLOAT:       f = "f"
+                elif t == NPY_DOUBLE:      f = "d"
+                elif t == NPY_LONGDOUBLE:  f = "g"
+                elif t == NPY_CFLOAT:      f = "Zf"
+                elif t == NPY_CDOUBLE:     f = "Zd"
+                elif t == NPY_CLONGDOUBLE: f = "Zg"
+                elif t == NPY_OBJECT:      f = "O"
+                else:
+                    raise ValueError("unknown dtype code in numpy.pxd (%d)" % t)
+                info.format = f
+                return
+            else:
+                info.obj = self # need to call releasebuffer
+                info.format = <char*>stdlib.malloc(255) # static size
+                f = info.format
+                stack = [iter(descr.fields.iteritems())]
+
+                while True:
+                    iterator = stack[-1]
+                    descr = None
+                    while descr is None:
+                        try:
+                            descr = iterator.next()[1][0]
+                        except StopIteration:
+                            stack.pop()
+                            if len(stack) > 0:
+                                f[0] = "}"
+                                f += 1
+                                iterator = stack[-1]
+                            else:
+                                f[0] = 0 # Terminate string!
+                                return
+
+                    hasfields = PyDataType_HASFIELDS(descr)
+                    if not hasfields:
+                        t = descr.type_num
+                        if f - info.format > 240: # this should leave room for "T{" and "}" as well
+                            raise RuntimeError("Format string allocated too short.")
+                        
+                        if   t == NPY_BYTE:        f[0] = "b"
+                        elif t == NPY_UBYTE:       f[0] = "B"
+                        elif t == NPY_SHORT:       f[0] = "h"
+                        elif t == NPY_USHORT:      f[0] = "H"
+                        elif t == NPY_INT:         f[0] = "i"
+                        elif t == NPY_UINT:        f[0] = "I"
+                        elif t == NPY_LONG:        f[0] = "l"
+                        elif t == NPY_ULONG:       f[0] = "L"
+                        elif t == NPY_LONGLONG:    f[0] = "q"
+                        elif t == NPY_ULONGLONG:   f[0] = "Q"
+                        elif t == NPY_FLOAT:       f[0] = "f"
+                        elif t == NPY_DOUBLE:      f[0] = "d"
+                        elif t == NPY_LONGDOUBLE:  f[0] = "g"
+                        elif t == NPY_CFLOAT:      f[0] = "Z"; f[1] = "f"; f += 1
+                        elif t == NPY_CDOUBLE:     f[0] = "Z"; f[1] = "d"; f += 1
+                        elif t == NPY_CLONGDOUBLE: f[0] = "Z"; f[1] = "g"; f += 1
+                        elif t == NPY_OBJECT:      f[0] = "O"
+                        else:
+                            raise ValueError("unknown dtype code in numpy.pxd (%d)" % t)
+                        f += 1
+                    else:
+                        f[0] = "T"
+                        f[1] = "{"
+                        f += 2
+                        stack.append(iter(descr.fields.iteritems()))
+                
+        def __releasebuffer__(ndarray self, Py_buffer* info):
+            # This can not be called unless format needs to be freed (as
+            # obj is set to NULL in those case)
+            stdlib.free(info.format)
             
 
     cdef void* PyArray_DATA(ndarray arr)
@@ -100,6 +179,9 @@ cdef extern from "numpy/arrayobject.h":
     cdef npy_intp PyArray_DIMS(ndarray arr)
     cdef Py_ssize_t PyArray_ITEMSIZE(ndarray arr)
     cdef int PyArray_CHKFLAGS(ndarray arr, int flags)
+    cdef int PyArray_HASFIELDS(ndarray arr, int flags)
+
+    cdef int PyDataType_HASFIELDS(dtype obj)
 
     ctypedef signed int   npy_byte
     ctypedef signed int   npy_short
