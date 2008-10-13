@@ -373,14 +373,14 @@ def alignment_string(object[int] buf):
 @testcase
 def wrong_string(object[int] buf):
     """
-    >>> wrong_string(IntMockBuffer(None, [1,2], format="iasdf"))
+    >>> wrong_string(IntMockBuffer(None, [1,2], format="if"))
     Traceback (most recent call last):
         ...
-    ValueError: Buffer format string specifies more data than 'int' can hold (expected end, got 'asdf')
+    ValueError: Buffer dtype mismatch (expected end, got float)
     >>> wrong_string(IntMockBuffer(None, [1,2], format="$$"))
     Traceback (most recent call last):
         ...
-    ValueError: Buffer datatype mismatch (expected 'i', got '$$')
+    ValueError: Buffer dtype mismatch (expected int, got unparseable format string)
     """
     print buf[1]
 
@@ -532,7 +532,7 @@ def fmtst1(buf):
     >>> fmtst1(IntMockBuffer("A", range(3)))
     Traceback (most recent call last):
         ...
-    ValueError: Buffer datatype mismatch (expected 'f', got 'i')
+    ValueError: Buffer dtype mismatch (expected float, got int)
     """
     cdef object[float] a = buf
 
@@ -542,7 +542,7 @@ def fmtst2(object[int] buf):
     >>> fmtst2(FloatMockBuffer("A", range(3)))
     Traceback (most recent call last):
         ...
-    ValueError: Buffer datatype mismatch (expected 'i', got 'f')
+    ValueError: Buffer dtype mismatch (expected int, got float)
     """
 
 @testcase
@@ -849,7 +849,7 @@ def printbuf_td_cy_int(object[td_cy_int] buf, shape):
     >>> printbuf_td_cy_int(ShortMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
-    ValueError: Buffer datatype mismatch (rejecting on 'h')
+    ValueError: Buffer dtype mismatch (expected bufaccess.td_cy_int, got short)
     
     """
     cdef int i
@@ -865,7 +865,7 @@ def printbuf_td_h_short(object[td_h_short] buf, shape):
     >>> printbuf_td_h_short(IntMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
-    ValueError: Buffer datatype mismatch (rejecting on 'i')
+    ValueError: Buffer dtype mismatch (expected bufaccess.td_h_short, got int)
     """    
     cdef int i
     for i in range(shape[0]):
@@ -880,7 +880,7 @@ def printbuf_td_h_cy_short(object[td_h_cy_short] buf, shape):
     >>> printbuf_td_h_cy_short(IntMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
-    ValueError: Buffer datatype mismatch (rejecting on 'i')
+    ValueError: Buffer dtype mismatch (expected bufaccess.td_h_cy_short, got int)
     """
     cdef int i
     for i in range(shape[0]):
@@ -895,7 +895,7 @@ def printbuf_td_h_ushort(object[td_h_ushort] buf, shape):
     >>> printbuf_td_h_ushort(ShortMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
-    ValueError: Buffer datatype mismatch (rejecting on 'h')
+    ValueError: Buffer dtype mismatch (expected bufaccess.td_h_ushort, got short)
     """
     cdef int i
     for i in range(shape[0]):
@@ -910,7 +910,7 @@ def printbuf_td_h_double(object[td_h_double] buf, shape):
     >>> printbuf_td_h_double(FloatMockBuffer(None, [0.25, 1, 3.125]), (3,))
     Traceback (most recent call last):
        ...
-    ValueError: Buffer datatype mismatch (rejecting on 'f')
+    ValueError: Buffer dtype mismatch (expected bufaccess.td_h_double, got float)
     """
     cdef int i
     for i in range(shape[0]):
@@ -1328,10 +1328,14 @@ def basic_struct(object[MyStruct] buf):
     1 2 3 4 5
     >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="bbqii"))
     1 2 3 4 5
+    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="23bqii"))
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer dtype mismatch (expected long long, got char)
     >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="i"))
     Traceback (most recent call last):
         ...
-    ValueError: Buffer datatype mismatch (expected 'b', got 'i')
+    ValueError: Buffer dtype mismatch (expected char, got int)
     """
     print buf[0].a, buf[0].b, buf[0].c, buf[0].d, buf[0].e
 
@@ -1345,7 +1349,11 @@ def nested_struct(object[NestedStruct] buf):
     >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="iiiii"))
     Traceback (most recent call last):
         ...
-    ValueError: Expected start of SmallStruct, got 'iiiii'
+    ValueError: Buffer dtype mismatch (expected SmallStruct, got int)
+    >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="T{iii}T{ii}i"))
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer dtype mismatch (expected end of SmallStruct struct, got int)
     """
     print buf[0].x.a, buf[0].x.b, buf[0].y.a, buf[0].y.b, buf[0].z
 

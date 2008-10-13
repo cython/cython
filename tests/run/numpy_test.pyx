@@ -144,7 +144,7 @@ try:
         ])))
     Traceback (most recent call last):
         ...
-    ValueError: Buffer datatype mismatch (expected 'i', got 'f}T{ii}')
+    ValueError: Buffer dtype mismatch (expected int, got float)
 
     >>> test_good_cast()
     True

@@ -520,8 +520,7 @@ def create_typestringchecker(protocode, defcode, name, dtype):
 
     def put_assert(cond, msg):
         defcode.putln("if (!(%s)) {" % cond)
-        msg += ", got '%s'"
-        defcode.putln('PyErr_Format(PyExc_ValueError, "%s", ts);' % msg)
+        defcode.putln('PyErr_Format(PyExc_ValueError, "Buffer dtype mismatch (%s)", __Pyx_DescribeTokenInFormatString(ts));' % msg)
         defcode.putln("return NULL;")
         defcode.putln("}")
     
@@ -583,14 +582,7 @@ def create_typestringchecker(protocode, defcode, name, dtype):
                                   (char, ctype, against, ctype))
             defcode.putln("default: ok = 0;")
             defcode.putln("}")
-        defcode.putln("if (!ok) {")
-        if dtype.typestring is not None:
-            errmsg = "Buffer datatype mismatch (expected '%s', got '%%s')" % dtype.typestring
-        else:
-            errmsg = "Buffer datatype mismatch (rejecting on '%s')"
-        defcode.putln('PyErr_Format(PyExc_ValueError, "%s", ts);' % errmsg)
-        defcode.putln("return NULL;");
-        defcode.putln("}")
+        put_assert("ok", "expected %s, got %%s" % dtype)
         defcode.putln("++ts;")
     elif complex_possible:
         # Could be a struct representing a complex number, so allow
@@ -605,9 +597,7 @@ def create_typestringchecker(protocode, defcode, name, dtype):
                 real_t.declaration_code(""),
                 imag_t.declaration_code("")))
             defcode.putln('PyErr_SetString(PyExc_ValueError, "Cannot store complex number in \'%s\' as \'%s\' differs from \'%s\' in size.");' % (
-                dtype.declaration_code("", for_display=True),
-                real_t.declaration_code("", for_display=True),
-                imag_t.declaration_code("", for_display=True)))
+                dtype, real_t, imag_t))
             defcode.putln("return NULL;")
             defcode.putln("}")
             check_real, check_imag = [x[2] for x in field_blocks]
@@ -624,21 +614,23 @@ def create_typestringchecker(protocode, defcode, name, dtype):
         defcode.putln("int n, count;")
         defcode.putln("ts = __Pyx_ConsumeWhitespace(ts); if (!ts) return NULL;")
 
-        for n, type, checker in field_blocks:
+        next_types = [x[1] for x in field_blocks[1:]] + ["end"]
+        for (n, type, checker), next_type in zip(field_blocks, next_types):
             if n == 1:
                 defcode.putln("if (*ts == '1') ++ts;")
             else:
                 defcode.putln("n = %d;" % n);
                 defcode.putln("do {")
                 defcode.putln("ts = __Pyx_ParseTypestringRepeat(ts, &count); n -= count;")
+                put_assert("n >= 0", "expected %s, got %%s" % next_type)
 
             simple = type.is_simple_buffer_dtype()
             if not simple:
-                put_assert("*ts == 'T' && *(ts+1) == '{'", "Expected start of %s" % type.declaration_code("", for_display=True))
+                put_assert("*ts == 'T' && *(ts+1) == '{'", "expected %s, got %%s" % type)
                 defcode.putln("ts += 2;")
             defcode.putln("ts = %s(ts); if (!ts) return NULL;" % checker)
             if not simple:
-                put_assert("*ts == '}'", "Expected end of '%s'" % type.declaration_code("", for_display=True))
+                put_assert("*ts == '}'", "expected end of %s struct, got %%s" % type)
                 defcode.putln("++ts;")
 
             if n > 1:
@@ -689,7 +681,8 @@ def get_getbuffer_code(dtype, code):
             if (!ts) goto fail;
             if (*ts != 0) {
               PyErr_Format(PyExc_ValueError,
-                "Buffer format string specifies more data than '%(dtype_name)s' can hold (expected end, got '%%s')", ts);
+                "Buffer dtype mismatch (expected end, got %%s)",
+                __Pyx_DescribeTokenInFormatString(ts));
               goto fail;
             }
           } else {
@@ -822,6 +815,7 @@ static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
 static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf); /*proto*/
 static INLINE const char* __Pyx_ConsumeWhitespace(const char* ts); /*proto*/
 static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim); /*proto*/
+static const char* __Pyx_DescribeTokenInFormatString(const char* ts); /*proto*/
 """, """
 static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
   if (info->buf == NULL) return;
@@ -862,6 +856,34 @@ static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim) {
   PyErr_Format(PyExc_ValueError,
                "Buffer has wrong number of dimensions (expected %d, got %d)",
                expected_ndim, buffer->ndim);
+}
+
+static const char* __Pyx_DescribeTokenInFormatString(const char* ts) {
+  switch (*ts) {
+    case 'b': return "char";
+    case 'B': return "unsigned char";
+    case 'h': return "short";
+    case 'H': return "unsigned short";
+    case 'i': return "int";
+    case 'I': return "unsigned int";
+    case 'l': return "long";
+    case 'L': return "unsigned long";
+    case 'q': return "long long";
+    case 'Q': return "unsigned long long";
+    case 'f': return "float";
+    case 'd': return "double";
+    case 'g': return "long double";
+    case 'Z': switch (*(ts+1)) {
+        case 'f': return "complex float";
+        case 'd': return "complex double";
+        case 'g': return "complex long double";
+        default: return "unparseable format string";
+    }
+    case 'T': return "a struct";
+    case 'O': return "Python object";
+    case 'P': return "a pointer";
+    default: return "unparseable format string";
+  }
 }
 
 """]
