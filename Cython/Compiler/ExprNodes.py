@@ -935,7 +935,7 @@ class NameNode(AtomicExprNode):
     is_name = True
     is_cython_module = False
     cython_attribute = None
-    skip_assignment_decref = False
+    lhs_of_first_assignment = False
     entry = None
 
     def create_analysed_rvalue(pos, env, entry):
@@ -1156,6 +1156,10 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is None:
             return # There was an error earlier
+
+        if (self.entry.type.is_ptr and isinstance(rhs, ListNode)
+            and not self.lhs_of_first_assignment):
+            error(self.pos, "Literal list must be assigned to pointer at time of declaration")
         
         # is_pyglobal seems to be True for module level-globals only.
         # We use this to access class->tp_dict if necessary.
@@ -1200,7 +1204,7 @@ class NameNode(AtomicExprNode):
                 #print "...from", rhs ###
                 #print "...LHS type", self.type, "ctype", self.ctype() ###
                 #print "...RHS type", rhs.type, "ctype", rhs.ctype() ###
-                if not self.skip_assignment_decref:
+                if not self.lhs_of_first_assignment:
                     if entry.is_local and not Options.init_local_none:
                         initalized = entry.scope.control_flow.get_state((entry.name, 'initalized'), self.pos)
                         if initalized is True:
@@ -1223,7 +1227,7 @@ class NameNode(AtomicExprNode):
 
         import Buffer
         Buffer.put_assign_to_buffer(self.result(), rhstmp, buffer_aux, self.entry.type,
-                                    is_initialized=not self.skip_assignment_decref,
+                                    is_initialized=not self.lhs_of_first_assignment,
                                     pos=self.pos, code=code)
         code.putln("%s = 0;" % rhstmp)
         code.funcstate.release_temp(rhstmp)
