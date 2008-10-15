@@ -1406,8 +1406,8 @@ def p_statement(s, ctx, first_statement = 0):
     if s.sy == 'ctypedef':
         if ctx.level not in ('module', 'module_pxd'):
             s.error("ctypedef statement not allowed here")
-        if ctx.api:
-            error(s.position(), "'api' not allowed with 'ctypedef'")
+        #if ctx.api:
+        #    error(s.position(), "'api' not allowed with 'ctypedef'")
         return p_ctypedef_statement(s, ctx)
     elif s.sy == 'DEF':
         return p_DEF_statement(s)
@@ -2166,7 +2166,10 @@ def p_ctypedef_statement(s, ctx):
     pos = s.position()
     s.next()
     visibility = p_visibility(s, ctx.visibility)
+    api = p_api(s)
     ctx = ctx(typedef_flag = 1, visibility = visibility)
+    if api:
+        ctx.api = 1
     if s.sy == 'class':
         return p_c_class_definition(s, pos, ctx)
     elif s.sy == 'IDENT' and s.systring in ('struct', 'union', 'enum'):
