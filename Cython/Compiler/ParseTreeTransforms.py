@@ -183,9 +183,10 @@ class PostParse(CythonTransform):
                                     handler(decl)
                                     continue # Remove declaration
                             raise PostParseError(decl.pos, ERR_CDEF_INCLASS)
+                        first_assignment = self.scope_type != 'module'
                         stats.append(SingleAssignmentNode(node.pos,
                             lhs=NameNode(node.pos, name=declbase.name),
-                            rhs=declbase.default, first=True))
+                            rhs=declbase.default, first=first_assignment))
                         declbase.default = None
                 newdecls.append(decl)
             node.declarators = newdecls

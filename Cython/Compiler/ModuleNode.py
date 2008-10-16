@@ -1633,7 +1633,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             rev_entries.reverse()
             for entry in rev_entries:
                 if entry.visibility != 'extern':
-                    if entry.type.is_pyobject:
+                    if entry.type.is_pyobject and entry.used:
                         code.put_var_decref_clear(entry)
         if Options.generate_cleanup_code >= 3:
             code.putln("/*--- Type import cleanup code ---*/")
@@ -1734,7 +1734,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # variables to None.
         for entry in env.var_entries:
             if entry.visibility != 'extern':
-                if entry.type.is_pyobject:
+                if entry.type.is_pyobject and entry.used:
                     code.put_init_var_to_py_none(entry)
 
     def generate_c_function_export_code(self, env, code):

@@ -934,6 +934,8 @@ class ModuleScope(Scope):
             entry.is_pyglobal = 1
         else:
             entry.is_cglobal = 1
+            if entry.type.is_pyobject:
+                entry.init = 0
             self.var_entries.append(entry)
         return entry
     
