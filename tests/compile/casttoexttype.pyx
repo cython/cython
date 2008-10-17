@@ -7,3 +7,5 @@ cdef void foo(object x):
 cdef void blarg(void *y, object z):
     foo(<Spam>y)
     foo(<Spam>z)
+
+blarg(<void*>None, None)

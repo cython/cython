@@ -15,3 +15,10 @@ cdef int brian() except? 0:
 
 cdef int silly() except -1:
     pass
+
+spam()
+eggs()
+grail()
+tomato()
+brian()
+silly()

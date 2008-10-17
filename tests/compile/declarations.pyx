@@ -12,9 +12,12 @@ cdef extern char *(*cpapfn())[5]
 cdef extern int fnargfn(int ())
 
 cdef void f():
-    cdef void *p
+    cdef void *p=NULL
     global ifnp, cpa
     ifnp = <int (*)()>p
 
 cdef char *g():
     pass
+
+f()
+g()

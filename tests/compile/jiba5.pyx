@@ -1,5 +1,5 @@
 def f():
-    cdef int i
+    cdef int i=0
     global mylist
     del mylist[i]
     return

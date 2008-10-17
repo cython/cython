@@ -13,3 +13,5 @@ cdef void f():
     e = white
     i = e
     i = e + 1
+
+f()

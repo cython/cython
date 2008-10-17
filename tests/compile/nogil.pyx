@@ -10,9 +10,12 @@ cdef void f(int x) nogil:
         y = 42
 
 cdef void h(object x) nogil:
-        cdef void *p
+        cdef void *p=<void*>None
         g2(x)
         g2(<object>p)
         p = <void *>x
         e1()
         e2()
+
+f(0)
+h(None)

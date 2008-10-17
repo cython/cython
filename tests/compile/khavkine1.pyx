@@ -7,3 +7,4 @@ cdef void f(void *obj):
     (<T> obj).a[0] = 1
 
 b = None
+f(NULL)

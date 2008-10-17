@@ -6,3 +6,5 @@ cdef void f():
     cdef float* f2
     f2 = f1 + 1
     memcpy(f1, f2, 1)
+
+f()

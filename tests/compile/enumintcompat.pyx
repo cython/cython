@@ -5,10 +5,10 @@ cdef enum G:
     b
 
 cdef void f():
-    cdef E e
-    cdef G g
-    cdef int i, j
-    cdef float f, h
+    cdef E e=a
+    cdef G g=b
+    cdef int i, j=0
+    cdef float f, h=0
     i = j | e
     i = e | j
     i = j ^ e
@@ -23,3 +23,5 @@ cdef void f():
     # f = j ** e # Cython prohibits this
     i = e + g
     f = h
+
+f()

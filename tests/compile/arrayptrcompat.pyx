@@ -5,8 +5,8 @@ cdef void f():
     cdef int *p
     cdef void *v
     cdef int a[5]
-    cdef int i
-    cdef E e
+    cdef int i=0
+    cdef E e=z
     p = a
     v = a
     p = a + i
@@ -15,3 +15,5 @@ cdef void f():
     p = e + a
     p = a - i
     p = a - e
+
+f()

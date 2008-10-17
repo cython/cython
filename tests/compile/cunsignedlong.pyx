@@ -1,5 +1,7 @@
 cdef void f():
     cdef unsigned long x
-    cdef object y
+    cdef object y=0
     x = y
     y = x
+
+f()

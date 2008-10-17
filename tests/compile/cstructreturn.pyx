@@ -3,3 +3,5 @@ ctypedef struct Foo:
 
 cdef Foo f():
     blarg = 1 + 2
+
+f()

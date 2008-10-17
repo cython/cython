@@ -8,3 +8,5 @@ cdef void eggs():
     cdef Grail grail
     spam(silly)
     spam(grail.silly)
+
+eggs()

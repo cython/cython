@@ -4,3 +4,4 @@ cdef void f1(char *argv[]):
 cdef void f2(char *argv[]):
     pass
 
+f1(NULL)
