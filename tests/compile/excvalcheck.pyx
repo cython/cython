@@ -9,3 +9,4 @@ cdef void eggs():
     grail()
     p = tomato()
 
+eggs()

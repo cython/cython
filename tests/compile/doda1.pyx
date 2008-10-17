@@ -9,3 +9,5 @@ cdef Spam foo():
 
 cdef object blarg():
     pass
+
+foo()

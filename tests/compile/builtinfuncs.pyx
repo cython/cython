@@ -21,3 +21,5 @@ cdef int f() except -1:
     #i = typecheck(x, y)
     #i = issubtype(x, y)
     x = abs
+
+f()

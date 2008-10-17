@@ -16,3 +16,5 @@ cdef void tomato():
     spam = superspam
     spam.add_tons(42)
     superspam.add_tons(1764)
+
+tomato()

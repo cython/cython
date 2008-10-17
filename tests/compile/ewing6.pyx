@@ -19,3 +19,5 @@ cdef class E:
 
 cdef void f(D d, E e):
     d.m(e)
+
+f(D(),E())

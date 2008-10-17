@@ -3,3 +3,5 @@ cdef void f():
         pass
     finally:
         pass
+
+f()

@@ -7,3 +7,5 @@ cdef extern int eggs():
 
 cdef int grail():
     pass
+
+grail()

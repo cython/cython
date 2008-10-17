@@ -31,3 +31,5 @@ cdef public api:
 
     void pub_api_f():
         pass
+
+priv_f()

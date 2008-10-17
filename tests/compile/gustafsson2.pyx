@@ -6,4 +6,5 @@ cdef somefunction(someenum_t val):
     if val == ENUMVALUE_1:
         pass
 
-
+somefunction(ENUMVALUE_1)
+somefunction(ENUMVALUE_2)

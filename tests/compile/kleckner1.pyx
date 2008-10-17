@@ -3,3 +3,5 @@ def f(x,):
 
 cdef void g(int x,):
     pass
+
+g(0)

@@ -6,3 +6,5 @@ cdef void spam():
     x = L
     U = x
     x = U
+
+spam()
