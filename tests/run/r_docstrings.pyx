@@ -3,7 +3,7 @@
 
 # More comments
 
-'A module docstring'
+u'A module docstring'
 
 doctest = u"""# Python 3 gets all of these right ...
     >>> __doc__
