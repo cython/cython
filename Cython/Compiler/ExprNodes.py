@@ -4367,7 +4367,8 @@ class PyTypeTestNode(CoercionNode):
         self.type = dst_type
         self.gil_check(env)
         self.result_ctype = arg.ctype()
-        env.use_utility_code(type_test_utility_code)
+        if not dst_type.is_builtin_type:
+            env.use_utility_code(type_test_utility_code)
 
     gil_message = "Python type test"
     
