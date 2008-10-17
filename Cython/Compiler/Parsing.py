@@ -2401,14 +2401,16 @@ def p_compiler_directive_comments(s):
 
 def p_module(s, pxd, full_module_name):
     pos = s.position()
+
+    option_comments = p_compiler_directive_comments(s)
+    s.parse_comments = False
+
     doc = p_doc_string(s)
     if pxd:
         level = 'module_pxd'
     else:
         level = 'module'
 
-    option_comments = p_compiler_directive_comments(s)
-    s.parse_comments = False
     body = p_statement_list(s, Ctx(level = level), first_statement = 1)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
