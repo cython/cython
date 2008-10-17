@@ -1,4 +1,14 @@
-__doc__ = u"""# Python 3 gets all of these right ...
+# Some comments first
+
+
+# More comments
+
+'A module docstring'
+
+doctest = u"""# Python 3 gets all of these right ...
+    >>> __doc__
+    'A module docstring'
+
     >>> f.__doc__
     'This is a function docstring.'
 
@@ -38,7 +48,9 @@ Compare with standard Python:
 
 import sys
 if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u" u'", u" '")
+    doctest = doctest.replace(u" u'", u" '")
+
+__test__ = {"test_docstrings" : doctest}
 
 def f():
     u"This is a function docstring."
