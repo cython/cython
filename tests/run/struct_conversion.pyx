@@ -40,7 +40,7 @@ def test_constructor_kwds(x, y, color):
     return p
     
 def test_dict_construction(x, y, color):
-    cdef Point p = {color: color, x: x, y: y}
+    cdef Point p = {'color': color, 'x': x, 'y': y}
     return p
 
 cdef union int_or_float:
@@ -53,8 +53,8 @@ cdef struct with_pointers:
     void* ptr
     
 def test_pointers(int n, double x):
-    cdef with_pointers a = [True, {n: n}, NULL]
-    cdef with_pointers b = with_pointers(False, {x: x}, NULL)
+    cdef with_pointers a = [True, {'n': n}, NULL]
+    cdef with_pointers b = with_pointers(False, {'x': x}, NULL)
     print a.data.n
     print b.data.x
     print a.ptr == b.ptr == NULL
