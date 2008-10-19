@@ -1880,7 +1880,7 @@ class CallNode(ExprNode):
             args, kwds = self.explicit_args_kwds()
             items = []
             for arg, member in zip(args, type.scope.var_entries):
-                items.append(DictItemNode(pos=arg.pos, key=NameNode(pos=arg.pos, name=member.name), value=arg))
+                items.append(DictItemNode(pos=arg.pos, key=IdentifierStringNode(pos=arg.pos, value=member.name), value=arg))
             if kwds:
                 items += kwds.key_value_pairs
             self.key_value_pairs = items
@@ -2947,15 +2947,13 @@ class DictNode(ExprNode):
             for item in self.key_value_pairs:
                 if isinstance(item.key, CoerceToPyTypeNode):
                     item.key = item.key.arg
-                if isinstance(item.key, (StringNode, IdentifierStringNode)):
-                    item.key = NameNode(pos=item.key.pos, name=item.key.value)
-                if not isinstance(item.key, NameNode):
-                    print item.key
-                    error(item.key.pos, "Struct field must be a name")
+                if not isinstance(item.key, (StringNode, IdentifierStringNode)):
+                    error(item.key.pos, "Invalid struct field identifier")
+                    item.key = IdentifierStringNode(item.key.pos, value="<error>")
                 else:
-                    member = dst_type.scope.lookup_here(item.key.name)
+                    member = dst_type.scope.lookup_here(item.key.value)
                     if not member:
-                        error(item.key.pos, "struct '%s' has no field '%s'" % (dst_type, item.key.name))
+                        error(item.key.pos, "struct '%s' has no field '%s'" % (dst_type, item.key.value))
                     else:
                         value = item.value
                         if isinstance(value, CoerceToPyTypeNode):
@@ -3003,7 +3001,7 @@ class DictNode(ExprNode):
             else:
                 code.putln("%s.%s = %s;" % (
                         self.result(),
-                        item.key.name,
+                        item.key.value,
                         item.value.result()))
             item.generate_disposal_code(code)
             
