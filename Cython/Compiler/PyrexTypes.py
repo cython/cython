@@ -1230,6 +1230,10 @@ sign_and_rank_to_type = {
     (1, 6): c_float_type, 
     (1, 7): c_double_type,
     (1, 8): c_longdouble_type,
+# In case we're mixing unsigned ints and floats...
+    (0, 6): c_float_type, 
+    (0, 7): c_double_type,
+    (0, 8): c_longdouble_type,
 }
 
 modifiers_and_name_to_type = {
