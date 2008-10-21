@@ -14,7 +14,7 @@ def is_common_value(a, b):
     if isinstance(a, ExprNodes.NameNode) and isinstance(b, ExprNodes.NameNode):
         return a.name == b.name
     if isinstance(a, ExprNodes.AttributeNode) and isinstance(b, ExprNodes.AttributeNode):
-        return not a.is_py_attr and is_common_value(a.obj, b.obj)
+        return not a.is_py_attr and is_common_value(a.obj, b.obj) and a.attribute == b.attribute
     return False
 
 
