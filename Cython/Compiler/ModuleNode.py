@@ -766,6 +766,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     dll_linkage = dll_linkage)
                 if entry.visibility == 'private':
                     storage_class = "static "
+                elif entry.visibility == 'public':
+                    storage_class = ""
                 else:
                     storage_class = "%s " % Naming.extern_c_macro
                 code.putln("%s%s; /*proto*/" % (
