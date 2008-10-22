@@ -1299,8 +1299,10 @@ class CFuncDefNode(FuncDefNode):
             dll_linkage = None
         header = self.return_type.declaration_code(entity,
             dll_linkage = dll_linkage)
-        if visibility != 'private':
+        if visibility == 'extern':
             storage_class = "%s " % Naming.extern_c_macro
+        elif visibility == 'public':
+            storage_class = ""
         else:
             storage_class = "static "
         code.putln("%s%s %s {" % (
