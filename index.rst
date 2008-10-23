@@ -12,6 +12,7 @@ Contents:
    docs/numpy_tutorial
    docs/language_basics
    docs/extension_types
+   docs/special_methods
    docs/sharing_declarations
    docs/external_C_code
    docs/source_files_and_compilation

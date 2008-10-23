@@ -6,11 +6,6 @@
 Differences between Cython and Pyrex
 **************************************
 
-Package names and cross-directory imports
-==========================================
-
-Just like in python. 
-
 List Comprehensions
 ====================
 
