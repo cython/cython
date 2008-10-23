@@ -176,9 +176,9 @@ cdef extern from "numpy/arrayobject.h":
     cdef int PyArray_TYPE(ndarray arr)
     cdef int PyArray_NDIM(ndarray arr)
     cdef int PyArray_ISWRITEABLE(ndarray arr)
-    cdef npy_intp PyArray_STRIDES(ndarray arr)
-    cdef npy_intp PyArray_DIMS(ndarray arr)
-    cdef Py_ssize_t PyArray_ITEMSIZE(ndarray arr)
+    cdef npy_intp* PyArray_STRIDES(ndarray arr)
+    cdef npy_intp* PyArray_DIMS(ndarray arr)
+    cdef int PyArray_ITEMSIZE(ndarray arr)
     cdef int PyArray_CHKFLAGS(ndarray arr, int flags)
     cdef int PyArray_HASFIELDS(ndarray arr, int flags)
 
