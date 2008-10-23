@@ -1,7 +1,7 @@
 Special Methods of Extension Types
 ===================================
 
-This page describes the special methods currently supported by Pyrex extension
+This page describes the special methods currently supported by Cython extension
 types. A complete list of all the special methods appears in the table at the
 bottom. Some of these methods behave differently from their Python
 counterparts or have no direct Python counterparts, and require special
@@ -79,7 +79,7 @@ might cause the object to be resurrected. It's best if you stick to just
 deallocating C data.
 
 You don't need to worry about deallocating Python attributes of your object,
-because that will be done for you by Pyrex after your :meth:`__dealloc__` method
+because that will be done for you by Cython after your :meth:`__dealloc__` method
 returns.
 
 .. Note: There is no :meth:`__del__` method for extension types.
