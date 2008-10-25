@@ -5002,10 +5002,10 @@ bad:
 
 restore_exception_utility_code = [
 """
-static void INLINE __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
-static void INLINE __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
+static INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
+static INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
 ""","""
-static void INLINE __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb) {
+static INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb) {
     PyObject *tmp_type, *tmp_value, *tmp_tb;
     PyThreadState *tstate = PyThreadState_GET();
 
@@ -5020,7 +5020,7 @@ static void INLINE __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *t
     Py_XDECREF(tmp_tb);
 }
 
-static void INLINE __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb) {
+static INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb) {
     PyThreadState *tstate = PyThreadState_GET();
     *type = tstate->curexc_type;
     *value = tstate->curexc_value;
@@ -5160,10 +5160,10 @@ bad:
 
 reset_exception_utility_code = [
 """
-static void INLINE __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
+static INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
 static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
 ""","""
-static void INLINE __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb) {
+static INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb) {
     PyThreadState *tstate = PyThreadState_GET();
     *type = tstate->exc_type;
     *value = tstate->exc_value;
