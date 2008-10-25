@@ -169,7 +169,14 @@ py23_set_utility_code = ["""
     ((ob)->ob_type == ((PyTypeObject*)&PySet_Type) || \
      (ob)->ob_type == ((PyTypeObject*)&PyFrozenSet_Type))
 
-#define PySet_Pop(set) PyObject_CallMethod(set, "pop", NULL)
+#define PySet_New(iterable) \
+    PyObject_CallFunctionObjArgs((PyObject *)PySet_Type, iterable, NULL)
+#define Pyx_PyFrozenSet_New(iterable) \
+    PyObject_CallFunctionObjArgs((PyObject *)PyFrozenSet_Type, iterable, NULL)
+
+#define PySet_Size(anyset)          PyObject_Size(anyset)
+#define PySet_Contains(anyset, key) PySequence_Contains(anyset, key)
+#define PySet_Pop(set)              PyObject_CallMethod(set, "pop", NULL)
 
 static INLINE int PySet_Clear(PyObject *set) {
     PyObject *ret = PyObject_CallMethod(set, "clear", NULL);
@@ -204,14 +211,6 @@ static PyTypeObject *PyFrozenSet_Type = NULL;
       PyType_IsSubtype((ob)->ob_type, &PyFrozenSet_Type))
 
 #define PyFrozenSet_CheckExact(ob) ((ob)->ob_type == &PyFrozenSet_Type)
-
-#define PySet_New(iterable) \
-    PyObject_CallFunctionObjArgs((PyObject *)PySet_Type, iterable, NULL)
-#define Pyx_PyFrozenSet_New(iterable) \
-    PyObject_CallFunctionObjArgs((PyObject *)PyFrozenSet_Type, iterable, NULL)
-
-#define PySet_Size(anyset)          PyObject_Size(anyset)
-#define PySet_Contains(anyset, key) PySequence_Contains(anyset, key)
 
 /* ---------------------------------------------------------------- */
 
