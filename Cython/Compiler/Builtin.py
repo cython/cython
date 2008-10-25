@@ -173,13 +173,13 @@ proto = """
 #if PY_VERSION_HEX < 0x02050000
 #ifndef PyAnySet_CheckExact
 
-#define PyAnySet_CheckExact(ob) \
-    ((ob)->ob_type == ((PyTypeObject*)&PySet_Type) || \
-     (ob)->ob_type == ((PyTypeObject*)&PyFrozenSet_Type))
+#define PyAnySet_CheckExact(ob) \\
+    ((ob)->ob_type == &PySet_Type || \\
+     (ob)->ob_type == &PyFrozenSet_Type)
 
-#define PySet_New(iterable) \
+#define PySet_New(iterable) \\
     PyObject_CallFunctionObjArgs((PyObject *)PySet_Type, iterable, NULL)
-#define Pyx_PyFrozenSet_New(iterable) \
+#define Pyx_PyFrozenSet_New(iterable) \\
     PyObject_CallFunctionObjArgs((PyObject *)PyFrozenSet_Type, iterable, NULL)
 
 #define PySet_Size(anyset)          PyObject_Size(anyset)
@@ -210,12 +210,15 @@ static INLINE int PySet_Add(PyObject *set, PyObject *key) {
 #ifndef Py_SETOBJECT_H
 #define Py_SETOBJECT_H
 
-static PyTypeObject *PySet_Type = NULL;
-static PyTypeObject *PyFrozenSet_Type = NULL;
+static PyTypeObject *__Pyx_PySet_Type = NULL;
+static PyTypeObject *__Pyx_PyFrozenSet_Type = NULL;
 
-#define PyAnySet_Check(ob) \
-    (PyAnySet_CheckExact(ob) || \
-      PyType_IsSubtype((ob)->ob_type, &PySet_Type) || \
+#define PySet_Type (*__Pyx_PySet_Type)
+#define PyFrozenSet_Type (*__Pyx_PyFrozenSet_Type)
+
+#define PyAnySet_Check(ob) \\
+    (PyAnySet_CheckExact(ob) || \\
+      PyType_IsSubtype((ob)->ob_type, &PySet_Type) || \\
       PyType_IsSubtype((ob)->ob_type, &PyFrozenSet_Type))
 
 #define PyFrozenSet_CheckExact(ob) ((ob)->ob_type == &PyFrozenSet_Type)
@@ -233,8 +236,8 @@ static int __Pyx_Py23SetsImport(void) {
     if (!ImmutableSet) goto bad;
     Py_DECREF(sets);
   
-    PySet_Type       = (PyTypeObject*) Set;
-    PyFrozenSet_Type = (PyTypeObject*) ImmutableSet;
+    __Pyx_PySet_Type       = (PyTypeObject*) Set;
+    __Pyx_PyFrozenSet_Type = (PyTypeObject*) ImmutableSet;
 
     /* FIXME: this should be done in dedicated module cleanup code */
     /*
