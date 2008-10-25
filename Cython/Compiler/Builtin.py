@@ -3,6 +3,7 @@
 #
 
 from Symtab import BuiltinScope, StructOrUnionScope
+from Cython.Utils import UtilityCode
 from TypeSlots import Signature
 import PyrexTypes
 import __builtin__
@@ -134,9 +135,11 @@ builtin_structs_table = [
       ])
 ]
 
-getattr3_utility_code = ["""
+getattr3_utility_code = UtilityCode(
+proto = """
 static PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *); /*proto*/
-""","""
+""",
+impl = """
 static PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
     PyObject *r = PyObject_GetAttr(o, n);
     if (!r) {
@@ -150,18 +153,24 @@ static PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
 bad:
     return 0;
 }
-"""]
+""")
 
-intern_utility_code = ["""
+intern_utility_code = UtilityCode(
+proto = """
 #if PY_MAJOR_VERSION >= 3
 #  define __Pyx_InternFromString(s) PyUnicode_InternFromString(s)
 #else
 #  define __Pyx_InternFromString(s) PyString_InternFromString(s)
 #endif
-""","""
-"""]
+""")
 
-py23_set_utility_code = ["""
+def put_py23_set_init_utility_code(code, pos):
+    code.putln("#if PY_VERSION_HEX < 0x02040000")
+    code.putln(code.error_goto_if_neg("__Pyx_Py23SetsImport()", pos))
+    code.putln("#endif")
+
+py23_set_utility_code = UtilityCode(
+proto = """
 #if PY_VERSION_HEX < 0x02050000
 #ifndef PyAnySet_CheckExact
 
@@ -250,8 +259,8 @@ static int py23sets_import(void) { return 0; }
 #endif /* !Py_SETOBJECT_H */
 #endif /* < Py2.4  */
 #endif /* < Py2.5  */
-""","""
-"""]
+""",
+init = put_py23_set_init_utility_code)
 
 builtin_utility_code = {
     'getattr3'  : getattr3_utility_code,

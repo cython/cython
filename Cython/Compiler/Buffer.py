@@ -4,6 +4,7 @@ from Cython.Compiler.Nodes import *
 from Cython.Compiler.ExprNodes import *
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import CompileError
+from Cython.Utils import UtilityCode
 import Interpreter
 import PyrexTypes
 
@@ -431,7 +432,7 @@ def use_empty_bufstruct_code(env, max_ndim):
         Py_ssize_t __Pyx_zeros[] = {%s};
         Py_ssize_t __Pyx_minusones[] = {%s};
     """) % (", ".join(["0"] * max_ndim), ", ".join(["-1"] * max_ndim))
-    env.use_utility_code([code, ""], "empty_bufstruct_code")
+    env.use_utility_code(UtilityCode(proto=code), "empty_bufstruct_code")
 
 
 def buf_lookup_full_code(proto, defin, name, nd):
@@ -656,9 +657,9 @@ def get_getbuffer_code(dtype, code):
         typestringchecker = get_typestringchecker(code, dtype)
         dtype_name = str(dtype)
         dtype_cname = dtype.declaration_code("")
-        utilcode = [dedent("""
+        utilcode = UtilityCode(proto = dedent("""
         static int %s(PyObject* obj, Py_buffer* buf, int flags, int nd, int cast); /*proto*/
-        """) % name, dedent("""
+        """) % name, impl = dedent("""
         static int %(name)s(PyObject* obj, Py_buffer* buf, int flags, int nd, int cast) {
           const char* ts;
           if (obj == Py_None) {
@@ -697,7 +698,7 @@ def get_getbuffer_code(dtype, code):
         fail:;
           __Pyx_ZeroBuffer(buf);
           return -1;
-        }""") % locals()]
+        }""") % locals())
         code.globalstate.use_utility_code(utilcode, name)
     return name
 
@@ -776,7 +777,8 @@ def use_py2_buffer_functions(env):
         #endif
     """)
                    
-    env.use_utility_code([dedent("""\
+    env.use_utility_code(UtilityCode(
+            proto = dedent("""\
         #if PY_MAJOR_VERSION < 3
         static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
         static void __Pyx_ReleaseBuffer(Py_buffer *view);
@@ -784,7 +786,7 @@ def use_py2_buffer_functions(env):
         #define __Pyx_GetBuffer PyObject_GetBuffer
         #define __Pyx_ReleaseBuffer PyBuffer_Release
         #endif
-    """), code], codename)
+    """), impl = code), codename)
 
 #
 # Static utility code
@@ -793,16 +795,17 @@ def use_py2_buffer_functions(env):
 
 # Utility function to set the right exception
 # The caller should immediately goto_error
-raise_indexerror_code = [
-"""\
+raise_indexerror_code = UtilityCode(
+proto = """\
 static void __Pyx_RaiseBufferIndexError(int axis); /*proto*/
-""","""\
+""",
+impl = """\
 static void __Pyx_RaiseBufferIndexError(int axis) {
   PyErr_Format(PyExc_IndexError,
      "Out of bounds on buffer access (axis %d)", axis);
 }
 
-"""]
+""")
 
 #
 # Buffer type checking. Utility code for checking that acquired
@@ -810,13 +813,15 @@ static void __Pyx_RaiseBufferIndexError(int axis) {
 # the format string; the access mode/flags is checked by the
 # exporter.
 #
-acquire_utility_code = ["""\
+acquire_utility_code = UtilityCode(
+proto = """\
 static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
 static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf); /*proto*/
 static INLINE const char* __Pyx_ConsumeWhitespace(const char* ts); /*proto*/
 static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim); /*proto*/
 static const char* __Pyx_DescribeTokenInFormatString(const char* ts); /*proto*/
-""", """
+""",
+impl = """
 static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
   if (info->buf == NULL) return;
   if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
@@ -886,12 +891,14 @@ static const char* __Pyx_DescribeTokenInFormatString(const char* ts) {
   }
 }
 
-"""]
+""")
 
 
-parse_typestring_repeat_code = ["""
+parse_typestring_repeat_code = UtilityCode(
+proto = """
 static INLINE const char* __Pyx_ParseTypestringRepeat(const char* ts, int* out_count); /*proto*/
-""","""
+""",
+impl = """
 static INLINE const char* __Pyx_ParseTypestringRepeat(const char* ts, int* out_count) {
     int count;
     if (*ts < '0' || *ts > '9') {
@@ -906,15 +913,16 @@ static INLINE const char* __Pyx_ParseTypestringRepeat(const char* ts, int* out_c
     *out_count = count;
     return ts;
 }
-"""]
+""")
 
-raise_buffer_fallback_code = ["""
+raise_buffer_fallback_code = UtilityCode(
+proto = """
 static void __Pyx_RaiseBufferFallbackError(void); /*proto*/
-""","""
+""",
+impl = """
 static void __Pyx_RaiseBufferFallbackError(void) {
   PyErr_Format(PyExc_ValueError,
      "Buffer acquisition failed on assignment; and then reacquiring the old buffer failed too!");
 }
 
-"""]
-
+""")

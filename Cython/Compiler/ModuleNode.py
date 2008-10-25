@@ -22,7 +22,7 @@ import Version
 
 from Errors import error, warning
 from PyrexTypes import py_object_type
-from Cython.Utils import open_new_file, replace_suffix
+from Cython.Utils import open_new_file, replace_suffix, UtilityCode
 from StringEncoding import escape_byte_string, EncodedString
 
 
@@ -182,15 +182,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     h_code.putln("static %s;" % type.declaration_code(entry.cname))
             h_code.putln("")
             h_code.put_h_guard(Naming.api_func_guard + "import_module")
-            h_code.put(import_module_utility_code[1])
+            h_code.put(import_module_utility_code.impl)
             h_code.putln("")
             h_code.putln("#endif")
             if api_funcs:
                 h_code.putln("")
-                h_code.put(function_import_utility_code[1])
+                h_code.put(function_import_utility_code.impl)
             if public_extension_types:
                 h_code.putln("")
-                h_code.put(type_import_utility_code[1])
+                h_code.put(type_import_utility_code.impl)
             h_code.putln("")
             h_code.putln("static int import_%s(void) {" % name)
             h_code.putln("PyObject *module = 0;")
@@ -457,7 +457,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln("#endif")
 
-        code.put(builtin_module_name_utility_code[0])
+        code.put(builtin_module_name_utility_code.proto)
 
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("  #define Py_TPFLAGS_CHECKTYPES 0")
@@ -1567,10 +1567,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Initialize various global constants etc. ---*/")
         code.putln(code.error_goto_if_neg("__Pyx_InitGlobals()", self.pos))
 
-        code.putln("#if PY_VERSION_HEX < 0x02040000")
-        code.putln(code.error_goto_if_neg("__Pyx_Py23SetsImport()", self.pos))
-        code.putln("#endif")
-
         code.putln("/*--- Module creation code ---*/")
         self.generate_module_creation_code(env, code)
 
@@ -1955,20 +1951,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 #
 #------------------------------------------------------------------------------------
 
-builtin_module_name_utility_code = [
-"""\
+builtin_module_name_utility_code = UtilityCode(
+proto = """\
 #if PY_MAJOR_VERSION < 3
   #define __Pyx_BUILTIN_MODULE_NAME "__builtin__"
 #else
   #define __Pyx_BUILTIN_MODULE_NAME "builtins"
 #endif
-"""]
+""")
 
-
-import_module_utility_code = [
-"""
+import_module_utility_code = UtilityCode(
+proto = """
 static PyObject *__Pyx_ImportModule(const char *name); /*proto*/
-""","""
+""",
+impl = """
 #ifndef __PYX_HAVE_RT_ImportModule
 #define __PYX_HAVE_RT_ImportModule
 static PyObject *__Pyx_ImportModule(const char *name) {
@@ -1990,14 +1986,15 @@ bad:
     return 0;
 }
 #endif
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 
-type_import_utility_code = [
-"""
+type_import_utility_code = UtilityCode(
+proto = """
 static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name, long size);  /*proto*/
-""","""
+""",
+impl = """
 #ifndef __PYX_HAVE_RT_ImportType
 #define __PYX_HAVE_RT_ImportType
 static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name,
@@ -2043,14 +2040,15 @@ bad:
     return 0;
 }
 #endif
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 
-function_export_utility_code = [
-"""
+function_export_utility_code = UtilityCode(
+proto = """
 static int __Pyx_ExportFunction(char *name, void *f, char *sig); /*proto*/
-""",r"""
+""",
+impl = r"""
 static int __Pyx_ExportFunction(char *name, void *f, char *sig) {
     PyObject *d = 0;
     PyObject *p = 0;
@@ -2076,14 +2074,16 @@ bad:
     Py_XDECREF(d);
     return -1;
 }
-""" % {'MODULE': Naming.module_cname, 'API': Naming.api_name}]
+""" % {'MODULE': Naming.module_cname, 'API': Naming.api_name}
+)
 
 #------------------------------------------------------------------------------------
 
-function_import_utility_code = [
-"""
+function_import_utility_code = UtilityCode(
+proto = """
 static int __Pyx_ImportFunction(PyObject *module, char *funcname, void **f, char *sig); /*proto*/
-""","""
+""",
+impl = """
 #ifndef __PYX_HAVE_RT_ImportFunction
 #define __PYX_HAVE_RT_ImportFunction
 static int __Pyx_ImportFunction(PyObject *module, char *funcname, void **f, char *sig) {
@@ -2118,14 +2118,16 @@ bad:
     return -1;
 }
 #endif
-""" % dict(API = Naming.api_name)]
+""" % dict(API = Naming.api_name)
+)
 
-register_cleanup_utility_code = [
-"""
+register_cleanup_utility_code = UtilityCode(
+proto = """
 static int __Pyx_RegisterCleanup(void); /*proto*/
 static PyObject* __pyx_module_cleanup(PyObject *self, PyObject *unused); /*proto*/
 static PyMethodDef cleanup_def = {"__cleanup", (PyCFunction)&__pyx_module_cleanup, METH_NOARGS, 0};
-""","""
+""",
+impl = """
 static int __Pyx_RegisterCleanup(void) {
     /* Don't use Py_AtExit because that has a 32-call limit 
      * and is called after python finalization. 
@@ -2163,7 +2165,7 @@ bad:
     Py_XDECREF(res);
     return ret;
 }
-"""]
+""")
 
 import_star_utility_code = """
 

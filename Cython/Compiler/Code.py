@@ -334,7 +334,7 @@ class GlobalState(object):
     # Utility code state
     #
     
-    def use_utility_code(self, codetup, name=None):
+    def use_utility_code(self, utility_code, name=None):
         """
         Adds the given utility code to the C file if needed.
 
@@ -344,11 +344,13 @@ class GlobalState(object):
         If name is provided, it is used as an identifier to avoid inserting
         code twice. Otherwise, id(codetup) is used as such an identifier.
         """
-        if name is None: name = id(codetup)
+        if name is None: name = id(utility_code)
         if self.check_utility_code_needed_and_register(name):
-            proto, _def = codetup
-            self.utilprotowriter.put(proto)
-            self.utildefwriter.put(_def)
+            if utility_code.proto:
+                self.utilprotowriter.put(utility_code.proto)
+            if utility_code.impl:
+                self.utildefwriter.put(utility_code.impl)
+            utility_code.write_init_code(self.initwriter, self.module_pos)
 
     def has_code(self, name):
         return name in self.used_utility_code

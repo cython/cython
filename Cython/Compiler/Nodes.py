@@ -12,7 +12,7 @@ import TypeSlots
 from PyrexTypes import py_object_type, error_type, CTypedefType, CFuncType
 from Symtab import ModuleScope, LocalScope, GeneratorLocalScope, \
     StructOrUnionScope, PyClassScope, CClassScope
-from Cython.Utils import open_new_file, replace_suffix
+from Cython.Utils import open_new_file, replace_suffix, UtilityCode
 from StringEncoding import EncodedString, escape_byte_string, split_docstring
 import Options
 import ControlFlow
@@ -4465,14 +4465,15 @@ else:
 
 #------------------------------------------------------------------------------------
 
-printing_utility_code = [
-"""
+printing_utility_code = UtilityCode(
+proto = """
 static int __Pyx_Print(PyObject *, int); /*proto*/
 #if PY_MAJOR_VERSION >= 3
 static PyObject* %s = 0;
 static PyObject* %s = 0;
 #endif
-""" % (Naming.print_function, Naming.print_function_kwargs), r"""
+""" % (Naming.print_function, Naming.print_function_kwargs),
+impl = r"""
 #if PY_MAJOR_VERSION < 3
 static PyObject *__Pyx_GetStdout(void) {
     PyObject *f = PySys_GetObject("stdout");
@@ -4550,16 +4551,17 @@ static int __Pyx_Print(PyObject *arg_tuple, int newline) {
 """ % {'BUILTINS'       : Naming.builtins_cname,
        'PRINT_FUNCTION' : Naming.print_function,
        'PRINT_KWARGS'   : Naming.print_function_kwargs}
-]
+)
 
 #------------------------------------------------------------------------------------
 
 # The following function is based on do_raise() from ceval.c.
 
-raise_utility_code = [
-"""
+raise_utility_code = UtilityCode(
+proto = """
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
-""","""
+""",
+impl = """
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
     Py_XINCREF(type);
     Py_XINCREF(value);
@@ -4623,14 +4625,15 @@ raise_error:
     Py_XDECREF(tb);
     return;
 }
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 
-reraise_utility_code = [
-"""
+reraise_utility_code = UtilityCode(
+proto = """
 static void __Pyx_ReRaise(void); /*proto*/
-""","""
+""",
+impl = """
 static void __Pyx_ReRaise(void) {
     PyThreadState *tstate = PyThreadState_Get();
     PyObject *type = tstate->exc_type;
@@ -4641,15 +4644,16 @@ static void __Pyx_ReRaise(void) {
     Py_XINCREF(tb);
     __Pyx_ErrRestore(type, value, tb);
 }
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 
-arg_type_test_utility_code = [
-"""
+arg_type_test_utility_code = UtilityCode(
+proto = """
 static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed,
     const char *name, int exact); /*proto*/
-""","""
+""",
+impl = """
 static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed,
     const char *name, int exact)
 {
@@ -4669,7 +4673,7 @@ static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed
         name, type->tp_name, Py_TYPE(obj)->tp_name);
     return 0;
 }
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 #
@@ -4677,11 +4681,12 @@ static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed
 #  many or too few positional arguments were found.  This handles
 #  Py_ssize_t formatting correctly.
 
-raise_argtuple_invalid_utility_code = [
-"""
+raise_argtuple_invalid_utility_code = UtilityCode(
+proto = """
 static INLINE void __Pyx_RaiseArgtupleInvalid(const char* func_name, int exact,
     Py_ssize_t num_min, Py_ssize_t num_max, Py_ssize_t num_found); /*proto*/
-""","""
+""",
+impl = """
 static INLINE void __Pyx_RaiseArgtupleInvalid(
     const char* func_name,
     int exact,
@@ -4711,12 +4716,13 @@ static INLINE void __Pyx_RaiseArgtupleInvalid(
         #endif
         func_name, more_or_less, num_expected, number, num_found);
 }
-"""]
+""")
 
-raise_keyword_required_utility_code = [
-"""
+raise_keyword_required_utility_code = UtilityCode(
+proto = """
 static INLINE void __Pyx_RaiseKeywordRequired(const char* func_name, PyObject* kw_name); /*proto*/
-""","""
+""",
+impl = """
 static INLINE void __Pyx_RaiseKeywordRequired(
     const char* func_name,
     PyObject* kw_name)
@@ -4729,13 +4735,14 @@ static INLINE void __Pyx_RaiseKeywordRequired(
         PyString_AS_STRING(kw_name));
         #endif
 }
-"""]
+""")
 
-raise_double_keywords_utility_code = [
-"""
+raise_double_keywords_utility_code = UtilityCode(
+proto = """
 static INLINE void __Pyx_RaiseDoubleKeywordsError(
     const char* func_name, PyObject* kw_name); /*proto*/
-""","""
+""",
+impl = """
 static INLINE void __Pyx_RaiseDoubleKeywordsError(
     const char* func_name,
     PyObject* kw_name)
@@ -4748,7 +4755,7 @@ static INLINE void __Pyx_RaiseDoubleKeywordsError(
         PyString_AS_STRING(kw_name));
         #endif
 }
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 #
@@ -4756,11 +4763,12 @@ static INLINE void __Pyx_RaiseDoubleKeywordsError(
 #  were passed to a function, or if any keywords were passed to a
 #  function that does not accept them.
 
-keyword_string_check_utility_code = [
-"""
+keyword_string_check_utility_code = UtilityCode(
+proto = """
 static INLINE int __Pyx_CheckKeywordStrings(PyObject *kwdict,
     const char* function_name, int kw_allowed); /*proto*/
-""","""
+""",
+impl = """
 static INLINE int __Pyx_CheckKeywordStrings(
     PyObject *kwdict,
     const char* function_name,
@@ -4794,7 +4802,7 @@ invalid_keyword:
     #endif
     return 0;
 }
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 #
@@ -4812,11 +4820,12 @@ invalid_keyword:
 #  This method does not check for required keyword arguments.
 #
 
-split_keywords_utility_code = [
-"""
+split_keywords_utility_code = UtilityCode(
+proto = """
 static int __Pyx_SplitKeywords(PyObject *kwds, PyObject **argnames[], \
     PyObject *kwds2, Py_ssize_t num_pos_args, const char* function_name); /*proto*/
-""","""
+""",
+impl = """
 static int __Pyx_SplitKeywords(
     PyObject *kwds,
     PyObject **argnames[],
@@ -4881,14 +4890,15 @@ invalid_keyword:
 bad:
     return -1;
 }
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 
-unraisable_exception_utility_code = [
-"""
+unraisable_exception_utility_code = UtilityCode(
+proto = """
 static void __Pyx_WriteUnraisable(const char *name); /*proto*/
-""","""
+""",
+impl = """
 static void __Pyx_WriteUnraisable(const char *name) {
     PyObject *old_exc, *old_val, *old_tb;
     PyObject *ctx;
@@ -4906,14 +4916,15 @@ static void __Pyx_WriteUnraisable(const char *name) {
         Py_DECREF(ctx);
     }
 }
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 
-traceback_utility_code = [
-"""
+traceback_utility_code = UtilityCode(
+proto = """
 static void __Pyx_AddTraceback(const char *funcname); /*proto*/
-""","""
+""",
+impl = """
 #include "compile.h"
 #include "frameobject.h"
 #include "traceback.h"
@@ -4998,13 +5009,14 @@ bad:
     'CLINENO':  Naming.clineno_cname,
     'GLOBALS': Naming.module_cname,
     'EMPTY_TUPLE' : Naming.empty_tuple,
-}]
+})
 
-restore_exception_utility_code = [
-"""
+restore_exception_utility_code = UtilityCode(
+proto = """
 static INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
 static INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
-""","""
+""",
+impl = """
 static INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb) {
     PyObject *tmp_type, *tmp_value, *tmp_tb;
     PyThreadState *tstate = PyThreadState_GET();
@@ -5031,14 +5043,15 @@ static INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **
     tstate->curexc_traceback = 0;
 }
 
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 
-set_vtable_utility_code = [
-"""
+set_vtable_utility_code = UtilityCode(
+proto = """
 static int __Pyx_SetVtable(PyObject *dict, void *vtable); /*proto*/
-""","""
+""",
+impl = """
 static int __Pyx_SetVtable(PyObject *dict, void *vtable) {
     PyObject *pycobj = 0;
     int result;
@@ -5057,14 +5070,15 @@ done:
     Py_XDECREF(pycobj);
     return result;
 }
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 
-get_vtable_utility_code = [
-"""
+get_vtable_utility_code = UtilityCode(
+proto = """
 static int __Pyx_GetVtable(PyObject *dict, void *vtabptr); /*proto*/
-""",r"""
+""",
+impl = r"""
 static int __Pyx_GetVtable(PyObject *dict, void *vtabptr) {
     int result;
     PyObject *pycobj;
@@ -5084,14 +5098,15 @@ done:
     Py_XDECREF(pycobj);
     return result;
 }
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 
-init_string_tab_utility_code = [
-"""
+init_string_tab_utility_code = UtilityCode(
+proto = """
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t); /*proto*/
-""","""
+""",
+impl = """
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         #if PY_MAJOR_VERSION < 3
@@ -5117,14 +5132,15 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     }
     return 0;
 }
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 
-get_exception_utility_code = [
-"""
+get_exception_utility_code = UtilityCode(
+proto = """
 static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
-""","""
+""",
+impl = """
 static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) {
     PyObject *tmp_type, *tmp_value, *tmp_tb;
     PyThreadState *tstate = PyThreadState_GET();
@@ -5154,15 +5170,16 @@ bad:
     return -1;
 }
 
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 
-reset_exception_utility_code = [
-"""
+reset_exception_utility_code = UtilityCode(
+proto = """
 static INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
 static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
-""","""
+""",
+impl = """
 static INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb) {
     PyThreadState *tstate = PyThreadState_GET();
     *type = tstate->exc_type;
@@ -5186,6 +5203,6 @@ static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb) 
     Py_XDECREF(tmp_value);
     Py_XDECREF(tmp_tb);
 }
-"""]
+""")
 
 #------------------------------------------------------------------------------------

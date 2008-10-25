@@ -7,6 +7,7 @@ from string import join
 
 from Errors import error, warning, InternalError
 from Errors import hold_errors, release_errors, held_errors, report_error
+from Cython.Utils import UtilityCode
 import StringEncoding
 import Naming
 from Nodes import Node
@@ -4631,10 +4632,11 @@ class PersistentNode(ExprNode):
 #
 #------------------------------------------------------------------------------------
 
-get_name_interned_utility_code = [
-"""
+get_name_interned_utility_code = UtilityCode(
+proto = """
 static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name); /*proto*/
-""","""
+""",
+impl = """
 static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name) {
     PyObject *result;
     result = PyObject_GetAttr(dict, name);
@@ -4642,14 +4644,15 @@ static PyObject *__Pyx_GetName(PyObject *dict, PyObject *name) {
         PyErr_SetObject(PyExc_NameError, name);
     return result;
 }
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 
-import_utility_code = [
-"""
+import_utility_code = UtilityCode(
+proto = """
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list); /*proto*/
-""","""
+""",
+impl = """
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list) {
     PyObject *__import__ = 0;
     PyObject *empty_list = 0;
@@ -4685,14 +4688,15 @@ bad:
 """ % {
     "BUILTINS": Naming.builtins_cname,
     "GLOBALS":  Naming.module_cname,
-}]
+})
 
 #------------------------------------------------------------------------------------
 
-get_exception_utility_code = [
-"""
+get_exception_utility_code = UtilityCode(
+proto = """
 static PyObject *__Pyx_GetExcValue(void); /*proto*/
-""","""
+""",
+impl = """
 static PyObject *__Pyx_GetExcValue(void) {
     PyObject *type = 0, *value = 0, *tb = 0;
     PyObject *tmp_type, *tmp_value, *tmp_tb;
@@ -4728,15 +4732,16 @@ bad:
     Py_XDECREF(tb);
     return result;
 }
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 
-unpacking_utility_code = [
-"""
+unpacking_utility_code = UtilityCode(
+proto = """
 static PyObject *__Pyx_UnpackItem(PyObject *, Py_ssize_t index); /*proto*/
 static int __Pyx_EndUnpack(PyObject *); /*proto*/
-""","""
+""",
+impl = """
 static PyObject *__Pyx_UnpackItem(PyObject *iter, Py_ssize_t index) {
     PyObject *item;
     if (!(item = PyIter_Next(iter))) {
@@ -4764,14 +4769,15 @@ static int __Pyx_EndUnpack(PyObject *iter) {
     else
         return -1;
 }
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 
-type_test_utility_code = [
-"""
+type_test_utility_code = UtilityCode(
+proto = """
 static int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type); /*proto*/
-""","""
+""",
+impl = """
 static int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
     if (!type) {
         PyErr_Format(PyExc_SystemError, "Missing type object");
@@ -4783,14 +4789,15 @@ static int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
         Py_TYPE(obj)->tp_name, type->tp_name);
     return 0;
 }
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 
-create_class_utility_code = [
-"""
+create_class_utility_code = UtilityCode(
+proto = """
 static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name, char *modname); /*proto*/
-""","""
+""",
+impl = """
 static PyObject *__Pyx_CreateClass(
     PyObject *bases, PyObject *dict, PyObject *name, char *modname)
 {
@@ -4815,12 +4822,12 @@ bad:
     Py_XDECREF(py_modname);
     return result;
 }
-"""]
+""")
 
 #------------------------------------------------------------------------------------
 
-cpp_exception_utility_code = [
-"""
+cpp_exception_utility_code = UtilityCode(
+proto = """
 #ifndef __Pyx_CppExn2PyErr
 static void __Pyx_CppExn2PyErr() {
   try {
@@ -4840,12 +4847,14 @@ static void __Pyx_CppExn2PyErr() {
   }
 }
 #endif
-""",""]
+""",
+impl = ""
+)
 
 #------------------------------------------------------------------------------------
 
-append_utility_code = [
-"""
+append_utility_code = UtilityCode(
+proto = """
 static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     if (likely(PyList_CheckExact(L))) {
         if (PyList_Append(L, x) < 0) return NULL;
@@ -4856,16 +4865,17 @@ static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
         return PyObject_CallMethod(L, "append", "(O)", x);
     }
 }
-""",""
-]
+""",
+impl = ""
+)
 
 #------------------------------------------------------------------------------------
 
 # If the is_unsigned flag is set, we need to do some extra work to make 
 # sure the index doesn't become negative. 
 
-getitem_int_utility_code = [
-"""
+getitem_int_utility_code = UtilityCode(
+proto = """
 static INLINE PyObject *__Pyx_GetItemInt(PyObject *o, Py_ssize_t i, int is_unsigned) {
     PyObject *r;
     if (PyList_CheckExact(o) && 0 <= i && i < PyList_GET_SIZE(o)) {
@@ -4888,13 +4898,13 @@ static INLINE PyObject *__Pyx_GetItemInt(PyObject *o, Py_ssize_t i, int is_unsig
     return r;
 }
 """,
-"""
-"""]
+impl = """
+""")
 
 #------------------------------------------------------------------------------------
 
-setitem_int_utility_code = [
-"""
+setitem_int_utility_code = UtilityCode(
+proto = """
 static INLINE int __Pyx_SetItemInt(PyObject *o, Py_ssize_t i, PyObject *v, int is_unsigned) {
     int r;
     if (PyList_CheckExact(o) && 0 <= i && i < PyList_GET_SIZE(o)) {
@@ -4915,24 +4925,27 @@ static INLINE int __Pyx_SetItemInt(PyObject *o, Py_ssize_t i, PyObject *v, int i
     return r;
 }
 """,
-"""
-"""]
+impl = """
+""")
+
 #------------------------------------------------------------------------------------
 
-raise_noneattr_error_utility_code = [
-"""
+raise_noneattr_error_utility_code = UtilityCode(
+proto = """
 static INLINE void __Pyx_RaiseNoneAttributeError(char* attrname);
-""", """
+""",
+impl = """
 static INLINE void __Pyx_RaiseNoneAttributeError(char* attrname) {
     PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%s'", attrname);
 }
-"""]
+""")
 
-raise_noneindex_error_utility_code = [
-"""
+raise_noneindex_error_utility_code = UtilityCode(
+proto = """
 static INLINE void __Pyx_RaiseNoneIndexingError();
-""", """
+""",
+impl = """
 static INLINE void __Pyx_RaiseNoneIndexingError() {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is unsubscriptable");
 }
-"""]
+""")

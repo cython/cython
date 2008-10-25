@@ -88,3 +88,20 @@ def long_literal(value):
         else:
             value = int(value)
     return not -2**31 <= value < 2**31
+
+# a simple class that simplifies the usage of utility code
+
+class UtilityCode(object):
+    def __init__(self, proto=None, impl=None, init=None, cleanup=None):
+        self.proto = proto
+        self.impl = impl
+        self.init = init
+        self.cleanup = cleanup
+
+    def write_init_code(self, writer, pos):
+        if not self.init:
+            return
+        if callable(self.init):
+            self.init(writer, pos)
+        else:
+            writer.put(self.init)
