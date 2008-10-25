@@ -6,7 +6,6 @@ from Symtab import BuiltinScope, StructOrUnionScope
 from Cython.Utils import UtilityCode
 from TypeSlots import Signature
 import PyrexTypes
-import __builtin__
 
 builtin_function_table = [
     # name,        args,   return,  C API func,           py equiv = "*"
