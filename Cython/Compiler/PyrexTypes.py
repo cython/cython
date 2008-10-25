@@ -2,6 +2,7 @@
 #   Pyrex - Types
 #
 
+from Cython.Utils import UtilityCode
 import StringEncoding
 import Naming
 import copy
@@ -982,7 +983,7 @@ class CStructOrUnionType(CType):
             entry = env.lookup(self.name)
             if entry.visibility != 'extern':
                 proto = self.declaration_code('') + ';\n' + proto
-            self._convert_code = proto, code.buffer.getvalue()
+            self._convert_code = UtilityCode(proto=proto, impl=code.buffer.getvalue())
         
         env.use_utility_code(self._convert_code)
         return True
