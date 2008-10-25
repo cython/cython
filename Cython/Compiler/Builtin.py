@@ -178,13 +178,19 @@ proto = """
      (ob)->ob_type == &PyFrozenSet_Type)
 
 #define PySet_New(iterable) \\
-    PyObject_CallFunctionObjArgs((PyObject *)PySet_Type, iterable, NULL)
-#define Pyx_PyFrozenSet_New(iterable) \\
-    PyObject_CallFunctionObjArgs((PyObject *)PyFrozenSet_Type, iterable, NULL)
+    PyObject_CallFunctionObjArgs((PyObject *)&PySet_Type, (iterable), NULL)
 
-#define PySet_Size(anyset)          PyObject_Size(anyset)
-#define PySet_Contains(anyset, key) PySequence_Contains(anyset, key)
-#define PySet_Pop(set)              PyObject_CallMethod(set, "pop", NULL)
+#define Pyx_PyFrozenSet_New(iterable) \\
+    PyObject_CallFunctionObjArgs((PyObject *)&PyFrozenSet_Type, (iterable), NULL)
+
+#define PySet_Size(anyset) \\
+    PyObject_Size((anyset))
+
+#define PySet_Contains(anyset, key) \\
+    PySequence_Contains((anyset), (key))
+
+#define PySet_Pop(set) \\
+    PyObject_CallMethod(set, "pop", NULL)
 
 static INLINE int PySet_Clear(PyObject *set) {
     PyObject *ret = PyObject_CallMethod(set, "clear", NULL);
@@ -218,12 +224,10 @@ static PyTypeObject *__Pyx_PyFrozenSet_Type = NULL;
 
 #define PyAnySet_Check(ob) \\
     (PyAnySet_CheckExact(ob) || \\
-      PyType_IsSubtype((ob)->ob_type, &PySet_Type) || \\
-      PyType_IsSubtype((ob)->ob_type, &PyFrozenSet_Type))
+     PyType_IsSubtype((ob)->ob_type, &PySet_Type) || \\
+     PyType_IsSubtype((ob)->ob_type, &PyFrozenSet_Type))
 
 #define PyFrozenSet_CheckExact(ob) ((ob)->ob_type == &PyFrozenSet_Type)
-
-/* ---------------------------------------------------------------- */
 
 static int __Pyx_Py23SetsImport(void) {
     PyObject *sets=0, *Set=0, *ImmutableSet=0;
@@ -254,10 +258,8 @@ static int __Pyx_Py23SetsImport(void) {
     return -1;
 }
 
-/* ---------------------------------------------------------------- */
-
 #else
-static int py23sets_import(void) { return 0; }
+static int __Pyx_Py23SetsImport(void) { return 0; }
 #endif /* !Py_SETOBJECT_H */
 #endif /* < Py2.4  */
 #endif /* < Py2.5  */
