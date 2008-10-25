@@ -706,7 +706,7 @@ class BuiltinScope(Scope):
             entry.as_variable = var_entry
         return entry
         
-    def declare_builtin_type(self, name, cname):
+    def declare_builtin_type(self, name, cname, utility_code = None):
         name = EncodedString(name)
         type = PyrexTypes.BuiltinObjectType(name, cname)
         type.set_scope(CClassScope(name, outer_scope=None, visibility='extern'))
@@ -720,6 +720,7 @@ class BuiltinScope(Scope):
         var_entry.is_variable = 1
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
+        var_entry.utility_code = utility_code
         entry.as_variable = var_entry
 
         return type

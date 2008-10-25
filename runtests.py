@@ -19,7 +19,8 @@ EXT_DEP_MODULES = {
 }
 
 VER_DEP_MODULES = {
-    (2,4) : lambda x: x in ['run.set']
+# such as:
+#    (2,4) : lambda x: x in ['run.set']
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]

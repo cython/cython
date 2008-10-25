@@ -109,17 +109,12 @@ builtin_types_table = [
     ("slice",   "PySlice_Type",    []),
     ("file",    "PyFile_Type",     []),
 
+    ("set",       "PySet_Type",    [("clear",   "O",  "i", "PySet_Clear"), 
+                                    ("discard", "OO", "i", "PySet_Discard"),
+                                    ("add",     "OO", "i", "PySet_Add"),
+                                    ("pop",     "O",  "O", "PySet_Pop")]),
+    ("frozenset", "PyFrozenSet_Type", []),
 ]
-
-if 'set' in __builtin__.__dict__:
-    builtin_types_table += [
-        ("set",       "PySet_Type",    [("clear",   "O",  "i", "PySet_Clear"), 
-                                        ("discard", "OO", "i", "PySet_Discard"),
-                                        ("add",     "OO", "i", "PySet_Add"),
-                                        ("pop",     "O",  "O", "PySet_Pop")]),
-        
-        ("frozenset", "PyFrozenSet_Type", []),
-    ]
 
 
         
@@ -166,9 +161,104 @@ intern_utility_code = ["""
 ""","""
 """]
 
+py23_set_utility_code = ["""
+#if PY_VERSION_HEX < 0x02050000
+#ifndef PyAnySet_CheckExact
+
+#define PyAnySet_CheckExact(ob) \
+    ((ob)->ob_type == ((PyTypeObject*)&PySet_Type) || \
+     (ob)->ob_type == ((PyTypeObject*)&PyFrozenSet_Type))
+
+#define PySet_Pop(set) PyObject_CallMethod(set, "pop", NULL)
+
+static INLINE int PySet_Clear(PyObject *set) {
+    PyObject *ret = PyObject_CallMethod(set, "clear", NULL);
+    if (!ret) return -1;
+    Py_DECREF(ret); return 0;
+}
+
+static INLINE int PySet_Discard(PyObject *set, PyObject *key) {
+    PyObject *ret = PyObject_CallMethod(set, "discard", "O", key);
+    if (!ret) return -1;
+    Py_DECREF(ret); return 0;
+}
+
+static INLINE int PySet_Add(PyObject *set, PyObject *key) {
+    PyObject *ret = PyObject_CallMethod(set, "add", "O", key);
+    if (!ret) return -1;
+    Py_DECREF(ret); return 0;
+}
+
+#endif /* PyAnySet_CheckExact (<= Py2.4) */
+
+#if PY_VERSION_HEX < 0x02040000
+#ifndef Py_SETOBJECT_H
+#define Py_SETOBJECT_H
+
+static PyTypeObject *PySet_Type = NULL;
+static PyTypeObject *PyFrozenSet_Type = NULL;
+
+#define PyAnySet_Check(ob) \
+    (PyAnySet_CheckExact(ob) || \
+      PyType_IsSubtype((ob)->ob_type, &PySet_Type) || \
+      PyType_IsSubtype((ob)->ob_type, &PyFrozenSet_Type))
+
+#define PyFrozenSet_CheckExact(ob) ((ob)->ob_type == &PyFrozenSet_Type)
+
+#define PySet_New(iterable) \
+    PyObject_CallFunctionObjArgs((PyObject *)PySet_Type, iterable, NULL)
+#define Pyx_PyFrozenSet_New(iterable) \
+    PyObject_CallFunctionObjArgs((PyObject *)PyFrozenSet_Type, iterable, NULL)
+
+#define PySet_Size(anyset)          PyObject_Size(anyset)
+#define PySet_Contains(anyset, key) PySequence_Contains(anyset, key)
+
+/* ---------------------------------------------------------------- */
+
+static int __Pyx_Py23SetsImport(void) {
+    PyObject *sets=0, *Set=0, *ImmutableSet=0;
+
+    sets = PyImport_ImportModule("sets");
+    if (!sets) goto bad;
+    Set = PyObject_GetAttrString(sets, "Set");
+    if (!Set) goto bad;
+    ImmutableSet = PyObject_GetAttrString(sets, "ImmutableSet");
+    if (!ImmutableSet) goto bad;
+    Py_DECREF(sets);
+  
+    PySet_Type       = (PyTypeObject*) Set;
+    PyFrozenSet_Type = (PyTypeObject*) ImmutableSet;
+
+    /* FIXME: this should be done in dedicated module cleanup code */
+    /*
+    Py_DECREF(Set);
+    Py_DECREF(ImmutableSet);
+    */
+
+    return 0;
+
+ bad:
+    Py_XDECREF(sets);
+    Py_XDECREF(Set);
+    Py_XDECREF(ImmutableSet);
+    return -1;
+}
+
+/* ---------------------------------------------------------------- */
+
+#else
+static int py23sets_import(void) { return 0; }
+#endif /* !Py_SETOBJECT_H */
+#endif /* < Py2.4  */
+#endif /* < Py2.5  */
+""","""
+"""]
+
 builtin_utility_code = {
-    'getattr3': getattr3_utility_code,
-    'intern'  : intern_utility_code,
+    'getattr3'  : getattr3_utility_code,
+    'intern'    : intern_utility_code,
+    'set'       : py23_set_utility_code,
+    'frozenset' : py23_set_utility_code,
 }
 
 builtin_scope = BuiltinScope()
@@ -185,7 +275,8 @@ def init_builtin_funcs():
 
 def init_builtin_types():
     for name, cname, funcs in builtin_types_table:
-        the_type = builtin_scope.declare_builtin_type(name, cname)
+        utility = builtin_utility_code.get(name)
+        the_type = builtin_scope.declare_builtin_type(name, cname, utility)
         for name, args, ret, cname in funcs:
             sig = Signature(args, ret)
             the_type.scope.declare_cfunction(name, sig.function_type(), None, cname)
