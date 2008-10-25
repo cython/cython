@@ -766,7 +766,7 @@ class ModuleScope(Scope):
     # doc                  string             Module doc string
     # doc_cname            string             C name of module doc string
     # const_counter        integer            Counter for naming constants (PS: MOVED TO GLOBAL)
-    # utility_code_list    [((string, string), string)] Queuing utility codes for forwarding to Code.py
+    # utility_code_list    [(UtilityCode, string)] Queuing utility codes for forwarding to Code.py
     # default_entries      [Entry]            Function argument default entries
     # python_include_files [string]           Standard  Python headers to be included
     # include_files        [string]           Other C headers to be included
@@ -1512,11 +1512,12 @@ class PropertyScope(Scope):
 # Should this go elsewhere (and then get imported)?
 #------------------------------------------------------------------------------------
 
-classmethod_utility_code = [
-"""
+classmethod_utility_code = Utils.UtilityCode(
+proto = """
 #include "descrobject.h"
 static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
-""","""
+""",
+impl = """
 static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     /* It appears that PyMethodDescr_Type is not anywhere exposed in the Python/C API */
     /* if (!PyObject_TypeCheck(method, &PyMethodDescr_Type)) { */ 
@@ -1533,5 +1534,4 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     PyErr_Format(PyExc_TypeError, "Class-level classmethod() can only be called on a method_descriptor or instance method.");
     return NULL;
 }
-"""
-]
+""")
