@@ -1567,6 +1567,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Initialize various global constants etc. ---*/")
         code.putln(code.error_goto_if_neg("__Pyx_InitGlobals()", self.pos))
 
+        code.putln("#if PY_VERSION_HEX < 0x02040000")
+        code.putln(code.error_goto_if_neg("__Pyx_Py23SetsImport()", self.pos))
+        code.putln("#endif")
+
         code.putln("/*--- Module creation code ---*/")
         self.generate_module_creation_code(env, code)
 
@@ -1574,7 +1578,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("/*--- Builtin init code ---*/")
             code.putln(code.error_goto_if_neg("__Pyx_InitCachedBuiltins()",
                                               self.pos))
-                
+
         code.putln("%s = 0;" % Naming.skip_dispatch_cname);
 
         code.putln("/*--- Global init code ---*/")
