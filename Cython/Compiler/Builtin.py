@@ -264,7 +264,13 @@ static int __Pyx_Py23SetsImport(void) { return 0; }
 #endif /* < Py2.4  */
 #endif /* < Py2.5  */
 """,
-init = put_py23_set_init_utility_code)
+init = put_py23_set_init_utility_code,
+cleanup = """
+#if PY_VERSION_HEX < 0x02040000
+Py_XDECREF(__Pyx_PySet_Type);
+Py_XDECREF(__Pyx_PyFrozenSet_Type);
+#endif /* < Py2.4  */
+""")
 
 builtin_utility_code = {
     'getattr3'  : getattr3_utility_code,
