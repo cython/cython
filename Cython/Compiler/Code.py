@@ -184,6 +184,7 @@ class GlobalState(object):
         self.pystring_table = rootwriter.new_writer()
         self.init_cached_builtins_writer = rootwriter.new_writer()
         self.initwriter = rootwriter.new_writer()
+        self.cleanupwriter = rootwriter.new_writer()
 
         if Options.cache_builtins:
             self.init_cached_builtins_writer.enter_cfunc_scope()
@@ -192,6 +193,10 @@ class GlobalState(object):
         self.initwriter.enter_cfunc_scope()
         self.initwriter.putln("")
         self.initwriter.putln("static int __Pyx_InitGlobals(void) {")
+
+        self.cleanupwriter.enter_cfunc_scope()
+        self.cleanupwriter.putln("")
+        self.cleanupwriter.putln("static void __Pyx_CleanupGlobals(void) {")
 
         self.pystring_table.putln("")
         self.pystring_table.putln("static __Pyx_StringTabEntry %s[] = {" %
@@ -230,6 +235,10 @@ class GlobalState(object):
         w.putln("return -1;")
         w.putln("}")
         w.exit_cfunc_scope()
+
+        w = self.cleanupwriter
+        w.putln("}")
+        w.exit_cfunc_scope()
          
     def insert_initcode_into(self, code):
         if self.pystring_table_needed:
@@ -237,6 +246,9 @@ class GlobalState(object):
         if Options.cache_builtins:
             code.insert(self.init_cached_builtins_writer)
         code.insert(self.initwriter)
+
+    def insert_cleanupcode_into(self, code):
+        code.insert(self.cleanupwriter)
 
     def put_pyobject_decl(self, entry):
         self.decls_writer.putln("static PyObject *%s;" % entry.cname)
@@ -351,6 +363,7 @@ class GlobalState(object):
             if utility_code.impl:
                 self.utildefwriter.put(utility_code.impl)
             utility_code.write_init_code(self.initwriter, self.module_pos)
+            utility_code.write_cleanup_code(self.cleanupwriter, self.module_pos)
 
     def has_code(self, name):
         return name in self.used_utility_code

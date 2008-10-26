@@ -1542,7 +1542,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.exit_cfunc_scope() # done with labels
 
     def generate_module_init_func(self, imported_modules, env, code):
-        # Insert code stream of __Pyx_InitGlobals
+        # Insert code stream of __Pyx_InitGlobals()
         code.globalstate.insert_initcode_into(code)
         
         code.enter_cfunc_scope()
@@ -1627,6 +1627,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             return
         env.use_utility_code(import_module_utility_code)
         env.use_utility_code(register_cleanup_utility_code)
+        # Insert code stream of __Pyx_CleanupGlobals()
+        code.globalstate.insert_cleanupcode_into(code)
         code.putln()
         code.putln('static PyObject* %s(PyObject *self, PyObject *unused) {' % Naming.cleanup_cname)
         if Options.generate_cleanup_code >= 2:
@@ -1637,6 +1639,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if entry.visibility != 'extern':
                     if entry.type.is_pyobject and entry.used:
                         code.put_var_decref_clear(entry)
+        code.putln("__Pyx_CleanupGlobals();")
         if Options.generate_cleanup_code >= 3:
             code.putln("/*--- Type import cleanup code ---*/")
             for type, _ in env.types_imported.items():

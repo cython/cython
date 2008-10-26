@@ -105,3 +105,11 @@ class UtilityCode(object):
             self.init(writer, pos)
         else:
             writer.put(self.init)
+
+    def write_cleanup_code(self, writer, pos):
+        if not self.cleanup:
+            return
+        if callable(self.cleanup):
+            self.cleanup(writer, pos)
+        else:
+            writer.put(self.cleanup)
