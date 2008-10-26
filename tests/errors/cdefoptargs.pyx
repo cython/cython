@@ -4,6 +4,6 @@ def call5():
 cdef b(a, b, c=1, d=2):
     pass
 
-_ERRORS = """
+_ERRORS = u"""
 2:5:Call with wrong number of arguments (expected at most 4, got 5)
 """

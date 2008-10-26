@@ -7,6 +7,6 @@ elif x == 2:
 elif x == 4:
     print 34
 
-_ERRORS = """
+_ERRORS = u"""
 3:19: undeclared name not builtin: NONEXISTING
 """
