@@ -583,7 +583,7 @@ if __name__ == '__main__':
 
     if options.coverage:
         coverage.stop()
-        ignored_modules = ('Options', 'Version', 'DebugFlags')
+        ignored_modules = ('Options', 'Version', 'DebugFlags', 'CmdLine')
         modules = [ module for name, module in sys.modules.items()
                     if module is not None and
                     name.startswith('Cython.Compiler.') and 
