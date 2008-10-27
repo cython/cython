@@ -1754,8 +1754,14 @@ class SliceIndexNode(ExprNode):
     
     def compile_time_value(self, denv):
         base = self.base.compile_time_value(denv)
-        start = self.start.compile_time_value(denv)
-        stop = self.stop.compile_time_value(denv)
+        if self.start is None:
+            start = 0
+        else:
+            start = self.start.compile_time_value(denv)
+        if self.stop is None:
+            stop = None
+        else:
+            stop = self.stop.compile_time_value(denv)
         try:
             return base[start:stop]
         except Exception, e:
@@ -1837,8 +1843,14 @@ class SliceNode(ExprNode):
     
     def compile_time_value(self, denv):
         start = self.start.compile_time_value(denv)
-        stop = self.stop.compile_time_value(denv)
-        step = step.step.compile_time_value(denv)
+        if self.stop is None:
+            stop = None
+        else:
+            stop = self.stop.compile_time_value(denv)
+        if self.step is None:
+            step = None
+        else:
+            step = self.step.compile_time_value(denv)
         try:
             return slice(start, stop, step)
         except Exception, e:
