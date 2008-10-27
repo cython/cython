@@ -25,10 +25,14 @@ __doc__ = u"""
 1
 >>> test_get_longlong_pos()
 2
+>>> test_get_longlong_big()
+3
 >>> test_get_ulonglong_zero()
 1
 >>> test_get_ulonglong_pos()
 2
+>>> test_get_ulonglong_big()
+3
 >>> test_del_char()
 Traceback (most recent call last):
 KeyError: 0
@@ -44,9 +48,15 @@ KeyError: 0
 >>> test_del_longlong() #doctest: +ELLIPSIS
 Traceback (most recent call last):
 KeyError: 0...
+>>> test_del_longlong_big() #doctest: +ELLIPSIS
+Traceback (most recent call last):
+KeyError: ...
 >>> test_del_ulonglong() #doctest: +ELLIPSIS
 Traceback (most recent call last):
 KeyError: 0...
+>>> test_del_ulonglong_big() #doctest: +ELLIPSIS
+Traceback (most recent call last):
+KeyError: ...
 """
 
 def test_get_char_neg():
@@ -109,6 +119,12 @@ def test_get_longlong_pos():
     cdef long long key = 1
     d = {1:2}
     return d[key]
+def test_get_longlong_big():
+    cdef unsigned int shift = sizeof(long)+2
+    cdef long long big = 1
+    cdef long long key = big<<shift
+    d = {big<<shift:3}
+    return d[key]
 
 def test_get_ulonglong_zero():
     cdef unsigned long long key = 0
@@ -117,6 +133,12 @@ def test_get_ulonglong_zero():
 def test_get_ulonglong_pos():
     cdef unsigned long long key = 1
     d = {1:2}
+    return d[key]
+def test_get_ulonglong_big():
+    cdef unsigned int shift = sizeof(long)+2
+    cdef unsigned long long big = 1
+    cdef unsigned long long key = big<<shift
+    d = {big<<shift:3}
     return d[key]
 
 
@@ -153,5 +175,21 @@ def test_del_longlong():
 def test_del_ulonglong():
     cdef unsigned long long key = 0
     d = {0:1}
+    del d[key]
+    return d[key]
+
+def test_del_longlong_big():
+    cdef int shift = sizeof(long)+2
+    cdef long long big = 1
+    cdef long long key = big<<shift
+    d = {big<<shift:1}
+    del d[key]
+    return d[key]
+
+def test_del_ulonglong_big():
+    cdef unsigned int shift = sizeof(long)+2
+    cdef unsigned long long big = 1
+    cdef unsigned long long key = big<<shift
+    d = {big<<shift:1}
     del d[key]
     return d[key]
