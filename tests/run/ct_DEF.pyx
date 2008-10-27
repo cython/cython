@@ -51,6 +51,8 @@ DEF TWO = TUPLE[1]
 DEF FIVE = TWO + 3
 DEF TRUE  = TRUE_FALSE[0]
 DEF FALSE = TRUE_FALSE[1]
+DEF INT_TUPLE1 = TUPLE[:2]
+DEF INT_TUPLE2 = TUPLE[1:4:2]
 
 def c():
     cdef char c
@@ -107,6 +109,12 @@ def two():
     cdef int two
     two = TWO
     return two
+
+# this doesn't currently work!
+#def two2():
+#    cdef int two
+#    two = INT_TUPLE1[-1]
+#    return two
 
 def five():
     cdef int five
