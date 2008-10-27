@@ -1557,10 +1557,6 @@ class IndexNode(ExprNode):
                 if self.index.type.is_int and not self.index.type.is_longlong:
                     self.original_index_type = self.index.type
                     self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
-                    if getting:
-                        env.use_utility_code(getitem_int_utility_code)
-                    if setting:
-                        env.use_utility_code(setitem_int_utility_code)
                 else:
                     self.index = self.index.coerce_to_pyobject(env)
                 self.type = py_object_type
@@ -1636,6 +1632,7 @@ class IndexNode(ExprNode):
             if self.index.type.is_int:
                 function = "__Pyx_GetItemInt"
                 index_code = self.index.result()
+                code.globalstate.use_utility_code(getitem_int_utility_code)
             else:
                 function = "PyObject_GetItem"
                 index_code = self.index.py_result()
@@ -1654,6 +1651,7 @@ class IndexNode(ExprNode):
         if self.index.type.is_int:
             function = "__Pyx_SetItemInt"
             index_code = self.index.result()
+            code.globalstate.use_utility_code(setitem_int_utility_code)
         else:
             function = "PyObject_SetItem"
             index_code = self.index.py_result()
@@ -1708,16 +1706,18 @@ class IndexNode(ExprNode):
         self.generate_subexpr_evaluation_code(code)
         #if self.type.is_pyobject:
         if self.index.type.is_int:
-            function = "PySequence_DelItem"
+            function = "__Pyx_DelItemInt"
             index_code = self.index.result()
+            code.globalstate.use_utility_code(delitem_int_utility_code)
         else:
             function = "PyObject_DelItem"
             index_code = self.index.py_result()
         code.putln(
-            "if (%s(%s, %s) < 0) %s" % (
+            "if (%s(%s, %s%s) < 0) %s" % (
                 function,
                 self.base.py_result(),
                 index_code,
+                self.index_unsigned_parameter(),
                 code.error_goto(self.pos)))
         self.generate_subexpr_disposal_code(code)
 
@@ -4920,6 +4920,27 @@ static INLINE int __Pyx_SetItemInt(PyObject *o, Py_ssize_t i, PyObject *v, int i
         if (!j)
             return -1;
         r = PyObject_SetItem(o, j, v);
+        Py_DECREF(j);
+    }
+    return r;
+}
+""",
+impl = """
+""")
+
+#------------------------------------------------------------------------------------
+
+delitem_int_utility_code = UtilityCode(
+proto = """
+static INLINE int __Pyx_DelItemInt(PyObject *o, Py_ssize_t i, int is_unsigned) {
+    int r;
+    if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item && (likely(i >= 0) || !is_unsigned))
+        r = PySequence_DelItem(o, i);
+    else {
+        PyObject *j = (likely(i >= 0) || !is_unsigned) ? PyInt_FromLong(i) : PyLong_FromUnsignedLongLong((sizeof(unsigned long long) > sizeof(Py_ssize_t) ? (1ULL << (sizeof(Py_ssize_t)*8)) : 0) + i);
+        if (!j)
+            return -1;
+        r = PyObject_DelItem(o, j);
         Py_DECREF(j);
     }
     return r;
