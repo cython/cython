@@ -702,17 +702,6 @@ def get_getbuffer_code(dtype, code):
         code.globalstate.use_utility_code(utilcode, name)
     return name
 
-def buffer_type_checker(dtype, code):
-    # Creates a type checker function for the given type.
-    if dtype.is_struct_or_union:
-        assert False
-    elif dtype.is_int or dtype.is_float:
-        # This includes simple typedef-ed types
-        funcname = get_getbuffer_code(dtype, code)
-    else:
-        assert False
-    return funcname
-
 def use_py2_buffer_functions(env):
     # Emulation of PyObject_GetBuffer and PyBuffer_Release for Python 2.
     # For >= 2.6 we do double mode -- use the new buffer interface on objects
