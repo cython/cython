@@ -80,7 +80,7 @@ MyStruct2 = cython.typedef(MyStruct[2])
 def test_struct(n, x):
     a = cython.declare(MyStruct2)
     a[0] = MyStruct(True, data=MyUnion(n=n))
-    a[1] = MyStruct(is_integral=False, data={x: x})
+    a[1] = MyStruct(is_integral=False, data={'x': x})
     return a[0].data.n, a[1].data.x
 
 import cython as cy
