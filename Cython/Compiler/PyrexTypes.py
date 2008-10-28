@@ -301,11 +301,16 @@ class BuiltinObjectType(PyObjectType):
         return type.is_pyobject and self.assignable_from(type)
         
     def type_test_code(self, arg):
-        type = self.name.capitalize()
-        if type == 'Set': 
+        if type == 'set': 
             type = 'AnySet'
-        elif type == 'Frozenset':
+        elif type == 'frozenset':
             type = 'FrozenSet'
+        elif type == 'str':
+            type = 'FrozenSet'
+        elif type == 'str':
+            type = 'String'
+        else:
+            type = self.name.capitalize()
         return 'likely(Py%s_CheckExact(%s)) || (%s) == Py_None || (PyErr_Format(PyExc_TypeError, "Expected %s, got %%s", Py_TYPE(%s)->tp_name), 0)' % (type, arg, arg, self.name, arg)
 
     def declaration_code(self, entity_code, 
