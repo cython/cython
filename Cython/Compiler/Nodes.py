@@ -1925,7 +1925,7 @@ class DefNode(FuncDefNode):
             positional_args, kw_only_args, argtuple_error_label, code)
 
         # --- optimised code when we do not receive any keyword arguments
-        if min_positional_args > 0 or min_positional_args == max_positional_args:
+        if (self.num_required_kw_args and min_positional_args > 0) or min_positional_args == max_positional_args:
             # Python raises arg tuple related errors first, so we must
             # check the length here
             if min_positional_args == max_positional_args and not self.star_arg:
@@ -1951,6 +1951,7 @@ class DefNode(FuncDefNode):
                             len(positional_args) + i))
                     code.putln(code.error_goto(self.pos))
                     break
+
         elif min_positional_args == max_positional_args:
             # parse the exact number of positional arguments from the
             # args tuple
@@ -1958,12 +1959,14 @@ class DefNode(FuncDefNode):
             for i, arg in enumerate(positional_args):
                 item = "PyTuple_GET_ITEM(%s, %d)" % (Naming.args_cname, i)
                 self.generate_arg_assignment(arg, item, code)
+
         else:
             # parse the positional arguments from the variable length
             # args tuple
             code.putln('} else {')
             code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
-            code.putln('default:')
+            if self.star_arg:
+                code.putln('default:')
             reversed_args = list(enumerate(positional_args))[::-1]
             for i, arg in reversed_args:
                 if i >= min_positional_args-1:
@@ -1973,7 +1976,13 @@ class DefNode(FuncDefNode):
                         code.put('case %2d: ' % (i+1))
                 item = "PyTuple_GET_ITEM(%s, %d)" % (Naming.args_cname, i)
                 self.generate_arg_assignment(arg, item, code)
-            if not self.star_arg:
+            if self.star_arg:
+                if min_positional_args:
+                    code.putln('break;')
+                    for i in range(min_positional_args-1, -1, -1):
+                        code.putln('case %2d:' % i)
+                    code.put_goto(argtuple_error_label)
+            else:
                 if min_positional_args == 0:
                     code.put('case  0: ')
                 code.putln('break;')
