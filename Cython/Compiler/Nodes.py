@@ -1963,6 +1963,7 @@ class DefNode(FuncDefNode):
             # args tuple
             code.putln('} else {')
             code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
+            code.putln('default:')
             reversed_args = list(enumerate(positional_args))[::-1]
             for i, arg in reversed_args:
                 if i >= min_positional_args-1:
@@ -4683,11 +4684,11 @@ static int __Pyx_ArgTypeTest(PyObject *obj, PyTypeObject *type, int none_allowed
 
 raise_argtuple_invalid_utility_code = UtilityCode(
 proto = """
-static INLINE void __Pyx_RaiseArgtupleInvalid(const char* func_name, int exact,
+static void __Pyx_RaiseArgtupleInvalid(const char* func_name, int exact,
     Py_ssize_t num_min, Py_ssize_t num_max, Py_ssize_t num_found); /*proto*/
 """,
 impl = """
-static INLINE void __Pyx_RaiseArgtupleInvalid(
+static void __Pyx_RaiseArgtupleInvalid(
     const char* func_name,
     int exact,
     Py_ssize_t num_min,
@@ -4739,11 +4740,11 @@ static INLINE void __Pyx_RaiseKeywordRequired(
 
 raise_double_keywords_utility_code = UtilityCode(
 proto = """
-static INLINE void __Pyx_RaiseDoubleKeywordsError(
+static void __Pyx_RaiseDoubleKeywordsError(
     const char* func_name, PyObject* kw_name); /*proto*/
 """,
 impl = """
-static INLINE void __Pyx_RaiseDoubleKeywordsError(
+static void __Pyx_RaiseDoubleKeywordsError(
     const char* func_name,
     PyObject* kw_name)
 {
