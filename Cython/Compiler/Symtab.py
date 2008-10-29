@@ -1126,6 +1126,7 @@ class ModuleScope(Scope):
         for name, entry in self.entries.items():
             if entry.is_cfunction:
                 if (entry.defined_in_pxd 
+                        and entry.scope is self
                         and entry.visibility != 'extern'
                         and not entry.in_cinclude 
                         and not entry.is_implemented):
