@@ -1560,7 +1560,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         tempdecl_code = code.insertion_point()
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
 
-        code.putln("/*--- Libary function declarations ---*/")
+        code.putln("/*--- Library function declarations ---*/")
         env.generate_library_function_declarations(code)
         self.generate_filename_init_call(code)
 
