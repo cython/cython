@@ -19,6 +19,9 @@ cdef f(Grail g,   # incomplete argument type
 	void v,         # incomplete argument type
 	int a[]):
 		pass
+        
+cdef NoSuchType* ptr
+ptr = None             # This should not produce another error
 
 _ERRORS = u"""
 3:19: Python object cannot be declared extern
@@ -35,4 +38,5 @@ _ERRORS = u"""
 19:1: Use spam() rather than spam(void) to declare a function with no arguments.
 18:7: Argument type 'Grail' is incomplete
 19:1: Invalid use of 'void'
+23:5: 'NoSuchType' is not a type identifier
 """

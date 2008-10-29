@@ -135,6 +135,7 @@ class Entry:
     used = 0
     is_special = 0
     defined_in_pxd = 0
+    is_implemented = 0
     api = 0
     utility_code = None
     is_overridable = 0
@@ -445,6 +446,8 @@ class Scope:
             entry.api = 1
         if not defining and not in_pxd and visibility != 'extern':
             error(pos, "Non-extern C function '%s' declared but not defined" % name)
+        if defining:
+            entry.is_implemented = True
         return entry
     
     def add_cfunction(self, name, type, pos, cname, visibility):
@@ -1093,8 +1096,8 @@ class ModuleScope(Scope):
         for entry in self.c_class_entries:
             if debug_check_c_classes:
                 print("...entry %s %s" % (entry.name, entry))
-                print("......type = " + entry.type)
-                print("......visibility = " + entry.visibility)
+                print("......type = ",  entry.type)
+                print("......visibility = ", entry.visibility)
             type = entry.type
             name = entry.name
             visibility = entry.visibility
@@ -1116,6 +1119,18 @@ class ModuleScope(Scope):
             if type.vtabslot_cname:
                 #print "ModuleScope.check_c_classes: allocating vtable cname for", self ###
                 type.vtable_cname = self.mangle(Naming.vtable_prefix, entry.name)
+                
+    def check_c_functions(self):
+        # Performs post-analysis checking making sure all 
+        # defined c functions are actually implemented.
+        for name, entry in self.entries.items():
+            if entry.is_cfunction:
+                if (entry.defined_in_pxd 
+                        and entry.scope is self
+                        and entry.visibility != 'extern'
+                        and not entry.in_cinclude 
+                        and not entry.is_implemented):
+                    error(entry.pos, "Non-extern C function '%s' declared but not defined" % name)
     
     def attach_var_entry_to_c_class(self, entry):
         # The name of an extension class has to serve as both a type

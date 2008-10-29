@@ -84,13 +84,13 @@ class Context:
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, FinalOptimizePhase
         from Buffer import IntroduceBufferAuxiliaryVars
-        from ModuleNode import check_c_classes
+        from ModuleNode import check_c_declarations
 
         if pxd:
-            _check_c_classes = None
+            _check_c_declarations = None
             _specific_post_parse = PxdPostParse(self)
         else:
-            _check_c_classes = check_c_classes
+            _check_c_declarations = check_c_declarations
             _specific_post_parse = None
             
         if py and not pxd:
@@ -111,7 +111,7 @@ class Context:
             EmbedSignature(self),
             TransformBuiltinMethods(self),
             IntroduceBufferAuxiliaryVars(self),
-            _check_c_classes,
+            _check_c_declarations,
             AnalyseExpressionsTransform(self),
             SwitchTransform(),
             FinalOptimizePhase(self),
