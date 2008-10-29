@@ -1976,16 +1976,15 @@ class DefNode(FuncDefNode):
                         code.put('case %2d: ' % (i+1))
                 item = "PyTuple_GET_ITEM(%s, %d)" % (Naming.args_cname, i)
                 self.generate_arg_assignment(arg, item, code)
+            if min_positional_args == 0:
+                code.put('case  0: ')
+            code.putln('break;')
             if self.star_arg:
                 if min_positional_args:
-                    code.putln('break;')
                     for i in range(min_positional_args-1, -1, -1):
                         code.putln('case %2d:' % i)
                     code.put_goto(argtuple_error_label)
             else:
-                if min_positional_args == 0:
-                    code.put('case  0: ')
-                code.putln('break;')
                 code.put('default: ')
                 code.put_goto(argtuple_error_label)
             code.putln('}')

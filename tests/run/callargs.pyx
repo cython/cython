@@ -110,8 +110,24 @@ __doc__ = u"""
   1 2 0 1
   >>> d(1,2,3, key=None)
   1 2 1 1
-
+  
+  >>> c()
+  10 20 0
+  >>> c(1)
+  1 20 0
+  >>> c(1,2)
+  1 2 0
+  >>> c(key=None)
+  10 20 1
+  >>> c(1, key=None)
+  1 20 1
+  >>> c(1,2, key=None)
+  1 2 1
+  
 """
+
+def c(a=10, b=20, **kwds):
+    print a, b, len(kwds)
 
 def d(a, b=1, *args, **kwds):
     print a, b, len(args), len(kwds)
