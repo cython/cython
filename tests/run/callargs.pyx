@@ -100,6 +100,17 @@ __doc__ = u"""
   1 2 0 0
   >>> d(1,2,3)
   1 2 1 0
+
+  >>> d(key=None)
+  Traceback (most recent call last):
+  TypeError: d() takes at least 1 positional argument (0 given)
+  >>> d(1, key=None)
+  1 1 0 1
+  >>> d(1,2, key=None)
+  1 2 0 1
+  >>> d(1,2,3, key=None)
+  1 2 1 1
+
 """
 
 def d(a, b=1, *args, **kwds):
@@ -124,7 +135,6 @@ if sys.version_info[0] >= 3:
     kwargs = {u"test" : u"toast"}
 else:
     kwargs = {"test" : u"toast"}
-
 
 def test_kw_args(f):
     f(1,2, c=3)
