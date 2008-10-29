@@ -90,7 +90,47 @@ __doc__ = u"""
   >>> test_int_kwargs(h)
   Traceback (most recent call last):
   TypeError: h() keywords must be strings
+  
+  >>> d()
+  Traceback (most recent call last):
+  TypeError: d() takes at least 1 positional argument (0 given)
+  >>> d(1)
+  1 1 0 0
+  >>> d(1,2)
+  1 2 0 0
+  >>> d(1,2,3)
+  1 2 1 0
+
+  >>> d(key=None)
+  Traceback (most recent call last):
+  TypeError: d() takes at least 1 positional argument (0 given)
+  >>> d(1, key=None)
+  1 1 0 1
+  >>> d(1,2, key=None)
+  1 2 0 1
+  >>> d(1,2,3, key=None)
+  1 2 1 1
+  
+  >>> c()
+  10 20 0
+  >>> c(1)
+  1 20 0
+  >>> c(1,2)
+  1 2 0
+  >>> c(key=None)
+  10 20 1
+  >>> c(1, key=None)
+  1 20 1
+  >>> c(1,2, key=None)
+  1 2 1
+  
 """
+
+def c(a=10, b=20, **kwds):
+    print a, b, len(kwds)
+
+def d(a, b=1, *args, **kwds):
+    print a, b, len(args), len(kwds)
 
 def e(*args, **kwargs):
     print len(args), len(kwargs)
@@ -103,7 +143,7 @@ def g(**kwargs):
 
 def h(a, b, c, *args, **kwargs):
     print a, b, c, u'*', len(args), len(kwargs)
-
+    
 args = (9,8,7)
 
 import sys
@@ -111,7 +151,6 @@ if sys.version_info[0] >= 3:
     kwargs = {u"test" : u"toast"}
 else:
     kwargs = {"test" : u"toast"}
-
 
 def test_kw_args(f):
     f(1,2, c=3)

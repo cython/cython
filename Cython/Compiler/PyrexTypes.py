@@ -1313,6 +1313,8 @@ def c_array_type(base_type, size):
     # Construct a C array type.
     if base_type is c_char_type:
         return CCharArrayType(size)
+    elif base_type is error_type:
+        return error_type
     else:
         return CArrayType(base_type, size)
 
@@ -1320,6 +1322,8 @@ def c_ptr_type(base_type):
     # Construct a C pointer type.
     if base_type is c_char_type:
         return c_char_ptr_type
+    elif base_type is error_type:
+        return error_type
     else:
         return CPtrType(base_type)
         
