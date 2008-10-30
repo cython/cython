@@ -395,7 +395,7 @@ class ExprNode(Node):
                 self.result_code = None
             if debug_temp_alloc:
                 print("%s Allocated result %s" % (self, self.result_code))
-    
+                
     def target_code(self):
         #  Return code fragment for use as LHS of a C assignment.
         return self.calculate_result_code()
@@ -599,7 +599,10 @@ class NewTempExprNode(ExprNode):
         assert result is None
 
     def release_temp(self, env):
-        pass
+        if self.is_temp:
+            pass
+        else:
+            self.release_subexpr_temps(env)
 
     def pre_generate_result_code(self, code):
         if self.is_temp:
