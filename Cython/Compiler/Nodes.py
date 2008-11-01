@@ -2055,49 +2055,48 @@ class DefNode(FuncDefNode):
         code.putln('}')
 
         # now fill up the required arguments with values from the kw dict
-        code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
-        needs_break = False
+        last_required_arg = -1
         for i, arg in enumerate(all_args):
-            if i <= max_positional_args:
-                if self.star_arg and i == max_positional_args:
-                    code.putln('default:')
+            if not arg.default:
+                last_required_arg = i
+        if last_required_arg >= 0:
+            code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
+            for i, arg in enumerate(all_args[:last_required_arg+1]):
+                if i <= max_positional_args:
+                    if self.star_arg and i == max_positional_args:
+                        code.putln('default:')
+                    else:
+                        code.putln('case %2d:' % i)
+                if arg.default:
+                    # handled in ParseOptionalKeywords() below
+                    continue
+                code.putln('values[%d] = PyDict_GetItem(%s, %s);' % (
+                        i, Naming.kwds_cname, arg.name_entry.pystring_cname))
+                if i < min_positional_args:
+                    code.putln('if (likely(values[%d])) kw_args--;' % i);
+                    if i == 0:
+                        # special case: we know arg 0 is missing
+                        code.put('else ')
+                        code.put_goto(argtuple_error_label)
+                    else:
+                        # print the correct number of values (args or
+                        # kwargs) that were passed into positional
+                        # arguments up to this point
+                        code.putln('else {')
+                        code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, %d); ' % (
+                                self.name.utf8encode(), has_fixed_positional_count,
+                                min_positional_args, max_positional_args, i))
+                        code.putln(code.error_goto(self.pos))
+                        code.putln('}')
                 else:
-                    code.putln('case %2d:' % i)
-            if arg.default:
-                # handled in ParseOptionalKeywords() below
-                needs_break = True
-                continue
-            else:
-                needs_break = False
-            code.putln('values[%d] = PyDict_GetItem(%s, %s);' % (
-                    i, Naming.kwds_cname, arg.name_entry.pystring_cname))
-            if i < min_positional_args:
-                code.putln('if (likely(values[%d])) kw_args--;' % i);
-                if i == 0:
-                    # special case: we know arg 0 is missing
-                    code.put('else ')
-                    code.put_goto(argtuple_error_label)
-                else:
-                    # print the correct number of values (args or
-                    # kwargs) that were passed into positional
-                    # arguments up to this point
-                    code.putln('else {')
-                    code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, %d); ' % (
-                            self.name.utf8encode(), has_fixed_positional_count,
-                            min_positional_args, max_positional_args, i))
-                    code.putln(code.error_goto(self.pos))
-                    code.putln('}')
-            else:
-                code.putln('if (values[%d]) kw_args--;' % i);
-                if arg.kw_only and not arg.default:
-                    code.putln('else {')
-                    code.put('__Pyx_RaiseKeywordRequired("%s", %s); ' %(
-                            self.name.utf8encode(), arg.name_entry.pystring_cname))
-                    code.putln(code.error_goto(self.pos))
-                    code.putln('}')
-        if needs_break:
-            code.putln('break;')
-        code.putln('}')
+                    code.putln('if (values[%d]) kw_args--;' % i);
+                    if arg.kw_only and not arg.default:
+                        code.putln('else {')
+                        code.put('__Pyx_RaiseKeywordRequired("%s", %s); ' %(
+                                self.name.utf8encode(), arg.name_entry.pystring_cname))
+                        code.putln(code.error_goto(self.pos))
+                        code.putln('}')
+            code.putln('}')
 
         code.putln('if (unlikely(kw_args > 0)) {')
         # non-positional kw args left in dict: default args, **kwargs or error
