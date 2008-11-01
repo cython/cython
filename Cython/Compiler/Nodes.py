@@ -1946,9 +1946,9 @@ class DefNode(FuncDefNode):
             for i, arg in enumerate(kw_only_args):
                 if not arg.default:
                     # required keyword-only argument missing
-                    code.put('__Pyx_RaiseKeywordRequired("%s", *%s[%d]); ' % (
-                            self.name.utf8encode(), Naming.pykwdlist_cname,
-                            len(positional_args) + i))
+                    code.put('__Pyx_RaiseKeywordRequired("%s", %s); ' % (
+                            self.name.utf8encode(),
+                            arg.name_entry.pystring_cname))
                     code.putln(code.error_goto(self.pos))
                     break
 
