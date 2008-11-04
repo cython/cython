@@ -167,6 +167,8 @@ class FinalOptimizePhase(Visitor.CythonTransform):
                 if type_arg.type.is_builtin_type and type_arg.type.name == 'type':
                     object_module = self.context.find_module('python_object')
                     node.function.entry = object_module.lookup('PyObject_TypeCheck')
+                    if node.function.entry is None:
+                        return node # only happens when there was an error earlier
                     node.function.type = node.function.entry.type
                     PyTypeObjectPtr = PyrexTypes.CPtrType(object_module.lookup('PyTypeObject').type)
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
