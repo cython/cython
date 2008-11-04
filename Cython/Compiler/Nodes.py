@@ -1915,10 +1915,10 @@ class DefNode(FuncDefNode):
 
         # --- optimised code when we receive keyword arguments
         if self.num_required_kw_args:
-            code.putln("if (likely(%s)) {" % Naming.kwds_cname)
+            likely_hint = "likely"
         else:
-            code.putln("if (unlikely(%s) && (PyDict_Size(%s) > 0)) {" % (
-                    Naming.kwds_cname, Naming.kwds_cname))
+            likely_hint = "unlikely"
+        code.putln("if (%s(%s)) {" % (likely_hint, Naming.kwds_cname))
         self.generate_keyword_unpacking_code(
             min_positional_args, max_positional_args,
             has_fixed_positional_count,
@@ -1946,9 +1946,9 @@ class DefNode(FuncDefNode):
             for i, arg in enumerate(kw_only_args):
                 if not arg.default:
                     # required keyword-only argument missing
-                    code.put('__Pyx_RaiseKeywordRequired("%s", *%s[%d]); ' % (
-                            self.name.utf8encode(), Naming.pykwdlist_cname,
-                            len(positional_args) + i))
+                    code.put('__Pyx_RaiseKeywordRequired("%s", %s); ' % (
+                            self.name.utf8encode(),
+                            arg.name_entry.pystring_cname))
                     code.putln(code.error_goto(self.pos))
                     break
 
@@ -2054,44 +2054,52 @@ class DefNode(FuncDefNode):
             code.put_goto(argtuple_error_label)
         code.putln('}')
 
-        # now fill up the arguments with values from the kw dict
-        code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
+        # now fill up the required arguments with values from the kw dict
+        last_required_arg = -1
         for i, arg in enumerate(all_args):
-            if i <= max_positional_args:
-                if self.star_arg and i == max_positional_args:
-                    code.putln('default:')
+            if not arg.default:
+                last_required_arg = i
+        if last_required_arg >= 0:
+            code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
+            for i, arg in enumerate(all_args[:last_required_arg+1]):
+                if i <= max_positional_args:
+                    if self.star_arg and i == max_positional_args:
+                        code.putln('default:')
+                    else:
+                        code.putln('case %2d:' % i)
+                if arg.default:
+                    # handled in ParseOptionalKeywords() below
+                    continue
+                code.putln('values[%d] = PyDict_GetItem(%s, %s);' % (
+                        i, Naming.kwds_cname, arg.name_entry.pystring_cname))
+                if i < min_positional_args:
+                    code.putln('if (likely(values[%d])) kw_args--;' % i);
+                    if i == 0:
+                        # special case: we know arg 0 is missing
+                        code.put('else ')
+                        code.put_goto(argtuple_error_label)
+                    else:
+                        # print the correct number of values (args or
+                        # kwargs) that were passed into positional
+                        # arguments up to this point
+                        code.putln('else {')
+                        code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, %d); ' % (
+                                self.name.utf8encode(), has_fixed_positional_count,
+                                min_positional_args, max_positional_args, i))
+                        code.putln(code.error_goto(self.pos))
+                        code.putln('}')
                 else:
-                    code.putln('case %2d:' % i)
-            code.putln('values[%d] = PyDict_GetItem(%s, *%s[%d]);' % (
-                    i, Naming.kwds_cname, Naming.pykwdlist_cname, i))
-            if i < min_positional_args:
-                code.putln('if (likely(values[%d])) kw_args--;' % i);
-                if i == 0:
-                    # special case: we know arg 0 is missing
-                    code.put('else ')
-                    code.put_goto(argtuple_error_label)
-                else:
-                    # provide the correct number of values (args or
-                    # kwargs) that were passed into positional
-                    # arguments up to this point
-                    code.putln('else {')
-                    code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, %d); ' % (
-                            self.name.utf8encode(), has_fixed_positional_count,
-                            min_positional_args, max_positional_args, i))
-                    code.putln(code.error_goto(self.pos))
-                    code.putln('}')
-            else:
-                code.putln('if (values[%d]) kw_args--;' % i);
-                if arg.kw_only and not arg.default:
-                    code.putln('else {')
-                    code.put('__Pyx_RaiseKeywordRequired("%s", *%s[%d]); ' %(
-                            self.name.utf8encode(), Naming.pykwdlist_cname, i))
-                    code.putln(code.error_goto(self.pos))
-                    code.putln('}')
-        code.putln('}')
+                    code.putln('if (values[%d]) kw_args--;' % i);
+                    if arg.kw_only and not arg.default:
+                        code.putln('else {')
+                        code.put('__Pyx_RaiseKeywordRequired("%s", %s); ' %(
+                                self.name.utf8encode(), arg.name_entry.pystring_cname))
+                        code.putln(code.error_goto(self.pos))
+                        code.putln('}')
+            code.putln('}')
 
         code.putln('if (unlikely(kw_args > 0)) {')
-        # non-positional kw args left in the dict: **kwargs or error
+        # non-positional kw args left in dict: default args, **kwargs or error
         if self.star_arg:
             code.putln("const Py_ssize_t used_pos_args = (PyTuple_GET_SIZE(%s) < %d) ? PyTuple_GET_SIZE(%s) : %d;" % (
                     Naming.args_cname, max_positional_args,
@@ -2099,9 +2107,9 @@ class DefNode(FuncDefNode):
             pos_arg_count = "used_pos_args"
         else:
             pos_arg_count = "PyTuple_GET_SIZE(%s)" % Naming.args_cname
-        code.globalstate.use_utility_code(split_keywords_utility_code)
+        code.globalstate.use_utility_code(parse_keywords_utility_code)
         code.put(
-            'if (unlikely(__Pyx_SplitKeywords(%s, %s, %s, %s, "%s") < 0)) ' % (
+            'if (unlikely(__Pyx_ParseOptionalKeywords(%s, %s, %s, values, %s, "%s") < 0)) ' % (
                 Naming.kwds_cname,
                 Naming.pykwdlist_cname,
                 self.starstar_arg and self.starstar_arg.entry.cname or '0',
@@ -4815,9 +4823,9 @@ invalid_keyword:
 
 #------------------------------------------------------------------------------------
 #
-#  __Pyx_SplitKeywords copies the keyword arguments that are not named
-#  in argnames[] from the kwds dict into kwds2.  If kwds2 is NULL,
-#  these keywords will raise an invalid keyword error.
+#  __Pyx_ParseOptionalKeywords copies the optional/unknown keyword
+#  arguments from the kwds dict into kwds2.  If kwds2 is NULL, unknown
+#  keywords will raise an invalid keyword error.
 #
 #  Three kinds of errors are checked: 1) non-string keywords, 2)
 #  unexpected keywords and 3) overlap with positional arguments.
@@ -4829,22 +4837,25 @@ invalid_keyword:
 #  This method does not check for required keyword arguments.
 #
 
-split_keywords_utility_code = UtilityCode(
+parse_keywords_utility_code = UtilityCode(
 proto = """
-static int __Pyx_SplitKeywords(PyObject *kwds, PyObject **argnames[], \
-    PyObject *kwds2, Py_ssize_t num_pos_args, const char* function_name); /*proto*/
+static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject **argnames[], \
+    PyObject *kwds2, PyObject *values[], Py_ssize_t num_pos_args, \
+    const char* function_name); /*proto*/
 """,
 impl = """
-static int __Pyx_SplitKeywords(
+static int __Pyx_ParseOptionalKeywords(
     PyObject *kwds,
     PyObject **argnames[],
     PyObject *kwds2,
+    PyObject *values[],
     Py_ssize_t num_pos_args,
     const char* function_name)
 {
     PyObject *key = 0, *value = 0;
     Py_ssize_t pos = 0;
     PyObject*** name;
+    PyObject*** first_kw_arg = argnames + num_pos_args;
 
     while (PyDict_Next(kwds, &pos, &key, &value)) {
         #if PY_MAJOR_VERSION < 3
@@ -4856,8 +4867,11 @@ static int __Pyx_SplitKeywords(
         } else {
             name = argnames;
             while (*name && (**name != key)) name++;
-            if (!*name) {
-                for (name = argnames; *name; name++) {
+            if (*name) {
+                if (name < first_kw_arg) goto arg_passed_twice;
+                values[name-argnames] = value;
+            } else {
+                for (name = first_kw_arg; *name; name++) {
                     #if PY_MAJOR_VERSION >= 3
                     if (PyUnicode_GET_SIZE(**name) == PyUnicode_GET_SIZE(key) &&
                         PyUnicode_Compare(**name, key) == 0) break;
@@ -4867,7 +4881,21 @@ static int __Pyx_SplitKeywords(
                                PyString_AS_STRING(key)) == 0) break;
                     #endif
                 }
-                if (!*name) {
+                if (*name) {
+                    values[name-argnames] = value;
+                } else {
+                    /* unexpected keyword found */
+                    for (name=argnames; name != first_kw_arg; name++) {
+                        if (**name == key) goto arg_passed_twice;
+                        #if PY_MAJOR_VERSION >= 3
+                        if (PyUnicode_GET_SIZE(**name) == PyUnicode_GET_SIZE(key) &&
+                            PyUnicode_Compare(**name, key) == 0) goto arg_passed_twice;
+                        #else
+                        if (PyString_GET_SIZE(**name) == PyString_GET_SIZE(key) &&
+                            strcmp(PyString_AS_STRING(**name),
+                                   PyString_AS_STRING(key)) == 0) goto arg_passed_twice;
+                        #endif
+                    }
                     if (kwds2) {
                         if (unlikely(PyDict_SetItem(kwds2, key, value))) goto bad;
                     } else {
@@ -4875,9 +4903,7 @@ static int __Pyx_SplitKeywords(
                     }
                 }
             }
-            if (*name && ((name-argnames) < num_pos_args))
-                goto arg_passed_twice;
-            }
+        }
     }
     return 0;
 arg_passed_twice:
