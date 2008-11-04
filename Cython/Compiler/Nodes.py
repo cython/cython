@@ -585,7 +585,7 @@ class CArgDeclNode(Node):
             else:
                 could_be_name = False
             base_type = self.base_type.analyse(env, could_be_name = could_be_name)
-            if self.base_type.arg_name:
+            if hasattr(self.base_type, 'arg_name') and self.base_type.arg_name:
                 self.declarator.name = self.base_type.arg_name
             return self.declarator.analyse(base_type, env, nonempty = nonempty)
         else:
