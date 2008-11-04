@@ -39,9 +39,8 @@ class AnnotationCCodeWriter(CCodeWriter):
         self.annotation_buffer.write(s)
         
     def mark_pos(self, pos):
-#        if pos is not None:
-#            CCodeWriter.mark_pos(self, pos)
-#        return
+        if pos is not None:
+            CCodeWriter.mark_pos(self, pos)
         if self.last_pos:
             code = self.code.get(self.last_pos[1], "")
             self.code[self.last_pos[1]] = code + self.annotation_buffer.getvalue()
