@@ -1448,7 +1448,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     flags = "READONLY"
                 else:
                     flags = "0"
-                code.putln('{"%s", %s, %s, %s, 0},' % (
+                code.putln('{(char *)"%s", %s, %s, %s, 0},' % (
                     entry.name,
                     type_code,
                     "offsetof(%s, %s)" % (objstruct, entry.cname),
@@ -1466,7 +1466,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     env.getset_table_cname)
             for entry in env.property_entries:
                 code.putln(
-                    '{"%s", %s, %s, %s, 0},' % (
+                    '{(char *)"%s", %s, %s, %s, 0},' % (
                         entry.name,
                         entry.getter_cname or "0",
                         entry.setter_cname or "0",
@@ -2050,10 +2050,10 @@ bad:
 
 function_export_utility_code = UtilityCode(
 proto = """
-static int __Pyx_ExportFunction(char *name, void *f, char *sig); /*proto*/
+static int __Pyx_ExportFunction(const char *name, void *f, const char *sig); /*proto*/
 """,
 impl = r"""
-static int __Pyx_ExportFunction(char *name, void *f, char *sig) {
+static int __Pyx_ExportFunction(const char *name, void *f, const char *sig) {
     PyObject *d = 0;
     PyObject *p = 0;
     d = PyObject_GetAttrString(%(MODULE)s, "%(API)s");
@@ -2066,7 +2066,7 @@ static int __Pyx_ExportFunction(char *name, void *f, char *sig) {
         if (PyModule_AddObject(%(MODULE)s, "%(API)s", d) < 0)
             goto bad;
     }
-    p = PyCObject_FromVoidPtrAndDesc(f, sig, 0);
+    p = PyCObject_FromVoidPtrAndDesc(f, (void *)sig, 0);
     if (!p)
         goto bad;
     if (PyDict_SetItemString(d, name, p) < 0)
@@ -2085,16 +2085,16 @@ bad:
 
 function_import_utility_code = UtilityCode(
 proto = """
-static int __Pyx_ImportFunction(PyObject *module, char *funcname, void **f, char *sig); /*proto*/
+static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void **f, const char *sig); /*proto*/
 """,
 impl = """
 #ifndef __PYX_HAVE_RT_ImportFunction
 #define __PYX_HAVE_RT_ImportFunction
-static int __Pyx_ImportFunction(PyObject *module, char *funcname, void **f, char *sig) {
+static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void **f, const char *sig) {
     PyObject *d = 0;
     PyObject *cobj = 0;
     char *desc;
-    
+
     d = PyObject_GetAttrString(module, "%(API)s");
     if (!d)
         goto bad;
