@@ -3469,6 +3469,7 @@ class SwitchStatNode(StatNode):
         if self.else_clause is not None:
             code.putln("default:")
             self.else_clause.generate_execution_code(code)
+            code.putln("break;")
         code.putln("}")
 
     def annotate(self, code):
