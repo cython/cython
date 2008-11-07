@@ -5118,8 +5118,8 @@ impl = r"""
 static int __Pyx_GetVtable(PyObject *dict, void *vtabptr) {
     int result;
     PyObject *pycobj;
-    
-    pycobj = PyMapping_GetItemString(dict, "__pyx_vtable__");
+
+    pycobj = PyMapping_GetItemString(dict, (char *)"__pyx_vtable__");
     if (!pycobj)
         goto bad;
     *(void **)vtabptr = PyCObject_AsVoidPtr(pycobj);
