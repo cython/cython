@@ -89,6 +89,9 @@ __doc__ = u"""
 1
 >>> switch_off(2)
 0
+
+>>> switch_pass(1)
+1
 """
 
 def switch_simple_py(x):
@@ -173,3 +176,12 @@ def switch_off(int x):
     else:
         return 0
     return -1
+
+def switch_pass(int x):
+    if x == 1:
+        pass
+    elif x == 2:
+        pass
+    else:
+        pass
+    return x
