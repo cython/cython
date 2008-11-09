@@ -899,7 +899,7 @@ class LongNode(AtomicExprNode):
 
     def generate_evaluation_code(self, code):
         code.putln(
-            '%s = PyLong_FromString("%s", 0, 0); %s' % (
+            '%s = PyLong_FromString((char *)"%s", 0, 0); %s' % (
                 self.result(),
                 self.value,
                 code.error_goto_if_null(self.result(), self.pos)))
@@ -4692,8 +4692,8 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list) {
     empty_dict = PyDict_New();
     if (!empty_dict)
         goto bad;
-    module = PyObject_CallFunction(__import__, "OOOO",
-        name, global_dict, empty_dict, list);
+    module = PyObject_CallFunctionObjArgs(__import__,
+        name, global_dict, empty_dict, list, NULL);
 bad:
     Py_XDECREF(empty_list);
     Py_XDECREF(__import__);
@@ -4810,11 +4810,11 @@ static int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
 
 create_class_utility_code = UtilityCode(
 proto = """
-static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name, char *modname); /*proto*/
+static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name, const char *modname); /*proto*/
 """,
 impl = """
 static PyObject *__Pyx_CreateClass(
-    PyObject *bases, PyObject *dict, PyObject *name, char *modname)
+    PyObject *bases, PyObject *dict, PyObject *name, const char *modname)
 {
     PyObject *py_modname;
     PyObject *result = 0;
@@ -4877,7 +4877,12 @@ static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
         return Py_None; // this is just to have an accurate signature
     }
     else {
-        return PyObject_CallMethod(L, "append", "(O)", x);
+        PyObject *r, *m;
+        m = PyObject_GetAttrString(L, "append");
+        if (!m) return NULL;
+        r = PyObject_CallFunctionObjArgs(m, x, NULL);
+        Py_DECREF(m);
+        return r;
     }
 }
 """,
@@ -4968,10 +4973,10 @@ impl = """
 
 raise_noneattr_error_utility_code = UtilityCode(
 proto = """
-static INLINE void __Pyx_RaiseNoneAttributeError(char* attrname);
+static INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname);
 """,
 impl = """
-static INLINE void __Pyx_RaiseNoneAttributeError(char* attrname) {
+static INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname) {
     PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%s'", attrname);
 }
 """)

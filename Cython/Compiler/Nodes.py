@@ -3469,6 +3469,7 @@ class SwitchStatNode(StatNode):
         if self.else_clause is not None:
             code.putln("default:")
             self.else_clause.generate_execution_code(code)
+            code.putln("break;")
         code.putln("}")
 
     def annotate(self, code):
@@ -4493,7 +4494,7 @@ static PyObject* %s = 0;
 impl = r"""
 #if PY_MAJOR_VERSION < 3
 static PyObject *__Pyx_GetStdout(void) {
-    PyObject *f = PySys_GetObject("stdout");
+    PyObject *f = PySys_GetObject((char *)"stdout");
     if (!f) {
         PyErr_SetString(PyExc_RuntimeError, "lost sys.stdout");
     }
@@ -4504,7 +4505,7 @@ static int __Pyx_Print(PyObject *arg_tuple, int newline) {
     PyObject *f;
     PyObject* v;
     int i;
-    
+
     if (!(f = __Pyx_GetStdout()))
         return -1;
     for (i=0; i < PyTuple_GET_SIZE(arg_tuple); i++) {
@@ -5117,8 +5118,8 @@ impl = r"""
 static int __Pyx_GetVtable(PyObject *dict, void *vtabptr) {
     int result;
     PyObject *pycobj;
-    
-    pycobj = PyMapping_GetItemString(dict, "__pyx_vtable__");
+
+    pycobj = PyMapping_GetItemString(dict, (char *)"__pyx_vtable__");
     if (!pycobj)
         goto bad;
     *(void **)vtabptr = PyCObject_AsVoidPtr(pycobj);

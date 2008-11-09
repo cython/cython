@@ -293,7 +293,7 @@ class GlobalState(object):
     def add_interned_num_decl(self, entry):
         if self.should_declare(entry.cname, entry):
             if entry.init[-1] == "L":
-                self.initwriter.putln('%s = PyLong_FromString("%s", 0, 0); %s;' % (
+                self.initwriter.putln('%s = PyLong_FromString((char *)"%s", 0, 0); %s;' % (
                     entry.cname,
                     entry.init,
                     self.initwriter.error_goto_if_null(entry.cname, self.module_pos)))
