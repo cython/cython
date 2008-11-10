@@ -52,7 +52,9 @@ cdef extern from "numpy/arrayobject.h":
             # requirements, and does not yet fullfill the PEP.
             # In particular strided access is always provided regardless
             # of flags
-            cdef int copy_shape
+            cdef int copy_shape, i, ndim
+            ndim = PyArray_NDIM(self)
+            
             if sizeof(npy_intp) != sizeof(Py_ssize_t):
                 copy_shape = 1
             else:
@@ -67,11 +69,13 @@ cdef extern from "numpy/arrayobject.h":
                 raise ValueError("ndarray is not Fortran contiguous")
 
             info.buf = PyArray_DATA(self)
-            info.ndim = PyArray_NDIM(self)
+            info.ndim = ndim
             if copy_shape:
-                info.strides = <Py_ssize_t*>stdlib.malloc(sizeof(Py_ssize_t) * info.ndim)
-                info.shape = <Py_ssize_t*>stdlib.malloc(sizeof(Py_ssize_t) * info.ndim)
-                for i in range(info.ndim):
+                # Allocate new buffer for strides and shape info. This is allocated
+                # as one block, strides first.
+                info.strides = <Py_ssize_t*>stdlib.malloc(sizeof(Py_ssize_t) * ndim * 2)
+                info.shape = info.strides + ndim
+                for i in range(ndim):
                     info.strides[i] = PyArray_STRIDES(self)[i]
                     info.shape[i] = PyArray_DIMS(self)[i]
             else:
@@ -185,8 +189,8 @@ cdef extern from "numpy/arrayobject.h":
             # obj is set to NULL in those case)
             stdlib.free(info.format)
             if sizeof(npy_intp) != sizeof(Py_ssize_t):
-                stdlib.free(info.shape)
                 stdlib.free(info.strides)
+                # info.shape was stored after info.strides in the same block
             
 
     cdef void* PyArray_DATA(ndarray arr)
