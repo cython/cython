@@ -187,7 +187,8 @@ cdef extern from "numpy/arrayobject.h":
         def __releasebuffer__(ndarray self, Py_buffer* info):
             # This can not be called unless format needs to be freed (as
             # obj is set to NULL in those case)
-            stdlib.free(info.format)
+            if PyArray_HASFIELDS(self):
+                stdlib.free(info.format)
             if sizeof(npy_intp) != sizeof(Py_ssize_t):
                 stdlib.free(info.strides)
                 # info.shape was stored after info.strides in the same block
@@ -201,7 +202,7 @@ cdef extern from "numpy/arrayobject.h":
     cdef npy_intp* PyArray_DIMS(ndarray arr)
     cdef int PyArray_ITEMSIZE(ndarray arr)
     cdef int PyArray_CHKFLAGS(ndarray arr, int flags)
-    cdef int PyArray_HASFIELDS(ndarray arr, int flags)
+    cdef int PyArray_HASFIELDS(ndarray arr)
 
     cdef int PyDataType_HASFIELDS(dtype obj)
 
