@@ -241,6 +241,18 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef float        npy_float96
     ctypedef float        npy_float128
 
+    ctypedef struct npy_cfloat:
+        float real
+        float imag
+
+    ctypedef struct npy_cdouble:
+        double real
+        double imag
+
+    ctypedef struct npy_clongdouble:
+        long double real
+        long double imag
+
 # Typedefs that matches the runtime dtype objects in
 # the numpy module.
 
@@ -274,7 +286,10 @@ ctypedef npy_longlong   long_t
 ctypedef npy_ulong      uint_t
 ctypedef npy_ulonglong  ulong_t
 
-ctypedef npy_double      float_t
+ctypedef npy_double     float_t
 ctypedef npy_double     double_t
 ctypedef npy_longdouble longdouble_t
 
+ctypedef npy_cfloat      cfloat_t
+ctypedef npy_cdouble     cdouble_t
+ctypedef npy_clongdouble clongdouble_t
