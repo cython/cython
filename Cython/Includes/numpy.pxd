@@ -185,8 +185,6 @@ cdef extern from "numpy/arrayobject.h":
                         stack.append(iter(descr.fields.iteritems()))
                 
         def __releasebuffer__(ndarray self, Py_buffer* info):
-            # This can not be called unless format needs to be freed (as
-            # obj is set to NULL in those case)
             if PyArray_HASFIELDS(self):
                 stdlib.free(info.format)
             if sizeof(npy_intp) != sizeof(Py_ssize_t):
