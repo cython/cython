@@ -52,8 +52,11 @@ cdef extern from "numpy/arrayobject.h":
             # requirements, and does not yet fullfill the PEP.
             # In particular strided access is always provided regardless
             # of flags
+            cdef int copy_shape
             if sizeof(npy_intp) != sizeof(Py_ssize_t):
-                raise RuntimeError("Py_intptr_t and Py_ssize_t differs in size, numpy.pxd does not support this")
+                copy_shape = 1
+            else:
+                copy_shape = 0
 
             if ((flags & pybuf.PyBUF_C_CONTIGUOUS == pybuf.PyBUF_C_CONTIGUOUS)
                 and not PyArray_CHKFLAGS(self, NPY_C_CONTIGUOUS)):
@@ -65,8 +68,15 @@ cdef extern from "numpy/arrayobject.h":
 
             info.buf = PyArray_DATA(self)
             info.ndim = PyArray_NDIM(self)
-            info.strides = <Py_ssize_t*>PyArray_STRIDES(self)
-            info.shape = <Py_ssize_t*>PyArray_DIMS(self)
+            if copy_shape:
+                info.strides = <Py_ssize_t*>stdlib.malloc(sizeof(Py_ssize_t) * info.ndim)
+                info.shape = <Py_ssize_t*>stdlib.malloc(sizeof(Py_ssize_t) * info.ndim)
+                for i in range(info.ndim):
+                    info.strides[i] = PyArray_STRIDES(self)[i]
+                    info.shape[i] = PyArray_DIMS(self)[i]
+            else:
+                info.strides = <Py_ssize_t*>PyArray_STRIDES(self)
+                info.shape = <Py_ssize_t*>PyArray_DIMS(self)
             info.suboffsets = NULL
             info.itemsize = PyArray_ITEMSIZE(self)
             info.readonly = not PyArray_ISWRITEABLE(self)
@@ -86,9 +96,14 @@ cdef extern from "numpy/arrayobject.h":
             # (this would look much prettier if we could use utility
             # functions).
 
-            
+            if not hasfields and not copy_shape:
+                # do not call releasebuffer
+                info.obj = None
+            else:
+                # need to call releasebuffer
+                info.obj = self
+
             if not hasfields:
-                info.obj = None # do not call releasebuffer
                 t = descr.type_num
                 if   t == NPY_BYTE:        f = "b"
                 elif t == NPY_UBYTE:       f = "B"
@@ -112,7 +127,6 @@ cdef extern from "numpy/arrayobject.h":
                 info.format = f
                 return
             else:
-                info.obj = self # need to call releasebuffer
                 info.format = <char*>stdlib.malloc(255) # static size
                 f = info.format
                 stack = [iter(descr.fields.iteritems())]
@@ -170,6 +184,9 @@ cdef extern from "numpy/arrayobject.h":
             # This can not be called unless format needs to be freed (as
             # obj is set to NULL in those case)
             stdlib.free(info.format)
+            if sizeof(npy_intp) != sizeof(Py_ssize_t):
+                stdlib.free(info.shape)
+                stdlib.free(info.strides)
             
 
     cdef void* PyArray_DATA(ndarray arr)
