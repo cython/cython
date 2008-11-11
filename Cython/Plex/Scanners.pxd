@@ -1,6 +1,7 @@
 import cython
 
 cdef class Scanner:
+
     cdef public lexicon
     cdef public stream
     cdef public name
@@ -20,12 +21,13 @@ cdef class Scanner:
     cdef public bint trace
     cdef public cur_char
     cdef public input_state
-    
-    cdef public level # int?
+
+    cdef public level
     
     cpdef next_char(self):
         cdef:
             long input_state
+    cpdef read(self)
     
     cpdef run_machine_inlined(self):
         cdef:

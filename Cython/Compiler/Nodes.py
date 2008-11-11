@@ -756,7 +756,8 @@ class CVarDefNode(StatNode):
                 entry = dest_scope.declare_cfunction(name, type, declarator.pos,
                     cname = cname, visibility = self.visibility, in_pxd = self.in_pxd,
                     api = self.api)
-                entry.pxd_locals = self.pxd_locals
+                if entry is not None:
+                    entry.pxd_locals = self.pxd_locals
             else:
                 if self.in_pxd and self.visibility != 'extern':
                     error(self.pos, 
