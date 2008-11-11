@@ -10,6 +10,8 @@
 import Errors
 from Regexps import BOL, EOL, EOF
 
+import cython
+
 class Scanner:
   """
   A Scanner is used to read tokens from a stream of characters
@@ -42,23 +44,23 @@ class Scanner:
 
   """
 
-  lexicon = None        # Lexicon
-  stream = None         # file-like object
-  name = ''
-  buffer = ''
-  buf_start_pos = 0     # position in input of start of buffer
-  next_pos = 0          # position in input of next char to read
-  cur_pos = 0           # position in input of current char
-  cur_line = 1          # line number of current char
-  cur_line_start = 0    # position in input of start of current line
-  start_pos = 0         # position in input of start of token
-  start_line = 0        # line number of start of token
-  start_col = 0         # position in line of start of token
-  text = None           # text of last token read
-  initial_state = None  # Node
-  state_name = ''       # Name of initial state
-  queue = None          # list of tokens to be returned
-  trace = 0
+#  lexicon = None        # Lexicon
+#  stream = None         # file-like object
+#  name = ''
+#  buffer = ''
+#  buf_start_pos = 0     # position in input of start of buffer
+#  next_pos = 0          # position in input of next char to read
+#  cur_pos = 0           # position in input of current char
+#  cur_line = 1          # line number of current char
+#  cur_line_start = 0    # position in input of start of current line
+#  start_pos = 0         # position in input of start of token
+#  start_line = 0        # line number of start of token
+#  start_col = 0         # position in line of start of token
+#  text = None           # text of last token read
+#  initial_state = None  # Node
+#  state_name = ''       # Name of initial state
+#  queue = None          # list of tokens to be returned
+#  trace = 0
 
   def __init__(self, lexicon, stream, name = '', initial_pos = None):
     """
@@ -73,6 +75,17 @@ class Scanner:
       |name| is optional, and may be the name of the file being
       scanned or any other identifying string.
     """
+    self.buffer = ''
+    self.buf_start_pos = 0
+    self.next_pos = 0
+    self.cur_pos = 0
+    self.cur_line = 1
+    self.start_pos = 0
+    self.start_line = 0
+    self.start_col = 0
+    self.text = None
+    self.state_name = None
+    
     self.lexicon = lexicon
     self.stream = stream
     self.name = name
@@ -374,6 +387,3 @@ class Scanner:
     Override this method if you want something to be done at
     end of file.
     """
-
-# For backward compatibility:
-setattr(Scanner, "yield", Scanner.produce)
