@@ -13,3 +13,14 @@ cdef class PyrexScanner(Scanner):
     cdef public int bracket_nesting_level
     cdef public sy
     cdef public systring
+
+    cdef long current_level(self)
+    cpdef begin(self, state)
+    cpdef next(self)
+    cpdef bint expect(self, what, message = *) except -2
+    
+    cpdef indentation_action(self, text):
+        cdef:
+            long current_level
+            long new_level
+    

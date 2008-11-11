@@ -415,7 +415,7 @@ class PyrexScanner(Scanner):
                 systring.encoding = self.source_encoding
         self.sy = sy
         self.systring = systring
-        if debug_scanner:
+        if False: # debug_scanner:
             _, line, col = self.position()
             if not self.systring or self.sy == self.systring:
                 t = self.sy

@@ -716,9 +716,11 @@ class CVarDefNode(StatNode):
     #  in_pxd        boolean
     #  api           boolean
     #  need_properties [entry]
+    #  pxd_locals    [CVarDefNode]  (used for functions declared in pxd)
 
     child_attrs = ["base_type", "declarators"]
     need_properties = ()
+    pxd_locals = []
     
     def analyse_declarations(self, env, dest_scope = None):
         if not dest_scope:
@@ -754,6 +756,7 @@ class CVarDefNode(StatNode):
                 entry = dest_scope.declare_cfunction(name, type, declarator.pos,
                     cname = cname, visibility = self.visibility, in_pxd = self.in_pxd,
                     api = self.api)
+                entry.pxd_locals = self.pxd_locals
             else:
                 if self.in_pxd and self.visibility != 'extern':
                     error(self.pos, 
@@ -890,10 +893,12 @@ class FuncDefNode(StatNode, BlockNode):
     #  #filename        string        C name of filename string const
     #  entry           Symtab.Entry
     #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
+    #  pxd_locals      [CVarDefNode]   locals defined in the pxd
     
     py_func = None
     assmt = None
     needs_closure = False
+    pxd_locals = []
     
     def analyse_default_values(self, env):
         genv = env.global_scope()
@@ -1497,7 +1502,8 @@ class DefNode(FuncDefNode):
                             with_gil = cfunc.type.with_gil,
                             nogil = cfunc.type.nogil,
                             visibility = 'private',
-                            api = False)
+                            api = False,
+                            pxd_locals = cfunc.pxd_locals)
     
     def analyse_declarations(self, env):
         if 'locals' in env.directives:
