@@ -12,14 +12,17 @@ import sys
 from time import time
 
 from Cython import Plex, Utils
-from Cython.Plex import Scanner
+from Cython.Plex.Scanners import Scanner
 from Cython.Plex.Errors import UnrecognizedInput
 from Errors import CompileError, error
 from Lexicon import string_prefixes, raw_prefixes, make_lexicon
 
 from StringEncoding import EncodedString
 
-plex_version = getattr(Plex, '_version', None)
+try:
+    plex_version = Plex._version
+except AttributeError:
+    plex_version = None
 #print "Plex version:", plex_version ###
 
 debug_scanner = 0
@@ -91,7 +94,7 @@ def try_to_unpickle_lexicon():
     source_file = os.path.join(dir, "Lexicon.py")
     lexicon_hash = hash_source_file(source_file)
     lexicon_pickle = os.path.join(dir, "Lexicon.pickle")
-    f = open_pickled_lexicon(expected_hash = lexicon_hash)
+    f = open_pickled_lexicon(lexicon_hash)
     if f:
         if notify_lexicon_unpickling:
             t0 = time()
@@ -164,6 +167,8 @@ def build_resword_dict():
     for word in reserved_words:
         d[word] = 1
     return d
+
+resword_dict = build_resword_dict()
 
 #------------------------------------------------------------------
 
@@ -286,7 +291,6 @@ class PyrexScanner(Scanner):
     #  compile_time_env   dict     Environment for conditional compilation
     #  compile_time_eval  boolean  In a true conditional compilation context
     #  compile_time_expr  boolean  In a compile-time expression context
-    resword_dict = build_resword_dict()
 
     def __init__(self, file, filename, parent_scanner = None, 
                  scope = None, context = None, source_encoding=None, parse_comments=True, initial_pos=None):
@@ -404,7 +408,7 @@ class PyrexScanner(Scanner):
         except UnrecognizedInput:
             self.error("Unrecognized character")
         if sy == 'IDENT':
-            if systring in self.resword_dict:
+            if systring in resword_dict:
                 sy = systring
             else:
                 systring = EncodedString(systring)

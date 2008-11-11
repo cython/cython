@@ -2316,10 +2316,11 @@ class PyClassDefNode(ClassDefNode):
         elif len(bases) == 1:
             base = bases[0]
             path = []
-            while isinstance(base, ExprNodes.AttributeNode):
+            from ExprNodes import AttributeNode, NameNode
+            while isinstance(base, AttributeNode):
                 path.insert(0, base.attribute)
                 base = base.obj
-            if isinstance(base, ExprNodes.NameNode):
+            if isinstance(base, NameNode):
                 path.insert(0, base.name)
                 base_class_name = path[-1]
                 if len(path) > 1:
@@ -4399,6 +4400,9 @@ class FromImportStatNode(StatNode):
                         env.use_utility_code(ExprNodes.type_test_utility_code)
                         break
             else:
+                entry =  env.lookup(target.name)
+                if entry.is_type and entry.type.name == name and entry.type.module_name == self.module.module_name.value:
+                    continue # already cimported
                 self.interned_items.append(
                     (env.intern_identifier(name), target))
                 target.analyse_target_expression(env, None)
