@@ -6,6 +6,7 @@ from Symtab import BuiltinScope, StructOrUnionScope
 from Cython.Utils import UtilityCode
 from TypeSlots import Signature
 import PyrexTypes
+import Naming
 
 builtin_function_table = [
     # name,        args,   return,  C API func,           py equiv = "*"
@@ -16,6 +17,7 @@ builtin_function_table = [
     ('delattr',    "OO",   "r",     "PyObject_DelAttr"),
     ('dir',        "O",    "O",     "PyObject_Dir"),
     ('divmod',     "OO",   "O",     "PyNumber_Divmod"),
+    ('exec',       "OOO",  "O",     "__Pyx_PyRun"),
     #('eval',      "",     "",      ""),
     #('execfile',  "",     "",      ""),
     #('filter',    "",     "",      ""),
@@ -154,6 +156,48 @@ bad:
 }
 """)
 
+pyexec_utility_code = UtilityCode(
+proto = """
+static PyObject* __Pyx_PyRun(PyObject*, PyObject*, PyObject*);
+""",
+impl = """
+static PyObject* __Pyx_PyRun(PyObject* o, PyObject* globals, PyObject* locals) {
+    PyObject* result;
+    PyObject* s = 0;
+
+    if (!locals && !globals) {
+        globals = PyModule_GetDict(%s);""" % Naming.module_cname + """
+        if (!globals)
+            goto bad;
+        locals = globals;
+    } else if (!locals) {
+        locals = globals;
+    } else if (!globals) {
+        globals = locals;
+    }
+
+    if (PyUnicode_Check(o)) {
+        s = PyUnicode_AsUTF8String(o);
+        if (!s) goto bad;
+        o = s;
+    } else if (!PyString_Check(o)) {
+        /* FIXME: support file objects and code objects */
+        PyErr_SetString(PyExc_TypeError,
+            "exec currently requires a string as code input.");
+        goto bad;
+    }
+
+    result = PyRun_String(
+        PyString_AS_STRING(o), Py_file_input, globals, locals);
+
+    Py_XDECREF(s);
+    return result;
+bad:
+    Py_XDECREF(s);
+    return 0;
+}
+""")
+
 intern_utility_code = UtilityCode(
 proto = """
 #if PY_MAJOR_VERSION >= 3
@@ -273,6 +317,7 @@ Py_XDECREF(__Pyx_PyFrozenSet_Type); __Pyx_PyFrozenSet_Type = NULL;
 """)
 
 builtin_utility_code = {
+    'exec'      : pyexec_utility_code,
     'getattr3'  : getattr3_utility_code,
     'intern'    : intern_utility_code,
     'set'       : py23_set_utility_code,

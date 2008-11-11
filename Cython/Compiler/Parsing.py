@@ -902,6 +902,21 @@ def p_print_statement(s):
     return Nodes.PrintStatNode(pos,
         arg_tuple = arg_tuple, append_newline = not ends_with_comma)
 
+def p_exec_statement(s):
+    # s.sy == 'exec'
+    pos = s.position()
+    s.next()
+    args = [ p_bit_expr(s) ]
+    if s.sy == 'in':
+        s.next()
+        args.append(p_simple_expr(s))
+        if s.sy == ',':
+            s.next()
+            args.append(p_simple_expr(s))
+    else:
+        error(pos, "'exec' currently requires a target mapping (globals/locals)")
+    return Nodes.ExecStatNode(pos, args = args)
+
 def p_del_statement(s):
     # s.sy == 'del'
     pos = s.position()
@@ -1316,6 +1331,8 @@ def p_simple_statement(s, first_statement = 0):
         node = p_global_statement(s)
     elif s.sy == 'print':
         node = p_print_statement(s)
+    elif s.sy == 'exec':
+        node = p_exec_statement(s)
     elif s.sy == 'del':
         node = p_del_statement(s)
     elif s.sy == 'break':
