@@ -2145,7 +2145,7 @@ def p_c_func_or_var_declaration(s, pos, ctx):
                                 assignable = 1, nonempty = 1)
     declarator.overridable = ctx.overridable
     if s.sy == ':':
-        if ctx.level not in ('module', 'c_class'):
+        if ctx.level not in ('module', 'c_class', 'module_pxd', 'c_class_pxd'):
             s.error("C function definition not allowed here")
         doc, suite = p_suite(s, Ctx(level = 'function'), with_doc = 1)
         result = Nodes.CFuncDefNode(pos,
