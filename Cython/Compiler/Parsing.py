@@ -3,6 +3,10 @@
 #   Pyrex Parser
 #
 
+# This should be done automatically
+import cython
+cython.declare(Nodes=object, ExprNodes=object, EncodedString=object)
+
 import os
 import re
 import sys
