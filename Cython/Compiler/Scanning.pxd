@@ -1,5 +1,9 @@
 from Cython.Plex.Scanners cimport Scanner
 
+cdef class CompileTimeScope:
+    cdef public entries
+    cdef public outer
+
 cdef class PyrexScanner(Scanner):
     cdef public context
     cdef public list included_files

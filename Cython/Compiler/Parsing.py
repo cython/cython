@@ -532,26 +532,22 @@ def p_atom(s):
 
 def p_name(s, name):
     pos = s.position()
-    if not s.compile_time_expr:
-        try:
-            value = s.compile_time_env.lookup_here(name)
-        except KeyError:
-            pass
+    if not s.compile_time_expr and name in s.compile_time_env:
+        value = s.compile_time_env.lookup_here(name)
+        rep = repr(value)
+        if isinstance(value, bool):
+            return ExprNodes.BoolNode(pos, value = value)
+        elif isinstance(value, int):
+            return ExprNodes.IntNode(pos, value = rep)
+        elif isinstance(value, long):
+            return ExprNodes.IntNode(pos, value = rep, longness = "L")
+        elif isinstance(value, float):
+            return ExprNodes.FloatNode(pos, value = rep)
+        elif isinstance(value, (str, unicode)):
+            return ExprNodes.StringNode(pos, value = value)
         else:
-            rep = repr(value)
-            if isinstance(value, bool):
-                return ExprNodes.BoolNode(pos, value = value)
-            elif isinstance(value, int):
-                return ExprNodes.IntNode(pos, value = rep)
-            elif isinstance(value, long):
-                return ExprNodes.IntNode(pos, value = rep, longness = "L")
-            elif isinstance(value, float):
-                return ExprNodes.FloatNode(pos, value = rep)
-            elif isinstance(value, (str, unicode)):
-                return ExprNodes.StringNode(pos, value = value)
-            else:
-                error(pos, "Invalid type for compile-time constant: %s"
-                    % value.__class__.__name__)
+            error(pos, "Invalid type for compile-time constant: %s"
+                % value.__class__.__name__)
     return ExprNodes.NameNode(pos, name = name)
 
 def p_cat_string_literal(s):
