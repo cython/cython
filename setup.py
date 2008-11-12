@@ -31,7 +31,7 @@ except ValueError:
     try:
         from Cython.Compiler.Main import compile
         source_root = os.path.dirname(__file__)
-        compiled_modules = ["Cython.Plex.Scanners", "Cython.Compiler.Scanning"]
+        compiled_modules = ["Cython.Plex.Scanners", "Cython.Compiler.Scanning", "Cython.Compiler.Parsing"]
         extensions = []
         for module in compiled_modules:
             source_file = os.path.join(source_root, *module.split('.'))

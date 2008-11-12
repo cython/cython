@@ -1,3 +1,4 @@
+# cython: auto_cpdef=True
 #
 #   Pyrex Parser
 #
@@ -6,7 +7,7 @@ import os
 import re
 import sys
 from types import ListType, TupleType
-from Scanning import PyrexScanner, FileSourceDescriptor
+from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
 import ExprNodes
 import StringEncoding
@@ -1307,7 +1308,7 @@ def p_with_statement(s):
             if not allow_multi and isinstance(target, ExprNodes.TupleNode):
                 s.error("Multiple with statement target values not allowed without paranthesis")
         body = p_suite(s)
-	return Nodes.WithStatNode(pos, manager = manager, 
+    return Nodes.WithStatNode(pos, manager = manager, 
 	       			       target = target, body = body)
     
 def p_simple_statement(s, first_statement = 0):
@@ -2382,7 +2383,7 @@ def p_code(s, level=None):
             repr(s.sy), repr(s.systring)))
     return body
 
-COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*cython:\s*([a-z]+)\s*=(.*)$")
+COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*cython:\s*([a-z_]+)\s*=(.*)$")
 
 def p_compiler_directive_comments(s):
     result = {}

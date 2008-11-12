@@ -619,6 +619,7 @@ class AlignFunctionDefinitions(CythonTransform):
     
     def visit_ModuleNode(self, node):
         self.scope = node.scope
+        self.directives = node.directives
         self.visitchildren(node)
         return node
     
@@ -631,8 +632,8 @@ class AlignFunctionDefinitions(CythonTransform):
                 error(node.pos, "'%s' redeclared" % node.name)
                 error(pxd_def.pos, "previous declaration here")
                 return None
-        self.visitchildren(node)
-        return node
+        else:
+            return node
         
     def visit_CClassDefNode(self, node, pxd_def=None):
         if pxd_def is None:
@@ -654,6 +655,8 @@ class AlignFunctionDefinitions(CythonTransform):
                 error(node.pos, "'%s' redeclared" % node.name)
                 error(pxd_def.pos, "previous declaration here")
                 return None
+        elif self.scope.is_module_scope and self.directives['auto_cpdef']:
+            node = node.as_cfunction(scope=self.scope)
         # Enable this when internal def functions are allowed. 
         # self.visitchildren(node)
         return node
