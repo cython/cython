@@ -28,6 +28,7 @@ cdef class Scanner:
         cdef:
             long input_state
     cpdef read(self)
+    cpdef position(self)
     
     cpdef run_machine_inlined(self):
         cdef:
