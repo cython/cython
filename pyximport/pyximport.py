@@ -20,11 +20,16 @@ the documentation.
 This code was modeled on Quixote's ptl_import.
 """
 import sys, os, shutil
-import imp, ihooks, glob, md5
+import imp, ihooks, glob
 import __builtin__
 import pyxbuild
 from distutils.dep_util import newer
 from distutils.extension import Extension
+
+try:
+    import hashlib
+except ImportError:
+    import md5 as hashlib
 
 mod_name = "pyximport"
 
@@ -54,7 +59,7 @@ def _load_pyrex(name, filename):
 
 def get_distutils_extension(modname, pyxfilename):
 
-    extra = "_" + md5.md5(open(pyxfilename).read()).hexdigest()  
+    extra = "_" + hashlib.md5(open(pyxfilename).read()).hexdigest()  
 #    modname = modname + extra
 
     extension_mod = handle_special_build(modname, pyxfilename)
