@@ -5,6 +5,7 @@
 import string, sys, os, time, copy
 
 import Code
+import Builtin
 from Errors import error, warning, InternalError
 import Naming
 import PyrexTypes
@@ -3086,6 +3087,45 @@ class PrintStatNode(StatNode):
 
     def annotate(self, code):
         self.arg_tuple.annotate(code)
+
+
+class ExecStatNode(StatNode):
+    #  exec statement
+    #
+    #  args     [ExprNode]
+
+    child_attrs = ["args"]
+
+    def analyse_expressions(self, env):
+        for i, arg in enumerate(self.args):
+            arg.analyse_expressions(env)
+            arg = arg.coerce_to_pyobject(env)
+            arg.release_temp(env)
+            self.args[i] = arg
+        self.temp_result = env.allocate_temp_pyobject()
+        env.release_temp(self.temp_result)
+        env.use_utility_code(Builtin.pyexec_utility_code)
+        self.gil_check(env)
+
+    gil_message = "Python exec statement"
+
+    def generate_execution_code(self, code):
+        args = []
+        for arg in self.args:
+            arg.generate_evaluation_code(code)
+            args.append( arg.py_result() )
+        args = tuple(args + ['0', '0'][:3-len(args)])
+        code.putln("%s = __Pyx_PyRun(%s, %s, %s);" % (
+                (self.temp_result,) + args))
+        for arg in self.args:
+            arg.generate_disposal_code(code)
+        code.putln(
+            code.error_goto_if_null(self.temp_result, self.pos))
+        code.put_decref_clear(self.temp_result, py_object_type)
+
+    def annotate(self, code):
+        for arg in self.args:
+            arg.annotate(code)
 
 
 class DelStatNode(StatNode):
