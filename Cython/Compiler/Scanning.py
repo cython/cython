@@ -176,7 +176,7 @@ resword_dict = build_resword_dict()
 
 #------------------------------------------------------------------
 
-class CompileTimeScope(object):
+class CompileTimeScope:
 
     def __init__(self, outer = None):
         self.entries = {}
@@ -187,6 +187,9 @@ class CompileTimeScope(object):
     
     def lookup_here(self, name):
         return self.entries[name]
+        
+    def __contains__(self, name):
+        return name in self.entries
     
     def lookup(self, name):
         try:
