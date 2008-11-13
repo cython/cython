@@ -1820,11 +1820,6 @@ class SliceIndexNode(ExprNode):
                     self.stop_code(),
                     rhs.result()))
         else:
-            if rhs.type.is_array:
-                # FIXME: we should check both array sizes here
-                array_length = rhs.type.size
-            else:
-                array_length = self.base.type.size
             start_offset = ''
             if self.start:
                 start_offset = self.start_code()
@@ -1832,6 +1827,12 @@ class SliceIndexNode(ExprNode):
                     start_offset = ''
                 else:
                     start_offset += '+'
+            if rhs.type.is_array:
+                # FIXME: we should check both array sizes here
+                array_length = rhs.type.size
+            else:
+                # FIXME: fix the array size according to start/stop
+                array_length = self.base.type.size
             for i in range(array_length):
                 code.putln("%s[%s%s] = %s[%d];" % (
                         self.base.result(), start_offset, i,
