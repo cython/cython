@@ -11,15 +11,21 @@ import stat
 import sys
 from time import time
 
+import cython
+cython.declare(EncodedString=object, string_prefixes=object, raw_prefixes=object, IDENT=object)
+
 from Cython import Plex, Utils
-from Cython.Plex import Scanner
+from Cython.Plex.Scanners import Scanner
 from Cython.Plex.Errors import UnrecognizedInput
 from Errors import CompileError, error
-from Lexicon import string_prefixes, raw_prefixes, make_lexicon
+from Lexicon import string_prefixes, raw_prefixes, make_lexicon, IDENT
 
 from StringEncoding import EncodedString
 
-plex_version = getattr(Plex, '_version', None)
+try:
+    plex_version = Plex._version
+except AttributeError:
+    plex_version = None
 #print "Plex version:", plex_version ###
 
 debug_scanner = 0
@@ -91,7 +97,7 @@ def try_to_unpickle_lexicon():
     source_file = os.path.join(dir, "Lexicon.py")
     lexicon_hash = hash_source_file(source_file)
     lexicon_pickle = os.path.join(dir, "Lexicon.pickle")
-    f = open_pickled_lexicon(expected_hash = lexicon_hash)
+    f = open_pickled_lexicon(lexicon_hash)
     if f:
         if notify_lexicon_unpickling:
             t0 = time()
@@ -165,9 +171,12 @@ def build_resword_dict():
         d[word] = 1
     return d
 
+cython.declare(resword_dict=object)
+resword_dict = build_resword_dict()
+
 #------------------------------------------------------------------
 
-class CompileTimeScope(object):
+class CompileTimeScope:
 
     def __init__(self, outer = None):
         self.entries = {}
@@ -178,6 +187,9 @@ class CompileTimeScope(object):
     
     def lookup_here(self, name):
         return self.entries[name]
+        
+    def __contains__(self, name):
+        return name in self.entries
     
     def lookup(self, name):
         try:
@@ -286,7 +298,6 @@ class PyrexScanner(Scanner):
     #  compile_time_env   dict     Environment for conditional compilation
     #  compile_time_eval  boolean  In a true conditional compilation context
     #  compile_time_expr  boolean  In a compile-time expression context
-    resword_dict = build_resword_dict()
 
     def __init__(self, file, filename, parent_scanner = None, 
                  scope = None, context = None, source_encoding=None, parse_comments=True, initial_pos=None):
@@ -403,15 +414,15 @@ class PyrexScanner(Scanner):
             sy, systring = self.read()
         except UnrecognizedInput:
             self.error("Unrecognized character")
-        if sy == 'IDENT':
-            if systring in self.resword_dict:
+        if sy == IDENT:
+            if systring in resword_dict:
                 sy = systring
             else:
                 systring = EncodedString(systring)
                 systring.encoding = self.source_encoding
         self.sy = sy
         self.systring = systring
-        if debug_scanner:
+        if False: # debug_scanner:
             _, line, col = self.position()
             if not self.systring or self.sy == self.systring:
                 t = self.sy
@@ -443,7 +454,7 @@ class PyrexScanner(Scanner):
             self.expected(what, message)
     
     def expect_keyword(self, what, message = None):
-        if self.sy == 'IDENT' and self.systring == what:
+        if self.sy == IDENT and self.systring == what:
             self.next()
         else:
             self.expected(what, message)

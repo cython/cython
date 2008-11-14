@@ -234,6 +234,22 @@ class PxdPostParse(CythonTransform):
         if (isinstance(node, DefNode) and self.scope_type == 'cclass'
             and node.name in ('__getbuffer__', '__releasebuffer__')):
             ok = True
+            
+        if isinstance(node, CFuncDefNode):
+            ok = True
+            for stat in node.body.stats:
+                if not isinstance(stat, CVarDefNode):
+                    self.context.error("C function definition not allowed here")
+                    ok = False
+                    break
+            node = CVarDefNode(node.pos, 
+                visibility = node.visibility,
+                base_type = node.base_type,
+                declarators = [node.declarator],
+                in_pxd = True,
+                api = node.api,
+                overridable = node.overridable, 
+                pxd_locals = node.body.stats)
 
         if not ok:
             self.context.nonfatal_error(PostParseError(node.pos,
@@ -547,6 +563,8 @@ property NAME:
                     lenv.declare_var(var, type, type_node.pos)
                 else:
                     error(type_node.pos, "Not a type")
+        for stat in node.pxd_locals:
+            stat.analyse_declarations(lenv)
         node.body.analyse_declarations(lenv)
         self.env_stack.append(lenv)
         self.visitchildren(node)
@@ -601,6 +619,7 @@ class AlignFunctionDefinitions(CythonTransform):
     
     def visit_ModuleNode(self, node):
         self.scope = node.scope
+        self.directives = node.directives
         self.visitchildren(node)
         return node
     
@@ -613,8 +632,8 @@ class AlignFunctionDefinitions(CythonTransform):
                 error(node.pos, "'%s' redeclared" % node.name)
                 error(pxd_def.pos, "previous declaration here")
                 return None
-        self.visitchildren(node)
-        return node
+        else:
+            return node
         
     def visit_CClassDefNode(self, node, pxd_def=None):
         if pxd_def is None:
@@ -636,6 +655,8 @@ class AlignFunctionDefinitions(CythonTransform):
                 error(node.pos, "'%s' redeclared" % node.name)
                 error(pxd_def.pos, "previous declaration here")
                 return None
+        elif self.scope.is_module_scope and self.directives['auto_cpdef']:
+            node = node.as_cfunction(scope=self.scope)
         # Enable this when internal def functions are allowed. 
         # self.visitchildren(node)
         return node

@@ -5,6 +5,7 @@
 import string, sys, os, time, copy
 
 import Code
+import Builtin
 from Errors import error, warning, InternalError
 import Naming
 import PyrexTypes
@@ -716,9 +717,11 @@ class CVarDefNode(StatNode):
     #  in_pxd        boolean
     #  api           boolean
     #  need_properties [entry]
+    #  pxd_locals    [CVarDefNode]  (used for functions declared in pxd)
 
     child_attrs = ["base_type", "declarators"]
     need_properties = ()
+    pxd_locals = []
     
     def analyse_declarations(self, env, dest_scope = None):
         if not dest_scope:
@@ -754,6 +757,8 @@ class CVarDefNode(StatNode):
                 entry = dest_scope.declare_cfunction(name, type, declarator.pos,
                     cname = cname, visibility = self.visibility, in_pxd = self.in_pxd,
                     api = self.api)
+                if entry is not None:
+                    entry.pxd_locals = self.pxd_locals
             else:
                 if self.in_pxd and self.visibility != 'extern':
                     error(self.pos, 
@@ -890,10 +895,12 @@ class FuncDefNode(StatNode, BlockNode):
     #  #filename        string        C name of filename string const
     #  entry           Symtab.Entry
     #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
+    #  pxd_locals      [CVarDefNode]   locals defined in the pxd
     
     py_func = None
     assmt = None
     needs_closure = False
+    pxd_locals = []
     
     def analyse_default_values(self, env):
         genv = env.global_scope()
@@ -1206,6 +1213,7 @@ class CFuncDefNode(FuncDefNode):
         self.args = declarator.args
         for formal_arg, type_arg in zip(self.args, type.args):
             formal_arg.type = type_arg.type
+            formal_arg.name = type_arg.name
             formal_arg.cname = type_arg.cname
         name = name_declarator.name
         cname = name_declarator.cname
@@ -1460,44 +1468,64 @@ class DefNode(FuncDefNode):
         self.num_required_kw_args = rk
         self.num_required_args = r
         
-    def as_cfunction(self, cfunc):
+    def as_cfunction(self, cfunc=None, scope=None):
         if self.star_arg:
             error(self.star_arg.pos, "cdef function cannot have star argument")
         if self.starstar_arg:
             error(self.starstar_arg.pos, "cdef function cannot have starstar argument")
-        if len(self.args) != len(cfunc.type.args) or cfunc.type.has_varargs:
-            error(self.pos, "wrong number of arguments")
-            error(declarator.pos, "previous declaration here")
-        for formal_arg, type_arg in zip(self.args, cfunc.type.args):
-            name_declarator, type = formal_arg.analyse(cfunc.scope, nonempty=1)
-            if type is PyrexTypes.py_object_type or formal_arg.is_self:
-                formal_arg.type = type_arg.type
-                formal_arg.name_declarator = name_declarator
+        if cfunc is None:
+            cfunc_args = []
+            for formal_arg in self.args:
+                name_declarator, type = formal_arg.analyse(scope, nonempty=1)
+                cfunc_args.append(PyrexTypes.CFuncTypeArg(name = name_declarator.name,
+                                                          cname = None,
+                                                          type = py_object_type,
+                                                          pos = formal_arg.pos))
+            cfunc_type = PyrexTypes.CFuncType(return_type = py_object_type,
+                                              args = cfunc_args,
+                                              has_varargs = False,
+                                              exception_value = None,
+                                              exception_check = False,
+                                              nogil = False,
+                                              with_gil = False,
+                                              is_overridable = True)
+            cfunc = CVarDefNode(self.pos, type=cfunc_type, pxd_locals=[])
+        else:
+            cfunc_type = cfunc.type
+            if len(self.args) != len(cfunc_type.args) or cfunc_type.has_varargs:
+                error(self.pos, "wrong number of arguments")
+                error(declarator.pos, "previous declaration here")
+            for formal_arg, type_arg in zip(self.args, cfunc_type.args):
+                name_declarator, type = formal_arg.analyse(cfunc.scope, nonempty=1)
+                if type is None or type is PyrexTypes.py_object_type or formal_arg.is_self:
+                    formal_arg.type = type_arg.type
+                    formal_arg.name_declarator = name_declarator
         import ExprNodes
-        if cfunc.type.exception_value is None:
+        if cfunc_type.exception_value is None:
             exception_value = None
         else:
-            exception_value = ExprNodes.ConstNode(self.pos, value=cfunc.type.exception_value, type=cfunc.type.return_type)
+            exception_value = ExprNodes.ConstNode(self.pos, value=cfunc_type.exception_value, type=cfunc_type.return_type)
         declarator = CFuncDeclaratorNode(self.pos, 
                                          base = CNameDeclaratorNode(self.pos, name=self.name, cname=None),
                                          args = self.args,
                                          has_varargs = False,
-                                         exception_check = cfunc.type.exception_check,
+                                         exception_check = cfunc_type.exception_check,
                                          exception_value = exception_value,
-                                         with_gil = cfunc.type.with_gil,
-                                         nogil = cfunc.type.nogil)
+                                         with_gil = cfunc_type.with_gil,
+                                         nogil = cfunc_type.nogil)
         return CFuncDefNode(self.pos, 
                             modifiers = [],
-                            base_type = CAnalysedBaseTypeNode(self.pos, type=cfunc.type.return_type),
+                            base_type = CAnalysedBaseTypeNode(self.pos, type=cfunc_type.return_type),
                             declarator = declarator,
                             body = self.body,
                             doc = self.doc,
-                            overridable = cfunc.type.is_overridable,
-                            type = cfunc.type,
-                            with_gil = cfunc.type.with_gil,
-                            nogil = cfunc.type.nogil,
+                            overridable = cfunc_type.is_overridable,
+                            type = cfunc_type,
+                            with_gil = cfunc_type.with_gil,
+                            nogil = cfunc_type.nogil,
                             visibility = 'private',
-                            api = False)
+                            api = False,
+                            pxd_locals = cfunc.pxd_locals)
     
     def analyse_declarations(self, env):
         if 'locals' in env.directives:
@@ -1506,10 +1534,14 @@ class DefNode(FuncDefNode):
             directive_locals = {}
         self.directive_locals = directive_locals
         for arg in self.args:
-            base_type = arg.base_type.analyse(env)
-            name_declarator, type = \
-                arg.declarator.analyse(base_type, env)
-            arg.name = name_declarator.name
+            if hasattr(arg, 'name'):
+                type = arg.type
+                name_declarator = None
+            else:
+                base_type = arg.base_type.analyse(env)
+                name_declarator, type = \
+                    arg.declarator.analyse(base_type, env)
+                arg.name = name_declarator.name
             if arg.name in directive_locals:
                 type_node = directive_locals[arg.name]
                 other_type = type_node.analyse_as_type(env)
@@ -1521,7 +1553,7 @@ class DefNode(FuncDefNode):
                     error(type_node.pos, "Previous declaration here")
                 else:
                     type = other_type
-            if name_declarator.cname:
+            if name_declarator and name_declarator.cname:
                 error(self.pos,
                     "Python function argument cannot have C name specification")
             arg.type = type.as_argument_type()
@@ -2316,10 +2348,11 @@ class PyClassDefNode(ClassDefNode):
         elif len(bases) == 1:
             base = bases[0]
             path = []
-            while isinstance(base, ExprNodes.AttributeNode):
+            from ExprNodes import AttributeNode, NameNode
+            while isinstance(base, AttributeNode):
                 path.insert(0, base.attribute)
                 base = base.obj
-            if isinstance(base, ExprNodes.NameNode):
+            if isinstance(base, NameNode):
                 path.insert(0, base.name)
                 base_class_name = path[-1]
                 if len(path) > 1:
@@ -3056,6 +3089,45 @@ class PrintStatNode(StatNode):
         self.arg_tuple.annotate(code)
 
 
+class ExecStatNode(StatNode):
+    #  exec statement
+    #
+    #  args     [ExprNode]
+
+    child_attrs = ["args"]
+
+    def analyse_expressions(self, env):
+        for i, arg in enumerate(self.args):
+            arg.analyse_expressions(env)
+            arg = arg.coerce_to_pyobject(env)
+            arg.release_temp(env)
+            self.args[i] = arg
+        self.temp_result = env.allocate_temp_pyobject()
+        env.release_temp(self.temp_result)
+        env.use_utility_code(Builtin.pyexec_utility_code)
+        self.gil_check(env)
+
+    gil_message = "Python exec statement"
+
+    def generate_execution_code(self, code):
+        args = []
+        for arg in self.args:
+            arg.generate_evaluation_code(code)
+            args.append( arg.py_result() )
+        args = tuple(args + ['0', '0'][:3-len(args)])
+        code.putln("%s = __Pyx_PyRun(%s, %s, %s);" % (
+                (self.temp_result,) + args))
+        for arg in self.args:
+            arg.generate_disposal_code(code)
+        code.putln(
+            code.error_goto_if_null(self.temp_result, self.pos))
+        code.put_decref_clear(self.temp_result, py_object_type)
+
+    def annotate(self, code):
+        for arg in self.args:
+            arg.annotate(code)
+
+
 class DelStatNode(StatNode):
     #  del statement
     #
@@ -3469,6 +3541,7 @@ class SwitchStatNode(StatNode):
         if self.else_clause is not None:
             code.putln("default:")
             self.else_clause.generate_execution_code(code)
+            code.putln("break;")
         code.putln("}")
 
     def annotate(self, code):
@@ -4398,6 +4471,9 @@ class FromImportStatNode(StatNode):
                         env.use_utility_code(ExprNodes.type_test_utility_code)
                         break
             else:
+                entry =  env.lookup(target.name)
+                if entry.is_type and entry.type.name == name and entry.type.module_name == self.module.module_name.value:
+                    continue # already cimported
                 self.interned_items.append(
                     (env.intern_identifier(name), target))
                 target.analyse_target_expression(env, None)
@@ -4493,7 +4569,7 @@ static PyObject* %s = 0;
 impl = r"""
 #if PY_MAJOR_VERSION < 3
 static PyObject *__Pyx_GetStdout(void) {
-    PyObject *f = PySys_GetObject("stdout");
+    PyObject *f = PySys_GetObject((char *)"stdout");
     if (!f) {
         PyErr_SetString(PyExc_RuntimeError, "lost sys.stdout");
     }
@@ -4504,7 +4580,7 @@ static int __Pyx_Print(PyObject *arg_tuple, int newline) {
     PyObject *f;
     PyObject* v;
     int i;
-    
+
     if (!(f = __Pyx_GetStdout()))
         return -1;
     for (i=0; i < PyTuple_GET_SIZE(arg_tuple); i++) {
@@ -5117,8 +5193,8 @@ impl = r"""
 static int __Pyx_GetVtable(PyObject *dict, void *vtabptr) {
     int result;
     PyObject *pycobj;
-    
-    pycobj = PyMapping_GetItemString(dict, "__pyx_vtable__");
+
+    pycobj = PyMapping_GetItemString(dict, (char *)"__pyx_vtable__");
     if (!pycobj)
         goto bad;
     *(void **)vtabptr = PyCObject_AsVoidPtr(pycobj);

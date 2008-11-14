@@ -1,12 +1,17 @@
+# cython: auto_cpdef=True
 #
 #   Pyrex Parser
 #
+
+# This should be done automatically
+import cython
+cython.declare(Nodes=object, ExprNodes=object, EncodedString=object)
 
 import os
 import re
 import sys
 from types import ListType, TupleType
-from Scanning import PyrexScanner, FileSourceDescriptor
+from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
 import ExprNodes
 import StringEncoding
@@ -527,26 +532,22 @@ def p_atom(s):
 
 def p_name(s, name):
     pos = s.position()
-    if not s.compile_time_expr:
-        try:
-            value = s.compile_time_env.lookup_here(name)
-        except KeyError:
-            pass
+    if not s.compile_time_expr and name in s.compile_time_env:
+        value = s.compile_time_env.lookup_here(name)
+        rep = repr(value)
+        if isinstance(value, bool):
+            return ExprNodes.BoolNode(pos, value = value)
+        elif isinstance(value, int):
+            return ExprNodes.IntNode(pos, value = rep)
+        elif isinstance(value, long):
+            return ExprNodes.IntNode(pos, value = rep, longness = "L")
+        elif isinstance(value, float):
+            return ExprNodes.FloatNode(pos, value = rep)
+        elif isinstance(value, (str, unicode)):
+            return ExprNodes.StringNode(pos, value = value)
         else:
-            rep = repr(value)
-            if isinstance(value, bool):
-                return ExprNodes.BoolNode(pos, value = value)
-            elif isinstance(value, int):
-                return ExprNodes.IntNode(pos, value = rep)
-            elif isinstance(value, long):
-                return ExprNodes.IntNode(pos, value = rep, longness = "L")
-            elif isinstance(value, float):
-                return ExprNodes.FloatNode(pos, value = rep)
-            elif isinstance(value, (str, unicode)):
-                return ExprNodes.StringNode(pos, value = value)
-            else:
-                error(pos, "Invalid type for compile-time constant: %s"
-                    % value.__class__.__name__)
+            error(pos, "Invalid type for compile-time constant: %s"
+                % value.__class__.__name__)
     return ExprNodes.NameNode(pos, name = name)
 
 def p_cat_string_literal(s):
@@ -901,6 +902,21 @@ def p_print_statement(s):
     arg_tuple = ExprNodes.TupleNode(pos, args = args)
     return Nodes.PrintStatNode(pos,
         arg_tuple = arg_tuple, append_newline = not ends_with_comma)
+
+def p_exec_statement(s):
+    # s.sy == 'exec'
+    pos = s.position()
+    s.next()
+    args = [ p_bit_expr(s) ]
+    if s.sy == 'in':
+        s.next()
+        args.append(p_simple_expr(s))
+        if s.sy == ',':
+            s.next()
+            args.append(p_simple_expr(s))
+    else:
+        error(pos, "'exec' currently requires a target mapping (globals/locals)")
+    return Nodes.ExecStatNode(pos, args = args)
 
 def p_del_statement(s):
     # s.sy == 'del'
@@ -1307,7 +1323,7 @@ def p_with_statement(s):
             if not allow_multi and isinstance(target, ExprNodes.TupleNode):
                 s.error("Multiple with statement target values not allowed without paranthesis")
         body = p_suite(s)
-	return Nodes.WithStatNode(pos, manager = manager, 
+    return Nodes.WithStatNode(pos, manager = manager, 
 	       			       target = target, body = body)
     
 def p_simple_statement(s, first_statement = 0):
@@ -1316,6 +1332,8 @@ def p_simple_statement(s, first_statement = 0):
         node = p_global_statement(s)
     elif s.sy == 'print':
         node = p_print_statement(s)
+    elif s.sy == 'exec':
+        node = p_exec_statement(s)
     elif s.sy == 'del':
         node = p_del_statement(s)
     elif s.sy == 'break':
@@ -2128,7 +2146,7 @@ def p_c_func_or_var_declaration(s, pos, ctx):
                                 assignable = 1, nonempty = 1)
     declarator.overridable = ctx.overridable
     if s.sy == ':':
-        if ctx.level not in ('module', 'c_class'):
+        if ctx.level not in ('module', 'c_class', 'module_pxd', 'c_class_pxd'):
             s.error("C function definition not allowed here")
         doc, suite = p_suite(s, Ctx(level = 'function'), with_doc = 1)
         result = Nodes.CFuncDefNode(pos,
@@ -2382,7 +2400,7 @@ def p_code(s, level=None):
             repr(s.sy), repr(s.systring)))
     return body
 
-COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*cython:\s*([a-z]+)\s*=(.*)$")
+COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*cython:\s*([a-z_]+)\s*=(.*)$")
 
 def p_compiler_directive_comments(s):
     result = {}

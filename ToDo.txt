@@ -1,3 +1,6 @@
+See http://trac.cython.org/cython_trac and http://wiki.cython.org/enhancements
+
+
 -- The Original Pyrex Todo List --
 
 DONE - Pointer-to-function types.

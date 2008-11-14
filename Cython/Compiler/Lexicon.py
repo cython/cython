@@ -7,6 +7,7 @@
 
 raw_prefixes = "rR"
 string_prefixes = "cCuUbB"
+IDENT = 'IDENT'
 
 def make_lexicon():
     from Cython.Plex import \
@@ -82,7 +83,7 @@ def make_lexicon():
     comment = Str("#") + Rep(AnyBut("\n"))    
     
     return Lexicon([
-        (name, 'IDENT'),
+        (name, IDENT),
         (intliteral, 'INT'),
         (fltconst, 'FLOAT'),
         (imagconst, 'IMAG'),

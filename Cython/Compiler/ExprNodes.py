@@ -899,7 +899,7 @@ class LongNode(AtomicExprNode):
 
     def generate_evaluation_code(self, code):
         code.putln(
-            '%s = PyLong_FromString("%s", 0, 0); %s' % (
+            '%s = PyLong_FromString((char *)"%s", 0, 0); %s' % (
                 self.result(),
                 self.value,
                 code.error_goto_if_null(self.result(), self.pos)))
@@ -1779,19 +1779,29 @@ class SliceIndexNode(ExprNode):
             self.start.analyse_types(env)
         if self.stop:
             self.stop.analyse_types(env)
-        self.base = self.base.coerce_to_pyobject(env)
+        if self.base.type.is_array or self.base.type.is_ptr:
+            # we need a ptr type here instead of an array type, as
+            # array types can result in invalid type casts in the C
+            # code
+            self.type = PyrexTypes.CPtrType(self.base.type.base_type)
+        else:
+            self.base = self.base.coerce_to_pyobject(env)
+            self.type = py_object_type
         c_int = PyrexTypes.c_py_ssize_t_type
         if self.start:
             self.start = self.start.coerce_to(c_int, env)
         if self.stop:
             self.stop = self.stop.coerce_to(c_int, env)
-        self.type = py_object_type
         self.gil_check(env)
         self.is_temp = 1
 
     gil_message = "Slicing Python object"
 
     def generate_result_code(self, code):
+        if not self.type.is_pyobject:
+            error(self.pos,
+                  "Slicing is not currently supported for '%s'." % self.type)
+            return
         code.putln(
             "%s = PySequence_GetSlice(%s, %s, %s); %s" % (
                 self.result(),
@@ -1802,16 +1812,39 @@ class SliceIndexNode(ExprNode):
     
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
-        code.put_error_if_neg(self.pos, 
-            "PySequence_SetSlice(%s, %s, %s, %s)" % (
-                self.base.py_result(),
-                self.start_code(),
-                self.stop_code(),
-                rhs.result()))
+        if self.type.is_pyobject:
+            code.put_error_if_neg(self.pos, 
+                "PySequence_SetSlice(%s, %s, %s, %s)" % (
+                    self.base.py_result(),
+                    self.start_code(),
+                    self.stop_code(),
+                    rhs.result()))
+        else:
+            start_offset = ''
+            if self.start:
+                start_offset = self.start_code()
+                if start_offset == '0':
+                    start_offset = ''
+                else:
+                    start_offset += '+'
+            if rhs.type.is_array:
+                # FIXME: we should check both array sizes here
+                array_length = rhs.type.size
+            else:
+                # FIXME: fix the array size according to start/stop
+                array_length = self.base.type.size
+            for i in range(array_length):
+                code.putln("%s[%s%s] = %s[%d];" % (
+                        self.base.result(), start_offset, i,
+                        rhs.result(), i))
         self.generate_subexpr_disposal_code(code)
         rhs.generate_disposal_code(code)
 
     def generate_deletion_code(self, code):
+        if not self.type.is_pyobject:
+            error(self.pos,
+                  "Deleting slices is only supported for Python types, not '%s'." % self.type)
+            return
         self.generate_subexpr_evaluation_code(code)
         code.put_error_if_neg(self.pos,
             "PySequence_DelSlice(%s, %s, %s)" % (
@@ -1829,6 +1862,8 @@ class SliceIndexNode(ExprNode):
     def stop_code(self):
         if self.stop:
             return self.stop.result()
+        elif self.base.type.is_array:
+            return self.base.type.size
         else:
             return "PY_SSIZE_T_MAX"
     
@@ -4692,8 +4727,8 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list) {
     empty_dict = PyDict_New();
     if (!empty_dict)
         goto bad;
-    module = PyObject_CallFunction(__import__, "OOOO",
-        name, global_dict, empty_dict, list);
+    module = PyObject_CallFunctionObjArgs(__import__,
+        name, global_dict, empty_dict, list, NULL);
 bad:
     Py_XDECREF(empty_list);
     Py_XDECREF(__import__);
@@ -4810,11 +4845,11 @@ static int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
 
 create_class_utility_code = UtilityCode(
 proto = """
-static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name, char *modname); /*proto*/
+static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name, const char *modname); /*proto*/
 """,
 impl = """
 static PyObject *__Pyx_CreateClass(
-    PyObject *bases, PyObject *dict, PyObject *name, char *modname)
+    PyObject *bases, PyObject *dict, PyObject *name, const char *modname)
 {
     PyObject *py_modname;
     PyObject *result = 0;
@@ -4877,7 +4912,12 @@ static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
         return Py_None; // this is just to have an accurate signature
     }
     else {
-        return PyObject_CallMethod(L, "append", "(O)", x);
+        PyObject *r, *m;
+        m = PyObject_GetAttrString(L, "append");
+        if (!m) return NULL;
+        r = PyObject_CallFunctionObjArgs(m, x, NULL);
+        Py_DECREF(m);
+        return r;
     }
 }
 """,
@@ -4968,10 +5008,10 @@ impl = """
 
 raise_noneattr_error_utility_code = UtilityCode(
 proto = """
-static INLINE void __Pyx_RaiseNoneAttributeError(char* attrname);
+static INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname);
 """,
 impl = """
-static INLINE void __Pyx_RaiseNoneAttributeError(char* attrname) {
+static INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname) {
     PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%s'", attrname);
 }
 """)
