@@ -14,26 +14,33 @@ class BasicVisitor(object):
     # instance.
     def __init__(self):
         self.dispatch_table = {}
-     
+
     def visit(self, obj):
-        cls = obj.__class__
-        m = self.dispatch_table.get(cls.__name__)
-        if m is None:
+        cls = type(obj)
+        try:
+            handler_method = self.dispatch_table[cls]
+        except KeyError:
+            #print "Cache miss for class %s in visitor %s" % (
+            #    cls.__name__, type(self).__name__)
             # Must resolve, try entire hierarchy
             pattern = "visit_%s"
             mro = inspect.getmro(cls)
-            for cls in mro:
-                m = getattr(self, pattern % cls.__name__, None)
-                if m is not None:
+            for mro_cls in mro:
+                try:
+                    handler_method = getattr(self, pattern % mro_cls.__name__)
                     break
+                except AttributeError:
+                    pass
             else:
                 print type(self), type(obj)
-                print self.access_path
-                print self.access_path[-1][0].pos
-                print self.access_path[-1][0].__dict__
+                if hasattr(self, 'access_path'):
+                    print self.access_path
+                    print self.access_path[-1][0].pos
+                    print self.access_path[-1][0].__dict__
                 raise RuntimeError("Visitor does not accept object: %s" % obj)
-            self.dispatch_table[cls.__name__] = m
-        return m(obj)
+            #print "Caching " + cls.__name__
+            self.dispatch_table[cls] = handler_method
+        return handler_method(obj)
 
 class TreeVisitor(BasicVisitor):
     """

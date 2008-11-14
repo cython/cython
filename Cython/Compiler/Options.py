@@ -60,13 +60,15 @@ option_types = {
     'nonecheck' : bool,
     'embedsignature' : bool,
     'locals' : dict,
+    'auto_cpdef': bool,
 }
 
 option_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
     'embedsignature' : False,
-    'locals' : {}
+    'locals' : {},
+    'auto_cpdef': False,
 }
 
 def parse_option_value(name, value):
