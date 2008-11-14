@@ -52,8 +52,13 @@ cdef extern from "numpy/arrayobject.h":
             # requirements, and does not yet fullfill the PEP.
             # In particular strided access is always provided regardless
             # of flags
+            cdef int copy_shape, i, ndim
+            ndim = PyArray_NDIM(self)
+            
             if sizeof(npy_intp) != sizeof(Py_ssize_t):
-                raise RuntimeError("Py_intptr_t and Py_ssize_t differs in size, numpy.pxd does not support this")
+                copy_shape = 1
+            else:
+                copy_shape = 0
 
             if ((flags & pybuf.PyBUF_C_CONTIGUOUS == pybuf.PyBUF_C_CONTIGUOUS)
                 and not PyArray_CHKFLAGS(self, NPY_C_CONTIGUOUS)):
@@ -64,9 +69,18 @@ cdef extern from "numpy/arrayobject.h":
                 raise ValueError("ndarray is not Fortran contiguous")
 
             info.buf = PyArray_DATA(self)
-            info.ndim = PyArray_NDIM(self)
-            info.strides = <Py_ssize_t*>PyArray_STRIDES(self)
-            info.shape = <Py_ssize_t*>PyArray_DIMS(self)
+            info.ndim = ndim
+            if copy_shape:
+                # Allocate new buffer for strides and shape info. This is allocated
+                # as one block, strides first.
+                info.strides = <Py_ssize_t*>stdlib.malloc(sizeof(Py_ssize_t) * ndim * 2)
+                info.shape = info.strides + ndim
+                for i in range(ndim):
+                    info.strides[i] = PyArray_STRIDES(self)[i]
+                    info.shape[i] = PyArray_DIMS(self)[i]
+            else:
+                info.strides = <Py_ssize_t*>PyArray_STRIDES(self)
+                info.shape = <Py_ssize_t*>PyArray_DIMS(self)
             info.suboffsets = NULL
             info.itemsize = PyArray_ITEMSIZE(self)
             info.readonly = not PyArray_ISWRITEABLE(self)
@@ -86,9 +100,14 @@ cdef extern from "numpy/arrayobject.h":
             # (this would look much prettier if we could use utility
             # functions).
 
-            
+            if not hasfields and not copy_shape:
+                # do not call releasebuffer
+                info.obj = None
+            else:
+                # need to call releasebuffer
+                info.obj = self
+
             if not hasfields:
-                info.obj = None # do not call releasebuffer
                 t = descr.type_num
                 if   t == NPY_BYTE:        f = "b"
                 elif t == NPY_UBYTE:       f = "B"
@@ -112,7 +131,6 @@ cdef extern from "numpy/arrayobject.h":
                 info.format = f
                 return
             else:
-                info.obj = self # need to call releasebuffer
                 info.format = <char*>stdlib.malloc(255) # static size
                 f = info.format
                 stack = [iter(descr.fields.iteritems())]
@@ -167,9 +185,11 @@ cdef extern from "numpy/arrayobject.h":
                         stack.append(iter(descr.fields.iteritems()))
                 
         def __releasebuffer__(ndarray self, Py_buffer* info):
-            # This can not be called unless format needs to be freed (as
-            # obj is set to NULL in those case)
-            stdlib.free(info.format)
+            if PyArray_HASFIELDS(self):
+                stdlib.free(info.format)
+            if sizeof(npy_intp) != sizeof(Py_ssize_t):
+                stdlib.free(info.strides)
+                # info.shape was stored after info.strides in the same block
             
 
     cdef void* PyArray_DATA(ndarray arr)
@@ -180,7 +200,7 @@ cdef extern from "numpy/arrayobject.h":
     cdef npy_intp* PyArray_DIMS(ndarray arr)
     cdef int PyArray_ITEMSIZE(ndarray arr)
     cdef int PyArray_CHKFLAGS(ndarray arr, int flags)
-    cdef int PyArray_HASFIELDS(ndarray arr, int flags)
+    cdef int PyArray_HASFIELDS(ndarray arr)
 
     cdef int PyDataType_HASFIELDS(dtype obj)
 
@@ -220,6 +240,18 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef float        npy_float96
     ctypedef float        npy_float128
 
+    ctypedef struct npy_cfloat:
+        float real
+        float imag
+
+    ctypedef struct npy_cdouble:
+        double real
+        double imag
+
+    ctypedef struct npy_clongdouble:
+        long double real
+        long double imag
+
 # Typedefs that matches the runtime dtype objects in
 # the numpy module.
 
@@ -253,7 +285,10 @@ ctypedef npy_longlong   long_t
 ctypedef npy_ulong      uint_t
 ctypedef npy_ulonglong  ulong_t
 
-ctypedef npy_double      float_t
+ctypedef npy_double     float_t
 ctypedef npy_double     double_t
 ctypedef npy_longdouble longdouble_t
 
+ctypedef npy_cfloat      cfloat_t
+ctypedef npy_cdouble     cdouble_t
+ctypedef npy_clongdouble clongdouble_t

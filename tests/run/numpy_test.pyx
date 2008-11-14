@@ -202,18 +202,6 @@ def test_f_contig(np.ndarray[int, ndim=2, mode='fortran'] arr):
     for i in range(arr.shape[0]):
         print " ".join([str(arr[i, j]) for j in range(arr.shape[1])])
 
-cdef struct cfloat:
-    float real
-    float imag
-
-cdef struct cdouble:
-    double real
-    double imag
-
-cdef struct clongdouble:
-    long double real
-    long double imag
-
 # Exhaustive dtype tests -- increments element [1] by 1 (or 1+1j) for all dtypes
 def inc1_byte(np.ndarray[char] arr):                    arr[1] += 1
 def inc1_ubyte(np.ndarray[unsigned char] arr):          arr[1] += 1
@@ -230,15 +218,15 @@ def inc1_float(np.ndarray[float] arr):                  arr[1] += 1
 def inc1_double(np.ndarray[double] arr):                arr[1] += 1
 def inc1_longdouble(np.ndarray[long double] arr):       arr[1] += 1
 
-def inc1_cfloat(np.ndarray[cfloat] arr):
+def inc1_cfloat(np.ndarray[np.cfloat_t] arr):
     arr[1].real += 1
     arr[1].imag += 1
     
-def inc1_cdouble(np.ndarray[cdouble] arr):
+def inc1_cdouble(np.ndarray[np.cdouble_t] arr):
     arr[1].real += 1
     arr[1].imag += 1
 
-def inc1_clongdouble(np.ndarray[clongdouble] arr):
+def inc1_clongdouble(np.ndarray[np.clongdouble_t] arr):
     cdef long double x
     x = arr[1].real + 1
     arr[1].real = x
