@@ -1830,6 +1830,7 @@ class SliceIndexNode(ExprNode):
             if rhs.type.is_array:
                 # FIXME: we should check both array sizes here
                 array_length = rhs.type.size
+                self.generate_slice_guard_code(code, array_length)
             else:
                 # FIXME: fix the array size according to start/stop
                 array_length = self.base.type.size
@@ -1852,6 +1853,54 @@ class SliceIndexNode(ExprNode):
                 self.start_code(),
                 self.stop_code()))
         self.generate_subexpr_disposal_code(code)
+
+    def generate_slice_guard_code(self, code, target_size):
+        if not self.base.type.is_array:
+            return
+        slice_size = self.base.type.size
+        start = stop = None
+        if self.stop:
+            stop = self.stop.result()
+            try:
+                stop = int(stop)
+                if stop > 0:
+                    slice_size = stop
+                else:
+                    slice_size = self.base.type.size + stop
+                stop = None
+            except ValueError:
+                pass
+        if self.start:
+            start = self.start.result()
+            try:
+                start = int(start)
+                if start < 0:
+                    start = self.base.type.size + start
+                slice_size -= start
+                start = None
+            except ValueError:
+                pass
+        check = None
+        if slice_size < 0:
+            if target_size > 0:
+                error(self.pos, "Assignment to empty slice.")
+        elif start is None and stop is None:
+            # we know the exact slice length
+            if target_size != slice_size:
+                error(self.pos, "Assignment to slice of wrong length, expected %d, got %d" % (
+                        slice_size, target_size))
+        elif start is not None:
+            if stop is None:
+                stop = slice_size
+            check = "(%s)-(%s)" % (stop, start)
+        else: # stop is not None:
+            check = stop
+        if check:
+            code.putln("if (unlikely((%s) != %d)) {" % (check, target_size))
+            code.putln('PyErr_Format(PyExc_ValueError, "Assignment to slice of wrong length, expected %%d, got %%d", %d, (%s));' % (
+                        target_size, check))
+            code.putln(code.error_goto(self.pos))
+            code.putln("}")
     
     def start_code(self):
         if self.start:
