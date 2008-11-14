@@ -8,12 +8,44 @@ __doc__ = u"""
 >>> test_literal_list_slice_start_end()
 (1, 2, 3, 4, 5)
 
->>> test_literal_list_slice_start_param(2)
+>>> test_literal_list_slice_start_param(4)
+(1, 2, 3, 4, 5)
+>>> test_literal_list_slice_start_param(3)
+Traceback (most recent call last):
+ValueError: Assignment to slice of wrong length, expected 5, got 6
+>>> test_literal_list_slice_start_param(5)
+Traceback (most recent call last):
+ValueError: Assignment to slice of wrong length, expected 5, got 4
+
+>>> test_literal_list_slice_end_param(5)
 (1, 2, 3, 4, 5)
 >>> test_literal_list_slice_end_param(4)
-(1, 2, 3, 4, 5)
+Traceback (most recent call last):
+ValueError: Assignment to slice of wrong length, expected 5, got 4
+>>> test_literal_list_slice_end_param(6)
+Traceback (most recent call last):
+ValueError: Assignment to slice of wrong length, expected 5, got 6
+
 >>> test_literal_list_slice_start_end_param(2,7)
 (1, 2, 3, 4, 5)
+>>> test_literal_list_slice_start_end_param(3,7)
+Traceback (most recent call last):
+ValueError: Assignment to slice of wrong length, expected 5, got 4
+>>> test_literal_list_slice_start_end_param(1,7)
+Traceback (most recent call last):
+ValueError: Assignment to slice of wrong length, expected 5, got 6
+>>> test_literal_list_slice_start_end_param(2,6)
+Traceback (most recent call last):
+ValueError: Assignment to slice of wrong length, expected 5, got 4
+>>> test_literal_list_slice_start_end_param(2,8)
+Traceback (most recent call last):
+ValueError: Assignment to slice of wrong length, expected 5, got 6
+>>> test_literal_list_slice_start_end_param(3,6)
+Traceback (most recent call last):
+ValueError: Assignment to slice of wrong length, expected 5, got 3
+>>> test_literal_list_slice_start_end_param(1,8)
+Traceback (most recent call last):
+ValueError: Assignment to slice of wrong length, expected 5, got 7
 
 >>> test_ptr_literal_list_slice_all()
 (1, 2, 3, 4, 5)
@@ -53,7 +85,7 @@ def test_literal_list_slice_start_end():
 def test_literal_list_slice_start_param(s):
     cdef int a[9] # = [9,8,7,6,5,4,3,2,1]
     a[s:] = [1,2,3,4,5]
-    return (a[2], a[3], a[4], a[5], a[6])
+    return (a[4], a[5], a[6], a[7], a[8])
 #    return a[s:]
 
 def test_literal_list_slice_end_param(e):
