@@ -442,6 +442,11 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             if not self.dimension.type.is_int:
                 error(self.dimension.pos, "Array dimension not integer")
             size = self.dimension.result()
+            try:
+                size = int(size)
+            except ValueError:
+                # runtime constant?
+                pass
         else:
             size = None
         if not base_type.is_complete():
