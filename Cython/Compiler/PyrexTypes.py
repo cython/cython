@@ -616,6 +616,7 @@ class CArrayType(CType):
     is_array = 1
     
     def __init__(self, base_type, size):
+        assert size is None or isinstance(size, int), repr(size)
         self.base_type = base_type
         self.size = size
         if base_type is c_char_type:
