@@ -1828,7 +1828,6 @@ class SliceIndexNode(ExprNode):
                 else:
                     start_offset += '+'
             if rhs.type.is_array:
-                # FIXME: we should check both array sizes here
                 array_length = rhs.type.size
                 self.generate_slice_guard_code(code, array_length)
             else:
@@ -1863,10 +1862,10 @@ class SliceIndexNode(ExprNode):
             stop = self.stop.result()
             try:
                 stop = int(stop)
-                if stop > 0:
-                    slice_size = stop
-                else:
+                if stop < 0:
                     slice_size = self.base.type.size + stop
+                else:
+                    slice_size = stop
                 stop = None
             except ValueError:
                 pass
