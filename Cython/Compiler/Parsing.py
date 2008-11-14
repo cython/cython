@@ -996,7 +996,8 @@ def p_import_statement(s):
         else:
             if as_name and "." in dotted_name:
                 name_list = ExprNodes.ListNode(pos, args = [
-                    ExprNodes.StringNode(pos, value = EncodedString("*"))])
+                        ExprNodes.IdentifierStringNode(
+                            pos, value = EncodedString("*"))])
             else:
                 name_list = None
             stat = Nodes.SingleAssignmentNode(pos,
