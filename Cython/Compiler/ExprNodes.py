@@ -1831,6 +1831,7 @@ class SliceIndexNode(ExprNode):
                 array_length = rhs.type.size
                 self.generate_slice_guard_code(code, array_length)
             else:
+                error("Slice assignments from pointers are not yet supported.")
                 # FIXME: fix the array size according to start/stop
                 array_length = self.base.type.size
             for i in range(array_length):
