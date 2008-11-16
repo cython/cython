@@ -33,7 +33,7 @@ class BasicVisitor(object):
                     pass
             else:
                 print type(self), type(obj)
-                if hasattr(self, 'access_path'):
+                if hasattr(self, 'access_path') and self.access_path:
                     print self.access_path
                     print self.access_path[-1][0].pos
                     print self.access_path[-1][0].__dict__
