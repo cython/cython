@@ -7,7 +7,7 @@
 import Nodes
 import ExprNodes
 from Nodes import Node
-from ExprNodes import ExprNode
+from ExprNodes import AtomicExprNode
 
 class TempHandle(object):
     temp = None
@@ -17,9 +17,8 @@ class TempHandle(object):
     def ref(self, pos):
         return TempRefNode(pos, handle=self, type=self.type)
 
-class TempRefNode(ExprNode):
+class TempRefNode(AtomicExprNode):
     # handle   TempHandle
-    subexprs = []
 
     def analyse_types(self, env):
         assert self.type == self.handle.type
