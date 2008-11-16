@@ -287,12 +287,6 @@ static int __Pyx_Py23SetsImport(void) {
     __Pyx_PySet_Type       = (PyTypeObject*) Set;
     __Pyx_PyFrozenSet_Type = (PyTypeObject*) ImmutableSet;
 
-    /* FIXME: this should be done in dedicated module cleanup code */
-    /*
-    Py_DECREF(Set);
-    Py_DECREF(ImmutableSet);
-    */
-
     return 0;
 
  bad:
