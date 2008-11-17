@@ -3882,6 +3882,8 @@ class TryExceptStatNode(StatNode):
             self.else_clause.generate_execution_code(code)
             code.putln(
                 "}")
+        for var in Naming.exc_save_vars:
+            code.put_xdecref_clear(var, py_object_type)
         code.put_goto(try_end_label)
         code.put_label(our_error_label)
         code.put_var_xdecrefs_clear(self.cleanup_list)
