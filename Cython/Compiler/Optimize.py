@@ -97,7 +97,7 @@ class DictIterTransform(Visitor.VisitorTransform):
                 if len(node.target.args) == 2:
                     key_target, value_target = node.target.args
                 else:
-                    # FIXME ...
+                    # unusual case that may or may not lead to an error
                     return node
             else:
                 tuple_target = node.target
@@ -163,7 +163,8 @@ class DictIterTransform(Visitor.VisitorTransform):
                     pos = dict_obj.pos,
                     type = PyrexTypes.c_bint_type,
                     function = ExprNodes.NameNode(
-                        pos=dict_obj.pos, name=self.PyDict_Next_name,
+                        pos = dict_obj.pos,
+                        name = self.PyDict_Next_name,
                         type = self.PyDict_Next_func_type,
                         entry = self.PyDict_Next_entry),
                     args = [dict_obj, pos_temp_addr,
