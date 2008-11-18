@@ -1656,8 +1656,15 @@ class IndexNode(ExprNode):
             index_code = self.index.result()
             code.globalstate.use_utility_code(setitem_int_utility_code)
         else:
-            function = "PyObject_SetItem"
             index_code = self.index.py_result()
+            if self.base.type is dict_type:
+                function = "PyDict_SetItem"
+            elif self.base.type is list_type:
+                function = "PyList_SetItem"
+            elif self.base.type is tuple_type:
+                function = "PyTuple_SetItem"
+            else:
+                function = "PyObject_SetItem"
         code.putln(
             "if (%s(%s, %s, %s%s) < 0) %s" % (
                 function,
