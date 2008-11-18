@@ -51,7 +51,6 @@ class DictIterTransform(Visitor.VisitorTransform):
             return node
         dict_obj = function.obj
         method = function.attribute
-        env = self.env_stack[-1]
 
         keys = values = False
         if method == 'iterkeys':
@@ -121,12 +120,20 @@ class DictIterTransform(Visitor.VisitorTransform):
                                       stats = [node.body])
 
         if tuple_target:
-            tuple_result = ExprNodes.TupleNode(
+            temp = UtilNodes.TempHandle(py_object_ptr)
+            temps.append(temp)
+            temp_tuple = temp.ref(tuple_target.pos)
+            class TempTupleNode(ExprNodes.TupleNode):
+                # FIXME: remove this after result-code refactoring
+                def result(self):
+                    return temp_tuple.result()
+
+            tuple_result = TempTupleNode(
                 pos = tuple_target.pos,
-                args = [key_cast, value_cast]
+                args = [key_cast, value_cast],
+                is_temp = 1,
+                type = Builtin.tuple_type,
                 )
-            tuple_result.analyse_types(env)
-            tuple_result.allocate_temps(env)
             body.stats.insert(0, Nodes.SingleAssignmentNode(
                     pos = tuple_target.pos,
                     lhs = tuple_target,
@@ -173,17 +180,6 @@ class DictIterTransform(Visitor.VisitorTransform):
                 pos = node.pos,
                 stats = result_code
                 ))
-
-    def visit_ModuleNode(self, node):
-        self.env_stack = [node.scope]
-        self.visitchildren(node)
-        return node
-
-    def visit_FuncDefNode(self, node):
-        self.env_stack.append(node.local_scope)
-        self.visitchildren(node)
-        self.env_stack.pop()
-        return node
 
     def visit_Node(self, node):
         self.visitchildren(node)
