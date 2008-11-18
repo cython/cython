@@ -1720,8 +1720,11 @@ class IndexNode(ExprNode):
             index_code = self.index.result()
             code.globalstate.use_utility_code(delitem_int_utility_code)
         else:
-            function = "PyObject_DelItem"
             index_code = self.index.py_result()
+            if self.base.type is dict_type:
+                function = "PyDict_DelItem"
+            else:
+                function = "PyObject_DelItem"
         code.putln(
             "if (%s(%s, %s%s) < 0) %s" % (
                 function,
