@@ -10,6 +10,8 @@ __doc__ = u"""
 [(10, 0), (11, 1), (12, 2), (13, 3)]
 >>> iterkeys(d)
 [10, 11, 12, 13]
+>>> iterdict(d)
+[10, 11, 12, 13]
 >>> itervalues(d)
 [0, 1, 2, 3]
 """
@@ -38,6 +40,13 @@ def iteritems_tuple(dict d):
 def iterkeys(dict d):
     l = []
     for k in d.iterkeys():
+        l.append(k)
+    l.sort()
+    return l
+
+def iterdict(dict d):
+    l = []
+    for k in d:
         l.append(k)
     l.sort()
     return l
