@@ -106,7 +106,8 @@ builtin_types_table = [
 
     ("dict",    "PyDict_Type",     [("items", "O",   "O", "PyDict_Items"),
                                     ("keys",  "O",   "O", "PyDict_Keys"),
-                                    ("values","O",   "O", "PyDict_Values")]),
+                                    ("values","O",   "O", "PyDict_Values"),
+                                    ("copy",  "O",   "O", "PyDict_Copy")]),
 
     ("slice",   "PySlice_Type",    []),
     ("file",    "PyFile_Type",     []),
