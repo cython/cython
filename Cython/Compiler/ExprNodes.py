@@ -1661,8 +1661,12 @@ class IndexNode(ExprNode):
                 function = "PyDict_SetItem"
             elif self.base.type is list_type:
                 function = "PyList_SetItem"
-            elif self.base.type is tuple_type:
-                function = "PyTuple_SetItem"
+            # don't use PyTuple_SetItem(), as we'd normally get a
+            # TypeError when changing a tuple, while PyTuple_SetItem()
+            # would allow updates
+            #
+            #elif self.base.type is tuple_type:
+            #    function = "PyTuple_SetItem"
             else:
                 function = "PyObject_SetItem"
         code.putln(
