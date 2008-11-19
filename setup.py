@@ -54,8 +54,8 @@ setup(
   name = 'Cython', 
   version = version,
   url = 'http://www.cython.org',
-  author = 'Greg Ewing, William Stein, Robert Bradshaw, Stefan Behnel, et al.',
-  author_email = 'wstein@gmail.com',
+  author = 'Greg Ewing, Robert Bradshaw, Stefan Behnel, Dag Seljebotn, et al.',
+  author_email = 'cython-dev@codespeak.net',
   description = "The Cython compiler for writing C extensions for the Python language.",
   long_description = """\
   The Cython language makes writing C extensions for the Python language as
