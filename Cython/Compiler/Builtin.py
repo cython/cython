@@ -100,7 +100,7 @@ builtin_types_table = [
     ("tuple",   "PyTuple_Type",    []),
 
     ("list",    "PyList_Type",     [("append", "OO",   "i", "PyList_Append"),
-                                    ("insert", "OiO",  "i", "PyList_Insert"),
+                                    ("insert", "OZO",  "i", "PyList_Insert"),
                                     ("sort",   "O",    "i", "PyList_Sort"),
                                     ("reverse","O",    "i", "PyList_Reverse")]),
 
