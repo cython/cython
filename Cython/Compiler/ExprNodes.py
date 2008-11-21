@@ -2760,13 +2760,15 @@ class SequenceNode(ExprNode):
         self.iterator.allocate_temps(env)
         for arg, node in zip(self.args, self.coerced_unpacked_items):
             node.allocate_temps(env)
-            arg.allocate_target_temps(env, node)
+            arg.allocate_target_temps(env, None)
             #arg.release_target_temp(env)
             #node.release_temp(env)
         if rhs:
             rhs.release_temp(env)
         self.iterator.release_temp(env)
-    
+        for node in self.coerced_unpacked_items:
+            node.release_temp(env)
+
 #	def release_target_temp(self, env):
 #		#for arg in self.args:
 #		#	arg.release_target_temp(env)
@@ -2786,18 +2788,13 @@ class SequenceNode(ExprNode):
         code.putln("PyObject* tuple = %s;" % rhs.py_result())
         for i in range(len(self.args)):
             item = self.unpacked_items[i]
-            code.putln(
-                "%s = PyTuple_GET_ITEM(tuple, %s);" % (
+            code.put(
+                "%s = PyTuple_GET_ITEM(tuple, %s); " % (
                     item.result(),
                     i))
             code.put_incref(item.result(), item.ctype())
-            value_node = self.coerced_unpacked_items[i]
-            value_node.generate_evaluation_code(code)
-            self.args[i].generate_assignment_code(value_node, code)
-            
         rhs.generate_disposal_code(code)
-        code.putln("}")
-        code.putln("else {")
+        code.putln("} else {")
 
         code.putln(
             "%s = PyObject_GetIter(%s); %s" % (
@@ -2814,9 +2811,6 @@ class SequenceNode(ExprNode):
                     item.result(),
                     typecast(item.ctype(), py_object_type, unpack_code),
                     code.error_goto_if_null(item.result(), self.pos)))
-            value_node = self.coerced_unpacked_items[i]
-            value_node.generate_evaluation_code(code)
-            self.args[i].generate_assignment_code(value_node, code)
         code.put_error_if_neg(self.pos, 
             "__Pyx_EndUnpack(%s)" % (
                 self.iterator.py_result()))
@@ -2826,6 +2820,10 @@ class SequenceNode(ExprNode):
         self.iterator.generate_disposal_code(code)
 
         code.putln("}")
+        for i in range(len(self.args)):
+            value_node = self.coerced_unpacked_items[i]
+            value_node.generate_evaluation_code(code)
+            self.args[i].generate_assignment_code(value_node, code)
         
     def annotate(self, code):
         for arg in self.args:
