@@ -2793,7 +2793,10 @@ class SequenceNode(ExprNode):
                     item.result(),
                     i))
             code.put_incref(item.result(), item.ctype())
+            value_node = self.coerced_unpacked_items[i]
+            value_node.generate_evaluation_code(code)
         rhs.generate_disposal_code(code)
+
         code.putln("} else {")
 
         code.putln(
@@ -2811,6 +2814,8 @@ class SequenceNode(ExprNode):
                     item.result(),
                     typecast(item.ctype(), py_object_type, unpack_code),
                     code.error_goto_if_null(item.result(), self.pos)))
+            value_node = self.coerced_unpacked_items[i]
+            value_node.generate_evaluation_code(code)
         code.put_error_if_neg(self.pos, 
             "__Pyx_EndUnpack(%s)" % (
                 self.iterator.py_result()))
@@ -2821,9 +2826,8 @@ class SequenceNode(ExprNode):
 
         code.putln("}")
         for i in range(len(self.args)):
-            value_node = self.coerced_unpacked_items[i]
-            value_node.generate_evaluation_code(code)
-            self.args[i].generate_assignment_code(value_node, code)
+            self.args[i].generate_assignment_code(
+                self.coerced_unpacked_items[i], code)
         
     def annotate(self, code):
         for arg in self.args:
