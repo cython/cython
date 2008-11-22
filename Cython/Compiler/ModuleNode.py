@@ -550,7 +550,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for filename in module.include_files:
                 if filename not in includes:
                     includes.append(filename)
-        for filename in env.include_files[:]
+        for filename in env.include_files:
             if filename not in includes:
                 includes.append(filename)
         for filename in includes:
