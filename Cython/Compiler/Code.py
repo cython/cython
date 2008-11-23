@@ -336,6 +336,8 @@ class GlobalState(object):
         except KeyError:
             F = [u' * ' + line.rstrip().replace(
                     u'*/', u'*[inserted by cython to avoid comment closer]/'
+                    ).replace(
+                    u'/*', u'/[inserted by cython to avoid comment start]*'
                     ).encode('ASCII', 'replace') # + Py2 auto-decode to unicode
                  for line in source_desc.get_lines()]
             if len(F) == 0: F.append(u'')
