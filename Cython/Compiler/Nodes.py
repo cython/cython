@@ -1226,7 +1226,7 @@ class CFuncDefNode(FuncDefNode):
             name, type, self.pos, 
             cname = cname, visibility = self.visibility,
             defining = self.body is not None,
-            api = self.api)
+            api = self.api, modifiers = self.modifiers)
         self.return_type = type.return_type
         
         if self.overridable:
