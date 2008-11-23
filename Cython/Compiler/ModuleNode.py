@@ -771,8 +771,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     storage_class = ""
                 else:
                     storage_class = "%s " % Naming.extern_c_macro
-                code.putln("%s%s; /*proto*/" % (
+                if entry.func_modifiers:
+                    modifiers = '%s ' % ' '.join([
+                            modifier.upper() for modifier in entry.func_modifiers])
+                else:
+                    modifiers = ''
+                code.putln("%s%s%s; /*proto*/" % (
                     storage_class,
+                    modifiers,
                     header))
     
     def generate_typeobj_definitions(self, env, code):

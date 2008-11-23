@@ -68,6 +68,7 @@ class Entry:
     # in_closure       boolean    Is referenced in an inner scope
     # is_readonly      boolean    Can't be assigned to
     # func_cname       string     C func implementing Python func
+    # func_modifiers   [string]   C function modifiers ('inline')
     # pos              position   Source position where declared
     # namespace_cname  string     If is_pyglobal, the C variable
     #                               holding its home namespace
@@ -122,6 +123,7 @@ class Entry:
     is_declared_generic = 0
     is_readonly = 0
     func_cname = None
+    func_modifiers = []
     doc = None
     init_to_none = 0
     as_variable = None
@@ -420,7 +422,8 @@ class Scope:
         self.pyfunc_entries.append(entry)
     
     def declare_cfunction(self, name, type, pos, 
-            cname = None, visibility = 'private', defining = 0, api = 0, in_pxd = 0):
+                          cname = None, visibility = 'private', defining = 0,
+                          api = 0, in_pxd = 0, modifiers = ()):
         # Add an entry for a C function.
         entry = self.lookup_here(name)
         if entry:
@@ -438,7 +441,7 @@ class Scope:
                     cname = name
                 else:
                     cname = self.mangle(Naming.func_prefix, name)
-            entry = self.add_cfunction(name, type, pos, cname, visibility)
+            entry = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
             entry.func_cname = cname
         if in_pxd and visibility != 'extern':
             entry.defined_in_pxd = 1
@@ -448,12 +451,16 @@ class Scope:
             error(pos, "Non-extern C function '%s' declared but not defined" % name)
         if defining:
             entry.is_implemented = True
+        if modifiers:
+            entry.func_modifiers = modifiers
         return entry
     
-    def add_cfunction(self, name, type, pos, cname, visibility):
+    def add_cfunction(self, name, type, pos, cname, visibility, modifiers):
         # Add a C function entry without giving it a func_cname.
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_cfunction = 1
+        if modifiers:
+            entry.func_modifiers = modifiers
         self.cfunc_entries.append(entry)
         return entry
     
@@ -1247,7 +1254,8 @@ class StructOrUnionScope(Scope):
         return entry
 
     def declare_cfunction(self, name, type, pos, 
-            cname = None, visibility = 'private', defining = 0, api = 0, in_pxd = 0):
+                          cname = None, visibility = 'private', defining = 0,
+                          api = 0, in_pxd = 0, modifiers = ()):
         self.declare_var(name, type, pos, cname, visibility)
 
 class ClassScope(Scope):
@@ -1428,7 +1436,8 @@ class CClassScope(ClassScope):
         return ClassScope.lookup_here(self, name)
     
     def declare_cfunction(self, name, type, pos,
-            cname = None, visibility = 'private', defining = 0, api = 0, in_pxd = 0):
+                          cname = None, visibility = 'private',
+                          defining = 0, api = 0, in_pxd = 0, modifiers = ()):
         if get_special_method_signature(name):
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
         args = type.args
@@ -1447,7 +1456,7 @@ class CClassScope(ClassScope):
                 if type.same_c_signature_as(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
                     pass
                 elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
-                    entry = self.add_cfunction(name, type, pos, cname or name, visibility='ignore')
+                    entry = self.add_cfunction(name, type, pos, cname or name, visibility='ignore', modifiers=modifiers)
                     defining = 1
                 else:
                     error(pos, "Signature not compatible with previous declaration")
@@ -1457,15 +1466,17 @@ class CClassScope(ClassScope):
                 error(pos,
                     "C method '%s' not previously declared in definition part of"
                     " extension type" % name)
-            entry = self.add_cfunction(name, type, pos, cname or name, visibility)
+            entry = self.add_cfunction(name, type, pos, cname or name,
+                                       visibility, modifiers)
         if defining:
             entry.func_cname = self.mangle(Naming.func_prefix, name)
         return entry
         
-    def add_cfunction(self, name, type, pos, cname, visibility):
+    def add_cfunction(self, name, type, pos, cname, visibility, modifiers):
         # Add a cfunction entry without giving it a func_cname.
         prev_entry = self.lookup_here(name)
-        entry = ClassScope.add_cfunction(self, name, type, pos, cname, visibility)
+        entry = ClassScope.add_cfunction(self, name, type, pos, cname,
+                                         visibility, modifiers)
         entry.is_cmethod = 1
         entry.prev_entry = prev_entry
         return entry
@@ -1496,7 +1507,8 @@ class CClassScope(ClassScope):
                 self.inherited_var_entries.append(entry)
         for base_entry in base_scope.cfunc_entries:
             entry = self.add_cfunction(base_entry.name, base_entry.type,
-                    base_entry.pos, adapt(base_entry.cname), base_entry.visibility)
+                                       base_entry.pos, adapt(base_entry.cname),
+                                       base_entry.visibility, base_entry.func_modifiers)
             entry.is_inherited = 1
             
     def allocate_temp(self, type):
