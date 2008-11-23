@@ -1020,7 +1020,7 @@ class ModuleScope(Scope):
             if defining or implementing:
                 scope = CClassScope(name = name, outer_scope = self,
                     visibility = visibility)
-                if base_type:
+                if base_type and base_type.scope:
                     scope.declare_inherited_c_attributes(base_type.scope)
                 type.set_scope(scope)
                 self.type_entries.append(entry)
