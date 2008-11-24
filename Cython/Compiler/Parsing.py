@@ -42,6 +42,10 @@ class Ctx(object):
         d.update(kwds)
         return ctx
 
+def eat_newlines(s):
+    while s.sy == 'NEWLINE':
+        s.next()
+
 def p_ident(s, message = "Expected an identifier"):
     if s.sy == 'IDENT':
         name = s.systring
@@ -1022,14 +1026,27 @@ def p_from_import_statement(s, first_statement = 0):
     else:
         s.error("Expected 'import' or 'cimport'")
     is_cimport = kind == 'cimport'
+    is_parenthesized = False
     if s.sy == '*':
         imported_names = [(s.position(), "*", None, None)]
         s.next()
     else:
+        if s.sy == '(':
+            is_parenthesized = True
+            s.next()
+            eat_newlines(s)
         imported_names = [p_imported_name(s, is_cimport)]
+        if is_parenthesized:
+            eat_newlines(s)
     while s.sy == ',':
         s.next()
+        if is_parenthesized:
+            eat_newlines(s)
         imported_names.append(p_imported_name(s, is_cimport))
+        if is_parenthesized:
+            eat_newlines(s)
+    if is_parenthesized:
+        s.expect(')')
     dotted_name = EncodedString(dotted_name)
     if dotted_name == '__future__':
         if not first_statement:
