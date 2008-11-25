@@ -115,16 +115,19 @@ class DictIterTransform(Visitor.VisitorTransform):
             class FakeEnv(object):
                 nogil = False
             if dest_type.is_pyobject:
+                coercion = None
                 if dest_type.is_extension_type or dest_type.is_builtin_type:
-                    return (obj_node, ExprNodes.PyTypeTestNode(obj_node, dest_type, FakeEnv()))
-                else:
-                    return (obj_node, None)
+                    coercion = ExprNodes.PyTypeTestNode(obj_node, dest_type, FakeEnv())
+                result = ExprNodes.TypecastNode(
+                    obj_node.pos,
+                    operand = obj_node,
+                    type = dest_type)
+                return (result, coercion)
             else:
                 temp = UtilNodes.TempHandle(dest_type)
                 temps.append(temp)
                 temp_result = temp.ref(obj_node.pos)
                 class CoercedTempNode(ExprNodes.CoerceFromPyTypeNode):
-                    # FIXME: remove this after result-code refactoring
                     def result(self):
                         return temp_result.result()
                     def generate_execution_code(self, code):
@@ -168,8 +171,8 @@ class DictIterTransform(Visitor.VisitorTransform):
                 assign_stats.append(
                     Nodes.SingleAssignmentNode(
                         pos = key_temp.pos,
-                        rhs = temp_result,
-                        lhs = key_target))
+                        lhs = key_target,
+                        rhs = temp_result))
             if values:
                 temp_result, coercion = coerce_object_to(
                     value_temp, value_target.type)
@@ -178,8 +181,8 @@ class DictIterTransform(Visitor.VisitorTransform):
                 assign_stats.append(
                     Nodes.SingleAssignmentNode(
                         pos = value_temp.pos,
-                        rhs = temp_result,
-                        lhs = value_target))
+                        lhs = value_target,
+                        rhs = temp_result))
             body.stats[0:0] = coercion_stats + assign_stats
 
         result_code = [
