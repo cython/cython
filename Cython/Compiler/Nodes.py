@@ -794,11 +794,30 @@ class CStructOrUnionDefNode(StatNode):
         self.entry = env.declare_struct_or_union(
             self.name, self.kind, scope, self.typedef_flag, self.pos,
             self.cname, visibility = self.visibility)
+        need_typedef_indirection = False
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
             for attr in self.attributes:
                 attr.analyse_declarations(env, scope)
+            for attr in scope.var_entries:
+                type = attr.type
+                while type.is_array:
+                    type = type.base_type
+                if type == self.entry.type:
+                    error(attr.pos, "Struct cannot contain itself as a member.")
+                if self.typedef_flag:
+                    while type.is_ptr:
+                        type = type.base_type
+                    if type == self.entry.type:
+                        need_typedef_indirection = True
+        if need_typedef_indirection and self.visibility != 'extern':
+            # C can't handle typedef structs that refer to themselves. 
+            struct_entry = self.entry
+            cname = env.new_const_cname()
+            self.entry = env.declare_typedef(self.name, struct_entry.type, self.pos, cname = self.cname, visibility='ignore')
+            struct_entry.type.typedef_flag = False
+            struct_entry.cname = struct_entry.type.cname = env.new_const_cname()
     
     def analyse_expressions(self, env):
         pass
