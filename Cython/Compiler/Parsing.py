@@ -269,6 +269,15 @@ def p_sizeof(s):
     s.expect(')')
     return node
 
+def p_yield_expression(s):
+    # s.sy == "yield"
+    pos = s.position()
+    s.next()
+    if s.sy not in ('EOF', 'NEWLINE', ')'):
+        expr = p_expr(s)
+    s.error("generators ('yield') are not currently supported")
+    return Nodes.PassStatNode(pos)
+
 #power: atom trailer* ('**' factor)*
 
 def p_power(s):
@@ -473,6 +482,8 @@ def p_atom(s):
         s.next()
         if s.sy == ')':
             result = ExprNodes.TupleNode(pos, args = [])
+        elif s.sy == 'yield':
+            result = p_yield_expression(s)
         else:
             result = p_expr(s)
         s.expect(')')
@@ -1355,6 +1366,8 @@ def p_simple_statement(s, first_statement = 0):
         node = p_import_statement(s)
     elif s.sy == 'from':
         node = p_from_import_statement(s, first_statement = first_statement)
+    elif s.sy == 'yield':
+        node = p_yield_expression(s)
     elif s.sy == 'assert':
         node = p_assert_statement(s)
     elif s.sy == 'pass':
