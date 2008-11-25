@@ -111,16 +111,25 @@ class DictIterTransform(Visitor.VisitorTransform):
             else:
                 tuple_target = node.target
 
-        if keys:
-            key_cast = ExprNodes.TypecastNode(
-                pos = key_target.pos,
-                operand = key_temp,
-                type = key_target.type)
-        if values:
-            value_cast = ExprNodes.TypecastNode(
-                pos = value_target.pos,
-                operand = value_temp,
-                type = value_target.type)
+        def coerce_object_to(obj_node, dest_type):
+            class FakeEnv(object):
+                nogil = False
+            if dest_type.is_pyobject:
+                if dest_type.is_extension_type or dest_type.is_builtin_type:
+                    return (obj_node, ExprNodes.PyTypeTestNode(obj_node, dest_type, FakeEnv()))
+                else:
+                    return (obj_node, None)
+            else:
+                temp = UtilNodes.TempHandle(dest_type)
+                temps.append(temp)
+                temp_result = temp.ref(obj_node.pos)
+                class CoercedTempNode(ExprNodes.CoerceFromPyTypeNode):
+                    # FIXME: remove this after result-code refactoring
+                    def result(self):
+                        return temp_result.result()
+                    def generate_execution_code(self, code):
+                        self.generate_result_code(code)
+                return (temp_result, CoercedTempNode(dest_type, obj_node, FakeEnv()))
 
         if isinstance(node.body, Nodes.StatListNode):
             body = node.body
@@ -129,7 +138,7 @@ class DictIterTransform(Visitor.VisitorTransform):
                                       stats = [node.body])
 
         if tuple_target:
-            temp = UtilNodes.TempHandle(py_object_ptr)
+            temp = UtilNodes.TempHandle(PyrexTypes.py_object_type)
             temps.append(temp)
             temp_tuple = temp.ref(tuple_target.pos)
             class TempTupleNode(ExprNodes.TupleNode):
@@ -139,7 +148,7 @@ class DictIterTransform(Visitor.VisitorTransform):
 
             tuple_result = TempTupleNode(
                 pos = tuple_target.pos,
-                args = [key_cast, value_cast],
+                args = [key_temp, value_temp],
                 is_temp = 1,
                 type = Builtin.tuple_type,
                 )
@@ -148,18 +157,30 @@ class DictIterTransform(Visitor.VisitorTransform):
                     lhs = tuple_target,
                     rhs = tuple_result))
         else:
-            if values:
-                body.stats.insert(
-                    0, Nodes.SingleAssignmentNode(
-                        pos = value_target.pos,
-                        lhs = value_target,
-                        rhs = value_cast))
+            # execute all coercions before the assignments
+            coercion_stats = []
+            assign_stats = []
             if keys:
-                body.stats.insert(
-                    0, Nodes.SingleAssignmentNode(
-                        pos = key_target.pos,
-                        lhs = key_target,
-                        rhs = key_cast))
+                temp_result, coercion = coerce_object_to(
+                    key_temp, key_target.type)
+                if coercion:
+                    coercion_stats.append(coercion)
+                assign_stats.append(
+                    Nodes.SingleAssignmentNode(
+                        pos = key_temp.pos,
+                        rhs = temp_result,
+                        lhs = key_target))
+            if values:
+                temp_result, coercion = coerce_object_to(
+                    value_temp, value_target.type)
+                if coercion:
+                    coercion_stats.append(coercion)
+                assign_stats.append(
+                    Nodes.SingleAssignmentNode(
+                        pos = value_temp.pos,
+                        rhs = temp_result,
+                        lhs = value_target))
+            body.stats[0:0] = coercion_stats + assign_stats
 
         result_code = [
             Nodes.SingleAssignmentNode(
