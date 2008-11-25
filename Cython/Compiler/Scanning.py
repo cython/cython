@@ -150,7 +150,7 @@ reserved_words = [
     "print", "del", "pass", "break", "continue", "return",
     "raise", "import", "exec", "try", "except", "finally",
     "while", "if", "elif", "else", "for", "in", "assert",
-    "and", "or", "not", "is", "in", "lambda", "from",
+    "and", "or", "not", "is", "in", "lambda", "from", "yield",
     "cimport", "by", "with", "cpdef", "DEF", "IF", "ELIF", "ELSE"
 ]
 
