@@ -710,7 +710,11 @@ def use_py2_buffer_functions(env):
 
     # Search all types for __getbuffer__ overloads
     types = []
+    visited_scopes = set()
     def find_buffer_types(scope):
+        if scope in visited_scopes:
+            return
+        visited_scopes.add(scope)
         for m in scope.cimported_modules:
             find_buffer_types(m)
         for e in scope.type_entries:
