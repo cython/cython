@@ -4521,7 +4521,7 @@ class PyTypeTestNode(CoercionNode):
     
     def generate_result_code(self, code):
         if self.type.typeobj_is_available():
-            if not dst_type.is_builtin_type:
+            if not self.type.is_builtin_type:
                 code.globalstate.use_utility_code(type_test_utility_code)
             code.putln(
                 "if (!(%s)) %s" % (
