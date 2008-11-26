@@ -2713,7 +2713,7 @@ class AttributeNode(ExprNode):
 #
 #-------------------------------------------------------------------
 
-class SequenceNode(ExprNode):
+class SequenceNode(NewTempExprNode):
     #  Base class for list and tuple constructor nodes.
     #  Contains common code for performing sequence unpacking.
     #
