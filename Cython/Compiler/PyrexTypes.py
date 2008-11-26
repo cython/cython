@@ -7,7 +7,7 @@ import StringEncoding
 import Naming
 import copy
 
-class BaseType:
+class BaseType(object):
     #
     #  Base class for all Pyrex types including pseudo-types.
 
