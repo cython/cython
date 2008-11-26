@@ -74,7 +74,9 @@ class DictIterTransform(Visitor.VisitorTransform):
         temp = UtilNodes.TempHandle(PyrexTypes.py_object_type)
         temps.append(temp)
         dict_temp = temp.ref(dict_obj.pos)
-        pos_temp = node.iterator.counter
+        temp = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
+        temps.append(temp)
+        pos_temp = temp.ref(dict_obj.pos)
         pos_temp_addr = ExprNodes.AmpersandNode(
             node.pos, operand=pos_temp,
             type=PyrexTypes.c_ptr_type(PyrexTypes.c_py_ssize_t_type))
@@ -115,14 +117,13 @@ class DictIterTransform(Visitor.VisitorTransform):
             class FakeEnv(object):
                 nogil = False
             if dest_type.is_pyobject:
-                coercion = None
                 if dest_type.is_extension_type or dest_type.is_builtin_type:
-                    coercion = ExprNodes.PyTypeTestNode(obj_node, dest_type, FakeEnv())
+                    obj_node = ExprNodes.PyTypeTestNode(obj_node, dest_type, FakeEnv())
                 result = ExprNodes.TypecastNode(
                     obj_node.pos,
                     operand = obj_node,
                     type = dest_type)
-                return (result, coercion)
+                return (result, None)
             else:
                 temp = UtilNodes.TempHandle(dest_type)
                 temps.append(temp)
