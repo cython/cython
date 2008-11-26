@@ -800,7 +800,7 @@ class CStructOrUnionDefNode(StatNode):
             for attr in self.attributes:
                 attr.analyse_declarations(env, scope)
             if self.visibility != 'extern':
-                needs_typedef_indirection = False
+                need_typedef_indirection = False
                 for attr in scope.var_entries:
                     type = attr.type
                     while type.is_array:
