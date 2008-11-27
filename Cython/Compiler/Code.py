@@ -40,7 +40,7 @@ class FunctionState(object):
         self.in_try_finally = 0
         self.exc_vars = None
 
-        self.temps_allocated = [] # of (name, type)
+        self.temps_allocated = [] # of (name, type, manage_ref)
         self.temps_free = {} # type -> list of free vars
         self.temps_used_type = {} # name -> type
         self.temp_counter = 0
@@ -104,11 +104,16 @@ class FunctionState(object):
     def label_used(self, lbl):
         return lbl in self.labels_used
 
-    def allocate_temp(self, type):
+    def allocate_temp(self, type, manage_ref=True):
         """
         Allocates a temporary (which may create a new one or get a previously
         allocated and released one of the same type). Type is simply registered
         and handed back, but will usually be a PyrexType.
+
+        If type.is_pyobject, manage_ref comes into play. If manage_ref is set to
+        True, the temp will be decref-ed on return statements and in exception
+        handling clauses. Otherwise the caller has to deal with any reference
+        counting of the variable.
 
         A C string referring to the variable is returned.
         """
@@ -120,7 +125,7 @@ class FunctionState(object):
                 self.temp_counter += 1
                 result = "%s%d" % (Naming.codewriter_temp_prefix, self.temp_counter)
                 if not result in self.names_taken: break
-            self.temps_allocated.append((result, type))
+            self.temps_allocated.append((result, type, manage_ref))
         self.temps_used_type[result] = type
         return result
 
@@ -138,23 +143,24 @@ class FunctionState(object):
         freelist.append(name)
 
     def temps_in_use(self):
-        """Return a list of (cname,type) tuples of temp names and their type
+        """Return a list of (cname,type,manage_ref) tuples of temp names and their type
         that are currently in use.
         """
         used = []
-        for name, type in self.temps_allocated:
+        for name, type, manage_ref in self.temps_allocated:
             freelist = self.temps_free.get(type)
             if freelist is None or name not in freelist:
-                used.append((name, type))
+                used.append((name, type, manage_ref))
         return used
 
-    def py_temps_in_use(self):
+    def temps_holding_reference(self):
         """Return a list of (cname,type) tuples of temp names and their type
-        that are currently in use.  This includes only Python object types.
+        that are currently in use. This includes only temps of a
+        Python object type which owns its reference.
         """
         return [(name, type)
-                for name, type in self.temps_in_use()
-                if type.is_pyobject]
+                for name, type, manage_ref in self.temps_in_use()
+                if (type.is_pyobject and manage_ref)]
 
 class GlobalState(object):
     # filename_table   {string : int}  for finding filename table indexes
@@ -674,7 +680,7 @@ class CCodeWriter(object):
         self.putln(";")
 
     def put_temp_declarations(self, func_context):
-        for name, type in func_context.temps_allocated:
+        for name, type, manage_ref in func_context.temps_allocated:
             decl = type.declaration_code(name)
             if type.is_pyobject:
                 self.putln("%s = NULL;" % decl)
