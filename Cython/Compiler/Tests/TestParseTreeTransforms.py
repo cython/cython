@@ -99,6 +99,7 @@ class TestWithTransform(TransformTest):
         $1_2 = $1_0.__exit__
         $1_0.__enter__()
         $1_1 = True
+        $0_0 = None
         try:
             try:
                 y = z ** 3
@@ -123,6 +124,7 @@ class TestWithTransform(TransformTest):
         $1_2 = $1_0.__exit__
         $1_3 = $1_0.__enter__()
         $1_1 = True
+        $0_0 = None
         try:
             try:
                 y = $1_3
