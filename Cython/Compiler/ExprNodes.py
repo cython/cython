@@ -1224,17 +1224,24 @@ class NameNode(AtomicExprNode):
             rhs.generate_post_assignment_code(code)
 
     def generate_acquire_buffer(self, rhs, code):
-        rhstmp = code.funcstate.allocate_temp(self.entry.type)
         buffer_aux = self.entry.buffer_aux
         bufstruct = buffer_aux.buffer_info_var.cname
-        code.putln('%s = %s;' % (rhstmp, rhs.result_as(self.ctype())))
+
+        value_is_temp = rhs.is_temp
+        if value_is_temp:
+            rhstmp = rhs.result_as(self.ctype())
+        else:
+            rhstmp = code.funcstate.allocate_temp(self.entry.type)
+            code.putln('%s = %s;' % (rhstmp, rhs.result_as(self.ctype())))
+            code.put_incref(rhstmp, self.entry.type)
 
         import Buffer
         Buffer.put_assign_to_buffer(self.result(), rhstmp, buffer_aux, self.entry.type,
                                     is_initialized=not self.lhs_of_first_assignment,
                                     pos=self.pos, code=code)
-        code.putln("%s = 0;" % rhstmp)
-        code.funcstate.release_temp(rhstmp)
+        if not value_is_temp:
+            code.put_decref_clear(rhstmp, self.entry.type)
+            code.funcstate.release_temp(rhstmp)
     
     def generate_deletion_code(self, code):
         if self.entry is None:
