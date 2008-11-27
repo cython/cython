@@ -11,11 +11,16 @@ from ExprNodes import AtomicExprNode
 
 class TempHandle(object):
     temp = None
+    needs_xdecref = False
     def __init__(self, type):
         self.type = type
+        self.needs_cleanup = type.is_pyobject
 
     def ref(self, pos):
         return TempRefNode(pos, handle=self, type=self.type)
+
+    def cleanup_ref(self, pos):
+        return CleanupTempRefNode(pos, handle=self, type=self.type)
 
 class TempRefNode(AtomicExprNode):
     # handle   TempHandle
@@ -40,9 +45,21 @@ class TempRefNode(AtomicExprNode):
     def generate_assignment_code(self, rhs, code):
         if self.type.is_pyobject:
             rhs.make_owned_reference(code)
+            # TODO: analyse control flow to see if this is necessary
             code.put_xdecref(self.result(), self.ctype())
         code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
         rhs.generate_post_assignment_code(code)
+
+class CleanupTempRefNode(TempRefNode):
+    # handle   TempHandle
+
+    def generate_assignment_code(self, rhs, code):
+        pass
+
+    def generate_execution_code(self, code):
+        if self.type.is_pyobject:
+            code.put_decref_clear(self.result(), self.type)
+            self.handle.needs_cleanup = False
 
 class TempsBlockNode(Node):
     """
@@ -65,6 +82,11 @@ class TempsBlockNode(Node):
             handle.temp = code.funcstate.allocate_temp(handle.type)
         self.body.generate_execution_code(code)
         for handle in self.temps:
+            if handle.needs_cleanup:
+                if handle.needs_xdecref:
+                    code.put_xdecref_clear(handle.temp, handle.type)
+                else:
+                    code.put_decref_clear(handle.temp, handle.type)
             code.funcstate.release_temp(handle.temp)
 
     def analyse_control_flow(self, env):

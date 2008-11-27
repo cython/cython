@@ -1060,7 +1060,12 @@ class FuncDefNode(StatNode, BlockNode):
         if code.error_label in code.labels_used:
             code.put_goto(code.return_label)
             code.put_label(code.error_label)
+            # cleanup temps the old way
             code.put_var_xdecrefs(lenv.temp_entries)
+            # cleanup temps the new way
+            for cname, type in code.funcstate.temps_allocated:
+                if type.is_pyobject:
+                    code.put_xdecref(cname, type)
 
             # Clean up buffers -- this calls a Python function
             # so need to save and restore error state
@@ -3287,8 +3292,12 @@ class ReturnStatNode(StatNode):
                     "%s = %s;" % (
                         Naming.retval_cname,
                         self.return_type.default_value))
+        # free temps the old way
         for entry in self.temps_in_use:
             code.put_var_decref_clear(entry)
+        # free temps the new way
+        for cname, type in code.funcstate.py_temps_in_use():
+            code.put_decref_clear(cname, type)
         #code.putln(
         #	"goto %s;" %
         #		code.return_label)
