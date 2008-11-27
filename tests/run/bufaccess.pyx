@@ -972,6 +972,33 @@ def assign_to_object(object[object] buf, int idx, obj):
     """
     buf[idx] = obj
     
+@testcase
+def assign_temporary_to_object(object[object] buf):
+    """
+    See comments on printbuf_object above.
+
+    >>> a, b = [1, 2, 3], {4:23}
+    >>> get_refcount(a)
+    2
+    >>> addref(a)
+    >>> A = ObjectMockBuffer(None, [b, a])
+    >>> get_refcount(a)
+    3
+    >>> assign_temporary_to_object(A)
+    >>> get_refcount(a)
+    2
+    
+    >>> printbuf_object(A, (2,))
+    {4: 23} 2
+    {1: 8} 2
+
+    To avoid leaking a reference in our testcase we need to
+    replace the temporary with something we can manually decref :-)
+    >>> assign_to_object(A, 1, a)
+    >>> decref(a)
+    """
+    buf[1] = {3-2: 2+(2*4)-2}
+
 #
 # cast option
 #
