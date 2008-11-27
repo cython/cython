@@ -137,6 +137,25 @@ class FunctionState(object):
             self.temps_free[type] = freelist
         freelist.append(name)
 
+    def temps_in_use(self):
+        """Return a list of (cname,type) tuples of temp names and their type
+        that are currently in use.
+        """
+        used = []
+        for name, type in self.temps_allocated:
+            freelist = self.temps_free.get(type)
+            if freelist is None or name not in freelist:
+                used.append((name, type))
+        return used
+
+    def py_temps_in_use(self):
+        """Return a list of (cname,type) tuples of temp names and their type
+        that are currently in use.  This includes only Python object types.
+        """
+        return [(name, type)
+                for name, type in self.temps_in_use()
+                if type.is_pyobject]
+
 class GlobalState(object):
     # filename_table   {string : int}  for finding filename table indexes
     # filename_list    [string]        filenames in filename table order
