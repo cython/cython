@@ -16,6 +16,8 @@ __doc__ = u"""
 [10, 11, 12, 13]
 >>> iterdict(d)
 [10, 11, 12, 13]
+>>> iterdict_reassign(d)
+[10, 11, 12, 13]
 >>> iterdict_int(d)
 [10, 11, 12, 13]
 >>> itervalues(d)
@@ -79,6 +81,15 @@ def iterdict_int(dict d):
     cdef int k
     l = []
     for k in d:
+        l.append(k)
+    l.sort()
+    return l
+
+def iterdict_reassign(dict d):
+    cdef dict d_new = {}
+    l = []
+    for k in d:
+        d = d_new
         l.append(k)
     l.sort()
     return l
