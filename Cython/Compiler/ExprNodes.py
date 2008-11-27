@@ -1719,17 +1719,12 @@ class IndexNode(ExprNode):
             # Must manage refcounts. Decref what is already there
             # and incref what we put in.
             ptr = code.funcstate.allocate_temp(self.buffer_type.buffer_ptr_type, manage_ref=False)
-            if rhs.is_temp:
-                rhs_code = code.funcstate.allocate_temp(rhs.type, manage_ref=False)
-            else:
-                rhs_code = rhs.result()
+            rhs_code = rhs.result()
             code.putln("%s = %s;" % (ptr, ptrexpr))
             code.putln("Py_DECREF(*%s); Py_INCREF(%s);" % (
                 ptr, rhs_code
                 ))
             code.putln("*%s %s= %s;" % (ptr, op, rhs_code))
-            if rhs.is_temp:
-                code.funcstate.release_temp(rhs_code)
             code.funcstate.release_temp(ptr)
         else: 
             # Simple case
