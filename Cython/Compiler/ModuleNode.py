@@ -757,8 +757,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     
     def generate_cfunction_predeclarations(self, env, code, definition):
         for entry in env.cfunc_entries:
-            if not entry.in_cinclude and (definition
-                    or entry.defined_in_pxd or entry.visibility == 'extern'):
+            if entry.inline_func_in_pxd or (not entry.in_cinclude and (definition
+                    or entry.defined_in_pxd or entry.visibility == 'extern')):
                 if entry.visibility in ('public', 'extern'):
                     dll_linkage = "DL_EXPORT"
                 else:

@@ -1212,9 +1212,12 @@ class CFuncDefNode(FuncDefNode):
     #  type          CFuncType
     #  py_func       wrapper for calling from Python
     #  overridable   whether or not this is a cpdef function
+    #  inline_in_pxd whether this is an inline function in a pxd file
     
     child_attrs = ["base_type", "declarator", "body", "py_func"]
-    
+
+    inline_in_pxd = False
+
     def unqualified_name(self):
         return self.entry.name
         
@@ -1251,6 +1254,7 @@ class CFuncDefNode(FuncDefNode):
             cname = cname, visibility = self.visibility,
             defining = self.body is not None,
             api = self.api, modifiers = self.modifiers)
+        self.entry.inline_func_in_pxd = self.inline_in_pxd
         self.return_type = type.return_type
         
         if self.overridable:
