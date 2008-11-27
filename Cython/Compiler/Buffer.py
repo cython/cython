@@ -293,17 +293,15 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
         # Acquire
         retcode_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type)
         code.putln("%s = %s;" % (retcode_cname, getbuffer % rhs_cname))
-        code.putln('if (%s) ' % (code.unlikely("%s < 0" % retcode_cname)))
+        code.putln('if (%s) {' % (code.unlikely("%s < 0" % retcode_cname)))
         # If acquisition failed, attempt to reacquire the old buffer
         # before raising the exception. A failure of reacquisition
         # will cause the reacquisition exception to be reported, one
         # can consider working around this later.
-        code.begin_block()
-        type, value, tb = [code.funcstate.allocate_temp(PyrexTypes.py_object_type)
+        type, value, tb = [code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=False)
                            for i in range(3)]
         code.putln('PyErr_Fetch(&%s, &%s, &%s);' % (type, value, tb))
-        code.put('if (%s) ' % code.unlikely("%s == -1" % (getbuffer % lhs_cname)))
-        code.begin_block()
+        code.putln('if (%s) {' % code.unlikely("%s == -1" % (getbuffer % lhs_cname)))
         code.putln('Py_XDECREF(%s); Py_XDECREF(%s); Py_XDECREF(%s);' % (type, value, tb))
         code.globalstate.use_utility_code(raise_buffer_fallback_code)
         code.putln('__Pyx_RaiseBufferFallbackError();')
@@ -311,9 +309,9 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
         code.putln('PyErr_Restore(%s, %s, %s);' % (type, value, tb))
         for t in (type, value, tb):
             code.funcstate.release_temp(t)
-        code.end_block()
+        code.putln('}')
+        code.putln('}')
         # Unpack indices
-        code.end_block()
         put_unpack_buffer_aux_into_scope(buffer_aux, buffer_type.mode, code)
         code.putln(code.error_goto_if_neg(retcode_cname, pos))
         code.funcstate.release_temp(retcode_cname)
@@ -374,11 +372,10 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, options, pos, cod
                 code.unlikely("%s >= %s" % (cname, shape.cname)),
                 tmp_cname, dim))
         code.globalstate.use_utility_code(raise_indexerror_code)
-        code.put("if (%s) " % code.unlikely("%s != -1" % tmp_cname))
-        code.begin_block()
+        code.putln("if (%s) {" % code.unlikely("%s != -1" % tmp_cname))
         code.putln('__Pyx_RaiseBufferIndexError(%s);' % tmp_cname)
         code.putln(code.error_goto(pos))
-        code.end_block()
+        code.putln('}')
         code.funcstate.release_temp(tmp_cname)
     elif negative_indices:
         # Only fix negative indices.
