@@ -1063,8 +1063,8 @@ class FuncDefNode(StatNode, BlockNode):
             # cleanup temps the old way
             code.put_var_xdecrefs(lenv.temp_entries)
             # cleanup temps the new way
-            for cname, type in code.funcstate.temps_allocated:
-                if type.is_pyobject:
+            for cname, type, manage_ref in code.funcstate.temps_allocated:
+                if type.is_pyobject and manage_ref:
                     code.put_xdecref(cname, type)
 
             # Clean up buffers -- this calls a Python function
@@ -2369,7 +2369,7 @@ class PyClassDefNode(ClassDefNode):
         
     def as_cclass(self):
         """
-        Return this node as if it were declared as an extension class"
+        Return this node as if it were declared as an extension class
         """
         bases = self.classobj.bases.args
         if len(bases) == 0:
@@ -3296,7 +3296,7 @@ class ReturnStatNode(StatNode):
         for entry in self.temps_in_use:
             code.put_var_decref_clear(entry)
         # free temps the new way
-        for cname, type in code.funcstate.py_temps_in_use():
+        for cname, type in code.funcstate.temps_holding_reference():
             code.put_decref_clear(cname, type)
         #code.putln(
         #	"goto %s;" %
