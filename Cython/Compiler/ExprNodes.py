@@ -1227,17 +1227,23 @@ class NameNode(AtomicExprNode):
         # rhstmp is only used in case the rhs is a complicated expression leading to
         # the object, to avoid repeating the same C expression for every reference
         # to the rhs. It does NOT hold a reference.
-        rhstmp = code.funcstate.allocate_temp(self.entry.type, manage_ref=False)
+        pretty_rhs = isinstance(rhs, NameNode) or rhs.is_temp
+        if pretty_rhs:
+            rhstmp = rhs.result_as(self.ctype())
+        else:
+            rhstmp = code.funcstate.allocate_temp(self.entry.type, manage_ref=False)
+            code.putln('%s = %s;' % (rhstmp, rhs.result_as(self.ctype())))
+
         buffer_aux = self.entry.buffer_aux
         bufstruct = buffer_aux.buffer_info_var.cname
-        code.putln('%s = %s;' % (rhstmp, rhs.result_as(self.ctype())))
-
         import Buffer
         Buffer.put_assign_to_buffer(self.result(), rhstmp, buffer_aux, self.entry.type,
                                     is_initialized=not self.lhs_of_first_assignment,
                                     pos=self.pos, code=code)
-        code.putln("%s = 0;" % rhstmp)
-        code.funcstate.release_temp(rhstmp)
+        
+        if not pretty_rhs:
+            code.putln("%s = 0;" % rhstmp)
+            code.funcstate.release_temp(rhstmp)
     
     def generate_deletion_code(self, code):
         if self.entry is None:
