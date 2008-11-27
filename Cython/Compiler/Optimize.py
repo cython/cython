@@ -76,7 +76,7 @@ class DictIterTransform(Visitor.VisitorTransform):
         dict_temp = temp.ref(dict_obj.pos)
         temp = UtilNodes.TempHandle(PyrexTypes.c_py_ssize_t_type)
         temps.append(temp)
-        pos_temp = temp.ref(dict_obj.pos)
+        pos_temp = temp.ref(node.pos)
         pos_temp_addr = ExprNodes.AmpersandNode(
             node.pos, operand=pos_temp,
             type=PyrexTypes.c_ptr_type(PyrexTypes.c_py_ssize_t_type))
@@ -142,8 +142,8 @@ class DictIterTransform(Visitor.VisitorTransform):
                                       stats = [node.body])
 
         if tuple_target:
-            temp = UtilNodes.TempHandle(PyrexTypes.py_object_type)
-            temps.append(temp)
+            temp = UtilNodes.TempHandle(Builtin.tuple_type)
+            temp.needs_cleanup = False # assignment steals the reference
             temp_tuple = temp.ref(tuple_target.pos)
             class TempTupleNode(ExprNodes.TupleNode):
                 # FIXME: remove this after result-code refactoring
@@ -156,10 +156,13 @@ class DictIterTransform(Visitor.VisitorTransform):
                 is_temp = 1,
                 type = Builtin.tuple_type,
                 )
-            body.stats.insert(0, Nodes.SingleAssignmentNode(
-                    pos = tuple_target.pos,
-                    lhs = tuple_target,
-                    rhs = tuple_result))
+            body.stats.insert(
+                0, UtilNodes.TempsBlockNode(
+                    tuple_target.pos, temps = [temp],
+                    body = Nodes.SingleAssignmentNode(
+                        pos = tuple_target.pos,
+                        lhs = tuple_target,
+                        rhs = tuple_result)))
         else:
             # execute all coercions before the assignments
             coercion_stats = []
@@ -216,7 +219,7 @@ class DictIterTransform(Visitor.VisitorTransform):
         return UtilNodes.TempsBlockNode(
             node.pos, temps=temps,
             body=Nodes.StatListNode(
-                pos = node.pos,
+                node.pos,
                 stats = result_code
                 ))
 
