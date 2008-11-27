@@ -142,27 +142,17 @@ class DictIterTransform(Visitor.VisitorTransform):
                                       stats = [node.body])
 
         if tuple_target:
-            temp = UtilNodes.TempHandle(Builtin.tuple_type)
-            temp.needs_cleanup = False # assignment steals the reference
-            temp_tuple = temp.ref(tuple_target.pos)
-            class TempTupleNode(ExprNodes.TupleNode):
-                # FIXME: remove this after result-code refactoring
-                def result(self):
-                    return temp_tuple.result()
-
-            tuple_result = TempTupleNode(
+            tuple_result = ExprNodes.TupleNode(
                 pos = tuple_target.pos,
                 args = [key_temp, value_temp],
                 is_temp = 1,
                 type = Builtin.tuple_type,
                 )
             body.stats.insert(
-                0, UtilNodes.TempsBlockNode(
-                    tuple_target.pos, temps = [temp],
-                    body = Nodes.SingleAssignmentNode(
-                        pos = tuple_target.pos,
-                        lhs = tuple_target,
-                        rhs = tuple_result)))
+                0, Nodes.SingleAssignmentNode(
+                    pos = tuple_target.pos,
+                    lhs = tuple_target,
+                    rhs = tuple_result))
         else:
             # execute all coercions before the assignments
             coercion_stats = []
@@ -191,13 +181,13 @@ class DictIterTransform(Visitor.VisitorTransform):
 
         result_code = [
             Nodes.SingleAssignmentNode(
-                pos = node.pos,
-                lhs = pos_temp,
-                rhs = ExprNodes.IntNode(node.pos, value=0)),
-            Nodes.SingleAssignmentNode(
                 pos = dict_obj.pos,
                 lhs = dict_temp,
                 rhs = dict_obj),
+            Nodes.SingleAssignmentNode(
+                pos = node.pos,
+                lhs = pos_temp,
+                rhs = ExprNodes.IntNode(node.pos, value=0)),
             Nodes.WhileStatNode(
                 pos = node.pos,
                 condition = ExprNodes.SimpleCallNode(
