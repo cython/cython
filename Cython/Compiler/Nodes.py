@@ -1063,9 +1063,8 @@ class FuncDefNode(StatNode, BlockNode):
             # cleanup temps the old way
             code.put_var_xdecrefs(lenv.temp_entries)
             # cleanup temps the new way
-            for cname, type, manage_ref in code.funcstate.temps_allocated:
-                if type.is_pyobject and manage_ref:
-                    code.put_xdecref(cname, type)
+            for cname, type in code.funcstate.all_managed_temps():
+                code.put_xdecref(cname, type)
 
             # Clean up buffers -- this calls a Python function
             # so need to save and restore error state
