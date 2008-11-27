@@ -41,8 +41,8 @@ class FunctionState(object):
         self.exc_vars = None
 
         self.temps_allocated = [] # of (name, type, manage_ref)
-        self.temps_free = {} # type -> list of free vars
-        self.temps_used_type = {} # name -> type
+        self.temps_free = {} # (type, manage_ref) -> list of free vars with same type/managed status
+        self.temps_used_type = {} # name -> (type, manage_ref)
         self.temp_counter = 0
 
     def new_label(self, name=None):
@@ -117,7 +117,10 @@ class FunctionState(object):
 
         A C string referring to the variable is returned.
         """
-        freelist = self.temps_free.get(type)
+        if not type.is_pyobject and manage_ref is not True:
+            # Make manage_ref canonical for temps_free lookup purposes
+            raise ValueError("manage_ref only applicable when type.is_pyobject")
+        freelist = self.temps_free.get((type, manage_ref))
         if freelist is not None and len(freelist) > 0:
             result = freelist.pop()
         else:
@@ -126,7 +129,7 @@ class FunctionState(object):
                 result = "%s%d" % (Naming.codewriter_temp_prefix, self.temp_counter)
                 if not result in self.names_taken: break
             self.temps_allocated.append((result, type, manage_ref))
-        self.temps_used_type[result] = type
+        self.temps_used_type[result] = (type, manage_ref)
         return result
 
     def release_temp(self, name):
@@ -134,12 +137,12 @@ class FunctionState(object):
         Releases a temporary so that it can be reused by other code needing
         a temp of the same type.
         """
-        type = self.temps_used_type[name]
-        freelist = self.temps_free.get(type)
+        type, manage_ref = self.temps_used_type[name]
+        freelist = self.temps_free.get((type, manage_ref))
         if freelist is None:
             freelist = []
 
-            self.temps_free[type] = freelist
+            self.temps_free[(type, manage_ref)] = freelist
         freelist.append(name)
 
     def temps_in_use(self):
@@ -148,7 +151,7 @@ class FunctionState(object):
         """
         used = []
         for name, type, manage_ref in self.temps_allocated:
-            freelist = self.temps_free.get(type)
+            freelist = self.temps_free.get((type, manage_ref))
             if freelist is None or name not in freelist:
                 used.append((name, type, manage_ref))
         return used
