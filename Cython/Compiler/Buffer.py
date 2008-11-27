@@ -298,7 +298,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
         # before raising the exception. A failure of reacquisition
         # will cause the reacquisition exception to be reported, one
         # can consider working around this later.
-        type, value, tb = [code.funcstate.allocate_temp(PyrexTypes.py_object_type)
+        type, value, tb = [code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=False)
                            for i in range(3)]
         code.putln('PyErr_Fetch(&%s, &%s, &%s);' % (type, value, tb))
         code.putln('if (%s) {' % code.unlikely("%s == -1" % (getbuffer % lhs_cname)))

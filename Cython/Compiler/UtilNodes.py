@@ -79,7 +79,7 @@ class TempsBlockNode(Node):
 
     def generate_execution_code(self, code):
         for handle in self.temps:
-            handle.temp = code.funcstate.allocate_temp(handle.type)
+            handle.temp = code.funcstate.allocate_temp(handle.type, manage_ref=True)
         self.body.generate_execution_code(code)
         for handle in self.temps:
             if handle.needs_cleanup:
