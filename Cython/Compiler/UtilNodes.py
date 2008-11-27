@@ -79,9 +79,8 @@ class TempsBlockNode(Node):
 
     def generate_execution_code(self, code):
         for handle in self.temps:
-            managed = handle.needs_cleanup or not handle.type.is_pyobject
             handle.temp = code.funcstate.allocate_temp(
-                handle.type, manage_ref=managed)
+                handle.type, manage_ref=handle.needs_cleanup)
         self.body.generate_execution_code(code)
         for handle in self.temps:
             if handle.needs_cleanup:
