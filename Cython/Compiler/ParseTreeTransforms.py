@@ -239,7 +239,6 @@ class PxdPostParse(CythonTransform):
             ok = True
             for stat in node.body.stats:
                 if not isinstance(stat, CVarDefNode):
-                    self.context.error("C function definition not allowed here")
                     ok = False
                     break
             node = CVarDefNode(node.pos, 
