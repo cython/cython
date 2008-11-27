@@ -1224,7 +1224,10 @@ class NameNode(AtomicExprNode):
             rhs.generate_post_assignment_code(code)
 
     def generate_acquire_buffer(self, rhs, code):
-        rhstmp = code.funcstate.allocate_temp(self.entry.type)
+        # rhstmp is only used in case the rhs is a complicated expression leading to
+        # the object, to avoid repeating the same C expression for every reference
+        # to the rhs. It does NOT hold a reference.
+        rhstmp = code.funcstate.allocate_temp(self.entry.type, manage_ref=False)
         buffer_aux = self.entry.buffer_aux
         bufstruct = buffer_aux.buffer_info_var.cname
         code.putln('%s = %s;' % (rhstmp, rhs.result_as(self.ctype())))
