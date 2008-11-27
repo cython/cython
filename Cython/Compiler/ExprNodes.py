@@ -613,7 +613,7 @@ class NewTempExprNode(ExprNode):
                 if self.backwards_compatible_result:
                     self.temp_code = self.backwards_compatible_result
                 else:
-                    self.temp_code = code.funcstate.allocate_temp(type)
+                    self.temp_code = code.funcstate.allocate_temp(type, manage_ref=True)
             else:
                 self.temp_code = None
 
@@ -1718,9 +1718,9 @@ class IndexNode(ExprNode):
         if self.buffer_type.dtype.is_pyobject:
             # Must manage refcounts. Decref what is already there
             # and incref what we put in.
-            ptr = code.funcstate.allocate_temp(self.buffer_type.buffer_ptr_type)
+            ptr = code.funcstate.allocate_temp(self.buffer_type.buffer_ptr_type, manage_ref=False)
             if rhs.is_temp:
-                rhs_code = code.funcstate.allocate_temp(rhs.type)
+                rhs_code = code.funcstate.allocate_temp(rhs.type, manage_ref=False)
             else:
                 rhs_code = rhs.result()
             code.putln("%s = %s;" % (ptr, ptrexpr))
@@ -1772,7 +1772,7 @@ class IndexNode(ExprNode):
 
     def buffer_lookup_code(self, code):
         # Assign indices to temps
-        index_temps = [code.funcstate.allocate_temp(i.type) for i in self.indices]
+        index_temps = [code.funcstate.allocate_temp(i.type, manage_ref=False) for i in self.indices]
         for temp, index in zip(index_temps, self.indices):
             code.putln("%s = %s;" % (temp, index.result()))
         # Generate buffer access code using these temps
