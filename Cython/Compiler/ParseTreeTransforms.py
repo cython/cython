@@ -457,6 +457,7 @@ class WithTransform(CythonTransform):
         EXIT = MGR.__exit__
         MGR.__enter__()
         EXC = True
+        EXCINFO = None
         try:
             try:
                 BODY
@@ -475,6 +476,7 @@ class WithTransform(CythonTransform):
         EXIT = MGR.__exit__
         VALUE = MGR.__enter__()
         EXC = True
+        EXCINFO = None
         try:
             try:
                 TARGET = VALUE
@@ -490,7 +492,9 @@ class WithTransform(CythonTransform):
     pipeline=[NormalizeTree(None)])
 
     def visit_WithStatNode(self, node):
-        excinfo_temp = TempHandle(PyrexTypes.py_object_type)
+        # FIXME: excinfo_temp should be more local to the except
+        # clause that uses it, to avoid the presetting to None
+        excinfo_temp = TempHandle(Builtin.tuple_type)
         if node.target is not None:
             result = self.template_with_target.substitute({
                 u'EXPR' : node.manager,
@@ -498,18 +502,16 @@ class WithTransform(CythonTransform):
                 u'TARGET' : node.target,
                 u'EXCINFO' : excinfo_temp.ref(node.pos)
                 }, pos=node.pos)
-            # Set except excinfo target to EXCINFO
-            result.body.stats[4].body.stats[0].except_clauses[0].excinfo_target = (
-                excinfo_temp.ref(node.pos))
         else:
             result = self.template_without_target.substitute({
                 u'EXPR' : node.manager,
                 u'BODY' : node.body,
                 u'EXCINFO' : excinfo_temp.ref(node.pos)
                 }, pos=node.pos)
-            # Set except excinfo target to EXCINFO
-            result.body.stats[4].body.stats[0].except_clauses[0].excinfo_target = (
-                excinfo_temp.ref(node.pos))
+
+        # Set except excinfo target to EXCINFO
+        result.body.stats[5].body.stats[0].except_clauses[0].excinfo_target = (
+            excinfo_temp.ref(node.pos))
 
         return TempsBlockNode(node.pos, temps=[excinfo_temp], body=result)
 
