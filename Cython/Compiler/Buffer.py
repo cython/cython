@@ -291,7 +291,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
         # Release any existing buffer
         code.putln('__Pyx_SafeReleaseBuffer(&%s);' % bufstruct)
         # Acquire
-        retcode_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type)
+        retcode_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
         code.putln("%s = %s;" % (retcode_cname, getbuffer % rhs_cname))
         code.putln('if (%s) {' % (code.unlikely("%s < 0" % retcode_cname)))
         # If acquisition failed, attempt to reacquire the old buffer
@@ -353,7 +353,7 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, options, pos, cod
         # We allocate a temporary which is initialized to -1, meaning OK (!).
         # If an error occurs, the temp is set to the dimension index the
         # error is occuring at.
-        tmp_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type)
+        tmp_cname = code.funcstate.allocate_temp(PyrexTypes.c_int_type, manage_ref=False)
         code.putln("%s = -1;" % tmp_cname)
         for dim, (signed, cname, shape) in enumerate(zip(index_signeds, index_cnames,
                                                          bufaux.shapevars)):

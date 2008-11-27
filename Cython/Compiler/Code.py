@@ -104,7 +104,7 @@ class FunctionState(object):
     def label_used(self, lbl):
         return lbl in self.labels_used
 
-    def allocate_temp(self, type, manage_ref=True):
+    def allocate_temp(self, type, manage_ref):
         """
         Allocates a temporary (which may create a new one or get a previously
         allocated and released one of the same type). Type is simply registered
@@ -115,11 +115,16 @@ class FunctionState(object):
         handling clauses. Otherwise the caller has to deal with any reference
         counting of the variable.
 
+        If not type.is_pyobject, then manage_ref will be ignored, but it
+        still has to be passed. It is recommended to pass False by convention
+        if it is known that type will never be a Python object.
+
         A C string referring to the variable is returned.
         """
-        if not type.is_pyobject and manage_ref is not True:
-            # Make manage_ref canonical for temps_free lookup purposes
-            raise ValueError("manage_ref only applicable when type.is_pyobject")
+        if not type.is_pyobject:
+            # Make manage_ref canonical, so that manage_ref will always mean
+            # a decref is needed.
+            manage_ref = False
         freelist = self.temps_free.get((type, manage_ref))
         if freelist is not None and len(freelist) > 0:
             result = freelist.pop()
@@ -163,7 +168,14 @@ class FunctionState(object):
         """
         return [(name, type)
                 for name, type, manage_ref in self.temps_in_use()
-                if (type.is_pyobject and manage_ref)]
+                if manage_ref]
+
+    def all_managed_temps(self):
+        """Return a list of (cname, type) tuples of refcount-managed Python objects.
+        """
+        return [(cname, type)
+                for cname, type, manage_ref in self.temps_allocated
+                if manage_ref]
 
 class GlobalState(object):
     # filename_table   {string : int}  for finding filename table indexes
