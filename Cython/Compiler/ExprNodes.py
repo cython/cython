@@ -2376,7 +2376,7 @@ class AsTupleNode(ExprNode):
     def analyse_types(self, env):
         self.arg.analyse_types(env)
         self.arg = self.arg.coerce_to_pyobject(env)
-        self.type = py_object_type
+        self.type = tuple_type
         self.gil_check(env)
         self.is_temp = 1
 
