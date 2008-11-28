@@ -132,58 +132,9 @@ cdef extern from "numpy/arrayobject.h":
                 return
             else:
                 info.format = <char*>stdlib.malloc(255) # static size
-                f = info.format
-                stack = [iter(descr.fields.iteritems())]
+                f = _util_dtypestring(descr, info.format, info.format + 255)
+                f[0] = 0 # Terminate format string
 
-                while True:
-                    iterator = stack[-1]
-                    descr = None
-                    while descr is None:
-                        try:
-                            descr = iterator.next()[1][0]
-                        except StopIteration:
-                            stack.pop()
-                            if len(stack) > 0:
-                                f[0] = 125 #"}"
-                                f += 1
-                                iterator = stack[-1]
-                            else:
-                                f[0] = 0 # Terminate string!
-                                return
-
-                    hasfields = PyDataType_HASFIELDS(descr)
-                    if not hasfields:
-                        t = descr.type_num
-                        if f - info.format > 240: # this should leave room for "T{" and "}" as well
-                            raise RuntimeError("Format string allocated too short.")
-
-                        # Until ticket #99 is fixed, use integers to avoid warnings
-                        if   t == NPY_BYTE:        f[0] =  98 #"b"
-                        elif t == NPY_UBYTE:       f[0] =  66 #"B"
-                        elif t == NPY_SHORT:       f[0] = 104 #"h"
-                        elif t == NPY_USHORT:      f[0] =  72 #"H"
-                        elif t == NPY_INT:         f[0] = 105 #"i"
-                        elif t == NPY_UINT:        f[0] =  73 #"I"
-                        elif t == NPY_LONG:        f[0] = 108 #"l"
-                        elif t == NPY_ULONG:       f[0] = 76  #"L"
-                        elif t == NPY_LONGLONG:    f[0] = 113 #"q"
-                        elif t == NPY_ULONGLONG:   f[0] = 81  #"Q"
-                        elif t == NPY_FLOAT:       f[0] = 102 #"f"
-                        elif t == NPY_DOUBLE:      f[0] = 100 #"d"
-                        elif t == NPY_LONGDOUBLE:  f[0] = 103 #"g"
-                        elif t == NPY_CFLOAT:      f[0] = 90; f[1] = 102; f += 1
-                        elif t == NPY_CDOUBLE:     f[0] = 90; f[1] = 100; f += 1
-                        elif t == NPY_CLONGDOUBLE: f[0] = 90; f[1] = 103; f += 1
-                        elif t == NPY_OBJECT:      f[0] = 79 #"O"
-                        else:
-                            raise ValueError("unknown dtype code in numpy.pxd (%d)" % t)
-                        f += 1
-                    else:
-                        f[0] = 84 #"T"
-                        f[1] = 123 #"{"
-                        f += 2
-                        stack.append(iter(descr.fields.iteritems()))
-                
         def __releasebuffer__(ndarray self, Py_buffer* info):
             if PyArray_HASFIELDS(self):
                 stdlib.free(info.format)
@@ -292,3 +243,48 @@ ctypedef npy_longdouble longdouble_t
 ctypedef npy_cfloat      cfloat_t
 ctypedef npy_cdouble     cdouble_t
 ctypedef npy_clongdouble clongdouble_t
+
+
+cdef inline char* _util_dtypestring(dtype descr, char* f, char* end) except NULL:
+    # Recursive utility function used in __getbuffer__ to get format
+    # string. The new location in the format string is returned.
+
+    cdef dtype child
+    cdef tuple i
+    for i in descr.fields.itervalues():
+        child = i[0]
+        if not PyDataType_HASFIELDS(child):
+            t = child.type_num
+            if end - f < 15: # this should leave room for "T{" and "}" as well
+                raise RuntimeError("Format string allocated too short.")
+
+            # Until ticket #99 is fixed, use integers to avoid warnings
+            if   t == NPY_BYTE:        f[0] =  98 #"b"
+            elif t == NPY_UBYTE:       f[0] =  66 #"B"
+            elif t == NPY_SHORT:       f[0] = 104 #"h"
+            elif t == NPY_USHORT:      f[0] =  72 #"H"
+            elif t == NPY_INT:         f[0] = 105 #"i"
+            elif t == NPY_UINT:        f[0] =  73 #"I"
+            elif t == NPY_LONG:        f[0] = 108 #"l"
+            elif t == NPY_ULONG:       f[0] = 76  #"L"
+            elif t == NPY_LONGLONG:    f[0] = 113 #"q"
+            elif t == NPY_ULONGLONG:   f[0] = 81  #"Q"
+            elif t == NPY_FLOAT:       f[0] = 102 #"f"
+            elif t == NPY_DOUBLE:      f[0] = 100 #"d"
+            elif t == NPY_LONGDOUBLE:  f[0] = 103 #"g"
+            elif t == NPY_CFLOAT:      f[0] = 90; f[1] = 102; f += 1
+            elif t == NPY_CDOUBLE:     f[0] = 90; f[1] = 100; f += 1
+            elif t == NPY_CLONGDOUBLE: f[0] = 90; f[1] = 103; f += 1
+            elif t == NPY_OBJECT:      f[0] = 79 #"O"
+            else:
+                raise ValueError("unknown dtype code in numpy.pxd (%d)" % t)
+            f += 1
+        else:
+            f[0] = 84 #"T"
+            f[1] = 123 #"{"
+            f += 2
+            f = _util_dtypestring(child, f, end)
+            f[0] = 125 #"}"
+            f += 1
+    return f
+                

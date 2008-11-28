@@ -97,7 +97,10 @@ class Entry:
     # utility_code     string     Utility code needed when this entry is used
     #
     # buffer_aux      BufferAux or None  Extra information needed for buffer variables
+    # inline_func_in_pxd boolean  Hacky special case for inline function in pxd file.
+    #                             Ideally this should not be necesarry.
 
+    inline_func_in_pxd = False
     borrowed = 0
     init = ""
     visibility = 'private'

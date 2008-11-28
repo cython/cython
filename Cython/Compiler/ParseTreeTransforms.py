@@ -212,8 +212,12 @@ class PxdPostParse(CythonTransform):
 
     - "def" functions are let through only if they fill the
     getbuffer/releasebuffer slots
+    
+    - cdef functions are let through only if they are on the
+    top level and are declared "inline"
     """
-    ERR_FUNCDEF_NOT_ALLOWED = 'function definition not allowed here'
+    ERR_INLINE_ONLY = "function definition in pxd file must be declared 'cdef inline'"
+    ERR_NOGO_WITH_INLINE = "inline function definition in pxd file cannot be '%s'"
 
     def __call__(self, node):
         self.scope_type = 'pxd'
@@ -229,31 +233,37 @@ class PxdPostParse(CythonTransform):
     def visit_FuncDefNode(self, node):
         # FuncDefNode always come with an implementation (without
         # an imp they are CVarDefNodes..)
-        ok = False
+        err = self.ERR_INLINE_ONLY
 
         if (isinstance(node, DefNode) and self.scope_type == 'cclass'
             and node.name in ('__getbuffer__', '__releasebuffer__')):
-            ok = True
+            err = None # allow these slots
             
         if isinstance(node, CFuncDefNode):
-            ok = True
-            for stat in node.body.stats:
-                if not isinstance(stat, CVarDefNode):
-                    self.context.error("C function definition not allowed here")
-                    ok = False
-                    break
-            node = CVarDefNode(node.pos, 
-                visibility = node.visibility,
-                base_type = node.base_type,
-                declarators = [node.declarator],
-                in_pxd = True,
-                api = node.api,
-                overridable = node.overridable, 
-                pxd_locals = node.body.stats)
-
-        if not ok:
-            self.context.nonfatal_error(PostParseError(node.pos,
-                self.ERR_FUNCDEF_NOT_ALLOWED))
+            if u'inline' in node.modifiers and self.scope_type == 'pxd':
+                node.inline_in_pxd = True
+                if node.visibility != 'private':
+                    err = self.ERR_NOGO_WITH_INLINE % node.visibility
+                elif node.api:
+                    err = self.ERR_NOGO_WITH_INLINE % 'api'
+                else:
+                    err = None # allow inline function
+            else:
+                err = None
+                for stat in node.body.stats:
+                    if not isinstance(stat, CVarDefNode):
+                        err = self.ERR_INLINE_ONLY
+                        break
+                node = CVarDefNode(node.pos, 
+                                   visibility = node.visibility,
+                                   base_type = node.base_type,
+                                   declarators = [node.declarator],
+                                   in_pxd = True,
+                                   api = node.api,
+                                   overridable = node.overridable, 
+                                   pxd_locals = node.body.stats)
+        if err:
+            self.context.nonfatal_error(PostParseError(node.pos, err))
             return None
         else:
             return node
