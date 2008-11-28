@@ -15,6 +15,25 @@ __doc__ = u"""
     resting
     >>> print(constant()['answer'])
     42
+
+    >>> print(dict_call()['parrot'])
+    resting
+    >>> print(dict_call()['answer'])
+    42
+
+    >>> print(dict_call_dict()['parrot'])
+    resting
+    >>> print(dict_call_dict()['answer'])
+    42
+
+    >>> print(dict_call_kwargs()['parrot1'])
+    resting
+    >>> print(dict_call_kwargs()['parrot2'])
+    resting
+    >>> print(dict_call_kwargs()['answer1'])
+    42
+    >>> print(dict_call_kwargs()['answer2'])
+    42
 """
 
 def empty():
@@ -35,4 +54,17 @@ def keyvalues2(key1, value1, key2, value2):
 
 def constant():
     d = {u"parrot":u"resting", u"answer":42}
+    return d
+
+def dict_call():
+    d = dict(parrot=u"resting", answer=42)
+    return d
+
+def dict_call_dict():
+    d = dict(dict(parrot=u"resting", answer=42))
+    return d
+
+def dict_call_kwargs():
+    kwargs = dict(parrot1=u"resting", answer1=42)
+    d = dict(parrot2=u"resting", answer2=42, **kwargs)
     return d
