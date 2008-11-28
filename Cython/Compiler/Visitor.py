@@ -60,7 +60,7 @@ class TreeVisitor(BasicVisitor):
     
     Example:
     
-    >>> class SampleNode:
+    >>> class SampleNode(object):
     ...     child_attrs = ["head", "body"]
     ...     def __init__(self, value, head=None, body=None):
     ...         self.value = value
