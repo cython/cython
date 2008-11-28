@@ -196,17 +196,15 @@ class ExprNode(Node):
     def subexpr_nodes(self):
         #  Extract a list of subexpression nodes based
         #  on the contents of the subexprs class attribute.
-        if self.saved_subexpr_nodes is None:
-            nodes = []
-            for name in self.subexprs:
-                item = getattr(self, name)
-                if item:
-                    if isinstance(item, ExprNode):
-                        nodes.append(item)
-                    else:
-                        nodes.extend(item)
-            self.saved_subexpr_nodes = nodes
-        return self.saved_subexpr_nodes
+        nodes = []
+        for name in self.subexprs:
+            item = getattr(self, name)
+            if item:
+                if isinstance(item, ExprNode):
+                    nodes.append(item)
+                else:
+                    nodes.extend(item)
+        return nodes
         
     def result(self):
         if not self.is_temp or self.is_target:
