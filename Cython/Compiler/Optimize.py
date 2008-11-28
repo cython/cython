@@ -350,6 +350,10 @@ class FinalOptimizePhase(Visitor.CythonTransform):
         - isinstance -> typecheck for cdef types
     """
     def visit_SingleAssignmentNode(self, node):
+        """Avoid redundant initialisation of local variables before their
+        first assignment.
+        """
+        self.visitchildren(node)
         if node.first:
             lhs = node.lhs
             lhs.lhs_of_first_assignment = True
@@ -360,6 +364,9 @@ class FinalOptimizePhase(Visitor.CythonTransform):
         return node
 
     def visit_SimpleCallNode(self, node):
+        """Replace generic calls to isinstance(x, type) by a more efficient
+        type check.
+        """
         self.visitchildren(node)
         if node.function.type.is_cfunction and isinstance(node.function, ExprNodes.NameNode):
             if node.function.name == 'isinstance':
