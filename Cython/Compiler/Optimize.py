@@ -340,6 +340,43 @@ class FlattenInListTransform(Visitor.VisitorTransform):
         return node
 
 
+class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
+    """Optimise some common instantiation patterns for builtin types.
+    """
+    def visit_GeneralCallNode(self, node):
+        """Replace dict(a=b,c=d,...) by the underlying keyword dict
+        construction which is done anyway.
+        """
+        self.visitchildren(node)
+        if not node.function.type.is_builtin_type:
+            return node
+        if node.function.name != 'dict':
+            return node
+        if not isinstance(node.positional_args, ExprNodes.TupleNode):
+            return node
+        if len(node.positional_args.args) > 0:
+            return node
+        if not isinstance(node.keyword_args, ExprNodes.DictNode):
+            return node
+        if node.starstar_arg:
+            # we could optimise this by updating the kw dict instead
+            return node
+        return node.keyword_args
+
+    def visit_PyTypeTestNode(self, node):
+        """Flatten redundant type checks after tree changes.
+        """
+        old_arg = node.arg
+        self.visitchildren(node)
+        if old_arg is node.arg or node.arg.type != node.type:
+            return node
+        return node.arg
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
+        return node
+
+
 class FinalOptimizePhase(Visitor.CythonTransform):
     """
     This visitor handles several commuting optimizations, and is run
