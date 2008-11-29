@@ -641,8 +641,8 @@ class NewTempExprNode(ExprNode):
         else:
             self.generate_subexpr_disposal_code(code)
 
-    
-        
+
+
 
 class AtomicExprNode(ExprNode):
     #  Abstract base class for expression nodes which have
@@ -1350,9 +1350,6 @@ class IteratorNode(ExprNode):
         self.is_temp = 1
 
     gil_message = "Iterating over Python object"
-
-    def release_temp(self, env):
-        env.release_temp(self.result())
 
     def allocate_counter_temp(self, code):
         self.counter_cname = code.funcstate.allocate_temp(
