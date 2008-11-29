@@ -1349,7 +1349,7 @@ class ImportNode(ExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
 
 
-class IteratorNode(ExprNode):
+class IteratorNode(NewTempExprNode):
     #  Used as part of for statement implementation.
     #
     #  allocate_counter_temp/release_counter_temp needs to be called
