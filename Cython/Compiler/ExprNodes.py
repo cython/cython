@@ -3914,11 +3914,8 @@ class BoolBinopNode(ExprNode):
     #  operator     string
     #  operand1     ExprNode
     #  operand2     ExprNode
-    #  temp_bool    ExprNode     used internally
     
-    temp_bool = None
-    
-    subexprs = ['operand1', 'operand2', 'temp_bool']
+    subexprs = ['operand1', 'operand2']
     
     def compile_time_value(self, denv):
         if self.operator == 'and':
@@ -3941,7 +3938,6 @@ class BoolBinopNode(ExprNode):
                 self.operand2.type.is_pyobject:
             self.operand1 = self.operand1.coerce_to_pyobject(env)
             self.operand2 = self.operand2.coerce_to_pyobject(env)
-            self.temp_bool = TempNode(self.pos, PyrexTypes.c_bint_type, env)
             self.type = py_object_type
             self.gil_check(env)
         else:
@@ -3966,9 +3962,6 @@ class BoolBinopNode(ExprNode):
         #  be necessary.
         self.allocate_temp(env, result_code)
         self.operand1.allocate_temps(env, self.result())
-        if self.temp_bool:
-            self.temp_bool.allocate_temp(env)
-            self.temp_bool.release_temp(env)
         self.operand2.allocate_temps(env, self.result())
         #  We haven't called release_temp on either operand,
         #  because although they are temp nodes, they don't own 
@@ -3992,7 +3985,7 @@ class BoolBinopNode(ExprNode):
 
     def generate_evaluation_code(self, code):
         self.operand1.generate_evaluation_code(code)
-        test_result = self.generate_operand1_test(code)
+        test_result, uses_temp = self.generate_operand1_test(code)
         if self.operator == 'and':
             sense = ""
         else:
@@ -4001,6 +3994,8 @@ class BoolBinopNode(ExprNode):
             "if (%s%s) {" % (
                 sense,
                 test_result))
+        if uses_temp:
+            code.funcstate.release_temp(test_result)
         self.operand1.generate_disposal_code(code)
         self.operand2.generate_evaluation_code(code)
         code.putln(
@@ -4009,7 +4004,8 @@ class BoolBinopNode(ExprNode):
     def generate_operand1_test(self, code):
         #  Generate code to test the truth of the first operand.
         if self.type.is_pyobject:
-            test_result = self.temp_bool.result()
+            test_result = code.funcstate.allocate_temp(PyrexTypes.c_bint_type,
+                                                       manage_ref=False)
             code.putln(
                 "%s = __Pyx_PyObject_IsTrue(%s); %s" % (
                     test_result,
@@ -4017,7 +4013,7 @@ class BoolBinopNode(ExprNode):
                     code.error_goto_if_neg(test_result, self.pos)))
         else:
             test_result = self.operand1.result()
-        return test_result
+        return (test_result, self.type.is_pyobject)
 
 
 class CondExprNode(ExprNode):
@@ -4027,7 +4023,6 @@ class CondExprNode(ExprNode):
     #  true_val    ExprNode
     #  false_val   ExprNode
     
-    temp_bool = None
     true_val = None
     false_val = None
     
