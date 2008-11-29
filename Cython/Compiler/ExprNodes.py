@@ -1332,6 +1332,10 @@ class ImportNode(ExprNode):
 
 class IteratorNode(ExprNode):
     #  Used as part of for statement implementation.
+    #
+    #  allocate_counter_temp/release_counter_temp needs to be called
+    #  by parent (ForInStatNode)
+    #
     #  Implements result = iter(sequence)
     #
     #  sequence   ExprNode
@@ -1344,16 +1348,19 @@ class IteratorNode(ExprNode):
         self.type = py_object_type
         self.gil_check(env)
         self.is_temp = 1
-        
-        self.counter = TempNode(self.pos, PyrexTypes.c_py_ssize_t_type, env)
-        self.counter.allocate_temp(env)
 
     gil_message = "Iterating over Python object"
 
     def release_temp(self, env):
         env.release_temp(self.result())
-        self.counter.release_temp(env)
-    
+
+    def allocate_counter_temp(self, code):
+        self.counter_cname = code.funcstate.allocate_temp(
+            PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+
+    def release_counter_temp(self, code):
+        code.funcstate.release_temp(self.counter_cname)
+
     def generate_result_code(self, code):
         is_builtin_sequence = self.sequence.type is list_type or \
             self.sequence.type is tuple_type
@@ -1367,7 +1374,7 @@ class IteratorNode(ExprNode):
                     self.sequence.py_result()))
         code.putln(
             "%s = 0; %s = %s; Py_INCREF(%s);" % (
-                self.counter.result(),
+                self.counter_cname,
                 self.result(),
                 self.sequence.py_result(),
                 self.result()))
@@ -1378,7 +1385,7 @@ class IteratorNode(ExprNode):
                 code.error_goto(self.pos))
         else:
             code.putln("%s = -1; %s = PyObject_GetIter(%s); %s" % (
-                    self.counter.result(),
+                    self.counter_cname,
                     self.result(),
                     self.sequence.py_result(),
                     code.error_goto_if_null(self.result(), self.pos)))
@@ -1414,7 +1421,7 @@ class NextNode(AtomicExprNode):
                         prefix, self.iterator.py_result()))
             code.putln(
                 "if (%s >= Py%s_GET_SIZE(%s)) break;" % (
-                    self.iterator.counter.result(),
+                    self.iterator.counter_cname,
                     prefix,
                     self.iterator.py_result()))
             code.putln(
@@ -1422,9 +1429,9 @@ class NextNode(AtomicExprNode):
                     self.result(),
                     prefix,
                     self.iterator.py_result(),
-                    self.iterator.counter.result(),
+                    self.iterator.counter_cname,
                     self.result(),
-                    self.iterator.counter.result()))
+                    self.iterator.counter_cname))
             if len(type_checks) > 1:
                 code.put("} else ")
         if len(type_checks) == 1:
