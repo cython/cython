@@ -641,6 +641,8 @@ class NewTempExprNode(ExprNode):
 
         self.generate_result_code(code)
         if self.is_temp:
+            # If we are temp, need to wait until this node is disposed
+            # before disposing children.
             self.generate_subexpr_disposal_code(code)
 
     def generate_disposal_code(self, code):
@@ -669,8 +671,31 @@ class AtomicExprNode(ExprNode):
     
     subexprs = []
 
+class AtomicNewTempExprNode(NewTempExprNode):
+    # I do not dare to convert NameNode yet. This is now
+    # ancestor of all former AtomicExprNode except
+    # NameNode. Should be renamed to AtomicExprNode
+    # when done.
+    
+    #  Abstract base class for expression nodes which have
+    #  no sub-expressions.
+    
+    subexprs = []
 
-class PyConstNode(AtomicExprNode):
+    # Override to optimize -- we know we have no children
+    def generate_evaluation_code(self, code):
+        if self.is_temp:
+            self.allocate_temp_result(code)
+        self.generate_result_code(code)
+
+    def generate_disposal_code(self, code):
+        if self.is_temp:
+            if self.type.is_pyobject:
+                code.put_decref_clear(self.result(), self.ctype())
+            if not self.backwards_compatible_result:
+                self.release_temp_result(code)
+
+class PyConstNode(AtomicNewTempExprNode):
     #  Abstract base class for constant Python values.
     
     is_literal = 1
@@ -705,7 +730,7 @@ class EllipsisNode(PyConstNode):
         return Ellipsis
 
 
-class ConstNode(AtomicExprNode):
+class ConstNode(AtomicNewTempExprNode):
     # Abstract base type for literal constant nodes.
     #
     # value     string      C code fragment
@@ -905,7 +930,7 @@ class IdentifierStringNode(ConstNode):
         return self.cname
 
 
-class LongNode(AtomicExprNode):
+class LongNode(AtomicNewTempExprNode):
     #  Python long integer literal
     #
     #  value   string
@@ -922,7 +947,7 @@ class LongNode(AtomicExprNode):
 
     gil_message = "Constructing Python long int"
 
-    def generate_evaluation_code(self, code):
+    def generate_result_code(self, code):
         code.putln(
             '%s = PyLong_FromString((char *)"%s", 0, 0); %s' % (
                 self.result(),
@@ -930,7 +955,7 @@ class LongNode(AtomicExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
 
 
-class ImagNode(AtomicExprNode):
+class ImagNode(AtomicNewTempExprNode):
     #  Imaginary number literal
     #
     #  value   float    imaginary part
@@ -945,7 +970,7 @@ class ImagNode(AtomicExprNode):
 
     gil_message = "Constructing complex number"
 
-    def generate_evaluation_code(self, code):
+    def generate_result_code(self, code):
         code.putln(
             "%s = PyComplex_FromDoubles(0.0, %s); %s" % (
                 self.result(),
@@ -1408,7 +1433,7 @@ class IteratorNode(NewTempExprNode):
         code.putln("}")
 
 
-class NextNode(AtomicExprNode):
+class NextNode(AtomicNewTempExprNode):
     #  Used as part of for statement implementation.
     #  Implements result = iterator.next()
     #  Created during analyse_types phase.
@@ -1466,7 +1491,7 @@ class NextNode(AtomicExprNode):
         code.putln("}")
 
 
-class ExcValueNode(AtomicExprNode):
+class ExcValueNode(AtomicNewTempExprNode):
     #  Node created during analyse_types phase
     #  of an ExceptClauseNode to fetch the current
     #  exception value.
@@ -1486,9 +1511,11 @@ class ExcValueNode(AtomicExprNode):
         pass
 
 
-class TempNode(AtomicExprNode):
+class TempNode(ExprNode):
     #  Node created during analyse_types phase
     #  of some nodes to hold a temporary value.
+
+    subexprs = []
     
     def __init__(self, pos, type, env):
         ExprNode.__init__(self, pos)
@@ -3277,7 +3304,7 @@ class UnboundMethodNode(ExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
 
 
-class PyCFunctionNode(AtomicExprNode):
+class PyCFunctionNode(AtomicNewTempExprNode):
     #  Helper class used in the implementation of Python
     #  class definitions. Constructs a PyCFunction object
     #  from a PyMethodDef struct.
