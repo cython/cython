@@ -436,14 +436,10 @@ class ExprNode(Node):
         #  its sub-expressions, and dispose of any
         #  temporary results of its sub-expressions.
         self.generate_subexpr_evaluation_code(code)
-        self.pre_generate_result_code(code)
         self.generate_result_code(code)
         if self.is_temp:
             self.generate_subexpr_disposal_code(code)
 
-    def pre_generate_result_code(self, code):
-        pass
-    
     def generate_subexpr_evaluation_code(self, code):
         for node in self.subexpr_nodes():
             node.generate_evaluation_code(code)
@@ -602,7 +598,14 @@ class NewTempExprNode(ExprNode):
         else:
             self.release_subexpr_temps(env)
 
-    def pre_generate_result_code(self, code):
+    def generate_evaluation_code(self, code):
+        code.mark_pos(self.pos)
+        
+        #  Generate code to evaluate this node and
+        #  its sub-expressions, and dispose of any
+        #  temporary results of its sub-expressions.
+        self.generate_subexpr_evaluation_code(code)
+
         if self.is_temp:
             type = self.type
             if not type.is_void:
@@ -611,9 +614,14 @@ class NewTempExprNode(ExprNode):
                 if self.backwards_compatible_result:
                     self.temp_code = self.backwards_compatible_result
                 else:
-                    self.temp_code = code.funcstate.allocate_temp(type, manage_ref=True)
+                    self.temp_code = code.funcstate.allocate_temp(
+                        type, manage_ref=True)
             else:
                 self.temp_code = None
+
+        self.generate_result_code(code)
+        if self.is_temp:
+            self.generate_subexpr_disposal_code(code)
 
     def generate_disposal_code(self, code):
         if self.is_temp:
