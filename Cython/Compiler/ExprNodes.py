@@ -569,8 +569,22 @@ class ExprNode(Node):
         return None
 
 
+class RemoveAllocateTemps(type):
+    def __init__(cls, name, bases, dct):
+        super(RemoveAllocateTemps, cls).__init__(name, bases, dct)
+        def noop(self, env): pass
+        setattr(cls, 'allocate_temps', noop)
+        setattr(cls, 'allocate_temp', noop)
+        setattr(cls, 'release_temps', noop)
+        setattr(cls, 'release_temp', noop)
+
 class NewTempExprNode(ExprNode):
     backwards_compatible_result = None
+
+#   Do not enable this unless you are trying to make all ExprNodes
+#   NewTempExprNodes (child nodes reached via recursion may not have
+#   transferred).
+#    __metaclass__ = RemoveAllocateTemps
     
     def result(self):
         if self.is_temp:
@@ -598,6 +612,22 @@ class NewTempExprNode(ExprNode):
         else:
             self.release_subexpr_temps(env)
 
+    def allocate_temp_result(self, code):
+        type = self.type
+        if not type.is_void:
+            if type.is_pyobject:
+                type = PyrexTypes.py_object_type
+            if self.backwards_compatible_result:
+                self.temp_code = self.backwards_compatible_result
+            else:
+                self.temp_code = code.funcstate.allocate_temp(
+                    type, manage_ref=True)
+        else:
+            self.temp_code = None
+
+    def release_temp_result(self, code):
+        code.funcstate.release_temp(self.temp_code)
+
     def generate_evaluation_code(self, code):
         code.mark_pos(self.pos)
         
@@ -607,17 +637,7 @@ class NewTempExprNode(ExprNode):
         self.generate_subexpr_evaluation_code(code)
 
         if self.is_temp:
-            type = self.type
-            if not type.is_void:
-                if type.is_pyobject:
-                    type = PyrexTypes.py_object_type
-                if self.backwards_compatible_result:
-                    self.temp_code = self.backwards_compatible_result
-                else:
-                    self.temp_code = code.funcstate.allocate_temp(
-                        type, manage_ref=True)
-            else:
-                self.temp_code = None
+            self.allocate_temp_result(code)
 
         self.generate_result_code(code)
         if self.is_temp:
@@ -628,7 +648,7 @@ class NewTempExprNode(ExprNode):
             if self.type.is_pyobject:
                 code.put_decref_clear(self.result(), self.ctype())
             if not self.backwards_compatible_result:
-                code.funcstate.release_temp(self.temp_code)
+                self.release_temp_result(code)
         else:
             self.generate_subexpr_disposal_code(code)
 
@@ -641,8 +661,7 @@ class NewTempExprNode(ExprNode):
         else:
             self.generate_subexpr_disposal_code(code)
 
-
-
+# ExprNode = NewTempExprNode     
 
 class AtomicExprNode(ExprNode):
     #  Abstract base class for expression nodes which have
@@ -4228,7 +4247,7 @@ class CmpNode:
             return op
     
 
-class PrimaryCmpNode(ExprNode, CmpNode):
+class PrimaryCmpNode(NewTempExprNode, CmpNode):
     #  Non-cascaded comparison or first comparison of
     #  a cascaded sequence.
     #
@@ -4327,11 +4346,12 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             self.operand1.result(),
             self.c_operator(self.operator),
             self.operand2.result())
-    
+
     def generate_evaluation_code(self, code):
         self.operand1.generate_evaluation_code(code)
         self.operand2.generate_evaluation_code(code)
         if self.is_temp:
+            self.allocate_temp_result(code)
             self.generate_operation_code(code, self.result(), 
                 self.operand1, self.operator, self.operand2)
             if self.cascade:
