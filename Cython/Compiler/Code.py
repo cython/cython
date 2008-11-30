@@ -14,6 +14,7 @@ try:
     set
 except NameError:
     from sets import Set as set
+import DebugFlags
 
 class FunctionState(object):
     # return_label     string          function return point label
@@ -26,8 +27,9 @@ class FunctionState(object):
     # exc_vars         (string * 3)    exception variables for reraise, or None
 
     # Not used for now, perhaps later
-    def __init__(self, names_taken=set()):
+    def __init__(self, owner, names_taken=set()):
         self.names_taken = names_taken
+        self.owner = owner
         
         self.error_label = None
         self.label_counter = 0
@@ -135,6 +137,8 @@ class FunctionState(object):
                 if not result in self.names_taken: break
             self.temps_allocated.append((result, type, manage_ref))
         self.temps_used_type[result] = (type, manage_ref)
+        if DebugFlags.debug_temp_code_comments:
+            self.owner.putln("/* %s allocated */" % result)
         return result
 
     def release_temp(self, name):
@@ -149,6 +153,8 @@ class FunctionState(object):
 
             self.temps_free[(type, manage_ref)] = freelist
         freelist.append(name)
+        if DebugFlags.debug_temp_code_comments:
+            self.owner.putln("/* %s released */" % name)
 
     def temps_in_use(self):
         """Return a list of (cname,type,manage_ref) tuples of temp names and their type
@@ -567,7 +573,7 @@ class CCodeWriter(object):
 
 
     def enter_cfunc_scope(self):
-        self.funcstate = FunctionState()
+        self.funcstate = FunctionState(self)
     
     def exit_cfunc_scope(self):
         self.funcstate = None
