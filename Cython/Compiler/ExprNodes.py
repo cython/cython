@@ -4048,7 +4048,6 @@ class BoolBinopNode(NewTempExprNode):
 
     def generate_evaluation_code(self, code):
         code.mark_pos(self.pos)
-        self.allocate_temp_result(code)
         self.operand1.generate_evaluation_code(code)
         test_result, uses_temp = self.generate_operand1_test(code)
         if self.operator == 'and':
@@ -4063,6 +4062,9 @@ class BoolBinopNode(NewTempExprNode):
             code.funcstate.release_temp(test_result)
         self.operand1.generate_disposal_code(code, free_temp=False)
         self.operand2.generate_evaluation_code(code)
+        
+        self.allocate_temp_result(code)
+        
         code.putln("%s = %s;" % (self.result(), self.operand2.result()))
         self.operand2.generate_disposal_code(code, decref=False)
         code.putln("} else {")
