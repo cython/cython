@@ -4513,7 +4513,7 @@ def binop_node(pos, operator, operand1, operand2):
 #
 #-------------------------------------------------------------------
 
-class CoercionNode(ExprNode):
+class CoercionNode(NewTempExprNode):
     #  Abstract base class for coercion nodes.
     #
     #  arg       ExprNode       node being coerced
