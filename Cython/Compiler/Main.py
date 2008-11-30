@@ -87,6 +87,15 @@ class Context:
         from Buffer import IntroduceBufferAuxiliaryVars
         from ModuleNode import check_c_declarations
 
+        # Temporary hack that can be used to ensure that all result_code's
+        # are generated at code generation time.
+        import Visitor
+        class ClearResultCodes(Visitor.CythonTransform):
+            def visit_ExprNode(self, node):
+                self.visitchildren(node)
+                node.result_code = "<cleared>"
+                return node
+
         if pxd:
             _check_c_declarations = None
             _specific_post_parse = PxdPostParse(self)
@@ -118,6 +127,7 @@ class Context:
             DictIterTransform(),
             SwitchTransform(),
             FinalOptimizePhase(self),
+#            ClearResultCodes(self),
 #            SpecialFunctions(self),
             #        CreateClosureClasses(context),
             ]
