@@ -2850,7 +2850,7 @@ class SequenceNode(NewTempExprNode):
             code.put_incref(item.result(), item.ctype())
             value_node = self.coerced_unpacked_items[i]
             value_node.generate_evaluation_code(code)
-        rhs.generate_disposal_code(code)
+        rhs.generate_disposal_code(code, free_temp=False)
 
         code.putln("} else {")
 
@@ -2859,7 +2859,7 @@ class SequenceNode(NewTempExprNode):
                 self.iterator.result(),
                 rhs.py_result(),
                 code.error_goto_if_null(self.iterator.result(), self.pos)))
-        rhs.generate_disposal_code(code)
+        rhs.generate_disposal_code(code, free_temp=False)
         for i in range(len(self.args)):
             item = self.unpacked_items[i]
             unpack_code = "__Pyx_UnpackItem(%s, %d)" % (
@@ -2880,6 +2880,7 @@ class SequenceNode(NewTempExprNode):
         self.iterator.generate_disposal_code(code)
 
         code.putln("}")
+        rhs.generate_disposal_code(code, free_temp=True, decref=False)
         for i in range(len(self.args)):
             self.args[i].generate_assignment_code(
                 self.coerced_unpacked_items[i], code)
