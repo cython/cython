@@ -447,17 +447,14 @@ class ExprNode(Node):
     def generate_result_code(self, code):
         self.not_implemented("generate_result_code")
     
-    def generate_disposal_code(self, code, free_temp=True, decref=True):
+    def generate_disposal_code(self, code):
         # If necessary, generate code to dispose of 
         # temporary Python reference.
-        if not decref:
-            self.generate_post_assignment_code(code)
+        if self.is_temp:
+            if self.type.is_pyobject:
+                code.put_decref_clear(self.result(), self.ctype())
         else:
-            if self.is_temp:
-                if self.type.is_pyobject:
-                    code.put_decref_clear(self.result(), self.ctype())
-            else:
-                self.generate_subexpr_disposal_code(code)
+            self.generate_subexpr_disposal_code(code)
     
     def generate_subexpr_disposal_code(self, code):
         #  Generate code to dispose of temporary results
@@ -485,6 +482,9 @@ class ExprNode(Node):
         #  Stub method for nodes that are not legal as
         #  the argument of a del statement. An error
         #  will have been reported earlier.
+        pass
+
+    def free_temps(self, code):
         pass
     
     # ---------------- Annotation ---------------------
@@ -578,7 +578,6 @@ class RemoveAllocateTemps(type):
         def noop(self, env): pass
         setattr(cls, 'allocate_temps', noop)
         setattr(cls, 'allocate_temp', noop)
-        setattr(cls, 'release_temps', noop)
         setattr(cls, 'release_temp', noop)
 
 class NewTempExprNode(ExprNode):
@@ -646,24 +645,28 @@ class NewTempExprNode(ExprNode):
 
         self.generate_result_code(code)
         if self.is_temp:
-            # If we are temp, need to wait until this node is disposed
+            # If we are temp we do not need to wait until this node is disposed
             # before disposing children.
             self.generate_subexpr_disposal_code(code)
 
-    def generate_disposal_code(self, code, free_temp=True, decref=True):
+    def generate_disposal_code(self, code):
         if self.is_temp:
             if self.type.is_pyobject:
-                if decref:
-                    code.put_decref_clear(self.result(), self.ctype())
-                elif free_temp and not self.backwards_compatible_result:
-                    code.putln("%s = 0;" % self.result())
-            if free_temp and not self.backwards_compatible_result:
-                self.release_temp_result(code)
+                code.put_decref_clear(self.result(), self.ctype())
         else:
+            # Already done if self.is_temp
             self.generate_subexpr_disposal_code(code)
 
     def generate_post_assignment_code(self, code):
-        self.generate_disposal_code(code, free_temp=True, decref=False)
+        if self.is_temp and self.type.is_pyobject:
+            code.putln("%s = 0;" % self.result())
+        self.generate_subexpr_disposal_code(code)
+
+    def free_temps(self, code):
+        if self.is_temp:
+            self.release_temp_result()
+        for sub in self.subexpr_nodes():
+            sub.free_temps(code)
 
 # ExprNode = NewTempExprNode     
 
@@ -2850,7 +2853,7 @@ class SequenceNode(NewTempExprNode):
             code.put_incref(item.result(), item.ctype())
             value_node = self.coerced_unpacked_items[i]
             value_node.generate_evaluation_code(code)
-        rhs.generate_disposal_code(code, free_temp=False)
+        rhs.generate_disposal_code(code)
 
         code.putln("} else {")
 
@@ -2859,7 +2862,7 @@ class SequenceNode(NewTempExprNode):
                 self.iterator.result(),
                 rhs.py_result(),
                 code.error_goto_if_null(self.iterator.result(), self.pos)))
-        rhs.generate_disposal_code(code, free_temp=False)
+        rhs.generate_disposal_code(code)
         for i in range(len(self.args)):
             item = self.unpacked_items[i]
             unpack_code = "__Pyx_UnpackItem(%s, %d)" % (
@@ -2880,7 +2883,7 @@ class SequenceNode(NewTempExprNode):
         self.iterator.generate_disposal_code(code)
 
         code.putln("}")
-        rhs.generate_disposal_code(code, free_temp=True, decref=False)
+        rhs.free_temps()
         for i in range(len(self.args)):
             self.args[i].generate_assignment_code(
                 self.coerced_unpacked_items[i], code)
@@ -3221,11 +3224,9 @@ class DictItemNode(ExprNode):
         self.key.generate_evaluation_code(code)
         self.value.generate_evaluation_code(code)
 
-    def generate_disposal_code(self, code, free_temp=True, decref=True):
-        self.key.generate_disposal_code(
-            code, free_temp=free_temp, decref=decref)
-        self.value.generate_disposal_code(
-            code, free_temp=free_temp, decref=decref)
+    def generate_disposal_code(self, code):
+        self.key.generate_disposal_code(code)
+        self.value.generate_disposal_code(code)
         
     def __iter__(self):
         return iter([self.key, self.value])
@@ -4063,16 +4064,14 @@ class BoolBinopNode(NewTempExprNode):
                 test_result))
         if uses_temp:
             code.funcstate.release_temp(test_result)
-        self.operand1.generate_disposal_code(code, free_temp=False)
+        self.operand1.generate_disposal_code(code)
         self.operand2.generate_evaluation_code(code)
-        
         self.allocate_temp_result(code)
-        
         code.putln("%s = %s;" % (self.result(), self.operand2.result()))
-        self.operand2.generate_disposal_code(code, decref=False)
+        self.operand2.free_temps()
         code.putln("} else {")
         code.putln("%s = %s;" % (self.result(), self.operand1.result()))
-        self.operand1.generate_disposal_code(code, decref=False)
+        self.operand1.free_temps()
         code.putln("}")
     
     def generate_operand1_test(self, code):
@@ -4768,7 +4767,7 @@ class CloneNode(CoercionNode):
     def generate_result_code(self, code):
         pass
         
-    def generate_disposal_code(self, code, free_temp=True, decref=True):
+    def generate_disposal_code(self, code):
         pass
                 
     def allocate_temps(self, env):
@@ -4814,9 +4813,9 @@ class PersistentNode(ExprNode):
             self.arg.generate_disposal_code(code)
         self.generate_counter += 1
                 
-    def generate_disposal_code(self, code, free_temp=True, decref=True):
+    def generate_disposal_code(self, code):
         if self.generate_counter == self.uses:
-            if self.type.is_pyobject and decref:
+            if self.type.is_pyobject:
                 code.put_decref_clear(self.result(), self.ctype())
 
     def allocate_temps(self, env, result=None):
