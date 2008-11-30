@@ -594,7 +594,9 @@ class NewTempExprNode(ExprNode):
 
     def allocate_target_temps(self, env, rhs):
         self.allocate_subexpr_temps(env)
-        rhs.release_temp(rhs)
+        self.is_target = True
+        if rhs:
+            rhs.release_temp(env)
         self.release_subexpr_temps(env)
 
     def allocate_temps(self, env, result = None):
