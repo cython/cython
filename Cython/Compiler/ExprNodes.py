@@ -3220,10 +3220,12 @@ class DictItemNode(ExprNode):
     def generate_evaluation_code(self, code):
         self.key.generate_evaluation_code(code)
         self.value.generate_evaluation_code(code)
-        
-    def generate_disposal_code(self, code):
-        self.key.generate_disposal_code(code)
-        self.value.generate_disposal_code(code)
+
+    def generate_disposal_code(self, code, free_temp=True, decref=True):
+        self.key.generate_disposal_code(
+            code, free_temp=free_temp, decref=decref)
+        self.value.generate_disposal_code(
+            code, free_temp=free_temp, decref=decref)
         
     def __iter__(self):
         return iter([self.key, self.value])
@@ -4527,7 +4529,7 @@ def binop_node(pos, operator, operand1, operand2):
 #
 #-------------------------------------------------------------------
 
-class CoercionNode(ExprNode):
+class CoercionNode(NewTempExprNode):
     #  Abstract base class for coercion nodes.
     #
     #  arg       ExprNode       node being coerced
@@ -4766,7 +4768,7 @@ class CloneNode(CoercionNode):
     def generate_result_code(self, code):
         pass
         
-    def generate_disposal_code(self, code):
+    def generate_disposal_code(self, code, free_temp=True, decref=True):
         pass
                 
     def allocate_temps(self, env):
@@ -4812,9 +4814,9 @@ class PersistentNode(ExprNode):
             self.arg.generate_disposal_code(code)
         self.generate_counter += 1
                 
-    def generate_disposal_code(self, code):
+    def generate_disposal_code(self, code, free_temp=True, decref=True):
         if self.generate_counter == self.uses:
-            if self.type.is_pyobject:
+            if self.type.is_pyobject and decref:
                 code.put_decref_clear(self.result(), self.ctype())
 
     def allocate_temps(self, env, result=None):
