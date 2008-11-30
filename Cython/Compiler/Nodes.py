@@ -251,7 +251,7 @@ class CompilerDirectivesNode(Node):
         self.body.annotate(code)
         code.globalstate.directives = old
         
-class BlockNode:
+class BlockNode(object):
     #  Mixin class for nodes representing a declaration block.
 
     def generate_const_definitions(self, env, code):
