@@ -447,14 +447,17 @@ class ExprNode(Node):
     def generate_result_code(self, code):
         self.not_implemented("generate_result_code")
     
-    def generate_disposal_code(self, code):
+    def generate_disposal_code(self, code, free_temp=True, decref=True):
         # If necessary, generate code to dispose of 
         # temporary Python reference.
-        if self.is_temp:
-            if self.type.is_pyobject:
-                code.put_decref_clear(self.result(), self.ctype())
+        if not decref:
+            self.generate_post_assignment_code(code)
         else:
-            self.generate_subexpr_disposal_code(code)
+            if self.is_temp:
+                if self.type.is_pyobject:
+                    code.put_decref_clear(self.result(), self.ctype())
+            else:
+                self.generate_subexpr_disposal_code(code)
     
     def generate_subexpr_disposal_code(self, code):
         #  Generate code to dispose of temporary results
@@ -647,23 +650,20 @@ class NewTempExprNode(ExprNode):
             # before disposing children.
             self.generate_subexpr_disposal_code(code)
 
-    def generate_disposal_code(self, code):
+    def generate_disposal_code(self, code, free_temp=True, decref=True):
         if self.is_temp:
             if self.type.is_pyobject:
-                code.put_decref_clear(self.result(), self.ctype())
-            if not self.backwards_compatible_result:
+                if decref:
+                    code.put_decref_clear(self.result(), self.ctype())
+                elif free_temp and not self.backwards_compatible_result:
+                    code.putln("%s = 0;" % self.result())
+            if free_temp and not self.backwards_compatible_result:
                 self.release_temp_result(code)
         else:
             self.generate_subexpr_disposal_code(code)
 
     def generate_post_assignment_code(self, code):
-        if self.is_temp:
-            if self.type.is_pyobject:
-                code.putln("%s = 0;" % self.temp_code)
-            if not self.backwards_compatible_result:
-                code.funcstate.release_temp(self.temp_code)
-        else:
-            self.generate_subexpr_disposal_code(code)
+        self.generate_disposal_code(code, free_temp=True, decref=False)
 
 # ExprNode = NewTempExprNode     
 
@@ -685,17 +685,10 @@ class AtomicNewTempExprNode(NewTempExprNode):
     subexprs = []
 
     # Override to optimize -- we know we have no children
-    def generate_evaluation_code(self, code):
-        if self.is_temp:
-            self.allocate_temp_result(code)
-        self.generate_result_code(code)
-
-    def generate_disposal_code(self, code):
-        if self.is_temp:
-            if self.type.is_pyobject:
-                code.put_decref_clear(self.result(), self.ctype())
-            if not self.backwards_compatible_result:
-                self.release_temp_result(code)
+    def generate_subexpr_evaluation_code(self, code):
+        pass
+    def generate_subexpr_disposal_code(self, code):
+        pass
 
 class PyConstNode(AtomicNewTempExprNode):
     #  Abstract base class for constant Python values.
@@ -3968,7 +3961,14 @@ class PowNode(NumBinopNode):
             self.operand1.result(), self.operand2.result())
 
 
-class BoolBinopNode(ExprNode):
+# Note: This class is temporary "shut down" into an ineffective mode temp
+# allocation mode.
+#
+# More sophisticated temp reuse was going on before,
+# one could have a look at adding this again after /all/ classes
+# are converted to the new temp scheme. (The temp juggling cannot work
+# otherwise).
+class BoolBinopNode(NewTempExprNode):
     #  Short-circuiting boolean operation.
     #
     #  operator     string
@@ -4004,32 +4004,35 @@ class BoolBinopNode(ExprNode):
             self.operand1 = self.operand1.coerce_to_boolean(env)
             self.operand2 = self.operand2.coerce_to_boolean(env)
             self.type = PyrexTypes.c_bint_type
+
+        # Below disabled for 
+        
         # For what we're about to do, it's vital that
         # both operands be temp nodes.
-        self.operand1 = self.operand1.coerce_to_temp(env) #CTT
-        self.operand2 = self.operand2.coerce_to_temp(env)
+#        self.operand1 = self.operand1.coerce_to_temp(env) #CTT
+#        self.operand2 = self.operand2.coerce_to_temp(env)
         self.is_temp = 1
 
     gil_message = "Truth-testing Python object"
 
-    def allocate_temps(self, env, result_code = None):
-        #  We don't need both operands at the same time, and
-        #  one of the operands will also be our result. So we
-        #  use an allocation strategy here which results in
-        #  this node and both its operands sharing the same
-        #  result variable. This allows us to avoid some 
-        #  assignments and increfs/decrefs that would otherwise
-        #  be necessary.
-        self.allocate_temp(env, result_code)
-        self.operand1.allocate_temps(env, self.result())
-        self.operand2.allocate_temps(env, self.result())
-        #  We haven't called release_temp on either operand,
-        #  because although they are temp nodes, they don't own 
-        #  their result variable. And because they are temp
-        #  nodes, any temps in their subnodes will have been
-        #  released before their allocate_temps returned.
-        #  Therefore, they contain no temp vars that need to
-        #  be released.
+##     def allocate_temps(self, env, result_code = None):
+##         #  We don't need both operands at the same time, and
+##         #  one of the operands will also be our result. So we
+##         #  use an allocation strategy here which results in
+##         #  this node and both its operands sharing the same
+##         #  result variable. This allows us to avoid some 
+##         #  assignments and increfs/decrefs that would otherwise
+##         #  be necessary.
+##         self.allocate_temp(env, result_code)
+##         self.operand1.allocate_temps(env, self.result())
+##         self.operand2.allocate_temps(env, self.result())
+##         #  We haven't called release_temp on either operand,
+##         #  because although they are temp nodes, they don't own 
+##         #  their result variable. And because they are temp
+##         #  nodes, any temps in their subnodes will have been
+##         #  released before their allocate_temps returned.
+##         #  Therefore, they contain no temp vars that need to
+##         #  be released.
 
     def check_const(self):
         self.operand1.check_const()
@@ -4044,6 +4047,8 @@ class BoolBinopNode(ExprNode):
     py_to_c_op = {'and': "&&", 'or': "||"}
 
     def generate_evaluation_code(self, code):
+        code.mark_pos(self.pos)
+        self.allocate_temp_result(code)
         self.operand1.generate_evaluation_code(code)
         test_result, uses_temp = self.generate_operand1_test(code)
         if self.operator == 'and':
@@ -4056,10 +4061,14 @@ class BoolBinopNode(ExprNode):
                 test_result))
         if uses_temp:
             code.funcstate.release_temp(test_result)
-        self.operand1.generate_disposal_code(code)
+        self.operand1.generate_disposal_code(code, free_temp=False)
         self.operand2.generate_evaluation_code(code)
-        code.putln(
-            "}")
+        code.putln("%s = %s;" % (self.result(), self.operand2.result()))
+        self.operand2.generate_disposal_code(code, decref=False)
+        code.putln("} else {")
+        code.putln("%s = %s;" % (self.result(), self.operand1.result()))
+        self.operand1.generate_disposal_code(code, decref=False)
+        code.putln("}")
     
     def generate_operand1_test(self, code):
         #  Generate code to test the truth of the first operand.
