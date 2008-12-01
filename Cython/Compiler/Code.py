@@ -150,8 +150,9 @@ class FunctionState(object):
         freelist = self.temps_free.get((type, manage_ref))
         if freelist is None:
             freelist = []
-
             self.temps_free[(type, manage_ref)] = freelist
+        if name in freelist:
+            raise RuntimeError("Temp %s freed twice!" % name)
         freelist.append(name)
         if DebugFlags.debug_temp_code_comments:
             self.owner.putln("/* %s released */" % name)
