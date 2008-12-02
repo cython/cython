@@ -316,7 +316,7 @@ class FlattenInListTransform(Visitor.VisitorTransform):
             if len(args) == 0:
                 return ExprNodes.BoolNode(pos = node.pos, value = node.operator == 'not_in')
 
-            if node.operand1.is_temp or node.operand1.is_simple():
+            if node.operand1.is_simple():
                 lhs = node.operand1
             else:
                 # FIXME: allocate temp for evaluated node.operand1
@@ -334,6 +334,8 @@ class FlattenInListTransform(Visitor.VisitorTransform):
                                     pos = node.pos, 
                                     operand = cond,
                                     type = PyrexTypes.c_bint_type))
+                if type(lhs) is not ExprNodes.CloneNode:
+                    lhs = ExprNodes.CloneNode(lhs)
             def concat(left, right):
                 return ExprNodes.BoolBinopNode(
                                     pos = node.pos, 
