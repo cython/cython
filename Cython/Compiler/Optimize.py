@@ -8,9 +8,13 @@ import TypeSlots
 import Symtab
 from StringEncoding import EncodedString
 
+#def unwrap_node(node):
+#    while isinstance(node, ExprNodes.PersistentNode):
+#        node = node.arg
+#    return node
+
+# Temporary hack while PersistentNode is out of order
 def unwrap_node(node):
-    while isinstance(node, ExprNodes.PersistentNode):
-        node = node.arg
     return node
 
 def is_common_value(a, b):
