@@ -2444,6 +2444,7 @@ class PyClassDefNode(ClassDefNode):
         self.body.generate_execution_code(code)
         self.target.generate_assignment_code(self.classobj, code)
         self.dict.generate_disposal_code(code)
+        self.dict.free_temps(code)
 
 
 class CClassDefNode(ClassDefNode):
@@ -2659,6 +2660,7 @@ class ExprStatNode(StatNode):
         if not self.expr.is_temp and self.expr.result():
             code.putln("%s;" % self.expr.result())
         self.expr.generate_disposal_code(code)
+        self.expr.free_temps(code)
 
     def annotate(self, code):
         self.expr.annotate(code)
@@ -2884,6 +2886,7 @@ class CascadedAssignmentNode(AssignmentNode):
             lhs.generate_assignment_code(rhs, code)
             # Assignment has disposed of the cloned RHS
         self.rhs.generate_disposal_code(code)
+        self.rhs.free_temps(code)
 
     def annotate(self, code):
         for i in range(len(self.lhs_list)):
@@ -3016,7 +3019,9 @@ class InPlaceAssignmentNode(AssignmentNode):
                     code.error_goto_if_null(self.result_value.py_result(), self.pos)))
             self.result_value.generate_evaluation_code(code) # May be a type check...
             self.rhs.generate_disposal_code(code)
+            self.rhs.free_temps(code)
             self.dup.generate_disposal_code(code)
+            self.dup.free_temps(code)
             self.lhs.generate_assignment_code(self.result_value, code)
         else: 
             c_op = self.operator
@@ -3034,8 +3039,10 @@ class InPlaceAssignmentNode(AssignmentNode):
                 self.dup.generate_result_code(code)
                 code.putln("%s %s= %s;" % (self.lhs.result(), c_op, self.rhs.result()) )
             self.rhs.generate_disposal_code(code)
+            self.rhs.free_temps(code)
         if self.dup.is_temp:
             self.dup.generate_subexpr_disposal_code(code)
+            self.dup.free_subexpr_temps(code)
             
     def create_dup_node(self, env): 
         import ExprNodes
@@ -3065,6 +3072,8 @@ class InPlaceAssignmentNode(AssignmentNode):
                                              index = index,
                                              indices = indices,
                                              is_temp = self.dup.is_temp)
+        else:
+            assert False
         self.lhs = target_lhs
         return self.dup
     
@@ -3117,6 +3126,7 @@ class PrintStatNode(StatNode):
                 self.append_newline,
                 code.error_goto(self.pos)))
         self.arg_tuple.generate_disposal_code(code)
+        self.arg_tuple.free_temps(code)
 
     def annotate(self, code):
         self.arg_tuple.annotate(code)
@@ -3152,6 +3162,7 @@ class ExecStatNode(StatNode):
                 (self.temp_result,) + args))
         for arg in self.args:
             arg.generate_disposal_code(code)
+            arg.free_temps(code)
         code.putln(
             code.error_goto_if_null(self.temp_result, self.pos))
         code.put_decref_clear(self.temp_result, py_object_type)
@@ -3287,6 +3298,7 @@ class ReturnStatNode(StatNode):
                     Naming.retval_cname,
                     self.value.result_as(self.return_type)))
             self.value.generate_post_assignment_code(code)
+            self.value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
                 code.put_init_to_py_none(Naming.retval_cname, self.return_type)
@@ -3372,10 +3384,13 @@ class RaiseStatNode(StatNode):
                 "__Pyx_ReRaise();")
         if self.exc_type:
             self.exc_type.generate_disposal_code(code)
+            self.exc_type.free_temps(code)
         if self.exc_value:
             self.exc_value.generate_disposal_code(code)
+            self.exc_value.free_temps(code)
         if self.exc_tb:
             self.exc_tb.generate_disposal_code(code)
+            self.exc_tb.free_temps(code)
         code.putln(
             code.error_goto(self.pos))
 
@@ -3442,6 +3457,7 @@ class AssertStatNode(StatNode):
                 "PyErr_SetObject(PyExc_AssertionError, %s);" %
                     self.value.py_result())
             self.value.generate_disposal_code(code)
+            self.value.free_temps(code)
         else:
             code.putln(
                 "PyErr_SetNone(PyExc_AssertionError);")
@@ -3450,6 +3466,7 @@ class AssertStatNode(StatNode):
         code.putln(
             "}")
         self.cond.generate_disposal_code(code)
+        self.cond.free_temps(code)
         code.putln("#endif")
 
     def annotate(self, code):
@@ -3756,6 +3773,7 @@ class ForInStatNode(LoopNode, StatNode):
         code.put_label(break_label)
         self.iterator.release_counter_temp(code)
         self.iterator.generate_disposal_code(code)
+        self.iterator.free_temps(code)
 
     def annotate(self, code):
         self.target.annotate(code)
@@ -3878,9 +3896,12 @@ class ForFromStatNode(LoopNode, StatNode):
             code.putln("}")
         code.put_label(break_label)
         self.bound1.generate_disposal_code(code)
+        self.bound1.free_temps(code)
         self.bound2.generate_disposal_code(code)
+        self.bound2.free_temps(code)
         if self.step is not None:
             self.step.generate_disposal_code(code)
+            self.step.free_temps(code)
     
     relation_table = {
         # {relop : (initial offset, increment op)}
@@ -4103,6 +4124,7 @@ class ExceptClauseNode(Node):
                     self.match_flag,
                     self.pattern.py_result()))
             self.pattern.generate_disposal_code(code)
+            self.pattern.free_temps(code)
             code.putln(
                 "if (%s) {" %
                     self.match_flag)
@@ -4539,6 +4561,7 @@ class FromImportStatNode(StatNode):
                     code.error_goto_if_null(self.item.result(), self.pos)))
             target.generate_assignment_code(self.item, code)
         self.module.generate_disposal_code(code)
+        self.module.free_temps(code)
 
 
 

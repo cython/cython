@@ -439,6 +439,7 @@ class ExprNode(Node):
         self.generate_result_code(code)
         if self.is_temp:
             self.generate_subexpr_disposal_code(code)
+            self.free_subexpr_temps(code)
 
     def generate_subexpr_evaluation_code(self, code):
         for node in self.subexpr_nodes():
@@ -447,17 +448,14 @@ class ExprNode(Node):
     def generate_result_code(self, code):
         self.not_implemented("generate_result_code")
     
-    def generate_disposal_code(self, code, free_temp=True, decref=True):
+    def generate_disposal_code(self, code):
         # If necessary, generate code to dispose of 
         # temporary Python reference.
-        if not decref:
-            self.generate_post_assignment_code(code)
+        if self.is_temp:
+            if self.type.is_pyobject:
+                code.put_decref_clear(self.result(), self.ctype())
         else:
-            if self.is_temp:
-                if self.type.is_pyobject:
-                    code.put_decref_clear(self.result(), self.ctype())
-            else:
-                self.generate_subexpr_disposal_code(code)
+            self.generate_subexpr_disposal_code(code)
     
     def generate_subexpr_disposal_code(self, code):
         #  Generate code to dispose of temporary results
@@ -486,7 +484,14 @@ class ExprNode(Node):
         #  the argument of a del statement. An error
         #  will have been reported earlier.
         pass
+
+    def free_temps(self, code):
+        pass
     
+    def free_subexpr_temps(self, code):
+        for sub in self.subexpr_nodes():
+            sub.free_temps(code)
+
     # ---------------- Annotation ---------------------
     
     def annotate(self, code):
@@ -578,17 +583,17 @@ class RemoveAllocateTemps(type):
         def noop(self, env): pass
         setattr(cls, 'allocate_temps', noop)
         setattr(cls, 'allocate_temp', noop)
-        setattr(cls, 'release_temps', noop)
         setattr(cls, 'release_temp', noop)
 
 class NewTempExprNode(ExprNode):
     backwards_compatible_result = None
-
+    temp_code = None
+    
 #   Do not enable this unless you are trying to make all ExprNodes
 #   NewTempExprNodes (child nodes reached via recursion may not have
 #   transferred).
 #    __metaclass__ = RemoveAllocateTemps
-    
+
     def result(self):
         if self.is_temp:
             return self.temp_code
@@ -618,6 +623,8 @@ class NewTempExprNode(ExprNode):
             self.release_subexpr_temps(env)
 
     def allocate_temp_result(self, code):
+        if self.temp_code:
+            raise RuntimeError("Temp allocated multiple times")
         type = self.type
         if not type.is_void:
             if type.is_pyobject:
@@ -631,7 +638,11 @@ class NewTempExprNode(ExprNode):
             self.temp_code = None
 
     def release_temp_result(self, code):
+        if not self.temp_code:
+            raise RuntimeError("No temp (perhaps released multiple times? See self.old_temp)")
         code.funcstate.release_temp(self.temp_code)
+        self.old_temp = self.temp_code
+        self.temp_code = None
 
     def generate_evaluation_code(self, code):
         code.mark_pos(self.pos)
@@ -646,25 +657,32 @@ class NewTempExprNode(ExprNode):
 
         self.generate_result_code(code)
         if self.is_temp:
-            # If we are temp, need to wait until this node is disposed
+            # If we are temp we do not need to wait until this node is disposed
             # before disposing children.
             self.generate_subexpr_disposal_code(code)
+            self.free_subexpr_temps(code)
 
-    def generate_disposal_code(self, code, free_temp=True, decref=True):
+    def generate_disposal_code(self, code):
         if self.is_temp:
             if self.type.is_pyobject:
-                if decref:
-                    code.put_decref_clear(self.result(), self.ctype())
-                elif free_temp and not self.backwards_compatible_result:
-                    code.putln("%s = 0;" % self.result())
-            if free_temp and not self.backwards_compatible_result:
-                self.release_temp_result(code)
+                code.put_decref_clear(self.result(), self.ctype())
         else:
+            # Already done if self.is_temp
             self.generate_subexpr_disposal_code(code)
 
     def generate_post_assignment_code(self, code):
-        self.generate_disposal_code(code, free_temp=True, decref=False)
+        if self.is_temp:
+            if self.type.is_pyobject:
+                code.putln("%s = 0;" % self.result())
+        else:
+            self.generate_subexpr_disposal_code(code)
 
+    def free_temps(self, code):
+        if self.is_temp:
+            self.release_temp_result(code)
+        else:
+            self.free_subexpr_temps(code)
+        
 # ExprNode = NewTempExprNode     
 
 class AtomicExprNode(ExprNode):
@@ -1235,7 +1253,7 @@ class NameNode(AtomicExprNode):
                     print("NameNode.generate_assignment_code:")
                     print("...generating disposal code for %s" % rhs)
                 rhs.generate_disposal_code(code)
-                
+                rhs.free_temps(code)
         else:
             if self.type.is_buffer:
                 # Generate code for doing the buffer release/acquisition.
@@ -1267,6 +1285,7 @@ class NameNode(AtomicExprNode):
                 print("NameNode.generate_assignment_code:")
                 print("...generating post-assignment code for %s" % rhs)
             rhs.generate_post_assignment_code(code)
+            rhs.free_temps(code)
 
     def generate_acquire_buffer(self, rhs, code):
         # rhstmp is only used in case the rhs is a complicated expression leading to
@@ -1705,6 +1724,14 @@ class IndexNode(ExprNode):
             for i in self.indices:
                 i.generate_disposal_code(code)
 
+    def free_subexpr_temps(self, code):
+        self.base.free_temps(code)
+        if not self.indices:
+            self.index.free_temps(code)
+        else:
+            for i in self.indices:
+                i.free_temps(code)
+
     def generate_result_code(self, code):
         if self.is_buffer_access:
             if code.globalstate.directives['nonecheck']:
@@ -1792,7 +1819,9 @@ class IndexNode(ExprNode):
                 "%s = %s;" % (
                     self.result(), rhs.result()))
         self.generate_subexpr_disposal_code(code)
+        self.free_subexpr_temps(code)
         rhs.generate_disposal_code(code)
+        rhs.free_temps(code)
     
     def generate_deletion_code(self, code):
         self.generate_subexpr_evaluation_code(code)
@@ -1932,6 +1961,7 @@ class SliceIndexNode(ExprNode):
                         rhs.result(), i))
         self.generate_subexpr_disposal_code(code)
         rhs.generate_disposal_code(code)
+        rhs.free_temps(code)
 
     def generate_deletion_code(self, code):
         if not self.type.is_pyobject:
@@ -2719,6 +2749,7 @@ class AttributeNode(ExprNode):
                     self.interned_attr_cname,
                     rhs.py_result()))
             rhs.generate_disposal_code(code)
+            rhs.free_temps(code)
         else:
             if (self.obj.type.is_extension_type
                   and self.needs_none_check
@@ -2735,7 +2766,9 @@ class AttributeNode(ExprNode):
                     rhs.result_as(self.ctype())))
                     #rhs.result()))
             rhs.generate_post_assignment_code(code)
+            rhs.free_temps(code)
         self.obj.generate_disposal_code(code)
+        self.obj.free_temps(code)
     
     def generate_deletion_code(self, code):
         self.obj.generate_evaluation_code(code)
@@ -2747,6 +2780,7 @@ class AttributeNode(ExprNode):
         else:
             error(self.pos, "Cannot delete C attribute of extension type")
         self.obj.generate_disposal_code(code)
+        self.obj.free_temps(code)
         
     def annotate(self, code):
         if self.is_py_attr:
@@ -2835,6 +2869,10 @@ class SequenceNode(NewTempExprNode):
         self.generate_operation_code(code)
     
     def generate_assignment_code(self, rhs, code):
+        # Need to work around the fact that generate_evaluation_code
+        # allocates the temps in a rather hacky way -- the assignment
+        # is evaluated twice, within each if-block.
+
         code.putln(
             "if (PyTuple_CheckExact(%s) && PyTuple_GET_SIZE(%s) == %s) {" % (
                 rhs.py_result(), 
@@ -2850,8 +2888,12 @@ class SequenceNode(NewTempExprNode):
             code.put_incref(item.result(), item.ctype())
             value_node = self.coerced_unpacked_items[i]
             value_node.generate_evaluation_code(code)
-        rhs.generate_disposal_code(code, free_temp=False)
+        rhs.generate_disposal_code(code)
 
+        for i in range(len(self.args)):
+            self.args[i].generate_assignment_code(
+                self.coerced_unpacked_items[i], code)
+                 
         code.putln("} else {")
 
         code.putln(
@@ -2859,7 +2901,7 @@ class SequenceNode(NewTempExprNode):
                 self.iterator.result(),
                 rhs.py_result(),
                 code.error_goto_if_null(self.iterator.result(), self.pos)))
-        rhs.generate_disposal_code(code, free_temp=False)
+        rhs.generate_disposal_code(code)
         for i in range(len(self.args)):
             item = self.unpacked_items[i]
             unpack_code = "__Pyx_UnpackItem(%s, %d)" % (
@@ -2878,12 +2920,13 @@ class SequenceNode(NewTempExprNode):
             print("UnpackNode.generate_assignment_code:")
             print("...generating disposal code for %s" % self.iterator)
         self.iterator.generate_disposal_code(code)
+        self.iterator.free_temps(code)
 
-        code.putln("}")
-        rhs.generate_disposal_code(code, free_temp=True, decref=False)
         for i in range(len(self.args)):
             self.args[i].generate_assignment_code(
                 self.coerced_unpacked_items[i], code)
+        code.putln("}")
+        rhs.free_temps(code)
         
     def annotate(self, code):
         for arg in self.args:
@@ -2945,7 +2988,9 @@ class TupleNode(SequenceNode):
         # of generate_disposal_code, because values were stored
         # in the tuple using a reference-stealing operation.
         for arg in self.args:
-            arg.generate_post_assignment_code(code)	
+            arg.generate_post_assignment_code(code)
+            # Should NOT call free_temps -- this is invoked by the default
+            # generate_evaluation_code which will do that.
 
 
 class ListNode(SequenceNode):
@@ -3047,7 +3092,9 @@ class ListNode(SequenceNode):
         # of generate_disposal_code, because values were stored
         # in the list using a reference-stealing operation.
         for arg in self.args:
-            arg.generate_post_assignment_code(code)		
+            arg.generate_post_assignment_code(code)
+            # Should NOT call free_temps -- this is invoked by the default
+            # generate_evaluation_code which will do that.
 
             
 class ListComprehensionNode(SequenceNode):
@@ -3199,6 +3246,7 @@ class DictNode(ExprNode):
                         item.key.value,
                         item.value.result()))
             item.generate_disposal_code(code)
+            item.free_temps(code)
             
     def annotate(self, code):
         for item in self.key_value_pairs:
@@ -3221,11 +3269,13 @@ class DictItemNode(ExprNode):
         self.key.generate_evaluation_code(code)
         self.value.generate_evaluation_code(code)
 
-    def generate_disposal_code(self, code, free_temp=True, decref=True):
-        self.key.generate_disposal_code(
-            code, free_temp=free_temp, decref=decref)
-        self.value.generate_disposal_code(
-            code, free_temp=free_temp, decref=decref)
+    def generate_disposal_code(self, code):
+        self.key.generate_disposal_code(code)
+        self.value.generate_disposal_code(code)
+
+    def free_temps(self, code):
+        self.key.free_temps(code)
+        self.value.free_temps(code)
         
     def __iter__(self):
         return iter([self.key, self.value])
@@ -4063,16 +4113,16 @@ class BoolBinopNode(NewTempExprNode):
                 test_result))
         if uses_temp:
             code.funcstate.release_temp(test_result)
-        self.operand1.generate_disposal_code(code, free_temp=False)
+        self.operand1.generate_disposal_code(code)
         self.operand2.generate_evaluation_code(code)
-        
         self.allocate_temp_result(code)
-        
         code.putln("%s = %s;" % (self.result(), self.operand2.result()))
-        self.operand2.generate_disposal_code(code, decref=False)
+        self.operand2.generate_post_assignment_code(code)
+        self.operand2.free_temps(code)
         code.putln("} else {")
         code.putln("%s = %s;" % (self.result(), self.operand1.result()))
-        self.operand1.generate_disposal_code(code, decref=False)
+        self.operand1.generate_post_assignment_code(code)
+        self.operand1.free_temps(code)
         code.putln("}")
     
     def generate_operand1_test(self, code):
@@ -4175,6 +4225,7 @@ class CondExprNode(ExprNode):
         self.false_val.generate_evaluation_code(code)
         code.putln("}")
         self.test.generate_disposal_code(code)
+        self.test.free_temps(code)
 
 richcmp_constants = {
     "<" : "Py_LT",
@@ -4402,12 +4453,20 @@ class PrimaryCmpNode(NewTempExprNode, CmpNode):
                     self.result(), self.operand2)
             self.operand1.generate_disposal_code(code)
             self.operand2.generate_disposal_code(code)
-    
+        self.operand1.free_temps(code)
+        self.operand2.free_temps(code)
+
     def generate_subexpr_disposal_code(self, code):
         #  If this is called, it is a non-cascaded cmp,
         #  so only need to dispose of the two main operands.
         self.operand1.generate_disposal_code(code)
         self.operand2.generate_disposal_code(code)
+        
+    def free_subexpr_temps(self, code):
+        #  If this is called, it is a non-cascaded cmp,
+        #  so only need to dispose of the two main operands.
+        self.operand1.free_temps(code)
+        self.operand2.free_temps(code)
         
     def annotate(self, code):
         self.operand1.annotate(code)
@@ -4485,6 +4544,7 @@ class CascadedCmpNode(Node, CmpNode):
                 code, result, self.operand2)
         # Cascaded cmp result is always temp
         self.operand2.generate_disposal_code(code)
+        self.operand2.free_temps(code)
         code.putln("}")
 
     def annotate(self, code):
@@ -4605,6 +4665,9 @@ class PyTypeTestNode(CoercionNode):
                 
     def generate_post_assignment_code(self, code):
         self.arg.generate_post_assignment_code(code)
+
+    def free_temps(self, code):
+        self.arg.free_temps(code)
                 
 
 class CoerceToPyTypeNode(CoercionNode):
@@ -4768,7 +4831,7 @@ class CloneNode(CoercionNode):
     def generate_result_code(self, code):
         pass
         
-    def generate_disposal_code(self, code, free_temp=True, decref=True):
+    def generate_disposal_code(self, code):
         pass
                 
     def allocate_temps(self, env):
@@ -4776,8 +4839,12 @@ class CloneNode(CoercionNode):
         
     def release_temp(self, env):
         pass
+
+    def free_temps(self, code):
+        pass
+    
         
-class PersistentNode(ExprNode):
+class DISABLED_PersistentNode(ExprNode):
     # A PersistentNode is like a CloneNode except it handles the temporary
     # allocation itself by keeping track of the number of times it has been 
     # used. 
@@ -4814,9 +4881,9 @@ class PersistentNode(ExprNode):
             self.arg.generate_disposal_code(code)
         self.generate_counter += 1
                 
-    def generate_disposal_code(self, code, free_temp=True, decref=True):
+    def generate_disposal_code(self, code):
         if self.generate_counter == self.uses:
-            if self.type.is_pyobject and decref:
+            if self.type.is_pyobject:
                 code.put_decref_clear(self.result(), self.ctype())
 
     def allocate_temps(self, env, result=None):
