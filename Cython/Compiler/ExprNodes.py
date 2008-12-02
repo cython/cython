@@ -3,7 +3,6 @@
 #
 
 import operator
-from string import join
 
 from Errors import error, warning, InternalError
 from Errors import hold_errors, release_errors, held_errors, report_error
@@ -2292,7 +2291,7 @@ class SimpleCallNode(CallNode):
         for actual_arg in self.args[len(formal_args):]:
             arg_list_code.append(actual_arg.result())
         result = "%s(%s)" % (self.function.result(),
-            join(arg_list_code, ", "))
+            ', '.join(arg_list_code))
 #        if self.wrapper_call or \
 #                self.function.entry.is_unbound_cmethod and self.function.entry.type.is_overridable:
 #            result = "(%s = 1, %s)" % (Naming.skip_dispatch_cname, result)
