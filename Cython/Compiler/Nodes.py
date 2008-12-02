@@ -3644,9 +3644,11 @@ class WhileStatNode(LoopNode, StatNode):
         code.putln(
             "while (1) {")
         self.condition.generate_evaluation_code(code)
+        self.condition.generate_disposal_code(code)
         code.putln(
             "if (!%s) break;" %
                 self.condition.result())
+        self.condition.free_temps(code)
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
         code.putln("}")
