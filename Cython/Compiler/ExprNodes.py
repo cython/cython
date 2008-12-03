@@ -678,7 +678,8 @@ class NewTempExprNode(ExprNode):
 
     def free_temps(self, code):
         if self.is_temp:
-            self.release_temp_result(code)
+            if not self.type.is_void:
+                self.release_temp_result(code)
         else:
             self.free_subexpr_temps(code)
         
@@ -2089,7 +2090,7 @@ class SliceNode(ExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
 
 
-class CallNode(ExprNode):
+class CallNode(NewTempExprNode):
     def gil_check(self, env):
         # Make sure we're not in a nogil environment
         if env.nogil:
