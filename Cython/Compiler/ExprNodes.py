@@ -5135,7 +5135,7 @@ static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     if (likely(PyList_CheckExact(L))) {
         if (PyList_Append(L, x) < 0) return NULL;
         Py_INCREF(Py_None);
-        return Py_None; // this is just to have an accurate signature
+        return Py_None; /* this is just to have an accurate signature */
     }
     else {
         PyObject *r, *m;
