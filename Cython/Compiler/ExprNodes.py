@@ -3585,7 +3585,7 @@ def unop_node(pos, operator, operand):
         operand = operand)
 
 
-class TypecastNode(ExprNode):
+class TypecastNode(NewTempExprNode):
     #  C type cast
     #
     #  operand      ExprNode
