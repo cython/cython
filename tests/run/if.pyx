@@ -19,6 +19,13 @@ __doc__ = u"""
     2
     >>> h(0,0)
     3
+
+    >>> i(1,2)
+    1
+    >>> i(2,2)
+    2
+    >>> i(2,1)
+    0
 """
 
 def f(a, b):
@@ -45,4 +52,12 @@ def h(a, b):
         x = 2
     else:
         x = 3
+    return x
+
+def i(a, b):
+    x = 0
+    if str(a).upper() == u"1":
+        x = 1
+    if str(a+b).lower() not in (u"1", u"3"):
+        x = 2
     return x
