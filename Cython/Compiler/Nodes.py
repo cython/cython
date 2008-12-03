@@ -3382,15 +3382,10 @@ class RaiseStatNode(StatNode):
         else:
             code.putln(
                 "__Pyx_ReRaise();")
-        if self.exc_type:
-            self.exc_type.generate_disposal_code(code)
-            self.exc_type.free_temps(code)
-        if self.exc_value:
-            self.exc_value.generate_disposal_code(code)
-            self.exc_value.free_temps(code)
-        if self.exc_tb:
-            self.exc_tb.generate_disposal_code(code)
-            self.exc_tb.free_temps(code)
+        for obj in (self.exc_type, self.exc_value, self.exc_tb):
+            if obj:
+                obj.generate_disposal_code(code)
+                obj.free_temps(code)
         code.putln(
             code.error_goto(self.pos))
 
@@ -3548,6 +3543,8 @@ class IfClauseNode(Node):
         code.putln(
             "if (%s) {" %
                 self.condition.result())
+        self.condition.generate_disposal_code(code)
+        self.condition.free_temps(code)
         self.body.generate_execution_code(code)
         #code.putln(
         #	"goto %s;" %
