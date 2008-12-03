@@ -638,7 +638,12 @@ class NewTempExprNode(ExprNode):
 
     def release_temp_result(self, code):
         if not self.temp_code:
-            raise RuntimeError("No temp (perhaps released multiple times? See self.old_temp)")
+            if self.old_temp:
+                raise RuntimeError("temp %s released multiple times in %s" % (
+                        self.old_temp, self.__class__.__name__))
+            else:
+                raise RuntimeError("no temp, but release requested in %s" % (
+                        self.__class__.__name__))
         code.funcstate.release_temp(self.temp_code)
         self.old_temp = self.temp_code
         self.temp_code = None
