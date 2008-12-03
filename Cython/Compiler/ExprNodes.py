@@ -4457,9 +4457,9 @@ class PrimaryCmpNode(NewTempExprNode, CmpNode):
                 self.cascade.generate_evaluation_code(code,
                     self.result(), self.operand2)
             self.operand1.generate_disposal_code(code)
+            self.operand1.free_temps(code)
             self.operand2.generate_disposal_code(code)
-        self.operand1.free_temps(code)
-        self.operand2.free_temps(code)
+            self.operand2.free_temps(code)
 
     def generate_subexpr_disposal_code(self, code):
         #  If this is called, it is a non-cascaded cmp,
