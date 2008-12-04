@@ -10,6 +10,7 @@ from PyrexTypes import py_object_type, typecast
 from TypeSlots import method_coexist
 from Scanning import SourceDescriptor
 from Cython.StringIOTree import StringIOTree
+import DebugFlags
 try:
     set
 except NameError:
@@ -671,6 +672,10 @@ class CCodeWriter(object):
     def as_pyobject(self, cname, type):
         return typecast(py_object_type, type, cname)
     
+    def put_gotref(self, cname):
+        if DebugFlags.debug_ref_check_code:
+            self.putln("__Pyx_GOTREF(%s);" % cname)
+    
     def put_incref(self, cname, type):
         self.putln("Py_INCREF(%s);" % self.as_pyobject(cname, type))
     
@@ -756,7 +761,7 @@ class CCodeWriter(object):
                     "|".join(method_flags),
                     doc_code,
                     term))
-    
+
     def put_error_if_neg(self, pos, value):
 #        return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))  # TODO this path is almost _never_ taken, yet this macro makes is slower!
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
