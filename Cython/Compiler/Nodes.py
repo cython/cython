@@ -850,6 +850,7 @@ class CEnumDefNode(StatNode):
                         self.temp,
                         item.cname,
                         code.error_goto_if_null(self.temp, item.pos)))
+                code.put_gotref(self.temp) #TODO: Is this right?
                 code.putln('if (PyObject_SetAttrString(%s, "%s", %s) < 0) %s' % (
                         Naming.module_cname, 
                         item.name, 
@@ -2199,6 +2200,7 @@ class DefNode(FuncDefNode):
                 func,
                 arg.hdr_cname,
                 code.error_goto_if_null(arg.entry.cname, arg.pos)))
+            code.put_gotref(arg.entry.cname)
         else:
             error(arg.pos,
                 "Cannot convert argument of type '%s' to Python object"
@@ -2278,6 +2280,7 @@ class OverrideCheckNode(StatNode):
         else:
             code.putln("else if (unlikely(Py_TYPE(%s)->tp_dictoffset != 0)) {" % self_arg)
         err = code.error_goto_if_null(self.func_node.result(), self.pos)
+        code.put_gotref(self.func_node.result())
         # need to get attribute manually--scope would return cdef method
         code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (self.func_node.result(), self_arg, self.py_func.interned_attr_cname, err))
         # It appears that this type is not anywhere exposed in the Python/C API
@@ -2327,7 +2330,7 @@ class PyClassDefNode(ClassDefNode):
         
     def as_cclass(self):
         """
-        Return this node as if it were declared as an extension class"
+        Return this node as if it were declared as an extension class
         """
         bases = self.classobj.bases.args
         if len(bases) == 0:
@@ -2968,6 +2971,7 @@ class InPlaceAssignmentNode(AssignmentNode):
                     self.rhs.py_result(),
                     extra,
                     code.error_goto_if_null(self.result_value.py_result(), self.pos)))
+            code.put_gotref(self.result_value.result())
             self.result_value.generate_evaluation_code(code) # May be a type check...
             self.rhs.generate_disposal_code(code)
             self.dup.generate_disposal_code(code)
@@ -4443,6 +4447,7 @@ class FromImportStatNode(StatNode):
                     self.module.py_result(),
                     cname,
                     code.error_goto_if_null(self.item.result(), self.pos)))
+            code.put_gotref(self.item.result())
             target.generate_assignment_code(self.item, code)
         self.module.generate_disposal_code(code)
 
