@@ -220,6 +220,7 @@ class DictIterTransform(Visitor.VisitorTransform):
                 ))
 
     def visit_Node(self, node):
+        # descend into statements (loops) and nodes (comprehensions)
         self.visitchildren(node)
         return node
 
