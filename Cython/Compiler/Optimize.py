@@ -8,6 +8,8 @@ import TypeSlots
 import Symtab
 from StringEncoding import EncodedString
 
+from ParseTreeTransforms import SkipDeclarations
+
 #def unwrap_node(node):
 #    while isinstance(node, ExprNodes.PersistentNode):
 #        node = node.arg
@@ -292,7 +294,7 @@ class SwitchTransform(Visitor.VisitorTransform):
         return node
                               
 
-class FlattenInListTransform(Visitor.VisitorTransform):
+class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
     """
     This transformation flattens "x in [val1, ..., valn]" into a sequential list
     of comparisons. 
