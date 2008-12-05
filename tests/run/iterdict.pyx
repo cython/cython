@@ -55,6 +55,11 @@ def iteritems_tuple(dict d):
     l.sort()
     return l
 
+def iteritems_listcomp(dict d):
+    cdef list l = [(k,v) for k,v in d.iteritems()]
+    l.sort()
+    return l
+
 def iterkeys(dict d):
     l = []
     for k in d.iterkeys():
@@ -94,6 +99,11 @@ def iterdict_reassign(dict d):
     l.sort()
     return l
 
+def iterdict_listcomp(dict d):
+    cdef list l = [k for k in d]
+    l.sort()
+    return l
+
 def itervalues(dict d):
     l = []
     for v in d.itervalues():
@@ -106,5 +116,10 @@ def itervalues_int(dict d):
     l = []
     for v in d.itervalues():
         l.append(v)
+    l.sort()
+    return l
+
+def itervalues_listcomp(dict d):
+    cdef list l = [v for v in d.itervalues()]
     l.sort()
     return l
