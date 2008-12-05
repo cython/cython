@@ -41,3 +41,7 @@ def j(b):
     cdef int result
     result = 2 in b
     return result
+
+def k(a):
+    cdef int result = a in [1,2,3,4]
+    return result
