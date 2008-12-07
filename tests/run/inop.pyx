@@ -22,6 +22,21 @@ __doc__ = u"""
     1
     >>> j([1,3,4])
     0
+
+    >>> k(1)
+    1
+    >>> k(5)
+    0
+
+    >>> m(2)
+    1
+    >>> m(5)
+    0
+
+    >>> n('d *')
+    1
+    >>> n('xxx')
+    0
 """
 
 def f(a,b):
@@ -44,4 +59,12 @@ def j(b):
 
 def k(a):
     cdef int result = a in [1,2,3,4]
+    return result
+
+def m(int a):
+    cdef int result = a in [1,2,3,4]
+    return result
+
+def n(a):
+    cdef int result = a.lower() in ['a *','b *','c *','d *']
     return result
