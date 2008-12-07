@@ -22,6 +22,21 @@ __doc__ = u"""
     0
     >>> j([1,3,4])
     1
+
+    >>> k(1)
+    0
+    >>> k(5)
+    1
+
+    >>> m(2)
+    0
+    >>> m(5)
+    1
+
+    >>> n('d *')
+    0
+    >>> n('xxx')
+    1
 """
 
 def f(a,b):
@@ -40,4 +55,16 @@ def h(b):
 def j(b):
     cdef int result
     result = 2 not in b
+    return result
+
+def k(a):
+    cdef int result = a not in [1,2,3,4]
+    return result
+
+def m(int a):
+    cdef int result = a not in [1,2,3,4]
+    return result
+
+def n(a):
+    cdef int result = a.lower() not in ['a *','b *','c *','d *']
     return result
