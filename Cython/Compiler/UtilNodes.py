@@ -105,3 +105,72 @@ class TempsBlockNode(Node):
     def annotate(self, code):
         self.body.annotate(code)
 
+
+class ResultRefNode(AtomicExprNode):
+    # A reference to the result of an expression.  The result_code
+    # must be set externally (usually a temp name).
+
+    subexprs = []
+
+    def __init__(self, expression):
+        self.pos = expression.pos
+        self.expression = expression
+
+    def analyse_types(self, env):
+        self.type = self.expression.type
+
+    def result(self):
+        return self.result_code
+
+    def generate_evaluation_code(self, code):
+        pass
+
+    def generate_result_code(self, code):
+        pass
+        
+    def generate_disposal_code(self, code):
+        pass
+                
+    def allocate_temps(self, env):
+        pass
+        
+    def release_temp(self, env):
+        pass
+
+    def free_temps(self, code):
+        pass
+
+
+class TempBlockExprNode(ExprNodes.NewTempExprNode):
+    # A wrapper around a subexpression that moves an expression into a
+    # temp variable and provides it to the subexpression.
+
+    subexprs = ['temp_expression', 'subexpression']
+
+    def __init__(self, lazy_temp, subexpression):
+        self.pos = subexpression.pos
+        self.lazy_temp = lazy_temp
+        self.temp_expression = lazy_temp.expression
+        self.subexpression = subexpression
+
+    def result(self):
+        return self.subexpression.result()
+
+    def analyse_types(self, env):
+        self.temp_expression.analyse_types(env)
+        self.subexpression.analyse_types(env)
+        self.type = self.subexpression.type
+
+    def generate_evaluation_code(self, code):
+        self.temp_expression.generate_evaluation_code(code)
+        if self.temp_expression.is_temp:
+            temp = self.temp_expression.result()
+        else:
+            self.temp_expression.make_owned_reference(code)
+            temp = code.funcstate.allocate_temp(
+                self.temp_expression.type, manage_ref=True)
+            code.putln("%s = %s;" % (temp, self.temp_expression.result()))
+        self.lazy_temp.result_code = temp
+        self.subexpression.generate_evaluation_code(code)
+        if not self.temp_expression.is_temp:
+            code.funcstate.release_temp(temp)
