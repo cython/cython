@@ -343,7 +343,7 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
                                 operand2 = right)
 
         condition = reduce(concat, conds)
-        return UtilNodes.TempBlockExprNode(lhs, condition)
+        return UtilNodes.EvalWithTempExprNode(lhs, condition)
 
     def visit_Node(self, node):
         self.visitchildren(node)

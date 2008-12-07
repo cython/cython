@@ -141,7 +141,7 @@ class ResultRefNode(AtomicExprNode):
         pass
 
 
-class TempBlockExprNode(ExprNodes.NewTempExprNode):
+class EvalWithTempExprNode(ExprNodes.NewTempExprNode):
     # A wrapper around a subexpression that moves an expression into a
     # temp variable and provides it to the subexpression.
 
