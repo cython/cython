@@ -4849,67 +4849,8 @@ class CloneNode(CoercionNode):
 
     def free_temps(self, code):
         pass
-    
-        
-class DISABLED_PersistentNode(ExprNode):
-    # A PersistentNode is like a CloneNode except it handles the temporary
-    # allocation itself by keeping track of the number of times it has been 
-    # used. 
-    
-    subexprs = ["arg"]
-    temp_counter = 0
-    generate_counter = 0
-    analyse_counter = 0
-    result_code = None
-    
-    def __init__(self, arg, uses):
-        self.pos = arg.pos
-        self.arg = arg
-        self.uses = uses
-        
-    def analyse_types(self, env):
-        if self.analyse_counter == 0:
-            self.arg.analyse_types(env)
-            self.type = self.arg.type
-            self.result_ctype = self.arg.result_ctype
-            self.is_temp = 1
-        self.analyse_counter += 1
-        
-    def calculate_result_code(self):
-        return self.result()
 
-    def generate_evaluation_code(self, code):
-        if self.generate_counter == 0:
-            self.arg.generate_evaluation_code(code)
-            code.putln("%s = %s;" % (
-                self.result(), self.arg.result_as(self.ctype())))
-            if self.type.is_pyobject:
-                code.put_incref(self.result(), self.ctype())
-            self.arg.generate_disposal_code(code)
-        self.generate_counter += 1
-                
-    def generate_disposal_code(self, code):
-        if self.generate_counter == self.uses:
-            if self.type.is_pyobject:
-                code.put_decref_clear(self.result(), self.ctype())
 
-    def allocate_temps(self, env, result=None):
-        if self.temp_counter == 0:
-            self.arg.allocate_temps(env)
-            self.allocate_temp(env, result)
-            self.arg.release_temp(env)
-        self.temp_counter += 1
-        
-    def allocate_temp(self, env, result=None):
-        if result is None:
-            self.result_code = env.allocate_temp(self.type)
-        else:
-            self.result_code = result
-        
-    def release_temp(self, env):
-        if self.temp_counter == self.uses:
-            env.release_temp(self.result())
-    
 #------------------------------------------------------------------------------------
 #
 #  Runtime support code
