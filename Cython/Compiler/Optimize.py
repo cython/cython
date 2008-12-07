@@ -314,41 +314,41 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         else:
             return node
 
-        if isinstance(node.operand2, ExprNodes.TupleNode) or isinstance(node.operand2, ExprNodes.ListNode):
-            args = node.operand2.args
-            if len(args) == 0:
-                return ExprNodes.BoolNode(pos = node.pos, value = node.operator == 'not_in')
-
-            if node.operand1.is_simple():
-                lhs = node.operand1
-            else:
-                # FIXME: allocate temp for evaluated node.operand1
-                return node
-
-            conds = []
-            for arg in args:
-                cond = ExprNodes.PrimaryCmpNode(
-                                    pos = node.pos,
-                                    operand1 = lhs,
-                                    operator = eq_or_neq,
-                                    operand2 = arg,
-                                    cascade = None)
-                conds.append(ExprNodes.TypecastNode(
-                                    pos = node.pos, 
-                                    operand = cond,
-                                    type = PyrexTypes.c_bint_type))
-                if type(lhs) is not ExprNodes.CloneNode:
-                    lhs = ExprNodes.CloneNode(lhs)
-            def concat(left, right):
-                return ExprNodes.BoolBinopNode(
-                                    pos = node.pos, 
-                                    operator = conjunction,
-                                    operand1 = left,
-                                    operand2 = right)
-
-            return reduce(concat, conds)
-        else:
+        if not isinstance(node.operand2, (ExprNodes.TupleNode, ExprNodes.ListNode)):
             return node
+
+        args = node.operand2.args
+        if len(args) == 0:
+            return ExprNodes.BoolNode(pos = node.pos, value = node.operator == 'not_in')
+
+        if True or node.operand1.is_simple():
+            lhs = node.operand1
+        else:
+            # FIXME: allocate temp for evaluated node.operand1
+            return node
+
+        conds = []
+        for arg in args:
+            cond = ExprNodes.PrimaryCmpNode(
+                                pos = node.pos,
+                                operand1 = lhs,
+                                operator = eq_or_neq,
+                                operand2 = arg,
+                                cascade = None)
+            conds.append(ExprNodes.TypecastNode(
+                                pos = node.pos, 
+                                operand = cond,
+                                type = PyrexTypes.c_bint_type))
+            if type(lhs) is not ExprNodes.CloneNode:
+                lhs = ExprNodes.CloneNode(lhs)
+        def concat(left, right):
+            return ExprNodes.BoolBinopNode(
+                                pos = node.pos, 
+                                operator = conjunction,
+                                operand1 = left,
+                                operand2 = right)
+
+        return reduce(concat, conds)
         
     def visit_Node(self, node):
         self.visitchildren(node)
