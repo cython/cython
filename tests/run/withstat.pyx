@@ -9,6 +9,12 @@ exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
 enter
 value
 exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+>>> with_return()
+enter
+exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+>>> with_pass()
+enter
+exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
 >>> with_exception(None)
 enter
 value
@@ -58,6 +64,16 @@ def no_as():
 def basic():
     with ContextManager(u"value") as x:
         print x
+        
+def with_pass():
+    with ContextManager(u"value") as x:
+        pass
+        
+def with_return():
+    with ContextManager(u"value") as x:
+        # FIXME: DISABLED - currently crashes!!
+        # return x
+        pass
 
 def with_exception(exit_ret):
     try:
