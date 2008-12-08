@@ -49,6 +49,7 @@ class TempRefNode(AtomicExprNode):
             code.put_xdecref(self.result(), self.ctype())
         code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
         rhs.generate_post_assignment_code(code)
+        rhs.free_temps(code)
 
 class CleanupTempRefNode(TempRefNode):
     # handle   TempHandle
