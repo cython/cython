@@ -497,9 +497,9 @@ class WithTransform(CythonTransform, SkipDeclarations):
         EXIT = MGR.__exit__
         MGR.__enter__()
         EXC = True
-        EXCINFO = None
         try:
             try:
+                EXCINFO = None
                 BODY
             except:
                 EXC = False
@@ -516,9 +516,9 @@ class WithTransform(CythonTransform, SkipDeclarations):
         EXIT = MGR.__exit__
         VALUE = MGR.__enter__()
         EXC = True
-        EXCINFO = None
         try:
             try:
+                EXCINFO = None
                 TARGET = VALUE
                 BODY
             except:
@@ -532,6 +532,7 @@ class WithTransform(CythonTransform, SkipDeclarations):
     pipeline=[NormalizeTree(None)])
 
     def visit_WithStatNode(self, node):
+        self.visitchildren(node, ['body'])
         # FIXME: excinfo_temp should be more local to the except
         # clause that uses it, to avoid the presetting to None
         excinfo_temp = TempHandle(Builtin.tuple_type)
@@ -550,10 +551,14 @@ class WithTransform(CythonTransform, SkipDeclarations):
                 }, pos=node.pos)
 
         # Set except excinfo target to EXCINFO
-        result.body.stats[5].body.stats[0].except_clauses[0].excinfo_target = (
+        try_except = result.body.stats[-1].body.stats[-1]
+        try_except.except_clauses[0].excinfo_target = (
             excinfo_temp.ref(node.pos))
 
-        return TempsBlockNode(node.pos, temps=[excinfo_temp], body=result)
+        result.body.stats[-1].body.stats[-1] = TempsBlockNode(
+            node.pos, temps=[excinfo_temp], body=try_except)
+
+        return result
         
     def visit_ExprNode(self, node):
         # With statements are never inside expressions.
