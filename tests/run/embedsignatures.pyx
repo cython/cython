@@ -2,6 +2,9 @@
 
 # note the r, we use \n below
 __doc__ = ur"""
+    >>> print (Ext.__doc__)
+    Ext(a, b, c=None)
+
     >>> print (Ext.a.__doc__)
     Ext.a(self)
 
@@ -113,6 +116,9 @@ __doc__ = ur"""
 
 cdef class Ext:
 
+    def __init__(self, a, b, c=None):
+        pass
+
     def a(self):
         pass
 
@@ -147,7 +153,7 @@ cdef class Ext:
         return 0.0
 
     cpdef Ext clone(self):
-        return Ext()
+        return Ext(1,2)
 
 def foo():
     pass
