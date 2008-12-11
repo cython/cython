@@ -13,6 +13,7 @@ class EmbedSignature(CythonTransform):
         super(EmbedSignature, self).__init__(context)
         self.denv = None # XXX
         self.class_name = None
+        self.class_node = None
 
     def _fmt_arg_defv(self, arg):
         if not arg.default:
@@ -40,11 +41,13 @@ class EmbedSignature(CythonTransform):
 
     def _fmt_arglist(self, args,
                      npargs=0, pargs=None,
-                     nkargs=0, kargs=None):
+                     nkargs=0, kargs=None,
+                     hide_self=False):
         arglist = []
         for arg in args:
-            arg_doc = self._fmt_arg(arg)
-            arglist.append(arg_doc)
+            if not hide_self or not arg.entry.is_self_arg:
+                arg_doc = self._fmt_arg(arg)
+                arglist.append(arg_doc)
         if pargs:
             arglist.insert(npargs, '*%s' % pargs.name)
         elif nkargs:
@@ -62,10 +65,11 @@ class EmbedSignature(CythonTransform):
     def _fmt_signature(self, cls_name, func_name, args,
                        npargs=0, pargs=None,
                        nkargs=0, kargs=None,
-                       return_type=None):
+                       return_type=None, hide_self=False):
         arglist = self._fmt_arglist(args,
                                     npargs, pargs,
-                                    nkargs, kargs)
+                                    nkargs, kargs,
+                                    hide_self=hide_self)
         arglist_doc = ', '.join(arglist)
         func_doc = '%s(%s)' % (func_name, arglist_doc)
         if cls_name:
@@ -91,6 +95,8 @@ class EmbedSignature(CythonTransform):
         
     def visit_ClassDefNode(self, node):
         oldname = self.class_name
+        oldclass = self.class_node
+        self.class_node = node
         try:
             # PyClassDefNode
             self.class_name = node.name
@@ -99,30 +105,52 @@ class EmbedSignature(CythonTransform):
             self.class_name = node.class_name
         self.visitchildren(node)
         self.class_name = oldname
+        self.class_node = oldclass
         return node
 
-    def visit_FuncDefNode(self, node):
+    def visit_DefNode(self, node):
         if not self.current_directives['embedsignature']:
             return node
         
-        signature = None
-        if type(node) is DefNode: # def FOO(...):
-            if not node.entry.is_special:
-                nkargs = getattr(node, 'num_kwonly_args', 0)
-                npargs = len(node.args) - nkargs
-                signature = self._fmt_signature(
-                    self.class_name, node.name, node.args,
-                    npargs, node.star_arg,
-                    nkargs, node.starstar_arg,
-                    return_type=None)
-        elif type(node) is CFuncDefNode:
-            if node.overridable: # cpdef FOO(...):
-                signature = self._fmt_signature(
-                    self.class_name, node.declarator.base.name,
-                    node.declarator.args,
-                    return_type=node.return_type)
-        else: # should not fall here ...
-            assert False
+        is_constructor = False
+        hide_self = False
+        if node.entry.is_special:
+            is_constructor = self.class_node and node.name == '__init__'
+            if not is_constructor:
+                return node
+            class_name, func_name = None, self.class_name
+            hide_self = True
+        else:
+            class_name, func_name = self.class_name, node.name
+
+        nkargs = getattr(node, 'num_kwonly_args', 0)
+        npargs = len(node.args) - nkargs
+        signature = self._fmt_signature(
+            class_name, func_name, node.args,
+            npargs, node.star_arg,
+            nkargs, node.starstar_arg,
+            return_type=None, hide_self=hide_self)
+        if signature:
+            if is_constructor:
+                doc_holder = self.class_node.entry.type.scope
+            else:
+                doc_holder = node.entry
+            new_doc  = self._embed_signature(signature, doc_holder.doc)
+            doc_holder.doc = EncodedString(new_doc)
+            if not is_constructor and getattr(node, 'py_func', None) is not None:
+                node.py_func.entry.doc = EncodedString(new_doc)
+        return node
+
+    def visit_CFuncDefNode(self, node):
+        if not self.current_directives['embedsignature']:
+            return node
+        if not node.overridable: # not cpdef FOO(...):
+            return node
+
+        signature = self._fmt_signature(
+            self.class_name, node.declarator.base.name,
+            node.declarator.args,
+            return_type=node.return_type)
         if signature:
             new_doc  = self._embed_signature(signature, node.entry.doc)
             node.entry.doc = EncodedString(new_doc)
