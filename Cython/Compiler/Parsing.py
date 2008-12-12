@@ -761,6 +761,8 @@ def p_dict_or_set_maker(s):
         values = [item]
         while s.sy == ',':
             s.next()
+            if s.sy == '}':
+                break
             values.append( p_simple_expr(s) )
         s.expect('}')
         return ExprNodes.SetNode(pos, args=values)
@@ -789,6 +791,8 @@ def p_dict_or_set_maker(s):
             items = [ExprNodes.DictItemNode(key.pos, key=key, value=value)]
             while s.sy == ',':
                 s.next()
+                if s.sy == '}':
+                    break
                 key = p_simple_expr(s)
                 s.expect(':')
                 value = p_simple_expr(s)
