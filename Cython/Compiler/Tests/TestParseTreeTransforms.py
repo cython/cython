@@ -95,21 +95,21 @@ class TestWithTransform(TransformTest):
 
         self.assertCode(u"""
 
-        $1_0 = x
-        $1_2 = $1_0.__exit__
-        $1_0.__enter__()
-        $1_1 = True
-        $0_0 = None
+        $0_0 = x
+        $0_2 = $0_0.__exit__
+        $0_0.__enter__()
+        $0_1 = True
         try:
             try:
+                $1_0 = None
                 y = z ** 3
             except:
-                $1_1 = False
-                if (not $1_2($0_0)):
+                $0_1 = False
+                if (not $0_2($1_0)):
                     raise
         finally:
-            if $1_1:
-                $1_2(None, None, None)
+            if $0_1:
+                $0_2(None, None, None)
 
         """, t)
 
@@ -120,22 +120,22 @@ class TestWithTransform(TransformTest):
         """)
         self.assertCode(u"""
 
-        $1_0 = x
-        $1_2 = $1_0.__exit__
-        $1_3 = $1_0.__enter__()
-        $1_1 = True
-        $0_0 = None
+        $0_0 = x
+        $0_2 = $0_0.__exit__
+        $0_3 = $0_0.__enter__()
+        $0_1 = True
         try:
             try:
-                y = $1_3
+                $1_0 = None
+                y = $0_3
                 y = z ** 3
             except:
-                $1_1 = False
-                if (not $1_2($0_0)):
+                $0_1 = False
+                if (not $0_2($1_0)):
                     raise
         finally:
-            if $1_1:
-                $1_2(None, None, None)
+            if $0_1:
+                $0_2(None, None, None)
 
         """, t)
                           
