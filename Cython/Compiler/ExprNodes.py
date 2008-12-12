@@ -12,7 +12,7 @@ import Naming
 from Nodes import Node
 import PyrexTypes
 from PyrexTypes import py_object_type, c_long_type, typecast, error_type
-from Builtin import list_type, tuple_type, dict_type, unicode_type
+from Builtin import list_type, tuple_type, set_type, dict_type, unicode_type
 import Symtab
 import Options
 from Annotate import AnnotationItem
@@ -3007,7 +3007,7 @@ class ListNode(SequenceNode):
     gil_message = "Constructing Python list"
 
     def analyse_expressions(self, env):
-        ExprNode.analyse_expressions(self, env)
+        SequenceNode.analyse_expressions(self, env)
         self.coerce_to_pyobject(env)
 
     def analyse_types(self, env):
@@ -3091,7 +3091,7 @@ class ListNode(SequenceNode):
                         arg.result()))
         else:
             raise InternalError("List type never specified")
-                
+
     def generate_subexpr_disposal_code(self, code):
         # We call generate_post_assignment_code here instead
         # of generate_disposal_code, because values were stored
@@ -3101,16 +3101,16 @@ class ListNode(SequenceNode):
             # Should NOT call free_temps -- this is invoked by the default
             # generate_evaluation_code which will do that.
 
-            
-class ListComprehensionNode(SequenceNode):
 
+class ComprehensionNode(SequenceNode):
     subexprs = []
     is_sequence_constructor = 0 # not unpackable
+    comp_result_type = py_object_type
 
     child_attrs = ["loop", "append"]
 
     def analyse_types(self, env): 
-        self.type = list_type
+        self.type = self.comp_result_type
         self.is_temp = 1
         self.append.target = self # this is a CloneNode used in the PyList_Append in the inner loop
         
@@ -3132,25 +3132,126 @@ class ListComprehensionNode(SequenceNode):
         self.loop.annotate(code)
 
 
-class ListComprehensionAppendNode(ExprNode):
+class ListComprehensionNode(ComprehensionNode):
+    comp_result_type = list_type
 
+    def generate_operation_code(self, code):
+        code.putln("%s = PyList_New(%s); %s" %
+            (self.result(),
+            0,
+            code.error_goto_if_null(self.result(), self.pos)))
+        self.loop.generate_execution_code(code)
+
+class SetComprehensionNode(ComprehensionNode):
+    comp_result_type = set_type
+
+    def generate_operation_code(self, code):
+        code.putln("%s = PySet_New(0); %s" %    # arg == iterable, not size!
+            (self.result(),
+            code.error_goto_if_null(self.result(), self.pos)))
+        self.loop.generate_execution_code(code)
+
+class DictComprehensionNode(ComprehensionNode):
+    comp_result_type = dict_type
+
+    def generate_operation_code(self, code):
+        code.putln("%s = PyDict_New(); %s" %
+            (self.result(),
+            code.error_goto_if_null(self.result(), self.pos)))
+        self.loop.generate_execution_code(code)
+
+
+class ComprehensionAppendNode(NewTempExprNode):
     # Need to be careful to avoid infinite recursion:
     # target must not be in child_attrs/subexprs
     subexprs = ['expr']
     
     def analyse_types(self, env):
         self.expr.analyse_types(env)
-        if self.expr.type != py_object_type:
+        if not self.expr.type.is_pyobject:
             self.expr = self.expr.coerce_to_pyobject(env)
         self.type = PyrexTypes.c_int_type
         self.is_temp = 1
-    
+
+class ListComprehensionAppendNode(ComprehensionAppendNode):
     def generate_result_code(self, code):
         code.putln("%s = PyList_Append(%s, (PyObject*)%s); %s" %
             (self.result(),
-            self.target.result(),
-            self.expr.result(),
-            code.error_goto_if(self.result(), self.pos)))
+             self.target.result(),
+             self.expr.result(),
+             code.error_goto_if(self.result(), self.pos)))
+
+class SetComprehensionAppendNode(ComprehensionAppendNode):
+    def generate_result_code(self, code):
+        code.putln("%s = PySet_Add(%s, (PyObject*)%s); %s" %
+            (self.result(),
+             self.target.result(),
+             self.expr.result(),
+             code.error_goto_if(self.result(), self.pos)))
+
+class DictComprehensionAppendNode(ComprehensionAppendNode):
+    subexprs = ['key_expr', 'value_expr']
+    
+    def analyse_types(self, env):
+        self.key_expr.analyse_types(env)
+        if not self.key_expr.type.is_pyobject:
+            self.key_expr = self.key_expr.coerce_to_pyobject(env)
+        self.value_expr.analyse_types(env)
+        if not self.value_expr.type.is_pyobject:
+            self.value_expr = self.value_expr.coerce_to_pyobject(env)
+        self.type = PyrexTypes.c_int_type
+        self.is_temp = 1
+
+    def generate_result_code(self, code):
+        code.putln("%s = PyDict_SetItem(%s, (PyObject*)%s, (PyObject*)%s); %s" %
+            (self.result(),
+             self.target.result(),
+             self.key_expr.result(),
+             self.value_expr.result(),
+             code.error_goto_if(self.result(), self.pos)))
+
+
+class SetNode(NewTempExprNode):
+    #  Set constructor.
+
+    subexprs = ['args']
+
+    gil_message = "Constructing Python set"
+
+    def analyse_types(self, env):
+        for i in range(len(self.args)):
+            arg = self.args[i]
+            arg.analyse_types(env)
+            self.args[i] = arg.coerce_to_pyobject(env)
+        self.type = set_type
+        self.gil_check(env)
+        self.is_temp = 1
+
+    def compile_time_value(self, denv):
+        values = [arg.compile_time_value(denv) for arg in self.args]
+        try:
+            set
+        except NameError:
+            from sets import Set as set
+        try:
+            return set(values)
+        except Exception, e:
+            self.compile_time_value_error(e)
+
+    def generate_evaluation_code(self, code):
+        self.allocate_temp_result(code)
+        code.putln(
+            "%s = PySet_New(0); %s" % (
+                self.result(),
+                code.error_goto_if_null(self.result(), self.pos)))
+        for arg in self.args:
+            arg.generate_evaluation_code(code)
+            code.putln(
+                code.error_goto_if_neg(
+                    "PySet_Add(%s, %s)" % (self.result(), arg.py_result()),
+                    self.pos))
+            arg.generate_disposal_code(code)
+            arg.free_temps(code)
 
 
 class DictNode(ExprNode):

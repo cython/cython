@@ -1,13 +1,36 @@
-__doc__ = u"""
->>> test_set_add()
-set(['a', 1])
->>> test_set_clear()
-set([])
->>> test_set_pop()
-set([])
->>> test_set_discard()
-set([233, '12'])
+u"""
+>>> type(test_set_literal()) is _set
+True
+>>> sorted(test_set_literal())
+['a', 'b', 1]
+
+>>> type(test_set_add()) is _set
+True
+>>> sorted(test_set_add())
+['a', 1]
+
+>>> type(test_set_add()) is _set
+True
+>>> list(test_set_clear())
+[]
+
+>>> type(test_set_pop()) is _set
+True
+>>> list(test_set_pop())
+[]
+
+>>> type(test_set_discard()) is _set
+True
+>>> sorted(test_set_discard())
+['12', 233]
 """
+
+# Py2.3 doesn't have the 'set' builtin type, but Cython does :)
+_set = set
+
+def test_set_literal():
+    cdef set s1 = {1,'a',1,'b','a'}
+    return s1
 
 def test_set_add():
     cdef set s1
@@ -39,4 +62,16 @@ def test_set_discard():
     s1.discard('3')
     s1.discard(3)
     return s1
-    
+
+def sorted(it):
+    # Py3 can't compare strings to ints
+    chars = []
+    nums = []
+    for item in it:
+        if type(item) is int:
+            nums.append(item)
+        else:
+            chars.append(item)
+    nums.sort()
+    chars.sort()
+    return chars+nums
