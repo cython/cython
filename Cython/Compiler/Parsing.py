@@ -473,7 +473,7 @@ def make_slice_node(pos, start, stop = None, step = None):
     return ExprNodes.SliceNode(pos,
         start = start, stop = stop, step = step)
 
-#atom: '(' [testlist] ')' | '[' [listmaker] ']' | '{' [dictmaker] '}' | '`' testlist '`' | NAME | NUMBER | STRING+
+#atom: '(' [testlist] ')' | '[' [listmaker] ']' | '{' [dict_or_set_maker] '}' | '`' testlist '`' | NAME | NUMBER | STRING+
 
 def p_atom(s):
     pos = s.position()
@@ -491,7 +491,7 @@ def p_atom(s):
     elif sy == '[':
         return p_list_maker(s)
     elif sy == '{':
-        return p_dict_maker(s)
+        return p_dict_or_set_maker(s)
     elif sy == '`':
         return p_backquote_expr(s)
     elif sy == 'INT':
@@ -701,13 +701,8 @@ def p_list_maker(s):
     if s.sy == 'for':
         loop = p_list_for(s)
         s.expect(']')
-        inner_loop = loop
-        while not isinstance(inner_loop.body, Nodes.PassStatNode):
-            inner_loop = inner_loop.body
-            if isinstance(inner_loop, Nodes.IfStatNode):
-                 inner_loop = inner_loop.if_clauses[0]
         append = ExprNodes.ListComprehensionAppendNode( pos, expr = expr )
-        inner_loop.body = Nodes.ExprStatNode(pos, expr = append)
+        set_inner_comp_append(loop, append)
         return ExprNodes.ListComprehensionNode(pos, loop = loop, append = append)
     else:
         exprs = [expr]
@@ -742,27 +737,69 @@ def p_list_if(s):
     return Nodes.IfStatNode(pos, 
         if_clauses = [Nodes.IfClauseNode(pos, condition = test, body = p_list_iter(s))],
         else_clause = None )
-    
+
+def set_inner_comp_append(loop, append):
+    inner_loop = loop
+    while not isinstance(inner_loop.body, Nodes.PassStatNode):
+        inner_loop = inner_loop.body
+        if isinstance(inner_loop, Nodes.IfStatNode):
+             inner_loop = inner_loop.if_clauses[0]
+    inner_loop.body = Nodes.ExprStatNode(append.pos, expr = append)
+
 #dictmaker: test ':' test (',' test ':' test)* [',']
 
-def p_dict_maker(s):
+def p_dict_or_set_maker(s):
     # s.sy == '{'
     pos = s.position()
     s.next()
-    items = []
-    while s.sy != '}':
-        items.append(p_dict_item(s))
-        if s.sy != ',':
-            break
+    if s.sy == '}':
         s.next()
-    s.expect('}')
-    return ExprNodes.DictNode(pos, key_value_pairs = items)
-    
-def p_dict_item(s):
-    key = p_simple_expr(s)
-    s.expect(':')
-    value = p_simple_expr(s)
-    return ExprNodes.DictItemNode(key.pos, key=key, value=value)
+        return ExprNodes.DictNode(pos, key_value_pairs = [])
+    item = p_simple_expr(s)
+    if s.sy == ',' or s.sy == '}':
+        # set literal
+        values = [item]
+        while s.sy == ',':
+            s.next()
+            values.append( p_simple_expr(s) )
+        s.expect('}')
+        return ExprNodes.SetNode(pos, args=values)
+    elif s.sy == 'for':
+        # set comprehension
+        loop = p_list_for(s)
+        s.expect('}')
+        append = ExprNodes.SetComprehensionAppendNode(item.pos, expr=item)
+        set_inner_comp_append(loop, append)
+        return ExprNodes.SetComprehensionNode(pos, loop=loop, append=append)
+    elif s.sy == ':':
+        # dict literal or comprehension
+        key = item
+        s.next()
+        value = p_simple_expr(s)
+        if s.sy == 'for':
+            # dict comprehension
+            loop = p_list_for(s)
+            s.expect('}')
+            append = ExprNodes.DictComprehensionAppendNode(
+                item.pos, key_expr = key, value_expr = value)
+            set_inner_comp_append(loop, append)
+            return ExprNodes.DictComprehensionNode(pos, loop=loop, append=append)
+        else:
+            # dict literal
+            items = [ExprNodes.DictItemNode(key.pos, key=key, value=value)]
+            while s.sy == ',':
+                s.next()
+                key = p_simple_expr(s)
+                s.expect(':')
+                value = p_simple_expr(s)
+                items.append(
+                    ExprNodes.DictItemNode(key.pos, key=key, value=value))
+            s.expect('}')
+            return ExprNodes.DictNode(pos, key_value_pairs=items)
+    else:
+        # raise an error
+        s.expect('}')
+    return ExprNodes.DictNode(pos, key_value_pairs = [])
 
 def p_backquote_expr(s):
     # s.sy == '`'
