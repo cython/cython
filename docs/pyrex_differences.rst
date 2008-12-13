@@ -6,14 +6,25 @@
 Differences between Cython and Pyrex
 **************************************
 
-List Comprehensions
-====================
+List/Set/Dict Comprehensions
+=============================
 
-`[expr(x) for x in A]` is now available, implementing the full specification
-at http://www.python.org/dev/peps/pep-0202/ . Looping is optimized if ``A`` is
-a list. Also, use the :keyword:`for` ... :keyword:`from` syntax too, e.g.::
+Cython supports the different comprehensions defined by Python 3.0 for
+lists, sets and dicts::
 
-    [i*i for i from 0 <= i < 10] 
+       [expr(x) for x in A]             # list
+       {expr(x) for x in A}             # set
+       {key(x) : value(x) for x in A}   # dict
+
+Looping is optimized if ``A`` is a list, tuple or dict.  You can use
+the :keyword:`for` ... :keyword:`from` syntax, too, but it is
+generally preferred to use the usual :keyword:`for` ... :keyword:`in`
+``range(...)`` syntax with a C run variable (e.g. ``cdef int i``).
+
+.. note:: see :ref:`automatic-range-conversion`
+
+Note that Cython also supports set literals starting from Python 2.3.
+
 
 Conditional expressions "x if b else y" (python 2.5)
 =====================================================
