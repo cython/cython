@@ -1,10 +1,10 @@
-__doc__ = u"""
+u"""
 >>> import sys
 >>> if not IS_PY3: sys.exc_clear()
 
 >>> def test_py():
 ...   try:
-...     raise AttributeError
+...     raise AttributeError("test")
 ...   except AttributeError:
 ...     test_c(error=AttributeError)
 ...     print(sys.exc_info()[0] is AttributeError or sys.exc_info()[0])
@@ -33,6 +33,12 @@ True
 
 >>> print(sys.exc_info()[0]) # test_c()
 None
+
+>>> def test_raise():
+...   raise TestException("test")
+>>> test_catch(test_raise, TestException)
+True
+None
 """
 
 import sys
@@ -43,9 +49,16 @@ class TestException(Exception):
 
 def test_c(func=None, error=None):
     try:
-        raise TestException
+        raise TestException(u"test")
     except TestException:
         if func:
             func()
         print(sys.exc_info()[0] is TestException or sys.exc_info()[0])
+    print(sys.exc_info()[0] is error or sys.exc_info()[0])
+
+def test_catch(func, error):
+    try:
+        func()
+    except error:
+        print(sys.exc_info()[0] is error or sys.exc_info()[0])
     print(sys.exc_info()[0] is error or sys.exc_info()[0])
