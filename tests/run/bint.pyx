@@ -1,5 +1,4 @@
-
-"""
+__doc__ = u"""
 >>> call_test()
 False
 True

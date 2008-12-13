@@ -1,4 +1,4 @@
-u"""
+__doc__ = u"""
 >>> type(smoketest()) is not list
 True
 >>> type(smoketest()) is _set

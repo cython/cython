@@ -1,4 +1,4 @@
-u"""
+__doc__ = u"""
 >>> type(test_set_literal()) is _set
 True
 >>> sorted(test_set_literal())

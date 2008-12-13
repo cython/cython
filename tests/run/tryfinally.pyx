@@ -1,4 +1,4 @@
-u"""
+__doc__ = u"""
 >>> try:
 ...     raise ValueError
 ... finally:

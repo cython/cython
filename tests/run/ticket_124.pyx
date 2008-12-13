@@ -1,4 +1,4 @@
-"""
+__doc__ = u"""
 >>> spam(dict(test=2))
 False
 """

@@ -1,4 +1,4 @@
-u"""
+__doc__ = u"""
 >>> call_method( ExtType() ).method()
 1
 """
