@@ -295,13 +295,21 @@ Python and C, and that Cython uses the Python precedences, not the C ones.
 Integer for-loops
 ------------------
 
-You should be aware that a for-loop such as::
+Cython recognises the usual Python for-in-range integer loop pattern::
 
     for i in range(n):
         ...
 
-won't be very fast if ``i`` is not a :keyword:`cdef` integer type.
-For iterating over ranges of integers, Cython has another form of for-loop::
+If ``i`` is declared as a :keyword:`cdef` integer type, it will
+optimise this into a pure C loop.  This restriction is required as
+otherwise the generated code wouldn't be correct due to potential
+integer overflows on the target architecture.  If you are worried that
+the loop is not being converted correctly, use the annotate feature of
+the cython commandline (``-a``) to easily see the generated C code.
+See :ref:`automatic-range-conversion`
+
+For backwards compatibility to Pyrex, Cython also supports another
+form of for-loop::
 
     for i from 0 <= i < n:
         ...
@@ -312,17 +320,6 @@ or::
         ...
 
 where ``s`` is some integer step size.
-
-If the loop variable and the lower and upper bounds are all C integers, this
-form of loop will be much faster, because Cython will translate it into pure C
-code. 
-
-.. note::
-    This is not necessary if ``i`` is a C integer type and ``n`` can be
-    determined at compile time. Just use the idiomatic :func:`range` loop, if
-    you are worried that the loop is not being converted correctly use the
-    annotate feature of the cython commandline (``-a``) to easily see the
-    generated C code. See :ref:`automatic-range-conversion`
 
 Some things to note about the for-from loop:
 
