@@ -1,4 +1,4 @@
-u"""
+__doc__ = u"""
 >>> import sys
 >>> if not IS_PY3: sys.exc_clear()
 

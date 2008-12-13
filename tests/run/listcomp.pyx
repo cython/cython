@@ -1,4 +1,4 @@
-u"""
+__doc__ = u"""
 >>> smoketest()
 [0, 4, 8]
 >>> typed()

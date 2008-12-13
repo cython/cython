@@ -1,4 +1,4 @@
-u"""
+__doc__ = u"""
 >>> a,b = 'a *','b *' # use non-interned strings
 
 >>> and2_assign(2,3) == (2 and 3)

@@ -1,4 +1,4 @@
-"""
+__doc__ = u"""
 Tests accessing attributes of extension type variables
 set to None
 
