@@ -101,7 +101,7 @@ builtin_types_table = [
 
     ("list",    "PyList_Type",     [("append", "OO",   "i", "PyList_Append"),
                                     ("insert", "OZO",  "i", "PyList_Insert"),
-                                    ("sort",   "O",    "i", "PyList_Sort"),
+#                                    ("sort",   "O",    "i", "PyList_Sort"), # has optional arguments
                                     ("reverse","O",    "i", "PyList_Reverse")]),
 
     ("dict",    "PyDict_Type",     [("items", "O",   "O", "PyDict_Items"),
