@@ -83,7 +83,7 @@ class Context:
         from ParseTreeTransforms import AlignFunctionDefinitions
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, DictIterTransform
-        from Optimize import FlattenBuiltinTypeCreation, FinalOptimizePhase
+        from Optimize import FlattenBuiltinTypeCreation, ConstantFolding, FinalOptimizePhase
         from Buffer import IntroduceBufferAuxiliaryVars
         from ModuleNode import check_c_declarations
 
@@ -123,6 +123,7 @@ class Context:
             IntroduceBufferAuxiliaryVars(self),
             _check_c_declarations,
             AnalyseExpressionsTransform(self),
+            ConstantFolding(),
             FlattenBuiltinTypeCreation(),
             DictIterTransform(),
             SwitchTransform(),

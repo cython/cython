@@ -387,6 +387,54 @@ class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
         return node
 
 
+class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
+    """Calculate the result of constant expressions to store it in
+    ``expr_node.constant_result``, and replace trivial cases by their
+    constant result.
+    """
+    def _calculate_const(self, node):
+        if node.constant_result is not ExprNodes.constant_value_not_set:
+            return
+
+        # make sure we always set the value
+        not_a_constant = ExprNodes.not_a_constant
+        node.constant_result = not_a_constant
+
+        # check if all children are constant
+        children = self.visitchildren(node)
+        for child_result in children.itervalues():
+            if type(child_result) is list:
+                for child in child_result:
+                    if child.constant_result is not_a_constant:
+                        return
+            elif child_result.constant_result is not_a_constant:
+                return
+
+        # now try to calculate the real constant value
+        try:
+            node.calculate_constant_result()
+#            if node.constant_result is not ExprNodes.not_a_constant:
+#                print node.__class__.__name__, node.constant_result
+        except (ValueError, TypeError, IndexError, AttributeError):
+            # ignore all 'normal' errors here => no constant result
+            pass
+        except Exception:
+            # this looks like a real error
+            import traceback, sys
+            traceback.print_exc(file=sys.stdout)
+
+    def visit_ExprNode(self, node):
+        self._calculate_const(node)
+        return node
+
+    # in the future, other nodes can have their own handler method here
+    # that can replace them with a constant result node
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
+        return node
+
+
 class FinalOptimizePhase(Visitor.CythonTransform):
     """
     This visitor handles several commuting optimizations, and is run
