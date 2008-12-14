@@ -9,7 +9,12 @@ True
 >>> sorted(test_set_add())
 ['a', 1]
 
->>> type(test_set_add()) is _set
+>>> type(test_set_list_comp()) is _set
+True
+>>> sorted(test_set_list_comp())
+[0, 1, 2]
+
+>>> type(test_set_clear()) is _set
 True
 >>> list(test_set_clear())
 []
@@ -44,6 +49,11 @@ def test_set_clear():
     cdef set s1
     s1 = set([1])
     s1.clear()
+    return s1
+
+def test_set_list_comp():
+    cdef set s1
+    s1 = set([i%3 for i in range(5)])
     return s1
 
 def test_set_pop():
