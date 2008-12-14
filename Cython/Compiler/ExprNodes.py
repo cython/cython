@@ -870,6 +870,9 @@ class IntNode(ConstNode):
 class FloatNode(ConstNode):
     type = PyrexTypes.c_double_type
 
+    def calculate_constant_result(self):
+        self.constant_result = float(self.value)
+
     def compile_time_value(self, denv):
         return float(self.value)
     
