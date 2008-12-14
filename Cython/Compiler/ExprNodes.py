@@ -4460,7 +4460,7 @@ richcmp_constants = {
     ">=": "Py_GE",
 }
 
-class CmpNode:
+class CmpNode(object):
     #  Mixin class containing code common to PrimaryCmpNodes
     #  and CascadedCmpNodes.
 
