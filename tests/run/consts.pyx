@@ -7,6 +7,8 @@ True
 True
 >>> arithm() == 9*2+3*8/6-10
 True
+>>> lists() == [1,2,3] + [4,5,6]
+True
 """
 
 def add():
@@ -20,3 +22,6 @@ def mul():
 
 def arithm():
     return 9*2+3*8/6-10
+
+def lists():
+    return [1,2,3] + [4,5,6]
