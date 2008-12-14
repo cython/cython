@@ -427,8 +427,33 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         self._calculate_const(node)
         return node
 
+#    def visit_NumBinopNode(self, node):
+    def visit_BinopNode(self, node):
+        self._calculate_const(node)
+        if node.type is PyrexTypes.py_object_type:
+            return node
+        if node.constant_result is ExprNodes.not_a_constant:
+            return node
+#        print node.constant_result, node.operand1, node.operand2, node.pos
+        if isinstance(node.operand1, ExprNodes.ConstNode) and \
+                node.type is node.operand1.type:
+            new_node = node.operand1
+        elif isinstance(node.operand2, ExprNodes.ConstNode) and \
+                node.type is node.operand2.type:
+            new_node = node.operand2
+        else:
+            return node
+        new_node.value = new_node.constant_result = node.constant_result
+        new_node = new_node.coerce_to(node.type, self.module_scope)
+        return new_node
+
     # in the future, other nodes can have their own handler method here
     # that can replace them with a constant result node
+    
+    def visit_ModuleNode(self, node):
+        self.module_scope = node.scope
+        self.visitchildren(node)
+        return node
 
     def visit_Node(self, node):
         self.visitchildren(node)
