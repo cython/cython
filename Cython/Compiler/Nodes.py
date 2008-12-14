@@ -3883,6 +3883,7 @@ class TryExceptStatNode(StatNode):
         except_end_label = code.new_label('exception_handled')
         except_error_label = code.new_label('except_error')
         except_return_label = code.new_label('except_return')
+        try_return_label = code.new_label('try_return')
         try_end_label = code.new_label('try')
 
         code.putln("{")
@@ -3892,6 +3893,7 @@ class TryExceptStatNode(StatNode):
                    ', '.join(['&%s' % var for var in Naming.exc_save_vars]))
         code.putln(
             "/*try:*/ {")
+        code.return_label = try_return_label
         self.body.generate_execution_code(code)
         code.putln(
             "}")
@@ -3906,6 +3908,11 @@ class TryExceptStatNode(StatNode):
         for var in Naming.exc_save_vars:
             code.put_xdecref_clear(var, py_object_type)
         code.put_goto(try_end_label)
+        if code.label_used(try_return_label):
+            code.put_label(try_return_label)
+            for var in Naming.exc_save_vars:
+                code.put_xdecref_clear(var, py_object_type)
+            code.put_goto(old_return_label)
         code.put_label(our_error_label)
         code.put_var_xdecrefs_clear(self.cleanup_list)
         for except_clause in self.except_clauses:
