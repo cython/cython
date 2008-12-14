@@ -447,7 +447,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("")
         code.putln("  #define PyBUF_SIMPLE 0")
         code.putln("  #define PyBUF_WRITABLE 0x0001")
-        code.putln("  #define PyBUF_LOCK 0x0002")
         code.putln("  #define PyBUF_FORMAT 0x0004")
         code.putln("  #define PyBUF_ND 0x0008")
         code.putln("  #define PyBUF_STRIDES (0x0010 | PyBUF_ND)")
