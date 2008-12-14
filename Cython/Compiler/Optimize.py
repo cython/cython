@@ -354,24 +354,64 @@ class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
     """Optimise some common instantiation patterns for builtin types.
     """
     def visit_GeneralCallNode(self, node):
+        self.visitchildren(node)
+        handler = self._find_handler('general', node.function)
+        if handler is not None:
+            node = handler(node, node.positional_args, node.keyword_args)
+        return node
+
+    def visit_SimpleCallNode(self, node):
+        self.visitchildren(node)
+        handler = self._find_handler('simple', node.function)
+        if handler is not None:
+            node = handler(node, node.arg_tuple, None)
+        return node
+
+    def _find_handler(self, call_type, function):
+        if not function.type.is_builtin_type:
+            return None
+        handler = getattr(self, '_handle_%s_%s' % (call_type, function.name), None)
+        if handler is None:
+            handler = getattr(self, '_handle_any_%s' % function.name, None)
+        return handler
+
+    def _handle_general_dict(self, node, pos_args, kwargs):
         """Replace dict(a=b,c=d,...) by the underlying keyword dict
         construction which is done anyway.
         """
-        self.visitchildren(node)
-        if not node.function.type.is_builtin_type:
+        if not isinstance(pos_args, ExprNodes.TupleNode):
             return node
-        if node.function.name != 'dict':
+        if len(pos_args.args) > 0:
             return node
-        if not isinstance(node.positional_args, ExprNodes.TupleNode):
-            return node
-        if len(node.positional_args.args) > 0:
-            return node
-        if not isinstance(node.keyword_args, ExprNodes.DictNode):
+        if not isinstance(kwargs, ExprNodes.DictNode):
             return node
         if node.starstar_arg:
             # we could optimise this by updating the kw dict instead
             return node
-        return node.keyword_args
+        return kwargs
+
+    def _handle_simple_set(self, node, pos_args, kwargs):
+        """Replace set([a,b,...]) by a literal set {a,b,...}.
+        """
+        if not isinstance(pos_args, ExprNodes.TupleNode):
+            return node
+        arg_count = len(pos_args.args)
+        if arg_count == 0:
+            return ExprNodes.SetNode(node.pos, args=[],
+                                     type=Builtin.set_type, is_temp=1)
+        if arg_count > 1:
+            return node
+        iterable = pos_args.args[0]
+        if isinstance(iterable, (ExprNodes.ListNode, ExprNodes.TupleNode)):
+            return ExprNodes.SetNode(node.pos, args=iterable.args,
+                                     type=Builtin.set_type, is_temp=1)
+        elif isinstance(iterable, ExprNodes.ListComprehensionNode):
+            iterable.__class__ = ExprNodes.SetComprehensionNode
+            iterable.append.__class__ = ExprNodes.SetComprehensionAppendNode
+            iterable.pos = node.pos
+            return iterable
+        else:
+            return node
 
     def visit_PyTypeTestNode(self, node):
         """Flatten redundant type checks after tree changes.
