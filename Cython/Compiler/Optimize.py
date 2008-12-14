@@ -444,15 +444,22 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         else:
             return node
         new_node.value = new_node.constant_result = node.constant_result
-        new_node = new_node.coerce_to(node.type, self.module_scope)
+        new_node = new_node.coerce_to(node.type, self.current_scope)
         return new_node
 
     # in the future, other nodes can have their own handler method here
     # that can replace them with a constant result node
     
     def visit_ModuleNode(self, node):
-        self.module_scope = node.scope
+        self.current_scope = node.scope
         self.visitchildren(node)
+        return node
+
+    def visit_FuncDefNode(self, node):
+        old_scope = self.current_scope
+        self.current_scope = node.entry.scope
+        self.visitchildren(node)
+        self.current_scope = old_scope
         return node
 
     def visit_Node(self, node):
