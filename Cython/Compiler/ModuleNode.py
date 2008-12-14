@@ -411,6 +411,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
         code.putln("#if PY_VERSION_HEX < 0x02040000")
         code.putln("  #define METH_COEXIST 0")
+        code.putln("  #define PyDict_CheckExact(op) (Py_TYPE(op) == &PyDict_Type)")
         code.putln("#endif")
 
         code.putln("#if PY_VERSION_HEX < 0x02050000")
