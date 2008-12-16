@@ -64,6 +64,9 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
             # for now...note that pos is wrong 
             raise CompileError(node.pos, "Buffer vars not allowed in module scope")
         for entry in bufvars:
+            if entry.type.dtype.is_ptr:
+                raise CompileError(node.pos, "Buffers with pointer types not yet supported.")
+            
             name = entry.name
             buftype = entry.type
             if buftype.ndim > self.max_ndim:
