@@ -45,22 +45,24 @@ class DictIterTransform(Visitor.VisitorTransform):
     PyDict_Next_entry = Symtab.Entry(
         PyDict_Next_name, PyDict_Next_name, PyDict_Next_func_type)
 
+    def visit_Node(self, node):
+        # descend into statements (loops) and nodes (comprehensions)
+        self.visitchildren(node)
+        return node
+
     def visit_ForInStatNode(self, node):
         self.visitchildren(node)
         iterator = node.iterator.sequence
         if iterator.type is Builtin.dict_type:
             # like iterating over dict.keys()
-            dict_obj = iterator
-            keys = True
-            values = False
-        else:
-            if not isinstance(iterator, ExprNodes.SimpleCallNode):
-                return node
-            function = iterator.function
-            if not isinstance(function, ExprNodes.AttributeNode):
-                return node
-            if function.obj.type != Builtin.dict_type:
-                return node
+            return self._transform_dict_iteration(
+                node, dict_obj=iterator, keys=True, values=False)
+        if not isinstance(iterator, ExprNodes.SimpleCallNode):
+            return node
+
+        function = iterator.function
+        if isinstance(function, ExprNodes.AttributeNode) and \
+                function.obj.type == Builtin.dict_type:
             dict_obj = function.obj
             method = function.attribute
 
@@ -73,7 +75,11 @@ class DictIterTransform(Visitor.VisitorTransform):
                 keys = values = True
             else:
                 return node
+            return self._transform_dict_iteration(
+                node, dict_obj, keys, values)
+        return node
 
+    def _transform_dict_iteration(self, node, dict_obj, keys, values):
         py_object_ptr = PyrexTypes.c_void_ptr_type
 
         temps = []
@@ -218,11 +224,6 @@ class DictIterTransform(Visitor.VisitorTransform):
                 node.pos,
                 stats = result_code
                 ))
-
-    def visit_Node(self, node):
-        # descend into statements (loops) and nodes (comprehensions)
-        self.visitchildren(node)
-        return node
 
 
 class SwitchTransform(Visitor.VisitorTransform):
