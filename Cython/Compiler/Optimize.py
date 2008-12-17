@@ -6,6 +6,7 @@ import Builtin
 import UtilNodes
 import TypeSlots
 import Symtab
+import Options
 from StringEncoding import EncodedString
 
 from ParseTreeTransforms import SkipDeclarations
@@ -29,8 +30,11 @@ def is_common_value(a, b):
     return False
 
 
-class DictIterTransform(Visitor.VisitorTransform):
-    """Transform a for-in-dict loop into a while loop calling PyDict_Next().
+class IterationTransform(Visitor.VisitorTransform):
+    """Transform some common for-in loop patterns into efficient C loops:
+
+    - for-in-dict loop becomes a while loop calling PyDict_Next()
+    - for-in-range loop becomes a plain C for loop
     """
     PyDict_Next_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_bint_type, [
@@ -50,6 +54,18 @@ class DictIterTransform(Visitor.VisitorTransform):
         self.visitchildren(node)
         return node
 
+    def visit_ModuleNode(self, node):
+        self.current_scope = node.scope
+        self.visitchildren(node)
+        return node
+
+    def visit_DefNode(self, node):
+        oldscope = self.current_scope
+        self.current_scope = node.entry.scope
+        self.visitchildren(node)
+        self.current_scope = oldscope
+        return node
+
     def visit_ForInStatNode(self, node):
         self.visitchildren(node)
         iterator = node.iterator.sequence
@@ -61,6 +77,7 @@ class DictIterTransform(Visitor.VisitorTransform):
             return node
 
         function = iterator.function
+        # dict iteration?
         if isinstance(function, ExprNodes.AttributeNode) and \
                 function.obj.type == Builtin.dict_type:
             dict_obj = function.obj
@@ -77,7 +94,66 @@ class DictIterTransform(Visitor.VisitorTransform):
                 return node
             return self._transform_dict_iteration(
                 node, dict_obj, keys, values)
+
+        # range() iteration?
+        if Options.convert_range and node.target.type.is_int:
+            if iterator.self is None and \
+                    isinstance(function, ExprNodes.NameNode) and \
+                    function.entry.is_builtin and \
+                    function.name in ('range', 'xrange'):
+                return self._transform_range_iteration(
+                    node, iterator)
+
         return node
+
+    def _transform_range_iteration(self, node, range_function):
+        args = range_function.arg_tuple.args
+        if len(args) < 3:
+            step_pos = range_function.pos
+            step_value = 1
+            step = ExprNodes.IntNode(step_pos, value=1)
+        else:
+            step = args[2]
+            step_pos = step.pos
+            if step.constant_result is ExprNodes.not_a_constant:
+                # cannot determine step direction
+                return node
+            try:
+                # FIXME: check how Python handles rounding here, e.g. from float
+                step_value = int(step.constant_result)
+            except:
+                return node
+            if not isinstance(step, ExprNodes.IntNode):
+                step = ExprNodes.IntNode(step_pos, value=step_value)
+
+        if step_value > 0:
+            relation1 = '<='
+            relation2 = '<'
+        elif step_value < 0:
+            step.value = -step_value
+            relation1 = '>='
+            relation2 = '>'
+        else:
+            return node
+
+        if len(args) == 1:
+            bound1 = ExprNodes.IntNode(range_function.pos, value=0)
+            bound2 = args[0]
+        else:
+            bound1 = args[0]
+            bound2 = args[1]
+
+        for_node = Nodes.ForFromStatNode(
+            node.pos,
+            target=node.target,
+            bound1=bound1, relation1=relation1,
+            relation2=relation2, bound2=bound2,
+            step=step, body=node.body,
+            else_clause=node.else_clause,
+            loopvar_name = node.target.entry.cname)
+        for_node.reanalyse_c_loop(self.current_scope)
+#        for_node.analyse_expressions(self.current_scope)
+        return for_node
 
     def _transform_dict_iteration(self, node, dict_obj, keys, values):
         py_object_ptr = PyrexTypes.c_void_ptr_type
