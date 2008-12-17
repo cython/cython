@@ -22,6 +22,7 @@ try:
                compile as cython_compile
     from Cython.Compiler.Errors import PyrexError
 except ImportError, e:
+    print "failed to import Cython: %s" % e
     PyrexError = None
 
 from distutils.command import build_ext as _build_ext
