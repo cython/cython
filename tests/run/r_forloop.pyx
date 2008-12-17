@@ -12,8 +12,22 @@ __doc__ = u"""
   Spam!
   Spam!
   Spam!
+  >>> go_c_all()
+  Spam!
+  Spam!
+  Spam!
+  >>> go_c_all_exprs(1)
+  Spam!
+  >>> go_c_all_exprs(3)
+  Spam!
+  Spam!
+  >>> go_c_calc(2)
+  Spam!
+  Spam!
   >>> go_c_ret()
   2
+  >>> go_c_calc_ret(2)
+  6
 
   >>> go_list()
   Spam!
@@ -53,6 +67,30 @@ def go_c():
     cdef int i
     for i in range(4):
         print u"Spam!"
+
+def go_c_all():
+    cdef int i
+    for i in range(8,2,-2):
+        print u"Spam!"
+
+def go_c_all_exprs(x):
+    cdef int i
+    for i in range(4*x,2*x,-3):
+        print u"Spam!"
+
+def f(x):
+    return 2*x
+
+def go_c_calc(x):
+    cdef int i
+    for i in range(2*f(x),f(x), -2):
+        print u"Spam!"
+
+def go_c_calc_ret(x):
+    cdef int i
+    for i in range(2*f(x),f(x), -2):
+        if i < 2*f(x):
+            return i
 
 def go_c_ret():
     cdef int i

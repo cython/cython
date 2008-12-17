@@ -3719,7 +3719,7 @@ class ForInStatNode(LoopNode, StatNode):
     def analyse_expressions(self, env):
         import ExprNodes
         self.target.analyse_target_types(env)
-        if Options.convert_range and self.target.type.is_int:
+        if False: # Options.convert_range and self.target.type.is_int:
             sequence = self.iterator.sequence
             if isinstance(sequence, ExprNodes.SimpleCallNode) \
                   and sequence.self is None \
@@ -3801,7 +3801,11 @@ class ForFromStatNode(LoopNode, StatNode):
     #  loopvar_name       string
     #  py_loopvar_node    PyTempNode or None
     child_attrs = ["target", "bound1", "bound2", "step", "body", "else_clause"]
-    
+
+    is_py_target = False
+    loopvar_name = None
+    py_loopvar_node = None
+
     def analyse_declarations(self, env):
         self.target.analyse_target_declaration(env)
         self.body.analyse_declarations(env)
@@ -3866,6 +3870,13 @@ class ForFromStatNode(LoopNode, StatNode):
         self.bound2.release_temp(env)
         if self.step is not None:
             self.step.release_temp(env)
+
+    def reanalyse_c_loop(self, env):
+        # only make sure all subnodes have an integer type
+        self.bound1 = self.bound1.coerce_to_integer(env)
+        self.bound2 = self.bound2.coerce_to_integer(env)
+        if self.step is not None:
+            self.step = self.step.coerce_to_integer(env)
             
     def generate_execution_code(self, code):
         old_loop_labels = code.new_loop_labels()
