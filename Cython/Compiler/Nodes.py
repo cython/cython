@@ -3870,13 +3870,6 @@ class ForFromStatNode(LoopNode, StatNode):
         self.bound2.release_temp(env)
         if self.step is not None:
             self.step.release_temp(env)
-
-    def reanalyse_c_loop(self, env):
-        # only make sure all subnodes have an integer type
-        self.bound1 = self.bound1.coerce_to_integer(env)
-        self.bound2 = self.bound2.coerce_to_integer(env)
-        if self.step is not None:
-            self.step = self.step.coerce_to_integer(env)
             
     def generate_execution_code(self, code):
         old_loop_labels = code.new_loop_labels()
