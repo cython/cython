@@ -115,33 +115,31 @@ class IterationTransform(Visitor.VisitorTransform):
         else:
             step = args[2]
             step_pos = step.pos
-            if step.constant_result is ExprNodes.not_a_constant:
+            if not isinstance(step.constant_result, (int, long)):
                 # cannot determine step direction
                 return node
-            try:
-                # FIXME: check how Python handles rounding here, e.g. from float
-                step_value = int(step.constant_result)
-            except:
+            step_value = step.constant_result
+            if step_value == 0:
+                # will lead to an error elsewhere
                 return node
             if not isinstance(step, ExprNodes.IntNode):
                 step = ExprNodes.IntNode(step_pos, value=step_value)
 
-        if step_value > 0:
-            relation1 = '<='
-            relation2 = '<'
-        elif step_value < 0:
+        if step_value < 0:
             step.value = -step_value
             relation1 = '>='
             relation2 = '>'
         else:
-            return node
+            relation1 = '<='
+            relation2 = '<'
 
         if len(args) == 1:
             bound1 = ExprNodes.IntNode(range_function.pos, value=0)
-            bound2 = args[0]
+            bound2 = args[0].coerce_to_integer(self.current_scope)
         else:
-            bound1 = args[0]
-            bound2 = args[1]
+            bound1 = args[0].coerce_to_integer(self.current_scope)
+            bound2 = args[1].coerce_to_integer(self.current_scope)
+        step = step.coerce_to_integer(self.current_scope)
 
         for_node = Nodes.ForFromStatNode(
             node.pos,
@@ -151,8 +149,6 @@ class IterationTransform(Visitor.VisitorTransform):
             step=step, body=node.body,
             else_clause=node.else_clause,
             loopvar_name = node.target.entry.cname)
-        for_node.reanalyse_c_loop(self.current_scope)
-#        for_node.analyse_expressions(self.current_scope)
         return for_node
 
     def _transform_dict_iteration(self, node, dict_obj, keys, values):
