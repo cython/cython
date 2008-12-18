@@ -21,6 +21,9 @@ __doc__ = u"""
   >>> go_c_all_exprs(3)
   Spam!
   Spam!
+  >>> go_c_const_exprs()
+  Spam!
+  Spam!
   >>> go_c_calc(2)
   Spam!
   Spam!
@@ -52,6 +55,9 @@ __doc__ = u"""
   Spam!
   >>> go_dict_ret()
   2
+
+  >>> global_result
+  6
 """
 
 def go_py():
@@ -76,6 +82,11 @@ def go_c_all():
 def go_c_all_exprs(x):
     cdef int i
     for i in range(4*x,2*x,-3):
+        print u"Spam!"
+
+def go_c_const_exprs():
+    cdef int i
+    for i in range(4*2+1,2*2,-2-1):
         print u"Spam!"
 
 def f(x):
@@ -130,3 +141,11 @@ def go_dict_ret():
     for i in d:
         if i > 1 and i < 3:
             return i
+
+# test global scope also
+global_result = None
+cdef int i
+for i in range(4*2+1,2*2,-2-1):
+    if i < 7:
+        global_result = i
+        break
