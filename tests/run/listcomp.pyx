@@ -1,6 +1,8 @@
 __doc__ = u"""
 >>> smoketest()
 [0, 4, 8]
+>>> int_runvar()
+[0, 4, 8]
 >>> typed()
 [A, A, A]
 >>> iterdict()
@@ -8,6 +10,10 @@ __doc__ = u"""
 """
 
 def smoketest():
+    print [x*2 for x in range(5) if x % 2 == 0]
+
+def int_runvar():
+    cdef int x
     print [x*2 for x in range(5) if x % 2 == 0]
 
 cdef class A:
