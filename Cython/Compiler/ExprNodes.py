@@ -27,7 +27,8 @@ try:
 except NameError:
     from sets import Set as set
 
-not_a_constant = object()
+class NotConstant(object): pass # just for the name
+not_a_constant = NotConstant()
 constant_value_not_set = object()
 
 class ExprNode(Node):
@@ -4839,6 +4840,9 @@ class CoercionNode(NewTempExprNode):
         self.arg = arg
         if debug_coercion:
             print("%s Coercing %s" % (self, self.arg))
+
+    def calculate_constant_result(self):
+        self.constant_result = self.arg.constant_result
             
     def annotate(self, code):
         self.arg.annotate(code)
