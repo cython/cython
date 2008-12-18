@@ -3825,6 +3825,9 @@ class TypecastNode(NewTempExprNode):
     
     def check_const(self):
         self.operand.check_const()
+
+    def calculate_constant_result(self):
+        self.constant_result = self.operand.constant_result
     
     def calculate_result_code(self):
         opnd = self.operand
