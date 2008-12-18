@@ -3798,12 +3798,12 @@ class ForFromStatNode(LoopNode, StatNode):
     #  Used internally:
     #
     #  is_py_target       bool
-    #  loopvar_name       string
+    #  loopvar_node       ExprNode (usually a NameNode or temp node)
     #  py_loopvar_node    PyTempNode or None
     child_attrs = ["target", "bound1", "bound2", "step", "body", "else_clause"]
 
     is_py_target = False
-    loopvar_name = None
+    loopvar_node = None
     py_loopvar_node = None
 
     def analyse_declarations(self, env):
@@ -3811,7 +3811,7 @@ class ForFromStatNode(LoopNode, StatNode):
         self.body.analyse_declarations(env)
         if self.else_clause:
             self.else_clause.analyse_declarations(env)
-    
+
     def analyse_expressions(self, env):
         import ExprNodes
         self.target.analyse_target_types(env)
@@ -3842,14 +3842,14 @@ class ForFromStatNode(LoopNode, StatNode):
             self.is_py_target = 0
             if isinstance(self.target, ExprNodes.IndexNode) and self.target.is_buffer_access:
                 raise error(self.pos, "Buffer indexing not allowed as for loop target.")
-            self.loopvar_name = self.target.entry.cname
+            self.loopvar_node = self.target
             self.py_loopvar_node = None
         else:
             self.is_py_target = 1
             c_loopvar_node = ExprNodes.TempNode(self.pos, 
                 PyrexTypes.c_long_type, env)
             c_loopvar_node.allocate_temps(env)
-            self.loopvar_name = c_loopvar_node.result()
+            self.loopvar_node = c_loopvar_node
             self.py_loopvar_node = \
                 ExprNodes.CloneNode(c_loopvar_node).coerce_to_pyobject(env)
         self.bound1.allocate_temps(env)
@@ -3879,12 +3879,13 @@ class ForFromStatNode(LoopNode, StatNode):
         if self.step is not None:
             self.step.generate_evaluation_code(code)
             incop = "%s=%s" % (incop[0], self.step.result())
+        loopvar_name = self.loopvar_node.result()
         code.putln(
             "for (%s = %s%s; %s %s %s; %s%s) {" % (
-                self.loopvar_name,
+                loopvar_name,
                 self.bound1.result(), offset,
-                self.loopvar_name, self.relation2, self.bound2.result(),
-                self.loopvar_name, incop))
+                loopvar_name, self.relation2, self.bound2.result(),
+                loopvar_name, incop))
         if self.py_loopvar_node:
             self.py_loopvar_node.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.py_loopvar_node, code)

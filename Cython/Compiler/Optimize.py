@@ -148,7 +148,7 @@ class IterationTransform(Visitor.VisitorTransform):
             relation2=relation2, bound2=bound2,
             step=step, body=node.body,
             else_clause=node.else_clause,
-            loopvar_name = node.target.entry.cname)
+            loopvar_node=node.target)
         return for_node
 
     def _transform_dict_iteration(self, node, dict_obj, keys, values):
