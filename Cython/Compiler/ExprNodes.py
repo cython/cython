@@ -4932,6 +4932,13 @@ class CoerceToPyTypeNode(CoercionNode):
     
     def coerce_to_boolean(self, env):
         return self.arg.coerce_to_boolean(env).coerce_to_temp(env)
+    
+    def coerce_to_integer(self, env):
+        # If not already some C integer type, coerce to longint.
+        if self.arg.type.is_int:
+            return self.arg
+        else:
+            return self.arg.coerce_to(PyrexTypes.c_long_type, env)
 
     def analyse_types(self, env):
         # The arg is always already analysed
