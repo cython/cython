@@ -80,7 +80,7 @@ class Context:
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
         from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
-        from ParseTreeTransforms import AlignFunctionDefinitions
+        from ParseTreeTransforms import ComprehensionTransform, AlignFunctionDefinitions
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
         from Optimize import FlattenBuiltinTypeCreation, ConstantFolding, FinalOptimizePhase
@@ -125,6 +125,7 @@ class Context:
             AnalyseExpressionsTransform(self),
             FlattenBuiltinTypeCreation(),
             ConstantFolding(),
+            ComprehensionTransform(),
             IterationTransform(),
             SwitchTransform(),
             FinalOptimizePhase(self),
