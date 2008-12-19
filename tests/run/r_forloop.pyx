@@ -15,6 +15,11 @@ __doc__ = u"""
   >>> go_c_int(1,5)
   Spam!
   Spam!
+  >>> go_c_enumerate()
+  True
+  True
+  True
+  True
   >>> go_c_all()
   Spam!
   Spam!
@@ -76,6 +81,11 @@ def go_c():
     cdef int i
     for i in range(4):
         print u"Spam!"
+
+def go_c_enumerate():
+    cdef int i,k
+    for i,k in enumerate(range(4)):
+        print i == k
 
 def go_c_int(int a, int b):
     cdef int i
