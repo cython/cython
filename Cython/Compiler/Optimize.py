@@ -488,9 +488,11 @@ class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
         if isinstance(iterable, (ExprNodes.ListNode, ExprNodes.TupleNode)):
             return ExprNodes.SetNode(node.pos, args=iterable.args,
                                      type=Builtin.set_type, is_temp=1)
-        elif isinstance(iterable, ExprNodes.ListComprehensionNode):
-            iterable.__class__ = ExprNodes.SetComprehensionNode
-            iterable.append.__class__ = ExprNodes.SetComprehensionAppendNode
+        elif isinstance(iterable, ExprNodes.ComprehensionNode) and \
+                iterable.type is Builtin.list_type:
+            iterable.target = ExprNodes.SetNode(
+                node.pos, args=[], type=Builtin.set_type, is_temp=1)
+            iterable.type = Builtin.set_type
             iterable.pos = node.pos
             return iterable
         else:

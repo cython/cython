@@ -3180,63 +3180,33 @@ class ListNode(SequenceNode):
             # generate_evaluation_code which will do that.
 
 
-class ComprehensionNode(SequenceNode):
-    subexprs = []
-    is_sequence_constructor = 0 # not unpackable
-    comp_result_type = py_object_type
-
+class ComprehensionNode(NewTempExprNode):
+    subexprs = ["target"]
     child_attrs = ["loop", "append"]
 
-    def analyse_types(self, env): 
-        self.type = self.comp_result_type
-        self.is_temp = 1
+    def analyse_types(self, env):
+        self.target.analyse_expressions(env)
+        self.type = self.target.type
         self.append.target = self # this is a CloneNode used in the PyList_Append in the inner loop
-        
+        self.loop.analyse_declarations(env)
+        self.loop.analyse_expressions(env)
+
     def allocate_temps(self, env, result = None): 
         if debug_temp_alloc:
             print("%s Allocating temps" % self)
         self.allocate_temp(env, result)
-        self.loop.analyse_declarations(env)
-        self.loop.analyse_expressions(env)
-        
+
+    def calculate_result_code(self):
+        return self.target.result()
+    
+    def generate_result_code(self, code):
+        self.generate_operation_code(code)
+
     def generate_operation_code(self, code):
-        code.putln("%s = PyList_New(%s); %s" %
-            (self.result(),
-            0,
-            code.error_goto_if_null(self.result(), self.pos)))
         self.loop.generate_execution_code(code)
-        
+
     def annotate(self, code):
         self.loop.annotate(code)
-
-
-class ListComprehensionNode(ComprehensionNode):
-    comp_result_type = list_type
-
-    def generate_operation_code(self, code):
-        code.putln("%s = PyList_New(%s); %s" %
-            (self.result(),
-            0,
-            code.error_goto_if_null(self.result(), self.pos)))
-        self.loop.generate_execution_code(code)
-
-class SetComprehensionNode(ComprehensionNode):
-    comp_result_type = set_type
-
-    def generate_operation_code(self, code):
-        code.putln("%s = PySet_New(0); %s" %    # arg == iterable, not size!
-            (self.result(),
-            code.error_goto_if_null(self.result(), self.pos)))
-        self.loop.generate_execution_code(code)
-
-class DictComprehensionNode(ComprehensionNode):
-    comp_result_type = dict_type
-
-    def generate_operation_code(self, code):
-        code.putln("%s = PyDict_New(); %s" %
-            (self.result(),
-            code.error_goto_if_null(self.result(), self.pos)))
-        self.loop.generate_execution_code(code)
 
 
 class ComprehensionAppendNode(NewTempExprNode):
@@ -3251,18 +3221,18 @@ class ComprehensionAppendNode(NewTempExprNode):
         self.type = PyrexTypes.c_int_type
         self.is_temp = 1
 
-class ListComprehensionAppendNode(ComprehensionAppendNode):
     def generate_result_code(self, code):
-        code.putln("%s = PyList_Append(%s, (PyObject*)%s); %s" %
+        if self.target.type is list_type:
+            function = "PyList_Append"
+        elif self.target.type is set_type:
+            function = "PySet_Add"
+        else:
+            raise InternalError(
+                "Invalid type for comprehension node: %s" % self.target.type)
+            
+        code.putln("%s = %s(%s, (PyObject*)%s); %s" %
             (self.result(),
-             self.target.result(),
-             self.expr.result(),
-             code.error_goto_if(self.result(), self.pos)))
-
-class SetComprehensionAppendNode(ComprehensionAppendNode):
-    def generate_result_code(self, code):
-        code.putln("%s = PySet_Add(%s, (PyObject*)%s); %s" %
-            (self.result(),
+             function,
              self.target.result(),
              self.expr.result(),
              code.error_goto_if(self.result(), self.pos)))

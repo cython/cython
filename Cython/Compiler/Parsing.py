@@ -699,11 +699,13 @@ def p_list_maker(s):
         return ExprNodes.ListNode(pos, args = [])
     expr = p_simple_expr(s)
     if s.sy == 'for':
-        loop = p_list_for(s)
+        target = ExprNodes.ListNode(pos, args = [])
+        append = ExprNodes.ComprehensionAppendNode(
+            pos, expr=expr, target=ExprNodes.CloneNode(target))
+        loop = p_list_for(s, Nodes.ExprStatNode(append.pos, expr=append))
         s.expect(']')
-        append = ExprNodes.ListComprehensionAppendNode( pos, expr = expr )
-        set_inner_comp_append(loop, append)
-        return ExprNodes.ListComprehensionNode(pos, loop = loop, append = append)
+        return ExprNodes.ComprehensionNode(
+            pos, loop=loop, append=append, target=target)
     else:
         exprs = [expr]
         if s.sy == ',':
@@ -712,39 +714,33 @@ def p_list_maker(s):
         s.expect(']')
         return ExprNodes.ListNode(pos, args = exprs)
         
-def p_list_iter(s):
+def p_list_iter(s, body):
     if s.sy == 'for':
-        return p_list_for(s)
+        return p_list_for(s, body)
     elif s.sy == 'if':
-        return p_list_if(s)
+        return p_list_if(s, body)
     else:
-        return Nodes.PassStatNode(s.position())
+        # insert the 'append' operation into the loop
+        return body
 
-def p_list_for(s):
+def p_list_for(s, body):
     # s.sy == 'for'
     pos = s.position()
     s.next()
     kw = p_for_bounds(s)
     kw['else_clause'] = None
-    kw['body'] = p_list_iter(s)
+    kw['body'] = p_list_iter(s, body)
     return Nodes.ForStatNode(pos, **kw)
         
-def p_list_if(s):
+def p_list_if(s, body):
     # s.sy == 'if'
     pos = s.position()
     s.next()
     test = p_test(s)
     return Nodes.IfStatNode(pos, 
-        if_clauses = [Nodes.IfClauseNode(pos, condition = test, body = p_list_iter(s))],
+        if_clauses = [Nodes.IfClauseNode(pos, condition = test,
+                                         body = p_list_iter(s, body))],
         else_clause = None )
-
-def set_inner_comp_append(loop, append):
-    inner_loop = loop
-    while not isinstance(inner_loop.body, Nodes.PassStatNode):
-        inner_loop = inner_loop.body
-        if isinstance(inner_loop, Nodes.IfStatNode):
-             inner_loop = inner_loop.if_clauses[0]
-    inner_loop.body = Nodes.ExprStatNode(append.pos, expr = append)
 
 #dictmaker: test ':' test (',' test ':' test)* [',']
 
@@ -768,11 +764,13 @@ def p_dict_or_set_maker(s):
         return ExprNodes.SetNode(pos, args=values)
     elif s.sy == 'for':
         # set comprehension
-        loop = p_list_for(s)
+        target = ExprNodes.SetNode(pos, args=[])
+        append = ExprNodes.ComprehensionAppendNode(
+            item.pos, expr=item, target=ExprNodes.CloneNode(target))
+        loop = p_list_for(s, Nodes.ExprStatNode(append.pos, expr=append))
         s.expect('}')
-        append = ExprNodes.SetComprehensionAppendNode(item.pos, expr=item)
-        set_inner_comp_append(loop, append)
-        return ExprNodes.SetComprehensionNode(pos, loop=loop, append=append)
+        return ExprNodes.ComprehensionNode(
+            pos, loop=loop, append=append, target=target)
     elif s.sy == ':':
         # dict literal or comprehension
         key = item
@@ -780,12 +778,14 @@ def p_dict_or_set_maker(s):
         value = p_simple_expr(s)
         if s.sy == 'for':
             # dict comprehension
-            loop = p_list_for(s)
-            s.expect('}')
+            target = ExprNodes.DictNode(pos, key_value_pairs = [])
             append = ExprNodes.DictComprehensionAppendNode(
-                item.pos, key_expr = key, value_expr = value)
-            set_inner_comp_append(loop, append)
-            return ExprNodes.DictComprehensionNode(pos, loop=loop, append=append)
+                item.pos, key_expr=key, value_expr=value,
+                target=ExprNodes.CloneNode(target))
+            loop = p_list_for(s, Nodes.ExprStatNode(append.pos, expr=append))
+            s.expect('}')
+            return ExprNodes.ComprehensionNode(
+                pos, loop=loop, append=append, target=target)
         else:
             # dict literal
             items = [ExprNodes.DictItemNode(key.pos, key=key, value=value)]
