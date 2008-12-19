@@ -3189,12 +3189,14 @@ class ComprehensionNode(NewTempExprNode):
         self.type = self.target.type
         self.append.target = self # this is a CloneNode used in the PyList_Append in the inner loop
         self.loop.analyse_declarations(env)
-        self.loop.analyse_expressions(env)
 
     def allocate_temps(self, env, result = None): 
         if debug_temp_alloc:
             print("%s Allocating temps" % self)
         self.allocate_temp(env, result)
+        # call loop.analyse_expressions() now to make sure temps get
+        # allocated at the right time
+        self.loop.analyse_expressions(env)
 
     def calculate_result_code(self):
         return self.target.result()
