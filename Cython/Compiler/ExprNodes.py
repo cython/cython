@@ -344,7 +344,7 @@ class ExprNode(Node):
         error(self.pos, "Address is not constant")
 
     def gil_check(self, env):
-        if env.nogil and self.type.is_pyobject:
+        if env is not None and env.nogil and self.type.is_pyobject:
             self.gil_error()
 
     # ----------------- Result Allocation -----------------
