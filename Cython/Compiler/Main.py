@@ -125,7 +125,7 @@ class Context:
             AnalyseExpressionsTransform(self),
             FlattenBuiltinTypeCreation(),
             ConstantFolding(),
-            ComprehensionTransform(),
+#            ComprehensionTransform(),
             IterationTransform(),
             SwitchTransform(),
             FinalOptimizePhase(self),
