@@ -634,9 +634,10 @@ class ComprehensionTransform(VisitorTransform):
         return node
 
     def visit_NameNode(self, node):
-        replacement = self.comprehension_targets.get(node.entry.cname)
-        if replacement is not None:
-            return replacement
+        if node.entry:
+            replacement = self.comprehension_targets.get(node.entry.cname)
+            if replacement is not None:
+                return replacement
         return node
 
 
