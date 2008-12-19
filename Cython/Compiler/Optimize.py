@@ -426,6 +426,16 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
 class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
     """Optimise some common instantiation patterns for builtin types.
     """
+    PyList_AsTuple_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("list",  Builtin.list_type, None)
+            ])
+
+    PyList_AsTuple_name = EncodedString("PyList_AsTuple")
+
+    PyList_AsTuple_entry = Symtab.Entry(
+        PyList_AsTuple_name, PyList_AsTuple_name, PyList_AsTuple_func_type)
+
     def visit_GeneralCallNode(self, node):
         self.visitchildren(node)
         handler = self._find_handler('general', node.function)
@@ -485,6 +495,32 @@ class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
             return iterable
         else:
             return node
+
+    def _handle_simple_tuple(self, node, pos_args, kwargs):
+        """Replace tuple([...]) by a call to PyList_AsTuple.
+        """
+        if not isinstance(pos_args, ExprNodes.TupleNode):
+            return node
+        if len(pos_args.args) != 1:
+            return node
+        list_arg = pos_args.args[0]
+        if list_arg.type is not Builtin.list_type:
+            return node
+        if not isinstance(list_arg, (ExprNodes.ComprehensionNode,
+                                     ExprNodes.ListNode)):
+            # everything else may be None => take the safe path
+            return node
+
+        node.args = pos_args.args
+        node.arg_tuple = None
+        node.type = Builtin.tuple_type
+        node.result_ctype = Builtin.tuple_type
+        node.function = ExprNodes.NameNode(
+            pos = node.pos,
+            name = self.PyList_AsTuple_name,
+            type = self.PyList_AsTuple_func_type,
+            entry = self.PyList_AsTuple_entry)
+        return node
 
     def visit_PyTypeTestNode(self, node):
         """Flatten redundant type checks after tree changes.
