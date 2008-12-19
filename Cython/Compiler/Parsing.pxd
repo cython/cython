@@ -25,6 +25,7 @@ cpdef p_term(PyrexScanner s)
 cpdef p_factor(PyrexScanner s)
 cpdef p_typecast(PyrexScanner s)
 cpdef p_sizeof(PyrexScanner s)
+cpdef p_yield_expression(PyrexScanner s)
 cpdef p_power(PyrexScanner s)
 cpdef p_trailer(PyrexScanner s, node1)
 cpdef p_call(PyrexScanner s, function)
@@ -56,9 +57,13 @@ cpdef p_testlist(PyrexScanner s)
 #
 #-------------------------------------------------------
 
+cpdef flatten_parallel_assignments(input, output)
+cpdef find_parallel_assignment_size(input)
+
 cpdef p_global_statement(PyrexScanner s)
 cpdef p_expression_or_assignment(PyrexScanner s)
 cpdef p_print_statement(PyrexScanner s)
+cpdef p_exec_statement(PyrexScanner s)
 cpdef p_del_statement(PyrexScanner s)
 cpdef p_pass_statement(PyrexScanner s, bint with_newline = *)
 cpdef p_break_statement(PyrexScanner s)
