@@ -101,8 +101,7 @@ class IterationTransform(Visitor.VisitorTransform):
                     isinstance(function, ExprNodes.NameNode) and \
                     function.entry.is_builtin and \
                     function.name in ('range', 'xrange'):
-                return self._transform_range_iteration(
-                    node, iterator)
+                return self._transform_range_iteration(node, iterator)
 
         return node
 
@@ -452,6 +451,8 @@ class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
 
     def _find_handler(self, call_type, function):
         if not function.type.is_builtin_type:
+            return None
+        if not isinstance(function, ExprNodes.NameNode):
             return None
         handler = getattr(self, '_handle_%s_%s' % (call_type, function.name), None)
         if handler is None:
