@@ -1,4 +1,4 @@
-u"""
+__doc__ = u"""
 >>> for_else()
 30
 >>> print( u'*'.join(int_comp()) )
