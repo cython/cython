@@ -625,8 +625,12 @@ class ComprehensionTransform(VisitorTransform):
         # replace name references in the loop code by their temp node
         self.visitchildren(node, ['loop'])
 
-        self.comprehension_targets = outer_comprehension_targets
+        loop = node.loop
+        if type(loop) is Nodes.ForFromStatNode and loop.target.type.is_numeric:
+            loop.loopvar_node = loop.target
+
         node.loop = TempsBlockNode(node.pos, body=node.loop, temps=temps)
+        self.comprehension_targets = outer_comprehension_targets
         return node
 
     def visit_NameNode(self, node):
