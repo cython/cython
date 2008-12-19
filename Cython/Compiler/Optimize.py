@@ -447,7 +447,7 @@ class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
         self.visitchildren(node)
         handler = self._find_handler('simple', node.function)
         if handler is not None:
-            node = handler(node, node.arg_tuple, None)
+            node = handler(node, node.arg_tuple)
         return node
 
     def _find_handler(self, call_type, function):
@@ -473,7 +473,7 @@ class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
             return node
         return kwargs
 
-    def _handle_simple_set(self, node, pos_args, kwargs):
+    def _handle_simple_set(self, node, pos_args):
         """Replace set([a,b,...]) by a literal set {a,b,...}.
         """
         if not isinstance(pos_args, ExprNodes.TupleNode):
@@ -496,7 +496,7 @@ class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
         else:
             return node
 
-    def _handle_simple_tuple(self, node, pos_args, kwargs):
+    def _handle_simple_tuple(self, node, pos_args):
         """Replace tuple([...]) by a call to PyList_AsTuple.
         """
         if not isinstance(pos_args, ExprNodes.TupleNode):
