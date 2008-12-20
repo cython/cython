@@ -84,12 +84,9 @@ def p_simple_expr(s):
     if s.sy == 'if':
         s.next()
         test = p_or_test(s)
-        if s.sy == 'else':
-            s.next()
-            other = p_test(s)
-            return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
-        else:
-            s.error("Expected 'else'")
+        s.expect('else')
+        other = p_test(s)
+        return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
     else:
         return expr
         
