@@ -156,12 +156,13 @@ class Node(object):
             self.body.annotate(code)
             
     def end_pos(self):
-        if not self.child_attrs:
-            return self.pos
         try:
             return self._end_pos
         except AttributeError:
             pos = self.pos
+            if not self.child_attrs:
+                self._end_pos = pos
+                return pos
             for attr in self.child_attrs:
                 child = getattr(self, attr)
                 # Sometimes lists, sometimes nodes
