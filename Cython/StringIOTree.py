@@ -7,31 +7,32 @@ class StringIOTree(object):
 
     def __init__(self, stream=None):
         self.prepended_children = []
-        self.stream = stream # if set to None, it will be constructed on first write
+        if stream is None:
+            stream = StringIO()
+        self.stream = stream
+        self.write = stream.write
 
     def getvalue(self):
-        return ("".join([x.getvalue() for x in self.prepended_children]) +
-                self.stream.getvalue())
+        content = [x.getvalue() for x in self.prepended_children]
+        content.append(self.stream.getvalue())
+        return "".join(content)
 
     def copyto(self, target):
         """Potentially cheaper than getvalue as no string concatenation
         needs to happen."""
         for child in self.prepended_children:
             child.copyto(target)
-        if self.stream:
-            target.write(self.stream.getvalue())
-
-    def write(self, what):
-        if not self.stream:
-            self.stream = StringIO()
-        self.stream.write(what)
+        stream_content = self.stream.getvalue()
+        if stream_content:
+            target.write(stream_content)
 
     def commit(self):
         # Save what we have written until now so that the buffer
         # itself is empty -- this makes it ready for insertion
-        if self.stream:
+        if self.stream.tell():
             self.prepended_children.append(StringIOTree(self.stream))
-            self.stream = None
+            self.stream = StringIO()
+            self.write = self.stream.write
 
     def insert(self, iotree):
         """

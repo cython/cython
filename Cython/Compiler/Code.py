@@ -603,12 +603,18 @@ class CCodeWriter(object):
 
     def put(self, code):
         fix_indent = False
-        dl = code.count("{") - code.count("}")
-        if dl < 0:
-            self.level += dl
-        elif dl == 0 and code.startswith('}'):
-            fix_indent = True
-            self.level -= 1
+        if "{" in code:
+            dl = code.count("{")
+        else:
+            dl = 0
+        if "}" in code:
+            dl -= code.count("}")
+            if dl < 0:
+                self.level += dl
+            elif dl == 0 and code[0] == "}":
+                # special cases like "} else {" need a temporary dedent
+                fix_indent = True
+                self.level -= 1
         if self.bol:
             self.indent()
         self.write(code)
