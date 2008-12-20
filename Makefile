@@ -11,7 +11,10 @@ clean:
 	@rm -f *.pyc */*.pyc */*/*.pyc 
 	@rm -f *~ */*~ */*/*~
 	@rm -f core */core
-	@rm -f Cython/Plex/Scanners.{so,pyd}
+	@rm -f Cython/Compiler/Parsing.{c,so,pyd}
+	@rm -f Cython/Compiler/Scanning.{c,so,pyd}
+	@rm -f Cython/Compiler/Visitor.{c,so,pyd}
+	@rm -f Cython/Plex/Scanners.{c,so,pyd}
 	@(cd Demos; $(MAKE) clean)
 
 testclean:
