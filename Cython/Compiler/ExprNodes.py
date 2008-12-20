@@ -182,9 +182,13 @@ class ExprNode(Node):
 
     constant_result = constant_value_not_set
 
-    def get_child_attrs(self):
-        return self.subexprs
-    child_attrs = property(fget=get_child_attrs)
+    try:
+        _get_child_attrs = operator.attrgetter('subexprs')
+    except AttributeError:
+        # Python 2.3
+        def _get_child_attrs(self):
+            return self.subexprs
+    child_attrs = property(fget=_get_child_attrs)
         
     def not_implemented(self, method_name):
         print_call_chain(method_name, "not implemented") ###
