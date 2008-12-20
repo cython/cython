@@ -209,11 +209,11 @@ class ExprNode(Node):
         nodes = []
         for name in self.subexprs:
             item = getattr(self, name)
-            if item:
-                if isinstance(item, ExprNode):
-                    nodes.append(item)
-                else:
+            if item is not None:
+                if type(item) is list:
                     nodes.extend(item)
+                else:
+                    nodes.append(item)
         return nodes
         
     def result(self):
