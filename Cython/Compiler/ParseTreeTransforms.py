@@ -21,9 +21,7 @@ class NameNodeCollector(TreeVisitor):
         super(NameNodeCollector, self).__init__()
         self.name_nodes = []
 
-    def visit_Node(self, node):
-        self.visitchildren(node)
-        return node
+    visit_Node = TreeVisitor.visitchildren
 
     def visit_NameNode(self, node):
         self.name_nodes.append(node)
@@ -422,10 +420,6 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         else:
             node.cython_attribute = self.option_names.get(node.name)
         return node
-        
-    def visit_Node(self, node):
-        self.visitchildren(node)
-        return node
 
     def try_to_parse_option(self, node):
         # If node is the contents of an option (in a with statement or
@@ -595,10 +589,7 @@ class ComprehensionTransform(VisitorTransform):
         self.visitchildren(node)
         return node
 
-    def visit_Node(self, node):
-        # descend into statements (loops) and nodes (comprehensions)
-        self.visitchildren(node)
-        return node
+    visit_Node = VisitorTransform.recurse_to_children
 
     def visit_ComprehensionNode(self, node):
         if type(node.loop) not in (Nodes.ForInStatNode,
