@@ -142,9 +142,12 @@ class VisitorTransform(TreeVisitor):
     was not, an exception will be raised. (Typically you want to ensure that you
     are within a StatListNode or similar before doing this.)
     """
+    def __init__(self):
+        super(VisitorTransform, self).__init__()
+        self._super_visitchildren = super(VisitorTransform, self).visitchildren
+
     def visitchildren(self, parent, attrs=None):
-#        result = super(VisitorTransform, self).visitchildren(parent, attrs)
-        result = TreeVisitor.visitchildren(self, parent, attrs)
+        result = self._super_visitchildren(parent, attrs)
         for attr, newnode in result.iteritems():
             if not isinstance(newnode, list):
                 setattr(parent, attr, newnode)
