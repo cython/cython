@@ -2511,6 +2511,12 @@ class CClassDefNode(ClassDefNode):
                 base_class_scope = env.find_module(self.base_class_module, self.pos)
             else:
                 base_class_scope = env
+            if self.base_class_name == 'object':
+                # extension classes are special and don't need to inherit from object
+                if base_class_scope is None or base_class_scope.lookup('object') is None:
+                    self.base_class_name = None
+                    self.base_class_module = None
+                    base_class_scope = None
             if base_class_scope:
                 base_class_entry = base_class_scope.find(self.base_class_name, self.pos)
                 if base_class_entry:
