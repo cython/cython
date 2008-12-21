@@ -1,6 +1,7 @@
 #
 #   Tree visitor and transform framework
 #
+import cython
 import inspect
 import Nodes
 import ExprNodes
@@ -147,6 +148,7 @@ class VisitorTransform(TreeVisitor):
         self._super_visitchildren = super(VisitorTransform, self).visitchildren
 
     def visitchildren(self, parent, attrs=None):
+        result = cython.declare(dict)
         result = self._super_visitchildren(parent, attrs)
         for attr, newnode in result.iteritems():
             if not isinstance(newnode, list):
