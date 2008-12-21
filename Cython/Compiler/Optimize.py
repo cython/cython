@@ -49,10 +49,7 @@ class IterationTransform(Visitor.VisitorTransform):
     PyDict_Next_entry = Symtab.Entry(
         PyDict_Next_name, PyDict_Next_name, PyDict_Next_func_type)
 
-    def visit_Node(self, node):
-        # descend into statements (loops) and nodes (comprehensions)
-        self.visitchildren(node)
-        return node
+    visit_Node = Visitor.VisitorTransform.recurse_to_children
 
     def visit_ModuleNode(self, node):
         self.current_scope = node.scope
@@ -361,10 +358,7 @@ class SwitchTransform(Visitor.VisitorTransform):
                                     cases = cases,
                                     else_clause = node.else_clause)
 
-
-    def visit_Node(self, node):
-        self.visitchildren(node)
-        return node
+    visit_Node = Visitor.VisitorTransform.recurse_to_children
                               
 
 class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
@@ -417,9 +411,7 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         condition = reduce(concat, conds)
         return UtilNodes.EvalWithTempExprNode(lhs, condition)
 
-    def visit_Node(self, node):
-        self.visitchildren(node)
-        return node
+    visit_Node = Visitor.VisitorTransform.recurse_to_children
 
 
 class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
@@ -534,9 +526,7 @@ class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
             return node
         return node.arg
 
-    def visit_Node(self, node):
-        self.visitchildren(node)
-        return node
+    visit_Node = Visitor.VisitorTransform.recurse_to_children
 
 
 class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
@@ -614,9 +604,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         self.current_scope = old_scope
         return node
 
-    def visit_Node(self, node):
-        self.visitchildren(node)
-        return node
+    visit_Node = Visitor.VisitorTransform.recurse_to_children
 
 
 class FinalOptimizePhase(Visitor.CythonTransform):

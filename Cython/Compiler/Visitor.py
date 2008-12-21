@@ -143,7 +143,8 @@ class VisitorTransform(TreeVisitor):
     are within a StatListNode or similar before doing this.)
     """
     def visitchildren(self, parent, attrs=None):
-        result = super(VisitorTransform, self).visitchildren(parent, attrs)
+#        result = super(VisitorTransform, self).visitchildren(parent, attrs)
+        result = TreeVisitor.visitchildren(self, parent, attrs)
         for attr, newnode in result.iteritems():
             if not isinstance(newnode, list):
                 setattr(parent, attr, newnode)
@@ -158,6 +159,10 @@ class VisitorTransform(TreeVisitor):
                             newlist.append(x)
                 setattr(parent, attr, newlist)
         return result        
+
+    def recurse_to_children(self, node):
+        self.visitchildren(node)
+        return node
     
     def __call__(self, root):
         return self.visit(root)
