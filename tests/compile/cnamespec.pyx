@@ -15,6 +15,3 @@ cdef double spam "c_spam" (int i, float f):
     b = p.i
     p.i = x
     p.i = y
-    return 0.0
-
-spam()
