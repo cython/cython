@@ -508,7 +508,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#else")
         code.putln("  #define _USE_MATH_DEFINES")
         code.putln("#endif")
-        
+
+        code.putln("#if PY_VERSION_HEX < 0x02050000")
+        code.putln("  #define __Pyx_GetAttrString(o,n)   PyObject_GetAttrString((o),((char *)(n)))")
+        code.putln("  #define __Pyx_SetAttrString(o,n,a) PyObject_SetAttrString((o),((char *)(n)),(a))")
+        code.putln("  #define __Pyx_DelAttrString(o,n)   PyObject_DelAttrString((o),((char *)(n)))")
+        code.putln("#else")
+        code.putln("  #define __Pyx_GetAttrString(o,n)   PyObject_GetAttrString((o),(n))")
+        code.putln("  #define __Pyx_SetAttrString(o,n,a) PyObject_SetAttrString((o),(n),(a))")
+        code.putln("  #define __Pyx_DelAttrString(o,n)   PyObject_DelAttrString((o),(n))")
+        code.putln("#endif")
+
+        code.putln("#if PY_VERSION_HEX < 0x02050000")
+        code.putln("  #define __Pyx_NAMESTR(n) ((char *)(n))")
+        code.putln("  #define __Pyx_DOCSTR(n)  ((char *)(n))")
+        code.putln("#else")
+        code.putln("  #define __Pyx_NAMESTR(n) (n)")
+        code.putln("  #define __Pyx_DOCSTR(n)  (n)")
+        code.putln("#endif")
+
         self.generate_extern_c_macro_definition(code)
         code.putln("#include <math.h>")
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
@@ -1410,7 +1428,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(
             "PyVarObject_HEAD_INIT(0, 0)")
         code.putln(
-            '"%s.%s", /*tp_name*/' % (
+            '__Pyx_NAMESTR("%s.%s"), /*tp_name*/' % (
                 self.full_module_name, scope.class_name))
         if type.typedef_flag:
             objstruct = type.objstruct_cname
@@ -1702,7 +1720,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             doc = "0"
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln(
-            '%s = Py_InitModule4("%s", %s, %s, 0, PYTHON_API_VERSION);' % (
+            '%s = Py_InitModule4(__Pyx_NAMESTR("%s"), %s, %s, 0, PYTHON_API_VERSION);' % (
                 env.module_cname, 
                 env.module_name, 
                 env.method_table_cname, 
@@ -1723,20 +1741,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_cname)
         code.putln("#endif")
         code.putln(
-            '%s = PyImport_AddModule(__Pyx_BUILTIN_MODULE_NAME);' %
+            '%s = PyImport_AddModule(__Pyx_NAMESTR(__Pyx_BUILTIN_MODULE_NAME));' %
                 Naming.builtins_cname)
         code.putln(
             "if (!%s) %s;" % (
                 Naming.builtins_cname,
                 code.error_goto(self.pos)));
         code.putln(
-            'if (PyObject_SetAttrString(%s, "__builtins__", %s) < 0) %s;' % (
+            'if (__Pyx_SetAttrString(%s, "__builtins__", %s) < 0) %s;' % (
                 env.module_cname,
                 Naming.builtins_cname,
                 code.error_goto(self.pos)))
         if Options.pre_import is not None:
             code.putln(
-                '%s = PyImport_AddModule("%s");' % (
+                '%s = PyImport_AddModule(__Pyx_NAMESTR("%s"));' % (
                     Naming.preimport_cname, 
                     Options.pre_import))
             code.putln(
@@ -1893,7 +1911,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                             code.error_goto(entry.pos)))
                     env.use_utility_code(Nodes.set_vtable_utility_code)
                 code.putln(
-                    'if (PyObject_SetAttrString(%s, "%s", (PyObject *)&%s) < 0) %s' % (
+                    'if (__Pyx_SetAttrString(%s, "%s", (PyObject *)&%s) < 0) %s' % (
                         Naming.module_cname,
                         scope.class_name,
                         typeobj_cname,
@@ -2063,16 +2081,22 @@ static int __Pyx_ExportFunction(const char *name, void *f, const char *sig); /*p
 """,
 impl = r"""
 static int __Pyx_ExportFunction(const char *name, void *f, const char *sig) {
+#if PY_VERSION_HEX < 0x02050000
+    char *api = (char *)"%(API)s";
+#else
+    const char *api = "%(API)s";
+#endif
     PyObject *d = 0;
     PyObject *p = 0;
-    d = PyObject_GetAttrString(%(MODULE)s, "%(API)s");
+
+    d = PyObject_GetAttrString(%(MODULE)s, api);
     if (!d) {
         PyErr_Clear();
         d = PyDict_New();
         if (!d)
             goto bad;
         Py_INCREF(d);
-        if (PyModule_AddObject(%(MODULE)s, "%(API)s", d) < 0)
+        if (PyModule_AddObject(%(MODULE)s, api, d) < 0)
             goto bad;
     }
     p = PyCObject_FromVoidPtrAndDesc(f, (void *)sig, 0);
@@ -2100,11 +2124,16 @@ impl = """
 #ifndef __PYX_HAVE_RT_ImportFunction
 #define __PYX_HAVE_RT_ImportFunction
 static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void **f, const char *sig) {
+#if PY_VERSION_HEX < 0x02050000
+    char *api = (char *)"%(API)s";
+#else
+    const char *api = "%(API)s";
+#endif
     PyObject *d = 0;
     PyObject *cobj = 0;
     char *desc;
 
-    d = PyObject_GetAttrString(module, "%(API)s");
+    d = PyObject_GetAttrString(module, api);
     if (!d)
         goto bad;
     cobj = PyDict_GetItemString(d, funcname);
@@ -2138,7 +2167,7 @@ register_cleanup_utility_code = UtilityCode(
 proto = """
 static int __Pyx_RegisterCleanup(void); /*proto*/
 static PyObject* __pyx_module_cleanup(PyObject *self, PyObject *unused); /*proto*/
-static PyMethodDef cleanup_def = {"__cleanup", (PyCFunction)&__pyx_module_cleanup, METH_NOARGS, 0};
+static PyMethodDef cleanup_def = {__Pyx_NAMESTR("__cleanup"), (PyCFunction)&__pyx_module_cleanup, METH_NOARGS, 0};
 """,
 impl = """
 static int __Pyx_RegisterCleanup(void) {
@@ -2163,7 +2192,7 @@ static int __Pyx_RegisterCleanup(void) {
     atexit = __Pyx_ImportModule("atexit");
     if (!atexit)
         goto bad;
-    reg = PyObject_GetAttrString(atexit, "register");
+    reg = __Pyx_GetAttrString(atexit, "register");
     if (!reg)
         goto bad;
     res = PyObject_CallObject(reg, args);
@@ -2187,7 +2216,7 @@ import_star_utility_code = """
 static int
 __Pyx_import_all_from(PyObject *locals, PyObject *v)
 {
-	PyObject *all = PyObject_GetAttrString(v, "__all__");
+	PyObject *all = __Pyx_GetAttrString(v, "__all__");
 	PyObject *dict, *name, *value;
 	int skip_leading_underscores = 0;
 	int pos, err;
@@ -2196,7 +2225,7 @@ __Pyx_import_all_from(PyObject *locals, PyObject *v)
 		if (!PyErr_ExceptionMatches(PyExc_AttributeError))
 			return -1; /* Unexpected error */
 		PyErr_Clear();
-		dict = PyObject_GetAttrString(v, "__dict__");
+		dict = __Pyx_GetAttrString(v, "__dict__");
 		if (dict == NULL) {
 			if (!PyErr_ExceptionMatches(PyExc_AttributeError))
 				return -1;

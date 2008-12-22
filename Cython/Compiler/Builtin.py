@@ -235,22 +235,22 @@ proto = """
     PySequence_Contains((anyset), (key))
 
 #define PySet_Pop(set) \\
-    PyObject_CallMethod(set, "pop", NULL)
+    PyObject_CallMethod(set, (char *)"pop", NULL)
 
 static INLINE int PySet_Clear(PyObject *set) {
-    PyObject *ret = PyObject_CallMethod(set, "clear", NULL);
+    PyObject *ret = PyObject_CallMethod(set, (char *)"clear", NULL);
     if (!ret) return -1;
     Py_DECREF(ret); return 0;
 }
 
 static INLINE int PySet_Discard(PyObject *set, PyObject *key) {
-    PyObject *ret = PyObject_CallMethod(set, "discard", "O", key);
+    PyObject *ret = PyObject_CallMethod(set, (char *)"discard", (char *)"O", key);
     if (!ret) return -1;
     Py_DECREF(ret); return 0;
 }
 
 static INLINE int PySet_Add(PyObject *set, PyObject *key) {
-    PyObject *ret = PyObject_CallMethod(set, "add", "O", key);
+    PyObject *ret = PyObject_CallMethod(set, (char *)"add", (char *)"O", key);
     if (!ret) return -1;
     Py_DECREF(ret); return 0;
 }
@@ -277,14 +277,14 @@ static PyTypeObject *__Pyx_PyFrozenSet_Type = NULL;
 static int __Pyx_Py23SetsImport(void) {
     PyObject *sets=0, *Set=0, *ImmutableSet=0;
 
-    sets = PyImport_ImportModule("sets");
+    sets = PyImport_ImportModule((char *)"sets");
     if (!sets) goto bad;
-    Set = PyObject_GetAttrString(sets, "Set");
+    Set = PyObject_GetAttrString(sets, (char *)"Set");
     if (!Set) goto bad;
-    ImmutableSet = PyObject_GetAttrString(sets, "ImmutableSet");
+    ImmutableSet = PyObject_GetAttrString(sets, (char *)"ImmutableSet");
     if (!ImmutableSet) goto bad;
     Py_DECREF(sets);
-  
+
     __Pyx_PySet_Type       = (PyTypeObject*) Set;
     __Pyx_PyFrozenSet_Type = (PyTypeObject*) ImmutableSet;
 

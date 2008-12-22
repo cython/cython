@@ -1369,7 +1369,7 @@ class NameNode(AtomicExprNode):
             error(self.pos, "Deletion of local or C global name not supported")
             return
         code.put_error_if_neg(self.pos, 
-            'PyObject_DelAttrString(%s, "%s")' % (
+            '__Pyx_DelAttrString(%s, "%s")' % (
                 Naming.module_cname,
                 self.entry.name))
                 
@@ -5106,7 +5106,7 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list) {
     PyObject *global_dict = 0;
     PyObject *empty_dict = 0;
     PyObject *list;
-    __import__ = PyObject_GetAttrString(%(BUILTINS)s, "__import__");
+    __import__ = __Pyx_GetAttrString(%(BUILTINS)s, "__import__");
     if (!__import__)
         goto bad;
     if (from_list)
@@ -5309,7 +5309,7 @@ static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     }
     else {
         PyObject *r, *m;
-        m = PyObject_GetAttrString(L, "append");
+        m = __Pyx_GetAttrString(L, "append");
         if (!m) return NULL;
         r = PyObject_CallFunctionObjArgs(m, x, NULL);
         Py_DECREF(m);

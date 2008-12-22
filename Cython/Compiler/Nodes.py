@@ -861,7 +861,7 @@ class CEnumDefNode(StatNode):
                         self.temp,
                         item.cname,
                         code.error_goto_if_null(self.temp, item.pos)))
-                code.putln('if (PyObject_SetAttrString(%s, "%s", %s) < 0) %s' % (
+                code.putln('if (__Pyx_SetAttrString(%s, "%s", %s) < 0) %s' % (
                         Naming.module_cname, 
                         item.name, 
                         self.temp,
@@ -4641,7 +4641,7 @@ static int __Pyx_Print(PyObject *arg_tuple, int newline) {
     PyObject* result = 0;
     PyObject* end_string;
     if (!%(PRINT_FUNCTION)s) {
-        %(PRINT_FUNCTION)s = PyObject_GetAttrString(%(BUILTINS)s, "print");
+        %(PRINT_FUNCTION)s = __Pyx_GetAttrString(%(BUILTINS)s, "print");
         if (!%(PRINT_FUNCTION)s)
             return -1;
     }

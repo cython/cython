@@ -314,7 +314,7 @@ class DocStringSlot(SlotDescriptor):
                 doc = scope.doc.utf8encode()
             else:
                 doc = scope.doc.byteencode()
-            return '"%s"' % StringEncoding.escape_byte_string(doc)
+            return '__Pyx_DOCSTR("%s")' % StringEncoding.escape_byte_string(doc)
         else:
             return "0"
 
