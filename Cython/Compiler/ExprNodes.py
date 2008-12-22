@@ -5414,10 +5414,10 @@ static INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname) {
 
 raise_noneindex_error_utility_code = UtilityCode(
 proto = """
-static INLINE void __Pyx_RaiseNoneIndexingError();
+static INLINE void __Pyx_RaiseNoneIndexingError(void);
 """,
 impl = """
-static INLINE void __Pyx_RaiseNoneIndexingError() {
+static INLINE void __Pyx_RaiseNoneIndexingError(void) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is unsubscriptable");
 }
 """)
