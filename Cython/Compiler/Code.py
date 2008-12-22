@@ -805,7 +805,7 @@ class CCodeWriter(object):
             if entry.is_special:
                 method_flags += [method_coexist]
             self.putln(
-                '{"%s", (PyCFunction)%s, %s, %s}%s' % (
+                '{__Pyx_NAMESTR("%s"), (PyCFunction)%s, %s, __Pyx_DOCSTR(%s)}%s' % (
                     entry.name, 
                     entry.func_cname,
                     "|".join(method_flags),
