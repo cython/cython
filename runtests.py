@@ -6,7 +6,7 @@ WITH_CYTHON = True
 
 from distutils.dist import Distribution
 from distutils.core import Extension
-from distutils.command.build_ext import build_ext
+from distutils.command.build_ext import build_ext as _build_ext
 distutils_distro = Distribution()
 
 TEST_DIRS = ['compile', 'errors', 'run', 'pyregr']
@@ -26,6 +26,14 @@ VER_DEP_MODULES = {
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
 
+class build_ext(_build_ext):
+    def build_extension(self, ext):
+        if ext.language == 'c++':
+            try:
+                self.compiler.compiler_so.remove('-Wstrict-prototypes')
+            except Exception:
+                pass
+        _build_ext.build_extension(self, ext)
 
 class ErrorWriter(object):
     match_error = re.compile('(warning:)?(?:.*:)?\s*([-0-9]+)\s*:\s*([-0-9]+)\s*:\s*(.*)').match
@@ -259,12 +267,13 @@ class CythonCompileTestCase(unittest.TestCase):
             if incdir:
                 build_extension.include_dirs.append(incdir)
             build_extension.finalize_options()
-
             extension = Extension(
                 module,
                 sources = [self.build_target_filename(module)],
                 extra_compile_args = CFLAGS,
                 )
+            if self.language == 'cpp':
+                extension.language = 'c++'
             build_extension.extensions = [extension]
             build_extension.build_temp = workdir
             build_extension.build_lib  = workdir
