@@ -38,7 +38,7 @@ class BasicVisitor(object):
                     print self.access_path
                     print self.access_path[-1][0].pos
                     print self.access_path[-1][0].__dict__
-                raise RuntimeError("Visitor does not accept object: %s" % obj)
+                raise RuntimeError("Visitor does not accept object: %s" % (obj,))
             #print "Caching " + cls.__name__
             self.dispatch_table[cls] = handler_method
         return handler_method(obj)
