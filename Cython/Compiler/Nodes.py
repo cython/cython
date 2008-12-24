@@ -4961,18 +4961,17 @@ static int __Pyx_ParseOptionalKeywords(
     PyObject*** first_kw_arg = argnames + num_pos_args;
 
     while (PyDict_Next(kwds, &pos, &key, &value)) {
-        #if PY_MAJOR_VERSION < 3
-        if (unlikely(!PyString_CheckExact(key)) && unlikely(!PyString_Check(key))) {
-        #else
-        if (unlikely(!PyUnicode_CheckExact(key)) && unlikely(!PyUnicode_Check(key))) {
-        #endif
-            goto invalid_keyword_type;
+        name = first_kw_arg;
+        while (*name && (**name != key)) name++;
+        if (*name) {
+            values[name-argnames] = value;
         } else {
-            name = argnames;
-            while (*name && (**name != key)) name++;
-            if (*name) {
-                if (name < first_kw_arg) goto arg_passed_twice;
-                values[name-argnames] = value;
+            #if PY_MAJOR_VERSION < 3
+            if (unlikely(!PyString_CheckExact(key)) && unlikely(!PyString_Check(key))) {
+            #else
+            if (unlikely(!PyUnicode_CheckExact(key)) && unlikely(!PyUnicode_Check(key))) {
+            #endif
+                goto invalid_keyword_type;
             } else {
                 for (name = first_kw_arg; *name; name++) {
                     #if PY_MAJOR_VERSION >= 3
