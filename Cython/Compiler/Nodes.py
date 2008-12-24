@@ -2118,15 +2118,9 @@ class DefNode(FuncDefNode):
             code.put_goto(argtuple_error_label)
         code.putln('}')
 
-        # now fill up the required arguments with values from the kw dict
-        last_required_arg = -1
-        for i, arg in enumerate(all_args):
-            if not arg.default:
-                last_required_arg = i
-
+        # parse all keyword arguments, check for duplicates, etc.
         if not self.num_required_kw_args:
             code.putln('if (PyDict_Size(%s) > 0) {' % Naming.kwds_cname)
-        # non-positional kw args left in dict: default args, **kwargs or error
         if self.star_arg:
             code.putln("const Py_ssize_t used_pos_args = (PyTuple_GET_SIZE(%s) < %d) ? PyTuple_GET_SIZE(%s) : %d;" % (
                     Naming.args_cname, max_positional_args,
@@ -2146,10 +2140,16 @@ class DefNode(FuncDefNode):
         if not self.num_required_kw_args:
             code.putln('}')
 
-        if last_required_arg >= 0:
-            code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
+        # make sure we found all required args
+        if self.num_required_args:
+            last_required_arg = -1
+            for i, arg in enumerate(all_args):
+                if not arg.default:
+                    last_required_arg = i
+            if max_positional_args:
+                code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
             for i, arg in enumerate(all_args[:last_required_arg+1]):
-                if i <= max_positional_args:
+                if max_positional_args and i <= max_positional_args:
                     if self.star_arg and i == max_positional_args:
                         code.putln('default:')
                     else:
@@ -2167,7 +2167,8 @@ class DefNode(FuncDefNode):
                             self.name.utf8encode(), arg.name_entry.pystring_cname))
                 code.putln(code.error_goto(self.pos))
                 code.putln('}')
-            code.putln('}')
+            if max_positional_args:
+                code.putln('}')
 
         # convert arg values to their final type and assign them
         for i, arg in enumerate(all_args):
