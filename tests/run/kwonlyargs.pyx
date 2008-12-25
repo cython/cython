@@ -89,6 +89,17 @@ __doc__ = u"""
     >>> l(1,2, d=1)
     Traceback (most recent call last):
     TypeError: l() takes exactly 0 positional arguments (2 given)
+
+    >>> m(1, b=2)
+    >>> m(a=1, b=2)
+    >>> m(a=1, b=2, c=1)
+
+    >>> l(1,2,3)
+    Traceback (most recent call last):
+    TypeError: l() takes exactly 0 positional arguments (3 given)
+    >>> l(1,2, d=1)
+    Traceback (most recent call last):
+    TypeError: l() takes exactly 0 positional arguments (2 given)
 """
 
 def b(a, b, c):
@@ -116,4 +127,7 @@ def k(a, b, c=1, *args, d = 42, e = 17, f, **kwds):
     pass
 
 def l(*, a, b, c = 88):
+    pass
+
+def m(a, *, b, c = 88):
     pass
