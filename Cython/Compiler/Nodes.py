@@ -2146,10 +2146,11 @@ class DefNode(FuncDefNode):
             for i, arg in enumerate(all_args):
                 if not arg.default:
                     last_required_arg = i
-            if max_positional_args:
+            use_switch = max_positional_args > 2 # switch has an overhead, too
+            if use_switch:
                 code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
             for i, arg in enumerate(all_args[:last_required_arg+1]):
-                if max_positional_args and i <= max_positional_args:
+                if use_switch and i <= max_positional_args:
                     if self.star_arg and i == max_positional_args:
                         code.putln('default:')
                     else:
@@ -2167,7 +2168,7 @@ class DefNode(FuncDefNode):
                             self.name.utf8encode(), arg.name_entry.pystring_cname))
                 code.putln(code.error_goto(self.pos))
                 code.putln('}')
-            if max_positional_args:
+            if use_switch:
                 code.putln('}')
 
         # convert arg values to their final type and assign them
@@ -4949,7 +4950,7 @@ static int __Pyx_ParseKeywordArguments(
     while (PyDict_Next(kwds, &pos, &key, &value)) {
         name = first_kw_arg;
         while (*name && (**name != key)) name++;
-        if (*name) {
+        if (likely(*name)) {
             values[name-argnames] = value;
         } else {
             #if PY_MAJOR_VERSION < 3
@@ -4969,7 +4970,7 @@ static int __Pyx_ParseKeywordArguments(
                                PyString_AS_STRING(key)) == 0) break;
                     #endif
                 }
-                if (*name) {
+                if (likely(*name)) {
                     values[name-argnames] = value;
                 } else {
                     /* unexpected keyword found */
