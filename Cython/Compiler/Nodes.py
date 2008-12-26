@@ -2100,14 +2100,11 @@ class DefNode(FuncDefNode):
                                         kw_only_args, argtuple_error_label, code):
         all_args = tuple(positional_args) + tuple(kw_only_args)
         max_args = len(all_args)
-        all_required = self.num_required_args == len(self.args) \
-            and not self.star_arg and not self.starstar_arg
 
         code.putln("PyObject* values[%d] = {%s};" % (
                 max_args, ('0,'*max_args)[:-1]))
-        if all_required:
-            code.putln('Py_ssize_t kw_count = PyDict_Size(%s);' %
-                       Naming.kwds_cname)
+        code.putln("Py_ssize_t kw_args = PyDict_Size(%s);" %
+                   Naming.kwds_cname)
 
         # parse the tuple and check that it's not too long
         code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
@@ -2123,15 +2120,53 @@ class DefNode(FuncDefNode):
             code.put_goto(argtuple_error_label)
         code.putln('}')
 
-        # parse all keyword arguments, check for duplicates, etc.
-        if not self.num_required_kw_args:
-            if all_required:
-                code.putln('if (kw_count > 0) {')
-            else:
-                code.putln('if (PyDict_Size(%s) > 0) {' % Naming.kwds_cname)
+        # now fill up the required arguments with values from the kw dict
+        last_required_arg = -1
+        for i, arg in enumerate(all_args):
+            if not arg.default:
+                last_required_arg = i
+        if last_required_arg >= 0:
+            code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
+            for i, arg in enumerate(all_args[:last_required_arg+1]):
+                if i <= max_positional_args:
+                    if self.star_arg and i == max_positional_args:
+                        code.putln('default:')
+                    else:
+                        code.putln('case %2d:' % i)
+                if arg.default:
+                    # handled in ParseOptionalKeywords() below
+                    continue
+                code.putln('values[%d] = PyDict_GetItem(%s, %s);' % (
+                        i, Naming.kwds_cname, arg.name_entry.pystring_cname))
+                if i < min_positional_args:
+                    code.putln('if (likely(values[%d])) kw_args--;' % i);
+                    if i == 0:
+                        # special case: we know arg 0 is missing
+                        code.put('else ')
+                        code.put_goto(argtuple_error_label)
+                    else:
+                        # print the correct number of values (args or
+                        # kwargs) that were passed into positional
+                        # arguments up to this point
+                        code.putln('else {')
+                        code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, %d); ' % (
+                                self.name.utf8encode(), has_fixed_positional_count,
+                                min_positional_args, max_positional_args, i))
+                        code.putln(code.error_goto(self.pos))
+                        code.putln('}')
+                else:
+                    code.putln('if (values[%d]) kw_args--;' % i);
+                    if arg.kw_only and not arg.default:
+                        code.putln('else {')
+                        code.put('__Pyx_RaiseKeywordRequired("%s", %s); ' %(
+                                self.name.utf8encode(), arg.name_entry.pystring_cname))
+                        code.putln(code.error_goto(self.pos))
+                        code.putln('}')
+            code.putln('}')
+
+        code.putln('if (unlikely(kw_args > 0)) {')
+        # non-positional kw args left in dict: default args, **kwargs or error
         if self.star_arg:
-            if self.num_required_kw_args:
-                code.putln('{')
             code.putln("const Py_ssize_t used_pos_args = (PyTuple_GET_SIZE(%s) < %d) ? PyTuple_GET_SIZE(%s) : %d;" % (
                     Naming.args_cname, max_positional_args,
                     Naming.args_cname, max_positional_args))
@@ -2140,59 +2175,14 @@ class DefNode(FuncDefNode):
             pos_arg_count = "PyTuple_GET_SIZE(%s)" % Naming.args_cname
         code.globalstate.use_utility_code(parse_keywords_utility_code)
         code.put(
-            'if (unlikely(__Pyx_ParseKeywordArguments(%s, %s, %s, values, %s, "%s") < 0)) ' % (
+            'if (unlikely(__Pyx_ParseOptionalKeywords(%s, %s, %s, values, %s, "%s") < 0)) ' % (
                 Naming.kwds_cname,
                 Naming.pykwdlist_cname,
                 self.starstar_arg and self.starstar_arg.entry.cname or '0',
                 pos_arg_count,
                 self.name.utf8encode()))
         code.putln(code.error_goto(self.pos))
-        if self.star_arg or not self.num_required_kw_args:
-            code.putln('}')
-
-        # make sure we found all required args
-        if self.num_required_args:
-            if all_required:
-                # common case: we know the exact number of arguments
-                required_args = all_args
-                if len(required_args) > 1:
-                    code.putln('if (unlikely(PyTuple_GET_SIZE(%s) + kw_count != %d)) {' % (
-                            Naming.args_cname, max_args))
-            else:
-                last_required_arg = -1
-                for i, arg in enumerate(all_args):
-                    if not arg.default:
-                        last_required_arg = i
-                required_args = all_args[:last_required_arg+1]
-            # avoid switch for the simple cases - it has an overhead, too
-            use_switch = max_positional_args > 2 and len(required_args) > 2 \
-                and not all_required # specialised above already
-            if use_switch:
-                code.putln('switch (PyTuple_GET_SIZE(%s)) {' %
-                           Naming.args_cname)
-            for i, arg in enumerate(required_args):
-                if use_switch and i <= max_positional_args:
-                    if self.star_arg and i == max_positional_args:
-                        code.putln('default:')
-                    else:
-                        code.putln('case %2d:' % i)
-                if arg.default:
-                    # handled in ParseKeywordArguments() above
-                    continue
-                code.putln("if (unlikely(!values[%d])) {" % i)
-                if i < min_positional_args:
-                    code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, %d); ' % (
-                            self.name.utf8encode(), has_fixed_positional_count,
-                            min_positional_args, max_positional_args, i))
-                else:
-                    code.put('__Pyx_RaiseKeywordRequired("%s", %s); ' %(
-                            self.name.utf8encode(), arg.name_entry.pystring_cname))
-                code.putln(code.error_goto(self.pos))
-                code.putln('}')
-            if use_switch:
-                code.putln('}')
-            if all_required and len(required_args) > 1:
-                code.putln('}')
+        code.putln('}')
 
         # convert arg values to their final type and assign them
         for i, arg in enumerate(all_args):
@@ -4936,9 +4926,9 @@ invalid_keyword:
 
 #------------------------------------------------------------------------------------
 #
-#  __Pyx_ParseKeywordArguments copies the keyword arguments from the
-#  kwds dict into kwds2.  If kwds2 is NULL, unknown keywords will
-#  raise an invalid keyword error.
+#  __Pyx_ParseOptionalKeywords copies the optional/unknown keyword
+#  arguments from the kwds dict into kwds2.  If kwds2 is NULL, unknown
+#  keywords will raise an invalid keyword error.
 #
 #  Three kinds of errors are checked: 1) non-string keywords, 2)
 #  unexpected keywords and 3) overlap with positional arguments.
@@ -4952,12 +4942,12 @@ invalid_keyword:
 
 parse_keywords_utility_code = UtilityCode(
 proto = """
-static int __Pyx_ParseKeywordArguments(PyObject *kwds, PyObject **argnames[], \
+static int __Pyx_ParseOptionalKeywords(PyObject *kwds, PyObject **argnames[], \
     PyObject *kwds2, PyObject *values[], Py_ssize_t num_pos_args, \
     const char* function_name); /*proto*/
 """,
 impl = """
-static int __Pyx_ParseKeywordArguments(
+static int __Pyx_ParseOptionalKeywords(
     PyObject *kwds,
     PyObject **argnames[],
     PyObject *kwds2,
@@ -4973,7 +4963,7 @@ static int __Pyx_ParseKeywordArguments(
     while (PyDict_Next(kwds, &pos, &key, &value)) {
         name = first_kw_arg;
         while (*name && (**name != key)) name++;
-        if (likely(*name)) {
+        if (*name) {
             values[name-argnames] = value;
         } else {
             #if PY_MAJOR_VERSION < 3
@@ -4993,7 +4983,7 @@ static int __Pyx_ParseKeywordArguments(
                                PyString_AS_STRING(key)) == 0) break;
                     #endif
                 }
-                if (likely(*name)) {
+                if (*name) {
                     values[name-argnames] = value;
                 } else {
                     /* unexpected keyword found */
