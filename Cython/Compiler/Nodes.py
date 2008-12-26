@@ -2121,11 +2121,11 @@ class DefNode(FuncDefNode):
         code.putln('}')
 
         # now fill up the required arguments with values from the kw dict
-        last_required_arg = -1
-        for i, arg in enumerate(all_args):
-            if not arg.default:
-                last_required_arg = i
-        if last_required_arg >= 0:
+        if self.num_required_args:
+            last_required_arg = -1
+            for i, arg in enumerate(all_args):
+                if not arg.default:
+                    last_required_arg = i
             code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
             for i, arg in enumerate(all_args[:last_required_arg+1]):
                 if i <= max_positional_args:
