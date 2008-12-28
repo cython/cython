@@ -103,31 +103,34 @@ __doc__ = u"""
 """
 
 def b(a, b, c):
-    pass
+    a, b, c = b, c, a
 
 def c(a, b, c=1):
-    pass
+    a, b, c = b, c, a
 
 def d(a, b, *, c = 88):
-    pass
+    a, b, c = b, c, a
 
 def e(a, b, c = 88, **kwds):
-    pass
+    a, b, c = b, c, a
 
 def f(a, b, *, c, d = 42):
-    pass
+    a, b, c, d = b, c, d, a
 
 def g(a, b, *, c, d = 42, e = 17, f, **kwds):
-    pass
+    a, b, c, d, e, f = b, c, d, e, f, a
 
 def h(a, b, *args, c, d = 42, e = 17, f, **kwds):
-    pass
+    a, b, c, d, e, f = b, c, d, e, f, a
 
 def k(a, b, c=1, *args, d = 42, e = 17, f, **kwds):
-    pass
+    a, b, c, d, e, f = b, c, d, e, f, a
 
 def l(*, a, b, c = 88):
-    pass
+    a, b, c = b, c, a
 
 def m(a, *, b, c = 88):
-    pass
+    a, b, c = b, c, a
+
+def n(a, *, b, c = 88):
+    a, b, c = b, c, a
