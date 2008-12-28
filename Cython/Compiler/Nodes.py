@@ -1174,6 +1174,7 @@ class FuncDefNode(StatNode, BlockNode):
                         code.putln(
                             "%s = 0;" %
                                 default.result())
+                    default.free_temps(code)
         # For Python class methods, create and store function object
         if self.assmt:
             self.assmt.generate_execution_code(code)
