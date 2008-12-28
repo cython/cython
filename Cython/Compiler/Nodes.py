@@ -1850,10 +1850,6 @@ class DefNode(FuncDefNode):
                 arg_entry = arg.entry
                 if arg.is_generic:
                     if arg.default:
-                        code.putln(
-                            "%s = %s;" % (
-                                arg_entry.cname,
-                                arg.default_result_code))
                         default_seen = 1
                         if not arg.is_self_arg:
                             if arg.kw_only:
@@ -2021,16 +2017,17 @@ class DefNode(FuncDefNode):
         elif min_positional_args == max_positional_args:
             # parse the exact number of positional arguments from the
             # args tuple
-            if max_positional_args > 0:
-                code.putln('} else {')
-                for i, arg in enumerate(positional_args):
-                    item = "PyTuple_GET_ITEM(%s, %d)" % (Naming.args_cname, i)
-                    self.generate_arg_assignment(arg, item, code)
+            code.putln('} else {')
+            for i, arg in enumerate(positional_args):
+                item = "PyTuple_GET_ITEM(%s, %d)" % (Naming.args_cname, i)
+                self.generate_arg_assignment(arg, item, code)
+            self.generate_arg_default_assignments(code)
 
         else:
             # parse the positional arguments from the variable length
             # args tuple
             code.putln('} else {')
+            self.generate_arg_default_assignments(code)
             code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
             if self.star_arg:
                 code.putln('default:')
@@ -2066,6 +2063,14 @@ class DefNode(FuncDefNode):
                     min_positional_args, max_positional_args,
                     Naming.args_cname))
             code.putln(code.error_goto(self.pos))
+
+    def generate_arg_default_assignments(self, code):
+        for arg in self.args:
+            if arg.is_generic and arg.default:
+                code.putln(
+                    "%s = %s;" % (
+                        arg.entry.cname,
+                        arg.default_result_code))
 
     def generate_stararg_init_code(self, max_positional_args, code):
         if self.starstar_arg:
@@ -2202,6 +2207,11 @@ class DefNode(FuncDefNode):
                 code.putln("if (values[%d]) {" % i)
             self.generate_arg_assignment(arg, "values[%d]" % i, code)
             if arg.default and not arg.type.is_pyobject:
+                code.putln('} else {')
+                code.putln(
+                    "%s = %s;" % (
+                        arg.entry.cname,
+                        arg.default_result_code))
                 code.putln('}')
 
     def generate_argument_conversion_code(self, code):
