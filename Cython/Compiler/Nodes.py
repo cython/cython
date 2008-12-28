@@ -2174,8 +2174,10 @@ class DefNode(FuncDefNode):
                 code.putln('}')
 
         code.putln('if (unlikely(kw_args > 0)) {')
-        # non-positional kw args left in dict: default args, **kwargs or error
-        if self.star_arg:
+        # non-positional/-required kw args left in dict: default args, **kwargs or error
+        if max_positional_args == 0:
+            pos_arg_count = "0"
+        elif self.star_arg:
             code.putln("const Py_ssize_t used_pos_args = (PyTuple_GET_SIZE(%s) < %d) ? PyTuple_GET_SIZE(%s) : %d;" % (
                     Naming.args_cname, max_positional_args,
                     Naming.args_cname, max_positional_args))
