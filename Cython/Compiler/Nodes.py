@@ -2101,8 +2101,17 @@ class DefNode(FuncDefNode):
         all_args = tuple(positional_args) + tuple(kw_only_args)
         max_args = len(all_args)
 
+        default_args = []
+        for arg in all_args:
+            if arg.default and arg.type.is_pyobject:
+                default_value = arg.default_result_code
+                if arg.type is not PyrexTypes.py_object_type:
+                    default_value = "(PyObject*)"+default_value
+                default_args.append(default_value)
+            else:
+                default_args.append('0')
         code.putln("PyObject* values[%d] = {%s};" % (
-                max_args, ('0,'*max_args)[:-1]))
+                max_args, ', '.join(default_args)))
         code.putln("Py_ssize_t kw_args = PyDict_Size(%s);" %
                    Naming.kwds_cname)
 
@@ -2186,10 +2195,10 @@ class DefNode(FuncDefNode):
 
         # convert arg values to their final type and assign them
         for i, arg in enumerate(all_args):
-            if arg.default:
+            if arg.default and not arg.type.is_pyobject:
                 code.putln("if (values[%d]) {" % i)
             self.generate_arg_assignment(arg, "values[%d]" % i, code)
-            if arg.default:
+            if arg.default and not arg.type.is_pyobject:
                 code.putln('}')
 
     def generate_argument_conversion_code(self, code):
