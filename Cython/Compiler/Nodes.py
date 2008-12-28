@@ -2021,10 +2021,11 @@ class DefNode(FuncDefNode):
         elif min_positional_args == max_positional_args:
             # parse the exact number of positional arguments from the
             # args tuple
-            code.putln('} else {')
-            for i, arg in enumerate(positional_args):
-                item = "PyTuple_GET_ITEM(%s, %d)" % (Naming.args_cname, i)
-                self.generate_arg_assignment(arg, item, code)
+            if max_positional_args > 0:
+                code.putln('} else {')
+                for i, arg in enumerate(positional_args):
+                    item = "PyTuple_GET_ITEM(%s, %d)" % (Naming.args_cname, i)
+                    self.generate_arg_assignment(arg, item, code)
 
         else:
             # parse the positional arguments from the variable length
