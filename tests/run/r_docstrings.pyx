@@ -50,7 +50,7 @@ import sys
 if sys.version_info[0] >= 3:
     doctest = doctest.replace(u" u'", u" '")
 
-__test__ = {"test_docstrings" : doctest}
+__test__ = {u"test_docstrings" : doctest}
 
 def f():
     u"This is a function docstring."
