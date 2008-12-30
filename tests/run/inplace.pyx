@@ -92,15 +92,15 @@ def smoketest():
 
 
 def side_effect(x):
-    print "side effect", x
+    print u"side effect", x
     return x
     
 cdef int c_side_effect(int x):
-    print "c side effect", x
+    print u"c side effect", x
     return x
     
 def test_side_effects():
-    a = range(5)
+    a = list(range(5))
     a[side_effect(1)] += 10
     a[c_side_effect(2)] += 100
     cdef int i
