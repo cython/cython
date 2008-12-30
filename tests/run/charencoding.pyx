@@ -1,11 +1,24 @@
 # coding: ASCII
 
-__doc__ = u"""
->>> s = test()
->>> assert s == ''.join([chr(i) for i in range(0x10,0xFF,0x11)] + [chr(0xFF)]), repr(s)
+import sys
+if sys.version_info[0] < 3:
+    __doc__ = u"""
+>>> s = test_assign()
+>>> assert s == b''.join([chr(i) for i in range(0x10,0xFF,0x11)] + [chr(0xFF)]), repr(s)
+
+>>> s = test_array()
+>>> assert s == b''.join([chr(i) for i in range(0x10,0xFF,0x11)] + [chr(0xFF)]), repr(s)
+"""
+else:
+    __doc__ = u"""
+>>> s = test_assign()
+>>> assert s == bytes([i for i in range(0x10,0xFF,0x11)] + [0xFF]), repr(s)
+
+>>> s = test_array()
+>>> assert s == bytes([i for i in range(0x10,0xFF,0x11)] + [0xFF]), repr(s)
 """
 
-def test():
+def test_assign():
     cdef char s[17]
 
     s[ 0] = c'\x10'
@@ -26,5 +39,28 @@ def test():
     s[15] = c'\xFF'
 
     s[16] = c'\x00'
+
+    return s
+
+def test_array():
+    cdef char* s = [
+        c'\x10',
+        c'\x21',
+        c'\x32',
+        c'\x43',
+        c'\x54',
+        c'\x65',
+        c'\x76',
+        c'\x87',
+        c'\x98',
+        c'\xA9',
+        c'\xBA',
+        c'\xCB',
+        c'\xDC',
+        c'\xED',
+        c'\xFE',
+        c'\xFF',
+        c'\x00',
+        ]
 
     return s
