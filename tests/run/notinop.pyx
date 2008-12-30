@@ -66,5 +66,5 @@ def m(int a):
     return result
 
 def n(a):
-    cdef int result = a.lower() not in ['a *','b *','c *','d *']
+    cdef int result = a.lower() not in [u'a *',u'b *',u'c *',u'd *']
     return result
