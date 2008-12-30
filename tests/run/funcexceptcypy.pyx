@@ -3,12 +3,13 @@ __doc__ = u"""
 >>> if not IS_PY3: sys.exc_clear()
 
 >>> def test_py():
+...   old_exc = sys.exc_info()[0]
 ...   try:
 ...     raise AttributeError("test")
 ...   except AttributeError:
 ...     test_c(error=AttributeError)
 ...     print(sys.exc_info()[0] is AttributeError or sys.exc_info()[0])
-...   print((IS_PY3 and sys.exc_info()[0] is TestException) or
+...   print((IS_PY3 and sys.exc_info()[0] is old_exc) or
 ...         (not IS_PY3 and sys.exc_info()[0] is AttributeError) or
 ...         sys.exc_info()[0])
 
