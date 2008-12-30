@@ -184,6 +184,17 @@ class FunctionState(object):
                 for cname, type, manage_ref in self.temps_allocated
                 if manage_ref]
 
+    def all_free_managed_temps(self):
+        """Return a list of (cname, type) tuples of refcount-managed Python
+        objects that are not currently in use.  This is used by
+        try-except and try-finally blocks to clean up temps in the
+        error case.
+        """
+        return [(cname, type)
+                for (type, manage_ref), freelist in self.temps_free.iteritems()
+                if manage_ref
+                for cname in freelist]
+
 class GlobalState(object):
     # filename_table   {string : int}  for finding filename table indexes
     # filename_list    [string]        filenames in filename table order

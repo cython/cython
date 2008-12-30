@@ -3926,7 +3926,7 @@ class TryExceptStatNode(StatNode):
     #  body             StatNode
     #  except_clauses   [ExceptClauseNode]
     #  else_clause      StatNode or None
-    #  cleanup_list     [Entry]            temps to clean up on error
+    #  cleanup_list     [Entry]            old style temps to clean up on error
 
     child_attrs = ["body", "except_clauses", "else_clause"]
     
@@ -3993,6 +3993,7 @@ class TryExceptStatNode(StatNode):
         self.body.generate_execution_code(code)
         code.putln(
             "}")
+        temps_to_clean_up = code.funcstate.all_free_managed_temps()
         code.error_label = except_error_label
         code.return_label = except_return_label
         if self.else_clause:
@@ -4006,6 +4007,8 @@ class TryExceptStatNode(StatNode):
         code.put_goto(try_end_label)
         code.put_label(our_error_label)
         code.put_var_xdecrefs_clear(self.cleanup_list)
+        for temp_name, type in temps_to_clean_up:
+            code.put_xdecref_clear(temp_name, type)
         for except_clause in self.except_clauses:
             except_clause.generate_handling_code(code, except_end_label)
 
@@ -4154,7 +4157,7 @@ class TryFinallyStatNode(StatNode):
     #  body             StatNode
     #  finally_clause   StatNode
     #
-    #  cleanup_list     [Entry]      temps to clean up on error
+    #  cleanup_list     [Entry]     old_style temps to clean up on error
     #
     #  The plan is that we funnel all continue, break
     #  return and error gotos into the beginning of the
@@ -4215,6 +4218,7 @@ class TryFinallyStatNode(StatNode):
             code.funcstate.in_try_finally = was_in_try_finally
         code.putln(
             "}")
+        temps_to_clean_up = code.funcstate.all_free_managed_temps()
         code.putln(
             "/*finally:*/ {")
         cases_used = []
@@ -4246,7 +4250,7 @@ class TryFinallyStatNode(StatNode):
                 #if new_label and new_label != "<try>":
                 if new_label == new_error_label and self.preserve_exception:
                     self.put_error_catcher(code, 
-                        new_error_label, i+1, catch_label)
+                        new_error_label, i+1, catch_label, temps_to_clean_up)
                 else:
                     code.put('%s: ' % new_label)
                     if exc_var_init_zero:
@@ -4290,7 +4294,7 @@ class TryFinallyStatNode(StatNode):
         code.putln(
             "}")
 
-    def put_error_catcher(self, code, error_label, i, catch_label):
+    def put_error_catcher(self, code, error_label, i, catch_label, temps_to_clean_up):
         code.globalstate.use_utility_code(restore_exception_utility_code)
         code.putln(
             "%s: {" %
@@ -4299,6 +4303,8 @@ class TryFinallyStatNode(StatNode):
                 "__pyx_why = %s;" %
                     i)
         code.put_var_xdecrefs_clear(self.cleanup_list)
+        for temp_name, type in temps_to_clean_up:
+            code.put_xdecref_clear(temp_name, type)
         code.putln(
                 "__Pyx_ErrFetch(&%s, &%s, &%s);" %
                     Naming.exc_vars)
