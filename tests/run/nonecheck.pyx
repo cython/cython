@@ -71,7 +71,7 @@ def checking(MyClass var):
     if var is not None:
         print var.a
     else:
-        print "var is None"
+        print u"var is None"
 
 @cython.nonecheck(True)
 def check_and_assign(MyClass var):
