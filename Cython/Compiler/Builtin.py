@@ -181,7 +181,11 @@ static PyObject* __Pyx_PyRun(PyObject* o, PyObject* globals, PyObject* locals) {
         s = PyUnicode_AsUTF8String(o);
         if (!s) goto bad;
         o = s;
+    #if PY_MAJOR_VERSION >= 3
+    } else if (!PyBytes_Check(o)) {
+    #else
     } else if (!PyString_Check(o)) {
+    #endif
         /* FIXME: support file objects and code objects */
         PyErr_SetString(PyExc_TypeError,
             "exec currently requires a string as code input.");
@@ -189,7 +193,12 @@ static PyObject* __Pyx_PyRun(PyObject* o, PyObject* globals, PyObject* locals) {
     }
 
     result = PyRun_String(
-        PyString_AS_STRING(o), Py_file_input, globals, locals);
+    #if PY_MAJOR_VERSION >= 3
+        PyBytes_AS_STRING(o),
+    #else
+        PyString_AS_STRING(o),
+    #endif
+        Py_file_input, globals, locals);
 
     Py_XDECREF(s);
     return result;
