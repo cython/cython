@@ -1,7 +1,7 @@
 __doc__ = u"""
 >>> ret = repeat_iter()
 >>> for s in ret:
-...     print s
+...     print(s)
 a
 a
 b
