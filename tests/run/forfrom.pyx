@@ -5,6 +5,10 @@ __doc__ = u"""
 00*01*02
 """
 
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u" u'", u" '").replace(u' u"', u' "')
+
 def for_else():
     cdef int i, j=0, k=2
     for i from 0 <= i < 10:
