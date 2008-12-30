@@ -23,14 +23,17 @@ __doc__ = u"""
 """
 
 import sys
-if sys.version_info[0] < 3:
-    __doc__ = __doc__.replace("  b'", "  '")
+IS_PY3 = sys.version_info[0] >= 3
+if IS_PY3:
+    __doc__ = __doc__.replace(u" u'", u" '")
 else:
-    __doc__ = __doc__.replace("  u'", "  '")
-
+    __doc__ = __doc__.replace(u" b'", u" '")
 
 def test_str(n):
-    return "abcd"[n]
+    if IS_PY3:
+        return bytes(["abcd"[n]])
+    else:
+        return "abcd"[n]
 
 def test_unicode_ascii(n):
     return u"abcd"[n]
