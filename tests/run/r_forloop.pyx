@@ -128,12 +128,12 @@ def go_c_ret():
             return i
 
 def go_list():
-    cdef list l = range(4)
+    cdef list l = list(range(4))
     for i in l:
         print u"Spam!"
 
 def go_list_ret():
-    cdef list l = range(4)
+    cdef list l = list(range(4))
     for i in l:
         if i > 1:
             return i
