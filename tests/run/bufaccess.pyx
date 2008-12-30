@@ -1094,7 +1094,11 @@ cdef class MockBuffer:
             self.buffer = self.create_buffer(data)
             self.ndim = len(shape)
             self.suboffsets = NULL
-            
+
+        try:
+            format = format.encode('ASCII')
+        except AttributeError:
+            pass
         self.format = format
         self.len = len(data) * self.itemsize
 
