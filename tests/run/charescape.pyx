@@ -1,6 +1,13 @@
-__doc__ = u"""
+import sys
+if sys.version_info[0] < 3:
+    __doc__ = u"""
 >>> s = test()
->>> assert s == ''.join([chr(i) for i in range(1,49)]), repr(s)
+>>> assert s == ''.join(map(chr, range(1,49))), repr(s)
+"""
+else:
+    __doc__ = u"""
+>>> s = test()
+>>> assert s == bytes(range(1,49)), repr(s)
 """
 
 def test():
