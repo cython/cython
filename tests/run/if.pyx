@@ -54,10 +54,15 @@ def h(a, b):
         x = 3
     return x
 
+try:
+    import __builtin__  as builtins
+except ImportError:
+    import builtins
+
 def i(a, b):
     x = 0
-    if str(a).upper() == u"1":
+    if builtins.str(a).upper() == u"1":
         x = 1
-    if str(a+b).lower() not in (u"1", u"3"):
+    if builtins.str(a+b).lower() not in (u"1", u"3"):
         x = 2
     return x
