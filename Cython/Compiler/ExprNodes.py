@@ -4044,10 +4044,6 @@ class NumBinopNode(BinopNode):
     def analyse_c_operation(self, env):
         type1 = self.operand1.type
         type2 = self.operand2.type
-        if self.operator == "**" and type1.is_int and type2.is_int:
-            error(self.pos, "** with two C int types is ambiguous")
-            self.type = error_type
-            return
         self.type = self.compute_c_result_type(type1, type2)
         if not self.type:
             self.type_error()
