@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import os, sys, re, shutil, unittest, doctest
+import os, sys, re, shutil, unittest, doctest, ctypes
 
 WITH_CYTHON = True
 
@@ -26,6 +26,10 @@ VER_DEP_MODULES = {
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
 
+ctypes.PyDLL("Cython/Runtime/refnanny.so", mode=ctypes.RTLD_GLOBAL)
+sys.path.append("Cython/Runtime")
+import refnanny
+#CFLAGS.append("-DCYTHON_REFNANNY")
 
 class ErrorWriter(object):
     match_error = re.compile('(warning:)?(?:.*:)?\s*([-0-9]+)\s*:\s*([-0-9]+)\s*:\s*(.*)').match
@@ -594,3 +598,5 @@ if __name__ == '__main__':
         sys.stderr.write("Following tests excluded because of missing dependencies on your system:\n")
         for test in missing_dep_excluder.tests_missing_deps:
             sys.stderr.write("   %s\n" % test)
+
+print "\n".join([repr(x) for x in refnanny.reflog])

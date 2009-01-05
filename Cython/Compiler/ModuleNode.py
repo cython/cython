@@ -19,6 +19,7 @@ import Options
 import PyrexTypes
 import TypeSlots
 import Version
+import DebugFlags
 
 from Errors import error, warning
 from PyrexTypes import py_object_type
@@ -249,6 +250,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.globalstate.module_pos = self.pos
         code.globalstate.directives = self.directives
+
+        code.globalstate.use_utility_code(refcount_utility_code)
 
         code.putln("")
         code.putln("/* Implementation of %s */" % env.qualified_name)
@@ -535,7 +538,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('')
             code.putln('static char %s[] = "%s";' % (
                     env.doc_cname, escape_byte_string(docstr)))
-    
+
     def generate_extern_c_macro_definition(self, code):
         name = Naming.extern_c_macro
         code.putln("#ifdef __cplusplus")
@@ -1559,6 +1562,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
         code.putln("{")
         tempdecl_code = code.insertion_point()
+
+        code.putln('__Pyx_SetupRefcountContext("%s");' % header3)
+
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
 
         code.putln("/*--- Library function declarations ---*/")
@@ -2274,3 +2280,36 @@ bad:
 }
 """ % {'IMPORT_STAR'     : Naming.import_star,
        'IMPORT_STAR_SET' : Naming.import_star_set }
+        
+refcount_utility_code = UtilityCode(proto="""
+#ifdef CYTHON_REFNANNY
+
+void __Pyx_Refnanny_INCREF(void*, PyObject*, int);
+void __Pyx_Refnanny_GOTREF(void*, PyObject*, int);
+void __Pyx_Refnanny_GIVEREF(void*, PyObject*, int);
+void __Pyx_Refnanny_INCREF(void*, PyObject*, int);
+void __Pyx_Refnanny_DECREF(void*, PyObject*, int);
+void* __Pyx_Refnanny_NewContext(char*, int);
+int __Pyx_Refnanny_FinishContext(void*);
+
+#define __Pyx_INCREF(r) __Pyx_Refnanny_INCREF(__pyx_refchk, r, __LINE__)
+#define __Pyx_GOTREF(r) __Pyx_Refnanny_GOTREF(__pyx_refchk, r, __LINE__)
+#define __Pyx_GIVEREF(r) __Pyx_Refnanny_GIVEREF(__pyx_refchk, r, __LINE__)
+#define __Pyx_DECREF(r) __Pyx_Refnanny_DECREF(__pyx_refchk, r, __LINE__)
+#define __Pyx_XDECREF(r) (r ? __Pyx_Refnanny_DECREF(__pyx_refchk, r, __LINE__) : 0)
+#define __Pyx_SetupRefcountContext(name) \
+  void* __pyx_refchk = __Pyx_Refnanny_NewContext(name, __LINE__)
+#define __Pyx_FinishRefcountContext() __Pyx_Refnanny_FinishContext(__pyx_refchk)
+
+#else
+
+#define __Pyx_INCREF(r) Py_INCREF(r)
+#define __Pyx_GOTREF(r)
+#define __Pyx_GIVEREF(r)
+#define __Pyx_DECREF(r) Py_DECREF(r)
+#define __Pyx_XDECREF(r) Py_XDECREF(r)
+#define __Pyx_SetupRefcountContext(name)
+#define __Pyx_FinishRefcountContext() 0
+
+#endif /* CYTHON_REFNANNY */
+""")
