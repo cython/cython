@@ -16,6 +16,7 @@ from Cython.Utils import open_new_file, replace_suffix, UtilityCode
 from StringEncoding import EncodedString, escape_byte_string, split_docstring
 import Options
 import ControlFlow
+import DebugFlags
 
 from DebugFlags import debug_disposal_code
 
@@ -1010,6 +1011,7 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Automatic lead-ins for certain special functions
         if is_getbuffer_slot:
             self.getbuffer_init(code)
+        code.putln('__Pyx_SetupRefcountContext("%s");' % self.entry.name)
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must 
@@ -1119,8 +1121,24 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("PyGILState_Release(_save);")
         # code.putln("/* TODO: decref scope object */")
         # ----- Return
+        default_retval = self.return_type.default_value
+        err_val = self.error_value()
+        if err_val is None and default_retval:
+            err_val = default_retval
+        if self.return_type.is_pyobject:
+            code.put_giveref(Naming.retval_cname)
+        if err_val is None:
+            code.putln('__Pyx_FinishRefcountContext();')
+        else:
+            code.putln('if (__Pyx_FinishRefcountContext() == -1) {')
+            code.putln(code.set_error_info(self.pos))
+            code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
+            code.putln('%s = %s;' % (Naming.retval_cname, err_val))
+            code.putln('}')
+
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
+            
         code.putln("}")
         # ----- Go back and insert temp variable declarations
         tempvardecl_code.put_var_declarations(lenv.temp_entries)
@@ -1171,16 +1189,16 @@ class FuncDefNode(StatNode, BlockNode):
         # getbuffer with a NULL parameter. For now we work around this;
         # the following line should be removed when this bug is fixed.
         code.putln("if (%s == NULL) return 0;" % info) 
-        code.putln("%s->obj = Py_None; Py_INCREF(Py_None);" % info)
+        code.putln("%s->obj = Py_None; __Pyx_INCREF(Py_None);" % info)
 
     def getbuffer_error_cleanup(self, code):
         info = self.local_scope.arg_entries[1].cname
-        code.putln("Py_DECREF(%s->obj); %s->obj = NULL;" %
+        code.putln("__Pyx_DECREF(%s->obj); %s->obj = NULL;" %
                    (info, info))
 
     def getbuffer_normal_cleanup(self, code):
         info = self.local_scope.arg_entries[1].cname
-        code.putln("if (%s->obj == Py_None) { Py_DECREF(Py_None); %s->obj = NULL; }" %
+        code.putln("if (%s->obj == Py_None) { __Pyx_DECREF(Py_None); %s->obj = NULL; }" %
                    (info, info))
 
 class CFuncDefNode(FuncDefNode):
@@ -4040,7 +4058,7 @@ class ExceptClauseNode(Node):
         self.body.generate_execution_code(code)
         code.funcstate.exc_vars = old_exc_vars
         for var in self.exc_vars:
-            code.putln("Py_DECREF(%s); %s = 0;" % (var, var))
+            code.putln("__Pyx_DECREF(%s); %s = 0;" % (var, var))
         code.put_goto(end_label)
         code.putln(
             "}")

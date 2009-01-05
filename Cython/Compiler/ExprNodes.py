@@ -1678,7 +1678,6 @@ class IndexNode(ExprNode):
                 value_code,
                 self.index_unsigned_parameter(),
                 code.error_goto(self.pos)))
-        code.put_gotref(self.base.py_result())
 
     def generate_buffer_setitem_code(self, rhs, code, op=""):
         # Used from generate_assignment_code and InPlaceAssignmentNode
@@ -2785,6 +2784,7 @@ class TupleNode(SequenceNode):
                     self.result(),
                     i,
                     arg.py_result()))
+            code.put_giveref(arg.py_result())
     
     def generate_subexpr_disposal_code(self, code):
         # We call generate_post_assignment_code here instead
@@ -2864,6 +2864,7 @@ class ListNode(SequenceNode):
                 (self.result(),
                 len(self.args),
                 code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.result())
             for i in range(len(self.args)):
                 arg = self.args[i]
                 #if not arg.is_temp:
@@ -2873,6 +2874,7 @@ class ListNode(SequenceNode):
                     (self.result(),
                     i,
                     arg.py_result()))
+                code.put_giveref(arg.py_result())
         elif self.type.is_array:
             for i, arg in enumerate(self.args):
                 code.putln("%s[%s] = %s;" % (
