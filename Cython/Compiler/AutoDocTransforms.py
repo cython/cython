@@ -135,7 +135,14 @@ class EmbedSignature(CythonTransform):
                 doc_holder = self.class_node.entry.type.scope
             else:
                 doc_holder = node.entry
-            new_doc  = self._embed_signature(signature, doc_holder.doc)
+
+            if doc_holder.doc is not None:
+                old_doc = doc_holder.doc
+            elif not is_constructor and getattr(node, 'py_func', None) is not None:
+                old_doc = node.py_func.entry.doc
+            else:
+                old_doc = None
+            new_doc  = self._embed_signature(signature, old_doc)
             doc_holder.doc = EncodedString(new_doc)
             if not is_constructor and getattr(node, 'py_func', None) is not None:
                 node.py_func.entry.doc = EncodedString(new_doc)
@@ -152,7 +159,13 @@ class EmbedSignature(CythonTransform):
             node.declarator.args,
             return_type=node.return_type)
         if signature:
-            new_doc  = self._embed_signature(signature, node.entry.doc)
+            if node.entry.doc is not None:
+                old_doc = node.entry.doc
+            elif hasattr(node, 'py_func') and node.py_func is not None:
+                old_doc = node.py_func.entry.doc
+            else:
+                old_doc = None
+            new_doc  = self._embed_signature(signature, old_doc)
             node.entry.doc = EncodedString(new_doc)
             if hasattr(node, 'py_func') and node.py_func is not None:
                 node.py_func.entry.doc = EncodedString(new_doc)

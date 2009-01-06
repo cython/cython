@@ -32,11 +32,19 @@ __doc__ = ur"""
     >>> print (Ext.k.__doc__)
     Ext.k(self, a, b, c=1, *args, d=42, e=17, f, **kwds)
 
+    >>> print (Ext.l.__doc__)
+    Ext.l(self, a, b, c=1, *args, d=42, e=17, f, **kwds)
+    Existing string
+
     >>> print (Ext.get_int.__doc__)
     Ext.get_int(self) -> int
 
     >>> print (Ext.get_float.__doc__)
     Ext.get_float(self) -> float
+
+    >>> print (Ext.get_str.__doc__)
+    Ext.get_str(self) -> str
+    Existing string
 
     >>> print (Ext.clone.__doc__)
     Ext.clone(self) -> Ext
@@ -49,6 +57,12 @@ __doc__ = ur"""
 
     >>> with_doc_2.__doc__
     'with_doc_2(a, b, c)\n\n    Existing string\n    '
+
+    >>> with_doc_3.__doc__
+    'with_doc_3(a, b, c)\nExisting string'
+
+    >>> with_doc_4.__doc__
+    'with_doc_4(int a, str b, list c) -> str\n\n    Existing string\n    '
 
     >>> types.__doc__
     'types(Ext a, int b, unsigned short c, float d, e)'
@@ -146,11 +160,19 @@ cdef class Ext:
     def k(self, a, b, c=1, *args, d = 42, e = 17, f, **kwds):
         pass
 
+    def l(self, a, b, c=1, *args, d = 42, e = 17, f, **kwds):
+        """Existing string"""
+        pass
+
     cpdef int get_int(self):
         return 0
 
     cpdef float get_float(self):
         return 0.0
+
+    cpdef str get_str(self):
+        """Existing string"""
+        return "string"
 
     cpdef Ext clone(self):
         return Ext(1,2)
@@ -170,6 +192,16 @@ def with_doc_2(a, b, c):
     Existing string
     """
     pass
+
+cpdef with_doc_3(a, b, c):
+    """Existing string"""
+    pass
+
+cpdef str with_doc_4(int a, str b, list c):
+    """
+    Existing string
+    """
+    return b
 
 cpdef char f_c(char c):
     return c
