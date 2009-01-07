@@ -1493,7 +1493,7 @@ class IteratorNode(NewTempExprNode):
                     self.sequence.py_result(),
                     self.sequence.py_result()))
         code.putln(
-            "%s = 0; %s = %s; Py_INCREF(%s);" % (
+            "%s = 0; %s = %s; __Pyx_INCREF(%s);" % (
                 self.counter_cname,
                 self.result(),
                 self.sequence.py_result(),
@@ -1546,7 +1546,7 @@ class NextNode(AtomicNewTempExprNode):
                     prefix,
                     self.iterator.py_result()))
             code.putln(
-                "%s = Py%s_GET_ITEM(%s, %s); Py_INCREF(%s); %s++;" % (
+                "%s = Py%s_GET_ITEM(%s, %s); __Pyx_INCREF(%s); %s++;" % (
                     self.result(),
                     prefix,
                     self.iterator.py_result(),
@@ -1811,7 +1811,7 @@ class IndexNode(ExprNode):
             if self.type.is_pyobject:
                 # is_temp is True, so must pull out value and incref it.
                 code.putln("%s = *%s;" % (self.result(), self.buffer_ptr_code))
-                code.putln("Py_INCREF((PyObject*)%s);" % self.result())
+                code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
         elif self.type.is_pyobject:
             if self.index.type.is_int:
                 function = "__Pyx_GetItemInt"
@@ -1871,7 +1871,7 @@ class IndexNode(ExprNode):
             ptr = code.funcstate.allocate_temp(self.buffer_type.buffer_ptr_type, manage_ref=False)
             rhs_code = rhs.result()
             code.putln("%s = %s;" % (ptr, ptrexpr))
-            code.putln("Py_DECREF(*%s); Py_INCREF(%s);" % (
+            code.putln("__Pyx_DECREF(*%s); __Pyx_INCREF(%s);" % (
                 ptr, rhs_code
                 ))
             code.putln("*%s %s= %s;" % (ptr, op, rhs_code))
