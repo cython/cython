@@ -10,6 +10,7 @@ from PyrexTypes import py_object_type, typecast
 from TypeSlots import method_coexist
 from Scanning import SourceDescriptor
 from Cython.StringIOTree import StringIOTree
+import DebugFlags
 try:
     set
 except NameError:
@@ -737,47 +738,53 @@ class CCodeWriter(object):
     def as_pyobject(self, cname, type):
         return typecast(py_object_type, type, cname)
     
+    def put_gotref(self, cname):
+        self.putln("__Pyx_GOTREF(%s);" % cname)
+    
+    def put_giveref(self, cname):
+        self.putln("__Pyx_GIVEREF(%s);" % cname)
+    
     def put_incref(self, cname, type):
-        self.putln("Py_INCREF(%s);" % self.as_pyobject(cname, type))
+        self.putln("__Pyx_INCREF(%s);" % self.as_pyobject(cname, type))
     
     def put_decref(self, cname, type):
-        self.putln("Py_DECREF(%s);" % self.as_pyobject(cname, type))
+        self.putln("__Pyx_DECREF(%s);" % self.as_pyobject(cname, type))
     
     def put_var_incref(self, entry):
         if entry.type.is_pyobject:
-            self.putln("Py_INCREF(%s);" % self.entry_as_pyobject(entry))
+            self.putln("__Pyx_INCREF(%s);" % self.entry_as_pyobject(entry))
     
     def put_decref_clear(self, cname, type):
-        self.putln("Py_DECREF(%s); %s = 0;" % (
+        self.putln("__Pyx_DECREF(%s); %s = 0;" % (
             typecast(py_object_type, type, cname), cname))
             #self.as_pyobject(cname, type), cname))
     
     def put_xdecref(self, cname, type):
-        self.putln("Py_XDECREF(%s);" % self.as_pyobject(cname, type))
+        self.putln("__Pyx_XDECREF(%s);" % self.as_pyobject(cname, type))
     
     def put_xdecref_clear(self, cname, type):
-        self.putln("Py_XDECREF(%s); %s = 0;" % (
+        self.putln("__Pyx_XDECREF(%s); %s = 0;" % (
             self.as_pyobject(cname, type), cname))
 
     def put_var_decref(self, entry):
         if entry.type.is_pyobject:
             if entry.init_to_none is False:
-                self.putln("Py_XDECREF(%s);" % self.entry_as_pyobject(entry))
+                self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
             else:
-                self.putln("Py_DECREF(%s);" % self.entry_as_pyobject(entry))
+                self.putln("__Pyx_DECREF(%s);" % self.entry_as_pyobject(entry))
     
     def put_var_decref_clear(self, entry):
         if entry.type.is_pyobject:
-            self.putln("Py_DECREF(%s); %s = 0;" % (
+            self.putln("__Pyx_DECREF(%s); %s = 0;" % (
                 self.entry_as_pyobject(entry), entry.cname))
     
     def put_var_xdecref(self, entry):
         if entry.type.is_pyobject:
-            self.putln("Py_XDECREF(%s);" % self.entry_as_pyobject(entry))
+            self.putln("__Pyx_XDECREF(%s);" % self.entry_as_pyobject(entry))
     
     def put_var_xdecref_clear(self, entry):
         if entry.type.is_pyobject:
-            self.putln("Py_XDECREF(%s); %s = 0;" % (
+            self.putln("__Pyx_XDECREF(%s); %s = 0;" % (
                 self.entry_as_pyobject(entry), entry.cname))
     
     def put_var_decrefs(self, entries, used_only = 0):
@@ -798,7 +805,7 @@ class CCodeWriter(object):
     
     def put_init_to_py_none(self, cname, type):
         py_none = typecast(type, py_object_type, "Py_None")
-        self.putln("%s = %s; Py_INCREF(Py_None);" % (cname, py_none))
+        self.putln("%s = %s; __Pyx_INCREF(Py_None);" % (cname, py_none))
     
     def put_init_var_to_py_none(self, entry, template = "%s"):
         code = template % entry.cname
@@ -822,7 +829,7 @@ class CCodeWriter(object):
                     "|".join(method_flags),
                     doc_code,
                     term))
-    
+
     def put_error_if_neg(self, pos, value):
 #        return self.putln("if (unlikely(%s < 0)) %s" % (value, self.error_goto(pos)))  # TODO this path is almost _never_ taken, yet this macro makes is slower!
         return self.putln("if (%s < 0) %s" % (value, self.error_goto(pos)))
@@ -836,21 +843,25 @@ class CCodeWriter(object):
             return 'unlikely(%s)' % cond
         else:
             return cond
-        
-    def error_goto(self, pos):
-        lbl = self.funcstate.error_label
-        self.funcstate.use_label(lbl)
+
+    def set_error_info(self, pos):
         if Options.c_line_in_traceback:
             cinfo = " %s = %s;" % (Naming.clineno_cname, Naming.line_c_macro)
         else:
             cinfo = ""
-        return "{%s = %s[%s]; %s = %s;%s goto %s;}" % (
+        return "%s = %s[%s]; %s = %s;%s" % (
             Naming.filename_cname,
             Naming.filetable_cname,
             self.lookup_filename(pos[0]),
             Naming.lineno_cname,
             pos[1],
-            cinfo,
+            cinfo)
+        
+    def error_goto(self, pos):
+        lbl = self.funcstate.error_label
+        self.funcstate.use_label(lbl)
+        return "{%s goto %s;}" % (
+            self.set_error_info(pos),
             lbl)
 
     def error_goto_if(self, cond, pos):
