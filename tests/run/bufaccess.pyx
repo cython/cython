@@ -384,6 +384,17 @@ def wrong_string(object[int] buf):
     """
     print buf[1]
 
+@testcase
+def int_and_long_are_same():
+    """
+    >>> int_and_long_are_same()
+    """
+    cdef object[int] intarr
+    cdef object[long] longarr
+    if sizeof(int) == sizeof(long):
+        intarr = IntMockBuffer(None, [1,2], format='l')
+        longarr = IntMockBuffer(None, [1,2])
+
 #
 # Getting items and index bounds checking
 # 

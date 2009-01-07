@@ -26,19 +26,19 @@ class BasicVisitor(object):
             # Must resolve, try entire hierarchy
             pattern = "visit_%s"
             mro = inspect.getmro(cls)
+            handler_method = None
             for mro_cls in mro:
-                try:
+                if hasattr(self, pattern % mro_cls.__name__):
                     handler_method = getattr(self, pattern % mro_cls.__name__)
                     break
-                except AttributeError:
-                    pass
-            else:
+            if handler_method is None:
                 print type(self), type(obj)
                 if hasattr(self, 'access_path') and self.access_path:
                     print self.access_path
-                    print self.access_path[-1][0].pos
-                    print self.access_path[-1][0].__dict__
-                raise RuntimeError("Visitor does not accept object: %s" % (obj,))
+                    if self.access_path:
+                        print self.access_path[-1][0].pos
+                        print self.access_path[-1][0].__dict__
+                raise RuntimeError("Visitor does not accept object: %s" % obj)
             #print "Caching " + cls.__name__
             self.dispatch_table[cls] = handler_method
         return handler_method(obj)

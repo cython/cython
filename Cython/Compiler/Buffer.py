@@ -64,6 +64,9 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
             # for now...note that pos is wrong 
             raise CompileError(node.pos, "Buffer vars not allowed in module scope")
         for entry in bufvars:
+            if entry.type.dtype.is_ptr:
+                raise CompileError(node.pos, "Buffers with pointer types not yet supported.")
+            
             name = entry.name
             buftype = entry.type
             if buftype.ndim > self.max_ndim:
@@ -497,7 +500,7 @@ def mangle_dtype_name(dtype):
     elif dtype.is_ptr:
         return "ptr"
     else:
-        if dtype.typestring is None:
+        if dtype.is_typedef or dtype.is_struct_or_union:
             prefix = "nn_"
         else:
             prefix = ""
@@ -549,10 +552,8 @@ def create_typestringchecker(protocode, defcode, name, dtype):
         defcode.putln("int ok;")
         defcode.putln("ts = __Pyx_ConsumeWhitespace(ts); if (!ts) return NULL;")
         defcode.putln("if (*ts == '1') ++ts;")
-        if dtype.typestring is not None:
-            assert len(dtype.typestring) == 1
-            # Can use direct comparison
-            defcode.putln("ok = (*ts == '%s');" % dtype.typestring)
+        if dtype.is_pyobject:
+            defcode.putln("ok = (*ts == 'O');")
         else:
             # Cannot trust declared size; but rely on int vs float and
             # signed/unsigned to be correctly declared. Use a switch statement

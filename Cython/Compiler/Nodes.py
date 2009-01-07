@@ -17,6 +17,7 @@ from Cython.Utils import open_new_file, replace_suffix, UtilityCode
 from StringEncoding import EncodedString, escape_byte_string, split_docstring
 import Options
 import ControlFlow
+import DebugFlags
 
 from DebugFlags import debug_disposal_code
 
@@ -1022,6 +1023,7 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Automatic lead-ins for certain special functions
         if is_getbuffer_slot:
             self.getbuffer_init(code)
+        code.putln('__Pyx_SetupRefcountContext("%s");' % self.entry.name)
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must 
@@ -1135,8 +1137,24 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("PyGILState_Release(_save);")
         # code.putln("/* TODO: decref scope object */")
         # ----- Return
+        default_retval = self.return_type.default_value
+        err_val = self.error_value()
+        if err_val is None and default_retval:
+            err_val = default_retval
+        if self.return_type.is_pyobject:
+            code.put_giveref(Naming.retval_cname)
+        if err_val is None:
+            code.putln('__Pyx_FinishRefcountContext();')
+        else:
+            code.putln('if (__Pyx_FinishRefcountContext() == -1) {')
+            code.putln(code.set_error_info(self.pos))
+            code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
+            code.putln('%s = %s;' % (Naming.retval_cname, err_val))
+            code.putln('}')
+
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
+            
         code.putln("}")
         # ----- Go back and insert temp variable declarations
         tempvardecl_code.put_var_declarations(lenv.temp_entries)
@@ -1188,16 +1206,16 @@ class FuncDefNode(StatNode, BlockNode):
         # getbuffer with a NULL parameter. For now we work around this;
         # the following line should be removed when this bug is fixed.
         code.putln("if (%s == NULL) return 0;" % info) 
-        code.putln("%s->obj = Py_None; Py_INCREF(Py_None);" % info)
+        code.putln("%s->obj = Py_None; __Pyx_INCREF(Py_None);" % info)
 
     def getbuffer_error_cleanup(self, code):
         info = self.local_scope.arg_entries[1].cname
-        code.putln("Py_DECREF(%s->obj); %s->obj = NULL;" %
+        code.putln("__Pyx_DECREF(%s->obj); %s->obj = NULL;" %
                    (info, info))
 
     def getbuffer_normal_cleanup(self, code):
         info = self.local_scope.arg_entries[1].cname
-        code.putln("if (%s->obj == Py_None) { Py_DECREF(Py_None); %s->obj = NULL; }" %
+        code.putln("if (%s->obj == Py_None) { __Pyx_DECREF(Py_None); %s->obj = NULL; }" %
                    (info, info))
 
 class CFuncDefNode(FuncDefNode):
@@ -2268,6 +2286,7 @@ class DefNode(FuncDefNode):
                 func,
                 arg.hdr_cname,
                 code.error_goto_if_null(arg.entry.cname, arg.pos)))
+            code.put_gotref(arg.entry.cname)
         else:
             error(arg.pos,
                 "Cannot convert argument of type '%s' to Python object"
@@ -2347,6 +2366,7 @@ class OverrideCheckNode(StatNode):
         else:
             code.putln("else if (unlikely(Py_TYPE(%s)->tp_dictoffset != 0)) {" % self_arg)
         err = code.error_goto_if_null(self.func_node.result(), self.pos)
+        code.put_gotref(self.func_node.result())
         # need to get attribute manually--scope would return cdef method
         code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (self.func_node.result(), self_arg, self.py_func.interned_attr_cname, err))
         # It appears that this type is not anywhere exposed in the Python/C API
@@ -3047,6 +3067,7 @@ class InPlaceAssignmentNode(AssignmentNode):
                     self.rhs.py_result(),
                     extra,
                     code.error_goto_if_null(self.result_value.py_result(), self.pos)))
+            code.put_gotref(self.result_value.result())
             self.result_value.generate_evaluation_code(code) # May be a type check...
             self.rhs.generate_disposal_code(code)
             self.rhs.free_temps(code)
@@ -3981,6 +4002,7 @@ class TryExceptStatNode(StatNode):
         except_end_label = code.new_label('exception_handled')
         except_error_label = code.new_label('except_error')
         except_return_label = code.new_label('except_return')
+        try_return_label = code.new_label('try_return')
         try_end_label = code.new_label('try')
 
         code.putln("{")
@@ -3990,6 +4012,7 @@ class TryExceptStatNode(StatNode):
                    ', '.join(['&%s' % var for var in Naming.exc_save_vars]))
         code.putln(
             "/*try:*/ {")
+        code.return_label = try_return_label
         self.body.generate_execution_code(code)
         code.putln(
             "}")
@@ -4005,6 +4028,11 @@ class TryExceptStatNode(StatNode):
         for var in Naming.exc_save_vars:
             code.put_xdecref_clear(var, py_object_type)
         code.put_goto(try_end_label)
+        if code.label_used(try_return_label):
+            code.put_label(try_return_label)
+            for var in Naming.exc_save_vars:
+                code.put_xdecref_clear(var, py_object_type)
+            code.put_goto(old_return_label)
         code.put_label(our_error_label)
         code.put_var_xdecrefs_clear(self.cleanup_list)
         for temp_name, type in temps_to_clean_up:
@@ -4138,7 +4166,7 @@ class ExceptClauseNode(Node):
         self.body.generate_execution_code(code)
         code.funcstate.exc_vars = old_exc_vars
         for var in self.exc_vars:
-            code.putln("Py_DECREF(%s); %s = 0;" % (var, var))
+            code.putln("__Pyx_DECREF(%s); %s = 0;" % (var, var))
         code.put_goto(end_label)
         code.putln(
             "}")
@@ -4551,6 +4579,7 @@ class FromImportStatNode(StatNode):
                     self.module.py_result(),
                     cname,
                     code.error_goto_if_null(self.item.result(), self.pos)))
+            code.put_gotref(self.item.result())
             target.generate_assignment_code(self.item, code)
         self.module.generate_disposal_code(code)
         self.module.free_temps(code)
