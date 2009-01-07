@@ -1137,6 +1137,7 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("PyGILState_Release(_save);")
         # code.putln("/* TODO: decref scope object */")
         # ----- Return
+        # This code is duplicated in ModuleNode.generate_module_init_func
         default_retval = self.return_type.default_value
         err_val = self.error_value()
         if err_val is None and default_retval:
