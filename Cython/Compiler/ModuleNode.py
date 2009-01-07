@@ -1588,6 +1588,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(header3)
         code.putln("#endif")
         code.putln("{")
+        code.putln("PyObject* %s;" % Naming.retval_cname)
         tempdecl_code = code.insertion_point()
 
         code.putln('__Pyx_SetupRefcountContext("%s");' % header3)
@@ -1637,20 +1638,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             # this should be replaced by the module's tp_clear in Py3
             code.putln("if (__Pyx_RegisterCleanup()) %s;" % code.error_goto(self.pos))
 
-        code.putln("#if PY_MAJOR_VERSION < 3")
-        code.putln("return;")
-        code.putln("#else")
-        code.putln("return %s;" % env.module_cname)
-        code.putln("#endif")
+        code.putln("%s = %s;" % (Naming.retval_cname, env.module_cname))
+        code.put_goto(code.return_label)
         code.put_label(code.error_label)
         code.put_var_xdecrefs(env.temp_entries)
         code.putln('__Pyx_AddTraceback("%s");' % env.qualified_name)
         env.use_utility_code(Nodes.traceback_utility_code)
-        code.putln("#if PY_MAJOR_VERSION >= 3")
-        code.putln("return NULL;")
+        code.putln("%s = NULL;" % Naming.retval_cname)
+        code.put_label(code.return_label)
+        code.putln('if (__Pyx_FinishRefcountContext() == -1) {')
+        code.putln(code.set_error_info(self.pos))
+        code.putln('__Pyx_AddTraceback("%s");' % env.qualified_name)
+        code.putln('%s = NULL;' % Naming.retval_cname)
+        code.putln('}')
+        code.putln("#if PY_MAJOR_VERSION < 3")
+        code.putln("return;")
+        code.putln("#else")
+        code.putln("return %s;" % Naming.retval_cname)
         code.putln("#endif")
         code.putln('}')
-        
+
         tempdecl_code.put_var_declarations(env.temp_entries)
         tempdecl_code.put_temp_declarations(code.funcstate)
 
