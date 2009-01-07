@@ -1142,7 +1142,7 @@ class FuncDefNode(StatNode, BlockNode):
         if err_val is None and default_retval:
             err_val = default_retval
         if self.return_type.is_pyobject:
-            code.put_giveref(Naming.retval_cname)
+            code.put_xgiveref(Naming.retval_cname)
         if err_val is None:
             code.putln('__Pyx_FinishRefcountContext();')
         else:

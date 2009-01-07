@@ -744,6 +744,9 @@ class CCodeWriter(object):
     def put_giveref(self, cname):
         self.putln("__Pyx_GIVEREF(%s);" % cname)
     
+    def put_xgiveref(self, cname):
+        self.putln("__Pyx_XGIVEREF(%s);" % cname)
+
     def put_incref(self, cname, type):
         self.putln("__Pyx_INCREF(%s);" % self.as_pyobject(cname, type))
     
