@@ -26,11 +26,6 @@ VER_DEP_MODULES = {
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
 CFLAGS = os.getenv('CFLAGS', '').split()
 
-ctypes.PyDLL("Cython/Runtime/refnanny.so", mode=ctypes.RTLD_GLOBAL)
-sys.path.append("Cython/Runtime")
-import refnanny
-#CFLAGS.append("-DCYTHON_REFNANNY")
-
 class ErrorWriter(object):
     match_error = re.compile('(warning:)?(?:.*:)?\s*([-0-9]+)\s*:\s*([-0-9]+)\s*:\s*(.*)').match
     def __init__(self):
@@ -475,6 +470,9 @@ if __name__ == '__main__':
     parser.add_option("--cython-only", dest="cython_only",
                       action="store_true", default=False,
                       help="only compile pyx to c, do not run C compiler or run the tests")
+    parser.add_option("--refnanny", dest="with_refnanny",
+                      action="store_true", default=False,
+                      help="also test that Cython-generated code does correct reference counting")
     parser.add_option("--sys-pyregr", dest="system_pyregr",
                       action="store_true", default=False,
                       help="run the regression tests of the CPython installation")
@@ -517,6 +515,13 @@ if __name__ == '__main__':
             compile as cython_compile
         from Cython.Compiler import Errors
         Errors.LEVEL = 0 # show all warnings
+
+    if options.with_refnanny:
+        ctypes.PyDLL("Cython/Runtime/refnanny.so", mode=ctypes.RTLD_GLOBAL)
+        sys.path.append("Cython/Runtime")
+        import refnanny
+        del sys.path[-1]
+        CFLAGS.append("-DCYTHON_REFNANNY")
 
     # RUN ALL TESTS!
     ROOTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]), 'tests')
@@ -599,4 +604,5 @@ if __name__ == '__main__':
         for test in missing_dep_excluder.tests_missing_deps:
             sys.stderr.write("   %s\n" % test)
 
-print "\n".join([repr(x) for x in refnanny.reflog])
+    if options.with_refnanny:
+        sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
