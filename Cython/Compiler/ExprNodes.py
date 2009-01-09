@@ -612,7 +612,8 @@ class RemoveAllocateTemps(type):
 class NewTempExprNode(ExprNode):
     backwards_compatible_result = None
     temp_code = None
-    
+    old_temp = None # error checker for multiple frees etc.
+
 #   Do not enable this unless you are trying to make all ExprNodes
 #   NewTempExprNodes (child nodes reached via recursion may not have
 #   transferred).
