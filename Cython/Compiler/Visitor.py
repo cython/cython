@@ -93,7 +93,8 @@ class TreeVisitor(BasicVisitor):
         self.access_path = []
 
     def dump_node(self, node, indent=0):
-        ignored = list(node.child_attrs) + [u'child_attrs', u'pos']
+        ignored = list(node.child_attrs) + [u'child_attrs', u'pos',
+                                            u'gil_message', u'subexprs']
         values = []
         pos = node.pos
         if pos:
@@ -109,7 +110,10 @@ class TreeVisitor(BasicVisitor):
                 continue
             if attr.startswith(u'_') or attr.endswith(u'_'):
                 continue
-            value = getattr(node, attr, None)
+            try:
+                value = getattr(node, attr)
+            except AttributeError:
+                continue
             if value is None:
                 continue
             elif isinstance(value, list):
@@ -121,6 +125,23 @@ class TreeVisitor(BasicVisitor):
             values.append(u'%s = %s' % (attr, value))
         return u'%s(%s)' % (node.__class__.__name__,
                            u',\n    '.join(values))
+
+    def _find_node_path(self, stacktrace):
+        import os.path
+        last_traceback = stacktrace
+        nodes = []
+        while hasattr(stacktrace, 'tb_frame'):
+            frame = stacktrace.tb_frame
+            node = frame.f_locals.get(u'self')
+            if isinstance(node, Nodes.Node):
+                code = frame.f_code
+                method_name = code.co_name
+                pos = (os.path.basename(code.co_filename),
+                       code.co_firstlineno)
+                nodes.append((node, method_name, pos))
+                last_traceback = stacktrace
+            stacktrace = stacktrace.tb_next
+        return (last_traceback, nodes)
 
     def visitchild(self, child, parent, attrname, idx):
         self.access_path.append((parent, attrname, idx))
@@ -141,9 +162,15 @@ class TreeVisitor(BasicVisitor):
                 trace.append(u'%s.%s%s = %s' % (
                     parent.__class__.__name__, attribute, index,
                     self.dump_node(node)))
+            stacktrace, called_nodes = self._find_node_path(sys.exc_info()[2])
+            last_node = child
+            for node, method_name, pos in called_nodes:
+                last_node = node
+                trace.append(u"File '%s', line %d, in %s: %s" % (
+                    pos[0], pos[1], method_name, self.dump_node(node)))
             raise Errors.CompilerCrash(
-                node.pos, self.__class__.__name__,
-                u'\n'.join(trace), e, sys.exc_info()[2])
+                last_node.pos, self.__class__.__name__,
+                u'\n'.join(trace), e, stacktrace)
         self.access_path.pop()
         return result
 
