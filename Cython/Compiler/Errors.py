@@ -75,9 +75,9 @@ class CompilerCrash(CompileError):
         if context:
             message = "Compiler crash in " + context + message
         if stacktrace:
-            import traceback, sys
+            import traceback
             message += (
-                u'\n\nCompiler crash traceback up to this point:\n' +
+                u'\n\nCompiler crash traceback from this point on:\n' +
                 u''.join(traceback.format_tb(stacktrace)))
         if cause:
             if not stacktrace:
