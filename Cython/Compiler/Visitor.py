@@ -117,7 +117,7 @@ class TreeVisitor(BasicVisitor):
             if value is None or value == 0:
                 continue
             elif isinstance(value, list):
-                value = u'[...]'
+                value = u'[...]/%d' % len(value)
             elif not isinstance(value, (str, unicode, long, int, float)):
                 continue
             else:
