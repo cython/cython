@@ -114,7 +114,7 @@ class TreeVisitor(BasicVisitor):
                 value = getattr(node, attr)
             except AttributeError:
                 continue
-            if value is None:
+            if value is None or value == 0:
                 continue
             elif isinstance(value, list):
                 value = u'[...]'
