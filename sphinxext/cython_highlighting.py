@@ -156,6 +156,7 @@ class CythonLexer(RegexLexer):
         ],
     }
 
+    ##TODO: fix this, as shebang lines don't make sense for cython.
     def analyse_text(text):
         return shebang_matches(text, r'pythonw?(2\.\d)?')
 
