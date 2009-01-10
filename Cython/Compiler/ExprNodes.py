@@ -2618,7 +2618,7 @@ class AttributeNode(ExprNode):
             self.error("Invalid attribute name '%s' in compile-time expression"
                 % attr)
             return None
-        obj = self.arg.compile_time_value(denv)
+        obj = self.obj.compile_time_value(denv)
         try:
             return getattr(obj, attr)
         except Exception, e:
