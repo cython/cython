@@ -63,7 +63,28 @@ class InternalError(Exception):
     def __init__(self, message):
         Exception.__init__(self, "Internal compiler error: %s"
             % message)
-            
+
+
+class CompilerCrash(CompileError):
+    # raised when an unexpected exception occurs in a transform
+    def __init__(self, pos, context, message, cause, stacktrace=None):
+        if message:
+            message = u'\n' + message
+        else:
+            message = u'\n'
+        if context:
+            message = "Compiler crash in " + context + message
+        if stacktrace:
+            import traceback, sys
+            message += (
+                u'\n\nCompiler crash traceback up to this point:\n' +
+                u''.join(traceback.format_tb(stacktrace)))
+        if cause:
+            if not stacktrace:
+                message += u'\n'
+            message += u'%s: %s' % (cause.__class__.__name__, cause)
+        CompileError.__init__(self, pos, message)
+
 
 listing_file = None
 num_errors = 0

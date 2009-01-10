@@ -6,6 +6,7 @@ import inspect
 import Nodes
 import ExprNodes
 import Naming
+import Errors
 from StringEncoding import EncodedString
 
 class BasicVisitor(object):
@@ -91,9 +92,58 @@ class TreeVisitor(BasicVisitor):
         super(TreeVisitor, self).__init__()
         self.access_path = []
 
+    def dump_node(self, node, indent=0):
+        ignored = list(node.child_attrs) + [u'child_attrs', u'pos']
+        values = []
+        pos = node.pos
+        if pos:
+            source = pos[0]
+            if source:
+                import os.path
+                source = os.path.basename(source.get_description())
+            values.append(u'%s:%s:%s' % (source, pos[1], pos[2]))
+        attribute_names = dir(node)
+        attribute_names.sort()
+        for attr in attribute_names:
+            if attr in ignored:
+                continue
+            if attr.startswith(u'_') or attr.endswith(u'_'):
+                continue
+            value = getattr(node, attr, None)
+            if value is None:
+                continue
+            elif isinstance(value, list):
+                value = u'[...]'
+            elif not isinstance(value, (str, unicode, long, int, float)):
+                continue
+            else:
+                value = repr(value)
+            values.append(u'%s = %s' % (attr, value))
+        return u'%s(%s)' % (node.__class__.__name__,
+                           u',\n    '.join(values))
+
     def visitchild(self, child, parent, attrname, idx):
         self.access_path.append((parent, attrname, idx))
-        result = self.visit(child)
+        try:
+            result = self.visit(child)
+        except Errors.CompilerCrash:
+            raise
+        except Exception, e:
+            import sys
+            trace = ['']
+            for parent, attribute, index in self.access_path:
+                node = getattr(parent, attribute)
+                if index is None:
+                    index = ''
+                else:
+                    node = node[index]
+                    index = u'[%d]' % index
+                trace.append(u'%s.%s%s = %s' % (
+                    parent.__class__.__name__, attribute, index,
+                    self.dump_node(node)))
+            raise Errors.CompilerCrash(
+                node.pos, self.__class__.__name__,
+                u'\n'.join(trace), e, sys.exc_info()[2])
         self.access_path.pop()
         return result
 
