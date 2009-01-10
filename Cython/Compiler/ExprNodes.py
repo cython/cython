@@ -2608,13 +2608,13 @@ class AttributeNode(ExprNode):
 
     def calculate_constant_result(self):
         attr = self.attribute
-        if attr.beginswith("__") and attr.endswith("__"):
+        if attr.startswith("__") and attr.endswith("__"):
             return
         self.constant_result = getattr(self.obj.constant_result, attr)
 
     def compile_time_value(self, denv):
         attr = self.attribute
-        if attr.beginswith("__") and attr.endswith("__"):
+        if attr.startswith("__") and attr.endswith("__"):
             self.error("Invalid attribute name '%s' in compile-time expression"
                 % attr)
             return None
