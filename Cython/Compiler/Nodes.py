@@ -1143,7 +1143,7 @@ class FuncDefNode(StatNode, BlockNode):
         if err_val is None and default_retval:
             err_val = default_retval
         if self.return_type.is_pyobject:
-            code.put_xgiveref(Naming.retval_cname)
+            code.put_xgiveref(self.return_type.as_pyobject(Naming.retval_cname))
         if err_val is None:
             code.putln('__Pyx_FinishRefcountContext();')
         else:
@@ -2287,7 +2287,7 @@ class DefNode(FuncDefNode):
                 func,
                 arg.hdr_cname,
                 code.error_goto_if_null(arg.entry.cname, arg.pos)))
-            code.put_gotref(arg.entry.cname)
+            code.put_var_gotref(arg.entry)
         else:
             error(arg.pos,
                 "Cannot convert argument of type '%s' to Python object"
@@ -2367,7 +2367,7 @@ class OverrideCheckNode(StatNode):
         else:
             code.putln("else if (unlikely(Py_TYPE(%s)->tp_dictoffset != 0)) {" % self_arg)
         err = code.error_goto_if_null(self.func_node.result(), self.pos)
-        code.put_gotref(self.func_node.result())
+        code.put_gotref(self.func_node.py_result())
         # need to get attribute manually--scope would return cdef method
         code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (self.func_node.result(), self_arg, self.py_func.interned_attr_cname, err))
         # It appears that this type is not anywhere exposed in the Python/C API
@@ -3068,7 +3068,7 @@ class InPlaceAssignmentNode(AssignmentNode):
                     self.rhs.py_result(),
                     extra,
                     code.error_goto_if_null(self.result_value.py_result(), self.pos)))
-            code.put_gotref(self.result_value.result())
+            code.put_gotref(self.result_value.py_result())
             self.result_value.generate_evaluation_code(code) # May be a type check...
             self.rhs.generate_disposal_code(code)
             self.rhs.free_temps(code)
@@ -4580,7 +4580,7 @@ class FromImportStatNode(StatNode):
                     self.module.py_result(),
                     cname,
                     code.error_goto_if_null(self.item.result(), self.pos)))
-            code.put_gotref(self.item.result())
+            code.put_gotref(self.item.py_result())
             target.generate_assignment_code(self.item, code)
         self.module.generate_disposal_code(code)
         self.module.free_temps(code)

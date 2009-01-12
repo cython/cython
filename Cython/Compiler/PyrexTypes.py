@@ -20,7 +20,6 @@ class BaseType(object):
         else:
             return base_code
 
-
 class PyrexType(BaseType):
     #
     #  Base class for all Pyrex types.
@@ -257,6 +256,11 @@ class PyObjectType(PyrexType):
         else:
             return "%s *%s" % (public_decl("PyObject", dll_linkage), entity_code)
 
+    def as_pyobject(self, cname):
+        if (not self.is_complete()) or self.is_extension_type:
+            return "(PyObject *)" + cname
+        else:
+            return cname
 
 class BuiltinObjectType(PyObjectType):
 
