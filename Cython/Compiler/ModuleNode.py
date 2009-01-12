@@ -1647,7 +1647,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s = NULL;" % Naming.retval_cname)
         code.put_label(code.return_label)
         code.put_finish_refcount_context(self.pos, env.qualified_name,
-                                         "NULL", Naming.retval_cname)
+                                         Naming.retval_cname, "NULL")
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln("return;")
         code.putln("#else")
