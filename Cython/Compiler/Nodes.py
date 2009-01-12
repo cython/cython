@@ -1023,7 +1023,7 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Automatic lead-ins for certain special functions
         if is_getbuffer_slot:
             self.getbuffer_init(code)
-        code.putln('__Pyx_SetupRefcountContext("%s");' % self.entry.name)
+        code.put_setup_refcount_context(self.entry.name)
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must 
@@ -1144,14 +1144,11 @@ class FuncDefNode(StatNode, BlockNode):
             err_val = default_retval
         if self.return_type.is_pyobject:
             code.put_xgiveref(self.return_type.as_pyobject(Naming.retval_cname))
-        if err_val is None:
-            code.putln('__Pyx_FinishRefcountContext();')
-        else:
-            code.putln('if (__Pyx_FinishRefcountContext() == -1) {')
-            code.putln(code.set_error_info(self.pos))
-            code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
-            code.putln('%s = %s;' % (Naming.retval_cname, err_val))
-            code.putln('}')
+
+        code.put_finish_refcount_context(self.pos,
+                                         self.entry.qualified_name,
+                                         Naming.retval_cname,
+                                         err_val)
 
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
