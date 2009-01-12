@@ -1017,7 +1017,7 @@ class LongNode(AtomicNewTempExprNode):
                 self.result(),
                 self.value,
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.result())
+        code.put_gotref(self.py_result())
 
 
 class ImagNode(AtomicNewTempExprNode):
@@ -1044,7 +1044,7 @@ class ImagNode(AtomicNewTempExprNode):
                 self.result(),
                 self.value,
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.result())
+        code.put_gotref(self.py_result())
         
 
 
@@ -1266,7 +1266,7 @@ class NameNode(AtomicExprNode):
                 namespace, 
                 self.interned_cname,
                 code.error_goto_if_null(self.result(), self.pos)))
-            code.put_gotref(self.result())
+            code.put_gotref(self.py_result())
             
         elif entry.is_local and False:
             # control flow not good enough yet
@@ -1413,7 +1413,7 @@ class BackquoteNode(ExprNode):
                 self.result(),
                 self.arg.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.result())
+        code.put_gotref(self.py_result())
         
 
 
@@ -1451,7 +1451,7 @@ class ImportNode(ExprNode):
                 self.module_name.py_result(),
                 name_list_code,
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.result())
+        code.put_gotref(self.py_result())
 
 
 class IteratorNode(NewTempExprNode):
@@ -1510,7 +1510,7 @@ class IteratorNode(NewTempExprNode):
                     self.result(),
                     self.sequence.py_result(),
                     code.error_goto_if_null(self.result(), self.pos)))
-            code.put_gotref(self.result())
+            code.put_gotref(self.py_result())
         code.putln("}")
 
 
@@ -1569,7 +1569,7 @@ class NextNode(AtomicNewTempExprNode):
         code.putln(code.error_goto_if_PyErr(self.pos))
         code.putln("break;")
         code.putln("}")
-        code.put_gotref(self.result())
+        code.put_gotref(self.py_result())
         code.putln("}")
 
 
@@ -1831,7 +1831,7 @@ class IndexNode(ExprNode):
                     self.index_unsigned_parameter(),
                     self.result(),
                     code.error_goto(self.pos)))
-            code.put_gotref(self.result())
+            code.put_gotref(self.py_result())
             
     def generate_setitem_code(self, value_code, code):
         if self.index.type.is_int:
@@ -2007,7 +2007,7 @@ class SliceIndexNode(ExprNode):
                 self.start_code(),
                 self.stop_code(),
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.result())
+        code.put_gotref(self.py_result())
     
     def generate_assignment_code(self, rhs, code):
         self.generate_subexpr_evaluation_code(code)
@@ -2172,7 +2172,7 @@ class SliceNode(ExprNode):
                 self.stop.py_result(), 
                 self.step.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.result())
+        code.put_gotref(self.py_result())
 
 
 class CallNode(NewTempExprNode):
@@ -2393,7 +2393,7 @@ class SimpleCallNode(CallNode):
                     self.function.py_result(),
                     arg_code,
                     code.error_goto_if_null(self.result(), self.pos)))
-            code.put_gotref(self.result())
+            code.put_gotref(self.py_result())
         elif func_type.is_cfunction:
             if self.has_optional_args:
                 actual_nargs = len(self.args)
@@ -2449,7 +2449,7 @@ class SimpleCallNode(CallNode):
                         goto_error = ""
                     code.putln("%s%s; %s" % (lhs, rhs, goto_error))
                 if self.type.is_pyobject and self.result():
-                    code.put_gotref(self.result())
+                    code.put_gotref(self.py_result())
                     
 
 class GeneralCallNode(CallNode):
@@ -2526,7 +2526,7 @@ class GeneralCallNode(CallNode):
                 self.result(),
                 call_code,
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.result())
+        code.put_gotref(self.py_result())
 
 
 class AsTupleNode(ExprNode):
@@ -2562,7 +2562,7 @@ class AsTupleNode(ExprNode):
                 self.result(),
                 self.arg.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.result())
+        code.put_gotref(self.py_result())
     
 
 class AttributeNode(ExprNode):
@@ -2832,7 +2832,7 @@ class AttributeNode(ExprNode):
                     self.obj.py_result(),
                     self.interned_attr_cname,
                     code.error_goto_if_null(self.result(), self.pos)))
-            code.put_gotref(self.result())
+            code.put_gotref(self.py_result())
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
@@ -3002,7 +3002,7 @@ class SequenceNode(NewTempExprNode):
                 self.iterator.result(),
                 rhs.py_result(),
                 code.error_goto_if_null(self.iterator.result(), self.pos)))
-        code.put_gotref(self.iterator.result())
+        code.put_gotref(self.iterator.py_result())
         rhs.generate_disposal_code(code)
         for i in range(len(self.args)):
             item = self.unpacked_items[i]
@@ -3013,7 +3013,7 @@ class SequenceNode(NewTempExprNode):
                     item.result(),
                     typecast(item.ctype(), py_object_type, unpack_code),
                     code.error_goto_if_null(item.result(), self.pos)))
-            code.put_gotref(item.result())
+            code.put_gotref(item.py_result())
             value_node = self.coerced_unpacked_items[i]
             value_node.generate_evaluation_code(code)
         code.put_error_if_neg(self.pos, 
@@ -3080,7 +3080,7 @@ class TupleNode(SequenceNode):
                 self.result(),
                 len(self.args),
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.result())
+        code.put_gotref(self.py_result())
         for i in range(len(self.args)):
             arg = self.args[i]
             if not arg.result_in_temp():
@@ -3176,7 +3176,7 @@ class ListNode(SequenceNode):
                 (self.result(),
                 len(self.args),
                 code.error_goto_if_null(self.result(), self.pos)))
-            code.put_gotref(self.result())
+            code.put_gotref(self.py_result())
             for i in range(len(self.args)):
                 arg = self.args[i]
                 #if not arg.is_temp:
@@ -3425,7 +3425,7 @@ class DictNode(ExprNode):
                 "%s = PyDict_New(); %s" % (
                     self.result(),
                     code.error_goto_if_null(self.result(), self.pos)))
-            code.put_gotref(self.result())
+            code.put_gotref(self.py_result())
         for item in self.key_value_pairs:
             item.generate_evaluation_code(code)
             if self.type.is_pyobject:
@@ -3521,7 +3521,7 @@ class ClassNode(ExprNode):
                 self.cname,
                 self.module_name,
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.result())
+        code.put_gotref(self.py_result())
 
 
 class UnboundMethodNode(ExprNode):
@@ -3549,7 +3549,7 @@ class UnboundMethodNode(ExprNode):
                 self.function.py_result(),
                 self.class_cname,
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.result())
+        code.put_gotref(self.py_result())
 
 class PyCFunctionNode(AtomicNewTempExprNode):
     #  Helper class used in the implementation of Python
@@ -3571,7 +3571,7 @@ class PyCFunctionNode(AtomicNewTempExprNode):
                 self.result(),
                 self.pymethdef_cname,
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.result())
+        code.put_gotref(self.py_result())
 
 #-------------------------------------------------------------------
 #
@@ -3650,7 +3650,7 @@ class UnopNode(ExprNode):
                 function, 
                 self.operand.py_result(),
                 code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.result())
+        code.put_gotref(self.py_result())
         
     def type_error(self):
         if not self.operand.type.is_error:
@@ -4057,7 +4057,7 @@ class BinopNode(NewTempExprNode):
                     self.operand2.py_result(),
                     extra_args,
                     code.error_goto_if_null(self.result(), self.pos)))
-            code.put_gotref(self.result())
+            code.put_gotref(self.py_result())
         else:
             if self.is_temp:
                 self.generate_c_operation_code(code)
@@ -4957,7 +4957,7 @@ class CoerceToPyTypeNode(CoercionNode):
             function, 
             self.arg.result(), 
             code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.result())
+        code.put_gotref(self.py_result())
 
 
 class CoerceFromPyTypeNode(CoercionNode):
@@ -4990,7 +4990,7 @@ class CoerceFromPyTypeNode(CoercionNode):
             rhs,
             code.error_goto_if(self.type.error_condition(self.result()), self.pos)))
         if self.type.is_pyobject:
-            code.put_gotref(self.result())
+            code.put_gotref(self.py_result())
 
 
 class CoerceToBooleanNode(CoercionNode):

@@ -729,8 +729,8 @@ class CCodeWriter(object):
 
     def entry_as_pyobject(self, entry):
         type = entry.type
-        if (not entry.is_self_arg and not entry.type.is_complete()) \
-            or (entry.type.is_extension_type and entry.type.base_type):
+        if (not entry.is_self_arg and not entry.type.is_complete()
+            or entry.type.is_extension_type):
             return "(PyObject *)" + entry.cname
         else:
             return entry.cname
@@ -752,7 +752,19 @@ class CCodeWriter(object):
     
     def put_decref(self, cname, type):
         self.putln("__Pyx_DECREF(%s);" % self.as_pyobject(cname, type))
-    
+
+    def put_var_gotref(self, entry):
+        if entry.type.is_pyobject:
+            self.putln("__Pyx_GOTREF(%s);" % self.entry_as_pyobject(entry))
+        
+    def put_var_giveref(self, entry):
+        if entry.type.is_pyobject:
+            self.putln("__Pyx_GIVEREF(%s);" % self.entry_as_pyobject(entry))
+
+    def put_var_xgiveref(self, entry):
+        if entry.type.is_pyobject:
+            self.putln("__Pyx_XGIVEREF(%s);" % self.entry_as_pyobject(entry))
+
     def put_var_incref(self, entry):
         if entry.type.is_pyobject:
             self.putln("__Pyx_INCREF(%s);" % self.entry_as_pyobject(entry))
