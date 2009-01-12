@@ -747,11 +747,17 @@ class CCodeWriter(object):
     def put_xgiveref(self, cname):
         self.putln("__Pyx_XGIVEREF(%s);" % cname)
 
-    def put_incref(self, cname, type):
-        self.putln("__Pyx_INCREF(%s);" % self.as_pyobject(cname, type))
+    def put_incref(self, cname, type, nanny=True):
+        if nanny:
+            self.putln("__Pyx_INCREF(%s);" % self.as_pyobject(cname, type))
+        else:
+            self.putln("Py_INCREF(%s);" % self.as_pyobject(cname, type))
     
-    def put_decref(self, cname, type):
-        self.putln("__Pyx_DECREF(%s);" % self.as_pyobject(cname, type))
+    def put_decref(self, cname, type, nanny=True):
+        if nanny:
+            self.putln("__Pyx_DECREF(%s);" % self.as_pyobject(cname, type))
+        else:
+            self.putln("Py_DECREF(%s);" % self.as_pyobject(cname, type))
 
     def put_var_gotref(self, entry):
         if entry.type.is_pyobject:
@@ -769,17 +775,27 @@ class CCodeWriter(object):
         if entry.type.is_pyobject:
             self.putln("__Pyx_INCREF(%s);" % self.entry_as_pyobject(entry))
     
-    def put_decref_clear(self, cname, type):
-        self.putln("__Pyx_DECREF(%s); %s = 0;" % (
-            typecast(py_object_type, type, cname), cname))
-            #self.as_pyobject(cname, type), cname))
+    def put_decref_clear(self, cname, type, nanny=True):
+        if nanny:
+            self.putln("__Pyx_DECREF(%s); %s = 0;" % (
+                typecast(py_object_type, type, cname), cname))
+        else:
+            self.putln("Py_DECREF(%s); %s = 0;" % (
+                typecast(py_object_type, type, cname), cname))
     
-    def put_xdecref(self, cname, type):
-        self.putln("__Pyx_XDECREF(%s);" % self.as_pyobject(cname, type))
+    def put_xdecref(self, cname, type, nanny=True):
+        if nanny:
+            self.putln("__Pyx_XDECREF(%s);" % self.as_pyobject(cname, type))
+        else:
+            self.putln("Py_XDECREF(%s);" % self.as_pyobject(cname, type))
     
-    def put_xdecref_clear(self, cname, type):
-        self.putln("__Pyx_XDECREF(%s); %s = 0;" % (
-            self.as_pyobject(cname, type), cname))
+    def put_xdecref_clear(self, cname, type, nanny=True):
+        if nanny:
+            self.putln("__Pyx_XDECREF(%s); %s = 0;" % (
+                self.as_pyobject(cname, type), cname))
+        else:
+            self.putln("Py_XDECREF(%s); %s = 0;" % (
+                self.as_pyobject(cname, type), cname))
 
     def put_var_decref(self, entry):
         if entry.type.is_pyobject:
@@ -818,15 +834,18 @@ class CCodeWriter(object):
         for entry in entries:
             self.put_var_xdecref_clear(entry)
     
-    def put_init_to_py_none(self, cname, type):
+    def put_init_to_py_none(self, cname, type, nanny=True):
         py_none = typecast(type, py_object_type, "Py_None")
-        self.putln("%s = %s; __Pyx_INCREF(Py_None);" % (cname, py_none))
+        if nanny:
+            self.putln("%s = %s; __Pyx_INCREF(Py_None);" % (cname, py_none))
+        else:
+            self.putln("%s = %s; Py_INCREF(Py_None);" % (cname, py_none))
     
-    def put_init_var_to_py_none(self, entry, template = "%s"):
+    def put_init_var_to_py_none(self, entry, template = "%s", nanny=True):
         code = template % entry.cname
         #if entry.type.is_extension_type:
         #	code = "((PyObject*)%s)" % code
-        self.put_init_to_py_none(code, entry.type)
+        self.put_init_to_py_none(code, entry.type, nanny)
 
     def put_pymethoddef(self, entry, term):
         if entry.doc:
@@ -893,6 +912,17 @@ class CCodeWriter(object):
     
     def lookup_filename(self, filename):
         return self.globalstate.lookup_filename(filename)
+
+    def put_setup_refcount_context(self, name):
+        self.putln('__Pyx_SetupRefcountContext("%s");' % name)
+
+    def put_finish_refcount_context(self, pos, name, retval_cname, err_val):
+        self.putln('if (__Pyx_FinishRefcountContext() == -1) {')
+        self.putln(self.set_error_info(pos))
+        self.putln('__Pyx_AddTraceback("%s");' % name)
+        if err_val is not None:
+            self.putln('%s = %s;' % (retval_cname, err_val))
+        self.putln('}')
 
 
 class PyrexCodeWriter:

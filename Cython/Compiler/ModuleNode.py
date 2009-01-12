@@ -906,7 +906,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry.name == "__weakref__":
                 code.putln("p->%s = 0;" % entry.cname)
             else:
-                code.put_init_var_to_py_none(entry, "p->%s")
+                code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
         entry = scope.lookup_here("__new__")
         if entry and entry.is_special:
             if entry.trivial_signature:
@@ -916,7 +916,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "if (%s(%s) < 0) {" % 
                     (entry.func_cname, cinit_args))
-            code.put_decref_clear("o", py_object_type);
+            code.put_decref_clear("o", py_object_type, nanny=False);
             code.putln(
                 "}")
         code.putln(
@@ -945,7 +945,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if weakref_slot in scope.var_entries:
             code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
         for entry in py_attrs:
-            code.put_xdecref("p->%s" % entry.cname, entry.type)
+            code.put_xdecref("p->%s" % entry.cname, entry.type, nanny=False)
         if base_type:
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is None:
@@ -1054,7 +1054,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in py_attrs:
             name = "p->%s" % entry.cname
             code.putln("tmp = ((PyObject*)%s);" % name)
-            code.put_init_to_py_none(name, entry.type)
+            code.put_init_to_py_none(name, entry.type, nanny=False)
             code.putln("Py_XDECREF(tmp);")
         code.putln(
             "return 0;")
@@ -1591,7 +1591,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("PyObject* %s;" % Naming.retval_cname)
         tempdecl_code = code.insertion_point()
 
-        code.putln('__Pyx_SetupRefcountContext("%s");' % header3)
+        code.put_setup_refcount_context(header3)
 
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
 
@@ -1646,11 +1646,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.use_utility_code(Nodes.traceback_utility_code)
         code.putln("%s = NULL;" % Naming.retval_cname)
         code.put_label(code.return_label)
-        code.putln('if (__Pyx_FinishRefcountContext() == -1) {')
-        code.putln(code.set_error_info(self.pos))
-        code.putln('__Pyx_AddTraceback("%s");' % env.qualified_name)
-        code.putln('%s = NULL;' % Naming.retval_cname)
-        code.putln('}')
+        code.put_finish_refcount_context(self.pos, env.qualified_name,
+                                         "NULL", Naming.retval_cname)
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln("return;")
         code.putln("#else")
