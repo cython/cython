@@ -161,7 +161,7 @@ class EmbedSignature(CythonTransform):
         if signature:
             if node.entry.doc is not None:
                 old_doc = node.entry.doc
-            elif hasattr(node, 'py_func') and node.py_func is not None:
+            elif getattr(node, 'py_func', None) is not None:
                 old_doc = node.py_func.entry.doc
             else:
                 old_doc = None
