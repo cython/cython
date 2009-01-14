@@ -21,7 +21,7 @@ class EmbedSignature(CythonTransform):
         try:
             denv = self.denv  # XXX
             ctval = arg.default.compile_time_value(self.denv)
-            return '%s' % ctval
+            return '%r' % ctval
         except Exception:
             try:
                 return arg.default.name # XXX

@@ -36,6 +36,9 @@ __doc__ = ur"""
     Ext.l(self, a, b, c=1, *args, d=42, e=17, f, **kwds)
     Existing string
 
+    >>> print (Ext.m.__doc__)
+    Ext.m(self, a='spam')
+
     >>> print (Ext.get_int.__doc__)
     Ext.get_int(self) -> int
 
@@ -63,6 +66,12 @@ __doc__ = ur"""
 
     >>> with_doc_4.__doc__
     'with_doc_4(int a, str b, list c) -> str\n\n    Existing string\n    '
+
+    >>> f_sd.__doc__
+    "f_sd(str s='spam')"
+
+    >>> cf_sd.__doc__
+    "cf_sd(str s='spam') -> str"
 
     >>> types.__doc__
     'types(Ext a, int b, unsigned short c, float d, e)'
@@ -164,6 +173,9 @@ cdef class Ext:
         """Existing string"""
         pass
 
+    def m(self, a='spam'):
+        pass
+
     cpdef int get_int(self):
         return 0
 
@@ -202,6 +214,12 @@ cpdef str with_doc_4(int a, str b, list c):
     Existing string
     """
     return b
+
+def f_sd(str s='spam'):
+    return s
+
+cpdef str cf_sd(str s='spam'):
+    return s
 
 cpdef char f_c(char c):
     return c
