@@ -1365,11 +1365,13 @@ type_conversion_predeclarations = """
 /* Type Conversion Predeclarations */
 
 #if PY_MAJOR_VERSION < 3
-#define __Pyx_PyBytes_FromString PyString_FromString
-#define __Pyx_PyBytes_AsString   PyString_AsString
+#define __Pyx_PyBytes_FromString          PyString_FromString
+#define __Pyx_PyBytes_FromStringAndSize   PyString_FromStringAndSize
+#define __Pyx_PyBytes_AsString            PyString_AsString
 #else
-#define __Pyx_PyBytes_FromString PyBytes_FromString
-#define __Pyx_PyBytes_AsString   PyBytes_AsString
+#define __Pyx_PyBytes_FromString          PyBytes_FromString
+#define __Pyx_PyBytes_FromStringAndSize   PyBytes_FromStringAndSize
+#define __Pyx_PyBytes_AsString            PyBytes_AsString
 #endif
 
 #define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
