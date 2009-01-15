@@ -1977,7 +1977,9 @@ class SliceIndexNode(ExprNode):
             self.start.analyse_types(env)
         if self.stop:
             self.stop.analyse_types(env)
-        if self.base.type.is_array or self.base.type.is_ptr:
+        if self.base.type.is_string:
+            self.type = py_object_type
+        elif self.base.type.is_array or self.base.type.is_ptr:
             # we need a ptr type here instead of an array type, as
             # array types can result in invalid type casts in the C
             # code
@@ -2000,13 +2002,31 @@ class SliceIndexNode(ExprNode):
             error(self.pos,
                   "Slicing is not currently supported for '%s'." % self.type)
             return
-        code.putln(
-            "%s = PySequence_GetSlice(%s, %s, %s); %s" % (
-                self.result(),
-                self.base.py_result(),
-                self.start_code(),
-                self.stop_code(),
-                code.error_goto_if_null(self.result(), self.pos)))
+        if self.base.type.is_string:
+            if self.stop is None:
+                code.putln(
+                    "%s = __Pyx_PyBytes_FromString(%s + %s); %s" % (
+                        self.result(),
+                        self.base.result(),
+                        self.start_code(),
+                        code.error_goto_if_null(self.result(), self.pos)))
+            else:
+                code.putln(
+                    "%s = __Pyx_PyBytes_FromStringAndSize(%s + %s, %s - %s); %s" % (
+                        self.result(),
+                        self.base.result(),
+                        self.start_code(),
+                        self.stop_code(),
+                        self.start_code(),
+                        code.error_goto_if_null(self.result(), self.pos)))
+        else:
+            code.putln(
+                "%s = PySequence_GetSlice(%s, %s, %s); %s" % (
+                    self.result(),
+                    self.base.py_result(),
+                    self.start_code(),
+                    self.stop_code(),
+                    code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
     
     def generate_assignment_code(self, rhs, code):
@@ -2042,7 +2062,7 @@ class SliceIndexNode(ExprNode):
         rhs.free_temps(code)
 
     def generate_deletion_code(self, code):
-        if not self.type.is_pyobject:
+        if not self.base.type.is_pyobject:
             error(self.pos,
                   "Deleting slices is only supported for Python types, not '%s'." % self.type)
             return
