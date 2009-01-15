@@ -113,7 +113,9 @@ setup(
   # pyximport
   py_modules = ["pyximport/__init__",
                 "pyximport/pyximport",
-                "pyximport/pyxbuild"],
+                "pyximport/pyxbuild", 
+                
+                "cython"],
   
   **setup_args
   )
