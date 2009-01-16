@@ -2545,7 +2545,7 @@ class CClassDefNode(ClassDefNode):
             if self.module is None:
                 self.module = ModuleScope(self.module_name, None, env.context)
                 self.module.has_extern_class = 1
-                env.cimported_modules.append(self.module)
+                env.add_imported_module(self.module)
 
         if self.base_class_name:
             if self.base_class_module:
