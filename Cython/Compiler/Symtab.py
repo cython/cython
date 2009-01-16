@@ -905,6 +905,10 @@ class ModuleScope(Scope):
     def add_imported_module(self, scope):
         if scope not in self.cimported_modules:
             self.cimported_modules.append(scope)
+            for m in scope.cimported_modules:
+                self.add_imported_module(m)
+            for filename in scope.include_files:
+                self.add_include_file(filename)
     
     def add_imported_entry(self, name, entry, pos):
         if entry not in self.entries:
@@ -935,7 +939,7 @@ class ModuleScope(Scope):
         else:
             entry = self.declare_var(name, py_object_type, pos)
         entry.as_module = scope
-        self.cimported_modules.append(scope)
+        self.add_imported_module(scope)
         return entry
     
     def declare_var(self, name, type, pos, 

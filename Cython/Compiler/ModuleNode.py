@@ -567,14 +567,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_includes(self, env, cimported_modules, code):
         includes = []
-        for module in cimported_modules:
-            for filename in module.include_files:
-                if filename not in includes:
-                    includes.append(filename)
         for filename in env.include_files:
-            if filename not in includes:
-                includes.append(filename)
-        for filename in includes:
             code.putln('#include "%s"' % filename)
     
     def generate_filename_table(self, code):
