@@ -13,10 +13,10 @@ from b cimport b
 cdef extern from "c.h":
     cdef int c
 
-from indirect_d cimport d
+cimport indirect_d
 
 cdef extern from "e.h":
     cdef int e
 
 def test():
-    print a, b, c, d, e
+    print a, b, c, indirect_d.d, e
