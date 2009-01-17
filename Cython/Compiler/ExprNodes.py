@@ -2353,12 +2353,12 @@ class SimpleCallNode(CallNode):
                     "Python object cannot be passed as a varargs parameter")
         # Calc result type and code fragment
         self.type = func_type.return_type
-        if self.type.is_pyobject \
-            or func_type.exception_value is not None \
-            or func_type.exception_check:
-                self.is_temp = 1
-                if self.type.is_pyobject:
-                    self.result_ctype = py_object_type
+        if self.type.is_pyobject:
+            self.result_ctype = py_object_type
+            self.is_temp = 1
+        elif func_type.exception_value is not None \
+                 or func_type.exception_check:
+            self.is_temp = 1
         # C++ exception handler
         if func_type.exception_check == '+':
             if func_type.exception_value is None:

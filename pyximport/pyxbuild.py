@@ -3,7 +3,7 @@ the installed distutils infrastructure. Call:
 
 out_fname = pyx_to_dll("foo.pyx")
 """
-import os, md5
+import os
 
 import distutils
 from distutils.dist import Distribution

@@ -282,8 +282,8 @@ class Scope:
         if not self.in_cinclude and cname and re.match("^_[_A-Z]+$", cname):
             # See http://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names 
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
-        dict = self.entries
-        if name and dict.has_key(name):
+        entries = self.entries
+        if name and name in entries:
             if visibility == 'extern':
                 warning(pos, "'%s' redeclared " % name, 0)
             elif visibility != 'ignore':
@@ -292,7 +292,7 @@ class Scope:
         entry.in_cinclude = self.in_cinclude
         if name:
             entry.qualified_name = self.qualify_name(name)
-            dict[name] = entry
+            entries[name] = entry
         entry.scope = self
         entry.visibility = visibility
         return entry
