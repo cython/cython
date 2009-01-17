@@ -115,8 +115,9 @@ class Node(object):
     #  pos         (string, int, int)   Source file position
     #  is_name     boolean              Is a NameNode
     #  is_literal  boolean              Is a ConstNode
-    
-    __metaclass__ = VerboseCodeWriter
+
+    # Uncomment this for debugging.
+    # __metaclass__ = VerboseCodeWriter
     
     is_name = 0
     is_literal = 0
