@@ -303,7 +303,7 @@ class Scope:
     def declare_const(self, name, type, value, pos, cname = None, visibility = 'private'):
         # Add an entry for a named constant.
         if not cname:
-            if self.in_cinclude:
+            if self.in_cinclude or visibility == 'public':
                 cname = name
             else:
                 cname = self.mangle(Naming.enum_prefix, name)
