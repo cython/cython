@@ -69,10 +69,54 @@ def embed_position(pos, docstring):
     doc.encoding = encoding
     return doc
 
+
+from Code import CCodeWriter
+from types import FunctionType
+
+def write_func_call(func):
+    def f(*args, **kwds):
+        if len(args) > 1 and isinstance(args[1], CCodeWriter):
+            # here we annotate the code with this function call
+            # but only if new code is generated
+            node, code = args[:2]
+            marker = '                    /* %s -> %s.%s %s */' % (
+                    ' ' * code.call_level,
+                    node.__class__.__name__, 
+                    func.__name__, 
+                    node.pos[1:])
+            pristine = code.buffer.stream.tell()
+            code.putln(marker)
+            start = code.buffer.stream.tell()
+            code.call_level += 4
+            res = func(*args, **kwds)
+            code.call_level -= 4
+            if start == code.buffer.stream.tell():
+                code.buffer.stream.seek(pristine)
+            else:
+                marker = marker.replace('->', '<-')
+                code.putln(marker)
+            return res
+        else:
+            return func(*args, **kwds)
+    return f
+
+class VerboseCodeWriter(type):
+    # Set this as a metaclass to trace function calls in code.
+    # This slows down code generation and makes much larger files. 
+    def __new__(cls, name, bases, attrs):
+        attrs = dict(attrs)
+        for mname, m in attrs.items():
+            if isinstance(m, FunctionType):
+                attrs[mname] = write_func_call(m)
+        return super(VerboseCodeWriter, cls).__new__(cls, name, bases, attrs)
+
+
 class Node(object):
     #  pos         (string, int, int)   Source file position
     #  is_name     boolean              Is a NameNode
     #  is_literal  boolean              Is a ConstNode
+    
+    __metaclass__ = VerboseCodeWriter
     
     is_name = 0
     is_literal = 0
