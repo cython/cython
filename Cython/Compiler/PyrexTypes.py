@@ -517,7 +517,7 @@ class CIntType(CNumericType):
         c_type = self.sign_and_name()
         c_name = c_type.replace(' ', '_');
         func_name = "__pyx_PyInt_%s" % c_name;
-        if not int_conversion_list.has_key(func_name):
+        if func_name not in int_conversion_list:
             # no env to add utility code to
             global type_conversion_predeclarations, type_conversion_functions
             if self.signed:

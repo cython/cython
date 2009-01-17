@@ -83,7 +83,7 @@ def CodeRanges(code_list):
     re_list = []
     for i in xrange(0, len(code_list), 2):
         re_list.append(CodeRange(code_list[i], code_list[i + 1]))
-    return apply(Alt, tuple(re_list))
+    return Alt(*re_list)
 
 def CodeRange(code1, code2):
     """
