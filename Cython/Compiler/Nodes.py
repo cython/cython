@@ -76,13 +76,33 @@ from types import FunctionType
 def write_func_call(func):
     def f(*args, **kwds):
         if len(args) > 1 and isinstance(args[1], CCodeWriter):
+            # here we annotate the code with this function call
+            # but only if new code is generated
             node, code = args[:2]
-            code.putln('/* %s.%s %s */' % (node.__class__.__name__, func.__name__, node.pos[1:]))
-        return func(*args, **kwds)
+            marker = '                    /* %s -> %s.%s %s */' % (
+                    ' ' * code.call_level,
+                    node.__class__.__name__, 
+                    func.__name__, 
+                    node.pos[1:])
+            pristine = code.buffer.stream.tell()
+            code.putln(marker)
+            start = code.buffer.stream.tell()
+            code.call_level += 4
+            res = func(*args, **kwds)
+            code.call_level -= 4
+            if start == code.buffer.stream.tell():
+                code.buffer.stream.seek(pristine)
+            else:
+                marker = marker.replace('->', '<-')
+                code.putln(marker)
+            return res
+        else:
+            return func(*args, **kwds)
     return f
 
 class VerboseCodeWriter(type):
     # Set this as a metaclass to trace function calls in code.
+    # This slows down code generation and makes much larger files. 
     def __new__(cls, name, bases, attrs):
         attrs = dict(attrs)
         for mname, m in attrs.items():

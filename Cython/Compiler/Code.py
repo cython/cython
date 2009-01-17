@@ -510,6 +510,7 @@ class CCodeWriter(object):
         
         self.funcstate = None
         self.level = 0
+        self.call_level = 0
         self.bol = 1
         if create_from is None:
             # Root CCodeWriter
@@ -523,6 +524,7 @@ class CCodeWriter(object):
             if copy_formatting:
                 self.level = create_from.level
                 self.bol = create_from.bol
+                self.call_level = create_from.call_level
         if emit_linenums is None:
             self.emit_linenums = self.globalstate.emit_linenums
         else:
