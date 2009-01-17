@@ -69,10 +69,34 @@ def embed_position(pos, docstring):
     doc.encoding = encoding
     return doc
 
+
+from Code import CCodeWriter
+from types import FunctionType
+
+def write_func_call(func):
+    def f(*args, **kwds):
+        if len(args) > 1 and isinstance(args[1], CCodeWriter):
+            node, code = args[:2]
+            code.putln('/* %s.%s %s */' % (node.__class__.__name__, func.__name__, node.pos[1:]))
+        return func(*args, **kwds)
+    return f
+
+class VerboseCodeWriter(type):
+    # Set this as a metaclass to trace function calls in code.
+    def __new__(cls, name, bases, attrs):
+        attrs = dict(attrs)
+        for mname, m in attrs.items():
+            if isinstance(m, FunctionType):
+                attrs[mname] = write_func_call(m)
+        return super(VerboseCodeWriter, cls).__new__(cls, name, bases, attrs)
+
+
 class Node(object):
     #  pos         (string, int, int)   Source file position
     #  is_name     boolean              Is a NameNode
     #  is_literal  boolean              Is a ConstNode
+    
+    __metaclass__ = VerboseCodeWriter
     
     is_name = 0
     is_literal = 0
