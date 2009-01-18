@@ -1068,7 +1068,8 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Automatic lead-ins for certain special functions
         if is_getbuffer_slot:
             self.getbuffer_init(code)
-        code.put_setup_refcount_context(self.entry.name)
+        if not lenv.nogil:
+            code.put_setup_refcount_context(self.entry.name)
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must 
@@ -1183,17 +1184,18 @@ class FuncDefNode(StatNode, BlockNode):
         # code.putln("/* TODO: decref scope object */")
         # ----- Return
         # This code is duplicated in ModuleNode.generate_module_init_func
-        default_retval = self.return_type.default_value
-        err_val = self.error_value()
-        if err_val is None and default_retval:
-            err_val = default_retval
-        if self.return_type.is_pyobject:
-            code.put_xgiveref(self.return_type.as_pyobject(Naming.retval_cname))
+        if not lenv.nogil:
+            default_retval = self.return_type.default_value
+            err_val = self.error_value()
+            if err_val is None and default_retval:
+                err_val = default_retval
+            if self.return_type.is_pyobject:
+                code.put_xgiveref(self.return_type.as_pyobject(Naming.retval_cname))
 
-        code.put_finish_refcount_context(self.pos,
-                                         self.entry.qualified_name,
-                                         Naming.retval_cname,
-                                         err_val)
+            code.put_finish_refcount_context(self.pos,
+                                             self.entry.qualified_name,
+                                             Naming.retval_cname,
+                                             err_val)
 
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
