@@ -1,4 +1,6 @@
 from python_ref cimport Py_INCREF, Py_DECREF
+cimport python_exc as exc
+
 
 loglevel = 0
 reflog = []
@@ -69,6 +71,12 @@ cdef public void __Pyx_Refnanny_DECREF(void* ctx, object obj, int lineno):
     Py_DECREF(obj)
     
 cdef public int __Pyx_Refnanny_FinishContext(void* ctx) except -1:
+    cdef exc.PyObject* type, *value, *tb
+    if exc.PyErr_Occurred():
+        exc.PyErr_Fetch(&type, &value, &tb)
+        Py_DECREF(<object>type); Py_DECREF(<object>value); Py_DECREF(<object>tb)
+        print "cleared!"
+        print (exc.PyErr_Occurred() == NULL)
     obj = <object>ctx
     try:
         obj.end()
