@@ -147,7 +147,7 @@ class TreeVisitor(BasicVisitor):
         self.access_path.append((parent, attrname, idx))
         try:
             result = self.visit(child)
-        except (Errors.CompileWarning, Errors.CompileError):
+        except Errors.CompileError:
             raise
         except Exception, e:
             import sys
