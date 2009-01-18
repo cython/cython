@@ -2587,7 +2587,7 @@ class AsTupleNode(ExprNode):
         code.put_gotref(self.py_result())
     
 
-class AttributeNode(ExprNode):
+class AttributeNode(NewTempExprNode):
     #  obj.attribute
     #
     #  obj          ExprNode
