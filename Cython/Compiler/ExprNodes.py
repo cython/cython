@@ -510,7 +510,9 @@ class ExprNode(Node):
         pass
 
     def free_temps(self, code):
-        pass
+        if not self.is_temp:
+            self.free_subexpr_temps(code)
+        # otherwise, already freed in generate_evaluation_code
     
     def free_subexpr_temps(self, code):
         for sub in self.subexpr_nodes():
