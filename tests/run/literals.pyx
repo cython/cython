@@ -1,5 +1,9 @@
 __doc__ = u"""
     >>> foo()
+    >>> test_float(1./3)
+    True
+    >>> test_complex(1j/3)
+    True
 """
 
 def foo():
@@ -46,3 +50,11 @@ with ' and " quotes"""
     q = "NameLikeString2"
     r = "99_percent_un_namelike"
     s = "Not an \escape"
+
+
+
+def test_float(x):
+    return x == 1./3
+
+def test_complex(x):
+    return x == 0.3333333333333333j
