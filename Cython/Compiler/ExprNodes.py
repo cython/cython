@@ -885,7 +885,7 @@ class FloatNode(ConstNode):
         return float(self.value)
     
     def calculate_result_code(self):
-        strval = str(self.value)
+        strval = repr(float(self.value))
         if strval == 'nan':
             return "(Py_HUGE_VAL * 0)"
         elif strval == 'inf':
@@ -1042,9 +1042,9 @@ class ImagNode(AtomicNewTempExprNode):
 
     def generate_result_code(self, code):
         code.putln(
-            "%s = PyComplex_FromDoubles(0.0, %s); %s" % (
+            "%s = PyComplex_FromDoubles(0.0, %r); %s" % (
                 self.result(),
-                self.value,
+                float(self.value),
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
         
