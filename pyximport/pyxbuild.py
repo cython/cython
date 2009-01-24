@@ -23,7 +23,7 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0):
 
     if not ext:
         modname, extension = os.path.splitext(name)
-	assert extension == ".pyx", extension
+	assert extension in (".pyx", ".py"), extension
         ext = Extension(name=modname, sources=[filename])
 
     if DEBUG:
@@ -64,14 +64,14 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0):
             sys.stderr.write(error + "\n")
             raise
         else:
-            raise SystemExit, error
+            raise RuntimeError, error
 
     except (DistutilsError,
         CCompilerError), msg:
         if DEBUG:
             raise
         else:
-            raise SystemExit, "error: " + str(msg)
+            raise RuntimeError, "error: " + str(msg)
 
 if __name__=="__main__":
     pyx_to_dll("dummy.pyx")
