@@ -14,7 +14,8 @@ from Cython.Distutils import build_ext
 import shutil
 
 DEBUG = 0
-def pyx_to_dll(filename, ext = None, force_rebuild = 0):
+def pyx_to_dll(filename, ext = None, force_rebuild = 0,
+               build_in_temp=False, pyxbuild_dir=None):
     """Compile a PYX file to a DLL and return the name of the generated .so 
        or .dll ."""
     assert os.path.exists(filename)
@@ -26,6 +27,9 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0):
 	assert extension in (".pyx", ".py"), extension
         ext = Extension(name=modname, sources=[filename])
 
+    if not pyxbuild_dir:
+        pyxbuild_dir = os.path.join(path, "_pyxbld")
+
     if DEBUG:
         quiet = "--verbose"
     else:
@@ -33,13 +37,15 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0):
     args = [quiet, "build_ext"]
     if force_rebuild:
         args.append("--force")
+    if build_in_temp:
+        args.append("--pyrex-c-in-temp")
     dist = Distribution({"script_name": None, "script_args": args})
     if not dist.ext_modules:
         dist.ext_modules = []
     dist.ext_modules.append(ext)
     dist.cmdclass = {'build_ext': build_ext}
     build = dist.get_command_obj('build')
-    build.build_base = os.path.join(path, "_pyxbld")
+    build.build_base = pyxbuild_dir
 
     try:
         ok = dist.parse_command_line()
@@ -71,7 +77,7 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0):
         if DEBUG:
             raise
         else:
-            raise RuntimeError, "error: " + str(msg)
+            raise RuntimeError(repr(msg))
 
 if __name__=="__main__":
     pyx_to_dll("dummy.pyx")
