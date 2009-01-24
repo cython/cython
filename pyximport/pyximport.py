@@ -140,12 +140,11 @@ def load_module(name, pyxfilename):
 # import hooks
 
 class PyxImporter(object):
-    def __init__(self, so_cache_dir):
-        self.so_cache_dir = so_cache_dir
-        self.so_name_cache = {}
+    def __init__(self):
+        pass
 
     def find_module(self, fullname, package_path=None):
-        print "SEARCHING", fullname, package_path
+        #print "SEARCHING", fullname, package_path
         if '.' in fullname:
             mod_parts = fullname.split('.')
             package = '.'.join(mod_parts[:-1])
@@ -186,11 +185,11 @@ class PyxLoader(object):
             self.fullname, fullname))
         if self.init_path:
             # package
-            print "PACKAGE", fullname
+            #print "PACKAGE", fullname
             module = load_module(fullname, self.init_path)
             module.__path__ = [self.path]
         else:
-            print "MODULE", fullname
+            #print "MODULE", fullname
             module = load_module(fullname, self.path)
         return module
 
@@ -204,7 +203,7 @@ def install():
     for importer in sys.meta_path:
         if isinstance(importer, PyxImporter):
             return
-    importer = PyxImporter('~/.pyxbuild')
+    importer = PyxImporter() # ('~/.pyxbuild')
     sys.meta_path.append(importer)
 
 
