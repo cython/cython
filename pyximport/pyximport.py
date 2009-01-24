@@ -40,6 +40,8 @@ PYX_EXT = ".pyx"
 PYXDEP_EXT = ".pyxdep"
 PYXBLD_EXT = ".pyxbld"
 
+DEBUG_IMPORT = False
+
 # Performance problem: for every PYX file that is imported, we will 
 # invoke the whole distutils infrastructure even if the module is 
 # already built. It might be more efficient to only do it when the 
@@ -109,14 +111,16 @@ def handle_dependencies(pyxfilename):
                 os.utime(pyxfilename, (filetime, filetime))
                 _test_files.append(file)
 
-def build_module(name, pyxfilename):
+def build_module(name, pyxfilename, pyxbuild_dir=None):
     assert os.path.exists(pyxfilename), (
         "Path does not exist: %s" % pyxfilename)
     handle_dependencies(pyxfilename)
 
     extension_mod = get_distutils_extension(name, pyxfilename)
 
-    so_path = pyxbuild.pyx_to_dll(pyxfilename, extension_mod)
+    so_path = pyxbuild.pyx_to_dll(pyxfilename, extension_mod,
+                                  build_in_temp=True,
+                                  pyxbuild_dir=pyxbuild_dir)
     assert os.path.exists(so_path), "Cannot find: %s" % so_path
 
     junkpath = os.path.join(os.path.dirname(so_path), name+"_*")
@@ -130,21 +134,30 @@ def build_module(name, pyxfilename):
 
     return so_path
 
-def load_module(name, pyxfilename):
-    so_path = build_module(name, pyxfilename)
-    mod = imp.load_dynamic(name, so_path)
-    assert mod.__file__ == so_path, (mod.__file__, so_path)
+def load_module(name, pyxfilename, pyxbuild_dir=None):
+    try:
+        so_path = build_module(name, pyxfilename, pyxbuild_dir)
+        mod = imp.load_dynamic(name, so_path)
+        assert mod.__file__ == so_path, (mod.__file__, so_path)
+    except Exception, e:
+        raise ImportError("Building module failed: %s" % e)
     return mod
 
 
 # import hooks
 
 class PyxImporter(object):
-    def __init__(self):
-        pass
+    """A meta-path importer for .pyx files.
+    """
+    def __init__(self, extension=PYX_EXT, pyxbuild_dir=None):
+        self.extension = extension
+        self.pyxbuild_dir = pyxbuild_dir
 
     def find_module(self, fullname, package_path=None):
-        #print "SEARCHING", fullname, package_path
+        if fullname in sys.modules:
+            return None
+        if DEBUG_IMPORT:
+            print "SEARCHING", fullname, package_path
         if '.' in fullname:
             mod_parts = fullname.split('.')
             package = '.'.join(mod_parts[:-1])
@@ -152,7 +165,7 @@ class PyxImporter(object):
         else:
             package = None
             module_name = fullname
-        pyx_module_name = module_name + PYX_EXT
+        pyx_module_name = module_name + self.extension
         # this may work, but it returns the file content, not its path
         #import pkgutil
         #pyx_source = pkgutil.get_data(package, pyx_module_name)
@@ -166,18 +179,81 @@ class PyxImporter(object):
         for path in filter(os.path.isdir, paths):
             for filename in os.listdir(path):
                 if filename == pyx_module_name:
-                    return PyxLoader(fullname, join_path(path, filename))
+                    return PyxLoader(fullname, join_path(path, filename),
+                                     pyxbuild_dir=self.pyxbuild_dir)
                 elif filename == module_name:
                     package_path = join_path(path, filename)
-                    init_path = join_path(package_path, '__init__' + PYX_EXT)
+                    init_path = join_path(package_path,
+                                          '__init__' + self.extension)
                     if is_file(init_path):
-                        return PyxLoader(fullname, package_path, init_path)
+                        return PyxLoader(fullname, package_path, init_path,
+                                         pyxbuild_dir=self.pyxbuild_dir)
         # not found, normal package, not a .pyx file, none of our business
         return None
 
+class PyImporter(PyxImporter):
+    """A meta-path importer for normal .py files.
+    """
+    def __init__(self, pyxbuild_dir=None):
+        self.super = super(PyImporter, self)
+        self.super.__init__(extension='.py', pyxbuild_dir=pyxbuild_dir)
+        self.uncompilable_modules = {}
+        self.blocked_modules = ['Cython']
+
+    def find_module(self, fullname, package_path=None):
+        if fullname in sys.modules:
+            return None
+        if fullname.startswith('Cython.'):
+            return None
+        if fullname in self.blocked_modules:
+            # prevent infinite recursion
+            return None
+        if DEBUG_IMPORT:
+            print "trying import of module %s" % fullname
+        if fullname in self.uncompilable_modules:
+            path, last_modified = self.uncompilable_modules[fullname]
+            try:
+                new_last_modified = os.stat(path).st_mtime
+                if new_last_modified > last_modified:
+                    # import would fail again
+                    return None
+            except OSError:
+                # module is no longer where we found it, retry the import
+                pass
+
+        self.blocked_modules.append(fullname)
+        try:
+            importer = self.super.find_module(fullname, package_path)
+            if importer is not None:
+                if DEBUG_IMPORT:
+                    print "importer found"
+                try:
+                    if importer.init_path:
+                        path = importer.init_path
+                    else:
+                        path = importer.path
+                    build_module(fullname, path,
+                                 pyxbuild_dir=self.pyxbuild_dir)
+                except Exception, e:
+                    if DEBUG_IMPORT:
+                        import traceback
+                        traceback.print_exc()
+                    # build failed, not a compilable Python module
+                    try:
+                        last_modified = os.stat(path).st_mtime
+                    except OSError:
+                        last_modified = 0
+                    self.uncompilable_modules[fullname] = (path, last_modified)
+                    importer = None
+        finally:
+            self.blocked_modules.pop()
+        return importer
+
 class PyxLoader(object):
-    def __init__(self, fullname, path, init_path=None):
-        self.fullname, self.path, self.init_path = fullname, path, init_path
+    def __init__(self, fullname, path, init_path=None, pyxbuild_dir=None):
+        self.fullname = fullname
+        self.path, self.init_path = path, init_path
+        self.pyxbuild_dir = pyxbuild_dir
 
     def load_module(self, fullname):
         assert self.fullname == fullname, (
@@ -186,25 +262,50 @@ class PyxLoader(object):
         if self.init_path:
             # package
             #print "PACKAGE", fullname
-            module = load_module(fullname, self.init_path)
+            module = load_module(fullname, self.init_path,
+                                 self.pyxbuild_dir)
             module.__path__ = [self.path]
         else:
             #print "MODULE", fullname
-            module = load_module(fullname, self.path)
+            module = load_module(fullname, self.path,
+                                 self.pyxbuild_dir)
         return module
 
 
-def install():
-    """Main entry point. call this to install the import hook in your
-    for a single Python process. If you want it to be installed whenever
-    you use Python, add it to your sitecustomize (as described above).
+def install(pyximport=True, pyimport=False, build_dir=None):
+    """Main entry point. Call this to install the .pyx import hook in
+    your meta-path for a single Python process.  If you want it to be
+    installed whenever you use Python, add it to your sitecustomize
+    (as described above).
 
+    You can pass ``pyimport=True`` to also install the .py import hook
+    in your meta-path.  Note, however, that it is highly experimental,
+    will not work for most .py files, and will therefore only slow
+    down your imports.  Use at your own risk.
+
+    By default, compiled modules will end up in a ``.pyxbld``
+    directory in the user's home directory.  Passing a different path
+    as ``build_dir`` will override this.
     """
+    if not build_dir:
+        build_dir = os.path.expanduser('~/.pyxbld')
+
+    has_py_importer = False
+    has_pyx_importer = False
     for importer in sys.meta_path:
         if isinstance(importer, PyxImporter):
-            return
-    importer = PyxImporter() # ('~/.pyxbuild')
-    sys.meta_path.append(importer)
+            if isinstance(importer, PyImporter):
+                has_py_importer = True
+            else:
+                has_pyx_importer = True
+
+    if pyimport and not has_py_importer:
+        importer = PyImporter(pyxbuild_dir=build_dir)
+        sys.meta_path.insert(0, importer)
+
+    if pyximport and not has_pyx_importer:
+        importer = PyxImporter(pyxbuild_dir=build_dir)
+        sys.meta_path.append(importer)
 
 
 # MAIN
