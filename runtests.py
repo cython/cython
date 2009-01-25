@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import os, sys, re, shutil, unittest, doctest, ctypes
+import os, sys, re, shutil, unittest, doctest
 
 WITH_CYTHON = True
 
@@ -534,6 +534,7 @@ if __name__ == '__main__':
         Errors.LEVEL = 0 # show all warnings
 
     if options.with_refnanny:
+        import ctypes
         ctypes.PyDLL("Cython/Runtime/refnanny.so", mode=ctypes.RTLD_GLOBAL)
         sys.path.append("Cython/Runtime")
         import refnanny
