@@ -21,6 +21,11 @@ everything else. When a module wants to use something declared in another
 module's definition file, it imports it using the :keyword:`cimport`
 statement.
 
+A ``.pxd`` file that consists solely of extern declarations does not need
+to correspond to an actual ``.pyx`` file or Python module. This can make it a
+convenient place to put common declarations, for example declarations of 
+functions from  an external library that one wants to use in several modules. 
+
 What a Definition File contains
 ================================
 
@@ -34,7 +39,9 @@ A definition file can contain:
 It cannot contain any non-extern C variable declarations.
 
 It cannot contain the implementations of any C or Python functions, or any
-Python class definitions, or any executable statements.
+Python class definitions, or any executable statements. It is needed when one 
+wants to  access :keyword:`cdef` attributes and methods, or to inherit from 
+:keyword:`cdef` classes defined in this module. 
 
 .. note::
 
@@ -49,6 +56,8 @@ What an Implementation File contains
 An implementation file can contain any kind of Cython statement, although there
 are some restrictions on the implementation part of an extension type if the
 corresponding definition file also defines that type (see below). 
+If one doesn't need to :keyword:`comport` anything from this module, then this
+is the only file one needs. 
 
 The cimport statement
 =======================
@@ -100,6 +109,9 @@ The exception is that when you use :keyword:`cimport` to import an extension typ
 type object is imported at run time and made available by the name under which
 you imported it. Using :keyword:`cimport` to import extension types is covered in more
 detail below.  
+
+If a ``.pxd`` file changes, any modules that :keyword:`cimport` from it may need to be 
+recompiled. 
 
 Search paths for definition files 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
