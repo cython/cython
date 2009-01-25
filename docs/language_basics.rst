@@ -6,6 +6,75 @@
 Language Basics
 *****************
 
+C variable and type definitions
+===============================
+
+The :keyword:`cdef` statement is used to declare C variables, either local or
+module-level::
+
+    cdef int i, j, k
+    cdef float f, g[42], *h
+
+and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types::
+
+    cdef struct Grail:
+        int age
+        float volume
+
+    cdef union Food:
+        char *spam
+        float *eggs
+
+    cdef enum CheeseType:
+        cheddar, edam, 
+        camembert
+
+    cdef enum CheeseState:
+        hard = 1
+        soft = 2
+        runny = 3
+
+There is currently no special syntax for defining a constant, but you can use
+an anonymous :keyword:`enum` declaration for this purpose, for example,::
+
+    cdef enum:
+        tons_of_spam = 3
+
+.. note::
+    the words ``struct``, ``union`` and ``enum`` are used only when
+    defining a type, not when referring to it. For example, to declare a variable
+    pointing to a ``Grail`` you would write::
+
+        cdef Grail *gp
+
+    and not::
+
+        cdef struct Grail *gp # WRONG
+
+    There is also a ``ctypedef`` statement for giving names to types, e.g.::
+
+        ctypedef unsigned long ULong
+
+        ctypedef int *IntPtr
+
+Grouping multiple C declarations
+--------------------------------
+
+If you have a series of declarations that all begin with :keyword:`cdef`, you
+can group them into a :keyword:`cdef` block like this::
+
+    cdef:
+        struct Spam:
+            int tons
+
+        int i
+        float f
+        Spam *p
+
+        void f(Spam *s):
+        print s.tons, "Tons of spam"
+
+
 Python functions vs. C functions
 ==================================
 
@@ -75,73 +144,96 @@ object as the explicit return type of a function, e.g.::
 In the interests of clarity, it is probably a good idea to always be explicit
 about object parameters in C functions.
 
-C variable and type definitions
--------------------------------
 
-The :keyword:`cdef` statement is also used to declare C variables, either local or
-module-level::
+Error return values
+-------------------
 
-    cdef int i, j, k
-    cdef float f, g[42], *h
+If you don't do anything special, a function declared with :keyword:`cdef` that
+does not return a Python object has no way of reporting Python exceptions to
+its caller. If an exception is detected in such a function, a warning message
+is printed and the exception is ignored.
 
-and C :keyword:`struct`, :keyword:`union` or :keyword:`enum` types::
+If you want a C function that does not return a Python object to be able to
+propagate exceptions to its caller, you need to declare an exception value for
+it. Here is an example::
 
-    cdef struct Grail:
-        int age
-        float volume
+    cdef int spam() except -1:
+        ...
 
-    cdef union Food:
-        char *spam
-        float *eggs
+With this declaration, whenever an exception occurs inside spam, it will
+immediately return with the value ``-1``. Furthermore, whenever a call to spam
+returns ``-1``, an exception will be assumed to have occurred and will be
+propagated.
 
-    cdef enum CheeseType:
-        cheddar, edam, 
-        camembert
+When you declare an exception value for a function, you should never
+explicitly return that value. If all possible return values are legal and you
+can't reserve one entirely for signalling errors, you can use an alternative
+form of exception value declaration::
 
-    cdef enum CheeseState:
-        hard = 1
-        soft = 2
-        runny = 3
+    cdef int spam() except? -1:
+        ...
 
-There is currently no special syntax for defining a constant, but you can use
-an anonymous :keyword:`enum` declaration for this purpose, for example,::
+The "?" indicates that the value ``-1`` only indicates a possible error. In this
+case, Cython generates a call to :cfunc:`PyErr_Occurred` if the exception value is
+returned, to make sure it really is an error.
 
-    cdef enum:
-        tons_of_spam = 3
+There is also a third form of exception value declaration::
 
-.. note::
-    the words ``struct``, ``union`` and ``enum`` are used only when
-    defining a type, not when referring to it. For example, to declare a variable
-    pointing to a ``Grail`` you would write::
+    cdef int spam() except *:
+        ...
 
-        cdef Grail *gp
+This form causes Cython to generate a call to :cfunc:`PyErr_Occurred` after
+every call to spam, regardless of what value it returns. If you have a
+function returning void that needs to propagate errors, you will have to use
+this form, since there isn't any return value to test.
+Otherwise there is little use for this form. 
 
-    and not::
+An external C++ function that may raise an exception can be declared with::
 
-        cdef struct Grail *gp # WRONG
+    cdef int spam() except +
 
-    There is also a ``ctypedef`` statement for giving names to types, e.g.::
+See :ref:`wrapping-cplusplus` for more details. 
 
-        ctypedef unsigned long ULong
+Some things to note:
 
-        ctypedef int *IntPtr
+* Exception values can only declared for functions returning an integer, enum,
+  float or pointer type, and the value must be a constant expression. 
+  Void functions can only use the ``except *`` form.
+* The exception value specification is part of the signature of the function.
+  If you're passing a pointer to a function as a parameter or assigning it
+  to a variable, the declared type of the parameter or variable must have
+  the same exception value specification (or lack thereof). Here is an
+  example of a pointer-to-function declaration with an exception
+  value::
 
-Grouping multiple C declarations
---------------------------------
+      int (*grail)(int, char *) except -1
 
-If you have a series of declarations that all begin with :keyword:`cdef`, you
-can group them into a :keyword:`cdef` block like this::
+* You don't need to (and shouldn't) declare exception values for functions
+  which return Python objects. Remember that a function with no declared
+  return type implicitly returns a Python object. (Exceptions on such functions 
+  are implicitly propagated by returning NULL.)
 
-    cdef:
-        struct Spam:
-            int tons
+Checking return values of non-Cython functions
+----------------------------------------------
 
-        int i
-        float f
-        Spam *p
+It's important to understand that the except clause does not cause an error to
+be raised when the specified value is returned. For example, you can't write
+something like::
 
-        void f(Spam *s):
-        print s.tons, "Tons of spam"
+    cdef extern FILE *fopen(char *filename, char *mode) except NULL # WRONG!
+
+and expect an exception to be automatically raised if a call to :func:`fopen`
+returns ``NULL``. The except clause doesn't work that way; its only purpose is
+for propagating Python exceptions that have already been raised, either by a Cython
+function or a C function that calls Python/C API routines. To get an exception
+from a non-Python-aware function such as :func:`fopen`, you will have to check the
+return value and raise it yourself, for example,::
+
+    cdef FILE *p
+    p = fopen("spam.txt", "r")
+    if p == NULL:
+        raise SpamError("Couldn't open the spam file")
+
     
 Automatic type conversions
 ==========================
@@ -273,188 +365,6 @@ Python variable residing in the scope where it is assigned.
         except AttributeError:
             True = 1
 
-Operator Precedence
--------------------
-
-Keep in mind that there are some differences in operator precedence between
-Python and C, and that Cython uses the Python precedences, not the C ones.
-
-Integer for-loops
-------------------
-
-Cython recognises the usual Python for-in-range integer loop pattern::
-
-    for i in range(n):
-        ...
-
-If ``i`` is declared as a :keyword:`cdef` integer type, it will
-optimise this into a pure C loop.  This restriction is required as
-otherwise the generated code wouldn't be correct due to potential
-integer overflows on the target architecture.  If you are worried that
-the loop is not being converted correctly, use the annotate feature of
-the cython commandline (``-a``) to easily see the generated C code.
-See :ref:`automatic-range-conversion`
-
-For backwards compatibility to Pyrex, Cython also supports another
-form of for-loop::
-
-    for i from 0 <= i < n:
-        ...
-
-or::
-
-    for i from 0 <= i < n by s:
-        ...
-
-where ``s`` is some integer step size.
-
-Some things to note about the for-from loop:
-
-* The target expression must be a variable name.
-* The name between the lower and upper bounds must be the same as the target
-  name.
-* The direction of iteration is determined by the relations. If they are both
-  from the set {``<``, ``<=``} then it is upwards; if they are both from the set 
-  {``>``, ``>=``} then it is downwards. (Any other combination is disallowed.)
-
-Like other Python looping statements, break and continue may be used in the
-body, and the loop may have an else clause.
-
-
-Error return values
-===================
-
-If you don't do anything special, a function declared with :keyword:`cdef` that
-does not return a Python object has no way of reporting Python exceptions to
-its caller. If an exception is detected in such a function, a warning message
-is printed and the exception is ignored.
-
-If you want a C function that does not return a Python object to be able to
-propagate exceptions to its caller, you need to declare an exception value for
-it. Here is an example::
-
-    cdef int spam() except -1:
-        ...
-
-With this declaration, whenever an exception occurs inside spam, it will
-immediately return with the value ``-1``. Furthermore, whenever a call to spam
-returns ``-1``, an exception will be assumed to have occurred and will be
-propagated.
-
-When you declare an exception value for a function, you should never
-explicitly return that value. If all possible return values are legal and you
-can't reserve one entirely for signalling errors, you can use an alternative
-form of exception value declaration::
-
-    cdef int spam() except? -1:
-        ...
-
-The "?" indicates that the value ``-1`` only indicates a possible error. In this
-case, Cython generates a call to :cfunc:`PyErr_Occurred` if the exception value is
-returned, to make sure it really is an error.
-
-There is also a third form of exception value declaration::
-
-    cdef int spam() except *:
-        ...
-
-This form causes Cython to generate a call to :cfunc:`PyErr_Occurred` after
-every call to spam, regardless of what value it returns. If you have a
-function returning void that needs to propagate errors, you will have to use
-this form, since there isn't any return value to test.
-Otherwise there is little use for this form. 
-
-An external C++ function that may raise an exception can be declared with::
-
-    cdef int spam() except +
-
-See :ref:`wrapping-cplusplus` for more details. 
-
-Some things to note:
-
-* Exception values can only declared for functions returning an integer, enum,
-  float or pointer type, and the value must be a constant expression. 
-  Void functions can only use the ``except *`` form.
-* The exception value specification is part of the signature of the function.
-  If you're passing a pointer to a function as a parameter or assigning it
-  to a variable, the declared type of the parameter or variable must have
-  the same exception value specification (or lack thereof). Here is an
-  example of a pointer-to-function declaration with an exception
-  value::
-
-      int (*grail)(int, char *) except -1
-
-* You don't need to (and shouldn't) declare exception values for functions
-  which return Python objects. Remember that a function with no declared
-  return type implicitly returns a Python object. (Exceptions on such functions 
-  are implicitly propagated by returning NULL.)
-
-Checking return values of non-Cython functions
-----------------------------------------------
-
-It's important to understand that the except clause does not cause an error to
-be raised when the specified value is returned. For example, you can't write
-something like::
-
-    cdef extern FILE *fopen(char *filename, char *mode) except NULL # WRONG!
-
-and expect an exception to be automatically raised if a call to :func:`fopen`
-returns ``NULL``. The except clause doesn't work that way; its only purpose is
-for propagating Python exceptions that have already been raised, either by a Cython
-function or a C function that calls Python/C API routines. To get an exception
-from a non-Python-aware function such as :func:`fopen`, you will have to check the
-return value and raise it yourself, for example,::
-
-    cdef FILE *p
-    p = fopen("spam.txt", "r")
-    if p == NULL:
-        raise SpamError("Couldn't open the spam file")
-
-The include statement
-=====================
-
-.. warning:: 
-    Historically the ``include`` statement was used for sharing declarations. 
-    Use :ref:`sharing-declarations` instead.
-
-A Cython source file can include material from other files using the include
-statement, for example::
-
-    include "spamstuff.pxi"
-
-The contents of the named file are textually included at that point. The
-included file can contain any complete statements or declarations that are
-valid in the context where the include statement appears, including other
-include statements. The contents of the included file should begin at an
-indentation level of zero, and will be treated as though they were indented to
-the level of the include statement that is including the file.
-
-.. note::
-
-    There are other mechanisms available for splitting Cython code into
-    separate parts that may be more appropriate in many cases. See
-    :ref:`sharing-declarations`.
-
-Keyword-only arguments
-======================
-
-Python functions can have keyword-only arguments listed after the ``*``
-parameter and before the ``**`` parameter if any, e.g.::
-
-    def f(a, b, *args, c, d = 42, e, **kwds):
-        ...
-
-Here ``c``, ``d`` and ``e`` cannot be passed as position arguments and must be
-passed as keyword arguments. Furthermore, ``c`` and ``e`` are required keyword
-arguments, since they do not have a default value.
-
-If the parameter name after the ``*`` is omitted, the function will not accept any
-extra positional arguments, e.g.::
-
-    def g(a, b, *, c, d):
-        ...
-
-takes exactly two positional parameters and has two required keyword parameters.
 
 Built-in Functions
 ------------------
@@ -508,14 +418,110 @@ something else with one of these names that assumes it's a Python object, such
 as assign it to a Python variable, and later call it, the call will be made as
 a Python function call.
 
+
+Operator Precedence
+-------------------
+
+Keep in mind that there are some differences in operator precedence between
+Python and C, and that Cython uses the Python precedences, not the C ones.
+
+Integer for-loops
+------------------
+
+Cython recognises the usual Python for-in-range integer loop pattern::
+
+    for i in range(n):
+        ...
+
+If ``i`` is declared as a :keyword:`cdef` integer type, it will
+optimise this into a pure C loop.  This restriction is required as
+otherwise the generated code wouldn't be correct due to potential
+integer overflows on the target architecture.  If you are worried that
+the loop is not being converted correctly, use the annotate feature of
+the cython commandline (``-a``) to easily see the generated C code.
+See :ref:`automatic-range-conversion`
+
+For backwards compatibility to Pyrex, Cython also supports another
+form of for-loop::
+
+    for i from 0 <= i < n:
+        ...
+
+or::
+
+    for i from 0 <= i < n by s:
+        ...
+
+where ``s`` is some integer step size.
+
+Some things to note about the for-from loop:
+
+* The target expression must be a variable name.
+* The name between the lower and upper bounds must be the same as the target
+  name.
+* The direction of iteration is determined by the relations. If they are both
+  from the set {``<``, ``<=``} then it is upwards; if they are both from the set 
+  {``>``, ``>=``} then it is downwards. (Any other combination is disallowed.)
+
+Like other Python looping statements, break and continue may be used in the
+body, and the loop may have an else clause.
+
+
+The include statement
+=====================
+
+.. warning:: 
+    Historically the ``include`` statement was used for sharing declarations. 
+    Use :ref:`sharing-declarations` instead.
+
+A Cython source file can include material from other files using the include
+statement, for example::
+
+    include "spamstuff.pxi"
+
+The contents of the named file are textually included at that point. The
+included file can contain any complete statements or declarations that are
+valid in the context where the include statement appears, including other
+include statements. The contents of the included file should begin at an
+indentation level of zero, and will be treated as though they were indented to
+the level of the include statement that is including the file.
+
+.. note::
+
+    There are other mechanisms available for splitting Cython code into
+    separate parts that may be more appropriate in many cases. See
+    :ref:`sharing-declarations`.
+
+Keyword-only arguments
+======================
+
+Python functions can have keyword-only arguments listed after the ``*``
+parameter and before the ``**`` parameter if any, e.g.::
+
+    def f(a, b, *args, c, d = 42, e, **kwds):
+        ...
+
+Here ``c``, ``d`` and ``e`` cannot be passed as position arguments and must be
+passed as keyword arguments. Furthermore, ``c`` and ``e`` are required keyword
+arguments, since they do not have a default value.
+
+If the parameter name after the ``*`` is omitted, the function will not accept any
+extra positional arguments, e.g.::
+
+    def g(a, b, *, c, d):
+        ...
+
+takes exactly two positional parameters and has two required keyword parameters.
+
+
 Conditional Compilation
------------------------
+=======================
 
 Some features are available for conditional compilation and compile-time
 constants within a Cython source file.
 
 Compile-Time Definitions
-^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------
 
 A compile-time constant can be defined using the DEF statement::
 
@@ -552,7 +558,7 @@ expression must evaluate to a Python value of type ``int``, ``long``,
     print "I like", FavouriteFood
 
 Conditional Statements
-^^^^^^^^^^^^^^^^^^^^^^
+----------------------
 
 The ``IF`` statement can be used to conditionally include or exclude sections
 of code at compile time. It works in a similar way to the ``#if`` preprocessor
