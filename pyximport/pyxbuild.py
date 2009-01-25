@@ -24,7 +24,7 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
 
     if not ext:
         modname, extension = os.path.splitext(name)
-	assert extension in (".pyx", ".py"), extension
+        assert extension in (".pyx", ".py"), extension
         ext = Extension(name=modname, sources=[filename])
 
     if not pyxbuild_dir:
@@ -33,7 +33,7 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
     if DEBUG:
         quiet = "--verbose"
     else:
-	quiet = "--quiet"
+        quiet = "--quiet"
     args = [quiet, "build_ext"]
     if force_rebuild:
         args.append("--force")
