@@ -59,7 +59,7 @@ or :file:`helloworld.dll` in Windows. Now to use this file: start the python
 interpreter and simply import it as if it was a regular python module::
 
     >>> import helloworld
-    "Hello World"
+    Hello World
 
 Congratulations! You now know how to build a Cython extension. But So Far
 this example doesn't really give a feeling why one would ever want to use Cython, so
@@ -68,6 +68,15 @@ lets create a more realistic example.
 :mod:`pyximport`: Cython Compilation the Easy Way
 ==================================================
 
+If your module doesn't require any extra libraries or other dependancies, then 
+you can use the pyximport module by Paul Prescod to load .pyx files directly 
+without having to write a :file:`setup.py` file. 
+
+    >>> import pyximport; pyximport.install()
+    >>> import helloworld
+    Hello World
+    
+This is shipped and installed with Cython. 
 
 Fibonacci Fun
 ==============
