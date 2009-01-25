@@ -1097,7 +1097,7 @@ class FuncDefNode(StatNode, BlockNode):
         code.putln("")
         if self.return_type.is_pyobject:
             #if self.return_type.is_extension_type:
-            #	lhs = "(PyObject *)%s" % Naming.retval_cname
+            #    lhs = "(PyObject *)%s" % Naming.retval_cname
             #else:
             lhs = Naming.retval_cname
             code.put_init_to_py_none(lhs, self.return_type)
@@ -2775,9 +2775,9 @@ class AssignmentNode(StatNode):
         self.allocate_rhs_temps(env)
         self.allocate_lhs_temps(env)
 
-#	def analyse_expressions(self, env):
-#		self.analyse_expressions_1(env)
-#		self.analyse_expressions_2(env)
+#       def analyse_expressions(self, env):
+#           self.analyse_expressions_1(env)
+#           self.analyse_expressions_2(env)
 
     def generate_execution_code(self, code):
         self.generate_rhs_evaluation_code(code)
@@ -2877,21 +2877,8 @@ class SingleAssignmentNode(AssignmentNode):
     def allocate_lhs_temps(self, env):
         self.lhs.allocate_target_temps(env, self.rhs)
         #self.lhs.release_target_temp(env)
-        #self.rhs.release_temp(env)		
-    
-#	def analyse_expressions_1(self, env, use_temp = 0):
-#		self.rhs.analyse_types(env)
-#		self.lhs.analyse_target_types(env)
-#		self.rhs = self.rhs.coerce_to(self.lhs.type, env)
-#		if use_temp:
-#			self.rhs = self.rhs.coerce_to_temp(env)
-#		self.rhs.allocate_temps(env)
-#	
-#	def analyse_expressions_2(self, env):
-#		self.lhs.allocate_target_temps(env)
-#		self.lhs.release_target_temp(env)
-#		self.rhs.release_temp(env)		
-        
+        #self.rhs.release_temp(env)
+
     def generate_rhs_evaluation_code(self, code):
         self.rhs.generate_evaluation_code(code)
     
@@ -2947,28 +2934,6 @@ class CascadedAssignmentNode(AssignmentNode):
             #lhs.release_target_temp(env)
             #rhs.release_temp(env)
         self.rhs.release_temp(env)
-    
-#	def analyse_expressions_1(self, env, use_temp = 0):
-#		self.rhs.analyse_types(env)
-#		if use_temp:
-#			self.rhs = self.rhs.coerce_to_temp(env)
-#		else:
-#			self.rhs = self.rhs.coerce_to_simple(env)
-#		self.rhs.allocate_temps(env)
-#	
-#	def analyse_expressions_2(self, env):
-#		from ExprNodes import CloneNode
-#		self.coerced_rhs_list = []
-#		for lhs in self.lhs_list:
-#			lhs.analyse_target_types(env)
-#			rhs = CloneNode(self.rhs)
-#			rhs = rhs.coerce_to(lhs.type, env)
-#			self.coerced_rhs_list.append(rhs)
-#			rhs.allocate_temps(env)
-#			lhs.allocate_target_temps(env)
-#			lhs.release_target_temp(env)
-#			rhs.release_temp(env)
-#		self.rhs.release_temp(env)
     
     def generate_rhs_evaluation_code(self, code):
         self.rhs.generate_evaluation_code(code)
@@ -3329,8 +3294,8 @@ class BreakStatNode(StatNode):
             error(self.pos, "break statement not inside loop")
         else:
             #code.putln(
-            #	"goto %s;" %
-            #		code.break_label)
+            #    "goto %s;" %
+            #         code.break_label)
             code.put_goto(code.break_label)
 
 
@@ -3414,8 +3379,8 @@ class ReturnStatNode(StatNode):
         for cname, type in code.funcstate.temps_holding_reference():
             code.put_decref_clear(cname, type)
         #code.putln(
-        #	"goto %s;" %
-        #		code.return_label)
+        #    "goto %s;" %
+        #        code.return_label)
         code.put_goto(code.return_label)
         
     def annotate(self, code):
@@ -4367,7 +4332,7 @@ class TryFinallyStatNode(StatNode):
                             i+1,
                             old_label))
             code.putln(
-                "}")		
+                "}")
         code.putln(
             "}")
 
@@ -4547,18 +4512,18 @@ class FromCImportStatNode(StatNode):
                     env.add_imported_entry(local_name, entry, pos)
     
     def declaration_matches(self, entry, kind):
-		if not entry.is_type:
-			return 0
-		type = entry.type
-		if kind == 'class':
-			if not type.is_extension_type:
-				return 0
-		else:
-			if not type.is_struct_or_union:
-				return 0
-			if kind <> type.kind:
-				return 0
-		return 1
+        if not entry.is_type:
+            return 0
+        type = entry.type
+        if kind == 'class':
+            if not type.is_extension_type:
+                return 0
+        else:
+            if not type.is_struct_or_union:
+                return 0
+            if kind != type.kind:
+                return 0
+        return 1
 
     def analyse_expressions(self, env):
         pass
