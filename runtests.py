@@ -10,7 +10,7 @@ from distutils.command.build_ext import build_ext as _build_ext
 distutils_distro = Distribution()
 
 TEST_DIRS = ['compile', 'errors', 'run', 'pyregr']
-TEST_RUN_DIRS = ['run', 'pyregr']
+TEST_RUN_DIRS = ['run', 'pyregr', 'bugs']
 
 # Lists external modules, and a matcher matching tests
 # which should be excluded if the module is not present.
