@@ -1,3 +1,5 @@
+.. _special-methods:
+
 Special Methods of Extension Types
 ===================================
 
@@ -14,16 +16,17 @@ mention.
 Declaration
 ------------
 Special methods of extension types must be declared with :keyword:`def`, not
-:keyword:`cdef`.
+:keyword:`cdef`. This does not impact their performance--Python uses different
+calling conventions to invoke these special methods. 
 
 Docstrings
 -----------
 
-Currently, docstrings are not fully supported in special methods of extension
+Currently, docstrings are not fully supported in some special methods of extension
 types. You can place a docstring in the source to serve as a comment, but it
-won't show up in the corresponding :attr:`__doc__` attribute at run time. (This is a
-Python limitation -- there's nowhere in the `PyTypeObject` data structure to put
-such docstrings.) 
+won't show up in the corresponding :attr:`__doc__` attribute at run time. (This 
+seems to be is a Python limitation -- there's nowhere in the `PyTypeObject` 
+data structure to put such docstrings.) 
 
 Initialisation methods: :meth:`__cinit__` and :meth:`__init__`
 ---------------------------------------------------------------
@@ -32,10 +35,9 @@ There are two methods concerned with initialising the object.
 The :meth:`__cinit__` method is where you should perform basic C-level
 initialisation of the object, including allocation of any C data structures
 that your object will own. You need to be careful what you do in the
-:meth:`__cinit__` method, because the object may not yet be a valid Python
-object when it is called. Therefore, you must not invoke any Python operations
-which might touch the object; in particular, do not try to call any of its
-methods.
+:meth:`__cinit__` method, because the object may not yet be fully valid Python
+object when it is called. Therefore, you should be careful invoking any Python 
+operations which might touch the object; in particular, its methods.
 
 By the time your :meth:`__cinit__` method is called, memory has been allocated for the
 object and any C attributes it has have been initialised to 0 or null. (Any
@@ -64,11 +66,18 @@ subclassing your extension type in Python, you may find it useful to give the
 ignore extra arguments. Otherwise, any Python subclass which has an
 :meth:`__init__` with a different signature will have to override
 :meth:`__new__` as well as :meth:`__init__`, which the writer of a Python
-class wouldn't expect to have to do.  Finalization method: :meth:`__dealloc__`
+class wouldn't expect to have to do.  As a convenience, if you declare
+your :meth:`__cinit__`` method to take no arguments (other than self) it 
+will simply ignore any extra arguments passed to the constructor without
+complaining about the signature mismatch. 
+
+Finalization method: :meth:`__dealloc__`
+----------------------------------------
+
 The counterpart to the :meth:`__cinit__` method is the :meth:`__dealloc__`
 method, which should perform the inverse of the :meth:`__cinit__` method. Any
-C data structures that you allocated in your :meth:`__cinit__` method should
-be freed in your :meth:`__dealloc__` method.
+C data that you explicitly allocated (e.g. via malloc) in your 
+:meth:`__cinit__` method should be freed in your :meth:`__dealloc__` method. 
 
 You need to be careful what you do in a :meth:`__dealloc__` method. By the time your
 :meth:`__dealloc__` method is called, the object may already have been partially
@@ -80,7 +89,7 @@ deallocating C data.
 
 You don't need to worry about deallocating Python attributes of your object,
 because that will be done for you by Cython after your :meth:`__dealloc__` method
-returns.
+returns. 
 
 .. Note: There is no :meth:`__del__` method for extension types.
 
@@ -94,9 +103,9 @@ operation, the same method of the second operand is called, with the operands
 in the same order.
 
 This means that you can't rely on the first parameter of these methods being
-"self", and you should test the types of both operands before deciding what to
-do. If you can't handle the combination of types you've been given, you should
-return `NotImplemented`.
+"self" or being the right type, and you should test the types of both operands 
+before deciding what to do. If you can't handle the combination of types you've 
+been given, you should return `NotImplemented`.
 
 This also applies to the in-place arithmetic method :meth:`__ipow__`. It doesn't apply
 to any of the other in-place methods (:meth:`__iadd__`, etc.) which always
@@ -130,13 +139,7 @@ The :meth:`__next__` method
 Extension types wishing to implement the iterator interface should define a
 method called :meth:`__next__`, not next. The Python system will automatically
 supply a next method which calls your :meth:`__next__`. Do *NOT* explicitly
-give your type a next method, or bad things could happen.
-
-Type Testing in Special Methods 
---------------------------------
-
-.. TODO document the Cython way using the overridden isinstance
-
+give your type a :meth:`next` method, or bad things could happen.
 
 Special Method Table
 ---------------------

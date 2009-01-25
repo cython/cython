@@ -65,17 +65,14 @@ and the depth attribute readable but not writable.
 
 .. note::
 
-    You can only expose simple C types, such as ints, floats and
-    strings, for Python access. You can also expose Python-valued attributes,
-    although read-write exposure is only possible for generic Python attributes
-    (of type object). If the attribute is declared to be of an extension type, it
-    must be exposed :keyword:`readonly`.
+    You can only expose simple C types, such as ints, floats, and
+    strings, for Python access. You can also expose Python-valued attributes.
 
 .. note::
 
     Also the :keyword:`public` and :keyword:`readonly` options apply only to
     Python access, not direct access. All the attributes of an extension type
-    are always readable and writable by direct access.
+    are always readable and writable by C-level access.
 
 Type declarations
 ===================
@@ -113,6 +110,45 @@ The same consideration applies to local variables, for example,::
         sh2.width = sh1.width
         sh2.height = sh1.height
         return sh2
+
+
+Type Testing and Casting
+------------------------
+
+Suppose I have a method :meth:`quest` which returns an object of type :class:`Shrubbery`. 
+To access it's width I could write::
+
+    cdef Shrubbery sh = quest()
+    print sh.width
+
+which requires the use of a local variable and performs a type test on assignment. 
+If you *know* the return value of :meth:`quest` will be of type :class:`Shrubbery`
+you can use a cast to write::
+
+    print (<Shrubbery>quest()).width
+
+This may be dangerous if :meth:`quest()` is not actually a :class:`Shrubbery`, as it 
+will try to access width as a C struct member which may not exist. At the C level, 
+rather than raising an :class:`AttributeError`, either an nonsensical result will be 
+returned (interpreting whatever data is at at that address as an int) or a segfault 
+may result from trying to access invalid memory. Instead, one can write::
+
+    print (<Shrubbery?>quest()).width
+
+which performs a type check (possibly raising a :class:`TypeError`) before making the 
+cast and allowing the code to proceed. 
+
+To explicitly test the type of an object, use the :meth:`isinstance` method. By default, 
+in Python, the :meth:`isinstance` method checks the :class:`__class__` attribute of the 
+first argument to determine if it is of the required type. However, this is potentially 
+unsafe as the :class:`__class__` attribute can be spoofed or changed, but the C structure 
+of an extension type must be correct to access its :keyword:`cdef` attributes and call its :keyword:`cdef` methods. Cython detects if the second argument is a known extension 
+type and does a type check instead, analogous to Pyrex's :meth:`typecheck`.  
+The old behavior is always available by passing a tuple as the second parameter::
+
+    print isinstance(sh, Shrubbery)     # Check the type of sh
+    print isinstance(sh, (Shrubbery,))  # Check sh.__class__
+
 
 Extension types and None
 =========================
@@ -178,7 +214,7 @@ Special methods
 
 Although the principles are similar, there are substantial differences between
 many of the :meth:`__xxx__` special methods of extension types and their Python
-counterparts. There is a separate page devoted to this subject, and you should
+counterparts. There is a :ref:`separate page <special-methods>` devoted to this subject, and you should
 read it carefully before attempting to use any special methods in your
 extension types.
 
@@ -281,7 +317,7 @@ must be compatible).
 C methods
 =========
 Extension types can have C methods as well as Python methods. Like C
-functions, C methods are declared using :keyword:`cdef` instead of
+functions, C methods are declared using :keyword:`cdef` or :keyword:`cpdef` instead of
 :keyword:`def`. C methods are "virtual", and may be overridden in derived
 extension types.::
 
@@ -366,14 +402,14 @@ Cython module. A public extension type declaration makes an extension type
 defined in a Cython module available to external C code.
 
 External extension types
-^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------
 
 An extern extension type allows you to gain access to the internals of Python
 objects defined in the Python core or in a non-Cython extension module.
 
 .. note::
 
-    In Pyrex versions before 0.8, extern extension types were also used to
+    In previous versions of Pyrex, extern extension types were also used to
     reference extension types defined in another Pyrex module. While you can still
     do that, Cython provides a better mechanism for this. See
     :ref:`sharing-declarations`.
@@ -418,8 +454,30 @@ built-in complex object.::
        declaration is inside a :keyword:`cdef` extern from block, you only need to
        declare those C members which you wish to access.
 
+Name specification clause
+-------------------------
+
+The part of the class declaration in square brackets is a special feature only
+available for extern or public extension types. The full form of this clause
+is::
+
+    [object object_struct_name, type type_object_name ]
+
+where ``object_struct_name`` is the name to assume for the type's C struct,
+and type_object_name is the name to assume for the type's statically declared
+type object. (The object and type clauses can be written in either order.)
+
+If the extension type declaration is inside a :keyword:`cdef` extern from
+block, the object clause is required, because Cython must be able to generate
+code that is compatible with the declarations in the header file. Otherwise,
+for extern extension types, the object clause is optional.
+
+For public extension types, the object and type clauses are both required,
+because Cython must be able to generate code that is compatible with external C
+code.
+
 Implicit importing
-^^^^^^^^^^^^^^^^^^
+------------------
 
 Cython requires you to include a module name in an extern extension class
 declaration, for example,::
@@ -452,7 +510,7 @@ which corresponds to the implicit import statement::
       from My.Nested.Package import Spam as Yummy
 
 Type names vs. constructor names
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+--------------------------------
 
 Inside a Cython module, the name of an extension type serves two distinct
 purposes. When used in an expression, it refers to a module-level global
@@ -482,33 +540,12 @@ there are other ways that you could get hold of the constructor, but only
 Yummy is usable as a type name.
 
 Public extension types
-^^^^^^^^^^^^^^^^^^^^^^
+======================
 
 An extension type can be declared public, in which case a ``.h`` file is
 generated containing declarations for its object struct and type object. By
 including the ``.h`` file in external C code that you write, that code can
 access the attributes of the extension type.
 
-Name specification clause
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The part of the class declaration in square brackets is a special feature only
-available for extern or public extension types. The full form of this clause
-is::
-
-    [object object_struct_name, type type_object_name ]
-
-where ``object_struct_name`` is the name to assume for the type's C struct,
-and type_object_name is the name to assume for the type's statically declared
-type object. (The object and type clauses can be written in either order.)
-
-If the extension type declaration is inside a :keyword:`cdef` extern from
-block, the object clause is required, because Cython must be able to generate
-code that is compatible with the declarations in the header file. Otherwise,
-for extern extension types, the object clause is optional.
-
-For public extension types, the object and type clauses are both required,
-because Cython must be able to generate code that is compatible with external C
-code.
 
 
