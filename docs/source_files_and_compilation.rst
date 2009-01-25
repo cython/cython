@@ -70,9 +70,13 @@ would be::
 Notice that the files have been given a name, this is not necessary, but it
 makes the file easier to format if the list gets long.
 
-If any of the files depend on include paths information can be passed to the
-:obj:`Extension` class through the :keyword:`include_dirs` option, which is a
-list of paths to the include directories.
+The :class:`Extension` class takes many options, and a fuller explanation can
+be found in the `distutils documentation`_. Some useful options to know about 
+are ``include_dirs``, ``libraries``, and ``library_dirs`` which specify where
+to find the ``.h`` and library files when linking to external libraries. 
+
+.. _distutils documentation: http://docs.python.org/extending/building.html
+
 
 
 Multiple Cython Files in a Package

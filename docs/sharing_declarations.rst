@@ -24,7 +24,7 @@ statement.
 A ``.pxd`` file that consists solely of extern declarations does not need
 to correspond to an actual ``.pyx`` file or Python module. This can make it a
 convenient place to put common declarations, for example declarations of 
-functions from  an external library that one wants to use in several modules. 
+functions from  an :ref:`external library <external-C-code>` that one wants to use in several modules. 
 
 What a Definition File contains
 ================================

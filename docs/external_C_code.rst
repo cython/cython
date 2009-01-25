@@ -1,6 +1,6 @@
 .. highlight:: cython
 
-.. external-C-code:
+.. _external-C-code:
 
 **********************************
 Interfacing with External C Code
@@ -13,9 +13,11 @@ variables from the library that you want to use.
 You can also use public declarations to make C functions and variables defined
 in a Cython module available to external C code. The need for this is expected
 to be less frequent, but you might want to do it, for example, if you are
-embedding Python in another application as a scripting language. Just as a
+`embedding Python`_ in another application as a scripting language. Just as a
 Cython module can be used as a bridge to allow Python code to call C code, it
 can also be used to allow C code to call Python code.
+
+.. _embedding Python: http://www.freenet.org.nz/python/embeddingpyrex/
 
 External declarations
 =======================
@@ -63,7 +65,12 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
 
 1. Don't use ``const``. Cython doesn't know anything about ``const``, so just
    leave it out. Most of the time this shouldn't cause any problem, although
-   on rare occasions you might have to use a cast.
+   on rare occasions you might have to use a cast. You can also explicitly 
+   declare something like::
+
+	ctypedef char* const_char_ptr "const char*"
+
+   though in most cases this will not be needed. 
 
    .. warning:: 
 
@@ -121,13 +128,18 @@ match the C ones, and in some cases they shouldn't or can't. In particular:
        ctypedef int size_t
 
    will work okay whatever the actual size of a :ctype:`size_t` is (provided the header
-   file defines it correctly).
+   file defines it correctly). Conversion to and from Python types, if any, will also 
+   be used for this new type. 
 
 5. If the header file uses macros to define constants, translate them into a
    dummy ``enum`` declaration.
 
 6. If the header file defines a function using a macro, declare it as though
    it were an ordinary function, with appropriate argument and result types.
+
+7. For archaic reasons C uses the keyword :keyword:`void` to declare a function
+   taking no parameters. In Cython as in Python, simply declare such functions
+   as :meth:`foo()`.
 
 A few more tricks and tips:
 
@@ -280,7 +292,7 @@ Using Cython Declarations from C
 ==================================
 
 Cython provides two methods for making C declarations from a Cython module
-available for use by external C code – public declarations and C API
+available for use by external C code---public declarations and C API
 declarations.
 
 .. note::
