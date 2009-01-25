@@ -475,6 +475,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("  #define PyBaseString_Type            PyUnicode_Type")
         code.putln("  #define PyString_Type                PyBytes_Type")
+        code.putln("  #define PyString_CheckExact          PyBytes_CheckExact")
         code.putln("  #define PyInt_Type                   PyLong_Type")
         code.putln("  #define PyInt_Check(op)              PyLong_Check(op)")
         code.putln("  #define PyInt_CheckExact(op)         PyLong_CheckExact(op)")
