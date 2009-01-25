@@ -327,7 +327,6 @@ class CythonRunTestCase(CythonCompileTestCase):
             self.setUp()
             self.runCompileTest()
             if not self.cython_only:
-                sys.stderr.write('running doctests in %s ...\n' % self.module)
                 doctest.DocTestSuite(self.module).run(result)
         except Exception:
             result.addError(self, sys.exc_info())
@@ -348,7 +347,6 @@ class CythonUnitTestCase(CythonCompileTestCase):
         try:
             self.setUp()
             self.runCompileTest()
-            sys.stderr.write('running tests in %s ...\n' % self.module)
             unittest.defaultTestLoader.loadTestsFromName(self.module).run(result)
         except Exception:
             result.addError(self, sys.exc_info())
