@@ -48,9 +48,9 @@ copyright = '2008, Stefan Behnel, Robert Bradshaw, Grew Ewing, William Stein, Ga
 # other places throughout the built documents.
 #
 # The short X.Y version.
-version = '0.10'
+version = '0.11'
 # The full version, including alpha/beta/rc tags.
-release = '0.10.3'
+release = '0.11'
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
