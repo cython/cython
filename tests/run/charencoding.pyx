@@ -3,7 +3,7 @@
 import sys
 if sys.version_info[0] < 3:
     __doc__ = u"""
->>> expected = b''.join([chr(i) for i in range(0x10,0xFF,0x11)] + [chr(0xFF)])
+>>> expected = ''.join([chr(i) for i in range(0x10,0xFF,0x11)] + [chr(0xFF)])
 
 >>> s = test_assign()
 >>> assert s == expected, repr(s)
@@ -13,11 +13,13 @@ if sys.version_info[0] < 3:
 """
 else:
     __doc__ = u"""
+>>> expected = bytes(list(range(0x10,0xFF,0x11)) + [0xFF])
+
 >>> s = test_assign()
->>> assert s == bytes(list(range(0x10,0xFF,0x11)) + [0xFF]), repr(s)
+>>> assert s == expected, repr(s)
 
 >>> s = test_array()
->>> assert s == bytes(list(range(0x10,0xFF,0x11)) + [0xFF]), repr(s)
+>>> assert s == expected, repr(s)
 """
 
 def test_assign():
