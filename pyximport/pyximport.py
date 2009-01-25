@@ -176,7 +176,13 @@ class PyxImporter(object):
             paths = sys.path
         join_path = os.path.join
         is_file = os.path.isfile
-        for path in filter(os.path.isdir, paths):
+        is_dir = os.path.isdir
+        for path in paths:
+            if not is_dir(path):
+                if not path:
+                    path = os.getcwd()
+                else:
+                    continue
             for filename in os.listdir(path):
                 if filename == pyx_module_name:
                     return PyxLoader(fullname, join_path(path, filename),
