@@ -152,5 +152,6 @@ take a look at the C code generated for this module.
 Language Details
 ================
 
-For more about the Cython language, see :ref:`language-basics`.
+For more about the Cython language, see :ref:`language-basics`. 
+To dive right in to using Cython in a numerical computation context, see :ref:`_numpy_tutorial`.
 
