@@ -66,7 +66,7 @@ class ErrorWriter(object):
 class TestBuilder(object):
     def __init__(self, rootdir, workdir, selectors, exclude_selectors, annotate,
                  cleanup_workdir, cleanup_sharedlibs, with_pyregr, cython_only,
-                 languages):
+                 languages, test_bugs):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
@@ -77,9 +77,13 @@ class TestBuilder(object):
         self.with_pyregr = with_pyregr
         self.cython_only = cython_only
         self.languages = languages
+        self.test_bugs = test_bugs
 
     def build_suite(self):
         suite = unittest.TestSuite()
+        test_dirs = TEST_DIRS
+        if self.test_bugs and 'bugs' not in test_dirs:
+            test_dirs.append('bugs')
         filenames = os.listdir(self.rootdir)
         filenames.sort()
         for filename in filenames:
@@ -87,7 +91,7 @@ class TestBuilder(object):
                 # we won't get any errors without running Cython
                 continue
             path = os.path.join(self.rootdir, filename)
-            if os.path.isdir(path) and filename in TEST_DIRS:
+            if os.path.isdir(path) and filename in test_dirs:
                 if filename == 'pyregr' and not self.with_pyregr:
                     continue
                 suite.addTest(
@@ -552,6 +556,11 @@ if __name__ == '__main__':
     sys.stderr.write("Python %s\n" % sys.version)
     sys.stderr.write("\n")
 
+    test_bugs = False
+    for selector in cmd_args:
+        if selector.startswith('bugs'):
+            test_bugs = True
+
     import re
     selectors = [ re.compile(r, re.I|re.U).search for r in cmd_args ]
     if not selectors:
@@ -585,7 +594,7 @@ if __name__ == '__main__':
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                 options.annotate_source, options.cleanup_workdir,
                                 options.cleanup_sharedlibs, options.pyregr,
-                                options.cython_only, languages)
+                                options.cython_only, languages, test_bugs)
         test_suite.addTest(filetests.build_suite())
 
     if options.system_pyregr and languages:
