@@ -1,3 +1,5 @@
+# this is ticket #5
+
 __doc__ = u"""
 >>> class PyTest(object):
 ...     def __private(self): pass
