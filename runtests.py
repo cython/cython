@@ -505,6 +505,9 @@ if __name__ == '__main__':
     parser.add_option("-v", "--verbose", dest="verbosity",
                       action="count", default=0,
                       help="display test progress, pass twice to print test names")
+    parser.add_option("-T", "--ticket", dest="tickets",
+                      action="append",
+                      help="a bug ticket number to run the respective test in 'tests/bugs'")
 
     options, cmd_args = parser.parse_args()
 
@@ -557,9 +560,13 @@ if __name__ == '__main__':
     sys.stderr.write("\n")
 
     test_bugs = False
-    for selector in cmd_args:
-        if selector.startswith('bugs'):
-            test_bugs = True
+    for ticket_number in options.tickets:
+        test_bugs = True
+        cmd_args.append('bugs.*T%s$' % ticket_number)
+    if not test_bugs:
+        for selector in cmd_args:
+            if selector.startswith('bugs'):
+                test_bugs = True
 
     import re
     selectors = [ re.compile(r, re.I|re.U).search for r in cmd_args ]
