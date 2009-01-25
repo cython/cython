@@ -560,9 +560,10 @@ if __name__ == '__main__':
     sys.stderr.write("\n")
 
     test_bugs = False
-    for ticket_number in options.tickets:
-        test_bugs = True
-        cmd_args.append('bugs.*T%s$' % ticket_number)
+    if options.tickets:
+        for ticket_number in options.tickets:
+            test_bugs = True
+            cmd_args.append('bugs.*T%s$' % ticket_number)
     if not test_bugs:
         for selector in cmd_args:
             if selector.startswith('bugs'):
