@@ -16,12 +16,15 @@ Python objects as parameters and return Python objects.
 
 C functions are defined using the new :keyword:`cdef` statement. They take
 either Python objects or C values as parameters, and can return either Python
-objects or C values.
+objects or C values. 
 
 Within a Cython module, Python functions and C functions can call each other
 freely, but only Python functions can be called from outside the module by
 interpreted Python code. So, any functions that you want to "export" from your
-Cython module must be declared as Python functions using def.
+Cython module must be declared as Python functions using def. 
+There is also a hybrid function, called :keyword:`cpdef`. A :keyword:`cpdef` 
+can be called from anywhere, but uses the faster C calling conventions 
+when being called from other Cython code. 
 
 Parameters of either type of function can be declared to have C data types,
 using normal C declaration syntax. For example,::
@@ -124,7 +127,7 @@ an anonymous :keyword:`enum` declaration for this purpose, for example,::
         ctypedef int *IntPtr
 
 Grouping multiple C declarations
-==================================
+--------------------------------
 
 If you have a series of declarations that all begin with :keyword:`cdef`, you
 can group them into a :keyword:`cdef` block like this::
@@ -141,7 +144,7 @@ can group them into a :keyword:`cdef` block like this::
         print s.tons, "Tons of spam"
     
 Automatic type conversions
---------------------------
+==========================
 
 In most situations, automatic conversions will be performed for the basic
 numeric and string types when a Python object is used in a context requiring a
@@ -161,8 +164,12 @@ possibilities.
 +----------------------------+--------------------+------------------+
 | float, double, long double | int, long, float   | float            |
 +----------------------------+--------------------+------------------+
-| char *                     | str                | str              |
+| char *                     | str/bytes          | str/bytes [#]_   |
 +----------------------------+--------------------+------------------+
+| struct                     |                    | dict             |
++----------------------------+--------------------+------------------+
+
+.. [#] The conversion is to/from str for Python 2.x, and bytes for Python 3.x. 
 
 Caveats when using a Python string in a C context
 -------------------------------------------------
@@ -203,48 +210,8 @@ Sometimes Cython will complain unnecessarily, and sometimes it will fail to
 detect a problem that exists. Ultimately, you need to understand the issue and
 be careful what you do.
 
-Scope rules
------------
-
-Cython determines whether a variable belongs to a local scope, the module
-scope, or the built-in scope completely statically. As with Python, assigning
-to a variable which is not otherwise declared implicitly declares it to be a
-Python variable residing in the scope where it is assigned. Unlike Python,
-however, a name which is referred to but not declared or assigned is assumed
-to reside in the builtin scope, not the module scope. Names added to the
-module dictionary at run time will not shadow such names.
-
-You can use a global statement at the module level to explicitly declare a
-name to be a module-level name when there would otherwise not be any
-indication of this, for example,::
-
-    global __name__
-    print __name__
-
-Without the global statement, the above would print the name of the builtins
-module.
-
-.. note::
-    A consequence of these rules is that the module-level scope behaves the
-    same way as a Python local scope if you refer to a variable before assigning
-    to it. In particular, tricks such as the following will not work in Cython::
-
-        try:
-            x = True
-        except NameError:
-            True = 1
-
-    because, due to the assignment, the True will always be looked up in the
-    module-level scope. You would have to do something like this instead::
-
-        import __builtin__
-        try:
-            True = __builtin__.True
-        except AttributeError:
-            True = 1
-
 Statements and expressions
---------------------------
+==========================
 
 Control structures and expressions follow Python syntax for the most part.
 When applied to Python objects, they have the same semantics as in Python
@@ -265,26 +232,46 @@ There are some differences in syntax and semantics between C expressions and
 Cython expressions, particularly in the area of C constructs which have no
 direct equivalent in Python.
 
-* An integer literal without an L suffix is treated as a C constant, and will
-  be truncated to whatever size your C compiler thinks appropriate. With an
-  L suffix, it will be converted to Python long integer (even if it would
-  be small enough to fit into a C int).
+* An integer literal is treated as a C constant, and will
+  be truncated to whatever size your C compiler thinks appropriate.
+  To get a Python integer (of arbitrary precision) cast immediately to 
+  an object (e.g. ``<object>100000000000000000000``). The ``L``, ``LL``, 
+  and ``U`` suffixes have the same meaning as in C. 
 * There is no ``->`` operator in Cython. Instead of ``p->x``, use ``p.x``
-* There is no ``*`` operator in Cython. Instead of ``*p``, use ``p[0]``
+* There is no unary ``*`` operator in Cython. Instead of ``*p``, use ``p[0]``
 * There is an ``&`` operator, with the same semantics as in C.
 * The null C pointer is called ``NULL``, not ``0`` (and ``NULL`` is a reserved word).
-* Character literals are written with a c prefix, for example::
-
-        c'X'
-
 * Type casts are written ``<type>value`` , for example::
 
         cdef char *p, float *q
         p = <char*>q
 
-  Warning: Don't attempt to use a typecast to convert between Python and C
-  data types -- it won't do the right thing. Leave Cython to perform the
-  conversion automatically.
+Scope rules
+-----------
+
+Cython determines whether a variable belongs to a local scope, the module
+scope, or the built-in scope completely statically. As with Python, assigning
+to a variable which is not otherwise declared implicitly declares it to be a
+Python variable residing in the scope where it is assigned.
+
+.. note::
+    A consequence of these rules is that the module-level scope behaves the
+    same way as a Python local scope if you refer to a variable before assigning
+    to it. In particular, tricks such as the following will not work in Cython::
+
+        try:
+            x = True
+        except NameError:
+            True = 1
+
+    because, due to the assignment, the True will always be looked up in the
+    module-level scope. You would have to do something like this instead::
+
+        import __builtin__
+        try:
+            True = __builtin__.True
+        except AttributeError:
+            True = 1
 
 Operator Precedence
 -------------------
@@ -335,7 +322,7 @@ body, and the loop may have an else clause.
 
 
 Error return values
--------------------
+===================
 
 If you don't do anything special, a function declared with :keyword:`cdef` that
 does not return a Python object has no way of reporting Python exceptions to
@@ -375,13 +362,19 @@ This form causes Cython to generate a call to :cfunc:`PyErr_Occurred` after
 every call to spam, regardless of what value it returns. If you have a
 function returning void that needs to propagate errors, you will have to use
 this form, since there isn't any return value to test.
+Otherwise there is little use for this form. 
+
+An external C++ function that may raise an exception can be declared with::
+
+    cdef int spam() except +
+
+See :ref:`wrapping-cplusplus` for more details. 
 
 Some things to note:
 
 * Exception values can only declared for functions returning an integer, enum,
-  float or pointer type, and the value must be a constant expression. The
-  only possible pointer exception value is ``NULL``. Void functions can only
-  use the ``except *`` form.
+  float or pointer type, and the value must be a constant expression. 
+  Void functions can only use the ``except *`` form.
 * The exception value specification is part of the signature of the function.
   If you're passing a pointer to a function as a parameter or assigning it
   to a variable, the declared type of the parameter or variable must have
@@ -393,7 +386,8 @@ Some things to note:
 
 * You don't need to (and shouldn't) declare exception values for functions
   which return Python objects. Remember that a function with no declared
-  return type implicitly returns a Python object.
+  return type implicitly returns a Python object. (Exceptions on such functions 
+  are implicitly propagated by returning NULL.)
 
 Checking return values of non-Cython functions
 ----------------------------------------------
@@ -406,7 +400,7 @@ something like::
 
 and expect an exception to be automatically raised if a call to :func:`fopen`
 returns ``NULL``. The except clause doesn't work that way; its only purpose is
-for propagating exceptions that have already been raised, either by a Cython
+for propagating Python exceptions that have already been raised, either by a Cython
 function or a C function that calls Python/C API routines. To get an exception
 from a non-Python-aware function such as :func:`fopen`, you will have to check the
 return value and raise it yourself, for example,::
@@ -417,10 +411,11 @@ return value and raise it yourself, for example,::
         raise SpamError("Couldn't open the spam file")
 
 The include statement
-----------------------
+=====================
 
 .. warning:: 
-    This feature is deprecated. Use :ref:`sharing-declarations` instead.
+    Historically the ``include`` statement was used for sharing declarations. 
+    Use :ref:`sharing-declarations` instead.
 
 A Cython source file can include material from other files using the include
 statement, for example::
@@ -441,7 +436,7 @@ the level of the include statement that is including the file.
     :ref:`sharing-declarations`.
 
 Keyword-only arguments
-----------------------
+======================
 
 Python functions can have keyword-only arguments listed after the ``*``
 parameter and before the ``**`` parameter if any, e.g.::
