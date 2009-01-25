@@ -54,23 +54,6 @@ Using the yield keywords. (work in progress) This relies on functional closures
 .. This needs to be well thought-out, and I think Pyrex has some plans along
 .. these lines as well.
 
-Modulo '%' operation on floats
--------------------------------
-::
-
-    a = b%c
-
-where `b` and `c` are floats will raise the error "Invalid operand types for '%' (float; float)"
-
-This can currently be worked around by putting::
-
-    cdef extern from "math.h":
-        double fmod(double x, double y)
-
-somewhere is the source file and then using::
-
-    a = fmod(b,c)
-
 
 Other Current Limitations
 ==========================

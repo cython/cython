@@ -6,8 +6,28 @@
 Differences between Cython and Pyrex
 **************************************
 
+.. warning:: 
+    Both Cython and Pyrex are moving targets. It has come to the point 
+    that an explicit list of all the differences between the two 
+    projects would be laborious to list and track, but hopefully 
+    this high-level list gives an idea of the differences that 
+    are present. It should be noted that both projects make an effort
+    at mutual compatibility, but Cython's goal is to be as close to 
+    and complete as Python as reasonable. 
+
+
+Python 3.0 Support
+==================
+
+Cython creates ``.c`` files that can be built and used with both 
+Python 2.x and Python 3.x. In fact, compiling your module with 
+Cython may very well be the easiest way to port code to Python 3.0. 
+We are also working to make the compiler run in both Python 2.x and 3.0. 
+
+Many Python 3 constructs are already supported by Cython. 
+
 List/Set/Dict Comprehensions
-=============================
+----------------------------
 
 Cython supports the different comprehensions defined by Python 3.0 for
 lists, sets and dicts::
@@ -24,6 +44,28 @@ generally preferred to use the usual :keyword:`for` ... :keyword:`in`
 .. note:: see :ref:`automatic-range-conversion`
 
 Note that Cython also supports set literals starting from Python 2.3.
+
+Keyword-only arguments
+----------------------
+
+Python functions can have keyword-only arguments listed after the ``*``
+parameter and before the ``**`` parameter if any, e.g.::
+
+    def f(a, b, *args, c, d = 42, e, **kwds):
+        ...
+
+Here ``c``, ``d`` and ``e`` cannot be passed as position arguments and must be
+passed as keyword arguments. Furthermore, ``c`` and ``e`` are required keyword
+arguments, since they do not have a default value.
+
+If the parameter name after the ``*`` is omitted, the function will not accept any
+extra positional arguments, e.g.::
+
+    def g(a, b, *, c, d):
+        ...
+
+takes exactly two positional parameters and has two required keyword parameters.
+
 
 
 Conditional expressions "x if b else y" (python 2.5)
@@ -114,7 +156,7 @@ happen via ``x.__nonzero__()``. (Actually, if ``x`` is the python object
 ``True`` or ``False`` then no method call is made.) 
 
 Executable class bodies
-=========================
+=======================
 
 Including a working :func:`classmethod`::
 
@@ -279,4 +321,22 @@ Rather than introducing a new keyword :keyword:`typecheck` as explained in the
 <http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/version/Doc/Manual/special_methods.html>`_,
 Cython emits a (non-spoofable and faster) typecheck whenever
 :func:`isinstance` is used with an extension type as the second parameter.
+
+From __future__ directives
+==========================
+
+Cython supports several from __future__ directives, namely ``unicode_literals`` and ``division``. 
+
+With statements are always enabled. 
+
+Pure Python mode
+================
+
+Cython has support for compiling ``.py`` files, and 
+accepting type annotations using decorators and other
+valid Python syntax. This allows the same source to 
+be interpreted as straight Python, or compiled for 
+optimized results. 
+See http://wiki.cython.org/pure 
+for more details. 
 

@@ -113,6 +113,9 @@ Python function will result in a compile-time error.
 C functions, on the other hand, can have parameters of any type, since they're
 passed in directly using a normal C function call.
 
+A more complete comparison of the pros and cons of these different method 
+types can be found at :ref:`early-binding-for-speed`.
+
 Python objects as parameters and return values
 ----------------------------------------------
 
@@ -491,27 +494,6 @@ the level of the include statement that is including the file.
     There are other mechanisms available for splitting Cython code into
     separate parts that may be more appropriate in many cases. See
     :ref:`sharing-declarations`.
-
-Keyword-only arguments
-======================
-
-Python functions can have keyword-only arguments listed after the ``*``
-parameter and before the ``**`` parameter if any, e.g.::
-
-    def f(a, b, *args, c, d = 42, e, **kwds):
-        ...
-
-Here ``c``, ``d`` and ``e`` cannot be passed as position arguments and must be
-passed as keyword arguments. Furthermore, ``c`` and ``e`` are required keyword
-arguments, since they do not have a default value.
-
-If the parameter name after the ``*`` is omitted, the function will not accept any
-extra positional arguments, e.g.::
-
-    def g(a, b, *, c, d):
-        ...
-
-takes exactly two positional parameters and has two required keyword parameters.
 
 
 Conditional Compilation
