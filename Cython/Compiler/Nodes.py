@@ -732,6 +732,8 @@ class CBufferAccessTypeNode(CBaseTypeNode):
                    "keyword_args", "dtype_node"]
 
     dtype_node = None
+
+    name = None
     
     def analyse(self, env, could_be_name = False):
         base_type = self.base_type_node.analyse(env)
