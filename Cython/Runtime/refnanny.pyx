@@ -1,4 +1,4 @@
-from python_ref cimport Py_INCREF, Py_DECREF
+from python_ref cimport Py_INCREF, Py_DECREF, Py_XDECREF
 cimport python_exc as exc
 
 
@@ -45,7 +45,8 @@ class RefnannyContext(object):
                 msg += "\n  Acquired on lines: " + ", ".join(["%d" % x for x in linenos])
             self.errors.append("References leaked: %s" % msg)
         if self.errors:
-            raise RefnannyException("\n".join(self.errors))
+            print self.errors
+#            raise RefnannyException("\n".join(self.errors))
 
 cdef public void* __Pyx_Refnanny_NewContext(char* funcname, int lineno) except NULL:
     ctx = RefnannyContext()
@@ -71,12 +72,12 @@ cdef public void __Pyx_Refnanny_DECREF(void* ctx, object obj, int lineno):
     Py_DECREF(obj)
     
 cdef public int __Pyx_Refnanny_FinishContext(void* ctx) except -1:
-    cdef exc.PyObject* type, *value, *tb
-    if exc.PyErr_Occurred():
-        exc.PyErr_Fetch(&type, &value, &tb)
-        Py_DECREF(<object>type); Py_DECREF(<object>value); Py_DECREF(<object>tb)
-        print "cleared!"
-        print (exc.PyErr_Occurred() == NULL)
+#    cdef exc.PyObject* type, *value, *tb
+##     if exc.PyErr_Occurred():
+##         exc.PyErr_Fetch(&type, &value, &tb)
+##         Py_XDECREF(<object>type); Py_XDECREF(<object>value); Py_XDECREF(<object>tb)
+##         print "cleared!"
+##         print (exc.PyErr_Occurred() == NULL)
     obj = <object>ctx
     try:
         obj.end()
