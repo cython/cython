@@ -26,7 +26,7 @@ def py_call():
 def loop():
     cdef unsigned int i = 10
     times = 0
-    for i in range(-i,i):
+    for x in range(-i,i):
         times += 1
     return times
     
