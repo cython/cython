@@ -3,7 +3,7 @@ from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import *
 from Cython.Compiler.ExprNodes import *
 from Cython.Compiler.UtilNodes import *
-from Cython.Compiler.TreeFragment import TreeFragment
+from Cython.Compiler.TreeFragment import TreeFragment, TemplateTransform
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import CompileError
 try:
@@ -545,31 +545,33 @@ class WithTransform(CythonTransform, SkipDeclarations):
     pipeline=[NormalizeTree(None)])
 
     def visit_WithStatNode(self, node):
+        # TODO: Cleanup badly needed
+        TemplateTransform.temp_name_counter += 1
+        handle = "__tmpvar_%d" % TemplateTransform.temp_name_counter
+        
         self.visitchildren(node, ['body'])
-        # FIXME: excinfo_temp should be more local to the except
-        # clause that uses it, to avoid the presetting to None
-        excinfo_temp = TempHandle(Builtin.tuple_type)
+        excinfo_temp = NameNode(node.pos, name=handle)#TempHandle(Builtin.tuple_type)
         if node.target is not None:
             result = self.template_with_target.substitute({
                 u'EXPR' : node.manager,
                 u'BODY' : node.body,
                 u'TARGET' : node.target,
-                u'EXCINFO' : excinfo_temp.ref(node.pos)
+                u'EXCINFO' : excinfo_temp
                 }, pos=node.pos)
         else:
             result = self.template_without_target.substitute({
                 u'EXPR' : node.manager,
                 u'BODY' : node.body,
-                u'EXCINFO' : excinfo_temp.ref(node.pos)
+                u'EXCINFO' : excinfo_temp
                 }, pos=node.pos)
 
         # Set except excinfo target to EXCINFO
         try_except = result.stats[-1].body.stats[-1]
-        try_except.except_clauses[0].excinfo_target = (
-            excinfo_temp.ref(node.pos))
+        try_except.except_clauses[0].excinfo_target = NameNode(node.pos, name=handle)
+#            excinfo_temp.ref(node.pos))
 
-        result.stats[-1].body.stats[-1] = TempsBlockNode(
-            node.pos, temps=[excinfo_temp], body=try_except)
+#        result.stats[-1].body.stats[-1] = TempsBlockNode(
+#            node.pos, temps=[excinfo_temp], body=try_except)
 
         return result
         
