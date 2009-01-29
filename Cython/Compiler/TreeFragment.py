@@ -111,21 +111,25 @@ class TemplateTransform(VisitorTransform):
     recursively applied to every member node.
     """
 
+    temp_name_counter = 0
+
     def __call__(self, node, substitutions, temps, pos):
         self.substitutions = substitutions
         self.pos = pos
         tempmap = {}
         temphandles = []
         for temp in temps:
-            handle = UtilNodes.TempHandle(PyrexTypes.py_object_type)
+            TemplateTransform.temp_name_counter += 1
+            handle = "__tmpvar_%d" % TemplateTransform.temp_name_counter
+#            handle = UtilNodes.TempHandle(PyrexTypes.py_object_type)
             tempmap[temp] = handle
-            temphandles.append(handle)
+#            temphandles.append(handle)
         self.tempmap = tempmap
         result = super(TemplateTransform, self).__call__(node)
-        if temps:
-            result = UtilNodes.TempsBlockNode(self.get_pos(node),
-                                              temps=temphandles,
-                                              body=result)
+#        if temps:
+#            result = UtilNodes.TempsBlockNode(self.get_pos(node),
+#                                              temps=temphandles,
+#                                              body=result)
         return result
 
     def get_pos(self, node):
@@ -156,8 +160,10 @@ class TemplateTransform(VisitorTransform):
     def visit_NameNode(self, node):
         temphandle = self.tempmap.get(node.name)
         if temphandle:
+            node.name = temphandle
+            return node
             # Replace name with temporary
-            return temphandle.ref(self.get_pos(node))
+            #return temphandle.ref(self.get_pos(node))
         else:
             return self.try_substitution(node, node.name)
 
