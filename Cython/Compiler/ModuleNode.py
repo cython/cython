@@ -1640,8 +1640,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.use_utility_code(Nodes.traceback_utility_code)
         code.putln("%s = NULL;" % Naming.retval_cname)
         code.put_label(code.return_label)
-        code.put_finish_refcount_context(self.pos, env.qualified_name,
-                                         Naming.retval_cname, "NULL")
+        # Disabled because of confusion with refcount of global variables -- run ass2cglobal testcase to see
+        #code.put_finish_refcount_context(self.pos, env.qualified_name,
+        #                                 Naming.retval_cname, "NULL")
+        code.putln("#if CYTHON_REFNANNY")
+        code.putln("if (__pyx_refchk) {};")
+        code.putln("#endif")
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln("return;")
         code.putln("#else")
