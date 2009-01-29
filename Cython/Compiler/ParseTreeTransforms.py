@@ -539,6 +539,8 @@ class WithTransform(CythonTransform, SkipDeclarations):
         finally:
             if EXC:
                 EXIT(None, None, None)
+            MGR = EXIT = VALUE = EXC = None
+            
     """, temps=[u'MGR', u'EXC', u"EXIT", u"VALUE"],
     pipeline=[NormalizeTree(None)])
 
@@ -562,11 +564,11 @@ class WithTransform(CythonTransform, SkipDeclarations):
                 }, pos=node.pos)
 
         # Set except excinfo target to EXCINFO
-        try_except = result.body.stats[-1].body.stats[-1]
+        try_except = result.stats[-1].body.stats[-1]
         try_except.except_clauses[0].excinfo_target = (
             excinfo_temp.ref(node.pos))
 
-        result.body.stats[-1].body.stats[-1] = TempsBlockNode(
+        result.stats[-1].body.stats[-1] = TempsBlockNode(
             node.pos, temps=[excinfo_temp], body=try_except)
 
         return result
