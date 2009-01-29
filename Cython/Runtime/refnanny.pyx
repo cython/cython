@@ -45,21 +45,30 @@ class RefnannyContext(object):
                 msg += "\n  Acquired on lines: " + ", ".join(["%d" % x for x in linenos])
             self.errors.append("References leaked: %s" % msg)
         if self.errors:
-            print self.errors
-#            raise RefnannyException("\n".join(self.errors))
+#            print self.errors
+            raise RefnannyException("\n".join(self.errors))
 
 cdef public void* __Pyx_Refnanny_NewContext(char* funcname, int lineno) except NULL:
+    if exc.PyErr_Occurred() != NULL:
+        print "error flag set on newcontext?"
+        return NULL
     ctx = RefnannyContext()
     Py_INCREF(ctx)
     return <void*>ctx
 
 cdef public void __Pyx_Refnanny_GOTREF(void* ctx, object obj, int lineno):
+    cdef exc.PyObject* type, *value, *tb
     if ctx == NULL: return
+    exc.PyErr_Fetch(&type, &value, &tb)
     (<object>ctx).regref(obj, lineno)
+    exc.PyErr_Restore(<object>type, <object>value, <object>tb)
 
 cdef public void __Pyx_Refnanny_GIVEREF(void* ctx, object obj, int lineno):
+    cdef exc.PyObject* type, *value, *tb
     if ctx == NULL: return
+    exc.PyErr_Fetch(&type, &value, &tb)
     (<object>ctx).delref(obj, lineno)
+    exc.PyErr_Restore(<object>type, <object>value, <object>tb)
 
 cdef public void __Pyx_Refnanny_INCREF(void* ctx, object obj, int lineno):
     Py_INCREF(obj)
@@ -72,17 +81,16 @@ cdef public void __Pyx_Refnanny_DECREF(void* ctx, object obj, int lineno):
     Py_DECREF(obj)
     
 cdef public int __Pyx_Refnanny_FinishContext(void* ctx) except -1:
-#    cdef exc.PyObject* type, *value, *tb
-##     if exc.PyErr_Occurred():
-##         exc.PyErr_Fetch(&type, &value, &tb)
-##         Py_XDECREF(<object>type); Py_XDECREF(<object>value); Py_XDECREF(<object>tb)
-##         print "cleared!"
-##         print (exc.PyErr_Occurred() == NULL)
+    cdef exc.PyObject* type, *value, *tb
+    if ctx == NULL:
+        assert False
+    exc.PyErr_Fetch(&type, &value, &tb)
     obj = <object>ctx
     try:
         obj.end()
     finally:
         Py_DECREF(obj)
+    exc.PyErr_Restore(<object>type, <object>value, <object>tb)
     return 0
 
     
