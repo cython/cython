@@ -2886,6 +2886,7 @@ class AttributeNode(NewTempExprNode):
             select_code = self.result()
             if self.type.is_pyobject:
                 rhs.make_owned_reference(code)
+                code.put_giveref(rhs.py_result())
                 code.put_decref(select_code, self.ctype())
             code.putln(
                 "%s = %s;" % (
