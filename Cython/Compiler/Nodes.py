@@ -1068,10 +1068,10 @@ class FuncDefNode(StatNode, BlockNode):
         if acquire_gil:
             code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
         # ----- Automatic lead-ins for certain special functions
-        if is_getbuffer_slot:
-            self.getbuffer_init(code)
         if not lenv.nogil:
             code.put_setup_refcount_context(self.entry.name)
+        if is_getbuffer_slot:
+            self.getbuffer_init(code)
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must 
