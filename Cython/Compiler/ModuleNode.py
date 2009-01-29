@@ -2348,4 +2348,5 @@ int __Pyx_Refnanny_FinishContext(void*);
 #define __Pyx_FinishRefcountContext() 0
 #endif /* CYTHON_REFNANNY */
 #define __Pyx_XGIVEREF(r) (r ? __Pyx_GIVEREF(r) : 0)
+#define __Pyx_XGOTREF(r) (r ? __Pyx_GOTREF(r) : 0)
 """)
