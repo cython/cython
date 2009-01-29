@@ -320,7 +320,7 @@ class GlobalState(object):
     def should_declare(self, cname, entry):
         if cname in self.declared_cnames:
             other = self.declared_cnames[cname]
-            assert entry.type == other.type
+            assert str(entry.type) == str(other.type)
             assert entry.init == other.init
             return False
         else:
