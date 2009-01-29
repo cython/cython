@@ -114,7 +114,7 @@ class Context:
             _specific_post_parse,
             InterpretCompilerDirectives(self, self.pragma_overrides),
             _align_function_definitions,
-#            FlattenInListTransform(),
+            FlattenInListTransform(),
             WithTransform(self),
             DecoratorTransform(self),
             AnalyseDeclarationsTransform(self),
