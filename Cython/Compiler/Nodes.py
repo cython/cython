@@ -1068,10 +1068,10 @@ class FuncDefNode(StatNode, BlockNode):
         if acquire_gil:
             code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
         # ----- Automatic lead-ins for certain special functions
-        if is_getbuffer_slot:
-            self.getbuffer_init(code)
         if not lenv.nogil:
             code.put_setup_refcount_context(self.entry.name)
+        if is_getbuffer_slot:
+            self.getbuffer_init(code)
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must 
@@ -2145,6 +2145,7 @@ class DefNode(FuncDefNode):
                     self.starstar_arg.entry.cname,
                     self.starstar_arg.entry.cname,
                     self.error_value()))
+            code.put_gotref(self.starstar_arg.entry.cname)
         if self.star_arg:
             self.star_arg.entry.xdecref_cleanup = 0
             code.putln('if (PyTuple_GET_SIZE(%s) > %d) {' % (
@@ -2153,6 +2154,7 @@ class DefNode(FuncDefNode):
             code.put('%s = PyTuple_GetSlice(%s, %d, PyTuple_GET_SIZE(%s)); ' % (
                     self.star_arg.entry.cname, Naming.args_cname,
                     max_positional_args, Naming.args_cname))
+            code.put_gotref(self.star_arg.entry.cname)
             if self.starstar_arg:
                 code.putln("")
                 code.putln("if (unlikely(!%s)) {" % self.star_arg.entry.cname)
@@ -4026,6 +4028,8 @@ class TryExceptStatNode(StatNode):
                    ', '.join(['*%s' % var for var in Naming.exc_save_vars]))
         code.putln("__Pyx_ExceptionSave(%s);" %
                    ', '.join(['&%s' % var for var in Naming.exc_save_vars]))
+        for var in Naming.exc_save_vars:
+            code.put_xgotref(var)
         code.putln(
             "/*try:*/ {")
         code.return_label = try_return_label
@@ -4066,12 +4070,14 @@ class TryExceptStatNode(StatNode):
 
         if code.label_used(except_return_label):
             code.put_label(except_return_label)
+            for var in Naming.exc_save_vars: code.put_xgiveref(var)
             code.putln("__Pyx_ExceptionReset(%s);" %
                        ', '.join(Naming.exc_save_vars))
             code.put_goto(old_return_label)
 
         if code.label_used(except_end_label):
             code.put_label(except_end_label)
+            for var in Naming.exc_save_vars: code.put_xgiveref(var)
             code.putln("__Pyx_ExceptionReset(%s);" %
                        ', '.join(Naming.exc_save_vars))
         code.put_label(try_end_label)
@@ -4170,6 +4176,8 @@ class ExceptClauseNode(Node):
         exc_args = "&%s, &%s, &%s" % tuple(self.exc_vars)
         code.putln("if (__Pyx_GetException(%s) < 0) %s" % (exc_args,
             code.error_goto(self.pos)))
+        for x in self.exc_vars:
+            code.put_gotref(x)
         if self.target:
             self.exc_value.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.exc_value, code)

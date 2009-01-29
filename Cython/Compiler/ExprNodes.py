@@ -1333,6 +1333,8 @@ class NameNode(AtomicExprNode):
                 #print "...from", rhs ###
                 #print "...LHS type", self.type, "ctype", self.ctype() ###
                 #print "...RHS type", rhs.type, "ctype", rhs.ctype() ###
+                if entry.is_cglobal:
+                    code.put_gotref(self.py_result())
                 if not self.lhs_of_first_assignment:
                     if entry.is_local and not Options.init_local_none:
                         initalized = entry.scope.control_flow.get_state((entry.name, 'initalized'), self.pos)
@@ -1342,6 +1344,8 @@ class NameNode(AtomicExprNode):
                             code.put_xdecref(self.result(), self.ctype())
                     else:
                         code.put_decref(self.result(), self.ctype())
+                if entry.is_cglobal:
+                    code.put_giveref(rhs.py_result())
             code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
@@ -2882,6 +2886,7 @@ class AttributeNode(NewTempExprNode):
             select_code = self.result()
             if self.type.is_pyobject:
                 rhs.make_owned_reference(code)
+                code.put_giveref(rhs.py_result())
                 code.put_decref(select_code, self.ctype())
             code.putln(
                 "%s = %s;" % (
