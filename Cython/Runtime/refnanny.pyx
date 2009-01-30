@@ -60,15 +60,27 @@ cdef public void __Pyx_Refnanny_GOTREF(void* ctx, object obj, int lineno):
     cdef exc.PyObject* type, *value, *tb
     if ctx == NULL: return
     exc.PyErr_Fetch(&type, &value, &tb)
-    (<object>ctx).regref(obj, lineno)
-    exc.PyErr_Restore(<object>type, <object>value, <object>tb)
+    try:
+        (<object>ctx).regref(obj, lineno)
+        exc.PyErr_Restore(<object>type, <object>value, <object>tb)
+    except:
+        Py_XDECREF(<object>type)
+        Py_XDECREF(<object>value)
+        Py_XDECREF(<object>tb)
+        raise
 
 cdef public void __Pyx_Refnanny_GIVEREF(void* ctx, object obj, int lineno):
     cdef exc.PyObject* type, *value, *tb
     if ctx == NULL: return
     exc.PyErr_Fetch(&type, &value, &tb)
-    (<object>ctx).delref(obj, lineno)
-    exc.PyErr_Restore(<object>type, <object>value, <object>tb)
+    try:
+        (<object>ctx).delref(obj, lineno)
+        exc.PyErr_Restore(<object>type, <object>value, <object>tb)
+    except:
+        Py_XDECREF(<object>type)
+        Py_XDECREF(<object>value)
+        Py_XDECREF(<object>tb)
+        raise
 
 cdef public void __Pyx_Refnanny_INCREF(void* ctx, object obj, int lineno):
     Py_INCREF(obj)
@@ -88,9 +100,14 @@ cdef public int __Pyx_Refnanny_FinishContext(void* ctx) except -1:
     obj = <object>ctx
     try:
         obj.end()
+        exc.PyErr_Restore(<object>type, <object>value, <object>tb)
+    except Exception, e:
+        Py_XDECREF(<object>type)
+        Py_XDECREF(<object>value)
+        Py_XDECREF(<object>tb)
+        raise
     finally:
-        Py_DECREF(obj)
-    exc.PyErr_Restore(<object>type, <object>value, <object>tb)
+        Py_XDECREF(obj)
     return 0
 
     

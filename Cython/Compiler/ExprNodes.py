@@ -1878,10 +1878,12 @@ class IndexNode(ExprNode):
             ptr = code.funcstate.allocate_temp(self.buffer_type.buffer_ptr_type, manage_ref=False)
             rhs_code = rhs.result()
             code.putln("%s = %s;" % (ptr, ptrexpr))
+            code.put_gotref("*%s" % ptr)
             code.putln("__Pyx_DECREF(*%s); __Pyx_INCREF(%s);" % (
                 ptr, rhs_code
                 ))
             code.putln("*%s %s= %s;" % (ptr, op, rhs_code))
+            code.put_giveref("*%s" % ptr)
             code.funcstate.release_temp(ptr)
         else: 
             # Simple case
@@ -2887,6 +2889,7 @@ class AttributeNode(NewTempExprNode):
             if self.type.is_pyobject:
                 rhs.make_owned_reference(code)
                 code.put_giveref(rhs.py_result())
+                code.put_gotref(select_code)
                 code.put_decref(select_code, self.ctype())
             code.putln(
                 "%s = %s;" % (
@@ -3354,6 +3357,7 @@ class SetNode(NewTempExprNode):
             "%s = PySet_New(0); %s" % (
                 self.result(),
                 code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
         for arg in self.args:
             arg.generate_evaluation_code(code)
             code.putln(
