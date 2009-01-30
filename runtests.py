@@ -531,14 +531,6 @@ if __name__ == '__main__':
         from Cython.Compiler import Errors
         Errors.LEVEL = 0 # show all warnings
 
-    if options.with_refnanny:
-        import ctypes
-        ctypes.PyDLL("Cython/Runtime/refnanny.so", mode=ctypes.RTLD_GLOBAL)
-        sys.path.append("Cython/Runtime")
-        import refnanny
-        del sys.path[-1]
-        CFLAGS.append("-DCYTHON_REFNANNY")
-
     # RUN ALL TESTS!
     ROOTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]), 'tests')
     WORKDIR = os.path.join(os.getcwd(), 'BUILD')
@@ -546,7 +538,9 @@ if __name__ == '__main__':
     UNITTEST_ROOT = os.path.join(os.getcwd(), UNITTEST_MODULE)
     if WITH_CYTHON:
         if os.path.exists(WORKDIR):
-            shutil.rmtree(WORKDIR, ignore_errors=True)
+            for path in os.listdir(WORKDIR):
+                if path in ("support",): continue
+                shutil.rmtree(os.path.join(WORKDIR, path), ignore_errors=True)
     if not os.path.exists(WORKDIR):
         os.makedirs(WORKDIR)
 
@@ -557,6 +551,18 @@ if __name__ == '__main__':
         sys.stderr.write("Running tests without Cython.\n")
     sys.stderr.write("Python %s\n" % sys.version)
     sys.stderr.write("\n")
+
+    if options.with_refnanny:
+        from pyximport.pyxbuild import pyx_to_dll
+        import ctypes
+        libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
+                             build_in_temp=True,
+                             pyxbuild_dir=os.path.join(WORKDIR, "support"))
+        ctypes.PyDLL(libpath, mode=ctypes.RTLD_GLOBAL)
+        sys.path.append(os.path.split(libpath)[0])
+        import refnanny
+        del sys.path[-1]
+        CFLAGS.append("-DCYTHON_REFNANNY")
 
     test_bugs = False
     if options.tickets:
