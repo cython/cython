@@ -1254,16 +1254,20 @@ class FuncDefNode(StatNode, BlockNode):
         # the following line should be removed when this bug is fixed.
         code.putln("if (%s == NULL) return 0;" % info) 
         code.putln("%s->obj = Py_None; __Pyx_INCREF(Py_None);" % info)
+        code.put_giveref("%s->obj" % info) # Do not refnanny object within structs
 
     def getbuffer_error_cleanup(self, code):
         info = self.local_scope.arg_entries[1].cname
+        code.put_gotref("%s->obj" % info)
         code.putln("__Pyx_DECREF(%s->obj); %s->obj = NULL;" %
                    (info, info))
 
     def getbuffer_normal_cleanup(self, code):
         info = self.local_scope.arg_entries[1].cname
-        code.putln("if (%s->obj == Py_None) { __Pyx_DECREF(Py_None); %s->obj = NULL; }" %
-                   (info, info))
+        code.putln("if (%s->obj == Py_None) {" % info)
+        code.put_gotref("Py_None")
+        code.putln("__Pyx_DECREF(Py_None); %s->obj = NULL;" % info)
+        code.putln("}")
 
 class CFuncDefNode(FuncDefNode):
     #  C function definition.
@@ -2014,6 +2018,8 @@ class DefNode(FuncDefNode):
             code.putln("if (unlikely(!%s)) return %s;" % (
                     self.starstar_arg.entry.cname, self.error_value()))
             self.starstar_arg.entry.xdecref_cleanup = 0
+            code.put_gotref(self.starstar_arg.entry.cname)
+            
 
         if self.star_arg:
             code.put_incref(Naming.args_cname, py_object_type)
@@ -3234,6 +3240,7 @@ class ExecStatNode(StatNode):
             arg.free_temps(code)
         code.putln(
             code.error_goto_if_null(self.temp_result, self.pos))
+        code.put_gotref(self.temp_result)
         code.put_decref_clear(self.temp_result, py_object_type)
 
     def annotate(self, code):
