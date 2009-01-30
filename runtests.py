@@ -482,9 +482,9 @@ if __name__ == '__main__':
     parser.add_option("--cython-only", dest="cython_only",
                       action="store_true", default=False,
                       help="only compile pyx to c, do not run C compiler or run the tests")
-    parser.add_option("--refnanny", dest="with_refnanny",
-                      action="store_true", default=False,
-                      help="also test that Cython-generated code does correct reference counting")
+    parser.add_option("--no-refnanny", dest="with_refnanny",
+                      action="store_false", default=True,
+                      help="do not regression test reference counting")
     parser.add_option("--sys-pyregr", dest="system_pyregr",
                       action="store_true", default=False,
                       help="run the regression tests of the CPython installation")
