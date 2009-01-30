@@ -3904,9 +3904,15 @@ class ForFromStatNode(LoopNode, StatNode):
         self.bound1.generate_evaluation_code(code)
         self.bound2.generate_evaluation_code(code)
         offset, incop = self.relation_table[self.relation1]
+        if incop == "++":
+            decop = "--"
+        else:
+            decop = "++"
         if self.step is not None:
             self.step.generate_evaluation_code(code)
-            incop = "%s=%s" % (incop[0], self.step.result())
+            step = self.step.result()
+            incop = "%s=%s" % (incop[0], step)
+            decop = "%s=%s" % (decop[0], step)
         loopvar_name = self.loopvar_node.result()
         code.putln(
             "for (%s = %s%s; %s %s %s; %s%s) {" % (
@@ -3919,7 +3925,11 @@ class ForFromStatNode(LoopNode, StatNode):
             self.target.generate_assignment_code(self.py_loopvar_node, code)
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
-        code.putln("}")
+        if getattr(self, "from_range", False):
+            # Undo last increment to maintain Python semantics:
+            code.putln("} %s%s;" % (loopvar_name, decop))
+        else:
+            code.putln("}")
         break_label = code.break_label
         code.set_loop_labels(old_loop_labels)
         if self.else_clause:
