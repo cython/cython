@@ -2323,20 +2323,20 @@ bad:
         
 refcount_utility_code = UtilityCode(proto="""
 #ifdef CYTHON_REFNANNY
-void __Pyx_Refnanny_INCREF(void*, PyObject*, int);
-void __Pyx_Refnanny_GOTREF(void*, PyObject*, int);
-void __Pyx_Refnanny_GIVEREF(void*, PyObject*, int);
-void __Pyx_Refnanny_INCREF(void*, PyObject*, int);
-void __Pyx_Refnanny_DECREF(void*, PyObject*, int);
-void* __Pyx_Refnanny_NewContext(char*, int);
-int __Pyx_Refnanny_FinishContext(void*);
+__PYX_EXTERN_C void __Pyx_Refnanny_INCREF(void*, PyObject*, int);
+__PYX_EXTERN_C void __Pyx_Refnanny_GOTREF(void*, PyObject*, int);
+__PYX_EXTERN_C void __Pyx_Refnanny_GIVEREF(void*, PyObject*, int);
+__PYX_EXTERN_C void __Pyx_Refnanny_INCREF(void*, PyObject*, int);
+__PYX_EXTERN_C void __Pyx_Refnanny_DECREF(void*, PyObject*, int);
+__PYX_EXTERN_C void* __Pyx_Refnanny_NewContext(char*, int);
+__PYX_EXTERN_C int __Pyx_Refnanny_FinishContext(void*);
 #define __Pyx_INCREF(r) __Pyx_Refnanny_INCREF(__pyx_refchk, r, __LINE__)
 #define __Pyx_GOTREF(r) __Pyx_Refnanny_GOTREF(__pyx_refchk, r, __LINE__)
 #define __Pyx_GIVEREF(r) __Pyx_Refnanny_GIVEREF(__pyx_refchk, r, __LINE__)
 #define __Pyx_DECREF(r) __Pyx_Refnanny_DECREF(__pyx_refchk, r, __LINE__)
-#define __Pyx_XDECREF(r) (r ? __Pyx_Refnanny_DECREF(__pyx_refchk, r, __LINE__) : 0)
+#define __Pyx_XDECREF(r) if((r) == NULL) ; else __Pyx_DECREF(r)
 #define __Pyx_SetupRefcountContext(name) \
-  void* __pyx_refchk = __Pyx_Refnanny_NewContext(name, __LINE__)
+  void* __pyx_refchk = __Pyx_Refnanny_NewContext((char*)name, __LINE__)
 #define __Pyx_FinishRefcountContext() __Pyx_Refnanny_FinishContext(__pyx_refchk)
 #else
 #define __Pyx_INCREF(r) Py_INCREF(r)
@@ -2347,6 +2347,6 @@ int __Pyx_Refnanny_FinishContext(void*);
 #define __Pyx_SetupRefcountContext(name)
 #define __Pyx_FinishRefcountContext() 0
 #endif /* CYTHON_REFNANNY */
-#define __Pyx_XGIVEREF(r) (r ? __Pyx_GIVEREF(r) : 0)
-#define __Pyx_XGOTREF(r) (r ? __Pyx_GOTREF(r) : 0)
+#define __Pyx_XGIVEREF(r) if((r) == NULL) ; else __Pyx_GIVEREF(r)
+#define __Pyx_XGOTREF(r) if((r) == NULL) ; else __Pyx_GOTREF(r)
 """)
