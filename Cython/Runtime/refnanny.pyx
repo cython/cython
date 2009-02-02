@@ -19,15 +19,21 @@ class RefnannyContext(object):
         self.refs = {} # id -> (count, [lineno])
         self.errors = []
 
-    def regref(self, obj, lineno):
-        log(LOG_ALL, 'regref', obj, lineno)
+    def regref(self, obj, lineno, is_null):
+        log(LOG_ALL, 'regref', "<NULL>" if is_null else obj, lineno)
+        if is_null:
+            self.errors.append("NULL argument on line %d" % lineno)
+            return
         id_ = id(obj)
         count, linenumbers = self.refs.get(id_, (0, []))
         self.refs[id_] = (count + 1, linenumbers)
         linenumbers.append(lineno)
 
-    def delref(self, obj, lineno):
-        log(LOG_ALL, 'delref', obj, lineno)
+    def delref(self, obj, lineno, is_null):
+        log(LOG_ALL, 'delref', "<NULL>" if is_null else obj, lineno)
+        if is_null:
+            self.errors.append("NULL argument on line %d" % lineno)
+            return
         id_ = id(obj)
         count, linenumbers = self.refs.get(id_, (0, []))
         if count == 0:
@@ -56,12 +62,15 @@ cdef public void* __Pyx_Refnanny_NewContext(char* funcname, int lineno) except N
     Py_INCREF(ctx)
     return <void*>ctx
 
-cdef public void __Pyx_Refnanny_GOTREF(void* ctx, object obj, int lineno):
+cdef public void __Pyx_Refnanny_GOTREF(void* ctx, void* p_obj, int lineno):
     cdef exc.PyObject* type, *value, *tb
     if ctx == NULL: return
     exc.PyErr_Fetch(&type, &value, &tb)
     try:
-        (<object>ctx).regref(obj, lineno)
+        if p_obj is NULL:
+            (<object>ctx).regref(None, lineno, True)
+        else:
+            (<object>ctx).regref(<object>p_obj, lineno, False)
         exc.PyErr_Restore(<object>type, <object>value, <object>tb)
     except:
         Py_XDECREF(<object>type)
@@ -69,12 +78,15 @@ cdef public void __Pyx_Refnanny_GOTREF(void* ctx, object obj, int lineno):
         Py_XDECREF(<object>tb)
         raise
 
-cdef public void __Pyx_Refnanny_GIVEREF(void* ctx, object obj, int lineno):
+cdef public void __Pyx_Refnanny_GIVEREF(void* ctx, void* p_obj, int lineno):
     cdef exc.PyObject* type, *value, *tb
     if ctx == NULL: return
     exc.PyErr_Fetch(&type, &value, &tb)
     try:
-        (<object>ctx).delref(obj, lineno)
+        if p_obj is NULL:
+            (<object>ctx).delref(None, lineno, True)
+        else:
+            (<object>ctx).delref(<object>p_obj, lineno, False)
         exc.PyErr_Restore(<object>type, <object>value, <object>tb)
     except:
         Py_XDECREF(<object>type)
@@ -82,15 +94,15 @@ cdef public void __Pyx_Refnanny_GIVEREF(void* ctx, object obj, int lineno):
         Py_XDECREF(<object>tb)
         raise
 
-cdef public void __Pyx_Refnanny_INCREF(void* ctx, object obj, int lineno):
-    Py_INCREF(obj)
+cdef public void __Pyx_Refnanny_INCREF(void* ctx, void* obj, int lineno):
+    if obj is not NULL: Py_INCREF(<object>obj)
     __Pyx_Refnanny_GOTREF(ctx, obj, lineno)
     
-cdef public void __Pyx_Refnanny_DECREF(void* ctx, object obj, int lineno):
+cdef public void __Pyx_Refnanny_DECREF(void* ctx, void* obj, int lineno):
     # GIVEREF raises exception if we hit 0
     # 
     __Pyx_Refnanny_GIVEREF(ctx, obj, lineno)
-    Py_DECREF(obj)
+    if obj is not NULL: Py_DECREF(<object>obj)
     
 cdef public int __Pyx_Refnanny_FinishContext(void* ctx) except -1:
     cdef exc.PyObject* type, *value, *tb
