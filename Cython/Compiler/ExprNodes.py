@@ -2066,6 +2066,7 @@ class SliceIndexNode(ExprNode):
                         self.base.result(), start_offset, i,
                         rhs.result(), i))
         self.generate_subexpr_disposal_code(code)
+        self.free_subexpr_temps(code)
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
 
