@@ -2344,20 +2344,21 @@ typedef struct {
 static __Pyx_RefnannyAPIStruct* __Pyx_Refnanny = NULL;
 #define __Pyx_ImportRefcountAPI(name) \
   (__Pyx_RefnannyAPIStruct*) PyCObject_Import((char *)name, (char *)\"RefnannyAPI\")
-#define __Pyx_INCREF(r) __Pyx_Refnanny->INCREF(__pyx_refchk, (r), __LINE__)
-#define __Pyx_DECREF(r) __Pyx_Refnanny->DECREF(__pyx_refchk, (r), __LINE__)
+#define __Pyx_INCREF(r) __Pyx_Refnanny->INCREF(__pyx_refchk, ((PyObject*)r), __LINE__)
+#define __Pyx_DECREF(r) __Pyx_Refnanny->DECREF(__pyx_refchk, ((PyObject*)r), __LINE__)
+#define __Pyx_GOTREF(r) __Pyx_Refnanny->GOTREF(__pyx_refchk, ((PyObject*)r), __LINE__)
+#define __Pyx_GIVEREF(r) __Pyx_Refnanny->GIVEREF(__pyx_refchk, ((PyObject*)r), __LINE__)
 #define __Pyx_XDECREF(r) if((r) == NULL) ; else __Pyx_DECREF(r)
-#define __Pyx_GOTREF(r) __Pyx_Refnanny->GOTREF(__pyx_refchk, (r), __LINE__)
-#define __Pyx_GIVEREF(r) __Pyx_Refnanny->GIVEREF(__pyx_refchk, (r), __LINE__)
 #define __Pyx_SetupRefcountContext(name) \
   void* __pyx_refchk = __Pyx_Refnanny->NewContext((name), __LINE__)
-#define __Pyx_FinishRefcountContext() __Pyx_Refnanny->FinishContext(&__pyx_refchk)
+#define __Pyx_FinishRefcountContext() \
+  __Pyx_Refnanny->FinishContext(&__pyx_refchk)
 #else
 #define __Pyx_INCREF(r) Py_INCREF(r)
 #define __Pyx_DECREF(r) Py_DECREF(r)
-#define __Pyx_XDECREF(r) Py_XDECREF(r)
 #define __Pyx_GOTREF(r)
 #define __Pyx_GIVEREF(r)
+#define __Pyx_XDECREF(r) Py_XDECREF(r)
 #define __Pyx_SetupRefcountContext(name)
 #define __Pyx_FinishRefcountContext() 0
 #endif /* CYTHON_REFNANNY */
