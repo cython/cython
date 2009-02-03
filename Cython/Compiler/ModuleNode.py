@@ -1587,8 +1587,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("#ifdef CYTHON_REFNANNY")
         code.putln("void* __pyx_refchk = NULL;")
-        code.putln("__Pyx_Refnanny = (__Pyx_RefnannyAPIStruct*) PyCObject_Import((char *)\"refnanny\", (char *)\"RefnannyAPI\");")
-        code.putln("if (!__Pyx_Refnanny) Py_FatalError(\"failed to import refnanny module\");")
+        code.putln("__Pyx_Refnanny = __Pyx_ImportRefcountAPI(\"refnanny\");")
+        code.putln("if (!__Pyx_Refnanny) {")
+        code.putln("  PyErr_Clear();")
+        code.putln("  __Pyx_Refnanny = __Pyx_ImportRefcountAPI(\"Cython.Runtime.refnanny\");")
+        code.putln("  if (!__Pyx_Refnanny)")
+        code.putln("      Py_FatalError(\"failed to import refnanny module\");")
+        code.putln("}")
         code.putln("__pyx_refchk = __Pyx_Refnanny->NewContext(\"%s\", __LINE__);"% header3)
         code.putln("#endif")
 
@@ -2337,6 +2342,8 @@ typedef struct {
   int (*FinishContext)(void*);
 } __Pyx_RefnannyAPIStruct;
 static __Pyx_RefnannyAPIStruct* __Pyx_Refnanny = NULL;
+#define __Pyx_ImportRefcountAPI(name) \
+  (__Pyx_RefnannyAPIStruct*) PyCObject_Import((char *)name, (char *)\"RefnannyAPI\")
 #define __Pyx_INCREF(r) __Pyx_Refnanny->INCREF(__pyx_refchk, (r), __LINE__)
 #define __Pyx_DECREF(r) __Pyx_Refnanny->DECREF(__pyx_refchk, (r), __LINE__)
 #define __Pyx_XDECREF(r) if((r) == NULL) ; else __Pyx_DECREF(r)
