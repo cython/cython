@@ -41,12 +41,17 @@ except ValueError:
         compiled_modules = ["Cython.Plex.Scanners",
                             "Cython.Compiler.Scanning",
                             "Cython.Compiler.Parsing",
-                            "Cython.Compiler.Visitor"]
+                            "Cython.Compiler.Visitor",
+                            "Cython.Runtime.refnanny"]
         extensions = []
         for module in compiled_modules:
             source_file = os.path.join(source_root, *module.split('.'))
+            if os.path.exists(source_file + ".py"):
+                source_file = source_file + ".py"
+            else:
+                source_file = source_file + ".pyx"
             print("Compiling module %s ..." % module)
-            result = compile(source_file + ".py")
+            result = compile(source_file)
             if result.c_file:
                 extensions.append(
                     Extension(module, sources = [result.c_file])
@@ -62,7 +67,7 @@ except ValueError:
 
 
 setup(
-  name = 'Cython', 
+  name = 'Cython',
   version = version,
   url = 'http://www.cython.org',
   author = 'Greg Ewing, Robert Bradshaw, Stefan Behnel, Dag Seljebotn, et al.',
@@ -101,6 +106,7 @@ setup(
   packages=[
     'Cython',
     'Cython.Compiler',
+    'Cython.Runtime',
     'Cython.Distutils',
     'Cython.Mac',
     'Cython.Unix',
@@ -109,13 +115,13 @@ setup(
     'Cython.Tests',
     'Cython.Compiler.Tests',
     ],
-  
+
   # pyximport
   py_modules = ["pyximport/__init__",
                 "pyximport/pyximport",
-                "pyximport/pyxbuild", 
-                
+                "pyximport/pyxbuild",
+
                 "cython"],
-  
+
   **setup_args
   )
