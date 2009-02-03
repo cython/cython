@@ -2339,7 +2339,7 @@ typedef struct {
   void (*GOTREF)(void*, PyObject*, int);
   void (*GIVEREF)(void*, PyObject*, int);
   void* (*NewContext)(const char*, int);
-  int (*FinishContext)(void*);
+  int (*FinishContext)(void**);
 } __Pyx_RefnannyAPIStruct;
 static __Pyx_RefnannyAPIStruct* __Pyx_Refnanny = NULL;
 #define __Pyx_ImportRefcountAPI(name) \
@@ -2351,7 +2351,7 @@ static __Pyx_RefnannyAPIStruct* __Pyx_Refnanny = NULL;
 #define __Pyx_GIVEREF(r) __Pyx_Refnanny->GIVEREF(__pyx_refchk, (r), __LINE__)
 #define __Pyx_SetupRefcountContext(name) \
   void* __pyx_refchk = __Pyx_Refnanny->NewContext((name), __LINE__)
-#define __Pyx_FinishRefcountContext() __Pyx_Refnanny->FinishContext(__pyx_refchk)
+#define __Pyx_FinishRefcountContext() __Pyx_Refnanny->FinishContext(&__pyx_refchk)
 #else
 #define __Pyx_INCREF(r) Py_INCREF(r)
 #define __Pyx_DECREF(r) Py_DECREF(r)

@@ -1,5 +1,5 @@
 from python_ref cimport Py_INCREF, Py_DECREF, Py_XDECREF
-cimport python_exc as exc
+from python_exc cimport PyObject, PyErr_Fetch, PyErr_Restore
 
 
 loglevel = 0
@@ -51,89 +51,101 @@ class Context(object):
                 msg += "\n  Acquired on lines: " + ", ".join(["%d" % x for x in linenos])
             self.errors.append("References leaked: %s" % msg)
         if self.errors:
-#            print self.errors
-            raise Error("\n".join(self.errors))
+            return "\n".join(self.errors)
+        else:
+            return None
 
-cdef void* NewContext(char* funcname, int lineno) except NULL:
-    if exc.PyErr_Occurred() != NULL:
-        print "error flag set on newcontext?"
-        return NULL
-    ctx = Context()
-    Py_INCREF(ctx)
-    return <void*>ctx
 
-cdef void GOTREF(void* ctx, void* p_obj, int lineno):
-    cdef exc.PyObject* type = NULL, *value = NULL, *tb = NULL
+
+cdef PyObject* NewContext(char* funcname, int lineno) except NULL:
+    cdef PyObject* type = NULL, *value = NULL, *tb = NULL
+    PyErr_Fetch(&type, &value, &tb)
+    try:
+        ctx = Context()
+        PyErr_Restore(<object>type, <object>value, <object>tb)
+        Py_INCREF(ctx)
+        return <PyObject*>ctx
+    except:
+        Py_XDECREF(<object>type)
+        Py_XDECREF(<object>value)
+        Py_XDECREF(<object>tb)
+        raise
+
+cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
+    cdef PyObject* type = NULL, *value = NULL, *tb = NULL
     if ctx == NULL: return
-    exc.PyErr_Fetch(&type, &value, &tb)
+    PyErr_Fetch(&type, &value, &tb)
     try:
         if p_obj is NULL:
             (<object>ctx).regref(None, lineno, True)
         else:
             (<object>ctx).regref(<object>p_obj, lineno, False)
-        exc.PyErr_Restore(<object>type, <object>value, <object>tb)
+        PyErr_Restore(<object>type, <object>value, <object>tb)
     except:
         Py_XDECREF(<object>type)
         Py_XDECREF(<object>value)
         Py_XDECREF(<object>tb)
         raise
 
-cdef void GIVEREF(void* ctx, void* p_obj, int lineno):
-    cdef exc.PyObject* type = NULL, *value = NULL, *tb = NULL
+cdef void GIVEREF(PyObject* ctx, PyObject* p_obj, int lineno):
+    cdef PyObject* type = NULL, *value = NULL, *tb = NULL
     if ctx == NULL: return
-    exc.PyErr_Fetch(&type, &value, &tb)
+    PyErr_Fetch(&type, &value, &tb)
     try:
         if p_obj is NULL:
             (<object>ctx).delref(None, lineno, True)
         else:
             (<object>ctx).delref(<object>p_obj, lineno, False)
-        exc.PyErr_Restore(<object>type, <object>value, <object>tb)
+        PyErr_Restore(<object>type, <object>value, <object>tb)
     except:
         Py_XDECREF(<object>type)
         Py_XDECREF(<object>value)
         Py_XDECREF(<object>tb)
         raise
 
-cdef void INCREF(void* ctx, void* obj, int lineno):
+cdef void INCREF(PyObject* ctx, PyObject* obj, int lineno):
     if obj is not NULL: Py_INCREF(<object>obj)
     GOTREF(ctx, obj, lineno)
 
-cdef void DECREF(void* ctx, void* obj, int lineno):
+cdef void DECREF(PyObject* ctx, PyObject* obj, int lineno):
     # GIVEREF raises exception if we hit 0
     GIVEREF(ctx, obj, lineno)
     if obj is not NULL: Py_DECREF(<object>obj)
 
-cdef int FinishContext(void* ctx) except -1:
-    cdef exc.PyObject* type = NULL, *value = NULL, *tb = NULL
-    if ctx == NULL:
-        assert False
-    exc.PyErr_Fetch(&type, &value, &tb)
-    obj = <object>ctx
+cdef int FinishContext(PyObject** ctx) except -1:
+    cdef PyObject* type = NULL, *value = NULL, *tb = NULL
+    if ctx == NULL: assert False
+    if ctx[0] == NULL: assert False # XXX What to do here?
+    cdef object errors = None
+    PyErr_Fetch(&type, &value, &tb)
     try:
-        obj.end()
-        exc.PyErr_Restore(<object>type, <object>value, <object>tb)
-    except Exception, e:
+        errors = (<object>ctx[0]).end()
+        PyErr_Restore(<object>type, <object>value, <object>tb)
+    except:
         Py_XDECREF(<object>type)
         Py_XDECREF(<object>value)
         Py_XDECREF(<object>tb)
         raise
     finally:
-        Py_XDECREF(obj)
+        Py_XDECREF(<object>ctx[0])
+        ctx[0] = NULL
+    if errors:
+        raise Error(errors)
     return 0
 
 
 
 
 cdef extern from "Python.h":
-    object PyCObject_FromVoidPtr(void *, void (*)(void*))
+    object PyCObject_FromVoidPtr(void*, void (*)(void*))
 
 ctypedef struct RefnannyAPIStruct:
-  void (*INCREF)(void*, void*, int)
-  void (*DECREF)(void*, void*, int)
-  void (*GOTREF)(void*, void*, int)
-  void (*GIVEREF)(void*, void*, int)
-  void* (*NewContext)(char*, int) except NULL
-  int (*FinishContext)(void*) except -1
+  void (*INCREF)(PyObject*, PyObject*, int)
+  void (*DECREF)(PyObject*, PyObject*, int)
+  void (*GOTREF)(PyObject*, PyObject*, int)
+  void (*GIVEREF)(PyObject*, PyObject*, int)
+  PyObject* (*NewContext)(char*, int) except NULL
+  int (*FinishContext)(PyObject**) except -1
 
 cdef RefnannyAPIStruct api
 api.INCREF = INCREF
@@ -143,4 +155,4 @@ api.GIVEREF = GIVEREF
 api.NewContext = NewContext
 api.FinishContext = FinishContext
 
-RefnannyAPI = PyCObject_FromVoidPtr(&api, NULL)
+RefnannyAPI = PyCObject_FromVoidPtr(<void*>&api, NULL)
