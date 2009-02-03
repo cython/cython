@@ -54,7 +54,7 @@ class RefnannyContext(object):
 #            print self.errors
             raise RefnannyException("\n".join(self.errors))
 
-cdef public void* __Pyx_Refnanny_NewContext(char* funcname, int lineno) except NULL:
+cdef void* Refnanny_NewContext(char* funcname, int lineno) except NULL:
     if exc.PyErr_Occurred() != NULL:
         print "error flag set on newcontext?"
         return NULL
@@ -62,8 +62,8 @@ cdef public void* __Pyx_Refnanny_NewContext(char* funcname, int lineno) except N
     Py_INCREF(ctx)
     return <void*>ctx
 
-cdef public void __Pyx_Refnanny_GOTREF(void* ctx, void* p_obj, int lineno):
-    cdef exc.PyObject* type, *value, *tb
+cdef public void Refnanny_GOTREF(void* ctx, void* p_obj, int lineno):
+    cdef exc.PyObject* type = NULL, *value = NULL, *tb = NULL
     if ctx == NULL: return
     exc.PyErr_Fetch(&type, &value, &tb)
     try:
@@ -78,8 +78,8 @@ cdef public void __Pyx_Refnanny_GOTREF(void* ctx, void* p_obj, int lineno):
         Py_XDECREF(<object>tb)
         raise
 
-cdef public void __Pyx_Refnanny_GIVEREF(void* ctx, void* p_obj, int lineno):
-    cdef exc.PyObject* type, *value, *tb
+cdef public void Refnanny_GIVEREF(void* ctx, void* p_obj, int lineno):
+    cdef exc.PyObject* type = NULL, *value = NULL, *tb = NULL
     if ctx == NULL: return
     exc.PyErr_Fetch(&type, &value, &tb)
     try:
@@ -94,18 +94,18 @@ cdef public void __Pyx_Refnanny_GIVEREF(void* ctx, void* p_obj, int lineno):
         Py_XDECREF(<object>tb)
         raise
 
-cdef public void __Pyx_Refnanny_INCREF(void* ctx, void* obj, int lineno):
+cdef public void Refnanny_INCREF(void* ctx, void* obj, int lineno):
     if obj is not NULL: Py_INCREF(<object>obj)
-    __Pyx_Refnanny_GOTREF(ctx, obj, lineno)
+    Refnanny_GOTREF(ctx, obj, lineno)
     
-cdef public void __Pyx_Refnanny_DECREF(void* ctx, void* obj, int lineno):
+cdef public void Refnanny_DECREF(void* ctx, void* obj, int lineno):
     # GIVEREF raises exception if we hit 0
     # 
-    __Pyx_Refnanny_GIVEREF(ctx, obj, lineno)
+    Refnanny_GIVEREF(ctx, obj, lineno)
     if obj is not NULL: Py_DECREF(<object>obj)
     
-cdef public int __Pyx_Refnanny_FinishContext(void* ctx) except -1:
-    cdef exc.PyObject* type, *value, *tb
+cdef public int Refnanny_FinishContext(void* ctx) except -1:
+    cdef exc.PyObject* type = NULL, *value = NULL, *tb = NULL
     if ctx == NULL:
         assert False
     exc.PyErr_Fetch(&type, &value, &tb)
@@ -123,3 +123,25 @@ cdef public int __Pyx_Refnanny_FinishContext(void* ctx) except -1:
     return 0
 
     
+
+
+cdef extern from "Python.h":
+    object PyCObject_FromVoidPtr(void *, void (*)(void*))
+
+ctypedef struct RefnannyAPIStruct:
+  void (*INCREF)(void*, void*, int)
+  void (*DECREF)(void*, void*, int)
+  void (*GOTREF)(void*, void*, int)
+  void (*GIVEREF)(void*, void*, int)
+  void* (*NewContext)(char*, int) except NULL
+  int (*FinishContext)(void*) except -1
+
+cdef RefnannyAPIStruct api
+api.INCREF = Refnanny_INCREF
+api.DECREF =  Refnanny_DECREF
+api.GOTREF =  Refnanny_GOTREF
+api.GIVEREF = Refnanny_GIVEREF
+api.NewContext = Refnanny_NewContext
+api.FinishContext = Refnanny_FinishContext
+
+RefnannyAPI = PyCObject_FromVoidPtr(&api, NULL)
