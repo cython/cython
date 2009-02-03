@@ -558,10 +558,7 @@ if __name__ == '__main__':
         libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
                              build_in_temp=True,
                              pyxbuild_dir=os.path.join(WORKDIR, "support"))
-        ctypes.PyDLL(libpath, mode=ctypes.RTLD_GLOBAL)
         sys.path.append(os.path.split(libpath)[0])
-        import refnanny
-        del sys.path[-1]
         CFLAGS.append("-DCYTHON_REFNANNY")
 
     test_bugs = False
@@ -637,4 +634,5 @@ if __name__ == '__main__':
             sys.stderr.write("   %s\n" % test)
 
     if options.with_refnanny:
+        import refnanny
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
