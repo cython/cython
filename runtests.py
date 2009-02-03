@@ -558,7 +558,7 @@ if __name__ == '__main__':
         libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
                              build_in_temp=True,
                              pyxbuild_dir=os.path.join(WORKDIR, "support"))
-        sys.path.append(os.path.split(libpath)[0])
+        sys.path.insert(0, os.path.split(libpath)[0])
         CFLAGS.append("-DCYTHON_REFNANNY")
 
     test_bugs = False
