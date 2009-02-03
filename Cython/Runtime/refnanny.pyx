@@ -62,7 +62,7 @@ cdef void* Refnanny_NewContext(char* funcname, int lineno) except NULL:
     Py_INCREF(ctx)
     return <void*>ctx
 
-cdef public void Refnanny_GOTREF(void* ctx, void* p_obj, int lineno):
+cdef void Refnanny_GOTREF(void* ctx, void* p_obj, int lineno):
     cdef exc.PyObject* type = NULL, *value = NULL, *tb = NULL
     if ctx == NULL: return
     exc.PyErr_Fetch(&type, &value, &tb)
@@ -78,7 +78,7 @@ cdef public void Refnanny_GOTREF(void* ctx, void* p_obj, int lineno):
         Py_XDECREF(<object>tb)
         raise
 
-cdef public void Refnanny_GIVEREF(void* ctx, void* p_obj, int lineno):
+cdef void Refnanny_GIVEREF(void* ctx, void* p_obj, int lineno):
     cdef exc.PyObject* type = NULL, *value = NULL, *tb = NULL
     if ctx == NULL: return
     exc.PyErr_Fetch(&type, &value, &tb)
@@ -94,17 +94,16 @@ cdef public void Refnanny_GIVEREF(void* ctx, void* p_obj, int lineno):
         Py_XDECREF(<object>tb)
         raise
 
-cdef public void Refnanny_INCREF(void* ctx, void* obj, int lineno):
+cdef void Refnanny_INCREF(void* ctx, void* obj, int lineno):
     if obj is not NULL: Py_INCREF(<object>obj)
     Refnanny_GOTREF(ctx, obj, lineno)
-    
-cdef public void Refnanny_DECREF(void* ctx, void* obj, int lineno):
+
+cdef void Refnanny_DECREF(void* ctx, void* obj, int lineno):
     # GIVEREF raises exception if we hit 0
-    # 
     Refnanny_GIVEREF(ctx, obj, lineno)
     if obj is not NULL: Py_DECREF(<object>obj)
-    
-cdef public int Refnanny_FinishContext(void* ctx) except -1:
+
+cdef int Refnanny_FinishContext(void* ctx) except -1:
     cdef exc.PyObject* type = NULL, *value = NULL, *tb = NULL
     if ctx == NULL:
         assert False
@@ -122,7 +121,7 @@ cdef public int Refnanny_FinishContext(void* ctx) except -1:
         Py_XDECREF(obj)
     return 0
 
-    
+
 
 
 cdef extern from "Python.h":
