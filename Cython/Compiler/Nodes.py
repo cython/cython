@@ -1181,8 +1181,7 @@ class FuncDefNode(StatNode, BlockNode):
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject and lenv.control_flow.get_state((entry.name, 'source')) != 'arg':
                 code.put_var_decref(entry)
-        if acquire_gil:
-            code.putln("PyGILState_Release(_save);")
+
         # code.putln("/* TODO: decref scope object */")
         # ----- Return
         # This code is duplicated in ModuleNode.generate_module_init_func
@@ -1198,6 +1197,9 @@ class FuncDefNode(StatNode, BlockNode):
                                              self.entry.qualified_name,
                                              Naming.retval_cname,
                                              err_val)
+
+        if acquire_gil:
+            code.putln("PyGILState_Release(_save);")
 
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
