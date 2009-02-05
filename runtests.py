@@ -554,7 +554,6 @@ if __name__ == '__main__':
 
     if options.with_refnanny:
         from pyximport.pyxbuild import pyx_to_dll
-        import ctypes
         libpath = pyx_to_dll(os.path.join("Cython", "Runtime", "refnanny.pyx"),
                              build_in_temp=True,
                              pyxbuild_dir=os.path.join(WORKDIR, "support"))
