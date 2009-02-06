@@ -1437,7 +1437,7 @@ static INLINE unsigned PY_LONG_LONG __pyx_PyInt_AsUnsignedLongLong(PyObject* x) 
         return PyLong_AsUnsignedLongLong(x);
     }
     else {
-        PY_LONG_LONG val;
+        unsigned PY_LONG_LONG val;
         PyObject* tmp = PyNumber_Int(x); if (!tmp) return (PY_LONG_LONG)-1;
         val = __pyx_PyInt_AsUnsignedLongLong(tmp);
         Py_DECREF(tmp);
