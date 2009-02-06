@@ -1403,10 +1403,13 @@ static INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
 }
 
 static INLINE PY_LONG_LONG __pyx_PyInt_AsLongLong(PyObject* x) {
+#if PY_VERSION_HEX < 0x03000000
     if (PyInt_CheckExact(x)) {
         return PyInt_AS_LONG(x);
     }
-    else if (PyLong_CheckExact(x)) {
+    else
+#endif
+    if (PyLong_CheckExact(x)) {
         return PyLong_AsLongLong(x);
     }
     else {
@@ -1419,6 +1422,7 @@ static INLINE PY_LONG_LONG __pyx_PyInt_AsLongLong(PyObject* x) {
 }
 
 static INLINE unsigned PY_LONG_LONG __pyx_PyInt_AsUnsignedLongLong(PyObject* x) {
+#if PY_VERSION_HEX < 0x03000000
     if (PyInt_CheckExact(x)) {
         long val = PyInt_AS_LONG(x);
         if (unlikely(val < 0)) {
@@ -1427,7 +1431,9 @@ static INLINE unsigned PY_LONG_LONG __pyx_PyInt_AsUnsignedLongLong(PyObject* x) 
         }
         return val;
     }
-    else if (PyLong_CheckExact(x)) {
+    else
+#endif
+    if (PyLong_CheckExact(x)) {
         return PyLong_AsUnsignedLongLong(x);
     }
     else {
