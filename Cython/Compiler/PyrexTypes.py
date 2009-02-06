@@ -1426,7 +1426,7 @@ static INLINE unsigned PY_LONG_LONG __pyx_PyInt_AsUnsignedLongLong(PyObject* x) 
     if (PyInt_CheckExact(x)) {
         long val = PyInt_AS_LONG(x);
         if (unlikely(val < 0)) {
-            PyErr_SetString(PyExc_TypeError, "Negative assignment to unsigned type.");
+            PyErr_SetString(PyExc_OverflowError, "can't convert negative value to unsigned long long");
             return (unsigned PY_LONG_LONG)-1;
         }
         return val;
