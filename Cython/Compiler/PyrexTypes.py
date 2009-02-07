@@ -462,9 +462,9 @@ class CNumericType(CType):
     default_value = "0"
     
     parsetuple_formats = ( # rank -> format
-        "BHIkK????", # unsigned
-        "bhilL?fd?", # assumed signed
-        "bhilL?fd?", # explicitly signed
+        "BHIkK?????", # unsigned
+        "bhilL??fd?", # assumed signed
+        "bhilL??fd?", # explicitly signed
     )
     
     sign_words = ("unsigned ", "", "signed ")
@@ -592,6 +592,12 @@ class CPySSizeTType(CIntType):
 
     to_py_function = "PyInt_FromSsize_t"
     from_py_function = "__pyx_PyIndex_AsSsize_t"
+
+
+class CSizeTType(CUIntType):
+
+    to_py_function = "__pyx_PyInt_FromSize_t"
+    from_py_function = "__pyx_PyInt_AsSize_t"
 
 
 class CFloatType(CNumericType):
@@ -1153,9 +1159,10 @@ rank_to_type_name = (
     "long",         # 3
     "PY_LONG_LONG", # 4
     "Py_ssize_t",   # 5
-    "float",        # 6
-    "double",       # 7
-    "long double",  # 8
+    "size_t",       # 6
+    "float",        # 7
+    "double",       # 8
+    "long double",  # 9
 )
 
 py_object_type = PyObjectType()
@@ -1175,7 +1182,6 @@ c_short_type =       CIntType(1, 1, "T_SHORT")
 c_int_type =         CIntType(2, 1, "T_INT")
 c_long_type =        CIntType(3, 1, "T_LONG")
 c_longlong_type =    CLongLongType(4, 1, "T_LONGLONG")
-c_py_ssize_t_type =  CPySSizeTType(5, 1)
 c_bint_type =        CBIntType(2, 1, "T_INT")
 
 c_schar_type =       CIntType(0, 2, "T_CHAR")
@@ -1184,17 +1190,21 @@ c_sint_type =        CIntType(2, 2, "T_INT")
 c_slong_type =       CIntType(3, 2, "T_LONG")
 c_slonglong_type =   CLongLongType(4, 2, "T_LONGLONG")
 
-c_float_type =       CFloatType(6, "T_FLOAT")
-c_double_type =      CFloatType(7, "T_DOUBLE")
-c_longdouble_type =  CFloatType(8)
+c_py_ssize_t_type =  CPySSizeTType(5, 1)
+c_size_t_type =      CSizeTType(6, 1)
+
+c_float_type =       CFloatType(7, "T_FLOAT")
+c_double_type =      CFloatType(8, "T_DOUBLE")
+c_longdouble_type =  CFloatType(9)
 
 c_null_ptr_type =     CNullPtrType(c_void_type)
 c_char_array_type =   CCharArrayType(None)
 c_char_ptr_type =     CCharPtrType()
 c_utf8_char_array_type = CUTF8CharArrayType(None)
 c_char_ptr_ptr_type = CPtrType(c_char_ptr_type)
-c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
 c_int_ptr_type =      CPtrType(c_int_type)
+c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
+c_size_t_ptr_type =  CPtrType(c_size_t_type)
 
 c_returncode_type =   CIntType(2, 1, "T_INT", is_returncode = 1)
 
@@ -1207,28 +1217,31 @@ c_py_buffer_ptr_type = CPtrType(c_py_buffer_type)
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()
 
-lowest_float_rank = 6
-
 sign_and_rank_to_type = {
     #(signed, rank)
-    (0, 0, ): c_uchar_type, 
+    (0, 0): c_uchar_type, 
     (0, 1): c_ushort_type, 
     (0, 2): c_uint_type, 
-  (0, 3): c_ulong_type,
-  (0, 4): c_ulonglong_type,
-    (0, 5):  c_ulonglong_type,            # I'm not sure about this.  this should be for size_t Py_ssize_t
+    (0, 3): c_ulong_type,
+    (0, 4): c_ulonglong_type,
+    (0, 5): c_ulonglong_type, # XXX I'm not sure about this.
+    
     (1, 0): c_char_type, 
     (1, 1): c_short_type, 
     (1, 2): c_int_type, 
     (1, 3): c_long_type,
     (1, 4): c_longlong_type,
-    (1, 5): c_py_ssize_t_type,
     (2, 0): c_schar_type, 
     (2, 1): c_sshort_type, 
     (2, 2): c_sint_type, 
     (2, 3): c_slong_type,
     (2, 4): c_slonglong_type,
+
+    (1, 5): c_py_ssize_t_type,
     (2, 5): c_py_ssize_t_type,
+    (0, 6): c_size_t_type,
+    (1, 6): c_size_t_type,
+
     (1, 6): c_float_type, 
     (1, 7): c_double_type,
     (1, 8): c_longdouble_type,
@@ -1251,7 +1264,6 @@ modifiers_and_name_to_type = {
     (1, 0, "int"): c_int_type, 
     (1, 1, "int"): c_long_type,
     (1, 2, "int"): c_longlong_type,
-    (1, 0, "Py_ssize_t"): c_py_ssize_t_type,
     (1, 0, "float"): c_float_type, 
     (1, 0, "double"): c_double_type,
     (1, 1, "double"): c_longdouble_type,
@@ -1262,7 +1274,11 @@ modifiers_and_name_to_type = {
     (2, 0, "int"): c_sint_type, 
     (2, 1, "int"): c_slong_type,
     (2, 2, "int"): c_slonglong_type,
+
+    (1, 0, "Py_ssize_t"): c_py_ssize_t_type,
     (2, 0, "Py_ssize_t"): c_py_ssize_t_type,
+    (0, 0, "size_t") : c_size_t_type,
+    (1, 0, "size_t") : c_size_t_type,
     
     (1, 0, "long"): c_long_type,
     (1, 0, "short"): c_short_type,
@@ -1380,6 +1396,9 @@ static INLINE PY_LONG_LONG __pyx_PyInt_AsLongLong(PyObject* x);
 static INLINE unsigned PY_LONG_LONG __pyx_PyInt_AsUnsignedLongLong(PyObject* x);
 static INLINE Py_ssize_t __pyx_PyIndex_AsSsize_t(PyObject* b);
 
+static INLINE PyObject * __pyx_PyInt_FromSize_t(size_t);
+static INLINE size_t __pyx_PyInt_AsSize_t(PyObject*);
+
 #define __pyx_PyInt_AsLong(x) (PyInt_CheckExact(x) ? PyInt_AS_LONG(x) : PyInt_AsLong(x))
 #define __pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
 """ + type_conversion_predeclarations
@@ -1394,6 +1413,31 @@ static INLINE Py_ssize_t __pyx_PyIndex_AsSsize_t(PyObject* b) {
   ival = PyInt_AsSsize_t(x);
   Py_DECREF(x);
   return ival;
+}
+
+static INLINE PyObject * __pyx_PyInt_FromSize_t(size_t ival) {
+#if PY_VERSION_HEX < 0x02050000
+   if (ival <= (size_t)LONG_MAX)
+       return PyInt_FromLong((long)ival);
+   else {
+       unsigned char *bytes = (unsigned char *) &ival;
+       int one = 1; int little = (int)*(unsigned char*)&one;
+       return _PyLong_FromByteArray(bytes, sizeof(size_t), little, 0);
+   }
+#else
+   return PyInt_FromSize_t(ival);
+#endif
+}
+
+static INLINE size_t __pyx_PyInt_AsSize_t(PyObject* b) {
+   unsigned PY_LONG_LONG val = __pyx_PyInt_AsUnsignedLongLong(b);
+   if (unlikely(val == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())) {
+       return (size_t)-1;
+   } else if (unlikely(val != (unsigned PY_LONG_LONG)(size_t)val)) {
+       PyErr_SetString(PyExc_OverflowError, "value too large to convert to size_t");
+       return (size_t)-1;
+   }
+   return val;
 }
 
 static INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {

@@ -14,9 +14,6 @@
 # - Add unicode calls.
 # - Add setobject calls.
 
-cdef extern from "sys/types.h":
-    ctypedef unsigned int size_t
-
 cdef extern from "stdio.h":
     ctypedef struct FILE:
         pass
