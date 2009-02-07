@@ -179,19 +179,19 @@ same applies equally to union and enum declarations.
 +-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
 | C code                  | Possibilities for corresponding Cython Code | Comments                                                              |
 +=========================+=============================================+=======================================================================+
-| ::                      | ::                                          | Cython will refer to the as ``struct Foo`` in the generated C code.   |
+| .. sourcecode:: c       | ::                                          | Cython will refer to the as ``struct Foo`` in the generated C code.   |
 |                         |                                             |                                                                       |
 |   struct Foo {          |   cdef struct Foo:                          |                                                                       |
 |     ...                 |     ...                                     |                                                                       |
 |   };                    |                                             |                                                                       |
 +-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
-| ::                      | ::                                          | Cython will refer to the type simply as ``Foo`` in                    |
+| .. sourcecode:: c       | ::                                          | Cython will refer to the type simply as ``Foo`` in                    |
 |                         |                                             | the generated C code.                                                 |
 |   typedef struct {      |   ctypedef struct Foo:                      |                                                                       |
 |     ...                 |     ...                                     |                                                                       |
 |   } Foo;                |                                             |                                                                       |
 +-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
-| ::                      | ::                                          | If the C header uses both a tag and a typedef with *different*        |
+| .. sourcecode:: c       | ::                                          | If the C header uses both a tag and a typedef with *different*        |
 |                         |                                             | names, you can use either form of declaration in Cython               |
 |   typedef struct foo {  |   cdef struct foo:                          | (although if you need to forward reference the type,                  |
 |     ...                 |     ...                                     | you'll have to use the first form).                                   |
@@ -202,7 +202,7 @@ same applies equally to union and enum declarations.
 |                         |   ctypedef struct Foo:                      |                                                                       |
 |                         |     ...                                     |                                                                       |
 +-------------------------+---------------------------------------------+-----------------------------------------------------------------------+
-| ::                      | ::                                          | If the header uses the *same* name for the tag and typedef, you       |
+| .. sourcecode:: c       | ::                                          | If the header uses the *same* name for the tag and typedef, you       |
 |                         |                                             | won't be able to include a :keyword:`ctypedef` for it -- but then,    |
 |   typedef struct Foo {  |   cdef struct Foo:                          | it's not necessary.                                                   |
 |     ...                 |     ...                                     |                                                                       |
@@ -352,6 +352,8 @@ made available when you include :file:`modulename_api.h`.::
         if v.speed >= 88 and v.power >= 1.21:
             print "Time travel achieved"
 
+.. sourcecode:: c
+            
     # marty.c
     #include "delorean_api.h"
 

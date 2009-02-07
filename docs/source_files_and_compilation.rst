@@ -12,7 +12,9 @@ file named :file:`primes.pyx`.
 
 Once you have written your ``.pyx`` file, there are a couple of ways of turning it
 into an extension module. One way is to compile it manually with the Cython
-compiler, e.g.::
+compiler, e.g.:
+
+.. sourcecode:: text
 
     $ cython primes.pyx
 
@@ -45,7 +47,9 @@ would be::
 
 To understand the :file:`setup.py` more fully look at the official
 :mod:`distutils` documentation. To compile the extension for use in the
-current directory use::
+current directory use:
+
+.. sourcecode:: text
 
     $ python setup.py build_ext --inplace
 
@@ -135,7 +139,9 @@ If you would always like to import Cython files without building them
 specially, you can also the first line above to your :file:`sitecustomize.py`.
 That will install the hook every time you run Python. Then you can use
 Cython modules just with simple import statements. I like to test my
-Cython modules like this::
+Cython modules like this:
+
+.. sourcecode:: text
 
     $ python -c "import foo"
 

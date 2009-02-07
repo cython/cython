@@ -33,14 +33,18 @@ class CythonLexer(RegexLexer):
             (r'\\\n', Text),
             (r'\\', Text),
             (r'(in|is|and|or|not)\b', Operator.Word),
-            (r'!=|==|<<|>>|[-~+/*%=<>&^|.]', Operator),
-            (r'(from)(\d+)(<=)(\s+)(<)(\d+)(:)', bygroups(Keyword, Number.Integer, Operator, Name, Operator, Name, Punctuation)), 
+            (r'(<)([a-zA-Z0-9.?]+)(>)',
+             bygroups(Punctuation, Keyword.Type, Punctuation)),
+            (r'!=|==|<<|>>|[-~+/*%=<>&^|.?]', Operator),
+            (r'(from)(\d+)(<=)(\s+)(<)(\d+)(:)',
+             bygroups(Keyword, Number.Integer, Operator, Name, Operator,
+                      Name, Punctuation)),
             include('keywords'),
-            (r'(def)(\s+)', bygroups(Keyword, Text), 'funcname'),
-            (r'(cdef)(\s+)', bygroups(Keyword, Text), 'cfuncname'),
-            (r'(class)(\s+)', bygroups(Keyword, Text), 'classname'),
+            (r'(def|property)(\s+)', bygroups(Keyword, Text), 'funcname'),
+            (r'(cp?def)(\s+)', bygroups(Keyword, Text), 'cdef'),
+            (r'(class|struct)(\s+)', bygroups(Keyword, Text), 'classname'),
             (r'(from)(\s+)', bygroups(Keyword, Text), 'fromimport'),
-            (r'(import)(\s+)', bygroups(Keyword, Text), 'import'),
+            (r'(c?import)(\s+)', bygroups(Keyword, Text), 'import'),
             include('builtins'),
             include('backtick'),
             ('(?:[rR]|[uU][rR]|[rR][uU])"""', String, 'tdqs'),
@@ -55,20 +59,22 @@ class CythonLexer(RegexLexer):
             include('numbers'),
         ],
         'keywords': [
-            (r'(assert|break|continue|del|elif|else|except|exec|'
-             r'finally|for|global|if|lambda|pass|print|raise|'
+            (r'(assert|break|by|continue|ctypedef|del|elif|else|except\??|exec|'
+             r'finally|for|gil|global|if|include|lambda|nogil|pass|print|raise|'
              r'return|try|while|yield|as|with)\b', Keyword),
+            (r'(DEF|IF|ELIF|ELSE)\b', Comment.Preproc),
         ],
         'builtins': [
-            (r'(?<!\.)(__import__|abs|apply|basestring|bool|buffer|callable|'
-             r'chr|classmethod|cmp|coerce|compile|complex|delattr|dict|dir|'
-             r'divmod|double|enumerate|eval|execfile|exit|file|filter|float|getattr|'
-             r'globals|hasattr|hash|hex|id|input|int|intern|isinstance|'
-             r'issubclass|iter|len|list|locals|long|map|max|min|object|oct|'
-             r'open|ord|pow|property|range|raw_input|reduce|reload|repr|'
-             r'round|setattr|slice|staticmethod|str|sum|super|tuple|type|'
-             r'unichr|unicode|unsigned|vars|xrange|zip)\b', Name.Builtin),
-            (r'(?<!\.)(self|None|Ellipsis|NotImplemented|False|True'
+            (r'(?<!\.)(__import__|abs|all|any|apply|basestring|bin|bool|buffer|'
+             r'bytearray|bytes|callable|chr|classmethod|cmp|coerce|compile|'
+             r'complex|delattr|dict|dir|divmod|enumerate|eval|execfile|exit|'
+             r'file|filter|float|frozenset|getattr|globals|hasattr|hash|hex|id|'
+             r'input|int|intern|isinstance|issubclass|iter|len|list|locals|'
+             r'long|map|max|min|next|object|oct|open|ord|pow|property|range|'
+             r'raw_input|reduce|reload|repr|reversed|round|set|setattr|slice|'
+             r'sorted|staticmethod|str|sum|super|tuple|type|unichr|unicode|'
+             r'vars|xrange|zip)\b', Name.Builtin),
+            (r'(?<!\.)(self|None|Ellipsis|NotImplemented|False|True|NULL'
              r')\b', Name.Builtin.Pseudo),
             (r'(?<!\.)(ArithmeticError|AssertionError|AttributeError|'
              r'BaseException|DeprecationWarning|EOFError|EnvironmentError|'
@@ -101,8 +107,19 @@ class CythonLexer(RegexLexer):
         'funcname': [
             ('[a-zA-Z_][a-zA-Z0-9_]*', Name.Function, '#pop')
         ],
-        'cfuncname': [
-            ('[a-zA-Z_][a-zA-Z0-9_]*', Name.Function, '#pop')
+        'cdef': [
+            (r'(public|readonly|extern|api|inline)\b', Keyword.Reserved),
+            (r'(struct|enum|union|class)\b', Keyword),
+            (r'([a-zA-Z_][a-zA-Z0-9_]*)(\s*)(?=[(:#=]|$)',
+             bygroups(Name.Function, Text), '#pop'),
+            (r'([a-zA-Z_][a-zA-Z0-9_]*)(\s*)(,)',
+             bygroups(Name.Function, Text, Punctuation)),
+            (r'from\b', Keyword, '#pop'),
+            (r'as\b', Keyword),
+            (r':', Punctuation, '#pop'),
+            (r'(?=["\'])', Text, '#pop'),
+            (r'[a-zA-Z_][a-zA-Z0-9_]*', Keyword.Type),
+            (r'.', Text),
         ],
         'classname': [
             ('[a-zA-Z_][a-zA-Z0-9_]*', Name.Class, '#pop')
@@ -114,8 +131,10 @@ class CythonLexer(RegexLexer):
             (r'', Text, '#pop') # all else: go back
         ],
         'fromimport': [
-            (r'(\s+)((c)?import)\b', bygroups(Text, Keyword), '#pop'),
+            (r'(\s+)(c?import)\b', bygroups(Text, Keyword), '#pop'),
             (r'[a-zA-Z_.][a-zA-Z0-9_.]*', Name.Namespace),
+            # ``cdef foo from "header"``, or ``for foo from 0 < i < 10``
+            (r'', Text, '#pop'),
         ],
         'stringescape': [
             (r'\\([\\abfnrtv"\']|\n|N{.*?}|u[a-fA-F0-9]{4}|'

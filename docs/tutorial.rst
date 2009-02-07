@@ -50,7 +50,9 @@ information see :ref:`compilation`)::
         ext_modules = [Extension("helloworld", ["helloworld.pyx"])]
     ) 
 
-To use this to build your Cython file use the commandline options::
+To use this to build your Cython file use the commandline options:
+
+.. sourcecode:: text
 
     $ python setup.py build_ext --inplace
 
@@ -93,7 +95,9 @@ module name, doing this we have:
 
 .. literalinclude:: ../examples/tutorial/fib1/setup.py
 
-Build the extension with the same command used for the helloworld.pyx::
+Build the extension with the same command used for the helloworld.pyx:
+
+.. sourcecode:: text
 
     $ python setup.py build_ext --inplace
 

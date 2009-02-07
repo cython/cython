@@ -283,6 +283,8 @@ when it is deleted.::
     del shop.cheese
     print shop.cheese
 
+.. sourcecode:: text
+
     # Test output
     We don't have: []
     We don't have: ['camembert']
@@ -341,6 +343,8 @@ extension types.::
     p1.describe()
     print "p2:"
     p2.describe()
+
+.. sourcecode:: text
 
     # Output
     p1:
@@ -437,7 +441,9 @@ built-in complex object.::
 
     1. In this example, :keyword:`ctypedef` class has been used. This is
        because, in the Python header files, the ``PyComplexObject`` struct is
-       declared with::
+       declared with:
+
+       .. sourcecode:: c
 
         ctypedef struct {
             ...

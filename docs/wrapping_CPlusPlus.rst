@@ -39,7 +39,9 @@ An example C++ API
 
 Here is a tiny C++ API which we will use as an example throughout this
 document. Let's assume it will be in a header file called
-:file:`Rectangle.h`::
+:file:`Rectangle.h`:
+
+.. sourcecode:: c++
 
     class Rectangle {
     public:
@@ -116,7 +118,9 @@ Add class methods
 
 Now, let's add the class methods. You can circumvent Cython syntax
 limitations by declaring these as function pointers. Recall that in the C++
-class we have::
+class we have:
+
+.. sourcecode:: c++
 
   int getLength();
   int getHeight();
@@ -278,7 +282,9 @@ Overloading
 ^^^^^^^^^^^^
 
 To support function overloading simply add a different alias to each
-signature, so if you have e.g. ::
+signature, so if you have e.g.
+
+.. sourcecode:: c++
 
     int foo(int a);
     int foo(int a, int b);
@@ -294,7 +300,7 @@ Operators
 Some operators (e.g. +,-,...) can be accessed from Cython like this::
 
     ctypedef struct c_Rectangle "Rectangle":
-    c_Rectangle add "operator+"(c_Rectangle right)
+        c_Rectangle add "operator+"(c_Rectangle right)
 
 Declaring/Using References
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
