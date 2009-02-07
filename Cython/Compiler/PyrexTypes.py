@@ -1231,6 +1231,7 @@ sign_and_rank_to_type = {
     (1, 2): c_int_type, 
     (1, 3): c_long_type,
     (1, 4): c_longlong_type,
+
     (2, 0): c_schar_type, 
     (2, 1): c_sshort_type, 
     (2, 2): c_sint_type, 
@@ -1242,13 +1243,13 @@ sign_and_rank_to_type = {
     (0, 6): c_size_t_type,
     (1, 6): c_size_t_type,
 
-    (1, 6): c_float_type, 
-    (1, 7): c_double_type,
-    (1, 8): c_longdouble_type,
+    (1, 7): c_float_type, 
+    (1, 8): c_double_type,
+    (1, 9): c_longdouble_type,
 # In case we're mixing unsigned ints and floats...
-    (0, 6): c_float_type, 
-    (0, 7): c_double_type,
-    (0, 8): c_longdouble_type,
+    (0, 7): c_float_type, 
+    (0, 8): c_double_type,
+    (0, 9): c_longdouble_type,
 }
 
 modifiers_and_name_to_type = {
