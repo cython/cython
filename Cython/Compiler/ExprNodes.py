@@ -1333,6 +1333,8 @@ class NameNode(AtomicExprNode):
                 #print "...from", rhs ###
                 #print "...LHS type", self.type, "ctype", self.ctype() ###
                 #print "...RHS type", rhs.type, "ctype", rhs.ctype() ###
+                if entry.is_cglobal:
+                    code.put_gotref(self.py_result())
                 if not self.lhs_of_first_assignment:
                     if entry.is_local and not Options.init_local_none:
                         initalized = entry.scope.control_flow.get_state((entry.name, 'initalized'), self.pos)
@@ -1342,6 +1344,8 @@ class NameNode(AtomicExprNode):
                             code.put_xdecref(self.result(), self.ctype())
                     else:
                         code.put_decref(self.result(), self.ctype())
+                if entry.is_cglobal:
+                    code.put_giveref(rhs.py_result())
             code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
@@ -1874,10 +1878,12 @@ class IndexNode(ExprNode):
             ptr = code.funcstate.allocate_temp(self.buffer_type.buffer_ptr_type, manage_ref=False)
             rhs_code = rhs.result()
             code.putln("%s = %s;" % (ptr, ptrexpr))
+            code.put_gotref("*%s" % ptr)
             code.putln("__Pyx_DECREF(*%s); __Pyx_INCREF(%s);" % (
                 ptr, rhs_code
                 ))
             code.putln("*%s %s= %s;" % (ptr, op, rhs_code))
+            code.put_giveref("*%s" % ptr)
             code.funcstate.release_temp(ptr)
         else: 
             # Simple case
@@ -2060,6 +2066,7 @@ class SliceIndexNode(ExprNode):
                         self.base.result(), start_offset, i,
                         rhs.result(), i))
         self.generate_subexpr_disposal_code(code)
+        self.free_subexpr_temps(code)
         rhs.generate_disposal_code(code)
         rhs.free_temps(code)
 
@@ -2882,6 +2889,8 @@ class AttributeNode(NewTempExprNode):
             select_code = self.result()
             if self.type.is_pyobject:
                 rhs.make_owned_reference(code)
+                code.put_giveref(rhs.py_result())
+                code.put_gotref(select_code)
                 code.put_decref(select_code, self.ctype())
             code.putln(
                 "%s = %s;" % (
@@ -3349,6 +3358,7 @@ class SetNode(NewTempExprNode):
             "%s = PySet_New(0); %s" % (
                 self.result(),
                 code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
         for arg in self.args:
             arg.generate_evaluation_code(code)
             code.putln(

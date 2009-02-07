@@ -48,17 +48,17 @@ class TestTreeFragments(CythonTest):
         self.assertEquals(v.pos, a.pos)
         
     def test_temps(self):
-        import Cython.Compiler.Visitor as v
-        v.tmpnamectr = 0
+        TemplateTransform.temp_name_counter = 0
         F = self.fragment(u"""
             TMP
             x = TMP
         """)
         T = F.substitute(temps=[u"TMP"])
-        s = T.body.stats
-        self.assert_(isinstance(s[0].expr, TempRefNode))
-        self.assert_(isinstance(s[1].rhs, TempRefNode))
-        self.assert_(s[0].expr.handle is s[1].rhs.handle)
+        s = T.stats
+        self.assert_(s[0].expr.name == "__tmpvar_1")
+#        self.assert_(isinstance(s[0].expr, TempRefNode))
+#        self.assert_(isinstance(s[1].rhs, TempRefNode))
+#        self.assert_(s[0].expr.handle is s[1].rhs.handle)
 
 if __name__ == "__main__":
     import unittest

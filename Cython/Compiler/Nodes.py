@@ -1068,10 +1068,10 @@ class FuncDefNode(StatNode, BlockNode):
         if acquire_gil:
             code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
         # ----- Automatic lead-ins for certain special functions
-        if is_getbuffer_slot:
-            self.getbuffer_init(code)
         if not lenv.nogil:
             code.put_setup_refcount_context(self.entry.name)
+        if is_getbuffer_slot:
+            self.getbuffer_init(code)
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must 
@@ -1181,8 +1181,7 @@ class FuncDefNode(StatNode, BlockNode):
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject and lenv.control_flow.get_state((entry.name, 'source')) != 'arg':
                 code.put_var_decref(entry)
-        if acquire_gil:
-            code.putln("PyGILState_Release(_save);")
+
         # code.putln("/* TODO: decref scope object */")
         # ----- Return
         # This code is duplicated in ModuleNode.generate_module_init_func
@@ -1198,6 +1197,9 @@ class FuncDefNode(StatNode, BlockNode):
                                              self.entry.qualified_name,
                                              Naming.retval_cname,
                                              err_val)
+
+        if acquire_gil:
+            code.putln("PyGILState_Release(_save);")
 
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
@@ -1254,16 +1256,20 @@ class FuncDefNode(StatNode, BlockNode):
         # the following line should be removed when this bug is fixed.
         code.putln("if (%s == NULL) return 0;" % info) 
         code.putln("%s->obj = Py_None; __Pyx_INCREF(Py_None);" % info)
+        code.put_giveref("%s->obj" % info) # Do not refnanny object within structs
 
     def getbuffer_error_cleanup(self, code):
         info = self.local_scope.arg_entries[1].cname
+        code.put_gotref("%s->obj" % info)
         code.putln("__Pyx_DECREF(%s->obj); %s->obj = NULL;" %
                    (info, info))
 
     def getbuffer_normal_cleanup(self, code):
         info = self.local_scope.arg_entries[1].cname
-        code.putln("if (%s->obj == Py_None) { __Pyx_DECREF(Py_None); %s->obj = NULL; }" %
-                   (info, info))
+        code.putln("if (%s->obj == Py_None) {" % info)
+        code.put_gotref("Py_None")
+        code.putln("__Pyx_DECREF(Py_None); %s->obj = NULL;" % info)
+        code.putln("}")
 
 class CFuncDefNode(FuncDefNode):
     #  C function definition.
@@ -2014,6 +2020,8 @@ class DefNode(FuncDefNode):
             code.putln("if (unlikely(!%s)) return %s;" % (
                     self.starstar_arg.entry.cname, self.error_value()))
             self.starstar_arg.entry.xdecref_cleanup = 0
+            code.put_gotref(self.starstar_arg.entry.cname)
+            
 
         if self.star_arg:
             code.put_incref(Naming.args_cname, py_object_type)
@@ -2145,6 +2153,7 @@ class DefNode(FuncDefNode):
                     self.starstar_arg.entry.cname,
                     self.starstar_arg.entry.cname,
                     self.error_value()))
+            code.put_gotref(self.starstar_arg.entry.cname)
         if self.star_arg:
             self.star_arg.entry.xdecref_cleanup = 0
             code.putln('if (PyTuple_GET_SIZE(%s) > %d) {' % (
@@ -2153,6 +2162,7 @@ class DefNode(FuncDefNode):
             code.put('%s = PyTuple_GetSlice(%s, %d, PyTuple_GET_SIZE(%s)); ' % (
                     self.star_arg.entry.cname, Naming.args_cname,
                     max_positional_args, Naming.args_cname))
+            code.put_gotref(self.star_arg.entry.cname)
             if self.starstar_arg:
                 code.putln("")
                 code.putln("if (unlikely(!%s)) {" % self.star_arg.entry.cname)
@@ -3232,6 +3242,7 @@ class ExecStatNode(StatNode):
             arg.free_temps(code)
         code.putln(
             code.error_goto_if_null(self.temp_result, self.pos))
+        code.put_gotref(self.temp_result)
         code.put_decref_clear(self.temp_result, py_object_type)
 
     def annotate(self, code):
@@ -3895,9 +3906,15 @@ class ForFromStatNode(LoopNode, StatNode):
         self.bound1.generate_evaluation_code(code)
         self.bound2.generate_evaluation_code(code)
         offset, incop = self.relation_table[self.relation1]
+        if incop == "++":
+            decop = "--"
+        else:
+            decop = "++"
         if self.step is not None:
             self.step.generate_evaluation_code(code)
-            incop = "%s=%s" % (incop[0], self.step.result())
+            step = self.step.result()
+            incop = "%s=%s" % (incop[0], step)
+            decop = "%s=%s" % (decop[0], step)
         loopvar_name = self.loopvar_node.result()
         code.putln(
             "for (%s = %s%s; %s %s %s; %s%s) {" % (
@@ -3910,7 +3927,11 @@ class ForFromStatNode(LoopNode, StatNode):
             self.target.generate_assignment_code(self.py_loopvar_node, code)
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
-        code.putln("}")
+        if getattr(self, "from_range", False):
+            # Undo last increment to maintain Python semantics:
+            code.putln("} %s%s;" % (loopvar_name, decop))
+        else:
+            code.putln("}")
         break_label = code.break_label
         code.set_loop_labels(old_loop_labels)
         if self.else_clause:
@@ -4026,6 +4047,8 @@ class TryExceptStatNode(StatNode):
                    ', '.join(['*%s' % var for var in Naming.exc_save_vars]))
         code.putln("__Pyx_ExceptionSave(%s);" %
                    ', '.join(['&%s' % var for var in Naming.exc_save_vars]))
+        for var in Naming.exc_save_vars:
+            code.put_xgotref(var)
         code.putln(
             "/*try:*/ {")
         code.return_label = try_return_label
@@ -4066,12 +4089,14 @@ class TryExceptStatNode(StatNode):
 
         if code.label_used(except_return_label):
             code.put_label(except_return_label)
+            for var in Naming.exc_save_vars: code.put_xgiveref(var)
             code.putln("__Pyx_ExceptionReset(%s);" %
                        ', '.join(Naming.exc_save_vars))
             code.put_goto(old_return_label)
 
         if code.label_used(except_end_label):
             code.put_label(except_end_label)
+            for var in Naming.exc_save_vars: code.put_xgiveref(var)
             code.putln("__Pyx_ExceptionReset(%s);" %
                        ', '.join(Naming.exc_save_vars))
         code.put_label(try_end_label)
@@ -4170,6 +4195,8 @@ class ExceptClauseNode(Node):
         exc_args = "&%s, &%s, &%s" % tuple(self.exc_vars)
         code.putln("if (__Pyx_GetException(%s) < 0) %s" % (exc_args,
             code.error_goto(self.pos)))
+        for x in self.exc_vars:
+            code.put_gotref(x)
         if self.target:
             self.exc_value.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.exc_value, code)

@@ -1399,14 +1399,18 @@ static INLINE Py_ssize_t __pyx_PyIndex_AsSsize_t(PyObject* b) {
 static INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
    if (x == Py_True) return 1;
    else if (x == Py_False) return 0;
+   else if (x == Py_None) return 0;
    else return PyObject_IsTrue(x);
 }
 
 static INLINE PY_LONG_LONG __pyx_PyInt_AsLongLong(PyObject* x) {
+#if PY_VERSION_HEX < 0x03000000
     if (PyInt_CheckExact(x)) {
         return PyInt_AS_LONG(x);
     }
-    else if (PyLong_CheckExact(x)) {
+    else
+#endif
+    if (PyLong_CheckExact(x)) {
         return PyLong_AsLongLong(x);
     }
     else {
@@ -1419,19 +1423,22 @@ static INLINE PY_LONG_LONG __pyx_PyInt_AsLongLong(PyObject* x) {
 }
 
 static INLINE unsigned PY_LONG_LONG __pyx_PyInt_AsUnsignedLongLong(PyObject* x) {
+#if PY_VERSION_HEX < 0x03000000
     if (PyInt_CheckExact(x)) {
         long val = PyInt_AS_LONG(x);
         if (unlikely(val < 0)) {
-            PyErr_SetString(PyExc_TypeError, "Negative assignment to unsigned type.");
+            PyErr_SetString(PyExc_OverflowError, "can't convert negative value to unsigned long long");
             return (unsigned PY_LONG_LONG)-1;
         }
         return val;
     }
-    else if (PyLong_CheckExact(x)) {
+    else
+#endif
+    if (PyLong_CheckExact(x)) {
         return PyLong_AsUnsignedLongLong(x);
     }
     else {
-        PY_LONG_LONG val;
+        unsigned PY_LONG_LONG val;
         PyObject* tmp = PyNumber_Int(x); if (!tmp) return (PY_LONG_LONG)-1;
         val = __pyx_PyInt_AsUnsignedLongLong(tmp);
         Py_DECREF(tmp);

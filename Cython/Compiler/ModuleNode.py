@@ -1585,7 +1585,17 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("PyObject* %s;" % Naming.retval_cname)
         tempdecl_code = code.insertion_point()
 
-        code.put_setup_refcount_context(header3)
+        code.putln("#ifdef CYTHON_REFNANNY")
+        code.putln("void* __pyx_refchk = NULL;")
+        code.putln("__Pyx_Refnanny = __Pyx_ImportRefcountAPI(\"refnanny\");")
+        code.putln("if (!__Pyx_Refnanny) {")
+        code.putln("  PyErr_Clear();")
+        code.putln("  __Pyx_Refnanny = __Pyx_ImportRefcountAPI(\"Cython.Runtime.refnanny\");")
+        code.putln("  if (!__Pyx_Refnanny)")
+        code.putln("      Py_FatalError(\"failed to import refnanny module\");")
+        code.putln("}")
+        code.putln("__pyx_refchk = __Pyx_Refnanny->NewContext(\"%s\", __LINE__);"% header3)
+        code.putln("#endif")
 
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
 
@@ -1640,8 +1650,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.use_utility_code(Nodes.traceback_utility_code)
         code.putln("%s = NULL;" % Naming.retval_cname)
         code.put_label(code.return_label)
-        code.put_finish_refcount_context(self.pos, env.qualified_name,
-                                         Naming.retval_cname, "NULL")
+        # Disabled because of confusion with refcount of global variables -- run ass2cglobal testcase to see
+        #code.put_finish_refcount_context(self.pos, env.qualified_name,
+        #                                 Naming.retval_cname, "NULL")
+        code.putln("#if CYTHON_REFNANNY")
+        code.putln("if (__pyx_refchk) {};")
+        code.putln("#endif")
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln("return;")
         code.putln("#else")
@@ -2319,29 +2333,35 @@ bad:
         
 refcount_utility_code = UtilityCode(proto="""
 #ifdef CYTHON_REFNANNY
-void __Pyx_Refnanny_INCREF(void*, PyObject*, int);
-void __Pyx_Refnanny_GOTREF(void*, PyObject*, int);
-void __Pyx_Refnanny_GIVEREF(void*, PyObject*, int);
-void __Pyx_Refnanny_INCREF(void*, PyObject*, int);
-void __Pyx_Refnanny_DECREF(void*, PyObject*, int);
-void* __Pyx_Refnanny_NewContext(char*, int);
-int __Pyx_Refnanny_FinishContext(void*);
-#define __Pyx_INCREF(r) __Pyx_Refnanny_INCREF(__pyx_refchk, r, __LINE__)
-#define __Pyx_GOTREF(r) __Pyx_Refnanny_GOTREF(__pyx_refchk, r, __LINE__)
-#define __Pyx_GIVEREF(r) __Pyx_Refnanny_GIVEREF(__pyx_refchk, r, __LINE__)
-#define __Pyx_DECREF(r) __Pyx_Refnanny_DECREF(__pyx_refchk, r, __LINE__)
-#define __Pyx_XDECREF(r) (r ? __Pyx_Refnanny_DECREF(__pyx_refchk, r, __LINE__) : 0)
+typedef struct {
+  void (*INCREF)(void*, PyObject*, int);
+  void (*DECREF)(void*, PyObject*, int);
+  void (*GOTREF)(void*, PyObject*, int);
+  void (*GIVEREF)(void*, PyObject*, int);
+  void* (*NewContext)(const char*, int);
+  int (*FinishContext)(void**);
+} __Pyx_RefnannyAPIStruct;
+static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
+#define __Pyx_ImportRefcountAPI(name) \
+  (__Pyx_RefnannyAPIStruct *) PyCObject_Import((char *)name, (char *)\"RefnannyAPI\")
+#define __Pyx_INCREF(r) __Pyx_Refnanny->INCREF(__pyx_refchk, (PyObject *)(r), __LINE__)
+#define __Pyx_DECREF(r) __Pyx_Refnanny->DECREF(__pyx_refchk, (PyObject *)(r), __LINE__)
+#define __Pyx_GOTREF(r) __Pyx_Refnanny->GOTREF(__pyx_refchk, (PyObject *)(r), __LINE__)
+#define __Pyx_GIVEREF(r) __Pyx_Refnanny->GIVEREF(__pyx_refchk, (PyObject *)(r), __LINE__)
+#define __Pyx_XDECREF(r) if((r) == NULL) ; else __Pyx_DECREF(r)
 #define __Pyx_SetupRefcountContext(name) \
-  void* __pyx_refchk = __Pyx_Refnanny_NewContext(name, __LINE__)
-#define __Pyx_FinishRefcountContext() __Pyx_Refnanny_FinishContext(__pyx_refchk)
+  void* __pyx_refchk = __Pyx_Refnanny->NewContext((name), __LINE__)
+#define __Pyx_FinishRefcountContext() \
+  __Pyx_Refnanny->FinishContext(&__pyx_refchk)
 #else
 #define __Pyx_INCREF(r) Py_INCREF(r)
+#define __Pyx_DECREF(r) Py_DECREF(r)
 #define __Pyx_GOTREF(r)
 #define __Pyx_GIVEREF(r)
-#define __Pyx_DECREF(r) Py_DECREF(r)
 #define __Pyx_XDECREF(r) Py_XDECREF(r)
 #define __Pyx_SetupRefcountContext(name)
 #define __Pyx_FinishRefcountContext() 0
 #endif /* CYTHON_REFNANNY */
-#define __Pyx_XGIVEREF(r) (r ? __Pyx_GIVEREF(r) : 0)
+#define __Pyx_XGIVEREF(r) if((r) == NULL) ; else __Pyx_GIVEREF(r)
+#define __Pyx_XGOTREF(r) if((r) == NULL) ; else __Pyx_GOTREF(r)
 """)

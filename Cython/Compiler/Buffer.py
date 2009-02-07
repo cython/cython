@@ -305,7 +305,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
                            for i in range(3)]
         code.putln('PyErr_Fetch(&%s, &%s, &%s);' % (type, value, tb))
         code.putln('if (%s) {' % code.unlikely("%s == -1" % (getbuffer % lhs_cname)))
-        code.putln('Py_XDECREF(%s); Py_XDECREF(%s); Py_XDECREF(%s);' % (type, value, tb))
+        code.putln('Py_XDECREF(%s); Py_XDECREF(%s); Py_XDECREF(%s);' % (type, value, tb)) # Do not refnanny these!
         code.globalstate.use_utility_code(raise_buffer_fallback_code)
         code.putln('__Pyx_RaiseBufferFallbackError();')
         code.putln('} else {')
@@ -323,7 +323,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
         # In this case, auxiliary vars should be set up right in initialization to a zero-buffer,
         # so it suffices to set the buf field to NULL.
         code.putln('if (%s) {' % code.unlikely("%s == -1" % (getbuffer % rhs_cname)))
-        code.putln('%s = %s; Py_INCREF(Py_None); %s.buf = NULL;' %
+        code.putln('%s = %s; __Pyx_INCREF(Py_None); %s.buf = NULL;' %
                    (lhs_cname,
                     PyrexTypes.typecast(buffer_type, PyrexTypes.py_object_type, "Py_None"),
                     bufstruct))

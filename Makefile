@@ -14,6 +14,7 @@ clean:
 	@rm -f Cython/Compiler/Parsing.{c,so,pyd}
 	@rm -f Cython/Compiler/Scanning.{c,so,pyd}
 	@rm -f Cython/Compiler/Visitor.{c,so,pyd}
+	@rm -f Cython/Runtime/refnanny.{c,so,pyd}
 	@rm -f Cython/Plex/Scanners.{c,so,pyd}
 	@(cd Demos; $(MAKE) clean)
 
