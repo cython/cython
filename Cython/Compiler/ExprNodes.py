@@ -3892,7 +3892,7 @@ class TypecastNode(NewTempExprNode):
 class SizeofNode(ExprNode):
     #  Abstract base class for sizeof(x) expression nodes.
     
-    type = PyrexTypes.c_int_type
+    type = PyrexTypes.c_size_t_type
 
     def check_const(self):
         pass
