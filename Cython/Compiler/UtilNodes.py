@@ -164,14 +164,18 @@ class EvalWithTempExprNode(ExprNodes.NewTempExprNode):
 
     def generate_evaluation_code(self, code):
         self.temp_expression.generate_evaluation_code(code)
-        if self.temp_expression.is_temp:
+        result_in_temp = self.temp_expression.result_in_temp()
+        temp_type = self.temp_expression.type
+        if result_in_temp:
             temp = self.temp_expression.result()
         else:
             self.temp_expression.make_owned_reference(code)
             temp = code.funcstate.allocate_temp(
-                self.temp_expression.type, manage_ref=True)
+                temp_type, manage_ref=True)
             code.putln("%s = %s;" % (temp, self.temp_expression.result()))
         self.lazy_temp.result_code = temp
         self.subexpression.generate_evaluation_code(code)
-        if not self.temp_expression.is_temp:
+        if not result_in_temp:
+            if temp_type.is_pyobject:
+                code.put_decref_clear(temp, temp_type)
             code.funcstate.release_temp(temp)

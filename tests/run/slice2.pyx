@@ -16,6 +16,9 @@ __doc__ = u"""
 
     >>> j(1, [1,2,3,4], 2, 3)
     [3]
+
+    >>> slice_of_temporary_smoketest()
+    [3, 2]
 """
 
 def f(obj1, obj2, obj3, obj4):
@@ -33,3 +36,12 @@ def h(obj1, obj2, obj3, obj4):
 def j(obj1, obj2, obj3, obj4):
     obj1 = obj2[obj3:obj4]
     return obj1
+
+class A(object):
+    pass
+
+def slice_of_temporary_smoketest():
+    x = A()
+    x.a = [1, 2]
+    x.a[:] = [3,2]
+    return x.a

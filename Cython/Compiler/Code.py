@@ -320,7 +320,7 @@ class GlobalState(object):
     def should_declare(self, cname, entry):
         if cname in self.declared_cnames:
             other = self.declared_cnames[cname]
-            assert entry.type == other.type
+            assert str(entry.type) == str(other.type)
             assert entry.init == other.init
             return False
         else:
@@ -748,6 +748,9 @@ class CCodeWriter(object):
     
     def put_xgiveref(self, cname):
         self.putln("__Pyx_XGIVEREF(%s);" % cname)
+
+    def put_xgotref(self, cname):
+        self.putln("__Pyx_XGOTREF(%s);" % cname)
 
     def put_incref(self, cname, type, nanny=True):
         if nanny:
