@@ -1398,8 +1398,7 @@ static INLINE Py_ssize_t __pyx_PyIndex_AsSsize_t(PyObject* b) {
 
 static INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
    if (x == Py_True) return 1;
-   else if (x == Py_False) return 0;
-   else if (x == Py_None) return 0;
+   else if ((x == Py_False) | (x == Py_None)) return 0;
    else return PyObject_IsTrue(x);
 }
 
