@@ -3951,6 +3951,7 @@ class ForFromStatNode(LoopNode, StatNode):
             
     def generate_execution_code(self, code):
         old_loop_labels = code.new_loop_labels()
+        from_range = getattr(self, "from_range", False)
         self.bound1.generate_evaluation_code(code)
         self.bound2.generate_evaluation_code(code)
         offset, incop = self.relation_table[self.relation1]
@@ -3964,6 +3965,12 @@ class ForFromStatNode(LoopNode, StatNode):
             incop = "%s=%s" % (incop[0], step)
             decop = "%s=%s" % (decop[0], step)
         loopvar_name = self.loopvar_node.result()
+        if from_range:
+            # Skip the loop entirely (and avoid assigning to the loopvar) if
+            # the loop is empty:
+            code.putln("if (%s%s %s %s) {" % (
+            self.bound1.result(), offset, self.relation2, self.bound2.result()
+            ))
         code.putln(
             "for (%s = %s%s; %s %s %s; %s%s) {" % (
                 loopvar_name,
@@ -3975,9 +3982,11 @@ class ForFromStatNode(LoopNode, StatNode):
             self.target.generate_assignment_code(self.py_loopvar_node, code)
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
-        if getattr(self, "from_range", False):
+        if from_range:
             # Undo last increment to maintain Python semantics:
             code.putln("} %s%s;" % (loopvar_name, decop))
+            # End the outer if statement:
+            code.putln("} /* end if */")
         else:
             code.putln("}")
         break_label = code.break_label
