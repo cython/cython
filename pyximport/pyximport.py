@@ -14,6 +14,17 @@ For instance on the Mac with a non-system Python 2.3, you could create
 sitecustomize.py with only those two lines at
 /usr/local/lib/python2.3/site-packages/sitecustomize.py .
 
+Since Cython 0.11, the :mod:`pyximport` module also has experimental
+compilation support for normal Python modules.  This allows you to
+automatically run Cython on every .pyx and .py module that Python
+imports, including parts of the standard library and installed
+packages.  Cython will still fail to compile a lot of Python modules,
+in which case the import mechanism will fall back to loading the
+Python source modules instead.  The .py import mechanism is installed
+like this::
+
+    pyximport.install(pyimport = True)
+
 Running this module as a top-level script will run a test and then print
 the documentation.
 
