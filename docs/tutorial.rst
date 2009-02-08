@@ -70,15 +70,25 @@ lets create a more realistic example.
 :mod:`pyximport`: Cython Compilation the Easy Way
 ==================================================
 
-If your module doesn't require any extra libraries or other dependancies, then 
-you can use the pyximport module by Paul Prescod to load .pyx files directly 
-without having to write a :file:`setup.py` file. 
+If your module doesn't require any extra C libraries or a special
+build setup, then you can use the pyximport module by Paul Prescod and
+Stefan Behnel to load .pyx files directly on import, without having to
+write a :file:`setup.py` file.  It is shipped and installed with
+Cython and can be used like this::
 
     >>> import pyximport; pyximport.install()
     >>> import helloworld
     Hello World
-    
-This is shipped and installed with Cython. 
+
+Since Cython 0.11, the :mod:`pyximport` module also has experimental
+compilation support for normal Python modules.  This allows you to
+automatically run Cython on every .pyx and .py module that Python
+imports, including the standard library and installed packages.
+Cython will still fail to compile a lot of Python modules, in which
+case the import mechanism will fall back to loading the Python source
+modules instead.  The .py import mechanism is installed like this::
+
+    >>> pyximport.install(pyimport = True)
 
 Fibonacci Fun
 ==============
