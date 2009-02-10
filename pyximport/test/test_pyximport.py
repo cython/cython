@@ -38,7 +38,7 @@ def test():
     build_file.write("""
 from distutils.extension import Extension
 def make_ext(name, filename):
-	return Extension(name=name, sources=[filename]) 
+    return Extension(name=name, sources=[filename]) 
 """)
     build_file.close()
 
@@ -60,5 +60,5 @@ def make_ext(name, filename):
     remove_tempdir(tempdir)
 
 if __name__=="__main__":
-	test()
+    test()
 

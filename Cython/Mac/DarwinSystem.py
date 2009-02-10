@@ -51,8 +51,8 @@ linker_options = \
     "-Wl,-F.,-w -bundle -undefined dynamic_lookup" \
     .split()
 #linker_options = \
-#	"-Wl,-F.,-w -bundle -framework Python" \
-#	.split()
+#    "-Wl,-F.,-w -bundle -framework Python" \
+#    .split()
 
 class CCompilerError(PyrexError):
     pass

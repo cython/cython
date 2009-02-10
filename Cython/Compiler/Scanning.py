@@ -371,7 +371,7 @@ class PyrexScanner(Scanner):
         self.begin('')
         # Indentation within brackets should be ignored.
         #if self.bracket_nesting_level > 0:
-        #	return
+        #    return
         # Check that tabs and spaces are being used consistently.
         if text:
             c = text[0]

@@ -106,17 +106,17 @@ class build_ext(_build_ext.build_ext):
         # cplus will also be set to true is extension.language is equal to
         # 'C++' or 'c++'.
         #try:
-        #	create_listing = self.pyrex_create_listing or \
-        #						extension.pyrex_create_listing
-        #	cplus = self.pyrex_cplus or \
-        #				extension.pyrex_cplus or \
-        #				(extension.language != None and \
-        #					extension.language.lower() == 'c++')
+        #    create_listing = self.pyrex_create_listing or \
+        #                        extension.pyrex_create_listing
+        #    cplus = self.pyrex_cplus or \
+        #                extension.pyrex_cplus or \
+        #                (extension.language != None and \
+        #                    extension.language.lower() == 'c++')
         #except AttributeError:
-        #	create_listing = self.pyrex_create_listing
-        #	cplus = self.pyrex_cplus or \
-        #				(extension.language != None and \
-        #					extension.language.lower() == 'c++')
+        #    create_listing = self.pyrex_create_listing
+        #    cplus = self.pyrex_cplus or \
+        #                (extension.language != None and \
+        #                    extension.language.lower() == 'c++')
         
         create_listing = self.pyrex_create_listing or \
             getattr(extension, 'pyrex_create_listing', 0)
@@ -125,10 +125,10 @@ class build_ext(_build_ext.build_ext):
         pyrex_gen_pxi = self.pyrex_gen_pxi or getattr(extension, 'pyrex_gen_pxi', 0)
 
         # Set up the include_path for the Cython compiler:
-        #	1.	Start with the command line option.
-        #	2.	Add in any (unique) paths from the extension
-        #		pyrex_include_dirs (if Cython.Distutils.extension is used).
-        #	3.	Add in any (unique) paths from the extension include_dirs
+        #    1.    Start with the command line option.
+        #    2.    Add in any (unique) paths from the extension
+        #        pyrex_include_dirs (if Cython.Distutils.extension is used).
+        #    3.    Add in any (unique) paths from the extension include_dirs
         includes = self.pyrex_include_dirs
         try:
             for i in extension.pyrex_include_dirs:
@@ -162,7 +162,7 @@ class build_ext(_build_ext.build_ext):
             if ext == ".py":
                 # FIXME: we might want to special case this some more
                 ext = '.pyx'
-            if ext == ".pyx":			  # Cython source file
+            if ext == ".pyx":              # Cython source file
                 output_dir = target_dir or os.path.dirname(source)
                 new_sources.append(os.path.join(output_dir, base + target_ext))
                 pyrex_sources.append(source)

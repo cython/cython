@@ -849,7 +849,7 @@ class CCodeWriter(object):
     def put_init_var_to_py_none(self, entry, template = "%s", nanny=True):
         code = template % entry.cname
         #if entry.type.is_extension_type:
-        #	code = "((PyObject*)%s)" % code
+        #    code = "((PyObject*)%s)" % code
         self.put_init_to_py_none(code, entry.type, nanny)
 
     def put_pymethoddef(self, entry, term):

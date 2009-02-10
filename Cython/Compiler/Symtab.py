@@ -392,7 +392,7 @@ class Scope:
             visibility = visibility)
         entry.enum_values = []
         self.sue_entries.append(entry)
-        return entry	
+        return entry    
     
     def declare_var(self, name, type, pos, 
             cname = None, visibility = 'private', is_cdef = 0):
@@ -662,7 +662,7 @@ class Scope:
         # Test whether any of the given names are
         # defined in this scope.
         for name in names:
-            if name in self.entries:	
+            if name in self.entries:    
                 return 1
         return 0
 
@@ -1028,7 +1028,7 @@ class ModuleScope(Scope):
             if objstruct_cname:
                 type.objstruct_cname = objstruct_cname
             elif not entry.in_cinclude:
-                type.objstruct_cname = self.mangle(Naming.objstruct_prefix, name)				
+                type.objstruct_cname = self.mangle(Naming.objstruct_prefix, name)                
             else:
                 error(entry.pos, 
                     "Object name required for 'public' or 'extern' C class")
@@ -1067,13 +1067,13 @@ class ModuleScope(Scope):
         if objstruct_cname:
             if type.objstruct_cname and type.objstruct_cname != objstruct_cname:
                 error(pos, "Object struct name differs from previous declaration")
-            type.objstruct_cname = objstruct_cname		
+            type.objstruct_cname = objstruct_cname        
         if typeobj_cname:
             if type.typeobj_cname and type.typeobj_cname != typeobj_cname:
                     error(pos, "Type object name differs from previous declaration")
             type.typeobj_cname = typeobj_cname
         #
-        # Return new or existing entry	
+        # Return new or existing entry    
         #
         return entry
     
@@ -1329,7 +1329,7 @@ class PyClassScope(ClassScope):
         self.outer_scope.release_temp(cname)
 
     #def recycle_pending_temps(self):
-    #	self.outer_scope.recycle_pending_temps()
+    #    self.outer_scope.recycle_pending_temps()
 
     def add_default_value(self, type):
         return self.outer_scope.add_default_value(type)

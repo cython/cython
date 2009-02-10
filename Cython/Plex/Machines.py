@@ -101,12 +101,12 @@ class Node:
   def get_action_priority(self):
     return self.action_priority
 
-#	def merge_actions(self, other_state):
-#		"""Merge actions of other state into this state according
+#    def merge_actions(self, other_state):
+#        """Merge actions of other state into this state according
 #    to their priorities."""
-#		action = other_state.get_action()
-#		priority = other_state.get_action_priority()
-#		self.set_action(action, priority)
+#        action = other_state.get_action()
+#        priority = other_state.get_action_priority()
+#        self.set_action(action, priority)
 
   def is_accepting(self):
     return self.action is not None
@@ -119,7 +119,7 @@ class Node:
     # Header
     file.write("   State %d:\n" % self.number)
     # Transitions
-#		self.dump_transitions(file)
+#        self.dump_transitions(file)
     self.transitions.dump(file)
     # Action
     action = self.action

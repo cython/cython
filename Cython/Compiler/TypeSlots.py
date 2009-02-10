@@ -398,7 +398,7 @@ method_name_to_slot = {}
 ## extern function pointer.
 #
 #slots_initialised_from_extern = (
-#	"tp_free",
+#    "tp_free",
 #)
 
 #------------------------------------------------------------------------------------------

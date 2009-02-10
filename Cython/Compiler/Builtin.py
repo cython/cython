@@ -13,7 +13,7 @@ builtin_function_table = [
     ('abs',        "O",    "O",     "PyNumber_Absolute"),
     #('chr',       "",     "",      ""),
     #('cmp', "",   "",     "",      ""), # int PyObject_Cmp(PyObject *o1, PyObject *o2, int *result)
-    #('compile',   "",     "",      ""), # PyObject* Py_CompileString(	char *str, char *filename, int start)
+    #('compile',   "",     "",      ""), # PyObject* Py_CompileString(    char *str, char *filename, int start)
     ('delattr',    "OO",   "r",     "PyObject_DelAttr"),
     ('dir',        "O",    "O",     "PyObject_Dir"),
     ('divmod',     "OO",   "O",     "PyNumber_Divmod"),

@@ -2994,11 +2994,11 @@ class ParallelAssignmentNode(AssignmentNode):
         for stat in self.stats:
             stat.allocate_lhs_temps(env)
 
-#	def analyse_expressions(self, env):
-#		for stat in self.stats:
-#			stat.analyse_expressions_1(env, use_temp = 1)
-#		for stat in self.stats:
-#			stat.analyse_expressions_2(env)
+#    def analyse_expressions(self, env):
+#        for stat in self.stats:
+#            stat.analyse_expressions_1(env, use_temp = 1)
+#        for stat in self.stats:
+#            stat.analyse_expressions_2(env)
     
     def generate_execution_code(self, code):
         for stat in self.stats:
@@ -3158,18 +3158,18 @@ class InPlaceAssignmentNode(AssignmentNode):
         return self.py_functions[self.operator]
 
     py_functions = {
-        "|":		"PyNumber_InPlaceOr",
-        "^":		"PyNumber_InPlaceXor",
-        "&":		"PyNumber_InPlaceAnd",
-        "+":		"PyNumber_InPlaceAdd",
-        "-":		"PyNumber_InPlaceSubtract",
-        "*":		"PyNumber_InPlaceMultiply",
-        "/":		"PyNumber_InPlaceDivide",
-        "%":		"PyNumber_InPlaceRemainder",
-        "<<":		"PyNumber_InPlaceLshift",
-        ">>":		"PyNumber_InPlaceRshift",
-        "**":		"PyNumber_InPlacePower",
-        "//":		"PyNumber_InPlaceFloorDivide",
+        "|":        "PyNumber_InPlaceOr",
+        "^":        "PyNumber_InPlaceXor",
+        "&":        "PyNumber_InPlaceAnd",
+        "+":        "PyNumber_InPlaceAdd",
+        "-":        "PyNumber_InPlaceSubtract",
+        "*":        "PyNumber_InPlaceMultiply",
+        "/":        "PyNumber_InPlaceDivide",
+        "%":        "PyNumber_InPlaceRemainder",
+        "<<":        "PyNumber_InPlaceLshift",
+        ">>":        "PyNumber_InPlaceRshift",
+        "**":        "PyNumber_InPlacePower",
+        "//":        "PyNumber_InPlaceFloorDivide",
     }
 
     def annotate(self, code):
@@ -3625,8 +3625,8 @@ class IfClauseNode(Node):
         self.condition.free_temps(code)
         self.body.generate_execution_code(code)
         #code.putln(
-        #	"goto %s;" %
-        #		end_label)
+        #    "goto %s;" %
+        #        end_label)
         code.put_goto(end_label)
         code.putln("}")
 
@@ -3865,9 +3865,9 @@ class ForFromStatNode(LoopNode, StatNode):
             error(self.target.pos,
                 "Integer for-loop variable must be of type int or Python object")
         #if not (target_type.is_pyobject
-        #	or target_type.assignable_from(PyrexTypes.c_int_type)):
-        #		error(self.target.pos,
-        #			"Cannot assign integer to variable of type '%s'" % target_type)
+        #    or target_type.assignable_from(PyrexTypes.c_int_type)):
+        #        error(self.target.pos,
+        #            "Cannot assign integer to variable of type '%s'" % target_type)
         if target_type.is_numeric:
             self.is_py_target = 0
             if isinstance(self.target, ExprNodes.IndexNode) and self.target.is_buffer_access:
@@ -4383,8 +4383,8 @@ class TryFinallyStatNode(StatNode):
                 "%s = %s;" % (
                     Naming.exc_lineno_name, Naming.lineno_cname))
         #code.putln(
-        #		"goto %s;" %
-        #			catch_label)
+        #        "goto %s;" %
+        #            catch_label)
         code.put_goto(catch_label)
         code.putln(
             "}")

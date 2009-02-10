@@ -681,11 +681,11 @@ def p_string_literal(s):
     #print "p_string_literal: value =", repr(value) ###
     return kind, value
 
-# list_display  	::=  	"[" [listmaker] "]"
-# listmaker 	::= 	expression ( list_for | ( "," expression )* [","] )
-# list_iter 	::= 	list_for | list_if
-# list_for 	::= 	"for" expression_list "in" testlist [list_iter]
-# list_if 	::= 	"if" test [list_iter]
+# list_display      ::=      "[" [listmaker] "]"
+# listmaker     ::=     expression ( list_for | ( "," expression )* [","] )
+# list_iter     ::=     list_for | list_if
+# list_for     ::=     "for" expression_list "in" testlist [list_iter]
+# list_if     ::=     "if" test [list_iter]
         
 def p_list_maker(s):
     # s.sy == '['
@@ -1363,7 +1363,7 @@ def p_include_statement(s, ctx):
 def p_with_statement(s):
     pos = s.position()
     s.next() # 'with'
-#	if s.sy == 'IDENT' and s.systring in ('gil', 'nogil'):
+#    if s.sy == 'IDENT' and s.systring in ('gil', 'nogil'):
     if s.sy == 'IDENT' and s.systring == 'nogil':
         state = s.systring
         s.next()
@@ -1380,7 +1380,7 @@ def p_with_statement(s):
                 s.error("Multiple with statement target values not allowed without paranthesis")
         body = p_suite(s)
     return Nodes.WithStatNode(pos, manager = manager, 
-	       			       target = target, body = body)
+                              target = target, body = body)
     
 def p_simple_statement(s, first_statement = 0):
     #print "p_simple_statement:", s.sy, s.systring ###
