@@ -29,6 +29,8 @@ TypeError
 3
 >>> try_continue(3)
 3
+>>> try_return_none_1()
+>>> try_return_none_2()
 """
 
 def finally_except():
@@ -59,3 +61,25 @@ def try_continue(a):
         finally:
             i+=1
     return i
+
+
+def try_return_none_1():
+    try:
+        return
+    finally:
+        return
+
+cdef extern from *:
+    ctypedef struct PyObject
+    void Py_INCREF(object)
+
+cdef PyObject* _none():
+    ret = None
+    Py_INCREF(ret)
+    return <PyObject*> ret
+
+def try_return_none_2():
+    try:
+        return <object> _none()
+    finally:
+        return <object> _none()
