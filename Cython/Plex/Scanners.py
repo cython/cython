@@ -130,10 +130,10 @@ class Scanner:
     self.start_pos = self.cur_pos
     self.start_line = self.cur_line
     self.start_col = self.cur_pos - self.cur_line_start
-#		if self.trace:
-#			action = self.run_machine()
-#		else:
-#			action = self.run_machine_inlined()
+#        if self.trace:
+#            action = self.run_machine()
+#        else:
+#            action = self.run_machine_inlined()
     action = self.run_machine_inlined()
     if action:
       if self.trace:
@@ -257,48 +257,48 @@ class Scanner:
     self.cur_line_start = cur_line_start
     self.cur_char = cur_char
     self.input_state = input_state
-    self.next_pos	 = next_pos
+    self.next_pos     = next_pos
     if trace: #TRACE#
       if action: #TRACE#
         print("Doing " + action) #TRACE#
     return action
     
-#	def transition(self):
-#		self.save_for_backup()
-#		c = self.cur_char
-#		new_state = self.state.new_state(c)
-#		if new_state:
-#			if self.trace:
-#				print "Scanner: read: State %d: %s --> State %d" % (
-#					self.state.number, repr(c), new_state.number)
-#			self.state = new_state
-#			self.next_char()
-#			return 1
-#		else:
-#			if self.trace:
-#				print "Scanner: read: State %d: %s --> blocked" % (
-#					self.state.number, repr(c))
-#			return 0
+#    def transition(self):
+#        self.save_for_backup()
+#        c = self.cur_char
+#        new_state = self.state.new_state(c)
+#        if new_state:
+#            if self.trace:
+#                print "Scanner: read: State %d: %s --> State %d" % (
+#                    self.state.number, repr(c), new_state.number)
+#            self.state = new_state
+#            self.next_char()
+#            return 1
+#        else:
+#            if self.trace:
+#                print "Scanner: read: State %d: %s --> blocked" % (
+#                    self.state.number, repr(c))
+#            return 0
   
-#	def save_for_backup(self):
-#		action = self.state.get_action()
-#		if action:
-#			if self.trace:
-#				print "Scanner: read: Saving backup point at", self.cur_pos
-#			self.backup_state = (
-#				action, self.cur_pos, self.cur_line, self.cur_line_start, 
-#				self.cur_char, self.input_state, self.next_pos)
+#    def save_for_backup(self):
+#        action = self.state.get_action()
+#        if action:
+#            if self.trace:
+#                print "Scanner: read: Saving backup point at", self.cur_pos
+#            self.backup_state = (
+#                action, self.cur_pos, self.cur_line, self.cur_line_start, 
+#                self.cur_char, self.input_state, self.next_pos)
   
-#	def back_up(self):
-#		backup_state = self.backup_state
-#		if backup_state:
-#			(action, self.cur_pos, self.cur_line, self.cur_line_start, 
-#				self.cur_char, self.input_state, self.next_pos) = backup_state
-#			if self.trace:
-#				print "Scanner: read: Backing up to", self.cur_pos
-#			return action
-#		else:
-#			return None
+#    def back_up(self):
+#        backup_state = self.backup_state
+#        if backup_state:
+#            (action, self.cur_pos, self.cur_line, self.cur_line_start, 
+#                self.cur_char, self.input_state, self.next_pos) = backup_state
+#            if self.trace:
+#                print "Scanner: read: Backing up to", self.cur_pos
+#            return action
+#        else:
+#            return None
   
   def next_char(self):
     input_state = self.input_state
@@ -331,24 +331,24 @@ class Scanner:
     if self.trace:
       print("--> [%d] %d %s" % (input_state, self.cur_pos, repr(self.cur_char)))
     
-#	def read_char(self):
-#		"""
+#    def read_char(self):
+#        """
 #    Get the next input character, filling the buffer if necessary.
 #    Returns '' at end of file.
 #    """
-#		next_pos = self.next_pos
-#		buf_index = next_pos - self.buf_start_pos
-#		if buf_index == len(self.buffer):
-#			discard = self.start_pos - self.buf_start_pos
-#			data = self.stream.read(0x1000)
-#			self.buffer = self.buffer[discard:] + data
-#			self.buf_start_pos = self.buf_start_pos + discard
-#			buf_index = buf_index - discard
-#			if not data:
-#				return ''
-#		c = self.buffer[buf_index]
-#		self.next_pos = next_pos + 1
-#		return c
+#        next_pos = self.next_pos
+#        buf_index = next_pos - self.buf_start_pos
+#        if buf_index == len(self.buffer):
+#            discard = self.start_pos - self.buf_start_pos
+#            data = self.stream.read(0x1000)
+#            self.buffer = self.buffer[discard:] + data
+#            self.buf_start_pos = self.buf_start_pos + discard
+#            buf_index = buf_index - discard
+#            if not data:
+#                return ''
+#        c = self.buffer[buf_index]
+#        self.next_pos = next_pos + 1
+#        return c
   
   def position(self):
     """

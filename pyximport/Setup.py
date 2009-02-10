@@ -30,6 +30,6 @@ setup(
 #       ("examples/dependencies",
 #         ["README", "test.pyx", "test.pyxdep", "header.h",
 #           "header2.h", "header3.h", "header4.h"])
-#		],
+#        ],
     py_modules = ["pyximport", "pyxbuild"])
 

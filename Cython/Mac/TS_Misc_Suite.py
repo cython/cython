@@ -27,10 +27,10 @@ class TS_Misc_Suite:
         _reply, _arguments, _attributes = self.send(_code, _subcode,
                 _arguments, _attributes)
         #if _arguments.has_key('errn'):
-        #	raise aetools.Error, aetools.decodeerror(_arguments)
+        #    raise aetools.Error, aetools.decodeerror(_arguments)
         # XXXX Optionally decode result
         #if _arguments.has_key('----'):
-        #	return _arguments['----']
+        #    return _arguments['----']
         errn = 0
         stat = 0
         stdout = ""

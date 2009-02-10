@@ -558,7 +558,7 @@ class CBIntType(CIntType):
 
 class CAnonEnumType(CIntType):
 
-    is_enum = 1	
+    is_enum = 1    
 
 
 class CUIntType(CIntType):
@@ -754,7 +754,7 @@ class CFuncType(CType):
 
     def same_c_signature_as_resolved_type(self, other_type, as_cmethod = 0):
         #print "CFuncType.same_c_signature_as_resolved_type:", \
-        #	self, other_type, "as_cmethod =", as_cmethod ###
+        #    self, other_type, "as_cmethod =", as_cmethod ###
         if other_type is error_type:
             return 1
         if not other_type.is_cfunction:
@@ -786,7 +786,7 @@ class CFuncType(CType):
     
     def compatible_signature_with_resolved_type(self, other_type, as_cmethod):
         #print "CFuncType.same_c_signature_as_resolved_type:", \
-        #	self, other_type, "as_cmethod =", as_cmethod ###
+        #    self, other_type, "as_cmethod =", as_cmethod ###
         if other_type is error_type:
             return 1
         if not other_type.is_cfunction:
@@ -901,7 +901,7 @@ class CFuncType(CType):
         return self.return_type.declaration_code(
             "%s%s(%s)%s" % (cc, entity_code, arg_decl_code, trailer),
             for_display, dll_linkage, pyrex)
-	
+    
     def function_header_code(self, func_name, arg_code):
         return "%s%s(%s)" % (self.calling_convention_prefix(),
             func_name, arg_code)
@@ -1134,7 +1134,7 @@ class ErrorType(PyrexType):
     
     is_error = 1
     exception_value = "0"
-    exception_check	= 0
+    exception_check    = 0
     to_py_function = "dummy"
     from_py_function = "dummy"
     

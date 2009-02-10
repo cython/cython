@@ -239,8 +239,8 @@ class TransitionMap:
 #
 
 #def merge_state_sets(set1, set2):
-#		for state in set2.keys():
-#			set1[state] = 1
+#        for state in set2.keys():
+#            set1[state] = 1
 
 def state_set_str(set):
   state_list = set.keys()

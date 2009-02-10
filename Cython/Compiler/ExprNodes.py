@@ -425,9 +425,9 @@ class ExprNode(Node):
     def calculate_result_code(self):
         self.not_implemented("calculate_result_code")
     
-#	def release_target_temp(self, env):
-#		#  Release temporaries used by LHS of an assignment.
-#		self.release_subexpr_temps(env)
+#    def release_target_temp(self, env):
+#        #  Release temporaries used by LHS of an assignment.
+#        self.release_subexpr_temps(env)
 
     def release_temp(self, env):
         #  If this node owns a temporary result, release it,
@@ -2454,7 +2454,7 @@ class SimpleCallNode(CallNode):
                     if self.is_temp and self.type.is_pyobject:
                         #return_type = self.type # func_type.return_type
                         #print "SimpleCallNode.generate_result_code: casting", rhs, \
-                        #	"from", return_type, "to pyobject" ###
+                        #    "from", return_type, "to pyobject" ###
                         rhs = typecast(py_object_type, self.type, rhs)
                 else:
                     lhs = ""
@@ -2749,7 +2749,7 @@ class AttributeNode(NewTempExprNode):
             pass
         ## Reference to C array turns into pointer to first element.
         #while self.type.is_array:
-        #	self.type = self.type.element_ptr_type()
+        #    self.type = self.type.element_ptr_type()
         if self.is_py_attr:
             if not target:
                 self.is_temp = 1
@@ -2990,12 +2990,12 @@ class SequenceNode(NewTempExprNode):
         for node in self.coerced_unpacked_items:
             node.release_temp(env)
 
-#	def release_target_temp(self, env):
-#		#for arg in self.args:
-#		#	arg.release_target_temp(env)
-#		#for node in self.coerced_unpacked_items:
-#		#	node.release_temp(env)
-#		self.iterator.release_temp(env)
+#    def release_target_temp(self, env):
+#        #for arg in self.args:
+#        #    arg.release_target_temp(env)
+#        #for node in self.coerced_unpacked_items:
+#        #    node.release_temp(env)
+#        self.iterator.release_temp(env)
     
     def generate_result_code(self, code):
         self.generate_operation_code(code)
@@ -4134,17 +4134,17 @@ class NumBinopNode(BinopNode):
         return self.py_functions[self.operator]
 
     py_functions = {
-        "|":		"PyNumber_Or",
-        "^":		"PyNumber_Xor",
-        "&":		"PyNumber_And",
-        "<<":		"PyNumber_Lshift",
-        ">>":		"PyNumber_Rshift",
-        "+":		"PyNumber_Add",
-        "-":		"PyNumber_Subtract",
-        "*":		"PyNumber_Multiply",
-        "/":		"__Pyx_PyNumber_Divide",
-        "//":		"PyNumber_FloorDivide",
-        "%":		"PyNumber_Remainder",
+        "|":        "PyNumber_Or",
+        "^":        "PyNumber_Xor",
+        "&":        "PyNumber_And",
+        "<<":        "PyNumber_Lshift",
+        ">>":        "PyNumber_Rshift",
+        "+":        "PyNumber_Add",
+        "-":        "PyNumber_Subtract",
+        "*":        "PyNumber_Multiply",
+        "/":        "__Pyx_PyNumber_Divide",
+        "//":        "PyNumber_FloorDivide",
+        "%":        "PyNumber_Remainder",
         "**":       "PyNumber_Power"
     }
 
@@ -4834,20 +4834,20 @@ class CascadedCmpNode(Node, CmpNode):
 
 
 binop_node_classes = {
-    "or":		BoolBinopNode,
-    "and":	BoolBinopNode,
-    "|":		IntBinopNode,
-    "^":		IntBinopNode,
-    "&":		IntBinopNode,
-    "<<":		IntBinopNode,
-    ">>":		IntBinopNode,
-    "+":		AddNode,
-    "-":		SubNode,
-    "*":		MulNode,
-    "/":		NumBinopNode,
-    "//":		FloorDivNode,
-    "%":		ModNode,
-    "**":		PowNode
+    "or":        BoolBinopNode,
+    "and":    BoolBinopNode,
+    "|":        IntBinopNode,
+    "^":        IntBinopNode,
+    "&":        IntBinopNode,
+    "<<":        IntBinopNode,
+    ">>":        IntBinopNode,
+    "+":        AddNode,
+    "-":        SubNode,
+    "*":        MulNode,
+    "/":        NumBinopNode,
+    "//":        FloorDivNode,
+    "%":        ModNode,
+    "**":        PowNode
 }
 
 def binop_node(pos, operator, operand1, operand2):

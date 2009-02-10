@@ -126,12 +126,12 @@ class StateMap:
         best_priority = priority
     return best_action
   
-#	def old_to_new_set(self, old_state_set):
-#		"""
-#		Return the new state corresponding to a set of old states as
-#		a singleton set.
-#		"""
-#		return {self.old_to_new(old_state_set):1}
+#    def old_to_new_set(self, old_state_set):
+#        """
+#        Return the new state corresponding to a set of old states as
+#        a singleton set.
+#        """
+#        return {self.old_to_new(old_state_set):1}
 
   def new_to_old(self, new_state):
     """Given a new state, return a set of corresponding old states."""

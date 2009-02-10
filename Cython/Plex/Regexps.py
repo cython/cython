@@ -1,8 +1,8 @@
 #=======================================================================
 #
-#	 Python Lexical Analyser
+#     Python Lexical Analyser
 #
-#	 Regular Expressions
+#     Regular Expressions
 #
 #=======================================================================
 
@@ -14,7 +14,7 @@ from sys import maxint
 import Errors
 
 #
-#	 Constants
+#     Constants
 #
 
 BOL = 'bol'
@@ -24,7 +24,7 @@ EOF = 'eof'
 nl_code = ord('\n')
 
 #
-#	 Helper functions
+#     Helper functions
 #
 
 def chars_to_ranges(s):
@@ -98,20 +98,20 @@ def CodeRange(code1, code2):
         return RawCodeRange(code1, code2)
 
 #
-#	 Abstract classes
+#     Abstract classes
 #
 
 class RE:
     """RE is the base class for regular expression constructors.
     The following operators are defined on REs:
 
-         re1 + re2		 is an RE which matches |re1| followed by |re2|
-         re1 | re2		 is an RE which matches either |re1| or |re2|
+         re1 + re2         is an RE which matches |re1| followed by |re2|
+         re1 | re2         is an RE which matches either |re1| or |re2|
     """
 
     nullable = 1 # True if this RE can match 0 input symbols
     match_nl = 1 # True if this RE can match a string ending with '\n'
-    str = None	 # Set to a string to override the class's __str__ result
+    str = None     # Set to a string to override the class's __str__ result
     
     def build_machine(self, machine, initial_state, final_state, 
                                         match_bol, nocase):
@@ -173,42 +173,42 @@ class RE:
                                             num, self.__class__.__name__, expected, got))
     
 #
-#	 Primitive RE constructors
-#	 -------------------------
+#     Primitive RE constructors
+#     -------------------------
 #
-#	 These are the basic REs from which all others are built.
+#     These are the basic REs from which all others are built.
 #
 
 ## class Char(RE):
-##	 """
-##	 Char(c) is an RE which matches the character |c|.
-##	 """
+##     """
+##     Char(c) is an RE which matches the character |c|.
+##     """
     
-##	 nullable = 0
+##     nullable = 0
     
-##	 def __init__(self, char):
-##		 self.char = char
-##		 self.match_nl = char == '\n'
+##     def __init__(self, char):
+##         self.char = char
+##         self.match_nl = char == '\n'
         
-##	 def build_machine(self, m, initial_state, final_state, match_bol, nocase):
-##		 c = self.char
-##		 if match_bol and c != BOL:
-##			 s1 = self.build_opt(m, initial_state, BOL)
-##		 else:
-##			 s1 = initial_state
-##		 if c == '\n' or c == EOF:
-##			 s1 = self.build_opt(m, s1, EOL)
-##		 if len(c) == 1:
-##			 code = ord(self.char)
-##			 s1.add_transition((code, code+1), final_state)
-##			 if nocase and is_letter_code(code):
-##				 code2 = other_case_code(code)
-##				 s1.add_transition((code2, code2+1), final_state)
-##		 else:
-##			 s1.add_transition(c, final_state)
+##     def build_machine(self, m, initial_state, final_state, match_bol, nocase):
+##         c = self.char
+##         if match_bol and c != BOL:
+##             s1 = self.build_opt(m, initial_state, BOL)
+##         else:
+##             s1 = initial_state
+##         if c == '\n' or c == EOF:
+##             s1 = self.build_opt(m, s1, EOL)
+##         if len(c) == 1:
+##             code = ord(self.char)
+##             s1.add_transition((code, code+1), final_state)
+##             if nocase and is_letter_code(code):
+##                 code2 = other_case_code(code)
+##                 s1.add_transition((code2, code2+1), final_state)
+##         else:
+##             s1.add_transition(c, final_state)
 
-##	 def calc_str(self):
-##		 return "Char(%s)" % repr(self.char)
+##     def calc_str(self):
+##         return "Char(%s)" % repr(self.char)
 
 def Char(c):
     """
@@ -229,7 +229,7 @@ class RawCodeRange(RE):
     """
     nullable = 0
     match_nl = 0
-    range = None					 # (code, code)
+    range = None                     # (code, code)
     uppercase_range = None # (code, code) or None
     lowercase_range = None # (code, code) or None
     
@@ -420,10 +420,10 @@ class SwitchCase(RE):
         return "%s(%s)" % (name, self.re)
 
 #
-#	 Composite RE constructors
-#	 -------------------------
+#     Composite RE constructors
+#     -------------------------
 #
-#	 These REs are defined in terms of the primitive REs.
+#     These REs are defined in terms of the primitive REs.
 #
 
 Empty = Seq()
@@ -531,7 +531,7 @@ def Case(re):
     return SwitchCase(re, nocase = 0)
 
 #
-#	 RE Constants
+#     RE Constants
 #
     
 Bol = Char(BOL)
