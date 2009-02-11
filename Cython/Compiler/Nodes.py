@@ -1725,9 +1725,11 @@ class DefNode(FuncDefNode):
                         (arg.type.is_extension_type or arg.type.is_builtin_type):
                     arg.needs_type_test = 1
                     any_type_tests_needed = 1
-                elif arg.type is PyrexTypes.c_py_ssize_t_type:
-                    # Want to use __index__ rather than __int__ method
-                    # that PyArg_ParseTupleAndKeywords calls
+                elif (arg.type is PyrexTypes.c_py_ssize_t_type
+                        or arg.type is PyrexTypes.c_size_t_type):
+                    # Don't use PyArg_ParseTupleAndKeywords's parsing
+                    # Py_ssize_t: want to use __index__ rather than __int__
+                    # size_t: no Python format char
                     arg.needs_conversion = 1
                     arg.hdr_type = PyrexTypes.py_object_type
                     arg.hdr_cname = Naming.arg_prefix + arg.name

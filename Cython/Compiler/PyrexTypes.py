@@ -1191,7 +1191,7 @@ c_slong_type =       CIntType(3, 2, "T_LONG")
 c_slonglong_type =   CLongLongType(4, 2, "T_LONGLONG")
 
 c_py_ssize_t_type =  CPySSizeTType(5, 1)
-c_size_t_type =      CSizeTType(6, 1)
+c_size_t_type =      CSizeTType(6, 1, "(sizeof(size_t) == sizeof(unsigned long) ? T_ULONG : T_ULONGLONG)")
 
 c_float_type =       CFloatType(7, "T_FLOAT")
 c_double_type =      CFloatType(8, "T_DOUBLE")
