@@ -1196,8 +1196,8 @@ c_sint_type =        CIntType(2, 2, "T_INT")
 c_slong_type =       CIntType(3, 2, "T_LONG")
 c_slonglong_type =   CLongLongType(6, 2, "T_LONGLONG")
 
-c_py_ssize_t_type =  CPySSizeTType(4, 2)
-c_size_t_type =      CSizeTType(5, 0)
+c_py_ssize_t_type =  CPySSizeTType(4, 2, "T_PYSSIZET")
+c_size_t_type =      CSizeTType(5, 0, "T_SIZET")
 
 c_float_type =       CFloatType(7, "T_FLOAT")
 c_double_type =      CFloatType(8, "T_DOUBLE")
@@ -1400,8 +1400,36 @@ type_conversion_predeclarations = """
 static INLINE int __Pyx_PyObject_IsTrue(PyObject* x);
 static INLINE PY_LONG_LONG __pyx_PyInt_AsLongLong(PyObject* x);
 static INLINE unsigned PY_LONG_LONG __pyx_PyInt_AsUnsignedLongLong(PyObject* x);
-static INLINE Py_ssize_t __pyx_PyIndex_AsSsize_t(PyObject* b);
 
+#if !defined(T_PYSSIZET)
+#if PY_VERSION_HEX < 0x02050000
+#define T_PYSSIZET T_INT
+#elif !defined(T_LONGLONG)
+#define T_PYSSIZET \\
+        ((sizeof(Py_ssize_t) == sizeof(int))  ? T_INT  : \\
+        ((sizeof(Py_ssize_t) == sizeof(long)) ? T_LONG : -1))
+#else
+#define T_PYSSIZET \\
+        ((sizeof(Py_ssize_t) == sizeof(int))          ? T_INT      : \\
+        ((sizeof(Py_ssize_t) == sizeof(long))         ? T_LONG     : \\
+        ((sizeof(Py_ssize_t) == sizeof(PY_LONG_LONG)) ? T_LONGLONG : -1)))
+#endif
+#endif
+
+#if !defined(T_SIZET)
+#if !defined(T_ULONGLONG)
+#define T_SIZET \\
+        ((sizeof(size_t) == sizeof(unsigned int))  ? T_UINT  : \\
+        ((sizeof(size_t) == sizeof(unsigned long)) ? T_ULONG : -1))
+#else
+#define T_SIZET \\
+        ((sizeof(size_t) == sizeof(unsigned int))          ? T_UINT      : \\
+        ((sizeof(size_t) == sizeof(unsigned long))         ? T_ULONG     : \\
+        ((sizeof(size_t) == sizeof(unsigned PY_LONG_LONG)) ? T_ULONGLONG : -1)))
+#endif
+#endif
+
+static INLINE Py_ssize_t __pyx_PyIndex_AsSsize_t(PyObject* b);
 static INLINE PyObject * __pyx_PyInt_FromSize_t(size_t);
 static INLINE size_t __pyx_PyInt_AsSize_t(PyObject*);
 
