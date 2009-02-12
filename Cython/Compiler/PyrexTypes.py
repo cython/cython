@@ -462,9 +462,9 @@ class CNumericType(CType):
     default_value = "0"
     
     parsetuple_formats = ( # rank -> format
-        "BHIkK?????", # unsigned
-        "bhilL??fd?", # assumed signed
-        "bhilL??fd?", # explicitly signed
+        "BHIk??K???", # unsigned
+        "bhil??Lfd?", # assumed signed
+        "bhil??Lfd?", # explicitly signed
     )
     
     sign_words = ("unsigned ", "", "signed ")
@@ -593,11 +593,17 @@ class CPySSizeTType(CIntType):
     to_py_function = "PyInt_FromSsize_t"
     from_py_function = "__pyx_PyIndex_AsSsize_t"
 
+    def sign_and_name(self):
+        return rank_to_type_name[self.rank]
+
 
 class CSizeTType(CUIntType):
 
     to_py_function = "__pyx_PyInt_FromSize_t"
     from_py_function = "__pyx_PyInt_AsSize_t"
+
+    def sign_and_name(self):
+        return rank_to_type_name[self.rank]
 
 
 class CFloatType(CNumericType):
@@ -1157,9 +1163,9 @@ rank_to_type_name = (
     "short",        # 1
     "int",          # 2
     "long",         # 3
-    "PY_LONG_LONG", # 4
-    "Py_ssize_t",   # 5
-    "size_t",       # 6
+    "Py_ssize_t",   # 4
+    "size_t",       # 5
+    "PY_LONG_LONG", # 6
     "float",        # 7
     "double",       # 8
     "long double",  # 9
@@ -1175,23 +1181,23 @@ c_uchar_type =       CIntType(0, 0, "T_UBYTE")
 c_ushort_type =      CIntType(1, 0, "T_USHORT")
 c_uint_type =        CUIntType(2, 0, "T_UINT")
 c_ulong_type =       CULongType(3, 0, "T_ULONG")
-c_ulonglong_type =   CULongLongType(4, 0, "T_ULONGLONG")
+c_ulonglong_type =   CULongLongType(6, 0, "T_ULONGLONG")
 
 c_char_type =        CIntType(0, 1, "T_CHAR")
 c_short_type =       CIntType(1, 1, "T_SHORT")
 c_int_type =         CIntType(2, 1, "T_INT")
 c_long_type =        CIntType(3, 1, "T_LONG")
-c_longlong_type =    CLongLongType(4, 1, "T_LONGLONG")
+c_longlong_type =    CLongLongType(6, 1, "T_LONGLONG")
 c_bint_type =        CBIntType(2, 1, "T_INT")
 
 c_schar_type =       CIntType(0, 2, "T_CHAR")
 c_sshort_type =      CIntType(1, 2, "T_SHORT")
 c_sint_type =        CIntType(2, 2, "T_INT")
 c_slong_type =       CIntType(3, 2, "T_LONG")
-c_slonglong_type =   CLongLongType(4, 2, "T_LONGLONG")
+c_slonglong_type =   CLongLongType(6, 2, "T_LONGLONG")
 
-c_py_ssize_t_type =  CPySSizeTType(5, 1)
-c_size_t_type =      CSizeTType(6, 1, "(sizeof(size_t) == sizeof(unsigned long) ? T_ULONG : T_ULONGLONG)")
+c_py_ssize_t_type =  CPySSizeTType(4, 2)
+c_size_t_type =      CSizeTType(5, 0)
 
 c_float_type =       CFloatType(7, "T_FLOAT")
 c_double_type =      CFloatType(8, "T_DOUBLE")
@@ -1223,25 +1229,26 @@ sign_and_rank_to_type = {
     (0, 1): c_ushort_type, 
     (0, 2): c_uint_type, 
     (0, 3): c_ulong_type,
-    (0, 4): c_ulonglong_type,
-    (0, 5): c_ulonglong_type, # XXX I'm not sure about this.
-    
+    (0, 6): c_ulonglong_type,
+
     (1, 0): c_char_type, 
     (1, 1): c_short_type, 
     (1, 2): c_int_type, 
     (1, 3): c_long_type,
-    (1, 4): c_longlong_type,
+    (1, 6): c_longlong_type,
 
     (2, 0): c_schar_type, 
     (2, 1): c_sshort_type, 
     (2, 2): c_sint_type, 
     (2, 3): c_slong_type,
-    (2, 4): c_slonglong_type,
+    (2, 6): c_slonglong_type, 
 
-    (1, 5): c_py_ssize_t_type,
-    (2, 5): c_py_ssize_t_type,
-    (0, 6): c_size_t_type,
-    (1, 6): c_size_t_type,
+    (0, 4): c_py_ssize_t_type,
+    (1, 4): c_py_ssize_t_type,
+    (2, 4): c_py_ssize_t_type,
+    (0, 5): c_size_t_type,
+    (1, 5): c_size_t_type,
+    (2, 5): c_size_t_type,
 
     (1, 7): c_float_type, 
     (1, 8): c_double_type,
@@ -1277,10 +1284,8 @@ modifiers_and_name_to_type = {
     (2, 2, "int"): c_slonglong_type,
 
     (1, 0, "Py_ssize_t"): c_py_ssize_t_type,
-    (2, 0, "Py_ssize_t"): c_py_ssize_t_type,
-    (0, 0, "size_t") : c_size_t_type,
     (1, 0, "size_t") : c_size_t_type,
-    
+
     (1, 0, "long"): c_long_type,
     (1, 0, "short"): c_short_type,
     (1, 0, "longlong"): c_longlong_type,
@@ -1418,7 +1423,7 @@ static INLINE Py_ssize_t __pyx_PyIndex_AsSsize_t(PyObject* b) {
 
 static INLINE PyObject * __pyx_PyInt_FromSize_t(size_t ival) {
 #if PY_VERSION_HEX < 0x02050000
-   if (ival <= (size_t)LONG_MAX)
+   if (ival <= LONG_MAX)
        return PyInt_FromLong((long)ival);
    else {
        unsigned char *bytes = (unsigned char *) &ival;
