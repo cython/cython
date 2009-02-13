@@ -160,8 +160,7 @@ class TemplateTransform(VisitorTransform):
     def visit_NameNode(self, node):
         temphandle = self.tempmap.get(node.name)
         if temphandle:
-            node.name = temphandle
-            return node
+            return NameNode(pos=node.pos, name=temphandle)
             # Replace name with temporary
             #return temphandle.ref(self.get_pos(node))
         else:
