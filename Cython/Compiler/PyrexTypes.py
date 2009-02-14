@@ -280,7 +280,6 @@ class BuiltinObjectType(PyObjectType):
         return "<%s>"% self.cname
         
     def assignable_from(self, src_type):
-
         if isinstance(src_type, BuiltinObjectType):
             return src_type.name == self.name
         else:
@@ -473,6 +472,8 @@ class CNumericType(CType):
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
         base = public_decl(self.sign_and_name(), dll_linkage)
+        if for_display and self.is_longlong:
+            base = base.replace('PY_LONG_LONG', 'long long')
         return self.base_declaration_code(base,  entity_code)
 
 
@@ -557,7 +558,7 @@ class CULongType(CUIntType):
     from_py_function = "PyInt_AsUnsignedLongMask"
 
 
-class CLongLongType(CUIntType):
+class CLongLongType(CIntType):
 
     is_longlong = 1
     to_py_function = "PyLong_FromLongLong"
@@ -1184,6 +1185,9 @@ modifiers_and_name_to_type = {
     (2, 1, "int"): c_slong_type,
     (2, 2, "int"): c_slonglong_type,
     (2, 0, "Py_ssize_t"): c_py_ssize_t_type,
+    
+    (1, 0, "long"): c_long_type,
+    (1, 0, "bint"): c_bint_type,
 }
 
 def widest_numeric_type(type1, type2):
@@ -1220,6 +1224,19 @@ def c_ptr_type(base_type):
         return c_char_ptr_type
     else:
         return CPtrType(base_type)
+        
+def Node_to_type(node, env):
+    from ExprNodes import NameNode, AttributeNode, StringNode, error
+    if isinstance(node, StringNode):
+        node = NameNode(node.pos, name=node.value)
+    if isinstance(node, NameNode) and node.name in rank_to_type_name:
+        return simple_c_type(1, 0, node.name)
+    elif isinstance(node, (AttributeNode, NameNode)):
+        node.analyze_types(env)
+        if not node.entry.is_type:
+            pass
+    else:
+        error(node.pos, "Bad type")
 
 def public_decl(base, dll_linkage):
     if dll_linkage:

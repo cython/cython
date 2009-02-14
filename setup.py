@@ -100,7 +100,9 @@ setup(
     ],
   
   # pyximport
-  py_modules = ["pyximport/pyximport", "pyximport/pyxbuild"],
+  py_modules = ["pyximport/__init__",
+                "pyximport/pyximport",
+                "pyximport/pyxbuild"],
   
   **setup_args
   )

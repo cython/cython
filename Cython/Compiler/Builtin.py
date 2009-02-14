@@ -30,6 +30,7 @@ builtin_function_table = [
     ('issubclass', "OO",   "b",     "PyObject_IsSubclass"),
     ('iter',       "O",    "O",     "PyObject_GetIter"),
     ('len',        "O",    "Z",     "PyObject_Length"),
+    ('locals',     "",     "O",     "__pyx_locals"),
     #('map',       "",     "",      ""),
     #('max',       "",     "",      ""),
     #('min',       "",     "",      ""),
@@ -82,23 +83,34 @@ builtin_function_table = [
 builtin_types_table = [
 
     ("type",    "PyType_Type",     []),
-#    ("str",     "PyBytes_Type",   []),
+
+    ("bool",    "PyBool_Type",     []),
+    ("int",     "PyInt_Type",      []),
+    ("long",    "PyLong_Type",     []),
+    ("float",   "PyFloat_Type",    []),
+    ("complex", "PyComplex_Type",  []),
+
+    ("bytes",   "PyBytes_Type",    []),
+    ("str",     "PyString_Type",   []),
     ("unicode", "PyUnicode_Type",  []),
-    ("file",    "PyFile_Type",     []),
-#    ("slice",   "PySlice_Type",    []),
-#    ("set",     "PySet_Type",      []),
-    ("frozenset", "PyFrozenSet_Type",   []),
 
     ("tuple",   "PyTuple_Type",    []),
-    
+
     ("list",    "PyList_Type",     [("append", "OO",   "i", "PyList_Append"),
                                     ("insert", "OiO",  "i", "PyList_Insert"),
                                     ("sort",   "O",    "i", "PyList_Sort"),
                                     ("reverse","O",    "i", "PyList_Reverse")]),
-                                    
+
     ("dict",    "PyDict_Type",     [("items", "O",   "O", "PyDict_Items"),
                                     ("keys",  "O",   "O", "PyDict_Keys"),
                                     ("values","O",   "O", "PyDict_Values")]),
+
+    ("set",       "PySet_Type",       []),
+    ("frozenset", "PyFrozenSet_Type", []),
+
+    ("slice",   "PySlice_Type",    []),
+    ("file",    "PyFile_Type",     []),
+
 ]
 
 builtin_structs_table = [
