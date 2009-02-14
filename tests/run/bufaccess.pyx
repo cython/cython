@@ -17,13 +17,6 @@ cimport cython
 from python_ref cimport PyObject
 
 __test__ = {}
-setup_string = u"""
-    >>> A = IntMockBuffer("A", range(6))
-    >>> B = IntMockBuffer("B", range(6))
-    >>> C = IntMockBuffer("C", range(6), (2,3))
-    >>> E = ErrorBuffer("E")
-
-"""
 
 import re
 exclude = []#re.compile('object').search]
@@ -32,7 +25,7 @@ def testcase(func):
     for e in exclude:
         if e(func.__name__):
             return func
-    __test__[func.__name__] = setup_string + func.__doc__
+    __test__[func.__name__] = func.__doc__
     return func
 
 def testcas(a):
@@ -59,6 +52,8 @@ def printbuf():
 @testcase
 def acquire_release(o1, o2):
     """
+    >>> A = IntMockBuffer("A", range(6))
+    >>> B = IntMockBuffer("B", range(6))
     >>> acquire_release(A, B)
     acquired A
     released A
@@ -79,6 +74,7 @@ def acquire_raise(o):
     Apparently, doctest won't handle mixed exceptions and print
     stats, so need to circumvent this.
     
+    >>> A = IntMockBuffer("A", range(6))
     >>> A.resetlog()
     >>> acquire_raise(A)
     Traceback (most recent call last):
@@ -224,6 +220,7 @@ def acquire_nonbuffer2():
 @testcase
 def as_argument(object[int] bufarg, int n):
     """
+    >>> A = IntMockBuffer("A", range(6))
     >>> as_argument(A, 6)
     acquired A
     0 1 2 3 4 5 END
@@ -241,6 +238,7 @@ def as_argument_defval(object[int] bufarg=IntMockBuffer('default', range(6)), in
     acquired default
     0 1 2 3 4 5 END
     released default
+    >>> A = IntMockBuffer("A", range(6))
     >>> as_argument_defval(A, 6)
     acquired A
     0 1 2 3 4 5 END
@@ -254,6 +252,7 @@ def as_argument_defval(object[int] bufarg=IntMockBuffer('default', range(6)), in
 @testcase
 def cdef_assignment(obj, n):
     """
+    >>> A = IntMockBuffer("A", range(6))
     >>> cdef_assignment(A, 6)
     acquired A
     0 1 2 3 4 5 END
@@ -269,6 +268,8 @@ def cdef_assignment(obj, n):
 @testcase
 def forin_assignment(objs, int pick):
     """
+    >>> A = IntMockBuffer("A", range(6))
+    >>> B = IntMockBuffer("B", range(6))
     >>> forin_assignment([A, B, A, A], 2)
     acquired A
     2
@@ -290,6 +291,7 @@ def forin_assignment(objs, int pick):
 @testcase
 def cascaded_buffer_assignment(obj):
     """
+    >>> A = IntMockBuffer("A", range(6))
     >>> cascaded_buffer_assignment(A)
     acquired A
     acquired A
@@ -302,6 +304,8 @@ def cascaded_buffer_assignment(obj):
 @testcase
 def tuple_buffer_assignment1(a, b):
     """
+    >>> A = IntMockBuffer("A", range(6))
+    >>> B = IntMockBuffer("B", range(6))
     >>> tuple_buffer_assignment1(A, B)
     acquired A
     acquired B
@@ -314,6 +318,8 @@ def tuple_buffer_assignment1(a, b):
 @testcase
 def tuple_buffer_assignment2(tup):
     """
+    >>> A = IntMockBuffer("A", range(6))
+    >>> B = IntMockBuffer("B", range(6))
     >>> tuple_buffer_assignment2((A, B))
     acquired A
     acquired B
@@ -384,6 +390,7 @@ def wrong_string(object[int] buf):
 @testcase
 def get_int_2d(object[int, ndim=2] buf, int i, int j):
     """
+    >>> C = IntMockBuffer("C", range(6), (2,3))
     >>> get_int_2d(C, 1, 1)
     acquired C
     released C
@@ -419,6 +426,7 @@ def get_int_2d(object[int, ndim=2] buf, int i, int j):
 def get_int_2d_uintindex(object[int, ndim=2] buf, unsigned int i, unsigned int j):
     """
     Unsigned indexing:
+    >>> C = IntMockBuffer("C", range(6), (2,3))
     >>> get_int_2d_uintindex(C, 0, 0)
     acquired C
     released C
@@ -438,6 +446,7 @@ def set_int_2d(object[int, ndim=2] buf, int i, int j, int value):
     Uses get_int_2d to read back the value afterwards. For pure
     unit test, one should support reading in MockBuffer instead.
     
+    >>> C = IntMockBuffer("C", range(6), (2,3))
     >>> set_int_2d(C, 1, 1, 10)
     acquired C
     released C
