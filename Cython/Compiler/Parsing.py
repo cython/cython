@@ -250,14 +250,17 @@ def p_sizeof(s):
     pos = s.position()
     s.next()
     s.expect('(')
-    if looking_at_type(s) or looking_at_dotted_name(s):
+    # Here we decide if we are looking at an expression or type
+    # If it is actually a type, but parsable as an expression, 
+    # we treat it as an expression here. 
+    if looking_at_expr(s):
+        operand = p_simple_expr(s)
+        node = ExprNodes.SizeofVarNode(pos, operand = operand)
+    else:
         base_type = p_c_base_type(s)
         declarator = p_c_declarator(s, empty = 1)
         node = ExprNodes.SizeofTypeNode(pos, 
             base_type = base_type, declarator = declarator)
-    else:
-        operand = p_simple_expr(s)
-        node = ExprNodes.SizeofVarNode(pos, operand = operand)
     s.expect(')')
     return node
 
@@ -1028,9 +1031,6 @@ def p_from_import_statement(s, first_statement = 0):
                 s.context.future_directives.add(directive)
         return Nodes.PassStatNode(pos)
     elif kind == 'cimport':
-        for (name_pos, name, as_name, kind) in imported_names:
-            local_name = as_name or name
-            s.add_type_name(local_name)
         return Nodes.FromCImportStatNode(pos,
             module_name = dotted_name,
             imported_names = imported_names)
@@ -1604,7 +1604,7 @@ def p_c_complex_base_type(s):
         base_type = base_type, declarator = declarator)
 
 def p_c_simple_base_type(s, self_flag, nonempty):
-    #print "p_c_simple_base_type: self_flag =", self_flag
+    #print "p_c_simple_base_type: self_flag =", self_flag, nonempty
     is_basic = 0
     signed = 1
     longness = 0
@@ -1619,12 +1619,19 @@ def p_c_simple_base_type(s, self_flag, nonempty):
             s.next()
         else:
             name = 'int'
-    elif s.looking_at_type_name():
+    elif looking_at_dotted_name(s):
+        #print "p_c_simple_base_type: looking_at_type_name at", s.position()
+        name = s.systring
+        s.next()
+        while s.sy == '.':
+            module_path.append(name)
+            s.next()
+            name = p_ident(s)
+    else:
         name = s.systring
         s.next()
         if nonempty and s.sy != 'IDENT':
-            # Make sure this is not a declaration of a variable or 
-            # function with the same name as a type.  
+            # Make sure this is not a declaration of a variable or function.  
             if s.sy == '(':
                 s.next()
                 if s.sy == '*' or s.sy == '**':
@@ -1636,18 +1643,7 @@ def p_c_simple_base_type(s, self_flag, nonempty):
             elif s.sy not in ('*', '**', '['):
                 s.put_back('IDENT', name)
                 name = None
-    elif looking_at_dotted_name(s):
-        #print "p_c_simple_base_type: looking_at_type_name at", s.position()
-        name = s.systring
-        s.next()
-        while s.sy == '.':
-            module_path.append(name)
-            s.next()
-            name = p_ident(s)
-    else:
-        #print "p_c_simple_base_type: not looking at type at", s.position()
-        name = None
-
+    
     type_node = Nodes.CSimpleBaseTypeNode(pos, 
         name = name, module_path = module_path,
         is_basic_c_type = is_basic, signed = signed,
@@ -1687,8 +1683,44 @@ def p_buffer_access(s, base_type_node):
     return result
     
 
-def looking_at_type(s):
-    return looking_at_base_type(s) or s.looking_at_type_name()
+def looking_at_name(s):
+    return s.sy == 'IDENT' and not s.systring in calling_convention_words
+
+def looking_at_expr(s):
+    if s.systring in base_type_start_words:
+        return False
+    elif s.sy == 'IDENT':
+        is_type = False
+        name = s.systring
+        dotted_path = []
+        s.next()
+        while s.sy == '.':
+            s.next()
+            dotted_path.append(s.systring)
+            s.expect('IDENT')
+        saved = s.sy, s.systring
+        if s.sy == 'IDENT':
+            is_type = True
+        elif s.sy == '*' or s.sy == '**':
+            s.next()
+            is_type = s.sy == ')'
+            s.put_back(*saved)
+        elif s.sy == '(':
+            s.next()
+            is_type = s.sy == '*'
+            s.put_back(*saved)
+        elif s.sy == '[':
+            s.next()
+            is_type = s.sy == ']'
+            s.put_back(*saved)
+        dotted_path.reverse()
+        for p in dotted_path:
+            s.put_back('IDENT', p)
+            s.put_back('.', '.')
+        s.put_back('IDENT', name)
+        return not is_type
+    else:
+        return True
 
 def looking_at_base_type(s):
     #print "looking_at_base_type?", s.sy, s.systring, s.position()
@@ -1703,7 +1735,7 @@ def looking_at_dotted_name(s):
         return result
     else:
         return 0
-
+        
 basic_c_type_names = ("void", "char", "int", "float", "double", "Py_ssize_t", "bint")
 
 sign_and_longness_words = ("short", "long", "signed", "unsigned")
@@ -1744,7 +1776,7 @@ def p_c_declarator(s, ctx = Ctx(), empty = 0, is_type = 0, cmethod_flag = 0,
     pos = s.position()
     if s.sy == '(':
         s.next()
-        if s.sy == ')' or looking_at_type(s):
+        if s.sy == ')' or looking_at_name(s):
             base = Nodes.CNameDeclaratorNode(pos, name = EncodedString(u""), cname = None)
             result = p_c_func_declarator(s, pos, ctx, base, cmethod_flag)
         else:
@@ -1816,8 +1848,6 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
         rhs = None
         if s.sy == 'IDENT':
             name = EncodedString(s.systring)
-            if is_type:
-                s.add_type_name(name)
             if empty:
                 error(s.position(), "Declarator should be empty")
             s.next()
@@ -2002,7 +2032,6 @@ def p_c_enum_definition(s, pos, ctx):
     if s.sy == 'IDENT':
         name = s.systring
         s.next()
-        s.add_type_name(name)
         cname = p_opt_cname(s)
     else:
         name = None
@@ -2052,7 +2081,6 @@ def p_c_struct_or_union_definition(s, pos, ctx):
     s.next()
     name = p_ident(s)
     cname = p_opt_cname(s)
-    s.add_type_name(name)
     attributes = None
     if s.sy == ':':
         s.next()
@@ -2149,6 +2177,8 @@ def p_ctypedef_statement(s, ctx):
             return p_c_struct_or_union_definition(s, pos, ctx)
     else:
         base_type = p_c_base_type(s, nonempty = 1)
+        if base_type.name is None:
+            s.error("Syntax error in ctypedef statement")
         declarator = p_c_declarator(s, ctx, is_type = 1, nonempty = 1)
         s.expect_newline("Syntax error in ctypedef statement")
         return Nodes.CTypeDefNode(
@@ -2244,7 +2274,6 @@ def p_c_class_definition(s, pos,  ctx):
         as_name = p_ident(s)
     else:
         as_name = class_name
-    s.add_type_name(as_name)
     objstruct_name = None
     typeobj_name = None
     base_class_module = None
@@ -2345,8 +2374,6 @@ def p_doc_string(s):
         return None
         
 def p_code(s, level=None):
-    s.add_type_name("object")
-    s.add_type_name("Py_buffer")
     body = p_statement_list(s, Ctx(level = level), first_statement = 1)
     if s.sy != 'EOF':
         s.error("Syntax error in statement [%s,%s]" % (
@@ -2371,8 +2398,6 @@ def p_compiler_directive_comments(s):
     return result
 
 def p_module(s, pxd, full_module_name):
-    s.add_type_name("object")
-    s.add_type_name("Py_buffer")
     pos = s.position()
     doc = p_doc_string(s)
     if pxd:

@@ -4,7 +4,5 @@ def f():
     cdef object[e_bufaccess_pxd.T] buf
 
 _ERRORS = u"""
-3:17: Syntax error in ctypedef statement
-4:31: 'T' is not a type identifier
-4:31: 'T' is not declared
+3:9: 'nothing' is not a type identifier
 """

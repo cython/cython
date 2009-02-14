@@ -60,7 +60,7 @@ class Scanner:
   queue = None          # list of tokens to be returned
   trace = 0
 
-  def __init__(self, lexicon, stream, name = ''):
+  def __init__(self, lexicon, stream, name = '', initial_pos = None):
     """
     Scanner(lexicon, stream, name = '')
 
@@ -84,6 +84,8 @@ class Scanner:
     self.cur_line_start = 0
     self.cur_char = BOL
     self.input_state = 1
+    if initial_pos is not None:
+        self.cur_line, self.cur_line_start = initial_pos[1], -initial_pos[2]
 
   def read(self):
     """

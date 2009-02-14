@@ -167,7 +167,6 @@ class Scope:
     # temp_counter      integer            Counter for naming temp vars
     # cname_to_entry    {string : Entry}   Temp cname to entry mapping
     # int_to_entry      {int : Entry}      Temp cname to entry mapping
-    # pow_function_used boolean            The C pow() function is used
     # return_type       PyrexType or None  Return type of function owning scope
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
@@ -221,7 +220,6 @@ class Scope:
         #self.pending_temp_entries = [] # TEMPORARY
         self.temp_counter = 1
         self.cname_to_entry = {}
-        self.pow_function_used = 0
         self.string_to_entry = {}
         self.identifier_to_entry = {}
         self.num_to_entry = {}
@@ -315,6 +313,7 @@ class Scope:
         entry.is_type = 1
         if defining:
             self.type_entries.append(entry)
+        # here we would set as_variable to an object representing this type
         return entry
     
     def declare_typedef(self, name, base_type, pos, cname = None,
@@ -637,8 +636,6 @@ class Scope:
 
     def generate_library_function_declarations(self, code):
         # Generate extern decls for C library funcs used.
-        #if self.pow_function_used:
-        #	code.putln("%s double pow(double, double);" % Naming.extern_c_macro)
         pass
         
     def defines_any(self, names):
@@ -722,21 +719,27 @@ class BuiltinScope(Scope):
 
     def builtin_scope(self):
         return self
-        
+
     builtin_entries = {
+
+        "type":   ["((PyObject*)&PyType_Type)", py_object_type],
+
+        "bool":   ["((PyObject*)&PyBool_Type)", py_object_type],
         "int":    ["((PyObject*)&PyInt_Type)", py_object_type],
         "long":   ["((PyObject*)&PyLong_Type)", py_object_type],
         "float":  ["((PyObject*)&PyFloat_Type)", py_object_type],
-        
-        "str":    ["((PyObject*)&PyBytes_Type)", py_object_type],
+        "complex":["((PyObject*)&PyComplex_Type)", py_object_type],
+
+        "bytes":  ["((PyObject*)&PyBytes_Type)", py_object_type],
+        "str":    ["((PyObject*)&PyString_Type)", py_object_type],
         "unicode":["((PyObject*)&PyUnicode_Type)", py_object_type],
+
         "tuple":  ["((PyObject*)&PyTuple_Type)", py_object_type],
         "list":   ["((PyObject*)&PyList_Type)", py_object_type],
         "dict":   ["((PyObject*)&PyDict_Type)", py_object_type],
         "set":    ["((PyObject*)&PySet_Type)", py_object_type],
         "frozenset":   ["((PyObject*)&PyFrozenSet_Type)", py_object_type],
-        
-        "type":   ["((PyObject*)&PyType_Type)", py_object_type],
+
         "slice":  ["((PyObject*)&PySlice_Type)", py_object_type],
         "file":   ["((PyObject*)&PyFile_Type)", py_object_type],
 

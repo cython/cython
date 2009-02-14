@@ -190,13 +190,12 @@ class GlobalState(object):
             self.init_cached_builtins_writer.putln("static int __Pyx_InitCachedBuiltins(void) {")
 
         self.initwriter.enter_cfunc_scope()
-        self.initwriter.putln("").putln("static int __Pyx_InitGlobals(void) {")
+        self.initwriter.putln("")
+        self.initwriter.putln("static int __Pyx_InitGlobals(void) {")
 
-        (self.pystring_table
-         .putln("")
-         .putln("static __Pyx_StringTabEntry %s[] = {" %
+        self.pystring_table.putln("")
+        self.pystring_table.putln("static __Pyx_StringTabEntry %s[] = {" %
                 Naming.stringtab_cname)
-        )
 
     #
     # Global constants, interned objects, etc.
@@ -208,7 +207,8 @@ class GlobalState(object):
         # This is called when it is known that no more global declarations will
         # declared (but can be called before or after insert_XXX).
         if self.pystring_table_needed:
-            self.pystring_table.putln("{0, 0, 0, 0, 0, 0}").putln("};")
+            self.pystring_table.putln("{0, 0, 0, 0, 0, 0}")
+            self.pystring_table.putln("};")
             import Nodes
             self.use_utility_code(Nodes.init_string_tab_utility_code)
             self.initwriter.putln(
@@ -217,21 +217,19 @@ class GlobalState(object):
                     self.initwriter.error_goto(self.module_pos)))
 
         if Options.cache_builtins:
-            (self.init_cached_builtins_writer
-             .putln("return 0;")
-             .put_label(self.init_cached_builtins_writer.error_label)
-             .putln("return -1;")
-             .putln("}")
-             .exit_cfunc_scope()
-             )
+            w = self.init_cached_builtins_writer
+            w.putln("return 0;")
+            w.put_label(w.error_label)
+            w.putln("return -1;")
+            w.putln("}")
+            w.exit_cfunc_scope()
 
-        (self.initwriter
-         .putln("return 0;")
-         .put_label(self.initwriter.error_label)
-         .putln("return -1;")
-         .putln("}")
-         .exit_cfunc_scope()
-         )
+        w = self.initwriter
+        w.putln("return 0;")
+        w.put_label(w.error_label)
+        w.putln("return -1;")
+        w.putln("}")
+        w.exit_cfunc_scope()
          
     def insert_initcode_into(self, code):
         if self.pystring_table_needed:
@@ -526,7 +524,6 @@ class CCodeWriter(object):
             self.put(code)
         self.write("\n");
         self.bol = 1
-        return self
     
     def emit_marker(self):
         self.write("\n");
@@ -534,7 +531,6 @@ class CCodeWriter(object):
         self.write("/* %s */\n" % self.marker[1])
         self.last_marker_line = self.marker[0]
         self.marker = None
-        return self
 
     def put_safe(self, code):
         # put code, but ignore {}
@@ -557,25 +553,20 @@ class CCodeWriter(object):
             self.level += dl
         elif fix_indent:
             self.level += 1
-        return self
 
     def increase_indent(self):
         self.level = self.level + 1
-        return self
     
     def decrease_indent(self):
         self.level = self.level - 1
-        return self
     
     def begin_block(self):
         self.putln("{")
         self.increase_indent()
-        return self
     
     def end_block(self):
         self.decrease_indent()
         self.putln("}")
-        return self
     
     def indent(self):
         self.write("  " * self.level)
@@ -604,12 +595,10 @@ class CCodeWriter(object):
     def put_label(self, lbl):
         if lbl in self.funcstate.labels_used:
             self.putln("%s:;" % lbl)
-        return self
     
     def put_goto(self, lbl):
         self.funcstate.use_label(lbl)
         self.putln("goto %s;" % lbl)
-        return self
     
     def put_var_declarations(self, entries, static = 0, dll_linkage = None,
             definition = True):
