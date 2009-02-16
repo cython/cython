@@ -4,3 +4,7 @@ cdef int grail():
     spam = grail
     spam()
 
+ctypedef int funcptr_t()
+
+cdef inline funcptr_t* dummy():
+    return &grail
