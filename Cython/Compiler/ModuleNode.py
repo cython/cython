@@ -1594,7 +1594,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  if (!__Pyx_Refnanny)")
         code.putln("      Py_FatalError(\"failed to import refnanny module\");")
         code.putln("}")
-        code.putln("__pyx_refchk = __Pyx_Refnanny->NewContext(\"%s\", __LINE__);"% header3)
+        code.putln("__pyx_refchk = __Pyx_Refnanny->NewContext(\"%s\", __LINE__, __FILE__);"% header3)
         code.putln("#endif")
 
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
@@ -2338,7 +2338,7 @@ typedef struct {
   void (*DECREF)(void*, PyObject*, int);
   void (*GOTREF)(void*, PyObject*, int);
   void (*GIVEREF)(void*, PyObject*, int);
-  void* (*NewContext)(const char*, int);
+  void* (*NewContext)(const char*, int, char*);
   int (*FinishContext)(void**);
 } __Pyx_RefnannyAPIStruct;
 static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
@@ -2350,7 +2350,7 @@ static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
 #define __Pyx_GIVEREF(r) __Pyx_Refnanny->GIVEREF(__pyx_refchk, (PyObject *)(r), __LINE__)
 #define __Pyx_XDECREF(r) if((r) == NULL) ; else __Pyx_DECREF(r)
 #define __Pyx_SetupRefcountContext(name) \
-  void* __pyx_refchk = __Pyx_Refnanny->NewContext((name), __LINE__)
+  void* __pyx_refchk = __Pyx_Refnanny->NewContext((name), __LINE__, __FILE__)
 #define __Pyx_FinishRefcountContext() \
   __Pyx_Refnanny->FinishContext(&__pyx_refchk)
 #else
