@@ -23,9 +23,9 @@ class Context(object):
         self.errors = []
 
     def regref(self, obj, lineno, is_null):
-        log(LOG_ALL, 'regref', "<NULL>" if is_null else obj, lineno)
+        log(LOG_ALL, u'regref', u"<NULL>" if is_null else obj, lineno)
         if is_null:
-            self.errors.append("NULL argument on line %d" % lineno)
+            self.errors.append(u"NULL argument on line %d" % lineno)
             return
         id_ = id(obj)
         count, linenumbers = self.refs.get(id_, (0, []))
@@ -33,14 +33,14 @@ class Context(object):
         linenumbers.append(lineno)
 
     def delref(self, obj, lineno, is_null):
-        log(LOG_ALL, 'delref', "<NULL>" if is_null else obj, lineno)
+        log(LOG_ALL, u'delref', u"<NULL>" if is_null else obj, lineno)
         if is_null:
-            self.errors.append("NULL argument on line %d" % lineno)
+            self.errors.append(u"NULL argument on line %d" % lineno)
             return
         id_ = id(obj)
         count, linenumbers = self.refs.get(id_, (0, []))
         if count == 0:
-            self.errors.append("Too many decrefs on line %d, reference acquired on lines %r" %
+            self.errors.append(u"Too many decrefs on line %d, reference acquired on lines %r" %
                 (lineno, linenumbers))
         elif count == 1:
             del self.refs[id_]
@@ -49,12 +49,12 @@ class Context(object):
 
     def end(self):
         if len(self.refs) > 0:
-            msg = ""
+            msg = u""
             for count, linenos in self.refs.itervalues():
-                msg += "\n  Acquired on lines: " + ", ".join(["%d" % x for x in linenos])
-            self.errors.append("References leaked: %s" % msg)
+                msg += u"\n  Acquired on lines: " + u", ".join([u"%d" % x for x in linenos])
+            self.errors.append(u"References leaked: %s" % msg)
         if self.errors:
-            return "\n".join(self.errors)
+            return u"\n".join(self.errors)
         else:
             return None
 
@@ -134,7 +134,7 @@ cdef int FinishContext(PyObject** ctx) except -1:
         Py_XDECREF(<object>ctx[0])
         ctx[0] = NULL
     if errors:
-        print "%s: %s()" % pos
+        print u"%s: %s()" % pos
         print errors # raise Error(errors)
     return 0
 
