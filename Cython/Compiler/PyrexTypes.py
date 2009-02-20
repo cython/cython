@@ -1283,8 +1283,8 @@ modifiers_and_name_to_type = {
     (2, 1, "int"): c_slong_type,
     (2, 2, "int"): c_slonglong_type,
 
-    (1, 0, "Py_ssize_t"): c_py_ssize_t_type,
-    (1, 0, "size_t") : c_size_t_type,
+    (2, 0, "Py_ssize_t"): c_py_ssize_t_type,
+    (0, 0, "size_t") : c_size_t_type,
 
     (1, 0, "long"): c_long_type,
     (1, 0, "short"): c_short_type,
@@ -1492,8 +1492,13 @@ static INLINE PY_LONG_LONG __pyx_PyInt_AsLongLong(PyObject* x) {
     }
     else {
         PY_LONG_LONG val;
-        PyObject* tmp = PyNumber_Int(x); if (!tmp) return (PY_LONG_LONG)-1;
+#if PY_VERSION_HEX < 0x03000000
+        PyObject* tmp = PyNumber_Int(x);  if (!tmp) return (PY_LONG_LONG)-1;
         val = __pyx_PyInt_AsLongLong(tmp);
+#else
+        PyObject* tmp = PyNumber_Long(x); if (!tmp) return (PY_LONG_LONG)-1;
+        val = PyLong_AsLongLong(tmp);
+#endif
         Py_DECREF(tmp);
         return val;
     }
@@ -1516,8 +1521,13 @@ static INLINE unsigned PY_LONG_LONG __pyx_PyInt_AsUnsignedLongLong(PyObject* x) 
     }
     else {
         unsigned PY_LONG_LONG val;
-        PyObject* tmp = PyNumber_Int(x); if (!tmp) return (PY_LONG_LONG)-1;
+#if PY_VERSION_HEX < 0x03000000
+        PyObject* tmp = PyNumber_Int(x);  if (!tmp) return (PY_LONG_LONG)-1;
         val = __pyx_PyInt_AsUnsignedLongLong(tmp);
+#else
+        PyObject* tmp = PyNumber_Long(x); if (!tmp) return (PY_LONG_LONG)-1;
+        val = PyLong_AsUnsignedLongLong(tmp);
+#endif
         Py_DECREF(tmp);
         return val;
     }
