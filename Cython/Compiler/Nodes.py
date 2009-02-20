@@ -1054,6 +1054,8 @@ class FuncDefNode(StatNode, BlockNode):
         code.put_var_declarations(lenv.var_entries)
         init = ""
         if not self.return_type.is_void:
+            if self.return_type.is_pyobject:
+                init = " = NULL"
             code.putln(
                 "%s%s;" % 
                     (self.return_type.declaration_code(
@@ -3370,6 +3372,9 @@ class ReturnStatNode(StatNode):
         if not self.return_type:
             # error reported earlier
             return
+        if self.return_type.is_pyobject:
+            code.put_xdecref(Naming.retval_cname,
+                             self.return_type)
         if self.value:
             self.value.generate_evaluation_code(code)
             self.value.make_owned_reference(code)
