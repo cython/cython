@@ -2338,7 +2338,7 @@ typedef struct {
   void (*DECREF)(void*, PyObject*, int);
   void (*GOTREF)(void*, PyObject*, int);
   void (*GIVEREF)(void*, PyObject*, int);
-  void* (*NewContext)(const char*, int, char*);
+  void* (*NewContext)(const char*, int, const char*);
   int (*FinishContext)(void**);
 } __Pyx_RefnannyAPIStruct;
 static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
