@@ -1688,12 +1688,17 @@ def p_c_simple_base_type(s, self_flag, nonempty):
     if looking_at_base_type(s):
         #print "p_c_simple_base_type: looking_at_base_type at", s.position()
         is_basic = 1
-        signed, longness = p_sign_and_longness(s)
-        if s.sy == 'IDENT' and s.systring in basic_c_type_names:
+        if s.sy == 'IDENT' and s.systring in special_basic_c_types:
+            signed, longness = special_basic_c_types[s.systring]
             name = s.systring
             s.next()
         else:
-            name = 'int'
+            signed, longness = p_sign_and_longness(s)
+            if s.sy == 'IDENT' and s.systring in basic_c_type_names:
+                name = s.systring
+                s.next()
+            else:
+                name = 'int'
     elif looking_at_dotted_name(s):
         #print "p_c_simple_base_type: looking_at_type_name at", s.position()
         name = s.systring
@@ -1811,12 +1816,18 @@ def looking_at_dotted_name(s):
     else:
         return 0
 
-basic_c_type_names = ("void", "char", "int", "float", "double", "Py_ssize_t", "size_t", "bint")
+basic_c_type_names = ("void", "char", "int", "float", "double", "bint")
+
+special_basic_c_types = {
+    # name : (signed, longness)
+    "Py_ssize_t" : (2, 0),
+    "size_t"     : (0, 0),
+}
 
 sign_and_longness_words = ("short", "long", "signed", "unsigned")
 
 base_type_start_words = \
-    basic_c_type_names + sign_and_longness_words
+    basic_c_type_names + sign_and_longness_words + tuple(special_basic_c_types)
 
 def p_sign_and_longness(s):
     signed = 1
