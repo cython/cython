@@ -15,7 +15,10 @@ class Error(Exception):
     pass
 
 class Context(object):
-    def __init__(self):
+    def __init__(self, name, line=0, filename=None):
+        self.name = name
+        self.start = line
+        self.filename = filename
         self.refs = {} # id -> (count, [lineno])
         self.errors = []
 
@@ -57,11 +60,11 @@ class Context(object):
 
 
 
-cdef PyObject* NewContext(char* funcname, int lineno) except NULL:
+cdef PyObject* NewContext(char* funcname, int lineno, char* filename) except NULL:
     cdef PyObject* type = NULL, *value = NULL, *tb = NULL
     PyErr_Fetch(&type, &value, &tb)
     try:
-        ctx = Context()
+        ctx = Context(funcname, lineno, filename)
         PyErr_Restore(<object>type, <object>value, <object>tb)
         Py_INCREF(ctx)
         return <PyObject*>ctx
@@ -120,6 +123,7 @@ cdef int FinishContext(PyObject** ctx) except -1:
     PyErr_Fetch(&type, &value, &tb)
     try:
         errors = (<object>ctx[0]).end()
+        pos = (<object>ctx[0]).filename, (<object>ctx[0]).name
         PyErr_Restore(<object>type, <object>value, <object>tb)
     except:
         Py_XDECREF(<object>type)
@@ -130,7 +134,8 @@ cdef int FinishContext(PyObject** ctx) except -1:
         Py_XDECREF(<object>ctx[0])
         ctx[0] = NULL
     if errors:
-        raise Error(errors)
+        print "%s: %s()" % pos
+        print errors # raise Error(errors)
     return 0
 
 
@@ -144,7 +149,7 @@ ctypedef struct RefnannyAPIStruct:
   void (*DECREF)(PyObject*, PyObject*, int)
   void (*GOTREF)(PyObject*, PyObject*, int)
   void (*GIVEREF)(PyObject*, PyObject*, int)
-  PyObject* (*NewContext)(char*, int) except NULL
+  PyObject* (*NewContext)(char*, int, char*) except NULL
   int (*FinishContext)(PyObject**) except -1
 
 cdef RefnannyAPIStruct api
