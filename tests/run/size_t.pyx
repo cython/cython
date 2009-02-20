@@ -35,13 +35,17 @@ Traceback (most recent call last):
 OverflowError: ...
 """
 
+# XXX This should generate a warning !!!
+cdef extern from *:
+    ctypedef unsigned long size_t
+
 def test(size_t i):
     return i
 
 cdef class A:
     cdef public size_t a
     cdef readonly size_t b
-    
+
     def __init__(self, size_t a, object b):
         self.a = a
         self.b = b
