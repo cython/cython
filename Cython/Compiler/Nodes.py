@@ -3310,9 +3310,6 @@ class BreakStatNode(StatNode):
         if not code.break_label:
             error(self.pos, "break statement not inside loop")
         else:
-            #code.putln(
-            #    "goto %s;" %
-            #         code.break_label)
             code.put_goto(code.break_label)
 
 
@@ -4041,13 +4038,15 @@ class TryExceptStatNode(StatNode):
 
     def generate_execution_code(self, code):
         old_return_label = code.return_label
+        old_break_label = code.break_label
         old_error_label = code.new_error_label()
         our_error_label = code.error_label
         except_end_label = code.new_label('exception_handled')
         except_error_label = code.new_label('except_error')
         except_return_label = code.new_label('except_return')
         try_return_label = code.new_label('try_return')
-        try_end_label = code.new_label('try')
+        try_break_label = code.new_label('try_break')
+        try_end_label = code.new_label('try_end')
 
         code.putln("{")
         code.putln("PyObject %s;" %
@@ -4059,6 +4058,7 @@ class TryExceptStatNode(StatNode):
         code.putln(
             "/*try:*/ {")
         code.return_label = try_return_label
+        code.break_label = try_break_label
         self.body.generate_execution_code(code)
         code.putln(
             "}")
@@ -4093,6 +4093,13 @@ class TryExceptStatNode(StatNode):
             for var in Naming.exc_save_vars:
                 code.put_xdecref(var, py_object_type)
             code.put_goto(old_error_label)
+            
+        if code.label_used(try_break_label):
+            code.put_label(try_break_label)
+            for var in Naming.exc_save_vars: code.put_xgiveref(var)
+            code.putln("__Pyx_ExceptionReset(%s);" %
+                       ', '.join(Naming.exc_save_vars))
+            code.put_goto(old_break_label)
 
         if code.label_used(except_return_label):
             code.put_label(except_return_label)
@@ -4110,6 +4117,7 @@ class TryExceptStatNode(StatNode):
         code.putln("}")
 
         code.return_label = old_return_label
+        code.break_label = old_break_label
         code.error_label = old_error_label
 
     def annotate(self, code):
