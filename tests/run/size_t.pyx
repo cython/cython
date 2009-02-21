@@ -8,10 +8,9 @@ __doc__ = u"""
 >>> str(test((1<<32)-1))
 '4294967295'
 
->>> test(-1) #doctest: +ELLIPSIS
-Traceback (most recent call last):
-    ...
-OverflowError: ...
+>>> try: test(-1)
+... except (OverflowError, TypeError): print("ERROR")
+ERROR
 
 >>> test(1<<128) #doctest: +ELLIPSIS
 Traceback (most recent call last):
@@ -25,10 +24,9 @@ True
 True
 >>> a.foo(5)
 5
->>> a.foo(-1) #doctest: +ELLIPSIS
-Traceback (most recent call last):
-    ...
-OverflowError: ...
+>>> try: a.foo(-1)
+... except (OverflowError, TypeError): print("ERROR")
+ERROR
 >>> a.foo(1 << 180) #doctest: +ELLIPSIS
 Traceback (most recent call last):
     ...
