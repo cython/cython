@@ -772,6 +772,10 @@ class CCodeWriter(object):
         if entry.type.is_pyobject:
             self.putln("__Pyx_GIVEREF(%s);" % self.entry_as_pyobject(entry))
 
+    def put_var_xgotref(self, entry):
+        if entry.type.is_pyobject:
+            self.putln("__Pyx_XGOTREF(%s);" % self.entry_as_pyobject(entry))
+
     def put_var_xgiveref(self, entry):
         if entry.type.is_pyobject:
             self.putln("__Pyx_XGIVEREF(%s);" % self.entry_as_pyobject(entry))
