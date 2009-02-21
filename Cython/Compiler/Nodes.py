@@ -1195,10 +1195,7 @@ class FuncDefNode(StatNode, BlockNode):
             if self.return_type.is_pyobject:
                 code.put_xgiveref(self.return_type.as_pyobject(Naming.retval_cname))
 
-            code.put_finish_refcount_context(self.pos,
-                                             self.entry.qualified_name,
-                                             Naming.retval_cname,
-                                             err_val)
+            code.put_finish_refcount_context()
 
         if acquire_gil:
             code.putln("PyGILState_Release(_save);")

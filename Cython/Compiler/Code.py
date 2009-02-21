@@ -921,13 +921,8 @@ class CCodeWriter(object):
     def put_setup_refcount_context(self, name):
         self.putln('__Pyx_SetupRefcountContext("%s");' % name)
 
-    def put_finish_refcount_context(self, pos, name, retval_cname, err_val):
-        self.putln('if (__Pyx_FinishRefcountContext() == -1) {')
-        self.putln(self.set_error_info(pos))
-        self.putln('__Pyx_AddTraceback("%s");' % name)
-        if err_val is not None:
-            self.putln('%s = %s;' % (retval_cname, err_val))
-        self.putln('}')
+    def put_finish_refcount_context(self):
+        self.putln("__Pyx_FinishRefcountContext();")
 
 
 class PyrexCodeWriter:
