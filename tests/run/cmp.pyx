@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> single_py(1, 2)
     True
     >>> single_py(2, 1)

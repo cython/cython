@@ -1,7 +1,7 @@
-__doc__ = """
-    >>> do_slice("abcdef", 2, 3)
+__doc__ = u"""
+    >>> do_slice("abcdef".encode(u"ASCII"), 2, 3)
     ('c', 'cdef', 'ab', 'abcdef')
-    >>> do_slice("abcdef", 0, 5)
+    >>> do_slice("abcdef".encode(u"ASCII"), 0, 5)
     ('abcde', 'abcdef', '', 'abcdef')
 """
 

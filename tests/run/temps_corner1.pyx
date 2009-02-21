@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
    >>> B().coeffs_bitsize()
    [2]
 """
