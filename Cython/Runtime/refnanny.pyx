@@ -124,6 +124,9 @@ cdef void FinishContext(PyObject** ctx):
     try:
         errors = (<object>ctx[0]).end()
         pos = (<object>ctx[0]).filename, (<object>ctx[0]).name
+        if errors:
+            print u"%s: %s()" % pos
+            print errors # raise Error(errors)
         PyErr_Restore(<object>type, <object>value, <object>tb)
     except:
         Py_XDECREF(<object>type)
@@ -132,9 +135,6 @@ cdef void FinishContext(PyObject** ctx):
     finally:
         Py_XDECREF(<object>ctx[0])
         ctx[0] = NULL
-    if errors:
-        print u"%s: %s()" % pos
-        print errors # raise Error(errors)
 
 cdef extern from "Python.h":
     object PyCObject_FromVoidPtr(void*, void (*)(void*))
