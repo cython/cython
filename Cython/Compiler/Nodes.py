@@ -4868,14 +4868,19 @@ static void __Pyx_ReRaise(void); /*proto*/
 """,
 impl = """
 static void __Pyx_ReRaise(void) {
-    PyThreadState *tstate = PyThreadState_Get();
-    PyObject *type = tstate->exc_type;
-    PyObject *value = tstate->exc_value;
-    PyObject *tb = tstate->exc_traceback;
-    Py_XINCREF(type);
-    Py_XINCREF(value);
-    Py_XINCREF(tb);
-    __Pyx_ErrRestore(type, value, tb);
+    PyThreadState *tstate = PyThreadState_GET();
+    PyObject* tmp_type = tstate->curexc_type;
+    PyObject* tmp_value = tstate->curexc_value;
+    PyObject* tmp_tb = tstate->curexc_traceback;
+    tstate->curexc_type = tstate->exc_type;
+    tstate->curexc_value = tstate->exc_value;
+    tstate->curexc_traceback = tstate->exc_traceback;
+    tstate->exc_type = 0;
+    tstate->exc_value = 0;
+    tstate->exc_traceback = 0;
+    Py_XDECREF(tmp_type);
+    Py_XDECREF(tmp_value);
+    Py_XDECREF(tmp_tb);
 }
 """)
 
@@ -5270,6 +5275,16 @@ impl = """
 static INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb) {
     PyObject *tmp_type, *tmp_value, *tmp_tb;
     PyThreadState *tstate = PyThreadState_GET();
+
+    tmp_type = tstate->exc_type;
+    tmp_value = tstate->exc_value;
+    tmp_tb = tstate->exc_traceback;
+    tstate->exc_type = 0;
+    tstate->exc_value = 0;
+    tstate->exc_traceback = 0;
+    Py_XDECREF(tmp_type);
+    Py_XDECREF(tmp_value);
+    Py_XDECREF(tmp_tb);
 
     tmp_type = tstate->curexc_type;
     tmp_value = tstate->curexc_value;
