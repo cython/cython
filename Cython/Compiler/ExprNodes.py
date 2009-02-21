@@ -1925,6 +1925,7 @@ class IndexNode(ExprNode):
                 self.index_unsigned_parameter(),
                 code.error_goto(self.pos)))
         self.generate_subexpr_disposal_code(code)
+        self.free_subexpr_temps(code)
 
     def buffer_lookup_code(self, code):
         # Assign indices to temps
