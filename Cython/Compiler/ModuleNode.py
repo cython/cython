@@ -2359,7 +2359,7 @@ static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
 #define __Pyx_GIVEREF(r)
 #define __Pyx_XDECREF(r) Py_XDECREF(r)
 #define __Pyx_SetupRefcountContext(name)
-#define __Pyx_FinishRefcountContext() 0
+#define __Pyx_FinishRefcountContext()
 #endif /* CYTHON_REFNANNY */
 #define __Pyx_XGIVEREF(r) if((r) == NULL) ; else __Pyx_GIVEREF(r)
 #define __Pyx_XGOTREF(r) if((r) == NULL) ; else __Pyx_GOTREF(r)
