@@ -1640,6 +1640,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if Options.generate_cleanup_code:
             # this should be replaced by the module's tp_clear in Py3
+            env.use_utility_code(import_module_utility_code)
             code.putln("if (__Pyx_RegisterCleanup()) %s;" % code.error_goto(self.pos))
 
         code.putln("%s = %s;" % (Naming.retval_cname, env.module_cname))
@@ -1670,7 +1671,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_module_cleanup_func(self, env, code):
         if not Options.generate_cleanup_code:
             return
-        env.use_utility_code(import_module_utility_code)
         env.use_utility_code(register_cleanup_utility_code)
         # Insert code stream of __Pyx_CleanupGlobals()
         code.globalstate.insert_cleanupcode_into(code)
@@ -1683,25 +1683,33 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for entry in rev_entries:
                 if entry.visibility != 'extern':
                     if entry.type.is_pyobject and entry.used:
-                        code.put_var_decref_clear(entry)
+                        code.putln("Py_DECREF(%s); %s = 0;" % (
+                            code.entry_as_pyobject(entry), entry.cname))
         code.putln("__Pyx_CleanupGlobals();")
         if Options.generate_cleanup_code >= 3:
             code.putln("/*--- Type import cleanup code ---*/")
             for type, _ in env.types_imported.items():
-                code.put_decref("((PyObject*)%s)" % type.typeptr_cname, PyrexTypes.py_object_type)
+                code.putln("Py_DECREF((PyObject *)%s); %s = 0;" % (
+                    type.typeptr_cname, type.typeptr_cname))
         if Options.cache_builtins:
             code.putln("/*--- Builtin cleanup code ---*/")
             for entry in env.cached_builtins:
-                code.put_var_decref_clear(entry)
-        code.putln("Py_DECREF(%s); %s = 0;" % (Naming.empty_tuple, Naming.empty_tuple));
+                code.put_decref_clear(entry.cname,
+                                      PyrexTypes.py_object_type,
+                                      nanny=False)
         code.putln("/*--- Intern cleanup code ---*/")
+        code.put_decref_clear(Naming.empty_tuple,
+                              PyrexTypes.py_object_type,
+                              nanny=False)
         for entry in env.pynum_entries:
-            code.put_var_decref_clear(entry)
-        if env.all_pystring_entries:
-            for entry in env.all_pystring_entries:
-                if entry.is_interned:
-                    code.put_decref_clear(
-                        entry.pystring_cname, PyrexTypes.py_object_type)
+            code.put_decref_clear(entry.cname,
+                                  PyrexTypes.py_object_type,
+                                  nanny=False)
+        for entry in env.all_pystring_entries:
+            if entry.is_interned:
+                code.put_decref_clear(entry.pystring_cname,
+                                      PyrexTypes.py_object_type,
+                                      nanny=False)
         code.putln("Py_INCREF(Py_None); return Py_None;")
         code.putln('}')
 
