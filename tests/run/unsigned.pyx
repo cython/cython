@@ -1,11 +1,21 @@
-__doc__ = u"""
+import sys
+
+if sys.version_info[0] >= 3:
+    __doc__ = u"""
+    >>> test_signed()
+    3 <class 'int'>
+    9 <class 'int'>
+    6 <class 'int'>
+    12 <class 'int'>
+"""
+else:
+    __doc__ = u"""
     >>> test_signed()
     3 <type 'int'>
     9 <type 'long'>
     6 <type 'long'>
     12 <type 'long'>
 """
-
 
 cdef int i = 1
 cdef long l = 2

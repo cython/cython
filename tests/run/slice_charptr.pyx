@@ -1,9 +1,14 @@
 __doc__ = u"""
-    >>> do_slice("abcdef".encode(u"ASCII"), 2, 3)
-    ('c', 'cdef', 'ab', 'abcdef')
-    >>> do_slice("abcdef".encode(u"ASCII"), 0, 5)
-    ('abcde', 'abcdef', '', 'abcdef')
+    >>> do_slice(b"abcdef", 2, 3)
+    (b'c', b'cdef', b'ab', b'abcdef')
+    >>> do_slice(b"abcdef", 0, 5)
+    (b'abcde', b'abcdef', b'', b'abcdef')
 """
+
+import sys
+
+if sys.version_info[0] < 3:
+    __doc__ = __doc__.replace(u"(b'", u"('").replace(u" b'", u" '")
 
 def do_slice(s, int i, int j):
     cdef char* ss = s

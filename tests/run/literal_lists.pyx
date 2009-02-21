@@ -1,16 +1,20 @@
 __doc__ = u"""
     >>> test_ints(100)
     (100, 100, 100)
-    >>> test_chars("yo")
-    ('a', 'bc', 'yo')
-    >>> test_chars(None)
+    >>> test_chars(b'yo')
+    (b'a', b'bc', b'yo')
+    >>> test_chars(None)       # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    TypeError: expected string or Unicode object, NoneType found
+    TypeError: expected ...
     >>> test_struct(-5, -10)
     -5 -10 True
     1 2 False
 """
+
+import sys
+
+if sys.version_info[0] < 3:
+    __doc__ = __doc__.replace(u"b'", u"'")
 
 def test_ints(int x):
     cdef list L = [1,2,3,x]
