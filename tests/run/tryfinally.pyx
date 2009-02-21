@@ -31,6 +31,7 @@ TypeError
 3
 >>> try_return_none_1()
 >>> try_return_none_2()
+>>> try_break()
 """
 
 def finally_except():
@@ -83,3 +84,11 @@ def try_return_none_2():
         return <object> _none()
     finally:
         return <object> _none()
+
+def try_break():
+    for a in "abcd":
+        try:
+            if a == 'c':
+                break
+        except:
+            break
