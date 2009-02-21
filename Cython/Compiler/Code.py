@@ -354,7 +354,7 @@ class GlobalState(object):
             if entry.init[-1] == "L":
                 self.initwriter.putln('%s = PyLong_FromString((char *)"%s", 0, 0); %s;' % (
                     entry.cname,
-                    entry.init[:-1],
+                    entry.init[:-1], # strip 'L' for Py3 compatibility
                     self.initwriter.error_goto_if_null(entry.cname, self.module_pos)))
             else:
                 self.initwriter.putln("%s = PyInt_FromLong(%s); %s;" % (
