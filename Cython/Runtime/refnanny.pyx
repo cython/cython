@@ -33,19 +33,23 @@ class Context(object):
         linenumbers.append(lineno)
 
     def delref(self, obj, lineno, is_null):
+        # returns whether it is ok to do the decref operation
         log(LOG_ALL, u'delref', u"<NULL>" if is_null else obj, lineno)
         if is_null:
             self.errors.append(u"NULL argument on line %d" % lineno)
-            return
+            return False
         id_ = id(obj)
         count, linenumbers = self.refs.get(id_, (0, []))
         if count == 0:
             self.errors.append(u"Too many decrefs on line %d, reference acquired on lines %r" %
                 (lineno, linenumbers))
+            return False
         elif count == 1:
             del self.refs[id_]
+            return True
         else:
             self.refs[id_] = (count - 1, linenumbers)
+            return True
 
     def end(self):
         if len(self.refs) > 0:
@@ -58,21 +62,28 @@ class Context(object):
         else:
             return None
 
+def report_unraisable(e):
+    try:
+        print "refnanny raised an exception: %s" % e
+    except:
+        pass # We absolutely cannot exit with an exception 
 
+# All Python operations must happen after any existing
+# exception has been fetched, in case we are called from
+# exception-handling code.
 
 cdef PyObject* NewContext(char* funcname, int lineno, char* filename) except NULL:
     cdef PyObject* type = NULL, *value = NULL, *tb = NULL
+    cdef PyObject* result = NULL
     PyErr_Fetch(&type, &value, &tb)
     try:
         ctx = Context(funcname, lineno, filename)
-        PyErr_Restore(<object>type, <object>value, <object>tb)
         Py_INCREF(ctx)
-        return <PyObject*>ctx
-    except:
-        Py_XDECREF(<object>type)
-        Py_XDECREF(<object>value)
-        Py_XDECREF(<object>tb)
-        raise
+        result = <PyObject*>ctx
+    except Exception, e:
+        report_unraisable(e)
+    PyErr_Restore(<object>type, <object>value, <object>tb)
+    return result
 
 cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
     cdef PyObject* type = NULL, *value = NULL, *tb = NULL
@@ -83,58 +94,54 @@ cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
             (<object>ctx).regref(None, lineno, True)
         else:
             (<object>ctx).regref(<object>p_obj, lineno, False)
-        PyErr_Restore(<object>type, <object>value, <object>tb)
-    except:
-        Py_XDECREF(<object>type)
-        Py_XDECREF(<object>value)
-        Py_XDECREF(<object>tb)
-        raise
+    except Exception, e:
+        report_unraisable(e)
+    PyErr_Restore(<object>type, <object>value, <object>tb)
 
-cdef void GIVEREF(PyObject* ctx, PyObject* p_obj, int lineno):
+cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
     cdef PyObject* type = NULL, *value = NULL, *tb = NULL
-    if ctx == NULL: return
+    cdef bint decref_ok = False
     PyErr_Fetch(&type, &value, &tb)
     try:
+        assert ctx is not NULL, "ctx us NULL"
         if p_obj is NULL:
-            (<object>ctx).delref(None, lineno, True)
+            decref_ok = (<object>ctx).delref(None, lineno, True)
         else:
-            (<object>ctx).delref(<object>p_obj, lineno, False)
-        PyErr_Restore(<object>type, <object>value, <object>tb)
-    except:
-        Py_XDECREF(<object>type)
-        Py_XDECREF(<object>value)
-        Py_XDECREF(<object>tb)
-        raise
+            decref_ok = (<object>ctx).delref(<object>p_obj, lineno, False)
+    except Exception, e:
+        report_unraisable(e)
+    PyErr_Restore(<object>type, <object>value, <object>tb)
+    return decref_ok
+
+cdef void GIVEREF(PyObject* ctx, PyObject* p_obj, int lineno):
+    GIVEREF_and_report(ctx, p_obj, lineno)
 
 cdef void INCREF(PyObject* ctx, PyObject* obj, int lineno):
     if obj is not NULL: Py_INCREF(<object>obj)
     GOTREF(ctx, obj, lineno)
 
 cdef void DECREF(PyObject* ctx, PyObject* obj, int lineno):
-    # GIVEREF raises exception if we hit 0
-    GIVEREF(ctx, obj, lineno)
-    if obj is not NULL: Py_DECREF(<object>obj)
+    if GIVEREF_and_report(ctx, obj, lineno):
+        if obj is not NULL: Py_DECREF(<object>obj)
 
 cdef void FinishContext(PyObject** ctx):
     cdef PyObject* type = NULL, *value = NULL, *tb = NULL
-    if ctx == NULL: assert False
-    if ctx[0] == NULL: assert False # XXX What to do here?
     cdef object errors = None
     PyErr_Fetch(&type, &value, &tb)
     try:
+        if ctx == NULL: assert False, "ctx is NULL"
+        if ctx[0] == NULL: assert False, "ctx[0] is NULL"
+        
         errors = (<object>ctx[0]).end()
         pos = (<object>ctx[0]).filename, (<object>ctx[0]).name
         if errors:
             print u"%s: %s()" % pos
             print errors # raise Error(errors)
-        PyErr_Restore(<object>type, <object>value, <object>tb)
-    except:
-        Py_XDECREF(<object>type)
-        Py_XDECREF(<object>value)
-        Py_XDECREF(<object>tb)
-    finally:
-        Py_XDECREF(<object>ctx[0])
-        ctx[0] = NULL
+    except Exception, e:
+        report_unraisable(e)
+    Py_XDECREF(<object>ctx[0])
+    ctx[0] = NULL
+    PyErr_Restore(<object>type, <object>value, <object>tb)
 
 cdef extern from "Python.h":
     object PyCObject_FromVoidPtr(void*, void (*)(void*))
