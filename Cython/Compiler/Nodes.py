@@ -3441,7 +3441,7 @@ class RaiseStatNode(StatNode):
             self.exc_type.generate_evaluation_code(code)
             type_code = self.exc_type.py_result()
         else:
-            type_code = 0
+            type_code = "0"
         if self.exc_value:
             self.exc_value.generate_evaluation_code(code)
             value_code = self.exc_value.py_result()
