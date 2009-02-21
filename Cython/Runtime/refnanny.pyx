@@ -115,7 +115,7 @@ cdef void DECREF(PyObject* ctx, PyObject* obj, int lineno):
     GIVEREF(ctx, obj, lineno)
     if obj is not NULL: Py_DECREF(<object>obj)
 
-cdef int FinishContext(PyObject** ctx) except -1:
+cdef void FinishContext(PyObject** ctx):
     cdef PyObject* type = NULL, *value = NULL, *tb = NULL
     if ctx == NULL: assert False
     if ctx[0] == NULL: assert False # XXX What to do here?
@@ -129,17 +129,12 @@ cdef int FinishContext(PyObject** ctx) except -1:
         Py_XDECREF(<object>type)
         Py_XDECREF(<object>value)
         Py_XDECREF(<object>tb)
-        raise
     finally:
         Py_XDECREF(<object>ctx[0])
         ctx[0] = NULL
     if errors:
         print u"%s: %s()" % pos
         print errors # raise Error(errors)
-    return 0
-
-
-
 
 cdef extern from "Python.h":
     object PyCObject_FromVoidPtr(void*, void (*)(void*))
@@ -150,7 +145,7 @@ ctypedef struct RefnannyAPIStruct:
   void (*GOTREF)(PyObject*, PyObject*, int)
   void (*GIVEREF)(PyObject*, PyObject*, int)
   PyObject* (*NewContext)(char*, int, char*) except NULL
-  int (*FinishContext)(PyObject**) except -1
+  void (*FinishContext)(PyObject**)
 
 cdef RefnannyAPIStruct api
 api.INCREF = INCREF

@@ -1651,8 +1651,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("%s = NULL;" % Naming.retval_cname)
         code.put_label(code.return_label)
         # Disabled because of confusion with refcount of global variables -- run ass2cglobal testcase to see
-        #code.put_finish_refcount_context(self.pos, env.qualified_name,
-        #                                 Naming.retval_cname, "NULL")
+        #code.put_finish_refcount_context()
         code.putln("#if CYTHON_REFNANNY")
         code.putln("if (__pyx_refchk) {};")
         code.putln("#endif")
@@ -2339,7 +2338,7 @@ typedef struct {
   void (*GOTREF)(void*, PyObject*, int);
   void (*GIVEREF)(void*, PyObject*, int);
   void* (*NewContext)(const char*, int, const char*);
-  int (*FinishContext)(void**);
+  void (*FinishContext)(void**);
 } __Pyx_RefnannyAPIStruct;
 static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
 #define __Pyx_ImportRefcountAPI(name) \
