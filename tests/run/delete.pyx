@@ -15,4 +15,4 @@ class A:
     def g(self):
         self.a = 3
         del self.a
-        return (hasattr(self, "a"), hasattr(self, "g"))
+        return (hasattr(self, u"a"), hasattr(self, u"g"))
