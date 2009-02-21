@@ -4814,6 +4814,7 @@ class CascadedCmpNode(Node, CmpNode):
     def generate_evaluation_code(self, code, result, operand1):
         if self.type.is_pyobject:
             code.putln("if (__Pyx_PyObject_IsTrue(%s)) {" % result)
+            code.put_decref(result, self.type)
         else:
             code.putln("if (%s) {" % result)
         self.operand2.generate_evaluation_code(code)
