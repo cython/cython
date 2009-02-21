@@ -1,6 +1,6 @@
 from __future__ import division
 
-__doc__ = """
+__doc__ = u"""
 >>> from future_division import doit
 >>> doit(1,2)
 (0.5, 0)

@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> test_constructor(1,2,255)
     {'y': 2.0, 'x': 1.0, 'color': 255}
     >>> test_constructor(1,None,255)

@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
     >>> test_signed()
     3 <type 'int'>
     9 <type 'long'>
