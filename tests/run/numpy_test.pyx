@@ -4,7 +4,7 @@ cimport numpy as np
 
 try:
     import numpy as np
-    __doc__ = """
+    __doc__ = u"""
 
     >>> basic()
     [[0 1 2 3 4]
@@ -155,27 +155,27 @@ try:
     
 """
 except:
-    __doc__ = ""
+    __doc__ = u""
 
 def ndarray_str(arr):
-    """
+    u"""
     Since Py2.3 doctest don't support <BLANKLINE>, manually replace blank lines
     with <_BLANKLINE_>
     """
-    return str(arr).replace('\n\n', '\n<_BLANKLINE_>\n')    
+    return unicode(arr).replace(u'\n\n', u'\n<_BLANKLINE_>\n')    
 
 def basic():
-    cdef object[int, ndim=2] buf = np.arange(10, dtype='i').reshape((2, 5))
+    cdef object[int, ndim=2] buf = np.arange(10, dtype=u'i').reshape((2, 5))
     print buf
     print buf[0, 2], buf[0, 0], buf[1, 4], buf[1, 0]
 
 def three_dim():
-    cdef object[double, ndim=3] buf = np.arange(24, dtype='d').reshape((3,2,4))
+    cdef object[double, ndim=3] buf = np.arange(24, dtype=u'd').reshape((3,2,4))
     print ndarray_str(buf)
     print buf[0, 1, 2], buf[0, 0, 0], buf[1, 1, 1], buf[1, 0, 0]
 
 def obj_array():
-    cdef object[object, ndim=1] buf = np.array(["a", 1, {}])
+    cdef object[object, ndim=1] buf = np.array([u"a", 1, {}])
     print buf
     print buf[0], buf[1], buf[2]
 
@@ -183,24 +183,24 @@ def obj_array():
 def print_long_2d(np.ndarray[long, ndim=2] arr):
     cdef int i, j
     for i in range(arr.shape[0]):
-        print " ".join([str(arr[i, j]) for j in range(arr.shape[1])])
+        print u" ".join([unicode(arr[i, j]) for j in range(arr.shape[1])])
 
 def put_range_long_1d(np.ndarray[long] arr):
-    """Writes 0,1,2,... to array and returns array"""
+    u"""Writes 0,1,2,... to array and returns array"""
     cdef int value = 0, i
     for i in range(arr.shape[0]):
         arr[i] = value
         value += 1
 
-def test_c_contig(np.ndarray[int, ndim=2, mode='c'] arr):
+def test_c_contig(np.ndarray[int, ndim=2, mode=u'c'] arr):
     cdef int i, j
     for i in range(arr.shape[0]):
-        print " ".join([str(arr[i, j]) for j in range(arr.shape[1])])
+        print u" ".join([unicode(arr[i, j]) for j in range(arr.shape[1])])
 
-def test_f_contig(np.ndarray[int, ndim=2, mode='fortran'] arr):
+def test_f_contig(np.ndarray[int, ndim=2, mode=u'fortran'] arr):
     cdef int i, j
     for i in range(arr.shape[0]):
-        print " ".join([str(arr[i, j]) for j in range(arr.shape[1])])
+        print u" ".join([unicode(arr[i, j]) for j in range(arr.shape[1])])
 
 # Exhaustive dtype tests -- increments element [1] by 1 (or 1+1j) for all dtypes
 def inc1_byte(np.ndarray[char] arr):                    arr[1] += 1
@@ -250,33 +250,33 @@ def inc1_float64_t(np.ndarray[np.float64_t] arr):       arr[1] += 1
 
     
 def test_dtype(dtype, inc1):
-    if dtype in ('F', 'D', 'G'):
+    if dtype in (u'F', u'D', u'G'):
         a = np.array([0, 10+10j], dtype=dtype)
         inc1(a)
-        if a[1] != (11 + 11j): print "failed!", a[1]
+        if a[1] != (11 + 11j): print u"failed!", a[1]
     else:
         a = np.array([0, 10], dtype=dtype)
         inc1(a)
-        if a[1] != 11: print "failed!"
+        if a[1] != 11: print u"failed!"
 
 cdef struct DoubleInt:
     int x, y
 
 def test_recordarray():
     cdef object[DoubleInt] arr
-    arr = np.array([(5,5), (4, 6)], dtype=np.dtype('i,i'))
+    arr = np.array([(5,5), (4, 6)], dtype=np.dtype(u'i,i'))
     cdef DoubleInt rec
     rec = arr[0]
-    if rec.x != 5: print "failed"
-    if rec.y != 5: print "failed"
+    if rec.x != 5: print u"failed"
+    if rec.y != 5: print u"failed"
     rec.y += 5
     arr[1] = rec
     arr[0].x -= 2
     arr[0].y += 3
-    if arr[0].x != 3: print "failed"
-    if arr[0].y != 8: print "failed"
-    if arr[1].x != 5: print "failed"
-    if arr[1].y != 10: print "failed"
+    if arr[0].x != 3: print u"failed"
+    if arr[0].y != 8: print u"failed"
+    if arr[1].x != 5: print u"failed"
+    if arr[1].y != 10: print u"failed"
 
 cdef struct NestedStruct:
     DoubleInt a
@@ -304,10 +304,10 @@ def test_bad_nested_dtypes():
 
 def test_good_cast():
     # Check that a signed int can round-trip through casted unsigned int access
-    cdef np.ndarray[unsigned int, cast=True] arr = np.array([-100], dtype='i')
+    cdef np.ndarray[unsigned int, cast=True] arr = np.array([-100], dtype=u'i')
     cdef unsigned int data = arr[0]
     return -100 == <int>data
 
 def test_bad_cast():
     # This should raise an exception
-    cdef np.ndarray[long, cast=True] arr = np.array([1], dtype='b')
+    cdef np.ndarray[long, cast=True] arr = np.array([1], dtype=u'b')
