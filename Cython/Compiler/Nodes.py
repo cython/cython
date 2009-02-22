@@ -1240,6 +1240,7 @@ class FuncDefNode(StatNode, BlockNode):
                         code.putln(
                             "%s = 0;" %
                                 default.result())
+                    code.put_giveref(arg.default_entry.cname)
                     default.free_temps(code)
         # For Python class methods, create and store function object
         if self.assmt:
