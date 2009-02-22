@@ -1302,6 +1302,8 @@ class NameNode(AtomicExprNode):
                         namespace,
                         self.interned_cname,
                         rhs.py_result()))
+                rhs.generate_disposal_code(code)
+                rhs.free_temps(code)
                 # in Py2.6+, we need to invalidate the method cache
                 code.putln("PyType_Modified(%s);" %
                            entry.scope.parent_type.typeptr_cname)
