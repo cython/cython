@@ -1714,14 +1714,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_pymoduledef_struct(self, env, code):
         if env.doc:
-            doc = env.doc_cname
+            doc = "__Pyx_DOCSTR(%s)" % env.doc_cname
         else:
             doc = "0"
         code.putln("")
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("static struct PyModuleDef %s = {" % Naming.pymoduledef_cname)
         code.putln("  PyModuleDef_HEAD_INIT,")
-        code.putln('  "%s",' % env.module_name)
+        code.putln('  __Pyx_NAMESTR("%s"),' % env.module_name)
         code.putln("  %s, /* m_doc */" % doc)
         code.putln("  -1, /* m_size */")
         code.putln("  %s /* m_methods */," % env.method_table_cname)
