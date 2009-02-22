@@ -1651,11 +1651,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.use_utility_code(Nodes.traceback_utility_code)
         code.putln("%s = NULL;" % Naming.retval_cname)
         code.put_label(code.return_label)
-        # Disabled because of confusion with refcount of global variables -- run ass2cglobal testcase to see
-        #code.put_finish_refcount_context()
-        code.putln("#if CYTHON_REFNANNY")
-        code.putln("if (__pyx_refchk) {};")
-        code.putln("#endif")
+
+        code.put_finish_refcount_context()
+
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln("return;")
         code.putln("#else")
@@ -1793,7 +1791,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for entry in env.var_entries:
             if entry.visibility != 'extern':
                 if entry.type.is_pyobject and entry.used:
-                    code.put_init_var_to_py_none(entry)
+                    code.put_init_var_to_py_none(entry, nanny=False)
 
     def generate_c_function_export_code(self, env, code):
         # Generate code to create PyCFunction wrappers for exported C functions.
