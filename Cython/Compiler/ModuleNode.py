@@ -1582,7 +1582,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln(header3)
         code.putln("#endif")
         code.putln("{")
-        code.putln("PyObject* %s;" % Naming.retval_cname)
         tempdecl_code = code.insertion_point()
 
         code.putln("#ifdef CYTHON_REFNANNY")
@@ -1643,13 +1642,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             env.use_utility_code(import_module_utility_code)
             code.putln("if (__Pyx_RegisterCleanup()) %s;" % code.error_goto(self.pos))
 
-        code.putln("%s = %s;" % (Naming.retval_cname, env.module_cname))
         code.put_goto(code.return_label)
         code.put_label(code.error_label)
         code.put_var_xdecrefs(env.temp_entries)
         code.putln('__Pyx_AddTraceback("%s");' % env.qualified_name)
         env.use_utility_code(Nodes.traceback_utility_code)
-        code.putln("%s = NULL;" % Naming.retval_cname)
+        code.put_decref_clear(env.module_cname, py_object_type, nanny=False)
         code.put_label(code.return_label)
 
         code.put_finish_refcount_context()
@@ -1657,7 +1655,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if PY_MAJOR_VERSION < 3")
         code.putln("return;")
         code.putln("#else")
-        code.putln("return %s;" % Naming.retval_cname)
+        code.putln("return %s;" % env.module_cname)
         code.putln("#endif")
         code.putln('}')
 
