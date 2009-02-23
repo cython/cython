@@ -483,7 +483,7 @@ if __name__ == '__main__':
                       action="store_true", default=False,
                       help="only compile pyx to c, do not run C compiler or run the tests")
     parser.add_option("--no-refnanny", dest="with_refnanny",
-                      action="store_false", default=(sys.version_info[0] < 3),
+                      action="store_false", default=True,
                       help="do not regression test reference counting")
     parser.add_option("--sys-pyregr", dest="system_pyregr",
                       action="store_true", default=False,
