@@ -1234,17 +1234,13 @@ class FuncDefNode(StatNode, BlockNode):
                 if not default.is_literal:
                     default.generate_evaluation_code(code)
                     default.make_owned_reference(code)
-                    if default.is_temp and default.type.is_pyobject:
-                        cleanup = " %s = 0;" % default.result()
-                    else:
-                        cleanup = ''
                     code.putln(
-                        "%s = %s;%s" % (
+                        "%s = %s;" % (
                             arg.default_entry.cname,
-                            default.result_as(arg.default_entry.type),
-                            cleanup))
-                    code.put_giveref(arg.default_entry.cname)
+                            default.result_as(arg.default_entry.type)))
+                    default.generate_post_assignment_code(code)
                     default.free_temps(code)
+                    code.put_giveref(arg.default_entry.cname)
         # For Python class methods, create and store function object
         if self.assmt:
             self.assmt.generate_execution_code(code)
