@@ -1706,6 +1706,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.put_decref_clear(entry.pystring_cname,
                                       PyrexTypes.py_object_type,
                                       nanny=False)
+        for entry in env.default_entries:
+            if entry.type.is_pyobject and entry.used:
+                code.putln("Py_DECREF(%s); %s = 0;" % (
+                        code.entry_as_pyobject(entry), entry.cname))
         code.putln("Py_INCREF(Py_None); return Py_None;")
         code.putln('}')
 
