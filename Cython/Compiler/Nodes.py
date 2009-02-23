@@ -1238,7 +1238,8 @@ class FuncDefNode(StatNode, BlockNode):
                         "%s = %s;" % (
                             arg.default_entry.cname,
                             default.result_as(arg.default_entry.type)))
-                    default.generate_post_assignment_code(code)
+                    if default.is_temp and default.type.is_pyobject:
+                        code.putln("%s = 0;" % default.result())
                     default.free_temps(code)
                     code.put_giveref(arg.default_entry.cname)
         # For Python class methods, create and store function object
