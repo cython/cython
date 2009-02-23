@@ -992,6 +992,8 @@ class FuncDefNode(StatNode, BlockNode):
                         else:
                             arg.default.allocate_temps(genv)
                             arg.default_entry = genv.add_default_value(arg.type)
+                            if arg.type.is_pyobject:
+                                arg.default_entry.init = 0
                             arg.default_entry.used = 1
                             arg.default_result_code = arg.default_entry.cname
                 else:
@@ -1232,14 +1234,15 @@ class FuncDefNode(StatNode, BlockNode):
                 if not default.is_literal:
                     default.generate_evaluation_code(code)
                     default.make_owned_reference(code)
-                    code.putln(
-                        "%s = %s;" % (
-                            arg.default_entry.cname,
-                            default.result_as(arg.default_entry.type)))
                     if default.is_temp and default.type.is_pyobject:
-                        code.putln(
-                            "%s = 0;" %
-                                default.result())
+                        cleanup = " %s = 0;" % default.result()
+                    else:
+                        cleanup = ''
+                    code.putln(
+                        "%s = %s;%s" % (
+                            arg.default_entry.cname,
+                            default.result_as(arg.default_entry.type),
+                            cleanup))
                     code.put_giveref(arg.default_entry.cname)
                     default.free_temps(code)
         # For Python class methods, create and store function object
