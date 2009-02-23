@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
 >>> f0()
 (1, 2)
 >>> g0()
@@ -15,19 +15,19 @@ __doc__ = """
 {1: 2}
 
 >>> f3() #doctest: +ELLIPSIS
-<argdefaultglb.Foo object at ...>
+<argdefault.Foo object at ...>
 >>> g3() #doctest: +ELLIPSIS
-<argdefaultglb.Foo object at ...>
+<argdefault.Foo object at ...>
 
 >>> f4() #doctest: +ELLIPSIS
-<argdefaultglb.Bar object at ...>
+<argdefault.Bar object at ...>
 >>> g4() #doctest: +ELLIPSIS
-<argdefaultglb.Bar object at ...>
+<argdefault.Bar object at ...>
 
 >>> f5() #doctest: +ELLIPSIS
-<argdefaultglb.Bla object at ...>
+<argdefault.Bla object at ...>
 >>> g5() #doctest: +ELLIPSIS
-<argdefaultglb.Bla object at ...>
+<argdefault.Bla object at ...>
 """
 
 GLB0 = (1, 2)
