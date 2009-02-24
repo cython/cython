@@ -1,7 +1,7 @@
 __doc__ = u"""
-    >>> do_slice(b"abcdef", 2, 3)
+    >>> do_slice(b'abcdef', 2, 3)
     (b'c', b'cdef', b'ab', b'abcdef')
-    >>> do_slice(b"abcdef", 0, 5)
+    >>> do_slice(b'abcdef', 0, 5)
     (b'abcde', b'abcdef', b'', b'abcdef')
 """
 
