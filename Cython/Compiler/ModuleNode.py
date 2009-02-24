@@ -1707,7 +1707,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                                       nanny=False)
         for entry in env.default_entries:
             if entry.type.is_pyobject and entry.used:
-                code.put_var_decref_clear(entry)
+                code.putln("Py_DECREF(%s); %s = 0;" % (
+                    code.entry_as_pyobject(entry), entry.cname))
         code.putln("Py_INCREF(Py_None); return Py_None;")
         code.putln('}')
 
