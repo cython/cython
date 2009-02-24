@@ -1241,7 +1241,7 @@ class FuncDefNode(StatNode, BlockNode):
                     if default.is_temp and default.type.is_pyobject:
                         code.putln("%s = 0;" % default.result())
                     default.free_temps(code)
-                    code.put_giveref(arg.default_entry.cname)
+                    code.put_var_giveref(arg.default_entry)
         # For Python class methods, create and store function object
         if self.assmt:
             self.assmt.generate_execution_code(code)

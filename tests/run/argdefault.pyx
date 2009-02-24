@@ -28,6 +28,11 @@ __doc__ = u"""
 <argdefault.Bla object at ...>
 >>> g5() #doctest: +ELLIPSIS
 <argdefault.Bla object at ...>
+
+>>> f6()
+7
+>>> g6()
+7
 """
 
 GLB0 = (1, 2)
@@ -75,4 +80,11 @@ cdef Bla GLB5 = Bla()
 def f5(Bla arg=GLB5):
     return arg
 def g5(Bla arg=Bla()):
+    return arg
+
+
+cdef int GLB6 = 7
+def f6(int arg=GLB6):
+    return arg
+def g6(int arg=7):
     return arg
