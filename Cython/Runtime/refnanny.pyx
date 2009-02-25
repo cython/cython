@@ -62,7 +62,7 @@ class Context(object):
         else:
             return None
 
-def report_unraisable(e):
+cpdef report_unraisable(e):
     try:
         print "refnanny raised an exception: %s" % e
     except:
@@ -73,6 +73,11 @@ def report_unraisable(e):
 # exception-handling code.
 
 cdef PyObject* NewContext(char* funcname, int lineno, char* filename) except NULL:
+    if Context is None:
+        # Context may be None during finalize phase.
+        # In that case, we don't want to be doing anything fancy
+        # like caching and resetting exceptions. 
+        return NULL
     cdef PyObject* type = NULL, *value = NULL, *tb = NULL
     cdef PyObject* result = NULL
     PyErr_Fetch(&type, &value, &tb)
@@ -125,18 +130,18 @@ cdef void DECREF(PyObject* ctx, PyObject* obj, int lineno):
         if obj is not NULL: Py_DECREF(<object>obj)
 
 cdef void FinishContext(PyObject** ctx):
+    if ctx == NULL or ctx[0] == NULL:
+        # We should have reported an error earlier.
+        return
     cdef PyObject* type = NULL, *value = NULL, *tb = NULL
     cdef object errors = None
     PyErr_Fetch(&type, &value, &tb)
     try:
-        if ctx == NULL: assert False, "ctx is NULL"
-        if ctx[0] == NULL: assert False, "ctx[0] is NULL"
-        
         errors = (<object>ctx[0]).end()
         pos = (<object>ctx[0]).filename, (<object>ctx[0]).name
         if errors:
             print u"%s: %s()" % pos
-            print errors # raise Error(errors)
+            print errors
     except Exception, e:
         report_unraisable(e)
     Py_XDECREF(<object>ctx[0])
