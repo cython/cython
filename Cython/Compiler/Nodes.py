@@ -2186,18 +2186,20 @@ class DefNode(FuncDefNode):
         max_args = len(all_args)
 
         default_args = []
-        for arg in all_args:
+        for i, arg in enumerate(all_args):
             if arg.default and arg.type.is_pyobject:
                 default_value = arg.default_result_code
                 if arg.type is not PyrexTypes.py_object_type:
                     default_value = "(PyObject*)"+default_value
-                default_args.append(default_value)
-            else:
-                default_args.append('0')
-        code.putln("PyObject* values[%d] = {%s};" % (
-                max_args, ', '.join(default_args)))
+                default_args.append((i, default_value))
         code.putln("Py_ssize_t kw_args = PyDict_Size(%s);" %
                    Naming.kwds_cname)
+        # it looks funny to separate the init-to-0 from setting the
+        # default value, but C89 needs this
+        code.putln("PyObject* values[%d] = {%s};" % (
+            max_args, ','.join(['0']*max_args)))
+        for i, default_value in default_args:
+            code.putln('values[%d] = %s;' % (i, default_value))
 
         # parse the tuple and check that it's not too long
         code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
