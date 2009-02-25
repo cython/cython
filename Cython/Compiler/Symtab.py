@@ -904,11 +904,11 @@ class ModuleScope(Scope):
     
     def add_imported_module(self, scope):
         if scope not in self.cimported_modules:
+            for filename in scope.include_files:
+                self.add_include_file(filename)
             self.cimported_modules.append(scope)
             for m in scope.cimported_modules:
                 self.add_imported_module(m)
-            for filename in scope.include_files:
-                self.add_include_file(filename)
     
     def add_imported_entry(self, name, entry, pos):
         if entry not in self.entries:
