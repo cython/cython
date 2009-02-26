@@ -1823,8 +1823,13 @@ class IndexNode(ExprNode):
                 code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
         elif self.type.is_pyobject:
             if self.index.type.is_int:
-                function = "__Pyx_GetItemInt"
                 index_code = self.index.result()
+                if self.base.type is list_type:
+                    function = "__Pyx_GetItemInt_List"
+                elif self.base.type is tuple_type:
+                    function = "__Pyx_GetItemInt_Tuple"
+                else:
+                    function = "__Pyx_GetItemInt"
                 code.globalstate.use_utility_code(getitem_int_utility_code)
             else:
                 function = "PyObject_GetItem"
@@ -5396,6 +5401,33 @@ impl = ""
 
 getitem_int_utility_code = UtilityCode(
 proto = """
+static INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, Py_ssize_t i, int is_unsigned) {
+    PyObject *r;
+    PyObject *j = (likely(i >= 0) || !is_unsigned) ? PyInt_FromLong(i) : PyLong_FromUnsignedLongLong((sizeof(unsigned long long) > sizeof(Py_ssize_t) ? (1ULL << (sizeof(Py_ssize_t)*8)) : 0) + i);
+    if (!j) return 0;
+    r = PyObject_GetItem(o, j);
+    Py_DECREF(j);
+    return r;
+}
+
+static INLINE PyObject *__Pyx_GetItemInt_List(PyObject *o, Py_ssize_t i, int is_unsigned) {
+    if (likely(0 <= i && i < PyList_GET_SIZE(o))) {
+        PyObject *r = PyList_GET_ITEM(o, i);
+        Py_INCREF(r);
+        return r;
+    }
+    else return __Pyx_GetItemInt_Generic(o, i, is_unsigned);
+}
+
+static INLINE PyObject *__Pyx_GetItemInt_Tuple(PyObject *o, Py_ssize_t i, int is_unsigned) {
+    if (likely(0 <= i && i < PyTuple_GET_SIZE(o))) {
+        PyObject *r = PyTuple_GET_ITEM(o, i);
+        Py_INCREF(r);
+        return r;
+    }
+    else return __Pyx_GetItemInt_Generic(o, i, is_unsigned);
+}
+
 static INLINE PyObject *__Pyx_GetItemInt(PyObject *o, Py_ssize_t i, int is_unsigned) {
     PyObject *r;
     if (PyList_CheckExact(o) && 0 <= i && i < PyList_GET_SIZE(o)) {
@@ -5409,17 +5441,15 @@ static INLINE PyObject *__Pyx_GetItemInt(PyObject *o, Py_ssize_t i, int is_unsig
     else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_item && (likely(i >= 0) || !is_unsigned))
         r = PySequence_GetItem(o, i);
     else {
-        PyObject *j = (likely(i >= 0) || !is_unsigned) ? PyInt_FromLong(i) : PyLong_FromUnsignedLongLong((sizeof(unsigned long long) > sizeof(Py_ssize_t) ? (1ULL << (sizeof(Py_ssize_t)*8)) : 0) + i);
-        if (!j)
-            return 0;
-        r = PyObject_GetItem(o, j);
-        Py_DECREF(j);
+        r = __Pyx_GetItemInt_Generic(o, i, is_unsigned);
     }
     return r;
 }
 """,
 impl = """
 """)
+
+
 
 #------------------------------------------------------------------------------------
 
