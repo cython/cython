@@ -3200,14 +3200,24 @@ class PrintStatNode(StatNode):
     gil_message = "Python print statement"
 
     def generate_execution_code(self, code):
-        self.arg_tuple.generate_evaluation_code(code)
-        code.putln(
-            "if (__Pyx_Print(%s, %d) < 0) %s" % (
-                self.arg_tuple.py_result(),
-                self.append_newline,
-                code.error_goto(self.pos)))
-        self.arg_tuple.generate_disposal_code(code)
-        self.arg_tuple.free_temps(code)
+        if len(self.arg_tuple.args) == 1 and self.append_newline:
+            arg = self.arg_tuple.args[0]
+            arg.generate_evaluation_code(code)
+            code.putln(
+                "if (__Pyx_PrintOne(%s) < 0) %s" % (
+                    arg.py_result(),
+                    code.error_goto(self.pos)))
+            arg.generate_disposal_code(code)
+            arg.free_temps(code)
+        else:
+            self.arg_tuple.generate_evaluation_code(code)
+            code.putln(
+                "if (__Pyx_Print(%s, %d) < 0) %s" % (
+                    self.arg_tuple.py_result(),
+                    self.append_newline,
+                    code.error_goto(self.pos)))
+            self.arg_tuple.generate_disposal_code(code)
+            self.arg_tuple.free_temps(code)
 
     def annotate(self, code):
         self.arg_tuple.annotate(code)
@@ -4746,6 +4756,7 @@ else:
 printing_utility_code = UtilityCode(
 proto = """
 static int __Pyx_Print(PyObject *, int); /*proto*/
+static int __Pyx_PrintOne(PyObject *o); /*proto*/
 #if PY_MAJOR_VERSION >= 3
 static PyObject* %s = 0;
 static PyObject* %s = 0;
@@ -4793,7 +4804,23 @@ static int __Pyx_Print(PyObject *arg_tuple, int newline) {
     return 0;
 }
 
+static int __Pyx_PrintOne(PyObject *o) {
+    PyObject *f;
+    if (!(f = __Pyx_GetStdout()))
+        return -1;
+    if (PyFile_SoftSpace(f, 0)) {
+        if (PyFile_WriteString(" ", f) < 0)
+            return -1;
+    }
+    if (PyFile_WriteObject(o, f, Py_PRINT_RAW) < 0)
+        return -1;
+    if (PyFile_WriteString("\n", f) < 0)
+        return -1;
+    return 0;
+}
+
 #else /* Python 3 has a print function */
+
 static int __Pyx_Print(PyObject *arg_tuple, int newline) {
     PyObject* kwargs = 0;
     PyObject* result = 0;
@@ -4825,6 +4852,19 @@ static int __Pyx_Print(PyObject *arg_tuple, int newline) {
     Py_DECREF(result);
     return 0;
 }
+
+static int __Pyx_PrintOne(PyObject *o) {
+    int res;
+    PyObject* arg_tuple = PyTuple_New(1);
+    if (unlikely(!arg_tuple))
+        return -1;
+    Py_INCREF(o);
+    PyTuple_SET_ITEM(arg_tuple, 0, o);
+    res = __Pyx_Print(arg_tuple, 1);
+    Py_DECREF(arg_tuple);
+    return res;
+}
+
 #endif
 """ % {'BUILTINS'       : Naming.builtins_cname,
        'PRINT_FUNCTION' : Naming.print_function,
