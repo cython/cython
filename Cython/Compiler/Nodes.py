@@ -4039,6 +4039,7 @@ class TryExceptStatNode(StatNode):
     def generate_execution_code(self, code):
         old_return_label = code.return_label
         old_break_label = code.break_label
+        old_continue_label = code.continue_label
         old_error_label = code.new_error_label()
         our_error_label = code.error_label
         except_end_label = code.new_label('exception_handled')
@@ -4046,6 +4047,7 @@ class TryExceptStatNode(StatNode):
         except_return_label = code.new_label('except_return')
         try_return_label = code.new_label('try_return')
         try_break_label = code.new_label('try_break')
+        try_continue_label = code.new_label('try_continue')
         try_end_label = code.new_label('try_end')
 
         code.putln("{")
@@ -4059,6 +4061,7 @@ class TryExceptStatNode(StatNode):
             "/*try:*/ {")
         code.return_label = try_return_label
         code.break_label = try_break_label
+        code.continue_label = try_continue_label
         self.body.generate_execution_code(code)
         code.putln(
             "}")
@@ -4100,6 +4103,13 @@ class TryExceptStatNode(StatNode):
             code.putln("__Pyx_ExceptionReset(%s);" %
                        ', '.join(Naming.exc_save_vars))
             code.put_goto(old_break_label)
+            
+        if code.label_used(try_continue_label):
+            code.put_label(try_continue_label)
+            for var in Naming.exc_save_vars: code.put_xgiveref(var)
+            code.putln("__Pyx_ExceptionReset(%s);" %
+                       ', '.join(Naming.exc_save_vars))
+            code.put_goto(old_continue_label)
 
         if code.label_used(except_return_label):
             code.put_label(except_return_label)
@@ -4118,6 +4128,7 @@ class TryExceptStatNode(StatNode):
 
         code.return_label = old_return_label
         code.break_label = old_break_label
+        code.continue_label = old_continue_label
         code.error_label = old_error_label
 
     def annotate(self, code):
@@ -4219,10 +4230,13 @@ class ExceptClauseNode(Node):
             self.excinfo_tuple.generate_evaluation_code(code)
             self.excinfo_target.generate_assignment_code(self.excinfo_tuple, code)
 
+
+        old_break_label, old_continue_label = code.break_label, code.continue_label
+        code.break_label = code.new_label('except_break')
+        code.continue_label = code.new_label('except_continue')
+
         old_exc_vars = code.funcstate.exc_vars
         code.funcstate.exc_vars = self.exc_vars
-        old_break_label = code.break_label
-        code.break_label = code.new_label('except_break')
         self.body.generate_execution_code(code)
         code.funcstate.exc_vars = old_exc_vars
         for var in self.exc_vars:
@@ -4235,6 +4249,14 @@ class ExceptClauseNode(Node):
                 code.putln("__Pyx_DECREF(%s); %s = 0;" % (var, var))
             code.put_goto(old_break_label)
         code.break_label = old_break_label
+
+        if code.label_used(code.continue_label):
+            code.put_label(code.continue_label)
+            for var in self.exc_vars:
+                code.putln("__Pyx_DECREF(%s); %s = 0;" % (var, var))
+            code.put_goto(old_continue_label)
+        code.continue_label = old_continue_label
+        
         code.putln(
             "}")
 
