@@ -4579,7 +4579,7 @@ class FromImportStatNode(StatNode):
     #
     #  module           ImportNode
     #  items            [(string, NameNode)]
-    #  interned_items   [(string, NameNode)]
+    #  interned_items   [(string, NameNode, ExprNode)]
     #  item             PyTempNode            used internally
     #  import_star      boolean               used internally
 
@@ -4613,9 +4613,13 @@ class FromImportStatNode(StatNode):
                 entry =  env.lookup(target.name)
                 if entry.is_type and entry.type.name == name and entry.type.module_name == self.module.module_name.value:
                     continue # already cimported
-                self.interned_items.append(
-                    (env.intern_identifier(name), target))
                 target.analyse_target_expression(env, None)
+                if target.type is py_object_type:
+                    coerced_item = None
+                else:
+                    coerced_item = self.item.coerce_to(target.type, env)
+                self.interned_items.append(
+                    (env.intern_identifier(name), target, coerced_item))
                 #target.release_target_temp(env) # was release_temp ?!?
         self.module.release_temp(env)
         self.item.release_temp(env)
@@ -4628,7 +4632,7 @@ class FromImportStatNode(StatNode):
                     Naming.import_star,
                     self.module.py_result(),
                     code.error_goto(self.pos)))
-        for cname, target in self.interned_items:
+        for cname, target, coerced_item in self.interned_items:
             code.putln(
                 '%s = PyObject_GetAttr(%s, %s); %s' % (
                     self.item.result(), 
@@ -4636,7 +4640,14 @@ class FromImportStatNode(StatNode):
                     cname,
                     code.error_goto_if_null(self.item.result(), self.pos)))
             code.put_gotref(self.item.py_result())
-            target.generate_assignment_code(self.item, code)
+            if coerced_item is None:
+                target.generate_assignment_code(self.item, code)
+            else:
+                coerced_item.allocate_temp_result(code)
+                coerced_item.generate_result_code(code)
+                target.generate_assignment_code(coerced_item, code)
+                if self.item.result() != coerced_item.result():
+                    code.put_decref_clear(self.item.result(), self.item.type)
         self.module.generate_disposal_code(code)
         self.module.free_temps(code)
 
