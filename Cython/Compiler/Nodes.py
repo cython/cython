@@ -4221,11 +4221,20 @@ class ExceptClauseNode(Node):
 
         old_exc_vars = code.funcstate.exc_vars
         code.funcstate.exc_vars = self.exc_vars
+        old_break_label = code.break_label
+        code.break_label = code.new_label('except_break')
         self.body.generate_execution_code(code)
         code.funcstate.exc_vars = old_exc_vars
         for var in self.exc_vars:
             code.putln("__Pyx_DECREF(%s); %s = 0;" % (var, var))
         code.put_goto(end_label)
+        
+        if code.label_used(code.break_label):
+            code.put_label(code.break_label)
+            for var in self.exc_vars:
+                code.putln("__Pyx_DECREF(%s); %s = 0;" % (var, var))
+            code.put_goto(old_break_label)
+        code.break_label = old_break_label
         code.putln(
             "}")
 

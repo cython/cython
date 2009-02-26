@@ -73,8 +73,8 @@ class FunctionState(object):
     def new_loop_labels(self):
         old_labels = self.get_loop_labels()
         self.set_loop_labels(
-            (self.new_label(), 
-             self.new_label()))
+            (self.new_label("continue"), 
+             self.new_label("break")))
         return old_labels
     
     def get_all_labels(self):
