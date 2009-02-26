@@ -10,22 +10,22 @@ def replace_suffix(path, newsuf):
     return base + newsuf
 
 def open_new_file(path):
-    #  Open and truncate existing file to
-    #  preserve metadata on the Mac.
-    return open(path, "w+")
+    if os.path.exists(path):
+        # Make sure to create a new file here so we can 
+        # safely hard link the output files. 
+        os.unlink(path)
+    return open(path, "w")
 
 def castrate_file(path, st):
     #  Remove junk contents from an output file after a
-    #  failed compilation, but preserve metadata on Mac.
+    #  failed compilation.
     #  Also sets access and modification times back to
     #  those specified by st (a stat struct).
     try:
-        f = open(path, "r+")
+        f = open_new_file(path)
     except EnvironmentError:
         pass
     else:
-        f.seek(0, 0)
-        f.truncate()
         f.write(
             "#error Do not use this file, it is the result of a failed Cython compilation.\n")
         f.close()
