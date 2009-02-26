@@ -8,6 +8,11 @@ True
 True
 >>> import4() == (cmd, core, version)
 True
+>>> typed_imports()
+True
+True
+an integer is required
+Expected tuple, got int
 """
 
 def import1():
@@ -37,3 +42,27 @@ def import3():
 def import4():
     from distutils import cmd, core, version
     return cmd, core, version
+
+
+
+def typed_imports():
+
+    import sys
+    cdef long maxint
+    cdef tuple t
+    
+    from sys import maxint
+    print maxint == sys.maxint
+    from sys import version_info as t
+    print t is sys.version_info
+    
+    try:
+        from sys import version_info as maxint
+    except TypeError, e:
+        print e
+
+    try:
+        from sys import maxint as t
+    except TypeError, e:
+        print e
+
