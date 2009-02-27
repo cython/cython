@@ -5450,7 +5450,7 @@ setitem_int_utility_code = UtilityCode(
 proto = """
 static INLINE int __Pyx_SetItemInt(PyObject *o, Py_ssize_t i, PyObject *v, int is_unsigned) {
     int r;
-    if (PyList_CheckExact(o) && (0 <= i & i < PyList_GET_SIZE(o))) {
+    if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
         Py_DECREF(PyList_GET_ITEM(o, i));
         Py_INCREF(v);
         PyList_SET_ITEM(o, i, v);
