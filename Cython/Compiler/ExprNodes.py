@@ -5412,12 +5412,19 @@ static INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, Py_ssize_t i, int 
 """ + ''.join([
 """
 static INLINE PyObject *__Pyx_GetItemInt_%(type)s(PyObject *o, Py_ssize_t i, int is_unsigned) {
-    if (likely(o != Py_None && likely((0 <= i) & (i < Py%(type)s_GET_SIZE(o))))) {
-        PyObject *r = Py%(type)s_GET_ITEM(o, i);
-        Py_INCREF(r);
-        return r;
+    if (likely(o != Py_None)) {
+        if (likely((0 <= i) & (i < Py%(type)s_GET_SIZE(o)))) {
+            PyObject *r = Py%(type)s_GET_ITEM(o, i);
+            Py_INCREF(r);
+            return r;
+        }
+        else if ((i == -1) & likely(Py%(type)s_GET_SIZE(o) > 0)) {
+            PyObject *r = Py%(type)s_GET_ITEM(o, Py%(type)s_GET_SIZE(o) - 1);
+            Py_INCREF(r);
+            return r;
+        }
     }
-    else return __Pyx_GetItemInt_Generic(o, i, is_unsigned);
+    return __Pyx_GetItemInt_Generic(o, i, is_unsigned);
 }
 """ % {'type' : type_name} for type_name in ('List', 'Tuple')
 ]) + """
