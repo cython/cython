@@ -5411,7 +5411,7 @@ static INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, Py_ssize_t i, int 
 }
 
 static INLINE PyObject *__Pyx_GetItemInt_List(PyObject *o, Py_ssize_t i, int is_unsigned) {
-    if (likely(0 <= i && i < PyList_GET_SIZE(o))) {
+    if (likely(o != Py_None && 0 <= i && i < PyList_GET_SIZE(o))) {
         PyObject *r = PyList_GET_ITEM(o, i);
         Py_INCREF(r);
         return r;
@@ -5420,7 +5420,7 @@ static INLINE PyObject *__Pyx_GetItemInt_List(PyObject *o, Py_ssize_t i, int is_
 }
 
 static INLINE PyObject *__Pyx_GetItemInt_Tuple(PyObject *o, Py_ssize_t i, int is_unsigned) {
-    if (likely(0 <= i && i < PyTuple_GET_SIZE(o))) {
+    if (likely(o != Py_None && 0 <= i && i < PyTuple_GET_SIZE(o))) {
         PyObject *r = PyTuple_GET_ITEM(o, i);
         Py_INCREF(r);
         return r;
