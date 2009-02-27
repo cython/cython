@@ -5412,7 +5412,7 @@ static INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, Py_ssize_t i, int 
 """ + ''.join([
 """
 static INLINE PyObject *__Pyx_GetItemInt_%(type)s(PyObject *o, Py_ssize_t i, int is_unsigned) {
-    if (likely(o != Py_None && ((0 <= i) & (i < Py%(type)s_GET_SIZE(o))))) {
+    if (likely(o != Py_None && likely((0 <= i) & (i < Py%(type)s_GET_SIZE(o))))) {
         PyObject *r = Py%(type)s_GET_ITEM(o, i);
         Py_INCREF(r);
         return r;
