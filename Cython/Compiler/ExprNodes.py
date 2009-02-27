@@ -5411,7 +5411,7 @@ static INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, Py_ssize_t i, int 
 }
 
 static INLINE PyObject *__Pyx_GetItemInt_List(PyObject *o, Py_ssize_t i, int is_unsigned) {
-    if (likely(o != Py_None && 0 <= i && i < PyList_GET_SIZE(o))) {
+    if (likely(o != Py_None && ((0 <= i) & (i < PyList_GET_SIZE(o))))) {
         PyObject *r = PyList_GET_ITEM(o, i);
         Py_INCREF(r);
         return r;
@@ -5420,7 +5420,7 @@ static INLINE PyObject *__Pyx_GetItemInt_List(PyObject *o, Py_ssize_t i, int is_
 }
 
 static INLINE PyObject *__Pyx_GetItemInt_Tuple(PyObject *o, Py_ssize_t i, int is_unsigned) {
-    if (likely(o != Py_None && 0 <= i && i < PyTuple_GET_SIZE(o))) {
+    if (likely(o != Py_None && ((0 <= i) & (i < PyTuple_GET_SIZE(o))))) {
         PyObject *r = PyTuple_GET_ITEM(o, i);
         Py_INCREF(r);
         return r;
@@ -5430,11 +5430,11 @@ static INLINE PyObject *__Pyx_GetItemInt_Tuple(PyObject *o, Py_ssize_t i, int is
 
 static INLINE PyObject *__Pyx_GetItemInt(PyObject *o, Py_ssize_t i, int is_unsigned) {
     PyObject *r;
-    if (PyList_CheckExact(o) && 0 <= i && i < PyList_GET_SIZE(o)) {
+    if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
         r = PyList_GET_ITEM(o, i);
         Py_INCREF(r);
     }
-    else if (PyTuple_CheckExact(o) && 0 <= i && i < PyTuple_GET_SIZE(o)) {
+    else if (PyTuple_CheckExact(o) && ((0 <= i) & (i < PyTuple_GET_SIZE(o)))) {
         r = PyTuple_GET_ITEM(o, i);
         Py_INCREF(r);
     }
@@ -5457,7 +5457,7 @@ setitem_int_utility_code = UtilityCode(
 proto = """
 static INLINE int __Pyx_SetItemInt(PyObject *o, Py_ssize_t i, PyObject *v, int is_unsigned) {
     int r;
-    if (PyList_CheckExact(o) && 0 <= i && i < PyList_GET_SIZE(o)) {
+    if (PyList_CheckExact(o) && (0 <= i & i < PyList_GET_SIZE(o))) {
         Py_DECREF(PyList_GET_ITEM(o, i));
         Py_INCREF(v);
         PyList_SET_ITEM(o, i, v);
