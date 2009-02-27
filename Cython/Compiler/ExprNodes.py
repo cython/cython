@@ -5418,8 +5418,8 @@ static INLINE PyObject *__Pyx_GetItemInt_%(type)s(PyObject *o, Py_ssize_t i, int
             Py_INCREF(r);
             return r;
         }
-        else if ((i == -1) & likely(Py%(type)s_GET_SIZE(o) > 0)) {
-            PyObject *r = Py%(type)s_GET_ITEM(o, Py%(type)s_GET_SIZE(o) - 1);
+        else if ((-Py%(type)s_GET_SIZE(o) <= i) & (i < 0)) {
+            PyObject *r = Py%(type)s_GET_ITEM(o, Py%(type)s_GET_SIZE(o) + i);
             Py_INCREF(r);
             return r;
         }
