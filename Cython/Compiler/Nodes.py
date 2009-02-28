@@ -2216,7 +2216,8 @@ class DefNode(FuncDefNode):
             code.put_goto(argtuple_error_label)
         code.putln('}')
 
-        # now fill up the required arguments with values from the kw dict
+        # now fill up the positional/required arguments with values
+        # from the kw dict
         if self.num_required_args or max_positional_args > 0:
             last_required_arg = -1
             for i, arg in enumerate(all_args):
@@ -2240,7 +2241,7 @@ class DefNode(FuncDefNode):
                     code.putln('if (kw_args > %d) {' % num_required_args)
                     code.putln('PyObject* value = PyDict_GetItem(%s, %s);' % (
                         Naming.kwds_cname, arg.name_entry.pystring_cname))
-                    code.putln('if (unlikely(value)) { values[%d] = value; kw_args--; }' % i);
+                    code.putln('if (unlikely(value)) { values[%d] = value; kw_args--; }' % i)
                     code.putln('}')
                 else:
                     num_required_args -= 1
@@ -2296,6 +2297,11 @@ class DefNode(FuncDefNode):
         code.putln('if (unlikely(kw_args > 0)) {')
         # non-positional/-required kw args left in dict: default args,
         # kw-only args, **kwargs or error
+        #
+        # This is sort of a catch-all: except for checking required
+        # arguments, this will always do the right thing for unpacking
+        # keyword arguments, so that we can concentrate on optimising
+        # common cases above.
         if max_positional_args == 0:
             pos_arg_count = "0"
         elif self.star_arg:
