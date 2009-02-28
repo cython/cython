@@ -1,16 +1,16 @@
 __doc__ = u"""
->>> foo()
-'a'
+>>> print(foo())
+a
 """
 
 # Indirectly makes sure the cleanup happens correctly on breaking.
 def foo():
-    for x in "abc":
+    for x in u"abc":
         try:
             x()
         except:
             break
-    for x in "abc":
+    for x in u"abc":
         try:
             x()
         except:
