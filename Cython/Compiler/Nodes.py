@@ -2192,6 +2192,7 @@ class DefNode(FuncDefNode):
                 if arg.type is not PyrexTypes.py_object_type:
                     default_value = "(PyObject*)"+default_value
                 default_args.append((i, default_value))
+
         code.putln("Py_ssize_t kw_args = PyDict_Size(%s);" %
                    Naming.kwds_cname)
         # it looks funny to separate the init-to-0 from setting the
@@ -2216,11 +2217,14 @@ class DefNode(FuncDefNode):
         code.putln('}')
 
         # now fill up the required arguments with values from the kw dict
-        if self.num_required_args:
+        if self.num_required_args or max_positional_args > 0:
             last_required_arg = -1
             for i, arg in enumerate(all_args):
                 if not arg.default:
                     last_required_arg = i
+            if last_required_arg < max_positional_args:
+                last_required_arg = max_positional_args-1
+            num_required_args = self.num_required_args
             if max_positional_args > 0:
                 code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
             for i, arg in enumerate(all_args[:last_required_arg+1]):
@@ -2230,37 +2234,68 @@ class DefNode(FuncDefNode):
                     else:
                         code.putln('case %2d:' % i)
                 if arg.default:
-                    # handled in ParseOptionalKeywords() below
-                    continue
-                code.putln('values[%d] = PyDict_GetItem(%s, %s);' % (
+                    if arg.kw_only:
+                        # handled separately below
+                        continue
+                    code.putln('if (kw_args > %d) {' % num_required_args)
+                    code.putln('PyObject* value = PyDict_GetItem(%s, %s);' % (
+                        Naming.kwds_cname, arg.name_entry.pystring_cname))
+                    code.putln('if (unlikely(value)) { values[%d] = value; kw_args--; }' % i);
+                    code.putln('}')
+                else:
+                    num_required_args -= 1
+                    code.putln('values[%d] = PyDict_GetItem(%s, %s);' % (
                         i, Naming.kwds_cname, arg.name_entry.pystring_cname))
-                code.putln('if (likely(values[%d])) kw_args--;' % i);
-                if i < min_positional_args:
-                    if i == 0:
-                        # special case: we know arg 0 is missing
-                        code.put('else ')
-                        code.put_goto(argtuple_error_label)
-                    else:
-                        # print the correct number of values (args or
-                        # kwargs) that were passed into positional
-                        # arguments up to this point
+                    code.putln('if (likely(values[%d])) kw_args--;' % i);
+                    if i < min_positional_args:
+                        if i == 0:
+                            # special case: we know arg 0 is missing
+                            code.put('else ')
+                            code.put_goto(argtuple_error_label)
+                        else:
+                            # print the correct number of values (args or
+                            # kwargs) that were passed into positional
+                            # arguments up to this point
+                            code.putln('else {')
+                            code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, %d); ' % (
+                                    self.name.utf8encode(), has_fixed_positional_count,
+                                    min_positional_args, max_positional_args, i))
+                            code.putln(code.error_goto(self.pos))
+                            code.putln('}')
+                    elif arg.kw_only:
                         code.putln('else {')
-                        code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, %d); ' % (
-                                self.name.utf8encode(), has_fixed_positional_count,
-                                min_positional_args, max_positional_args, i))
+                        code.put('__Pyx_RaiseKeywordRequired("%s", %s); ' %(
+                                self.name.utf8encode(), arg.name_entry.pystring_cname))
                         code.putln(code.error_goto(self.pos))
                         code.putln('}')
-                elif arg.kw_only:
-                    code.putln('else {')
-                    code.put('__Pyx_RaiseKeywordRequired("%s", %s); ' %(
-                            self.name.utf8encode(), arg.name_entry.pystring_cname))
-                    code.putln(code.error_goto(self.pos))
-                    code.putln('}')
             if max_positional_args > 0:
                 code.putln('}')
 
+        if kw_only_args and not self.starstar_arg:
+            # unpack optional keyword-only arguments
+            # checking for interned strings in a dict is faster than iterating
+            # but it's too likely that we must iterate if we expect **kwargs
+            optional_args = []
+            for i, arg in enumerate(all_args[max_positional_args:]):
+                if not arg.kw_only or not arg.default:
+                    continue
+                optional_args.append((i+max_positional_args, arg))
+            if optional_args:
+                # this mimics an unrolled loop so that we can "break" out of it
+                code.putln('while (kw_args > 0) {')
+                code.putln('PyObject* value;')
+                for i, arg in optional_args:
+                    code.putln(
+                        'value = PyDict_GetItem(%s, %s);' % (
+                        Naming.kwds_cname, arg.name_entry.pystring_cname))
+                    code.putln(
+                        'if (value) { values[%d] = value; if (!(--kw_args)) break; }' % i)
+                code.putln('break;')
+                code.putln('}')
+
         code.putln('if (unlikely(kw_args > 0)) {')
-        # non-positional/-required kw args left in dict: default args, **kwargs or error
+        # non-positional/-required kw args left in dict: default args,
+        # kw-only args, **kwargs or error
         if max_positional_args == 0:
             pos_arg_count = "0"
         elif self.star_arg:
