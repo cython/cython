@@ -1967,13 +1967,27 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         type.vtable_cname,
                         Naming.obj_base_cname,
                         type.base_type.vtabptr_cname))
-            for meth_entry in type.scope.cfunc_entries:
-                if meth_entry.func_cname:
-                    code.putln(
-                        "*(void(**)(void))&%s.%s = (void(*)(void))%s;" % (
-                            type.vtable_cname,
-                            meth_entry.cname,
-                            meth_entry.func_cname))
+
+            c_method_entries = [
+                entry for entry in type.scope.cfunc_entries
+                if entry.func_cname ]
+            code.putln('#if PY_MAJOR_VERSION >= 3')
+            for meth_entry in c_method_entries:
+                cast = meth_entry.type.signature_cast_string()
+                code.putln(
+                    "%s.%s = %s%s;" % (
+                        type.vtable_cname,
+                        meth_entry.cname,
+                        cast,
+                        meth_entry.func_cname))
+            code.putln('#else')
+            for meth_entry in c_method_entries:
+                code.putln(
+                    "*(void(**)(void))&%s.%s = (void(*)(void))%s;" % (
+                        type.vtable_cname,
+                        meth_entry.cname,
+                        meth_entry.func_cname))
+            code.putln('#endif')
     
     def generate_typeptr_assignment_code(self, entry, code):
         # Generate code to initialise the typeptr of an extension

@@ -874,7 +874,8 @@ class CFuncType(CType):
             and not (self.nogil and not other_type.nogil)
     
     def declaration_code(self, entity_code, 
-            for_display = 0, dll_linkage = None, pyrex = 0):
+                         for_display = 0, dll_linkage = None, pyrex = 0,
+                         with_calling_convention = 1):
         arg_decl_list = []
         for arg in self.args[:len(self.args)-self.optional_arg_count]:
             arg_decl_list.append(
@@ -900,10 +901,13 @@ class CFuncType(CType):
                 " except *" # ignored
             if self.nogil:
                 trailer += " nogil"
-        cc = self.calling_convention_prefix()
-        if (not entity_code and cc) or entity_code.startswith("*"):
-            entity_code = "(%s%s)" % (cc, entity_code)
-            cc = ""
+        if not with_calling_convention:
+            cc = ''
+        else:
+            cc = self.calling_convention_prefix()
+            if (not entity_code and cc) or entity_code.startswith("*"):
+                entity_code = "(%s%s)" % (cc, entity_code)
+                cc = ""
         return self.return_type.declaration_code(
             "%s%s(%s)%s" % (cc, entity_code, arg_decl_code, trailer),
             for_display, dll_linkage, pyrex)
@@ -915,6 +919,10 @@ class CFuncType(CType):
     def signature_string(self):
         s = self.declaration_code("")
         return s
+
+    def signature_cast_string(self):
+        s = self.declaration_code("(*)", with_calling_convention=False)
+        return '(%s)' % s
 
 
 class CFuncTypeArg:
