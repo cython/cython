@@ -48,21 +48,21 @@ def import4():
 def typed_imports():
 
     import sys
-    cdef long maxint
+    cdef long maxunicode
     cdef tuple t
     
-    from sys import maxint
-    print maxint == sys.maxint
+    from sys import maxunicode
+    print maxunicode == sys.maxunicode
     from sys import version_info as t
     print t is sys.version_info
     
     try:
-        from sys import version_info as maxint
+        from sys import version_info as maxunicode
     except TypeError, e:
         print e
 
     try:
-        from sys import maxint as t
+        from sys import maxunicode as t
     except TypeError, e:
         print e
 
