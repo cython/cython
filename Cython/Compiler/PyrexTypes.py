@@ -303,14 +303,16 @@ class BuiltinObjectType(PyObjectType):
     def type_test_code(self, arg):
         type_name = self.name
         if type_name == 'str':
-            type_name = 'String'
+            check = 'PyString_CheckExact'
         elif type_name == 'set':
-            type_name = 'AnySet'
+            check = 'PyAnySet_CheckExact'
         elif type_name == 'frozenset':
-            type_name = 'FrozenSet'
+            check = 'PyFrozenSet_CheckExact'
+        elif type_name == 'bool':
+            check = 'PyBool_Check'
         else:
-            type_name = type_name.capitalize()
-        return 'likely(Py%s_CheckExact(%s)) || (%s) == Py_None || (PyErr_Format(PyExc_TypeError, "Expected %s, got %%s", Py_TYPE(%s)->tp_name), 0)' % (type_name, arg, arg, self.name, arg)
+            check = 'Py%s_CheckExact' % type_name.capitalize()
+        return 'likely(%s(%s)) || (%s) == Py_None || (PyErr_Format(PyExc_TypeError, "Expected %s, got %%s", Py_TYPE(%s)->tp_name), 0)' % (check, arg, arg, self.name, arg)
 
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
