@@ -771,11 +771,12 @@ class CVarDefNode(StatNode):
     #  in_pxd        boolean
     #  api           boolean
     #  need_properties [entry]
-    #  pxd_locals    [CVarDefNode]  (used for functions declared in pxd)
+
+    #  directive_locals { string : NameNode } locals defined by cython.locals(...)
 
     child_attrs = ["base_type", "declarators"]
     need_properties = ()
-    pxd_locals = []
+    directive_locals = {}
     
     def analyse_declarations(self, env, dest_scope = None):
         if not dest_scope:
@@ -812,8 +813,10 @@ class CVarDefNode(StatNode):
                     cname = cname, visibility = self.visibility, in_pxd = self.in_pxd,
                     api = self.api)
                 if entry is not None:
-                    entry.pxd_locals = self.pxd_locals
+                    entry.directive_locals = self.directive_locals
             else:
+                if self.directive_locals:
+                    s.error("Decorators can only be followed by functions")
                 if self.in_pxd and self.visibility != 'extern':
                     error(self.pos, 
                         "Only 'extern' C variable declaration allowed in .pxd file")
@@ -969,12 +972,11 @@ class FuncDefNode(StatNode, BlockNode):
     #  #filename        string        C name of filename string const
     #  entry           Symtab.Entry
     #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
-    #  pxd_locals      [CVarDefNode]   locals defined in the pxd
+    #  directive_locals { string : NameNode } locals defined by cython.locals(...)
     
     py_func = None
     assmt = None
     needs_closure = False
-    pxd_locals = []
     
     def analyse_default_values(self, env):
         genv = env.global_scope()
@@ -1280,6 +1282,7 @@ class CFuncDefNode(FuncDefNode):
     #  declarator    CDeclaratorNode
     #  body          StatListNode
     #  api           boolean
+    #  decorators    [DecoratorNode]        list of decorators
     #
     #  with_gil      boolean    Acquire GIL around body
     #  type          CFuncType
@@ -1290,16 +1293,16 @@ class CFuncDefNode(FuncDefNode):
     child_attrs = ["base_type", "declarator", "body", "py_func"]
 
     inline_in_pxd = False
+    decorators = None
+    directive_locals = {}
 
     def unqualified_name(self):
         return self.entry.name
         
     def analyse_declarations(self, env):
-        if 'locals' in env.directives:
-            directive_locals = env.directives['locals']
-        else:
-            directive_locals = {}
-        self.directive_locals = directive_locals
+        if 'locals' in env.directives and env.directives['locals']:
+            self.directive_locals = env.directives['locals']
+        directive_locals = self.directive_locals
         base_type = self.base_type.analyse(env)
         # The 2 here is because we need both function and argument names. 
         name_declarator, type = self.declarator.analyse(base_type, env, nonempty = 2 * (self.body is not None))
@@ -1595,7 +1598,7 @@ class DefNode(FuncDefNode):
                                               nogil = False,
                                               with_gil = False,
                                               is_overridable = True)
-            cfunc = CVarDefNode(self.pos, type=cfunc_type, pxd_locals=[])
+            cfunc = CVarDefNode(self.pos, type=cfunc_type)
         else:
             cfunc_type = cfunc.type
             if len(self.args) != len(cfunc_type.args) or cfunc_type.has_varargs:
@@ -1631,7 +1634,7 @@ class DefNode(FuncDefNode):
                             nogil = cfunc_type.nogil,
                             visibility = 'private',
                             api = False,
-                            pxd_locals = cfunc.pxd_locals)
+                            directive_locals = cfunc.directive_locals)
     
     def analyse_declarations(self, env):
         if 'locals' in env.directives:

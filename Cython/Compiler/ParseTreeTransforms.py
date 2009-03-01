@@ -294,19 +294,8 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
                 else:
                     err = None # allow inline function
             else:
-                err = None
-                for stat in node.body.stats:
-                    if not isinstance(stat, CVarDefNode):
-                        err = self.ERR_INLINE_ONLY
-                        break
-                node = CVarDefNode(node.pos, 
-                                   visibility = node.visibility,
-                                   base_type = node.base_type,
-                                   declarators = [node.declarator],
-                                   in_pxd = True,
-                                   api = node.api,
-                                   overridable = node.overridable, 
-                                   pxd_locals = node.body.stats)
+                err = self.ERR_INLINE_ONLY
+
         if err:
             self.context.nonfatal_error(PostParseError(node.pos, err))
             return None
@@ -462,7 +451,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         return directive
  
     # Handle decorators
-    def visit_DefNode(self, node):
+    def visit_FuncDefNode(self, node):
         options = []
         
         if node.decorators:
@@ -474,7 +463,10 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                     options.append(option)
                 else:
                     realdecs.append(dec)
-            node.decorators = realdecs
+            if realdecs and isinstance(node, CFuncDefNode):
+                raise PostParseError(realdecs[0].pos, "Cdef functions cannot take arbitrary decorators.")
+            else:
+                node.decorators = realdecs
         
         if options:
             optdict = {}
@@ -486,6 +478,16 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             return self.visit_with_options(body, optdict)
         else:
             return self.visit_Node(node)
+    
+    def visit_CVarDefNode(self, node):
+        if node.decorators:
+            for dec in node.decorators:
+                option = self.try_to_parse_option(dec.decorator)
+                if option is not None and option[0] == u'locals':
+                    node.directive_locals = option[1]
+                else:
+                    raise PostParseError(dec.pos, "Cdef functions can only take cython.locals() decorator.")
+        return node
                                    
     # Handle with statements
     def visit_WithStatNode(self, node):
@@ -686,8 +688,6 @@ property NAME:
                     lenv.declare_var(var, type, type_node.pos)
                 else:
                     error(type_node.pos, "Not a type")
-        for stat in node.pxd_locals:
-            stat.analyse_declarations(lenv)
         node.body.analyse_declarations(lenv)
         self.env_stack.append(lenv)
         self.visitchildren(node)
