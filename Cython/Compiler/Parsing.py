@@ -1479,6 +1479,7 @@ def p_IF_statement(s, ctx):
 
 def p_statement(s, ctx, first_statement = 0):
     cdef_flag = ctx.cdef_flag
+    decorators = []
     if s.sy == 'ctypedef':
         if ctx.level not in ('module', 'module_pxd'):
             s.error("ctypedef statement not allowed here")
@@ -1490,63 +1491,67 @@ def p_statement(s, ctx, first_statement = 0):
     elif s.sy == 'IF':
         return p_IF_statement(s, ctx)
     elif s.sy == 'DECORATOR':
-        if ctx.level not in ('module', 'class', 'c_class', 'property'):
+        if ctx.level not in ('module', 'class', 'c_class', 'property', 'module_pxd', 'class_pxd'):
             s.error('decorator not allowed here')
         s.level = ctx.level
         decorators = p_decorators(s)
-        if s.sy != 'def':
+        if s.sy not in ('def', 'cdef', 'cpdef'):
             s.error("Decorators can only be followed by functions ")
-        return p_def_statement(s, decorators)
+
+    overridable = 0
+    if s.sy == 'cdef':
+        cdef_flag = 1
+        s.next()
+    if s.sy == 'cpdef':
+        cdef_flag = 1
+        overridable = 1
+        s.next()
+    if cdef_flag:
+        if ctx.level not in ('module', 'module_pxd', 'function', 'c_class', 'c_class_pxd'):
+            s.error('cdef statement not allowed here')
+        s.level = ctx.level
+        node = p_cdef_statement(s, ctx(overridable = overridable))
+        if decorators is not None:
+            if not isinstance(node, (Nodes.CFuncDefNode, Nodes.CVarDefNode)):
+                s.error("Decorators can only be followed by functions ")
+            node.decorators = decorators
+        return node
     else:
-        overridable = 0
-        if s.sy == 'cdef':
-            cdef_flag = 1
-            s.next()
-        if s.sy == 'cpdef':
-            cdef_flag = 1
-            overridable = 1
-            s.next()
-        if cdef_flag:
-            if ctx.level not in ('module', 'module_pxd', 'function', 'c_class', 'c_class_pxd'):
-                s.error('cdef statement not allowed here')
+        if ctx.api:
+            error(s.pos, "'api' not allowed with this statement")
+        elif s.sy == 'def':
+            if ctx.level not in ('module', 'class', 'c_class', 'c_class_pxd', 'property'):
+                s.error('def statement not allowed here')
             s.level = ctx.level
-            return p_cdef_statement(s, ctx(overridable = overridable))
+            return p_def_statement(s, decorators)
+        elif s.sy == 'class':
+            if ctx.level != 'module':
+                s.error("class definition not allowed here")
+            return p_class_statement(s)
+        elif s.sy == 'include':
+            if ctx.level not in ('module', 'module_pxd'):
+                s.error("include statement not allowed here")
+            return p_include_statement(s, ctx)
+        elif ctx.level == 'c_class' and s.sy == 'IDENT' and s.systring == 'property':
+            return p_property_decl(s)
+        elif s.sy == 'pass' and ctx.level != 'property':
+            return p_pass_statement(s, with_newline = 1)
         else:
-            if ctx.api:
-                error(s.pos, "'api' not allowed with this statement")
-            elif s.sy == 'def':
-                if ctx.level not in ('module', 'class', 'c_class', 'c_class_pxd', 'property'):
-                    s.error('def statement not allowed here')
-                s.level = ctx.level
-                return p_def_statement(s)
-            elif s.sy == 'class':
-                if ctx.level != 'module':
-                    s.error("class definition not allowed here")
-                return p_class_statement(s)
-            elif s.sy == 'include':
-                if ctx.level not in ('module', 'module_pxd'):
-                    s.error("include statement not allowed here")
-                return p_include_statement(s, ctx)
-            elif ctx.level == 'c_class' and s.sy == 'IDENT' and s.systring == 'property':
-                return p_property_decl(s)
-            elif s.sy == 'pass' and ctx.level != 'property':
-                return p_pass_statement(s, with_newline = 1)
+            if ctx.level in ('c_class_pxd', 'property'):
+                s.error("Executable statement not allowed here")
+            if s.sy == 'if':
+                return p_if_statement(s)
+            elif s.sy == 'while':
+                return p_while_statement(s)
+            elif s.sy == 'for':
+                return p_for_statement(s)
+            elif s.sy == 'try':
+                return p_try_statement(s)
+            elif s.sy == 'with':
+                return p_with_statement(s)
             else:
-                if ctx.level in ('c_class_pxd', 'property'):
-                    s.error("Executable statement not allowed here")
-                if s.sy == 'if':
-                    return p_if_statement(s)
-                elif s.sy == 'while':
-                    return p_while_statement(s)
-                elif s.sy == 'for':
-                    return p_for_statement(s)
-                elif s.sy == 'try':
-                    return p_try_statement(s)
-                elif s.sy == 'with':
-                    return p_with_statement(s)
-                else:
-                    return p_simple_statement_list(
-                        s, ctx, first_statement = first_statement)
+                return p_simple_statement_list(
+                    s, ctx, first_statement = first_statement)
 
 def p_statement_list(s, ctx, first_statement = 0):
     # Parse a series of statements separated by newlines.
