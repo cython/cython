@@ -1,3 +1,5 @@
+import cython
+
 from Cython.Plex.Scanners cimport Scanner
 
 cdef class CompileTimeScope:
@@ -23,8 +25,5 @@ cdef class PyrexScanner(Scanner):
     cpdef next(self)
     cpdef bint expect(self, what, message = *) except -2
     
-    cpdef indentation_action(self, text):
-        cdef:
-            long current_level
-            long new_level
-    
+    @cython.locals(current_level=long, new_level=long)
+    cpdef indentation_action(self, text)
