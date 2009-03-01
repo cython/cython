@@ -1479,7 +1479,7 @@ def p_IF_statement(s, ctx):
 
 def p_statement(s, ctx, first_statement = 0):
     cdef_flag = ctx.cdef_flag
-    decorators = []
+    decorators = None
     if s.sy == 'ctypedef':
         if ctx.level not in ('module', 'module_pxd'):
             s.error("ctypedef statement not allowed here")

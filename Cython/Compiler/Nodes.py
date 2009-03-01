@@ -772,10 +772,13 @@ class CVarDefNode(StatNode):
     #  api           boolean
     #  need_properties [entry]
 
+    #  decorators    [cython.locals(...)] or None 
     #  directive_locals { string : NameNode } locals defined by cython.locals(...)
 
     child_attrs = ["base_type", "declarators"]
     need_properties = ()
+    
+    decorators = None
     directive_locals = {}
     
     def analyse_declarations(self, env, dest_scope = None):
