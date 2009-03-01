@@ -201,7 +201,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             for entry in api_funcs:
                 sig = entry.type.signature_string()
                 h_code.putln(
-                    'if (__Pyx_ImportFunction(module, "%s", (void (**)(void))&%s, "%s") < 0) goto bad;' % (
+                    'if (__Pyx_ImportFunction(module, "%s", (void**)&%s, "%s") < 0) goto bad;' % (
                         entry.name,
                         entry.cname,
                         sig))
@@ -1800,7 +1800,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             if entry.api or entry.defined_in_pxd:
                 env.use_utility_code(function_export_utility_code)
                 signature = entry.type.signature_string()
-                code.putln('if (__Pyx_ExportFunction("%s", (void (*)(void))%s, "%s") < 0) %s' % (
+                code.putln('if (__Pyx_ExportFunction("%s", (void*)%s, "%s") < 0) %s' % (
                     entry.name,
                     entry.cname,
                     signature, 
@@ -1832,7 +1832,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     code.error_goto(self.pos)))
             for entry in entries:
                 code.putln(
-                    'if (__Pyx_ImportFunction(%s, "%s", (void (**)(void))&%s, "%s") < 0) %s' % (
+                    'if (__Pyx_ImportFunction(%s, "%s", (void**)&%s, "%s") < 0) %s' % (
                         temp,
                         entry.name,
                         entry.cname,
@@ -2115,18 +2115,17 @@ bad:
 
 function_export_utility_code = UtilityCode(
 proto = """
-static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *sig); /*proto*/
+static int __Pyx_ExportFunction(const char *name, void *f, const char *sig); /*proto*/
 """,
 impl = r"""
-static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *sig) {
+static int __Pyx_ExportFunction(const char *name, void *f, const char *sig) {
 #if PY_VERSION_HEX < 0x02050000
     char *api = (char *)"%(API)s";
 #else
     const char *api = "%(API)s";
 #endif
     PyObject *d = 0;
-    PyObject *cobj = 0;
-    void *p = 0;
+    PyObject *p = 0;
 
     d = PyObject_GetAttrString(%(MODULE)s, api);
     if (!d) {
@@ -2138,17 +2137,16 @@ static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *s
         if (PyModule_AddObject(%(MODULE)s, api, d) < 0)
             goto bad;
     }
-    p = *(void **)&f;
-    cobj = PyCObject_FromVoidPtrAndDesc(p, (void *)sig, 0);
-    if (!cobj)
+    p = PyCObject_FromVoidPtrAndDesc(f, (void *)sig, 0);
+    if (!p)
         goto bad;
-    if (PyDict_SetItemString(d, name, cobj) < 0)
+    if (PyDict_SetItemString(d, name, p) < 0)
         goto bad;
-    Py_DECREF(cobj);
+    Py_DECREF(p);
     Py_DECREF(d);
     return 0;
 bad:
-    Py_XDECREF(cobj);
+    Py_XDECREF(p);
     Py_XDECREF(d);
     return -1;
 }
@@ -2159,12 +2157,12 @@ bad:
 
 function_import_utility_code = UtilityCode(
 proto = """
-static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**f)(void), const char *sig); /*proto*/
+static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void **f, const char *sig); /*proto*/
 """,
 impl = """
 #ifndef __PYX_HAVE_RT_ImportFunction
 #define __PYX_HAVE_RT_ImportFunction
-static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**f)(void), const char *sig) {
+static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void **f, const char *sig) {
 #if PY_VERSION_HEX < 0x02050000
     char *api = (char *)"%(API)s";
 #else
@@ -2172,8 +2170,7 @@ static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**
 #endif
     PyObject *d = 0;
     PyObject *cobj = 0;
-    void *p = 0;
-    const char *desc = 0;
+    char *desc;
 
     d = PyObject_GetAttrString(module, api);
     if (!d)
@@ -2185,7 +2182,7 @@ static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**
                 PyModule_GetName(module), funcname);
         goto bad;
     }
-    desc = (const char *)PyCObject_GetDesc(cobj);
+    desc = (char *)PyCObject_GetDesc(cobj);
     if (!desc)
         goto bad;
     if (strcmp(desc, sig) != 0) {
@@ -2194,8 +2191,7 @@ static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**
                 PyModule_GetName(module), funcname, sig, desc);
         goto bad;
     }
-    p = PyCObject_AsVoidPtr(cobj);
-    *f = *(void (**)(void))&p;
+    *f = PyCObject_AsVoidPtr(cobj);
     Py_DECREF(d);
     return 0;
 bad:
