@@ -3242,6 +3242,8 @@ class PrintStatNode(StatNode):
         self.arg_tuple = self.arg_tuple.coerce_to_pyobject(env)
         self.arg_tuple.release_temp(env)
         env.use_utility_code(printing_utility_code)
+        if len(self.arg_tuple.args) == 1 and self.append_newline:
+            env.use_utility_code(printing_one_utility_code)
         self.gil_check(env)
 
     gil_message = "Python print statement"
@@ -3250,6 +3252,7 @@ class PrintStatNode(StatNode):
         if len(self.arg_tuple.args) == 1 and self.append_newline:
             arg = self.arg_tuple.args[0]
             arg.generate_evaluation_code(code)
+            
             code.putln(
                 "if (__Pyx_PrintOne(%s) < 0) %s" % (
                     arg.py_result(),
@@ -4803,7 +4806,6 @@ else:
 printing_utility_code = UtilityCode(
 proto = """
 static int __Pyx_Print(PyObject *, int); /*proto*/
-static int __Pyx_PrintOne(PyObject *o); /*proto*/
 #if PY_MAJOR_VERSION >= 3
 static PyObject* %s = 0;
 static PyObject* %s = 0;
@@ -4851,21 +4853,6 @@ static int __Pyx_Print(PyObject *arg_tuple, int newline) {
     return 0;
 }
 
-static int __Pyx_PrintOne(PyObject *o) {
-    PyObject *f;
-    if (!(f = __Pyx_GetStdout()))
-        return -1;
-    if (PyFile_SoftSpace(f, 0)) {
-        if (PyFile_WriteString(" ", f) < 0)
-            return -1;
-    }
-    if (PyFile_WriteObject(o, f, Py_PRINT_RAW) < 0)
-        return -1;
-    if (PyFile_WriteString("\n", f) < 0)
-        return -1;
-    return 0;
-}
-
 #else /* Python 3 has a print function */
 
 static int __Pyx_Print(PyObject *arg_tuple, int newline) {
@@ -4900,6 +4887,37 @@ static int __Pyx_Print(PyObject *arg_tuple, int newline) {
     return 0;
 }
 
+#endif
+""" % {'BUILTINS'       : Naming.builtins_cname,
+       'PRINT_FUNCTION' : Naming.print_function,
+       'PRINT_KWARGS'   : Naming.print_function_kwargs}
+)
+
+
+printing_one_utility_code = UtilityCode(
+proto = """
+static int __Pyx_PrintOne(PyObject *o); /*proto*/
+""",
+impl = r"""
+#if PY_MAJOR_VERSION < 3
+
+static int __Pyx_PrintOne(PyObject *o) {
+    PyObject *f;
+    if (!(f = __Pyx_GetStdout()))
+        return -1;
+    if (PyFile_SoftSpace(f, 0)) {
+        if (PyFile_WriteString(" ", f) < 0)
+            return -1;
+    }
+    if (PyFile_WriteObject(o, f, Py_PRINT_RAW) < 0)
+        return -1;
+    if (PyFile_WriteString("\n", f) < 0)
+        return -1;
+    return 0;
+}
+
+#else /* Python 3 has a print function */
+
 static int __Pyx_PrintOne(PyObject *o) {
     int res;
     PyObject* arg_tuple = PyTuple_New(1);
@@ -4913,10 +4931,9 @@ static int __Pyx_PrintOne(PyObject *o) {
 }
 
 #endif
-""" % {'BUILTINS'       : Naming.builtins_cname,
-       'PRINT_FUNCTION' : Naming.print_function,
-       'PRINT_KWARGS'   : Naming.print_function_kwargs}
-)
+""")
+
+
 
 #------------------------------------------------------------------------------------
 
