@@ -23,25 +23,12 @@ cdef class Scanner:
     cdef public input_state
 
     cdef public level
-    
-    cpdef next_char(self):
-        cdef:
-            long input_state
+
+    cpdef next_char(self)
     cpdef read(self)
     cpdef position(self)
-    
-    cpdef run_machine_inlined(self):
-        cdef:
-            long cur_pos
-            long cur_line
-            long cur_line_start
-            long input_state
-            long next_pos
-            long buf_start_pos
-            long buf_len
-            long buf_index
-            bint trace
-            long discard
+
+    cpdef run_machine_inlined(self)
     
     cpdef begin(self, state)
     cpdef produce(self, value, text = *)

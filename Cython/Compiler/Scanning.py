@@ -367,6 +367,7 @@ class PyrexScanner(Scanner):
         self.end_string_action(text)
         self.error("Unclosed string literal")
 
+    @cython.locals(current_level=cython.long, new_level=cython.long)
     def indentation_action(self, text):
         self.begin('')
         # Indentation within brackets should be ignored.
