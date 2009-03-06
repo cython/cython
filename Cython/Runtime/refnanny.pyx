@@ -11,9 +11,6 @@ cdef log(level, action, obj, lineno):
 
 LOG_NONE, LOG_ALL = range(2)
 
-class Error(Exception):
-    pass
-
 class Context(object):
     def __init__(self, name, line=0, filename=None):
         self.name = name
@@ -66,7 +63,7 @@ cpdef report_unraisable(e):
     try:
         print "refnanny raised an exception: %s" % e
     except:
-        pass # We absolutely cannot exit with an exception 
+        pass # We absolutely cannot exit with an exception
 
 # All Python operations must happen after any existing
 # exception has been fetched, in case we are called from
@@ -76,7 +73,7 @@ cdef PyObject* NewContext(char* funcname, int lineno, char* filename) except NUL
     if Context is None:
         # Context may be None during finalize phase.
         # In that case, we don't want to be doing anything fancy
-        # like caching and resetting exceptions. 
+        # like caching and resetting exceptions.
         return NULL
     cdef PyObject* type = NULL, *value = NULL, *tb = NULL
     cdef PyObject* result = NULL
@@ -91,8 +88,8 @@ cdef PyObject* NewContext(char* funcname, int lineno, char* filename) except NUL
     return result
 
 cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
-    cdef PyObject* type = NULL, *value = NULL, *tb = NULL
     if ctx == NULL: return
+    cdef PyObject* type = NULL, *value = NULL, *tb = NULL
     PyErr_Fetch(&type, &value, &tb)
     try:
         if p_obj is NULL:
@@ -104,11 +101,11 @@ cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
     PyErr_Restore(<object>type, <object>value, <object>tb)
 
 cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
+    if ctx == NULL: return 1
     cdef PyObject* type = NULL, *value = NULL, *tb = NULL
     cdef bint decref_ok = False
     PyErr_Fetch(&type, &value, &tb)
     try:
-        assert ctx is not NULL, "ctx us NULL"
         if p_obj is NULL:
             decref_ok = (<object>ctx).delref(None, lineno, True)
         else:
@@ -130,9 +127,7 @@ cdef void DECREF(PyObject* ctx, PyObject* obj, int lineno):
         if obj is not NULL: Py_DECREF(<object>obj)
 
 cdef void FinishContext(PyObject** ctx):
-    if ctx == NULL or ctx[0] == NULL:
-        # We should have reported an error earlier.
-        return
+    if ctx == NULL or ctx[0] == NULL: return
     cdef PyObject* type = NULL, *value = NULL, *tb = NULL
     cdef object errors = None
     PyErr_Fetch(&type, &value, &tb)
@@ -144,7 +139,7 @@ cdef void FinishContext(PyObject** ctx):
             print errors
     except Exception, e:
         report_unraisable(e)
-    Py_XDECREF(<object>ctx[0])
+    Py_DECREF(<object>ctx[0])
     ctx[0] = NULL
     PyErr_Restore(<object>type, <object>value, <object>tb)
 
