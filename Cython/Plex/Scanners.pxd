@@ -24,10 +24,16 @@ cdef class Scanner:
 
     cdef public level
 
+    @cython.locals(input_state=long)
     cpdef next_char(self)
     cpdef read(self)
     cpdef position(self)
 
+    @cython.locals(cur_pos=cython.long, cur_line=cython.long,
+                 cur_line_start=cython.long, input_state=cython.long,
+                 next_pos=cython.long, buf_start_pos=cython.long,
+                 buf_len=cython.long, buf_index=cython.long,
+                 trace=cython.bint, discard=cython.long)
     cpdef run_machine_inlined(self)
     
     cpdef begin(self, state)

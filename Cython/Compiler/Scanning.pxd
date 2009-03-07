@@ -25,4 +25,5 @@ cdef class PyrexScanner(Scanner):
     cpdef next(self)
     cpdef bint expect(self, what, message = *) except -2
     
+    @cython.locals(current_level=cython.long, new_level=cython.long)
     cpdef indentation_action(self, text)
