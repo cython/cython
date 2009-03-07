@@ -4915,7 +4915,7 @@ static int __Pyx_PrintOne(PyObject *o) {
     return 0;
     /* the line below is just to avoid compiler
      * compiler warnings about unused functions */
-    __Pyx_Print(NULL, 0);
+    return __Pyx_Print(NULL, 0);
 }
 
 #else /* Python 3 has a print function */
