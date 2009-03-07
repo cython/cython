@@ -160,11 +160,6 @@ class Scanner:
       pass
     return self.back_up()
 
-  @cython.locals(cur_pos=cython.long, cur_line=cython.long,
-                 cur_line_start=cython.long, input_state=cython.long,
-                 next_pos=cython.long, buf_start_pos=cython.long,
-                 buf_len=cython.long, buf_index=cython.long,
-                 trace=cython.bint, discard=cython.long)
   def run_machine_inlined(self):
     """
     Inlined version of run_machine for speed.
@@ -305,7 +300,6 @@ class Scanner:
 #        else:
 #            return None
 
-  @cython.locals(input_state=long)
   def next_char(self):
     input_state = self.input_state
     if self.trace:
