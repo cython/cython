@@ -2477,8 +2477,7 @@ class OverrideCheckNode(StatNode):
         # need to get attribute manually--scope would return cdef method
         code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (self.func_node.result(), self_arg, self.py_func.interned_attr_cname, err))
         code.put_gotref(self.func_node.py_result())
-        # It appears that this type is not anywhere exposed in the Python/C API
-        is_builtin_function_or_method = '(strcmp(Py_TYPE(%s)->tp_name, "builtin_function_or_method") == 0)' % self.func_node.result()
+        is_builtin_function_or_method = 'PyCFunction_Check(%s)' % self.func_node.result()
         is_overridden = '(PyCFunction_GET_FUNCTION(%s) != (void *)&%s)' % (self.func_node.result(), self.py_func.entry.func_cname)
         code.putln('if (!%s || %s) {' % (is_builtin_function_or_method, is_overridden))
         self.body.generate_execution_code(code)
