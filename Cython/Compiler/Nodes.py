@@ -5248,8 +5248,7 @@ static int __Pyx_ParseOptionalKeywords(
                         PyUnicode_Compare(**name, key) == 0) break;
                     #else
                     if (PyString_GET_SIZE(**name) == PyString_GET_SIZE(key) &&
-                        strcmp(PyString_AS_STRING(**name),
-                               PyString_AS_STRING(key)) == 0) break;
+                        _PyString_Eq(**name, key)) break;
                     #endif
                 }
                 if (*name) {
@@ -5263,8 +5262,7 @@ static int __Pyx_ParseOptionalKeywords(
                             PyUnicode_Compare(**name, key) == 0) goto arg_passed_twice;
                         #else
                         if (PyString_GET_SIZE(**name) == PyString_GET_SIZE(key) &&
-                            strcmp(PyString_AS_STRING(**name),
-                                   PyString_AS_STRING(key)) == 0) goto arg_passed_twice;
+                            _PyString_Eq(**name, key)) goto arg_passed_twice;
                         #endif
                     }
                     if (kwds2) {

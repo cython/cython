@@ -558,6 +558,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('static char %s[] = "%s";' % (
                     env.doc_cname, escape_byte_string(docstr)))
 
+        env.use_utility_code(streq_utility_code)
+
     def generate_extern_c_macro_definition(self, code):
         name = Naming.extern_c_macro
         code.putln("#ifdef __cplusplus")
@@ -1517,7 +1519,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("static int %s(PyObject *o, PyObject* py_name, char *name) {" % Naming.import_star_set)
         code.putln("char** type_name = %s_type_names;" % Naming.import_star)
         code.putln("while (*type_name) {")
-        code.putln("if (!strcmp(name, *type_name)) {")
+        code.putln("if (__Pyx_StrEq(name, *type_name)) {")
         code.putln('PyErr_Format(PyExc_TypeError, "Cannot overwrite C type %s", name);')
         code.putln('goto bad;')
         code.putln("}")
@@ -1527,7 +1529,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("if (0);") # so the first one can be "else if"
         for name, entry in env.entries.items():
             if entry.is_cglobal and entry.used:
-                code.putln('else if (!strcmp(name, "%s")) {' % name)
+                code.putln('else if (__Pyx_StrEq(name, "%s")) {' % name)
                 if entry.type.is_pyobject:
                     if entry.type.is_extension_type or entry.type.is_builtin_type:
                         code.putln("if (!(%s)) %s;" % (
@@ -2030,6 +2032,21 @@ proto = """\
 #endif
 """)
 
+#------------------------------------------------------------------------------------
+
+streq_utility_code = UtilityCode(
+proto = """
+static INLINE int __Pyx_StrEq(const char *, const char *); /*proto*/
+""",
+impl = """
+static INLINE int __Pyx_StrEq(const char *s1, const char *s2) {
+     while (*s1 != '\\0' && *s1 == *s2) { s1++; s2++; }
+     return *s1 == *s2;
+}
+""")
+
+#------------------------------------------------------------------------------------
+
 import_module_utility_code = UtilityCode(
 proto = """
 static PyObject *__Pyx_ImportModule(const char *name); /*proto*/
@@ -2171,7 +2188,8 @@ static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void **f
 #endif
     PyObject *d = 0;
     PyObject *cobj = 0;
-    char *desc;
+    const char *desc;
+    const char *s1, *s2;
 
     d = PyObject_GetAttrString(module, api);
     if (!d)
@@ -2183,13 +2201,15 @@ static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void **f
                 PyModule_GetName(module), funcname);
         goto bad;
     }
-    desc = (char *)PyCObject_GetDesc(cobj);
+    desc = (const char *)PyCObject_GetDesc(cobj);
     if (!desc)
         goto bad;
-    if (strcmp(desc, sig) != 0) {
+    s1 = desc; s2 = sig;
+    while (*s1 != '\\0' && *s1 == *s2) { s1++; s2++; }
+    if (*s1 != *s2) {
         PyErr_Format(PyExc_TypeError,
             "C function %%s.%%s has wrong signature (expected %%s, got %%s)",
-                PyModule_GetName(module), funcname, sig, desc);
+             PyModule_GetName(module), funcname, sig, desc);
         goto bad;
     }
     *f = PyCObject_AsVoidPtr(cobj);
