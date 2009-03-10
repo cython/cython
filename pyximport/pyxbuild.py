@@ -23,7 +23,7 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
                build_in_temp=False, pyxbuild_dir=None):
     """Compile a PYX file to a DLL and return the name of the generated .so 
        or .dll ."""
-    assert os.path.exists(filename)
+    assert os.path.exists(filename), "Could not find %s" % os.path.abspath(filename)
 
     path, name = os.path.split(filename)
 
