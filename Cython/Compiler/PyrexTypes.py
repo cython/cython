@@ -46,7 +46,6 @@ class PyrexType(BaseType):
     #  is_buffer             boolean     Is buffer access type
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  default_value         string      Initial value
-    #  parsetuple_format     string      Format char for PyArg_ParseTuple
     #  pymemberdef_typecode  string      Type code for PyMemberDef struct
     #
     #  declaration_code(entity_code, 
@@ -97,7 +96,6 @@ class PyrexType(BaseType):
     is_buffer = 0
     has_attributes = 0
     default_value = ""
-    parsetuple_format = ""
     pymemberdef_typecode = None
     
     def resolve(self):
@@ -236,7 +234,6 @@ class PyObjectType(PyrexType):
     
     is_pyobject = 1
     default_value = "0"
-    parsetuple_format = "O"
     pymemberdef_typecode = "T_OBJECT"
     buffer_defaults = None
     
@@ -463,21 +460,11 @@ class CNumericType(CType):
     is_numeric = 1
     default_value = "0"
     
-    parsetuple_formats = ( # rank -> format
-        "BHIk??K???", # unsigned
-        "bhil??Lfd?", # assumed signed
-        "bhil??Lfd?", # explicitly signed
-    )
-    
     sign_words = ("unsigned ", "", "signed ")
     
     def __init__(self, rank, signed = 1, pymemberdef_typecode = None):
         self.rank = rank
         self.signed = signed
-        ptf = self.parsetuple_formats[signed][rank]
-        if ptf == '?':
-            ptf = None
-        self.parsetuple_format = ptf
         self.pymemberdef_typecode = pymemberdef_typecode
     
     def sign_and_name(self):
@@ -1104,7 +1091,6 @@ class CStringType:
 class CUTF8CharArrayType(CStringType, CArrayType):
     #  C 'char []' type.
     
-    parsetuple_format = "s"
     pymemberdef_typecode = "T_STRING_INPLACE"
     is_unicode = 1
     
@@ -1117,7 +1103,6 @@ class CUTF8CharArrayType(CStringType, CArrayType):
 class CCharArrayType(CStringType, CArrayType):
     #  C 'char []' type.
     
-    parsetuple_format = "s"
     pymemberdef_typecode = "T_STRING_INPLACE"
     
     def __init__(self, size):
@@ -1127,7 +1112,6 @@ class CCharArrayType(CStringType, CArrayType):
 class CCharPtrType(CStringType, CPtrType):
     # C 'char *' type.
     
-    parsetuple_format = "s"
     pymemberdef_typecode = "T_STRING"
     
     def __init__(self):
