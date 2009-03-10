@@ -6,7 +6,7 @@ include setup.py
 include bin/cython
 include cython.py
 include Cython/Compiler/Lexicon.pickle
-include Cython/Includes/*.pxd
+recursive-include Cython *.pyx *.pxd
 include Doc/*
 
 include Demos/*.pyx
