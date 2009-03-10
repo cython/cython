@@ -11,14 +11,23 @@ if sys.platform == "win32":
 setup_args = {}
 
 if sys.version_info < (2,4):
+    import glob
     cython_dir = os.path.join(get_python_lib(prefix=''), 'Cython')
     compiler_dir = os.path.join(cython_dir, 'Compiler')
     setup_args['data_files'] = [
         (compiler_dir, ['Cython/Compiler/Lexicon.pickle']),
-        (cython_dir,   ['Cython/Includes/*.pxd'])]
+        (cython_dir, [ f for pattern in
+                       ['Cython/Includes/*.pxd',
+                        'Cython/Plex/*.pxd',
+                        'Cython/Compiler/*.pxd',
+                        'Cython/Runtime/*.pyx']
+                       for f in glob.glob(pattern) ])]
 else:
     setup_args['package_data'] = {'Cython.Compiler' : ['Lexicon.pickle'],
-                                  'Cython' : ['Includes/*.pxd']}
+                                  'Cython' : ['Includes/*.pxd',
+                                              'Plex/*.pxd',
+                                              'Compiler/*.pxd',
+                                              'Runtime/*.pyx']}
 
 if os.name == "posix":
     scripts = ["bin/cython"]
