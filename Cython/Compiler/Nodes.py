@@ -1731,14 +1731,6 @@ class DefNode(FuncDefNode):
                         (arg.type.is_extension_type or arg.type.is_builtin_type):
                     arg.needs_type_test = 1
                     any_type_tests_needed = 1
-                elif (arg.type is PyrexTypes.c_py_ssize_t_type
-                        or arg.type is PyrexTypes.c_size_t_type):
-                    # Don't use PyArg_ParseTupleAndKeywords's parsing
-                    # Py_ssize_t: want to use __index__ rather than __int__
-                    # size_t: no Python format char
-                    arg.needs_conversion = 1
-                    arg.hdr_type = PyrexTypes.py_object_type
-                    arg.hdr_cname = Naming.arg_prefix + arg.name
         if any_type_tests_needed:
             env.use_utility_code(arg_type_test_utility_code)
     
@@ -1943,14 +1935,6 @@ class DefNode(FuncDefNode):
                         error(arg.pos, "Non-default argument following default argument")
                     elif not arg.is_self_arg:
                         positional_args.append(arg)
-                    if arg.needs_conversion:
-                        format = arg.hdr_type.parsetuple_format
-                    else:
-                        format = arg_entry.type.parsetuple_format
-                    if not format:
-                        error(arg.pos,
-                              "Cannot convert Python object argument to type '%s' (when parsing input arguments)"
-                              % arg.type)
 
             self.generate_tuple_and_keyword_parsing_code(
                 positional_args, kw_only_args, end_label, code)
