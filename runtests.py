@@ -18,6 +18,15 @@ EXT_DEP_MODULES = {
     'numpy' : re.compile('.*\.numpy_.*').match
 }
 
+def get_numpy_include_dirs():
+    import numpy
+    return [numpy.get_include()]
+
+EXT_DEP_INCLUDES = [
+    # test name matcher , callable returning list
+    (re.compile('numpy_.*').match, get_numpy_include_dirs),
+]
+
 VER_DEP_MODULES = {
 # such as:
 #    (2,4) : lambda x: x in ['run.set']
@@ -271,9 +280,14 @@ class CythonCompileTestCase(unittest.TestCase):
             if incdir:
                 build_extension.include_dirs.append(incdir)
             build_extension.finalize_options()
+            ext_include_dirs = []
+            for match, get_additional_include_dirs in EXT_DEP_INCLUDES:
+                if match(module):
+                    ext_include_dirs += get_additional_include_dirs()
             extension = Extension(
                 module,
                 sources = [self.build_target_filename(module)],
+                include_dirs = ext_include_dirs,
                 extra_compile_args = CFLAGS,
                 )
             if self.language == 'cpp':
