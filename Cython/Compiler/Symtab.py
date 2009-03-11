@@ -1456,7 +1456,8 @@ class CClassScope(ClassScope):
         if not args:
             error(pos, "C method has no self argument")
         elif not args[0].type.same_as(self.parent_type):
-            error(pos, "Self argument of C method does not match parent type")
+            error(pos, "Self argument (%s) of C method '%s' does not match parent type (%s)" %
+                  (args[0].type, name, self.parent_type))
         entry = self.lookup_here(name)
         if entry:
             if not entry.is_cfunction:
