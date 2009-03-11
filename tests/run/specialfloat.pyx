@@ -44,12 +44,21 @@ __doc__ = u"""
     -inf
     >>> float_infn == float('-inf')
     True
+
+    >>> global_floats()[1:] == (float('+inf'), float('-inf'))
+    True
+    >>> global_floats()[0]
+    nan
 """
 
 DEF FLOAT = 12.5
 DEF FLOAT_NAN = float('nan')
 DEF FLOAT_INFP = float('+inf')
 DEF FLOAT_INFN = float('-inf')
+
+cdef double cdef_float_nan = float('nan')
+cdef double cdef_float_infp = float('+inf')
+cdef double cdef_float_infn = float('-inf')
 
 float_nan = FLOAT_NAN
 float_infp = FLOAT_INFP
@@ -105,3 +114,5 @@ def infn3():
     f = FLOAT_INFN
     return f
 
+def global_floats():
+    return (cdef_float_nan, cdef_float_infp, cdef_float_infn)
