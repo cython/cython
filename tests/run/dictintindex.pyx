@@ -42,9 +42,9 @@ KeyError: 0
 >>> test_del_int()
 Traceback (most recent call last):
 KeyError: 0
->>> test_del_uint()
+>>> test_del_uint()  #doctest: +ELLIPSIS
 Traceback (most recent call last):
-KeyError: 0
+KeyError: 0...
 >>> test_del_longlong() #doctest: +ELLIPSIS
 Traceback (most recent call last):
 KeyError: 0...
