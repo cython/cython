@@ -1503,7 +1503,7 @@ def p_statement(s, ctx, first_statement = 0):
     if s.sy == 'cdef':
         cdef_flag = 1
         s.next()
-    if s.sy == 'cpdef':
+    elif s.sy == 'cpdef':
         cdef_flag = 1
         overridable = 1
         s.next()
