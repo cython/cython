@@ -1740,7 +1740,7 @@ class IndexNode(ExprNode):
                 self.index.analyse_types(env)
             self.original_index_type = self.index.type
             if self.base.type.is_pyobject:
-                if self.index.type.is_int and not self.index.type.is_longlong:
+                if self.index.type.is_int:
                     self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
                 else:
                     self.index = self.index.coerce_to_pyobject(env)
@@ -1779,12 +1779,13 @@ class IndexNode(ExprNode):
             return "(%s[%s])" % (
                 self.base.result(), self.index.result())
             
-    def index_unsigned_parameter(self):
+    def extra_index_params(self):
         if self.index.type.is_int:
             if self.original_index_type.signed:
-                return ", 0"
+                size_adjustment = ""
             else:
-                return ", sizeof(Py_ssize_t) <= sizeof(%s)" % self.original_index_type.declaration_code("")
+                size_adjustment = "+1"
+            return ", sizeof(%s)%s, %s" % (self.original_index_type.declaration_code(""), size_adjustment, self.original_index_type.to_py_function)
         else:
             return ""
 
@@ -1841,7 +1842,7 @@ class IndexNode(ExprNode):
                     function,
                     self.base.py_result(),
                     index_code,
-                    self.index_unsigned_parameter(),
+                    self.extra_index_params(),
                     self.result(),
                     code.error_goto(self.pos)))
             code.put_gotref(self.py_result())
@@ -1871,7 +1872,7 @@ class IndexNode(ExprNode):
                 self.base.py_result(),
                 index_code,
                 value_code,
-                self.index_unsigned_parameter(),
+                self.extra_index_params(),
                 code.error_goto(self.pos)))
 
     def generate_buffer_setitem_code(self, rhs, code, op=""):
@@ -1929,7 +1930,7 @@ class IndexNode(ExprNode):
                 function,
                 self.base.py_result(),
                 index_code,
-                self.index_unsigned_parameter(),
+                self.extra_index_params(),
                 code.error_goto(self.pos)))
         self.generate_subexpr_disposal_code(code)
         self.free_subexpr_temps(code)
@@ -5401,17 +5402,22 @@ impl = ""
 
 getitem_int_utility_code = UtilityCode(
 proto = """
-static INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, Py_ssize_t i, int is_unsigned) {
+
+static INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
     PyObject *r;
-    PyObject *j = (likely(i >= 0) || !is_unsigned) ? PyInt_FromLong(i) : PyLong_FromUnsignedLongLong((sizeof(unsigned long long) > sizeof(Py_ssize_t) ? (1ULL << (sizeof(Py_ssize_t)*8)) : 0) + i);
-    if (!j) return 0;
+    if (!j) return NULL;
     r = PyObject_GetItem(o, j);
     Py_DECREF(j);
     return r;
 }
+
 """ + ''.join([
 """
-static INLINE PyObject *__Pyx_GetItemInt_%(type)s(PyObject *o, Py_ssize_t i, int is_unsigned) {
+#define __Pyx_GetItemInt_%(type)s(o, i, size, to_py_func) ((size <= sizeof(Py_ssize_t)) ? \\
+                                                    __Pyx_GetItemInt_%(type)s_Fast(o, i, size <= sizeof(long)) : \\
+                                                    __Pyx_GetItemInt_Generic(o, to_py_func(i)))
+
+static INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ssize_t i, int fits_long) {
     if (likely(o != Py_None)) {
         if (likely((0 <= i) & (i < Py%(type)s_GET_SIZE(o)))) {
             PyObject *r = Py%(type)s_GET_ITEM(o, i);
@@ -5424,11 +5430,16 @@ static INLINE PyObject *__Pyx_GetItemInt_%(type)s(PyObject *o, Py_ssize_t i, int
             return r;
         }
     }
-    return __Pyx_GetItemInt_Generic(o, i, is_unsigned);
+    return __Pyx_GetItemInt_Generic(o, fits_long ? PyInt_FromLong(i) : PyLong_FromLongLong(i));
 }
 """ % {'type' : type_name} for type_name in ('List', 'Tuple')
 ]) + """
-static INLINE PyObject *__Pyx_GetItemInt(PyObject *o, Py_ssize_t i, int is_unsigned) {
+
+#define __Pyx_GetItemInt(o, i, size, to_py_func) ((size <= sizeof(Py_ssize_t)) ? \\
+                                                    __Pyx_GetItemInt_Fast(o, i, size <= sizeof(long)) : \\
+                                                    __Pyx_GetItemInt_Generic(o, to_py_func(i)))
+
+static INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, int fits_long) {
     PyObject *r;
     if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
         r = PyList_GET_ITEM(o, i);
@@ -5438,10 +5449,11 @@ static INLINE PyObject *__Pyx_GetItemInt(PyObject *o, Py_ssize_t i, int is_unsig
         r = PyTuple_GET_ITEM(o, i);
         Py_INCREF(r);
     }
-    else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_item && (likely(i >= 0) || !is_unsigned))
+    else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_item && (likely(i >= 0))) {
         r = PySequence_GetItem(o, i);
+    }
     else {
-        r = __Pyx_GetItemInt_Generic(o, i, is_unsigned);
+        r = __Pyx_GetItemInt_Generic(o, fits_long ? PyInt_FromLong(i) : PyLong_FromLongLong(i));
     }
     return r;
 }
@@ -5455,24 +5467,31 @@ impl = """
 
 setitem_int_utility_code = UtilityCode(
 proto = """
-static INLINE int __Pyx_SetItemInt(PyObject *o, Py_ssize_t i, PyObject *v, int is_unsigned) {
+#define __Pyx_SetItemInt(o, i, v, size, to_py_func) ((size <= sizeof(Py_ssize_t)) ? \\
+                                                    __Pyx_SetItemInt_Fast(o, i, v, size <= sizeof(long)) : \\
+                                                    __Pyx_SetItemInt_Generic(o, to_py_func(i), v))
+
+static INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
     int r;
+    if (!j) return -1;
+    r = PyObject_SetItem(o, j, v);
+    Py_DECREF(j);
+    return r;
+}
+
+static INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v, int fits_long) {
     if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
         Py_DECREF(PyList_GET_ITEM(o, i));
         Py_INCREF(v);
         PyList_SET_ITEM(o, i, v);
         return 1;
     }
-    else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item && (likely(i >= 0) || !is_unsigned))
-        r = PySequence_SetItem(o, i, v);
+    else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item && (likely(i >= 0)))
+        return PySequence_SetItem(o, i, v);
     else {
-        PyObject *j = (likely(i >= 0) || !is_unsigned) ? PyInt_FromLong(i) : PyLong_FromUnsignedLongLong((sizeof(unsigned long long) > sizeof(Py_ssize_t) ? (1ULL << (sizeof(Py_ssize_t)*8)) : 0) + i);
-        if (!j)
-            return -1;
-        r = PyObject_SetItem(o, j, v);
-        Py_DECREF(j);
+        PyObject *j = fits_long ? PyInt_FromLong(i) : PyLong_FromLongLong(i);
+        return __Pyx_SetItemInt_Generic(o, j, v);
     }
-    return r;
 }
 """,
 impl = """
@@ -5482,18 +5501,25 @@ impl = """
 
 delitem_int_utility_code = UtilityCode(
 proto = """
-static INLINE int __Pyx_DelItemInt(PyObject *o, Py_ssize_t i, int is_unsigned) {
+#define __Pyx_DelItemInt(o, i, size, to_py_func) ((size <= sizeof(Py_ssize_t)) ? \\
+                                                    __Pyx_DelItemInt_Fast(o, i, size <= sizeof(long)) : \\
+                                                    __Pyx_DelItem_Generic(o, to_py_func(i)))
+
+static INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
     int r;
-    if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item && (likely(i >= 0) || !is_unsigned))
-        r = PySequence_DelItem(o, i);
-    else {
-        PyObject *j = (likely(i >= 0) || !is_unsigned) ? PyInt_FromLong(i) : PyLong_FromUnsignedLongLong((sizeof(unsigned long long) > sizeof(Py_ssize_t) ? (1ULL << (sizeof(Py_ssize_t)*8)) : 0) + i);
-        if (!j)
-            return -1;
-        r = PyObject_DelItem(o, j);
-        Py_DECREF(j);
-    }
+    if (!j) return -1;
+    r = PyObject_DelItem(o, j);
+    Py_DECREF(j);
     return r;
+}
+
+static INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i, int fits_long) {
+    if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item && likely(i >= 0))
+        return PySequence_DelItem(o, i);
+    else {
+        PyObject *j = fits_long ? PyInt_FromLong(i) : PyLong_FromLongLong(i);
+        return __Pyx_DelItem_Generic(o, j);
+    }
 }
 """,
 impl = """
