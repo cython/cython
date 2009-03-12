@@ -914,7 +914,7 @@ class CFuncType(CType):
         return '(%s)' % s
 
 
-class CFuncTypeArg:
+class CFuncTypeArg(object):
     #  name       string
     #  cname      string
     #  type       PyrexType
@@ -1073,7 +1073,7 @@ class CEnumType(CType):
             return self.base_declaration_code(public_decl(base, dll_linkage), entity_code)
 
 
-class CStringType:
+class CStringType(object):
     #  Mixin class for C string types.
 
     is_string = 1
