@@ -419,6 +419,9 @@ class GlobalState(object):
         """
         if name is None: name = id(utility_code)
         if self.check_utility_code_needed_and_register(name):
+            if utility_code.requires:
+                for dependency in utility_code.requires:
+                    self.use_utility_code(dependency)
             if utility_code.proto:
                 self.utilprotowriter.put(utility_code.proto)
             if utility_code.impl:

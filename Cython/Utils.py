@@ -92,11 +92,12 @@ def long_literal(value):
 # a simple class that simplifies the usage of utility code
 
 class UtilityCode(object):
-    def __init__(self, proto=None, impl=None, init=None, cleanup=None):
+    def __init__(self, proto=None, impl=None, init=None, cleanup=None, requires=None):
         self.proto = proto
         self.impl = impl
         self.init = init
         self.cleanup = cleanup
+        self.requires = requires
 
     def write_init_code(self, writer, pos):
         if not self.init:
