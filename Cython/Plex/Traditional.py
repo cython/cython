@@ -41,7 +41,7 @@ class REParser(object):
       while self.c == '|':
         self.next()
         re_list.append(self.parse_seq())
-      re = apply(Alt, tuple(re_list))
+      re = Alt(*re_list)
     return re
       
   def parse_seq(self):
@@ -49,7 +49,7 @@ class REParser(object):
     re_list = []
     while not self.end and not self.c in "|)":
       re_list.append(self.parse_mod())
-    return apply(Seq, tuple(re_list))
+    return Seq(*re_list)
   
   def parse_mod(self):
     """Parse a primitive regexp followed by *, +, ? modifiers."""

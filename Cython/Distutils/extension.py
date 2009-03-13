@@ -5,7 +5,7 @@ Pyrex extension modules in setup scripts."""
 
 __revision__ = "$Id:$"
 
-import os, string, sys
+import os, sys
 from types import *
 import distutils.extension as _Extension
 

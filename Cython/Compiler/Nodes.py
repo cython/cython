@@ -2,7 +2,7 @@
 #   Pyrex - Parse tree nodes
 #
 
-import string, sys, os, time, copy
+import sys, os, time, copy
 
 import Code
 import Builtin
@@ -1412,7 +1412,7 @@ class CFuncDefNode(FuncDefNode):
             arg_decls = ["void"]
         if cname is None:
             cname = self.entry.func_cname
-        entity = type.function_header_code(cname, string.join(arg_decls, ", "))
+        entity = type.function_header_code(cname, ', '.join(arg_decls))
         if visibility == 'public':
             dll_linkage = "DL_EXPORT"
         else:
@@ -3790,7 +3790,7 @@ class WhileStatNode(LoopNode, StatNode):
 
 
 def ForStatNode(pos, **kw):
-    if kw.has_key('iterator'):
+    if 'iterator' in kw:
         return ForInStatNode(pos, **kw)
     else:
         return ForFromStatNode(pos, **kw)

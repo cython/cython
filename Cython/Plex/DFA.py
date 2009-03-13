@@ -29,18 +29,18 @@ def nfa_to_dfa(old_machine, debug = None):
   # Seed the process using the initial states of the old machine.
   # Make the corresponding new states into initial states of the new
   # machine with the same names.
-  for (key, old_state) in old_machine.initial_states.items():
+  for (key, old_state) in old_machine.initial_states.iteritems():
     new_state = state_map.old_to_new(epsilon_closure(old_state))
     new_machine.make_initial_state(key, new_state)
   # Tricky bit here: we add things to the end of this list while we're
   # iterating over it. The iteration stops when closure is achieved.
   for new_state in new_machine.states:
     transitions = TransitionMap()
-    for old_state in state_map.new_to_old(new_state).keys():
-      for event, old_target_states in old_state.transitions.items():
+    for old_state in state_map.new_to_old(new_state):
+      for event, old_target_states in old_state.transitions.iteritems():
         if event and old_target_states:
           transitions.add_set(event, set_epsilon_closure(old_target_states))
-    for event, old_states in transitions.items():
+    for event, old_states in transitions.iteritems():
       new_machine.add_transitions(new_state, event, state_map.old_to_new(old_states))
   if debug:
     debug.write("\n===== State Mapping =====\n")
@@ -53,8 +53,8 @@ def set_epsilon_closure(state_set):
   closures of its member states.
   """
   result = {}
-  for state1 in state_set.keys():
-    for state2 in epsilon_closure(state1).keys():
+  for state1 in state_set:
+    for state2 in epsilon_closure(state1):
       result[state2] = 1
   return result
 
@@ -80,7 +80,7 @@ def add_to_epsilon_closure(state_set, state):
     state_set[state] = 1
     state_set_2 = state.transitions.get_epsilon()
     if state_set_2:
-      for state2 in state_set_2.keys():
+      for state2 in state_set_2:
         add_to_epsilon_closure(state_set, state2)
 
 class StateMap(object):
@@ -119,7 +119,7 @@ class StateMap(object):
   def highest_priority_action(self, state_set):
     best_action = None
     best_priority = LOWEST_PRIORITY
-    for state in state_set.keys():
+    for state in state_set:
       priority = state.action_priority
       if priority > best_priority:
         best_action = state.action
@@ -142,7 +142,7 @@ class StateMap(object):
     Convert a set of states into a uniquified
     sorted tuple suitable for use as a dictionary key.
     """
-    lst = state_set.keys()
+    lst = list(state_set)
     lst.sort()
     return tuple(lst)
 

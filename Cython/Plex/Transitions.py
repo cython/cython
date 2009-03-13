@@ -6,7 +6,6 @@
 #
 
 from copy import copy
-import string
 from sys import maxint
 from types import TupleType
 
@@ -89,10 +88,10 @@ class TransitionMap(object):
     """
     return self.special.get('', none)
   
-  def items(self,
+  def iteritems(self,
     len = len):
     """
-    Return the mapping as a list of ((code1, code2), state_set) and
+    Return the mapping as an iterable of ((code1, code2), state_set) and
     (special_event, state_set) pairs.
     """
     result = []
@@ -108,10 +107,10 @@ class TransitionMap(object):
         result.append(((code0, code1), set))
       code0 = code1
       i = i + 2
-    for event, set in self.special.items():
+    for event, set in self.special.iteritems():
       if set:
         result.append((event, set))
-    return result
+    return iter(result)
   
   # ------------------- Private methods --------------------
 
@@ -178,10 +177,10 @@ class TransitionMap(object):
         map_strs.append(state_set_str(map[i]))
       i = i + 1
     special_strs = {}
-    for event, set in self.special.items():
+    for event, set in self.special.iteritems():
       special_strs[event] = state_set_str(set)
     return "[%s]+%s" % (
-      string.join(map_strs, ","), 
+      ','.join(map_strs),
       special_strs
     )
   
@@ -200,7 +199,7 @@ class TransitionMap(object):
     while i < n:
       self.dump_range(map[i], map[i + 2], map[i + 1], file)
       i = i + 2
-    for event, set in self.special.items():
+    for event, set in self.special.iteritems():
       if set:
         if not event:
           event = 'empty'
@@ -243,11 +242,7 @@ class TransitionMap(object):
 #            set1[state] = 1
 
 def state_set_str(set):
-  state_list = set.keys()
-  str_list = []
-  for state in state_list:
-    str_list.append("S%d" % state.number)
-  return "[%s]" % string.join(str_list, ",")
+  return "[%s]" % ','.join(["S%d" % state.number for state in set])
   
     
 

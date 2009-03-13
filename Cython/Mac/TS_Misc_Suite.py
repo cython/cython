@@ -20,7 +20,7 @@ class TS_Misc_Suite(object):
         _code = 'misc'
         _subcode = 'dosc'
 
-        if _arguments: raise TypeError, 'No optional args expected'
+        if _arguments: raise TypeError('No optional args expected')
         _arguments['----'] = _object
 
 
@@ -35,15 +35,15 @@ class TS_Misc_Suite(object):
         stat = 0
         stdout = ""
         stderr = ""
-        if _arguments.has_key('errn'):
+        if 'errn' in _arguments:
             errn = _arguments['errn']
             if errn:
                 errn = aetools.decodeerror(_arguments)
-        if _arguments.has_key('stat'):
+        if 'stat' in _arguments:
             stat = _arguments['stat']
-        if _arguments.has_key('----'):
+        if '----' in _arguments:
             stdout = _arguments['----']
-        if _arguments.has_key('diag'):
+        if 'diag' in _arguments:
             stderr = _arguments['diag']
         return (errn, stat, stdout, stderr)
 

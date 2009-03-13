@@ -7,7 +7,6 @@
 #=======================================================================
 
 import array
-import string
 import types
 from sys import maxint
 
@@ -330,7 +329,7 @@ class Seq(RE):
                 match_bol = re.match_nl or (match_bol and re.nullable)
 
     def calc_str(self):
-        return "Seq(%s)" % string.join(map(str, self.re_list), ",")
+        return "Seq(%s)" % ','.join(map(str, self.re_list))
 
 
 class Alt(RE):
@@ -369,7 +368,7 @@ class Alt(RE):
                 re.build_machine(m, initial_state, final_state, 0, nocase)
 
     def calc_str(self):
-        return "Alt(%s)" % string.join(map(str, self.re_list), ",")
+        return "Alt(%s)" % ','.join(map(str, self.re_list))
 
 
 class Rep1(RE):
@@ -437,7 +436,7 @@ def Str1(s):
     """
     Str1(s) is an RE which matches the literal string |s|.
     """
-    result = apply(Seq, tuple(map(Char, s)))
+    result = Seq(*tuple(map(Char, s)))
     result.str = "Str(%s)" % repr(s)
     return result
 
@@ -449,8 +448,8 @@ def Str(*strs):
     if len(strs) == 1:
         return Str1(strs[0])
     else:
-        result = apply(Alt, tuple(map(Str1, strs)))
-        result.str = "Str(%s)" % string.join(map(repr, strs), ",")
+        result = Alt(*tuple(map(Str1, strs)))
+        result.str = "Str(%s)" % ','.join(map(repr, strs))
         return result
 
 def Any(s):
@@ -495,7 +494,7 @@ def Range(s1, s2 = None):
         ranges = []
         for i in range(0, len(s1), 2):
             ranges.append(CodeRange(ord(s1[i]), ord(s1[i+1]) + 1))
-        result = apply(Alt, tuple(ranges))
+        result = Alt(*ranges)
         result.str = "Range(%s)" % repr(s1)
     return result
 

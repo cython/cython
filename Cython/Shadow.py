@@ -57,12 +57,12 @@ class PointerType(CythonType):
             
     def __getitem__(self, ix):
         if ix < 0:
-            raise IndexError, "negative indexing not allowed in C"
+            raise IndexError("negative indexing not allowed in C")
         return self._items[ix]
         
     def __setitem__(self, ix, value):
         if ix < 0:
-            raise IndexError, "negative indexing not allowed in C"
+            raise IndexError("negative indexing not allowed in C")
         self._items[ix] = cast(self._basetype, value)
         
 class ArrayType(PointerType):
@@ -74,22 +74,22 @@ class ArrayType(PointerType):
 class StructType(CythonType):
     
     def __init__(self, **data):
-        for key, value in data.items():
+        for key, value in data.iteritems():
             setattr(self, key, value)
             
     def __setattr__(self, key, value):
         if key in self._members:
             self.__dict__[key] = cast(self._members[key], value)
         else:
-            raise AttributeError, "Struct has no member '%s'" % key
+            raise AttributeError("Struct has no member '%s'" % key)
     
 
 class UnionType(CythonType):
 
     def __init__(self, **data):
         if len(data) > 0:
-            raise AttributeError, "Union can only store one field at a time."
-        for key, value in data.items():
+            raise AttributeError("Union can only store one field at a time.")
+        for key, value in data.iteritems():
             setattr(self, key, value)
             
     def __setattr__(self, key, value):
@@ -98,7 +98,7 @@ class UnionType(CythonType):
         elif key in self._members:
             self.__dict__ = {key: cast(self._members[key], value)}
         else:
-            raise AttributeError, "Union has no member '%s'" % key
+            raise AttributeError("Union has no member '%s'" % key)
 
 def pointer(basetype):
     class PointerInstance(PointerType):
@@ -114,14 +114,14 @@ def array(basetype, n):
 def struct(**members):
     class StructInstance(StructType):
         _members = members
-    for key in members.keys():
+    for key in members:
         setattr(StructInstance, key, None)
     return StructInstance
 
 def union(**members):
     class UnionInstance(UnionType):
         _members = members
-    for key in members.keys():
+    for key in members:
         setattr(UnionInstance, key, None)
     return UnionInstance
 
