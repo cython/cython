@@ -101,7 +101,7 @@ def CodeRange(code1, code2):
 #     Abstract classes
 #
 
-class RE:
+class RE(object):
     """RE is the base class for regular expression constructors.
     The following operators are defined on REs:
 

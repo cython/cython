@@ -10,7 +10,7 @@ import string
 from sys import maxint
 from types import TupleType
 
-class TransitionMap:
+class TransitionMap(object):
   """
   A TransitionMap maps an input event to a set of states.
   An input event is one of: a range of character codes, 

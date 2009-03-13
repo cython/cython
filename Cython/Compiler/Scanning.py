@@ -154,7 +154,7 @@ reserved_words = [
     "cimport", "by", "with", "cpdef", "DEF", "IF", "ELIF", "ELSE"
 ]
 
-class Method:
+class Method(object):
 
     def __init__(self, name):
         self.name = name
@@ -176,7 +176,7 @@ resword_dict = build_resword_dict()
 
 #------------------------------------------------------------------
 
-class CompileTimeScope:
+class CompileTimeScope(object):
 
     def __init__(self, outer = None):
         self.entries = {}
@@ -220,7 +220,7 @@ def initial_compile_time_env():
 
 #------------------------------------------------------------------
 
-class SourceDescriptor:
+class SourceDescriptor(object):
     """
     A SourceDescriptor should be considered immutable.
     """

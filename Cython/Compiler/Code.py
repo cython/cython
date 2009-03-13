@@ -929,7 +929,7 @@ class CCodeWriter(object):
         self.putln("__Pyx_FinishRefcountContext();")
 
 
-class PyrexCodeWriter:
+class PyrexCodeWriter(object):
     # f                file      output file
     # level            int       indentation level
 

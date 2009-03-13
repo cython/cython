@@ -18,7 +18,7 @@ import Regexps
 DUMP_NFA = 1
 DUMP_DFA = 2
 
-class State:
+class State(object):
   """
   This class is used as part of a Plex.Lexicon specification to
   introduce a user-defined state.
@@ -35,7 +35,7 @@ class State:
     self.name = name
     self.tokens = tokens
 
-class Lexicon:
+class Lexicon(object):
   """
   Lexicon(specification) builds a lexical analyser from the given
   |specification|. The specification consists of a list of

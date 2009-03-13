@@ -83,7 +83,7 @@ def add_to_epsilon_closure(state_set, state):
       for state2 in state_set_2.keys():
         add_to_epsilon_closure(state_set, state2)
 
-class StateMap:
+class StateMap(object):
   """
   Helper class used by nfa_to_dfa() to map back and forth between
   sets of states from the old machine and states of the new machine.

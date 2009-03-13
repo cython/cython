@@ -3727,7 +3727,7 @@ class SwitchStatNode(StatNode):
         if self.else_clause is not None:
             self.else_clause.annotate(code)
             
-class LoopNode:
+class LoopNode(object):
     
     def analyse_control_flow(self, env):
         env.start_branching(self.pos)

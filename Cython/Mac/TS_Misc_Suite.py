@@ -10,7 +10,7 @@ import MacOS
 
 _code = 'misc'
 
-class TS_Misc_Suite:
+class TS_Misc_Suite(object):
 
     def DoScript(self, _object, _attributes={}, **_arguments):
         """DoScript: Execute an MPW command, any command that could be executed from the command line can be sent as a script.

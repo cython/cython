@@ -170,7 +170,7 @@ def escape(raw_string):
     return raw_string
 
 
-class AnnotationItem:
+class AnnotationItem(object):
     
     def __init__(self, style, text, tag="", size=0):
         self.style = style

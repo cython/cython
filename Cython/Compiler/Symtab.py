@@ -23,7 +23,7 @@ except NameError:
 possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
 
-class BufferAux:
+class BufferAux(object):
     writable_needed = False
     
     def __init__(self, buffer_info_var, stridevars, shapevars,
@@ -36,7 +36,7 @@ class BufferAux:
     def __repr__(self):
         return "<BufferAux %r>" % self.__dict__
 
-class Entry:
+class Entry(object):
     # A symbol table entry in a Scope or ModuleNamespace.
     #
     # name             string     Python name of entity
@@ -158,7 +158,7 @@ class Entry:
         error(pos, "'%s' does not match previous declaration" % self.name)
         error(self.pos, "Previous declaration is here")
 
-class Scope:
+class Scope(object):
     # name              string             Unqualified name
     # outer_scope       Scope or None      Enclosing scope
     # entries           {string : Entry}   Python name to entry, non-types

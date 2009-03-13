@@ -12,7 +12,7 @@ from Visitor import BasicVisitor
 from Errors import CompileError
 
 
-class EmptyScope:
+class EmptyScope(object):
     def lookup(self, name):
         return None
     
