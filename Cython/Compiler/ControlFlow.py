@@ -15,7 +15,7 @@ import bisect, sys
 
 _END_POS = ((unichr(sys.maxunicode)*10),())
 
-class ControlFlow:
+class ControlFlow(object):
 
     def __init__(self, start_pos, incoming, parent):
         self.start_pos = start_pos

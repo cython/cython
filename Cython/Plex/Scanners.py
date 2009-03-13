@@ -12,7 +12,7 @@ from Regexps import BOL, EOL, EOF
 
 import cython
 
-class Scanner:
+class Scanner(object):
   """
   A Scanner is used to read tokens from a stream of characters
   using the token set specified by a Plex.Lexicon.

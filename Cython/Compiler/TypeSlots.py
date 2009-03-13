@@ -8,7 +8,7 @@ import PyrexTypes
 import StringEncoding
 import sys
 
-class Signature:
+class Signature(object):
     #  Method slot signature descriptor.
     #
     #  has_dummy_arg      boolean
@@ -119,7 +119,7 @@ class Signature:
         return None
 
 
-class SlotDescriptor:
+class SlotDescriptor(object):
     #  Abstract base class for type slot descriptors.
     #
     #  slot_name    string           Member name of the slot in the type object

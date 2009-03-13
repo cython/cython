@@ -34,7 +34,7 @@ def dumptree(t):
     print t.dump()
     return t
 
-class CompilationData:
+class CompilationData(object):
     #  Bundles the information that is passed from transform to transform.
     #  (For now, this is only)
 
@@ -48,7 +48,7 @@ class CompilationData:
     #  result                CompilationResult
     pass
 
-class Context:
+class Context(object):
     #  This class encapsulates the context needed for compiling
     #  one or more Cython implementation files along with their
     #  associated and imported declaration files. It includes
@@ -556,7 +556,7 @@ class CompilationSource(object):
         self.full_module_name = full_module_name
         self.cwd = cwd
 
-class CompilationOptions:
+class CompilationOptions(object):
     """
     Options to the Cython compiler:
     
@@ -597,7 +597,7 @@ class CompilationOptions:
             self.obj_only = 0
 
 
-class CompilationResult:
+class CompilationResult(object):
     """
     Results from the Cython compiler:
     

@@ -6,7 +6,7 @@
 #
 #=======================================================================
 
-class Action:
+class Action(object):
 
   def same_as(self, other):
     return self is other

@@ -19,7 +19,7 @@ def re(s):
   """
   return REParser(s).parse_re()
 
-class REParser:
+class REParser(object):
 
   def __init__(self, s):
     self.s = s

@@ -27,7 +27,7 @@ class NameNodeCollector(TreeVisitor):
         self.name_nodes.append(node)
 
 
-class SkipDeclarations:
+class SkipDeclarations(object):
     """
     Variable and function declarations can often have a deep tree structure, 
     and yet most transformations don't need to descend to this depth. 
