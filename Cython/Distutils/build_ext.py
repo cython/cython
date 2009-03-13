@@ -7,7 +7,7 @@ building Cython extension modules."""
 
 __revision__ = "$Id:$"
 
-import sys, os, string, re
+import sys, os, re
 from types import *
 from distutils.core import Command
 from distutils.errors import *
@@ -72,7 +72,7 @@ class build_ext(_build_ext.build_ext):
             self.pyrex_include_dirs = []
         elif type(self.pyrex_include_dirs) is StringType:
             self.pyrex_include_dirs = \
-                string.split(self.pyrex_include_dirs, os.pathsep)
+                self.pyrex_include_dirs.split(os.pathsep)
     # finalize_options ()
 
     def build_extensions(self):
