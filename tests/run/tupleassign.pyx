@@ -3,6 +3,8 @@ __doc__ = u"""
 (1, 2, 3)
 >>> assign3(t)
 (1, 2, 3)
+>>> assign3_typed(t)
+(1, 2, 3)
 >>> assign3_int(l)
 (1, 2, 3)
 >>> assign3_mixed1(l)
@@ -11,6 +13,40 @@ __doc__ = u"""
 (1, 2, 3)
 >>> assign3_mixed3(l)
 (1, 2, 3)
+
+>>> assign3_typed(l)
+Traceback (most recent call last):
+TypeError: Argument 't' has incorrect type (expected tuple, got list)
+
+>>> a,b,c = (1,) # doctest: +ELLIPSIS
+Traceback (most recent call last):
+ValueError: ...
+>>> assign3((1,))
+Traceback (most recent call last):
+ValueError: need more than 1 value to unpack
+>>> assign3_typed((1,))
+Traceback (most recent call last):
+ValueError: need more than 1 value to unpack
+
+>>> a,b,c = (1,2) # doctest: +ELLIPSIS
+Traceback (most recent call last):
+ValueError: ...
+>>> assign3((1,2))
+Traceback (most recent call last):
+ValueError: need more than 2 values to unpack
+>>> assign3_typed((1,2))
+Traceback (most recent call last):
+ValueError: need more than 2 values to unpack
+
+>>> a,b,c = (1,2,3,4)
+Traceback (most recent call last):
+ValueError: too many values to unpack
+>>> assign3((1,2,3,4))
+Traceback (most recent call last):
+ValueError: too many values to unpack
+>>> assign3_typed((1,2,3,4))
+Traceback (most recent call last):
+ValueError: too many values to unpack
 
 >>> a,b = 99,98
 >>> a,b = t
@@ -44,6 +80,10 @@ t = (1,2,3)
 l = [1,2,3]
 
 def assign3(t):
+    a,b,c = t
+    return (a,b,c)
+
+def assign3_typed(tuple t):
     a,b,c = t
     return (a,b,c)
 

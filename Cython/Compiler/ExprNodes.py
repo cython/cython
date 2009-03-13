@@ -3014,9 +3014,13 @@ class SequenceNode(NewTempExprNode):
         # allocates the temps in a rather hacky way -- the assignment
         # is evaluated twice, within each if-block.
 
+        if rhs.type is tuple_type:
+            tuple_check = "likely(%s != Py_None)"
+        else:
+            tuple_check = "PyTuple_CheckExact(%s)"
         code.putln(
-            "if (PyTuple_CheckExact(%s) && PyTuple_GET_SIZE(%s) == %s) {" % (
-                rhs.py_result(), 
+            "if (%s && likely(PyTuple_GET_SIZE(%s) == %s)) {" % (
+                tuple_check % rhs.py_result(), 
                 rhs.py_result(), 
                 len(self.args)))
         code.putln("PyObject* tuple = %s;" % rhs.py_result())
@@ -3037,37 +3041,55 @@ class SequenceNode(NewTempExprNode):
                  
         code.putln("} else {")
 
-        code.putln(
-            "%s = PyObject_GetIter(%s); %s" % (
-                self.iterator.result(),
-                rhs.py_result(),
-                code.error_goto_if_null(self.iterator.result(), self.pos)))
-        code.put_gotref(self.iterator.py_result())
-        rhs.generate_disposal_code(code)
-        for i in range(len(self.args)):
-            item = self.unpacked_items[i]
-            unpack_code = "__Pyx_UnpackItem(%s, %d)" % (
-                self.iterator.py_result(), i)
+        if rhs.type is tuple_type:
+            code.globalstate.use_utility_code(raise_none_iter_error_utility_code)
+            code.putln("if (%s == Py_None) {" %
+                       rhs.py_result())
+            code.putln("__Pyx_RaiseNoneNotIterableError();")
+            code.putln("} else if (PyTuple_GET_SIZE(%s) < %s) {" % (
+                rhs.py_result(), len(self.args)))
+            code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
+            code.putln("__Pyx_RaiseNeedMoreValuesError(PyTuple_GET_SIZE(%s));" %
+                       rhs.py_result());
+            code.putln("} else {")
+            code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
+            code.putln("__Pyx_RaiseTooManyValuesError();");
+            code.putln("}")
             code.putln(
-                "%s = %s; %s" % (
-                    item.result(),
-                    typecast(item.ctype(), py_object_type, unpack_code),
-                    code.error_goto_if_null(item.result(), self.pos)))
-            code.put_gotref(item.py_result())
-            value_node = self.coerced_unpacked_items[i]
-            value_node.generate_evaluation_code(code)
-        code.put_error_if_neg(self.pos, 
-            "__Pyx_EndUnpack(%s)" % (
-                self.iterator.py_result()))
-        if debug_disposal_code:
-            print("UnpackNode.generate_assignment_code:")
-            print("...generating disposal code for %s" % self.iterator)
-        self.iterator.generate_disposal_code(code)
-        self.iterator.free_temps(code)
+                code.error_goto(self.pos))
+        else:
+            code.putln(
+                "%s = PyObject_GetIter(%s); %s" % (
+                    self.iterator.result(),
+                    rhs.py_result(),
+                    code.error_goto_if_null(self.iterator.result(), self.pos)))
+            code.put_gotref(self.iterator.py_result())
+            rhs.generate_disposal_code(code)
+            for i in range(len(self.args)):
+                item = self.unpacked_items[i]
+                unpack_code = "__Pyx_UnpackItem(%s, %d)" % (
+                    self.iterator.py_result(), i)
+                code.putln(
+                    "%s = %s; %s" % (
+                        item.result(),
+                        typecast(item.ctype(), py_object_type, unpack_code),
+                        code.error_goto_if_null(item.result(), self.pos)))
+                code.put_gotref(item.py_result())
+                value_node = self.coerced_unpacked_items[i]
+                value_node.generate_evaluation_code(code)
+            code.put_error_if_neg(self.pos, 
+                "__Pyx_EndUnpack(%s)" % (
+                    self.iterator.py_result()))
+            if debug_disposal_code:
+                print("UnpackNode.generate_assignment_code:")
+                print("...generating disposal code for %s" % self.iterator)
+            self.iterator.generate_disposal_code(code)
+            self.iterator.free_temps(code)
 
-        for i in range(len(self.args)):
-            self.args[i].generate_assignment_code(
-                self.coerced_unpacked_items[i], code)
+            for i in range(len(self.args)):
+                self.args[i].generate_assignment_code(
+                    self.coerced_unpacked_items[i], code)
+
         code.putln("}")
         rhs.free_temps(code)
         
@@ -5257,43 +5279,6 @@ bad:
 
 #------------------------------------------------------------------------------------
 
-unpacking_utility_code = UtilityCode(
-proto = """
-static PyObject *__Pyx_UnpackItem(PyObject *, Py_ssize_t index); /*proto*/
-static int __Pyx_EndUnpack(PyObject *); /*proto*/
-""",
-impl = """
-static PyObject *__Pyx_UnpackItem(PyObject *iter, Py_ssize_t index) {
-    PyObject *item;
-    if (!(item = PyIter_Next(iter))) {
-        if (!PyErr_Occurred()) {
-            PyErr_Format(PyExc_ValueError,
-                #if PY_VERSION_HEX < 0x02050000
-                    "need more than %d values to unpack", (int)index);
-                #else
-                    "need more than %zd values to unpack", index);
-                #endif
-        }
-    }
-    return item;
-}
-
-static int __Pyx_EndUnpack(PyObject *iter) {
-    PyObject *item;
-    if ((item = PyIter_Next(iter))) {
-        Py_DECREF(item);
-        PyErr_SetString(PyExc_ValueError, "too many values to unpack");
-        return -1;
-    }
-    else if (!PyErr_Occurred())
-        return 0;
-    else
-        return -1;
-}
-""")
-
-#------------------------------------------------------------------------------------
-
 type_test_utility_code = UtilityCode(
 proto = """
 static int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type); /*proto*/
@@ -5531,18 +5516,89 @@ raise_noneattr_error_utility_code = UtilityCode(
 proto = """
 static INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname);
 """,
-impl = """
+impl = '''
 static INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname) {
     PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%s'", attrname);
 }
-""")
+''')
 
 raise_noneindex_error_utility_code = UtilityCode(
 proto = """
 static INLINE void __Pyx_RaiseNoneIndexingError(void);
 """,
-impl = """
+impl = '''
 static INLINE void __Pyx_RaiseNoneIndexingError(void) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is unsubscriptable");
 }
-""")
+''')
+
+raise_none_iter_error_utility_code = UtilityCode(
+proto = """
+static INLINE void __Pyx_RaiseNoneNotIterableError(void);
+""",
+impl = '''
+static INLINE void __Pyx_RaiseNoneNotIterableError(void) {
+    PyErr_SetString(PyExc_TypeError, "'NoneType' object is iterable");
+}
+''')
+
+raise_too_many_values_to_unpack = UtilityCode(
+proto = """
+static INLINE void __Pyx_RaiseTooManyValuesError(void);
+""",
+impl = '''
+static INLINE void __Pyx_RaiseTooManyValuesError(void) {
+    PyErr_SetString(PyExc_ValueError, "too many values to unpack");
+}
+''')
+
+raise_need_more_values_to_unpack = UtilityCode(
+proto = """
+static INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index);
+""",
+impl = '''
+static INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index) {
+    PyErr_Format(PyExc_ValueError,
+        #if PY_VERSION_HEX < 0x02050000
+                 "need more than %d value%s to unpack", (int)index,
+        #else
+                 "need more than %zd value%s to unpack", index,
+        #endif
+                 (index == 1) ? "" : "s");
+}
+''')
+
+#------------------------------------------------------------------------------------
+
+unpacking_utility_code = UtilityCode(
+proto = """
+static PyObject *__Pyx_UnpackItem(PyObject *, Py_ssize_t index); /*proto*/
+static int __Pyx_EndUnpack(PyObject *); /*proto*/
+""",
+impl = """
+static PyObject *__Pyx_UnpackItem(PyObject *iter, Py_ssize_t index) {
+    PyObject *item;
+    if (!(item = PyIter_Next(iter))) {
+        if (!PyErr_Occurred()) {
+            __Pyx_RaiseNeedMoreValuesError(index);
+        }
+    }
+    return item;
+}
+
+static int __Pyx_EndUnpack(PyObject *iter) {
+    PyObject *item;
+    if ((item = PyIter_Next(iter))) {
+        Py_DECREF(item);
+        __Pyx_RaiseTooManyValuesError();
+        return -1;
+    }
+    else if (!PyErr_Occurred())
+        return 0;
+    else
+        return -1;
+}
+""",
+requires = [raise_need_more_values_to_unpack,
+            raise_too_many_values_to_unpack]
+)
