@@ -3692,6 +3692,7 @@ class SwitchCaseNode(StatNode):
     
     def generate_execution_code(self, code):
         for cond in self.conditions:
+            code.mark_pos(cond.pos)
             code.putln("case %s:" % cond.calculate_result_code())
         self.body.generate_execution_code(code)
         code.putln("break;")
