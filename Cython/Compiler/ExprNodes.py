@@ -3042,21 +3042,10 @@ class SequenceNode(NewTempExprNode):
         code.putln("} else {")
 
         if rhs.type is tuple_type:
-            code.globalstate.use_utility_code(raise_none_iter_error_utility_code)
-            code.putln("if (%s == Py_None) {" %
-                       rhs.py_result())
-            code.putln("__Pyx_RaiseNoneNotIterableError();")
-            code.putln("} else if (PyTuple_GET_SIZE(%s) < %s) {" % (
-                rhs.py_result(), len(self.args)))
-            code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
-            code.putln("__Pyx_RaiseNeedMoreValuesError(PyTuple_GET_SIZE(%s));" %
-                       rhs.py_result());
-            code.putln("} else {")
-            code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
-            code.putln("__Pyx_RaiseTooManyValuesError();");
-            code.putln("}")
-            code.putln(
-                code.error_goto(self.pos))
+            code.globalstate.use_utility_code(tuple_unpacking_error_code)
+            code.putln("__Pyx_UnpackTupleError(%s, %s);" % (
+                        rhs.py_result(), len(self.args)))
+            code.putln(code.error_goto(self.pos))
         else:
             code.putln(
                 "%s = PyObject_GetIter(%s); %s" % (
@@ -5569,6 +5558,26 @@ static INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index) {
 ''')
 
 #------------------------------------------------------------------------------------
+
+tuple_unpacking_error_code = UtilityCode(
+proto = """
+static void __Pyx_UnpackTupleError(PyObject *, Py_ssize_t index); /*proto*/
+""", 
+impl = """
+static void __Pyx_UnpackTupleError(PyObject *t, Py_ssize_t index) {
+    if (t == Py_None) {
+      __Pyx_RaiseNoneNotIterableError();
+    } else if (PyTuple_GET_SIZE(t) < index) {
+      __Pyx_RaiseNeedMoreValuesError(PyTuple_GET_SIZE(t));
+    } else {
+      __Pyx_RaiseTooManyValuesError();
+    }
+}
+""", 
+requires = [raise_none_iter_error_utility_code,
+            raise_need_more_values_to_unpack,
+            raise_too_many_values_to_unpack]
+)
 
 unpacking_utility_code = UtilityCode(
 proto = """
