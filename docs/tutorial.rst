@@ -167,5 +167,5 @@ Language Details
 ================
 
 For more about the Cython language, see :ref:`language-basics`. 
-To dive right in to using Cython in a numerical computation context, see :ref:`_numpy_tutorial`.
+To dive right in to using Cython in a numerical computation context, see :ref:`numpy_tutorial`.
 
