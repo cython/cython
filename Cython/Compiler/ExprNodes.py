@@ -4255,29 +4255,22 @@ class ModNode(NumBinopNode):
 
 class PowNode(NumBinopNode):
     #  '**' operator.
-
-    def compute_c_result_type(self, type1, type2):
-        if self.c_types_okay(type1, type2):
-            return PyrexTypes.c_double_type
+    
+    def analyse_c_operation(self, env):
+        NumBinopNode.analyse_c_operation(self, env)
+        if self.operand1.type.is_float or self.operand2.type.is_float:
+            self.pow_func = "pow"
         else:
-            return None
-
-    def c_types_okay(self, type1, type2):
-        return (type1.is_float or type2.is_float) and \
-                NumBinopNode.c_types_okay(self, type1, type2)
-
-    def type_error(self):
-        if not (self.operand1.type.is_error or self.operand2.type.is_error):
-            if self.operand1.type.is_int and self.operand2.type.is_int:
-                error(self.pos, "C has no integer powering, use python ints or floats instead '%s' (%s; %s)" %
-                    (self.operator, self.operand1.type, self.operand2.type))
-            else:
-                NumBinopNode.type_error(self)
-        self.type = PyrexTypes.error_type
+            self.pow_func = "__Pyx_pow_%s" % self.type.declaration_code('').replace(' ', '_')
+            env.use_utility_code(
+                    int_pow_utility_code.specialize(func_name=self.pow_func, 
+                                                type=self.type.declaration_code('')))
 
     def calculate_result_code(self):
-        return "pow(%s, %s)" % (
-            self.operand1.result(), self.operand2.result())
+        return "%s(%s, %s)" % (
+            self.pow_func, 
+            self.operand1.result(), 
+            self.operand2.result())
 
 
 # Note: This class is temporary "shut down" into an ineffective mode temp
@@ -5611,3 +5604,34 @@ static int __Pyx_EndUnpack(PyObject *iter) {
 requires = [raise_need_more_values_to_unpack,
             raise_too_many_values_to_unpack]
 )
+
+
+#------------------------------------------------------------------------------------
+
+int_pow_utility_code = UtilityCode(
+proto="""
+static INLINE %(type)s %(func_name)s(%(type)s, %(type)s); /* proto */
+""",
+impl="""
+static INLINE %(type)s %(func_name)s(%(type)s b, %(type)s e) {
+    %(type)s t = b;
+    switch (e) {
+        case 3:
+            t *= b;
+        case 2:
+            t *= b;
+        case 1:
+            return t;
+        case 0:
+            return 1;
+    }
+    if (unlikely(e<0)) return 0;
+    t = 1;
+    while (likely(e)) {
+        t *= (b * (e&1)) | ((~e)&1);    /* 1 or b */
+        b *= b;
+        e >>= 1;
+    }
+    return t;
+}
+""")
