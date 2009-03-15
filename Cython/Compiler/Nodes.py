@@ -1336,7 +1336,7 @@ class CFuncDefNode(FuncDefNode):
         self.entry.inline_func_in_pxd = self.inline_in_pxd
         self.return_type = type.return_type
         
-        if self.overridable:
+        if self.overridable and len(self.args) > 0:
             import ExprNodes
             py_func_body = self.call_self_node(is_module_scope = env.is_module_scope)
             self.py_func = DefNode(pos = self.pos, 
@@ -1393,7 +1393,7 @@ class CFuncDefNode(FuncDefNode):
 
     def analyse_expressions(self, env):
         self.analyse_default_values(env)
-        if self.overridable:
+        if self.py_func is not None:
             self.py_func.analyse_expressions(env)
 
     def generate_function_header(self, code, with_pymethdef, with_opt_args = 1, with_dispatch = 1, cname = None):
