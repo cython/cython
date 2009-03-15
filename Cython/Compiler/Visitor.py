@@ -342,7 +342,15 @@ class PrintTree(TreeVisitor):
             elif isinstance(node, ExprNodes.ExprNode):
                 t = node.type
                 result += "(type=%s)" % repr(t)
-                
+            elif node.pos:
+                pos = node.pos
+                path = pos[0].get_description()
+                if '/' in path:
+                    path = path.split('/')[-1]
+                if '\\' in path:
+                    path = path.split('\\')[-1]
+                result += "(pos=(%s:%s:%s))" % (path, pos[1], pos[2])
+
             return result
 
 if __name__ == "__main__":
