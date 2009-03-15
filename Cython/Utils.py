@@ -89,6 +89,12 @@ def long_literal(value):
             value = int(value)
     return not -2**31 <= value < 2**31
 
+def none_or_sub(s, data):
+    if s is None:
+        return s
+    else:
+        return s % data
+
 # a simple class that simplifies the usage of utility code
 
 class UtilityCode(object):
@@ -98,6 +104,7 @@ class UtilityCode(object):
         self.init = init
         self.cleanup = cleanup
         self.requires = requires
+        self._cache = {}
 
     def write_init_code(self, writer, pos):
         if not self.init:
@@ -114,3 +121,21 @@ class UtilityCode(object):
             self.cleanup(writer, pos)
         else:
             writer.put(self.cleanup)
+    
+    def specialize(self, **data):
+        # Dicts aren't hashable...
+        key = data.items(); key.sort(); key = tuple(key)
+        try:
+            return self._cache[key]
+        except KeyError:
+            if self.requires is None:
+                requires = None
+            else:
+                requires = [r.specialize(data) for r in self.requires]
+            s = self._cache[key] = UtilityCode(
+                                        none_or_sub(self.proto, data),
+                                        none_or_sub(self.impl, data),
+                                        none_or_sub(self.init, data),
+                                        none_or_sub(self.cleanup, data),
+                                        requires)
+            return s
