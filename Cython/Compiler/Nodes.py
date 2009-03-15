@@ -116,8 +116,8 @@ class Node(object):
     #  is_name     boolean              Is a NameNode
     #  is_literal  boolean              Is a ConstNode
 
-    # Uncomment this for debugging.
-    # __metaclass__ = VerboseCodeWriter
+    if DebugFlags.debug_trace_code_generation:
+        __metaclass__ = VerboseCodeWriter
     
     is_name = 0
     is_literal = 0
