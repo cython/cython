@@ -8,16 +8,24 @@ __doc__ = u"""
     >>> h(4)
     625
 
-    >>> constant_py() == 2L ** 10
+    >>> constant_py() == 2 ** 10
     True
 
-    >>> constant_long() == 2L ** 36
+    >>> constant_long() == 2 ** 36
     True
+    
+    >>> small_int_pow(3)
+    (1, 3, 9, 27, 81)
+    >>> small_int_pow(-5)
+    (1, -5, 25, -125, 625)
+    
+    >>> int_pow(7, 2)
+    49
+    >>> int_pow(5, 3)
+    125
+    >>> int_pow(2, 10)
+    1024
 """
-
-import sys
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u"2L", u"2")
 
 def f(obj2, obj3):
     cdef float flt1, flt2, flt3
@@ -40,3 +48,9 @@ def constant_py():
 def constant_long():
     result = (<object>2L) ** 36
     return result
+
+def small_int_pow(long s):
+    return s**0, s**1, s**2, s**3, s**4
+
+def int_pow(short a, short b):
+    return a**b
