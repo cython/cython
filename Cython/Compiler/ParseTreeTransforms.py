@@ -659,7 +659,7 @@ class DecoratorTransform(CythonTransform, SkipDeclarations):
         return [func_node, reassignment]
 
 
-ERR_DEC_AFTER = "cdef variable '%s' declared after it's used."
+ERR_DEC_AFTER = "cdef variable '%s' declared after it is used"
 class AnalyseDeclarationsTransform(CythonTransform):
 
     basic_property = TreeFragment(u"""

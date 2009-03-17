@@ -51,15 +51,15 @@ cdef unsigned long long var[100][100]
 
 
 _ERRORS = u"""
-4:13: cdef variable 's' declared after it's used.
-4:16: cdef variable 'vv' declared after it's used.
-9:14: cdef variable 'i' declared after it's used.
-15:14: cdef variable 'i' declared after it's used.
-21:14: cdef variable 'i' declared after it's used.
-24:9: cdef variable 's' declared after it's used.
-30:17: cdef variable 't' declared after it's used.
-34:13: cdef variable 'r' declared after it's used.
-40:17: cdef variable 't' declared after it's used.
-47:10: cdef variable 'baz' declared after it's used.
-50:24: cdef variable 'var' declared after it's used.
+4:13: cdef variable 's' declared after it is used
+4:16: cdef variable 'vv' declared after it is used
+9:14: cdef variable 'i' declared after it is used
+15:14: cdef variable 'i' declared after it is used
+21:14: cdef variable 'i' declared after it is used
+24:9: cdef variable 's' declared after it is used
+30:17: cdef variable 't' declared after it is used
+34:13: cdef variable 'r' declared after it is used
+40:17: cdef variable 't' declared after it is used
+47:10: cdef variable 'baz' declared after it is used
+50:24: cdef variable 'var' declared after it is used
 """
