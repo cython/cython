@@ -102,7 +102,12 @@ def try_to_unpickle_lexicon():
         if notify_lexicon_unpickling:
             t0 = time()
             print("Unpickling lexicon...")
-        lexicon = pickle.load(f)
+        try:
+            lexicon = pickle.load(f)
+        except Exception, e:
+            print "WARNING: Exception while loading lexicon pickle, regenerating"
+            print e
+            lexicon = None
         f.close()
         if notify_lexicon_unpickling:
             t1 = time()
