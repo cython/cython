@@ -251,6 +251,7 @@ class Scope(object):
         self.pystring_entries = []
         self.buffer_entries = []
         self.control_flow = ControlFlow.LinearControlFlow()
+        self.return_type = None
         
     def start_branching(self, pos):
         self.control_flow = self.control_flow.start_branch(pos)
