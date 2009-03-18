@@ -261,7 +261,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_py_string_decls(env, code)
 
         code.globalstate.insert_global_var_declarations_into(code)
-        
+
         self.generate_cached_builtins_decls(env, code)
         self.body.generate_function_definitions(env, code)
         code.mark_pos(None)
@@ -550,13 +550,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static const char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
         code.putln('static const char *%s;' % Naming.filename_cname)
         code.putln('static const char **%s;' % Naming.filetable_cname)
-        if env.doc:
-            docstr = env.doc
-            if not isinstance(docstr, str):
-                docstr = docstr.utf8encode()
-            code.putln('')
-            code.putln('static char %s[] = "%s";' % (
-                    env.doc_cname, escape_byte_string(docstr)))
 
         env.use_utility_code(streq_utility_code)
 
@@ -1491,12 +1484,16 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "static struct PyGetSetDef %s[] = {" %
                     env.getset_table_cname)
             for entry in env.property_entries:
+                if entry.doc:
+                    doc_code = "__Pyx_DOCSTR(%s)" % code.get_string_const(entry.doc)
+                else:
+                    doc_code = "0"
                 code.putln(
                     '{(char *)"%s", %s, %s, %s, 0},' % (
                         entry.name,
                         entry.getter_cname or "0",
                         entry.setter_cname or "0",
-                        entry.doc_cname or "0"))
+                        doc_code))
             code.putln(
                     "{0, 0, 0, 0, 0}")
             code.putln(
@@ -1719,7 +1716,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     def generate_pymoduledef_struct(self, env, code):
         if env.doc:
-            doc = "__Pyx_DOCSTR(%s)" % env.doc_cname
+            doc = "__Pyx_DOCSTR(%s)" % code.get_string_const(env.doc)
         else:
             doc = "0"
         code.putln("")
@@ -1741,7 +1738,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Generate code to create the module object and
         # install the builtins.
         if env.doc:
-            doc = env.doc_cname
+            doc = "__Pyx_DOCSTR(%s)" % code.get_string_const(env.doc)
         else:
             doc = "0"
         code.putln("#if PY_MAJOR_VERSION < 3")

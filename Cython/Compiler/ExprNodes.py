@@ -541,7 +541,7 @@ class ExprNode(Node):
         src_type = self.type
         src_is_py_type = src_type.is_pyobject
         dst_is_py_type = dst_type.is_pyobject
-        
+
         if dst_type.is_pyobject:
             if not src.type.is_pyobject:
                 src = CoerceToPyTypeNode(src, env)
@@ -857,7 +857,6 @@ class IntNode(ConstNode):
         # Arrange for a Python version of the number to be pre-allocated
         # when coercing to a Python type.
         if dst_type.is_pyobject:
-            self.entry = env.get_py_num(self.value, self.longness)
             self.type = PyrexTypes.py_object_type
         # We still need to perform normal coerce_to processing on the
         # result, because we might be coercing to an extension type,
@@ -868,11 +867,14 @@ class IntNode(ConstNode):
         self.type = PyrexTypes.c_bint_type
         return self
 
-    def calculate_result_code(self):
+    def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
-            return self.entry.cname
+            self.result_code = code.get_py_num(self.value, self.longness)
         else:
-            return str(self.value) + self.unsigned + self.longness
+            self.result_code = str(self.value) + self.unsigned + self.longness
+
+    def calculate_result_code(self):
+        return self.result_code
 
     def calculate_constant_result(self):
         self.constant_result = int(self.value, 0)
@@ -903,16 +905,11 @@ class FloatNode(ConstNode):
 
 
 class StringNode(ConstNode):
-    #  entry   Symtab.Entry
-    
     type = PyrexTypes.c_char_ptr_type
 
     def compile_time_value(self, denv):
         return self.value
-    
-    def analyse_types(self, env):
-        self.entry = env.add_string_const(self.value)
-        
+
     def analyse_as_type(self, env):
         type = PyrexTypes.parse_basic_type(self.value)
         if type is not None:    
@@ -924,17 +921,17 @@ class StringNode(ConstNode):
         sizeof_node.analyse_types(env)
         if isinstance(sizeof_node, SizeofTypeNode):
             return sizeof_node.arg_type
-    
+
     def coerce_to(self, dst_type, env):
         if dst_type == PyrexTypes.c_char_ptr_type:
             self.type = PyrexTypes.c_char_ptr_type
             return self
-            
+
         if dst_type.is_int:
-            if not self.type.is_pyobject and len(self.entry.init) == 1:
+            if not self.type.is_pyobject and len(self.value) == 1:
                 return CharNode(self.pos, value=self.value)
             else:
-                error(self.pos, "Only coerce single-character ascii strings can be used as ints.")
+                error(self.pos, "Only single-character byte strings can be coerced into ints.")
                 return self
         # Arrange for a Python version of the string to be pre-allocated
         # when coercing to a Python type.
@@ -948,40 +945,38 @@ class StringNode(ConstNode):
         return ConstNode.coerce_to(node, dst_type, env)
 
     def as_py_string_node(self, env):
-        # Return a new StringNode with the same entry as this node
+        # Return a new StringNode with the same value as this node
         # but whose type is a Python type instead of a C type.
-        entry = self.entry
-        env.add_py_string(entry)
-        return StringNode(self.pos, value = self.value, entry = entry, type = py_object_type)
-            
-    def calculate_result_code(self):
+        return StringNode(self.pos, value = self.value, type = py_object_type)
+
+    def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
-            return self.entry.pystring_cname
+            self.result_code = code.get_py_string_const(self.value)
         else:
-            return self.entry.cname
+            self.result_code = code.get_string_const(self.value)
+    
+    def calculate_result_code(self):
+        return self.result_code
 
 
 class UnicodeNode(PyConstNode):
-    #  entry   Symtab.Entry
-
     type = unicode_type
+    
+    def coerce_to(self, dst_type, env):
+        if dst_type.is_pyobject:
+            return self
+        else:
+            error(self.pos, "Unicode objects do not support coercion to C types.")
+            return self
 
-    def analyse_types(self, env):
-        self.entry = env.add_string_const(self.value)
-        env.add_py_string(self.entry)
+    def generate_evaluation_code(self, code):
+        if self.type.is_pyobject:
+            self.result_code = code.get_py_string_const(self.value)
+        else:
+            self.result_code = code.get_string_const(self.value)
 
     def calculate_result_code(self):
-        return self.entry.pystring_cname
-    
-    def _coerce_to(self, dst_type, env):
-        if not dst_type.is_pyobject:
-            node = StringNode(self.pos, entry = entry, type = py_object_type)
-            return ConstNode.coerce_to(node, dst_type, env)
-        else:
-            return self
-        # We still need to perform normal coerce_to processing on the
-        # result, because we might be coercing to an extension type,
-        # in which case a type test node will be needed.
+        return self.result_code
         
     def compile_time_value(self, env):
         return self.value
@@ -992,11 +987,14 @@ class IdentifierStringNode(ConstNode):
     # keyword arguments in a call, or for imported names
     type = PyrexTypes.py_object_type
 
-    def analyse_types(self, env):
-        self.cname = env.intern_identifier(self.value)
+    def generate_evaluation_code(self, code):
+        if self.type.is_pyobject:
+            self.result_code = code.get_py_string_const(self.value, True)
+        else:
+            self.result_code = code.get_string_const(self.value)
 
     def calculate_result_code(self):
-        return self.cname
+        return self.result_code
 
 
 class LongNode(AtomicNewTempExprNode):
@@ -1058,7 +1056,6 @@ class NameNode(AtomicExprNode):
     #  name            string    Python name of the variable
     #
     #  entry           Entry     Symbol table entry
-    #  interned_cname  string
     
     is_name = True
     is_cython_module = False
@@ -1200,10 +1197,6 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         type = entry.type
         self.type = type
-        if entry.is_pyglobal or entry.is_builtin:
-            assert type.is_pyobject, "Python global or builtin not a Python object"
-            self.interned_cname = self.entry.interned_cname = \
-                env.intern_identifier(self.entry.name)
 
     def check_identifier_kind(self):
         #print "NameNode.check_identifier_kind:", self.entry.name ###
@@ -1270,6 +1263,8 @@ class NameNode(AtomicExprNode):
         if entry.is_builtin and Options.cache_builtins:
             return # Lookup already cached
         elif entry.is_pyglobal or entry.is_builtin:
+            assert entry.type.is_pyobject, "Python global or builtin not a Python object"
+            interned_cname = code.intern_identifier(self.entry.name)
             if entry.is_builtin:
                 namespace = Naming.builtins_cname
             else: # entry.is_pyglobal
@@ -1278,7 +1273,7 @@ class NameNode(AtomicExprNode):
                 '%s = __Pyx_GetName(%s, %s); %s' % (
                 self.result(),
                 namespace, 
-                self.interned_cname,
+                interned_cname,
                 code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
             
@@ -1305,6 +1300,8 @@ class NameNode(AtomicExprNode):
         # is_pyglobal seems to be True for module level-globals only.
         # We use this to access class->tp_dict if necessary.
         if entry.is_pyglobal:
+            assert entry.type.is_pyobject, "Python global or builtin not a Python object"
+            interned_cname = code.intern_identifier(self.entry.name)
             namespace = self.entry.scope.namespace_cname
             if entry.is_member:
                 # if the entry is a member we have to cheat: SetAttr does not work
@@ -1312,7 +1309,7 @@ class NameNode(AtomicExprNode):
                 code.put_error_if_neg(self.pos,
                     'PyDict_SetItem(%s->tp_dict, %s, %s)' % (
                         namespace,
-                        self.interned_cname,
+                        interned_cname,
                         rhs.py_result()))
                 rhs.generate_disposal_code(code)
                 rhs.free_temps(code)
@@ -1323,7 +1320,7 @@ class NameNode(AtomicExprNode):
                 code.put_error_if_neg(self.pos,
                     'PyObject_SetAttr(%s, %s, %s)' % (
                         namespace,
-                        self.interned_cname,
+                        interned_cname,
                         rhs.py_result()))
                 if debug_disposal_code:
                     print("NameNode.generate_assignment_code:")
@@ -2630,7 +2627,6 @@ class AttributeNode(NewTempExprNode):
     #  member               string    C name of struct member
     #  is_called            boolean   Function call is being done on result
     #  entry                Entry     Symbol table entry of attribute
-    #  interned_attr_cname  string    C name of interned attribute name
     
     is_attribute = 1
     subexprs = ['obj']
@@ -2830,7 +2826,6 @@ class AttributeNode(NewTempExprNode):
         if obj_type.is_pyobject:
             self.type = py_object_type
             self.is_py_attr = 1
-            self.interned_attr_cname = env.intern_identifier(self.attribute)
         else:
             if not obj_type.is_error:
                 error(self.pos, 
@@ -2879,12 +2874,13 @@ class AttributeNode(NewTempExprNode):
             return "%s%s%s" % (obj_code, self.op, self.member)
     
     def generate_result_code(self, code):
+        interned_attr_cname = code.intern_identifier(self.attribute)
         if self.is_py_attr:
             code.putln(
                 '%s = PyObject_GetAttr(%s, %s); %s' % (
                     self.result(),
                     self.obj.py_result(),
-                    self.interned_attr_cname,
+                    interned_attr_cname,
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
         else:
@@ -2896,12 +2892,13 @@ class AttributeNode(NewTempExprNode):
                 self.put_nonecheck(code)
     
     def generate_assignment_code(self, rhs, code):
+        interned_attr_cname = code.intern_identifier(self.attribute)
         self.obj.generate_evaluation_code(code)
         if self.is_py_attr:
             code.put_error_if_neg(self.pos, 
                 'PyObject_SetAttr(%s, %s, %s)' % (
                     self.obj.py_result(),
-                    self.interned_attr_cname,
+                    interned_attr_cname,
                     rhs.py_result()))
             rhs.generate_disposal_code(code)
             rhs.free_temps(code)
@@ -2928,12 +2925,13 @@ class AttributeNode(NewTempExprNode):
         self.obj.free_temps(code)
     
     def generate_deletion_code(self, code):
+        interned_attr_cname = code.intern_identifier(self.attribute)
         self.obj.generate_evaluation_code(code)
         if self.is_py_attr:
             code.put_error_if_neg(self.pos,
                 'PyObject_DelAttr(%s, %s)' % (
                     self.obj.py_result(),
-                    self.interned_attr_cname))
+                    interned_attr_cname))
         else:
             error(self.pos, "Cannot delete C attribute of extension type")
         self.obj.generate_disposal_code(code)
@@ -3552,7 +3550,6 @@ class ClassNode(ExprNode):
     #  a name, tuple of bases and class dictionary.
     #
     #  name         EncodedString      Name of the class
-    #  cname        string             Class name as a Python string
     #  bases        ExprNode           Base class tuple
     #  dict         ExprNode           Class dict (not owned by this node)
     #  doc          ExprNode or None   Doc string
@@ -3561,7 +3558,6 @@ class ClassNode(ExprNode):
     subexprs = ['bases', 'doc']
 
     def analyse_types(self, env):
-        self.cname = env.intern_identifier(self.name)
         self.bases.analyse_types(env)
         if self.doc:
             self.doc.analyse_types(env)
@@ -3574,6 +3570,7 @@ class ClassNode(ExprNode):
     gil_message = "Constructing Python class"
 
     def generate_result_code(self, code):
+        cname = code.intern_identifier(self.name)
         if self.doc:
             code.put_error_if_neg(self.pos, 
                 'PyDict_SetItemString(%s, "__doc__", %s)' % (
@@ -3584,7 +3581,7 @@ class ClassNode(ExprNode):
                 self.result(),
                 self.bases.py_result(),
                 self.dict.py_result(),
-                self.cname,
+                cname,
                 self.module_name,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())

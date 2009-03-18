@@ -248,9 +248,6 @@ class Scope(object):
     def __str__(self):
         return "<%s %s>" % (self.__class__.__name__, self.qualified_name)
 
-    def intern_identifier(self, name):
-        return self.global_scope().intern_identifier(name)
-
     def qualifying_scope(self):
         return self.parent_scope
     
@@ -521,98 +518,6 @@ class Scope(object):
         if entry and entry.is_type:
             return entry.type
 
-    def add_string_const(self, value, identifier = False):
-        # Add an entry for a string constant.
-        if identifier:
-            cname = self.new_string_const_cname(value)
-        else:
-            cname = self.new_const_cname()
-        if value.is_unicode:
-            c_type = PyrexTypes.c_utf8_char_array_type
-            value = value.utf8encode()
-        else:
-            c_type = PyrexTypes.c_char_array_type
-            value = value.byteencode()
-        entry = Entry("", cname, c_type, init = value)
-        entry.used = 1
-        self.const_entries.append(entry)
-        return entry
-
-    def get_string_const(self, value, identifier = False):
-        # Get entry for string constant. Returns an existing
-        # one if possible, otherwise creates a new one.
-        genv = self.global_scope()
-        if identifier:
-            string_map = genv.identifier_to_entry
-        else:
-            string_map = genv.string_to_entry
-        entry = string_map.get(value)
-        if not entry:
-            entry = self.add_string_const(value, identifier)
-            entry.is_identifier = identifier
-            string_map[value] = entry
-        return entry
-
-    def add_py_string(self, entry, identifier = None):
-        # If not already done, allocate a C name for a Python version of
-        # a string literal, and add it to the list of Python strings to
-        # be created at module init time. If the string resembles a
-        # Python identifier, it will be interned.
-        if entry.pystring_cname:
-            return
-        value = entry.init
-        entry.pystring_cname = Naming.py_const_prefix + entry.cname[len(Naming.const_prefix):]
-        self.pystring_entries.append(entry)
-        self.global_scope().all_pystring_entries.append(entry)
-        if identifier or (identifier is None and possible_identifier(value)):
-            entry.is_interned = 1
-            self.global_scope().new_interned_string_entries.append(entry)
-
-    def add_py_num(self, value):
-        # Add an entry for an int constant.
-        cname = "%s%s" % (Naming.interned_num_prefix, value)
-        cname = cname.replace('-', 'neg_').replace('.','_')
-        entry = Entry("", cname, py_object_type, init = value)
-        entry.used = 1
-        entry.is_interned = 1
-        self.const_entries.append(entry)
-        self.interned_nums.append(entry)
-        return entry
-        
-    def get_py_num(self, value, longness):
-        # Get entry for int constant. Returns an existing
-        # one if possible, otherwise creates a new one.
-        if longness or Utils.long_literal(value):
-            value += "L"
-        genv = self.global_scope()
-        entry = genv.num_to_entry.get(value)
-        if not entry:
-            entry = genv.add_py_num(value)
-            genv.num_to_entry[value] = entry
-            genv.pynum_entries.append(entry)
-        return entry
-        
-    def get_py_obj(self, obj, c_prefix=''):
-        # Get entry for a generic constant. Returns an existing
-        # one if possible, otherwise creates a new one.
-        genv = self.global_scope()
-        entry = genv.obj_to_entry.get(obj)
-        if not entry:
-            entry = genv.add_py_num(obj, c_prefix)
-            genv.obj_to_entry[obj] = entry
-        return entry
-    
-    def new_string_const_cname(self, value):
-        # Create a new globally-unique nice name for a string constant.
-        if len(value) < 20 and nice_identifier(value):
-            return "%s%s" % (Naming.const_prefix, value)
-        else:
-            return self.global_scope().new_const_cname()
-
-    def new_const_cname(self):
-        # Create a new globally-unique name for a constant.
-        return self.global_scope().new_const_cname()
-
     def allocate_temp(self, type):
         # Allocate a temporary variable of the given type from the 
         # free list if available, otherwise create a new one.
@@ -869,11 +774,6 @@ class ModuleScope(Scope):
         else:
             entry.is_builtin = 1
         return entry
-
-    def intern_identifier(self, name):
-        string_entry = self.get_string_const(name, identifier = True)
-        self.add_py_string(string_entry, identifier = 1)
-        return string_entry.pystring_cname
 
     def find_module(self, module_name, pos):
         # Find a module in the import namespace, interpreting
@@ -1416,7 +1316,6 @@ class CClassScope(ClassScope):
                                   # I keep it in for now. is_member should be enough
                                   # later on
             self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
-            entry.interned_cname = self.intern_identifier(name)
             return entry
 
 
