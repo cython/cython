@@ -2527,7 +2527,7 @@ class GeneralCallNode(CallNode):
             self.keyword_args.analyse_types(env)
         if self.starstar_arg:
             self.starstar_arg.analyse_types(env)
-        if self.function.type is not py_object_type:
+        if not self.function.type.is_pyobject:
             if hasattr(self.function, 'entry') and not self.function.entry.as_variable:
                 error(self.pos, "Keyword arguments not allowed in cdef functions.")
             else:
