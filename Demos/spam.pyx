@@ -3,6 +3,7 @@
 #
 
 cdef class Spam:
+  cdef public int amount
 
   def __new__(self):
     self.amount = 0
