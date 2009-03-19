@@ -84,7 +84,7 @@ def open_pickled_lexicon(expected_hash):
                 print("Lexicon hash mismatch:")       ###
                 print("   expected " + expected_hash) ###
                 print("   got     " + actual_hash)    ###
-        except IOError, e:
+        except (IOError, pickle.UnpicklingError), e:
             print("Warning: Unable to read pickled lexicon " + lexicon_pickle)
             print(e)
     if f:
