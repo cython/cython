@@ -5627,10 +5627,10 @@ static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb) 
 py23_init_threads_utility_code = UtilityCode(
 proto="""
 #ifndef __PYX_FORCE_INIT_THREADS
-#define __PYX_FORCE_INIT_THREADS 0
-#if PY_VERSION_HEX < 0x02040000
-#undef  __PYX_FORCE_INIT_THREADS
+#if PY_VERSION_HEX < 0x02040200
 #define __PYX_FORCE_INIT_THREADS 1
+#else
+#define __PYX_FORCE_INIT_THREADS 0
 #endif
 #endif
 """)

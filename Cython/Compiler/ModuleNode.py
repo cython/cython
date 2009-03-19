@@ -1606,7 +1606,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("/*--- Threads initialization code ---*/")
         code.putln("#if defined(__PYX_FORCE_INIT_THREADS) && __PYX_FORCE_INIT_THREADS")
-        code.putln("#ifdef WITH_THREAD")
+        code.putln("#ifdef WITH_THREAD /* Python build with threading support? */")
         code.putln("PyEval_InitThreads();")
         code.putln("#endif")
         code.putln("#endif")
