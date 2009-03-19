@@ -489,7 +489,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
                 error(self.dimension.pos, "Array dimension not integer")
-            size = self.dimension.compile_time_value(env)
+            size = self.dimension.get_constant_result_code()
             try:
                 size = int(size)
             except ValueError:
@@ -572,6 +572,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         else:
             if self.exception_value:
                 self.exception_value.analyse_const_expression(env)
+                exc_val = self.exception_value.get_constant_result_code()
                 if self.exception_check == '+':
                     exc_val_type = self.exception_value.type
                     if not exc_val_type.is_error and \
@@ -579,12 +580,10 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                           not (exc_val_type.is_cfunction and not exc_val_type.return_type.is_pyobject and len(exc_val_type.args)==0):
                         error(self.exception_value.pos,
                             "Exception value must be a Python exception or cdef function with no arguments.")
-                    exc_val = self.exception_value
                 else:
-                    exc_val = self.exception_value.compile_time_value(env)
                     if not return_type.assignable_from(self.exception_value.type):
                         error(self.exception_value.pos,
-                            "Exception value incompatible with function return type")
+                              "Exception value incompatible with function return type")
             exc_check = self.exception_check
         if return_type.is_array:
             error(self.pos,
@@ -945,7 +944,7 @@ class CEnumDefItemNode(StatNode):
             if not self.value.type.is_int:
                 self.value = self.value.coerce_to(PyrexTypes.c_int_type, env)
                 self.value.analyse_const_expression(env)
-            value = self.value.compile_time_value(env)
+            value = self.value.get_constant_result_code()
         else:
             value = self.name
         entry = env.declare_const(self.name, enum_entry.type, 
@@ -3703,11 +3702,12 @@ class SwitchCaseNode(StatNode):
     # body          StatNode
     
     child_attrs = ['conditions', 'body']
-    
+
     def generate_execution_code(self, code):
         for cond in self.conditions:
             code.mark_pos(cond.pos)
-            code.putln("case %s:" % cond.calculate_result_code())
+            cond.generate_evaluation_code(code)
+            code.putln("case %s:" % cond.result())
         self.body.generate_execution_code(code)
         code.putln("break;")
         
@@ -3726,7 +3726,7 @@ class SwitchStatNode(StatNode):
     child_attrs = ['test', 'cases', 'else_clause']
     
     def generate_execution_code(self, code):
-        code.putln("switch (%s) {" % self.test.calculate_result_code())
+        code.putln("switch (%s) {" % self.test.result())
         for case in self.cases:
             case.generate_execution_code(code)
         if self.else_clause is not None:

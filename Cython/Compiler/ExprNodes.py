@@ -239,6 +239,11 @@ class ExprNode(Node):
         #  C type of the result_code expression).
         return self.result_ctype or self.type
 
+    def get_constant_result_code(self):
+        # Return the constant value of this node as a result code
+        # string, or None if the node is not constant.
+        return None
+
     def calculate_constant_result(self):
         # Calculate the constant result of this expression and store
         # it in ``self.constant_result``.  Does nothing by default,
@@ -801,6 +806,9 @@ class ConstNode(AtomicNewTempExprNode):
     def check_const(self):
         pass
     
+    def get_constant_result_code(self):
+        return self.calculate_result_code()
+
     def calculate_result_code(self):
         return str(self.value)
 
@@ -826,6 +834,9 @@ class NullNode(ConstNode):
     type = PyrexTypes.c_null_ptr_type
     value = "NULL"
     constant_result = 0
+
+    def get_constant_result_code(self):
+        return self.value
 
 
 class CharNode(ConstNode):
@@ -871,7 +882,10 @@ class IntNode(ConstNode):
         if self.type.is_pyobject:
             self.result_code = code.get_py_num(self.value, self.longness)
         else:
-            self.result_code = str(self.value) + self.unsigned + self.longness
+            self.result_code = self.get_constant_result_code()
+    
+    def get_constant_result_code(self):
+        return str(self.value) + self.unsigned + self.longness
 
     def calculate_result_code(self):
         return self.result_code
@@ -954,6 +968,9 @@ class StringNode(ConstNode):
             self.result_code = code.get_py_string_const(self.value)
         else:
             self.result_code = code.get_string_const(self.value)
+
+    def get_constant_result_code(self):
+        return None # FIXME
     
     def calculate_result_code(self):
         return self.result_code
@@ -992,6 +1009,9 @@ class IdentifierStringNode(ConstNode):
             self.result_code = code.get_py_string_const(self.value, True)
         else:
             self.result_code = code.get_string_const(self.value)
+
+    def get_constant_result_code(self):
+        return None
 
     def calculate_result_code(self):
         return self.result_code
