@@ -1080,6 +1080,7 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- GIL acquisition
         acquire_gil = self.need_gil_acquisition(lenv)
         if acquire_gil:
+            env.use_utility_code(py23_init_threads_utility_code)
             code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
         # ----- Automatic lead-ins for certain special functions
         if not lenv.nogil:
@@ -4540,6 +4541,7 @@ class GILStatNode(TryFinallyStatNode):
             finally_clause = GILExitNode(pos, state = state))
 
     def analyse_expressions(self, env):
+        env.use_utility_code(py23_init_threads_utility_code)
         was_nogil = env.nogil
         env.nogil = 1
         TryFinallyStatNode.analyse_expressions(self, env)
@@ -5631,6 +5633,19 @@ static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb) 
     Py_XDECREF(tmp_value);
     Py_XDECREF(tmp_tb);
 }
+""")
+
+#------------------------------------------------------------------------------------
+
+py23_init_threads_utility_code = UtilityCode(
+proto="""
+#ifndef __PYX_FORCE_INIT_THREADS
+#if PY_VERSION_HEX < 0x02040200
+#define __PYX_FORCE_INIT_THREADS 1
+#else
+#define __PYX_FORCE_INIT_THREADS 0
+#endif
+#endif
 """)
 
 #------------------------------------------------------------------------------------
