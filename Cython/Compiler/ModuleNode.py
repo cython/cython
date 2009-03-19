@@ -406,6 +406,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('#define PY_SSIZE_T_CLEAN')
         for filename in env.python_include_files:
             code.putln('#include "%s"' % filename)
+        code.putln("#ifndef Py_PYTHON_H")
+        code.putln("    #error Python headers needed to compile C extensions, please install development version of Python.")
+        code.putln("#endif")
         code.putln("#ifndef PY_LONG_LONG")
         code.putln("  #define PY_LONG_LONG LONG_LONG")
         code.putln("#endif")
