@@ -658,6 +658,8 @@ class DecoratorTransform(CythonTransform, SkipDeclarations):
             rhs = decorator_result)
         return [func_node, reassignment]
 
+
+ERR_DEC_AFTER = "cdef variable '%s' declared after it is used"
 class AnalyseDeclarationsTransform(CythonTransform):
 
     basic_property = TreeFragment(u"""
@@ -670,14 +672,23 @@ property NAME:
 
     def __call__(self, root):
         self.env_stack = [root.scope]
+        # needed to determine if a cdef var is declared after it's used.
+        self.local_scope_stack = []
         return super(AnalyseDeclarationsTransform, self).__call__(root)        
     
+    def visit_NameNode(self, node):
+        self.local_scope_stack[-1].add(node.name)
+        return node
+
     def visit_ModuleNode(self, node):
+        self.local_scope_stack.append(set())
         node.analyse_declarations(self.env_stack[-1])
         self.visitchildren(node)
+        self.local_scope_stack.pop()
         return node
         
     def visit_FuncDefNode(self, node):
+        self.local_scope_stack.append(set())
         lenv = node.create_local_scope(self.env_stack[-1])
         node.body.analyse_control_flow(lenv) # this will be totally refactored
         node.declare_arguments(lenv)
@@ -692,6 +703,7 @@ property NAME:
         self.env_stack.append(lenv)
         self.visitchildren(node)
         self.env_stack.pop()
+        self.local_scope_stack.pop()
         return node
     
     # Some nodes are no longer needed after declaration
@@ -699,6 +711,8 @@ property NAME:
     # on these nodes in a seperate recursive process from the
     # enclosing function or module, so we can simply drop them.
     def visit_CDeclaratorNode(self, node):
+        # necessary to ensure that all CNameDeclaratorNodes are visited.
+        self.visitchildren(node)
         return node
     
     def visit_CTypeDefNode(self, node):
@@ -713,7 +727,18 @@ property NAME:
     def visit_CStructOrUnionDefNode(self, node):
         return None
 
+    def visit_CNameDeclaratorNode(self, node):
+        if node.name in self.local_scope_stack[-1]:
+            # cdef variable declared after it's used.
+            error(node.pos, ERR_DEC_AFTER % node.name)
+        self.visitchildren(node)
+        return node
+
     def visit_CVarDefNode(self, node):
+
+        # to ensure all CNameDeclaratorNodes are visited.
+        self.visitchildren(node)
+
         if node.need_properties:
             # cdef public attributes may need type testing on 
             # assignment, so we create a property accesss
