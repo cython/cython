@@ -1604,6 +1604,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.generate_library_function_declarations(code)
         self.generate_filename_init_call(code)
 
+        code.putln("/*--- Threads initialization code ---*/")
+        code.putln("#if defined(__PYX_FORCE_INIT_THREADS) && __PYX_FORCE_INIT_THREADS")
+        code.putln("#ifdef WITH_THREAD")
+        code.putln("PyEval_InitThreads();")
+        code.putln("#endif")
+        code.putln("#endif")
+
         code.putln("/*--- Initialize various global constants etc. ---*/")
         code.putln(code.error_goto_if_neg("__Pyx_InitGlobals()", self.pos))
 
