@@ -849,7 +849,8 @@ class CStructOrUnionDefNode(StatNode):
                         self.name, struct_entry.type, self.pos,
                         cname = self.cname, visibility='ignore')
                     struct_entry.type.typedef_flag = False
-                    struct_entry.cname = struct_entry.type.cname = env.new_const_cname()
+                    # FIXME: this might be considered a hack ;-)
+                    struct_entry.cname = struct_entry.type.cname = '_' + self.cname
     
     def analyse_expressions(self, env):
         pass
