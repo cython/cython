@@ -296,7 +296,7 @@ class Scope(object):
     
     def qualify_name(self, name):
         return "%s.%s" % (self.qualified_name, name)
-    
+
     def declare_const(self, name, type, value, pos, cname = None, visibility = 'private'):
         # Add an entry for a named constant.
         if not cname:
@@ -306,7 +306,7 @@ class Scope(object):
                 cname = self.mangle(Naming.enum_prefix, name)
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_const = 1
-        entry.value = value
+        entry.value_node = value
         return entry
     
     def declare_type(self, name, type, pos, 
@@ -683,9 +683,7 @@ class ModuleScope(Scope):
     # method_table_cname   string             C name of method table
     # doc                  string             Module doc string
     # doc_cname            string             C name of module doc string
-    # const_counter        integer            Counter for naming constants (PS: MOVED TO GLOBAL)
     # utility_code_list    [(UtilityCode, string)] Queuing utility codes for forwarding to Code.py
-    # default_entries      [Entry]            Function argument default entries
     # python_include_files [string]           Standard  Python headers to be included
     # include_files        [string]           Other C headers to be included
     # string_to_entry      {string : Entry}   Map string const to entry
@@ -697,9 +695,6 @@ class ModuleScope(Scope):
     # included_files       [string]           Cython sources included with 'include'
     # pxd_file_loaded      boolean            Corresponding .pxd file has been processed
     # cimported_modules    [ModuleScope]      Modules imported with cimport
-    # new_interned_string_entries [Entry]     New interned strings waiting to be declared
-    # interned_nums        [int/long]         Interned numeric constants
-    # all_pystring_entries [Entry]            Python string consts from all scopes
     # types_imported       {PyrexType : 1}    Set of types for which import code generated
     # has_import_star      boolean            Module contains import *
     
@@ -723,20 +718,14 @@ class ModuleScope(Scope):
         self.doc = ""
         self.doc_cname = Naming.moddoc_cname
         self.utility_code_list = []
-        self.default_entries = []
         self.module_entries = {}
         self.python_include_files = ["Python.h", "structmember.h"]
         self.include_files = []
         self.type_names = dict(outer_scope.type_names)
         self.pxd_file_loaded = 0
         self.cimported_modules = []
-        self.new_interned_string_entries = []
-        self.interned_nums = []
-        self.interned_objs = []
-        self.all_pystring_entries = []
         self.types_imported = {}
         self.included_files = []
-        self.pynum_entries = []
         self.has_extern_class = 0
         self.cached_builtins = []
         self.undeclared_cached_builtins = []
@@ -868,22 +857,6 @@ class ModuleScope(Scope):
         entry = self.lookup_here(name)
         if not entry:
             self.declare_var(name, py_object_type, pos)
-    
-    def add_default_value(self, type):
-        # Add an entry for holding a function argument
-        # default value.
-        cname = self.new_const_cname()
-        entry = Entry("", cname, type)
-        self.default_entries.append(entry)
-        return entry
-        
-    def new_const_cname(self):
-        global const_counter
-        # Create a new globally-unique name for a constant.
-        prefix=''
-        n = const_counter
-        const_counter = n + 1
-        return "%s%s%d" % (Naming.const_prefix, prefix, n)
     
     def use_utility_code(self, new_code, name=None):
         if new_code is not None:

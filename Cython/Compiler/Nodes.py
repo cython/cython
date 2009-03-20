@@ -302,38 +302,6 @@ class CompilerDirectivesNode(Node):
 class BlockNode(object):
     #  Mixin class for nodes representing a declaration block.
 
-    def generate_const_definitions(self, env, code):
-        if env.const_entries:
-            for entry in env.const_entries:
-                if not entry.is_interned:
-                    code.globalstate.add_const_definition(entry)
-
-    def generate_interned_string_decls(self, env, code):
-        entries = env.global_scope().new_interned_string_entries
-        if entries:
-            for entry in entries:
-                code.globalstate.add_interned_string_decl(entry)
-            del entries[:]
-
-    def generate_py_string_decls(self, env, code):
-        if env is None:
-            return # earlier error
-        entries = env.pystring_entries
-        if entries:
-            for entry in entries:
-                if not entry.is_interned:
-                    code.globalstate.add_py_string_decl(entry)
-
-    def generate_interned_num_decls(self, env, code):
-        #  Flush accumulated interned nums from the global scope
-        #  and generate declarations for them.
-        genv = env.global_scope()
-        entries = genv.interned_nums
-        if entries:
-            for entry in entries:
-                code.globalstate.add_interned_num_decl(entry)
-            del entries[:]
-
     def generate_cached_builtins_decls(self, env, code):
         entries = env.global_scope().undeclared_cached_builtins
         for entry in entries:
@@ -609,8 +577,7 @@ class CArgDeclNode(Node):
     # declarator     CDeclaratorNode
     # not_none       boolean            Tagged with 'not None'
     # default        ExprNode or None
-    # default_entry  Symtab.Entry       Entry for the variable holding the default value
-    # default_result_code string        cname or code fragment for default value
+    # default_value  PyObjectConst      constant for default value
     # is_self_arg    boolean            Is the "self" arg of an extension type method
     # is_kw_only     boolean            Is a keyword-only argument
 
@@ -620,6 +587,7 @@ class CArgDeclNode(Node):
     is_generic = 1
     type = None
     name_declarator = None
+    default_value = None
 
     def analyse(self, env, nonempty = 0):
         #print "CArgDeclNode.analyse: is_self_arg =", self.is_self_arg ###
@@ -641,16 +609,15 @@ class CArgDeclNode(Node):
         else:
             return self.name_declarator, self.type
 
-    def prepare_default_result_code(self, code):
-        if self.default:
-            if self.default.is_literal:
-                # FIXME: IS IT OK TO CALL THIS HERE???
-                self.default.generate_evaluation_code(code)
-                self.default_result_code = self.default.result()
-                if self.default.type != self.type and not self.type.is_int:
-                    self.default_result_code = self.type.cast_code(self.default_result_code)
-            else:
-                self.default_result_code = self.default_entry.cname
+    def calculate_default_value_code(self, code):
+        if self.default_value is None:
+            if self.default:
+                if self.default.is_literal:
+                    # will not output any code, just assign the result_code
+                    self.default.generate_evaluation_code(code)
+                    return self.type.cast_code(self.default.result())
+                self.default_value = code.get_argument_default_const(self.type)
+        return self.default_value
 
     def annotate(self, code):
         if self.default:
@@ -944,11 +911,9 @@ class CEnumDefItemNode(StatNode):
             if not self.value.type.is_int:
                 self.value = self.value.coerce_to(PyrexTypes.c_int_type, env)
                 self.value.analyse_const_expression(env)
-            value = self.value.get_constant_result_code()
-        else:
-            value = self.name
         entry = env.declare_const(self.name, enum_entry.type, 
-            value, self.pos, cname = self.cname, visibility = enum_entry.visibility)
+            self.value, self.pos, cname = self.cname,
+            visibility = enum_entry.visibility)
         enum_entry.enum_values.append(entry)
 
 
@@ -997,14 +962,7 @@ class FuncDefNode(StatNode, BlockNode):
                     if not hasattr(arg, 'default_entry'):
                         arg.default.analyse_types(env)
                         arg.default = arg.default.coerce_to(arg.type, genv)
-                        if arg.default.is_literal:
-                            arg.default_entry = arg.default
-                        else:
-                            arg.default.allocate_temps(genv)
-                            arg.default_entry = genv.add_default_value(arg.type)
-                            if arg.type.is_pyobject:
-                                arg.default_entry.init = 0
-                            arg.default_entry.used = 1
+                        arg.default.allocate_temps(genv)
                 else:
                     error(arg.pos,
                         "This argument cannot have a default value")
@@ -1042,13 +1000,7 @@ class FuncDefNode(StatNode, BlockNode):
             
         # ----- Top-level constants used by this function
         code.mark_pos(self.pos)
-        self.generate_interned_num_decls(lenv, code)
-        self.generate_interned_string_decls(lenv, code)
-        self.generate_py_string_decls(lenv, code)
         self.generate_cached_builtins_decls(lenv, code)
-        #code.putln("")
-        #code.put_var_declarations(lenv.const_entries, static = 1)
-        self.generate_const_definitions(lenv, code)
         # ----- Function header
         code.putln("")
         if self.py_func:
@@ -1244,14 +1196,15 @@ class FuncDefNode(StatNode, BlockNode):
                 if not default.is_literal:
                     default.generate_evaluation_code(code)
                     default.make_owned_reference(code)
+                    result = default.result_as(arg.type)
                     code.putln(
                         "%s = %s;" % (
-                            arg.default_entry.cname,
-                            default.result_as(arg.default_entry.type)))
-                    if default.is_temp and default.type.is_pyobject:
-                        code.putln("%s = 0;" % default.result())
+                            arg.calculate_default_value_code(code),
+                            result))
+                    if arg.type.is_pyobject:
+                        code.put_giveref(default.result())
+                    default.generate_post_assignment_code(code)
                     default.free_temps(code)
-                    code.put_var_giveref(arg.default_entry)
         # For Python class methods, create and store function object
         if self.assmt:
             self.assmt.generate_execution_code(code)
@@ -1438,9 +1391,9 @@ class CFuncDefNode(FuncDefNode):
     def generate_argument_declarations(self, env, code):
         for arg in self.args:
             if arg.default:
-                arg.prepare_default_result_code(code)
+                result = arg.calculate_default_value_code(code)
                 code.putln('%s = %s;' % (
-                    arg.type.declaration_code(arg.cname), arg.default_result_code))
+                    arg.type.declaration_code(arg.cname), result))
 
     def generate_keyword_list(self, code):
         pass
@@ -1881,9 +1834,7 @@ class DefNode(FuncDefNode):
                     code.putln("PyObject *%s = 0;" % arg.hdr_cname)
                 else:
                     code.put_var_declaration(arg.entry)
-            if arg.default:
-                arg.prepare_default_result_code(code)
-    
+
     def generate_keyword_list(self, code):
         if self.signature_has_generic_args() and \
                 self.signature_has_nongeneric_args():
@@ -2143,7 +2094,7 @@ class DefNode(FuncDefNode):
                 code.putln(
                     "%s = %s;" % (
                         arg.entry.cname,
-                        arg.default_result_code))
+                        arg.calculate_default_value_code(code)))
 
     def generate_stararg_init_code(self, max_positional_args, code):
         if self.starstar_arg:
@@ -2185,7 +2136,7 @@ class DefNode(FuncDefNode):
         default_args = []
         for i, arg in enumerate(all_args):
             if arg.default and arg.type.is_pyobject:
-                default_value = arg.default_result_code
+                default_value = arg.calculate_default_value_code(code)
                 if arg.type is not PyrexTypes.py_object_type:
                     default_value = "(PyObject*)"+default_value
                 default_args.append((i, default_value))
@@ -2331,7 +2282,7 @@ class DefNode(FuncDefNode):
                 code.putln(
                     "%s = %s;" % (
                         arg.entry.cname,
-                        arg.default_result_code))
+                        arg.calculate_default_value_code(code)))
                 code.putln('}')
 
     def generate_argument_conversion_code(self, code):
@@ -2582,7 +2533,6 @@ class PyClassDefNode(ClassDefNode):
         #self.target.release_target_temp(env)
     
     def generate_function_definitions(self, env, code):
-        self.generate_py_string_decls(self.scope, code)
         self.body.generate_function_definitions(self.scope, code)
     
     def generate_execution_code(self, code):
@@ -2716,7 +2666,6 @@ class CClassDefNode(ClassDefNode):
             self.body.analyse_expressions(scope)
     
     def generate_function_definitions(self, env, code):
-        self.generate_py_string_decls(self.entry.type.scope, code)
         if self.body:
             self.body.generate_function_definitions(
                 self.entry.type.scope, code)

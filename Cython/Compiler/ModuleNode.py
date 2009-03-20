@@ -255,10 +255,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("")
         code.putln("/* Implementation of %s */" % env.qualified_name)
-        self.generate_const_definitions(env, code)
-        self.generate_interned_num_decls(env, code)
-        self.generate_interned_string_decls(env, code)
-        self.generate_py_string_decls(env, code)
 
         code.globalstate.insert_global_var_declarations_into(code)
 
@@ -663,13 +659,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 " 'cdef extern from' block")
         else:
             last_entry = enum_values[-1]
+            # this does not really generate code, just builds the result value
             for value_entry in enum_values:
-                if value_entry.value == value_entry.name:
+                if value_entry.value_node is not None:
+                    value_entry.value_node.generate_evaluation_code(code)
+
+            for value_entry in enum_values:
+                if value_entry.value_node is None:
                     value_code = value_entry.cname
                 else:
                     value_code = ("%s = %s" % (
                         value_entry.cname,
-                        value_entry.value))
+                        value_entry.value_node.result()))
                 if value_entry is not last_entry:
                     value_code += ","
                 code.putln(value_code)
@@ -761,9 +762,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     entry.type.typeptr_cname)
         code.put_var_declarations(env.var_entries, static = 1, 
             dll_linkage = "DL_EXPORT", definition = definition)
-        if definition:
-            code.put_var_declarations(env.default_entries, static = 1,
-                                      definition = definition)
     
     def generate_cfunction_predeclarations(self, env, code, definition):
         for entry in env.cfunc_entries:
@@ -1702,19 +1700,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_decref_clear(Naming.empty_tuple,
                               PyrexTypes.py_object_type,
                               nanny=False)
-        for entry in env.pynum_entries:
-            code.put_decref_clear(entry.cname,
-                                  PyrexTypes.py_object_type,
-                                  nanny=False)
-        for entry in env.all_pystring_entries:
-            if entry.is_interned:
-                code.put_decref_clear(entry.pystring_cname,
-                                      PyrexTypes.py_object_type,
-                                      nanny=False)
-        for entry in env.default_entries:
-            if entry.type.is_pyobject and entry.used:
-                code.putln("Py_DECREF(%s); %s = 0;" % (
-                    code.entry_as_pyobject(entry), entry.cname))
+#        for entry in env.pynum_entries:
+#            code.put_decref_clear(entry.cname,
+#                                  PyrexTypes.py_object_type,
+#                                  nanny=False)
+#        for entry in env.all_pystring_entries:
+#            if entry.is_interned:
+#                code.put_decref_clear(entry.pystring_cname,
+#                                      PyrexTypes.py_object_type,
+#                                      nanny=False)
+#        for entry in env.default_entries:
+#            if entry.type.is_pyobject and entry.used:
+#                code.putln("Py_DECREF(%s); %s = 0;" % (
+#                    code.entry_as_pyobject(entry), entry.cname))
         code.putln("Py_INCREF(Py_None); return Py_None;")
         code.putln('}')
 
