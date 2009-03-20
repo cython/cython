@@ -214,6 +214,16 @@ class IntConst(object):
         self.value = value
         self.is_long = is_long
 
+class PyObjectConst(object):
+    """Global info about a generic constant held by GlobalState.
+    """
+    # cname       string
+    # type        PyrexType
+
+    def __init__(self, cname, type):
+        self.cname = cname
+        self.type = type
+
 possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
 
@@ -321,6 +331,7 @@ class GlobalState(object):
         self.const_cname_counter = 1
         self.string_const_index = {}
         self.int_const_index = {}
+        self.py_constants = []
 
     def initwriters(self, rootwriter):
         self.utilprotowriter = rootwriter.new_writer()
@@ -394,6 +405,10 @@ class GlobalState(object):
             c = self.new_int_const(str_value, longness)
         return c
 
+    def get_py_const(self, type):
+        # create a new Python object constant
+        return self.new_py_const(type)
+
     def get_string_const(self, text):
         # return a C string constant, creating a new one if necessary
         if text.is_unicode:
@@ -422,6 +437,12 @@ class GlobalState(object):
         cname = self.new_int_const_cname(value, longness)
         c = IntConst(cname, value, longness)
         self.int_const_index[(value, longness)] = c
+        return c
+
+    def new_py_const(self, type):
+        cname = self.new_const_cname()
+        c = PyObjectConst(cname, type)
+        self.py_constants.append(c)
         return c
 
     def new_string_const_cname(self, value, intern=None):
@@ -458,6 +479,15 @@ class GlobalState(object):
     def generate_const_declarations(self):
         self.generate_string_constants()
         self.generate_int_constants()
+        self.generate_object_constant_decls()
+
+    def generate_object_constant_decls(self):
+        consts = [ (len(c.cname), c.cname, c)
+                   for c in self.py_constants ]
+        consts.sort()
+        for _, cname, c in consts:
+            self.decls_writer.putln(
+                "static %s;" % c.type.declaration_code(cname))
 
     def generate_string_constants(self):
         c_consts = [ (len(c.cname), c.cname, c)
@@ -761,6 +791,9 @@ class CCodeWriter(object):
 
     def get_py_string_const(self, text, identifier=None):
         return self.globalstate.get_py_string_const(text, identifier).cname
+
+    def get_argument_default_const(self, type):
+        return self.globalstate.get_py_const(type).cname
 
     def intern(self, text):
         return self.get_py_string_const(text)
