@@ -53,7 +53,7 @@ cdef int g():
     return 3
 
 def f():
-    cdef int i
+    cdef int i = -1
     for i in range(g()):
         print i
     print i
