@@ -3967,17 +3967,26 @@ class ForFromStatNode(LoopNode, StatNode):
             decop = "%s=%s" % (decop[0], step)
         loopvar_name = self.loopvar_node.result()
         if from_range:
+            temp_range_bound = code.funcstate.allocate_temp(self.bound2.type, manage_ref=False)
+            code.putln("%s = %s;" % (temp_range_bound, self.bound2.result()))
             # Skip the loop entirely (and avoid assigning to the loopvar) if
             # the loop is empty:
             code.putln("if (%s%s %s %s) {" % (
-            self.bound1.result(), offset, self.relation2, self.bound2.result()
+            self.bound1.result(), offset, self.relation2, temp_range_bound
             ))
-        code.putln(
-            "for (%s = %s%s; %s %s %s; %s%s) {" % (
-                loopvar_name,
-                self.bound1.result(), offset,
-                loopvar_name, self.relation2, self.bound2.result(),
-                loopvar_name, incop))
+            code.putln(
+                "for (%s = %s%s; %s %s %s; %s%s) {" % (
+                    loopvar_name,
+                    self.bound1.result(), offset,
+                    loopvar_name, self.relation2, temp_range_bound,
+                    loopvar_name, incop))
+        else:
+            code.putln(
+                "for (%s = %s%s; %s %s %s; %s%s) {" % (
+                    loopvar_name,
+                    self.bound1.result(), offset,
+                    loopvar_name, self.relation2, self.bound2.result(),
+                    loopvar_name, incop))
         if self.py_loopvar_node:
             self.py_loopvar_node.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.py_loopvar_node, code)
@@ -3988,6 +3997,7 @@ class ForFromStatNode(LoopNode, StatNode):
             code.putln("} %s%s;" % (loopvar_name, decop))
             # End the outer if statement:
             code.putln("} /* end if */")
+            code.funcstate.release_temp(temp_range_bound)
         else:
             code.putln("}")
         break_label = code.break_label
