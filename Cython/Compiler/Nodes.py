@@ -845,8 +845,9 @@ class CStructOrUnionDefNode(StatNode):
                 if need_typedef_indirection:
                     # C can't handle typedef structs that refer to themselves. 
                     struct_entry = self.entry
-                    cname = env.new_const_cname()
-                    self.entry = env.declare_typedef(self.name, struct_entry.type, self.pos, cname = self.cname, visibility='ignore')
+                    self.entry = env.declare_typedef(
+                        self.name, struct_entry.type, self.pos,
+                        cname = self.cname, visibility='ignore')
                     struct_entry.type.typedef_flag = False
                     struct_entry.cname = struct_entry.type.cname = env.new_const_cname()
     
