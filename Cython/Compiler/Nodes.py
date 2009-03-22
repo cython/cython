@@ -4218,6 +4218,7 @@ class ExceptClauseNode(Node):
 
     exc_value = None
     excinfo_target = None
+    empty_body = False
 
     def analyse_declarations(self, env):
         if self.target:
@@ -4236,7 +4237,18 @@ class ExceptClauseNode(Node):
             self.match_flag = env.allocate_temp(PyrexTypes.c_int_type)
             self.pattern.release_temp(env)
             env.release_temp(self.match_flag)
-        self.exc_vars = [env.allocate_temp(py_object_type) for i in xrange(3)]
+
+        # most simple case: empty body (pass)
+        self.empty_body = not self.target and not self.excinfo_target and \
+                          not getattr(self.body, 'stats', True)
+
+        if not self.empty_body:
+            self.exc_vars = [env.allocate_temp(py_object_type) for i in xrange(3)]
+            env.use_utility_code(get_exception_utility_code)
+            env.use_utility_code(restore_exception_utility_code)
+        else:
+            self.exc_vars = []
+
         if self.target:
             self.exc_value = ExprNodes.ExcValueNode(self.pos, env, self.exc_vars[1])
             self.exc_value.allocate_temps(env)
@@ -4255,8 +4267,6 @@ class ExceptClauseNode(Node):
         self.body.analyse_expressions(env)
         for var in self.exc_vars:
             env.release_temp(var)
-        env.use_utility_code(get_exception_utility_code)
-        env.use_utility_code(restore_exception_utility_code)
     
     def generate_handling_code(self, code, end_label):
         code.mark_pos(self.pos)
@@ -4273,6 +4283,14 @@ class ExceptClauseNode(Node):
                     self.match_flag)
         else:
             code.putln("/*except:*/ {")
+
+        if self.empty_body:
+            # most simple case: reset the exception state, done
+            code.putln("PyErr_Restore(0,0,0);")
+            code.put_goto(end_label)
+            code.putln("}")
+            return
+
         code.putln('__Pyx_AddTraceback("%s");' % self.function_name)
         # We always have to fetch the exception value even if
         # there is no target, because this also normalises the 
