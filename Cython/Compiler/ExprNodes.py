@@ -901,7 +901,9 @@ class FloatNode(ConstNode):
     type = PyrexTypes.c_double_type
 
     def calculate_constant_result(self):
-        self.constant_result = float(self.value)
+        # calculating float values is usually not a good idea
+        #self.constant_result = float(self.value)
+        pass
 
     def compile_time_value(self, denv):
         return float(self.value)
@@ -3927,7 +3929,9 @@ class TypecastNode(NewTempExprNode):
         self.operand.check_const()
 
     def calculate_constant_result(self):
-        self.constant_result = self.operand.constant_result
+        # we usually do not know the result of a type cast at code
+        # generation time
+        pass
     
     def calculate_result_code(self):
         opnd = self.operand
@@ -4939,7 +4943,8 @@ class CoercionNode(NewTempExprNode):
             print("%s Coercing %s" % (self, self.arg))
 
     def calculate_constant_result(self):
-        self.constant_result = self.arg.constant_result
+        # constant folding can break type coercion, so this is disabled
+        pass
             
     def annotate(self, code):
         self.arg.annotate(code)
@@ -4986,7 +4991,11 @@ class PyTypeTestNode(CoercionNode):
     
     def is_ephemeral(self):
         return self.arg.is_ephemeral()
-    
+
+    def calculate_constant_result(self):
+        # FIXME
+        pass
+
     def calculate_result_code(self):
         return self.arg.result()
     

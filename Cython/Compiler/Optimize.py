@@ -566,44 +566,60 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             import traceback, sys
             traceback.print_exc(file=sys.stdout)
 
+    NODE_TYPE_ORDER = (ExprNodes.CharNode, ExprNodes.IntNode,
+                       ExprNodes.LongNode, ExprNodes.FloatNode)
+
+    def _widest_node_class(self, *nodes):
+        try:
+            return self.NODE_TYPE_ORDER[
+                max(map(self.NODE_TYPE_ORDER.index, map(type, nodes)))]
+        except ValueError:
+            return None
+
     def visit_ExprNode(self, node):
         self._calculate_const(node)
         return node
 
-#    def visit_NumBinopNode(self, node):
     def visit_BinopNode(self, node):
         self._calculate_const(node)
-        if node.type is PyrexTypes.py_object_type:
-            return node
         if node.constant_result is ExprNodes.not_a_constant:
             return node
-#        print node.constant_result, node.operand1, node.operand2, node.pos
+        try:
+            if node.operand1.type is None or node.operand2.type is None:
+                return node
+        except AttributeError:
+            return node
+
+        type1, type2 = node.operand1.type, node.operand2.type
         if isinstance(node.operand1, ExprNodes.ConstNode) and \
-                node.type is node.operand1.type:
-            new_node = node.operand1
-        elif isinstance(node.operand2, ExprNodes.ConstNode) and \
-                node.type is node.operand2.type:
-            new_node = node.operand2
+               isinstance(node.operand1, ExprNodes.ConstNode):
+            if type1 is type2:
+                new_node = node.operand1
+            else:
+                widest_type = PyrexTypes.widest_numeric_type(type1, type2)
+                if type(node.operand1) is type(node.operand2):
+                    new_node = node.operand1
+                    new_node.type = widest_type
+                elif type1 is widest_type:
+                    new_node = node.operand1
+                elif type2 is widest_type:
+                    new_node = node.operand2
+                else:
+                    target_class = self._widest_node_class(
+                        node.operand1, node.operand2)
+                    if target_class is None:
+                        return node
+                    new_node = target_class(type = widest_type)
         else:
             return node
-        new_node.value = new_node.constant_result = node.constant_result
-        new_node = new_node.coerce_to(node.type, self.current_scope)
+
+        new_node.constant_result = node.constant_result
+        new_node.value = str(node.constant_result)
+        #new_node = new_node.coerce_to(node.type, self.current_scope)
         return new_node
 
     # in the future, other nodes can have their own handler method here
     # that can replace them with a constant result node
-    
-    def visit_ModuleNode(self, node):
-        self.current_scope = node.scope
-        self.visitchildren(node)
-        return node
-
-    def visit_FuncDefNode(self, node):
-        old_scope = self.current_scope
-        self.current_scope = node.entry.scope
-        self.visitchildren(node)
-        self.current_scope = old_scope
-        return node
 
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
