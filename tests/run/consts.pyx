@@ -5,10 +5,12 @@ True
 True
 >>> neg() == -1 -2 - (-3+4)
 True
->>> int_mix() == 1 + (2 * 3) // 2
+>>> long_int_mix() == 1 + (2 * 3) // 2
 True
->>> if IS_PY3: type(int_mix()) is int
-... else:      type(int_mix()) is long
+>>> if IS_PY3: type(long_int_mix()) is int
+... else:      type(long_int_mix()) is long
+True
+>>> char_int_mix() == 1 + (ord(' ') * 3) // 2 + ord('A')
 True
 >>> int_cast() == 1 + 2 * 6000
 True
@@ -37,8 +39,11 @@ def add_var(a):
 def neg():
     return -1 -2 - (-3+4)
 
-def int_mix():
+def long_int_mix():
     return 1L + (2 * 3L) // 2
+
+def char_int_mix():
+    return 1L + (c' ' * 3L) // 2 + c'A'
 
 def int_cast():
     return <int>(1 + 2 * 6000)
