@@ -5,6 +5,13 @@ True
 True
 >>> neg() == -1 -2 - (-3+4)
 True
+>>> int_mix() == 1 + (2 * 3) // 2
+True
+>>> if IS_PY3: type(int_mix()) is int
+... else:      type(int_mix()) is long
+True
+>>> int_cast() == 1 + 2 * 6000
+True
 >>> mul() == 1*60*1000
 True
 >>> arithm() == 9*2+3*8/6-10
@@ -14,6 +21,9 @@ True
 >>> lists() == [1,2,3] + [4,5,6]
 True
 """
+
+import sys
+IS_PY3 = sys.version_info[0] >= 3
 
 def _func(a,b,c):
     return a+b+c
@@ -26,6 +36,12 @@ def add_var(a):
 
 def neg():
     return -1 -2 - (-3+4)
+
+def int_mix():
+    return 1L + (2 * 3L) // 2
+
+def int_cast():
+    return <int>(1 + 2 * 6000)
 
 def mul():
     return 1*60*1000
