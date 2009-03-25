@@ -340,10 +340,14 @@ def init_builtin_funcs():
     for desc in builtin_function_table:
         declare_builtin_func(*desc)
 
+builtin_types = {}
+
 def init_builtin_types():
+    global builtin_types
     for name, cname, funcs in builtin_types_table:
         utility = builtin_utility_code.get(name)
         the_type = builtin_scope.declare_builtin_type(name, cname, utility)
+        builtin_types[name] = the_type
         for name, args, ret, cname in funcs:
             sig = Signature(args, ret)
             the_type.scope.declare_cfunction(name, sig.function_type(), None, cname)
