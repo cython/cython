@@ -961,10 +961,9 @@ class FuncDefNode(StatNode, BlockNode):
         for arg in self.args:
             if arg.default:
                 if arg.is_generic:
-                    if not hasattr(arg, 'default_entry'):
-                        arg.default.analyse_types(env)
-                        arg.default = arg.default.coerce_to(arg.type, genv)
-                        arg.default.allocate_temps(genv)
+                    arg.default.analyse_types(env)
+                    arg.default = arg.default.coerce_to(arg.type, genv)
+                    arg.default.allocate_temps(genv)
                 else:
                     error(arg.pos,
                         "This argument cannot have a default value")
@@ -1352,9 +1351,11 @@ class CFuncDefNode(FuncDefNode):
                     error(self.pos, "Function declared nogil has Python locals or temporaries")
 
     def analyse_expressions(self, env):
-        self.analyse_default_values(env)
         if self.py_func is not None:
+            # this will also analyse the default values
             self.py_func.analyse_expressions(env)
+        else:
+            self.analyse_default_values(env)
 
     def generate_function_header(self, code, with_pymethdef, with_opt_args = 1, with_dispatch = 1, cname = None):
         arg_decls = []
