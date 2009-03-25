@@ -19,8 +19,6 @@ import Options
 import ControlFlow
 import DebugFlags
 
-from DebugFlags import debug_disposal_code
-
 absolute_path_length = 0
 
 def relative_position(pos):
