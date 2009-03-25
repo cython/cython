@@ -3862,39 +3862,44 @@ class ForFromStatNode(LoopNode, StatNode):
         self.target.analyse_target_types(env)
         self.bound1.analyse_types(env)
         self.bound2.analyse_types(env)
-        if self.target.type.is_numeric:
-            self.bound1 = self.bound1.coerce_to(self.target.type, env)
-            self.bound2 = self.bound2.coerce_to(self.target.type, env)
-        else:
-            self.bound1 = self.bound1.coerce_to_integer(env)
-            self.bound2 = self.bound2.coerce_to_integer(env)
-        if not self.bound2.is_literal:
-            self.bound2 = self.bound2.coerce_to_temp(env)
         if self.step is not None:
             if isinstance(self.step, ExprNodes.UnaryMinusNode):
                 warning(self.step.pos, "Probable infinite loop in for-from-by statment. Consider switching the directions of the relations.", 2)
             self.step.analyse_types(env)
-            self.step = self.step.coerce_to_integer(env)
+        
+        target_type = self.target.type
+        if self.target.type.is_numeric:
+            loop_type = self.target.type
+        else:
+            loop_type = PyrexTypes.c_int_type
+            if not self.bound1.type.is_pyobject:
+                loop_type = PyrexTypes.widest_numeric_type(loop_type, self.bound1.type)
+            if not self.bound2.type.is_pyobject:
+                loop_type = PyrexTypes.widest_numeric_type(loop_type, self.bound2.type)
+            if self.step is not None and not self.step.type.is_pyobject:
+                loop_type = PyrexTypes.widest_numeric_type(loop_type, self.step.type)
+        self.bound1 = self.bound1.coerce_to(loop_type, env)
+        self.bound2 = self.bound2.coerce_to(loop_type, env)
+        if not self.bound2.is_literal:
+            self.bound2 = self.bound2.coerce_to_temp(env)
+        if self.step is not None:
+            self.step = self.step.coerce_to(loop_type, env)            
             if not self.step.is_literal:
                 self.step = self.step.coerce_to_temp(env)
+
         target_type = self.target.type
         if not (target_type.is_pyobject or target_type.is_numeric):
             error(self.target.pos,
-                "Integer for-loop variable must be of type int or Python object")
-        #if not (target_type.is_pyobject
-        #    or target_type.assignable_from(PyrexTypes.c_int_type)):
-        #        error(self.target.pos,
-        #            "Cannot assign integer to variable of type '%s'" % target_type)
+                "for-from loop variable must be c numeric type or Python object")
         if target_type.is_numeric:
-            self.is_py_target = 0
+            self.is_py_target = False
             if isinstance(self.target, ExprNodes.IndexNode) and self.target.is_buffer_access:
                 raise error(self.pos, "Buffer indexing not allowed as for loop target.")
             self.loopvar_node = self.target
             self.py_loopvar_node = None
         else:
-            self.is_py_target = 1
-            c_loopvar_node = ExprNodes.TempNode(self.pos, 
-                PyrexTypes.c_long_type, env)
+            self.is_py_target = True
+            c_loopvar_node = ExprNodes.TempNode(self.pos, loop_type, env)
             c_loopvar_node.allocate_temps(env)
             self.loopvar_node = c_loopvar_node
             self.py_loopvar_node = \
