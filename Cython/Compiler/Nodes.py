@@ -2679,8 +2679,7 @@ class CClassDefNode(ClassDefNode):
 
         if self.visibility == 'extern':
             if self.module_name == '__builtin__' and self.class_name in Builtin.builtin_types:
-                error(self.pos, "%s already a builtin Cython type" % self.class_name)
-                return
+                warning(self.pos, "%s already a builtin Cython type" % self.class_name, 1)
 
         self.entry = home_scope.declare_c_class(
             name = self.class_name, 
