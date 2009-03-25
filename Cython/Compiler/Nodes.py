@@ -3997,9 +3997,9 @@ class ForFromStatNode(LoopNode, StatNode):
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
         if self.py_loopvar_node:
-            
-            self.py_loopvar_node.generate_evaluation_code(code)
-            self.target.generate_assignment_code(self.py_loopvar_node, code)
+            # Reassign py variable to loop var here.
+            # (For consistancy, should rarely come up in practice.)
+            pass
         code.putln("}")
         break_label = code.break_label
         code.set_loop_labels(old_loop_labels)
