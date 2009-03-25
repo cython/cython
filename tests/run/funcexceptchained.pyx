@@ -8,7 +8,13 @@ __doc__ = u"""
 ...   except AttributeError:
 ...     print(sys.exc_info()[0] is AttributeError or sys.exc_info()[0])
 ...     try: raise KeyError
-...     except: print(sys.exc_info()[0] is KeyError or sys.exc_info()[0])
+...     except:
+...       print(sys.exc_info()[0] is KeyError or sys.exc_info()[0])
+...       if IS_PY3:
+...         print(isinstance(sys.exc_info()[1].__context__, AttributeError)
+...               or sys.exc_info()[1].__context__)
+...       else:
+...         print(True)
 ...     print((IS_PY3 and sys.exc_info()[0] is AttributeError) or
 ...           (not IS_PY3 and sys.exc_info()[0] is KeyError) or
 ...           sys.exc_info()[0])
@@ -24,10 +30,12 @@ True
 True
 True
 True
+True
 >>> print(sys.exc_info()[0]) # test_py()
 None
 
 >>> test_c(None)
+True
 True
 True
 True
@@ -52,10 +60,12 @@ True
 True
 True
 True
+True
 >>> print(sys.exc_info()[0]) # test_py2()
 None
 
 >>> test_c2()
+True
 True
 True
 True
@@ -76,7 +86,13 @@ def test_c(outer_exc):
     except AttributeError:
         print(sys.exc_info()[0] is AttributeError or sys.exc_info()[0])
         try: raise KeyError
-        except: print(sys.exc_info()[0] is KeyError or sys.exc_info()[0])
+        except:
+            print(sys.exc_info()[0] is KeyError or sys.exc_info()[0])
+            if IS_PY3:
+                print(isinstance(sys.exc_info()[1].__context__, AttributeError)
+                      or sys.exc_info()[1].__context__)
+            else:
+                print(True)
         print(sys.exc_info()[0] is AttributeError or sys.exc_info()[0])
     print(sys.exc_info()[0] is outer_exc or sys.exc_info()[0])
 
