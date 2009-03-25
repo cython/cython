@@ -144,7 +144,6 @@ class IterationTransform(Visitor.VisitorTransform):
             relation2=relation2, bound2=bound2,
             step=step, body=node.body,
             else_clause=node.else_clause,
-            loopvar_node=node.target,
             from_range=True)
         return for_node
 
