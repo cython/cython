@@ -4218,7 +4218,6 @@ class ExceptClauseNode(Node):
 
     exc_value = None
     excinfo_target = None
-    empty_body = False
 
     def analyse_declarations(self, env):
         if self.target:
@@ -4238,16 +4237,10 @@ class ExceptClauseNode(Node):
             self.pattern.release_temp(env)
             env.release_temp(self.match_flag)
 
-        # most simple case: empty body (pass)
-        self.empty_body = not self.target and not self.excinfo_target and \
-                          not getattr(self.body, 'stats', True)
-
-        if not self.empty_body:
+        if self.target or self.excinfo_target:
             self.exc_vars = [env.allocate_temp(py_object_type) for i in xrange(3)]
-            env.use_utility_code(get_exception_utility_code)
-            env.use_utility_code(restore_exception_utility_code)
         else:
-            self.exc_vars = []
+            self.exc_vars = None
 
         if self.target:
             self.exc_value = ExprNodes.ExcValueNode(self.pos, env, self.exc_vars[1])
@@ -4265,8 +4258,10 @@ class ExceptClauseNode(Node):
             self.excinfo_target.analyse_target_expression(env, self.excinfo_tuple)
 
         self.body.analyse_expressions(env)
-        for var in self.exc_vars:
-            env.release_temp(var)
+
+        if self.exc_vars:
+            for var in self.exc_vars:
+                env.release_temp(var)
     
     def generate_handling_code(self, code, end_label):
         code.mark_pos(self.pos)
@@ -4284,21 +4279,35 @@ class ExceptClauseNode(Node):
         else:
             code.putln("/*except:*/ {")
 
-        if self.empty_body:
+        # most simple case: empty body (pass)
+        empty_body = not self.target and not self.excinfo_target and \
+                     not getattr(self.body, 'stats', True)
+
+        if empty_body:
             # most simple case: reset the exception state, done
             code.putln("PyErr_Restore(0,0,0);")
             code.put_goto(end_label)
             code.putln("}")
             return
 
+        if self.exc_vars:
+            exc_vars = self.exc_vars
+        else:
+            # during type analysis, we didn't know if we need these,
+            # but apparently, we do
+            exc_vars = [code.funcstate.allocate_temp(py_object_type,
+                                                     manage_ref=True)
+                        for i in xrange(3)]
+
         code.putln('__Pyx_AddTraceback("%s");' % self.function_name)
         # We always have to fetch the exception value even if
         # there is no target, because this also normalises the 
         # exception and stores it in the thread state.
-        exc_args = "&%s, &%s, &%s" % tuple(self.exc_vars)
+        code.globalstate.use_utility_code(get_exception_utility_code)
+        exc_args = "&%s, &%s, &%s" % tuple(exc_vars)
         code.putln("if (__Pyx_GetException(%s) < 0) %s" % (exc_args,
             code.error_goto(self.pos)))
-        for x in self.exc_vars:
+        for x in exc_vars:
             code.put_gotref(x)
         if self.target:
             self.exc_value.generate_evaluation_code(code)
@@ -4313,27 +4322,32 @@ class ExceptClauseNode(Node):
         code.continue_label = code.new_label('except_continue')
 
         old_exc_vars = code.funcstate.exc_vars
-        code.funcstate.exc_vars = self.exc_vars
+        code.funcstate.exc_vars = exc_vars
         self.body.generate_execution_code(code)
         code.funcstate.exc_vars = old_exc_vars
-        for var in self.exc_vars:
+        for var in exc_vars:
             code.putln("__Pyx_DECREF(%s); %s = 0;" % (var, var))
         code.put_goto(end_label)
         
         if code.label_used(code.break_label):
             code.put_label(code.break_label)
-            for var in self.exc_vars:
+            for var in exc_vars:
                 code.putln("__Pyx_DECREF(%s); %s = 0;" % (var, var))
             code.put_goto(old_break_label)
         code.break_label = old_break_label
 
         if code.label_used(code.continue_label):
             code.put_label(code.continue_label)
-            for var in self.exc_vars:
+            for var in exc_vars:
                 code.putln("__Pyx_DECREF(%s); %s = 0;" % (var, var))
             code.put_goto(old_continue_label)
         code.continue_label = old_continue_label
-        
+
+        if not self.exc_vars:
+            # clean up locally allocated temps
+            for temp in exc_vars:
+                code.funcstate.release_temp(temp)
+
         code.putln(
             "}")
 
@@ -5584,7 +5598,12 @@ impl = """
 static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) {
     PyObject *tmp_type, *tmp_value, *tmp_tb;
     PyThreadState *tstate = PyThreadState_GET();
-    __Pyx_ErrFetch(type, value, tb);
+    *type = tstate->curexc_type;
+    *value = tstate->curexc_value;
+    *tb = tstate->curexc_traceback;
+    tstate->curexc_type = 0;
+    tstate->curexc_value = 0;
+    tstate->curexc_traceback = 0;
     PyErr_NormalizeException(type, value, tb);
     if (PyErr_Occurred())
         goto bad;
