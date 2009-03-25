@@ -3840,6 +3840,7 @@ class ForFromStatNode(LoopNode, StatNode):
     #
     #  Used internally:
     #
+    #  from_range         bool
     #  is_py_target       bool
     #  loopvar_node       ExprNode (usually a NameNode or temp node)
     #  py_loopvar_node    PyTempNode or None
@@ -3848,6 +3849,7 @@ class ForFromStatNode(LoopNode, StatNode):
     is_py_target = False
     loopvar_node = None
     py_loopvar_node = None
+    from_range = False
 
     def analyse_declarations(self, env):
         self.target.analyse_target_declaration(env)
@@ -3866,13 +3868,15 @@ class ForFromStatNode(LoopNode, StatNode):
         else:
             self.bound1 = self.bound1.coerce_to_integer(env)
             self.bound2 = self.bound2.coerce_to_integer(env)
+        if not self.bound2.is_literal:
+            self.bound2 = self.bound2.coerce_to_temp(env)
         if self.step is not None:
             if isinstance(self.step, ExprNodes.UnaryMinusNode):
                 warning(self.step.pos, "Probable infinite loop in for-from-by statment. Consider switching the directions of the relations.", 2)
             self.step.analyse_types(env)
             self.step = self.step.coerce_to_integer(env)
-        if not (self.bound2.is_name or self.bound2.is_literal):
-            self.bound2 = self.bound2.coerce_to_temp(env)
+            if not self.step.is_literal:
+                self.step = self.step.coerce_to_temp(env)
         target_type = self.target.type
         if not (target_type.is_pyobject or target_type.is_numeric):
             error(self.target.pos,
@@ -3916,49 +3920,37 @@ class ForFromStatNode(LoopNode, StatNode):
             
     def generate_execution_code(self, code):
         old_loop_labels = code.new_loop_labels()
-        from_range = getattr(self, "from_range", False)
+        from_range = self.from_range
         self.bound1.generate_evaluation_code(code)
         self.bound2.generate_evaluation_code(code)
         offset, incop = self.relation_table[self.relation1]
-        if incop == "++":
-            decop = "--"
-        else:
-            decop = "++"
         if self.step is not None:
             self.step.generate_evaluation_code(code)
             step = self.step.result()
             incop = "%s=%s" % (incop[0], step)
-            decop = "%s=%s" % (decop[0], step)
-        loopvar_name = self.loopvar_node.result()
         if from_range:
-            range_bound = code.funcstate.allocate_temp(self.bound2.type, manage_ref=False)
-            code.putln("%s = %s;" % (range_bound, self.bound2.result()))
-            # Skip the loop entirely (and avoid assigning to the loopvar) if
-            # the loop is empty:
-            code.putln("if (%s%s %s %s) {" % (
-                self.bound1.result(), offset, self.relation2, range_bound
-                ))
+            loopvar_name = code.funcstate.allocate_temp(self.target.type, False)
         else:
-            range_bound = self.bound2.result()
+            loopvar_name = self.loopvar_node.result()
         code.putln(
             "for (%s = %s%s; %s %s %s; %s%s) {" % (
                 loopvar_name,
                 self.bound1.result(), offset,
-                loopvar_name, self.relation2, range_bound,
+                loopvar_name, self.relation2, self.bound2.result(),
                 loopvar_name, incop))
         if self.py_loopvar_node:
             self.py_loopvar_node.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.py_loopvar_node, code)
+        elif from_range:
+            code.putln("%s = %s;" % (
+                            self.target.result(), loopvar_name))
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
-        if from_range:
-            # Undo last increment to maintain Python semantics:
-            code.putln("} %s%s;" % (loopvar_name, decop))
-            # End the outer if statement:
-            code.putln("} /* end if */")
-            code.funcstate.release_temp(range_bound)
-        else:
-            code.putln("}")
+        if self.py_loopvar_node:
+            
+            self.py_loopvar_node.generate_evaluation_code(code)
+            self.target.generate_assignment_code(self.py_loopvar_node, code)
+        code.putln("}")
         break_label = code.break_label
         code.set_loop_labels(old_loop_labels)
         if self.else_clause:
@@ -3973,6 +3965,8 @@ class ForFromStatNode(LoopNode, StatNode):
         if self.step is not None:
             self.step.generate_disposal_code(code)
             self.step.free_temps(code)
+        if from_range:
+            code.funcstate.release_temp(loopvar_name)
     
     relation_table = {
         # {relop : (initial offset, increment op)}
