@@ -4279,22 +4279,18 @@ class ExceptClauseNode(Node):
         else:
             code.putln("/*except:*/ {")
 
-        # most simple case: empty body (pass)
-        empty_body = not self.target and not self.excinfo_target and \
-                     not getattr(self.body, 'stats', True)
-
-        if empty_body:
-            # most simple case: reset the exception state, done
+        if self.exc_vars:
+            exc_vars = self.exc_vars
+        elif not getattr(self.body, 'stats', True):
+            # most simple case: no exception variable, empty body (pass)
+            # => reset the exception state, done
             code.putln("PyErr_Restore(0,0,0);")
             code.put_goto(end_label)
             code.putln("}")
             return
-
-        if self.exc_vars:
-            exc_vars = self.exc_vars
         else:
-            # during type analysis, we didn't know if we need these,
-            # but apparently, we do
+            # during type analysis, we didn't know if we need the
+            # exception value, but apparently, we do
             exc_vars = [code.funcstate.allocate_temp(py_object_type,
                                                      manage_ref=True)
                         for i in xrange(3)]
