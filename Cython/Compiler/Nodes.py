@@ -1075,7 +1075,7 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- GIL acquisition
         acquire_gil = self.need_gil_acquisition(lenv)
         if acquire_gil:
-            env.use_utility_code(py23_init_threads_utility_code)
+            env.use_utility_code(force_init_threads_utility_code)
             code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
         # ----- Automatic lead-ins for certain special functions
         if not lenv.nogil:
@@ -3978,16 +3978,20 @@ class ForFromStatNode(LoopNode, StatNode):
             decop = "%s=%s" % (decop[0], step)
         loopvar_name = self.loopvar_node.result()
         if from_range:
+            range_bound = code.funcstate.allocate_temp(self.bound2.type, manage_ref=False)
+            code.putln("%s = %s;" % (range_bound, self.bound2.result()))
             # Skip the loop entirely (and avoid assigning to the loopvar) if
             # the loop is empty:
             code.putln("if (%s%s %s %s) {" % (
-            self.bound1.result(), offset, self.relation2, self.bound2.result()
-            ))
+                self.bound1.result(), offset, self.relation2, range_bound
+                ))
+        else:
+            range_bound = self.bound2.result()
         code.putln(
             "for (%s = %s%s; %s %s %s; %s%s) {" % (
                 loopvar_name,
                 self.bound1.result(), offset,
-                loopvar_name, self.relation2, self.bound2.result(),
+                loopvar_name, self.relation2, range_bound,
                 loopvar_name, incop))
         if self.py_loopvar_node:
             self.py_loopvar_node.generate_evaluation_code(code)
@@ -3999,6 +4003,7 @@ class ForFromStatNode(LoopNode, StatNode):
             code.putln("} %s%s;" % (loopvar_name, decop))
             # End the outer if statement:
             code.putln("} /* end if */")
+            code.funcstate.release_temp(range_bound)
         else:
             code.putln("}")
         break_label = code.break_label
@@ -4224,6 +4229,7 @@ class ExceptClauseNode(Node):
 
     exc_value = None
     excinfo_target = None
+    empty_body = False
 
     def analyse_declarations(self, env):
         if self.target:
@@ -4242,7 +4248,18 @@ class ExceptClauseNode(Node):
             self.match_flag = env.allocate_temp(PyrexTypes.c_int_type)
             self.pattern.release_temp(env)
             env.release_temp(self.match_flag)
-        self.exc_vars = [env.allocate_temp(py_object_type) for i in xrange(3)]
+
+        # most simple case: empty body (pass)
+        self.empty_body = not self.target and not self.excinfo_target and \
+                          not getattr(self.body, 'stats', True)
+
+        if not self.empty_body:
+            self.exc_vars = [env.allocate_temp(py_object_type) for i in xrange(3)]
+            env.use_utility_code(get_exception_utility_code)
+            env.use_utility_code(restore_exception_utility_code)
+        else:
+            self.exc_vars = []
+
         if self.target:
             self.exc_value = ExprNodes.ExcValueNode(self.pos, env, self.exc_vars[1])
             self.exc_value.allocate_temps(env)
@@ -4261,8 +4278,6 @@ class ExceptClauseNode(Node):
         self.body.analyse_expressions(env)
         for var in self.exc_vars:
             env.release_temp(var)
-        env.use_utility_code(get_exception_utility_code)
-        env.use_utility_code(restore_exception_utility_code)
     
     def generate_handling_code(self, code, end_label):
         code.mark_pos(self.pos)
@@ -4279,6 +4294,14 @@ class ExceptClauseNode(Node):
                     self.match_flag)
         else:
             code.putln("/*except:*/ {")
+
+        if self.empty_body:
+            # most simple case: reset the exception state, done
+            code.putln("PyErr_Restore(0,0,0);")
+            code.put_goto(end_label)
+            code.putln("}")
+            return
+
         code.putln('__Pyx_AddTraceback("%s");' % self.function_name)
         # We always have to fetch the exception value even if
         # there is no target, because this also normalises the 
@@ -4540,7 +4563,7 @@ class GILStatNode(TryFinallyStatNode):
             finally_clause = GILExitNode(pos, state = state))
 
     def analyse_expressions(self, env):
-        env.use_utility_code(py23_init_threads_utility_code)
+        env.use_utility_code(force_init_threads_utility_code)
         was_nogil = env.nogil
         env.nogil = 1
         TryFinallyStatNode.analyse_expressions(self, env)
@@ -4550,11 +4573,11 @@ class GILStatNode(TryFinallyStatNode):
         pass
 
     def generate_execution_code(self, code):
-        code.putln("/*with %s:*/ {" % self.state)
+        code.mark_pos(self.pos)
         if self.state == 'gil':
-            code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
+            code.putln("{ PyGILState_STATE _save = PyGILState_Ensure();")
         else:
-            code.putln("PyThreadState *_save;")
+            code.putln("{ PyThreadState *_save;")
             code.putln("Py_UNBLOCK_THREADS")
         TryFinallyStatNode.generate_execution_code(self, code)
         code.putln("}")
@@ -5635,7 +5658,7 @@ static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb) 
 
 #------------------------------------------------------------------------------------
 
-py23_init_threads_utility_code = UtilityCode(
+force_init_threads_utility_code = UtilityCode(
 proto="""
 #ifndef __PYX_FORCE_INIT_THREADS
 #if PY_VERSION_HEX < 0x02040200
