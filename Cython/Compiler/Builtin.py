@@ -91,7 +91,10 @@ builtin_types_table = [
     ("int",     "PyInt_Type",      []),
     ("long",    "PyLong_Type",     []),
     ("float",   "PyFloat_Type",    []),
-    ("complex", "PyComplex_Type",  []),
+    
+# Until we have a way to access attributes of a type, 
+# we don't want to make this one builtin.    
+#    ("complex", "PyComplex_Type",  []),
 
     ("bytes",   "PyBytes_Type",    []),
     ("str",     "PyString_Type",   []),
