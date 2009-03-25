@@ -4,10 +4,6 @@
 (9, 9, 8, 1, 2)
 >>> from_loop_indices()
 ** Calculating step **
-** Calculating step **
-** Calculating step **
-** Calculating step **
-** Calculating step **
 (10, 10, 0)
 """
 
