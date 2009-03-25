@@ -1335,7 +1335,12 @@ class CFuncDefNode(FuncDefNode):
         self.entry.inline_func_in_pxd = self.inline_in_pxd
         self.return_type = type.return_type
         
-        if self.overridable and len(self.args) > 0:
+        if self.overridable and not env.is_module_scope:
+            if len(self.args) < 1 or not self.args[0].type.is_pyobject:
+                # An error will be produced in the cdef function
+                self.overridable = False
+            
+        if self.overridable:
             import ExprNodes
             py_func_body = self.call_self_node(is_module_scope = env.is_module_scope)
             self.py_func = DefNode(pos = self.pos, 
@@ -2669,6 +2674,11 @@ class CClassDefNode(ClassDefNode):
                 return
         else:
             home_scope = env
+
+        if self.visibility == 'extern':
+            if self.module_name == '__builtin__' and self.class_name in Builtin.builtin_types:
+                warning(self.pos, "%s already a builtin Cython type" % self.class_name, 1)
+
         self.entry = home_scope.declare_c_class(
             name = self.class_name, 
             pos = self.pos,
