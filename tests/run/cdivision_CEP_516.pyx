@@ -23,6 +23,9 @@ True
 [1, -2, 1, -2]
 >>> [div_int_c(a, b) for a, b in v]
 [1, -1, 1, -1]
+
+>>> [test_cdiv_cmod(a, b) for a, b in v]
+[(1, 7), (-1, -7), (1, -7), (-1, 7)]
 """
 
 cimport cython
@@ -64,3 +67,9 @@ def div_int_py(int a, int b):
 def div_int_c(int a, int b):
     return a // b
 
+
+@cython.cdivision(False)
+def test_cdiv_cmod(short a, short b):
+    cdef short q = cython.cdiv(a, b)
+    cdef short r = cython.cmod(a, b)
+    return q, r
