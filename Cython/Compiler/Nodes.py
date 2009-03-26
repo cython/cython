@@ -1450,6 +1450,8 @@ class CFuncDefNode(FuncDefNode):
             code.putln('if (%s) {' % Naming.optional_args_cname)
             for arg in self.args:
                 if arg.default:
+                    # FIXME: simple name prefixing doesn't work when
+                    # argument name mangling is in place
                     code.putln('if (%s->%sn > %s) {' % (Naming.optional_args_cname, Naming.pyrex_prefix, i))
                     declarator = arg.declarator
                     while not hasattr(declarator, 'name'):
