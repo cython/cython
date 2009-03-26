@@ -987,6 +987,18 @@ class TransformBuiltinMethods(EnvTransform):
                     error(node.function.pos, u"sizeof takes exactly one argument" % function)
                 else:
                     node = AmpersandNode(node.function.pos, operand=node.args[0])
+            elif function == 'cmod':
+                if len(node.args) != 2:
+                    error(node.function.pos, u"cmod takes exactly one argument" % function)
+                else:
+                    node = binop_node(node.function.pos, '%', node.args[0], node.args[1])
+                    node.cdivision = True
+            elif function == 'cdiv':
+                if len(node.args) != 2:
+                    error(node.function.pos, u"cmod takes exactly one argument" % function)
+                else:
+                    node = binop_node(node.function.pos, '/', node.args[0], node.args[1])
+                    node.cdivision = True
             else:
                 error(node.function.pos, u"'%s' not a valid cython language construct" % function)
         
