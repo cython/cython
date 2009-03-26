@@ -6,6 +6,19 @@ def empty_decorator(x):
 def locals(**arg_types):
     return empty_decorator
 
+# Special functions
+
+def cdiv(a, b):
+    q = a / b
+    if q < 0:
+        q += 1
+
+def cmod(a, b):
+    r = a % b
+    if (a*b) < 0:
+        r -= b
+    return r
+
 
 # Emulated language constructs
 
