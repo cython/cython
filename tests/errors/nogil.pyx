@@ -78,9 +78,9 @@ cdef void t(C c) nogil:
 
 
 _ERRORS = u"""
- 1: 5: Function with Python return type cannot be declared nogil
- 6: 6: Assignment of Python object not allowed without gil
- 4: 5: Function declared nogil has Python locals or temporaries
+1: 5: Function with Python return type cannot be declared nogil
+6: 6: Assignment of Python object not allowed without gil
+4: 5: Function declared nogil has Python locals or temporaries
 11: 5: Function with Python return type cannot be declared nogil
 15: 5: Calling gil-requiring function without gil
 24: 9: Calling gil-requiring function without gil
