@@ -4232,12 +4232,16 @@ class MulNode(NumBinopNode):
 class DivNode(NumBinopNode):
     #  '/' or '//' operator.
     
+    cdivision = None
+    
     def generate_evaluation_code(self, code):
-        self.cdivision = (code.globalstate.directives['cdivision'] 
-                            or not self.type.signed
-                            or self.type.is_float)
-        if not self.cdivision:
-            code.globalstate.use_utility_code(div_utility_code.specialize(self.type))
+        if not self.type.is_pyobject:
+            if self.cdivision is None:
+                self.cdivision = (code.globalstate.directives['cdivision'] 
+                                    or not self.type.signed
+                                    or self.type.is_float)
+            if not self.cdivision:
+                code.globalstate.use_utility_code(div_utility_code.specialize(self.type))
         NumBinopNode.generate_evaluation_code(self, code)
     
     def calculate_result_code(self):
@@ -4254,6 +4258,8 @@ class DivNode(NumBinopNode):
 
 class ModNode(NumBinopNode):
     #  '%' operator.
+
+    cdivision = None
     
     def is_py_operation(self):
         return (self.operand1.type.is_string
@@ -4261,12 +4267,14 @@ class ModNode(NumBinopNode):
             or NumBinopNode.is_py_operation(self))
 
     def generate_evaluation_code(self, code):
-        self.cdivision = code.globalstate.directives['cdivision'] or not self.type.signed
-        if not self.cdivision:
-            math_h_modifier = getattr(self.type, 'math_h_modifier', '__Pyx_INT')
-            if self.type.is_int:
-                code.globalstate.use_utility_code(mod_int_helper_macro)
-            code.globalstate.use_utility_code(mod_utility_code.specialize(self.type, math_h_modifier=math_h_modifier))
+        if not self.type.is_pyobject:
+            if self.cdivision is None:
+                self.cdivision = code.globalstate.directives['cdivision'] or not self.type.signed
+            if not self.cdivision:
+                math_h_modifier = getattr(self.type, 'math_h_modifier', '__Pyx_INT')
+                if self.type.is_int:
+                    code.globalstate.use_utility_code(mod_int_helper_macro)
+                code.globalstate.use_utility_code(mod_utility_code.specialize(self.type, math_h_modifier=math_h_modifier))
         NumBinopNode.generate_evaluation_code(self, code)
     
     def calculate_result_code(self):
