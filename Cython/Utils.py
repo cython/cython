@@ -122,8 +122,11 @@ class UtilityCode(object):
         else:
             writer.put(self.cleanup)
     
-    def specialize(self, **data):
+    def specialize(self, pyrex_type=None, **data):
         # Dicts aren't hashable...
+        if pyrex_type is not None:
+            data['type'] = pyrex_type.declaration_code('')
+            data['type_name'] = pyrex_type.specalization_name()
         key = data.items(); key.sort(); key = tuple(key)
         try:
             return self._cache[key]

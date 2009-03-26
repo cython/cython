@@ -14,6 +14,9 @@ class BaseType(object):
     def cast_code(self, expr_code):
         return "((%s)%s)" % (self.declaration_code(""), expr_code)
     
+    def specalization_name(self):
+        return self.declaration_code("").replace(" ", "__")
+    
     def base_declaration_code(self, base_code, entity_code):
         if entity_code:
             return "%s %s" % (base_code, entity_code)
@@ -601,8 +604,9 @@ class CFloatType(CNumericType):
     to_py_function = "PyFloat_FromDouble"
     from_py_function = "__pyx_PyFloat_AsDouble"
     
-    def __init__(self, rank, pymemberdef_typecode = None):
+    def __init__(self, rank, pymemberdef_typecode = None, math_h_modifier = ''):
         CNumericType.__init__(self, rank, 1, pymemberdef_typecode)
+        self.math_h_modifier = math_h_modifier
     
     def assignable_from_resolved_type(self, src_type):
         return src_type.is_numeric or src_type is error_type
@@ -1193,9 +1197,9 @@ c_slonglong_type =   CLongLongType(6, 2, "T_LONGLONG")
 c_py_ssize_t_type =  CPySSizeTType(4, 2, "T_PYSSIZET")
 c_size_t_type =      CSizeTType(5, 0, "T_SIZET")
 
-c_float_type =       CFloatType(7, "T_FLOAT")
+c_float_type =       CFloatType(7, "T_FLOAT", math_h_modifier='f')
 c_double_type =      CFloatType(8, "T_DOUBLE")
-c_longdouble_type =  CFloatType(9)
+c_longdouble_type =  CFloatType(9, math_h_modifier='l')
 
 c_null_ptr_type =     CNullPtrType(c_void_type)
 c_char_array_type =   CCharArrayType(None)
