@@ -55,21 +55,21 @@ c_line_in_traceback = 1
 
 
 # Declare pragmas
-option_types = {
-    'boundscheck' : bool,
-    'nonecheck' : bool,
-    'embedsignature' : bool,
-    'locals' : dict,
-    'auto_cpdef': bool,
-}
-
 option_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
     'embedsignature' : False,
     'locals' : {},
     'auto_cpdef': False,
+    'cdivision': True,  # Will be False in 0.12
 }
+
+# Override types possibilities above, if needed
+option_types = { }
+
+for key, val in option_defaults.items():
+    if key not in option_types:
+        option_types[key] = type(val)
 
 def parse_option_value(name, value):
     """
