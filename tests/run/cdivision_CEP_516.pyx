@@ -18,6 +18,11 @@ True
 [7.0, -7.0, -7.0, 7.0]
 >>> [mod_double_c(a, b) for a, b in v]
 [7.0, -7.0, -7.0, 7.0]
+
+>>> [div_int_py(a, b) for a, b in v]
+[1, -2, 1, -2]
+>>> [div_int_c(a, b) for a, b in v]
+[1, -1, 1, -1]
 """
 
 cimport cython
@@ -49,4 +54,13 @@ def mod_float_c(float a, float b):
 @cython.cdivision(True)
 def mod_double_c(double a, double b):
     return a % b
+
+
+@cython.cdivision(False)
+def div_int_py(int a, int b):
+    return a // b
+
+@cython.cdivision(True)
+def div_int_c(int a, int b):
+    return a // b
 

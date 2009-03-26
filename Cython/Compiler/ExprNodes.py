@@ -4229,14 +4229,27 @@ class MulNode(NumBinopNode):
             return NumBinopNode.is_py_operation(self)
 
 
-class FloorDivNode(NumBinopNode):
-    #  '//' operator.
+class DivNode(NumBinopNode):
+    #  '/' or '//' operator.
+    
+    def generate_evaluation_code(self, code):
+        self.cdivision = (code.globalstate.directives['cdivision'] 
+                            or not self.type.signed
+                            or self.type.is_float)
+        if not self.cdivision:
+            code.globalstate.use_utility_code(div_utility_code.specialize(self.type))
+        NumBinopNode.generate_evaluation_code(self, code)
     
     def calculate_result_code(self):
-        return "(%s %s %s)" % (
-            self.operand1.result(), 
-            "/",  # c division is by default floor-div 
-            self.operand2.result())
+        if self.cdivision:
+            return "(%s / %s)" % (
+                self.operand1.result(), 
+                self.operand2.result())
+        else:
+            return "__Pyx_div_%s(%s, %s)" % (
+                    self.type.specalization_name(),
+                    self.operand1.result(), 
+                    self.operand2.result())
 
 
 class ModNode(NumBinopNode):
@@ -4247,15 +4260,31 @@ class ModNode(NumBinopNode):
             or self.operand2.type.is_string
             or NumBinopNode.is_py_operation(self))
 
+    def generate_evaluation_code(self, code):
+        self.cdivision = code.globalstate.directives['cdivision'] or not self.type.signed
+        if not self.cdivision:
+            math_h_modifier = getattr(self.type, 'math_h_modifier', '__Pyx_INT')
+            if self.type.is_int:
+                code.globalstate.use_utility_code(mod_int_helper_macro)
+            code.globalstate.use_utility_code(mod_utility_code.specialize(self.type, math_h_modifier=math_h_modifier))
+        NumBinopNode.generate_evaluation_code(self, code)
+    
     def calculate_result_code(self):
-        if self.operand1.type.is_float or self.operand2.type.is_float:
-            return "fmod(%s, %s)" % (
-                self.operand1.result(), 
-                self.operand2.result())
+        if self.cdivision:
+            if self.type.is_float:
+                return "fmod%s(%s, %s)" % (
+                    self.type.math_h_modifier,
+                    self.operand1.result(), 
+                    self.operand2.result())
+            else:
+                return "(%s %% %s)" % (
+                    self.operand1.result(), 
+                    self.operand2.result())
         else:
-            return "(%s %% %s)" % (
-                self.operand1.result(), 
-                self.operand2.result())
+            return "__Pyx_mod_%s(%s, %s)" % (
+                    self.type.specalization_name(),
+                    self.operand1.result(), 
+                    self.operand2.result())
 
 class PowNode(NumBinopNode):
     #  '**' operator.
@@ -4852,20 +4881,20 @@ class CascadedCmpNode(Node, CmpNode):
 
 
 binop_node_classes = {
-    "or":        BoolBinopNode,
-    "and":    BoolBinopNode,
+    "or":       BoolBinopNode,
+    "and":      BoolBinopNode,
     "|":        IntBinopNode,
     "^":        IntBinopNode,
     "&":        IntBinopNode,
-    "<<":        IntBinopNode,
-    ">>":        IntBinopNode,
+    "<<":       IntBinopNode,
+    ">>":       IntBinopNode,
     "+":        AddNode,
     "-":        SubNode,
     "*":        MulNode,
-    "/":        NumBinopNode,
-    "//":        FloorDivNode,
+    "/":        DivNode,
+    "//":       DivNode,
     "%":        ModNode,
-    "**":        PowNode
+    "**":       PowNode
 }
 
 def binop_node(pos, operator, operand1, operand2):
@@ -5637,5 +5666,36 @@ static INLINE %(type)s %(func_name)s(%(type)s b, %(type)s e) {
         e >>= 1;
     }
     return t;
+}
+""")
+
+# ------------------------------ Division ------------------------------------
+
+# This is so we can treat floating point and integer mod simultaneously. 
+mod_int_helper_macro = UtilityCode(proto="""
+#define fmod__Pyx_INT(a, b) ((a) % (b))
+""")
+
+mod_utility_code = UtilityCode(
+proto="""
+static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
+""",
+impl="""
+static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
+    %(type)s res = fmod%(math_h_modifier)s(a, b);
+    res += (res * b < 0) * b;
+    return res;
+}
+""")
+
+div_utility_code = UtilityCode(
+proto="""
+static INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s, %(type)s); /* proto */
+""",
+impl="""
+static INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s a, %(type)s b) {
+    %(type)s res = a / b;
+    res -= (res < 0);
+    return res;
 }
 """)
