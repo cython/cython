@@ -3,6 +3,6 @@ cdef class C:
 		pass
 
 _ERRORS = u"""
-/Local/Projects/D/Pyrex/Source/Tests/Errors3/e_nogilcmeth.pyx:2:6: Signature not compatible with previous declaration
-/Local/Projects/D/Pyrex/Source/Tests/Errors3/e_nogilcmeth.pxd:2:12: Previous declaration is here
+2:6: Signature not compatible with previous declaration
+2:12: Previous declaration is here
 """

@@ -5,6 +5,6 @@ cdef void foo(obj):
 	i1 = p1 # error
 	p2 = obj # error
 _ERRORS = u"""
-/Local/Projects/D/Pyrex/Source/Tests/Errors2/e_ass.pyx:5:16: Cannot assign type 'char *' to 'int'
-/Local/Projects/D/Pyrex/Source/Tests/Errors2/e_ass.pyx:6:17: Cannot convert Python object to 'int *'
+5:16: Cannot assign type 'char *' to 'int'
+6:17: Cannot convert Python object to 'int *'
 """

@@ -13,6 +13,6 @@ ctypedef class Eggs:
 ctypedef struct Spam
 ctypedef class Eggs
 _ERRORS = u"""
-/Local/Projects/D/Pyrex/Source/Tests/Errors1/e_ctypedefforward.pyx:1:0: Forward-referenced type must use 'cdef', not 'ctypedef'
-/Local/Projects/D/Pyrex/Source/Tests/Errors1/e_ctypedefforward.pyx:2:0: Forward-referenced type must use 'cdef', not 'ctypedef'
+1:0: Forward-referenced type must use 'cdef', not 'ctypedef'
+2:0: Forward-referenced type must use 'cdef', not 'ctypedef'
 """
