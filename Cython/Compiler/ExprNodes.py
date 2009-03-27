@@ -1072,7 +1072,7 @@ class ImagNode(AtomicNewTempExprNode):
         
 
 
-class NameNode(AtomicExprNode):
+class NameNode(AtomicNewTempExprNode):
     #  Reference to a local or global variable name.
     #
     #  name            string    Python name of the variable
@@ -1118,7 +1118,7 @@ class NameNode(AtomicExprNode):
                     node.entry = var_entry
                     node.analyse_rvalue_entry(env)
                     return node
-        return AtomicExprNode.coerce_to(self, dst_type, env)
+        return super(NameNode, self).coerce_to(dst_type, env)
     
     def analyse_as_module(self, env):
         # Try to interpret this as a reference to a cimported module.
@@ -1174,6 +1174,14 @@ class NameNode(AtomicExprNode):
         if not self.entry:
             self.type = PyrexTypes.error_type
             return
+        entry = self.entry
+        if entry:
+            entry.used = 1
+            if entry.type.is_buffer:
+                import Buffer
+                Buffer.used_buffer_aux_vars(entry)
+            if entry.utility_code:
+                env.use_utility_code(entry.utility_code)
         self.analyse_rvalue_entry(env)
         
     def analyse_target_types(self, env):
@@ -1260,17 +1268,6 @@ class NameNode(AtomicExprNode):
         #  result is in a temporary.
         return 0
     
-    def allocate_temp(self, env, result = None):
-        AtomicExprNode.allocate_temp(self, env, result)
-        entry = self.entry
-        if entry:
-            entry.used = 1
-            if entry.type.is_buffer:
-                import Buffer
-                Buffer.used_buffer_aux_vars(entry)
-            if entry.utility_code:
-                env.use_utility_code(entry.utility_code)
-        
     def calculate_result_code(self):
         entry = self.entry
         if not entry:
