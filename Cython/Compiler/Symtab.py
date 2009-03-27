@@ -32,7 +32,7 @@ ansi_c_keywords = set(
 
 def c_safe_identifier(cname):
     # There are some C limitations on struct entry names. 
-    if cname[:2] == '__' or cname in ansi_c_keywords:
+    if (cname[:2] == '__' and not cname.startswith(Naming.pyrex_prefix)) or cname in ansi_c_keywords:
         cname = Naming.pyrex_prefix + cname
     return cname
 
