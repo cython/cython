@@ -550,8 +550,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         if self.optional_arg_count:
             scope = StructOrUnionScope()
             arg_count_member = '%sn' % Naming.pyrex_prefix
-            scope.declare_var(arg_count_member, PyrexTypes.c_int_type, self.pos,
-                              cname = arg_count_member)
+            scope.declare_var(arg_count_member, PyrexTypes.c_int_type, self.pos)
             for arg in func_type_args[len(func_type_args)-self.optional_arg_count:]:
                 scope.declare_var(arg.name, arg.type, arg.pos, allow_pyobject = 1)
             struct_cname = env.mangle(Naming.opt_arg_prefix, self.base.name)
