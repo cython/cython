@@ -1398,6 +1398,7 @@ class CFuncDefNode(FuncDefNode):
         return with_gil
 
     def analyse_expressions(self, env):
+        self.local_scope.directives = env.directives
         self.analyse_default_values(env)
         if self.py_func is not None:
             self.py_func.analyse_expressions(env)
@@ -1824,6 +1825,7 @@ class DefNode(FuncDefNode):
             env.control_flow.set_state((), (arg.name, 'initalized'), True)
             
     def analyse_expressions(self, env):
+        self.local_scope.directives = env.directives
         self.analyse_default_values(env)
         if env.is_py_class_scope:
             self.synthesize_assignment_node(env)
