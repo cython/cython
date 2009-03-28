@@ -1781,13 +1781,12 @@ class DefNode(FuncDefNode):
         self.analyse_default_values(env)
         if env.is_py_class_scope:
             self.synthesize_assignment_node(env)
-    
+
     def synthesize_assignment_node(self, env):
         import ExprNodes
         self.assmt = SingleAssignmentNode(self.pos,
             lhs = ExprNodes.NameNode(self.pos, name = self.name),
             rhs = ExprNodes.UnboundMethodNode(self.pos, 
-                class_cname = env.class_obj_cname,
                 function = ExprNodes.PyCFunctionNode(self.pos,
                     pymethdef_cname = self.entry.pymethdef_cname)))
         self.assmt.analyse_declarations(env)
@@ -2530,8 +2529,7 @@ class PyClassDefNode(ClassDefNode):
         self.classobj.analyse_expressions(env)
         genv = env.global_scope()
         cenv = self.scope
-        cenv.class_dict_cname = self.dict.result()
-        cenv.namespace_cname = cenv.class_obj_cname = self.classobj.result()
+        cenv.class_dict_cname = self.dict.result() # TODO newtemps -- move to code generation
         self.body.analyse_expressions(cenv)
         self.target.analyse_target_expression(env, self.classobj)
         self.dict.release_temp(env)
@@ -2542,12 +2540,16 @@ class PyClassDefNode(ClassDefNode):
         self.body.generate_function_definitions(self.scope, code)
     
     def generate_execution_code(self, code):
+        code.pyclass_stack.append(self)
+        cenv = self.scope
         self.dict.generate_evaluation_code(code)
         self.classobj.generate_evaluation_code(code)
+        cenv.namespace_cname = cenv.class_obj_cname = self.classobj.result()
         self.body.generate_execution_code(code)
         self.target.generate_assignment_code(self.classobj, code)
         self.dict.generate_disposal_code(code)
         self.dict.free_temps(code)
+        code.pyclass_stack.pop()
 
 
 class CClassDefNode(ClassDefNode):

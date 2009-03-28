@@ -3567,7 +3567,7 @@ class DictItemNode(ExprNode):
         return iter([self.key, self.value])
 
 
-class ClassNode(ExprNode):
+class ClassNode(NewTempExprNode):
     #  Helper class used in the implementation of Python
     #  class definitions. Constructs a class object given
     #  a name, tuple of bases and class dictionary.
@@ -3615,7 +3615,6 @@ class UnboundMethodNode(NewTempExprNode):
     #  class definitions. Constructs an unbound method
     #  object from a class and a function.
     #
-    #  class_cname   string     C var holding the class object
     #  function      ExprNode   Function object
     
     subexprs = ['function']
@@ -3628,11 +3627,12 @@ class UnboundMethodNode(NewTempExprNode):
     gil_message = "Constructing an unbound method"
 
     def generate_result_code(self, code):
+        class_cname = code.pyclass_stack[-1].classobj.result()
         code.putln(
             "%s = PyMethod_New(%s, 0, %s); %s" % (
                 self.result(),
                 self.function.py_result(),
-                self.class_cname,
+                class_cname,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
