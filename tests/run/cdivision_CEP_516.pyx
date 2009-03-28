@@ -27,12 +27,23 @@ True
 >>> [test_cdiv_cmod(a, b) for a, b in v]
 [(1, 7), (-1, -7), (1, -7), (-1, 7)]
 
->>> mod_int_py_warn(-17, 10)
-Warning: division with oppositely signed operands, C and Python semantics differ
+
+>>> def simple_warn(msg, *args): print msg
+>>> import warnings
+>>> warnings.showwarning = simple_warn
+
+>>> mod_int_c_warn(-17, 10)
+division with oppositely signed operands, C and Python semantics differ
 -7
->>> div_int_py_warn(-17, 10)
-Warning: division with oppositely signed operands, C and Python semantics differ
+>>> div_int_c_warn(-17, 10)
+division with oppositely signed operands, C and Python semantics differ
 -1
+>>> complex_expression(-150, 20, 20, -7)
+verbose_call(-150)
+division with oppositely signed operands, C and Python semantics differ
+verbose_call(20)
+division with oppositely signed operands, C and Python semantics differ
+-2
 """
 
 cimport cython
@@ -83,10 +94,19 @@ def test_cdiv_cmod(short a, short b):
 
 @cython.cdivision(True)
 @cython.cdivision_warnings(True)
-def mod_int_py_warn(int a, int b):
+def mod_int_c_warn(int a, int b):
     return a % b
 
 @cython.cdivision(True)
 @cython.cdivision_warnings(True)
-def div_int_py_warn(int a, int b):
+def div_int_c_warn(int a, int b):
     return a // b
+
+@cython.cdivision(False)
+@cython.cdivision_warnings(True)
+def complex_expression(int a, int b, int c, int d):
+    return (verbose_call(a) // b) % (verbose_call(c) // d)
+
+cdef int verbose_call(int x):
+    print "verbose_call(%s)" % x
+    return x

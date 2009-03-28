@@ -5342,32 +5342,6 @@ bad:
 
 #------------------------------------------------------------------------------------
 
-unraisable_exception_utility_code = UtilityCode(
-proto = """
-static void __Pyx_WriteUnraisable(const char *name); /*proto*/
-""",
-impl = """
-static void __Pyx_WriteUnraisable(const char *name) {
-    PyObject *old_exc, *old_val, *old_tb;
-    PyObject *ctx;
-    __Pyx_ErrFetch(&old_exc, &old_val, &old_tb);
-    #if PY_MAJOR_VERSION < 3
-    ctx = PyString_FromString(name);
-    #else
-    ctx = PyUnicode_FromString(name);
-    #endif
-    __Pyx_ErrRestore(old_exc, old_val, old_tb);
-    if (!ctx) {
-        PyErr_WriteUnraisable(Py_None);
-    } else {
-        PyErr_WriteUnraisable(ctx);
-        Py_DECREF(ctx);
-    }
-}
-""")
-
-#------------------------------------------------------------------------------------
-
 traceback_utility_code = UtilityCode(
 proto = """
 static void __Pyx_AddTraceback(const char *funcname); /*proto*/
@@ -5509,6 +5483,33 @@ static INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **
 }
 
 """)
+
+#------------------------------------------------------------------------------------
+
+unraisable_exception_utility_code = UtilityCode(
+proto = """
+static void __Pyx_WriteUnraisable(const char *name); /*proto*/
+""",
+impl = """
+static void __Pyx_WriteUnraisable(const char *name) {
+    PyObject *old_exc, *old_val, *old_tb;
+    PyObject *ctx;
+    __Pyx_ErrFetch(&old_exc, &old_val, &old_tb);
+    #if PY_MAJOR_VERSION < 3
+    ctx = PyString_FromString(name);
+    #else
+    ctx = PyUnicode_FromString(name);
+    #endif
+    __Pyx_ErrRestore(old_exc, old_val, old_tb);
+    if (!ctx) {
+        PyErr_WriteUnraisable(Py_None);
+    } else {
+        PyErr_WriteUnraisable(ctx);
+        Py_DECREF(ctx);
+    }
+}
+""",
+requires=[restore_exception_utility_code])
 
 #------------------------------------------------------------------------------------
 
