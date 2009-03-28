@@ -4265,7 +4265,11 @@ class DivNode(NumBinopNode):
         code.putln("}")
     
     def calculate_result_code(self):
-        if self.cdivision:
+        if self.type.is_float and self.operator == '//':
+            return "floor(%s / %s)" % (
+                self.operand1.result(), 
+                self.operand2.result())
+        elif self.cdivision:
             return "(%s / %s)" % (
                 self.operand1.result(), 
                 self.operand2.result())
