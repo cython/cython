@@ -1986,7 +1986,7 @@ class IndexNode(ExprNode):
         code.putln(code.error_goto(self.pos))
         code.putln("}")
 
-class SliceIndexNode(ExprNode):
+class SliceIndexNode(NewTempExprNode):
     #  2-element slice indexing
     #
     #  base      ExprNode
@@ -2188,7 +2188,7 @@ class SliceIndexNode(ExprNode):
         return "<unused>"
     
 
-class SliceNode(ExprNode):
+class SliceNode(NewTempExprNode):
     #  start:stop:step in subscript list
     #
     #  start     ExprNode
@@ -3524,7 +3524,7 @@ class DictNode(NewTempExprNode):
         for item in self.key_value_pairs:
             item.annotate(code)
             
-class DictItemNode(ExprNode):
+class DictItemNode(NewTempExprNode):
     # Represents a single item in a DictNode
     #
     # key          ExprNode
