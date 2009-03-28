@@ -4235,6 +4235,12 @@ class DivNode(NumBinopNode):
     
     cdivision = None
     cdivision_warnings = False
+    
+    def analyse_types(self, env):
+        NumBinopNode.analyse_types(self, env)
+        if not self.type.is_pyobject and env.directives['cdivision_warnings']:
+            self.operand1 = self.operand1.coerce_to_simple(env)
+            self.operand2 = self.operand2.coerce_to_simple(env)
 
     def generate_evaluation_code(self, code):
         if not self.type.is_pyobject:
@@ -4242,22 +4248,24 @@ class DivNode(NumBinopNode):
                 self.cdivision = (code.globalstate.directives['cdivision'] 
                                     or not self.type.signed
                                     or self.type.is_float)
-            if code.globalstate.directives['cdivision_warnings']:
-                self.cdivision_warnings = True
-                code.globalstate.use_utility_code(div_mod_print_warning_utility_code)
-                code.globalstate.use_utility_code(div_warn_utility_code.specialize(self.type))
-            elif not self.cdivision:
+            if not self.cdivision:
                 code.globalstate.use_utility_code(div_utility_code.specialize(self.type))
         NumBinopNode.generate_evaluation_code(self, code)
+        if not self.type.is_pyobject and code.globalstate.directives['cdivision_warnings']:
+            self.generate_div_warning_code(code)
+    
+    def generate_div_warning_code(self, code):
+        code.globalstate.use_utility_code(cdivision_warning_utility_code)
+        code.putln("if ((%s < 0) ^ (%s < 0)) {" % (
+                        self.operand1.result(),
+                        self.operand2.result()))
+        code.putln(code.set_error_info(self.pos));
+        code.put("if (__Pyx_cdivision_warning()) ")
+        code.put_goto(code.error_label)
+        code.putln("}")
     
     def calculate_result_code(self):
-        if self.cdivision_warnings:
-            return "__Pyx_div_warn_%s(%s, %s, %s)" % (
-                    self.type.specalization_name(),
-                    self.operand1.result(), 
-                    self.operand2.result(),
-                    int(self.cdivision))
-        elif self.cdivision:
+        if self.cdivision:
             return "(%s / %s)" % (
                 self.operand1.result(), 
                 self.operand2.result())
@@ -4280,27 +4288,19 @@ class ModNode(DivNode):
         if not self.type.is_pyobject:
             if self.cdivision is None:
                 self.cdivision = code.globalstate.directives['cdivision'] or not self.type.signed
-            math_h_modifier = getattr(self.type, 'math_h_modifier', '__Pyx_INT')
-            if code.globalstate.directives['cdivision_warnings']:
-                self.cdivision_warnings = True
+            if not self.cdivision:
                 if self.type.is_int:
                     code.globalstate.use_utility_code(mod_int_helper_macro)
-                code.globalstate.use_utility_code(div_mod_print_warning_utility_code)
-                code.globalstate.use_utility_code(mod_warn_utility_code.specialize(self.type, math_h_modifier=math_h_modifier))
-            elif not self.cdivision:
-                if self.type.is_int:
-                    code.globalstate.use_utility_code(mod_int_helper_macro)
+                    math_h_modifier = '__Pyx_INT'
+                else:
+                    math_h_modifier = self.type.math_h_modifier
                 code.globalstate.use_utility_code(mod_utility_code.specialize(self.type, math_h_modifier=math_h_modifier))
         NumBinopNode.generate_evaluation_code(self, code)
+        if not self.type.is_pyobject and code.globalstate.directives['cdivision_warnings']:
+            self.generate_div_warning_code(code)
     
     def calculate_result_code(self):
-        if self.cdivision_warnings:
-            return "__Pyx_mod_warn_%s(%s, %s, %s)" % (
-                    self.type.specalization_name(),
-                    self.operand1.result(), 
-                    self.operand2.result(),
-                    int(self.cdivision))
-        elif self.cdivision:
+        if self.cdivision:
             if self.type.is_float:
                 return "fmod%s(%s, %s)" % (
                     self.type.math_h_modifier,
@@ -5713,7 +5713,7 @@ static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
 impl="""
 static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
     %(type)s res = fmod%(math_h_modifier)s(a, b);
-    res += (res * b < 0) * b;
+    res += ((res < 0) ^ (b < 0)) * b;
     return res;
 }
 """)
@@ -5730,56 +5730,21 @@ static INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s a, %(type)s b) {
 }
 """)
 
-mod_warn_utility_code = UtilityCode(
+cdivision_warning_utility_code = UtilityCode(
 proto="""
-static INLINE %(type)s __Pyx_mod_warn_%(type_name)s(%(type)s, %(type)s, int cdivision); /* proto */
+static int __Pyx_cdivision_warning(void); /* proto */
 """,
 impl="""
-static INLINE %(type)s __Pyx_mod_warn_%(type_name)s(%(type)s a, %(type)s b, int cdivision) {
-    %(type)s res = fmod%(math_h_modifier)s(a, b);
-    if (res * b < 0) {
-        __Pyx_div_mod_warning();
-        if (!cdivision) res += b;
-    }
-    return res;
+static int __Pyx_cdivision_warning(void) {
+    return PyErr_WarnExplicit(PyExc_RuntimeWarning, 
+                              "division with oppositely signed operands, C and Python semantics differ",
+                              %(FILENAME)s, 
+                              %(LINENO)s,
+                              %(MODULENAME)s,
+                              NULL);
 }
-""")
-
-div_warn_utility_code = UtilityCode(
-proto="""
-static INLINE %(type)s __Pyx_div_warn_%(type_name)s(%(type)s, %(type)s, int cdivision); /* proto */
-""",
-impl="""
-static INLINE %(type)s __Pyx_div_warn_%(type_name)s(%(type)s a, %(type)s b, int cdivision) {
-    %(type)s res = a / b;
-    if (res < 0) {
-        if (__Pyx_div_mod_warning()) ;
-        if (!cdivision) res -= 1;
-    }
-    return res;
-}
-""")
-
-
-div_mod_print_warning_utility_code = UtilityCode(
-proto="""
-static int __Pyx_div_mod_warning(void); /* proto */
-""",
-impl="""
-static int __Pyx_div_mod_warning(void) {
-    int r;
-    PyObject* s;
-    #if PY_MAJOR_VERSION < 3
-    s = PyString_FromString("Warning: division with oppositely signed operands, C and Python semantics differ");
-    #else
-    s = PyUnicode_FromString("Warning: division with oppositely signed operands, C and Python semantics differ");
-    #endif
-    if (s) {
-        r = __Pyx_PrintOne(s);
-        Py_DECREF(s);
-    }
-    else r = -1;
-    return r;
-}
-""",
-requires=[Nodes.printing_one_utility_code])
+""" % {
+    'FILENAME': Naming.filename_cname,
+    'MODULENAME': Naming.modulename_cname,
+    'LINENO':  Naming.lineno_cname,
+})
