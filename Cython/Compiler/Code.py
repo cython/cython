@@ -687,14 +687,18 @@ class CCodeWriter(object):
     #                                  generation (labels and temps state etc.)
     # globalstate      GlobalState     contains state global for a C file (input file info,
     #                                  utility code, declared constants etc.)
-    # emit_linenums    boolean         whether or not to write #line pragmas 
-    
+    # emit_linenums    boolean         whether or not to write #line pragmas
+    #
+    # pyclass_stack    list            used during recursive code generation to pass information
+    #                                  about the current class one is in
+
     def __init__(self, create_from=None, buffer=None, copy_formatting=False, emit_linenums=None):
         if buffer is None: buffer = StringIOTree()
         self.buffer = buffer
         self.marker = None
         self.last_marker_line = 0
         self.source_desc = ""
+        self.pyclass_stack = []
         
         self.funcstate = None
         self.level = 0
