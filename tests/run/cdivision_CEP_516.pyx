@@ -26,6 +26,13 @@ True
 
 >>> [test_cdiv_cmod(a, b) for a, b in v]
 [(1, 7), (-1, -7), (1, -7), (-1, 7)]
+
+>>> mod_int_py_warn(-17, 10)
+Warning: division with oppositely signed operands, C and Python semantics differ
+-7
+>>> div_int_py_warn(-17, 10)
+Warning: division with oppositely signed operands, C and Python semantics differ
+-1
 """
 
 cimport cython
@@ -73,3 +80,13 @@ def test_cdiv_cmod(short a, short b):
     cdef short q = cython.cdiv(a, b)
     cdef short r = cython.cmod(a, b)
     return q, r
+
+@cython.cdivision(True)
+@cython.cdivision_warnings(True)
+def mod_int_py_warn(int a, int b):
+    return a % b
+
+@cython.cdivision(True)
+@cython.cdivision_warnings(True)
+def div_int_py_warn(int a, int b):
+    return a // b
