@@ -1424,7 +1424,7 @@ class NameNode(AtomicNewTempExprNode):
             else:
                 code.annotate(pos, AnnotationItem('c_call', 'c function', size=len(self.name)))
             
-class BackquoteNode(ExprNode):
+class BackquoteNode(NewTempExprNode):
     #  `expr`
     #
     #  arg    ExprNode
@@ -1452,7 +1452,7 @@ class BackquoteNode(ExprNode):
         
 
 
-class ImportNode(ExprNode):
+class ImportNode(NewTempExprNode):
     #  Used as part of import statement implementation.
     #  Implements result = 
     #    __import__(module_name, globals(), None, name_list)
@@ -2600,7 +2600,7 @@ class GeneralCallNode(CallNode):
         code.put_gotref(self.py_result())
 
 
-class AsTupleNode(ExprNode):
+class AsTupleNode(NewTempExprNode):
     #  Convert argument to tuple. Used for normalising
     #  the * argument of a function call.
     #
@@ -3610,7 +3610,7 @@ class ClassNode(ExprNode):
         code.put_gotref(self.py_result())
 
 
-class UnboundMethodNode(ExprNode):
+class UnboundMethodNode(NewTempExprNode):
     #  Helper class used in the implementation of Python
     #  class definitions. Constructs an unbound method
     #  object from a class and a function.
@@ -3670,7 +3670,7 @@ compile_time_unary_operators = {
     '+': operator.pos,
 }
 
-class UnopNode(ExprNode):
+class UnopNode(NewTempExprNode):
     #  operator     string
     #  operand      ExprNode
     #
@@ -3746,7 +3746,7 @@ class UnopNode(ExprNode):
         self.type = PyrexTypes.error_type
 
 
-class NotNode(ExprNode):
+class NotNode(NewTempExprNode):
     #  'not' operator
     #
     #  operand   ExprNode
@@ -3824,7 +3824,7 @@ class TildeNode(UnopNode):
         return "(~%s)" % self.operand.result()
 
 
-class AmpersandNode(ExprNode):
+class AmpersandNode(NewTempExprNode):
     #  The C address-of operator.
     #
     #  operand  ExprNode
@@ -3950,7 +3950,7 @@ class TypecastNode(NewTempExprNode):
             code.put_incref(self.result(), self.ctype())
 
 
-class SizeofNode(ExprNode):
+class SizeofNode(NewTempExprNode):
     #  Abstract base class for sizeof(x) expression nodes.
     
     type = PyrexTypes.c_size_t_type
