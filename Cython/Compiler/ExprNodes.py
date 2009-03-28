@@ -3424,7 +3424,7 @@ class SetNode(NewTempExprNode):
             arg.free_temps(code)
 
 
-class DictNode(ExprNode):
+class DictNode(NewTempExprNode):
     #  Dictionary constructor.
     #
     #  key_value_pairs  [DictItemNode]
@@ -3492,19 +3492,11 @@ class DictNode(ExprNode):
 
     gil_message = "Constructing Python dict"
 
-    def allocate_temps(self, env, result = None):
-        #  Custom method used here because key-value
-        #  pairs are evaluated and used one at a time.
-        self.allocate_temp(env, result)
-        for item in self.key_value_pairs:
-            item.key.allocate_temps(env)
-            item.value.allocate_temps(env)
-            item.key.release_temp(env)
-            item.value.release_temp(env)
-    
     def generate_evaluation_code(self, code):
         #  Custom method used here because key-value
         #  pairs are evaluated and used one at a time.
+        code.mark_pos(self.pos)
+        self.allocate_temp_result(code)
         if self.type.is_pyobject:
             self.release_errors()
             code.putln(
