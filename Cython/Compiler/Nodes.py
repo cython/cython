@@ -4976,7 +4976,8 @@ static int __Pyx_PrintOne(PyObject *o) {
 }
 
 #endif
-""")
+""",
+requires=[printing_utility_code])
 
 
 
