@@ -7,6 +7,7 @@ import Nodes
 import ExprNodes
 import Naming
 import Errors
+import DebugFlags
 from StringEncoding import EncodedString
 
 class BasicVisitor(object):
@@ -151,6 +152,8 @@ class TreeVisitor(BasicVisitor):
             raise
         except Exception, e:
             import sys
+            if DebugFlags.debug_no_exception_intercept:
+                raise
             trace = ['']
             for parent, attribute, index in self.access_path:
                 node = getattr(parent, attribute)
