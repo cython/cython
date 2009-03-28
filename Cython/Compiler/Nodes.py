@@ -2529,7 +2529,6 @@ class PyClassDefNode(ClassDefNode):
         self.classobj.analyse_expressions(env)
         genv = env.global_scope()
         cenv = self.scope
-        cenv.class_dict_cname = self.dict.result() # TODO newtemps -- move to code generation
         self.body.analyse_expressions(cenv)
         self.target.analyse_target_expression(env, self.classobj)
         self.dict.release_temp(env)
