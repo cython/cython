@@ -5,7 +5,7 @@ from Cython.Compiler.ExprNodes import *
 from Cython.Compiler.UtilNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment, TemplateTransform
 from Cython.Compiler.StringEncoding import EncodedString
-from Cython.Compiler.Errors import CompileError
+from Cython.Compiler.Errors import error, CompileError
 try:
     set
 except NameError:
