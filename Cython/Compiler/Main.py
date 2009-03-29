@@ -84,7 +84,7 @@ class Context(object):
         from ParseTreeTransforms import GilCheck
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
-        from Optimize import FlattenBuiltinTypeCreation, ConstantFolding, FinalOptimizePhase
+        from Optimize import OptimiseBuiltinCalls, ConstantFolding, FinalOptimizePhase
         from Buffer import IntroduceBufferAuxiliaryVars
         from ModuleNode import check_c_declarations
 
@@ -125,7 +125,7 @@ class Context(object):
             IntroduceBufferAuxiliaryVars(self),
             _check_c_declarations,
             AnalyseExpressionsTransform(self),
-            FlattenBuiltinTypeCreation(),
+            OptimiseBuiltinCalls(),
 #            ComprehensionTransform(),
             IterationTransform(),
             SwitchTransform(),

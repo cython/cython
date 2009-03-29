@@ -234,7 +234,8 @@ class PyObjectType(PyrexType):
     #  Base class for all Python object types (reference-counted).
     #
     #  buffer_defaults  dict or None     Default options for bu
-    
+
+    name = "object"
     is_pyobject = 1
     default_value = "0"
     pymemberdef_typecode = "T_OBJECT"
