@@ -416,8 +416,8 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
 
-class OptimiseBuiltinCalls(Visitor.VisitorTransform):
-    """Optimise some common methods calls and instantiation patterns
+class OptimizeBuiltinCalls(Visitor.VisitorTransform):
+    """Optimize some common methods calls and instantiation patterns
     for builtin types.
     """
     # only intercept on call nodes
@@ -511,7 +511,7 @@ class OptimiseBuiltinCalls(Visitor.VisitorTransform):
         if not isinstance(kwargs, ExprNodes.DictNode):
             return node
         if node.starstar_arg:
-            # we could optimise this by updating the kw dict instead
+            # we could optimize this by updating the kw dict instead
             return node
         return kwargs
 
