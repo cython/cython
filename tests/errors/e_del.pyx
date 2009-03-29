@@ -12,9 +12,9 @@ def f(a):
 	del x[i] # error: deletion of non-Python object
 	del s.m # error: deletion of non-Python object
 _ERRORS = u"""
-/Local/Projects/D/Pyrex/Source/Tests/Errors2/e_del.pyx:8:6: Cannot assign to or delete this
-/Local/Projects/D/Pyrex/Source/Tests/Errors2/e_del.pyx:9:45: Deletion of non-Python object
-/Local/Projects/D/Pyrex/Source/Tests/Errors2/e_del.pyx:12:6: Deletion of non-Python object
-/Local/Projects/D/Pyrex/Source/Tests/Errors2/e_del.pyx:13:6: Deletion of non-Python object
-/Local/Projects/D/Pyrex/Source/Tests/Errors2/e_del.pyx:11:52: Deletion of local or C global name not supported
+8:6: Cannot assign to or delete this
+9:45: Deletion of non-Python object
+12:6: Deletion of non-Python object
+13:6: Deletion of non-Python object
+11:52: Deletion of local or C global name not supported
 """

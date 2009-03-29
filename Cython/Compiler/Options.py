@@ -62,6 +62,7 @@ option_defaults = {
     'locals' : {},
     'auto_cpdef': False,
     'cdivision': True,  # Will be False in 0.12
+    'cdivision_warnings': False,
 }
 
 # Override types possibilities above, if needed
