@@ -9,6 +9,7 @@ from Errors import hold_errors, release_errors, held_errors, report_error
 from Cython.Utils import UtilityCode
 import StringEncoding
 import Naming
+import Nodes
 from Nodes import Node
 import PyrexTypes
 from PyrexTypes import py_object_type, c_long_type, typecast, error_type
@@ -384,6 +385,7 @@ class ExprNode(Node):
         #  this must be a temp node and the specified variable
         #  is used as the result instead of allocating a new
         #  one.
+        assert result is None, "deprecated, contact dagss if this triggers"
         if debug_temp_alloc:
             print("%s Allocating temps" % self)
         self.allocate_subexpr_temps(env)
@@ -620,7 +622,6 @@ class RemoveAllocateTemps(type):
         setattr(cls, 'release_temp', noop)
 
 class NewTempExprNode(ExprNode):
-    backwards_compatible_result = None
     temp_code = None
     old_temp = None # error checker for multiple frees etc.
 
@@ -643,8 +644,8 @@ class NewTempExprNode(ExprNode):
         self.release_subexpr_temps(env)
 
     def allocate_temps(self, env, result = None):
+        assert result is None, "deprecated, contact dagss if this triggers"
         self.allocate_subexpr_temps(env)
-        self.backwards_compatible_result = result
         if self.is_temp:
             self.release_subexpr_temps(env)
 
@@ -664,11 +665,8 @@ class NewTempExprNode(ExprNode):
         if not type.is_void:
             if type.is_pyobject:
                 type = PyrexTypes.py_object_type
-            if self.backwards_compatible_result:
-                self.temp_code = self.backwards_compatible_result
-            else:
-                self.temp_code = code.funcstate.allocate_temp(
-                    type, manage_ref=True)
+            self.temp_code = code.funcstate.allocate_temp(
+                type, manage_ref=True)
         else:
             self.temp_code = None
 
@@ -4265,7 +4263,14 @@ class DivNode(NumBinopNode):
     #  '/' or '//' operator.
     
     cdivision = None
+    cdivision_warnings = False
     
+    def analyse_types(self, env):
+        NumBinopNode.analyse_types(self, env)
+        if not self.type.is_pyobject and env.directives['cdivision_warnings']:
+            self.operand1 = self.operand1.coerce_to_simple(env)
+            self.operand2 = self.operand2.coerce_to_simple(env)
+
     def generate_evaluation_code(self, code):
         if not self.type.is_pyobject:
             if self.cdivision is None:
@@ -4273,11 +4278,27 @@ class DivNode(NumBinopNode):
                                     or not self.type.signed
                                     or self.type.is_float)
             if not self.cdivision:
-                code.globalstate.use_utility_code(div_utility_code.specialize(self.type))
+                code.globalstate.use_utility_code(div_int_utility_code.specialize(self.type))
         NumBinopNode.generate_evaluation_code(self, code)
+        if not self.type.is_pyobject and code.globalstate.directives['cdivision_warnings']:
+            self.generate_div_warning_code(code)
+    
+    def generate_div_warning_code(self, code):
+        code.globalstate.use_utility_code(cdivision_warning_utility_code)
+        code.putln("if ((%s < 0) ^ (%s < 0)) {" % (
+                        self.operand1.result(),
+                        self.operand2.result()))
+        code.putln(code.set_error_info(self.pos));
+        code.put("if (__Pyx_cdivision_warning()) ")
+        code.put_goto(code.error_label)
+        code.putln("}")
     
     def calculate_result_code(self):
-        if self.cdivision:
+        if self.type.is_float and self.operator == '//':
+            return "floor(%s / %s)" % (
+                self.operand1.result(), 
+                self.operand2.result())
+        elif self.cdivision:
             return "(%s / %s)" % (
                 self.operand1.result(), 
                 self.operand2.result())
@@ -4288,11 +4309,9 @@ class DivNode(NumBinopNode):
                     self.operand2.result())
 
 
-class ModNode(NumBinopNode):
+class ModNode(DivNode):
     #  '%' operator.
 
-    cdivision = None
-    
     def is_py_operation(self):
         return (self.operand1.type.is_string
             or self.operand2.type.is_string
@@ -4303,11 +4322,14 @@ class ModNode(NumBinopNode):
             if self.cdivision is None:
                 self.cdivision = code.globalstate.directives['cdivision'] or not self.type.signed
             if not self.cdivision:
-                math_h_modifier = getattr(self.type, 'math_h_modifier', '__Pyx_INT')
                 if self.type.is_int:
-                    code.globalstate.use_utility_code(mod_int_helper_macro)
-                code.globalstate.use_utility_code(mod_utility_code.specialize(self.type, math_h_modifier=math_h_modifier))
+                    code.globalstate.use_utility_code(mod_int_utility_code.specialize(self.type))
+                else:
+                    code.globalstate.use_utility_code(
+                        mod_float_utility_code.specialize(self.type, math_h_modifier=self.type.math_h_modifier))
         NumBinopNode.generate_evaluation_code(self, code)
+        if not self.type.is_pyobject and code.globalstate.directives['cdivision_warnings']:
+            self.generate_div_warning_code(code)
     
     def calculate_result_code(self):
         if self.cdivision:
@@ -4510,32 +4532,9 @@ class CondExprNode(ExprNode):
         if self.true_val.type.is_pyobject or self.false_val.type.is_pyobject:
             self.true_val = self.true_val.coerce_to(self.type, env)
             self.false_val = self.false_val.coerce_to(self.type, env)
-        # must be tmp variables so they can share a result
-        self.true_val = self.true_val.coerce_to_temp(env)
-        self.false_val = self.false_val.coerce_to_temp(env)
         self.is_temp = 1
         if self.type == PyrexTypes.error_type:
             self.type_error()
-    
-    def allocate_temps(self, env, result_code = None):
-        #  We only ever evaluate one side, and this is 
-        #  after evaluating the truth value, so we may
-        #  use an allocation strategy here which results in
-        #  this node and both its operands sharing the same
-        #  result variable. This allows us to avoid some 
-        #  assignments and increfs/decrefs that would otherwise
-        #  be necessary.
-        self.allocate_temp(env, result_code)
-        self.test.allocate_temps(env, result_code)
-        self.true_val.allocate_temps(env, self.result())
-        self.false_val.allocate_temps(env, self.result())
-        #  We haven't called release_temp on either value,
-        #  because although they are temp nodes, they don't own 
-        #  their result variable. And because they are temp
-        #  nodes, any temps in their subnodes will have been
-        #  released before their allocate_temps returned.
-        #  Therefore, they contain no temp vars that need to
-        #  be released.
         
     def compute_result_type(self, type1, type2):
         if type1 == type2:
@@ -4567,14 +4566,26 @@ class CondExprNode(ExprNode):
         self.false_val.check_const()
     
     def generate_evaluation_code(self, code):
+        # Because subexprs may not be evaluated we can use a more optimal
+        # subexpr allocation strategy than the default, so override evaluation_code.
+        
+        code.mark_pos(self.pos)
+        #self.allocate_temp_result(code) # uncomment this when we switch to new temps
         self.test.generate_evaluation_code(code)
         code.putln("if (%s) {" % self.test.result() )
-        self.true_val.generate_evaluation_code(code)
+        self.eval_and_get(code, self.true_val)
         code.putln("} else {")
-        self.false_val.generate_evaluation_code(code)
+        self.eval_and_get(code, self.false_val)
         code.putln("}")
         self.test.generate_disposal_code(code)
         self.test.free_temps(code)
+
+    def eval_and_get(self, code, expr):
+        expr.generate_evaluation_code(code)
+        expr.make_owned_reference(code)
+        code.putln("%s = %s;" % (self.result(), expr.result()))
+        expr.generate_post_assignment_code(code)
+        expr.free_temps(code)
 
 richcmp_constants = {
     "<" : "Py_LT",
@@ -5716,31 +5727,58 @@ static INLINE %(type)s %(func_name)s(%(type)s b, %(type)s e) {
 
 # ------------------------------ Division ------------------------------------
 
-# This is so we can treat floating point and integer mod simultaneously. 
-mod_int_helper_macro = UtilityCode(proto="""
-#define fmod__Pyx_INT(a, b) ((a) % (b))
-""")
-
-mod_utility_code = UtilityCode(
-proto="""
-static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
-""",
-impl="""
-static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
-    %(type)s res = fmod%(math_h_modifier)s(a, b);
-    res += (res * b < 0) * b;
-    return res;
-}
-""")
-
-div_utility_code = UtilityCode(
+div_int_utility_code = UtilityCode(
 proto="""
 static INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s, %(type)s); /* proto */
 """,
 impl="""
 static INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s a, %(type)s b) {
-    %(type)s res = a / b;
-    res -= (res < 0);
-    return res;
+    %(type)s q = a / b;
+    %(type)s r = a - q*b;
+    q -= ((r != 0) & ((r ^ b) < 0));
+    return q;
 }
 """)
+
+mod_int_utility_code = UtilityCode(
+proto="""
+static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
+""",
+impl="""
+static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
+    %(type)s r = a %% b;
+    r += ((r != 0) & ((r ^ b) < 0)) * b;
+    return r;
+}
+""")
+
+mod_float_utility_code = UtilityCode(
+proto="""
+static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
+""",
+impl="""
+static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
+    %(type)s r = fmod%(math_h_modifier)s(a, b);
+    r += ((r != 0) & ((r < 0) ^ (b < 0))) * b;
+    return r;
+}
+""")
+
+cdivision_warning_utility_code = UtilityCode(
+proto="""
+static int __Pyx_cdivision_warning(void); /* proto */
+""",
+impl="""
+static int __Pyx_cdivision_warning(void) {
+    return PyErr_WarnExplicit(PyExc_RuntimeWarning, 
+                              "division with oppositely signed operands, C and Python semantics differ",
+                              %(FILENAME)s, 
+                              %(LINENO)s,
+                              %(MODULENAME)s,
+                              NULL);
+}
+""" % {
+    'FILENAME': Naming.filename_cname,
+    'MODULENAME': Naming.modulename_cname,
+    'LINENO':  Naming.lineno_cname,
+})
