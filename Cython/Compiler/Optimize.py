@@ -527,12 +527,15 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
         """
         if len(pos_args.args) != 1:
             return node
-        if pos_args.args[0].type is not Builtin.dict_type:
+        dict_arg = pos_args.args[0]
+        if dict_arg.type is not Builtin.dict_type:
             return node
 
+        dict_arg = ExprNodes.NoneCheckNode(
+            dict_arg, "PyExc_TypeError", "'NoneType' is not iterable")
         return ExprNodes.PythonCapiCallNode(
             node.pos, "PyDict_Copy", self.PyDict_Copy_func_type,
-            args = pos_args.args,
+            args = [dict_arg],
             is_temp = node.is_temp
             )
 
