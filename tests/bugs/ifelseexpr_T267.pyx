@@ -1,11 +1,11 @@
 """
+>>> constants(4)
+1
 >>> constants(5)
-1
->>> constants(6)
 10
->>> temps(5)
+>>> temps(4)
 1
->>> temps(6)
+>>> temps(5)
 10
 >>> nested(1)
 1
