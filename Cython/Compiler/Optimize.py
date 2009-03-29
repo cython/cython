@@ -7,8 +7,10 @@ import UtilNodes
 import TypeSlots
 import Symtab
 import Options
-from StringEncoding import EncodedString
 
+from Cython.Utils import UtilityCode
+from StringEncoding import EncodedString
+from Errors import error
 from ParseTreeTransforms import SkipDeclarations
 
 #def unwrap_node(node):
@@ -414,18 +416,12 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
 
-class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
-    """Optimise some common instantiation patterns for builtin types.
+class OptimiseBuiltinCalls(Visitor.VisitorTransform):
+    """Optimise some common methods calls and instantiation patterns
+    for builtin types.
     """
-    PyList_AsTuple_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.py_object_type, [
-            PyrexTypes.CFuncTypeArg("list",  Builtin.list_type, None)
-            ])
-
-    PyList_AsTuple_name = EncodedString("PyList_AsTuple")
-
-    PyList_AsTuple_entry = Symtab.Entry(
-        PyList_AsTuple_name, PyList_AsTuple_name, PyList_AsTuple_func_type)
+    # only intercept on call nodes
+    visit_Node = Visitor.VisitorTransform.recurse_to_children
 
     def visit_GeneralCallNode(self, node):
         self.visitchildren(node)
@@ -441,15 +437,37 @@ class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
             node = handler(node, node.arg_tuple)
         return node
 
+    def visit_PyTypeTestNode(self, node):
+        """Flatten redundant type checks after tree changes.
+        """
+        old_arg = node.arg
+        self.visitchildren(node)
+        if old_arg is node.arg or node.arg.type != node.type:
+            return node
+        return node.arg
+
     def _find_handler(self, call_type, function):
-        if not function.type.is_builtin_type:
+        if not function.type.is_pyobject:
             return None
-        if not isinstance(function, ExprNodes.NameNode):
+        if function.is_name:
+            if not function.type.is_builtin_type and '_' in function.name:
+                # not interesting anyway, so let's play safe here
+                return None
+            match_name = function.name
+        elif isinstance(function, ExprNodes.AttributeNode):
+            if not function.obj.type.is_builtin_type:
+                type_name = "object" # safety measure
+            else:
+                type_name = function.obj.type.name
+            match_name = "%s_%s" % (type_name, function.attribute)
+        else:
             return None
-        handler = getattr(self, '_handle_%s_%s' % (call_type, function.name), None)
+        handler = getattr(self, '_handle_%s_%s' % (call_type, match_name), None)
         if handler is None:
-            handler = getattr(self, '_handle_any_%s' % function.name, None)
+            handler = getattr(self, '_handle_any_%s' % match_name, None)
         return handler
+
+    ### builtin types
 
     def _handle_general_dict(self, node, pos_args, kwargs):
         """Replace dict(a=b,c=d,...) by the underlying keyword dict
@@ -491,6 +509,11 @@ class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
         else:
             return node
 
+    PyList_AsTuple_func_type = PyrexTypes.CFuncType(
+        Builtin.tuple_type, [
+            PyrexTypes.CFuncTypeArg("list", Builtin.list_type, None)
+            ])
+
     def _handle_simple_tuple(self, node, pos_args):
         """Replace tuple([...]) by a call to PyList_AsTuple.
         """
@@ -506,27 +529,139 @@ class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
             # everything else may be None => take the safe path
             return node
 
-        node.args = pos_args.args
-        node.arg_tuple = None
-        node.type = Builtin.tuple_type
-        node.result_ctype = Builtin.tuple_type
-        node.function = ExprNodes.NameNode(
-            pos = node.pos,
-            name = self.PyList_AsTuple_name,
-            type = self.PyList_AsTuple_func_type,
-            entry = self.PyList_AsTuple_entry)
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "PyList_AsTuple", self.PyList_AsTuple_func_type,
+            args = pos_args.args,
+            is_temp = node.is_temp
+            )
+
+    ### builtin functions
+
+    PyObject_GetAttr2_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("attr_name", PyrexTypes.py_object_type, None),
+            ])
+
+    PyObject_GetAttr3_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("attr_name", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
+            ])
+
+    def _handle_simple_getattr(self, node, pos_args):
+        # not really a builtin *type*, but worth optimising anyway
+        if not isinstance(pos_args, ExprNodes.TupleNode):
+            return node
+        args = pos_args.args
+        if len(args) == 2:
+            node = ExprNodes.PythonCapiCallNode(
+                node.pos, "PyObject_GetAttr", self.PyObject_GetAttr2_func_type,
+                args = args,
+                is_temp = node.is_temp
+                )
+        elif len(args) == 3:
+            node = ExprNodes.PythonCapiCallNode(
+                node.pos, "__Pyx_GetAttr3", self.PyObject_GetAttr3_func_type,
+                utility_code = Builtin.getattr3_utility_code,
+                args = args,
+                is_temp = node.is_temp
+                )
+        else:
+            error(node.pos, "getattr() called with wrong number of args, "
+                  "expected 2 or 3, found %d" %
+                  len(pos_args.args))
         return node
 
-    def visit_PyTypeTestNode(self, node):
-        """Flatten redundant type checks after tree changes.
-        """
-        old_arg = node.arg
-        self.visitchildren(node)
-        if old_arg is node.arg or node.arg.type != node.type:
-            return node
-        return node.arg
+    ### methods of builtin types
 
-    visit_Node = Visitor.VisitorTransform.recurse_to_children
+    PyObject_Append_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("item", PyrexTypes.py_object_type, None),
+            ])
+
+    def _handle_simple_object_append(self, node, pos_args):
+        # X.append() is almost always referring to a list
+        if not isinstance(pos_args, ExprNodes.TupleNode):
+            return node
+        if len(pos_args.args) != 1:
+            return node
+
+        args = [node.function.obj] + pos_args.args
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "__Pyx_PyObject_Append", self.PyObject_Append_func_type,
+            args = args,
+            is_temp = node.is_temp,
+            utility_code = append_utility_code # FIXME: move to Builtin.py
+            )
+
+    PyList_Append_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_int_type, [
+            PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("item", PyrexTypes.py_object_type, None),
+            ],
+        exception_value = "-1")
+
+    def _handle_simple_list_append(self, node, pos_args):
+        if not isinstance(pos_args, ExprNodes.TupleNode):
+            return node
+        if len(pos_args.args) != 1:
+            error(node.pos, "list.append(x) called with wrong number of args, found %d" %
+                  len(pos_args.args))
+            return node
+
+        obj = node.function.obj
+        # FIXME: obj may need a None check (ticket #166)
+        args = [obj] + pos_args.args
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "PyList_Append", self.PyList_Append_func_type,
+            args = args,
+            is_temp = node.is_temp
+            )
+
+    def _handle_simple_type_append(self, node, pos_args):
+        # unbound method call to list.append(L, x) ?
+        if node.function.obj.name != 'list':
+            return node
+        if not isinstance(pos_args, ExprNodes.TupleNode):
+            return node
+
+        args = pos_args.args
+        if len(args) != 2:
+            error(node.pos, "list.append(x) called with wrong number of args, found %d" %
+                  len(pos_args.args))
+            return node
+
+        # FIXME: this may need a type check on the first operand
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "PyList_Append", self.PyList_Append_func_type,
+            args = args,
+            is_temp = node.is_temp
+            )
+
+
+append_utility_code = UtilityCode(
+proto = """
+static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
+    if (likely(PyList_CheckExact(L))) {
+        if (PyList_Append(L, x) < 0) return NULL;
+        Py_INCREF(Py_None);
+        return Py_None; /* this is just to have an accurate signature */
+    }
+    else {
+        PyObject *r, *m;
+        m = __Pyx_GetAttrString(L, "append");
+        if (!m) return NULL;
+        r = PyObject_CallFunctionObjArgs(m, x, NULL);
+        Py_DECREF(m);
+        return r;
+    }
+}
+""",
+impl = ""
+)
 
 
 class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):

@@ -21,7 +21,7 @@ builtin_function_table = [
     #('eval',      "",     "",      ""),
     #('execfile',  "",     "",      ""),
     #('filter',    "",     "",      ""),
-    ('getattr',    "OO",   "O",     "PyObject_GetAttr"),
+    #('getattr',    "OO",   "O",     "PyObject_GetAttr"),   # optimised later on
     ('getattr3',   "OOO",  "O",     "__Pyx_GetAttr3",       "getattr"),
     ('hasattr',    "OO",   "b",     "PyObject_HasAttr"),
     ('hash',       "O",    "l",     "PyObject_Hash"),

@@ -2315,15 +2315,6 @@ class SimpleCallNode(CallNode):
         function = self.function
         function.is_called = 1
         self.function.analyse_types(env)
-        if function.is_attribute and function.is_py_attr and \
-           function.attribute == "append" and len(self.args) == 1:
-            # L.append(x) is almost always applied to a list
-            self.py_func = self.function
-            self.function = NameNode(pos=self.function.pos, name="__Pyx_PyObject_Append")
-            self.function.analyse_types(env)
-            self.self = self.py_func.obj
-            function.obj = CloneNode(self.self)
-            env.use_utility_code(append_utility_code)
         if function.is_attribute and function.entry and function.entry.is_cmethod:
             # Take ownership of the object from which the attribute
             # was obtained, because we need to pass it as 'self'.
@@ -2516,7 +2507,37 @@ class SimpleCallNode(CallNode):
                     code.putln("%s%s; %s" % (lhs, rhs, goto_error))
                 if self.type.is_pyobject and self.result():
                     code.put_gotref(self.py_result())
-                    
+
+
+class PythonCapiFunctionNode(ExprNode):
+    subexprs = []
+    def __init__(self, pos, name, func_type, utility_code = None):
+        self.pos = pos
+        self.name = name
+        self.type = func_type
+        self.utility_code = utility_code
+
+    def generate_result_code(self, code):
+        if self.utility_code:
+            code.globalstate.use_utility_code(self.utility_code)
+
+    def calculate_result_code(self):
+        return self.name
+
+class PythonCapiCallNode(SimpleCallNode):
+    # Python C-API Function call (only created in transforms)
+
+    def __init__(self, pos, function_name, func_type,
+                 utility_code = None, **kwargs):
+        self.type = func_type.return_type
+        self.result_ctype = self.type
+        self.function = PythonCapiFunctionNode(
+            pos, function_name, func_type,
+            utility_code = utility_code)
+        # call this last so that we can override the constructed
+        # attributes above with explicit keyword arguments if required
+        SimpleCallNode.__init__(self, pos, **kwargs)
+
 
 class GeneralCallNode(CallNode):
     #  General Python function call, including keyword,
@@ -5413,29 +5434,6 @@ static void __Pyx_CppExn2PyErr() {
   }
 }
 #endif
-""",
-impl = ""
-)
-
-#------------------------------------------------------------------------------------
-
-append_utility_code = UtilityCode(
-proto = """
-static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
-    if (likely(PyList_CheckExact(L))) {
-        if (PyList_Append(L, x) < 0) return NULL;
-        Py_INCREF(Py_None);
-        return Py_None; /* this is just to have an accurate signature */
-    }
-    else {
-        PyObject *r, *m;
-        m = __Pyx_GetAttrString(L, "append");
-        if (!m) return NULL;
-        r = PyObject_CallFunctionObjArgs(m, x, NULL);
-        Py_DECREF(m);
-        return r;
-    }
-}
 """,
 impl = ""
 )
