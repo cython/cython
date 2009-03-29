@@ -27,6 +27,10 @@ True
 >>> [test_cdiv_cmod(a, b) for a, b in v]
 [(1, 7), (-1, -7), (1, -7), (-1, 7)]
 
+>>> all([mod_int_py(a,b) == a % b for a in range(-10, 10) for b in range(-10, 10) if b != 0])
+True
+>>> all([div_int_py(a,b) == a // b for a in range(-10, 10) for b in range(-10, 10) if b != 0])
+True
 
 >>> def simple_warn(msg, *args): print msg
 >>> import warnings
