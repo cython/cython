@@ -106,6 +106,7 @@ setup(
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: C",
+    "Programming Language :: Cython",
     "Topic :: Software Development :: Code Generators",
     "Topic :: Software Development :: Compilers",
     "Topic :: Software Development :: Libraries :: Python Modules"

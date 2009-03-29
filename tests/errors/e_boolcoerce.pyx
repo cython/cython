@@ -28,8 +28,8 @@ if union_not_boolean:
 
 
 _ERRORS = u"""
- 5:26: 'struct_type_not_boolean' is not a constant, variable or function identifier
- 5:26: Type 'struct_type_not_boolean' not acceptable as a boolean
+5:26: 'struct_type_not_boolean' is not a constant, variable or function identifier
+5:26: Type 'struct_type_not_boolean' not acceptable as a boolean
 
 12:21: 'struct_not_boolean' is not a constant, variable or function identifier
 12:21: Type 'struct_not_boolean' not acceptable as a boolean

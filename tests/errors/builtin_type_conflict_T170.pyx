@@ -10,6 +10,6 @@ NEW_ERRORS = u"""
 """
 
 _ERRORS = u"""
-:5:16: Cannot coerce list to type 'list'
+5:16: Cannot coerce list to type 'list'
 """
 

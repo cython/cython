@@ -253,6 +253,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.globalstate.use_utility_code(refcount_utility_code)
 
+        code.putln('const char *%s = "%s";' % (Naming.modulename_cname, self.full_module_name))
         code.putln("")
         code.putln("/* Implementation of %s */" % env.qualified_name)
 
