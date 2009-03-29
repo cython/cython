@@ -4249,7 +4249,7 @@ class DivNode(NumBinopNode):
                                     or not self.type.signed
                                     or self.type.is_float)
             if not self.cdivision:
-                code.globalstate.use_utility_code(div_utility_code.specialize(self.type))
+                code.globalstate.use_utility_code(div_int_utility_code.specialize(self.type))
         NumBinopNode.generate_evaluation_code(self, code)
         if not self.type.is_pyobject and code.globalstate.directives['cdivision_warnings']:
             self.generate_div_warning_code(code)
@@ -4265,7 +4265,11 @@ class DivNode(NumBinopNode):
         code.putln("}")
     
     def calculate_result_code(self):
-        if self.cdivision:
+        if self.type.is_float and self.operator == '//':
+            return "floor(%s / %s)" % (
+                self.operand1.result(), 
+                self.operand2.result())
+        elif self.cdivision:
             return "(%s / %s)" % (
                 self.operand1.result(), 
                 self.operand2.result())
@@ -4290,11 +4294,10 @@ class ModNode(DivNode):
                 self.cdivision = code.globalstate.directives['cdivision'] or not self.type.signed
             if not self.cdivision:
                 if self.type.is_int:
-                    code.globalstate.use_utility_code(mod_int_helper_macro)
-                    math_h_modifier = '__Pyx_INT'
+                    code.globalstate.use_utility_code(mod_int_utility_code.specialize(self.type))
                 else:
-                    math_h_modifier = self.type.math_h_modifier
-                code.globalstate.use_utility_code(mod_utility_code.specialize(self.type, math_h_modifier=math_h_modifier))
+                    code.globalstate.use_utility_code(
+                        mod_float_utility_code.specialize(self.type, math_h_modifier=self.type.math_h_modifier))
         NumBinopNode.generate_evaluation_code(self, code)
         if not self.type.is_pyobject and code.globalstate.directives['cdivision_warnings']:
             self.generate_div_warning_code(code)
@@ -5690,32 +5693,40 @@ static INLINE %(type)s %(func_name)s(%(type)s b, %(type)s e) {
 
 # ------------------------------ Division ------------------------------------
 
-# This is so we can treat floating point and integer mod simultaneously. 
-mod_int_helper_macro = UtilityCode(proto="""
-#define fmod__Pyx_INT(a, b) ((a) % (b))
-""")
-
-mod_utility_code = UtilityCode(
-proto="""
-static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
-""",
-impl="""
-static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
-    %(type)s res = fmod%(math_h_modifier)s(a, b);
-    res += ((res < 0) ^ (b < 0)) * b;
-    return res;
-}
-""")
-
-div_utility_code = UtilityCode(
+div_int_utility_code = UtilityCode(
 proto="""
 static INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s, %(type)s); /* proto */
 """,
 impl="""
 static INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s a, %(type)s b) {
-    %(type)s res = a / b;
-    res -= (res < 0);
-    return res;
+    %(type)s q = a / b;
+    %(type)s r = a - q*b;
+    q -= ((r != 0) & ((r ^ b) < 0));
+    return q;
+}
+""")
+
+mod_int_utility_code = UtilityCode(
+proto="""
+static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
+""",
+impl="""
+static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
+    %(type)s r = a %% b;
+    r += ((r != 0) & ((r ^ b) < 0)) * b;
+    return r;
+}
+""")
+
+mod_float_utility_code = UtilityCode(
+proto="""
+static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
+""",
+impl="""
+static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
+    %(type)s r = fmod%(math_h_modifier)s(a, b);
+    r += ((r != 0) & ((r < 0) ^ (b < 0))) * b;
+    return r;
 }
 """)
 
