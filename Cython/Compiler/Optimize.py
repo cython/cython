@@ -515,6 +515,25 @@ class OptimiseBuiltinCalls(Visitor.VisitorTransform):
             return node
         return kwargs
 
+    PyDict_Copy_func_type = PyrexTypes.CFuncType(
+        Builtin.dict_type, [
+            PyrexTypes.CFuncTypeArg("dict", Builtin.dict_type, None)
+            ])
+
+    def _handle_simple_function_dict(self, node, pos_args):
+        """Replace dict(some_dict) by PyDict_Copy(some_dict).
+        """
+        if len(pos_args.args) != 1:
+            return node
+        if pos_args.args[0].type is not Builtin.dict_type:
+            return node
+
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "PyDict_Copy", self.PyDict_Copy_func_type,
+            args = pos_args.args,
+            is_temp = node.is_temp
+            )
+
     def _handle_simple_function_set(self, node, pos_args):
         """Replace set([a,b,...]) by a literal set {a,b,...}.
         """
