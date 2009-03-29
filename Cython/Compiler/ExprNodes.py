@@ -1074,8 +1074,8 @@ class NameNode(AtomicNewTempExprNode):
     #  Reference to a local or global variable name.
     #
     #  name            string    Python name of the variable
-    #
     #  entry           Entry     Symbol table entry
+    #  type_entry      Entry     For extension type names, the original type entry
     
     is_name = True
     is_cython_module = False
@@ -1083,6 +1083,7 @@ class NameNode(AtomicNewTempExprNode):
     lhs_of_first_assignment = False
     is_used_as_rvalue = 0
     entry = None
+    type_entry = None
 
     def create_analysed_rvalue(pos, env, entry):
         node = NameNode(pos)
@@ -1227,18 +1228,20 @@ class NameNode(AtomicNewTempExprNode):
         self.type = type
 
     def check_identifier_kind(self):
-        #print "NameNode.check_identifier_kind:", self.entry.name ###
-        #print self.entry.__dict__ ###
+        # Check that this is an appropriate kind of name for use in an
+        # expression.  Also finds the variable entry associated with
+        # an extension type.
         entry = self.entry
-        #entry.used = 1
+        if entry.is_type and entry.type.is_extension_type:
+            self.type_entry = entry
         if not (entry.is_const or entry.is_variable 
             or entry.is_builtin or entry.is_cfunction):
                 if self.entry.as_variable:
                     self.entry = self.entry.as_variable
                 else:
                     error(self.pos, 
-                        "'%s' is not a constant, variable or function identifier" % self.name)
-    
+                          "'%s' is not a constant, variable or function identifier" % self.name)
+
     def is_simple(self):
         #  If it's not a C variable, it'll be in a temp.
         return 1
@@ -2323,7 +2326,14 @@ class SimpleCallNode(CallNode):
             self.arg_tuple = TupleNode(self.pos, args = self.args)
             self.arg_tuple.analyse_types(env)
             self.args = None
-            self.type = py_object_type
+            if function.is_name and function.type_entry:
+                # We are calling an extension type constructor.  As
+                # long as we do not support __new__(), the result type
+                # is clear
+                self.type = function.type_entry.type
+                self.result_ctype = py_object_type
+            else:
+                self.type = py_object_type
             self.is_temp = 1
         else:
             for arg in self.args:
@@ -2586,7 +2596,13 @@ class GeneralCallNode(CallNode):
         if self.starstar_arg:
             self.starstar_arg = \
                 self.starstar_arg.coerce_to_pyobject(env)
-        self.type = py_object_type
+        if function.is_name and function.type_entry:
+            # We are calling an extension type constructor.  As long
+            # as we do not support __new__(), the result type is clear
+            self.type = function.type_entry.type
+            self.result_ctype = py_object_type
+        else:
+            self.type = py_object_type
         self.is_temp = 1
         
     def generate_result_code(self, code):

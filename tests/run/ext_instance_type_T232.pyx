@@ -1,7 +1,6 @@
 __doc__ = u"""
 >>> set_attr(5)
 >>> get_attr()
-None
 """
 
 cdef class MyExt:
