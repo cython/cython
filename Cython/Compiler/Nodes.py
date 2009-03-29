@@ -515,7 +515,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         
         if self.optional_arg_count:
             scope = StructOrUnionScope()
-            scope.declare_var('%sn' % Naming.pyrex_prefix, PyrexTypes.c_int_type, self.pos)
+            arg_count_member = '%sn' % Naming.pyrex_prefix
+            scope.declare_var(arg_count_member, PyrexTypes.c_int_type, self.pos)
             for arg in func_type_args[len(func_type_args)-self.optional_arg_count:]:
                 scope.declare_var(arg.name, arg.type, arg.pos, allow_pyobject = 1)
             struct_cname = env.mangle(Naming.opt_arg_prefix, self.base.name)
@@ -541,6 +542,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 exc_val = self.exception_value.get_constant_result_code()
                 if self.exception_check == '+':
                     exc_val_type = self.exception_value.type
+                    env.add_include_file('stdexcept')
                     if not exc_val_type.is_error and \
                           not exc_val_type.is_pyobject and \
                           not (exc_val_type.is_cfunction and not exc_val_type.return_type.is_pyobject and len(exc_val_type.args)==0):
@@ -1354,6 +1356,7 @@ class CFuncDefNode(FuncDefNode):
                     error(self.pos, "Function declared nogil has Python locals or temporaries")
 
     def analyse_expressions(self, env):
+        self.local_scope.directives = env.directives
         if self.py_func is not None:
             # this will also analyse the default values
             self.py_func.analyse_expressions(env)
@@ -1410,6 +1413,8 @@ class CFuncDefNode(FuncDefNode):
             code.putln('if (%s) {' % Naming.optional_args_cname)
             for arg in self.args:
                 if arg.default:
+                    # FIXME: simple name prefixing doesn't work when
+                    # argument name mangling is in place
                     code.putln('if (%s->%sn > %s) {' % (Naming.optional_args_cname, Naming.pyrex_prefix, i))
                     declarator = arg.declarator
                     while not hasattr(declarator, 'name'):
@@ -1778,6 +1783,7 @@ class DefNode(FuncDefNode):
             env.control_flow.set_state((), (arg.name, 'initalized'), True)
             
     def analyse_expressions(self, env):
+        self.local_scope.directives = env.directives
         self.analyse_default_values(env)
         if env.is_py_class_scope:
             self.synthesize_assignment_node(env)
@@ -4943,7 +4949,8 @@ static int __Pyx_PrintOne(PyObject *o) {
 }
 
 #endif
-""")
+""",
+requires=[printing_utility_code])
 
 
 
@@ -5308,32 +5315,6 @@ bad:
 
 #------------------------------------------------------------------------------------
 
-unraisable_exception_utility_code = UtilityCode(
-proto = """
-static void __Pyx_WriteUnraisable(const char *name); /*proto*/
-""",
-impl = """
-static void __Pyx_WriteUnraisable(const char *name) {
-    PyObject *old_exc, *old_val, *old_tb;
-    PyObject *ctx;
-    __Pyx_ErrFetch(&old_exc, &old_val, &old_tb);
-    #if PY_MAJOR_VERSION < 3
-    ctx = PyString_FromString(name);
-    #else
-    ctx = PyUnicode_FromString(name);
-    #endif
-    __Pyx_ErrRestore(old_exc, old_val, old_tb);
-    if (!ctx) {
-        PyErr_WriteUnraisable(Py_None);
-    } else {
-        PyErr_WriteUnraisable(ctx);
-        Py_DECREF(ctx);
-    }
-}
-""")
-
-#------------------------------------------------------------------------------------
-
 traceback_utility_code = UtilityCode(
 proto = """
 static void __Pyx_AddTraceback(const char *funcname); /*proto*/
@@ -5475,6 +5456,33 @@ static INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **
 }
 
 """)
+
+#------------------------------------------------------------------------------------
+
+unraisable_exception_utility_code = UtilityCode(
+proto = """
+static void __Pyx_WriteUnraisable(const char *name); /*proto*/
+""",
+impl = """
+static void __Pyx_WriteUnraisable(const char *name) {
+    PyObject *old_exc, *old_val, *old_tb;
+    PyObject *ctx;
+    __Pyx_ErrFetch(&old_exc, &old_val, &old_tb);
+    #if PY_MAJOR_VERSION < 3
+    ctx = PyString_FromString(name);
+    #else
+    ctx = PyUnicode_FromString(name);
+    #endif
+    __Pyx_ErrRestore(old_exc, old_val, old_tb);
+    if (!ctx) {
+        PyErr_WriteUnraisable(Py_None);
+    } else {
+        PyErr_WriteUnraisable(ctx);
+        Py_DECREF(ctx);
+    }
+}
+""",
+requires=[restore_exception_utility_code])
 
 #------------------------------------------------------------------------------------
 

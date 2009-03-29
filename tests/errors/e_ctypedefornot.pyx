@@ -17,7 +17,7 @@ cdef Foo f
 cdef Blarg b
 
 _ERRORS = u"""
-/Local/Projects/D/Pyrex/Source/Tests/Errors1/e_ctypedefornot.pyx:3:0: 'Foo' previously declared using 'cdef'
-/Local/Projects/D/Pyrex/Source/Tests/Errors1/e_ctypedefornot.pyx:9:5: 'Blarg' previously declared using 'ctypedef'
-/Local/Projects/D/Pyrex/Source/Tests/Errors1/e_ctypedefornot.pyx:13:0: 'Spam' previously declared using 'cdef'
+3:0: 'Foo' previously declared using 'cdef'
+9:5: 'Blarg' previously declared using 'ctypedef'
+13:0: 'Spam' previously declared using 'cdef'
 """
