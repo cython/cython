@@ -1659,7 +1659,7 @@ class PyTempNode(TempNode):
 #
 #-------------------------------------------------------------------
 
-class IndexNode(ExprNode):
+class IndexNode(NewTempExprNode):
     #  Sequence indexing.
     #
     #  base     ExprNode
