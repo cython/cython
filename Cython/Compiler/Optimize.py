@@ -432,9 +432,12 @@ class OptimiseBuiltinCalls(Visitor.VisitorTransform):
 
     def visit_SimpleCallNode(self, node):
         self.visitchildren(node)
+        pos_args = node.arg_tuple
+        if not isinstance(pos_args, ExprNodes.TupleNode):
+            return node
         handler = self._find_handler('simple', node.function)
         if handler is not None:
-            node = handler(node, node.arg_tuple)
+            node = handler(node, pos_args)
         return node
 
     def visit_PyTypeTestNode(self, node):
@@ -487,8 +490,6 @@ class OptimiseBuiltinCalls(Visitor.VisitorTransform):
     def _handle_simple_set(self, node, pos_args):
         """Replace set([a,b,...]) by a literal set {a,b,...}.
         """
-        if not isinstance(pos_args, ExprNodes.TupleNode):
-            return node
         arg_count = len(pos_args.args)
         if arg_count == 0:
             return ExprNodes.SetNode(node.pos, args=[],
@@ -517,8 +518,6 @@ class OptimiseBuiltinCalls(Visitor.VisitorTransform):
     def _handle_simple_tuple(self, node, pos_args):
         """Replace tuple([...]) by a call to PyList_AsTuple.
         """
-        if not isinstance(pos_args, ExprNodes.TupleNode):
-            return node
         if len(pos_args.args) != 1:
             return node
         list_arg = pos_args.args[0]
@@ -552,8 +551,6 @@ class OptimiseBuiltinCalls(Visitor.VisitorTransform):
 
     def _handle_simple_getattr(self, node, pos_args):
         # not really a builtin *type*, but worth optimising anyway
-        if not isinstance(pos_args, ExprNodes.TupleNode):
-            return node
         args = pos_args.args
         if len(args) == 2:
             node = ExprNodes.PythonCapiCallNode(
@@ -584,8 +581,6 @@ class OptimiseBuiltinCalls(Visitor.VisitorTransform):
 
     def _handle_simple_object_append(self, node, pos_args):
         # X.append() is almost always referring to a list
-        if not isinstance(pos_args, ExprNodes.TupleNode):
-            return node
         if len(pos_args.args) != 1:
             return node
 
@@ -605,8 +600,6 @@ class OptimiseBuiltinCalls(Visitor.VisitorTransform):
         exception_value = "-1")
 
     def _handle_simple_list_append(self, node, pos_args):
-        if not isinstance(pos_args, ExprNodes.TupleNode):
-            return node
         if len(pos_args.args) != 1:
             error(node.pos, "list.append(x) called with wrong number of args, found %d" %
                   len(pos_args.args))
@@ -624,8 +617,6 @@ class OptimiseBuiltinCalls(Visitor.VisitorTransform):
     def _handle_simple_type_append(self, node, pos_args):
         # unbound method call to list.append(L, x) ?
         if node.function.obj.name != 'list':
-            return node
-        if not isinstance(pos_args, ExprNodes.TupleNode):
             return node
 
         args = pos_args.args
