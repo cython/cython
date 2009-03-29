@@ -4505,7 +4505,7 @@ class BoolBinopNode(NewTempExprNode):
         return (test_result, self.type.is_pyobject)
 
 
-class CondExprNode(ExprNode):
+class CondExprNode(NewTempExprNode):
     #  Short-circuiting conditional expression.
     #
     #  test        ExprNode
@@ -4570,7 +4570,7 @@ class CondExprNode(ExprNode):
         # subexpr allocation strategy than the default, so override evaluation_code.
         
         code.mark_pos(self.pos)
-        #self.allocate_temp_result(code) # uncomment this when we switch to new temps
+        self.allocate_temp_result(code)
         self.test.generate_evaluation_code(code)
         code.putln("if (%s) {" % self.test.result() )
         self.eval_and_get(code, self.true_val)
