@@ -476,6 +476,7 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
             arg_list = arg_tuple.args
             self_arg = function.obj
             obj_type = self_arg.type
+            is_unbound_method = False
             if obj_type.is_builtin_type:
                 if obj_type is Builtin.type_type and arg_list and \
                          arg_list[0].type.is_pyobject:
@@ -483,6 +484,7 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
                     # (ignoring 'type.mro()' here ...)
                     type_name = function.obj.name
                     self_arg = None
+                    is_unbound_method = True
                 else:
                     type_name = obj_type.name
             else:
@@ -494,9 +496,9 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
             if self_arg is not None:
                 arg_list = [self_arg] + list(arg_list)
             if kwargs:
-                return method_handler(node, arg_list, kwargs)
+                return method_handler(node, arg_list, kwargs, is_unbound_method)
             else:
-                return method_handler(node, arg_list)
+                return method_handler(node, arg_list, is_unbound_method)
         else:
             return node
 
@@ -625,7 +627,7 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
             PyrexTypes.CFuncTypeArg("item", PyrexTypes.py_object_type, None),
             ])
 
-    def _handle_simple_method_object_append(self, node, args):
+    def _handle_simple_method_object_append(self, node, args, is_unbound_method):
         # X.append() is almost always referring to a list
         if len(args) != 2:
             return node
@@ -644,13 +646,14 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
             ],
         exception_value = "-1")
 
-    def _handle_simple_method_list_append(self, node, args):
+    def _handle_simple_method_list_append(self, node, args, is_unbound_method):
         if len(args) != 2:
             error(node.pos, "list.append(x) called with wrong number of args, found %d" %
                   len(args))
             return node
         return self._substitute_method_call(
-            node, "PyList_Append", self.PyList_Append_func_type, args)
+            node, "PyList_Append", self.PyList_Append_func_type,
+            'append', is_unbound_method, args)
 
     single_param_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_int_type, [
@@ -658,21 +661,37 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
             ],
         exception_value = "-1")
 
-    def _handle_simple_method_list_sort(self, node, args):
+    def _handle_simple_method_list_sort(self, node, args, is_unbound_method):
         if len(args) != 1:
             return node
         return self._substitute_method_call(
-            node, "PyList_Sort", self.single_param_func_type, args)
+            node, "PyList_Sort", self.single_param_func_type,
+            'sort', is_unbound_method, args)
 
-    def _handle_simple_method_list_reverse(self, node, args):
+    def _handle_simple_method_list_reverse(self, node, args, is_unbound_method):
         if len(args) != 1:
             error(node.pos, "list.reverse(x) called with wrong number of args, found %d" %
                   len(args))
+            return node
         return self._substitute_method_call(
-            node, "PyList_Reverse", self.single_param_func_type, args)
+            node, "PyList_Reverse", self.single_param_func_type,
+            'reverse', is_unbound_method, args)
 
-    def _substitute_method_call(self, node, name, func_type, args=()):
+    def _substitute_method_call(self, node, name, func_type,
+                                attr_name, is_unbound_method, args=()):
         args = list(args)
+        if args:
+            self_arg = args[0]
+            if is_unbound_method:
+                self_arg = ExprNodes.NoneCheckNode(
+                    self_arg, "PyExc_TypeError",
+                    "descriptor '%s' requires a '%s' object but received a 'NoneType'" % (
+                    attr_name, node.function.obj.name))
+            else:
+                self_arg = ExprNodes.NoneCheckNode(
+                    self_arg, "PyExc_AttributeError",
+                    "'NoneType' object has no attribute '%s'" % attr_name)
+            args[0] = self_arg
         # FIXME: args[0] may need a runtime None check (ticket #166)
         return ExprNodes.PythonCapiCallNode(
             node.pos, name, func_type,

@@ -5091,7 +5091,44 @@ class PyTypeTestNode(CoercionNode):
 
     def free_temps(self, code):
         self.arg.free_temps(code)
-        
+
+
+class NoneCheckNode(CoercionNode):
+    # This node is used to check that a Python object is not None and
+    # raises an appropriate exception (as specified by the creating
+    # transform).
+
+    def __init__(self, arg, exception_type_cname, exception_message):
+        CoercionNode.__init__(self, arg)
+        self.type = arg.type
+        self.result_ctype = arg.ctype()
+        self.exception_type_cname = exception_type_cname
+        self.exception_message = exception_message
+
+    def analyse_types(self, env):
+        pass
+
+    def result_in_temp(self):
+        return self.arg.result_in_temp()
+
+    def calculate_result_code(self):
+        return self.arg.result()
+    
+    def generate_result_code(self, code):
+        code.putln(
+            "if (unlikely(%s == Py_None)) {" % self.arg.result())
+        code.putln('PyErr_SetString(%s, "%s"); %s ' % (
+            self.exception_type_cname,
+            StringEncoding.escape_byte_string(self.exception_message),
+            code.error_goto(self.pos)))
+        code.putln("}")
+
+    def generate_post_assignment_code(self, code):
+        self.arg.generate_post_assignment_code(code)
+
+    def free_temps(self, code):
+        self.arg.free_temps(code)
+
 
 class CoerceToPyTypeNode(CoercionNode):
     #  This node is used to convert a C data type
