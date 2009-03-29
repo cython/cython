@@ -4501,32 +4501,9 @@ class CondExprNode(ExprNode):
         if self.true_val.type.is_pyobject or self.false_val.type.is_pyobject:
             self.true_val = self.true_val.coerce_to(self.type, env)
             self.false_val = self.false_val.coerce_to(self.type, env)
-        # must be tmp variables so they can share a result
-        self.true_val = self.true_val.coerce_to_temp(env)
-        self.false_val = self.false_val.coerce_to_temp(env)
         self.is_temp = 1
         if self.type == PyrexTypes.error_type:
             self.type_error()
-    
-    def allocate_temps(self, env, result_code = None):
-        #  We only ever evaluate one side, and this is 
-        #  after evaluating the truth value, so we may
-        #  use an allocation strategy here which results in
-        #  this node and both its operands sharing the same
-        #  result variable. This allows us to avoid some 
-        #  assignments and increfs/decrefs that would otherwise
-        #  be necessary.
-        self.allocate_temp(env, result_code)
-        self.test.allocate_temps(env, result_code)
-        self.true_val.allocate_temps(env, self.result())
-        self.false_val.allocate_temps(env, self.result())
-        #  We haven't called release_temp on either value,
-        #  because although they are temp nodes, they don't own 
-        #  their result variable. And because they are temp
-        #  nodes, any temps in their subnodes will have been
-        #  released before their allocate_temps returned.
-        #  Therefore, they contain no temp vars that need to
-        #  be released.
         
     def compute_result_type(self, type1, type2):
         if type1 == type2:
@@ -4558,14 +4535,26 @@ class CondExprNode(ExprNode):
         self.false_val.check_const()
     
     def generate_evaluation_code(self, code):
+        # Because subexprs may not be evaluated we can use a more optimal
+        # subexpr allocation strategy than the default, so override evaluation_code.
+        
+        code.mark_pos(self.pos)
+        #self.allocate_temp_result(code) # uncomment this when we switch to new temps
         self.test.generate_evaluation_code(code)
         code.putln("if (%s) {" % self.test.result() )
-        self.true_val.generate_evaluation_code(code)
+        self.eval_and_get(code, self.true_val)
         code.putln("} else {")
-        self.false_val.generate_evaluation_code(code)
+        self.eval_and_get(code, self.false_val)
         code.putln("}")
         self.test.generate_disposal_code(code)
         self.test.free_temps(code)
+
+    def eval_and_get(self, code, expr):
+        expr.generate_evaluation_code(code)
+        expr.make_owned_reference(code)
+        code.putln("%s = %s;" % (self.result(), expr.result()))
+        expr.generate_post_assignment_code(code)
+        expr.free_temps(code)
 
 richcmp_constants = {
     "<" : "Py_LT",
