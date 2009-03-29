@@ -5717,7 +5717,7 @@ static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
 impl="""
 static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
     %(type)s res = fmod%(math_h_modifier)s(a, b);
-    res += ((res < 0) ^ (b < 0)) * b;
+    res += ((res != 0) & ((a < 0) ^ (b < 0))) * b;
     return res;
 }
 """)
@@ -5728,9 +5728,9 @@ static INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s, %(type)s); /* proto */
 """,
 impl="""
 static INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s a, %(type)s b) {
-    %(type)s res = a / b;
-    res -= (res < 0);
-    return res;
+    %(type)s q = a / b;
+    q -= ((q*b != a) & ((a < 0) ^ (b < 0)));
+    return q;
 }
 """)
 
