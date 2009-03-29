@@ -2596,6 +2596,7 @@ class GeneralCallNode(CallNode):
         if self.starstar_arg:
             self.starstar_arg = \
                 self.starstar_arg.coerce_to_pyobject(env)
+        function = self.function
         if function.is_name and function.type_entry:
             # We are calling an extension type constructor.  As long
             # as we do not support __new__(), the result type is clear
@@ -5090,7 +5091,7 @@ class PyTypeTestNode(CoercionNode):
 
     def free_temps(self, code):
         self.arg.free_temps(code)
-                
+        
 
 class CoerceToPyTypeNode(CoercionNode):
     #  This node is used to convert a C data type
