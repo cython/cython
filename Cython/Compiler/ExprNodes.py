@@ -377,6 +377,7 @@ class ExprNode(Node):
         #  this must be a temp node and the specified variable
         #  is used as the result instead of allocating a new
         #  one.
+        assert result is None, "deprecated, contact dagss if this triggers"
         if debug_temp_alloc:
             print("%s Allocating temps" % self)
         self.allocate_subexpr_temps(env)
@@ -613,7 +614,6 @@ class RemoveAllocateTemps(type):
         setattr(cls, 'release_temp', noop)
 
 class NewTempExprNode(ExprNode):
-    backwards_compatible_result = None
     temp_code = None
     old_temp = None # error checker for multiple frees etc.
 
@@ -636,8 +636,8 @@ class NewTempExprNode(ExprNode):
         self.release_subexpr_temps(env)
 
     def allocate_temps(self, env, result = None):
+        assert result is None, "deprecated, contact dagss if this triggers"
         self.allocate_subexpr_temps(env)
-        self.backwards_compatible_result = result
         if self.is_temp:
             self.release_subexpr_temps(env)
 
@@ -657,11 +657,8 @@ class NewTempExprNode(ExprNode):
         if not type.is_void:
             if type.is_pyobject:
                 type = PyrexTypes.py_object_type
-            if self.backwards_compatible_result:
-                self.temp_code = self.backwards_compatible_result
-            else:
-                self.temp_code = code.funcstate.allocate_temp(
-                    type, manage_ref=True)
+            self.temp_code = code.funcstate.allocate_temp(
+                type, manage_ref=True)
         else:
             self.temp_code = None
 
