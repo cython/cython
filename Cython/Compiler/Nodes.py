@@ -2429,6 +2429,7 @@ class OverrideCheckNode(StatNode):
             code.putln("else {")
         else:
             code.putln("else if (unlikely(Py_TYPE(%s)->tp_dictoffset != 0)) {" % self_arg)
+        self.func_node.allocate(code)
         err = code.error_goto_if_null(self.func_node.result(), self.pos)
         # need to get attribute manually--scope would return cdef method
         code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (
@@ -2442,6 +2443,7 @@ class OverrideCheckNode(StatNode):
         code.putln('}')
         code.put_decref_clear(self.func_node.result(), PyrexTypes.py_object_type)
         code.putln("}")
+        self.func_node.release(code)
 
 class ClassDefNode(StatNode, BlockNode):
     pass
@@ -3059,8 +3061,9 @@ class InPlaceAssignmentNode(AssignmentNode):
         elif self.rhs.type.is_pyobject:
             self.rhs = self.rhs.coerce_to(self.lhs.type, env)
         if self.lhs.type.is_pyobject:
-             self.result_value = ExprNodes.PyTempNode(self.pos, env).coerce_to(self.lhs.type, env)
-             self.result_value.allocate_temps(env)
+            self.result_value_temp = ExprNodes.PyTempNode(self.pos, env)
+            self.result_value = self.result_value_temp.coerce_to(self.lhs.type, env)
+            self.result_value.allocate_temps(env)
 #        if use_temp:
 #            self.rhs = self.rhs.coerce_to_temp(env)
         self.rhs.allocate_temps(env)
@@ -3094,6 +3097,7 @@ class InPlaceAssignmentNode(AssignmentNode):
             if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
                 error(self.pos, "In-place operators not allowed on object buffers in this release.")
             self.dup.generate_result_code(code)
+            self.result_value_temp.allocate(code)
             code.putln(
                 "%s = %s(%s, %s%s); %s" % (
                     self.result_value.result(), 
@@ -3109,6 +3113,7 @@ class InPlaceAssignmentNode(AssignmentNode):
             self.dup.generate_disposal_code(code)
             self.dup.free_temps(code)
             self.lhs.generate_assignment_code(self.result_value, code)
+            self.result_value_temp.release(code)
         else: 
             c_op = self.operator
             if c_op == "//":
@@ -3949,6 +3954,11 @@ class ForFromStatNode(LoopNode, StatNode):
             self.step.generate_evaluation_code(code)
             step = self.step.result()
             incop = "%s=%s" % (incop[0], step)
+        import ExprNodes
+        if isinstance(self.loopvar_node, ExprNodes.TempNode):
+            self.loopvar_node.allocate(code)
+        if isinstance(self.py_loopvar_node, ExprNodes.TempNode):
+            self.py_loopvar_node.allocate(code)
         if from_range:
             loopvar_name = code.funcstate.allocate_temp(self.target.type, False)
         else:
@@ -3991,6 +4001,10 @@ class ForFromStatNode(LoopNode, StatNode):
         self.bound1.free_temps(code)
         self.bound2.generate_disposal_code(code)
         self.bound2.free_temps(code)
+        if isinstance(self.loopvar_node, ExprNodes.TempNode):
+            self.loopvar_node.release(code)
+        if isinstance(self.py_loopvar_node, ExprNodes.TempNode):
+            self.py_loopvar_node.release(code)
         if self.step is not None:
             self.step.generate_disposal_code(code)
             self.step.free_temps(code)
@@ -4739,6 +4753,7 @@ class FromImportStatNode(StatNode):
                     Naming.import_star,
                     self.module.py_result(),
                     code.error_goto(self.pos)))
+        self.item.allocate(code)
         for name, target, coerced_item in self.interned_items:
             cname = code.intern_identifier(name)
             code.putln(
@@ -4756,6 +4771,7 @@ class FromImportStatNode(StatNode):
                 target.generate_assignment_code(coerced_item, code)
                 if self.item.result() != coerced_item.result():
                     code.put_decref_clear(self.item.result(), self.item.type)
+        self.item.release(code)
         self.module.generate_disposal_code(code)
         self.module.free_temps(code)
 

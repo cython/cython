@@ -1627,9 +1627,14 @@ class ExcValueNode(AtomicNewTempExprNode):
         pass
 
 
-class TempNode(ExprNode):
-    #  Node created during analyse_types phase
-    #  of some nodes to hold a temporary value.
+class TempNode(NewTempExprNode):
+    # Node created during analyse_types phase
+    # of some nodes to hold a temporary value.
+    #
+    # Note: One must call "allocate" and "release" on
+    # the node during code generation to get/release the temp.
+    # This is because the temp result is often used outside of
+    # the regular cycle.
 
     subexprs = []
     
@@ -1646,6 +1651,26 @@ class TempNode(ExprNode):
     def generate_result_code(self, code):
         pass
 
+    def allocate(self, code):
+        self.temp_cname = code.funcstate.allocate_temp(self.type, manage_ref=True)
+
+    def release(self, code):
+        code.funcstate.release_temp(self.temp_cname)
+        self.temp_cname = None
+
+    def result(self):
+        try:
+            return self.temp_cname
+        except:
+            assert False, "Remember to call allocate/release on TempNode"
+            raise
+
+    # Do not participate in normal temp alloc/dealloc:
+    def allocate_temp_result(self, code):
+        pass
+    
+    def release_temp_result(self, code):
+        pass
 
 class PyTempNode(TempNode):
     #  TempNode holding a Python value.
@@ -3096,6 +3121,8 @@ class SequenceNode(NewTempExprNode):
                 rhs.py_result(), 
                 len(self.args)))
         code.putln("PyObject* tuple = %s;" % rhs.py_result())
+        for item in self.unpacked_items:
+            item.allocate(code)
         for i in range(len(self.args)):
             item = self.unpacked_items[i]
             code.put(
@@ -3119,6 +3146,7 @@ class SequenceNode(NewTempExprNode):
                         rhs.py_result(), len(self.args)))
             code.putln(code.error_goto(self.pos))
         else:
+            self.iterator.allocate(code)
             code.putln(
                 "%s = PyObject_GetIter(%s); %s" % (
                     self.iterator.result(),
@@ -3146,12 +3174,15 @@ class SequenceNode(NewTempExprNode):
                 print("...generating disposal code for %s" % self.iterator)
             self.iterator.generate_disposal_code(code)
             self.iterator.free_temps(code)
+            self.iterator.release(code)
 
             for i in range(len(self.args)):
                 self.args[i].generate_assignment_code(
                     self.coerced_unpacked_items[i], code)
 
         code.putln("}")
+        for item in self.unpacked_items:
+            item.release(code)
         rhs.free_temps(code)
         
     def annotate(self, code):
