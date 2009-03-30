@@ -46,6 +46,8 @@ class ExprNode(Node):
     
     result_ctype = None
     type = None
+    temp_code = None
+    old_temp = None # error checker for multiple frees etc.
 
     #  The Analyse Expressions phase for expressions is split
     #  into two sub-phases:
@@ -222,10 +224,10 @@ class ExprNode(Node):
         return nodes
         
     def result(self):
-        if not self.is_temp or self.is_target:
+        if self.is_temp:
+            return self.temp_code
+        else:
             return self.calculate_result_code()
-        else: # i.e. self.is_temp:
-            return self.result_code
     
     def result_as(self, type = None):
         #  Return the result code cast to the specified C type.
@@ -370,15 +372,18 @@ class ExprNode(Node):
         return self.is_temp
             
     def allocate_target_temps(self, env, rhs):
-        #  Perform temp allocation for the LHS of an assignment.
-        if debug_temp_alloc:
-            print("%s Allocating target temps" % self)
         self.allocate_subexpr_temps(env)
         self.is_target = True
         if rhs:
             rhs.release_temp(env)
         self.release_subexpr_temps(env)
-    
+
+    def allocate_temps(self, env, result = None):
+        assert result is None, "deprecated, contact dagss if this triggers"
+        self.allocate_subexpr_temps(env)
+        if self.is_temp:
+            self.release_subexpr_temps(env)
+
     def allocate_temps(self, env, result = None):
         #  Allocate temporary variables for this node and
         #  all its sub-expressions. If a result is specified,
@@ -405,28 +410,7 @@ class ExprNode(Node):
                 node.allocate_temps(env)
     
     def allocate_temp(self, env, result = None):
-        #  If this node requires a temporary variable for its
-        #  result, allocate one, otherwise set the result to
-        #  a C code fragment. If a result is specified,
-        #  this must be a temp node and the specified variable
-        #  is used as the result instead of allocating a new
-        #  one.
-        if debug_temp_alloc:
-            print("%s Allocating temp" % self)
-        if result:
-            if not self.is_temp:
-                raise InternalError("Result forced on non-temp node")
-            self.result_code = result
-        elif self.is_temp:
-            type = self.type
-            if not type.is_void:
-                if type.is_pyobject:
-                    type = PyrexTypes.py_object_type
-                self.result_code = env.allocate_temp(type)
-            else:
-                self.result_code = None
-            if debug_temp_alloc:
-                print("%s Allocated result %s" % (self, self.result_code))
+        assert result is None
                 
     def target_code(self):
         #  Return code fragment for use as LHS of a C assignment.
@@ -439,13 +423,10 @@ class ExprNode(Node):
 #        #  Release temporaries used by LHS of an assignment.
 #        self.release_subexpr_temps(env)
 
+
     def release_temp(self, env):
-        #  If this node owns a temporary result, release it,
-        #  otherwise release results of its sub-expressions.
         if self.is_temp:
-            if debug_temp_alloc:
-                print("%s Releasing result %s" % (self, self.result_code))
-            env.release_temp(self.result_code)
+            pass
         else:
             self.release_subexpr_temps(env)
     
@@ -456,6 +437,30 @@ class ExprNode(Node):
             if node:
                 node.release_temp(env)
     
+    def allocate_temp_result(self, code):
+        if self.temp_code:
+            raise RuntimeError("Temp allocated multiple times")
+        type = self.type
+        if not type.is_void:
+            if type.is_pyobject:
+                type = PyrexTypes.py_object_type
+            self.temp_code = code.funcstate.allocate_temp(
+                type, manage_ref=True)
+        else:
+            self.temp_code = None
+
+    def release_temp_result(self, code):
+        if not self.temp_code:
+            if self.old_temp:
+                raise RuntimeError("temp %s released multiple times in %s" % (
+                        self.old_temp, self.__class__.__name__))
+            else:
+                raise RuntimeError("no temp, but release requested in %s" % (
+                        self.__class__.__name__))
+        code.funcstate.release_temp(self.temp_code)
+        self.old_temp = self.temp_code
+        self.temp_code = None
+
     # ---------------- Code Generation -----------------
     
     def make_owned_reference(self, code):
@@ -466,12 +471,19 @@ class ExprNode(Node):
     
     def generate_evaluation_code(self, code):
         code.mark_pos(self.pos)
+        
         #  Generate code to evaluate this node and
         #  its sub-expressions, and dispose of any
         #  temporary results of its sub-expressions.
         self.generate_subexpr_evaluation_code(code)
+
+        if self.is_temp:
+            self.allocate_temp_result(code)
+
         self.generate_result_code(code)
         if self.is_temp:
+            # If we are temp we do not need to wait until this node is disposed
+            # before disposing children.
             self.generate_subexpr_disposal_code(code)
             self.free_subexpr_temps(code)
 
@@ -483,14 +495,13 @@ class ExprNode(Node):
         self.not_implemented("generate_result_code")
     
     def generate_disposal_code(self, code):
-        # If necessary, generate code to dispose of 
-        # temporary Python reference.
         if self.is_temp:
             if self.type.is_pyobject:
                 code.put_decref_clear(self.result(), self.ctype())
         else:
+            # Already done if self.is_temp
             self.generate_subexpr_disposal_code(code)
-    
+
     def generate_subexpr_disposal_code(self, code):
         #  Generate code to dispose of temporary results
         #  of all sub-expressions.
@@ -498,15 +509,12 @@ class ExprNode(Node):
             node.generate_disposal_code(code)
     
     def generate_post_assignment_code(self, code):
-        # Same as generate_disposal_code except that
-        # assignment will have absorbed a reference to
-        # the result if it is a Python object.
         if self.is_temp:
             if self.type.is_pyobject:
                 code.putln("%s = 0;" % self.result())
         else:
             self.generate_subexpr_disposal_code(code)
-    
+
     def generate_assignment_code(self, rhs, code):
         #  Stub method for nodes which are not legal as
         #  the LHS of an assignment. An error will have 
@@ -520,9 +528,11 @@ class ExprNode(Node):
         pass
 
     def free_temps(self, code):
-        if not self.is_temp:
+        if self.is_temp:
+            if not self.type.is_void:
+                self.release_temp_result(code)
+        else:
             self.free_subexpr_temps(code)
-        # otherwise, already freed in generate_evaluation_code
     
     def free_subexpr_temps(self, code):
         for sub in self.subexpr_nodes():
@@ -612,125 +622,7 @@ class ExprNode(Node):
     def as_cython_attribute(self):
         return None
 
-
-class RemoveAllocateTemps(type):
-    def __init__(cls, name, bases, dct):
-        super(RemoveAllocateTemps, cls).__init__(name, bases, dct)
-        def noop(self, env): pass
-        setattr(cls, 'allocate_temps', noop)
-        setattr(cls, 'allocate_temp', noop)
-        setattr(cls, 'release_temp', noop)
-
-class NewTempExprNode(ExprNode):
-    temp_code = None
-    old_temp = None # error checker for multiple frees etc.
-
-#   Do not enable this unless you are trying to make all ExprNodes
-#   NewTempExprNodes (child nodes reached via recursion may not have
-#   transferred).
-#    __metaclass__ = RemoveAllocateTemps
-
-    def result(self):
-        if self.is_temp:
-            return self.temp_code
-        else:
-            return self.calculate_result_code()
-
-    def allocate_target_temps(self, env, rhs):
-        self.allocate_subexpr_temps(env)
-        self.is_target = True
-        if rhs:
-            rhs.release_temp(env)
-        self.release_subexpr_temps(env)
-
-    def allocate_temps(self, env, result = None):
-        assert result is None, "deprecated, contact dagss if this triggers"
-        self.allocate_subexpr_temps(env)
-        if self.is_temp:
-            self.release_subexpr_temps(env)
-
-    def allocate_temp(self, env, result = None):
-        assert result is None
-
-    def release_temp(self, env):
-        if self.is_temp:
-            pass
-        else:
-            self.release_subexpr_temps(env)
-
-    def allocate_temp_result(self, code):
-        if self.temp_code:
-            raise RuntimeError("Temp allocated multiple times")
-        type = self.type
-        if not type.is_void:
-            if type.is_pyobject:
-                type = PyrexTypes.py_object_type
-            self.temp_code = code.funcstate.allocate_temp(
-                type, manage_ref=True)
-        else:
-            self.temp_code = None
-
-    def release_temp_result(self, code):
-        if not self.temp_code:
-            if self.old_temp:
-                raise RuntimeError("temp %s released multiple times in %s" % (
-                        self.old_temp, self.__class__.__name__))
-            else:
-                raise RuntimeError("no temp, but release requested in %s" % (
-                        self.__class__.__name__))
-        code.funcstate.release_temp(self.temp_code)
-        self.old_temp = self.temp_code
-        self.temp_code = None
-
-    def generate_evaluation_code(self, code):
-        code.mark_pos(self.pos)
-        
-        #  Generate code to evaluate this node and
-        #  its sub-expressions, and dispose of any
-        #  temporary results of its sub-expressions.
-        self.generate_subexpr_evaluation_code(code)
-
-        if self.is_temp:
-            self.allocate_temp_result(code)
-
-        self.generate_result_code(code)
-        if self.is_temp:
-            # If we are temp we do not need to wait until this node is disposed
-            # before disposing children.
-            self.generate_subexpr_disposal_code(code)
-            self.free_subexpr_temps(code)
-
-    def generate_disposal_code(self, code):
-        if self.is_temp:
-            if self.type.is_pyobject:
-                code.put_decref_clear(self.result(), self.ctype())
-        else:
-            # Already done if self.is_temp
-            self.generate_subexpr_disposal_code(code)
-
-    def generate_post_assignment_code(self, code):
-        if self.is_temp:
-            if self.type.is_pyobject:
-                code.putln("%s = 0;" % self.result())
-        else:
-            self.generate_subexpr_disposal_code(code)
-
-    def free_temps(self, code):
-        if self.is_temp:
-            if not self.type.is_void:
-                self.release_temp_result(code)
-        else:
-            self.free_subexpr_temps(code)
-        
-# ExprNode = NewTempExprNode     
-
 class AtomicExprNode(ExprNode):
-    #  Abstract base class for expression nodes which have
-    #  no sub-expressions.
-    
-    subexprs = []
-
-class AtomicNewTempExprNode(NewTempExprNode):
     # I do not dare to convert NameNode yet. This is now
     # ancestor of all former AtomicExprNode except
     # NameNode. Should be renamed to AtomicExprNode
@@ -747,7 +639,7 @@ class AtomicNewTempExprNode(NewTempExprNode):
     def generate_subexpr_disposal_code(self, code):
         pass
 
-class PyConstNode(AtomicNewTempExprNode):
+class PyConstNode(AtomicExprNode):
     #  Abstract base class for constant Python values.
     
     is_literal = 1
@@ -787,7 +679,7 @@ class EllipsisNode(PyConstNode):
         return Ellipsis
 
 
-class ConstNode(AtomicNewTempExprNode):
+class ConstNode(AtomicExprNode):
     # Abstract base type for literal constant nodes.
     #
     # value     string      C code fragment
@@ -1017,7 +909,7 @@ class IdentifierStringNode(ConstNode):
         return self.result_code
 
 
-class LongNode(AtomicNewTempExprNode):
+class LongNode(AtomicExprNode):
     #  Python long integer literal
     #
     #  value   string
@@ -1043,7 +935,7 @@ class LongNode(AtomicNewTempExprNode):
         code.put_gotref(self.py_result())
 
 
-class ImagNode(AtomicNewTempExprNode):
+class ImagNode(AtomicExprNode):
     #  Imaginary number literal
     #
     #  value   float    imaginary part
@@ -1070,7 +962,7 @@ class ImagNode(AtomicNewTempExprNode):
         
 
 
-class NameNode(AtomicNewTempExprNode):
+class NameNode(AtomicExprNode):
     #  Reference to a local or global variable name.
     #
     #  name            string    Python name of the variable
@@ -1425,7 +1317,7 @@ class NameNode(AtomicNewTempExprNode):
             else:
                 code.annotate(pos, AnnotationItem('c_call', 'c function', size=len(self.name)))
             
-class BackquoteNode(NewTempExprNode):
+class BackquoteNode(ExprNode):
     #  `expr`
     #
     #  arg    ExprNode
@@ -1453,7 +1345,7 @@ class BackquoteNode(NewTempExprNode):
         
 
 
-class ImportNode(NewTempExprNode):
+class ImportNode(ExprNode):
     #  Used as part of import statement implementation.
     #  Implements result = 
     #    __import__(module_name, globals(), None, name_list)
@@ -1489,7 +1381,7 @@ class ImportNode(NewTempExprNode):
         code.put_gotref(self.py_result())
 
 
-class IteratorNode(NewTempExprNode):
+class IteratorNode(ExprNode):
     #  Used as part of for statement implementation.
     #
     #  allocate_counter_temp/release_counter_temp needs to be called
@@ -1548,7 +1440,7 @@ class IteratorNode(NewTempExprNode):
         code.putln("}")
 
 
-class NextNode(AtomicNewTempExprNode):
+class NextNode(AtomicExprNode):
     #  Used as part of for statement implementation.
     #  Implements result = iterator.next()
     #  Created during analyse_types phase.
@@ -1607,7 +1499,7 @@ class NextNode(AtomicNewTempExprNode):
         code.putln("}")
 
 
-class ExcValueNode(AtomicNewTempExprNode):
+class ExcValueNode(AtomicExprNode):
     #  Node created during analyse_types phase
     #  of an ExceptClauseNode to fetch the current
     #  exception value.
@@ -1627,7 +1519,7 @@ class ExcValueNode(AtomicNewTempExprNode):
         pass
 
 
-class TempNode(NewTempExprNode):
+class TempNode(ExprNode):
     # Node created during analyse_types phase
     # of some nodes to hold a temporary value.
     #
@@ -1685,7 +1577,7 @@ class PyTempNode(TempNode):
 #
 #-------------------------------------------------------------------
 
-class IndexNode(NewTempExprNode):
+class IndexNode(ExprNode):
     #  Sequence indexing.
     #
     #  base     ExprNode
@@ -2012,7 +1904,7 @@ class IndexNode(NewTempExprNode):
         code.putln(code.error_goto(self.pos))
         code.putln("}")
 
-class SliceIndexNode(NewTempExprNode):
+class SliceIndexNode(ExprNode):
     #  2-element slice indexing
     #
     #  base      ExprNode
@@ -2214,7 +2106,7 @@ class SliceIndexNode(NewTempExprNode):
         return "<unused>"
     
 
-class SliceNode(NewTempExprNode):
+class SliceNode(ExprNode):
     #  start:stop:step in subscript list
     #
     #  start     ExprNode
@@ -2267,7 +2159,7 @@ class SliceNode(NewTempExprNode):
         code.put_gotref(self.py_result())
 
 
-class CallNode(NewTempExprNode):
+class CallNode(ExprNode):
     def analyse_as_type_constructor(self, env):
         type = self.function.analyse_as_type(env)
         if type and type.is_struct_or_union:
@@ -2661,7 +2553,7 @@ class GeneralCallNode(CallNode):
         code.put_gotref(self.py_result())
 
 
-class AsTupleNode(NewTempExprNode):
+class AsTupleNode(ExprNode):
     #  Convert argument to tuple. Used for normalising
     #  the * argument of a function call.
     #
@@ -2697,7 +2589,7 @@ class AsTupleNode(NewTempExprNode):
         code.put_gotref(self.py_result())
     
 
-class AttributeNode(NewTempExprNode):
+class AttributeNode(ExprNode):
     #  obj.attribute
     #
     #  obj          ExprNode
@@ -3041,7 +2933,7 @@ class AttributeNode(NewTempExprNode):
 #
 #-------------------------------------------------------------------
 
-class SequenceNode(NewTempExprNode):
+class SequenceNode(ExprNode):
     #  Base class for list and tuple constructor nodes.
     #  Contains common code for performing sequence unpacking.
     #
@@ -3366,7 +3258,7 @@ class ListNode(SequenceNode):
             # generate_evaluation_code which will do that.
 
 
-class ComprehensionNode(NewTempExprNode):
+class ComprehensionNode(ExprNode):
     subexprs = ["target"]
     child_attrs = ["loop", "append"]
 
@@ -3397,7 +3289,7 @@ class ComprehensionNode(NewTempExprNode):
         self.loop.annotate(code)
 
 
-class ComprehensionAppendNode(NewTempExprNode):
+class ComprehensionAppendNode(ExprNode):
     # Need to be careful to avoid infinite recursion:
     # target must not be in child_attrs/subexprs
     subexprs = ['expr']
@@ -3447,7 +3339,7 @@ class DictComprehensionAppendNode(ComprehensionAppendNode):
              code.error_goto_if(self.result(), self.pos)))
 
 
-class SetNode(NewTempExprNode):
+class SetNode(ExprNode):
     #  Set constructor.
 
     subexprs = ['args']
@@ -3491,7 +3383,7 @@ class SetNode(NewTempExprNode):
             arg.free_temps(code)
 
 
-class DictNode(NewTempExprNode):
+class DictNode(ExprNode):
     #  Dictionary constructor.
     #
     #  key_value_pairs  [DictItemNode]
@@ -3591,7 +3483,7 @@ class DictNode(NewTempExprNode):
         for item in self.key_value_pairs:
             item.annotate(code)
             
-class DictItemNode(NewTempExprNode):
+class DictItemNode(ExprNode):
     # Represents a single item in a DictNode
     #
     # key          ExprNode
@@ -3626,7 +3518,7 @@ class DictItemNode(NewTempExprNode):
         return iter([self.key, self.value])
 
 
-class ClassNode(NewTempExprNode):
+class ClassNode(ExprNode):
     #  Helper class used in the implementation of Python
     #  class definitions. Constructs a class object given
     #  a name, tuple of bases and class dictionary.
@@ -3669,7 +3561,7 @@ class ClassNode(NewTempExprNode):
         code.put_gotref(self.py_result())
 
 
-class UnboundMethodNode(NewTempExprNode):
+class UnboundMethodNode(ExprNode):
     #  Helper class used in the implementation of Python
     #  class definitions. Constructs an unbound method
     #  object from a class and a function.
@@ -3695,7 +3587,7 @@ class UnboundMethodNode(NewTempExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
-class PyCFunctionNode(AtomicNewTempExprNode):
+class PyCFunctionNode(AtomicExprNode):
     #  Helper class used in the implementation of Python
     #  class definitions. Constructs a PyCFunction object
     #  from a PyMethodDef struct.
@@ -3729,7 +3621,7 @@ compile_time_unary_operators = {
     '+': operator.pos,
 }
 
-class UnopNode(NewTempExprNode):
+class UnopNode(ExprNode):
     #  operator     string
     #  operand      ExprNode
     #
@@ -3805,7 +3697,7 @@ class UnopNode(NewTempExprNode):
         self.type = PyrexTypes.error_type
 
 
-class NotNode(NewTempExprNode):
+class NotNode(ExprNode):
     #  'not' operator
     #
     #  operand   ExprNode
@@ -3883,7 +3775,7 @@ class TildeNode(UnopNode):
         return "(~%s)" % self.operand.result()
 
 
-class AmpersandNode(NewTempExprNode):
+class AmpersandNode(ExprNode):
     #  The C address-of operator.
     #
     #  operand  ExprNode
@@ -3934,7 +3826,7 @@ def unop_node(pos, operator, operand):
         operand = operand)
 
 
-class TypecastNode(NewTempExprNode):
+class TypecastNode(ExprNode):
     #  C type cast
     #
     #  operand      ExprNode
@@ -4009,7 +3901,7 @@ class TypecastNode(NewTempExprNode):
             code.put_incref(self.result(), self.ctype())
 
 
-class SizeofNode(NewTempExprNode):
+class SizeofNode(ExprNode):
     #  Abstract base class for sizeof(x) expression nodes.
     
     type = PyrexTypes.c_size_t_type
@@ -4138,7 +4030,7 @@ def get_compile_time_binop(node):
                 % node.operator)
     return func
 
-class BinopNode(NewTempExprNode):
+class BinopNode(ExprNode):
     #  operator     string
     #  operand1     ExprNode
     #  operand2     ExprNode
@@ -4444,7 +4336,7 @@ class PowNode(NumBinopNode):
 # one could have a look at adding this again after /all/ classes
 # are converted to the new temp scheme. (The temp juggling cannot work
 # otherwise).
-class BoolBinopNode(NewTempExprNode):
+class BoolBinopNode(ExprNode):
     #  Short-circuiting boolean operation.
     #
     #  operator     string
@@ -4574,7 +4466,7 @@ class BoolBinopNode(NewTempExprNode):
         return (test_result, self.type.is_pyobject)
 
 
-class CondExprNode(NewTempExprNode):
+class CondExprNode(ExprNode):
     #  Short-circuiting conditional expression.
     #
     #  test        ExprNode
@@ -4781,7 +4673,7 @@ class CmpNode(object):
             return op
     
 
-class PrimaryCmpNode(NewTempExprNode, CmpNode):
+class PrimaryCmpNode(ExprNode, CmpNode):
     #  Non-cascaded comparison or first comparison of
     #  a cascaded sequence.
     #
@@ -5035,7 +4927,7 @@ def binop_node(pos, operator, operand1, operand2):
 #
 #-------------------------------------------------------------------
 
-class CoercionNode(NewTempExprNode):
+class CoercionNode(ExprNode):
     #  Abstract base class for coercion nodes.
     #
     #  arg       ExprNode       node being coerced
