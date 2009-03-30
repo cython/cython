@@ -3084,10 +3084,8 @@ class InPlaceAssignmentNode(AssignmentNode):
         import ExprNodes
         self.rhs.generate_evaluation_code(code)
         self.dup.generate_subexpr_evaluation_code(code)
-        if isinstance(self.dup, ExprNodes.NewTempExprNode):
-            # This is because we're manually messing with subexpr nodes
-            if self.dup.is_temp:
-                self.dup.allocate_temp_result(code)
+        if self.dup.is_temp:
+            self.dup.allocate_temp_result(code)
         # self.dup.generate_result_code is run only if it is not buffer access
         if self.operator == "**":
             extra = ", Py_None"
