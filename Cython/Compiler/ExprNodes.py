@@ -1430,9 +1430,11 @@ class ExcValueNode(AtomicExprNode):
     #  of an ExceptClauseNode to fetch the current
     #  exception value.
     
-    def __init__(self, pos, env, var):
+    def __init__(self, pos, env):
         ExprNode.__init__(self, pos)
         self.type = py_object_type
+
+    def set_var(self, var):
         self.var = var
     
     def calculate_result_code(self):
@@ -2232,8 +2234,6 @@ class SimpleCallNode(CallNode):
         if func_type.optional_arg_count and expected_nargs != actual_nargs:
             self.has_optional_args = 1
             self.is_temp = 1
-            self.opt_arg_struct = env.allocate_temp(func_type.op_arg_struct.base_type)
-            env.release_temp(self.opt_arg_struct)
         # Coerce arguments
         for i in range(min(max_nargs, actual_nargs)):
             formal_type = func_type.args[i].type
@@ -2306,6 +2306,8 @@ class SimpleCallNode(CallNode):
             if self.has_optional_args:
                 actual_nargs = len(self.args)
                 expected_nargs = len(func_type.args) - func_type.optional_arg_count
+                self.opt_arg_struct = code.funcstate.allocate_temp(
+                    func_type.op_arg_struct.base_type, manage_ref=True)
                 code.putln("%s.%s = %s;" % (
                         self.opt_arg_struct,
                         Naming.pyrex_prefix + "n",
@@ -2358,6 +2360,8 @@ class SimpleCallNode(CallNode):
                     code.putln("%s%s; %s" % (lhs, rhs, goto_error))
                 if self.type.is_pyobject and self.result():
                     code.put_gotref(self.py_result())
+            if self.has_optional_args:
+                code.funcstate.release_temp(self.opt_arg_struct)
 
 
 class PythonCapiFunctionNode(ExprNode):
