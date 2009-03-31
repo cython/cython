@@ -1074,9 +1074,6 @@ class FuncDefNode(StatNode, BlockNode):
         if code.error_label in code.labels_used:
             code.put_goto(code.return_label)
             code.put_label(code.error_label)
-            # cleanup temps the old way
-            code.put_var_xdecrefs(lenv.temp_entries)
-            # cleanup temps the new way
             for cname, type in code.funcstate.all_managed_temps():
                 code.put_xdecref(cname, type)
 
@@ -1166,7 +1163,6 @@ class FuncDefNode(StatNode, BlockNode):
             
         code.putln("}")
         # ----- Go back and insert temp variable declarations
-        tempvardecl_code.put_var_declarations(lenv.temp_entries)
         tempvardecl_code.put_temp_declarations(code.funcstate)
         # ----- Python version
         code.exit_cfunc_scope()
@@ -1347,7 +1343,7 @@ class CFuncDefNode(FuncDefNode):
             if type.return_type.is_pyobject:
                 error(self.pos,
                       "Function with Python return type cannot be declared nogil")
-            for entry in env.var_entries + env.temp_entries:
+            for entry in env.var_entries:
                 if entry.type.is_pyobject:
                     error(self.pos, "Function declared nogil has Python locals or temporaries")
 
@@ -3306,14 +3302,12 @@ class ReturnStatNode(StatNode):
     #
     #  value         ExprNode or None
     #  return_type   PyrexType
-    #  temps_in_use  [Entry]            Temps in use at time of return
     
     child_attrs = ["value"]
 
     def analyse_expressions(self, env):
         return_type = env.return_type
         self.return_type = return_type
-        self.temps_in_use = env.temps_in_use()
         if not return_type:
             error(self.pos, "Return not inside a function body")
             return
@@ -3361,15 +3355,8 @@ class ReturnStatNode(StatNode):
                     "%s = %s;" % (
                         Naming.retval_cname,
                         self.return_type.default_value))
-        # free temps the old way
-        for entry in self.temps_in_use:
-            code.put_var_decref_clear(entry)
-        # free temps the new way
         for cname, type in code.funcstate.temps_holding_reference():
             code.put_decref_clear(cname, type)
-        #code.putln(
-        #    "goto %s;" %
-        #        code.return_label)
         code.put_goto(code.return_label)
         
     def annotate(self, code):
@@ -3952,7 +3939,6 @@ class TryExceptStatNode(StatNode):
     #  body             StatNode
     #  except_clauses   [ExceptClauseNode]
     #  else_clause      StatNode or None
-    #  cleanup_list     [Entry]            old style temps to clean up on error
 
     child_attrs = ["body", "except_clauses", "else_clause"]
     
@@ -3984,7 +3970,6 @@ class TryExceptStatNode(StatNode):
 
     def analyse_expressions(self, env):
         self.body.analyse_expressions(env)
-        self.cleanup_list = env.free_temp_entries[:]
         default_clause_seen = 0
         for except_clause in self.except_clauses:
             except_clause.analyse_expressions(env)
@@ -4046,7 +4031,6 @@ class TryExceptStatNode(StatNode):
                 code.put_xdecref_clear(var, py_object_type)
             code.put_goto(old_return_label)
         code.put_label(our_error_label)
-        code.put_var_xdecrefs_clear(self.cleanup_list)
         for temp_name, type in temps_to_clean_up:
             code.put_xdecref_clear(temp_name, type)
         for except_clause in self.except_clauses:
@@ -4246,8 +4230,6 @@ class TryFinallyStatNode(StatNode):
     #  body             StatNode
     #  finally_clause   StatNode
     #
-    #  cleanup_list     [Entry]     old_style temps to clean up on error
-    #
     #  The plan is that we funnel all continue, break
     #  return and error gotos into the beginning of the
     #  finally block, setting a variable to remember which
@@ -4268,7 +4250,6 @@ class TryFinallyStatNode(StatNode):
 
     def create_analysed(pos, env, body, finally_clause):
         node = TryFinallyStatNode(pos, body=body, finally_clause=finally_clause)
-        node.cleanup_list = []
         return node
     create_analysed = staticmethod(create_analysed)
     
@@ -4285,7 +4266,6 @@ class TryFinallyStatNode(StatNode):
     
     def analyse_expressions(self, env):
         self.body.analyse_expressions(env)
-        self.cleanup_list = env.free_temp_entries[:]
         self.finally_clause.analyse_expressions(env)
 
     gil_check = StatNode._gil_check
@@ -4391,7 +4371,6 @@ class TryFinallyStatNode(StatNode):
         code.putln(
                 "__pyx_why = %s;" %
                     i)
-        code.put_var_xdecrefs_clear(self.cleanup_list)
         for temp_name, type in temps_to_clean_up:
             code.put_xdecref_clear(temp_name, type)
         code.putln(
