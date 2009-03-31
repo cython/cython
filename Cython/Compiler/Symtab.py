@@ -183,9 +183,6 @@ class Scope(object):
     # pyfunc_entries    [Entry]            Python function entries
     # cfunc_entries     [Entry]            C function entries
     # c_class_entries   [Entry]            All extension type entries
-    # temp_entries      [Entry]            Temporary variable entries
-    # free_temp_entries [Entry]            Temp variables currently unused
-    # temp_counter      integer            Counter for naming temp vars
     # cname_to_entry    {string : Entry}   Temp cname to entry mapping
     # int_to_entry      {int : Entry}      Temp cname to entry mapping
     # return_type       PyrexType or None  Return type of function owning scope
@@ -208,8 +205,6 @@ class Scope(object):
     in_cinclude = 0
     nogil = 0
     directives = {}
-    
-    temp_prefix = Naming.pyrex_prefix
     
     def __init__(self, name, outer_scope, parent_scope):
         # The outer_scope is the next scope in the lookup chain.
@@ -236,10 +231,6 @@ class Scope(object):
         self.c_class_entries = []
         self.defined_c_classes = []
         self.imported_c_classes = {}
-        self.temp_entries = []
-        self.free_temp_entries = []
-        #self.pending_temp_entries = [] # TEMPORARY
-        self.temp_counter = 1
         self.cname_to_entry = {}
         self.string_to_entry = {}
         self.identifier_to_entry = {}
@@ -531,44 +522,6 @@ class Scope(object):
         if entry and entry.is_type:
             return entry.type
 
-    def allocate_temp(self, type):
-        # Allocate a temporary variable of the given type from the 
-        # free list if available, otherwise create a new one.
-        # Returns the cname of the variable.
-        for entry in self.free_temp_entries:
-            if entry.type == type:
-                self.free_temp_entries.remove(entry)
-                return entry.cname
-        n = self.temp_counter
-        self.temp_counter = n + 1
-        cname = "%s%d" % (self.temp_prefix, n)
-        entry = Entry("", cname, type)
-        entry.used = 1
-        if type.is_pyobject or type == PyrexTypes.c_py_ssize_t_type:
-            entry.init = "0"
-        self.cname_to_entry[entry.cname] = entry
-        self.temp_entries.append(entry)
-        return entry.cname
-    
-    def allocate_temp_pyobject(self):
-        # Allocate a temporary PyObject variable.
-        return self.allocate_temp(py_object_type)
-
-    def release_temp(self, cname):
-        # Release a temporary variable for re-use.
-        if not cname: # can happen when type of an expr is void
-            return
-        entry = self.cname_to_entry[cname]
-        if entry in self.free_temp_entries:
-            raise InternalError("Temporary variable %s released more than once"
-                % cname)
-        self.free_temp_entries.append(entry)
-    
-    def temps_in_use(self):
-        # Return a new list of temp entries currently in use.
-        return [entry for entry in self.temp_entries
-            if entry not in self.free_temp_entries]
-    
     def use_utility_code(self, new_code, name=None):
         self.global_scope().use_utility_code(new_code, name)
 
@@ -1117,11 +1070,9 @@ class LocalScope(Scope):
 
 class GeneratorLocalScope(LocalScope):
 
-    temp_prefix = Naming.cur_scope_cname + "->" + LocalScope.temp_prefix
-    
     def mangle_closure_cnames(self, scope_var):
-        for entry in self.entries.values() + self.temp_entries:
-            entry.in_closure = 1
+#        for entry in self.entries.values() + self.temp_entries:
+#            entry.in_closure = 1
         LocalScope.mangle_closure_cnames(self, scope_var)
     
 #    def mangle(self, prefix, name):
@@ -1208,15 +1159,6 @@ class PyClassScope(ClassScope):
             cname, visibility, is_cdef)
         entry.is_pyglobal = 1
         return entry
-
-    def allocate_temp(self, type):
-        return self.outer_scope.allocate_temp(type)
-
-    def release_temp(self, cname):
-        self.outer_scope.release_temp(cname)
-
-    #def recycle_pending_temps(self):
-    #    self.outer_scope.recycle_pending_temps()
 
     def add_default_value(self, type):
         return self.outer_scope.add_default_value(type)
@@ -1412,12 +1354,6 @@ class CClassScope(ClassScope):
                                        base_entry.visibility, base_entry.func_modifiers)
             entry.is_inherited = 1
             
-    def allocate_temp(self, type):
-        return Scope.allocate_temp(self.global_scope(), type)
-
-    def release_temp(self, cname):
-        return Scope.release_temp(self.global_scope(), cname)
-        
         
 class PropertyScope(Scope):
     #  Scope holding the __get__, __set__ and __del__ methods for
