@@ -102,20 +102,6 @@ class ExprNode(Node):
     #        the LHS of an assignment or argument of a del 
     #        statement. Similar responsibilities to analyse_types.
     #
-    #      allocate_temps
-    #        - Call allocate_temps for all sub-nodes.
-    #        - Call allocate_temp for this node.
-    #        - If a temporary was allocated, call release_temp on 
-    #          all sub-expressions.
-    #
-    #      allocate_target_temps
-    #        - Call allocate_temps on sub-nodes and allocate any other
-    #          temps used during assignment.
-    #        - Fill in result_code with a C lvalue if needed.
-    #        - If a rhs node is supplied, call release_temp on it.
-    #        - Call release_temp on sub-nodes and release any other
-    #          temps used during assignment.
-    #
     #      target_code
     #        Called by the default implementation of allocate_target_temps.
     #        Should return a C lvalue for assigning to the node. The default
@@ -278,7 +264,6 @@ class ExprNode(Node):
         #  checks whether it is a legal const expression,
         #  and determines its value.
         self.analyse_types(env)
-        self.allocate_temps(env)
         self.check_const()
     
     def analyse_expressions(self, env):
@@ -286,20 +271,17 @@ class ExprNode(Node):
         #  Analysis and Temp Allocation phases for a whole 
         #  expression.
         self.analyse_types(env)
-        self.allocate_temps(env)
     
     def analyse_target_expression(self, env, rhs):
         #  Convenience routine performing both the Type
         #  Analysis and Temp Allocation phases for the LHS of
         #  an assignment.
         self.analyse_target_types(env)
-        self.allocate_target_temps(env, rhs)
     
     def analyse_boolean_expression(self, env):
         #  Analyse expression and coerce to a boolean.
         self.analyse_types(env)
         bool = self.coerce_to_boolean(env)
-        bool.allocate_temps(env)
         return bool
     
     def analyse_temp_boolean_expression(self, env):
@@ -313,7 +295,6 @@ class ExprNode(Node):
         self.analyse_types(env)
         bool = self.coerce_to_boolean(env)
         temp_bool = bool.coerce_to_temp(env)
-        temp_bool.allocate_temps(env)
         return temp_bool
     
     # --------------- Type Analysis ------------------
@@ -371,47 +352,6 @@ class ExprNode(Node):
         #  a subnode.
         return self.is_temp
             
-    def allocate_target_temps(self, env, rhs):
-        self.allocate_subexpr_temps(env)
-        self.is_target = True
-        if rhs:
-            rhs.release_temp(env)
-        self.release_subexpr_temps(env)
-
-    def allocate_temps(self, env, result = None):
-        assert result is None, "deprecated, contact dagss if this triggers"
-        self.allocate_subexpr_temps(env)
-        if self.is_temp:
-            self.release_subexpr_temps(env)
-
-    def allocate_temps(self, env, result = None):
-        #  Allocate temporary variables for this node and
-        #  all its sub-expressions. If a result is specified,
-        #  this must be a temp node and the specified variable
-        #  is used as the result instead of allocating a new
-        #  one.
-        assert result is None, "deprecated, contact dagss if this triggers"
-        if debug_temp_alloc:
-            print("%s Allocating temps" % self)
-        self.allocate_subexpr_temps(env)
-        self.allocate_temp(env, result)
-        if self.is_temp:
-            self.release_subexpr_temps(env)
-    
-    def allocate_subexpr_temps(self, env):
-        #  Allocate temporary variables for all sub-expressions
-        #  of this node.
-        if debug_temp_alloc:
-            print("%s Allocating temps for: %s" % (self, self.subexprs))
-        for node in self.subexpr_nodes():
-            if node:
-                if debug_temp_alloc:
-                    print("%s Allocating temps for %s" % (self, node))
-                node.allocate_temps(env)
-    
-    def allocate_temp(self, env, result = None):
-        assert result is None
-                
     def target_code(self):
         #  Return code fragment for use as LHS of a C assignment.
         return self.calculate_result_code()
@@ -423,20 +363,6 @@ class ExprNode(Node):
 #        #  Release temporaries used by LHS of an assignment.
 #        self.release_subexpr_temps(env)
 
-
-    def release_temp(self, env):
-        if self.is_temp:
-            pass
-        else:
-            self.release_subexpr_temps(env)
-    
-    def release_subexpr_temps(self, env):
-        #  Release the results of all sub-expressions of
-        #  this node.
-        for node in self.subexpr_nodes():
-            if node:
-                node.release_temp(env)
-    
     def allocate_temp_result(self, code):
         if self.temp_code:
             raise RuntimeError("Temp allocated multiple times")
@@ -2975,26 +2901,6 @@ class SequenceNode(ExprNode):
         self.type = py_object_type
         env.use_utility_code(unpacking_utility_code)
     
-    def allocate_target_temps(self, env, rhs):
-        self.iterator.allocate_temps(env)
-        for arg, node in zip(self.args, self.coerced_unpacked_items):
-            node.allocate_temps(env)
-            arg.allocate_target_temps(env, None)
-            #arg.release_target_temp(env)
-            #node.release_temp(env)
-        if rhs:
-            rhs.release_temp(env)
-        self.iterator.release_temp(env)
-        for node in self.coerced_unpacked_items:
-            node.release_temp(env)
-
-#    def release_target_temp(self, env):
-#        #for arg in self.args:
-#        #    arg.release_target_temp(env)
-#        #for node in self.coerced_unpacked_items:
-#        #    node.release_temp(env)
-#        self.iterator.release_temp(env)
-    
     def generate_result_code(self, code):
         self.generate_operation_code(code)
     
@@ -3267,13 +3173,6 @@ class ComprehensionNode(ExprNode):
         self.type = self.target.type
         self.append.target = self # this is a CloneNode used in the PyList_Append in the inner loop
         self.loop.analyse_declarations(env)
-
-    def allocate_temps(self, env, result = None): 
-        if debug_temp_alloc:
-            print("%s Allocating temps" % self)
-        self.allocate_temp(env, result)
-        # call loop.analyse_expressions() now to make sure temps get
-        # allocated at the right time
         self.loop.analyse_expressions(env)
 
     def calculate_result_code(self):
@@ -4392,25 +4291,6 @@ class BoolBinopNode(ExprNode):
 
     gil_message = "Truth-testing Python object"
 
-##     def allocate_temps(self, env, result_code = None):
-##         #  We don't need both operands at the same time, and
-##         #  one of the operands will also be our result. So we
-##         #  use an allocation strategy here which results in
-##         #  this node and both its operands sharing the same
-##         #  result variable. This allows us to avoid some 
-##         #  assignments and increfs/decrefs that would otherwise
-##         #  be necessary.
-##         self.allocate_temp(env, result_code)
-##         self.operand1.allocate_temps(env, self.result())
-##         self.operand2.allocate_temps(env, self.result())
-##         #  We haven't called release_temp on either operand,
-##         #  because although they are temp nodes, they don't own 
-##         #  their result variable. And because they are temp
-##         #  nodes, any temps in their subnodes will have been
-##         #  released before their allocate_temps returned.
-##         #  Therefore, they contain no temp vars that need to
-##         #  be released.
-
     def check_const(self):
         self.operand1.check_const()
         self.operand2.check_const()
@@ -4753,18 +4633,6 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         if self.cascade:
             self.cascade.coerce_chars_to_ints(env)
     
-    def allocate_subexpr_temps(self, env):
-        self.operand1.allocate_temps(env)
-        self.operand2.allocate_temps(env)
-        if self.cascade:
-            self.cascade.allocate_subexpr_temps(env)
-    
-    def release_subexpr_temps(self, env):
-        self.operand1.release_temp(env)
-        self.operand2.release_temp(env)
-        if self.cascade:
-            self.cascade.release_subexpr_temps(env)
-    
     def check_const(self):
         self.operand1.check_const()
         self.operand2.check_const()
@@ -4857,16 +4725,6 @@ class CascadedCmpNode(Node, CmpNode):
             #self.operand2 = self.operand2.coerce_to_temp(env) #CTT
             self.operand2 = self.operand2.coerce_to_simple(env)
             self.cascade.coerce_cascaded_operands_to_temp(env)
-    
-    def allocate_subexpr_temps(self, env):
-        self.operand2.allocate_temps(env)
-        if self.cascade:
-            self.cascade.allocate_subexpr_temps(env)
-    
-    def release_subexpr_temps(self, env):
-        self.operand2.release_temp(env)
-        if self.cascade:
-            self.cascade.release_subexpr_temps(env)
     
     def generate_evaluation_code(self, code, result, operand1):
         if self.type.is_pyobject:
@@ -5228,12 +5086,6 @@ class CloneNode(CoercionNode):
     def generate_disposal_code(self, code):
         pass
                 
-    def allocate_temps(self, env):
-        pass
-        
-    def release_temp(self, env):
-        pass
-
     def free_temps(self, code):
         pass
 

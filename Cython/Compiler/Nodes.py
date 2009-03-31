@@ -963,7 +963,6 @@ class FuncDefNode(StatNode, BlockNode):
                 if arg.is_generic:
                     arg.default.analyse_types(env)
                     arg.default = arg.default.coerce_to(arg.type, genv)
-                    arg.default.allocate_temps(genv)
                 else:
                     error(arg.pos,
                         "This argument cannot have a default value")
@@ -2539,9 +2538,6 @@ class PyClassDefNode(ClassDefNode):
         cenv = self.scope
         self.body.analyse_expressions(cenv)
         self.target.analyse_target_expression(env, self.classobj)
-        self.dict.release_temp(env)
-        #self.classobj.release_temp(env)
-        #self.target.release_target_temp(env)
     
     def generate_function_definitions(self, env, code):
         self.body.generate_function_definitions(self.scope, code)
@@ -2771,7 +2767,6 @@ class ExprStatNode(StatNode):
     
     def analyse_expressions(self, env):
         self.expr.analyse_expressions(env)
-        self.expr.release_temp(env)
     
     def generate_execution_code(self, code):
         self.expr.generate_evaluation_code(code)
@@ -2795,8 +2790,6 @@ class AssignmentNode(StatNode):
 
     def analyse_expressions(self, env):
         self.analyse_types(env)
-        self.allocate_rhs_temps(env)
-        self.allocate_lhs_temps(env)
 
 #       def analyse_expressions(self, env):
 #           self.analyse_expressions_1(env)
@@ -2894,14 +2887,6 @@ class SingleAssignmentNode(AssignmentNode):
         if use_temp:
             self.rhs = self.rhs.coerce_to_temp(env)
     
-    def allocate_rhs_temps(self, env):
-        self.rhs.allocate_temps(env)
-
-    def allocate_lhs_temps(self, env):
-        self.lhs.allocate_target_temps(env, self.rhs)
-        #self.lhs.release_target_temp(env)
-        #self.rhs.release_temp(env)
-
     def generate_rhs_evaluation_code(self, code):
         self.rhs.generate_evaluation_code(code)
     
@@ -2947,17 +2932,6 @@ class CascadedAssignmentNode(AssignmentNode):
             rhs = rhs.coerce_to(lhs.type, env)
             self.coerced_rhs_list.append(rhs)
 
-    def allocate_rhs_temps(self, env):
-        self.rhs.allocate_temps(env)
-    
-    def allocate_lhs_temps(self, env):
-        for lhs, rhs in zip(self.lhs_list, self.coerced_rhs_list):
-            rhs.allocate_temps(env)
-            lhs.allocate_target_temps(env, rhs)
-            #lhs.release_target_temp(env)
-            #rhs.release_temp(env)
-        self.rhs.release_temp(env)
-    
     def generate_rhs_evaluation_code(self, code):
         self.rhs.generate_evaluation_code(code)
     
@@ -3001,9 +2975,6 @@ class ParallelAssignmentNode(AssignmentNode):
     def analyse_expressions(self, env):
         for stat in self.stats:
             stat.analyse_types(env, use_temp = 1)
-            stat.allocate_rhs_temps(env)
-        for stat in self.stats:
-            stat.allocate_lhs_temps(env)
 
 #    def analyse_expressions(self, env):
 #        for stat in self.stats:
@@ -3053,8 +3024,6 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.lhs.analyse_target_types(env)
         if Options.incref_local_binop and self.dup.type.is_pyobject:
             self.dup = self.dup.coerce_to_temp(env)
-        
-    def allocate_rhs_temps(self, env):
         import ExprNodes
         if self.lhs.type.is_pyobject:
             self.rhs = self.rhs.coerce_to_pyobject(env)
@@ -3063,23 +3032,7 @@ class InPlaceAssignmentNode(AssignmentNode):
         if self.lhs.type.is_pyobject:
             self.result_value_temp = ExprNodes.PyTempNode(self.pos, env)
             self.result_value = self.result_value_temp.coerce_to(self.lhs.type, env)
-            self.result_value.allocate_temps(env)
-#        if use_temp:
-#            self.rhs = self.rhs.coerce_to_temp(env)
-        self.rhs.allocate_temps(env)
-        self.dup.allocate_subexpr_temps(env)
-        self.dup.allocate_temp(env)
-    
-    def allocate_lhs_temps(self, env):
-        self.lhs.allocate_target_temps(env, self.rhs)
-#        self.lhs.release_target_temp(env)
-        self.dup.release_temp(env)
-        if self.dup.is_temp:
-            self.dup.release_subexpr_temps(env)
-#        self.rhs.release_temp(env)
-        if self.lhs.type.is_pyobject:
-            self.result_value.release_temp(env)
-
+        
     def generate_execution_code(self, code):
         import ExprNodes
         self.rhs.generate_evaluation_code(code)
@@ -3201,7 +3154,6 @@ class PrintStatNode(StatNode):
     def analyse_expressions(self, env):
         self.arg_tuple.analyse_expressions(env)
         self.arg_tuple = self.arg_tuple.coerce_to_pyobject(env)
-        self.arg_tuple.release_temp(env)
         env.use_utility_code(printing_utility_code)
         if len(self.arg_tuple.args) == 1 and self.append_newline:
             env.use_utility_code(printing_one_utility_code)
@@ -3245,7 +3197,6 @@ class ExecStatNode(StatNode):
         for i, arg in enumerate(self.args):
             arg.analyse_expressions(env)
             arg = arg.coerce_to_pyobject(env)
-            arg.release_temp(env)
             self.args[i] = arg
         self.temp_result = env.allocate_temp_pyobject()
         env.release_temp(self.temp_result)
@@ -3376,8 +3327,6 @@ class ReturnStatNode(StatNode):
                     "Return with value in void function")
             else:
                 self.value = self.value.coerce_to(env.return_type, env)
-            self.value.allocate_temps(env)
-            self.value.release_temp(env)
         else:
             if (not return_type.is_void
                 and not return_type.is_pyobject
@@ -3444,21 +3393,12 @@ class RaiseStatNode(StatNode):
         if self.exc_type:
             self.exc_type.analyse_types(env)
             self.exc_type = self.exc_type.coerce_to_pyobject(env)
-            self.exc_type.allocate_temps(env)
         if self.exc_value:
             self.exc_value.analyse_types(env)
             self.exc_value = self.exc_value.coerce_to_pyobject(env)
-            self.exc_value.allocate_temps(env)
         if self.exc_tb:
             self.exc_tb.analyse_types(env)
             self.exc_tb = self.exc_tb.coerce_to_pyobject(env)
-            self.exc_tb.allocate_temps(env)
-        if self.exc_type:
-            self.exc_type.release_temp(env)
-        if self.exc_value:
-            self.exc_value.release_temp(env)
-        if self.exc_tb:
-            self.exc_tb.release_temp(env)
         env.use_utility_code(raise_utility_code)
         env.use_utility_code(restore_exception_utility_code)
 
@@ -3539,11 +3479,6 @@ class AssertStatNode(StatNode):
         if self.value:
             self.value.analyse_types(env)
             self.value = self.value.coerce_to_pyobject(env)
-            self.value.allocate_temps(env)
-        self.cond.release_temp(env)
-        if self.value:
-            self.value.release_temp(env)
-        #env.recycle_pending_temps() # TEMPORARY
 
     gil_check = StatNode._gil_check
     gil_message = "Raising exception"
@@ -3643,7 +3578,6 @@ class IfClauseNode(Node):
     def analyse_expressions(self, env):
         self.condition = \
             self.condition.analyse_temp_boolean_expression(env)
-        self.condition.release_temp(env)
         self.body.analyse_expressions(env)
     
     def generate_execution_code(self, code, end_label):
@@ -3740,8 +3674,6 @@ class WhileStatNode(LoopNode, StatNode):
     def analyse_expressions(self, env):
         self.condition = \
             self.condition.analyse_temp_boolean_expression(env)
-        self.condition.release_temp(env)
-        #env.recycle_pending_temps() # TEMPORARY
         self.body.analyse_expressions(env)
         if self.else_clause:
             self.else_clause.analyse_expressions(env)
@@ -3804,14 +3736,9 @@ class ForInStatNode(LoopNode, StatNode):
         self.iterator.analyse_expressions(env)
         self.item = ExprNodes.NextNode(self.iterator, env)
         self.item = self.item.coerce_to(self.target.type, env)
-        self.item.allocate_temps(env)
-        self.target.allocate_target_temps(env, self.item)
-        #self.item.release_temp(env)
-        #self.target.release_target_temp(env)
         self.body.analyse_expressions(env)
         if self.else_clause:
             self.else_clause.analyse_expressions(env)
-        self.iterator.release_temp(env)
 
     def generate_execution_code(self, code):
         old_loop_labels = code.new_loop_labels()
@@ -3919,28 +3846,12 @@ class ForFromStatNode(LoopNode, StatNode):
         else:
             self.is_py_target = True
             c_loopvar_node = ExprNodes.TempNode(self.pos, loop_type, env)
-            c_loopvar_node.allocate_temps(env)
             self.loopvar_node = c_loopvar_node
             self.py_loopvar_node = \
                 ExprNodes.CloneNode(c_loopvar_node).coerce_to_pyobject(env)
-        self.bound1.allocate_temps(env)
-        self.bound2.allocate_temps(env)
-        if self.step is not None:
-            self.step.allocate_temps(env)
-        if self.is_py_target:
-            self.py_loopvar_node.allocate_temps(env)
-            self.target.allocate_target_temps(env, self.py_loopvar_node)
-            #self.target.release_target_temp(env)
-            #self.py_loopvar_node.release_temp(env)
         self.body.analyse_expressions(env)
-        if self.is_py_target:
-            c_loopvar_node.release_temp(env)
         if self.else_clause:
             self.else_clause.analyse_expressions(env)
-        self.bound1.release_temp(env)
-        self.bound2.release_temp(env)
-        if self.step is not None:
-            self.step.release_temp(env)
             
     def generate_execution_code(self, code):
         old_loop_labels = code.new_loop_labels()
@@ -4006,8 +3917,6 @@ class ForFromStatNode(LoopNode, StatNode):
         if self.step is not None:
             self.step.generate_disposal_code(code)
             self.step.free_temps(code)
-        if from_range:
-            code.funcstate.release_temp(loopvar_name)
     
     relation_table = {
         # {relop : (initial offset, increment op)}
@@ -4232,7 +4141,6 @@ class ExceptClauseNode(Node):
             self.pattern.analyse_expressions(env)
             self.pattern = self.pattern.coerce_to_pyobject(env)
             self.match_flag = env.allocate_temp(PyrexTypes.c_int_type)
-            self.pattern.release_temp(env)
             env.release_temp(self.match_flag)
 
         if self.target or self.excinfo_target:
@@ -4242,7 +4150,6 @@ class ExceptClauseNode(Node):
 
         if self.target:
             self.exc_value = ExprNodes.ExcValueNode(self.pos, env, self.exc_vars[1])
-            self.exc_value.allocate_temps(env)
             self.target.analyse_target_expression(env, self.exc_value)
         if self.excinfo_target is not None:
             import ExprNodes
@@ -4252,7 +4159,6 @@ class ExceptClauseNode(Node):
                 ExprNodes.ExcValueNode(pos=self.pos, env=env, var=self.exc_vars[2])
             ])
             self.excinfo_tuple.analyse_expressions(env)
-            self.excinfo_tuple.allocate_temps(env)
             self.excinfo_target.analyse_target_expression(env, self.excinfo_tuple)
 
         self.body.analyse_expressions(env)
@@ -4720,7 +4626,6 @@ class FromImportStatNode(StatNode):
         import ExprNodes
         self.module.analyse_expressions(env)
         self.item = ExprNodes.PyTempNode(self.pos, env)
-        self.item.allocate_temp(env)
         self.interned_items = []
         for name, target in self.items:
             if name == '*':
@@ -4739,9 +4644,6 @@ class FromImportStatNode(StatNode):
                     coerced_item = self.item.coerce_to(target.type, env)
                 self.interned_items.append(
                     (name, target, coerced_item))
-                #target.release_target_temp(env) # was release_temp ?!?
-        self.module.release_temp(env)
-        self.item.release_temp(env)
     
     def generate_execution_code(self, code):
         self.module.generate_evaluation_code(code)
