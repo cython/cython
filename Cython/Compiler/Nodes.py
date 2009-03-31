@@ -880,24 +880,21 @@ class CEnumDefNode(StatNode):
             for item in self.items:
                 item.analyse_declarations(env, self.entry)
 
-    def analyse_expressions(self, env):
-        if self.visibility == 'public':
-            self.temp = env.allocate_temp_pyobject()
-            env.release_temp(self.temp)
-    
     def generate_execution_code(self, code):
         if self.visibility == 'public':
+            temp = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
             for item in self.entry.enum_values:
                 code.putln("%s = PyInt_FromLong(%s); %s" % (
-                        self.temp,
+                        temp,
                         item.cname,
-                        code.error_goto_if_null(self.temp, item.pos)))
+                        code.error_goto_if_null(temp, item.pos)))
                 code.putln('if (__Pyx_SetAttrString(%s, "%s", %s) < 0) %s' % (
                         Naming.module_cname, 
                         item.name, 
-                        self.temp,
+                        temp,
                         code.error_goto(item.pos)))
-                code.putln("%s = 0;" % self.temp)
+                code.putln("%s = 0;" % temp)
+            code.funcstate.release_temp(temp)
 
 
 class CEnumDefItemNode(StatNode):
@@ -3198,8 +3195,6 @@ class ExecStatNode(StatNode):
             arg.analyse_expressions(env)
             arg = arg.coerce_to_pyobject(env)
             self.args[i] = arg
-        self.temp_result = env.allocate_temp_pyobject()
-        env.release_temp(self.temp_result)
         env.use_utility_code(Builtin.pyexec_utility_code)
 
     gil_check = StatNode._gil_check
@@ -3211,15 +3206,17 @@ class ExecStatNode(StatNode):
             arg.generate_evaluation_code(code)
             args.append( arg.py_result() )
         args = tuple(args + ['0', '0'][:3-len(args)])
+        temp_result = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
         code.putln("%s = __Pyx_PyRun(%s, %s, %s);" % (
-                (self.temp_result,) + args))
+                (temp_result,) + args))
         for arg in self.args:
             arg.generate_disposal_code(code)
             arg.free_temps(code)
         code.putln(
-            code.error_goto_if_null(self.temp_result, self.pos))
-        code.put_gotref(self.temp_result)
-        code.put_decref_clear(self.temp_result, py_object_type)
+            code.error_goto_if_null(temp_result, self.pos))
+        code.put_gotref(temp_result)
+        code.put_decref_clear(temp_result, py_object_type)
+        code.funcstate.release_temp(temp_result)
 
     def annotate(self, code):
         for arg in self.args:
@@ -4140,65 +4137,49 @@ class ExceptClauseNode(Node):
         if self.pattern:
             self.pattern.analyse_expressions(env)
             self.pattern = self.pattern.coerce_to_pyobject(env)
-            self.match_flag = env.allocate_temp(PyrexTypes.c_int_type)
-            env.release_temp(self.match_flag)
-
-        if self.target or self.excinfo_target:
-            self.exc_vars = [env.allocate_temp(py_object_type) for i in xrange(3)]
-        else:
-            self.exc_vars = None
 
         if self.target:
-            self.exc_value = ExprNodes.ExcValueNode(self.pos, env, self.exc_vars[1])
+            self.exc_value = ExprNodes.ExcValueNode(self.pos, env)
             self.target.analyse_target_expression(env, self.exc_value)
         if self.excinfo_target is not None:
             import ExprNodes
             self.excinfo_tuple = ExprNodes.TupleNode(pos=self.pos, args=[
-                ExprNodes.ExcValueNode(pos=self.pos, env=env, var=self.exc_vars[0]),
-                ExprNodes.ExcValueNode(pos=self.pos, env=env, var=self.exc_vars[1]),
-                ExprNodes.ExcValueNode(pos=self.pos, env=env, var=self.exc_vars[2])
-            ])
+                ExprNodes.ExcValueNode(pos=self.pos, env=env) for x in range(3)])
             self.excinfo_tuple.analyse_expressions(env)
             self.excinfo_target.analyse_target_expression(env, self.excinfo_tuple)
 
         self.body.analyse_expressions(env)
 
-        if self.exc_vars:
-            for var in self.exc_vars:
-                env.release_temp(var)
-    
     def generate_handling_code(self, code, end_label):
         code.mark_pos(self.pos)
         if self.pattern:
             self.pattern.generate_evaluation_code(code)
+            
+            match_flag = code.funcstate.allocate_temp(PyrexTypes.c_int_type, False)
             code.putln(
                 "%s = PyErr_ExceptionMatches(%s);" % (
-                    self.match_flag,
+                    match_flag,
                     self.pattern.py_result()))
             self.pattern.generate_disposal_code(code)
             self.pattern.free_temps(code)
             code.putln(
                 "if (%s) {" %
-                    self.match_flag)
+                    match_flag)
+            code.funcstate.release_temp(match_flag)
         else:
             code.putln("/*except:*/ {")
 
-        if self.exc_vars:
-            exc_vars = self.exc_vars
-        elif not getattr(self.body, 'stats', True):
+        if not getattr(self.body, 'stats', True):
             # most simple case: no exception variable, empty body (pass)
             # => reset the exception state, done
             code.putln("PyErr_Restore(0,0,0);")
             code.put_goto(end_label)
             code.putln("}")
             return
-        else:
-            # during type analysis, we didn't know if we need the
-            # exception value, but apparently, we do
-            exc_vars = [code.funcstate.allocate_temp(py_object_type,
-                                                     manage_ref=True)
-                        for i in xrange(3)]
-
+        
+        exc_vars = [code.funcstate.allocate_temp(py_object_type,
+                                                 manage_ref=True)
+                    for i in xrange(3)]
         code.putln('__Pyx_AddTraceback("%s");' % self.function_name)
         # We always have to fetch the exception value even if
         # there is no target, because this also normalises the 
@@ -4210,12 +4191,14 @@ class ExceptClauseNode(Node):
         for x in exc_vars:
             code.put_gotref(x)
         if self.target:
+            self.exc_value.set_var(exc_vars[1])
             self.exc_value.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.exc_value, code)
         if self.excinfo_target is not None:
+            for tempvar, node in zip(exc_vars, self.excinfo_tuple.args):
+                node.set_var(tempvar)
             self.excinfo_tuple.generate_evaluation_code(code)
             self.excinfo_target.generate_assignment_code(self.excinfo_tuple, code)
-
 
         old_break_label, old_continue_label = code.break_label, code.continue_label
         code.break_label = code.new_label('except_break')
@@ -4243,10 +4226,8 @@ class ExceptClauseNode(Node):
             code.put_goto(old_continue_label)
         code.continue_label = old_continue_label
 
-        if not self.exc_vars:
-            # clean up locally allocated temps
-            for temp in exc_vars:
-                code.funcstate.release_temp(temp)
+        for temp in exc_vars:
+            code.funcstate.release_temp(temp)
 
         code.putln(
             "}")
