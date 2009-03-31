@@ -1658,6 +1658,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_goto(code.return_label)
         code.put_label(code.error_label)
         code.put_var_xdecrefs(env.temp_entries)
+        for cname, type in code.funcstate.all_managed_temps():
+            code.put_xdecref(cname, type)
         code.putln('__Pyx_AddTraceback("%s");' % env.qualified_name)
         env.use_utility_code(Nodes.traceback_utility_code)
         code.put_decref_clear(env.module_cname, py_object_type, nanny=False)
