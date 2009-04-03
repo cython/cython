@@ -4688,8 +4688,12 @@ class FromCImportStatNode(StatNode):
                         entry = module_scope.declare_c_class(name, pos = pos,
                             module_name = self.module_name)
                     else:
-                        error(pos, "Name '%s' not declared in module '%s'"
-                            % (name, self.module_name))
+                        submodule_scope = env.context.find_module(name, relative_to = module_scope, pos = self.pos)
+                        if submodule_scope.parent_module is module_scope:
+                            env.declare_module(as_name or name, submodule_scope, self.pos)
+                        else:
+                            error(pos, "Name '%s' not declared in module '%s'"
+                                % (name, self.module_name))
                         
                 if entry:
                     local_name = as_name or name
