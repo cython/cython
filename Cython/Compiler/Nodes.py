@@ -1646,7 +1646,7 @@ class DefNode(FuncDefNode):
                             nogil = cfunc_type.nogil,
                             visibility = 'private',
                             api = False,
-                            directive_locals = cfunc.directive_locals)
+                            directive_locals = getattr(cfunc, 'directive_locals', {}))
     
     def analyse_declarations(self, env):
         if 'locals' in env.directives:
