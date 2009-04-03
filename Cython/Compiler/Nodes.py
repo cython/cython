@@ -565,6 +565,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         
         exc_val = None
         exc_check = 0
+        if self.exception_check == '+':
+            env.add_include_file('stdexcept')
         if return_type.is_pyobject \
             and (self.exception_value or self.exception_check) \
             and self.exception_check != '+':
@@ -575,7 +577,6 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 self.exception_value.analyse_const_expression(env)
                 if self.exception_check == '+':
                     exc_val_type = self.exception_value.type
-                    env.add_include_file('stdexcept')
                     if not exc_val_type.is_error and \
                           not exc_val_type.is_pyobject and \
                           not (exc_val_type.is_cfunction and not exc_val_type.return_type.is_pyobject and len(exc_val_type.args)==0):
