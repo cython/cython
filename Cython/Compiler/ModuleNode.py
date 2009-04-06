@@ -425,6 +425,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  typedef int Py_ssize_t;")
         code.putln("  #define PY_SSIZE_T_MAX INT_MAX")
         code.putln("  #define PY_SSIZE_T_MIN INT_MIN")
+        code.putln("  #define PY_FORMAT_SIZE_T \"\"")
         code.putln("  #define PyInt_FromSsize_t(z) PyInt_FromLong(z)")
         code.putln("  #define PyInt_AsSsize_t(o)   PyInt_AsLong(o)")
         code.putln("  #define PyNumber_Index(o)    PyNumber_Int(o)")
