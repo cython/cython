@@ -565,6 +565,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         env.use_utility_code(streq_utility_code)
 
+        # XXX this is a mess
+        for utility_code in PyrexTypes.c_int_from_py_function.specialize_list:
+            env.use_utility_code(utility_code)
+        for utility_code in PyrexTypes.c_long_from_py_function.specialize_list:
+            env.use_utility_code(utility_code)
+
     def generate_extern_c_macro_definition(self, code):
         name = Naming.extern_c_macro
         code.putln("#ifdef __cplusplus")

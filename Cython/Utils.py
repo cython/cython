@@ -105,6 +105,7 @@ class UtilityCode(object):
         self.cleanup = cleanup
         self.requires = requires
         self._cache = {}
+        self.specialize_list = []
 
     def write_init_code(self, writer, pos):
         if not self.init:
@@ -141,4 +142,5 @@ class UtilityCode(object):
                                         none_or_sub(self.init, data),
                                         none_or_sub(self.cleanup, data),
                                         requires)
+            self.specialize_list.append(s)
             return s
