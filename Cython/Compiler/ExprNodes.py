@@ -5505,8 +5505,8 @@ static INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v
 
 static INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v, int fits_long) {
     if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
-        Py_DECREF(PyList_GET_ITEM(o, i));
         Py_INCREF(v);
+        Py_DECREF(PyList_GET_ITEM(o, i));
         PyList_SET_ITEM(o, i, v);
         return 1;
     }
