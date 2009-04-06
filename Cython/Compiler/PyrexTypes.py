@@ -228,6 +228,11 @@ class BufferType(BaseType):
     def __repr__(self):
         return "<BufferType %r>" % self.base
 
+def public_decl(base, dll_linkage):
+    if dll_linkage:
+        return "%s(%s)" % (dll_linkage, base)
+    else:
+        return base
     
 class PyObjectType(PyrexType):
     #
@@ -486,57 +491,123 @@ class CNumericType(CType):
         return self.base_declaration_code(base,  entity_code)
 
 
-int_conversion_list = {}
-type_conversion_functions = ""
 type_conversion_predeclarations = ""
+type_conversion_functions = ""
+
+c_int_from_py_function = UtilityCode(
+proto="""
+static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
+""",
+impl="""
+static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
+    if (sizeof(%(type)s) < sizeof(long)) {
+        long val = __Pyx_PyInt_AsLong(x);
+        if (unlikely(val != (long)(%(type)s)val)) {
+            if (unlikely(val == -1 && PyErr_Occurred()))
+                return (%(type)s)-1;""" + \
+           "%(IntValSignTest)s" + \
+"""
+            PyErr_SetString(PyExc_OverflowError,
+                           "value too large to convert to %(type)s");
+            return (%(type)s)-1;
+        }
+        return (%(type)s)val;
+    }
+    return (%(type)s)__Pyx_PyInt_As%(SignWord)sLong(x);
+}
+""")
+intval_signtest = """
+            if (unlikely(%(var)s < 0)) {
+                PyErr_SetString(PyExc_OverflowError,
+                                "can't convert negative value to %(type)s");
+                return (%(type)s)-1;
+            }"""
+
+c_long_from_py_function = UtilityCode(
+proto="""
+static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
+""",
+impl="""
+static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
+#if PY_VERSION_HEX < 0x03000000
+    if (likely(PyInt_CheckExact(x) || PyInt_Check(x))) {
+        long val = PyInt_AS_LONG(x);""" + \
+       "%(IntValSignTest)s" + \
+"""
+        return (%(type)s)val;
+    } else
+#endif
+    if (likely(PyLong_CheckExact(x) || PyLong_Check(x))) {""" +\
+       "%(PyLongSignTest)s" + \
+"""
+        return %(PyLongConvert)s(x);
+    } else {
+        %(type)s val;
+        PyObject *tmp = __Pyx_PyNumber_Int(x);
+        if (!tmp) return (%(type)s)-1;
+        val = __Pyx_PyInt_As%(SignWord)s%(TypeName)s(tmp);
+        Py_DECREF(tmp);
+        return val;
+    }
+}
+""")
+pylong_signtest = """
+        if (unlikely(Py_SIZE(%(var)s) < 0)) {
+            PyErr_SetString(PyExc_OverflowError,
+                            "can't convert negative value to %(type)s");
+            return (%(type)s)-1;
+        }"""
+
+
 
 class CIntType(CNumericType):
-    
+
     is_int = 1
     typedef_flag = 0
     to_py_function = "PyInt_FromLong"
-    from_py_function = "__pyx_PyInt_AsLong"
+    from_py_function = "__Pyx_PyInt_AsInt"
     exception_value = -1
 
     def __init__(self, rank, signed, pymemberdef_typecode = None, is_returncode = 0):
         CNumericType.__init__(self, rank, signed, pymemberdef_typecode)
         self.is_returncode = is_returncode
-        if self.from_py_function == '__pyx_PyInt_AsLong':
+        if self.from_py_function == "__Pyx_PyInt_AsInt":
             self.from_py_function = self.get_type_conversion()
 
     def get_type_conversion(self):
-        # error on overflow
-        c_type = self.sign_and_name()
-        c_name = c_type.replace(' ', '_');
-        func_name = "__pyx_PyInt_%s" % c_name;
-        if func_name not in int_conversion_list:
-            # no env to add utility code to
-            global type_conversion_predeclarations, type_conversion_functions
-            if self.signed:
-                neg_test = ""
-            else:
-                neg_test = " || (long_val < 0)"
-            type_conversion_predeclarations += """
-static INLINE %(c_type)s %(func_name)s(PyObject* x);""" % {'c_type': c_type, 'c_name': c_name, 'func_name': func_name }
-            type_conversion_functions +=  """
-static INLINE %(c_type)s %(func_name)s(PyObject* x) {
-    if (sizeof(%(c_type)s) < sizeof(long)) {
-        long long_val = __pyx_PyInt_AsLong(x);
-        %(c_type)s val = (%(c_type)s)long_val;
-        if (unlikely((val != long_val) %(neg_test)s)) {
-            PyErr_SetString(PyExc_OverflowError, "value too large to convert to %(c_type)s");
-            return (%(c_type)s)-1;
-        }
-        return val;
-    }
-    else {
-        return __pyx_PyInt_AsLong(x);
-    }
-}
-""" % {'c_type': c_type, 'c_name': c_name, 'func_name': func_name, 'neg_test': neg_test }
-            int_conversion_list[func_name] = True
+        ctype = self.declaration_code('')
+        bits = ctype.split(" ", 1)
+        if len(bits) == 1:
+            sign_word, type_name = "", bits[0]
+        else:
+            sign_word, type_name = bits
+        type_name = type_name.replace("PY_LONG_LONG","long long")
+        SignWord  = sign_word.title()
+        TypeName  = type_name.title().replace(" ", "")
+        data = {'IntValSignTest' : "",
+                'PyLongSignTest' : "",
+                'PyLongConvert'  : "",
+                }
+        if not self.signed:
+            data['IntValSignTest'] = intval_signtest % {'var':"val", 'type':ctype}
+            data['PyLongSignTest'] = pylong_signtest % {'var':"x",   'type':ctype}
+        if "Long" in TypeName:
+            data['PyLongConvert'] = \
+                "PyLong_As" + SignWord.replace("Signed", "") + TypeName
+            # the replaces below are just for generating well indented C code
+            data['IntValSignTest'] = "\n".join(
+                [ln.replace(" "*4, "", 1) for ln in data['IntValSignTest'].split('\n')]
+                )
+            utility_code = c_long_from_py_function
+        else:
+            utility_code = c_int_from_py_function
+        utility_code.specialize(self,
+                                SignWord=SignWord,
+                                TypeName=TypeName,
+                                **data)
+        func_name = "__Pyx_PyInt_As%s%s" % (SignWord, TypeName)
         return func_name
-    
+
     def assignable_from_resolved_type(self, src_type):
         return src_type.is_int or src_type.is_enum or src_type is error_type
 
@@ -550,40 +621,44 @@ class CBIntType(CIntType):
 
 class CAnonEnumType(CIntType):
 
-    is_enum = 1    
+    is_enum = 1
+
+    def sign_and_name(self):
+        return 'int'
 
 
 class CUIntType(CIntType):
 
     to_py_function = "PyLong_FromUnsignedLong"
-    from_py_function = "PyInt_AsUnsignedLongMask"
     exception_value = -1
+
+
+class CLongType(CIntType):
+
+    to_py_function = "PyInt_FromLong"
 
 
 class CULongType(CUIntType):
 
     to_py_function = "PyLong_FromUnsignedLong"
-    from_py_function = "PyInt_AsUnsignedLongMask"
 
 
 class CLongLongType(CIntType):
 
     is_longlong = 1
     to_py_function = "PyLong_FromLongLong"
-    from_py_function = "__pyx_PyInt_AsLongLong"
 
 
 class CULongLongType(CUIntType):
 
     is_longlong = 1
     to_py_function = "PyLong_FromUnsignedLongLong"
-    from_py_function = "__pyx_PyInt_AsUnsignedLongLong"
 
 
 class CPySSizeTType(CIntType):
 
     to_py_function = "PyInt_FromSsize_t"
-    from_py_function = "__pyx_PyIndex_AsSsize_t"
+    from_py_function = "__Pyx_PyIndex_AsSsize_t"
 
     def sign_and_name(self):
         return rank_to_type_name[self.rank]
@@ -591,8 +666,8 @@ class CPySSizeTType(CIntType):
 
 class CSizeTType(CUIntType):
 
-    to_py_function = "__pyx_PyInt_FromSize_t"
-    from_py_function = "__pyx_PyInt_AsSize_t"
+    to_py_function = "__Pyx_PyInt_FromSize_t"
+    from_py_function = "__Pyx_PyInt_AsSize_t"
 
     def sign_and_name(self):
         return rank_to_type_name[self.rank]
@@ -1184,14 +1259,14 @@ c_ulonglong_type =   CULongLongType(6, 0, "T_ULONGLONG")
 c_char_type =        CIntType(0, 1, "T_CHAR")
 c_short_type =       CIntType(1, 1, "T_SHORT")
 c_int_type =         CIntType(2, 1, "T_INT")
-c_long_type =        CIntType(3, 1, "T_LONG")
+c_long_type =        CLongType(3, 1, "T_LONG")
 c_longlong_type =    CLongLongType(6, 1, "T_LONGLONG")
 c_bint_type =        CBIntType(2, 1, "T_INT")
 
 c_schar_type =       CIntType(0, 2, "T_CHAR")
 c_sshort_type =      CIntType(1, 2, "T_SHORT")
 c_sint_type =        CIntType(2, 2, "T_INT")
-c_slong_type =       CIntType(3, 2, "T_LONG")
+c_slong_type =       CLongType(3, 2, "T_LONG")
 c_slonglong_type =   CLongLongType(6, 2, "T_LONGLONG")
 
 c_py_ssize_t_type =  CPySSizeTType(4, 2, "T_PYSSIZET")
@@ -1223,23 +1298,23 @@ unspecified_type = UnspecifiedType()
 
 sign_and_rank_to_type = {
     #(signed, rank)
-    (0, 0): c_uchar_type, 
-    (0, 1): c_ushort_type, 
-    (0, 2): c_uint_type, 
+    (0, 0): c_uchar_type,
+    (0, 1): c_ushort_type,
+    (0, 2): c_uint_type,
     (0, 3): c_ulong_type,
     (0, 6): c_ulonglong_type,
 
-    (1, 0): c_char_type, 
-    (1, 1): c_short_type, 
-    (1, 2): c_int_type, 
+    (1, 0): c_char_type,
+    (1, 1): c_short_type,
+    (1, 2): c_int_type,
     (1, 3): c_long_type,
     (1, 6): c_longlong_type,
 
-    (2, 0): c_schar_type, 
-    (2, 1): c_sshort_type, 
-    (2, 2): c_sint_type, 
+    (2, 0): c_schar_type,
+    (2, 1): c_sshort_type,
+    (2, 2): c_sint_type,
     (2, 3): c_slong_type,
-    (2, 6): c_slonglong_type, 
+    (2, 6): c_slonglong_type,
 
     (0, 4): c_py_ssize_t_type,
     (1, 4): c_py_ssize_t_type,
@@ -1248,36 +1323,36 @@ sign_and_rank_to_type = {
     (1, 5): c_size_t_type,
     (2, 5): c_size_t_type,
 
-    (1, 7): c_float_type, 
+    (1, 7): c_float_type,
     (1, 8): c_double_type,
     (1, 9): c_longdouble_type,
 # In case we're mixing unsigned ints and floats...
-    (0, 7): c_float_type, 
+    (0, 7): c_float_type,
     (0, 8): c_double_type,
     (0, 9): c_longdouble_type,
 }
 
 modifiers_and_name_to_type = {
     #(signed, longness, name)
-    (0, 0, "char"): c_uchar_type, 
-    (0, -1, "int"): c_ushort_type, 
-    (0, 0, "int"): c_uint_type, 
+    (0, 0, "char"): c_uchar_type,
+    (0, -1, "int"): c_ushort_type,
+    (0, 0, "int"): c_uint_type,
     (0, 1, "int"): c_ulong_type,
     (0, 2, "int"): c_ulonglong_type,
     (1, 0, "void"): c_void_type,
-    (1, 0, "char"): c_char_type, 
-    (1, -1, "int"): c_short_type, 
-    (1, 0, "int"): c_int_type, 
+    (1, 0, "char"): c_char_type,
+    (1, -1, "int"): c_short_type,
+    (1, 0, "int"): c_int_type,
     (1, 1, "int"): c_long_type,
     (1, 2, "int"): c_longlong_type,
-    (1, 0, "float"): c_float_type, 
+    (1, 0, "float"): c_float_type,
     (1, 0, "double"): c_double_type,
     (1, 1, "double"): c_longdouble_type,
     (1, 0, "object"): py_object_type,
-    (1, 0, "bint"): c_bint_type, 
-    (2, 0, "char"): c_schar_type, 
-    (2, -1, "int"): c_sshort_type, 
-    (2, 0, "int"): c_sint_type, 
+    (1, 0, "bint"): c_bint_type,
+    (2, 0, "char"): c_schar_type,
+    (2, -1, "int"): c_sshort_type,
+    (2, 0, "int"): c_sint_type,
     (2, 1, "int"): c_slong_type,
     (2, 2, "int"): c_slonglong_type,
 
@@ -1357,12 +1432,6 @@ def Node_to_type(node, env):
     else:
         error(node.pos, "Bad type")
 
-def public_decl(base, dll_linkage):
-    if dll_linkage:
-        return "%s(%s)" % (dll_linkage, base)
-    else:
-        return base
-
 def same_type(type1, type2):
     return type1.same_as(type2)
     
@@ -1395,9 +1464,8 @@ type_conversion_predeclarations = """
 #endif
 
 #define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
-static INLINE int __Pyx_PyObject_IsTrue(PyObject* x);
-static INLINE PY_LONG_LONG __pyx_PyInt_AsLongLong(PyObject* x);
-static INLINE unsigned PY_LONG_LONG __pyx_PyInt_AsUnsignedLongLong(PyObject* x);
+static INLINE int __Pyx_PyObject_IsTrue(PyObject*);
+static INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x);
 
 #if !defined(T_PYSSIZET)
 #if PY_VERSION_HEX < 0x02050000
@@ -1427,18 +1495,70 @@ static INLINE unsigned PY_LONG_LONG __pyx_PyInt_AsUnsignedLongLong(PyObject* x);
 #endif
 #endif
 
-static INLINE Py_ssize_t __pyx_PyIndex_AsSsize_t(PyObject* b);
-static INLINE PyObject * __pyx_PyInt_FromSize_t(size_t);
-static INLINE size_t __pyx_PyInt_AsSize_t(PyObject*);
+static INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject*);
+static INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
+static INLINE size_t __Pyx_PyInt_AsSize_t(PyObject*);
 
-#define __pyx_PyInt_AsLong(x) (PyInt_CheckExact(x) ? PyInt_AS_LONG(x) : PyInt_AsLong(x))
 #define __pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
+
 """ + type_conversion_predeclarations
 
 type_conversion_functions = """
 /* Type Conversion Functions */
 
-static INLINE Py_ssize_t __pyx_PyIndex_AsSsize_t(PyObject* b) {
+static INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
+   if (x == Py_True) return 1;
+   else if ((x == Py_False) | (x == Py_None)) return 0;
+   else return PyObject_IsTrue(x);
+}
+
+static INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
+  PyNumberMethods *m;
+  const char *name = NULL;
+  PyObject *res = NULL;
+#if PY_VERSION_HEX < 0x03000000
+  if (PyInt_Check(x) || PyLong_Check(x))
+#else
+  if (PyLong_Check(x))
+#endif
+    return Py_INCREF(x), x;
+  m = Py_TYPE(x)->tp_as_number;
+#if PY_VERSION_HEX < 0x03000000
+  if (m && m->nb_long) {
+    name = "long";
+    res = PyNumber_Long(x);
+  }
+  else if (m && m->nb_int) {
+    name = "int";
+    res = PyNumber_Int(x);
+  }
+#else
+  if (m && m->nb_int) {
+    name = "int";
+    res = PyNumber_Long(x);
+  }
+#endif
+  if (res) {
+#if PY_VERSION_HEX < 0x03000000
+    if (!PyInt_Check(res) && !PyLong_Check(res)) {
+#else
+    if (!PyLong_Check(res)) {
+#endif
+      PyErr_Format(PyExc_TypeError,
+                   "__%s__ returned non-%s (type %.200s)",
+                   name, name, Py_TYPE(res)->tp_name);
+      Py_DECREF(res);
+      return NULL;
+    }
+  }
+  else if (!PyErr_Occurred()) {
+    PyErr_SetString(PyExc_TypeError,
+                    "an integer is required");
+  }
+  return res;
+}
+
+static INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
   Py_ssize_t ival;
   PyObject* x = PyNumber_Index(b);
   if (!x) return -1;
@@ -1447,7 +1567,7 @@ static INLINE Py_ssize_t __pyx_PyIndex_AsSsize_t(PyObject* b) {
   return ival;
 }
 
-static INLINE PyObject * __pyx_PyInt_FromSize_t(size_t ival) {
+static INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
 #if PY_VERSION_HEX < 0x02050000
    if (ival <= LONG_MAX)
        return PyInt_FromLong((long)ival);
@@ -1461,74 +1581,16 @@ static INLINE PyObject * __pyx_PyInt_FromSize_t(size_t ival) {
 #endif
 }
 
-static INLINE size_t __pyx_PyInt_AsSize_t(PyObject* b) {
-   unsigned PY_LONG_LONG val = __pyx_PyInt_AsUnsignedLongLong(b);
+static INLINE size_t __Pyx_PyInt_AsSize_t(PyObject* x) {
+   unsigned PY_LONG_LONG val = __Pyx_PyInt_AsUnsignedLongLong(x);
    if (unlikely(val == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())) {
        return (size_t)-1;
    } else if (unlikely(val != (unsigned PY_LONG_LONG)(size_t)val)) {
-       PyErr_SetString(PyExc_OverflowError, "value too large to convert to size_t");
+       PyErr_SetString(PyExc_OverflowError,
+                       "value too large to convert to size_t");
        return (size_t)-1;
    }
-   return val;
-}
-
-static INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
-   if (x == Py_True) return 1;
-   else if ((x == Py_False) | (x == Py_None)) return 0;
-   else return PyObject_IsTrue(x);
-}
-
-static INLINE PY_LONG_LONG __pyx_PyInt_AsLongLong(PyObject* x) {
-#if PY_VERSION_HEX < 0x03000000
-    if (PyInt_CheckExact(x)) {
-        return PyInt_AS_LONG(x);
-    }
-    else
-#endif
-    if (PyLong_CheckExact(x)) {
-        return PyLong_AsLongLong(x);
-    }
-    else {
-        PY_LONG_LONG val;
-#if PY_VERSION_HEX < 0x03000000
-        PyObject* tmp = PyNumber_Int(x);  if (!tmp) return (PY_LONG_LONG)-1;
-        val = __pyx_PyInt_AsLongLong(tmp);
-#else
-        PyObject* tmp = PyNumber_Long(x); if (!tmp) return (PY_LONG_LONG)-1;
-        val = PyLong_AsLongLong(tmp);
-#endif
-        Py_DECREF(tmp);
-        return val;
-    }
-}
-
-static INLINE unsigned PY_LONG_LONG __pyx_PyInt_AsUnsignedLongLong(PyObject* x) {
-#if PY_VERSION_HEX < 0x03000000
-    if (PyInt_CheckExact(x)) {
-        long val = PyInt_AS_LONG(x);
-        if (unlikely(val < 0)) {
-            PyErr_SetString(PyExc_OverflowError, "can't convert negative value to unsigned long long");
-            return (unsigned PY_LONG_LONG)-1;
-        }
-        return val;
-    }
-    else
-#endif
-    if (PyLong_CheckExact(x)) {
-        return PyLong_AsUnsignedLongLong(x);
-    }
-    else {
-        unsigned PY_LONG_LONG val;
-#if PY_VERSION_HEX < 0x03000000
-        PyObject* tmp = PyNumber_Int(x);  if (!tmp) return (PY_LONG_LONG)-1;
-        val = __pyx_PyInt_AsUnsignedLongLong(tmp);
-#else
-        PyObject* tmp = PyNumber_Long(x); if (!tmp) return (PY_LONG_LONG)-1;
-        val = PyLong_AsUnsignedLongLong(tmp);
-#endif
-        Py_DECREF(tmp);
-        return val;
-    }
+   return (size_t)val;
 }
 
 """ + type_conversion_functions
