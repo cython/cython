@@ -10,4 +10,4 @@ debug_temp_code_comments = 0
 debug_trace_code_generation = 0
 
 # Do not replace exceptions with user-friendly error messages
-debug_no_exception_intercept = 1
+debug_no_exception_intercept = 0
