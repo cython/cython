@@ -40,6 +40,7 @@ class ExprNode(Node):
     #  is_temp      boolean      Result is in a temporary variable
     #  is_sequence_constructor  
     #               boolean      Is a list or tuple constructor expression
+    #  is_starred   boolean      Is a starred expression (e.g. '*a')
     #  saved_subexpr_nodes
     #               [ExprNode or [ExprNode or None] or None]
     #                            Cached result of subexpr_nodes()
@@ -168,6 +169,7 @@ class ExprNode(Node):
     saved_subexpr_nodes = None
     is_temp = 0
     is_target = 0
+    is_starred = 0
 
     constant_result = constant_value_not_set
 
