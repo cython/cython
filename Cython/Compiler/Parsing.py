@@ -130,21 +130,31 @@ def p_not_test(s):
 #comp_op: '<'|'>'|'=='|'>='|'<='|'<>'|'!='|'in'|'not' 'in'|'is'|'is' 'not'
 
 def p_comparison(s):
-    n1 = p_bit_expr(s)
+    n1 = p_starred_expr(s)
     if s.sy in comparison_ops:
         pos = s.position()
         op = p_cmp_op(s)
-        n2 = p_bit_expr(s)
+        n2 = p_starred_expr(s)
         n1 = ExprNodes.PrimaryCmpNode(pos, 
             operator = op, operand1 = n1, operand2 = n2)
         if s.sy in comparison_ops:
             n1.cascade = p_cascaded_cmp(s)
     return n1
 
+def p_starred_expr(s):
+    if s.sy == '*':
+        starred = True
+        s.next()
+    else:
+        starred = False
+    expr = p_bit_expr(s)
+    expr.is_starred = starred
+    return expr
+
 def p_cascaded_cmp(s):
     pos = s.position()
     op = p_cmp_op(s)
-    n2 = p_bit_expr(s)
+    n2 = p_starred_expr(s)
     result = ExprNodes.CascadedCmpNode(pos, 
         operator = op, operand2 = n2)
     if s.sy in comparison_ops:
@@ -813,7 +823,8 @@ def p_backquote_expr(s):
 def p_simple_expr_list(s):
     exprs = []
     while s.sy not in expr_terminators:
-        exprs.append(p_simple_expr(s))
+        expr = p_simple_expr(s)
+        exprs.append(expr)
         if s.sy != ',':
             break
         s.next()
@@ -925,6 +936,11 @@ def find_parallel_assignment_size(input):
     rhs = input[-1]
     rhs_size = len(rhs.args)
     for lhs in input[:-1]:
+        starred_args = sum([1 for expr in lhs.args if expr.is_starred])
+        if starred_args:
+            if starred_args > 1:
+                error(lhs.pos, "more than 1 starred expression in assignment")
+            return -1
         lhs_size = len(lhs.args)
         if lhs_size != rhs_size:
             error(lhs.pos, "Unpacking sequence of wrong size (expected %d, got %d)"
@@ -1275,12 +1291,12 @@ inequality_relations = ('<', '<=', '>', '>=')
 
 def p_target(s, terminator):
     pos = s.position()
-    expr = p_bit_expr(s)
+    expr = p_starred_expr(s)
     if s.sy == ',':
         s.next()
         exprs = [expr]
         while s.sy != terminator:
-            exprs.append(p_bit_expr(s))
+            exprs.append(p_starred_expr(s))
             if s.sy != ',':
                 break
             s.next()
