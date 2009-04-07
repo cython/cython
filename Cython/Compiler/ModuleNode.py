@@ -37,7 +37,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     #  body      StatListNode
     #
     #  referenced_modules   [ModuleScope]
-    #  module_temp_cname    string
     #  full_module_name     string
     #
     #  scope                The module scope.
@@ -63,9 +62,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         env.return_type = PyrexTypes.c_void_type
         self.referenced_modules = []
         self.find_referenced_modules(env, self.referenced_modules, {})
-        if self.has_imported_c_functions():
-            self.module_temp_cname = env.allocate_temp_pyobject()
-            env.release_temp(self.module_temp_cname)
         if options.recursive:
             self.generate_dep_file(env, result)
         self.generate_c_code(env, options, result)
@@ -1831,7 +1827,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if entries:
             env.use_utility_code(import_module_utility_code)
             env.use_utility_code(function_import_utility_code)
-            temp = self.module_temp_cname
+            temp = code.globalstate.allocate_temp(py_object_type)
             code.putln(
                 '%s = __Pyx_ImportModule("%s"); if (!%s) %s' % (
                     temp,
