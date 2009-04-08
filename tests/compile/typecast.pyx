@@ -1,5 +1,5 @@
 cdef void f(obj):
-    cdef int i=0
+    cdef size_t i=0
     cdef char *p
     p = <char *>i
     p = <char *>&i
