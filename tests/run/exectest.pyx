@@ -1,4 +1,4 @@
-__doc__ = """# no unicode string, not tested in Python3!
+__doc__ = u"""
 #>>> a
 #Traceback (most recent call last):
 #NameError: name 'a' is not defined
@@ -10,32 +10,32 @@ __doc__ = """# no unicode string, not tested in Python3!
 
 >>> d = {}
 >>> test_dict_scope2(d)
->>> print d['b']
+>>> print (d['b'])
 2
 
 >>> d1 = {}
 >>> test_dict_scope3(d1, d1)
->>> print d1['b']
+>>> print (d1['b'])
 2
 
 >>> d1, d2 = {}, {}
 >>> test_dict_scope3(d1, d2)
->>> print d1.get('b'), d2.get('b')
-None 2
+>>> print ((d1.get('b'), d2.get('b')))
+(None, 2)
 
 >>> d1, d2 = {}, {}
 >>> test_dict_scope3(d1, d2)
->>> print d1.get('b'), d2.get('b')
-None 2
+>>> print ((d1.get('b'), d2.get('b')))
+(None, 2)
 
 >>> d1, d2 = dict(a=11), dict(c=5)
 >>> test_dict_scope_ref(d1, d2)
->>> print d1.get('b'), d2.get('b')
-None 16
+>>> print ((d1.get('b'), d2.get('b')))
+(None, 16)
 
 >>> d = dict(a=11, c=5)
 >>> test_dict_scope_ref(d, d)
->>> print d['b']
+>>> print (d['b'])
 16
 
 >>> d = dict(seq = [1,2,3,4])
@@ -57,22 +57,22 @@ NameError: name 'a' is not defined
 
 def test_dict_scope1():
     cdef dict d = {}
-    exec "b=1+1" in d
-    return d['b']
+    exec u"b=1+1" in d
+    return d[u'b']
 
 def test_dict_scope2(d):
-    exec "b=1+1" in d
+    exec u"b=1+1" in d
 
 def test_dict_scope3(d1, d2):
-    exec "b=1+1" in d1, d2
+    exec u"b=1+1" in d1, d2
 
 def test_dict_scope_ref(d1, d2):
-    exec "b=a+c" in d1, d2
+    exec u"b=a+c" in d1, d2
 
 def test_def(d, varref):
-    exec """
+    exec u"""
 def test():
     for x in %s:
         yield x+1
 """ % varref in d
-    return d['test']
+    return d[u'test']
