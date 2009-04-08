@@ -1959,10 +1959,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if weakref_entry:
                     if weakref_entry.type is py_object_type:
                         tp_weaklistoffset = "%s.tp_weaklistoffset" % typeobj_cname
-                        code.putln("if (%s == 0) %s = offsetof(struct %s, %s);" % (
+                        if type.typedef_flag:
+                            objstruct = type.objstruct_cname
+                        else:
+                            objstruct = "struct %s" % type.objstruct_cname
+                        code.putln("if (%s == 0) %s = offsetof(%s, %s);" % (
                             tp_weaklistoffset,
                             tp_weaklistoffset,
-                            type.objstruct_cname,
+                            objstruct,
                             weakref_entry.cname))
                     else:
                         error(weakref_entry.pos, "__weakref__ slot must be of type 'object'")
