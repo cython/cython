@@ -211,7 +211,6 @@ class Scope(object):
     scope_prefix = ""
     in_cinclude = 0
     nogil = 0
-    directives = {}
     
     temp_prefix = Naming.pyrex_prefix
     

@@ -147,6 +147,9 @@ class TestBuilder(object):
             languages = self.languages[:1]
         else:
             languages = self.languages
+        if 'cpp' in module and 'c' in languages:
+            languages = list(languages)
+            languages.remove('c')
         tests = [ self.build_test(test_class, path, workdir, module,
                                   language, expect_errors)
                   for language in languages ]

@@ -1023,6 +1023,7 @@ class FuncDefNode(StatNode, BlockNode):
         if type.is_cfunction:
             lenv.nogil = type.nogil and not type.with_gil
         self.local_scope = lenv
+        lenv.directives = env.directives
         return lenv
                 
     def generate_function_definitions(self, env, code):
@@ -1305,9 +1306,7 @@ class CFuncDefNode(FuncDefNode):
         return self.entry.name
         
     def analyse_declarations(self, env):
-        if 'locals' in env.directives and env.directives['locals']:
-            self.directive_locals = env.directives['locals']
-        directive_locals = self.directive_locals
+        directive_locals = self.directive_locals = env.directives['locals']
         base_type = self.base_type.analyse(env)
         # The 2 here is because we need both function and argument names. 
         name_declarator, type = self.declarator.analyse(base_type, env, nonempty = 2 * (self.body is not None))
@@ -1650,11 +1649,7 @@ class DefNode(FuncDefNode):
                             directive_locals = getattr(cfunc, 'directive_locals', {}))
     
     def analyse_declarations(self, env):
-        if 'locals' in env.directives:
-            directive_locals = env.directives['locals']
-        else:
-            directive_locals = {}
-        self.directive_locals = directive_locals
+        directive_locals = self.directive_locals = env.directives['locals']
         for arg in self.args:
             if hasattr(arg, 'name'):
                 type = arg.type
@@ -2564,6 +2559,7 @@ class PyClassDefNode(ClassDefNode):
     def analyse_declarations(self, env):
         self.target.analyse_target_declaration(env)
         cenv = self.create_scope(env)
+        cenv.directives = env.directives
         cenv.class_obj_cname = self.target.entry.cname
         self.body.analyse_declarations(cenv)
     
@@ -2702,6 +2698,8 @@ class CClassDefNode(ClassDefNode):
         if home_scope is not env and self.visibility == 'extern':
             env.add_imported_entry(self.class_name, self.entry, pos)
         scope = self.entry.type.scope
+        if scope is not None:
+            scope.directives = env.directives
 
         if self.doc and Options.docstrings:
             scope.doc = embed_position(self.pos, self.doc)
@@ -2752,6 +2750,7 @@ class PropertyNode(StatNode):
                 doc_entry = env.get_string_const(
                     self.doc, identifier = False)
                 entry.doc_cname = doc_entry.cname
+            entry.scope.directives = env.directives
             self.body.analyse_declarations(entry.scope)
 
     def analyse_expressions(self, env):
