@@ -1,4 +1,10 @@
 __doc__ = u"""
+>>> class FakeSeq(object):
+...     def __init__(self, length):
+...         self._values = range(1,length+1)
+...     def __getitem__(self, i):
+...         return self._values[i]
+
 >>> unpack([1,2])
 (1, 2)
 >>> unpack_list([1,2])
@@ -6,6 +12,8 @@ __doc__ = u"""
 >>> unpack_tuple((1,2))
 (1, 2)
 
+>>> unpack( FakeSeq(2) )
+(1, 2)
 >>> unpack('12')
 ('1', '2')
 
@@ -29,6 +37,8 @@ __doc__ = u"""
 (1, [2, 3], 4)
 
 >>> unpack_recursive((1,2,3,4))
+(1, [2, 3], 4)
+>>> unpack_recursive( FakeSeq(4) )
 (1, [2, 3], 4)
 >>> unpack_typed((1,2))
 ([1], 2)
