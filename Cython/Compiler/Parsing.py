@@ -928,7 +928,7 @@ def flatten_parallel_assignments(input, output):
         if not lhs.is_sequence_constructor:
             if lhs.is_starred:
                 error(lhs.pos, "starred assignment target must be in a list or tuple")
-            output.append(lhs)
+            output.append([lhs,rhs])
             continue
         lhs_size = len(lhs.args)
         starred_targets = sum([1 for expr in lhs.args if expr.is_starred])
