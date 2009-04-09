@@ -2866,6 +2866,49 @@ class AttributeNode(ExprNode):
 #
 #-------------------------------------------------------------------
 
+class StarredTargetNode(ExprNode):
+    #  A starred expression like "*a"
+    #
+    #  This is only allowed in sequence assignment targets such as
+    #
+    #      a, *b = (1,2,3,4)    =>     a = 1 ; b = [2,3,4]
+    #
+    #  and will be removed during type analysis (or generate an error
+    #  if it's found at unexpected places).
+    #
+    #  target          ExprNode
+
+    subexprs = ['target']
+    is_starred = 1
+    type = py_object_type
+
+    def __init__(self, pos, target):
+        self.pos = pos
+        self.target = target
+
+    def analyse_declarations(self, env):
+        error(self.pos, "can use starred expression only as assignment target")
+        self.target.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        error(self.pos, "can use starred expression only as assignment target")
+        self.target.analyse_types(env)
+        self.type = self.target.type
+
+    def analyse_target_declaration(self, env):
+        self.target.analyse_target_declaration(env)
+
+    def analyse_target_types(self, env):
+        self.target.analyse_target_types(env)
+        self.type = self.target.type
+
+    def calculate_result_code(self):
+        return ""
+
+    def generate_result_code(self, code):
+        pass
+
+
 class SequenceNode(ExprNode):
     #  Base class for list and tuple constructor nodes.
     #  Contains common code for performing sequence unpacking.
@@ -2883,7 +2926,22 @@ class SequenceNode(ExprNode):
     def compile_time_value_list(self, denv):
         return [arg.compile_time_value(denv) for arg in self.args]
 
+    def replace_starred_target_node(self):
+        # replace a starred node in the targets by the contained expression
+        self.starred_assignment = False
+        args = []
+        for arg in self.args:
+            if arg.is_starred:
+                if self.starred_assignment:
+                    error(arg.pos, "more than 1 starred expression in assignment")
+                self.starred_assignment = True
+                arg = arg.target
+                arg.is_starred = True
+            args.append(arg)
+        self.args = args
+
     def analyse_target_declaration(self, env):
+        self.replace_starred_target_node()
         for arg in self.args:
             arg.analyse_target_declaration(env)
 
@@ -2899,7 +2957,6 @@ class SequenceNode(ExprNode):
         self.iterator = PyTempNode(self.pos, env)
         self.unpacked_items = []
         self.coerced_unpacked_items = []
-        self.starred_assignment = False
         for arg in self.args:
             arg.analyse_target_types(env)
             if arg.is_starred:
@@ -2908,14 +2965,13 @@ class SequenceNode(ExprNode):
                           "starred target must have Python object (list) type")
                 if arg.type is py_object_type:
                     arg.type = Builtin.list_type
-                self.starred_assignment = True
             unpacked_item = PyTempNode(self.pos, env)
             coerced_unpacked_item = unpacked_item.coerce_to(arg.type, env)
             self.unpacked_items.append(unpacked_item)
             self.coerced_unpacked_items.append(coerced_unpacked_item)
         self.type = py_object_type
         env.use_utility_code(unpacking_utility_code)
-    
+
     def generate_result_code(self, code):
         self.generate_operation_code(code)
     
@@ -2923,13 +2979,13 @@ class SequenceNode(ExprNode):
         if self.starred_assignment:
             self.generate_starred_assignment_code(rhs, code)
         else:
-            self.generate_normal_assignment_code(rhs, code)
+            self.generate_parallel_assignment_code(rhs, code)
 
         for item in self.unpacked_items:
             item.release(code)
         rhs.free_temps(code)
 
-    def generate_normal_assignment_code(self, rhs, code):
+    def generate_parallel_assignment_code(self, rhs, code):
         # Need to work around the fact that generate_evaluation_code
         # allocates the temps in a rather hacky way -- the assignment
         # is evaluated twice, within each if-block.

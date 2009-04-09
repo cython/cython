@@ -142,13 +142,15 @@ def p_comparison(s):
     return n1
 
 def p_starred_expr(s):
+    pos = s.position()
     if s.sy == '*':
         starred = True
         s.next()
     else:
         starred = False
     expr = p_bit_expr(s)
-    expr.is_starred = starred
+    if starred:
+        expr = ExprNodes.StarredTargetNode(pos, expr)
     return expr
 
 def p_cascaded_cmp(s):
@@ -935,18 +937,26 @@ def flatten_parallel_assignments(input, output):
         if starred_targets:
             if starred_targets > 1:
                 error(lhs.pos, "more than 1 starred expression in assignment")
+                output.append([lhs,rhs])
+                continue
             elif lhs_size - starred_targets > rhs_size:
                 error(lhs.pos, "need more than %d value%s to unpack"
                       % (rhs_size, (rhs_size != 1) and 's' or ''))
+                output.append([lhs,rhs])
+                continue
             map_starred_assignment(lhs_targets, starred_assignments,
                                    lhs.args, rhs.args)
         else:
             if lhs_size > rhs_size:
                 error(lhs.pos, "need more than %d value%s to unpack"
                       % (rhs_size, (rhs_size != 1) and 's' or ''))
+                output.append([lhs,rhs])
+                continue
             elif lhs_size < rhs_size:
                 error(lhs.pos, "too many values to unpack (expected %d, got %d)"
                       % (lhs_size, rhs_size))
+                output.append([lhs,rhs])
+                continue
             else:
                 for targets, expr in zip(lhs_targets, lhs.args):
                     targets.append(expr)
@@ -988,8 +998,7 @@ def map_starred_assignment(lhs_targets, starred_assignments, lhs_args, rhs_args)
         targets.append(expr)
 
     # the starred target itself, must be assigned a (potentially empty) list
-    target = lhs_args[starred]
-    target.is_starred = False
+    target = lhs_args[starred].target # unpack starred node
     starred_rhs = rhs_args[starred:]
     if lhs_remaining:
         starred_rhs = starred_rhs[:-lhs_remaining]
