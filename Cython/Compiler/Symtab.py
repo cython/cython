@@ -23,16 +23,20 @@ except NameError:
 possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
 
-ansi_c_keywords = set(
+iso_c99_keywords = set(
 ['auto', 'break', 'case', 'char', 'const', 'continue', 'default', 'do', 
     'double', 'else', 'enum', 'extern', 'float', 'for', 'goto', 'if', 
     'int', 'long', 'register', 'return', 'short', 'signed', 'sizeof', 
     'static', 'struct', 'switch', 'typedef', 'union', 'unsigned', 'void', 
-    'volatile', 'while'])
+    'volatile', 'while',
+    '_Bool', '_Complex'', _Imaginary', 'inline', 'restrict'])
 
 def c_safe_identifier(cname):
-    # There are some C limitations on struct entry names. 
-    if (cname[:2] == '__' and not cname.startswith(Naming.pyrex_prefix)) or cname in ansi_c_keywords:
+    # There are some C limitations on struct entry names.
+    if ((cname[:2] == '__'
+         and not (cname.startswith(Naming.pyrex_prefix)
+                  or cname == '__weakref__'))
+        or cname in iso_c99_keywords):
         cname = Naming.pyrex_prefix + cname
     return cname
 

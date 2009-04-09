@@ -1,0 +1,1 @@
+cdef int **foo(void*)
