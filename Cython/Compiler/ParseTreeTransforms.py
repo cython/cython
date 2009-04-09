@@ -730,7 +730,7 @@ property NAME:
         if node.name in self.seen_vars_stack[-1]:
             entry = self.env_stack[-1].lookup(node.name)
             if entry is None or entry.visibility != 'extern':
-                error(node.pos, "cdef variable '%s' declared after it is used" % node.name)
+                warning(node.pos, "cdef variable '%s' declared after it is used" % node.name, 2)
         self.visitchildren(node)
         return node
 
