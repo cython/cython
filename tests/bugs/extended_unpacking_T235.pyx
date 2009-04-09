@@ -24,9 +24,14 @@ __doc__ = u"""
 (1, [2, 3])
 (1, [2, 3, 4])
 3
-(1, [2])
+(1, [], 2)
 (1, [2], 3)
 (1, [2, 3], 4)
+
+>>> unpack_recursive((1,2,3,4))
+(1, [2, 3], 4)
+>>> unpack_typed((1,2))
+([1], 2)
 
 >>> assign()
 (1, [2, 3, 4], 5)
@@ -94,7 +99,7 @@ ValueError: need more than 0 values to unpack
 ([], 1)
 >>> unpack_left_list([1,2])
 ([1], 2)
->>> unpack_left_list([1,2])
+>>> unpack_left_list([1,2,3])
 ([1, 2], 3)
 >>> unpack_left_tuple((1,))
 ([], 1)
@@ -152,13 +157,13 @@ ValueError: need more than 1 value to unpack
 
 >>> a,b,c = unpack_middle(range(100))
 >>> a, len(b), c
-0, 98, 99
+(0, 98, 99)
 >>> a,b,c = unpack_middle_list(range(100))
 >>> a, len(b), c
-0, 98, 99
+(0, 98, 99)
 >>> a,b,c = unpack_middle_tuple(tuple(range(100)))
 >>> a, len(b), c
-0, 98, 99
+(0, 98, 99)
 
 """
 
@@ -176,38 +181,48 @@ def unpack_tuple(tuple t):
 
 def assign():
     *a, b = 1,2,3,4,5
-    assert a+[b] == (1,2,3,4,5)
+    assert a+[b] == [1,2,3,4,5], (a,b)
     a, *b = 1,2,3,4,5
-    assert [a]+b == (1,2,3,4,5)
+    assert [a]+b == [1,2,3,4,5], (a,b)
     [a, *b, c] = 1,2,3,4,5
     return a,b,c
 
 def unpack_into_list(l):
     [*a, b] = l
-    assert a+[b] == l
+    assert a+[b] == list(l), repr((a+[b],list(l)))
     [a, *b] = l
-    assert [a]+b == l
+    assert [a]+b == list(l), repr(([a]+b,list(l)))
     [a, *b, c] = l
     return a,b,c
 
 def unpack_into_tuple(t):
     (*a, b) = t
-    assert a+(b,) == t
+    assert a+[b] == list(t), repr((a+[b],list(t)))
     (a, *b) = t
-    assert (a,)+b == t
+    assert [a]+b == list(t), repr(([a]+b,list(t)))
     (a, *b, c) = t
     return a,b,c
 
 def unpack_in_loop(list_of_sequences):
     print 1
     for *a,b in list_of_sequences:
-        print a,b
+        print((a,b))
     print 2
     for a,*b in list_of_sequences:
-        print a,b
+        print((a,b))
     print 3
     for a,*b, c in list_of_sequences:
-        print a,b,c
+        print((a,b,c))
+
+def unpack_recursive(t):
+    *(a, *b), c  = t
+    return a,b,c
+
+def unpack_typed(t):
+    cdef list a
+    *a, b  = t
+    return a,b
+
 
 def unpack_right(l):
     a, *b = l

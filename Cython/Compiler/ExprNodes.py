@@ -2898,8 +2898,16 @@ class SequenceNode(ExprNode):
         self.iterator = PyTempNode(self.pos, env)
         self.unpacked_items = []
         self.coerced_unpacked_items = []
+        self.starred_assignment = False
         for arg in self.args:
             arg.analyse_target_types(env)
+            if arg.is_starred:
+                if not arg.type.assignable_from(Builtin.list_type):
+                    error(arg.pos,
+                          "starred target must have Python object (list) type")
+                if arg.type is py_object_type:
+                    arg.type = Builtin.list_type
+                self.starred_assignment = True
             unpacked_item = PyTempNode(self.pos, env)
             coerced_unpacked_item = unpacked_item.coerce_to(arg.type, env)
             self.unpacked_items.append(unpacked_item)
@@ -2911,6 +2919,16 @@ class SequenceNode(ExprNode):
         self.generate_operation_code(code)
     
     def generate_assignment_code(self, rhs, code):
+        if self.starred_assignment:
+            self.generate_starred_assignment_code(rhs, code)
+        else:
+            self.generate_normal_assignment_code(rhs, code)
+
+        for item in self.unpacked_items:
+            item.release(code)
+        rhs.free_temps(code)
+
+    def generate_normal_assignment_code(self, rhs, code):
         # Need to work around the fact that generate_evaluation_code
         # allocates the temps in a rather hacky way -- the assignment
         # is evaluated twice, within each if-block.
@@ -2985,10 +3003,72 @@ class SequenceNode(ExprNode):
                     self.coerced_unpacked_items[i], code)
 
         code.putln("}")
+
+    def generate_starred_assignment_code(self, rhs, code):
+        for i, arg in enumerate(self.args):
+            if arg.is_starred:
+                starred_target = self.unpacked_items[i]
+                fixed_args_left  = self.args[:i]
+                fixed_args_right = self.args[i+1:]
+                break
+
+        self.iterator.allocate(code)
+        code.putln(
+            "%s = PyObject_GetIter(%s); %s" % (
+                self.iterator.result(),
+                rhs.py_result(),
+                code.error_goto_if_null(self.iterator.result(), self.pos)))
+        code.put_gotref(self.iterator.py_result())
+        rhs.generate_disposal_code(code)
+
         for item in self.unpacked_items:
-            item.release(code)
-        rhs.free_temps(code)
-        
+            item.allocate(code)
+        for i in range(len(fixed_args_left)):
+            item = self.unpacked_items[i]
+            unpack_code = "__Pyx_UnpackItem(%s, %d)" % (
+                self.iterator.py_result(), i)
+            code.putln(
+                "%s = %s; %s" % (
+                    item.result(),
+                    typecast(item.ctype(), py_object_type, unpack_code),
+                    code.error_goto_if_null(item.result(), self.pos)))
+            code.put_gotref(item.py_result())
+            value_node = self.coerced_unpacked_items[i]
+            value_node.generate_evaluation_code(code)
+
+        target_list = starred_target.result()
+        code.putln("%s = PySequence_List(%s); %s" % (
+            target_list, self.iterator.py_result(),
+            code.error_goto_if_null(target_list, self.pos)))
+        code.put_gotref(target_list)
+        if fixed_args_right:
+            code.globalstate.use_utility_code(raise_need_more_values_to_unpack)
+            unpacked_right_args = self.unpacked_items[-len(fixed_args_right):]
+            code.putln("if (unlikely(PyList_GET_SIZE(%s) < %d)) {" % (
+                (target_list, len(unpacked_right_args))))
+            code.put("__Pyx_RaiseNeedMoreValuesError(%d+PyList_GET_SIZE(%s)); %s" % (
+                     len(fixed_args_left), target_list,
+                     code.error_goto(self.pos)))
+            code.putln('}')
+            for i, (arg, coerced_arg) in enumerate(zip(unpacked_right_args[::-1],
+                                                       self.coerced_unpacked_items[::-1])):
+                code.putln(
+                    "%s = PyList_GET_ITEM(%s, PyList_GET_SIZE(%s)-1); " % (
+                        arg.py_result(),
+                        target_list, target_list))
+                # resize the list the hard way
+                code.putln("((PyListObject*)%s)->ob_size--;" % target_list)
+                code.put_gotref(arg.py_result())
+                coerced_arg.generate_evaluation_code(code)
+
+        self.iterator.generate_disposal_code(code)
+        self.iterator.free_temps(code)
+        self.iterator.release(code)
+
+        for i in range(len(self.args)):
+            self.args[i].generate_assignment_code(
+                self.coerced_unpacked_items[i], code)
+
     def annotate(self, code):
         for arg in self.args:
             arg.annotate(code)
