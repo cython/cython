@@ -910,43 +910,96 @@ def p_expression_or_assignment(s):
             return Nodes.ParallelAssignmentNode(nodes[0].pos, stats = nodes)
 
 def flatten_parallel_assignments(input, output):
-    #  The input is a list of expression nodes, representing 
-    #  the LHSs and RHS of one (possibly cascaded) assignment 
-    #  statement. If they are all sequence constructors with 
-    #  the same number of arguments, rearranges them into a
-    #  list of equivalent assignments between the individual 
-    #  elements. This transformation is applied recursively.
-    size = find_parallel_assignment_size(input)
-    if size >= 0:
-        for i in range(size):
-            new_exprs = [expr.args[i] for expr in input]
-            flatten_parallel_assignments(new_exprs, output)
-    else:
-        output.append(input)
-
-def find_parallel_assignment_size(input):
-    #  The input is a list of expression nodes. If 
-    #  they are all sequence constructors with the same number
-    #  of arguments, return that number, else return -1.
-    #  Produces an error message if they are all sequence
-    #  constructors but not all the same size.
-    for expr in input:
-        if not expr.is_sequence_constructor:
-            return -1
+    #  The input is a list of expression nodes, representing the LHSs
+    #  and RHS of one (possibly cascaded) assignment statement.  For
+    #  sequence constructors, rearranges the matching parts of both
+    #  sides into a list of equivalent assignments between the
+    #  individual elements.  This transformation is applied
+    #  recursively, so that nested structures get matched as well.
     rhs = input[-1]
+    if not rhs.is_sequence_constructor:
+        output.append(input)
+        return
+
     rhs_size = len(rhs.args)
+    lhs_targets = [ [] for _ in range(rhs_size) ]
+    starred_assignments = []
     for lhs in input[:-1]:
-        starred_args = sum([1 for expr in lhs.args if expr.is_starred])
-        if starred_args:
-            if starred_args > 1:
-                error(lhs.pos, "more than 1 starred expression in assignment")
-            return -1
+        if not lhs.is_sequence_constructor:
+            if lhs.is_starred:
+                error(lhs.pos, "starred assignment target must be in a list or tuple")
+            output.append(lhs)
+            continue
         lhs_size = len(lhs.args)
-        if lhs_size != rhs_size:
-            error(lhs.pos, "Unpacking sequence of wrong size (expected %d, got %d)"
-                % (lhs_size, rhs_size))
-            return -1
-    return rhs_size
+        starred_targets = sum([1 for expr in lhs.args if expr.is_starred])
+        if starred_targets:
+            if starred_targets > 1:
+                error(lhs.pos, "more than 1 starred expression in assignment")
+            elif lhs_size - starred_targets > rhs_size:
+                error(lhs.pos, "need more than %d value%s to unpack"
+                      % (rhs_size, (rhs_size != 1) and 's' or ''))
+            map_starred_assignment(lhs_targets, starred_assignments,
+                                   lhs.args, rhs.args)
+        else:
+            if lhs_size > rhs_size:
+                error(lhs.pos, "need more than %d value%s to unpack"
+                      % (rhs_size, (rhs_size != 1) and 's' or ''))
+            elif lhs_size < rhs_size:
+                error(lhs.pos, "too many values to unpack (expected %d, got %d)"
+                      % (lhs_size, rhs_size))
+            else:
+                for targets, expr in zip(lhs_targets, lhs.args):
+                    targets.append(expr)
+
+    # recursively flatten partial assignments
+    for cascade, rhs in zip(lhs_targets, rhs.args):
+        if cascade:
+            cascade.append(rhs)
+            flatten_parallel_assignments(cascade, output)
+
+    # recursively flatten starred assignments
+    for cascade in starred_assignments:
+        if cascade[0].is_sequence_constructor:
+            flatten_parallel_assignments(cascade, output)
+        else:
+            output.append(cascade)
+
+def map_starred_assignment(lhs_targets, starred_assignments, lhs_args, rhs_args):
+    # Appends the fixed-position LHS targets to the target list that
+    # appear left and right of the starred argument.
+    #
+    # The starred_assignments list receives a new tuple
+    # (lhs_target, rhs_values_list) that maps the remaining arguments
+    # (those that match the starred target) to a list.
+
+    # left side of the starred target
+    for i, (targets, expr) in enumerate(zip(lhs_targets, lhs_args)):
+        if expr.is_starred:
+            starred = i
+            lhs_remaining = len(lhs_args) - i - 1
+            break
+        targets.append(expr)
+    else:
+        raise InternalError("no starred arg found when splitting starred assignment")
+
+    # right side of the starred target
+    for i, (targets, expr) in enumerate(zip(lhs_targets[-lhs_remaining:],
+                                            lhs_args[-lhs_remaining:])):
+        targets.append(expr)
+
+    # the starred target itself, must be assigned a (potentially empty) list
+    target = lhs_args[starred]
+    target.is_starred = False
+    starred_rhs = rhs_args[starred:]
+    if lhs_remaining:
+        starred_rhs = starred_rhs[:-lhs_remaining]
+    if starred_rhs:
+        pos = starred_rhs[0].pos
+    else:
+        pos = target.pos
+    starred_assignments.append([
+        target, ExprNodes.ListNode(pos=pos, args=starred_rhs)])
+
 
 def p_print_statement(s):
     # s.sy == 'print'
