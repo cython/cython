@@ -2067,7 +2067,8 @@ class SliceIndexNode(ExprNode):
                 array_length = rhs.type.size
                 self.generate_slice_guard_code(code, array_length)
             else:
-                error("Slice assignments from pointers are not yet supported.")
+                error(self.pos,
+                      "Slice assignments from pointers are not yet supported.")
                 # FIXME: fix the array size according to start/stop
                 array_length = self.base.type.size
             for i in range(array_length):
@@ -2657,8 +2658,8 @@ class AttributeNode(NewTempExprNode):
     def compile_time_value(self, denv):
         attr = self.attribute
         if attr.startswith("__") and attr.endswith("__"):
-            self.error("Invalid attribute name '%s' in compile-time expression"
-                % attr)
+            error(self.pos,
+                  "Invalid attribute name '%s' in compile-time expression" % attr)
             return None
         obj = self.obj.compile_time_value(denv)
         try:
