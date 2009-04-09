@@ -256,7 +256,11 @@ class Context(object):
                 if debug_find_module:
                     print("......found ", pxd_pathname)
                 if not pxd_pathname and need_pxd:
-                    error(pos, "'%s.pxd' not found" % module_name)
+                    package_pathname = self.search_include_directories(module_name, ".py", pos)
+                    if package_pathname and package_pathname.endswith('__init__.py'):
+                        pass
+                    else:
+                        error(pos, "'%s.pxd' not found" % module_name)
             if pxd_pathname:
                 try:
                     if debug_find_module:

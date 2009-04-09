@@ -1944,7 +1944,8 @@ class SliceIndexNode(ExprNode):
                 array_length = rhs.type.size
                 self.generate_slice_guard_code(code, array_length)
             else:
-                error("Slice assignments from pointers are not yet supported.")
+                error(self.pos,
+                      "Slice assignments from pointers are not yet supported.")
                 # FIXME: fix the array size according to start/stop
                 array_length = self.base.type.size
             for i in range(array_length):
@@ -2570,8 +2571,8 @@ class AttributeNode(ExprNode):
     def compile_time_value(self, denv):
         attr = self.attribute
         if attr.startswith("__") and attr.endswith("__"):
-            self.error("Invalid attribute name '%s' in compile-time expression"
-                % attr)
+            error(self.pos,
+                  "Invalid attribute name '%s' in compile-time expression" % attr)
             return None
         obj = self.obj.compile_time_value(denv)
         try:
@@ -5450,8 +5451,8 @@ static INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v
 
 static INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v, int fits_long) {
     if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
-        Py_DECREF(PyList_GET_ITEM(o, i));
         Py_INCREF(v);
+        Py_DECREF(PyList_GET_ITEM(o, i));
         PyList_SET_ITEM(o, i, v);
         return 1;
     }

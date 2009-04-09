@@ -531,6 +531,8 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         
         exc_val = None
         exc_check = 0
+        if self.exception_check == '+':
+            env.add_include_file('stdexcept')
         if return_type.is_pyobject \
             and (self.exception_value or self.exception_check) \
             and self.exception_check != '+':
@@ -542,7 +544,6 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                 exc_val = self.exception_value.get_constant_result_code()
                 if self.exception_check == '+':
                     exc_val_type = self.exception_value.type
-                    env.add_include_file('stdexcept')
                     if not exc_val_type.is_error and \
                           not exc_val_type.is_pyobject and \
                           not (exc_val_type.is_cfunction and not exc_val_type.return_type.is_pyobject and len(exc_val_type.args)==0):
@@ -1600,7 +1601,7 @@ class DefNode(FuncDefNode):
                             nogil = cfunc_type.nogil,
                             visibility = 'private',
                             api = False,
-                            directive_locals = cfunc.directive_locals)
+                            directive_locals = getattr(cfunc, 'directive_locals', {}))
     
     def analyse_declarations(self, env):
         if 'locals' in env.directives:
@@ -4531,8 +4532,12 @@ class FromCImportStatNode(StatNode):
                         entry = module_scope.declare_c_class(name, pos = pos,
                             module_name = self.module_name)
                     else:
-                        error(pos, "Name '%s' not declared in module '%s'"
-                            % (name, self.module_name))
+                        submodule_scope = env.context.find_module(name, relative_to = module_scope, pos = self.pos)
+                        if submodule_scope.parent_module is module_scope:
+                            env.declare_module(as_name or name, submodule_scope, self.pos)
+                        else:
+                            error(pos, "Name '%s' not declared in module '%s'"
+                                % (name, self.module_name))
                         
                 if entry:
                     local_name = as_name or name
