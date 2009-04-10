@@ -458,7 +458,7 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             size = self.dimension.get_constant_result_code()
             try:
                 size = int(size)
-            except ValueError:
+            except (ValueError, TypeError):
                 # runtime constant?
                 pass
         else:
