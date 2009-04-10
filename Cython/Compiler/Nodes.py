@@ -455,12 +455,13 @@ class CArrayDeclaratorNode(CDeclaratorNode):
             self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
                 error(self.dimension.pos, "Array dimension not integer")
-            size = self.dimension.get_constant_result_code()
-            try:
-                size = int(size)
-            except (ValueError, TypeError):
-                # runtime constant?
-                pass
+            size = self.dimension.get_constant_c_result_code()
+            if size is not None:
+                try:
+                    size = int(size)
+                except ValueError:
+                    # runtime constant?
+                    pass
         else:
             size = None
         if not base_type.is_complete():
@@ -541,7 +542,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         else:
             if self.exception_value:
                 self.exception_value.analyse_const_expression(env)
-                exc_val = self.exception_value.get_constant_result_code()
+                exc_val = self.exception_value.get_constant_c_result_code()
                 if self.exception_check == '+':
                     exc_val_type = self.exception_value.type
                     if not exc_val_type.is_error and \

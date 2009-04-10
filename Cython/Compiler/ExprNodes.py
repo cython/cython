@@ -230,15 +230,23 @@ class ExprNode(Node):
         #  C type of the result_code expression).
         return self.result_ctype or self.type
 
-    def get_constant_result_code(self):
+    def get_constant_c_result_code(self):
         # Return the constant value of this node as a result code
-        # string, or None if the node is not constant.
+        # string, or None if the node is not constant.  This method
+        # can be called when the constant result code is required
+        # before the code generation phase.
+        #
+        # The return value is a string that can represent a simple C
+        # value, a constant C name or a constant C expression.  If the
+        # node type depends on Python code, this must return None.
         return None
 
     def calculate_constant_result(self):
-        # Calculate the constant result of this expression and store
-        # it in ``self.constant_result``.  Does nothing by default,
-        # thus leaving ``self.constant_result`` unknown.
+        # Calculate the constant compile time result value of this
+        # expression and store it in ``self.constant_result``.  Does
+        # nothing by default, thus leaving ``self.constant_result``
+        # unknown.  If valid, the result can be an arbitrary Python
+        # value.
         #
         # This must only be called when it is assured that all
         # sub-expressions have a valid constant_result value.  The
@@ -619,7 +627,7 @@ class ConstNode(AtomicExprNode):
     def check_const(self):
         pass
     
-    def get_constant_result_code(self):
+    def get_constant_c_result_code(self):
         return self.calculate_result_code()
 
     def calculate_result_code(self):
@@ -648,7 +656,7 @@ class NullNode(ConstNode):
     value = "NULL"
     constant_result = 0
 
-    def get_constant_result_code(self):
+    def get_constant_c_result_code(self):
         return self.value
 
 
@@ -695,9 +703,9 @@ class IntNode(ConstNode):
         if self.type.is_pyobject:
             self.result_code = code.get_py_num(self.value, self.longness)
         else:
-            self.result_code = self.get_constant_result_code()
+            self.result_code = self.get_constant_c_result_code()
     
-    def get_constant_result_code(self):
+    def get_constant_c_result_code(self):
         return str(self.value) + self.unsigned + self.longness
 
     def calculate_result_code(self):
@@ -784,7 +792,7 @@ class StringNode(ConstNode):
         else:
             self.result_code = code.get_string_const(self.value)
 
-    def get_constant_result_code(self):
+    def get_constant_c_result_code(self):
         return None # FIXME
     
     def calculate_result_code(self):
@@ -825,7 +833,7 @@ class IdentifierStringNode(ConstNode):
         else:
             self.result_code = code.get_string_const(self.value)
 
-    def get_constant_result_code(self):
+    def get_constant_c_result_code(self):
         return None
 
     def calculate_result_code(self):
@@ -915,6 +923,11 @@ class NameNode(AtomicExprNode):
             return denv.lookup(self.name)
         except KeyError:
             error(self.pos, "Compile-time name '%s' not defined" % self.name)
+
+    def get_constant_c_result_code(self):
+        if not self.entry or self.entry.type.is_pyobject:
+            return None
+        return self.entry.cname
     
     def coerce_to(self, dst_type, env):
         #  If coercing to a generic pyobject and this is a builtin
@@ -4162,6 +4175,14 @@ class NumBinopNode(BinopNode):
     def compute_c_result_type(self, type1, type2):
         if self.c_types_okay(type1, type2):
             return PyrexTypes.widest_numeric_type(type1, type2)
+        else:
+            return None
+
+    def get_constant_c_result_code(self):
+        value1 = self.operand1.get_constant_c_result_code()
+        value2 = self.operand2.get_constant_c_result_code()
+        if value1 and value2:
+            return "(%s %s %s)" % (value1, self.operator, value2)
         else:
             return None
     
