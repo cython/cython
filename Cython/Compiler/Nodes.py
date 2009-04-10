@@ -4003,12 +4003,28 @@ class ForFromStatNode(LoopNode, StatNode):
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
         if self.py_loopvar_node:
-            # Reassign py variable to loop var here.
-            # (For consistancy, should rarely come up in practice.)
+            # This mess is to make for..from loops with python targets behave 
+            # exactly like those with C targets with regards to re-assignment 
+            # of the loop variable. 
             import ExprNodes
-            from_py_node = ExprNodes.CoerceFromPyTypeNode(self.loopvar_node.type, self.target, None)
+            if self.target.entry.is_pyglobal:
+                # We know target is a NameNode, this is the only ugly case. 
+                target_node = ExprNodes.PyTempNode(self.target.pos, None)
+                target_node.result_code = code.funcstate.allocate_temp(py_object_type, False)
+                code.putln("%s = __Pyx_GetName(%s, %s); %s" % (
+                                target_node.result_code,
+                                Naming.module_cname, 
+                                self.target.entry.interned_cname,
+                                code.error_goto_if_null(target_node.result_code, self.target.pos)))
+                code.put_gotref(target_node.result_code)
+            else:
+                target_node = self.target
+            from_py_node = ExprNodes.CoerceFromPyTypeNode(self.loopvar_node.type, target_node, None)
             from_py_node.temp_code = loopvar_name
             from_py_node.generate_result_code(code)
+            if self.target.entry.is_pyglobal:
+                code.put_decref_clear(target_node.result_code, py_object_type)
+                code.funcstate.release_temp(target_node.result_code)
         code.putln("}")
         if self.py_loopvar_node:
             # This is potentially wasteful, but we don't want the semantics to 

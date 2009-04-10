@@ -1,7 +1,7 @@
 
-cdef extern from "stdlib.h":
-    void free(void *ptr) nogil
-    void *malloc(size_t size) nogil
-    void *realloc(void *ptr, size_t size) nogil
-    size_t strlen(char *s) nogil
-    char *strcpy(char *dest, char *src) nogil
+cdef extern from "stdlib.h" nogil:
+    void free(void *ptr)
+    void *malloc(size_t size)
+    void *realloc(void *ptr, size_t size)
+    size_t strlen(char *s)
+    char *strcpy(char *dest, char *src)
