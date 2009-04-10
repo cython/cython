@@ -10,32 +10,32 @@ __doc__ = u"""
 
 >>> d = {}
 >>> test_dict_scope2(d)
->>> print (d['b'])
+>>> d['b']
 2
 
 >>> d1 = {}
 >>> test_dict_scope3(d1, d1)
->>> print (d1['b'])
+>>> d1['b']
 2
 
 >>> d1, d2 = {}, {}
 >>> test_dict_scope3(d1, d2)
->>> print ((d1.get('b'), d2.get('b')))
+>>> (d1.get('b'), d2.get('b'))
 (None, 2)
 
 >>> d1, d2 = {}, {}
 >>> test_dict_scope3(d1, d2)
->>> print ((d1.get('b'), d2.get('b')))
+>>> (d1.get('b'), d2.get('b'))
 (None, 2)
 
 >>> d1, d2 = dict(a=11), dict(c=5)
 >>> test_dict_scope_ref(d1, d2)
->>> print ((d1.get('b'), d2.get('b')))
+>>> (d1.get('b'), d2.get('b'))
 (None, 16)
 
 >>> d = dict(a=11, c=5)
 >>> test_dict_scope_ref(d, d)
->>> print (d['b'])
+>>> d['b']
 16
 
 >>> d = dict(seq = [1,2,3,4])
