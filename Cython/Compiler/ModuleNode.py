@@ -1827,7 +1827,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if entries:
             env.use_utility_code(import_module_utility_code)
             env.use_utility_code(function_import_utility_code)
-            temp = code.globalstate.allocate_temp(py_object_type)
+            temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
             code.putln(
                 '%s = __Pyx_ImportModule("%s"); if (!%s) %s' % (
                     temp,
