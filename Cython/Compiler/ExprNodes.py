@@ -551,11 +551,6 @@ class ExprNode(Node):
         return None
 
 class AtomicExprNode(ExprNode):
-    # I do not dare to convert NameNode yet. This is now
-    # ancestor of all former AtomicExprNode except
-    # NameNode. Should be renamed to AtomicExprNode
-    # when done.
-    
     #  Abstract base class for expression nodes which have
     #  no sub-expressions.
     
@@ -3718,9 +3713,6 @@ class UnopNode(ExprNode):
     def generate_result_code(self, code):
         if self.operand.type.is_pyobject:
             self.generate_py_operation_code(code)
-        else:
-            if self.is_temp:
-                self.generate_c_operation_code(code)
     
     def generate_py_operation_code(self, code):
         function = self.py_operation_function()
@@ -4147,9 +4139,6 @@ class BinopNode(ExprNode):
                     extra_args,
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
-        else:
-            if self.is_temp:
-                self.generate_c_operation_code(code)
     
     def type_error(self):
         if not (self.operand1.type.is_error
