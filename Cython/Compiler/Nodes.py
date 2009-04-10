@@ -916,12 +916,13 @@ class CEnumDefNode(StatNode):
                         self.temp,
                         item.cname,
                         code.error_goto_if_null(self.temp, item.pos)))
+                code.put_gotref(self.temp)
                 code.putln('if (__Pyx_SetAttrString(%s, "%s", %s) < 0) %s' % (
                         Naming.module_cname, 
                         item.name, 
                         self.temp,
                         code.error_goto(item.pos)))
-                code.putln("%s = 0;" % self.temp)
+                code.put_decref_clear(self.temp, PyrexTypes.py_object_type)
 
 
 class CEnumDefItemNode(StatNode):
