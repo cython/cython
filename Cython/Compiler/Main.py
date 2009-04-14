@@ -80,8 +80,7 @@ class Context(object):
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
         from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
-        from ParseTreeTransforms import ComprehensionTransform, AlignFunctionDefinitions
-        from ParseTreeTransforms import GilCheck
+        from ParseTreeTransforms import AlignFunctionDefinitions, GilCheck
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
         from Optimize import OptimizeBuiltinCalls, ConstantFolding, FinalOptimizePhase
@@ -126,7 +125,6 @@ class Context(object):
             _check_c_declarations,
             AnalyseExpressionsTransform(self),
             OptimizeBuiltinCalls(),
-#            ComprehensionTransform(),
             IterationTransform(),
             SwitchTransform(),
             FinalOptimizePhase(self),
