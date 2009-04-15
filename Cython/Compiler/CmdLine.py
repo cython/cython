@@ -38,8 +38,9 @@ Options:
   -a, --annotate                 Produce a colorized HTML version of the source.
   --line-directives              Produce #line directives pointing to the .pyx source
   --cplus                        Output a c++ rather than c file.
-  -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
+  --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
 """
+
 #The following experimental options are supported only on MacOSX:
 #  -C, --compile    Compile generated .c file to .o file
 #  -X, --link       Link .o file to produce extension module (implies -C)
@@ -80,6 +81,10 @@ def parse_command_line(args):
             elif option in ("-C", "--compile"):
                 options.c_only = 0
             elif option in ("-X", "--link"):
+                if option == "-X":
+                    print >>sys.stderr, "Deprecation warning: The -X command line switch will be changed to a"
+                    print >>sys.stderr, "shorthand for --directive in Cython 0.12. Please use --link instead."
+                    print >>sys.stderr
                 options.c_only = 0
                 options.obj_only = 0
             elif option in ("-+", "--cplus"):
