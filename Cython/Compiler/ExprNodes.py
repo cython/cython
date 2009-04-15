@@ -1745,7 +1745,6 @@ class IndexNode(ExprNode):
                 else:
                     self.index = self.index.coerce_to_pyobject(env)
                 self.type = py_object_type
-                self.gil_check(env)
                 self.is_temp = 1
             else:
                 if self.base.type.is_ptr or self.base.type.is_array:
@@ -1762,8 +1761,20 @@ class IndexNode(ExprNode):
                     error(self.pos,
                         "Invalid index type '%s'" %
                             self.index.type)
+        self.gil_check(env)
 
     gil_message = "Indexing Python object"
+
+    def gil_check(self, env):
+        if self.is_buffer_access and env.nogil:
+            if env.directives['boundscheck']:
+                error(self.pos, "Cannot check buffer index bounds without gil; use boundscheck(False) directive")
+                return
+            elif self.type.is_pyobject:
+                error(self.pos, "Cannot access buffer with object dtype without gil")
+                return
+        super(IndexNode, self).gil_check(env)
+
 
     def check_const_addr(self):
         self.base.check_const_addr()
