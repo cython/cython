@@ -332,13 +332,20 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
 
     def __init__(self, context, compilation_option_overrides):
         super(InterpretCompilerDirectives, self).__init__(context)
-        self.compilation_option_overrides = compilation_option_overrides
+        self.compilation_option_overrides = {}
+        for key, value in compilation_option_overrides.iteritems():
+            self.compilation_option_overrides[unicode(key)] = value
         self.cython_module_names = set()
         self.option_names = {}
 
     # Set up processing and handle the cython: comments.
     def visit_ModuleNode(self, node):
         options = copy.copy(Options.option_defaults)
+        for key, value in self.compilation_option_overrides.iteritems():
+            if key in node.option_comments and node.option_comments[key] != value:
+                warning(node.pos, "Compiler directive differs between environment and file header; this will change "
+                        "in Cython 0.12. See http://article.gmane.org/gmane.comp.python.cython.devel/5233", 2)
+                break
         options.update(node.option_comments)
         options.update(self.compilation_option_overrides)
         self.options = options
