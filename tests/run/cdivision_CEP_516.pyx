@@ -64,6 +64,14 @@ verbose_call(5)
 'float division'
 >>> mod_div_zero_float(25, 0, 0)
 'float divmod()'
+
+>>> import sys
+>>> py_div_long(-5, -1)
+5
+>>> py_div_long(-sys.maxint-1, -1)
+Traceback (most recent call last):
+...
+OverflowError: value too large to perform division
 """
 
 cimport cython
@@ -147,3 +155,7 @@ def mod_div_zero_float(float a, float b, float c):
         return (a % b) / c
     except ZeroDivisionError, ex:
         return ex.message
+
+@cython.cdivision(False)
+def py_div_long(long a, long b):
+    return a / b
