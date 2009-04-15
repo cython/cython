@@ -4247,6 +4247,8 @@ class DivNode(NumBinopNode):
                 # Need to check ahead of time to warn or raise zero division error
                 self.operand1 = self.operand1.coerce_to_simple(env)
                 self.operand2 = self.operand2.coerce_to_simple(env)
+                if env.nogil:
+                    error(self.pos, "Pythonic division not allowed without gil, consider using cython.cdivision(True)")
     
     def zero_division_message(self):
         if self.type.is_int:
@@ -4272,6 +4274,15 @@ class DivNode(NumBinopNode):
                 code.putln('PyErr_Format(PyExc_ZeroDivisionError, "%s");' % self.zero_division_message())
                 code.putln(code.error_goto(self.pos))
                 code.putln("}")
+                if self.type.is_int and self.type.signed and self.operator != '%':
+                    code.globalstate.use_utility_code(division_overflow_test_code)
+                    code.putln("else if (sizeof(%s) == sizeof(long) && unlikely(%s == -1) && unlikely(UNARY_NEG_WOULD_OVERFLOW(%s))) {" % (
+                                    self.type.declaration_code(''), 
+                                    self.operand2.result(),
+                                    self.operand1.result()))
+                    code.putln('PyErr_Format(PyExc_OverflowError, "value too large to perform division");')
+                    code.putln(code.error_goto(self.pos))
+                    code.putln("}")
             if code.globalstate.directives['cdivision_warnings']:
                 code.globalstate.use_utility_code(cdivision_warning_utility_code)
                 code.putln("if ((%s < 0) ^ (%s < 0)) {" % (
@@ -5772,3 +5783,10 @@ static int __Pyx_cdivision_warning(void) {
     'MODULENAME': Naming.modulename_cname,
     'LINENO':  Naming.lineno_cname,
 })
+
+# from intobject.c
+division_overflow_test_code = UtilityCode(
+proto="""
+#define UNARY_NEG_WOULD_OVERFLOW(x)	\
+	(((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))
+""")
