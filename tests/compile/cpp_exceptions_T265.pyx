@@ -1,7 +1,7 @@
 cdef void raise_py_error():
     pass
 
-cdef extern from "foo.h":
+cdef extern from "cpp_exceptions.h":
     cdef int generic_error() except +
     cdef int specified_error() except +MemoryError
     cdef int dynamic_error() except +raise_py_error
