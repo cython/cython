@@ -417,6 +417,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  typedef int Py_ssize_t;")
         code.putln("  #define PY_SSIZE_T_MAX INT_MAX")
         code.putln("  #define PY_SSIZE_T_MIN INT_MIN")
+        code.putln("  #define PY_FORMAT_SIZE_T \"\"")
         code.putln("  #define PyInt_FromSsize_t(z) PyInt_FromLong(z)")
         code.putln("  #define PyInt_AsSsize_t(o)   PyInt_AsLong(o)")
         code.putln("  #define PyNumber_Index(o)    PyNumber_Int(o)")
@@ -548,6 +549,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static const char **%s;' % Naming.filetable_cname)
 
         env.use_utility_code(streq_utility_code)
+
+        # XXX this is a mess
+        for utility_code in PyrexTypes.c_int_from_py_function.specialize_list:
+            env.use_utility_code(utility_code)
+        for utility_code in PyrexTypes.c_long_from_py_function.specialize_list:
+            env.use_utility_code(utility_code)
 
     def generate_extern_c_macro_definition(self, code):
         name = Naming.extern_c_macro
@@ -1948,10 +1955,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 if weakref_entry:
                     if weakref_entry.type is py_object_type:
                         tp_weaklistoffset = "%s.tp_weaklistoffset" % typeobj_cname
-                        code.putln("if (%s == 0) %s = offsetof(struct %s, %s);" % (
+                        if type.typedef_flag:
+                            objstruct = type.objstruct_cname
+                        else:
+                            objstruct = "struct %s" % type.objstruct_cname
+                        code.putln("if (%s == 0) %s = offsetof(%s, %s);" % (
                             tp_weaklistoffset,
                             tp_weaklistoffset,
-                            type.objstruct_cname,
+                            objstruct,
                             weakref_entry.cname))
                     else:
                         error(weakref_entry.pos, "__weakref__ slot must be of type 'object'")

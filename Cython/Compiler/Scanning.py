@@ -48,6 +48,7 @@ def hash_source_file(path):
         from hashlib import md5 as new_md5
     except ImportError:
         from md5 import new as new_md5
+    f = None
     try:
         try:
             f = open(path, "rU")
@@ -56,7 +57,8 @@ def hash_source_file(path):
             print("Unable to hash scanner source file (%s)" % e)
             return ""
     finally:
-        f.close()
+        if f:
+            f.close()
     # Normalise spaces/tabs. We don't know what sort of
     # space-tab substitution the file may have been
     # through, so we replace all spans of spaces and

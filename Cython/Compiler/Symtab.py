@@ -208,7 +208,6 @@ class Scope(object):
     scope_prefix = ""
     in_cinclude = 0
     nogil = 0
-    directives = {}
     
     def __init__(self, name, outer_scope, parent_scope):
         # The outer_scope is the next scope in the lookup chain.
