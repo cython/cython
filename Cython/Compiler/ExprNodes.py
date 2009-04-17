@@ -5775,12 +5775,11 @@ static int __Pyx_cdivision_warning(void) {
                               "division with oppositely signed operands, C and Python semantics differ",
                               %(FILENAME)s, 
                               %(LINENO)s,
-                              %(MODULENAME)s,
+                              __Pyx_MODULE_NAME,
                               NULL);
 }
 """ % {
     'FILENAME': Naming.filename_cname,
-    'MODULENAME': Naming.modulename_cname,
     'LINENO':  Naming.lineno_cname,
 })
 
