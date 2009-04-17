@@ -147,14 +147,14 @@ def mod_div_zero_int(int a, int b, int c):
     try:
         return verbose_call(a % b) / c
     except ZeroDivisionError, ex:
-        return ex.message
+        return str(ex)
 
 @cython.cdivision(False)
 def mod_div_zero_float(float a, float b, float c):
     try:
         return (a % b) / c
     except ZeroDivisionError, ex:
-        return ex.message
+        return str(ex)
 
 @cython.cdivision(False)
 def py_div_long(long a, long b):
