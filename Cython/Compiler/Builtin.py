@@ -165,6 +165,7 @@ impl = """
 static PyObject* __Pyx_PyRun(PyObject* o, PyObject* globals, PyObject* locals) {
     PyObject* result;
     PyObject* s = 0;
+    char *code = 0;
 
     if (!locals && !globals) {
         globals = PyModule_GetDict(%s);""" % Naming.module_cname + """
@@ -192,13 +193,12 @@ static PyObject* __Pyx_PyRun(PyObject* o, PyObject* globals, PyObject* locals) {
         goto bad;
     }
 
-    result = PyRun_String(
     #if PY_MAJOR_VERSION >= 3
-        PyBytes_AS_STRING(o),
+    code = PyBytes_AS_STRING(o);
     #else
-        PyString_AS_STRING(o),
+    code = PyString_AS_STRING(o);
     #endif
-        Py_file_input, globals, locals);
+    result = PyRun_String(code, Py_file_input, globals, locals);
 
     Py_XDECREF(s);
     return result;

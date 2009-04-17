@@ -46,6 +46,12 @@ at 1
 at 3
 at 7
 15
+>>> for_from_py_global_target_reassignment(10, 2)
+at 0
+at 1
+at 3
+at 7
+15
 >>> for_in_target_reassignment(10, 2)
 at 0
 at 1
@@ -111,6 +117,13 @@ def for_from_py_target_reassignment(int bound, int factor):
         print "at", i
         i *= factor
     return i
+
+def for_from_py_global_target_reassignment(int bound, int factor):
+    global g_var
+    for g_var from 0 <= g_var < bound:
+        print "at", g_var
+        g_var *= factor
+    return g_var
 
 def for_in_target_reassignment(int bound, int factor):
     cdef int i = 100

@@ -42,12 +42,36 @@ division with oppositely signed operands, C and Python semantics differ
 >>> div_int_c_warn(-17, 10)
 division with oppositely signed operands, C and Python semantics differ
 -1
->>> complex_expression(-150, 20, 20, -7)
-verbose_call(-150)
-division with oppositely signed operands, C and Python semantics differ
+>>> complex_expression(-150, 20, 19, -7)
 verbose_call(20)
 division with oppositely signed operands, C and Python semantics differ
+verbose_call(19)
+division with oppositely signed operands, C and Python semantics differ
 -2
+
+>>> mod_div_zero_int(25, 10, 2)
+verbose_call(5)
+2
+>>> mod_div_zero_int(25, 10, 0)
+verbose_call(5)
+'integer division or modulo by zero'
+>>> mod_div_zero_int(25, 0, 0)
+'integer division or modulo by zero'
+
+>>> mod_div_zero_float(25, 10, 2)
+2.5
+>>> mod_div_zero_float(25, 10, 0)
+'float division'
+>>> mod_div_zero_float(25, 0, 0)
+'float divmod()'
+
+>>> import sys
+>>> py_div_long(-5, -1)
+5
+>>> py_div_long(-sys.maxint-1, -1)
+Traceback (most recent call last):
+...
+OverflowError: value too large to perform division
 """
 
 cimport cython
@@ -109,8 +133,29 @@ def div_int_c_warn(int a, int b):
 @cython.cdivision(False)
 @cython.cdivision_warnings(True)
 def complex_expression(int a, int b, int c, int d):
-    return (verbose_call(a) // b) % (verbose_call(c) // d)
+    return (a // verbose_call(b)) % (verbose_call(c) // d)
 
 cdef int verbose_call(int x):
     print "verbose_call(%s)" % x
     return x
+
+
+# These may segfault with cdivision
+
+@cython.cdivision(False)
+def mod_div_zero_int(int a, int b, int c):
+    try:
+        return verbose_call(a % b) / c
+    except ZeroDivisionError, ex:
+        return ex.message
+
+@cython.cdivision(False)
+def mod_div_zero_float(float a, float b, float c):
+    try:
+        return (a % b) / c
+    except ZeroDivisionError, ex:
+        return ex.message
+
+@cython.cdivision(False)
+def py_div_long(long a, long b):
+    return a / b

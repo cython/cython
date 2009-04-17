@@ -10,7 +10,7 @@ from distutils.command.build_ext import build_ext as _build_ext
 distutils_distro = Distribution()
 
 TEST_DIRS = ['compile', 'errors', 'run', 'pyregr']
-TEST_RUN_DIRS = ['run', 'pyregr', 'bugs']
+TEST_RUN_DIRS = ['run', 'pyregr']
 
 # Lists external modules, and a matcher matching tests
 # which should be excluded if the module is not present.
@@ -91,8 +91,6 @@ class TestBuilder(object):
     def build_suite(self):
         suite = unittest.TestSuite()
         test_dirs = TEST_DIRS
-        if self.test_bugs and 'bugs' not in test_dirs:
-            test_dirs.append('bugs')
         filenames = os.listdir(self.rootdir)
         filenames.sort()
         for filename in filenames:
@@ -147,6 +145,9 @@ class TestBuilder(object):
             languages = self.languages[:1]
         else:
             languages = self.languages
+        if 'cpp' in module and 'c' in languages:
+            languages = list(languages)
+            languages.remove('c')
         tests = [ self.build_test(test_class, path, workdir, module,
                                   language, expect_errors)
                   for language in languages ]
@@ -463,6 +464,18 @@ class VersionDependencyExcluder:
                 return True
         return False
 
+class FileListExcluder:
+
+    def __init__(self, list_file):
+        self.excludes = {}
+        for line in open(list_file).readlines():
+            line = line.strip()
+            if line and line[0] != '#':
+                self.excludes[line.split()[0]] = True
+                
+    def __call__(self, testname):
+        return testname.split('.')[-1] in self.excludes
+
 if __name__ == '__main__':
     from optparse import OptionParser
     parser = OptionParser()
@@ -580,7 +593,7 @@ if __name__ == '__main__':
     if options.tickets:
         for ticket_number in options.tickets:
             test_bugs = True
-            cmd_args.append('bugs.*T%s$' % ticket_number)
+            cmd_args.append('.*T%s$' % ticket_number)
     if not test_bugs:
         for selector in cmd_args:
             if selector.startswith('bugs'):
@@ -600,6 +613,9 @@ if __name__ == '__main__':
 
     if options.exclude:
         exclude_selectors += [ re.compile(r, re.I|re.U).search for r in options.exclude ]
+    
+    if not test_bugs:
+        exclude_selectors += [ FileListExcluder("tests/bugs.txt") ]
 
     languages = []
     if options.use_c:

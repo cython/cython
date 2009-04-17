@@ -2021,7 +2021,7 @@ class SliceIndexNode(ExprNode):
             check = stop
         if check:
             code.putln("if (unlikely((%s) != %d)) {" % (check, target_size))
-            code.putln('PyErr_Format(PyExc_ValueError, "Assignment to slice of wrong length, expected %%d, got %%d", %d, (%s));' % (
+            code.putln('PyErr_Format(PyExc_ValueError, "Assignment to slice of wrong length, expected %%"PY_FORMAT_SIZE_T"d, got %%"PY_FORMAT_SIZE_T"d", (Py_ssize_t)%d, (Py_ssize_t)(%s));' % (
                         target_size, check))
             code.putln(code.error_goto(self.pos))
             code.putln("}")
@@ -4277,12 +4277,24 @@ class DivNode(NumBinopNode):
     
     cdivision = None
     cdivision_warnings = False
+    zerodivision_check = None
     
     def analyse_types(self, env):
         NumBinopNode.analyse_types(self, env)
-        if not self.type.is_pyobject and env.directives['cdivision_warnings']:
-            self.operand1 = self.operand1.coerce_to_simple(env)
-            self.operand2 = self.operand2.coerce_to_simple(env)
+        if not self.type.is_pyobject:
+            self.zerodivision_check = self.cdivision is None and not env.directives['cdivision']
+            if self.zerodivision_check or env.directives['cdivision_warnings']:
+                # Need to check ahead of time to warn or raise zero division error
+                self.operand1 = self.operand1.coerce_to_simple(env)
+                self.operand2 = self.operand2.coerce_to_simple(env)
+                if env.nogil:
+                    error(self.pos, "Pythonic division not allowed without gil, consider using cython.cdivision(True)")
+    
+    def zero_division_message(self):
+        if self.type.is_int:
+            return "integer division or modulo by zero"
+        else:
+            return "float division"
 
     def generate_evaluation_code(self, code):
         if not self.type.is_pyobject:
@@ -4293,18 +4305,33 @@ class DivNode(NumBinopNode):
             if not self.cdivision:
                 code.globalstate.use_utility_code(div_int_utility_code.specialize(self.type))
         NumBinopNode.generate_evaluation_code(self, code)
-        if not self.type.is_pyobject and code.globalstate.directives['cdivision_warnings']:
-            self.generate_div_warning_code(code)
+        self.generate_div_warning_code(code)
     
     def generate_div_warning_code(self, code):
-        code.globalstate.use_utility_code(cdivision_warning_utility_code)
-        code.putln("if ((%s < 0) ^ (%s < 0)) {" % (
-                        self.operand1.result(),
-                        self.operand2.result()))
-        code.putln(code.set_error_info(self.pos));
-        code.put("if (__Pyx_cdivision_warning()) ")
-        code.put_goto(code.error_label)
-        code.putln("}")
+        if not self.type.is_pyobject:
+            if self.zerodivision_check:
+                code.putln("if (unlikely(%s == 0)) {" % self.operand2.result())
+                code.putln('PyErr_Format(PyExc_ZeroDivisionError, "%s");' % self.zero_division_message())
+                code.putln(code.error_goto(self.pos))
+                code.putln("}")
+                if self.type.is_int and self.type.signed and self.operator != '%':
+                    code.globalstate.use_utility_code(division_overflow_test_code)
+                    code.putln("else if (sizeof(%s) == sizeof(long) && unlikely(%s == -1) && unlikely(UNARY_NEG_WOULD_OVERFLOW(%s))) {" % (
+                                    self.type.declaration_code(''), 
+                                    self.operand2.result(),
+                                    self.operand1.result()))
+                    code.putln('PyErr_Format(PyExc_OverflowError, "value too large to perform division");')
+                    code.putln(code.error_goto(self.pos))
+                    code.putln("}")
+            if code.globalstate.directives['cdivision_warnings']:
+                code.globalstate.use_utility_code(cdivision_warning_utility_code)
+                code.putln("if ((%s < 0) ^ (%s < 0)) {" % (
+                                self.operand1.result(),
+                                self.operand2.result()))
+                code.putln(code.set_error_info(self.pos));
+                code.put("if (__Pyx_cdivision_warning()) ")
+                code.put_goto(code.error_label)
+                code.putln("}")
     
     def calculate_result_code(self):
         if self.type.is_float and self.operator == '//':
@@ -4330,6 +4357,12 @@ class ModNode(DivNode):
             or self.operand2.type.is_string
             or NumBinopNode.is_py_operation(self))
 
+    def zero_division_message(self):
+        if self.type.is_int:
+            return "integer division or modulo by zero"
+        else:
+            return "float divmod()"
+    
     def generate_evaluation_code(self, code):
         if not self.type.is_pyobject:
             if self.cdivision is None:
@@ -4341,8 +4374,7 @@ class ModNode(DivNode):
                     code.globalstate.use_utility_code(
                         mod_float_utility_code.specialize(self.type, math_h_modifier=self.type.math_h_modifier))
         NumBinopNode.generate_evaluation_code(self, code)
-        if not self.type.is_pyobject and code.globalstate.directives['cdivision_warnings']:
-            self.generate_div_warning_code(code)
+        self.generate_div_warning_code(code)
     
     def calculate_result_code(self):
         if self.cdivision:
@@ -5762,3 +5794,10 @@ static int __Pyx_cdivision_warning(void) {
     'MODULENAME': Naming.modulename_cname,
     'LINENO':  Naming.lineno_cname,
 })
+
+# from intobject.c
+division_overflow_test_code = UtilityCode(
+proto="""
+#define UNARY_NEG_WOULD_OVERFLOW(x)	\
+	(((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))
+""")

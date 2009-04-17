@@ -891,12 +891,13 @@ class CEnumDefNode(StatNode):
                         temp,
                         item.cname,
                         code.error_goto_if_null(temp, item.pos)))
+                code.put_gotref(temp)
                 code.putln('if (__Pyx_SetAttrString(%s, "%s", %s) < 0) %s' % (
                         Naming.module_cname, 
                         item.name, 
                         temp,
                         code.error_goto(item.pos)))
-                code.putln("%s = 0;" % temp)
+                code.put_decref_clear(temp, PyrexTypes.py_object_type)
             code.funcstate.release_temp(temp)
 
 
@@ -984,6 +985,7 @@ class FuncDefNode(StatNode, BlockNode):
         if type.is_cfunction:
             lenv.nogil = type.nogil and not type.with_gil
         self.local_scope = lenv
+        lenv.directives = env.directives
         return lenv
                 
     def generate_function_definitions(self, env, code):
@@ -1257,9 +1259,7 @@ class CFuncDefNode(FuncDefNode):
         return self.entry.name
         
     def analyse_declarations(self, env):
-        if 'locals' in env.directives and env.directives['locals']:
-            self.directive_locals = env.directives['locals']
-        directive_locals = self.directive_locals
+        directive_locals = self.directive_locals = env.directives['locals']
         base_type = self.base_type.analyse(env)
         # The 2 here is because we need both function and argument names. 
         name_declarator, type = self.declarator.analyse(base_type, env, nonempty = 2 * (self.body is not None))
@@ -1606,11 +1606,7 @@ class DefNode(FuncDefNode):
                             directive_locals = getattr(cfunc, 'directive_locals', {}))
     
     def analyse_declarations(self, env):
-        if 'locals' in env.directives:
-            directive_locals = env.directives['locals']
-        else:
-            directive_locals = {}
-        self.directive_locals = directive_locals
+        directive_locals = self.directive_locals = env.directives['locals']
         for arg in self.args:
             if hasattr(arg, 'name'):
                 type = arg.type
@@ -2524,6 +2520,7 @@ class PyClassDefNode(ClassDefNode):
     def analyse_declarations(self, env):
         self.target.analyse_target_declaration(env)
         cenv = self.create_scope(env)
+        cenv.directives = env.directives
         cenv.class_obj_cname = self.target.entry.cname
         self.body.analyse_declarations(cenv)
     
@@ -2660,6 +2657,8 @@ class CClassDefNode(ClassDefNode):
         if home_scope is not env and self.visibility == 'extern':
             env.add_imported_entry(self.class_name, self.entry, pos)
         scope = self.entry.type.scope
+        if scope is not None:
+            scope.directives = env.directives
 
         if self.doc and Options.docstrings:
             scope.doc = embed_position(self.pos, self.doc)
@@ -2705,6 +2704,7 @@ class PropertyNode(StatNode):
     def analyse_declarations(self, env):
         entry = env.declare_property(self.name, self.doc, self.pos)
         if entry:
+            entry.scope.directives = env.directives
             self.body.analyse_declarations(entry.scope)
 
     def analyse_expressions(self, env):
@@ -3874,12 +3874,28 @@ class ForFromStatNode(LoopNode, StatNode):
         self.body.generate_execution_code(code)
         code.put_label(code.continue_label)
         if self.py_loopvar_node:
-            # Reassign py variable to loop var here.
-            # (For consistancy, should rarely come up in practice.)
+            # This mess is to make for..from loops with python targets behave 
+            # exactly like those with C targets with regards to re-assignment 
+            # of the loop variable. 
             import ExprNodes
-            from_py_node = ExprNodes.CoerceFromPyTypeNode(self.loopvar_node.type, self.target, None)
+            if self.target.entry.is_pyglobal:
+                # We know target is a NameNode, this is the only ugly case. 
+                target_node = ExprNodes.PyTempNode(self.target.pos, None)
+                target_node.result_code = code.funcstate.allocate_temp(py_object_type, False)
+                code.putln("%s = __Pyx_GetName(%s, %s); %s" % (
+                                target_node.result_code,
+                                Naming.module_cname, 
+                                self.target.entry.interned_cname,
+                                code.error_goto_if_null(target_node.result_code, self.target.pos)))
+                code.put_gotref(target_node.result_code)
+            else:
+                target_node = self.target
+            from_py_node = ExprNodes.CoerceFromPyTypeNode(self.loopvar_node.type, target_node, None)
             from_py_node.temp_code = loopvar_name
             from_py_node.generate_result_code(code)
+            if self.target.entry.is_pyglobal:
+                code.put_decref_clear(target_node.result_code, py_object_type)
+                code.funcstate.release_temp(target_node.result_code)
         code.putln("}")
         if self.py_loopvar_node:
             # This is potentially wasteful, but we don't want the semantics to 
