@@ -1856,14 +1856,13 @@ class IndexNode(ExprNode):
             index_code = self.index.py_result()
             if self.base.type is dict_type:
                 function = "PyDict_SetItem"
-            elif self.base.type is list_type:
-                function = "PyList_SetItem"
-            # don't use PyTuple_SetItem(), as we'd normally get a
-            # TypeError when changing a tuple, while PyTuple_SetItem()
-            # would allow updates
-            #
-            #elif self.base.type is tuple_type:
-            #    function = "PyTuple_SetItem"
+            # It would seem that we could specalized lists/tuples, but that
+            # shouldn't happen here. 
+            # Both PyList_SetItem PyTuple_SetItem and a Py_ssize_t as input, 
+            # not a PyObject*, and bad conversion here would give the wrong 
+            # exception. Also, tuples are supposed to be immutable, and raise 
+            # TypeErrors when trying to set their entries (PyTuple_SetItem 
+            # is for creating new tuples from). 
             else:
                 function = "PyObject_SetItem"
         code.putln(
