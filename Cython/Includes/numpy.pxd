@@ -1,3 +1,16 @@
+# NumPy static imports for Cython
+#
+# This also defines backwards-compatability buffer acquisition
+# code for use in Python 2.x (or Python <= 2.5 when NumPy starts
+# implementing PEP-3118 directly).
+
+
+# Because of laziness, the format string of the buffer is statically
+# allocated. Increase the size if this is not enough, or submit a
+# patch to do this properly.
+
+DEF _buffer_format_string_len = 255
+
 cimport python_buffer as pybuf
 cimport stdlib
 
@@ -29,6 +42,8 @@ cdef extern from "numpy/arrayobject.h":
         
     ctypedef class numpy.dtype [object PyArray_Descr]:
         cdef int type_num
+        cdef int itemsize "elsize"
+        cdef char byteorder
         cdef object fields
         cdef object names
 
@@ -89,16 +104,10 @@ cdef extern from "numpy/arrayobject.h":
             cdef char* f = NULL
             cdef dtype descr = self.descr
             cdef list stack
+            cdef int offset
+            cdef char byteorder = 0
 
             cdef bint hasfields = PyDataType_HASFIELDS(descr)
-
-            # Ugly hack warning:
-            # Cython currently will not support helper functions in
-            # pxd files -- so we must keep our own, manual stack!
-            # In addition, avoid allocation of the stack in the common
-            # case that we are dealing with a single non-nested datatype...
-            # (this would look much prettier if we could use utility
-            # functions).
 
             if not hasfields and not copy_shape:
                 # do not call releasebuffer
@@ -131,8 +140,11 @@ cdef extern from "numpy/arrayobject.h":
                 info.format = f
                 return
             else:
-                info.format = <char*>stdlib.malloc(255) # static size
-                f = _util_dtypestring(descr, info.format, info.format + 255)
+                info.format = <char*>stdlib.malloc(_buffer_format_string_len)
+                offset = 0
+                f = _util_dtypestring(descr, info.format,
+                                      info.format + _buffer_format_string_len,
+                                      &offset, &byteorder)
                 f[0] = 0 # Terminate format string
 
         def __releasebuffer__(ndarray self, Py_buffer* info):
@@ -245,14 +257,36 @@ ctypedef npy_cdouble     cdouble_t
 ctypedef npy_clongdouble clongdouble_t
 
 
-cdef inline char* _util_dtypestring(dtype descr, char* f, char* end) except NULL:
+cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset, char* byteorder) except NULL:
     # Recursive utility function used in __getbuffer__ to get format
     # string. The new location in the format string is returned.
 
     cdef dtype child
+    cdef int delta_offset
     cdef tuple i
+    cdef char new_byteorder
     for i in descr.fields.itervalues():
         child = i[0]
+        new_offset = i[1]
+
+        if (end - f) - (new_offset - offset[0]) < 15: # this should leave room for "T{" and "}" as well
+            raise RuntimeError("Format string allocated too short, see comment in numpy.pxd")
+
+        new_byteorder = child.byteorder
+        if new_byteorder == '|': new_byteorder = '='
+        if byteorder[0] != new_byteorder:
+            f[0] = new_byteorder
+            f += 1
+            byteorder[0] = new_byteorder
+
+        # Output padding bytes
+        while offset[0] < new_offset:
+            f[0] = 120 # "x"; pad byte
+            f += 1
+            offset[0] += 1
+
+        offset[0] += child.itemsize
+            
         if not PyDataType_HASFIELDS(child):
             t = child.type_num
             if end - f < 15: # this should leave room for "T{" and "}" as well
@@ -272,9 +306,9 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end) except NULL
             elif t == NPY_FLOAT:       f[0] = 102 #"f"
             elif t == NPY_DOUBLE:      f[0] = 100 #"d"
             elif t == NPY_LONGDOUBLE:  f[0] = 103 #"g"
-            elif t == NPY_CFLOAT:      f[0] = 90; f[1] = 102; f += 1
-            elif t == NPY_CDOUBLE:     f[0] = 90; f[1] = 100; f += 1
-            elif t == NPY_CLONGDOUBLE: f[0] = 90; f[1] = 103; f += 1
+            elif t == NPY_CFLOAT:      f[0] = 90; f[1] = 102; f += 1 # Zf
+            elif t == NPY_CDOUBLE:     f[0] = 90; f[1] = 100; f += 1 # Zd
+            elif t == NPY_CLONGDOUBLE: f[0] = 90; f[1] = 103; f += 1 # Zg
             elif t == NPY_OBJECT:      f[0] = 79 #"O"
             else:
                 raise ValueError("unknown dtype code in numpy.pxd (%d)" % t)
@@ -283,7 +317,7 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end) except NULL
             f[0] = 84 #"T"
             f[1] = 123 #"{"
             f += 2
-            f = _util_dtypestring(child, f, end)
+            f = _util_dtypestring(child, f, end, offset, byteorder)
             f[0] = 125 #"}"
             f += 1
     return f
