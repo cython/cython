@@ -1033,7 +1033,7 @@ def buffer_cast_fails(object[char, cast=True] buf):
     >>> buffer_cast_fails(IntMockBuffer(None, [0]))
     Traceback (most recent call last):
         ...
-    ValueError: Attempted cast of buffer to datatype of different size.
+    ValueError: Item size of buffer does not match size of 'char'
     """
     return buf[0]
 

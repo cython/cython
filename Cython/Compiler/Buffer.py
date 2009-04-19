@@ -567,18 +567,21 @@ def create_typestringchecker(protocode, defcode, name, dtype):
                     ('b', 'char'), ('h', 'short'), ('i', 'int'),
                     ('l', 'long'), ('q', 'long long')
                 ]
+                if dtype.signed == 0:
+                    for char, against in types:
+                        defcode.putln("case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 > 0); break;" %
+                                      (char.upper(), ctype, against, ctype))
+                else:
+                    for char, against in types:
+                        defcode.putln("case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 < 0); break;" %
+                                      (char, ctype, against, ctype))
             elif dtype.is_float:
                 types = [('f', 'float'), ('d', 'double'), ('g', 'long double')]
+                for char, against in types:
+                    defcode.putln("case '%s': ok = (sizeof(%s) == sizeof(%s)); break;" %
+                                  (char, ctype, against))
             else:
                 assert False
-            if dtype.signed == 0:
-                for char, against in types:
-                    defcode.putln("case '%s': ok = (sizeof(%s) == sizeof(unsigned %s) && (%s)-1 > 0); break;" %
-                                  (char.upper(), ctype, against, ctype))
-            else:
-                for char, against in types:
-                    defcode.putln("case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 < 0); break;" %
-                                  (char, ctype, against, ctype))
             defcode.putln("default: ok = 0;")
             defcode.putln("}")
         put_assert("ok", "expected %s, got %%s" % dtype)
@@ -670,11 +673,6 @@ def get_getbuffer_code(dtype, code):
             __Pyx_BufferNdimError(buf, nd);
             goto fail;
           }
-          if (buf->itemsize != sizeof(%(dtype_cname)s)) {
-            PyErr_SetString(PyExc_ValueError,
-              "Item size of buffer does not match size of %(dtype)s.");
-            goto fail;
-          }
           if (!cast) {
             ts = buf->format;
             ts = __Pyx_ConsumeWhitespace(ts);
@@ -689,6 +687,11 @@ def get_getbuffer_code(dtype, code):
                 __Pyx_DescribeTokenInFormatString(ts));
               goto fail;
             }
+          }
+          if (buf->itemsize != sizeof(%(dtype_cname)s)) {
+            PyErr_SetString(PyExc_ValueError,
+              "Item size of buffer does not match size of '%(dtype)s'");
+            goto fail;
           }
           if (buf->suboffsets == NULL) buf->suboffsets = __Pyx_minusones;
           return 0;
