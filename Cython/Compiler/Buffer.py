@@ -670,6 +670,11 @@ def get_getbuffer_code(dtype, code):
             __Pyx_BufferNdimError(buf, nd);
             goto fail;
           }
+          if (buf->itemsize != sizeof(%(dtype_cname)s)) {
+            PyErr_SetString(PyExc_ValueError,
+              "Item size of buffer does not match size of %(dtype)s.");
+            goto fail;
+          }
           if (!cast) {
             ts = buf->format;
             ts = __Pyx_ConsumeWhitespace(ts);
@@ -682,12 +687,6 @@ def get_getbuffer_code(dtype, code):
               PyErr_Format(PyExc_ValueError,
                 "Buffer dtype mismatch (expected end, got %%s)",
                 __Pyx_DescribeTokenInFormatString(ts));
-              goto fail;
-            }
-          } else {
-            if (buf->itemsize != sizeof(%(dtype_cname)s)) {
-              PyErr_SetString(PyExc_ValueError,
-                "Attempted cast of buffer to datatype of different size.");
               goto fail;
             }
           }
