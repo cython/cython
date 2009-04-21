@@ -38,6 +38,7 @@ Options:
   -a, --annotate                 Produce a colorized HTML version of the source.
   --line-directives              Produce #line directives pointing to the .pyx source
   --cplus                        Output a c++ rather than c file.
+  --embed                        Embed the Python interpreter in a main() method.
   --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
 """
 
@@ -72,6 +73,7 @@ def parse_command_line(args):
     options = CompilationOptions(default_options)
     sources = []
     while args:
+        print args
         if args[0].startswith("-"):
             option = pop_arg()
             if option in ("-V", "--version"):
@@ -89,6 +91,8 @@ def parse_command_line(args):
                 options.obj_only = 0
             elif option in ("-+", "--cplus"):
                 options.cplus = 1
+            elif option == "--embed":
+                Options.embed = True
             elif option.startswith("-I"):
                 options.include_path.append(get_param(option))
             elif option == "--include-dir":

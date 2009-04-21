@@ -275,6 +275,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_module_init_func(modules[:-1], env, code)
         code.mark_pos(None)
         self.generate_module_cleanup_func(env, code)
+        if Options.embed:
+            self.generate_main_method(env, code)
         self.generate_filename_table(code)
         self.generate_utility_functions(env, code, h_code)
 
@@ -1734,6 +1736,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("Py_INCREF(Py_None); return Py_None;")
         code.putln('}')
 
+    def generate_main_method(self, env, code):
+        code.globalstate.use_utility_code(main_method.specialize(module_name=env.module_name))
+
     def generate_filename_init_call(self, code):
         code.putln("%s();" % Naming.fileinit_cname)
 
@@ -2441,4 +2446,21 @@ static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
 #endif /* CYTHON_REFNANNY */
 #define __Pyx_XGIVEREF(r) if((r) == NULL) ; else __Pyx_GIVEREF(r)
 #define __Pyx_XGOTREF(r) if((r) == NULL) ; else __Pyx_GOTREF(r)
+""")
+
+main_method = UtilityCode(
+impl = """
+int main(int argc, char** argv) {
+    int r;
+    Py_Initialize();
+    PySys_SetArgv(argc, argv);
+#if PY_MAJOR_VERSION < 3
+        init%(module_name)s();
+#else
+        PyInit_%(module_name)s(name);
+#endif
+    r = PyErr_Occurred();
+    Py_Finalize();
+    return r;
+}
 """)
