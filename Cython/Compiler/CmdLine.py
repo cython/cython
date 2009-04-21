@@ -73,7 +73,6 @@ def parse_command_line(args):
     options = CompilationOptions(default_options)
     sources = []
     while args:
-        print args
         if args[0].startswith("-"):
             option = pop_arg()
             if option in ("-V", "--version"):
