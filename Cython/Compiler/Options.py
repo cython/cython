@@ -53,6 +53,11 @@ optimize_simple_methods = 1
 # Append the c file and line number to the traceback for exceptions. 
 c_line_in_traceback = 1
 
+# Whether or not to embed the Python interpreter, for use in making a 
+# standalone executable. This will provide a main() method which simply 
+# executes the body of this module. 
+embed = False
+
 
 # Declare pragmas
 option_defaults = {
