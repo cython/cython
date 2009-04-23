@@ -1642,6 +1642,7 @@ class IndexNode(ExprNode):
                     error(self.pos,
                         "Invalid index type '%s'" %
                             self.index.type)
+        self.gil_check(env)
 
     def gil_check(self, env):
         if not self.is_buffer_access:
@@ -1649,6 +1650,17 @@ class IndexNode(ExprNode):
                 self._gil_check(env)
 
     gil_message = "Indexing Python object"
+
+    def gil_check(self, env):
+        if self.is_buffer_access and env.nogil:
+            if env.directives['boundscheck']:
+                error(self.pos, "Cannot check buffer index bounds without gil; use boundscheck(False) directive")
+                return
+            elif self.type.is_pyobject:
+                error(self.pos, "Cannot access buffer with object dtype without gil")
+                return
+        super(IndexNode, self).gil_check(env)
+
 
     def check_const_addr(self):
         self.base.check_const_addr()
@@ -1741,14 +1753,13 @@ class IndexNode(ExprNode):
             index_code = self.index.py_result()
             if self.base.type is dict_type:
                 function = "PyDict_SetItem"
-            elif self.base.type is list_type:
-                function = "PyList_SetItem"
-            # don't use PyTuple_SetItem(), as we'd normally get a
-            # TypeError when changing a tuple, while PyTuple_SetItem()
-            # would allow updates
-            #
-            #elif self.base.type is tuple_type:
-            #    function = "PyTuple_SetItem"
+            # It would seem that we could specalized lists/tuples, but that
+            # shouldn't happen here. 
+            # Both PyList_SetItem PyTuple_SetItem and a Py_ssize_t as input, 
+            # not a PyObject*, and bad conversion here would give the wrong 
+            # exception. Also, tuples are supposed to be immutable, and raise 
+            # TypeErrors when trying to set their entries (PyTuple_SetItem 
+            # is for creating new tuples from). 
             else:
                 function = "PyObject_SetItem"
         code.putln(
@@ -5786,12 +5797,11 @@ static int __Pyx_cdivision_warning(void) {
                               "division with oppositely signed operands, C and Python semantics differ",
                               %(FILENAME)s, 
                               %(LINENO)s,
-                              %(MODULENAME)s,
+                              __Pyx_MODULE_NAME,
                               NULL);
 }
 """ % {
     'FILENAME': Naming.filename_cname,
-    'MODULENAME': Naming.modulename_cname,
     'LINENO':  Naming.lineno_cname,
 })
 
