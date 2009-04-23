@@ -11,7 +11,7 @@ import Naming
 import PyrexTypes
 import TypeSlots
 from PyrexTypes import py_object_type, error_type, CTypedefType, CFuncType
-from Symtab import ModuleScope, LocalScope, GeneratorLocalScope, \
+from Symtab import ModuleScope, LocalScope, ClosureScope, \
     StructOrUnionScope, PyClassScope, CClassScope
 from Cython.Utils import open_new_file, replace_suffix, UtilityCode
 from StringEncoding import EncodedString, escape_byte_string, split_docstring
@@ -977,7 +977,7 @@ class FuncDefNode(StatNode, BlockNode):
         while env.is_py_class_scope or env.is_c_class_scope:
             env = env.outer_scope
         if self.needs_closure:
-            lenv = GeneratorLocalScope(name = self.entry.name, outer_scope = genv)
+            lenv = ClosureScope(name = self.entry.name, scope_name = self.entry.cname, outer_scope = genv)
         else:
             lenv = LocalScope(name = self.entry.name, outer_scope = genv)
         lenv.return_type = self.return_type
@@ -992,6 +992,8 @@ class FuncDefNode(StatNode, BlockNode):
         import Buffer
 
         lenv = self.local_scope
+        # Generate closure function definitions
+        self.body.generate_function_definitions(lenv, code)
 
         is_getbuffer_slot = (self.entry.name == "__getbuffer__" and
                              self.entry.scope.is_c_class_scope)
@@ -1007,16 +1009,23 @@ class FuncDefNode(StatNode, BlockNode):
         code.putln("")
         if self.py_func:
             self.py_func.generate_function_header(code, 
-                with_pymethdef = env.is_py_class_scope,
+                with_pymethdef = env.is_py_class_scope or env.is_closure_scope,
                 proto_only=True)
         self.generate_function_header(code,
-            with_pymethdef = env.is_py_class_scope)
+            with_pymethdef = env.is_py_class_scope or env.is_closure_scope)
         # ----- Local variable declarations
-        lenv.mangle_closure_cnames(Naming.cur_scope_cname)
-        self.generate_argument_declarations(lenv, code)
+        # lenv.mangle_closure_cnames(Naming.cur_scope_cname)
         if self.needs_closure:
-            code.putln("/* TODO: declare and create scope object */")
-        code.put_var_declarations(lenv.var_entries)
+            code.put(lenv.scope_class.type.declaration_code(lenv.closure_cname))
+            code.putln(";")
+        else:
+            self.generate_argument_declarations(lenv, code)
+            code.put_var_declarations(lenv.var_entries)
+        if env.is_closure_scope:
+            code.putln("%s = (%s)%s;" % (
+                            env.scope_class.type.declaration_code(env.closure_cname),
+                            env.scope_class.type.declaration_code(''),
+                            Naming.self_cname))
         init = ""
         if not self.return_type.is_void:
             if self.return_type.is_pyobject:
@@ -1040,6 +1049,21 @@ class FuncDefNode(StatNode, BlockNode):
             code.put_setup_refcount_context(self.entry.name)
         if is_getbuffer_slot:
             self.getbuffer_init(code)
+        # ----- Create closure scope object
+        if self.needs_closure:
+            code.putln("%s = (%s)%s->tp_new(%s, %s, NULL);" % (
+                            lenv.closure_cname,
+                            lenv.scope_class.type.declaration_code(''),
+                            lenv.scope_class.type.typeptr_cname, 
+                            lenv.scope_class.type.typeptr_cname,
+                            Naming.empty_tuple))
+            # TODO: error handling
+            # The code below assumes the local variables are innitially NULL
+            # Note that it is unsafe to decref the scope at this point.
+            for entry in lenv.arg_entries + lenv.var_entries:
+                if entry.type.is_pyobject:
+                    code.put_var_decref(entry)
+                    code.putln("%s = NULL;" % entry.cname)
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must 
@@ -1141,13 +1165,16 @@ class FuncDefNode(StatNode, BlockNode):
             for entry in lenv.var_entries:
                 if lenv.control_flow.get_state((entry.name, 'initalized')) is not True:
                     entry.xdecref_cleanup = 1
-        code.put_var_decrefs(lenv.var_entries, used_only = 1)
-        # Decref any increfed args
-        for entry in lenv.arg_entries:
-            if entry.type.is_pyobject and lenv.control_flow.get_state((entry.name, 'source')) != 'arg':
-                code.put_var_decref(entry)
 
-        # code.putln("/* TODO: decref scope object */")
+        if self.needs_closure:
+            code.put_decref(lenv.closure_cname, lenv.scope_class.type)
+        else:                
+            code.put_var_decrefs(lenv.var_entries, used_only = 1)
+            # Decref any increfed args
+            for entry in lenv.arg_entries:
+                if entry.type.is_pyobject and lenv.control_flow.get_state((entry.name, 'source')) != 'arg':
+                    code.put_var_decref(entry)
+
         # ----- Return
         # This code is duplicated in ModuleNode.generate_module_init_func
         if not lenv.nogil:
@@ -1776,16 +1803,25 @@ class DefNode(FuncDefNode):
     def analyse_expressions(self, env):
         self.local_scope.directives = env.directives
         self.analyse_default_values(env)
-        if env.is_py_class_scope:
+        if env.is_py_class_scope or env.is_closure_scope:
+            # Shouldn't we be doing this at the module level too?
             self.synthesize_assignment_node(env)
 
     def synthesize_assignment_node(self, env):
         import ExprNodes
-        self.assmt = SingleAssignmentNode(self.pos,
-            lhs = ExprNodes.NameNode(self.pos, name = self.name),
+        if env.is_py_class_scope:
             rhs = ExprNodes.UnboundMethodNode(self.pos, 
                 function = ExprNodes.PyCFunctionNode(self.pos,
-                    pymethdef_cname = self.entry.pymethdef_cname)))
+                    pymethdef_cname = self.entry.pymethdef_cname))
+        elif env.is_closure_scope:
+            self_object = ExprNodes.TempNode(self.pos, env.scope_class.type, env)
+            self_object.temp_cname = "((PyObject*)%s)" % env.closure_cname
+            rhs = ExprNodes.PyCFunctionNode(self.pos, 
+                                            self_object = self_object,
+                                            pymethdef_cname = self.entry.pymethdef_cname)
+        self.assmt = SingleAssignmentNode(self.pos,
+            lhs = ExprNodes.NameNode(self.pos, name = self.name),
+            rhs = rhs)
         self.assmt.analyse_declarations(env)
         self.assmt.analyse_expressions(env)
             

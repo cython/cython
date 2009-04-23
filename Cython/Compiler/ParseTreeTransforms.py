@@ -864,21 +864,24 @@ class CreateClosureClasses(CythonTransform):
         return node
 
     def create_class_from_scope(self, node, target_module_scope):
-        as_name = temp_name_handle("closure")
+        as_name = "%s%s" % (Naming.closure_class_prefix, node.entry.cname)
         func_scope = node.local_scope
 
         entry = target_module_scope.declare_c_class(name = as_name,
             pos = node.pos, defining = True, implementing = True)
+        func_scope.scope_class = entry
         class_scope = entry.type.scope
         for entry in func_scope.entries.values():
+            cname = entry.cname[entry.cname.index('->')+2:] # everywhere but here they're attached to this class
             class_scope.declare_var(pos=node.pos,
                                     name=entry.name,
-                                    cname=entry.cname,
+                                    cname=cname,
                                     type=entry.type,
                                     is_cdef=True)
             
     def visit_FuncDefNode(self, node):
-        self.create_class_from_scope(node, self.module_scope)
+        if node.needs_closure:
+            self.create_class_from_scope(node, self.module_scope)
         return node
 
 

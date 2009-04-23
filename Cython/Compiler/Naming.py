@@ -44,6 +44,8 @@ vtabptr_prefix    = pyrex_prefix + "vtabptr_"
 vtabstruct_prefix = pyrex_prefix + "vtabstruct_"
 opt_arg_prefix    = pyrex_prefix + "opt_args_"
 convert_func_prefix = pyrex_prefix + "convert_"
+closure_scope_prefix = pyrex_prefix + "scope_"
+closure_class_prefix = pyrex_prefix + "scope_struct_"
 
 args_cname       = pyrex_prefix + "args"
 pykwdlist_cname  = pyrex_prefix + "pyargnames"
@@ -81,8 +83,6 @@ pymoduledef_cname = pyrex_prefix + "moduledef"
 optional_args_cname = pyrex_prefix + "optional_args"
 import_star      = pyrex_prefix + "import_star"
 import_star_set  = pyrex_prefix + "import_star_set"
-cur_scope_cname  = pyrex_prefix + "cur_scope"
-enc_scope_cname  = pyrex_prefix + "enc_scope"
 
 line_c_macro = "__LINE__"
 
