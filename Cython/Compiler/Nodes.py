@@ -840,16 +840,19 @@ class CStructOrUnionDefNode(StatNode):
     #  in_pxd        boolean
     #  attributes    [CVarDefNode] or None
     #  entry         Entry
+    #  packed        boolean
     
     child_attrs = ["attributes"]
 
     def analyse_declarations(self, env):
         scope = None
+        if self.visibility == 'extern' and self.packed:
+            error(self.pos, "Cannot declare extern struct as 'packed'")
         if self.attributes is not None:
             scope = StructOrUnionScope(self.name)
         self.entry = env.declare_struct_or_union(
             self.name, self.kind, scope, self.typedef_flag, self.pos,
-            self.cname, visibility = self.visibility)
+            self.cname, visibility = self.visibility, packed = self.packed)
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
