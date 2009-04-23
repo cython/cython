@@ -1741,13 +1741,13 @@ static INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
     return Py_INCREF(x), x;
   m = Py_TYPE(x)->tp_as_number;
 #if PY_VERSION_HEX < 0x03000000
-  if (m && m->nb_long) {
-    name = "long";
-    res = PyNumber_Long(x);
-  }
-  else if (m && m->nb_int) {
+  if (m && m->nb_int) {
     name = "int";
     res = PyNumber_Int(x);
+  }
+  else if (m && m->nb_long) {
+    name = "long";
+    res = PyNumber_Long(x);
   }
 #else
   if (m && m->nb_int) {
