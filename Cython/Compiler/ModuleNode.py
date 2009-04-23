@@ -56,6 +56,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             env.doc = self.doc
         env.directives = self.directives
+        if Options.embed:
+            self.__main__cname = env.intern_identifier(EncodedString("__main__"))
         self.body.analyse_declarations(env)
     
     def process_implementation(self, options, result):
@@ -275,6 +277,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_module_init_func(modules[:-1], env, code)
         code.mark_pos(None)
         self.generate_module_cleanup_func(env, code)
+        if Options.embed:
+            self.generate_main_method(env, code)
         self.generate_filename_table(code)
         self.generate_utility_functions(env, code, h_code)
 
@@ -651,9 +655,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         type = entry.type
         scope = type.scope
         if scope:
+            kind = type.kind
+            packed = type.is_struct and type.packed
+            if packed:
+                kind = "%s %s" % (type.kind, "__Pyx_PACKED")
+                code.globalstate.use_utility_code(packed_struct_utility_code)
             header, footer = \
-                self.sue_header_footer(type, type.kind, type.cname)
+                self.sue_header_footer(type, kind, type.cname)
             code.putln("")
+            if packed:
+                code.putln("#if !defined(__GNUC__)")
+                code.putln("#pragma pack(push, 1)")
+                code.putln("#endif")
             code.putln(header)
             var_entries = scope.var_entries
             if not var_entries:
@@ -665,6 +678,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "%s;" %
                         attr.type.declaration_code(attr.cname))
             code.putln(footer)
+            if packed:
+                code.putln("#if !defined(__GNUC__)")
+                code.putln("#pragma pack(pop)")
+                code.putln("#endif")
 
     def generate_enum_definition(self, entry, code):
         code.mark_pos(entry.pos)
@@ -1734,6 +1751,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("Py_INCREF(Py_None); return Py_None;")
         code.putln('}')
 
+    def generate_main_method(self, env, code):
+        code.globalstate.use_utility_code(main_method.specialize(module_name=env.module_name))
+
     def generate_filename_init_call(self, code):
         code.putln("%s();" % Naming.fileinit_cname)
 
@@ -1798,6 +1818,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_cname,
                 Naming.builtins_cname,
                 code.error_goto(self.pos)))
+        if Options.embed:
+            code.putln(
+                'if (__Pyx_SetAttrString(%s, "__name__", %s) < 0) %s;' % (
+                    env.module_cname,
+                    self.__main__cname,
+                    code.error_goto(self.pos)))
         if Options.pre_import is not None:
             code.putln(
                 '%s = PyImport_AddModule(__Pyx_NAMESTR("%s"));' % (
@@ -2442,3 +2468,35 @@ static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
 #define __Pyx_XGIVEREF(r) if((r) == NULL) ; else __Pyx_GIVEREF(r)
 #define __Pyx_XGOTREF(r) if((r) == NULL) ; else __Pyx_GOTREF(r)
 """)
+
+main_method = UtilityCode(
+impl = """
+int main(int argc, char** argv) {
+    int r = 0;
+    PyObject* m = NULL;
+    Py_SetProgramName(argv[0]);
+    Py_Initialize();
+    PySys_SetArgv(argc, argv);
+#if PY_MAJOR_VERSION < 3
+        init%(module_name)s();
+#else
+        m = PyInit_%(module_name)s(name);
+#endif
+    if (PyErr_Occurred() != NULL) {
+        r = 1;
+        PyErr_Print(); /* This exits with the right code if SystemExit. */
+        if (Py_FlushLine()) PyErr_Clear();
+    }
+    Py_XDECREF(m);
+    Py_Finalize();
+    return r;
+}
+""")
+
+packed_struct_utility_code = UtilityCode(proto="""
+#if defined(__GNUC__)
+#define __Pyx_PACKED __attribute__((__packed__))
+#else
+#define __Pyx_PACKED
+#endif
+""", impl="")
