@@ -1057,7 +1057,6 @@ class LocalScope(Scope):
         entry = Scope.lookup(self, name)
         if entry is not None:
             if entry.scope is not self and entry.scope.is_closure_scope:
-                print "making new entry for", entry.cname, "in", self
                 # The actual c fragment for the different scopes differs 
                 # on the outside and inside, so we make a new entry
                 entry.in_closure = True
@@ -1072,9 +1071,7 @@ class LocalScope(Scope):
         return entry
             
     def mangle_closure_cnames(self, outer_scope_cname):
-        print "mangling", self
         for entry in self.entries.values():
-            print entry.name, entry.in_closure, entry.from_closure
             if entry.from_closure:
                 cname = entry.outer_entry.cname
                 if cname.startswith(Naming.cur_scope_cname):
@@ -1083,8 +1080,7 @@ class LocalScope(Scope):
             elif entry.in_closure:
                 entry.original_cname = entry.cname
                 entry.cname = "%s->%s" % (Naming.cur_scope_cname, entry.cname)
-            print entry.cname                
-
+            
 class ClosureScope(LocalScope):
 
     is_closure_scope = True

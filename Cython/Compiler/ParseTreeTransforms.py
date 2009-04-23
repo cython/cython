@@ -865,8 +865,6 @@ class CreateClosureClasses(CythonTransform):
 
     def create_class_from_scope(self, node, target_module_scope):
     
-        print node.entry.scope.is_closure_scope
-    
         as_name = "%s%s" % (Naming.closure_class_prefix, node.entry.cname)
         func_scope = node.local_scope
 
@@ -875,7 +873,6 @@ class CreateClosureClasses(CythonTransform):
         func_scope.scope_class = entry
         class_scope = entry.type.scope
         if node.entry.scope.is_closure_scope:
-            print "yes", class_scope
             class_scope.declare_var(pos=node.pos,
                                     name=Naming.outer_scope_cname, # this could conflict?
                                     cname=Naming.outer_scope_cname,
