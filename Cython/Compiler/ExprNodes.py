@@ -3621,6 +3621,32 @@ class ClassNode(ExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
+class BoundMethodNode(ExprNode):
+    #  Helper class used in the implementation of Python
+    #  class definitions. Constructs an bound method
+    #  object from a class and a function.
+    #
+    #  function      ExprNode   Function object
+    #  self_object   ExprNode   self object
+    
+    subexprs = ['function']
+    
+    def analyse_types(self, env):
+        self.function.analyse_types(env)
+        self.type = py_object_type
+        self.is_temp = 1
+
+    gil_message = "Constructing an bound method"
+
+    def generate_result_code(self, code):
+        code.putln(
+            "%s = PyMethod_New(%s, %s, (PyObject*)%s->ob_type); %s" % (
+                self.result(),
+                self.function.py_result(),
+                self.self_object.py_result(),
+                self.self_object.py_result(),
+                code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
 
 class UnboundMethodNode(ExprNode):
     #  Helper class used in the implementation of Python
@@ -3654,6 +3680,9 @@ class PyCFunctionNode(AtomicExprNode):
     #  from a PyMethodDef struct.
     #
     #  pymethdef_cname   string   PyMethodDef structure
+    #  self_object       ExprNode or None
+    
+    self_object = None
     
     def analyse_types(self, env):
         self.type = py_object_type
@@ -3662,10 +3691,15 @@ class PyCFunctionNode(AtomicExprNode):
     gil_message = "Constructing Python function"
 
     def generate_result_code(self, code):
+        if self.self_object is None:
+            self_result = "NULL"
+        else:
+            self_result = self.self_object.py_result()
         code.putln(
-            "%s = PyCFunction_New(&%s, 0); %s" % (
+            "%s = PyCFunction_New(&%s, %s); %s" % (
                 self.result(),
                 self.pymethdef_cname,
+                self_result,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 

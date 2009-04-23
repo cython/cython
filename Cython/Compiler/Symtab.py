@@ -204,6 +204,7 @@ class Scope(object):
 
     is_py_class_scope = 0
     is_c_class_scope = 0
+    is_closure_scope = 0
     is_module_scope = 0
     scope_prefix = ""
     in_cinclude = 0
@@ -1071,15 +1072,33 @@ class LocalScope(Scope):
                 entry.cname = scope_var + "->" + entry.cname
                 
 
-class GeneratorLocalScope(LocalScope):
+class ClosureScope(LocalScope):
 
-    def mangle_closure_cnames(self, scope_var):
+    is_closure_scope = True
+
+    def __init__(self, name, scope_name, outer_scope):
+        LocalScope.__init__(self, name, outer_scope)
+        self.closure_cname = "%s%s" % (Naming.closure_scope_prefix, scope_name)
+
+#    def mangle_closure_cnames(self, scope_var):
 #        for entry in self.entries.values() + self.temp_entries:
 #            entry.in_closure = 1
-        LocalScope.mangle_closure_cnames(self, scope_var)
+#        LocalScope.mangle_closure_cnames(self, scope_var)
     
-#    def mangle(self, prefix, name):
-#        return "%s->%s" % (Naming.scope_obj_cname, name)
+    def mangle(self, prefix, name):
+        return "%s->%s" % (self.closure_cname, name)
+
+    def declare_pyfunction(self, name, pos):
+        # Add an entry for a Python function.
+        entry = self.lookup_here(name)
+        if entry and not entry.type.is_cfunction:
+            # This is legal Python, but for now may produce invalid C.
+            error(pos, "'%s' already declared" % name)
+        entry = self.declare_var(name, py_object_type, pos)
+        entry.signature = pyfunction_signature
+        self.pyfunc_entries.append(entry)
+        return entry
+
 
 class StructOrUnionScope(Scope):
     #  Namespace of a C struct or union.
