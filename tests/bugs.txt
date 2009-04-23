@@ -14,4 +14,3 @@ large_consts_T237
 bad_c_struct_T252
 missing_baseclass_in_predecl_T262
 ifelseexpr_T267
-cdef_setitem_T284

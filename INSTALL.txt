@@ -1,5 +1,5 @@
-Pyrex - Installation Instructions
-=================================
+Cython - Installation Instructions
+==================================
 
 You have two installation options:
 
@@ -8,7 +8,7 @@ You have two installation options:
 
         python setup.py install
 
-    This will install the Pyrex package
+    This will install the Cython package
     into your Python system.
 
 OR
