@@ -992,6 +992,12 @@ class FuncDefNode(StatNode, BlockNode):
         import Buffer
 
         lenv = self.local_scope
+        if lenv.is_closure_scope:
+            outer_scope_cname = "%s->%s" % (Naming.cur_scope_cname,
+                                            Naming.outer_scope_cname)
+        else:
+            outer_scope_cname = Naming.outer_scope_cname
+        lenv.mangle_closure_cnames(outer_scope_cname)
         # Generate closure function definitions
         self.body.generate_function_definitions(lenv, code)
 
@@ -1014,18 +1020,16 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_function_header(code,
             with_pymethdef = env.is_py_class_scope or env.is_closure_scope)
         # ----- Local variable declarations
-        # lenv.mangle_closure_cnames(Naming.cur_scope_cname)
-        if self.needs_closure:
-            code.put(lenv.scope_class.type.declaration_code(lenv.closure_cname))
+        if lenv.is_closure_scope:
+            code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname))
             code.putln(";")
-        else:
-            self.generate_argument_declarations(lenv, code)
-            code.put_var_declarations(lenv.var_entries)
-        if env.is_closure_scope:
-            code.putln("%s = (%s)%s;" % (
-                            env.scope_class.type.declaration_code(env.closure_cname),
-                            env.scope_class.type.declaration_code(''),
-                            Naming.self_cname))
+        if env.is_closure_scope and not lenv.is_closure_scope:
+            code.put(env.scope_class.type.declaration_code(Naming.outer_scope_cname))
+            code.putln(";")
+        self.generate_argument_declarations(lenv, code)
+        for entry in lenv.var_entries:
+            if not entry.in_closure:
+                code.put_var_declaration(entry)
         init = ""
         if not self.return_type.is_void:
             if self.return_type.is_pyobject:
@@ -1052,7 +1056,7 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Create closure scope object
         if self.needs_closure:
             code.putln("%s = (%s)%s->tp_new(%s, %s, NULL);" % (
-                            lenv.closure_cname,
+                            Naming.cur_scope_cname,
                             lenv.scope_class.type.declaration_code(''),
                             lenv.scope_class.type.typeptr_cname, 
                             lenv.scope_class.type.typeptr_cname,
@@ -1061,9 +1065,15 @@ class FuncDefNode(StatNode, BlockNode):
             # The code below assumes the local variables are innitially NULL
             # Note that it is unsafe to decref the scope at this point.
             for entry in lenv.arg_entries + lenv.var_entries:
-                if entry.type.is_pyobject:
-                    code.put_var_decref(entry)
-                    code.putln("%s = NULL;" % entry.cname)
+                if entry.in_closure and entry.type.is_pyobject:
+                    code.put_var_decref_clear(entry)
+        if env.is_closure_scope:
+            if lenv.is_closure_scope:
+                code.put_decref(outer_scope_cname, env.scope_class.type)
+            code.putln("%s = (%s)%s;" % (
+                            outer_scope_cname,
+                            env.scope_class.type.declaration_code(''),
+                            Naming.self_cname))
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must 
@@ -1167,13 +1177,16 @@ class FuncDefNode(StatNode, BlockNode):
                     entry.xdecref_cleanup = 1
 
         if self.needs_closure:
-            code.put_decref(lenv.closure_cname, lenv.scope_class.type)
-        else:                
-            code.put_var_decrefs(lenv.var_entries, used_only = 1)
-            # Decref any increfed args
-            for entry in lenv.arg_entries:
-                if entry.type.is_pyobject and lenv.control_flow.get_state((entry.name, 'source')) != 'arg':
-                    code.put_var_decref(entry)
+            code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
+        for entry in lenv.var_entries:
+            if entry.used and not entry.in_closure:
+                code.put_var_decref(entry)
+        # Decref any increfed args
+        for entry in lenv.arg_entries:
+            if (entry.type.is_pyobject 
+                    and not entry.in_closure
+                    and lenv.control_flow.get_state((entry.name, 'source')) != 'arg'):
+                code.put_var_decref(entry)
 
         # ----- Return
         # This code is duplicated in ModuleNode.generate_module_init_func
@@ -1815,7 +1828,7 @@ class DefNode(FuncDefNode):
                     pymethdef_cname = self.entry.pymethdef_cname))
         elif env.is_closure_scope:
             self_object = ExprNodes.TempNode(self.pos, env.scope_class.type, env)
-            self_object.temp_cname = "((PyObject*)%s)" % env.closure_cname
+            self_object.temp_cname = "((PyObject*)%s)" % Naming.cur_scope_cname
             rhs = ExprNodes.PyCFunctionNode(self.pos, 
                                             self_object = self_object,
                                             pymethdef_cname = self.entry.pymethdef_cname)
@@ -1870,7 +1883,7 @@ class DefNode(FuncDefNode):
             if arg.is_generic: # or arg.needs_conversion:
                 if arg.needs_conversion:
                     code.putln("PyObject *%s = 0;" % arg.hdr_cname)
-                else:
+                elif not entry.in_closure:
                     code.put_var_declaration(arg.entry)
 
     def generate_keyword_list(self, code):

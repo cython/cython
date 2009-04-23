@@ -19,6 +19,7 @@ try:
     set
 except NameError:
     from sets import Set as set
+import copy
 
 possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
@@ -140,6 +141,7 @@ class Entry(object):
     is_arg = 0
     is_local = 0
     in_closure = 0
+    from_closure = 0
     is_declared_generic = 0
     is_readonly = 0
     func_cname = None
@@ -499,14 +501,7 @@ class Scope(object):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
         return (self.lookup_here(name)
-            or (self.outer_scope and self.outer_scope.lookup_from_inner(name))
-            or None)
-
-    def lookup_from_inner(self, name):
-        # Look up name in this scope or an enclosing one.
-        # This is only called from enclosing scopes.
-        return (self.lookup_here(name)
-            or (self.outer_scope and self.outer_scope.lookup_from_inner(name))
+            or (self.outer_scope and self.outer_scope.lookup(name))
             or None)
 
     def lookup_here(self, name):
@@ -1013,7 +1008,7 @@ class ModuleScope(Scope):
         var_entry.is_readonly = 1
         entry.as_variable = var_entry
         
-class LocalScope(Scope):    
+class LocalScope(Scope):
 
     def __init__(self, name, outer_scope):
         Scope.__init__(self, name, outer_scope, outer_scope)
@@ -1056,21 +1051,39 @@ class LocalScope(Scope):
             entry = self.global_scope().lookup_target(name)
             self.entries[name] = entry
         
-    def lookup_from_inner(self, name):
-        entry = self.lookup_here(name)
-        if entry:
-            entry.in_closure = 1
-            return entry
-        else:
-            return (self.outer_scope and self.outer_scope.lookup_from_inner(name)) or None
+    def lookup(self, name):
+        # Look up name in this scope or an enclosing one.
+        # Return None if not found.
+        entry = Scope.lookup(self, name)
+        if entry is not None:
+            if entry.scope is not self and entry.scope.is_closure_scope:
+                print "making new entry for", entry.cname, "in", self
+                # The actual c fragment for the different scopes differs 
+                # on the outside and inside, so we make a new entry
+                entry.in_closure = True
+                # Would it be better to declare_var here?
+                inner_entry = Entry(entry.name, entry.cname, entry.type, entry.pos)
+                inner_entry.scope = self
+                inner_entry.is_variable = True
+                inner_entry.outer_entry = entry
+                inner_entry.from_closure = True
+                self.entries[name] = inner_entry
+                return inner_entry
+        return entry
             
-    def mangle_closure_cnames(self, scope_var):
+    def mangle_closure_cnames(self, outer_scope_cname):
+        print "mangling", self
         for entry in self.entries.values():
-            if entry.in_closure:
-                if not hasattr(entry, 'orig_cname'):
-                    entry.orig_cname = entry.cname
-                entry.cname = scope_var + "->" + entry.cname
-                
+            print entry.name, entry.in_closure, entry.from_closure
+            if entry.from_closure:
+                cname = entry.outer_entry.cname
+                if cname.startswith(Naming.cur_scope_cname):
+                    cname = cname[len(Naming.cur_scope_cname)+2:]
+                entry.cname = "%s->%s" % (outer_scope_cname, cname)
+            elif entry.in_closure:
+                entry.original_cname = entry.cname
+                entry.cname = "%s->%s" % (Naming.cur_scope_cname, entry.cname)
+            print entry.cname                
 
 class ClosureScope(LocalScope):
 
@@ -1085,8 +1098,9 @@ class ClosureScope(LocalScope):
 #            entry.in_closure = 1
 #        LocalScope.mangle_closure_cnames(self, scope_var)
     
-    def mangle(self, prefix, name):
-        return "%s->%s" % (self.closure_cname, name)
+#    def mangle(self, prefix, name):
+#        return "%s->%s" % (self.cur_scope_cname, name)
+#        return "%s->%s" % (self.closure_cname, name)
 
     def declare_pyfunction(self, name, pos):
         # Add an entry for a Python function.
