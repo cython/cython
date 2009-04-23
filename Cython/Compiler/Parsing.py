@@ -2078,7 +2078,7 @@ def p_cdef_statement(s, ctx):
         #if ctx.api:
         #    error(pos, "'api' not allowed with extension class")
         return p_c_class_definition(s, pos, ctx)
-    elif s.sy == 'IDENT' and s.systring in struct_union_or_enum:
+    elif s.sy == 'IDENT' and s.systring in ("struct", "union", "enum", "packed"):
         if ctx.level not in ('module', 'module_pxd'):
             error(pos, "C struct/union/enum definition not allowed here")
         #if ctx.visibility == 'public':
@@ -2113,10 +2113,6 @@ def p_cdef_extern_block(s, pos, ctx):
     return Nodes.CDefExternNode(pos,
         include_file = include_file,
         body = body)
-
-struct_union_or_enum = (
-    "struct", "union", "enum"
-)
 
 def p_c_enum_definition(s, pos, ctx):
     # s.sy == ident 'enum'
@@ -2168,6 +2164,12 @@ def p_c_enum_item(s, items):
         name = name, cname = cname, value = value))
 
 def p_c_struct_or_union_definition(s, pos, ctx):
+    packed = False
+    if s.systring == 'packed':
+        packed = True
+        s.next()
+        if s.sy != 'IDENT' and s.systring != 'struct':
+            s.expected('struct')
     # s.sy == ident 'struct' or 'union'
     kind = s.systring
     s.next()
@@ -2193,7 +2195,7 @@ def p_c_struct_or_union_definition(s, pos, ctx):
     return Nodes.CStructOrUnionDefNode(pos, 
         name = name, cname = cname, kind = kind, attributes = attributes,
         typedef_flag = ctx.typedef_flag, visibility = ctx.visibility,
-        in_pxd = ctx.level == 'module_pxd')
+        in_pxd = ctx.level == 'module_pxd', packed = packed)
 
 def p_visibility(s, prev_visibility):
     pos = s.position()
@@ -2265,7 +2267,7 @@ def p_ctypedef_statement(s, ctx):
         ctx.api = 1
     if s.sy == 'class':
         return p_c_class_definition(s, pos, ctx)
-    elif s.sy == 'IDENT' and s.systring in ('struct', 'union', 'enum'):
+    elif s.sy == 'IDENT' and s.systring in ('packed', 'struct', 'union', 'enum'):
         if s.systring == 'enum':
             return p_c_enum_definition(s, pos, ctx)
         else:
