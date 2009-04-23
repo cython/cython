@@ -83,6 +83,8 @@ pymoduledef_cname = pyrex_prefix + "moduledef"
 optional_args_cname = pyrex_prefix + "optional_args"
 import_star      = pyrex_prefix + "import_star"
 import_star_set  = pyrex_prefix + "import_star_set"
+cur_scope_cname  = pyrex_prefix + "scope"
+outer_scope_cname= pyrex_prefix + "outer_scope"
 
 line_c_macro = "__LINE__"
 
