@@ -2461,6 +2461,7 @@ impl = """
 int main(int argc, char** argv) {
     int r = 0;
     PyObject* m = NULL;
+    Py_SetProgramName(argv[0]);
     Py_Initialize();
     PySys_SetArgv(argc, argv);
 #if PY_MAJOR_VERSION < 3
@@ -2471,7 +2472,7 @@ int main(int argc, char** argv) {
     if (PyErr_Occurred() != NULL) {
         r = 1;
         PyErr_Print(); /* This exits with the right code if SystemExit. */
-        if (Py_FlushLine()); PyErr_Clear();
+        if (Py_FlushLine()) PyErr_Clear();
     }
     Py_XDECREF(m);
     Py_Finalize();
