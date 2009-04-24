@@ -1449,3 +1449,18 @@ def complex_struct_inplace(object[LongComplex] buf):
     buf[0].imag += 2
     print buf[0].real, buf[0].imag
     
+#
+# Nogil
+#
+@testcase
+@cython.boundscheck(False)
+def buffer_nogil():
+    """
+    >>> buffer_nogil()
+    10
+    """
+    cdef object[int] buf = IntMockBuffer(None, [1,2,3])
+    with nogil:
+        buf[1] = 10
+    return buf[1]
+    
