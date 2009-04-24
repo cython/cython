@@ -47,7 +47,7 @@ else:
     scripts = ["cython.py"]
 
 try:
-    if version is None:
+    if sys.version_info[0] >= 3:
         raise ValueError
     sys.argv.remove("--no-cython-compile")
 except ValueError:
