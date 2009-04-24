@@ -13,6 +13,11 @@ from StringEncoding import EncodedString
 from Errors import error
 from ParseTreeTransforms import SkipDeclarations
 
+try:
+    reduce
+except NameError:
+    from functools import reduce
+
 #def unwrap_node(node):
 #    while isinstance(node, ExprNodes.PersistentNode):
 #        node = node.arg

@@ -23,7 +23,7 @@ def cmod(a, b):
 # Emulated language constructs
 
 def cast(type, arg):
-    if callable(type):
+    if hasattr(type, '__call__'):
         return type(arg)
     else:
         return arg
@@ -35,7 +35,7 @@ def address(arg):
     return pointer(type(arg))([arg])
     
 def declare(type=None, value=None, **kwds):
-    if type and callable(type):
+    if type is not None and hasattr(type, '__call__'):
         if value:
             return type(value)
         else:
