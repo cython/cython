@@ -2,10 +2,7 @@ from distutils.core import setup, Extension
 from distutils.sysconfig import get_python_lib
 import os, os.path
 import sys
-try:
-    from Cython.Compiler.Version import version
-except ImportError:
-    version = None
+from Cython.Compiler.Version import version
 
 compiler_dir = os.path.join(get_python_lib(prefix=''), 'Cython/Compiler')
 if sys.platform == "win32":
