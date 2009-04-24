@@ -150,9 +150,12 @@ class typedef(CythonType):
         
 
 
-py_int = int
-py_long = long
 py_float = float
+py_int = int
+try:
+    py_long = long
+except NameError: # Py3
+    py_long = int
 
 
 # Predefined types
