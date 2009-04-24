@@ -2,13 +2,28 @@ from distutils.core import setup, Extension
 from distutils.sysconfig import get_python_lib
 import os, os.path
 import sys
-from Cython.Compiler.Version import version
+try:
+    from Cython.Compiler.Version import version
+except ImportError:
+    version = None
 
 compiler_dir = os.path.join(get_python_lib(prefix=''), 'Cython/Compiler')
 if sys.platform == "win32":
     compiler_dir = compiler_dir[len(sys.prefix)+1:]
 
 setup_args = {}
+
+if sys.version_info[0] >= 3:
+    import lib2to3.refactor
+    from distutils.command.build_py \
+         import build_py_2to3 as build_py
+    # need to convert sources to Py3 on installation
+    fixers = [ fix for fix in lib2to3.refactor.get_fixers_from_package("lib2to3.fixes")
+               if fix.split('fix_')[-1] not in ('next',)
+               ]
+    build_py.fixer_names = fixers
+    setup_args['cmdclass'] = {"build_py" : build_py}
+
 
 if sys.version_info < (2,4):
     import glob
@@ -35,6 +50,8 @@ else:
     scripts = ["cython.py"]
 
 try:
+    if version is None:
+        raise ValueError
     sys.argv.remove("--no-cython-compile")
 except ValueError:
     try:
