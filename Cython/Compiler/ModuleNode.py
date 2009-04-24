@@ -55,6 +55,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             env.doc = self.doc
         env.directives = self.directives
+        if Options.embed:
+            self.__main__cname = env.intern_identifier(EncodedString("__main__"))
         self.body.analyse_declarations(env)
     
     def process_implementation(self, options, result):
@@ -249,7 +251,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.globalstate.use_utility_code(refcount_utility_code)
 
-        code.putln('const char *%s = "%s";' % (Naming.modulename_cname, self.full_module_name))
+        code.putln('#define __Pyx_MODULE_NAME "%s"' % self.full_module_name)
         code.putln("")
         code.putln("/* Implementation of %s */" % env.qualified_name)
 
@@ -267,6 +269,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_module_init_func(modules[:-1], env, code)
         code.mark_pos(None)
         self.generate_module_cleanup_func(env, code)
+        if Options.embed:
+            self.generate_main_method(env, code)
         self.generate_filename_table(code)
         self.generate_utility_functions(env, code, h_code)
 
@@ -1723,6 +1727,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("Py_INCREF(Py_None); return Py_None;")
         code.putln('}')
 
+    def generate_main_method(self, env, code):
+        code.globalstate.use_utility_code(main_method.specialize(module_name=env.module_name))
+
     def generate_filename_init_call(self, code):
         code.putln("%s();" % Naming.fileinit_cname)
 
@@ -1787,6 +1794,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_cname,
                 Naming.builtins_cname,
                 code.error_goto(self.pos)))
+        if Options.embed:
+            code.putln(
+                'if (__Pyx_SetAttrString(%s, "__name__", %s) < 0) %s;' % (
+                    env.module_cname,
+                    self.__main__cname,
+                    code.error_goto(self.pos)))
         if Options.pre_import is not None:
             code.putln(
                 '%s = PyImport_AddModule(__Pyx_NAMESTR("%s"));' % (
@@ -2430,4 +2443,28 @@ static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
 #endif /* CYTHON_REFNANNY */
 #define __Pyx_XGIVEREF(r) if((r) == NULL) ; else __Pyx_GIVEREF(r)
 #define __Pyx_XGOTREF(r) if((r) == NULL) ; else __Pyx_GOTREF(r)
+""")
+
+main_method = UtilityCode(
+impl = """
+int main(int argc, char** argv) {
+    int r = 0;
+    PyObject* m = NULL;
+    Py_SetProgramName(argv[0]);
+    Py_Initialize();
+    PySys_SetArgv(argc, argv);
+#if PY_MAJOR_VERSION < 3
+        init%(module_name)s();
+#else
+        m = PyInit_%(module_name)s(name);
+#endif
+    if (PyErr_Occurred() != NULL) {
+        r = 1;
+        PyErr_Print(); /* This exits with the right code if SystemExit. */
+        if (Py_FlushLine()) PyErr_Clear();
+    }
+    Py_XDECREF(m);
+    Py_Finalize();
+    return r;
+}
 """)
