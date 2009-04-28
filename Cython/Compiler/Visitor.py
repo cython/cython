@@ -150,6 +150,7 @@ class TreeVisitor(BasicVisitor):
         except Errors.CompileError:
             raise
         except Exception, e:
+            raise
             import sys
             trace = ['']
             for parent, attribute, index in self.access_path:
