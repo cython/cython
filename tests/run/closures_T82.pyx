@@ -73,13 +73,13 @@ def inner_override(a,b):
 def reassign(x):
     def f(a):
         return a+x
-    x = 1 # currently lacks a GIVEREF()
+    x = 1
     return f
 
 def reassign_int(x):
     def f(int a):
         return a+x
-    x = 1 # currently lacks a GIVEREF()
+    x = 1
     return f
 
 def reassign_int_int(int x):
@@ -100,15 +100,15 @@ def cy_twofuncs(x):
 
 def more_inner_funcs(x):
     # pretty ugly segfault
-    def f(a): # this lacks a GIVEREF()
+    def f(a):
         def g(b):
             return a+b+x
         return g
-    def g(b): # this lacks a GIVEREF()
+    def g(b):
         def f(a):
             return a+b+x
         return f
-    def h(b): # this lacks a GIVEREF()
+    def h(b):
         def f(a):
             return a+b+x
         return f
