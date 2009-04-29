@@ -35,6 +35,10 @@ __doc__ = u"""
 #>>> py_twofuncs(3)(5) == cy_twofuncs(3)(5)
 #True
 
+>>> inner_funcs = more_inner_funcs(1)(2,4,8)
+# this currently segfaults:
+#>>> inner_funcs[0](16), inner_funcs[1](32), inner_funcs[2](64)
+
 """
 
 def add_n(int n):
@@ -86,9 +90,28 @@ def reassign_int_int(int x):
 
 
 def cy_twofuncs(x):
-    # pretty ugly segfault
+    # pretty ugly segfault in PyEval_EvalFrameEx() *after* calling cy_twofuncs() !
     def f(a):
         return g(x) + a
     def g(b):
         return x + b
     return f
+
+
+def more_inner_funcs(x):
+    # pretty ugly segfault
+    def f(a): # this lacks a GIVEREF()
+        def g(b):
+            return a+b+x
+        return g
+    def g(b): # this lacks a GIVEREF()
+        def f(a):
+            return a+b+x
+        return f
+    def h(b): # this lacks a GIVEREF()
+        def f(a):
+            return a+b+x
+        return f
+    def resolve(a_f, b_g, b_h):
+        return f(a_f), g(b_g), h(b_h)
+    return resolve
