@@ -1203,11 +1203,9 @@ class NameNode(AtomicExprNode):
                             code.put_xdecref(self.result(), self.ctype())
                     else:
                         code.put_decref(self.result(), self.ctype())
-                if entry.is_cglobal:
+                if entry.is_cglobal or entry.in_closure:
                     code.put_giveref(rhs.py_result())
             code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
-            if self.type.is_pyobject and self.entry.in_closure:
-                code.put_giveref(self.result())
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
                 print("...generating post-assignment code for %s" % rhs)
