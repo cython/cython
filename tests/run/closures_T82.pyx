@@ -6,6 +6,10 @@ __doc__ = u"""
 >>> a(5)()
 8
 
+>>> local_x(1)(2)(4)
+4 2 1
+15
+
 # this currently segfaults:
 #>>> x(1)(2)(4)
 #15
@@ -36,6 +40,7 @@ __doc__ = u"""
 #True
 
 >>> inner_funcs = more_inner_funcs(1)(2,4,8)
+
 # this currently segfaults:
 #>>> inner_funcs[0](16), inner_funcs[1](32), inner_funcs[2](64)
 
@@ -53,14 +58,25 @@ def a(int x):
         return c()
     return b
 
-
-def x(int x):
-    # currently segfaults
-    def y(y):
-        def z(long z):
-            return 8+z+y+x
+def local_x(int arg_x):
+    cdef int local_x = arg_x
+    def y(arg_y):
+        y = arg_y
+        def z(long arg_z):
+            cdef long z = arg_z
+            print z, y, local_x
+            return 8+z+y+local_x
         return z
     return y
+
+# currently crashes Cython due to name redefinitions (see local_x())
+## def x(int x):
+##     # currently segfaults
+##     def y(y):
+##         def z(long z):
+##             return 8+z+y+x
+##         return z
+##     return y
 
 
 def inner_override(a,b):
@@ -90,7 +106,7 @@ def reassign_int_int(int x):
 
 
 def cy_twofuncs(x):
-    # pretty ugly segfault in PyEval_EvalFrameEx() *after* calling cy_twofuncs() !
+    # currently segfaults: adding NULL pointers
     def f(a):
         return g(x) + a
     def g(b):
