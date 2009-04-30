@@ -110,18 +110,18 @@ class UtilityCode(object):
     def write_init_code(self, writer, pos):
         if not self.init:
             return
-        if callable(self.init):
-            self.init(writer, pos)
-        else:
+        if isinstance(self.init, basestring):
             writer.put(self.init)
+        else:
+            self.init(writer, pos)
 
     def write_cleanup_code(self, writer, pos):
         if not self.cleanup:
             return
-        if callable(self.cleanup):
-            self.cleanup(writer, pos)
-        else:
+        if isinstance(self.cleanup, basestring):
             writer.put(self.cleanup)
+        else:
+            self.cleanup(writer, pos)
     
     def specialize(self, pyrex_type=None, **data):
         # Dicts aren't hashable...

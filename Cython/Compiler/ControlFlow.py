@@ -13,7 +13,13 @@ import bisect, sys
 # redesigned. It doesn't take return, raise, continue, or break into 
 # account. 
 
-_END_POS = ((unichr(sys.maxunicode)*10),())
+from Cython.Compiler.Scanning import StringSourceDescriptor
+try:
+    _END_POS = (StringSourceDescriptor(unichr(sys.maxunicode)*10, ''),
+                sys.maxint, sys.maxint)
+except AttributeError: # Py3
+    _END_POS = (StringSourceDescriptor(unichr(sys.maxunicode)*10, ''),
+                sys.maxsize, sys.maxsize)
 
 class ControlFlow(object):
 
