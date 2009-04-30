@@ -43,6 +43,7 @@ True
 
 >>> inner_funcs = more_inner_funcs(1)(2,4,8)
 >>> inner_funcs[0](16), inner_funcs[1](32), inner_funcs[2](64)
+(19, 37, 73)
 
 """
 
@@ -120,18 +121,23 @@ def cy_twofuncs(x):
 
 
 def more_inner_funcs(x):
+    # called with x==1
     def f(a):
         def g(b):
+            # called with 16
             return a+b+x
         return g
     def g(b):
         def f(a):
+            # called with 32
             return a+b+x
         return f
     def h(b):
         def f(a):
+            # called with 64
             return a+b+x
         return f
     def resolve(a_f, b_g, b_h):
+        # called with (2,4,8)
         return f(a_f), g(b_g), h(b_h)
     return resolve
