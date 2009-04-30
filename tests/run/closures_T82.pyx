@@ -15,6 +15,7 @@ __doc__ = u"""
 #15
 
 >>> x2(1)(2)(4)
+4 2 1
 15
 
 >>> inner_override(2,4)()
@@ -81,6 +82,7 @@ def local_x(int arg_x):
 def x2(int x2):
     def y2(y2):
         def z2(long z2):
+            print z2, y2, x2
             return 8+z2+y2+x2
         return z2
     return y2
