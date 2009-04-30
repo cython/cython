@@ -872,6 +872,7 @@ class CreateClosureClasses(CythonTransform):
             pos = node.pos, defining = True, implementing = True)
         func_scope.scope_class = entry
         class_scope = entry.type.scope
+        class_scope.is_internal = True
         if node.entry.scope.is_closure_scope:
             class_scope.declare_var(pos=node.pos,
                                     name=Naming.outer_scope_cname, # this could conflict?
