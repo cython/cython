@@ -2332,11 +2332,14 @@ class DefNode(FuncDefNode):
                 code.putln('}')
 
     def generate_argument_conversion_code(self, code):
-        # Generate code to convert arguments from
-        # signature type to declared type, if needed.
+        # Generate code to convert arguments from signature type to
+        # declared type, if needed.  Also copies signature arguments
+        # into closure fields.
         for arg in self.args:
             if arg.needs_conversion:
                 self.generate_arg_conversion(arg, code)
+            elif arg.entry.in_closure:
+                code.putln('%s = %s;' % (arg.entry.cname, arg.hdr_cname))
 
     def generate_arg_conversion(self, arg, code):
         # Generate conversion code for one argument.
