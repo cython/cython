@@ -1069,7 +1069,7 @@ class FuncDefNode(StatNode, BlockNode):
                             outer_scope_cname,
                             env.scope_class.type.declaration_code(''),
                             Naming.self_cname))
-            code.put_incref(outer_scope_cname, py_object_type)
+            code.put_incref(outer_scope_cname, env.scope_class.type)
             code.put_giveref(outer_scope_cname)
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
