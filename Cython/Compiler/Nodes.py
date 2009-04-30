@@ -1063,17 +1063,8 @@ class FuncDefNode(StatNode, BlockNode):
                             Naming.empty_tuple))
             # TODO: error handling
             code.put_gotref(Naming.cur_scope_cname)
-            # The code below is because we assume the local variables are 
-            # innitially NULL.
             # Note that it is unsafe to decref the scope at this point.
-            for entry in lenv.arg_entries + lenv.var_entries:
-                if entry.in_closure and entry.type.is_pyobject:
-                    code.put_gotref(entry.cname) # so the refnanny doesn't whine
-                    code.put_var_decref_clear(entry)
         if env.is_closure_scope:
-            if lenv.is_closure_scope:
-                code.put_gotref(outer_scope_cname)
-                code.put_decref(outer_scope_cname, env.scope_class.type)
             code.putln("%s = (%s)%s;" % (
                             outer_scope_cname,
                             env.scope_class.type.declaration_code(''),

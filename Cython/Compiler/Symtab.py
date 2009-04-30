@@ -194,6 +194,7 @@ class Scope(object):
     # return_type       PyrexType or None  Return type of function owning scope
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
+    # is_closure_scope  boolean
     # scope_prefix      string             Disambiguator for C names
     # in_cinclude       boolean            Suppress C declaration code
     # qualified_name    string             "modname" or "modname.classname"
@@ -203,11 +204,13 @@ class Scope(object):
     # nogil             boolean            In a nogil section
     # directives       dict                Helper variable for the recursive
     #                                      analysis, contains directive values.
+    # is_internal       boolean            Is only used internally (simpler setup)
 
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_closure_scope = 0
     is_module_scope = 0
+    is_internal = 0
     scope_prefix = ""
     in_cinclude = 0
     nogil = 0
