@@ -16,7 +16,7 @@ True
 True
 >>> mul() == 1*60*1000
 True
->>> arithm() == 9*2+3*8/6-10
+>>> arithm() == 9*2+3*8//6-10
 True
 >>> parameters() == _func(-1 -2, - (-3+4), 1*2*3)
 True
@@ -52,7 +52,7 @@ def mul():
     return 1*60*1000
 
 def arithm():
-    return 9*2+3*8/6-10
+    return 9*2+3*8//6-10
 
 def parameters():
     return _func(-1 -2, - (-3+4), 1*2*3)
