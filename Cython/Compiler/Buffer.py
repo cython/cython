@@ -15,12 +15,6 @@ except NameError:
 
 import textwrap
 
-# Code cleanup ideas:
-# - One could be more smart about casting in some places
-# - Start using CCodeWriters to generate utility functions
-# - Create a struct type per ndim rather than keeping loose local vars
-
-
 def dedent(text, reindent=0):
     text = textwrap.dedent(text)
     if reindent > 0:
