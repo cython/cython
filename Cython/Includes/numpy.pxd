@@ -274,10 +274,10 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset
 
         new_byteorder = child.byteorder
         if new_byteorder == '|': new_byteorder = '='
-        if byteorder[0] != new_byteorder:
-            f[0] = new_byteorder
-            f += 1
-            byteorder[0] = new_byteorder
+#        if byteorder[0] != new_byteorder:
+#            f[0] = new_byteorder
+#            f += 1
+#            byteorder[0] = new_byteorder
 
         # Output padding bytes
         while offset[0] < new_offset:

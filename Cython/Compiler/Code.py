@@ -596,13 +596,16 @@ class CCodeWriter(object):
     def exit_cfunc_scope(self):
         self.funcstate = None
 
-    def putln(self, code = ""):
+    def putln(self, code = "", safe=False):
         if self.marker and self.bol:
             self.emit_marker()
         if self.emit_linenums and self.last_marker_line != 0:
             self.write('\n#line %s "%s"\n' % (self.last_marker_line, self.source_desc))
         if code:
-            self.put(code)
+            if safe:
+                self.put_safe(code)
+            else:
+                self.put(code)
         self.write("\n");
         self.bol = 1
     
