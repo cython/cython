@@ -143,6 +143,12 @@ class PyrexType(BaseType):
         return (self.is_int or self.is_float or self.is_pyobject or
                 self.is_extension_type or self.is_ptr)
 
+    def struct_nesting_depth(self):
+        # Returns the number levels of nested structs. This is
+        # used for constructing a stack for walking the run-time
+        # type information of the struct.
+        return 1
+
 class CTypedefType(BaseType):
     #
     #  Pseudo-type defined with a ctypedef statement in a
@@ -1117,6 +1123,10 @@ class CStructOrUnionType(CType):
         fields = self.scope.var_entries
         return len(fields) == 2 and fields[0].type.is_float and fields[1].type.is_float
 
+    def struct_nesting_depth(self):
+        child_depths = [x.type.struct_nesting_depth()
+                        for x in self.scope.var_entries]
+        return max(child_depths) + 1
 
 class CEnumType(CType):
     #  name           string

@@ -111,6 +111,7 @@ try:
     >>> test_dtype('I', inc1_uint)
     >>> test_dtype('l', inc1_long)
     >>> test_dtype('L', inc1_ulong)
+    
     >>> test_dtype('f', inc1_float)
     >>> test_dtype('d', inc1_double)
     >>> test_dtype('g', inc1_longdouble)
@@ -144,18 +145,20 @@ try:
         ])))
     Traceback (most recent call last):
         ...
-    ValueError: Buffer dtype mismatch (expected int, got float)
+    ValueError: Buffer dtype mismatch, expected 'int' but got 'float' in 'DoubleInt.y'
+
 
     >>> test_good_cast()
     True
     >>> test_bad_cast()
     Traceback (most recent call last):
         ...
-    ValueError: Attempted cast of buffer to datatype of different size.
+    ValueError: Item size of buffer (1 byte) does not match size of 'long' (8 bytes)
     
 """
 except:
     __doc__ = u""
+
 
 def ndarray_str(arr):
     u"""

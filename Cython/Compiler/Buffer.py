@@ -492,155 +492,6 @@ def buf_lookup_fortran_code(proto, defin, name, nd):
 #
 # Utils for creating type string checkers
 #
-def mangle_dtype_name(dtype):
-    # Use prefixes to seperate user defined types from builtins
-    # (consider "typedef float unsigned_int")
-    if dtype.is_pyobject:
-        return "object"
-    elif dtype.is_ptr:
-        return "ptr"
-    else:
-        if dtype.is_typedef or dtype.is_struct_or_union:
-            prefix = "nn_"
-        else:
-            prefix = ""
-        return prefix + dtype.declaration_code("").replace(" ", "_")
-
-def get_typestringchecker(code, dtype):
-    """
-    Returns the name of a typestring checker with the given type; emitting
-    it to code if needed.
-    """
-    name = "__Pyx_CheckTypestring_%s" % mangle_dtype_name(dtype)
-    code.globalstate.use_code_from(create_typestringchecker,
-                                   name,
-                                   dtype=dtype)
-    return name
-
-def create_typestringchecker(protocode, defcode, name, dtype):
-
-    def put_assert(cond, msg):
-        defcode.putln("if (!(%s)) {" % cond)
-        defcode.putln('PyErr_Format(PyExc_ValueError, "Buffer dtype mismatch (%s)", __Pyx_DescribeTokenInFormatString(ts));' % msg)
-        defcode.putln("return NULL;")
-        defcode.putln("}")
-    
-    if dtype.is_error: return
-    simple = dtype.is_simple_buffer_dtype()
-    complex_possible = dtype.is_struct_or_union and dtype.can_be_complex()
-    # Cannot add utility code recursively...
-    if not simple:
-        dtype_t = dtype.declaration_code("")
-        protocode.globalstate.use_utility_code(parse_typestring_repeat_code)
-        fields = dtype.scope.var_entries
-
-        # divide fields into blocks of equal type (for repeat count)
-        field_blocks = [] # of (n, type, checkerfunc)
-        n = 0
-        prevtype = None
-        for f in fields:
-            if n and f.type != prevtype:
-                field_blocks.append((n, prevtype, get_typestringchecker(protocode, prevtype)))
-                n = 0
-            prevtype = f.type
-            n += 1
-        field_blocks.append((n, f.type, get_typestringchecker(protocode, f.type)))
-        
-    protocode.putln("static const char* %s(const char* ts); /*proto*/" % name)
-    defcode.putln("static const char* %s(const char* ts) {" % name)
-    if simple:
-        defcode.putln("int ok;")
-        defcode.putln("ts = __Pyx_ConsumeWhitespace(ts); if (!ts) return NULL;")
-        defcode.putln("if (*ts == '1') ++ts;")
-        if dtype.is_pyobject:
-            defcode.putln("ok = (*ts == 'O');")
-        else:
-            # Cannot trust declared size; but rely on int vs float and
-            # signed/unsigned to be correctly declared. Use a switch statement
-            # on all possible format codes to validate that the size is ok.
-            # (Note that many codes may map to same size, e.g. 'i' and 'l'
-            # may both be four bytes).
-            ctype = dtype.declaration_code("")
-            defcode.putln("switch (*ts) {")
-            if dtype.is_int:
-                types = [
-                    ('b', 'char'), ('h', 'short'), ('i', 'int'),
-                    ('l', 'long'), ('q', 'long long')
-                ]
-                if dtype.signed == 0:
-                    for char, against in types:
-                        defcode.putln("case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 > 0); break;" %
-                                      (char.upper(), ctype, against, ctype))
-                else:
-                    for char, against in types:
-                        defcode.putln("case '%s': ok = (sizeof(%s) == sizeof(%s) && (%s)-1 < 0); break;" %
-                                      (char, ctype, against, ctype))
-            elif dtype.is_float:
-                types = [('f', 'float'), ('d', 'double'), ('g', 'long double')]
-                for char, against in types:
-                    defcode.putln("case '%s': ok = (sizeof(%s) == sizeof(%s)); break;" %
-                                  (char, ctype, against))
-            else:
-                assert False
-            defcode.putln("default: ok = 0;")
-            defcode.putln("}")
-        put_assert("ok", "expected %s, got %%s" % dtype)
-        defcode.putln("++ts;")
-    elif complex_possible:
-        # Could be a struct representing a complex number, so allow
-        # for parsing a "Zf" spec.
-        real_t, imag_t = [x.type for x in fields]
-        defcode.putln("ts = __Pyx_ConsumeWhitespace(ts); if (!ts) return NULL;")
-        defcode.putln("if (*ts == '1') ++ts;")
-        defcode.putln("if (*ts == 'Z') {")
-        if len(field_blocks) == 2:
-            # Different float type, sizeof check needed
-            defcode.putln("if (sizeof(%s) != sizeof(%s)) {" % (
-                real_t.declaration_code(""),
-                imag_t.declaration_code("")))
-            defcode.putln('PyErr_SetString(PyExc_ValueError, "Cannot store complex number in \'%s\' as \'%s\' differs from \'%s\' in size.");' % (
-                dtype, real_t, imag_t))
-            defcode.putln("return NULL;")
-            defcode.putln("}")
-            check_real, check_imag = [x[2] for x in field_blocks]
-        else:
-            assert len(field_blocks) == 1
-            check_real = check_imag = field_blocks[0][2]
-        defcode.putln("ts = %s(ts + 1); if (!ts) return NULL;" % check_real)
-        defcode.putln("} else {")
-        defcode.putln("ts = %s(ts); if (!ts) return NULL;" % check_real)
-        defcode.putln("ts = __Pyx_ConsumeWhitespace(ts); if (!ts) return NULL;")
-        defcode.putln("ts = %s(ts); if (!ts) return NULL;" % check_imag)
-        defcode.putln("}")
-    else:
-        defcode.putln("int n, count;")
-        defcode.putln("ts = __Pyx_ConsumeWhitespace(ts); if (!ts) return NULL;")
-
-        next_types = [x[1] for x in field_blocks[1:]] + ["end"]
-        for (n, type, checker), next_type in zip(field_blocks, next_types):
-            if n == 1:
-                defcode.putln("if (*ts == '1') ++ts;")
-            else:
-                defcode.putln("n = %d;" % n);
-                defcode.putln("do {")
-                defcode.putln("ts = __Pyx_ParseTypestringRepeat(ts, &count); n -= count;")
-                put_assert("n >= 0", "expected %s, got %%s" % next_type)
-
-            simple = type.is_simple_buffer_dtype()
-            if not simple:
-                put_assert("*ts == 'T' && *(ts+1) == '{'", "expected %s, got %%s" % type)
-                defcode.putln("ts += 2;")
-            defcode.putln("ts = %s(ts); if (!ts) return NULL;" % checker)
-            if not simple:
-                put_assert("*ts == '}'", "expected end of %s struct, got %%s" % type)
-                defcode.putln("++ts;")
-
-            if n > 1:
-                defcode.putln("} while (n > 0);");
-        defcode.putln("ts = __Pyx_ConsumeWhitespace(ts); if (!ts) return NULL;")
-
-    defcode.putln("return ts;")
-    defcode.putln("}")
 
 def get_getbuffer_code(dtype, code):
     """
@@ -655,14 +506,17 @@ def get_getbuffer_code(dtype, code):
     name = "__Pyx_GetBuffer_%s" % mangle_dtype_name(dtype)
     if not code.globalstate.has_code(name):
         code.globalstate.use_utility_code(acquire_utility_code)
-        typestringchecker = get_typestringchecker(code, dtype)
+        code.globalstate.use_utility_code(format_string_utility_code)
         dtype_name = str(dtype)
         dtype_cname = dtype.declaration_code("")
+        typeinfo = get_type_information_cname(code, dtype)
+        structstacksize = dtype.struct_nesting_depth()
+
         utilcode = UtilityCode(proto = dedent("""
         static int %s(PyObject* obj, Py_buffer* buf, int flags, int nd, int cast); /*proto*/
         """) % name, impl = dedent("""
         static int %(name)s(PyObject* obj, Py_buffer* buf, int flags, int nd, int cast) {
-          const char* ts;
+          __Pyx_TypeInfo* typeinfo = &%(typeinfo)s;
           if (obj == Py_None) {
             __Pyx_ZeroBuffer(buf);
             return 0;
@@ -674,23 +528,27 @@ def get_getbuffer_code(dtype, code):
             goto fail;
           }
           if (!cast) {
-            ts = buf->format;
-            ts = __Pyx_ConsumeWhitespace(ts);
+            const char* ts = buf->format;
+            __Pyx_StructField* stack[%(structstacksize)d];
+            __Pyx_BufFmt_Context ctx;
+            __Pyx_BufFmt_Init(&ctx, stack, typeinfo);
+            ts = __Pyx_BufFmt_CheckString(&ctx, ts);
             if (!ts) goto fail;
-            ts = %(typestringchecker)s(ts);
-            if (!ts) goto fail;
-            ts = __Pyx_ConsumeWhitespace(ts);
-            if (!ts) goto fail;
-            if (*ts != 0) {
+/*            if (*ts != 0) {
               PyErr_Format(PyExc_ValueError,
                 "Buffer dtype mismatch (expected end, got %%s)",
                 __Pyx_DescribeTokenInFormatString(ts));
               goto fail;
-            }
+            }*/
           }
           if (buf->itemsize != sizeof(%(dtype_cname)s)) {
-            PyErr_SetString(PyExc_ValueError,
-              "Item size of buffer does not match size of '%(dtype)s'");
+            PyErr_Format(PyExc_ValueError,
+              "Item size of buffer (%%"PY_FORMAT_SIZE_T"d byte%%s) does not match size of '%%s' (%%"PY_FORMAT_SIZE_T"d byte%%s)",
+              buf->itemsize,
+              (buf->itemsize > 1) ? "s" : "",
+              typeinfo->name,
+              typeinfo->size,
+              (typeinfo->size > 1) ? "s" : "");
             goto fail;
           }
           if (buf->suboffsets == NULL) buf->suboffsets = __Pyx_minusones;
@@ -781,10 +639,6 @@ def use_py2_buffer_functions(env):
         #endif
     """), impl = code), codename)
 
-#
-# Static utility code
-#
-
 
 # Utility function to set the right exception
 # The caller should immediately goto_error
@@ -800,19 +654,11 @@ static void __Pyx_RaiseBufferIndexError(int axis) {
 
 """)
 
-#
-# Buffer type checking. Utility code for checking that acquired
-# buffers match our assumptions. We only need to check ndim and
-# the format string; the access mode/flags is checked by the
-# exporter.
-#
 acquire_utility_code = UtilityCode(
 proto = """\
 static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
 static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf); /*proto*/
-static INLINE const char* __Pyx_ConsumeWhitespace(const char* ts); /*proto*/
 static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim); /*proto*/
-static const char* __Pyx_DescribeTokenInFormatString(const char* ts); /*proto*/
 """,
 impl = """
 static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
@@ -829,83 +675,18 @@ static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf) {
   buf->suboffsets = __Pyx_minusones;
 }
 
-static INLINE const char* __Pyx_ConsumeWhitespace(const char* ts) {
-  while (1) {
-    switch (*ts) {
-      case '@':
-      case 10:
-      case 13:
-      case ' ':
-        ++ts;
-        break;
-      case '=':
-      case '<':
-      case '>':
-      case '!':
-        PyErr_SetString(PyExc_ValueError, "Buffer acquisition error: Only native byte order, size and alignment supported.");
-        return NULL;               
-      default:
-        return ts;
-    }
-  }
-}
-
 static void __Pyx_BufferNdimError(Py_buffer* buffer, int expected_ndim) {
   PyErr_Format(PyExc_ValueError,
                "Buffer has wrong number of dimensions (expected %d, got %d)",
                expected_ndim, buffer->ndim);
 }
-
-static const char* __Pyx_DescribeTokenInFormatString(const char* ts) {
-  switch (*ts) {
-    case 'b': return "char";
-    case 'B': return "unsigned char";
-    case 'h': return "short";
-    case 'H': return "unsigned short";
-    case 'i': return "int";
-    case 'I': return "unsigned int";
-    case 'l': return "long";
-    case 'L': return "unsigned long";
-    case 'q': return "long long";
-    case 'Q': return "unsigned long long";
-    case 'f': return "float";
-    case 'd': return "double";
-    case 'g': return "long double";
-    case 'Z': switch (*(ts+1)) {
-        case 'f': return "complex float";
-        case 'd': return "complex double";
-        case 'g': return "complex long double";
-        default: return "unparseable format string";
-    }
-    case 'T': return "a struct";
-    case 'O': return "Python object";
-    case 'P': return "a pointer";
-    default: return "unparseable format string";
-  }
-}
-
 """)
 
 
 parse_typestring_repeat_code = UtilityCode(
 proto = """
-static INLINE const char* __Pyx_ParseTypestringRepeat(const char* ts, int* out_count); /*proto*/
 """,
 impl = """
-static INLINE const char* __Pyx_ParseTypestringRepeat(const char* ts, int* out_count) {
-    int count;
-    if (*ts < '0' || *ts > '9') {
-        count = 1;
-    } else {
-        count = *ts++ - '0';
-        while (*ts >= '0' && *ts < '9') {
-            count *= 10;
-            count += *ts++ - '0';
-        }
-    }
-    *out_count = count;
-    return ts;
-}
 """)
 
 raise_buffer_fallback_code = UtilityCode(
@@ -919,3 +700,486 @@ static void __Pyx_RaiseBufferFallbackError(void) {
 }
 
 """)
+
+
+
+#
+# Buffer format string checking
+#
+# Buffer type checking. Utility code for checking that acquired
+# buffers match our assumptions. We only need to check ndim and
+# the format string; the access mode/flags is checked by the
+# exporter.
+#
+# The alignment code is copied from _struct.c in Python.
+format_string_utility_code = UtilityCode(proto="""
+#define __Pyx_FIELD_OFFSET(type, field) (size_t)(&((type*)0)->field)
+
+/* Run-time type information about structs used with buffers */
+struct __Pyx_StructField_;
+
+typedef struct {
+  const char* name; /* for error messages only */
+  struct __Pyx_StructField_* fields;
+  size_t size;     /* sizeof(type) */
+  char typegroup; /* _R_eal, _C_omplex, Signed _I_nt, _U_nsigned int, _S_truct, _P_ointer, _O_bject */
+} __Pyx_TypeInfo;
+
+typedef struct __Pyx_StructField_ {
+  __Pyx_TypeInfo* type;
+  const char* name;
+  size_t offset;   /* __Pyx_FIELD_OFFSET(structtype, field) */
+} __Pyx_StructField;
+
+size_t __Pyx_TypeSize_Native[] = {
+  sizeof(char), sizeof(short), sizeof(int), sizeof(long),
+#ifdef HAVE_LONG_LONG
+  sizeof(PY_LONG_LONG),
+#else
+  0,
+#endif
+  sizeof(float), sizeof(double), sizeof(long double)
+};
+
+typedef struct { char c; short x; } __Pyx_st_short;
+typedef struct { char c; int x; } __Pyx_st_int;
+typedef struct { char c; long x; } __Pyx_st_long;
+typedef struct { char c; float x; } __Pyx_st_float;
+typedef struct { char c; double x; } __Pyx_st_double;
+typedef struct { char c; long double x; } __Pyx_st_longdouble;
+typedef struct { char c; void *x; } __Pyx_st_void_p;
+
+#ifdef HAVE_LONG_LONG
+typedef struct { char c; PY_LONG_LONG x; } __Pyx_s_long_long;
+#endif
+
+size_t __Pyx_TypePacking_Native[] = {
+  1,
+  sizeof(__Pyx_st_short) - sizeof(short),
+  sizeof(__Pyx_st_int) - sizeof(int),
+  sizeof(__Pyx_st_long) - sizeof(long),
+#ifdef HAVE_LONG_LONG
+  sizeof(__Pyx_s_long_long) - sizeof(PY_LONG_LONG),
+#else
+  0,
+#endif  
+  sizeof(__Pyx_st_float) - sizeof(float),
+  sizeof(__Pyx_st_double) - sizeof(double),
+  sizeof(__Pyx_st_longdouble) - sizeof(long double),
+  sizeof(__Pyx_st_void_p) - sizeof(void*)
+};
+""", impl="""
+static INLINE int __Pyx_IsLittleEndian(void) {
+  unsigned int n = 1;
+  return *(unsigned char*)(&n) != 0;
+}
+
+typedef struct {
+  __Pyx_StructField root;
+  __Pyx_StructField** head;
+  size_t offset, fmt_offset;
+  int new_count, enc_count;
+  int is_complex;
+  char enc_type;
+  char packmode;
+} __Pyx_BufFmt_Context;
+
+static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
+                              __Pyx_StructField** stack,
+                              __Pyx_TypeInfo* type) {
+  stack[0] = &ctx->root;
+  ctx->root.type = type;
+  ctx->root.name = "buffer dtype";
+  ctx->root.offset = 0;
+  ctx->head = stack;
+  ctx->offset = ctx->fmt_offset = 0;
+  ctx->packmode = '@';
+  ctx->new_count = 1;
+  ctx->enc_count = 0;
+  ctx->enc_type = 0;
+  ctx->is_complex = 0;
+  while (type->typegroup == 'S') {
+    ++ctx->head;
+    *ctx->head = type->fields;
+    type = type->fields->type;
+  }
+}
+
+static int __Pyx_BufFmt_ParseNumber(const char** ts) {
+    int count;
+    const char* t = *ts;
+    if (*t < '0' || *t > '9') {
+      return 0;
+    } else {
+        count = *t++ - '0';
+        while (*t >= '0' && *t < '9') {
+            count *= 10;
+            count += *t++ - '0';
+        }
+    }
+    *ts = t;
+    return count;
+}
+
+static void __Pyx_BufFmt_RaiseUnexpectedChar(char ch) {
+  char msg[] = {ch, 0};
+  PyErr_Format(PyExc_ValueError, "Unexpected format string character: '%s'", msg);
+}
+
+static const char* __Pyx_BufFmt_DescribeTypeChar(char ch, int is_complex) {
+  switch (ch) {
+    case 'b': return "'char'";
+    case 'B': return "'unsigned char'";
+    case 'h': return "'short'";
+    case 'H': return "'unsigned short'";
+    case 'i': return "'int'";
+    case 'I': return "'unsigned int'";
+    case 'l': return "'long'";
+    case 'L': return "'unsigned long'";
+    case 'q': return "'long long'";
+    case 'Q': return "'unsigned long long'";
+    case 'f': return (is_complex ? "'complex float'" : "'float'");
+    case 'd': return (is_complex ? "'complex double'" : "'double'");
+    case 'g': return (is_complex ? "'complex long double'" : "'long double'");
+    case 'T': return "a struct";
+    case 'O': return "Python object";
+    case 'P': return "a pointer";
+    case 0: return "end";
+    default: return "unparseable format string";
+  }
+}
+
+static size_t __Pyx_BufFmt_TypeCharToStandardSize(char ch, int is_complex) {
+  switch (ch) {
+    case '?': case 'c': case 'b': case 'B': return 1;
+    case 'h': case 'H': return 2;
+    case 'i': case 'I': case 'l': case 'L': return 4;
+    case 'q': case 'Q': return 8;
+    case 'f': return (is_complex ? 8 : 4);
+    case 'd': return (is_complex ? 16 : 8);
+    case 'g': {
+      PyErr_SetString(PyExc_ValueError, "Python does not define a standard format string size for long double ('g')..");
+      return 0;
+    }
+    case 'O': case 'P': return sizeof(void*);
+    default:
+      __Pyx_BufFmt_RaiseUnexpectedChar(ch);
+      return 0;
+    }
+}
+
+static size_t __Pyx_BufFmt_TypeCharToNativeSize(char ch, int is_complex) {
+  switch (ch) {
+    case 'c': case 'b': case 'B': return 1;
+    case 'h': case 'H': return sizeof(short);
+    case 'i': case 'I': return sizeof(int);
+    case 'l': case 'L': return sizeof(long);
+    #ifdef HAVE_LONG_LONG
+    case 'q': case 'Q': return sizeof(PY_LONG_LONG);
+    #endif
+    case 'f': return sizeof(float) * (is_complex ? 2 : 1);
+    case 'd': return sizeof(double) * (is_complex ? 2 : 1);
+    case 'g': return sizeof(long double) * (is_complex ? 2 : 1);
+    case 'O': case 'P': return sizeof(void*);
+    default: {
+      __Pyx_BufFmt_RaiseUnexpectedChar(ch);
+      return 0;
+    }    
+  }
+}
+
+static size_t __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
+  switch (ch) {
+    case 'c': case 'b': case 'h': case 'i': case 'l': case 'q': return 'I';
+    case 'B': case 'H': case 'I': case 'L': case 'Q': return 'U';
+    case 'f': case 'd': case 'g': return (is_complex ? 'C' : 'R');
+    case 'O': return 'O';
+    case 'P': return 'P';
+    default: {
+      __Pyx_BufFmt_RaiseUnexpectedChar(ch);
+      return 0;
+    }    
+  }
+}
+
+static void __Pyx_BufFmt_RaiseExpected(__Pyx_BufFmt_Context* ctx) {
+  if (ctx->head == NULL || *(ctx->head) == &ctx->root) {
+    const char* expected;
+    const char* quote;
+    if (ctx->head == NULL) {
+      expected = "end";
+      quote = "";
+    } else {
+      expected = (*ctx->head)->type->name;
+      quote = "'";
+    }
+    PyErr_Format(PyExc_ValueError,
+                 "Buffer dtype mismatch, expected %s%s%s but got %s",
+                 quote, expected, quote,
+                 __Pyx_BufFmt_DescribeTypeChar(ctx->enc_type, ctx->is_complex));
+  } else {
+    __Pyx_StructField* field = *(ctx->head);
+    __Pyx_StructField* parent = *(ctx->head - 1);
+    PyErr_Format(PyExc_ValueError,
+                 "Buffer dtype mismatch, expected '%s' but got %s in '%s.%s'",
+                 field->type->name, __Pyx_BufFmt_DescribeTypeChar(ctx->enc_type, ctx->is_complex),
+                 parent->type->name, field->name);
+  }
+}
+
+static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
+  char group = __Pyx_BufFmt_TypeCharToGroup(ctx->enc_type, ctx->is_complex);
+  size_t size;
+  do {
+    __Pyx_StructField* field = *(ctx->head);
+    __Pyx_TypeInfo* type = field->type;
+  
+    if (ctx->packmode == '@' || ctx->packmode == '^') {
+      size = __Pyx_BufFmt_TypeCharToNativeSize(ctx->enc_type, ctx->is_complex);
+    } else {
+      size = __Pyx_BufFmt_TypeCharToStandardSize(ctx->enc_type, ctx->is_complex);
+    }
+  
+    if (type->size != size || type->typegroup != group) {
+      if (type->typegroup == 'C' && type->fields != NULL) {
+        /* special case -- treat as struct rather than complex number */
+        ++ctx->head;
+        *ctx->head = type->fields;
+        continue;
+      }
+    
+      __Pyx_BufFmt_RaiseExpected(ctx);
+      return 0;
+    }
+
+    --ctx->enc_count; /* Consume from buffer string */
+
+    /* Done checking, move to next field, pushing or popping struct stack if needed */
+    while (1) {
+      if (field == &ctx->root) {
+        ctx->head = NULL;
+        if (ctx->enc_count != 0) {
+          __Pyx_BufFmt_RaiseExpected(ctx);
+          return 0;
+        }
+        break; /* breaks both loops as ctx->enc_count == 0 */
+      }
+      *ctx->head = ++field;
+      if (field->type == NULL) {
+        --ctx->head;
+        field = *(ctx->head);
+        continue;
+      } else if (field->type->typegroup == 'S') {
+        if (field->type->fields->type == NULL) continue; /* empty struct */
+        field = field->type->fields;
+        ++ctx->head;
+        *ctx->head = field;
+        break;
+      } else {
+        break;
+      }
+    }
+  } while (ctx->enc_count);
+  ctx->enc_type = 0;
+  ctx->is_complex = 0;
+  return 1;    
+}
+
+static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const char* ts) {
+  int got_Z = 0;
+  while (1) {
+    switch(*ts) {
+      case 0:
+        if (ctx->enc_type != 0) {
+          if (ctx->head == NULL) {
+            __Pyx_BufFmt_RaiseExpected(ctx);
+            return NULL;
+          }
+          if (!__Pyx_BufFmt_ProcessTypeChunk(ctx)) return NULL;
+        }
+        if (ctx->head != NULL) {
+          __Pyx_BufFmt_RaiseExpected(ctx);
+          return NULL;
+        }
+        return ts;
+      case ' ':
+      case 10:
+      case 13:
+        ++ts;
+        break;
+      case '<':
+        if (!__Pyx_IsLittleEndian()) {
+          PyErr_SetString(PyExc_ValueError, "Little-endian buffer not supported on big-endian compiler");
+          return NULL;
+        }
+        ctx->packmode = '=';
+        ++ts;
+        break;
+      case '>':
+      case '!':
+        if (__Pyx_IsLittleEndian()) {
+          PyErr_SetString(PyExc_ValueError, "Big-endian buffer not supported on little-endian compiler");
+          return NULL;
+        }
+        ctx->packmode = '=';
+        ++ts;
+        break;
+      case '=':
+      case '@':
+      case '^':
+        ctx->packmode = *ts++;
+        break;
+      case 'T': /* substruct */
+        {
+          int i;
+          const char* ts_after_sub;
+          int struct_count = ctx->new_count;
+          ctx->new_count = 1;
+          ++ts;
+          if (*ts != '{') {
+            PyErr_SetString(PyExc_ValueError, "Buffer acquisition: Expected '{' after 'T'");
+            return NULL;
+          }
+          ++ts;
+          ts_after_sub = ts;
+          for (i = 0; i != struct_count; ++i) {
+            ts_after_sub = __Pyx_BufFmt_CheckString(ctx, ts);
+            if (!ts_after_sub) return NULL;
+          }
+          ts = ts_after_sub;
+        }
+        break;
+      case '}': /* end of substruct; either repeat or move on */
+        ++ts;
+        return ts;
+
+      case 'Z':
+        got_Z = 1;
+        ++ts;
+        if (*ts != 'f' && *ts != 'd' && *ts != 'g') {
+          __Pyx_BufFmt_RaiseUnexpectedChar('Z');
+          return NULL;
+        }        /* fall through */
+      case 'c': case 'b': case 'B': case 'h': case 'H': case 'i': case 'I':
+      case 'l': case 'L': case 'q': case 'Q':
+      case 'f': case 'd': case 'g':
+      case 'O':
+        if (ctx->enc_type == *ts && got_Z == ctx->is_complex) {
+          /* Continue pooling same type */
+          ctx->enc_count += ctx->new_count;
+        } else {
+          /* New type */
+          if (ctx->enc_type != 0) {
+            if (!__Pyx_BufFmt_ProcessTypeChunk(ctx)) {
+              return NULL;
+            }
+          }
+          ctx->enc_count = ctx->new_count;
+          ctx->enc_type = *ts;
+          ctx->is_complex = got_Z;
+        }
+        ++ts;
+        ctx->new_count = 1;
+        got_Z = 0;
+        break;
+      default:
+        {
+          ctx->new_count = __Pyx_BufFmt_ParseNumber(&ts);
+          if (ctx->new_count == 0) { /* First char was not a digit */
+            char msg[2] = { *ts, 0 };
+            PyErr_Format(PyExc_ValueError,
+                         "Does not understand character buffer dtype format string ('%s')", msg);
+            return NULL;
+          }
+        }
+      
+    }
+  }
+}
+
+""")
+
+def mangle_dtype_name(dtype):
+    # Use prefixes to seperate user defined types from builtins
+    # (consider "typedef float unsigned_int")
+    if dtype.is_pyobject:
+        return "object"
+    elif dtype.is_ptr:
+        return "ptr"
+    else:
+        if dtype.is_typedef or dtype.is_struct_or_union:
+            prefix = "nn_"
+        else:
+            prefix = ""
+        return prefix + dtype.declaration_code("").replace(" ", "_")
+
+def get_type_information_cname(code, dtype, depth=1):
+    # Output the __Pyx_TypeInfo type information for the given dtype if needed,
+    # and return the name of the type info struct.
+    namesuffix = mangle_dtype_name(dtype)
+    name = "__Pyx_TypeInfo_%s" % namesuffix
+    structinfo_name = "__Pyx_StructFields_%s" % namesuffix
+    code.globalstate.use_code_from(type_information_code, name,
+                                   structinfo_name=structinfo_name,
+                                   dtype=dtype, depth=depth)
+    return name
+
+def type_information_code(proto, impl, name, structinfo_name, dtype, depth):
+    # Output the run-time type information (__Pyx_TypeInfo) for given dtype.
+    # Use through get_type_information_cname
+    #
+    # Structs with two doubles are encoded as complex numbers. One can
+    # seperate between complex numbers declared as struct or with native
+    # encoding by inspecting to see if the fields field of the type is
+    # filled in.
+
+    if dtype.is_error: return
+    complex_possible = dtype.is_struct_or_union and dtype.can_be_complex()
+
+    declcode = dtype.declaration_code("")
+    if dtype.is_simple_buffer_dtype():
+        structinfo_name = "NULL"
+    elif dtype.is_struct:
+        fields = dtype.scope.var_entries
+        # Must pre-call all used types in order not to recurse utility code
+        # writing.
+        assert len(fields) > 0
+        types = [get_type_information_cname(proto, f.type, depth=depth+1)
+                 for f in fields]
+
+        impl.putln("static __Pyx_StructField %s[] = {" % structinfo_name, safe=True)
+        for f, typeinfo in zip(fields, types):
+            impl.putln('  {&%s, "%s", __Pyx_FIELD_OFFSET(%s, %s)},' %
+                       (typeinfo, f.name, dtype.declaration_code(""), f.cname), safe=True)
+        impl.putln('  {NULL, NULL, 0}', safe=True)
+        impl.putln("};", safe=True)
+    else:
+        assert False
+            
+    rep = str(dtype)
+    if dtype.is_int:
+        if dtype.signed == 0:
+            typegroup = 'U'
+        else:
+            typegroup = 'I'
+    elif complex_possible:
+        typegroup = 'C'
+    elif dtype.is_float:
+        typegroup = 'R'
+    elif dtype.is_struct:
+        typegroup = 'S'
+    elif dtype.is_pyobject:
+        typegroup = 'O'
+    else:
+        print dtype
+        assert False
+
+    proto.putln('static __Pyx_TypeInfo %s;' % name)
+    impl.putln(('static __Pyx_TypeInfo %s = { "%s", %s, sizeof(%s), \'%s\' };'
+                ) % (name,
+                     rep,
+                     structinfo_name,
+                     declcode,
+                     typegroup,
+                     ), safe=True)
+
