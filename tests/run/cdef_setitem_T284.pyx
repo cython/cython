@@ -6,7 +6,7 @@ __doc__ = u'''
 >>> test_list(range(11), "invalid index", None)
 Traceback (most recent call last):
 ...
-TypeError: list indices must be integers
+TypeError: list indices must be integers, not str
 '''
 def no_cdef():
     lst = range(11)
