@@ -108,7 +108,7 @@ def p_lambdef(s, allow_conditional=True):
         args, star_arg, starstar_arg = p_varargslist(s, terminator=':')
     s.expect(':')
     if allow_conditional:
-        expr = p_test(s)
+        expr = p_simple_expr(s)
     else:
         expr = p_test_nocond(s)
     return ExprNodes.LambdaNode(

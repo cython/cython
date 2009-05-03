@@ -24,6 +24,9 @@ __doc__ = u"""
 11
 >>> make_const_calc1_xy(8)(2)
 27
+
+>>> make_lambda_lambda(1)(2)(4)
+7
 """
 
 #cy_identity = lambda x:x
@@ -46,3 +49,6 @@ def make_const_calc1():
 
 def make_const_calc1_xy(x):
     return lambda y: x*y+(1*2*3+5)
+
+def make_lambda_lambda(x):
+    return lambda y : lambda z:x+y+z
