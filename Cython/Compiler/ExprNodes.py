@@ -1586,8 +1586,6 @@ class IndexNode(ExprNode):
             if self.indices:
                 indices = self.indices
             else:
-                # On cloning, indices is cloned. Otherwise, unpack index into indices
-                assert not isinstance(self.index, CloneNode)
                 if isinstance(self.index, TupleNode):
                     indices = self.index.args
                 else:
@@ -1599,6 +1597,9 @@ class IndexNode(ExprNode):
                     x.analyse_types(env)
                     if not x.type.is_int:
                         buffer_access = False
+
+        # On cloning, indices is cloned. Otherwise, unpack index into indices
+        assert not (buffer_access and isinstance(self.index, CloneNode))
 
         if buffer_access:
             self.indices = indices

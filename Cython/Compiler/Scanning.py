@@ -490,7 +490,7 @@ class PyrexScanner(Scanner):
         else:
             self.expected(what, message)
     
-    def expected(self, what, message):
+    def expected(self, what, message = None):
         if message:
             self.error(message)
         else:

@@ -640,9 +640,18 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         type = entry.type
         scope = type.scope
         if scope:
+            kind = type.kind
+            packed = type.is_struct and type.packed
+            if packed:
+                kind = "%s %s" % (type.kind, "__Pyx_PACKED")
+                code.globalstate.use_utility_code(packed_struct_utility_code)
             header, footer = \
-                self.sue_header_footer(type, type.kind, type.cname)
+                self.sue_header_footer(type, kind, type.cname)
             code.putln("")
+            if packed:
+                code.putln("#if !defined(__GNUC__)")
+                code.putln("#pragma pack(push, 1)")
+                code.putln("#endif")
             code.putln(header)
             var_entries = scope.var_entries
             if not var_entries:
@@ -654,6 +663,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "%s;" %
                         attr.type.declaration_code(attr.cname))
             code.putln(footer)
+            if packed:
+                code.putln("#if !defined(__GNUC__)")
+                code.putln("#pragma pack(pop)")
+                code.putln("#endif")
 
     def generate_enum_definition(self, entry, code):
         code.mark_pos(entry.pos)
@@ -2468,3 +2481,11 @@ int main(int argc, char** argv) {
     return r;
 }
 """)
+
+packed_struct_utility_code = UtilityCode(proto="""
+#if defined(__GNUC__)
+#define __Pyx_PACKED __attribute__((__packed__))
+#else
+#define __Pyx_PACKED
+#endif
+""", impl="")
