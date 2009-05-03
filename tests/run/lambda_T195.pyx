@@ -27,6 +27,15 @@ __doc__ = u"""
 
 >>> make_lambda_lambda(1)(2)(4)
 7
+
+>>> make_typed_lambda_lambda(1)(2)(4)
+7
+
+>>> partial_lambda = make_typed_lambda_lambda(1)(2)
+>>> partial_lambda(4)
+7
+>>> partial_lambda(5)
+8
 """
 
 #cy_identity = lambda x:x
@@ -51,4 +60,9 @@ def make_const_calc1_xy(x):
     return lambda y: x*y+(1*2*3+5)
 
 def make_lambda_lambda(x):
-    return lambda y : lambda z:x+y+z
+    return lambda y : \
+           lambda z:x+y+z
+
+def make_typed_lambda_lambda(int x):
+    return lambda int y : \
+           lambda int z:x+y+z
