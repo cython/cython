@@ -46,6 +46,7 @@ opt_arg_prefix    = pyrex_prefix + "opt_args_"
 convert_func_prefix = pyrex_prefix + "convert_"
 closure_scope_prefix = pyrex_prefix + "scope_"
 closure_class_prefix = pyrex_prefix + "scope_struct_"
+lambda_func_prefix = pyrex_prefix + "lambda_"
 
 args_cname       = pyrex_prefix + "args"
 pykwdlist_cname  = pyrex_prefix + "pyargnames"
