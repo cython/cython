@@ -1024,11 +1024,12 @@ class CStructOrUnionType(CType):
     #  kind          string              "struct" or "union"
     #  scope         StructOrUnionScope, or None if incomplete
     #  typedef_flag  boolean
+    #  packed        boolean
     
     is_struct_or_union = 1
     has_attributes = 1
     
-    def __init__(self, name, kind, scope, typedef_flag, cname):
+    def __init__(self, name, kind, scope, typedef_flag, cname, packed=False):
         self.name = name
         self.cname = cname
         self.kind = kind
@@ -1039,6 +1040,7 @@ class CStructOrUnionType(CType):
             self.to_py_function = "%s_to_py_%s" % (Naming.convert_func_prefix, self.cname)
         self.exception_check = True
         self._convert_code = None
+        self.packed = packed
         
     def create_convert_utility_code(self, env):
         if env.outer_scope is None:
