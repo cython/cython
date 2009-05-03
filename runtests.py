@@ -642,7 +642,7 @@ if __name__ == '__main__':
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                 options.annotate_source, options.cleanup_workdir,
                                 options.cleanup_sharedlibs, True,
-                                options.cython_only, languages)
+                                options.cython_only, languages, test_bugs)
         test_suite.addTest(
             filetests.handle_directory(
                 os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test'),
