@@ -10,7 +10,6 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object)
 import os
 import re
 import sys
-from types import ListType, TupleType
 from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
 import ExprNodes
@@ -2642,6 +2641,7 @@ def p_module(s, pxd, full_module_name):
 #----------------------------------------------
 
 def print_parse_tree(f, node, level, key = None):
+    from types import ListType, TupleType
     from Nodes import Node
     ind = "  " * level
     if node:
