@@ -341,7 +341,8 @@ class Scope(object):
         return entry
         
     def declare_struct_or_union(self, name, kind, scope, 
-            typedef_flag, pos, cname = None, visibility = 'private'):
+            typedef_flag, pos, cname = None, visibility = 'private',
+            packed = False):
         # Add an entry for a struct or union definition.
         if not cname:
             if self.in_cinclude or visibility == 'public':
@@ -351,7 +352,7 @@ class Scope(object):
         entry = self.lookup_here(name)
         if not entry:
             type = PyrexTypes.CStructOrUnionType(
-                name, kind, scope, typedef_flag, cname)
+                name, kind, scope, typedef_flag, cname, packed)
             entry = self.declare_type(name, type, pos, cname,
                 visibility = visibility, defining = scope is not None)
             self.sue_entries.append(entry)
