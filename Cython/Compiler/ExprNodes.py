@@ -3674,14 +3674,15 @@ class UnboundMethodNode(ExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
-class PyCFunctionNode(AtomicExprNode):
+class PyCFunctionNode(ExprNode):
     #  Helper class used in the implementation of Python
     #  class definitions. Constructs a PyCFunction object
     #  from a PyMethodDef struct.
     #
     #  pymethdef_cname   string   PyMethodDef structure
     #  self_object       ExprNode or None
-    
+
+    subexprs = []
     self_object = None
     
     def analyse_types(self, env):
@@ -3690,18 +3691,48 @@ class PyCFunctionNode(AtomicExprNode):
 
     gil_message = "Constructing Python function"
 
-    def generate_result_code(self, code):
+    def self_result_code(self):
         if self.self_object is None:
             self_result = "NULL"
         else:
             self_result = self.self_object.py_result()
+        return self_result
+
+    def generate_result_code(self, code):
         code.putln(
             "%s = PyCFunction_New(&%s, %s); %s" % (
                 self.result(),
                 self.pymethdef_cname,
-                self_result,
+                self.self_result_code(),
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
+
+class InnerFunctionNode(PyCFunctionNode):
+    # Special PyCFunctionNode that depends on a closure class
+    #
+    def self_result_code(self):
+        return "((PyObject*)%s)" % Naming.cur_scope_cname
+
+class LambdaNode(InnerFunctionNode):
+    # Lambda expression node (only used as a function reference)
+    #
+    # args          [CArgDeclNode]         formal arguments
+    # star_arg      PyArgDeclNode or None  * argument
+    # starstar_arg  PyArgDeclNode or None  ** argument
+    # lambda_name   string                 a module-globally unique lambda name
+    # result_expr   ExprNode
+    # def_node      DefNode                the underlying function 'def' node
+
+    child_attrs = ['def_node']
+
+    def_node = None
+    name = StringEncoding.EncodedString('<lambda>')
+
+    def analyse_declarations(self, env):
+        #self.def_node.needs_closure = self.needs_closure
+        self.def_node.analyse_declarations(env)
+        self.pymethdef_cname = self.def_node.entry.pymethdef_cname
+        env.add_lambda_def(self.def_node)
 
 #-------------------------------------------------------------------
 #

@@ -247,6 +247,7 @@ class Scope(object):
         self.obj_to_entry = {}
         self.pystring_entries = []
         self.buffer_entries = []
+        self.lambda_defs = []
         self.control_flow = ControlFlow.LinearControlFlow()
         
     def start_branching(self, pos):
@@ -430,7 +431,20 @@ class Scope(object):
         entry.signature = pyfunction_signature
         self.pyfunc_entries.append(entry)
         return entry
-    
+
+    def declare_lambda_function(self, func_cname, pos):
+        # Add an entry for an anonymous Python function.
+        entry = self.declare_var(None, py_object_type, pos,
+                                 cname=func_cname, visibility='private')
+        entry.name = EncodedString(func_cname)
+        entry.func_cname = func_cname
+        entry.signature = pyfunction_signature
+        self.pyfunc_entries.append(entry)
+        return entry
+
+    def add_lambda_def(self, def_node):
+        self.lambda_defs.append(def_node)
+
     def register_pyfunction(self, entry):
         self.pyfunc_entries.append(entry)
     

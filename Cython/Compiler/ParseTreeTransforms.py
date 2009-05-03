@@ -177,6 +177,7 @@ class PostParse(CythonTransform):
     def visit_ModuleNode(self, node):
         self.scope_type = 'module'
         self.scope_node = node
+        self.lambda_counter = 1
         self.visitchildren(node)
         return node
 
@@ -196,6 +197,25 @@ class PostParse(CythonTransform):
 
     def visit_CStructOrUnionDefNode(self, node):
         return self.visit_scope(node, 'struct')
+
+    def visit_LambdaNode(self, node):
+        # unpack a lambda expression into the corresponding DefNode
+        if self.scope_type != 'function':
+            error(node.pos,
+                  "lambda functions are currently only supported in functions")
+        lambda_id = self.lambda_counter
+        self.lambda_counter += 1
+        node.lambda_name = EncodedString(u'lambda%d' % lambda_id)
+
+        body = Nodes.ReturnStatNode(
+            node.result_expr.pos, value = node.result_expr)
+        node.def_node = Nodes.DefNode(
+            node.pos, name=node.name, lambda_name=node.lambda_name,
+            args=node.args, star_arg=node.star_arg,
+            starstar_arg=node.starstar_arg,
+            body=body)
+        self.visitchildren(node)
+        return node
 
     # cdef variables
     def handle_bufferdefaults(self, decl):
@@ -692,7 +712,12 @@ property NAME:
         self.visitchildren(node)
         self.seen_vars_stack.pop()
         return node
-        
+
+    def visit_LambdaNode(self, node):
+        node.analyse_declarations(self.env_stack[-1])
+        self.visitchildren(node)
+        return node
+
     def visit_FuncDefNode(self, node):
         self.seen_vars_stack.append(set())
         lenv = node.create_local_scope(self.env_stack[-1])
@@ -845,7 +870,14 @@ class MarkClosureVisitor(CythonTransform):
         node.needs_closure = self.needs_closure
         self.needs_closure = True
         return node
-        
+
+    def visit_LambdaNode(self, node):
+        self.needs_closure = False
+        self.visitchildren(node)
+        node.needs_closure = self.needs_closure
+        self.needs_closure = True
+        return node
+
     def visit_ClassDefNode(self, node):
         self.visitchildren(node)
         self.needs_closure = True

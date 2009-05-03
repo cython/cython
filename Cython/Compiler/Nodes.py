@@ -1000,6 +1000,9 @@ class FuncDefNode(StatNode, BlockNode):
         lenv.mangle_closure_cnames(outer_scope_cname)
         # Generate closure function definitions
         self.body.generate_function_definitions(lenv, code)
+        # generate lambda function definitions
+        for node in lenv.lambda_defs:
+            node.generate_function_definitions(lenv, code)
 
         is_getbuffer_slot = (self.entry.name == "__getbuffer__" and
                              self.entry.scope.is_c_class_scope)
@@ -1013,12 +1016,13 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_cached_builtins_decls(lenv, code)
         # ----- Function header
         code.putln("")
+        with_pymethdef = env.is_py_class_scope or env.is_closure_scope
         if self.py_func:
             self.py_func.generate_function_header(code, 
-                with_pymethdef = env.is_py_class_scope or env.is_closure_scope,
+                with_pymethdef = with_pymethdef,
                 proto_only=True)
         self.generate_function_header(code,
-            with_pymethdef = env.is_py_class_scope or env.is_closure_scope)
+            with_pymethdef = with_pymethdef)
         # ----- Local variable declarations
         if lenv.is_closure_scope:
             code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname))
@@ -1546,6 +1550,7 @@ class DefNode(FuncDefNode):
     # A Python function definition.
     #
     # name          string                 the Python name of the function
+    # lambda_name   string                 the internal name of a lambda 'function'
     # decorators    [DecoratorNode]        list of decorators
     # args          [CArgDeclNode]         formal arguments
     # star_arg      PyArgDeclNode or None  * argument
@@ -1560,6 +1565,7 @@ class DefNode(FuncDefNode):
     
     child_attrs = ["args", "star_arg", "starstar_arg", "body", "decorators"]
 
+    lambda_name = None
     assmt = None
     num_kwonly_args = 0
     num_required_kw_args = 0
@@ -1675,7 +1681,10 @@ class DefNode(FuncDefNode):
             if arg.not_none and not arg.type.is_extension_type:
                 error(self.pos,
                     "Only extension type arguments can have 'not None'")
-        self.declare_pyfunction(env)
+        if self.name == '<lambda>':
+            self.declare_lambda_function(env)
+        else:
+            self.declare_pyfunction(env)
         self.analyse_signature(env)
         self.return_type = self.entry.signature.return_type()
 
@@ -1760,10 +1769,10 @@ class DefNode(FuncDefNode):
     def declare_pyfunction(self, env):
         #print "DefNode.declare_pyfunction:", self.name, "in", env ###
         name = self.name
-        entry = env.lookup_here(self.name)
+        entry = env.lookup_here(name)
         if entry and entry.type.is_cfunction and not self.is_wrapper:
             warning(self.pos, "Overriding cdef method with def method.", 5)
-        entry = env.declare_pyfunction(self.name, self.pos)
+        entry = env.declare_pyfunction(name, self.pos)
         self.entry = entry
         prefix = env.scope_prefix
         entry.func_cname = \
@@ -1776,6 +1785,18 @@ class DefNode(FuncDefNode):
                 Naming.funcdoc_prefix + prefix + name
         else:
             entry.doc = None
+
+    def declare_lambda_function(self, env):
+        name = self.name
+        prefix = env.scope_prefix
+        func_cname = \
+            Naming.lambda_func_prefix + u'funcdef' + prefix + self.lambda_name
+        entry = env.declare_lambda_function(func_cname, self.pos)
+        entry.pymethdef_cname = \
+            Naming.lambda_func_prefix + u'methdef' + prefix + self.lambda_name
+        entry.qualified_name = env.qualify_name(self.lambda_name)
+        entry.doc = None
+        self.entry = entry
 
     def declare_arguments(self, env):
         for arg in self.args:
@@ -1824,11 +1845,8 @@ class DefNode(FuncDefNode):
                 function = ExprNodes.PyCFunctionNode(self.pos,
                     pymethdef_cname = self.entry.pymethdef_cname))
         elif env.is_closure_scope:
-            self_object = ExprNodes.TempNode(self.pos, env.scope_class.type, env)
-            self_object.temp_cname = "((PyObject*)%s)" % Naming.cur_scope_cname
-            rhs = ExprNodes.PyCFunctionNode(self.pos, 
-                                            self_object = self_object,
-                                            pymethdef_cname = self.entry.pymethdef_cname)
+            rhs = ExprNodes.InnerFunctionNode(
+                self.pos, pymethdef_cname = self.entry.pymethdef_cname)
         self.assmt = SingleAssignmentNode(self.pos,
             lhs = ExprNodes.NameNode(self.pos, name = self.name),
             rhs = rhs)

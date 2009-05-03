@@ -258,6 +258,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.globalstate.insert_global_var_declarations_into(code)
 
         self.generate_cached_builtins_decls(env, code)
+        # generate lambda function definitions
+        for node in env.lambda_defs:
+            node.generate_function_definitions(env, code)
+        # generate normal function definitions
         self.body.generate_function_definitions(env, code)
         code.mark_pos(None)
         self.generate_typeobj_definitions(env, code)

@@ -748,9 +748,9 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         for child_result in children.itervalues():
             if type(child_result) is list:
                 for child in child_result:
-                    if child.constant_result is not_a_constant:
+                    if getattr(child, 'constant_result', not_a_constant) is not_a_constant:
                         return
-            elif child_result.constant_result is not_a_constant:
+            elif getattr(child_result, 'constant_result', not_a_constant) is not_a_constant:
                 return
 
         # now try to calculate the real constant value

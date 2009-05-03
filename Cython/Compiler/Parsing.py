@@ -78,7 +78,12 @@ def p_binop_expr(s, ops, p_sub_expr):
 
 #expression: or_test [if or_test else test] | lambda_form
 
+# actually:
+#test: or_test ['if' or_test 'else' test] | lambdef
+
 def p_simple_expr(s):
+    if s.sy == 'lambda':
+        return p_lambdef(s)
     pos = s.position()
     expr = p_or_test(s)
     if s.sy == 'if':
@@ -89,11 +94,45 @@ def p_simple_expr(s):
         return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
     else:
         return expr
-        
-#test: or_test | lambda_form
-        
+
+#lambdef: 'lambda' [varargslist] ':' test
+
+def p_lambdef(s, allow_conditional=True):
+    # s.sy == 'lambda'
+    pos = s.position()
+    s.next()
+    if s.sy == ':':
+        args = []
+        star_arg = starstar_arg = None
+    else:
+        args, star_arg, starstar_arg = p_varargslist(s, terminator=':')
+    s.expect(':')
+    if allow_conditional:
+        expr = p_test(s)
+    else:
+        expr = p_test_nocond(s)
+    return ExprNodes.LambdaNode(
+        pos, args = args,
+        star_arg = star_arg, starstar_arg = starstar_arg,
+        result_expr = expr)
+
+#lambdef_nocond: 'lambda' [varargslist] ':' test_nocond
+
+def p_lambdef_nocond(s):
+    return p_lambdef(s, allow_conditional=False)
+
+#test: or_test | lambdef
+
 def p_test(s):
     return p_or_test(s)
+
+#test_nocond: or_test | lambdef_nocond
+
+def p_test_nocond(s):
+    if s.sy == 'lambda':
+        return p_lambdef_nocond(s)
+    else:
+        return p_or_test(s)
 
 #or_test: and_test ('or' and_test)*
 
@@ -694,10 +733,10 @@ def p_string_literal(s):
     return kind, value
 
 # list_display      ::=      "[" [listmaker] "]"
-# listmaker     ::=     expression ( list_for | ( "," expression )* [","] )
-# list_iter     ::=     list_for | list_if
-# list_for     ::=     "for" expression_list "in" testlist [list_iter]
-# list_if     ::=     "if" test [list_iter]
+# listmaker     ::=     expression ( comp_for | ( "," expression )* [","] )
+# comp_iter     ::=     comp_for | comp_if
+# comp_for     ::=     "for" expression_list "in" testlist [comp_iter]
+# comp_if     ::=     "if" test [comp_iter]
         
 def p_list_maker(s):
     # s.sy == '['
@@ -711,7 +750,7 @@ def p_list_maker(s):
         target = ExprNodes.ListNode(pos, args = [])
         append = ExprNodes.ComprehensionAppendNode(
             pos, expr=expr, target=ExprNodes.CloneNode(target))
-        loop = p_list_for(s, Nodes.ExprStatNode(append.pos, expr=append))
+        loop = p_comp_for(s, Nodes.ExprStatNode(append.pos, expr=append))
         s.expect(']')
         return ExprNodes.ComprehensionNode(
             pos, loop=loop, append=append, target=target)
@@ -723,32 +762,32 @@ def p_list_maker(s):
         s.expect(']')
         return ExprNodes.ListNode(pos, args = exprs)
         
-def p_list_iter(s, body):
+def p_comp_iter(s, body):
     if s.sy == 'for':
-        return p_list_for(s, body)
+        return p_comp_for(s, body)
     elif s.sy == 'if':
-        return p_list_if(s, body)
+        return p_comp_if(s, body)
     else:
         # insert the 'append' operation into the loop
         return body
 
-def p_list_for(s, body):
+def p_comp_for(s, body):
     # s.sy == 'for'
     pos = s.position()
     s.next()
     kw = p_for_bounds(s)
     kw['else_clause'] = None
-    kw['body'] = p_list_iter(s, body)
+    kw['body'] = p_comp_iter(s, body)
     return Nodes.ForStatNode(pos, **kw)
         
-def p_list_if(s, body):
+def p_comp_if(s, body):
     # s.sy == 'if'
     pos = s.position()
     s.next()
-    test = p_test(s)
+    test = p_test_nocond(s)
     return Nodes.IfStatNode(pos, 
         if_clauses = [Nodes.IfClauseNode(pos, condition = test,
-                                         body = p_list_iter(s, body))],
+                                         body = p_comp_iter(s, body))],
         else_clause = None )
 
 #dictmaker: test ':' test (',' test ':' test)* [',']
@@ -776,7 +815,7 @@ def p_dict_or_set_maker(s):
         target = ExprNodes.SetNode(pos, args=[])
         append = ExprNodes.ComprehensionAppendNode(
             item.pos, expr=item, target=ExprNodes.CloneNode(target))
-        loop = p_list_for(s, Nodes.ExprStatNode(append.pos, expr=append))
+        loop = p_comp_for(s, Nodes.ExprStatNode(append.pos, expr=append))
         s.expect('}')
         return ExprNodes.ComprehensionNode(
             pos, loop=loop, append=append, target=target)
@@ -791,7 +830,7 @@ def p_dict_or_set_maker(s):
             append = ExprNodes.DictComprehensionAppendNode(
                 item.pos, key_expr=key, value_expr=value,
                 target=ExprNodes.CloneNode(target))
-            loop = p_list_for(s, Nodes.ExprStatNode(append.pos, expr=append))
+            loop = p_comp_for(s, Nodes.ExprStatNode(append.pos, expr=append))
             s.expect('}')
             return ExprNodes.ComprehensionNode(
                 pos, loop=loop, append=append, target=target)
@@ -2382,8 +2421,17 @@ def p_def_statement(s, decorators=None):
     pos = s.position()
     s.next()
     name = EncodedString( p_ident(s) )
-    #args = []
     s.expect('(');
+    args, star_arg, starstar_arg = p_varargslist(s, terminator=')')
+    s.expect(')')
+    if p_nogil(s):
+        error(s.pos, "Python function cannot be declared nogil")
+    doc, body = p_suite(s, Ctx(level = 'function'), with_doc = 1)
+    return Nodes.DefNode(pos, name = name, args = args, 
+        star_arg = star_arg, starstar_arg = starstar_arg,
+        doc = doc, body = body, decorators = decorators)
+
+def p_varargslist(s, terminator=')'):
     args = p_c_arg_list(s, in_pyfunc = 1, nonempty_declarators = 1)
     star_arg = None
     starstar_arg = None
@@ -2395,18 +2443,12 @@ def p_def_statement(s, decorators=None):
             s.next()
             args.extend(p_c_arg_list(s, in_pyfunc = 1,
                 nonempty_declarators = 1, kw_only = 1))
-        elif s.sy != ')':
+        elif s.sy != terminator:
             s.error("Syntax error in Python function argument list")
     if s.sy == '**':
         s.next()
         starstar_arg = p_py_arg_decl(s)
-    s.expect(')')
-    if p_nogil(s):
-        error(s.pos, "Python function cannot be declared nogil")
-    doc, body = p_suite(s, Ctx(level = 'function'), with_doc = 1)
-    return Nodes.DefNode(pos, name = name, args = args, 
-        star_arg = star_arg, starstar_arg = starstar_arg,
-        doc = doc, body = body, decorators = decorators)
+    return (args, star_arg, starstar_arg)
 
 def p_py_arg_decl(s):
     pos = s.position()
