@@ -55,8 +55,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             env.doc = self.doc
         env.directives = self.directives
-        if Options.embed:
-            self.__main__cname = env.intern_identifier(EncodedString("__main__"))
         self.body.analyse_declarations(env)
     
     def process_implementation(self, options, result):
@@ -1808,10 +1806,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 Naming.builtins_cname,
                 code.error_goto(self.pos)))
         if Options.embed:
+            __main__cname = code.globalstate.get_py_string_const(
+                EncodedString("__main__"), identifier=True)
             code.putln(
                 'if (__Pyx_SetAttrString(%s, "__name__", %s) < 0) %s;' % (
                     env.module_cname,
-                    self.__main__cname,
+                    __main__cname,
                     code.error_goto(self.pos)))
         if Options.pre_import is not None:
             code.putln(
