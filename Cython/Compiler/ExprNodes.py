@@ -2002,7 +2002,8 @@ class SliceIndexNode(ExprNode):
     def analyse_target_types(self, env):
         self.analyse_types(env)
         # when assigning, we must accept any Python type
-        self.type = py_object_type
+        if self.type.is_pyobject:
+            self.type = py_object_type
 
     def analyse_types(self, env):
         self.base.analyse_types(env)
