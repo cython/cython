@@ -61,7 +61,7 @@ cpdef p_testlist(PyrexScanner s)
 #
 #-------------------------------------------------------
 
-cpdef flatten_parallel_assignments(input, output)
+cpdef flatten_parallel_assignments(list input, list output)
 
 cpdef p_global_statement(PyrexScanner s)
 cpdef p_expression_or_assignment(PyrexScanner s)
