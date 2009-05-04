@@ -2471,7 +2471,11 @@ static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
 
 main_method = UtilityCode(
 impl = """
+#if PY_MAJOR_VERSION < 3 || (!defined(WIN32) && !defined(MS_WINDOWS))
 int main(int argc, char** argv) {
+#else
+int wmain(int argc, wchar_t **argv) {
+#endif
     int r = 0;
     PyObject* m = NULL;
     Py_SetProgramName(argv[0]);
