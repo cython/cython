@@ -1614,6 +1614,9 @@ def p_statement(s, ctx, first_statement = 0):
         decorators = p_decorators(s)
         if s.sy not in ('def', 'cdef', 'cpdef'):
             s.error("Decorators can only be followed by functions ")
+    elif s.sy == 'pass' and cdef_flag:
+        # empty cdef block
+        return p_pass_statement(s, with_newline = 1)
 
     overridable = 0
     if s.sy == 'cdef':
