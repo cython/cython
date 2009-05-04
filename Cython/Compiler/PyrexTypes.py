@@ -274,8 +274,14 @@ class BuiltinObjectType(PyObjectType):
     base_type = None
     module_name = '__builtin__'
 
+    alternative_name = None # used for str/bytes duality
+
     def __init__(self, name, cname):
         self.name = name
+        if name == 'str':
+            self.alternative_name = 'bytes'
+        elif name == 'bytes':
+            self.alternative_name = 'str'
         self.cname = cname
         self.typeptr_cname = "&" + cname
                                  
@@ -292,7 +298,9 @@ class BuiltinObjectType(PyObjectType):
         
     def assignable_from(self, src_type):
         if isinstance(src_type, BuiltinObjectType):
-            return src_type.name == self.name
+            return src_type.name == self.name or (
+                src_type.name == self.alternative_name and
+                src_type.name is not None)
         else:
             return not src_type.is_extension_type
             
