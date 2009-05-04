@@ -1807,6 +1807,8 @@ def p_c_simple_base_type(s, self_flag, nonempty):
     longness = 0
     module_path = []
     pos = s.position()
+    if not s.sy == 'IDENT':
+        error(pos, "Expected an identifier, found '%s'" % s.sy)
     if looking_at_base_type(s):
         #print "p_c_simple_base_type: looking_at_base_type at", s.position()
         is_basic = 1

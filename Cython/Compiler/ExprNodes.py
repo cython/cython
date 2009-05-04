@@ -13,7 +13,7 @@ import Nodes
 from Nodes import Node
 import PyrexTypes
 from PyrexTypes import py_object_type, c_long_type, typecast, error_type
-from Builtin import list_type, tuple_type, set_type, dict_type, unicode_type
+from Builtin import list_type, tuple_type, set_type, dict_type, unicode_type, bytes_type
 import Builtin
 import Symtab
 import Options
@@ -1884,6 +1884,12 @@ class SliceIndexNode(ExprNode):
     
     def analyse_target_declaration(self, env):
         pass
+    
+    def analyse_target_types(self, env):
+        self.analyse_types(env)
+        # when assigning, we must accept any Python type
+        if self.type.is_pyobject:
+            self.type = py_object_type
 
     def analyse_types(self, env):
         self.base.analyse_types(env)
@@ -1891,16 +1897,20 @@ class SliceIndexNode(ExprNode):
             self.start.analyse_types(env)
         if self.stop:
             self.stop.analyse_types(env)
-        if self.base.type.is_string:
-            self.type = py_object_type
-        elif self.base.type.is_array or self.base.type.is_ptr:
+        base_type = self.base.type
+        if base_type.is_string:
+            self.type = bytes_type
+        elif base_type.is_array or base_type.is_ptr:
             # we need a ptr type here instead of an array type, as
             # array types can result in invalid type casts in the C
             # code
-            self.type = PyrexTypes.CPtrType(self.base.type.base_type)
+            self.type = PyrexTypes.CPtrType(base_type.base_type)
         else:
             self.base = self.base.coerce_to_pyobject(env)
             self.type = py_object_type
+        if base_type.is_builtin_type:
+            # slicing builtin types returns something of the same type
+            self.type = base_type
         c_int = PyrexTypes.c_py_ssize_t_type
         if self.start:
             self.start = self.start.coerce_to(c_int, env)
