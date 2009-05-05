@@ -154,6 +154,20 @@ def char3int(fmt):
     >>> char3int("ci2i")
     >>> char3int("c@i@2i")
 
+    Extra pad bytes (assuming int size is 4 or more)
+    >>> char3int("cxiii")
+    >>> char3int("c3xiii")
+    >>> char3int("cxxxiii")
+
+    Standard alignment (assming int size is 4)
+    >>> char3int("=c3xiii")
+    >>> char3int("=cxxx@iii")
+    >>> char3int("=ciii")
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer dtype mismatch; next field is at offset 1 but 4 expected
+    
+    Error:
     >>> char3int("cii")
     Traceback (most recent call last):
        ...

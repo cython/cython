@@ -272,18 +272,18 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset
         if (end - f) - (new_offset - offset[0]) < 15: # this should leave room for "T{" and "}" as well
             raise RuntimeError("Format string allocated too short, see comment in numpy.pxd")
 
-        new_byteorder = child.byteorder
-        if new_byteorder == '|': new_byteorder = '='
+#        new_byteorder = child.byteorder
+#        if new_byteorder == '|': new_byteorder = '='
 #        if byteorder[0] != new_byteorder:
 #            f[0] = new_byteorder
 #            f += 1
 #            byteorder[0] = new_byteorder
 
         # Output padding bytes
-        while offset[0] < new_offset:
-            f[0] = 120 # "x"; pad byte
-            f += 1
-            offset[0] += 1
+#        while offset[0] < new_offset:
+#            f[0] = 120 # "x"; pad byte
+#            f += 1
+#            offset[0] += 1
 
         offset[0] += child.itemsize
             
