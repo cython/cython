@@ -45,11 +45,6 @@ lookup_module_cpdef = 0
 # WARNING: This is a work in progress, may currently segfault.
 init_local_none = 1
 
-# Optimize no argument and one argument methods by using the METH_O and METH_NOARGS
-# calling conventions. These are faster calling conventions, but disallow the use of 
-# keywords (which, admittedly, are of little use in these cases). 
-optimize_simple_methods = 1
-
 # Append the c file and line number to the traceback for exceptions. 
 c_line_in_traceback = 1
 
@@ -68,6 +63,7 @@ option_defaults = {
     'auto_cpdef': False,
     'cdivision': True,  # Will be False in 0.12
     'cdivision_warnings': False,
+    'always_allow_keywords': False,
 }
 
 # Override types possibilities above, if needed

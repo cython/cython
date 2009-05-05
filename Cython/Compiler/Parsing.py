@@ -1498,6 +1498,9 @@ def p_statement(s, ctx, first_statement = 0):
         decorators = p_decorators(s)
         if s.sy not in ('def', 'cdef', 'cpdef'):
             s.error("Decorators can only be followed by functions ")
+    elif s.sy == 'pass' and cdef_flag:
+        # empty cdef block
+        return p_pass_statement(s, with_newline = 1)
 
     overridable = 0
     if s.sy == 'cdef':
@@ -1691,6 +1694,8 @@ def p_c_simple_base_type(s, self_flag, nonempty):
     longness = 0
     module_path = []
     pos = s.position()
+    if not s.sy == 'IDENT':
+        error(pos, "Expected an identifier, found '%s'" % s.sy)
     if looking_at_base_type(s):
         #print "p_c_simple_base_type: looking_at_base_type at", s.position()
         is_basic = 1
@@ -2068,31 +2073,30 @@ def p_cdef_statement(s, ctx):
     elif s.sy == 'import':
         s.next()
         return p_cdef_extern_block(s, pos, ctx)
-    if p_nogil(s):
+    elif p_nogil(s):
         ctx.nogil = 1
-    if s.sy == ':':
+        if ctx.overridable:
+            error(pos, "cdef blocks cannot be declared cpdef")
+        return p_cdef_block(s, ctx)
+    elif s.sy == ':':
+        if ctx.overridable:
+            error(pos, "cdef blocks cannot be declared cpdef")
         return p_cdef_block(s, ctx)
     elif s.sy == 'class':
         if ctx.level not in ('module', 'module_pxd'):
             error(pos, "Extension type definition not allowed here")
-        #if ctx.api:
-        #    error(pos, "'api' not allowed with extension class")
+        if ctx.overridable:
+            error(pos, "Extension types cannot be declared cpdef")
         return p_c_class_definition(s, pos, ctx)
     elif s.sy == 'IDENT' and s.systring in ("struct", "union", "enum", "packed"):
         if ctx.level not in ('module', 'module_pxd'):
             error(pos, "C struct/union/enum definition not allowed here")
-        #if ctx.visibility == 'public':
-        #    error(pos, "Public struct/union/enum definition not implemented")
-        #if ctx.api:
-        #    error(pos, "'api' not allowed with '%s'" % s.systring)
+        if ctx.overridable:
+            error(pos, "C struct/union/enum cannot be declared cpdef")
         if s.systring == "enum":
             return p_c_enum_definition(s, pos, ctx)
         else:
             return p_c_struct_or_union_definition(s, pos, ctx)
-    elif s.sy == 'pass':
-        node = p_pass_statement(s)
-        s.expect_newline('Expected a newline')
-        return node
     else:
         return p_c_func_or_var_declaration(s, pos, ctx)
 
@@ -2100,6 +2104,8 @@ def p_cdef_block(s, ctx):
     return p_suite(s, ctx(cdef_flag = 1))
 
 def p_cdef_extern_block(s, pos, ctx):
+    if ctx.overridable:
+        error(pos, "cdef extern blocks cannot be declared cpdef")
     include_file = None
     s.expect('from')
     if s.sy == '*':

@@ -1691,9 +1691,11 @@ class DefNode(FuncDefNode):
 
     def analyse_signature(self, env):
         any_type_tests_needed = 0
-        # Use the simpler calling signature for zero- and one-argument functions.
-        if not self.entry.is_special and not self.star_arg and not self.starstar_arg:
-            if self.entry.signature is TypeSlots.pyfunction_signature and Options.optimize_simple_methods:
+        if self.entry.is_special:
+            self.entry.trivial_signature = len(self.args) == 1 and not (self.star_arg or self.starstar_arg)
+        elif not env.directives['always_allow_keywords'] and not (self.star_arg or self.starstar_arg):
+            # Use the simpler calling signature for zero- and one-argument functions.
+            if self.entry.signature is TypeSlots.pyfunction_signature:
                 if len(self.args) == 0:
                     self.entry.signature = TypeSlots.pyfunction_noargs
                 elif len(self.args) == 1:
@@ -1705,8 +1707,6 @@ class DefNode(FuncDefNode):
                 elif len(self.args) == 2:
                     if self.args[1].default is None and not self.args[1].kw_only:
                         self.entry.signature = TypeSlots.ibinaryfunc
-        elif self.entry.is_special:
-            self.entry.trivial_signature = len(self.args) == 1 and not (self.star_arg or self.starstar_arg)
         sig = self.entry.signature
         nfixed = sig.num_fixed_args()
         for i in range(nfixed):
