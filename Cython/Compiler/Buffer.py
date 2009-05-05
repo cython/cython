@@ -238,7 +238,7 @@ def put_acquire_arg_buffer(entry, code, pos):
 
     # Acquire any new buffer
     code.putln("{")
-    code.putln("__Pyx_StructField* __pyx_stack[%d];" % entry.type.dtype.struct_nesting_depth())
+    code.putln("__Pyx_BufFmt_StackElem __pyx_stack[%d];" % entry.type.dtype.struct_nesting_depth())
     code.putln(code.error_goto_if("%s == -1" % getbuffer, pos))
     code.putln("}")
     # An exception raised in arg parsing cannot be catched, so no
@@ -281,7 +281,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
     flags = get_flags(buffer_aux, buffer_type)
 
     code.putln("{")  # Set up necesarry stack for getbuffer
-    code.putln("__Pyx_StructField* __pyx_stack[%d];" % buffer_type.dtype.struct_nesting_depth())
+    code.putln("__Pyx_BufFmt_StackElem __pyx_stack[%d];" % buffer_type.dtype.struct_nesting_depth())
     
     getbuffer = get_getbuffer_call(code, "%s", buffer_aux, buffer_type) # fill in object below
 
@@ -595,12 +595,12 @@ def get_type_information_cname(code, dtype, maxdepth=None):
                                    dtype=dtype, maxdepth=maxdepth)
     return name
 
-def type_information_code(proto, impl, name, structinfo_name, dtype, maxdepth):
+def type_information_code(proto, impl, name, structinfo_name, dtype):
     # Output the run-time type information (__Pyx_TypeInfo) for given dtype.
     # Use through get_type_information_cname
     #
-    # Structs with two doubles are encoded as complex numbers. One can
-    # seperate between complex numbers declared as struct or with native
+    # Structs with two floats of the same size are encoded as complex numbers.
+    # One can seperate between complex numbers declared as struct or with native
     # encoding by inspecting to see if the fields field of the type is
     # filled in.
 
@@ -720,46 +720,14 @@ typedef struct __Pyx_StructField_ {
   size_t offset;   /* __Pyx_FIELD_OFFSET(structtype, field) */
 } __Pyx_StructField;
 
-size_t __Pyx_TypeSize_Native[] = {
-  sizeof(char), sizeof(short), sizeof(int), sizeof(long),
-#ifdef HAVE_LONG_LONG
-  sizeof(PY_LONG_LONG),
-#else
-  0,
-#endif
-  sizeof(float), sizeof(double), sizeof(long double)
-};
+typedef struct {
+  __Pyx_StructField* field;
+  size_t parent_offset;
+} __Pyx_BufFmt_StackElem;
 
-typedef struct { char c; short x; } __Pyx_st_short;
-typedef struct { char c; int x; } __Pyx_st_int;
-typedef struct { char c; long x; } __Pyx_st_long;
-typedef struct { char c; float x; } __Pyx_st_float;
-typedef struct { char c; double x; } __Pyx_st_double;
-typedef struct { char c; long double x; } __Pyx_st_longdouble;
-typedef struct { char c; void *x; } __Pyx_st_void_p;
-
-#ifdef HAVE_LONG_LONG
-typedef struct { char c; PY_LONG_LONG x; } __Pyx_s_long_long;
-#endif
-
-size_t __Pyx_TypePacking_Native[] = {
-  1,
-  sizeof(__Pyx_st_short) - sizeof(short),
-  sizeof(__Pyx_st_int) - sizeof(int),
-  sizeof(__Pyx_st_long) - sizeof(long),
-#ifdef HAVE_LONG_LONG
-  sizeof(__Pyx_s_long_long) - sizeof(PY_LONG_LONG),
-#else
-  0,
-#endif  
-  sizeof(__Pyx_st_float) - sizeof(float),
-  sizeof(__Pyx_st_double) - sizeof(double),
-  sizeof(__Pyx_st_longdouble) - sizeof(long double),
-  sizeof(__Pyx_st_void_p) - sizeof(void*)
-};
 
 static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
-static int __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj, __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_StructField** stack);
+static int __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj, __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack);
 """, impl="""
 static INLINE int __Pyx_IsLittleEndian(void) {
   unsigned int n = 1;
@@ -768,8 +736,8 @@ static INLINE int __Pyx_IsLittleEndian(void) {
 
 typedef struct {
   __Pyx_StructField root;
-  __Pyx_StructField** head;
-  size_t offset, fmt_offset;
+  __Pyx_BufFmt_StackElem* head;
+  size_t fmt_offset;
   int new_count, enc_count;
   int is_complex;
   char enc_type;
@@ -777,14 +745,16 @@ typedef struct {
 } __Pyx_BufFmt_Context;
 
 static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
-                              __Pyx_StructField** stack,
+                              __Pyx_BufFmt_StackElem* stack,
                               __Pyx_TypeInfo* type) {
-  stack[0] = &ctx->root;
+  stack[0].field = &ctx->root;
+  stack[0].parent_offset = 0;
   ctx->root.type = type;
   ctx->root.name = "buffer dtype";
   ctx->root.offset = 0;
   ctx->head = stack;
-  ctx->offset = ctx->fmt_offset = 0;
+  ctx->head->field = &ctx->root;
+  ctx->fmt_offset = ctx->head->parent_offset = 0;
   ctx->packmode = '@';
   ctx->new_count = 1;
   ctx->enc_count = 0;
@@ -792,7 +762,7 @@ static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
   ctx->is_complex = 0;
   while (type->typegroup == 'S') {
     ++ctx->head;
-    *ctx->head = type->fields;
+    ctx->head->field = type->fields;
     type = type->fields->type;
   }
 }
@@ -880,6 +850,36 @@ static size_t __Pyx_BufFmt_TypeCharToNativeSize(char ch, int is_complex) {
   }
 }
 
+typedef struct { char c; short x; } __Pyx_st_short;
+typedef struct { char c; int x; } __Pyx_st_int;
+typedef struct { char c; long x; } __Pyx_st_long;
+typedef struct { char c; float x; } __Pyx_st_float;
+typedef struct { char c; double x; } __Pyx_st_double;
+typedef struct { char c; long double x; } __Pyx_st_longdouble;
+typedef struct { char c; void *x; } __Pyx_st_void_p;
+#ifdef HAVE_LONG_LONG
+typedef struct { char c; PY_LONG_LONG x; } __Pyx_s_long_long;
+#endif
+
+static size_t __Pyx_BufFmt_TypeCharToAlignment(char ch, int is_complex) {
+  switch (ch) {
+    case '?': case 'c': case 'b': case 'B': return 1;
+    case 'h': case 'H': return sizeof(__Pyx_st_short) - sizeof(short);
+    case 'i': case 'I': return sizeof(__Pyx_st_int) - sizeof(int);
+    case 'l': case 'L': return sizeof(__Pyx_st_long) - sizeof(long);
+#ifdef HAVE_LONG_LONG
+    case 'q': case 'Q': return sizeof(__Pyx_s_long_long) - sizeof(PY_LONG_LONG);
+#endif
+    case 'f': return sizeof(__Pyx_st_float) - sizeof(float);
+    case 'd': return sizeof(__Pyx_st_double) - sizeof(double);
+    case 'g': return sizeof(__Pyx_st_longdouble) - sizeof(long double);
+    case 'P': case 'O': return sizeof(__Pyx_st_void_p) - sizeof(void*);
+    default:
+      __Pyx_BufFmt_RaiseUnexpectedChar(ch);
+      return 0;
+    }
+}
+
 static size_t __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
   switch (ch) {
     case 'c': case 'b': case 'h': case 'i': case 'l': case 'q': return 'I';
@@ -895,14 +895,14 @@ static size_t __Pyx_BufFmt_TypeCharToGroup(char ch, int is_complex) {
 }
 
 static void __Pyx_BufFmt_RaiseExpected(__Pyx_BufFmt_Context* ctx) {
-  if (ctx->head == NULL || *(ctx->head) == &ctx->root) {
+  if (ctx->head == NULL || ctx->head->field == &ctx->root) {
     const char* expected;
     const char* quote;
     if (ctx->head == NULL) {
       expected = "end";
       quote = "";
     } else {
-      expected = (*ctx->head)->type->name;
+      expected = ctx->head->field->type->name;
       quote = "'";
     }
     PyErr_Format(PyExc_ValueError,
@@ -910,8 +910,8 @@ static void __Pyx_BufFmt_RaiseExpected(__Pyx_BufFmt_Context* ctx) {
                  quote, expected, quote,
                  __Pyx_BufFmt_DescribeTypeChar(ctx->enc_type, ctx->is_complex));
   } else {
-    __Pyx_StructField* field = *(ctx->head);
-    __Pyx_StructField* parent = *(ctx->head - 1);
+    __Pyx_StructField* field = ctx->head->field;
+    __Pyx_StructField* parent = (ctx->head - 1)->field;
     PyErr_Format(PyExc_ValueError,
                  "Buffer dtype mismatch, expected '%s' but got %s in '%s.%s'",
                  field->type->name, __Pyx_BufFmt_DescribeTypeChar(ctx->enc_type, ctx->is_complex),
@@ -921,9 +921,9 @@ static void __Pyx_BufFmt_RaiseExpected(__Pyx_BufFmt_Context* ctx) {
 
 static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
   char group = __Pyx_BufFmt_TypeCharToGroup(ctx->enc_type, ctx->is_complex);
-  size_t size;
+  size_t size, offset;
   do {
-    __Pyx_StructField* field = *(ctx->head);
+    __Pyx_StructField* field = ctx->head->field;
     __Pyx_TypeInfo* type = field->type;
   
     if (ctx->packmode == '@' || ctx->packmode == '^') {
@@ -931,12 +931,19 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
     } else {
       size = __Pyx_BufFmt_TypeCharToStandardSize(ctx->enc_type, ctx->is_complex);
     }
-  
+    if (ctx->packmode == '@') {
+      int align_at = __Pyx_BufFmt_TypeCharToAlignment(ctx->enc_type, ctx->is_complex);
+      int align_mod_offset;
+      if (align_at == 0) return -1;
+      align_mod_offset = ctx->fmt_offset % align_at;
+      if (align_mod_offset > 0) ctx->fmt_offset += align_at - align_mod_offset;
+    }
+
     if (type->size != size || type->typegroup != group) {
       if (type->typegroup == 'C' && type->fields != NULL) {
         /* special case -- treat as struct rather than complex number */
         ++ctx->head;
-        *ctx->head = type->fields;
+        ctx->head->field = type->fields;
         continue;
       }
     
@@ -944,6 +951,16 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
       return -1;
     }
 
+    offset = ctx->head->parent_offset + field->offset;
+/*    if (ctx->fmt_offset != offset) {
+      PyErr_Format(PyExc_ValueError,
+                   "Buffer dtype mismatch; next field is at offset %"PY_FORMAT_SIZE_T"d "
+                   "but %"PY_FORMAT_SIZE_T"d expected", ctx->fmt_offset, offset);
+      return -1;
+    }*/
+
+    ctx->fmt_offset += size;
+  
     --ctx->enc_count; /* Consume from buffer string */
 
     /* Done checking, move to next field, pushing or popping struct stack if needed */
@@ -956,16 +973,18 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
         }
         break; /* breaks both loops as ctx->enc_count == 0 */
       }
-      *ctx->head = ++field;
+      ctx->head->field = ++field;
       if (field->type == NULL) {
         --ctx->head;
-        field = *(ctx->head);
+        field = ctx->head->field;
         continue;
       } else if (field->type->typegroup == 'S') {
+        size_t parent_offset = ctx->head->parent_offset + field->offset;
         if (field->type->fields->type == NULL) continue; /* empty struct */
         field = field->type->fields;
         ++ctx->head;
-        *ctx->head = field;
+        ctx->head->field = field;
+        ctx->head->parent_offset = parent_offset;
         break;
       } else {
         break;
@@ -1097,7 +1116,7 @@ static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf) {
   buf->suboffsets = __Pyx_minusones;
 }
 
-static int __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj, __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_StructField** stack) {
+static int __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj, __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack) {
   if (obj == Py_None) {
     __Pyx_ZeroBuffer(buf);
     return 0;
