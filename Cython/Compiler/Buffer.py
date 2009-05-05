@@ -595,7 +595,7 @@ def get_type_information_cname(code, dtype, maxdepth=None):
                                    dtype=dtype, maxdepth=maxdepth)
     return name
 
-def type_information_code(proto, impl, name, structinfo_name, dtype):
+def type_information_code(proto, impl, name, structinfo_name, dtype, maxdepth):
     # Output the run-time type information (__Pyx_TypeInfo) for given dtype.
     # Use through get_type_information_cname
     #
@@ -754,7 +754,8 @@ static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
   ctx->root.offset = 0;
   ctx->head = stack;
   ctx->head->field = &ctx->root;
-  ctx->fmt_offset = ctx->head->parent_offset = 0;
+  ctx->fmt_offset = 0;
+  ctx->head->parent_offset = 0;
   ctx->packmode = '@';
   ctx->new_count = 1;
   ctx->enc_count = 0;
@@ -763,6 +764,7 @@ static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
   while (type->typegroup == 'S') {
     ++ctx->head;
     ctx->head->field = type->fields;
+    ctx->head->parent_offset = 0;
     type = type->fields->type;
   }
 }
@@ -920,8 +922,10 @@ static void __Pyx_BufFmt_RaiseExpected(__Pyx_BufFmt_Context* ctx) {
 }
 
 static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
-  char group = __Pyx_BufFmt_TypeCharToGroup(ctx->enc_type, ctx->is_complex);
+  char group;
   size_t size, offset;
+  if (ctx->enc_type == 0) return 0;
+  group = __Pyx_BufFmt_TypeCharToGroup(ctx->enc_type, ctx->is_complex);
   do {
     __Pyx_StructField* field = ctx->head->field;
     __Pyx_TypeInfo* type = field->type;
@@ -942,8 +946,10 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
     if (type->size != size || type->typegroup != group) {
       if (type->typegroup == 'C' && type->fields != NULL) {
         /* special case -- treat as struct rather than complex number */
+        size_t parent_offset = ctx->head->parent_offset + field->offset;
         ++ctx->head;
         ctx->head->field = type->fields;
+        ctx->head->parent_offset = parent_offset;
         continue;
       }
     
@@ -952,12 +958,12 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
     }
 
     offset = ctx->head->parent_offset + field->offset;
-/*    if (ctx->fmt_offset != offset) {
+    if (ctx->fmt_offset != offset) {
       PyErr_Format(PyExc_ValueError,
                    "Buffer dtype mismatch; next field is at offset %"PY_FORMAT_SIZE_T"d "
                    "but %"PY_FORMAT_SIZE_T"d expected", ctx->fmt_offset, offset);
       return -1;
-    }*/
+    }
 
     ctx->fmt_offset += size;
   
@@ -1001,13 +1007,11 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
   while (1) {
     switch(*ts) {
       case 0:
-        if (ctx->enc_type != 0) {
-          if (ctx->head == NULL) {
-            __Pyx_BufFmt_RaiseExpected(ctx);
-            return NULL;
-          }
-          if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
+        if (ctx->enc_type != 0 && ctx->head == NULL) {
+          __Pyx_BufFmt_RaiseExpected(ctx);
+          return NULL;
         }
+        if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
         if (ctx->head != NULL) {
           __Pyx_BufFmt_RaiseExpected(ctx);
           return NULL;
@@ -1063,7 +1067,14 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
       case '}': /* end of substruct; either repeat or move on */
         ++ts;
         return ts;
-
+      case 'x':
+        if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
+        ctx->fmt_offset += ctx->new_count;
+        ctx->new_count = 1;
+        ctx->enc_count = 0;
+        ctx->enc_type = 0;
+        ++ts;
+        break;
       case 'Z':
         got_Z = 1;
         ++ts;
@@ -1080,11 +1091,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
           ctx->enc_count += ctx->new_count;
         } else {
           /* New type */
-          if (ctx->enc_type != 0) {
-            if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) {
-              return NULL;
-            }
-          }
+          if (__Pyx_BufFmt_ProcessTypeChunk(ctx) == -1) return NULL;
           ctx->enc_count = ctx->new_count;
           ctx->enc_type = *ts;
           ctx->is_complex = got_Z;
