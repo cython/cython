@@ -17,6 +17,20 @@ if little_endian():
 else:
     current_endian = '>'
     other_endian = '<'
+
+cdef struct align_of_double_helper:
+    char ch
+    double d    
+cdef struct align_of_int_helper:
+    char ch
+    int i
+double_align = sizeof(align_of_double_helper) - sizeof(double)
+int_align = sizeof(align_of_int_helper) - sizeof(int)
+if double_align != 8:
+    raise RuntimeError("Alignment of double is %d on this system, please report to cython-dev for a testcase fix" % double_align)
+if int_align != 4:
+    raise RuntimeError("Alignment of int is %d on this system, please report to cython-dev for a testcase fix" % int_align)
+
  
 cdef class MockBuffer:
     cdef Py_ssize_t zero
