@@ -622,7 +622,7 @@ def type_information_code(proto, impl, name, structinfo_name, dtype, maxdepth):
                  for f in fields]
         impl.putln("static __Pyx_StructField %s[] = {" % structinfo_name, safe=True)
         for f, typeinfo in zip(fields, types):
-            impl.putln('  {&%s, "%s", __Pyx_FIELD_OFFSET(%s, %s)},' %
+            impl.putln('  {&%s, "%s", offsetof(%s, %s)},' %
                        (typeinfo, f.name, dtype.declaration_code(""), f.cname), safe=True)
         impl.putln('  {NULL, NULL, 0}', safe=True)
         impl.putln("};", safe=True)
@@ -702,8 +702,6 @@ static void __Pyx_RaiseBufferFallbackError(void) {
 #
 # The alignment code is copied from _struct.c in Python.
 acquire_utility_code = UtilityCode(proto="""
-#define __Pyx_FIELD_OFFSET(type, field) (size_t)(&((type*)0)->field)
-
 /* Run-time type information about structs used with buffers */
 struct __Pyx_StructField_;
 
@@ -717,7 +715,7 @@ typedef struct {
 typedef struct __Pyx_StructField_ {
   __Pyx_TypeInfo* type;
   const char* name;
-  size_t offset;   /* __Pyx_FIELD_OFFSET(structtype, field) */
+  size_t offset;
 } __Pyx_StructField;
 
 typedef struct {
