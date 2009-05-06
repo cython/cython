@@ -1002,6 +1002,14 @@ static int __Pyx_BufFmt_ProcessTypeChunk(__Pyx_BufFmt_Context* ctx) {
   return 0;    
 }
 
+static int __Pyx_BufFmt_FirstPack(__Pyx_BufFmt_Context* ctx) {
+  if (ctx->enc_type != 0 || ctx->packmode != '@') {
+    PyErr_SetString(PyExc_ValueError, "Buffer packing mode currently only allowed at beginning of format string (this is a defect)");
+    return -1;
+  }
+  return 0;
+}
+
 static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const char* ts) {
   int got_Z = 0;
   while (1) {
@@ -1027,6 +1035,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
           PyErr_SetString(PyExc_ValueError, "Little-endian buffer not supported on big-endian compiler");
           return NULL;
         }
+        if (__Pyx_BufFmt_FirstPack(ctx) == -1) return NULL;
         ctx->packmode = '=';
         ++ts;
         break;
@@ -1036,13 +1045,15 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
           PyErr_SetString(PyExc_ValueError, "Big-endian buffer not supported on little-endian compiler");
           return NULL;
         }
+        if (__Pyx_BufFmt_FirstPack(ctx) == -1) return NULL;
         ctx->packmode = '=';
         ++ts;
         break;
       case '=':
       case '@':
       case '^':
-      ctx->packmode = *ts++;
+        if (__Pyx_BufFmt_FirstPack(ctx) == -1) return NULL;
+        ctx->packmode = *ts++;
         break;
       case 'T': /* substruct */
         {

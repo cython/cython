@@ -16,7 +16,7 @@ cimport stdlib
 
 cdef extern from "Python.h":
     ctypedef int Py_intptr_t
-    
+
 cdef extern from "numpy/arrayobject.h":
     ctypedef Py_intptr_t npy_intp
         
@@ -68,6 +68,9 @@ cdef extern from "numpy/arrayobject.h":
             # In particular strided access is always provided regardless
             # of flags
             cdef int copy_shape, i, ndim
+            cdef int endian_detector = 1
+            cdef bint little_endian = ((<char*>&endian_detector)[0] != 0)
+            
             ndim = PyArray_NDIM(self)
             
             if sizeof(npy_intp) != sizeof(Py_ssize_t):
@@ -105,7 +108,6 @@ cdef extern from "numpy/arrayobject.h":
             cdef dtype descr = self.descr
             cdef list stack
             cdef int offset
-            cdef char byteorder = 0
 
             cdef bint hasfields = PyDataType_HASFIELDS(descr)
 
@@ -118,6 +120,9 @@ cdef extern from "numpy/arrayobject.h":
 
             if not hasfields:
                 t = descr.type_num
+                if ((descr.byteorder == '>' and little_endian) or
+                    (descr.byteorder == '<' and not little_endian)):
+                    raise ValueError("Non-native byte order not supported")
                 if   t == NPY_BYTE:        f = "b"
                 elif t == NPY_UBYTE:       f = "B"
                 elif t == NPY_SHORT:       f = "h"
@@ -141,10 +146,11 @@ cdef extern from "numpy/arrayobject.h":
                 return
             else:
                 info.format = <char*>stdlib.malloc(_buffer_format_string_len)
+                info.format[0] = '^' # Native data types, manual alignment
                 offset = 0
-                f = _util_dtypestring(descr, info.format,
+                f = _util_dtypestring(descr, info.format + 1,
                                       info.format + _buffer_format_string_len,
-                                      &offset, &byteorder)
+                                      &offset)
                 f[0] = 0 # Terminate format string
 
         def __releasebuffer__(ndarray self, Py_buffer* info):
@@ -257,39 +263,45 @@ ctypedef npy_cdouble     cdouble_t
 ctypedef npy_clongdouble clongdouble_t
 
 
-cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset, char* byteorder) except NULL:
+cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset) except NULL:
     # Recursive utility function used in __getbuffer__ to get format
     # string. The new location in the format string is returned.
 
     cdef dtype child
     cdef int delta_offset
     cdef tuple i
-    cdef char new_byteorder
+    cdef int endian_detector = 1
+    cdef bint little_endian = ((<char*>&endian_detector)[0] == 0)
+    
     for i in descr.fields.itervalues():
         child = i[0]
         new_offset = i[1]
 
-        if (end - f) - (new_offset - offset[0]) < 15: # this should leave room for "T{" and "}" as well
+        if (end - f) - (new_offset - offset[0]) < 15:
             raise RuntimeError("Format string allocated too short, see comment in numpy.pxd")
 
-#        new_byteorder = child.byteorder
-#        if new_byteorder == '|': new_byteorder = '='
-#        if byteorder[0] != new_byteorder:
-#            f[0] = new_byteorder
-#            f += 1
-#            byteorder[0] = new_byteorder
-
+        if ((child.byteorder == '>' and little_endian) or
+            (child.byteorder == '<' and not little_endian)):
+            raise ValueError("Non-native byte order not supported")
+            # One could encode it in the format string and have Cython
+            # complain instead, BUT: < and > in format strings also imply
+            # standardized sizes for datatypes, and we rely on native in
+            # order to avoid reencoding data types based on their size.
+            #
+            # A proper PEP 3118 exporter for other clients than Cython
+            # must deal properly with this!
+        
         # Output padding bytes
-#        while offset[0] < new_offset:
-#            f[0] = 120 # "x"; pad byte
-#            f += 1
-#            offset[0] += 1
+        while offset[0] < new_offset:
+            f[0] = 120 # "x"; pad byte
+            f += 1
+            offset[0] += 1
 
         offset[0] += child.itemsize
             
         if not PyDataType_HASFIELDS(child):
             t = child.type_num
-            if end - f < 15: # this should leave room for "T{" and "}" as well
+            if end - f < 5:
                 raise RuntimeError("Format string allocated too short.")
 
             # Until ticket #99 is fixed, use integers to avoid warnings
@@ -314,11 +326,8 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset
                 raise ValueError("unknown dtype code in numpy.pxd (%d)" % t)
             f += 1
         else:
-            f[0] = 84 #"T"
-            f[1] = 123 #"{"
-            f += 2
-            f = _util_dtypestring(child, f, end, offset, byteorder)
-            f[0] = 125 #"}"
-            f += 1
+            # Cython ignores struct boundary information ("T{...}"),
+            # so don't output it
+            f = _util_dtypestring(child, f, end, offset)
     return f
                 
