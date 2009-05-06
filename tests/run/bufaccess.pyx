@@ -478,6 +478,26 @@ def no_negative_indices(object[int, negative_indices=False] buf, int idx):
     """
     return buf[idx]
 
+@testcase
+@cython.wraparound(False)
+def wraparound_directive(object[int] buf, int pos_idx, int neg_idx):
+    """
+    Again, the most interesting thing here is to inspect the C source.
+    
+    >>> A = IntMockBuffer(None, range(4))
+    >>> wraparound_directive(A, 2, -1)
+    5
+    >>> wraparound_directive(A, -1, 2)
+    Traceback (most recent call last):
+        ...
+    IndexError: Out of bounds on buffer access (axis 0)
+    """
+    cdef int byneg
+    with cython.wraparound(True):
+        byneg = buf[neg_idx]
+    return buf[pos_idx] + byneg
+
+
 #
 # Test which flags are passed.
 #
