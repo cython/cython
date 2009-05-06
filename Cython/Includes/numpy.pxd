@@ -251,6 +251,7 @@ ctypedef npy_float64    float64_t
 ctypedef npy_long       int_t
 ctypedef npy_longlong   long_t
 
+
 ctypedef npy_ulong      uint_t
 ctypedef npy_ulonglong  ulong_t
 
@@ -271,7 +272,7 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset
     cdef int delta_offset
     cdef tuple i
     cdef int endian_detector = 1
-    cdef bint little_endian = ((<char*>&endian_detector)[0] == 0)
+    cdef bint little_endian = ((<char*>&endian_detector)[0] != 0)
     
     for i in descr.fields.itervalues():
         child = i[0]
