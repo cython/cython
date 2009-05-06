@@ -54,7 +54,7 @@ c_line_in_traceback = 1
 embed = False
 
 
-# Declare pragmas
+# Declare compiler directives
 option_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
@@ -64,6 +64,7 @@ option_defaults = {
     'cdivision': True,  # Will be False in 0.12
     'cdivision_warnings': False,
     'always_allow_keywords': False,
+    'wraparound' : True
 }
 
 # Override types possibilities above, if needed

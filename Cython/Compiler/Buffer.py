@@ -330,7 +330,7 @@ def put_assign_to_buffer(lhs_cname, rhs_cname, buffer_aux, buffer_type,
 
     code.putln("}") # Release stack
 
-def put_buffer_lookup_code(entry, index_signeds, index_cnames, options, pos, code):
+def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives, pos, code):
     """
     Generates code to process indices and calculate an offset into
     a buffer. Returns a C string which gives a pointer which can be
@@ -345,9 +345,9 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, options, pos, cod
     """
     bufaux = entry.buffer_aux
     bufstruct = bufaux.buffer_info_var.cname
-    negative_indices = entry.type.negative_indices
+    negative_indices = directives['wraparound'] and entry.type.negative_indices
 
-    if options['boundscheck']:
+    if directives['boundscheck']:
         # Check bounds and fix negative indices.
         # We allocate a temporary which is initialized to -1, meaning OK (!).
         # If an error occurs, the temp is set to the dimension index the

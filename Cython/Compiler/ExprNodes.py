@@ -1958,7 +1958,7 @@ class IndexNode(ExprNode):
         return Buffer.put_buffer_lookup_code(entry=self.base.entry,
                                              index_signeds=[i.type.signed for i in self.indices],
                                              index_cnames=index_temps,
-                                             options=code.globalstate.directives,
+                                             directives=code.globalstate.directives,
                                              pos=self.pos, code=code)
 
     def put_nonecheck(self, code):
