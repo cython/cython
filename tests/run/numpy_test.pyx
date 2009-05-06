@@ -190,7 +190,7 @@ try:
     >>> test_bad_cast()
     Traceback (most recent call last):
         ...
-    ValueError: Item size of buffer (1 byte) does not match size of 'long' (8 bytes)
+    ValueError: Item size of buffer (1 byte) does not match size of 'int' (4 bytes)
     
 """
 except:
@@ -350,7 +350,7 @@ def test_good_cast():
 
 def test_bad_cast():
     # This should raise an exception
-    cdef np.ndarray[long, cast=True] arr = np.array([1], dtype=b'b')
+    cdef np.ndarray[int, cast=True] arr = np.array([1], dtype=b'b')
 
 cdef packed struct PackedStruct:
     char a
