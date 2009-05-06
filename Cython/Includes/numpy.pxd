@@ -214,12 +214,12 @@ cdef extern from "numpy/arrayobject.h":
         float imag
 
     ctypedef struct npy_cdouble:
-        double real
-        double imag
+        float real
+        float imag
 
     ctypedef struct npy_clongdouble:
-        long double real
-        long double imag
+        float real
+        float imag
 
 # Typedefs that matches the runtime dtype objects in
 # the numpy module.
