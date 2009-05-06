@@ -26,10 +26,10 @@ cdef struct align_of_int_helper:
     int i
 double_align = sizeof(align_of_double_helper) - sizeof(double)
 int_align = sizeof(align_of_int_helper) - sizeof(int)
-if double_align != 8:
-    raise RuntimeError("Alignment of double is %d on this system, please report to cython-dev for a testcase fix" % double_align)
-if int_align != 4:
-    raise RuntimeError("Alignment of int is %d on this system, please report to cython-dev for a testcase fix" % int_align)
+if double_align != 8 or sizeof(double) != 8:
+    raise RuntimeError("Alignment or size of double is %d on this system, please report to cython-dev for a testcase fix" % double_align)
+if int_align != 4 or sizeof(int) != 4:
+    raise RuntimeError("Alignment or size of int is %d on this system, please report to cython-dev for a testcase fix" % int_align)
 
  
 cdef class MockBuffer:
@@ -152,7 +152,8 @@ def char3int(fmt):
     >>> char3int("c1i1i1i")    
     >>> char3int("c3i")
     >>> char3int("ci2i")
-    >>> char3int("c@i@2i")
+
+    #TODO > char3int("c@i@2i")
 
     Extra pad bytes (assuming int size is 4 or more)
     >>> char3int("cxiii")
@@ -161,11 +162,12 @@ def char3int(fmt):
 
     Standard alignment (assming int size is 4)
     >>> char3int("=c3xiii")
-    >>> char3int("=cxxx@iii")
     >>> char3int("=ciii")
     Traceback (most recent call last):
         ...
     ValueError: Buffer dtype mismatch; next field is at offset 1 but 4 expected
+
+    #TODO char3int("=cxxx@iii")
     
     Error:
     >>> char3int("cii")
@@ -222,7 +224,6 @@ def complex_test(fmt):
 def alignment_string(fmt, exc=None):
     """
     >>> alignment_string("@i")
-    >>> alignment_string("@i@@")
     >>> alignment_string("%si" % current_endian)
     >>> alignment_string("%si" % other_endian, "X-endian buffer not supported on X-endian compiler")
     >>> alignment_string("=i")
@@ -268,6 +269,39 @@ def mixed_complex_struct():
     """
     cdef object[MixedComplex] buf = MockBuffer("Zd", sizeof(MixedComplex))
 
- 
+
+cdef packed struct PackedSubStruct:
+    char x
+    int y
+
+cdef packed struct PackedStruct:
+    char a
+    int b
+    PackedSubStruct sub
+    
+
+@testcase
+def packed_struct(fmt):
+    """
+    Assuming int is four bytes:
+    
+    >>> packed_struct("^cici")
+    >>> packed_struct("=cibi")
+
+    >>> packed_struct("^c@i^ci")
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer packing mode currently only allowed at beginning of format string (this is a defect)
+    
+    However aligned access won't work:
+    >>> packed_struct("@cici")
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer dtype mismatch; next field is at offset 4 but 1 expected
+
+    """
+    cdef object[PackedStruct] buf = MockBuffer(fmt, sizeof(PackedStruct))
+
 # TODO: empty struct
 # TODO: Incomplete structs
+# TODO: mixed structs

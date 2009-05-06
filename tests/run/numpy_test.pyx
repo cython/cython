@@ -2,6 +2,17 @@
 
 cimport numpy as np
 
+def little_endian():
+    cdef int endian_detector = 1
+    return (<char*>&endian_detector)[0] != 0
+
+if little_endian():
+    my_endian = '<'
+    other_endian = '>'
+else:
+    my_endian = '>'
+    other_endian = '<'
+
 try:
     import numpy as np
     __doc__ = u"""
@@ -130,22 +141,48 @@ try:
     >>> test_dtype(np.int32, inc1_int32_t)
     >>> test_dtype(np.float64, inc1_float64_t)
 
+    Endian tests:
+    >>> test_dtype('%si' % my_endian, inc1_int)
+    >>> test_dtype('%si' % other_endian, inc1_int)
+    Traceback (most recent call last):
+       ...
+    ValueError: Non-native byte order not supported
+    
+
+
     >>> test_recordarray()
     
-    >>> test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
+    >>> print(test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
             ('a', np.dtype('i,i')),\
             ('b', np.dtype('i,i'))\
-        ])))
+        ]))))
     array([((0, 0), (0, 0)), ((1, 2), (1, 4)), ((1, 2), (1, 4))], 
-          dtype=[('a', [('f0', '<i4'), ('f1', '<i4')]), ('b', [('f0', '<i4'), ('f1', '<i4')])])
+          dtype=[('a', [('f0', '!i4'), ('f1', '!i4')]), ('b', [('f0', '!i4'), ('f1', '!i4')])])
 
-    >>> test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
+    >>> print(test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
             ('a', np.dtype('i,f')),\
             ('b', np.dtype('i,i'))\
-        ])))
+        ]))))
     Traceback (most recent call last):
         ...
     ValueError: Buffer dtype mismatch, expected 'int' but got 'float' in 'DoubleInt.y'
+
+    >>> print(test_packed_align(np.zeros((1,), dtype=np.dtype('b,i', align=False))))
+    array([(22, 23)], 
+          dtype=[('f0', '|i1'), ('f1', '!i4')])
+    >>> print(test_unpacked_align(np.zeros((1,), dtype=np.dtype('b,i', align=True))))
+    array([(22, 23)], 
+          dtype=[('f0', '|i1'), ('', '|V3'), ('f1', '!i4')])
+
+    >>> print(test_packed_align(np.zeros((1,), dtype=np.dtype('b,i', align=True))))
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer dtype mismatch; next field is at offset 4 but 1 expected
+
+    >>> print(test_unpacked_align(np.zeros((1,), dtype=np.dtype('b,i', align=False))))
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer dtype mismatch; next field is at offset 1 but 4 expected
 
 
     >>> test_good_cast()
@@ -300,7 +337,7 @@ def test_nested_dtypes(obj):
     arr[1].b.x = arr[0].a.y + 1
     arr[1].b.y = 4
     arr[2] = arr[1]
-    return arr
+    return repr(arr).replace('<', '!').replace('>', '!')
 
 def test_bad_nested_dtypes():
     cdef object[BadNestedStruct] arr
@@ -314,3 +351,21 @@ def test_good_cast():
 def test_bad_cast():
     # This should raise an exception
     cdef np.ndarray[long, cast=True] arr = np.array([1], dtype=b'b')
+
+cdef packed struct PackedStruct:
+    char a
+    int b
+
+cdef struct UnpackedStruct:
+    char a
+    int b
+
+def test_packed_align(np.ndarray[PackedStruct] arr):
+    arr[0].a = 22
+    arr[0].b = 23
+    return repr(arr).replace('<', '!').replace('>', '!')
+
+def test_unpacked_align(np.ndarray[UnpackedStruct] arr):
+    arr[0].a = 22
+    arr[0].b = 23    
+    return repr(arr).replace('<', '!').replace('>', '!')
