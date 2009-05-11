@@ -230,15 +230,12 @@ class GlobalState(object):
 
     code_layout = [
         'h_code',
+        'type_declarations',
+        'module_declarations',
+        'typeinfo',
         'before_global_var',
         'global_var',
-        'after_global_var',
-        
-        'utility_proto',
-        'pystring_table',
-        'init_cached_builtins',
-        'init',
-        'utility_def',
+        'all_the_rest',
     ]
     
 

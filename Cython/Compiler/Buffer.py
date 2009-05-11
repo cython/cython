@@ -607,6 +607,8 @@ def type_information_code(proto, impl, name, structinfo_name, dtype, maxdepth):
     if dtype.is_error: return
     complex_possible = dtype.is_struct_or_union and dtype.can_be_complex()
 
+    code = proto.globalstate['typeinfo']
+
     if maxdepth <= 0:
         assert False
 
@@ -620,12 +622,12 @@ def type_information_code(proto, impl, name, structinfo_name, dtype, maxdepth):
         assert len(fields) > 0
         types = [get_type_information_cname(proto, f.type, maxdepth - 1)
                  for f in fields]
-        impl.putln("static __Pyx_StructField %s[] = {" % structinfo_name, safe=True)
+        code.putln("static __Pyx_StructField %s[] = {" % structinfo_name, safe=True)
         for f, typeinfo in zip(fields, types):
-            impl.putln('  {&%s, "%s", offsetof(%s, %s)},' %
+            code.putln('  {&%s, "%s", offsetof(%s, %s)},' %
                        (typeinfo, f.name, dtype.declaration_code(""), f.cname), safe=True)
-        impl.putln('  {NULL, NULL, 0}', safe=True)
-        impl.putln("};", safe=True)
+        code.putln('  {NULL, NULL, 0}', safe=True)
+        code.putln("};", safe=True)
     else:
         assert False
             
@@ -647,8 +649,7 @@ def type_information_code(proto, impl, name, structinfo_name, dtype, maxdepth):
         print dtype
         assert False
 
-    proto.putln('static __Pyx_TypeInfo %s;' % name)
-    impl.putln(('static __Pyx_TypeInfo %s = { "%s", %s, sizeof(%s), \'%s\' };'
+    code.putln(('static __Pyx_TypeInfo %s = { "%s", %s, sizeof(%s), \'%s\' };'
                 ) % (name,
                      rep,
                      structinfo_name,
