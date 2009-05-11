@@ -1061,6 +1061,7 @@ class CStructOrUnionType(CType):
         if self._convert_code is None:
             import Code
             code = Code.CCodeWriter()
+            Code.GlobalState(code)
             header = "static PyObject* %s(%s)" % (self.to_py_function, self.declaration_code('s'))
             code.putln("%s {" % header)
             code.putln("PyObject* res;")

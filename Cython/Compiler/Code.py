@@ -213,6 +213,8 @@ class GlobalState(object):
     #                                  In time, hopefully the literals etc. will be
     #                                  supplied directly instead.
 
+    # parts            {string:CCodeWriter}
+
     
     # interned_strings
     # consts
@@ -226,7 +228,21 @@ class GlobalState(object):
 
     directives = {}
 
-    def __init__(self, rootwriter, emit_linenums=False):
+    code_layout = [
+        'h_code',
+        'before_global_var',
+        'global_var',
+        'after_global_var',
+        
+        'utility_proto',
+        'pystring_table',
+        'init_cached_builtins',
+        'init',
+        'utility_def',
+    ]
+    
+
+    def __init__(self, writer, emit_linenums=False):
         self.filename_table = {}
         self.filename_list = []
         self.input_file_contents = {}
@@ -235,6 +251,14 @@ class GlobalState(object):
         self.pystring_table_needed = False
         self.in_utility_code_generation = False
         self.emit_linenums = emit_linenums
+        self.parts = {}
+
+        assert writer.globalstate is None
+        writer.globalstate = self
+        for part in self.code_layout:
+            self.parts[part] = writer.insertion_point()#new_writer()
+        self.initwriters(writer)
+        
 
     def initwriters(self, rootwriter):
         self.utilprotowriter = rootwriter.new_writer()
@@ -261,12 +285,12 @@ class GlobalState(object):
         self.pystring_table.putln("static __Pyx_StringTabEntry %s[] = {" %
                 Naming.stringtab_cname)
 
+    def __getitem__(self, key):
+        return self.parts[key]
+
     #
     # Global constants, interned objects, etc.
     #
-    def insert_global_var_declarations_into(self, code):
-        code.insert(self.decls_writer)
-
     def close_global_decls(self):
         # This is called when it is known that no more global declarations will
         # declared (but can be called before or after insert_XXX).
@@ -310,7 +334,7 @@ class GlobalState(object):
         code.insert(self.cleanupwriter)
 
     def put_pyobject_decl(self, entry):
-        self.decls_writer.putln("static PyObject *%s;" % entry.cname)
+        self['global_var'].putln("static PyObject *%s;" % entry.cname)
 
     # The functions below are there in a transition phase only
     # and will be deprecated. They are called from Nodes.BlockNode.
@@ -329,16 +353,16 @@ class GlobalState(object):
 
     def add_const_definition(self, entry):
         if self.should_declare(entry.cname, entry):
-            self.decls_writer.put_var_declaration(entry, static = 1)
+            self['global_var'].put_var_declaration(entry, static = 1)
 
     def add_interned_string_decl(self, entry):
         if self.should_declare(entry.cname, entry):
-            self.decls_writer.put_var_declaration(entry, static = 1)
+            self['global_var'].put_var_declaration(entry, static = 1)
         self.add_py_string_decl(entry)
 
     def add_py_string_decl(self, entry):
         if self.should_declare(entry.pystring_cname, entry):
-            self.decls_writer.putln("static PyObject *%s;" % entry.pystring_cname)
+            self['global_var'].putln("static PyObject *%s;" % entry.pystring_cname)
             self.pystring_table_needed = True
             self.pystring_table.putln("{&%s, %s, sizeof(%s), %d, %d, %d}," % (
                 entry.pystring_cname,
@@ -503,6 +527,8 @@ class CCodeWriter(object):
     # globalstate      GlobalState     contains state global for a C file (input file info,
     #                                  utility code, declared constants etc.)
     # emit_linenums    boolean         whether or not to write #line pragmas 
+
+    globalstate = None
     
     def __init__(self, create_from=None, buffer=None, copy_formatting=False, emit_linenums=None):
         if buffer is None: buffer = StringIOTree()
@@ -515,12 +541,8 @@ class CCodeWriter(object):
         self.level = 0
         self.call_level = 0
         self.bol = 1
-        if create_from is None:
-            # Root CCodeWriter
-            self.globalstate = GlobalState(self, emit_linenums=emit_linenums)
-            self.globalstate.initwriters(self)
-            # ^^^ need seperate step because this will reference self.globalstate
-        else:
+
+        if create_from is not None:
             # Use same global state
             self.globalstate = create_from.globalstate
             # Clone formatting state
@@ -528,7 +550,7 @@ class CCodeWriter(object):
                 self.level = create_from.level
                 self.bol = create_from.bol
                 self.call_level = create_from.call_level
-        if emit_linenums is None:
+        if emit_linenums is None and self.globalstate:
             self.emit_linenums = self.globalstate.emit_linenums
         else:
             self.emit_linenums = emit_linenums
@@ -536,7 +558,8 @@ class CCodeWriter(object):
     def create_new(self, create_from, buffer, copy_formatting):
         # polymorphic constructor -- very slightly more versatile
         # than using __class__
-        return CCodeWriter(create_from, buffer, copy_formatting)
+        result = CCodeWriter(create_from, buffer, copy_formatting)
+        return result
 
     def copyto(self, f):
         self.buffer.copyto(f)

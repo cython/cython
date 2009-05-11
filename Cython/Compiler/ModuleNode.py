@@ -106,6 +106,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if h_types or h_vars or h_funcs or h_extension_types:
             result.h_file = replace_suffix(result.c_file, ".h")
             h_code = Code.CCodeWriter()
+            Code.GlobalState(h_code)
             if options.generate_pxi:
                 result.i_file = replace_suffix(result.c_file, ".pxi")
                 i_code = Code.PyrexCodeWriter(result.i_file)
@@ -167,6 +168,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if api_funcs or has_api_extension_types:
             result.api_file = replace_suffix(result.c_file, "_api.h")
             h_code = Code.CCodeWriter()
+            Code.GlobalState(h_code)
             name = self.api_name(env)
             guard = Naming.api_guard_prefix + name
             h_code.put_h_guard(guard)
@@ -243,18 +245,24 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     
     def generate_c_code(self, env, options, result):
         modules = self.referenced_modules
+
         if Options.annotate or options.annotate:
-            code = Annotate.AnnotationCCodeWriter()
+            emit_linenums = False
+            rootwriter = Annotate.AnnotationCCodeWriter()
         else:
-            code = Code.CCodeWriter(emit_linenums=options.emit_linenums)
-        h_code = code.insertion_point()
+            emit_linenums = options.emit_linenums
+            rootwriter = Code.CCodeWriter(emit_linenums=emit_linenums)
+        globalstate = Code.GlobalState(rootwriter, emit_linenums)
+        h_code = globalstate['h_code']
+        
         self.generate_module_preamble(env, modules, h_code)
 
-        code.globalstate.module_pos = self.pos
-        code.globalstate.directives = self.directives
+        globalstate.module_pos = self.pos
+        globalstate.directives = self.directives
 
-        code.globalstate.use_utility_code(refcount_utility_code)
+        globalstate.use_utility_code(refcount_utility_code)
 
+        code = globalstate['before_global_var']
         code.putln('#define __Pyx_MODULE_NAME "%s"' % self.full_module_name)
         code.putln("")
         code.putln("/* Implementation of %s */" % env.qualified_name)
@@ -263,8 +271,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_interned_string_decls(env, code)
         self.generate_py_string_decls(env, code)
 
-        code.globalstate.insert_global_var_declarations_into(code)
-        
+        code = globalstate['after_global_var']
+
         self.generate_cached_builtins_decls(env, code)
         self.body.generate_function_definitions(env, code)
         code.mark_pos(None)
@@ -285,15 +293,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_declarations_for_modules(env, modules, h_code)
         h_code.write('\n')
 
-        code.globalstate.close_global_decls()
+        globalstate.close_global_decls()
         
         f = open_new_file(result.c_file)
-        code.copyto(f)
+        rootwriter.copyto(f)
         f.close()
         result.c_file_generated = 1
         if Options.annotate or options.annotate:
-            self.annotate(code)
-            code.save_annotation(result.main_source_file, result.c_file)
+            self.annotate(rootwriter)
+            rootwriter.save_annotation(result.main_source_file, result.c_file)
     
     def find_referenced_modules(self, env, module_list, modules_seen):
         if env not in modules_seen:
