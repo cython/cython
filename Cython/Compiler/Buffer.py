@@ -1150,7 +1150,7 @@ static int __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj, __Pyx_TypeI
     __Pyx_BufFmt_Init(&ctx, stack, dtype);
     if (!__Pyx_BufFmt_CheckString(&ctx, buf->format)) goto fail;
   }
-  if (buf->itemsize != dtype->size) {
+  if ((unsigned)buf->itemsize != dtype->size) {
     PyErr_Format(PyExc_ValueError,
       "Item size of buffer (%"PY_FORMAT_SIZE_T"d byte%s) does not match size of '%s' (%"PY_FORMAT_SIZE_T"d byte%s)",
       buf->itemsize, (buf->itemsize > 1) ? "s" : "",
