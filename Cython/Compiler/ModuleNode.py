@@ -253,6 +253,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             emit_linenums = options.emit_linenums
             rootwriter = Code.CCodeWriter(emit_linenums=emit_linenums)
         globalstate = Code.GlobalState(rootwriter, emit_linenums)
+        globalstate.initialize_main_c_code()
         h_code = globalstate['h_code']
         
         self.generate_module_preamble(env, modules, h_code)
@@ -294,7 +295,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         for codetup, name in env.utility_code_list:
             globalstate.use_utility_code(codetup, name)
-        globalstate.finalize_writers()
+        globalstate.finalize_main_c_code()
         
         f = open_new_file(result.c_file)
         rootwriter.copyto(f)

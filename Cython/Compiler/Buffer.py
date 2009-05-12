@@ -618,7 +618,7 @@ def get_type_information_cname(code, dtype, maxdepth=None):
             # Must pre-call all used types in order not to recurse utility code
             # writing.
             assert len(fields) > 0
-            types = [get_type_information_cname(proto, f.type, maxdepth - 1)
+            types = [get_type_information_cname(code, f.type, maxdepth - 1)
                      for f in fields]
             typecode.putln("static __Pyx_StructField %s[] = {" % structinfo_name, safe=True)
             for f, typeinfo in zip(fields, types):
