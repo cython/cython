@@ -253,13 +253,13 @@ class GlobalState(object):
 
         assert writer.globalstate is None
         writer.globalstate = self
+        self.rootwriter = writer
+
+    def initialize_main_c_code(self):
+        rootwriter = self.rootwriter
         for part in self.code_layout:
-            self.parts[part] = writer.insertion_point()#new_writer()
+            self.parts[part] = rootwriter.insertion_point()
 
-        self.init_writers(writer)
-        
-
-    def init_writers(self, rootwriter):
         self.decls_writer = rootwriter.new_writer()
         self.pystring_table = rootwriter.new_writer()
         self.init_cached_builtins_writer = rootwriter.new_writer()
@@ -297,7 +297,7 @@ class GlobalState(object):
             (Naming.filetable_cname, Naming.filenames_cname))
         code.putln("}")
 
-    def finalize_writers(self):
+    def finalize_main_c_code(self):
         self.close_global_decls()
 
         #
