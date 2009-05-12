@@ -288,12 +288,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if Options.embed:
             self.generate_main_method(env, code)
         self.generate_filename_table(code)
-        self.generate_utility_functions(env, code, h_code)
-
+        
         self.generate_declarations_for_modules(env, modules, globalstate)
         h_code.write('\n')
 
-        globalstate.close_global_decls()
+        for codetup, name in env.utility_code_list:
+            globalstate.use_utility_code(codetup, name)
+        globalstate.finalize_writers()
         
         f = open_new_file(result.c_file)
         rootwriter.copyto(f)
@@ -2061,22 +2062,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "%s = &%s;" % (
                     type.typeptr_cname, type.typeobj_cname))
     
-    def generate_utility_functions(self, env, code, h_code):
-        for codetup, name in env.utility_code_list:
-            code.globalstate.use_utility_code(codetup, name)
-       
-        code.globalstate.put_utility_code_protos(h_code)
-        code.putln("")
-        code.putln("/* Runtime support code */")
-        code.putln("")
-        code.putln("static void %s(void) {" % Naming.fileinit_cname)
-        code.putln("%s = %s;" % 
-            (Naming.filetable_cname, Naming.filenames_cname))
-        code.putln("}")
-        code.globalstate.put_utility_code_defs(code)
-        code.put(PyrexTypes.type_conversion_functions)
-        code.putln("")
-
 #------------------------------------------------------------------------------------
 #
 #  Runtime support code

@@ -7,6 +7,7 @@ import Naming
 import Options
 from Cython.Utils import open_new_file, open_source_file
 from PyrexTypes import py_object_type, typecast
+import PyrexTypes
 from TypeSlots import method_coexist
 from Scanning import SourceDescriptor
 from Cython.StringIOTree import StringIOTree
@@ -203,9 +204,7 @@ class GlobalState(object):
     #                                  to create this output C code.  This is
     #                                  used to annotate the comments.
     #
-    # used_utility_code set(string|int) Ids of used utility code (to avoid reinsertion)
-    # utilprotowriter CCodeWriter
-    # utildefwriter   CCodeWriter
+    # utility_codes   set                IDs of used utility code (to avoid reinsertion)
     #
     # declared_cnames  {string:Entry}  used in a transition phase to merge pxd-declared
     #                                  constants etc. into the pyx-declared ones (i.e,
@@ -230,12 +229,14 @@ class GlobalState(object):
 
     code_layout = [
         'h_code',
+        'utility_code_proto',
         'type_declarations',
         'module_declarations',
         'typeinfo',
         'before_global_var',
         'global_var',
         'all_the_rest',
+        'utility_code_def'
     ]
     
 
@@ -243,7 +244,7 @@ class GlobalState(object):
         self.filename_table = {}
         self.filename_list = []
         self.input_file_contents = {}
-        self.used_utility_code = set()
+        self.utility_codes = set()
         self.declared_cnames = {}
         self.pystring_table_needed = False
         self.in_utility_code_generation = False
@@ -254,12 +255,11 @@ class GlobalState(object):
         writer.globalstate = self
         for part in self.code_layout:
             self.parts[part] = writer.insertion_point()#new_writer()
-        self.initwriters(writer)
+
+        self.init_writers(writer)
         
 
-    def initwriters(self, rootwriter):
-        self.utilprotowriter = rootwriter.new_writer()
-        self.utildefwriter = rootwriter.new_writer()
+    def init_writers(self, rootwriter):
         self.decls_writer = rootwriter.new_writer()
         self.pystring_table = rootwriter.new_writer()
         self.init_cached_builtins_writer = rootwriter.new_writer()
@@ -281,6 +281,31 @@ class GlobalState(object):
         self.pystring_table.putln("")
         self.pystring_table.putln("static __Pyx_StringTabEntry %s[] = {" %
                 Naming.stringtab_cname)
+
+
+        #
+        # utility_code_def
+        #
+        code = self.parts['utility_code_def']
+        if self.emit_linenums:
+            code.write('\n#line 1 "cython_utility"\n')
+        code.putln("")
+        code.putln("/* Runtime support code */")
+        code.putln("")
+        code.putln("static void %s(void) {" % Naming.fileinit_cname)
+        code.putln("%s = %s;" % 
+            (Naming.filetable_cname, Naming.filenames_cname))
+        code.putln("}")
+
+    def finalize_writers(self):
+        self.close_global_decls()
+
+        #
+        # utility_code_def
+        #
+        code = self.parts['utility_code_def']
+        code.put(PyrexTypes.type_conversion_functions)
+        code.putln("")
 
     def __getitem__(self, key):
         return self.parts[key]
@@ -439,54 +464,17 @@ class GlobalState(object):
         code twice. Otherwise, id(codetup) is used as such an identifier.
         """
         if name is None: name = id(utility_code)
-        if self.check_utility_code_needed_and_register(name):
+        if name not in self.utility_codes:
+            self.utility_codes.add(name)
             if utility_code.requires:
                 for dependency in utility_code.requires:
                     self.use_utility_code(dependency)
             if utility_code.proto:
-                self.utilprotowriter.put(utility_code.proto)
+                self.parts['utility_code_proto'].put(utility_code.proto)
             if utility_code.impl:
-                self.utildefwriter.put(utility_code.impl)
+                self.parts['utility_code_def'].put(utility_code.impl)
             utility_code.write_init_code(self.initwriter, self.module_pos)
             utility_code.write_cleanup_code(self.cleanupwriter, self.module_pos)
-
-    def has_code(self, name):
-        return name in self.used_utility_code
-
-    def use_code_from(self, func, name, *args, **kw):
-        """
-        Requests that the utility code that func can generate is used in the C
-        file. func is called like this:
-
-        func(proto, definition, name, *args, **kw)
-
-        where proto and definition are two CCodeWriter instances; the
-        former should have the prototype written to it and the other the definition.
-        
-        The call might happen at some later point (if compiling multiple modules
-        into a cache for instance), and will only happen once per utility code.
-
-        name is used to identify the utility code, so that it isn't regenerated
-        when the same code is requested again.
-        """
-        if self.check_utility_code_needed_and_register(name):
-            func(self.utilprotowriter, self.utildefwriter,
-                 name, *args, **kw)
-
-    def check_utility_code_needed_and_register(self, name):
-        if name in self.used_utility_code:
-            return False
-        else:
-            self.used_utility_code.add(name)
-            return True
-
-    def put_utility_code_protos(self, writer):
-        writer.insert(self.utilprotowriter)
-
-    def put_utility_code_defs(self, writer):
-        if self.emit_linenums:
-            writer.write('\n#line 1 "cython_utility"\n')
-        writer.insert(self.utildefwriter)
 
 
 def funccontext_property(name):
