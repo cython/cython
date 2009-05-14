@@ -676,6 +676,12 @@ property NAME:
         ATTR = value
     """, level='c_class')
 
+    readonly_property = TreeFragment(u"""
+property NAME:
+    def __get__(self):
+        return ATTR
+    """, level='c_class')
+    
     def __call__(self, root):
         self.env_stack = [root.scope]
         # needed to determine if a cdef var is declared after it's used.
@@ -752,7 +758,7 @@ property NAME:
             # mechanism for them. 
             stats = []
             for entry in node.need_properties:
-                property = self.create_Property(entry)
+                property = self.create_Property(entry, node.visibility == 'readonly')
                 property.analyse_declarations(node.dest_scope)
                 self.visit(property)
                 stats.append(property)
@@ -760,8 +766,12 @@ property NAME:
         else:
             return None
             
-    def create_Property(self, entry):
-        property = self.basic_property.substitute({
+    def create_Property(self, entry, readonly):
+        if readonly:
+            template = self.readonly_property
+        else:
+            template = self.basic_property
+        property = template.substitute({
                 u"ATTR": AttributeNode(pos=entry.pos,
                                        obj=NameNode(pos=entry.pos, name="self"), 
                                        attribute=entry.name),
