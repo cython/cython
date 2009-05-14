@@ -265,6 +265,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code = globalstate['before_global_var']
         code.putln('#define __Pyx_MODULE_NAME "%s"' % self.full_module_name)
+        code.putln("int %s%s = %s;" % (Naming.module_is_main, self.full_module_name.replace('.', '__'), int(Options.embed)))
         code.putln("")
         code.putln("/* Implementation of %s */" % env.qualified_name)
         self.generate_const_definitions(env, code)
@@ -1835,12 +1836,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_cname,
                 Naming.builtins_cname,
                 code.error_goto(self.pos)))
-        if Options.embed:
-            code.putln(
-                'if (__Pyx_SetAttrString(%s, "__name__", %s) < 0) %s;' % (
-                    env.module_cname,
-                    self.__main__cname,
-                    code.error_goto(self.pos)))
+        code.putln("if (%s%s) {" % (Naming.module_is_main, self.full_module_name.replace('.', '__')))
+        code.putln(
+            'if (__Pyx_SetAttrString(%s, "__name__", %s) < 0) %s;' % (
+                env.module_cname,
+                self.__main__cname,
+                code.error_goto(self.pos)))
+        code.putln("}")
         if Options.pre_import is not None:
             code.putln(
                 '%s = PyImport_AddModule(__Pyx_NAMESTR("%s"));' % (
