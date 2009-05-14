@@ -5177,7 +5177,7 @@ class CoerceToPyTypeNode(CoercionNode):
         self.type = py_object_type
         self.gil_check(env)
         self.is_temp = 1
-        if not arg.type.to_py_function or not arg.type.create_to_py_utility_code(env):
+        if not arg.type.create_to_py_utility_code(env):
             error(arg.pos,
                 "Cannot convert '%s' to Python object" % arg.type)
         
@@ -5215,7 +5215,7 @@ class CoerceFromPyTypeNode(CoercionNode):
         CoercionNode.__init__(self, arg)
         self.type = result_type
         self.is_temp = 1
-        if not result_type.from_py_function and not result_type.create_from_py_utility_code(env):
+        if not result_type.create_from_py_utility_code(env):
             error(arg.pos,
                 "Cannot convert Python object to '%s'" % result_type)
         if self.type.is_string and self.arg.is_ephemeral():
