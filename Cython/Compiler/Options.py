@@ -65,8 +65,7 @@ option_defaults = {
     'cdivision_warnings': False,
     'always_allow_keywords': False,
     'wraparound' : True,
-    'c99_complex' : False,
-    'a': 4,
+    'c99_complex' : False, # Don't use macro wrappers for complex arith, not sure what to name this...
 }
 
 # Override types possibilities above, if needed
