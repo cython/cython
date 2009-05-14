@@ -1048,8 +1048,8 @@ class ImagNode(AtomicNewTempExprNode):
         # when coercing to a Python type.
         if dst_type.is_pyobject:
             self.is_temp = 1
-            self.gil_check(env)
             self.type = PyrexTypes.py_object_type
+            self.gil_check(env)
         # We still need to perform normal coerce_to processing on the
         # result, because we might be coercing to an extension type,
         # in which case a type test node will be needed.
@@ -4183,6 +4183,8 @@ class BinopNode(NewTempExprNode):
 class NumBinopNode(BinopNode):
     #  Binary operation taking numeric arguments.
     
+    infix = True
+    
     def analyse_c_operation(self, env):
         type1 = self.operand1.type
         type2 = self.operand2.type
@@ -4190,7 +4192,8 @@ class NumBinopNode(BinopNode):
         if not self.type:
             self.type_error()
             return
-        self.infix = not self.type.is_complex or env.directives['c99_complex']
+        if self.type.is_complex and not env.directives['c99_complex']:
+            self.infix = False
         if not self.infix:
             self.operand1 = self.operand1.coerce_to(self.type, env)
             self.operand2 = self.operand2.coerce_to(self.type, env)
@@ -4351,7 +4354,7 @@ class DivNode(NumBinopNode):
                     code.putln('PyErr_Format(PyExc_OverflowError, "value too large to perform division");')
                     code.putln(code.error_goto(self.pos))
                     code.putln("}")
-            if code.globalstate.directives['cdivision_warnings'] and self.operand != '/':
+            if code.globalstate.directives['cdivision_warnings'] and self.operator != '/':
                 code.globalstate.use_utility_code(cdivision_warning_utility_code)
                 code.putln("if ((%s < 0) ^ (%s < 0)) {" % (
                                 self.operand1.result(),
