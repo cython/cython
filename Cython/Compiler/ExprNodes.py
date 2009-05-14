@@ -3932,13 +3932,15 @@ class TypecastNode(NewTempExprNode):
                 self.result_ctype = py_object_type
                 self.operand = self.operand.coerce_to_pyobject(env)
             else:
-                warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.operand.type, self.type))
+                if not (self.operand.type.is_ptr and self.operand.type.base_type.is_void):
+                    warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.operand.type, self.type))
                 self.operand = self.operand.coerce_to_simple(env)
         elif from_py and not to_py:
             if self.type.from_py_function:
                 self.operand = self.operand.coerce_to(self.type, env)
-            elif self.type.is_ptr and not self.type.base_type.is_void:
-                error(self.pos, "Python objects can only be cast to void*")
+            elif self.type.is_ptr:
+                if not self.type.base_type.is_void:
+                    error(self.pos, "Python objects can only be cast to void*")
             else:
                 warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.type, self.operand.type))
         elif from_py and to_py:
