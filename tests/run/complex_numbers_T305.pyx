@@ -58,8 +58,8 @@ __doc__ = u"""
     (1.5-3.5j)
 """
 
-cdef extern from "complex.h":
-    pass
+#cdef extern from "complex.h":
+#    pass
 
 cimport cython
 
