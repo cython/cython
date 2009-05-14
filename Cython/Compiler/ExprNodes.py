@@ -3706,6 +3706,7 @@ class UnopNode(ExprNode):
     #      - Allocate temporary for result if needed.
     
     subexprs = ['operand']
+    infix = True
 
     def calculate_constant_result(self):
         func = compile_time_unary_operators[self.operator]
@@ -3820,13 +3821,17 @@ class UnaryMinusNode(UnopNode):
             self.type = self.operand.type
         else:
             self.type_error()
+        if self.type.is_complex:
+            self.infix = env.directives['c99_complex']
     
     def py_operation_function(self):
         return "PyNumber_Negative"
     
     def calculate_result_code(self):
-        return "(-%s)" % self.operand.result()
-
+        if self.infix:
+            return "(-%s)" % self.operand.result()
+        else:
+            return "%s(%s)" % (self.operand.type.unary_op('-'), self.operand.result())
 
 class TildeNode(UnopNode):
     #  unary '~' operator
