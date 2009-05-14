@@ -56,8 +56,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             env.doc = self.doc
         env.directives = self.directives
-        if Options.embed:
-            self.__main__cname = env.intern_identifier(EncodedString("__main__"))
+        self.__main__cname = env.intern_identifier(EncodedString("__main__"))
         self.body.analyse_declarations(env)
     
     def process_implementation(self, options, result):
