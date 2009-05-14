@@ -753,18 +753,33 @@ class CComplexType(CNumericType):
         self.from_py_function = "__pyx_PyObject_As_" + self.specalization_name()
         return True
     
-    def binop(self, op):
+    def lookup_op(self, nargs, op):
         try:
-            return self.binops[op]
+            return self.binops[nargs, op]
         except KeyError:
-            if op in "+-*/":
-                from ExprNodes import compile_time_binary_operators
-                op_name = compile_time_binary_operators[op].__name__
-                self.binops[op] = func_name = "%s_%s" % (self.specalization_name(), op_name)
-                return func_name
-            else:
-                error("Binary '%s' not supported in for %s" % (op, self))
-                return "<error>"
+            pass
+        try:
+            op_name = complex_ops[nargs, op]
+            self.binops[nargs, op] = func_name = "%s_%s" % (self.specalization_name(), op_name)
+            return func_name
+        except KeyError:
+            return None
+
+    def unary_op(self, op):
+        return self.lookup_op(1, op)
+        
+    def binary_op(self, op):
+        return self.lookup_op(2, op)
+        
+complex_ops = {
+    (1, '-'): 'neg',
+    (1, 'zero'): 'is_zero',
+    (2, '+'): 'add',
+    (2, '-') : 'sub',
+    (2, '*'): 'mul',
+    (2, '/'): 'div',
+    (2, '=='): 'eq',
+}
 
 complex_generic_utility_code = UtilityCode(
 proto="""
@@ -804,6 +819,7 @@ proto="""
     #define %(type_name)s_from_parts(x, y) ((x) + (y)*(%(type)s)_Complex_I)
 
     #define %(type_name)s_is_zero(a) ((a) == 0)
+    #define %(type_name)s_eq(a, b) ((a) == (b))
     #define %(type_name)s_add(a, b) ((a)+(b))
     #define %(type_name)s_sub(a, b) ((a)-(b))
     #define %(type_name)s_mul(a, b) ((a)*(b))
@@ -817,6 +833,10 @@ proto="""
 
     static INLINE int %(type_name)s_is_zero(%(type)s a) {
        return (a.real == 0) & (a.imag == 0);
+    }
+
+    static INLINE int %(type_name)s_eq(%(type)s a, %(type)s b) {
+       return (a.real == b.real) & (a.imag == b.imag);
     }
 
     static INLINE %(type)s %(type_name)s_add(%(type)s a, %(type)s b) {

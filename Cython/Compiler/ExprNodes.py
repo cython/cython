@@ -4213,8 +4213,11 @@ class NumBinopNode(BinopNode):
                 self.operator, 
                 self.operand2.result())
         else:
+            func = self.type.binary_op(self.operator)
+            if func is None:
+                error(self.pos, "binary operator %s not supported for %s" % (self.operator, self.type))
             return "%s(%s, %s)" % (
-                self.type.binop(self.operator),
+                func,
                 self.operand1.result(),
                 self.operand2.result())
     
@@ -4318,7 +4321,7 @@ class DivNode(NumBinopNode):
             return "float division"
 
     def generate_evaluation_code(self, code):
-        if not self.type.is_pyobject:
+        if not self.type.is_pyobject and not self.type.is_complex:
             if self.cdivision is None:
                 self.cdivision = (code.globalstate.directives['cdivision'] 
                                     or not self.type.signed
@@ -4331,7 +4334,11 @@ class DivNode(NumBinopNode):
     def generate_div_warning_code(self, code):
         if not self.type.is_pyobject:
             if self.zerodivision_check:
-                code.putln("if (unlikely(%s == 0)) {" % self.operand2.result())
+                if not self.infix:
+                    zero_test = "%s(%s)" % (self.type.unary_op('zero'), self.operand2.result())
+                else:
+                    zero_test = "%s == 0" % self.operand2.result()
+                code.putln("if (unlikely(%s)) {" % zero_test)
                 code.putln('PyErr_Format(PyExc_ZeroDivisionError, "%s");' % self.zero_division_message())
                 code.putln(code.error_goto(self.pos))
                 code.putln("}")
@@ -4344,7 +4351,7 @@ class DivNode(NumBinopNode):
                     code.putln('PyErr_Format(PyExc_OverflowError, "value too large to perform division");')
                     code.putln(code.error_goto(self.pos))
                     code.putln("}")
-            if code.globalstate.directives['cdivision_warnings']:
+            if code.globalstate.directives['cdivision_warnings'] and self.operand != '/':
                 code.globalstate.use_utility_code(cdivision_warning_utility_code)
                 code.putln("if ((%s < 0) ^ (%s < 0)) {" % (
                                 self.operand1.result(),
@@ -4355,7 +4362,9 @@ class DivNode(NumBinopNode):
                 code.putln("}")
     
     def calculate_result_code(self):
-        if self.type.is_float and self.operator == '//':
+        if self.type.is_complex:
+            return NumBinopNode.calculate_result_code(self)
+        elif self.type.is_float and self.operator == '//':
             return "floor(%s / %s)" % (
                 self.operand1.result(), 
                 self.operand2.result())
@@ -4705,7 +4714,13 @@ class CmpNode(object):
             or (self.cascade and self.cascade.is_python_result()))
 
     def check_types(self, env, operand1, op, operand2):
-        if not self.types_okay(operand1, op, operand2):
+        if operand1.type.is_complex or operand2.type.is_complex:
+            if op not in ('==', '!='):
+                error(self.pos, "complex types unordered")
+            common_type = PyrexTypes.widest_numeric_type(operand1.type, operand2.type)
+            self.operand1 = operand1.coerce_to(common_type, env)
+            self.operand2 = operand2.coerce_to(common_type, env)
+        elif not self.types_okay(operand1, op, operand2):
             error(self.pos, "Invalid types for '%s' (%s, %s)" %
                 (self.operator, operand1.type, operand2.type))
     
@@ -4754,6 +4769,16 @@ class CmpNode(object):
                         richcmp_constants[op],
                         code.error_goto_if_null(result_code, self.pos)))
                 code.put_gotref(result_code)
+        elif operand1.type.is_complex and not code.globalstate.directives['c99_complex']:
+            if op == "!=": negation = "!"
+            else: negation = ""
+            code.putln("%s = %s(%s%s(%s, %s));" % (
+                result_code, 
+                coerce_result,
+                negation,
+                operand1.type.unary_op('eq'), 
+                operand1.result(), 
+                operand2.result()))
         else:
             type1 = operand1.type
             type2 = operand2.type
@@ -4881,10 +4906,21 @@ class PrimaryCmpNode(NewTempExprNode, CmpNode):
             self.not_const()
 
     def calculate_result_code(self):
-        return "(%s %s %s)" % (
-            self.operand1.result(),
-            self.c_operator(self.operator),
-            self.operand2.result())
+        if self.operand1.type.is_complex:
+            if self.operator == "!=":
+                negation = "!"
+            else:
+                negation = ""
+            return "(%s%s(%s, %s))" % (
+                negation,
+                self.operand1.type.binary_op('=='), 
+                self.operand1.result(), 
+                self.operand2.result())
+        else:
+            return "(%s %s %s)" % (
+                self.operand1.result(),
+                self.c_operator(self.operator),
+                self.operand2.result())
 
     def generate_evaluation_code(self, code):
         self.operand1.generate_evaluation_code(code)
