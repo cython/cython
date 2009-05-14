@@ -1,8 +1,8 @@
 __doc__ = u"""
     >>> test_object_conversion(2)
-    (2+0j)
+    ((2+0j), (2+0j))
     >>> test_object_conversion(2j - 0.5)
-    (-0.5+2j)
+    ((-0.5+2j), (-0.5+2j))
     
     >>> test_arithmetic(2j, 4j)
     (-2j, 6j, -2j, (-8+0j), (0.5+0j))
@@ -54,7 +54,7 @@ cimport cython
 def test_object_conversion(o):
     cdef float complex a = o
     cdef double complex z = o
-    return z
+    return (a, z)
 
 def test_arithmetic(double complex z, double complex w):
     return -z, z+w, z-w, z*w, z/w
