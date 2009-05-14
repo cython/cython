@@ -674,6 +674,7 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
     # is_basic_c_type  boolean
     # signed           boolean
     # longness         integer
+    # complex          boolean
     # is_self_arg      boolean      Is self argument of C method
 
     child_attrs = []
@@ -714,6 +715,8 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                     self.arg_name = self.name
                 else:
                     error(self.pos, "'%s' is not a type identifier" % self.name)
+        if self.complex:
+            type = PyrexTypes.CCompelxType(type)
         if type:
             return type
         else:

@@ -33,6 +33,7 @@ class PyrexType(BaseType):
     #  is_int                boolean     Is a C integer type
     #  is_longlong           boolean     Is a long long or unsigned long long.
     #  is_float              boolean     Is a C floating point type
+    #  is_complex            boolean     Is a C complex type
     #  is_void               boolean     Is the C void type
     #  is_array              boolean     Is a C array type
     #  is_ptr                boolean     Is a C pointer type
@@ -83,6 +84,7 @@ class PyrexType(BaseType):
     is_int = 0
     is_longlong = 0
     is_float = 0
+    is_complex = 0
     is_void = 0
     is_array = 0
     is_ptr = 0
@@ -698,7 +700,24 @@ class CFloatType(CNumericType):
         self.math_h_modifier = math_h_modifier
     
     def assignable_from_resolved_type(self, src_type):
-        return src_type.is_numeric or src_type is error_type
+        return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
+
+class CCompelxType(CNumericType):
+    
+    is_complex = 1
+    
+    def __init__(self, real_type):
+        self.real_type = real_type
+        CNumericType.__init__(self, real_type.rank + 0.5, real_type.signed)
+    
+    def sign_and_name(self):
+        return self.real_type.sign_and_name() + " complex"
+
+    def assignable_from_resolved_type(self, src_type):
+        return (src_type.is_complex and self.real_type.assignable_from_resolved_type(src_type.real_type)
+                    or src_type.is_numeric and self.real_type.assignable_from_resolved_type(src_type) 
+                    or src_type is error_type)
+
 
 
 class CArrayType(CType):
@@ -1615,3 +1634,5 @@ static INLINE size_t __Pyx_PyInt_AsSize_t(PyObject* x) {
 }
 
 """ + type_conversion_functions
+
+
