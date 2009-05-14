@@ -64,7 +64,9 @@ option_defaults = {
     'cdivision': True,  # Will be False in 0.12
     'cdivision_warnings': False,
     'always_allow_keywords': False,
-    'wraparound' : True
+    'wraparound' : True,
+    'c99_complex' : False,
+    'a': 4,
 }
 
 # Override types possibilities above, if needed
@@ -95,6 +97,11 @@ def parse_option_value(name, value):
         if value == "True": return True
         elif value == "False": return False
         else: raise ValueError("%s directive must be set to True or False" % name)
+    elif type is int:
+        try:
+            return int(value)
+        except ValueError:
+            raise ValueError("%s directive must be set to an integer" % name)
     else:
         assert False
 
