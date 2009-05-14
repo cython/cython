@@ -44,6 +44,18 @@ __doc__ = u"""
     
     >>> test_literal()
     (5j, (1-2.5j))
+    
+    >>> test_real_imag(1-3j)
+    (1.0, -3.0)
+    >>> test_real_imag(5)
+    (5.0, 0.0)
+    >>> test_real_imag(1.5j)
+    (0.0, 1.5)
+    
+    >>> test_real_imag_assignment(1, 2)
+    (1+2j)
+    >>> test_real_imag_assignment(1.5, -3.5)
+    (1.5-3.5j)
 """
 
 #cdef extern from "complex.h":
@@ -81,4 +93,12 @@ def test_compare_coerce(double complex a, int b):
 def test_literal():
     return 5j, 1-2.5j
 
+def test_real_imag(double complex z):
+    return z.real, z.imag
+
+def test_real_imag_assignment(object a, double b):
+    cdef double complex z
+    z.real = a
+    z.imag = b
+    return z
 

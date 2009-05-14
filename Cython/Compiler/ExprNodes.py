@@ -2913,6 +2913,8 @@ class AttributeNode(NewTempExprNode):
                     obj.type.vtabslot_cname, self.member)
             else:
                 return self.member
+        elif obj.type.is_complex:
+            return "__Pyx_%s_PART(%s)" % (self.member.upper(), obj_code)
         else:
             return "%s%s%s" % (obj_code, self.op, self.member)
     
