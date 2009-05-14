@@ -719,6 +719,7 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
             if not type.is_numeric or type.is_complex:
                 error(self.pos, "can only complexify c numeric types")
             type = PyrexTypes.CComplexType(type)
+            type.create_declaration_utility_code(env)
         if type:
             return type
         else:
@@ -1950,6 +1951,8 @@ class DefNode(FuncDefNode):
                         error(arg.pos, "Non-default argument following default argument")
                     elif not arg.is_self_arg:
                         positional_args.append(arg)
+                if arg.type.from_py_function is None:
+                    arg.type.create_from_py_utility_code(env)
 
             self.generate_tuple_and_keyword_parsing_code(
                 positional_args, kw_only_args, end_label, code)
@@ -3163,10 +3166,10 @@ class InPlaceAssignmentNode(AssignmentNode):
             if c_op == "//":
                 c_op = "/"
             elif c_op == "**":
-                if self.lhs.type.is_int and self.rhs.type.is_int:
-                    error(self.pos, "** with two C int types is ambiguous")
-                else:
-                    error(self.pos, "No C inplace power operator")
+                error(self.pos, "No C inplace power operator")
+            elif self.lhs.type.is_complex and not code.globalstate.directives['c99_complex']:
+                error(self.pos, "Inplace operators not implemented for complex types.")
+                
             # have to do assignment directly to avoid side-effects
             if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
                 self.lhs.generate_buffer_setitem_code(self.rhs, code, c_op)

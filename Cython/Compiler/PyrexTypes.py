@@ -441,7 +441,10 @@ class CType(PyrexType):
     exception_value = None
     exception_check = 1
 
-    def create_convert_utility_code(self, env):
+    def create_to_py_utility_code(self, env):
+        return True
+        
+    def create_from_py_utility_code(self, env):
         return True
         
     def error_condition(self, result_code):
@@ -702,6 +705,7 @@ class CFloatType(CNumericType):
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
 
+
 class CComplexType(CNumericType):
     
     is_complex = 1
@@ -710,7 +714,7 @@ class CComplexType(CNumericType):
     def __init__(self, real_type):
         self.real_type = real_type
         CNumericType.__init__(self, real_type.rank + 0.5, real_type.signed)
-        self.from_py_function = "__pyx_PyObject_As_" + self.specalization_name()
+        self.binops = {}
     
     def __cmp__(self, other):
         if isinstance(self, CComplexType) and isinstance(other, CComplexType):
@@ -718,51 +722,140 @@ class CComplexType(CNumericType):
         else:
             return 1
     
+    def __hash__(self):
+        return ~hash(self.real_type)
+    
     def sign_and_name(self):
-        return self.real_type.sign_and_name() + " _Complex"
+        return Naming.type_prefix + self.real_type.specalization_name() + "_complex"
 
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_complex and self.real_type.assignable_from_resolved_type(src_type.real_type)
                     or src_type.is_numeric and self.real_type.assignable_from_resolved_type(src_type) 
                     or src_type is error_type)
 
-    def create_convert_utility_code(self, env):
-        self.real_type.create_convert_utility_code(env)
-        env.use_utility_code(complex_generic_utility_code)
-        env.use_utility_code(
-            complex_utility_code.specialize(self, 
-                        real_type=self.real_type.declaration_code(''),
-                        type_convert=self.real_type.from_py_function))
+    def create_declaration_utility_code(self, env):
+        if not hasattr(self, 'from_parts'):
+            self.from_parts = "%s_from_parts" % self.specalization_name()
+            env.use_utility_code(complex_generic_utility_code)
+            env.use_utility_code(
+                complex_arithmatic_utility_code.specialize(self, 
+                            math_h_modifier = self.real_type.math_h_modifier,
+                            real_type = self.real_type.declaration_code('')))
         return True
 
-complex_utility_code = UtilityCode(
+    def create_from_py_utility_code(self, env):
+        self.real_type.create_from_py_utility_code(env)
+        env.use_utility_code(
+            complex_conversion_utility_code.specialize(self, 
+                        math_h_modifier = self.real_type.math_h_modifier,
+                        real_type = self.real_type.declaration_code(''),
+                        type_convert = self.real_type.from_py_function))
+        self.from_py_function = "__pyx_PyObject_As_" + self.specalization_name()
+        return True
+    
+    def binop(self, op):
+        try:
+            return self.binops[op]
+        except KeyError:
+            if op in "+-*/":
+                from ExprNodes import compile_time_binary_operators
+                op_name = compile_time_binary_operators[op].__name__
+                self.binops[op] = func_name = "%s_%s" % (self.specalization_name(), op_name)
+                return func_name
+            else:
+                error("Binary '%s' not supported in for %s" % (op, self))
+                return "<error>"
+
+complex_generic_utility_code = UtilityCode(
 proto="""
-static INLINE %(type)s __pyx_%(type_name)s_from_parts(%(real_type)s real, %(real_type)s imag); /* proto */
+#if __PYX_USE_C99_COMPLEX
+    #define __Pyx_REAL_PART(z) __real__(z)
+    #define __Pyx_IMAG_PART(z) __imag__(z)
+#else
+    #define __Pyx_REAL_PART(z) ((z).real)
+    #define __Pyx_IMAG_PART(z) ((z).imag)
+#endif
+
+#define __pyx_PyObject_from_complex(z) PyComplex_FromDoubles((double)__Pyx_REAL_PART(z), (double)__Pyx_IMAG_PART(z))
+""")
+
+complex_conversion_utility_code = UtilityCode(
+proto="""
 static %(type)s __pyx_PyObject_As_%(type_name)s(PyObject* o); /* proto */
 """, 
 impl="""
-static INLINE %(type)s __pyx_%(type_name)s_from_parts(%(real_type)s real, %(real_type)s imag) {
-    %(type)s z;
-    __real__(z) = real;
-    __imag__(z) = imag;
-    return z;
-}
-
 static %(type)s __pyx_PyObject_As_%(type_name)s(PyObject* o) {
     if (PyComplex_Check(o)) {
-        return __pyx_%(type_name)s_from_parts(
+        return %(type_name)s_from_parts(
             (%(real_type)s)((PyComplexObject *)o)->cval.real,
             (%(real_type)s)((PyComplexObject *)o)->cval.imag);
     }
     else {
-        return __pyx_%(type_name)s_from_parts(%(type_convert)s(o), 0);
+        return %(type_name)s_from_parts(%(type_convert)s(o), 0);
     }
 }
 """)
 
-complex_generic_utility_code = UtilityCode(
+complex_arithmatic_utility_code = UtilityCode(
 proto="""
-#define __pyx_PyObject_from_complex(z) PyComplex_FromDoubles((double)__real__(z), (double)__imag__(z))
+#if __PYX_USE_C99_COMPLEX
+
+    typedef %(real_type)s _Complex %(type_name)s;
+    #define %(type_name)s_from_parts(x, y) ((x) + (y)*(%(type)s)_Complex_I)
+
+    #define %(type_name)s_is_zero(a) ((a) == 0)
+    #define %(type_name)s_add(a, b) ((a)+(b))
+    #define %(type_name)s_sub(a, b) ((a)-(b))
+    #define %(type_name)s_mul(a, b) ((a)*(b))
+    #define %(type_name)s_div(a, b) ((a)/(b))
+    #define %(type_name)s_neg(a) (-(a))
+
+#else
+
+    typedef struct { %(real_type)s real, imag; } %(type_name)s;
+    #define %(type_name)s_from_parts(x, y) ((%(type_name)s){(%(real_type)s)x, (%(real_type)s)y})
+
+    static INLINE int %(type_name)s_is_zero(%(type)s a) {
+       return (a.real == 0) & (a.imag == 0);
+    }
+
+    static INLINE %(type)s %(type_name)s_add(%(type)s a, %(type)s b) {
+        %(type)s z;
+        z.real = a.real + b.real;
+        z.imag = a.imag + b.imag;
+        return z;
+    }
+
+    static INLINE %(type)s %(type_name)s_sub(%(type)s a, %(type)s b) {
+        %(type)s z;
+        z.real = a.real - b.real;
+        z.imag = a.imag - b.imag;
+        return z;
+    }
+
+    static INLINE %(type)s %(type_name)s_mul(%(type)s a, %(type)s b) {
+        %(type)s z;
+        z.real = a.real * b.real - a.imag * b.imag;
+        z.imag = a.real * b.imag + a.imag * b.real;
+        return z;
+    }
+
+    static INLINE %(type)s %(type_name)s_div(%(type)s a, %(type)s b) {
+        %(type)s z;
+        %(real_type)s denom = b.real*b.real + b.imag*b.imag;
+        z.real = (a.real * b.real + a.imag * b.imag) / denom;
+        z.imag = (a.imag * b.real - a.real * b.imag) / denom;
+        return z;
+    }
+
+    static INLINE %(type)s %(type_name)s_neg(%(type)s a) {
+        %(type)s z;
+        z.real = -a.real;
+        z.imag = -a.imag;
+        return z;
+    }
+
+#endif
 """)
 
 
@@ -1120,7 +1213,7 @@ class CStructOrUnionType(CType):
         self._convert_code = None
         self.packed = packed
         
-    def create_convert_utility_code(self, env):
+    def create_to_py_utility_code(self, env):
         if env.outer_scope is None:
             return False
         if self._convert_code is None:
@@ -1133,7 +1226,7 @@ class CStructOrUnionType(CType):
             code.putln("PyObject* member;")
             code.putln("res = PyDict_New(); if (res == NULL) return NULL;")
             for member in self.scope.var_entries:
-                if member.type.to_py_function and member.type.create_convert_utility_code(env):
+                if member.type.to_py_function and member.type.create_to_py_utility_code(env):
                     interned_name = env.get_string_const(member.name, identifier=True)
                     env.add_py_string(interned_name)
                     code.putln("member = %s(s.%s); if (member == NULL) goto bad;" % (
@@ -1303,7 +1396,10 @@ class ErrorType(PyrexType):
     to_py_function = "dummy"
     from_py_function = "dummy"
     
-    def create_convert_utility_code(self, env):
+    def create_to_py_utility_code(self, env):
+        return True
+    
+    def create_from_py_utility_code(self, env):
         return True
     
     def declaration_code(self, entity_code, 
@@ -1361,6 +1457,8 @@ c_size_t_type =      CSizeTType(5, 0, "T_SIZET")
 c_float_type =       CFloatType(7, "T_FLOAT", math_h_modifier='f')
 c_double_type =      CFloatType(8, "T_DOUBLE")
 c_longdouble_type =  CFloatType(9, math_h_modifier='l')
+
+c_double_complex_type = CComplexType(c_double_type)
 
 c_null_ptr_type =     CNullPtrType(c_void_type)
 c_char_array_type =   CCharArrayType(None)
@@ -1457,7 +1555,10 @@ def widest_numeric_type(type1, type2):
     if type1 == type2:
         return type1
     if type1.is_complex:
-        return CComplexType(widest_numeric_type(type1.real_type, type2))
+        if type2.is_complex:
+            return CComplexType(widest_numeric_type(type1.real_type, type2.real_type))
+        else:
+            return CComplexType(widest_numeric_type(type1.real_type, type2))
     elif type2.is_complex:
         return CComplexType(widest_numeric_type(type1, type2.real_type))
     if type1.is_enum and type2.is_enum:
