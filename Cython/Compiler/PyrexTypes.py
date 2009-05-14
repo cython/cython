@@ -713,6 +713,8 @@ class CComplexType(CNumericType):
     
     is_complex = 1
     to_py_function = "__pyx_PyObject_from_complex"
+    has_attributes = 1
+    scope = None
     
     def __init__(self, real_type):
         self.real_type = real_type
@@ -736,6 +738,14 @@ class CComplexType(CNumericType):
         return (src_type.is_complex and self.real_type.assignable_from_resolved_type(src_type.real_type)
                     or src_type.is_numeric and self.real_type.assignable_from_resolved_type(src_type) 
                     or src_type is error_type)
+                    
+    def attributes_known(self):
+        if self.scope is None:
+            import Symtab
+            self.scope = Symtab.StructOrUnionScope(self.specalization_name())
+            self.scope.declare_var("real", self.real_type, None, "real")
+            self.scope.declare_var("imag", self.real_type, None, "imag")
+        return True
 
     def create_declaration_utility_code(self, env):
         # This must always be run, because a single CComplexType instance can be shared
