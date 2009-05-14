@@ -716,7 +716,9 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                 else:
                     error(self.pos, "'%s' is not a type identifier" % self.name)
         if self.complex:
-            type = PyrexTypes.CCompelxType(type)
+            if not type.is_numeric or type.is_complex:
+                error(self.pos, "can only complexify c numeric types")
+            type = PyrexTypes.CComplexType(type)
         if type:
             return type
         else:
