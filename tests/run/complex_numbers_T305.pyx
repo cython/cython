@@ -5,11 +5,11 @@ __doc__ = u"""
     (-0.5+2j)
     
     >>> test_arithmetic(2j, 4j)
-    (6j, -2j, (-8+0j), (0.5+0j))
+    (-2j, 6j, -2j, (-8+0j), (0.5+0j))
     >>> test_arithmetic(6+12j, 3j)
-    ((6+15j), (6+9j), (-36+18j), (4-2j))
+    ((-6-12j), (6+15j), (6+9j), (-36+18j), (4-2j))
     >>> test_arithmetic(5-10j, 3+4j)
-    ((8-6j), (2-14j), (55-10j), (-1-2j))
+    ((-5+10j), (8-6j), (2-14j), (55-10j), (-1-2j))
 
     >>> test_div_by_zero(4j)
     -0.25j
@@ -57,7 +57,7 @@ def test_object_conversion(o):
     return z
 
 def test_arithmetic(double complex z, double complex w):
-    return z+w, z-w, z*w, z/w
+    return -z, z+w, z-w, z*w, z/w
 
 @cython.cdivision(False)
 def test_div_by_zero(double complex z):
