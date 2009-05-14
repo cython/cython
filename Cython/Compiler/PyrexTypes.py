@@ -445,10 +445,10 @@ class CType(PyrexType):
     exception_check = 1
 
     def create_to_py_utility_code(self, env):
-        return True
+        return self.to_py_function is not None
         
     def create_from_py_utility_code(self, env):
-        return True
+        return self.from_py_function is not None
         
     def error_condition(self, result_code):
         conds = []
