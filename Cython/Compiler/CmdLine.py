@@ -153,5 +153,9 @@ def parse_command_line(args):
         sys.exit(1)
     if len(sources) == 0 and not options.show_version:
         bad_usage()
+    if Options.embed and len(sources) > 1:
+        sys.stderr.write(
+            "cython: Only one source file allowed when using -embed\n")
+        sys.exit(1)
     return options, sources
 
