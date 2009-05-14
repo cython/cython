@@ -347,7 +347,7 @@ class Scope(object):
                 cname = name
             else:
                 cname = self.mangle(Naming.type_prefix, name)
-        type = PyrexTypes.CTypedefType(cname, base_type)
+        type = PyrexTypes.CTypedefType(cname, base_type, (visibility == 'extern'))
         entry = self.declare_type(name, type, pos, cname, visibility)
         type.qualified_name = entry.qualified_name
         return entry

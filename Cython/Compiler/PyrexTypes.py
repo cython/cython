@@ -161,12 +161,15 @@ class CTypedefType(BaseType):
     #  qualified_name      string
     #  typedef_cname       string
     #  typedef_base_type   PyrexType
+    #  typedef_is_external bool
     
     is_typedef = 1
+    typedef_is_external = 0
     
-    def __init__(self, cname, base_type):
+    def __init__(self, cname, base_type, is_external=0):
         self.typedef_cname = cname
         self.typedef_base_type = base_type
+        self.typedef_is_external = is_external
     
     def resolve(self):
         return self.typedef_base_type.resolve()
