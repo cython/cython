@@ -635,7 +635,7 @@ def get_type_information_cname(code, dtype, maxdepth=None):
                 typegroup = 'U'
             else:
                 typegroup = 'I'
-        elif complex_possible:
+        elif complex_possible or dtype.is_complex:
             typegroup = 'C'
         elif dtype.is_float:
             typegroup = 'R'

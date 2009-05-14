@@ -142,7 +142,7 @@ class PyrexType(BaseType):
         return 1
 
     def is_simple_buffer_dtype(self):
-        return (self.is_int or self.is_float or self.is_pyobject or
+        return (self.is_int or self.is_float or self.is_complex or self.is_pyobject or
                 self.is_extension_type or self.is_ptr)
 
     def struct_nesting_depth(self):

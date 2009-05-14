@@ -1333,10 +1333,31 @@ cdef class LongComplexMockBuffer(MockBuffer):
     cdef get_itemsize(self): return sizeof(LongComplex)
     cdef get_default_format(self): return b"Zg"
 
+#cdef extern from "complex.h":
+#    pass
+
+@testcase
+def complex_dtype(object[long double complex] buf):
+    """
+    >>> complex_dtype(LongComplexMockBuffer(None, [(0, -1)]))
+    -1j
+    """
+    print buf[0]
+
+@testcase
+def complex_inplace(object[long double complex] buf):
+    """
+    >>> complex_inplace(LongComplexMockBuffer(None, [(0, -1)]))
+    (1+1j)
+    """
+    buf[0] = buf[0] + 1 + 2j
+    print buf[0]
+
 @testcase
 def complex_struct_dtype(object[LongComplex] buf):
     """
-    Note that the format string is "Zg" rather than "2g"...
+    Note that the format string is "Zg" rather than "2g", yet a struct
+    is accessed.
     >>> complex_struct_dtype(LongComplexMockBuffer(None, [(0, -1)]))
     0.0 -1.0
     """
