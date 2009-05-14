@@ -702,22 +702,68 @@ class CFloatType(CNumericType):
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
 
-class CCompelxType(CNumericType):
+class CComplexType(CNumericType):
     
     is_complex = 1
+    to_py_function = "__pyx_PyObject_from_complex"
     
     def __init__(self, real_type):
         self.real_type = real_type
         CNumericType.__init__(self, real_type.rank + 0.5, real_type.signed)
+        self.from_py_function = "__pyx_PyObject_As_" + self.specalization_name()
+    
+    def __cmp__(self, other):
+        if isinstance(self, CComplexType) and isinstance(other, CComplexType):
+            return cmp(self.real_type, other.real_type)
+        else:
+            return 1
     
     def sign_and_name(self):
-        return self.real_type.sign_and_name() + " complex"
+        return self.real_type.sign_and_name() + " _Complex"
 
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_complex and self.real_type.assignable_from_resolved_type(src_type.real_type)
                     or src_type.is_numeric and self.real_type.assignable_from_resolved_type(src_type) 
                     or src_type is error_type)
 
+    def create_convert_utility_code(self, env):
+        self.real_type.create_convert_utility_code(env)
+        env.use_utility_code(complex_generic_utility_code)
+        env.use_utility_code(
+            complex_utility_code.specialize(self, 
+                        real_type=self.real_type.declaration_code(''),
+                        type_convert=self.real_type.from_py_function))
+        return True
+
+complex_utility_code = UtilityCode(
+proto="""
+static INLINE %(type)s __pyx_%(type_name)s_from_parts(%(real_type)s real, %(real_type)s imag); /* proto */
+static %(type)s __pyx_PyObject_As_%(type_name)s(PyObject* o); /* proto */
+""", 
+impl="""
+static INLINE %(type)s __pyx_%(type_name)s_from_parts(%(real_type)s real, %(real_type)s imag) {
+    %(type)s z;
+    __real__(z) = real;
+    __imag__(z) = imag;
+    return z;
+}
+
+static %(type)s __pyx_PyObject_As_%(type_name)s(PyObject* o) {
+    if (PyComplex_Check(o)) {
+        return __pyx_%(type_name)s_from_parts(
+            (%(real_type)s)((PyComplexObject *)o)->cval.real,
+            (%(real_type)s)((PyComplexObject *)o)->cval.imag);
+    }
+    else {
+        return __pyx_%(type_name)s_from_parts(%(type_convert)s(o), 0);
+    }
+}
+""")
+
+complex_generic_utility_code = UtilityCode(
+proto="""
+#define __pyx_PyObject_from_complex(z) PyComplex_FromDoubles((double)__real__(z), (double)__imag__(z))
+""")
 
 
 class CArrayType(CType):
@@ -1408,6 +1454,12 @@ modifiers_and_name_to_type = {
 def widest_numeric_type(type1, type2):
     # Given two numeric types, return the narrowest type
     # encompassing both of them.
+    if type1 == type2:
+        return type1
+    if type1.is_complex:
+        return CComplexType(widest_numeric_type(type1.real_type, type2))
+    elif type2.is_complex:
+        return CComplexType(widest_numeric_type(type1, type2.real_type))
     if type1.is_enum and type2.is_enum:
         return c_int_type
     elif type1 is type2:
