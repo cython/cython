@@ -718,6 +718,7 @@ class CComplexType(CNumericType):
         self.real_type = real_type
         CNumericType.__init__(self, real_type.rank + 0.5, real_type.signed)
         self.binops = {}
+        self.from_parts = "%s_from_parts" % self.specalization_name()
     
     def __cmp__(self, other):
         if isinstance(self, CComplexType) and isinstance(other, CComplexType):
@@ -737,13 +738,13 @@ class CComplexType(CNumericType):
                     or src_type is error_type)
 
     def create_declaration_utility_code(self, env):
-        if not hasattr(self, 'from_parts'):
-            self.from_parts = "%s_from_parts" % self.specalization_name()
-            env.use_utility_code(complex_generic_utility_code)
-            env.use_utility_code(
-                complex_arithmatic_utility_code.specialize(self, 
-                            math_h_modifier = self.real_type.math_h_modifier,
-                            real_type = self.real_type.declaration_code('')))
+        # This must always be run, because a single CComplexType instance can be shared
+        # across multiple compilations (the one created in the module scope)
+        env.use_utility_code(complex_generic_utility_code)
+        env.use_utility_code(
+            complex_arithmatic_utility_code.specialize(self, 
+                math_h_modifier = self.real_type.math_h_modifier,
+                real_type = self.real_type.declaration_code('')))
         return True
 
     def create_from_py_utility_code(self, env):
