@@ -1921,6 +1921,10 @@ class DefNode(FuncDefNode):
         has_star_or_kw_args = self.star_arg is not None \
             or self.starstar_arg is not None or has_kwonly_args
 
+        for arg in self.args:
+            if not arg.type.is_pyobject and arg.type.from_py_function is None:
+                arg.type.create_from_py_utility_code(env)
+
         if not self.signature_has_generic_args():
             if has_star_or_kw_args:
                 error(self.pos, "This method cannot have * or keyword arguments")
@@ -1951,8 +1955,6 @@ class DefNode(FuncDefNode):
                         error(arg.pos, "Non-default argument following default argument")
                     elif not arg.is_self_arg:
                         positional_args.append(arg)
-                if arg.type.from_py_function is None:
-                    arg.type.create_from_py_utility_code(env)
 
             self.generate_tuple_and_keyword_parsing_code(
                 positional_args, kw_only_args, end_label, code)
