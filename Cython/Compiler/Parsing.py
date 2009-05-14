@@ -2488,7 +2488,7 @@ def p_code(s, level=None):
             repr(s.sy), repr(s.systring)))
     return body
 
-COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*cython:\s*([a-z_]+)\s*=(.*)$")
+COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*cython:\s*(\w+)\s*=(.*)$")
 
 def p_compiler_directive_comments(s):
     result = {}
@@ -2498,10 +2498,10 @@ def p_compiler_directive_comments(s):
             name = m.group(1)
             try:
                 value = Options.parse_option_value(str(name), str(m.group(2).strip()))
+                if value is not None: # can be False!
+                    result[name] = value
             except ValueError, e:
                 s.error(e.args[0], fatal=False)
-            if value is not None: # can be False!
-                result[name] = value
         s.next()
     return result
 
