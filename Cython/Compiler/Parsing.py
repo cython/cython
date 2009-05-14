@@ -1692,6 +1692,7 @@ def p_c_simple_base_type(s, self_flag, nonempty):
     is_basic = 0
     signed = 1
     longness = 0
+    complex = 0
     module_path = []
     pos = s.position()
     if not s.sy == 'IDENT':
@@ -1710,6 +1711,9 @@ def p_c_simple_base_type(s, self_flag, nonempty):
                 s.next()
             else:
                 name = 'int'
+        if s.sy == 'IDENT' and s.systring == 'complex':
+            complex = 1
+            s.next()
     elif looking_at_dotted_name(s):
         #print "p_c_simple_base_type: looking_at_type_name at", s.position()
         name = s.systring
@@ -1738,7 +1742,8 @@ def p_c_simple_base_type(s, self_flag, nonempty):
     type_node = Nodes.CSimpleBaseTypeNode(pos, 
         name = name, module_path = module_path,
         is_basic_c_type = is_basic, signed = signed,
-        longness = longness, is_self_arg = self_flag)
+        complex = complex, longness = longness, 
+        is_self_arg = self_flag)
 
 
     # Treat trailing [] on type as buffer access if it appears in a context
