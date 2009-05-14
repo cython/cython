@@ -25,7 +25,7 @@ cdef object m():
         i = 42
         obj = None
         17L
-        7j
+        <object>7j
         help
         `"Hello"`
         import fred
@@ -85,7 +85,7 @@ _ERRORS = u"""
 15: 5: Calling gil-requiring function without gil
 24: 9: Calling gil-requiring function without gil
 26:12: Assignment of Python object not allowed without gil
-28: 8: Constructing complex number not allowed without gil
+28:16: Constructing complex number not allowed without gil
 29:12: Accessing Python global or builtin not allowed without gil
 30: 8: Backquote expression not allowed without gil
 31:15: Python import not allowed without gil
