@@ -18,16 +18,16 @@ else:
     current_endian = '>'
     other_endian = '<'
 
-cdef struct align_of_double_helper:
+cdef struct align_of_float_helper:
     char ch
-    double d    
+    float d    
 cdef struct align_of_int_helper:
     char ch
     int i
-double_align = sizeof(align_of_double_helper) - sizeof(double)
+float_align = sizeof(align_of_float_helper) - sizeof(float)
 int_align = sizeof(align_of_int_helper) - sizeof(int)
-if double_align != 8 or sizeof(double) != 8:
-    raise RuntimeError("Alignment or size of double is %d on this system, please report to cython-dev for a testcase fix" % double_align)
+if float_align != 4 or sizeof(float) != 4:
+    raise RuntimeError("Alignment or size of float is %d on this system, please report to cython-dev for a testcase fix" % float_align)
 if int_align != 4 or sizeof(int) != 4:
     raise RuntimeError("Alignment or size of int is %d on this system, please report to cython-dev for a testcase fix" % int_align)
 
@@ -105,9 +105,9 @@ def _obj(fmt):
     cdef object[object] buf = MockBuffer(fmt, sizeof(void*))
 
 
-cdef struct ComplexDouble:
-    double real
-    double imag
+cdef struct ComplexFloat:
+    float real
+    float imag
 
 ctypedef struct Char3Int:
     char a
@@ -115,33 +115,33 @@ ctypedef struct Char3Int:
     int c
     int d
 
-cdef struct CharIntCDouble:
+cdef struct CharIntCFloat:
     char a
     int b
-    ComplexDouble c
-    double d
+    ComplexFloat c
+    float d
 
 cdef struct UnpackedStruct1:
     char a
     int b
-    ComplexDouble c
-    double c2
+    ComplexFloat c
+    float c2
     Char3Int d
 
 ctypedef struct UnpackedStruct2:
-    CharIntCDouble a
+    CharIntCFloat a
     Char3Int b
 
 ctypedef struct UnpackedStruct3:
-    CharIntCDouble a
+    CharIntCFloat a
     char b
     int c, d, e
 
 cdef struct UnpackedStruct4:
     char a
     int b
-    ComplexDouble c
-    double c2
+    ComplexFloat c
+    float c2
     char d
     int e, f, g
 
@@ -178,17 +178,17 @@ def char3int(fmt):
     obj = MockBuffer(fmt, sizeof(Char3Int))
     cdef object[Char3Int, ndim=1] buf = obj
 
-#@testcase
+@testcase
 def unpacked_struct(fmt):
     """
     Native formats:
-    >>> unpacked_struct("biZddbiii")
-    >>> unpacked_struct("@bi3db3i")
-    >>> unpacked_struct("@biZddbi2i")
-    >>> unpacked_struct("bidT{biii}")
-    >>> unpacked_struct("bT{idddb2i}i")
-    >>> unpacked_struct("bidb3T{i}")
-    >>> unpacked_struct("T{b}T{T{iZddT{bi}}}2T{T{i}}")
+    >>> unpacked_struct("biZffbiii")
+    >>> unpacked_struct("@bi3fb3i")
+    >>> unpacked_struct("@biZffbi2i")
+    >>> unpacked_struct("biZffT{biii}")
+    >>> unpacked_struct("bT{ifffb2i}i")
+    >>> unpacked_struct("biZffb3T{i}")
+    >>> unpacked_struct("T{b}T{T{iZffT{bi}}}2T{T{i}}")
     """
 
     assert (sizeof(UnpackedStruct1) == sizeof(UnpackedStruct2)
@@ -200,20 +200,20 @@ def unpacked_struct(fmt):
     cdef object[UnpackedStruct4, ndim=1] buf4 = obj
 
 cdef struct ComplexTest:
-    ComplexDouble a, b, c
+    ComplexFloat a, b, c
 
 @testcase
 def complex_test(fmt):
     """
-    >>> complex_test("ZdZdZd")
-    >>> complex_test("3Zd")
-    >>> complex_test("6d")
-    >>> complex_test("3T{Zd}")
+    >>> complex_test("ZfZfZf")
+    >>> complex_test("3Zf")
+    >>> complex_test("6f")
+    >>> complex_test("3T{Zf}")
     
-    >>> complex_test("dZdZdd")
+    >>> complex_test("fZfZff")
     Traceback (most recent call last):
        ...
-    ValueError: Buffer dtype mismatch, expected 'double' but got 'complex double' in 'ComplexDouble.imag'
+    ValueError: Buffer dtype mismatch, expected 'float' but got 'complex float' in 'ComplexFloat.imag'
     
     """
     obj = MockBuffer(fmt, sizeof(ComplexTest))
