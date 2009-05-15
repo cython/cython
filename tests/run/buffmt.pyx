@@ -88,10 +88,10 @@ def wrongsize():
     >>> wrongsize()
     Traceback (most recent call last):
        ...
-    ValueError: Item size of buffer (1 byte) does not match size of 'unsigned long' (8 bytes)
+    ValueError: Item size of buffer (1 byte) does not match size of 'float' (4 bytes)
 
     """    
-    cdef object[unsigned long] buf = MockBuffer("L", 1)
+    cdef object[float] buf = MockBuffer("f", 1)
 
 @testcase
 def _obj(fmt):
