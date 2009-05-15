@@ -130,6 +130,9 @@ try:
     >>> test_dtype('F', inc1_cfloat) # numpy format codes differ from buffer ones here
     >>> test_dtype('D', inc1_cdouble)
     >>> test_dtype('G', inc1_clongdouble)
+    >>> test_dtype('F', inc1_cfloat_struct)
+    >>> test_dtype('D', inc1_cdouble_struct)
+    >>> test_dtype('G', inc1_clongdouble_struct)
 
     >>> test_dtype(np.int, inc1_int_t)
     >>> test_dtype(np.long, inc1_long_t)
@@ -258,15 +261,19 @@ def inc1_float(np.ndarray[float] arr):                  arr[1] += 1
 def inc1_double(np.ndarray[double] arr):                arr[1] += 1
 def inc1_longdouble(np.ndarray[long double] arr):       arr[1] += 1
 
-def inc1_cfloat(np.ndarray[np.cfloat_t] arr):
+def inc1_cfloat(np.ndarray[float complex] arr):            arr[1] = arr[1] + 1 + 1j
+def inc1_cdouble(np.ndarray[double complex] arr):          arr[1] = (arr[1] + 1) + 1j
+def inc1_clongdouble(np.ndarray[long double complex] arr): arr[1] = arr[1] + (1 + 1j)
+
+def inc1_cfloat_struct(np.ndarray[np.cfloat_t] arr):
     arr[1].real += 1
     arr[1].imag += 1
     
-def inc1_cdouble(np.ndarray[np.cdouble_t] arr):
+def inc1_cdouble_struct(np.ndarray[np.cdouble_t] arr):
     arr[1].real += 1
     arr[1].imag += 1
 
-def inc1_clongdouble(np.ndarray[np.clongdouble_t] arr):
+def inc1_clongdouble_struct(np.ndarray[np.clongdouble_t] arr):
     cdef long double x
     x = arr[1].real + 1
     arr[1].real = x

@@ -173,41 +173,47 @@ cdef extern from "numpy/arrayobject.h":
 
     cdef int PyDataType_HASFIELDS(dtype obj)
 
-    ctypedef signed int   npy_byte
-    ctypedef signed int   npy_short
-    ctypedef signed int   npy_int
-    ctypedef signed int   npy_long
-    ctypedef signed int   npy_longlong
+    ctypedef signed char      npy_byte
+    ctypedef signed short     npy_short
+    ctypedef signed int       npy_int
+    ctypedef signed long      npy_long
+    ctypedef signed long long npy_longlong
 
-    ctypedef unsigned int npy_ubyte
-    ctypedef unsigned int npy_ushort
-    ctypedef unsigned int npy_uint
-    ctypedef unsigned int npy_ulong
-    ctypedef unsigned int npy_ulonglong
+    ctypedef unsigned char      npy_ubyte
+    ctypedef unsigned short     npy_ushort
+    ctypedef unsigned int       npy_uint
+    ctypedef unsigned long      npy_ulong
+    ctypedef unsigned long long npy_ulonglong
 
     ctypedef float        npy_float
-    ctypedef float        npy_double
-    ctypedef float        npy_longdouble
+    ctypedef double       npy_double
+    ctypedef long double  npy_longdouble
 
-    ctypedef signed int   npy_int8
-    ctypedef signed int   npy_int16
-    ctypedef signed int   npy_int32
-    ctypedef signed int   npy_int64
-    ctypedef signed int   npy_int96
-    ctypedef signed int   npy_int128    
+    ctypedef signed char        npy_int8
+    ctypedef signed short       npy_int16
+    ctypedef signed int         npy_int32
+    ctypedef signed long long   npy_int64
+    ctypedef signed long long   npy_int96
+    ctypedef signed long long   npy_int128    
 
-    ctypedef unsigned int npy_uint8
-    ctypedef unsigned int npy_uint16
-    ctypedef unsigned int npy_uint32
-    ctypedef unsigned int npy_uint64
-    ctypedef unsigned int npy_uint96
-    ctypedef unsigned int npy_uint128
+    ctypedef unsigned char      npy_uint8
+    ctypedef unsigned short     npy_uint16
+    ctypedef unsigned int       npy_uint32
+    ctypedef unsigned long long npy_uint64
+    ctypedef unsigned long long npy_uint96
+    ctypedef unsigned long long npy_uint128
 
     ctypedef float        npy_float32
-    ctypedef float        npy_float64
-    ctypedef float        npy_float80
-    ctypedef float        npy_float96
-    ctypedef float        npy_float128
+    ctypedef double       npy_float64
+    ctypedef long double  npy_float80
+    ctypedef long double  npy_float96
+    ctypedef long double  npy_float128
+
+    ctypedef float complex        npy_complex64
+    ctypedef double complex       npy_complex128
+    ctypedef long double complex  npy_complex120
+    ctypedef long double complex  npy_complex192
+    ctypedef long double complex  npy_complex256
 
     ctypedef struct npy_cfloat:
         float real
@@ -246,6 +252,9 @@ ctypedef npy_float64    float64_t
 #ctypedef npy_float80    float80_t
 #ctypedef npy_float128   float128_t
 
+ctypedef npy_complex64    complex64_t
+ctypedef npy_complex128   complex128_t
+
 # The int types are mapped a bit surprising --
 # numpy.int corresponds to 'l' and numpy.long to 'q'
 ctypedef npy_long       int_t
@@ -263,6 +272,7 @@ ctypedef npy_cfloat      cfloat_t
 ctypedef npy_cdouble     cdouble_t
 ctypedef npy_clongdouble clongdouble_t
 
+ctypedef npy_cdouble     complex_t
 
 cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset) except NULL:
     # Recursive utility function used in __getbuffer__ to get format
