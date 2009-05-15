@@ -589,62 +589,6 @@ class WithTransform(CythonTransform, SkipDeclarations):
         return node
         
 
-class ComprehensionTransform(VisitorTransform):
-    """Prevent the target of list/set/dict comprehensions from leaking by
-    moving it into a temp variable.  This mimics the behaviour of all
-    comprehensions in Py3 and of generator expressions in Py2.x.
-
-    This must run before the IterationTransform, which might replace
-    for-loops with while-loops.  We only handle for-loops here.
-    """
-    def visit_ModuleNode(self, node):
-        self.comprehension_targets = {}
-        self.visitchildren(node)
-        return node
-
-    visit_Node = VisitorTransform.recurse_to_children
-
-    def visit_ComprehensionNode(self, node):
-        if type(node.loop) not in (Nodes.ForInStatNode,
-                                   Nodes.ForFromStatNode):
-            # this should not happen!
-            self.visitchildren(node)
-            return node
-
-        outer_comprehension_targets = self.comprehension_targets
-        self.comprehension_targets = outer_comprehension_targets.copy()
-
-        # find all NameNodes in the loop target
-        target_name_collector = NameNodeCollector()
-        target_name_collector.visit(node.loop.target)
-        targets = target_name_collector.name_nodes
-
-        # create a temp variable for each target name
-        temps = []
-        for target in targets:
-            handle = TempHandle(target.type)
-            temps.append(handle)
-            self.comprehension_targets[target.entry.cname] = handle.ref(node.pos)
-
-        # replace name references in the loop code by their temp node
-        self.visitchildren(node, ['loop'])
-
-        loop = node.loop
-        if type(loop) is Nodes.ForFromStatNode and loop.target.type.is_numeric:
-            loop.loopvar_node = loop.target
-
-        node.loop = TempsBlockNode(node.pos, body=node.loop, temps=temps)
-        self.comprehension_targets = outer_comprehension_targets
-        return node
-
-    def visit_NameNode(self, node):
-        if node.entry:
-            replacement = self.comprehension_targets.get(node.entry.cname)
-            if replacement is not None:
-                return replacement
-        return node
-
-
 class DecoratorTransform(CythonTransform, SkipDeclarations):
 
     def visit_DefNode(self, func_node):
