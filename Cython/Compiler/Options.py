@@ -66,6 +66,7 @@ option_defaults = {
     'always_allow_keywords': False,
     'wraparound' : True,
     'c99_complex' : False, # Don't use macro wrappers for complex arith, not sure what to name this...
+    'callspec' : "",
 }
 
 # Override types possibilities above, if needed

@@ -603,6 +603,13 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             nogil = self.nogil, with_gil = self.with_gil, is_overridable = self.overridable)
         if self.optional_arg_count:
             func_type.op_arg_struct = PyrexTypes.c_ptr_type(self.op_args_struct.type)
+        callspec = env.directives['callspec']
+        if callspec:
+            current = func_type.calling_convention
+            if current and current != callspec:
+                error(self.pos, "cannot have both '%s' and '%s' "
+                      "calling conventions" % (current, callspec))
+            func_type.calling_convention = callspec
         return self.base.analyse(func_type, env)
 
 
