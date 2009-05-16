@@ -31,6 +31,28 @@ __doc__ = u"""
   2 2 2 3
   3 3 3 4
 
+  >>> multi_c_enumerate()
+  0 0 0 1
+  1 1 1 2
+  2 2 2 3
+  3 3 3 4
+
+  >>> py_enumerate_break(1,2,3,4)
+  0 1
+  :: 0 1
+
+  >>> py_enumerate_return()
+  :: 55 99
+  >>> py_enumerate_return(1,2,3,4)
+  0 1
+
+  >>> py_enumerate_continue(1,2,3,4)
+  0 1
+  1 2
+  2 3
+  3 4
+  :: 3 4
+
 """
 
 def go_py_enumerate():
@@ -46,6 +68,27 @@ def go_c_enumerate_step():
     cdef int i,k
     for i,k in enumerate(range(1,7,2)):
         print i, k
+
+def py_enumerate_break(*t):
+    i,k = 55,99
+    for i,k in enumerate(t):
+        print i, k
+        break
+    print u"::", i, k
+
+def py_enumerate_return(*t):
+    i,k = 55,99
+    for i,k in enumerate(t):
+        print i, k
+        return
+    print u"::", i, k
+
+def py_enumerate_continue(*t):
+    i,k = 55,99
+    for i,k in enumerate(t):
+        print i, k
+        continue
+    print u"::", i, k
 
 def empty_c_enumerate():
     cdef int i = 55, k = 99
