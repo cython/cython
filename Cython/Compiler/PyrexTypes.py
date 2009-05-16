@@ -1125,6 +1125,15 @@ class CFuncType(CType):
         return 1
 
     def same_calling_convention_as(self, other):
+        ## XXX Under discussion ...
+        ## callspec_words = ("__stdcall", "__cdecl", "__fastcall")
+        ## cs1 = self.calling_convention
+        ## cs2 = other.calling_convention
+        ## if (cs1 in callspec_words or
+        ##     cs2 in callspec_words):
+        ##     return cs1 == cs2
+        ## else:
+        ##     return True
         sc1 = self.calling_convention == '__stdcall'
         sc2 = other.calling_convention == '__stdcall'
         return sc1 == sc2
