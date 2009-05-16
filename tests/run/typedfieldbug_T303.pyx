@@ -15,16 +15,16 @@ cdef class MyClass:
         double var_d
         DoubleTypedef var_nf
     cdef public:
-        DoubleTypedef mutable
+        DoubleTypedef var_mutable
     def __init__(self):
         self.var_d = 42.0
         self.var_nf = 42.0
-        self.mutable = 1
+        self.var_mutable = 1
 
 def f():
     c = MyClass()
-    c.mutable = 42.0
-    print c.var_d, c.var_nf, c.mutable
+    c.var_mutable = 42.0
+    print c.var_d, c.var_nf, c.var_mutable
 
 def readonly():
     c = MyClass()
