@@ -53,6 +53,14 @@ __doc__ = u"""
   3 4
   :: 3 4
 
+  >>> py_enumerate_dict({})
+  :: 55 99
+  >>> py_enumerate_dict(dict(a=1, b=2, c=3))
+  0 a
+  1 c
+  2 b
+  :: 2 b
+
 """
 
 def go_py_enumerate():
@@ -68,6 +76,13 @@ def go_c_enumerate_step():
     cdef int i,k
     for i,k in enumerate(range(1,7,2)):
         print i, k
+
+def py_enumerate_dict(dict d):
+    cdef int i = 55
+    k = 99
+    for i,k in enumerate(d):
+        print i, k
+    print u"::", i, k
 
 def py_enumerate_break(*t):
     i,k = 55,99
