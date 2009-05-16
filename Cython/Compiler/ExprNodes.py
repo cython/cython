@@ -3000,7 +3000,6 @@ class SequenceNode(ExprNode):
             self.unpacked_items.append(unpacked_item)
             self.coerced_unpacked_items.append(coerced_unpacked_item)
         self.type = py_object_type
-        env.use_utility_code(unpacking_utility_code)
 
     def generate_result_code(self, code):
         self.generate_operation_code(code)
@@ -3019,6 +3018,8 @@ class SequenceNode(ExprNode):
         # Need to work around the fact that generate_evaluation_code
         # allocates the temps in a rather hacky way -- the assignment
         # is evaluated twice, within each if-block.
+
+        code.globalstate.use_utility_code(unpacking_utility_code)
 
         if rhs.type is tuple_type:
             tuple_check = "likely(%s != Py_None)"
@@ -3092,6 +3093,8 @@ class SequenceNode(ExprNode):
         code.putln("}")
 
     def generate_starred_assignment_code(self, rhs, code):
+        code.globalstate.use_utility_code(unpacking_utility_code)
+
         for i, arg in enumerate(self.args):
             if arg.is_starred:
                 starred_target = self.unpacked_items[i]
