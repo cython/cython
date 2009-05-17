@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 # Tests buffer format string parsing.
 
 __test__ = {}
@@ -39,7 +41,7 @@ cdef class MockBuffer:
     cdef object itemsize
     
     def __init__(self, format, itemsize):
-        self.format = format
+        self.format = unicode(format).encode(u"ASCII")
         self.itemsize = itemsize
         self.zero = 0
         self.minusone = -1
@@ -232,7 +234,7 @@ def alignment_string(fmt, exc=None):
     try:
         buf = MockBuffer(fmt, sizeof(int))
     except ValueError, e:
-        msg = e.message.replace("Big", "X").replace("Little", "X").replace("big", "X").replace("little", "X")
+        msg = unicode(e).replace("Big", "X").replace("Little", "X").replace("big", "X").replace("little", "X")
         if msg != exc:
             print msg
             print "  is not equal to"
