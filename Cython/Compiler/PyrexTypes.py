@@ -1329,9 +1329,13 @@ class CStructOrUnionType(CType):
         return self.is_complete()
 
     def can_be_complex(self):
-        # Does the struct consist of exactly two floats?
+        # Does the struct consist of exactly two identical floats?
         fields = self.scope.var_entries
-        return len(fields) == 2 and fields[0].type.is_float and fields[1].type.is_float
+        if len(fields) != 2: return False
+        a, b = fields
+        return (a.type.is_float and b.type.is_float and
+                a.type.declaration_code("") ==
+                b.type.declaration_code(""))
 
     def struct_nesting_depth(self):
         child_depths = [x.type.struct_nesting_depth()
