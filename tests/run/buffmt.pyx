@@ -254,7 +254,7 @@ def int_and_long_are_same():
         longarr = MockBuffer("i", sizeof(int))
 
 cdef struct MixedComplex:
-    long double real
+    double real
     float imag
 
 @testcase
@@ -265,9 +265,10 @@ def mixed_complex_struct():
     >>> mixed_complex_struct()
     Traceback (most recent call last):
         ...
-    ValueError: Buffer dtype mismatch, expected 'long double' but got 'complex double' in 'MixedComplex.real'
+    ValueError: Buffer dtype mismatch, expected 'double' but got 'complex double' in 'MixedComplex.real'
     """
-    cdef object[MixedComplex] buf = MockBuffer("Zd", sizeof(MixedComplex))
+    cdef object[MixedComplex] buf = MockBuffer("Zd",
+        sizeof(MixedComplex))
 
 
 cdef packed struct PackedSubStruct:
