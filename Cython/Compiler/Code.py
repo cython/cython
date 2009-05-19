@@ -9,6 +9,7 @@ import Options
 import StringEncoding
 from Cython import Utils
 from PyrexTypes import py_object_type, typecast
+import PyrexTypes
 from TypeSlots import method_coexist
 from Scanning import SourceDescriptor
 from Cython.StringIOTree import StringIOTree
@@ -293,9 +294,7 @@ class GlobalState(object):
     #                                  to create this output C code.  This is
     #                                  used to annotate the comments.
     #
-    # used_utility_code set(string|int) Ids of used utility code (to avoid reinsertion)
-    # utilprotowriter CCodeWriter
-    # utildefwriter   CCodeWriter
+    # utility_codes   set                IDs of used utility code (to avoid reinsertion)
     #
     # declared_cnames  {string:Entry}  used in a transition phase to merge pxd-declared
     #                                  constants etc. into the pyx-declared ones (i.e,
@@ -305,6 +304,8 @@ class GlobalState(object):
     #
     # const_cname_counter int          global counter for constant identifiers
     #
+
+    # parts            {string:CCodeWriter}
 
     
     # interned_strings
@@ -319,24 +320,44 @@ class GlobalState(object):
 
     directives = {}
 
-    def __init__(self, rootwriter, emit_linenums=False):
+    code_layout = [
+        'h_code',
+        'utility_code_proto',
+        'type_declarations',
+        'module_declarations',
+        'typeinfo',
+        'before_global_var',
+        'global_var',
+        'decls',
+        'all_the_rest',
+        'utility_code_def'
+    ]
+    
+
+    def __init__(self, writer, emit_linenums=False):
         self.filename_table = {}
         self.filename_list = []
         self.input_file_contents = {}
-        self.used_utility_code = set()
+        self.utility_codes = set()
         self.declared_cnames = {}
         self.in_utility_code_generation = False
         self.emit_linenums = emit_linenums
+        self.parts = {}
 
         self.const_cname_counter = 1
         self.string_const_index = {}
         self.int_const_index = {}
         self.py_constants = []
 
-    def initwriters(self, rootwriter):
-        self.utilprotowriter = rootwriter.new_writer()
-        self.utildefwriter = rootwriter.new_writer()
-        self.decls_writer = rootwriter.new_writer()
+        assert writer.globalstate is None
+        writer.globalstate = self
+        self.rootwriter = writer
+
+    def initialize_main_c_code(self):
+        rootwriter = self.rootwriter
+        for part in self.code_layout:
+            self.parts[part] = rootwriter.insertion_point()
+
         self.pystring_table = rootwriter.new_writer()
         self.init_cached_builtins_writer = rootwriter.new_writer()
         self.initwriter = rootwriter.new_writer()
@@ -354,12 +375,36 @@ class GlobalState(object):
         self.cleanupwriter.putln("")
         self.cleanupwriter.putln("static void __Pyx_CleanupGlobals(void) {")
 
+        #
+        # utility_code_def
+        #
+        code = self.parts['utility_code_def']
+        if self.emit_linenums:
+            code.write('\n#line 1 "cython_utility"\n')
+        code.putln("")
+        code.putln("/* Runtime support code */")
+        code.putln("")
+        code.putln("static void %s(void) {" % Naming.fileinit_cname)
+        code.putln("%s = %s;" % 
+            (Naming.filetable_cname, Naming.filenames_cname))
+        code.putln("}")
+
+    def finalize_main_c_code(self):
+        self.close_global_decls()
+
+        #
+        # utility_code_def
+        #
+        code = self.parts['utility_code_def']
+        code.put(PyrexTypes.type_conversion_functions)
+        code.putln("")
+
+    def __getitem__(self, key):
+        return self.parts[key]
+
     #
     # Global constants, interned objects, etc.
     #
-    def insert_global_var_declarations_into(self, code):
-        code.insert(self.decls_writer)
-
     def close_global_decls(self):
         # This is called when it is known that no more global declarations will
         # declared (but can be called before or after insert_XXX).
@@ -393,7 +438,7 @@ class GlobalState(object):
         code.insert(self.cleanupwriter)
 
     def put_pyobject_decl(self, entry):
-        self.decls_writer.putln("static PyObject *%s;" % entry.cname)
+        self['global_var'].putln("static PyObject *%s;" % entry.cname)
 
     # constant handling at code generation time
 
@@ -485,8 +530,9 @@ class GlobalState(object):
         consts = [ (len(c.cname), c.cname, c)
                    for c in self.py_constants ]
         consts.sort()
+        decls_writer = self.parts['decls']
         for _, cname, c in consts:
-            self.decls_writer.putln(
+            decls_writer.putln(
                 "static %s;" % c.type.declaration_code(cname))
 
     def generate_string_constants(self):
@@ -494,8 +540,10 @@ class GlobalState(object):
                      for c in self.string_const_index.itervalues() ]
         c_consts.sort()
         py_strings = []
+
+        decls_writer = self.parts['decls']
         for _, cname, c in c_consts:
-            self.decls_writer.putln('static char %s[] = "%s";' % (
+            decls_writer.putln('static char %s[] = "%s";' % (
                 cname, c.escaped_value))
             if c.py_strings is not None:
                 for py_string in c.py_strings.itervalues():
@@ -510,7 +558,7 @@ class GlobalState(object):
             self.pystring_table.putln("static __Pyx_StringTabEntry %s[] = {" %
                                       Naming.stringtab_cname)
             for c_cname, _, py_string in py_strings:
-                self.decls_writer.putln(
+                decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
                 self.pystring_table.putln(
                     "{&%s, %s, sizeof(%s), %d, %d, %d}," % (
@@ -533,9 +581,10 @@ class GlobalState(object):
         consts = [ (len(c.value), c.value, c.is_long, c)
                    for c in self.int_const_index.itervalues() ]
         consts.sort()
+        decls_writer = self.parts['decls']
         for _, value, longness, c in consts:
             cname = c.cname
-            self.decls_writer.putln("static PyObject *%s;" % cname)
+            decls_writer.putln("static PyObject *%s;" % cname)
             if longness:
                 function = '%s = PyLong_FromString((char *)"%s", 0, 0); %s;'
             else:
@@ -602,54 +651,17 @@ class GlobalState(object):
         code twice. Otherwise, id(codetup) is used as such an identifier.
         """
         if name is None: name = id(utility_code)
-        if self.check_utility_code_needed_and_register(name):
+        if name not in self.utility_codes:
+            self.utility_codes.add(name)
             if utility_code.requires:
                 for dependency in utility_code.requires:
                     self.use_utility_code(dependency)
             if utility_code.proto:
-                self.utilprotowriter.put(utility_code.proto)
+                self.parts['utility_code_proto'].put(utility_code.proto)
             if utility_code.impl:
-                self.utildefwriter.put(utility_code.impl)
+                self.parts['utility_code_def'].put(utility_code.impl)
             utility_code.write_init_code(self.initwriter, self.module_pos)
             utility_code.write_cleanup_code(self.cleanupwriter, self.module_pos)
-
-    def has_code(self, name):
-        return name in self.used_utility_code
-
-    def use_code_from(self, func, name, *args, **kw):
-        """
-        Requests that the utility code that func can generate is used in the C
-        file. func is called like this:
-
-        func(proto, definition, name, *args, **kw)
-
-        where proto and definition are two CCodeWriter instances; the
-        former should have the prototype written to it and the other the definition.
-        
-        The call might happen at some later point (if compiling multiple modules
-        into a cache for instance), and will only happen once per utility code.
-
-        name is used to identify the utility code, so that it isn't regenerated
-        when the same code is requested again.
-        """
-        if self.check_utility_code_needed_and_register(name):
-            func(self.utilprotowriter, self.utildefwriter,
-                 name, *args, **kw)
-
-    def check_utility_code_needed_and_register(self, name):
-        if name in self.used_utility_code:
-            return False
-        else:
-            self.used_utility_code.add(name)
-            return True
-
-    def put_utility_code_protos(self, writer):
-        writer.insert(self.utilprotowriter)
-
-    def put_utility_code_defs(self, writer):
-        if self.emit_linenums:
-            writer.write('\n#line 1 "cython_utility"\n')
-        writer.insert(self.utildefwriter)
 
 
 def funccontext_property(name):
@@ -692,6 +704,8 @@ class CCodeWriter(object):
     # pyclass_stack    list            used during recursive code generation to pass information
     #                                  about the current class one is in
 
+    globalstate = None
+    
     def __init__(self, create_from=None, buffer=None, copy_formatting=False, emit_linenums=None):
         if buffer is None: buffer = StringIOTree()
         self.buffer = buffer
@@ -704,12 +718,8 @@ class CCodeWriter(object):
         self.level = 0
         self.call_level = 0
         self.bol = 1
-        if create_from is None:
-            # Root CCodeWriter
-            self.globalstate = GlobalState(self, emit_linenums=emit_linenums)
-            self.globalstate.initwriters(self)
-            # ^^^ need seperate step because this will reference self.globalstate
-        else:
+
+        if create_from is not None:
             # Use same global state
             self.globalstate = create_from.globalstate
             # Clone formatting state
@@ -717,7 +727,7 @@ class CCodeWriter(object):
                 self.level = create_from.level
                 self.bol = create_from.bol
                 self.call_level = create_from.call_level
-        if emit_linenums is None:
+        if emit_linenums is None and self.globalstate:
             self.emit_linenums = self.globalstate.emit_linenums
         else:
             self.emit_linenums = emit_linenums
@@ -725,7 +735,8 @@ class CCodeWriter(object):
     def create_new(self, create_from, buffer, copy_formatting):
         # polymorphic constructor -- very slightly more versatile
         # than using __class__
-        return CCodeWriter(create_from, buffer, copy_formatting)
+        result = CCodeWriter(create_from, buffer, copy_formatting)
+        return result
 
     def copyto(self, f):
         self.buffer.copyto(f)
@@ -807,13 +818,16 @@ class CCodeWriter(object):
 
     # code generation
 
-    def putln(self, code = ""):
+    def putln(self, code = "", safe=False):
         if self.marker and self.bol:
             self.emit_marker()
         if self.emit_linenums and self.last_marker_line != 0:
             self.write('\n#line %s "%s"\n' % (self.last_marker_line, self.source_desc))
         if code:
-            self.put(code)
+            if safe:
+                self.put_safe(code)
+            else:
+                self.put(code)
         self.write("\n");
         self.bol = 1
     

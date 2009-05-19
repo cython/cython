@@ -154,7 +154,14 @@ class SlotDescriptor(object):
                 code.putln("#if PY_MAJOR_VERSION >= 3")
             if flag:
                 code.putln("#if (PY_MAJOR_VERSION >= 3) || (Py_TPFLAGS_DEFAULT & %s)" % flag)
+        if py3k == '<RESERVED>':
+            code.putln("#if PY_MAJOR_VERSION >= 3")
+            code.putln("0, /*reserved*/")
+            code.putln("#else")
+
         code.putln("%s, /*%s*/" % (value, self.slot_name))
+        if py3k == '<RESERVED>':
+            code.putln("#endif")
         if flag or (not py3k or not py2) or self.ifdef:
             code.putln("#endif")
 
@@ -212,10 +219,13 @@ class MethodSlot(SlotDescriptor):
 
     def slot_code(self, scope):
         entry = scope.lookup_here(self.method_name)
-        if entry:
+        if entry and entry.func_cname:
             return entry.func_cname
-        else:
-            return "0"
+        if self.default is not None:
+            entry = scope.lookup_here(self.default)
+            if entry and entry.func_cname:
+                return entry.func_cname
+        return "0"
 
 
 class InternalMethodSlot(SlotDescriptor):
@@ -557,8 +567,8 @@ PyNumberMethods = (
     MethodSlot(binaryfunc, "nb_xor", "__xor__"),
     MethodSlot(binaryfunc, "nb_or", "__or__"),
     EmptySlot("nb_coerce", py3k = False),
-    MethodSlot(unaryfunc, "nb_int", "__int__"),
-    MethodSlot(unaryfunc, "nb_long", "__long__"),
+    MethodSlot(unaryfunc, "nb_int", "__int__", default="__long__"),
+    MethodSlot(unaryfunc, "nb_long", "__long__", default="__int__", py3k = "<RESERVED>"),
     MethodSlot(unaryfunc, "nb_float", "__float__"),
     MethodSlot(unaryfunc, "nb_oct", "__oct__", py3k = False),
     MethodSlot(unaryfunc, "nb_hex", "__hex__", py3k = False),

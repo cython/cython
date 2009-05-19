@@ -50,6 +50,7 @@ builtin_function_table = [
     #('round',     "",     "",      ""),
     ('setattr',    "OOO",  "r",     "PyObject_SetAttr"),
     #('sum',       "",     "",      ""),
+    ('type',       "O",    "O",     "PyObject_Type"),
     #('unichr',    "",     "",      ""),
     #('unicode',   "",     "",      ""),
     #('vars',      "",     "",      ""),
