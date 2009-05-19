@@ -3912,21 +3912,23 @@ class ForFromStatNode(LoopNode, StatNode):
             if self.target.entry.is_pyglobal:
                 # We know target is a NameNode, this is the only ugly case. 
                 target_node = ExprNodes.PyTempNode(self.target.pos, None)
-                target_node.result_code = code.funcstate.allocate_temp(py_object_type, False)
+                target_node.allocate(code)
+                interned_cname = code.intern_identifier(self.target.entry.name)
+                code.putln("/*here*/")
                 code.putln("%s = __Pyx_GetName(%s, %s); %s" % (
-                                target_node.result_code,
+                                target_node.result(),
                                 Naming.module_cname, 
-                                self.target.entry.interned_cname,
-                                code.error_goto_if_null(target_node.result_code, self.target.pos)))
-                code.put_gotref(target_node.result_code)
+                                interned_cname,
+                                code.error_goto_if_null(target_node.result(), self.target.pos)))
+                code.put_gotref(target_node.result())
             else:
                 target_node = self.target
             from_py_node = ExprNodes.CoerceFromPyTypeNode(self.loopvar_node.type, target_node, None)
             from_py_node.temp_code = loopvar_name
             from_py_node.generate_result_code(code)
             if self.target.entry.is_pyglobal:
-                code.put_decref_clear(target_node.result_code, py_object_type)
-                code.funcstate.release_temp(target_node.result_code)
+                code.put_decref(target_node.result(), target_node.type)
+                target_node.release(code)
         code.putln("}")
         if self.py_loopvar_node:
             # This is potentially wasteful, but we don't want the semantics to 
