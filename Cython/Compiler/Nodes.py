@@ -910,6 +910,28 @@ class CStructOrUnionDefNode(StatNode):
         pass
 
 
+class CppClassNode(CStructOrUnionDefNode):
+
+    #  name          string
+    #  cname         string or None
+    #  visibility    "public" or "private"
+    #  in_pxd        boolean
+    #  attributes    [CVarDefNode] or None
+    #  entry         Entry
+
+    def analyse_declarations(self, env):
+        scope = None
+        if self.attributes is not None:
+            scope = StructOrUnionScope(self.name) # for now
+        self.entry = env.declare_struct_or_union(
+            self.name, "struct", scope, 0, self.pos,
+            self.cname, visibility = self.visibility)
+        if self.attributes is not None:
+            if self.in_pxd and not env.in_cinclude:
+                self.entry.defined_in_pxd = 1
+            for attr in self.attributes:
+                attr.analyse_declarations(env, scope)
+
 class CEnumDefNode(StatNode):
     #  name           string or None
     #  cname          string or None
