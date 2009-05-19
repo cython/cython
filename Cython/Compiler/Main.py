@@ -24,6 +24,7 @@ from Symtab import BuiltinScope, ModuleScope
 from Cython import Utils
 from Cython.Utils import open_new_file, replace_suffix
 import CythonScope
+import DebugFlags
 
 module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
 
@@ -196,6 +197,8 @@ class Context(object):
         try:
             for phase in pipeline:
                 if phase is not None:
+                    if DebugFlags.debug_verbose_pipeline:
+                        print "Entering pipeline phase %r" % phase
                     data = phase(data)
         except CompileError, err:
             # err is set
