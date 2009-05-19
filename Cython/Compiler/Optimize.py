@@ -148,12 +148,11 @@ class IterationTransform(Visitor.VisitorTransform):
             # nothing we can do here, I guess
             return node
 
-        temp = UtilNodes.TempHandle(counter_type)
-        init_val = ExprNodes.IntNode(enumerate_function.pos, value='0',
-                                     type=counter_type)
+        temp = UtilNodes.LetRefNode(ExprNodes.IntNode(enumerate_function.pos, value='0',
+                                                      type=counter_type))
         inc_expression = ExprNodes.AddNode(
             enumerate_function.pos,
-            operand1 = temp.ref(enumerate_target.pos),
+            operand1 = temp,
             operand2 = ExprNodes.IntNode(node.pos, value='1',
                                          type=counter_type),
             operator = '+',
@@ -165,10 +164,10 @@ class IterationTransform(Visitor.VisitorTransform):
             Nodes.SingleAssignmentNode(
                 pos = enumerate_target.pos,
                 lhs = enumerate_target,
-                rhs = temp.ref(enumerate_target.pos)),
+                rhs = temp),
             Nodes.SingleAssignmentNode(
                 pos = enumerate_target.pos,
-                lhs = temp.ref(enumerate_target.pos),
+                lhs = temp,
                 rhs = inc_expression)
             ]
 
@@ -184,22 +183,7 @@ class IterationTransform(Visitor.VisitorTransform):
         node.iterator.sequence = enumerate_function.arg_tuple.args[0]
 
         # recurse into loop to check for further optimisations
-        node = self._optimise_for_loop(node)
-
-        statements = [
-            Nodes.SingleAssignmentNode(
-                pos = enumerate_target.pos,
-                lhs = temp.ref(enumerate_target.pos),
-                rhs = init_val),
-            node
-            ]
-
-        return UtilNodes.TempsBlockNode(
-            node.pos, temps=[temp],
-            body=Nodes.StatListNode(
-                node.pos,
-                stats = statements
-                ))
+        return UtilNodes.LetNode(temp, self._optimise_for_loop(node)) 
 
     def _transform_range_iteration(self, node, range_function):
         args = range_function.arg_tuple.args
