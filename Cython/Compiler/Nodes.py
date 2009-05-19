@@ -569,6 +569,13 @@ class CFuncDeclaratorNode(CDeclaratorNode):
             nogil = self.nogil, with_gil = self.with_gil, is_overridable = self.overridable)
         if self.optional_arg_count:
             func_type.op_arg_struct = PyrexTypes.c_ptr_type(self.op_args_struct.type)
+        callspec = env.directives['callspec']
+        if callspec:
+            current = func_type.calling_convention
+            if current and current != callspec:
+                error(self.pos, "cannot have both '%s' and '%s' "
+                      "calling conventions" % (current, callspec))
+            func_type.calling_convention = callspec
         return self.base.analyse(func_type, env)
 
 
@@ -650,6 +657,7 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
     # is_basic_c_type  boolean
     # signed           boolean
     # longness         integer
+    # complex          boolean
     # is_self_arg      boolean      Is self argument of C method
 
     child_attrs = []
@@ -690,6 +698,11 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                     self.arg_name = self.name
                 else:
                     error(self.pos, "'%s' is not a type identifier" % self.name)
+        if self.complex:
+            if not type.is_numeric or type.is_complex:
+                error(self.pos, "can only complexify c numeric types")
+            type = PyrexTypes.CComplexType(type)
+            type.create_declaration_utility_code(env)
         if type:
             return type
         else:
@@ -763,15 +776,26 @@ class CVarDefNode(StatNode):
             dest_scope = env
         self.dest_scope = dest_scope
         base_type = self.base_type.analyse(env)
+
+        need_property = False
         if (dest_scope.is_c_class_scope
-                and self.visibility == 'public' 
-                and base_type.is_pyobject 
-                and (base_type.is_builtin_type or base_type.is_extension_type)):
-            self.need_properties = []
+              and self.visibility == 'public'
+              and base_type.is_pyobject
+              and (base_type.is_builtin_type or base_type.is_extension_type)):
+            # If the field is settable and extension type, then the CPython mechanism does
+            # not do enough type-checking for us.
             need_property = True
+        elif (base_type.is_typedef and base_type.typedef_is_external
+              and (self.visibility in ('public', 'readonly'))):
+            # If the field is an external typedef, we cannot be sure about the type,
+            # so do conversion ourself rather than rely on the CPython mechanism (through
+            # a property; made in AnalyseDeclarationsTransform).
+            need_property = True
+
+        if need_property:
             visibility = 'private'
+            self.need_properties = []
         else:
-            need_property = False
             visibility = self.visibility
             
         for declarator in self.declarators:
@@ -1866,6 +1890,10 @@ class DefNode(FuncDefNode):
         has_kwonly_args = self.num_kwonly_args > 0
         has_star_or_kw_args = self.star_arg is not None \
             or self.starstar_arg is not None or has_kwonly_args
+
+        for arg in self.args:
+            if not arg.type.is_pyobject and arg.type.from_py_function is None:
+                arg.type.create_from_py_utility_code(env)
 
         if not self.signature_has_generic_args():
             if has_star_or_kw_args:
@@ -3069,10 +3097,10 @@ class InPlaceAssignmentNode(AssignmentNode):
             if c_op == "//":
                 c_op = "/"
             elif c_op == "**":
-                if self.lhs.type.is_int and self.rhs.type.is_int:
-                    error(self.pos, "** with two C int types is ambiguous")
-                else:
-                    error(self.pos, "No C inplace power operator")
+                error(self.pos, "No C inplace power operator")
+            elif self.lhs.type.is_complex and not code.globalstate.directives['c99_complex']:
+                error(self.pos, "Inplace operators not implemented for complex types.")
+                
             # have to do assignment directly to avoid side-effects
             if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
                 self.lhs.generate_buffer_setitem_code(self.rhs, code, c_op)

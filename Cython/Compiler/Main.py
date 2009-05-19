@@ -125,6 +125,7 @@ class Context(object):
             _check_c_declarations,
             AnalyseExpressionsTransform(self),
             OptimizeBuiltinCalls(),
+            ConstantFolding(),
             IterationTransform(),
             SwitchTransform(),
             FinalOptimizePhase(self),

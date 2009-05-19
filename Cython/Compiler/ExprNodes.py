@@ -503,10 +503,15 @@ class ExprNode(Node):
                     src = PyTypeTestNode(src, dst_type, env)
         elif src.type.is_pyobject:
             src = CoerceFromPyTypeNode(dst_type, src, env)
+        elif (dst_type.is_complex 
+                and src_type != dst_type
+                and dst_type.assignable_from(src_type) 
+                and not env.directives['c99_complex']):
+            src = CoerceToComplexNode(src, dst_type, env)
         else: # neither src nor dst are py types
             # Added the string comparison, since for c types that
             # is enough, but Cython gets confused when the types are
-            # in different files.
+            # in different pxi files.
             if not (str(src.type) == str(dst_type) or dst_type.assignable_from(src_type)):
                 error(self.pos, "Cannot assign type '%s' to '%s'" %
                     (src.type, dst_type))
@@ -683,7 +688,7 @@ class IntNode(ConstNode):
     type = PyrexTypes.c_long_type
 
     def coerce_to(self, dst_type, env):
-        if dst_type.is_numeric:
+        if dst_type.is_numeric and not dst_type.is_complex:
             self.type = PyrexTypes.c_long_type
             return self
         # Arrange for a Python version of the number to be pre-allocated
@@ -870,6 +875,8 @@ class ImagNode(AtomicExprNode):
     #  Imaginary number literal
     #
     #  value   float    imaginary part
+    
+    type = PyrexTypes.c_double_complex_type
 
     def calculate_constant_result(self):
         self.constant_result = complex(0.0, self.value)
@@ -878,18 +885,39 @@ class ImagNode(AtomicExprNode):
         return complex(0.0, self.value)
     
     def analyse_types(self, env):
-        self.type = py_object_type
-        self.is_temp = 1
+        self.type.create_declaration_utility_code(env)
+
+    def coerce_to(self, dst_type, env):
+        # Arrange for a Python version of the number to be pre-allocated
+        # when coercing to a Python type.
+        if dst_type.is_pyobject:
+            self.is_temp = 1
+            self.type = PyrexTypes.py_object_type
+        # We still need to perform normal coerce_to processing on the
+        # result, because we might be coercing to an extension type,
+        # in which case a type test node will be needed.
+        return AtomicExprNode.coerce_to(self, dst_type, env)
 
     gil_message = "Constructing complex number"
 
+    def calculate_result_code(self):
+        if self.type.is_pyobject:
+            return self.result()
+        elif self.c99_complex:
+            return "%rj" % float(self.value)
+        else:
+            return "%s(0, %r)" % (self.type.from_parts, float(self.value))
+
     def generate_result_code(self, code):
-        code.putln(
-            "%s = PyComplex_FromDoubles(0.0, %r); %s" % (
-                self.result(),
-                float(self.value),
-                code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.py_result())
+        if self.type.is_pyobject:
+            code.putln(
+                "%s = PyComplex_FromDoubles(0.0, %r); %s" % (
+                    self.result(),
+                    float(self.value),
+                    code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.py_result())
+        else:
+            self.c99_complex = code.globalstate.directives['c99_complex']
         
 
 
@@ -1844,7 +1872,7 @@ class IndexNode(ExprNode):
         return Buffer.put_buffer_lookup_code(entry=self.base.entry,
                                              index_signeds=[i.type.signed for i in self.indices],
                                              index_cnames=index_temps,
-                                             options=code.globalstate.directives,
+                                             directives=code.globalstate.directives,
                                              pos=self.pos, code=code)
 
     def put_nonecheck(self, code):
@@ -2809,6 +2837,8 @@ class AttributeNode(ExprNode):
                     obj.type.vtabslot_cname, self.member)
             else:
                 return self.member
+        elif obj.type.is_complex:
+            return "__Pyx_%s_PART(%s)" % (self.member.upper(), obj_code)
         else:
             return "%s%s%s" % (obj_code, self.op, self.member)
     
@@ -3709,6 +3739,7 @@ class UnopNode(ExprNode):
     #      - Allocate temporary for result if needed.
     
     subexprs = ['operand']
+    infix = True
 
     def calculate_constant_result(self):
         func = compile_time_unary_operators[self.operator]
@@ -3823,13 +3854,17 @@ class UnaryMinusNode(UnopNode):
             self.type = self.operand.type
         else:
             self.type_error()
+        if self.type.is_complex:
+            self.infix = env.directives['c99_complex']
     
     def py_operation_function(self):
         return "PyNumber_Negative"
     
     def calculate_result_code(self):
-        return "(-%s)" % self.operand.result()
-
+        if self.infix:
+            return "(-%s)" % self.operand.result()
+        else:
+            return "%s(%s)" % (self.operand.type.unary_op('-'), self.operand.result())
 
 class TildeNode(UnopNode):
     #  unary '~' operator
@@ -3926,15 +3961,18 @@ class TypecastNode(ExprNode):
             error(self.pos, "Casting temporary Python object to non-numeric non-Python type")
         if to_py and not from_py:
             if (self.operand.type.to_py_function and
-                    self.operand.type.create_convert_utility_code(env)):
+                    self.operand.type.create_to_py_utility_code(env)):
                 self.result_ctype = py_object_type
                 self.operand = self.operand.coerce_to_pyobject(env)
             else:
-                warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.operand.type, self.type))
+                if not (self.operand.type.is_ptr and self.operand.type.base_type.is_void):
+                    warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.operand.type, self.type))
                 self.operand = self.operand.coerce_to_simple(env)
         elif from_py and not to_py:
             if self.type.from_py_function:
                 self.operand = self.operand.coerce_to(self.type, env)
+            elif self.type.is_ptr and not (self.type.base_type.is_void or self.type.base_type.is_struct):
+                error(self.pos, "Python objects cannot be casted to pointers of primitive types")
             else:
                 warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.type, self.operand.type))
         elif from_py and to_py:
@@ -4190,12 +4228,20 @@ class BinopNode(ExprNode):
 class NumBinopNode(BinopNode):
     #  Binary operation taking numeric arguments.
     
+    infix = True
+    
     def analyse_c_operation(self, env):
         type1 = self.operand1.type
         type2 = self.operand2.type
         self.type = self.compute_c_result_type(type1, type2)
         if not self.type:
             self.type_error()
+            return
+        if self.type.is_complex and not env.directives['c99_complex']:
+            self.infix = False
+        if not self.infix:
+            self.operand1 = self.operand1.coerce_to(self.type, env)
+            self.operand2 = self.operand2.coerce_to(self.type, env)
     
     def compute_c_result_type(self, type1, type2):
         if self.c_types_okay(type1, type2):
@@ -4217,10 +4263,19 @@ class NumBinopNode(BinopNode):
             and (type2.is_numeric  or type2.is_enum)
 
     def calculate_result_code(self):
-        return "(%s %s %s)" % (
-            self.operand1.result(), 
-            self.operator, 
-            self.operand2.result())
+        if self.infix:
+            return "(%s %s %s)" % (
+                self.operand1.result(), 
+                self.operator, 
+                self.operand2.result())
+        else:
+            func = self.type.binary_op(self.operator)
+            if func is None:
+                error(self.pos, "binary operator %s not supported for %s" % (self.operator, self.type))
+            return "%s(%s, %s)" % (
+                func,
+                self.operand1.result(),
+                self.operand2.result())
     
     def py_operation_function(self):
         return self.py_functions[self.operator]
@@ -4322,7 +4377,7 @@ class DivNode(NumBinopNode):
             return "float division"
 
     def generate_evaluation_code(self, code):
-        if not self.type.is_pyobject:
+        if not self.type.is_pyobject and not self.type.is_complex:
             if self.cdivision is None:
                 self.cdivision = (code.globalstate.directives['cdivision'] 
                                     or not self.type.signed
@@ -4335,7 +4390,11 @@ class DivNode(NumBinopNode):
     def generate_div_warning_code(self, code):
         if not self.type.is_pyobject:
             if self.zerodivision_check:
-                code.putln("if (unlikely(%s == 0)) {" % self.operand2.result())
+                if not self.infix:
+                    zero_test = "%s(%s)" % (self.type.unary_op('zero'), self.operand2.result())
+                else:
+                    zero_test = "%s == 0" % self.operand2.result()
+                code.putln("if (unlikely(%s)) {" % zero_test)
                 code.putln('PyErr_Format(PyExc_ZeroDivisionError, "%s");' % self.zero_division_message())
                 code.putln(code.error_goto(self.pos))
                 code.putln("}")
@@ -4348,7 +4407,7 @@ class DivNode(NumBinopNode):
                     code.putln('PyErr_Format(PyExc_OverflowError, "value too large to perform division");')
                     code.putln(code.error_goto(self.pos))
                     code.putln("}")
-            if code.globalstate.directives['cdivision_warnings']:
+            if code.globalstate.directives['cdivision_warnings'] and self.operator != '/':
                 code.globalstate.use_utility_code(cdivision_warning_utility_code)
                 code.putln("if ((%s < 0) ^ (%s < 0)) {" % (
                                 self.operand1.result(),
@@ -4359,7 +4418,9 @@ class DivNode(NumBinopNode):
                 code.putln("}")
     
     def calculate_result_code(self):
-        if self.type.is_float and self.operator == '//':
+        if self.type.is_complex:
+            return NumBinopNode.calculate_result_code(self)
+        elif self.type.is_float and self.operator == '//':
             return "floor(%s / %s)" % (
                 self.operand1.result(), 
                 self.operand2.result())
@@ -4423,7 +4484,10 @@ class PowNode(NumBinopNode):
     
     def analyse_c_operation(self, env):
         NumBinopNode.analyse_c_operation(self, env)
-        if self.operand1.type.is_float or self.operand2.type.is_float:
+        if self.type.is_complex:
+            error(self.pos, "complex powers not yet supported")
+            self.pow_func = "<error>"
+        elif self.type.is_float:
             self.pow_func = "pow"
         else:
             self.pow_func = "__Pyx_pow_%s" % self.type.declaration_code('').replace(' ', '_')
@@ -4686,7 +4750,13 @@ class CmpNode(object):
             or (self.cascade and self.cascade.is_python_result()))
 
     def check_types(self, env, operand1, op, operand2):
-        if not self.types_okay(operand1, op, operand2):
+        if operand1.type.is_complex or operand2.type.is_complex:
+            if op not in ('==', '!='):
+                error(self.pos, "complex types unordered")
+            common_type = PyrexTypes.widest_numeric_type(operand1.type, operand2.type)
+            self.operand1 = operand1.coerce_to(common_type, env)
+            self.operand2 = operand2.coerce_to(common_type, env)
+        elif not self.types_okay(operand1, op, operand2):
             error(self.pos, "Invalid types for '%s' (%s, %s)" %
                 (self.operator, operand1.type, operand2.type))
     
@@ -4735,6 +4805,16 @@ class CmpNode(object):
                         richcmp_constants[op],
                         code.error_goto_if_null(result_code, self.pos)))
                 code.put_gotref(result_code)
+        elif operand1.type.is_complex and not code.globalstate.directives['c99_complex']:
+            if op == "!=": negation = "!"
+            else: negation = ""
+            code.putln("%s = %s(%s%s(%s, %s));" % (
+                result_code, 
+                coerce_result,
+                negation,
+                operand1.type.unary_op('eq'), 
+                operand1.result(), 
+                operand2.result()))
         else:
             type1 = operand1.type
             type2 = operand2.type
@@ -4850,10 +4930,21 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             self.not_const()
 
     def calculate_result_code(self):
-        return "(%s %s %s)" % (
-            self.operand1.result(),
-            self.c_operator(self.operator),
-            self.operand2.result())
+        if self.operand1.type.is_complex:
+            if self.operator == "!=":
+                negation = "!"
+            else:
+                negation = ""
+            return "(%s%s(%s, %s))" % (
+                negation,
+                self.operand1.type.binary_op('=='), 
+                self.operand1.result(), 
+                self.operand2.result())
+        else:
+            return "(%s %s %s)" % (
+                self.operand1.result(),
+                self.c_operator(self.operator),
+                self.operand2.result())
 
     def generate_evaluation_code(self, code):
         self.operand1.generate_evaluation_code(code)
@@ -5129,7 +5220,7 @@ class CoerceToPyTypeNode(CoercionNode):
         CoercionNode.__init__(self, arg)
         self.type = py_object_type
         self.is_temp = 1
-        if not arg.type.to_py_function or not arg.type.create_convert_utility_code(env):
+        if not arg.type.create_to_py_utility_code(env):
             error(arg.pos,
                 "Cannot convert '%s' to Python object" % arg.type)
 
@@ -5167,7 +5258,7 @@ class CoerceFromPyTypeNode(CoercionNode):
         CoercionNode.__init__(self, arg)
         self.type = result_type
         self.is_temp = 1
-        if not result_type.from_py_function:
+        if not result_type.create_from_py_utility_code(env):
             error(arg.pos,
                 "Cannot convert Python object to '%s'" % result_type)
         if self.type.is_string and self.arg.is_ephemeral():
@@ -5224,6 +5315,29 @@ class CoerceToBooleanNode(CoercionNode):
                     self.arg.py_result(), 
                     code.error_goto_if_neg(self.result(), self.pos)))
 
+class CoerceToComplexNode(CoercionNode):
+
+    def __init__(self, arg, dst_type, env):
+        if arg.type.is_complex:
+            arg = arg.coerce_to_simple(env)
+        self.type = dst_type
+        CoercionNode.__init__(self, arg)
+        dst_type.create_declaration_utility_code(env)
+
+    def calculate_result_code(self):
+        if self.arg.type.is_complex:
+            real_part = "__Pyx_REAL_PART(%s)" % self.arg.result()
+            imag_part = "__Pyx_IMAG_PART(%s)" % self.arg.result()
+        else:
+            real_part = self.arg.result()
+            imag_part = "0"
+        return "%s(%s, %s)" % (
+                self.type.from_parts,
+                real_part,
+                imag_part)
+    
+    def generate_result_code(self, code):
+        pass
 
 class CoerceToTempNode(CoercionNode):
     #  This node is used to force the result of another node

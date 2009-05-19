@@ -54,7 +54,7 @@ c_line_in_traceback = 1
 embed = False
 
 
-# Declare pragmas
+# Declare compiler directives
 option_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
@@ -64,6 +64,9 @@ option_defaults = {
     'cdivision': True,  # Will be False in 0.12
     'cdivision_warnings': False,
     'always_allow_keywords': False,
+    'wraparound' : True,
+    'c99_complex' : False, # Don't use macro wrappers for complex arith, not sure what to name this...
+    'callspec' : "",
 }
 
 # Override types possibilities above, if needed
@@ -94,6 +97,11 @@ def parse_option_value(name, value):
         if value == "True": return True
         elif value == "False": return False
         else: raise ValueError("%s directive must be set to True or False" % name)
+    elif type is int:
+        try:
+            return int(value)
+        except ValueError:
+            raise ValueError("%s directive must be set to an integer" % name)
     else:
         assert False
 

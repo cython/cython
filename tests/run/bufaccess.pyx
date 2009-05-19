@@ -342,60 +342,6 @@ def explicitly_release_buffer():
     print "After release"
 
 #
-# Format strings
-#
-@testcase
-def alignment_string(object[int] buf):
-    """
-    >>> alignment_string(IntMockBuffer(None, [1,2], format="@i"))
-    2
-    >>> alignment_string(IntMockBuffer(None, [1,2], format="@i@@"))
-    2
-    >>> alignment_string(IntMockBuffer(None, [1,2], format=">i"))
-    Traceback (most recent call last):
-        ...    
-    ValueError: Buffer acquisition error: Only native byte order, size and alignment supported.
-    >>> alignment_string(IntMockBuffer(None, [1,2], format="<i"))
-    Traceback (most recent call last):
-        ...    
-    ValueError: Buffer acquisition error: Only native byte order, size and alignment supported.
-    >>> alignment_string(IntMockBuffer(None, [1,2], format="=i"))
-    Traceback (most recent call last):
-        ...    
-    ValueError: Buffer acquisition error: Only native byte order, size and alignment supported.
-    >>> alignment_string(IntMockBuffer(None, [1,2], format="!i"))
-    Traceback (most recent call last):
-        ...    
-    ValueError: Buffer acquisition error: Only native byte order, size and alignment supported.
-    """ 
-    print buf[1]
-
-@testcase
-def wrong_string(object[int] buf):
-    """
-    >>> wrong_string(IntMockBuffer(None, [1,2], format="if"))
-    Traceback (most recent call last):
-        ...
-    ValueError: Buffer dtype mismatch (expected end, got float)
-    >>> wrong_string(IntMockBuffer(None, [1,2], format="$$"))
-    Traceback (most recent call last):
-        ...
-    ValueError: Buffer dtype mismatch (expected int, got unparseable format string)
-    """
-    print buf[1]
-
-@testcase
-def int_and_long_are_same():
-    """
-    >>> int_and_long_are_same()
-    """
-    cdef object[int] intarr
-    cdef object[long] longarr
-    if sizeof(int) == sizeof(long):
-        intarr = IntMockBuffer(None, [1,2], format='l')
-        longarr = IntMockBuffer(None, [1,2])
-
-#
 # Getting items and index bounds checking
 # 
 @testcase
@@ -532,38 +478,25 @@ def no_negative_indices(object[int, negative_indices=False] buf, int idx):
     """
     return buf[idx]
 
-#
-# Buffer type mismatch examples. Varying the type and access
-# method simultaneously, the odds of an interaction is virtually
-# zero.
-#
 @testcase
-def fmtst1(buf):
+@cython.wraparound(False)
+def wraparound_directive(object[int] buf, int pos_idx, int neg_idx):
     """
-    >>> fmtst1(IntMockBuffer("A", range(3)))
+    Again, the most interesting thing here is to inspect the C source.
+    
+    >>> A = IntMockBuffer(None, range(4))
+    >>> wraparound_directive(A, 2, -1)
+    5
+    >>> wraparound_directive(A, -1, 2)
     Traceback (most recent call last):
         ...
-    ValueError: Buffer dtype mismatch (expected float, got int)
+    IndexError: Out of bounds on buffer access (axis 0)
     """
-    cdef object[float] a = buf
+    cdef int byneg
+    with cython.wraparound(True):
+        byneg = buf[neg_idx]
+    return buf[pos_idx] + byneg
 
-@testcase
-def fmtst2(object[int] buf):
-    """
-    >>> fmtst2(FloatMockBuffer("A", range(3)))
-    Traceback (most recent call last):
-        ...
-    ValueError: Buffer dtype mismatch (expected int, got float)
-    """
-
-@testcase
-def ndim1(object[int, ndim=2] buf):
-    """
-    >>> ndim1(IntMockBuffer("A", range(3)))
-    Traceback (most recent call last):
-        ...
-    ValueError: Buffer has wrong number of dimensions (expected 2, got 1)
-    """
 
 #
 # Test which flags are passed.
@@ -860,8 +793,7 @@ def printbuf_td_cy_int(object[td_cy_int] buf, shape):
     >>> printbuf_td_cy_int(ShortMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
-    ValueError: Buffer dtype mismatch (expected bufaccess.td_cy_int, got short)
-    
+    ValueError: Buffer dtype mismatch, expected 'bufaccess.td_cy_int' but got 'short'
     """
     cdef int i
     for i in range(shape[0]):
@@ -876,7 +808,7 @@ def printbuf_td_h_short(object[td_h_short] buf, shape):
     >>> printbuf_td_h_short(IntMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
-    ValueError: Buffer dtype mismatch (expected bufaccess.td_h_short, got int)
+    ValueError: Buffer dtype mismatch, expected 'bufaccess.td_h_short' but got 'int'
     """    
     cdef int i
     for i in range(shape[0]):
@@ -891,7 +823,7 @@ def printbuf_td_h_cy_short(object[td_h_cy_short] buf, shape):
     >>> printbuf_td_h_cy_short(IntMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
-    ValueError: Buffer dtype mismatch (expected bufaccess.td_h_cy_short, got int)
+    ValueError: Buffer dtype mismatch, expected 'bufaccess.td_h_cy_short' but got 'int'
     """
     cdef int i
     for i in range(shape[0]):
@@ -906,7 +838,7 @@ def printbuf_td_h_ushort(object[td_h_ushort] buf, shape):
     >>> printbuf_td_h_ushort(ShortMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
-    ValueError: Buffer dtype mismatch (expected bufaccess.td_h_ushort, got short)
+    ValueError: Buffer dtype mismatch, expected 'bufaccess.td_h_ushort' but got 'short'
     """
     cdef int i
     for i in range(shape[0]):
@@ -921,7 +853,7 @@ def printbuf_td_h_double(object[td_h_double] buf, shape):
     >>> printbuf_td_h_double(FloatMockBuffer(None, [0.25, 1, 3.125]), (3,))
     Traceback (most recent call last):
        ...
-    ValueError: Buffer dtype mismatch (expected bufaccess.td_h_double, got float)
+    ValueError: Buffer dtype mismatch, expected 'bufaccess.td_h_double' but got 'float'
     """
     cdef int i
     for i in range(shape[0]):
@@ -1033,7 +965,7 @@ def buffer_cast_fails(object[char, cast=True] buf):
     >>> buffer_cast_fails(IntMockBuffer(None, [0]))
     Traceback (most recent call last):
         ...
-    ValueError: Attempted cast of buffer to datatype of different size.
+    ValueError: Item size of buffer (4 bytes) does not match size of 'char' (1 byte)
     """
     return buf[0]
 
@@ -1366,47 +1298,30 @@ cdef class NestedStructMockBuffer(MockBuffer):
 @testcase
 def basic_struct(object[MyStruct] buf):
     """
+    See also buffmt.pyx
+    
     >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
     1 2 3 4 5
     >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="bbqii"))
     1 2 3 4 5
-    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="23bqii"))
-    Traceback (most recent call last):
-        ...
-    ValueError: Buffer dtype mismatch (expected long long, got char)
-    >>> basic_struct(MyStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="i"))
-    Traceback (most recent call last):
-        ...
-    ValueError: Buffer dtype mismatch (expected char, got int)
     """
     print buf[0].a, buf[0].b, buf[0].c, buf[0].d, buf[0].e
 
 @testcase
 def nested_struct(object[NestedStruct] buf):
     """
+    See also buffmt.pyx
+    
     >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)]))
     1 2 3 4 5
     >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="T{ii}T{2i}i"))
     1 2 3 4 5
-    >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="iiiii"))
-    Traceback (most recent call last):
-        ...
-    ValueError: Buffer dtype mismatch (expected SmallStruct, got int)
-    >>> nested_struct(NestedStructMockBuffer(None, [(1, 2, 3, 4, 5)], format="T{iii}T{ii}i"))
-    Traceback (most recent call last):
-        ...
-    ValueError: Buffer dtype mismatch (expected end of SmallStruct struct, got int)
     """
     print buf[0].x.a, buf[0].x.b, buf[0].y.a, buf[0].y.b, buf[0].z
-
 
 cdef struct LongComplex:
     long double real
     long double imag
-
-cdef struct MixedComplex:
-    long double real
-    float imag
 
 cdef class LongComplexMockBuffer(MockBuffer):
     cdef int write(self, char* buf, object value) except -1:
@@ -1418,24 +1333,33 @@ cdef class LongComplexMockBuffer(MockBuffer):
     cdef get_itemsize(self): return sizeof(LongComplex)
     cdef get_default_format(self): return b"Zg"
 
+#cdef extern from "complex.h":
+#    pass
+
+@testcase
+def complex_dtype(object[long double complex] buf):
+    """
+    >>> complex_dtype(LongComplexMockBuffer(None, [(0, -1)]))
+    -1j
+    """
+    print buf[0]
+
+@testcase
+def complex_inplace(object[long double complex] buf):
+    """
+    >>> complex_inplace(LongComplexMockBuffer(None, [(0, -1)]))
+    (1+1j)
+    """
+    buf[0] = buf[0] + 1 + 2j
+    print buf[0]
+
 @testcase
 def complex_struct_dtype(object[LongComplex] buf):
     """
-    Note that the format string is "Zg" rather than "2g"...
+    Note that the format string is "Zg" rather than "2g", yet a struct
+    is accessed.
     >>> complex_struct_dtype(LongComplexMockBuffer(None, [(0, -1)]))
     0.0 -1.0
-    """
-    print buf[0].real, buf[0].imag
-
-@testcase
-def mixed_complex_struct_dtype(object[MixedComplex] buf):
-    """
-    Triggering a specific execution path for this case.
- 
-    >>> mixed_complex_struct_dtype(LongComplexMockBuffer(None, [(0, -1)]))
-    Traceback (most recent call last):
-        ...
-    ValueError: Cannot store complex number in 'MixedComplex' as 'long double' differs from 'float' in size.
     """
     print buf[0].real, buf[0].imag
 
@@ -1448,7 +1372,7 @@ def complex_struct_inplace(object[LongComplex] buf):
     buf[0].real += 1
     buf[0].imag += 2
     print buf[0].real, buf[0].imag
-    
+
 #
 # Nogil
 #

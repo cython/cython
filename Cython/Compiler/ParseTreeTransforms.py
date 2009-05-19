@@ -435,6 +435,11 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                         raise PostParseError(dec.function.pos,
                             'The %s option takes one compile-time boolean argument' % optname)
                     return (optname, args[0].value)
+                elif optiontype is str:
+                    if kwds is not None or len(args) != 1 or not isinstance(args[0], StringNode):
+                        raise PostParseError(dec.function.pos,
+                            'The %s option takes one compile-time string argument' % optname)
+                    return (optname, args[0].value)
                 elif optiontype is dict:
                     if len(args) != 0:
                         raise PostParseError(dec.function.pos,
@@ -589,62 +594,6 @@ class WithTransform(CythonTransform, SkipDeclarations):
         return node
         
 
-class ComprehensionTransform(VisitorTransform):
-    """Prevent the target of list/set/dict comprehensions from leaking by
-    moving it into a temp variable.  This mimics the behaviour of all
-    comprehensions in Py3 and of generator expressions in Py2.x.
-
-    This must run before the IterationTransform, which might replace
-    for-loops with while-loops.  We only handle for-loops here.
-    """
-    def visit_ModuleNode(self, node):
-        self.comprehension_targets = {}
-        self.visitchildren(node)
-        return node
-
-    visit_Node = VisitorTransform.recurse_to_children
-
-    def visit_ComprehensionNode(self, node):
-        if type(node.loop) not in (Nodes.ForInStatNode,
-                                   Nodes.ForFromStatNode):
-            # this should not happen!
-            self.visitchildren(node)
-            return node
-
-        outer_comprehension_targets = self.comprehension_targets
-        self.comprehension_targets = outer_comprehension_targets.copy()
-
-        # find all NameNodes in the loop target
-        target_name_collector = NameNodeCollector()
-        target_name_collector.visit(node.loop.target)
-        targets = target_name_collector.name_nodes
-
-        # create a temp variable for each target name
-        temps = []
-        for target in targets:
-            handle = TempHandle(target.type)
-            temps.append(handle)
-            self.comprehension_targets[target.entry.cname] = handle.ref(node.pos)
-
-        # replace name references in the loop code by their temp node
-        self.visitchildren(node, ['loop'])
-
-        loop = node.loop
-        if type(loop) is Nodes.ForFromStatNode and loop.target.type.is_numeric:
-            loop.loopvar_node = loop.target
-
-        node.loop = TempsBlockNode(node.pos, body=node.loop, temps=temps)
-        self.comprehension_targets = outer_comprehension_targets
-        return node
-
-    def visit_NameNode(self, node):
-        if node.entry:
-            replacement = self.comprehension_targets.get(node.entry.cname)
-            if replacement is not None:
-                return replacement
-        return node
-
-
 class DecoratorTransform(CythonTransform, SkipDeclarations):
 
     def visit_DefNode(self, func_node):
@@ -676,6 +625,12 @@ property NAME:
         ATTR = value
     """, level='c_class')
 
+    readonly_property = TreeFragment(u"""
+property NAME:
+    def __get__(self):
+        return ATTR
+    """, level='c_class')
+    
     def __call__(self, root):
         self.env_stack = [root.scope]
         # needed to determine if a cdef var is declared after it's used.
@@ -752,7 +707,7 @@ property NAME:
             # mechanism for them. 
             stats = []
             for entry in node.need_properties:
-                property = self.create_Property(entry)
+                property = self.create_Property(entry, node.visibility == 'readonly')
                 property.analyse_declarations(node.dest_scope)
                 self.visit(property)
                 stats.append(property)
@@ -760,8 +715,12 @@ property NAME:
         else:
             return None
             
-    def create_Property(self, entry):
-        property = self.basic_property.substitute({
+    def create_Property(self, entry, readonly):
+        if readonly:
+            template = self.readonly_property
+        else:
+            template = self.basic_property
+        property = template.substitute({
                 u"ATTR": AttributeNode(pos=entry.pos,
                                        obj=NameNode(pos=entry.pos, name="self"), 
                                        attribute=entry.name),
