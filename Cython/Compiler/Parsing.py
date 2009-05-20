@@ -2093,11 +2093,10 @@ def p_cdef_statement(s, ctx):
         if ctx.overridable:
             error(pos, "Extension types cannot be declared cpdef")
         return p_c_class_definition(s, pos, ctx)
-    elif s.sy == 'cppclass':
-        if ctx.visibility == 'extern':
-            return p_cpp_class_definition(s, pos, ctx)
-        else:
+    elif s.sy == 'IDENT' and s.systring == 'cppclass':
+        if ctx.visibility != 'extern':
             error(pos, "C++ classes need to be declared extern")
+        return p_cpp_class_definition(s, pos, ctx)
     elif s.sy == 'IDENT' and s.systring in ("struct", "union", "enum", "packed"):
         if ctx.level not in ('module', 'module_pxd'):
             error(pos, "C struct/union/enum definition not allowed here")
