@@ -2093,6 +2093,11 @@ def p_cdef_statement(s, ctx):
         if ctx.overridable:
             error(pos, "Extension types cannot be declared cpdef")
         return p_c_class_definition(s, pos, ctx)
+    elif s.sy == 'cppclass':
+        if ctx.visibility == 'extern':
+            return p_cpp_class_definition(s, pos, ctx)
+        else:
+            error(pos, "C++ classes need to be declared extern")
     elif s.sy == 'IDENT' and s.systring in ("struct", "union", "enum", "packed"):
         if ctx.level not in ('module', 'module_pxd'):
             error(pos, "C struct/union/enum definition not allowed here")
@@ -2524,6 +2529,95 @@ def p_module(s, pxd, full_module_name):
     return ModuleNode(pos, doc = doc, body = body,
                       full_module_name = full_module_name,
                       option_comments = option_comments)
+
+
+#Implementing... Not testet yet
+
+def p_cpp_class_definition(s, pos,  ctx):
+    # s.sy == 'cppclass'
+    s.next()
+    module_path = []
+    class_name = p_ident(s)
+    while s.sy == '.':
+        s.next()
+        module_path.append(class_name)
+        class_name = p_ident(s)
+    if module_path and ctx.visibility != 'extern':
+        error(pos, "Qualified class name only allowed for 'extern' C++ class")
+    if module_path and s.sy == 'IDENT' and s.systring == 'as':
+        s.next()
+        as_name = p_ident(s)
+    else:
+        as_name = class_name
+    base_classes = []
+    objstruct_name = None
+    typeobj_name = None
+    base_class_module = None
+    base_class_name = None
+    if s.sy == '(':
+        s.next()
+        base_class_path = [p_ident(s)]
+        base_class = True
+        while (base_class):
+            while s.sy == '.':
+                s.next()
+                base_class_path.append(p_ident(s))
+            base_class = False
+            if s.sy == ',':
+                base_class = True
+                base_classes.append(base_class_path)
+                base_class_path = []
+        s.expect(')')
+        base_class_modules = [".".join(path[:-1]) for path in base_classes]
+        base_class_names = [path[-1] for path in base_classes]
+    if s.sy == '[':
+        if ctx.visibility not in ('public', 'extern'):
+            error(s.position(), "Name options only allowed for 'public' or 'extern' C++ class")
+        objstruct_name, typeobj_name = p_c_class_options(s)
+    if s.sy == ':':
+        if ctx.level == 'module_pxd':
+            body_level = 'cpp_class_pxd'
+        else:
+            body_level = 'cpp_class'
+        doc, body = p_suite(s, Ctx(level = body_level), with_doc = 1)
+    else:
+        s.expect_newline("Syntax error in C class definition")
+        doc = None
+        body = None
+    if ctx.visibility == 'extern':
+        if not module_path:
+            error(pos, "Module name required for 'extern' C++ class")
+        if typeobj_name:
+            error(pos, "Type object name specification not allowed for 'extern' C++ class")
+    elif ctx.visibility == 'public':
+        if not objstruct_name:
+            error(pos, "Object struct name specification required for 'public' C++ class")
+        if not typeobj_name:
+            error(pos, "Type object name specification required for 'public' C++ class")
+    elif ctx.visibility == 'private':
+        if ctx.api:
+            error(pos, "Only 'public' C++ class can be declared 'api'")
+    else:
+        error(pos, "Invalid class visibility '%s'" % ctx.visibility)
+    return Nodes.CppClassDefNode(pos,
+        visibility = ctx.visibility,
+        typedef_flag = ctx.typedef_flag,
+        api = ctx.api,
+        module_name = ".".join(module_path),
+        class_name = class_name,
+        as_name = as_name,
+        base_class_modules = base_class_modules,
+        base_class_names = base_class_names,
+        objstruct_name = objstruct_name,
+        typeobj_name = typeobj_name,
+        in_pxd = ctx.level == 'module_pxd',
+        doc = doc,
+        body = body)
+    
+def p_cpp_class(s):
+    pass
+
+
 
 #----------------------------------------------
 #
