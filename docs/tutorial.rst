@@ -39,7 +39,7 @@ So lets start with the canonical python hello world::
 
 So the first thing to do is rename the file to :file:`helloworld.pyx`. Now we
 need to make the :file:`setup.py`, which is like a python Makefile (for more
-information see :ref:`compilation`)::
+information see :ref:`compilation`). Your :file:`setup.py` should look like::
 
     from distutils.core import setup
     from distutils.extension import Extension
