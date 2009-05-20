@@ -2530,7 +2530,7 @@ def p_module(s, pxd, full_module_name):
                       option_comments = option_comments)
 
 
-#Implementing... Not testet yet
+#Implementing...
 
 def p_cpp_class_definition(s, pos,  ctx):
     # s.sy == 'cppclass'
@@ -2541,8 +2541,8 @@ def p_cpp_class_definition(s, pos,  ctx):
         s.next()
         module_path.append(class_name)
         class_name = p_ident(s)
-    if module_path and ctx.visibility != 'extern':
-        error(pos, "Qualified class name only allowed for 'extern' C++ class")
+    if module_path:
+        error(pos, "Qualified class name not allowed C++ class")
     if module_path and s.sy == 'IDENT' and s.systring == 'as':
         s.next()
         as_name = p_ident(s)
@@ -2554,21 +2554,20 @@ def p_cpp_class_definition(s, pos,  ctx):
     base_class_module = None
     base_class_name = None
     if s.sy == '(':
-        s.next()
-        base_class_path = [p_ident(s)]
         base_class = True
         while (base_class):
+            s.next()
+            base_class_path = [p_ident(s)]
+            base_class = False
             while s.sy == '.':
                 s.next()
                 base_class_path.append(p_ident(s))
-            base_class = False
+            base_classes.append(base_class_path)
             if s.sy == ',':
                 base_class = True
-                base_classes.append(base_class_path)
                 base_class_path = []
         s.expect(')')
-        base_class_modules = [".".join(path[:-1]) for path in base_classes]
-        base_class_names = [path[-1] for path in base_classes]
+        base_classes = [".".join(path) for path in base_classes]
     if s.sy == '[':
         if ctx.visibility not in ('public', 'extern'):
             error(s.position(), "Name options only allowed for 'public' or 'extern' C++ class")
@@ -2580,17 +2579,15 @@ def p_cpp_class_definition(s, pos,  ctx):
             body_level = 'cpp_class'
         doc, body = p_suite(s, Ctx(level = body_level), with_doc = 1)
     else:
-        s.expect_newline("Syntax error in C class definition")
+        s.expect_newline("Syntax error in C++ class definition")
         doc = None
         body = None
     if ctx.visibility == 'extern':
-        if not module_path:
-            error(pos, "Module name required for 'extern' C++ class")
         if typeobj_name:
             error(pos, "Type object name specification not allowed for 'extern' C++ class")
     elif ctx.visibility == 'public':
         if not objstruct_name:
-            error(pos, "Object struct name specification required for 'public' C++ class")
+            error(pos, "Object struct name specification required for 'publicw' C++ class")
         if not typeobj_name:
             error(pos, "Type object name specification required for 'public' C++ class")
     elif ctx.visibility == 'private':
@@ -2598,18 +2595,14 @@ def p_cpp_class_definition(s, pos,  ctx):
             error(pos, "Only 'public' C++ class can be declared 'api'")
     else:
         error(pos, "Invalid class visibility '%s'" % ctx.visibility)
-    return Nodes.CppClassDefNode(pos,
+    return Nodes.CppClassNode(pos,
+        name = class_name,
+        namespace = None,
+        cname = None,
+        base_classes = base_classes,
         visibility = ctx.visibility,
-        typedef_flag = ctx.typedef_flag,
-        api = ctx.api,
-        module_name = ".".join(module_path),
-        class_name = class_name,
-        as_name = as_name,
-        base_class_modules = base_class_modules,
-        base_class_names = base_class_names,
-        objstruct_name = objstruct_name,
-        typeobj_name = typeobj_name,
         in_pxd = ctx.level == 'module_pxd',
+        attributes = None,
         doc = doc,
         body = body)
     
