@@ -830,8 +830,10 @@ proto="""
 #if __PYX_USE_C99_COMPLEX
 
     typedef %(real_type)s _Complex %(type_name)s;
-    #define %(type_name)s_from_parts(x, y) ((x) + (y)*(%(type)s)_Complex_I)
-
+    static INLINE %(type)s %(type_name)s_from_parts(%(real_type)s x, %(real_type)s y) {
+      return x + y*(%(type)s)_Complex_I;
+    }
+    
     #define %(type_name)s_is_zero(a) ((a) == 0)
     #define %(type_name)s_eq(a, b) ((a) == (b))
     #define %(type_name)s_add(a, b) ((a)+(b))
@@ -843,8 +845,10 @@ proto="""
 #else
 
     typedef struct { %(real_type)s real, imag; } %(type_name)s;
-    #define %(type_name)s_from_parts(x, y) ((%(type_name)s){(%(real_type)s)x, (%(real_type)s)y})
-
+    static INLINE %(type)s %(type_name)s_from_parts(%(real_type)s x, %(real_type)s y) {
+      %(type)s c; c.real = x; c.imag = y; return c;
+    }
+    
     static INLINE int %(type_name)s_is_zero(%(type)s a) {
        return (a.real == 0) & (a.imag == 0);
     }
