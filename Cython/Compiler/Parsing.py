@@ -2537,17 +2537,8 @@ def p_cpp_class_definition(s, pos,  ctx):
     s.next()
     module_path = []
     class_name = p_ident(s)
-    while s.sy == '.':
-        s.next()
-        module_path.append(class_name)
-        class_name = p_ident(s)
-    if module_path:
+    if s.sy == '.':
         error(pos, "Qualified class name not allowed C++ class")
-    if module_path and s.sy == 'IDENT' and s.systring == 'as':
-        s.next()
-        as_name = p_ident(s)
-    else:
-        as_name = class_name
     base_classes = []
     objstruct_name = None
     typeobj_name = None
@@ -2569,9 +2560,7 @@ def p_cpp_class_definition(s, pos,  ctx):
         s.expect(')')
         base_classes = [".".join(path) for path in base_classes]
     if s.sy == '[':
-        if ctx.visibility not in ('public', 'extern'):
-            error(s.position(), "Name options only allowed for 'public' or 'extern' C++ class")
-        objstruct_name, typeobj_name = p_c_class_options(s)
+        error(s.position(), "Name options not allowed for C++ class")
     if s.sy == ':':
         if ctx.level == 'module_pxd':
             body_level = 'cpp_class_pxd'
@@ -2582,19 +2571,6 @@ def p_cpp_class_definition(s, pos,  ctx):
         s.expect_newline("Syntax error in C++ class definition")
         doc = None
         body = None
-    if ctx.visibility == 'extern':
-        if typeobj_name:
-            error(pos, "Type object name specification not allowed for 'extern' C++ class")
-    elif ctx.visibility == 'public':
-        if not objstruct_name:
-            error(pos, "Object struct name specification required for 'publicw' C++ class")
-        if not typeobj_name:
-            error(pos, "Type object name specification required for 'public' C++ class")
-    elif ctx.visibility == 'private':
-        if ctx.api:
-            error(pos, "Only 'public' C++ class can be declared 'api'")
-    else:
-        error(pos, "Invalid class visibility '%s'" % ctx.visibility)
     return Nodes.CppClassNode(pos,
         name = class_name,
         namespace = None,
