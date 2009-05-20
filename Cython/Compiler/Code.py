@@ -236,7 +236,8 @@ class GlobalState(object):
         'before_global_var',
         'global_var',
         'all_the_rest',
-        'utility_code_def'
+        'utility_code_def',
+        'end'
     ]
     
 
