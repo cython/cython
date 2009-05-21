@@ -18,9 +18,13 @@ import DebugFlags
 
 from Cython.Utils import none_or_sub
 
-# a simple class that simplifies the usage of utility code
-
 class UtilityCode(object):
+    # Stores utility code to add during code generation.
+    #
+    # See GlobalState.put_utility_code.
+    #
+    # hashes/equals by instance
+    
     def __init__(self, proto=None, impl=None, init=None, cleanup=None, requires=None):
         self.proto = proto
         self.impl = impl

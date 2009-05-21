@@ -432,7 +432,7 @@ def use_empty_bufstruct_code(env, max_ndim):
         Py_ssize_t __Pyx_zeros[] = {%s};
         Py_ssize_t __Pyx_minusones[] = {%s};
     """) % (", ".join(["0"] * max_ndim), ", ".join(["-1"] * max_ndim))
-    env.use_utility_code(UtilityCode(proto=code), "empty_bufstruct_code")
+    env.use_utility_code(UtilityCode(proto=code))
 
 
 def buf_lookup_full_code(proto, defin, name, nd):
@@ -494,7 +494,6 @@ def use_py2_buffer_functions(env):
     # Emulation of PyObject_GetBuffer and PyBuffer_Release for Python 2.
     # For >= 2.6 we do double mode -- use the new buffer interface on objects
     # which has the right tp_flags set, but emulation otherwise.
-    codename = "PyObject_GetBuffer" # just a representative unique key
 
     # Search all types for __getbuffer__ overloads
     types = []
@@ -567,7 +566,7 @@ def use_py2_buffer_functions(env):
         #define __Pyx_GetBuffer PyObject_GetBuffer
         #define __Pyx_ReleaseBuffer PyBuffer_Release
         #endif
-    """), impl = code), codename)
+    """), impl = code))
 
 
 def mangle_dtype_name(dtype):
