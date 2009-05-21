@@ -527,8 +527,8 @@ class Scope(object):
         if entry and entry.is_type:
             return entry.type
 
-    def use_utility_code(self, new_code, name=None):
-        self.global_scope().use_utility_code(new_code, name)
+    def use_utility_code(self, new_code):
+        self.global_scope().use_utility_code(new_code)
 
     def generate_library_function_declarations(self, code):
         # Generate extern decls for C library funcs used.
@@ -654,7 +654,7 @@ class ModuleScope(Scope):
     # method_table_cname   string             C name of method table
     # doc                  string             Module doc string
     # doc_cname            string             C name of module doc string
-    # utility_code_list    [(UtilityCode, string)] Queuing utility codes for forwarding to Code.py
+    # utility_code_list    [UtilityCode]      Queuing utility codes for forwarding to Code.py
     # python_include_files [string]           Standard  Python headers to be included
     # include_files        [string]           Other C headers to be included
     # string_to_entry      {string : Entry}   Map string const to entry
@@ -829,9 +829,9 @@ class ModuleScope(Scope):
         if not entry:
             self.declare_var(name, py_object_type, pos)
     
-    def use_utility_code(self, new_code, name=None):
+    def use_utility_code(self, new_code):
         if new_code is not None:
-            self.utility_code_list.append((new_code, name))
+            self.utility_code_list.append(new_code)
 
     def declare_c_class(self, name, pos, defining = 0, implementing = 0,
         module_name = None, base_type = None, objstruct_cname = None,

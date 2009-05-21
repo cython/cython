@@ -68,6 +68,18 @@ class UtilityCode(object):
             self.specialize_list.append(s)
             return s
 
+    def put_code(self, output):
+        if self.requires:
+            for dependency in self.requires:
+                output.use_utility_code(dependency)
+        if self.proto:
+            output['utility_code_proto'].put(self.proto)
+        if self.impl:
+            output['utility_code_def'].put(self.impl)
+        self.write_init_code(output.initwriter, output.module_pos)
+        self.write_cleanup_code(output.cleanupwriter, output.module_pos)
+        
+
 class FunctionState(object):
     # return_label     string          function return point label
     # error_label      string          error catch point label
@@ -691,28 +703,18 @@ class GlobalState(object):
     # Utility code state
     #
     
-    def use_utility_code(self, utility_code, name=None):
+    def use_utility_code(self, utility_code):
         """
-        Adds the given utility code to the C file if needed.
+        Adds code to the C file. utility_code should
+        a) implement __eq__/__hash__ for the purpose of knowing whether the same
+           code has already been included
+        b) implement put_code, which takes a globalstate instance
 
-        codetup should unpack into one prototype code part and one
-        definition code part, both strings inserted directly in C.
-
-        If name is provided, it is used as an identifier to avoid inserting
-        code twice. Otherwise, id(codetup) is used as such an identifier.
+        See UtilityCode.
         """
-        if name is None: name = id(utility_code)
-        if name not in self.utility_codes:
-            self.utility_codes.add(name)
-            if utility_code.requires:
-                for dependency in utility_code.requires:
-                    self.use_utility_code(dependency)
-            if utility_code.proto:
-                self.parts['utility_code_proto'].put(utility_code.proto)
-            if utility_code.impl:
-                self.parts['utility_code_def'].put(utility_code.impl)
-            utility_code.write_init_code(self.initwriter, self.module_pos)
-            utility_code.write_cleanup_code(self.cleanupwriter, self.module_pos)
+        if utility_code not in self.utility_codes:
+            self.utility_codes.add(utility_code)
+            utility_code.put_code(self)
 
 
 def funccontext_property(name):
