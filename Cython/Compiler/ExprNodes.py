@@ -6,7 +6,7 @@ import operator
 
 from Errors import error, warning, InternalError
 from Errors import hold_errors, release_errors, held_errors, report_error
-from Cython.Utils import UtilityCode
+from Code import UtilityCode
 import StringEncoding
 import Naming
 import Nodes

@@ -14,6 +14,7 @@ from TypeSlots import \
     pyfunction_signature, pymethod_signature, \
     get_special_method_signature, get_property_accessor_signature
 import ControlFlow
+import Code
 import __builtin__
 try:
     set
@@ -1382,7 +1383,7 @@ class PropertyScope(Scope):
 # Should this go elsewhere (and then get imported)?
 #------------------------------------------------------------------------------------
 
-classmethod_utility_code = Utils.UtilityCode(
+classmethod_utility_code = Code.UtilityCode(
 proto = """
 #include "descrobject.h"
 static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/

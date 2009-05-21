@@ -8,9 +8,6 @@ import Naming
 import Options
 import StringEncoding
 from Cython import Utils
-from PyrexTypes import py_object_type, typecast
-import PyrexTypes
-from TypeSlots import method_coexist
 from Scanning import SourceDescriptor
 from Cython.StringIOTree import StringIOTree
 try:
@@ -18,6 +15,58 @@ try:
 except NameError:
     from sets import Set as set
 import DebugFlags
+
+from Cython.Utils import none_or_sub
+
+# a simple class that simplifies the usage of utility code
+
+class UtilityCode(object):
+    def __init__(self, proto=None, impl=None, init=None, cleanup=None, requires=None):
+        self.proto = proto
+        self.impl = impl
+        self.init = init
+        self.cleanup = cleanup
+        self.requires = requires
+        self._cache = {}
+        self.specialize_list = []
+
+    def write_init_code(self, writer, pos):
+        if not self.init:
+            return
+        if isinstance(self.init, basestring):
+            writer.put(self.init)
+        else:
+            self.init(writer, pos)
+
+    def write_cleanup_code(self, writer, pos):
+        if not self.cleanup:
+            return
+        if isinstance(self.cleanup, basestring):
+            writer.put(self.cleanup)
+        else:
+            self.cleanup(writer, pos)
+    
+    def specialize(self, pyrex_type=None, **data):
+        # Dicts aren't hashable...
+        if pyrex_type is not None:
+            data['type'] = pyrex_type.declaration_code('')
+            data['type_name'] = pyrex_type.specalization_name()
+        key = data.items(); key.sort(); key = tuple(key)
+        try:
+            return self._cache[key]
+        except KeyError:
+            if self.requires is None:
+                requires = None
+            else:
+                requires = [r.specialize(data) for r in self.requires]
+            s = self._cache[key] = UtilityCode(
+                                        none_or_sub(self.proto, data),
+                                        none_or_sub(self.impl, data),
+                                        none_or_sub(self.init, data),
+                                        none_or_sub(self.cleanup, data),
+                                        requires)
+            self.specialize_list.append(s)
+            return s
 
 class FunctionState(object):
     # return_label     string          function return point label
@@ -397,6 +446,7 @@ class GlobalState(object):
         # utility_code_def
         #
         code = self.parts['utility_code_def']
+        import PyrexTypes
         code.put(PyrexTypes.type_conversion_functions)
         code.putln("")
 
@@ -979,6 +1029,7 @@ class CCodeWriter(object):
             return entry.cname
     
     def as_pyobject(self, cname, type):
+        from PyrexTypes import py_object_type, typecast
         return typecast(py_object_type, type, cname)
     
     def put_gotref(self, cname):
@@ -1026,6 +1077,7 @@ class CCodeWriter(object):
             self.putln("__Pyx_INCREF(%s);" % self.entry_as_pyobject(entry))
     
     def put_decref_clear(self, cname, type, nanny=True):
+        from PyrexTypes import py_object_type, typecast
         if nanny:
             self.putln("__Pyx_DECREF(%s); %s = 0;" % (
                 typecast(py_object_type, type, cname), cname))
@@ -1085,6 +1137,7 @@ class CCodeWriter(object):
             self.put_var_xdecref_clear(entry)
     
     def put_init_to_py_none(self, cname, type, nanny=True):
+        from PyrexTypes import py_object_type, typecast
         py_none = typecast(type, py_object_type, "Py_None")
         if nanny:
             self.putln("%s = %s; __Pyx_INCREF(Py_None);" % (cname, py_none))
@@ -1098,6 +1151,7 @@ class CCodeWriter(object):
         self.put_init_to_py_none(code, entry.type, nanny)
 
     def put_pymethoddef(self, entry, term):
+        from TypeSlots import method_coexist
         if entry.doc:
             doc_code = entry.doc_cname
         else:

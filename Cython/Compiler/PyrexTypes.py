@@ -2,7 +2,7 @@
 #   Pyrex - Types
 #
 
-from Cython.Utils import UtilityCode
+from Code import UtilityCode
 import StringEncoding
 import Naming
 import copy

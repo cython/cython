@@ -3,7 +3,7 @@
 #
 
 from Symtab import BuiltinScope, StructOrUnionScope
-from Cython.Utils import UtilityCode
+from Code import UtilityCode
 from TypeSlots import Signature
 import PyrexTypes
 import Naming
