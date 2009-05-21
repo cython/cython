@@ -23,7 +23,8 @@ import DebugFlags
 
 from Errors import error, warning
 from PyrexTypes import py_object_type
-from Cython.Utils import open_new_file, replace_suffix, UtilityCode
+from Cython.Utils import open_new_file, replace_suffix
+from Code import UtilityCode
 from StringEncoding import escape_byte_string, EncodedString
 
 

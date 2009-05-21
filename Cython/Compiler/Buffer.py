@@ -1,10 +1,10 @@
-from Cython.Compiler.Visitor import VisitorTransform, CythonTransform
-from Cython.Compiler.ModuleNode import ModuleNode
-from Cython.Compiler.Nodes import *
-from Cython.Compiler.ExprNodes import *
-from Cython.Compiler.StringEncoding import EncodedString
-from Cython.Compiler.Errors import CompileError
-from Cython.Utils import UtilityCode
+from Visitor import VisitorTransform, CythonTransform
+from ModuleNode import ModuleNode
+from Nodes import *
+from ExprNodes import *
+from StringEncoding import EncodedString
+from Errors import CompileError
+from Code import UtilityCode
 import Interpreter
 import PyrexTypes
 

@@ -8,7 +8,7 @@ import TypeSlots
 import Symtab
 import Options
 
-from Cython.Utils import UtilityCode
+from Code import UtilityCode
 from StringEncoding import EncodedString
 from Errors import error
 from ParseTreeTransforms import SkipDeclarations
