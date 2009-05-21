@@ -330,7 +330,8 @@ class GlobalState(object):
         'global_var',
         'decls',
         'all_the_rest',
-        'utility_code_def'
+        'utility_code_def',
+        'end'
     ]
     
 
