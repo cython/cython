@@ -285,8 +285,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_declarations_for_modules(env, modules, globalstate)
         h_code.write('\n')
 
-        for codetup, name in env.utility_code_list:
-            globalstate.use_utility_code(codetup, name)
+        for utilcode in env.utility_code_list:
+            globalstate.use_utility_code(utilcode)
         globalstate.finalize_main_c_code()
         
         f = open_new_file(result.c_file)
