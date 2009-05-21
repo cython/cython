@@ -2121,13 +2121,17 @@ def p_cdef_extern_block(s, pos, ctx):
         s.next()
     else:
         _, include_file = p_string_literal(s)
+    if s.systring == "namespace":
+        s.next()
+        namespace = p_ident(s)
     ctx = ctx(cdef_flag = 1, visibility = 'extern')
     if p_nogil(s):
         ctx.nogil = 1
     body = p_suite(s, ctx)
     return Nodes.CDefExternNode(pos,
         include_file = include_file,
-        body = body)
+        body = body,
+        namespace = namespace)
 
 def p_c_enum_definition(s, pos, ctx):
     # s.sy == ident 'enum'
@@ -2562,15 +2566,22 @@ def p_cpp_class_definition(s, pos,  ctx):
     if s.sy == '[':
         error(s.position(), "Name options not allowed for C++ class")
     if s.sy == ':':
-        if ctx.level == 'module_pxd':
-            body_level = 'cpp_class_pxd'
-        else:
-            body_level = 'cpp_class'
-        doc, body = p_suite(s, Ctx(level = body_level), with_doc = 1)
+        attributes = None
+        s.next()
+        s.expect('NEWLINE')
+        s.expect_indent()
+        attributes = []
+        body_ctx = Ctx()
+        while s.sy != 'DEDENT':
+            if s.sy != 'pass':
+                attributes.append(
+                    p_c_func_or_var_declaration(s, s.position(), body_ctx))
+            else:
+                s.next()
+                s.expect_newline("Expected a newline")
+        s.expect_dedent()
     else:
         s.expect_newline("Syntax error in C++ class definition")
-        doc = None
-        body = None
     return Nodes.CppClassNode(pos,
         name = class_name,
         namespace = None,
@@ -2578,10 +2589,8 @@ def p_cpp_class_definition(s, pos,  ctx):
         base_classes = base_classes,
         visibility = ctx.visibility,
         in_pxd = ctx.level == 'module_pxd',
-        attributes = None,
-        doc = doc,
-        body = body)
-    
+        attributes = None)
+
 def p_cpp_class(s):
     pass
 
