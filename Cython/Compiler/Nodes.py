@@ -1405,9 +1405,8 @@ class FuncDefNode(StatNode, BlockNode):
                     code.put_var_incref(entry)
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
-            if entry.type.is_buffer and entry.buffer_aux.buffer_info_var.used:
-                code.putln("%s.buf = NULL;" %
-                           entry.buffer_aux.buffer_info_var.cname)
+            if entry.type.is_buffer and entry.buffer_aux.buflocal_nd_var.used:
+                Buffer.put_init_vars(entry, code)
         # ----- Check and convert arguments
         self.generate_argument_type_tests(code)
         # ----- Acquire buffer arguments
