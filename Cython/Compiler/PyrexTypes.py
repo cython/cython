@@ -1546,8 +1546,8 @@ c_buf_diminfo_type =  CStructOrUnionType("__Pyx_Buf_DimInfo", "struct",
                                       None, 1, "__Pyx_Buf_DimInfo")
 c_pyx_buffer_type = CStructOrUnionType("__Pyx_Buffer", "struct", None, 1, "__Pyx_Buffer")
 c_pyx_buffer_ptr_type = CPtrType(c_pyx_buffer_type)
-c_pyx_buffer_nd_type = CStructOrUnionType("__Pyx_Buffer_ND", "struct",
-                                      None, 1, "__Pyx_Buffer_ND")
+c_pyx_buffer_nd_type = CStructOrUnionType("__Pyx_LocalBuf_ND", "struct",
+                                      None, 1, "__Pyx_LocalBuf_ND")
 
 
 error_type =    ErrorType()

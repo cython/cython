@@ -1118,7 +1118,7 @@ class FuncDefNode(StatNode, BlockNode):
                 code.put_init_var_to_py_none(entry)
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
-            if entry.type.is_buffer and entry.buffer_aux.pyx_buf_nd_var.used:
+            if entry.type.is_buffer and entry.buffer_aux.buflocal_nd_var.used:
                 Buffer.put_init_vars(entry, code)
         # ----- Check and convert arguments
         self.generate_argument_type_tests(code)
