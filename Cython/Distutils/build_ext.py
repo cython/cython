@@ -193,7 +193,8 @@ class build_ext(_build_ext.build_ext):
 
         for source in pyrex_sources:
             target = pyrex_targets[source]
-            rebuild = self.force or newer(source, target)
+            depends = [source] + extension.depends
+            rebuild = self.force or newer_group(depends, target, 'newer')
             if not rebuild and newest_dependency is not None:
                 rebuild = newer(newest_dependency, target)
             if rebuild:
@@ -209,6 +210,8 @@ class build_ext(_build_ext.build_ext):
                     generate_pxi = pyrex_gen_pxi)
                 result = cython_compile(source, options=options,
                                         full_module_name=module_name)
+            else:
+                log.info("skipping '%s' Cython extension (up-to-date)", target)
 
         return new_sources
 
