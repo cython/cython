@@ -12,7 +12,7 @@ import PyrexTypes
 import TypeSlots
 from PyrexTypes import py_object_type, error_type, CTypedefType, CFuncType
 from Symtab import ModuleScope, LocalScope, GeneratorLocalScope, \
-    StructOrUnionScope, PyClassScope, CClassScope
+    StructOrUnionScope, PyClassScope, CClassScope, CppClassScope
 from Cython.Utils import open_new_file, replace_suffix, UtilityCode
 from StringEncoding import EncodedString, escape_byte_string, split_docstring
 import Options
