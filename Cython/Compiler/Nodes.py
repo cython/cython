@@ -1228,6 +1228,11 @@ class FuncDefNode(StatNode, BlockNode):
 
             code.put_finish_refcount_context()
 
+        if self.entry.is_special and self.entry.name == "__hash__":
+            # Returning -1 for __hash__ is supposed to signal an error
+            # We do as Python instances and coerce -1 into -2. 
+            code.putln("if (unlikely(%s == -1) && !PyErr_Occurred()) %s = -2;" % (Naming.retval_cname, Naming.retval_cname))
+
         if acquire_gil:
             code.putln("PyGILState_Release(_save);")
 
