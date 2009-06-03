@@ -1551,6 +1551,52 @@ class CClassScope(ClassScope):
     def release_temp(self, cname):
         return Scope.release_temp(self.global_scope(), cname)
         
+
+class CppClassScope(Scope):
+    #  Namespace of a C++ class.
+    
+    def __init__(self, name="?"):
+        Scope.__init__(self, name, None, None)
+
+    def declare_var(self, name, type, pos, 
+            cname = None, visibility = 'extern', is_cdef = 0, allow_pyobject = 0):
+        # Add an entry for an attribute.
+        if not cname:
+            cname = name
+            if visibility != 'extern':
+                error("Visibility for C++ class member are extern only")
+        if type.is_cfunction:
+            type = PyrexTypes.CPtrType(type)
+        entry = self.declare(name, cname, type, pos, visibility)
+        entry.is_variable = 1
+        self.var_entries.append(entry)
+        if type.is_pyobject and not allow_pyobject:
+            error(pos,
+                "C++ class member cannot be a Python object")
+        return entry
+
+    def declare_cfunction(self, name, type, pos, 
+                          cname = None, visibility = 'extern', defining = 0,
+                          api = 0, in_pxd = 0, modifiers = ()):
+        self.declare_var(name, type, pos, cname, visibility)
+
+    def declare_inherited_cpp_attributes(self, base_scope):
+        # Declare entries for all the C++ attributes of an
+        # inherited type, with cnames modified appropriately
+        # to work with this type.
+        def adapt(cname):
+            return "%s.%s" % (Naming.obj_base_cname, base_entry.cname)
+        for base_entry in \
+            base_scope.inherited_var_entries + base_scope.var_entries:
+                entry = self.declare(base_entry.name, adapt(base_entry.cname), 
+                    base_entry.type, None, 'extern')
+                entry.is_variable = 1
+                self.inherited_var_entries.append(entry)
+        for base_entry in base_scope.cfunc_entries:
+            entry = self.declare_cfunction(base_entry.name, base_entry.type,
+                                       base_entry.pos, adapt(base_entry.cname),
+                                       base_entry.visibility, base_entry.func_modifiers)
+            entry.is_inherited = 1
         
 class PropertyScope(Scope):
     #  Scope holding the __get__, __set__ and __del__ methods for
