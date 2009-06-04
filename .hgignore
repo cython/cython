@@ -13,3 +13,4 @@ build/
 *.dep
 
 tags
+Tools/f2cy/fparser
