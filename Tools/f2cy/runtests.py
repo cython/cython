@@ -630,9 +630,9 @@ if __name__ == '__main__':
     # parser.add_option("--sys-pyregr", dest="system_pyregr",
                       # action="store_true", default=False,
                       # help="run the regression tests of the CPython installation")
-    # parser.add_option("-x", "--exclude", dest="exclude",
-                      # action="append", metavar="PATTERN",
-                      # help="exclude tests matching the PATTERN")
+    parser.add_option("-x", "--exclude", dest="exclude",
+                      action="append", metavar="PATTERN",
+                      help="exclude tests matching the PATTERN")
     # parser.add_option("-C", "--coverage", dest="coverage",
                       # action="store_true", default=False,
                       # help="collect source coverage data for the Compiler")
@@ -648,14 +648,8 @@ if __name__ == '__main__':
     # parser.add_option("-T", "--ticket", dest="tickets",
                       # action="append",
                       # help="a bug ticket number to run the respective test in 'tests/bugs'")
-    parser.add_option("--f2cy-only", dest="f2cy_only",
-                      action="store_true", default=False,
-                      help="only run f2cy tests")
 
     options, cmd_args = parser.parse_args()
-
-    if options.f2cy_only:
-        pass
 
     if 0:
         if sys.version_info[0] >= 3:
@@ -739,13 +733,14 @@ if __name__ == '__main__':
 
     exclude_selectors = []
 
+    if options.exclude:
+        exclude_selectors += [ re.compile(r, re.I|re.U).search for r in options.exclude ]
+
     if 0:
         missing_dep_excluder = MissingDependencyExcluder(EXT_DEP_MODULES) 
         version_dep_excluder = VersionDependencyExcluder(VER_DEP_MODULES) 
         exclude_selectors = [missing_dep_excluder, version_dep_excluder] # want to pring msg at exit
 
-        if options.exclude:
-            exclude_selectors += [ re.compile(r, re.I|re.U).search for r in options.exclude ]
         
         if not test_bugs:
             exclude_selectors += [ FileListExcluder("tests/bugs.txt") ]
