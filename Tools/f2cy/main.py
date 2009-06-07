@@ -1,6 +1,40 @@
 import os, sys
 from fparser import api
 from fparser import block_statements
+from Visitor import PrintTree
+
+def ckind_from_fkind(basic_type, kind):
+    #XXX this makes many assumptions -- rewrite for general compiler!!!
+    int_map = {
+            1: 'c_signed_char',
+            2: 'c_short',
+            4: 'c_int',
+            8: 'c_long'
+            }
+    real_map = {
+            4: 'c_float',
+            8: 'c_double',
+            10: 'c_long_double', #??? Why 10?
+            }
+    complex_map = {
+            4: 'c_float_complex',
+            8: 'c_long_complex',
+            10: 'c_long_double_complex',
+            }
+    logical_map = {
+            1: 'c_bool',
+            }
+    character_map = {
+            1: 'c_char'
+            }
+    map_dispatch = {
+            'integer': int_map,
+            'real'   : real_map,
+            'complex': complex_map,
+            'logical': logical_map,
+            'character': character_map
+            }
+    return map_dispatch[basic_type][int(kind)]
 
 def wrap_subprogram(subp_tree, output_dir, orig_filename):
     '''
@@ -51,39 +85,7 @@ def wrap_subprogram(subp_tree, output_dir, orig_filename):
 def wrap(filename, directory, workdir):
     print >>sys.stderr, "wrapping %s from %s in %s" % (filename, directory, workdir)
     block = api.parse(os.path.join(directory, filename), analyze=True)
+    PrintTree()(block)
     for subp in block.a.external_subprogram.values():
-        import pdb; pdb.set_trace()
         wrap_subprogram(subp, workdir, filename)
 
-def ckind_from_fkind(basic_type, kind):
-    #XXX this makes many assumptions -- rewrite for general compiler!!!
-    int_map = {
-            1: 'c_signed_char',
-            2: 'c_short',
-            4: 'c_int',
-            8: 'c_long'
-            }
-    real_map = {
-            4: 'c_float',
-            8: 'c_double',
-            10: 'c_long_double', #??? Why 10?
-            }
-    complex_map = {
-            4: 'c_float_complex',
-            8: 'c_long_complex',
-            10: 'c_long_double_complex',
-            }
-    logical_map = {
-            1: 'c_bool',
-            }
-    character_map = {
-            1: 'c_char'
-            }
-    map_dispatch = {
-            'integer': int_map,
-            'real'   : real_map,
-            'complex': complex_map,
-            'logical': logical_map,
-            'character': character_map
-            }
-    return map_dispatch[basic_type][int(kind)]
