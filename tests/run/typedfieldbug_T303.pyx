@@ -1,31 +1,55 @@
 """
 >>> f()
-42.0 42.0 42.0
+42.0
+42.0
+>>> global_vars(12.0)
+12.0 12.0
 >>> readonly()
 Traceback (most recent call last):
     ...
-AttributeError: attribute 'var_nf' of 'typedfieldbug_T303.MyClass' objects is not writable
+TypeError: readonly attribute
+>>> longdouble_access()
+Traceback (most recent call last):
+    ...
+SystemError: bad memberdescr type
+
 """
 
 cdef extern from "external_defs.h":
     ctypedef float DoubleTypedef
+    ctypedef float LongDoubleTypedef
+
+cdef public DoubleTypedef global_tdef
+cdef public double global_double
 
 cdef class MyClass:
     cdef readonly:
-        double var_d
-        DoubleTypedef var_nf
-    cdef public:
-        DoubleTypedef var_mutable
+        double actual_double
+        DoubleTypedef float_isreally_double
+        LongDoubleTypedef float_isreally_longdouble
+        
     def __init__(self):
-        self.var_d = 42.0
-        self.var_nf = 42.0
-        self.var_mutable = 1
+        self.actual_double = 42.0
+        self.float_isreally_double = 42.0
+        self.float_isreally_longdouble = 42.0
+
+def global_vars(x):
+    global global_tdef, global_double
+    global_tdef = x
+    global_double = x
+    print global_tdef, global_double
 
 def f():
     c = MyClass()
-    c.var_mutable = 42.0
-    print c.var_d, c.var_nf, c.var_mutable
+    print c.actual_double
+    print c.float_isreally_double
+
+def longdouble_access():
+    c = MyClass()
+    print c.float_isreally_longdouble
+
 
 def readonly():
     c = MyClass()
-    c.var_nf = 3
+    c.actual_double = 3
+
