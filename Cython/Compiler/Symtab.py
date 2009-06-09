@@ -384,6 +384,32 @@ class Scope(object):
             self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
         return entry
     
+    def declare_cpp_class(self, name, kind, scope,
+            typedef_flag, pos, cname = None, base_classes = [], namespace = None,
+            visibility = 'extern', packed = False):
+        if visibility != 'extern':
+            error(pos, "C++ classes may only be extern")
+        if not entry:
+            type = PyrexTypes.CppClassType(
+                name, kind, scope, typedef_flag, cname, base_classes, namespace, packed)
+            entry = self.declare_type(name, type, pos, cname,
+                visibility = visibility, defining = scope is not None)
+            self.sue_entries.append(entry)
+        else:
+            if not (entry.is_type and entry.type.is_cpp_class
+                    and entry.type.kind == kind):
+                warning(pos, "'%s' redeclared  " % name, 0)
+            elif scope and entry.type.scope:
+                warning(pos, "'%s' already defined  (ignoring second definition)" % name, 0)
+            else:
+                self.check_previous_typedef_flag(entry, typedef_flag, pos)
+                if scope:
+                    entry.type.scope = scope
+                    self.type_entries.append(entry)
+        if not scope and not entry.type.scope:
+            self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
+        return entry
+    
     def check_previous_typedef_flag(self, entry, typedef_flag, pos):
         if typedef_flag != entry.type.typedef_flag:
             error(pos, "'%s' previously declared using '%s'" % (

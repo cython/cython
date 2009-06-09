@@ -703,6 +703,35 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("#pragma pack(pop)")
                 code.putln("#endif")
 
+    def generate_cpp_class_definition(self, entry, code):
+        code.mark_pos(entry.pos)
+        type = entry.type
+        scope = type.scope
+        if scope:
+            kind = type.kind
+            packed = type.is_cpp_class and type.packed
+            if packed:
+                kind = "%s %s" % (type.kind, "__Pyx_PACKED")
+                code.globalstate.use_utility_code(packed_struct_utility_code)
+            header, footer = \
+                self.sue_header_footer(type, kind, type.cname)
+            code.putln("")
+            if packed:
+                code.putln("#if !defined(__GNUC__)")
+                code.putln("#pragma pack(push, 1)")
+                code.putln("#endif")
+            code.putln(header)
+            var_entries = scope.var_entries
+            for attr in var_entries:
+                code.putln(
+                    "%s;" %
+                        attr.type.declaration_code(attr.cname))
+            code.putln(footer)
+            if packed:
+                code.putln("#if !defined(__GNUC__)")
+                code.putln("#pragma pack(pop)")
+                code.putln("#endif")
+
     def generate_enum_definition(self, entry, code):
         code.mark_pos(entry.pos)
         type = entry.type

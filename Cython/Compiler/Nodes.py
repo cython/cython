@@ -914,18 +914,20 @@ class CppClassNode(CStructOrUnionDefNode):
 
     #  name          string
     #  cname         string or None
-    #  visibility    "public" or "private"
+    #  visibility    "extern"
     #  in_pxd        boolean
     #  attributes    [CVarDefNode] or None
     #  entry         Entry
+    #  base_classes  [string]
+    #  namespace     string or None
 
     def analyse_declarations(self, env):
         scope = None
         if self.attributes is not None:
-            scope = StructOrUnionScope(self.name) # for now
-        self.entry = env.declare_struct_or_union(
-            self.name, "struct", scope, 0, self.pos,
-            self.cname, visibility = self.visibility)
+            scope = CppClassScope(self.name)
+        self.entry = env.declare_cpp_class(
+            self.name, "cppclass", scope, 0, self.pos,
+            self.cname, self.base_classes, self.namespace, visibility = self.visibility)
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
