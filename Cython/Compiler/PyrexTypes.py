@@ -1387,15 +1387,13 @@ class CppClassType(CType):
         self.namespace = namespace
 
     def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
-        inherited = ""
-        for base_class in self.base_classes:
-            if inherited != "":
-                inherited += " : public "
-            inherited += base_class
-            if base_class != baseclasses[-1]:
-                inherited += " , "
-        return "%s%s" % (self.name, inherited)
-            
+        if for_display or pyrex:
+            return self.name
+        else:
+            cname = self.cname
+            if self.namespace is not None:
+                cname = "%s::%s" % (self.namespace.replace('.', '::'), cname)
+            return cname
 
     def is_subclass(self, other_type):
         if not base_classes.empty():
@@ -1407,9 +1405,12 @@ class CppClassType(CType):
     def assignable_from_resolved_type(self, other_type):
         if self.same_as_resolved_type(other_type):
             return 1
-        if self.is_subclass(other) or self.same_as(other_type):
+        if other.is_subclass(self) or self.same_as(other_type):
             return 1
         return 0
+
+    def attributes_known(self):
+        return self.scope is not None
 
 class CEnumType(CType):
     #  name           string

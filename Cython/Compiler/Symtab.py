@@ -389,12 +389,14 @@ class Scope(object):
             visibility = 'extern', packed = False):
         if visibility != 'extern':
             error(pos, "C++ classes may only be extern")
+        if cname is None:
+            cname = name
+        entry = self.lookup(name)
         if not entry:
             type = PyrexTypes.CppClassType(
                 name, kind, scope, typedef_flag, cname, base_classes, namespace, packed)
             entry = self.declare_type(name, type, pos, cname,
                 visibility = visibility, defining = scope is not None)
-            self.sue_entries.append(entry)
         else:
             if not (entry.is_type and entry.type.is_cpp_class
                     and entry.type.kind == kind):
@@ -1589,8 +1591,8 @@ class CppClassScope(Scope):
         # Add an entry for an attribute.
         if not cname:
             cname = name
-            if visibility != 'extern':
-                error("Visibility for C++ class member are extern only")
+        if visibility != 'extern':
+            error(pos, "Visibility for C++ class member are extern only")
         if type.is_cfunction:
             type = PyrexTypes.CPtrType(type)
         entry = self.declare(name, cname, type, pos, visibility)
