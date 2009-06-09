@@ -31,6 +31,7 @@ class Ctx(object):
     api = 0
     overridable = 0
     nogil = 0
+    namespace = None
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
@@ -2123,7 +2124,7 @@ def p_cdef_extern_block(s, pos, ctx):
         _, include_file = p_string_literal(s)
     if s.systring == "namespace":
         s.next()
-        namespace = p_ident(s)
+        ctx.namespace = p_ident(s)
     ctx = ctx(cdef_flag = 1, visibility = 'extern')
     if p_nogil(s):
         ctx.nogil = 1
@@ -2533,9 +2534,6 @@ def p_module(s, pxd, full_module_name):
                       full_module_name = full_module_name,
                       option_comments = option_comments)
 
-
-#Implementing...
-
 def p_cpp_class_definition(s, pos,  ctx):
     # s.sy == 'cppclass'
     s.next()
@@ -2584,15 +2582,12 @@ def p_cpp_class_definition(s, pos,  ctx):
         s.expect_newline("Syntax error in C++ class definition")
     return Nodes.CppClassNode(pos,
         name = class_name,
-        namespace = None,
         cname = None,
         base_classes = base_classes,
+        namespace = ctx.namespace,
         visibility = ctx.visibility,
         in_pxd = ctx.level == 'module_pxd',
-        attributes = None)
-
-def p_cpp_class(s):
-    pass
+        attributes = attributes)
 
 
 

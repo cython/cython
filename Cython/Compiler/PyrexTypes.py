@@ -91,6 +91,7 @@ class PyrexType(BaseType):
     is_null_ptr = 0
     is_cfunction = 0
     is_struct_or_union = 0
+    is_cpp_class = 0
     is_struct = 0
     is_enum = 0
     is_typedef = 0
@@ -1341,6 +1342,57 @@ class CStructOrUnionType(CType):
         child_depths = [x.type.struct_nesting_depth()
                         for x in self.scope.var_entries]
         return max(child_depths) + 1
+
+class CppClassType(CType):
+    #  name          string
+    #  cname         string
+    #  kind          string              "cppclass"
+    #  scope         CppClassScope
+    #  typedef_flag  boolean
+    #  packed        boolean
+    
+    is_cpp_class = 1
+    has_attributes = 1
+    base_classes = []
+    namespace = None
+    
+    def __init__(self, name, kind, scope, typedef_flag, cname, base_classes,
+                 namespace = None, packed=False):
+        self.name = name
+        self.cname = cname
+        self.kind = kind
+        self.scope = scope
+        self.typedef_flag = typedef_flag
+        self.exception_check = True
+        self._convert_code = None
+        self.packed = packed
+        self.base_classes = base_classes
+        self.namespace = namespace
+
+    def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
+        inherited = ""
+        for base_class in self.base_classes:
+            if inherited != "":
+                inherited += " : public "
+            inherited += base_class
+            if base_class != baseclasses[-1]:
+                inherited += " , "
+        return "%s%s" % (self.name, inherited)
+            
+
+    def is_subclass(self, other_type):
+        if not base_classes.empty():
+            for base_class in self.base_classes:
+                if base_class.is_subclass(other_type):
+                    return 1
+        return 0
+
+    def assignable_from_resolved_type(self, other_type):
+        if self.same_as_resolved_type(other_type):
+            return 1
+        if self.is_subclass(other) or self.same_as(other_type):
+            return 1
+        return 0
 
 class CEnumType(CType):
     #  name           string
