@@ -1388,12 +1388,12 @@ class CppClassType(CType):
 
     def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
         if for_display or pyrex:
-            return self.name
+            name = self.name
         else:
-            cname = self.cname
+            name = self.cname
             if self.namespace is not None:
-                cname = "%s::%s" % (self.namespace.replace('.', '::'), cname)
-            return cname
+                name = "%s::%s" % (self.namespace.replace('.', '::'), name)
+        return "%s %s" % (name, entity_code)
 
     def is_subclass(self, other_type):
         if not base_classes.empty():
