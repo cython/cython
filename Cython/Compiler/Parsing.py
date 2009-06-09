@@ -2132,7 +2132,7 @@ def p_cdef_extern_block(s, pos, ctx):
     return Nodes.CDefExternNode(pos,
         include_file = include_file,
         body = body,
-        namespace = namespace)
+        namespace = ctx.namespace)
 
 def p_c_enum_definition(s, pos, ctx):
     # s.sy == ident 'enum'
