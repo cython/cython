@@ -148,13 +148,16 @@ class IterationTransform(Visitor.VisitorTransform):
             # nothing we can do here, I guess
             return node
 
-        temp = UtilNodes.LetRefNode(ExprNodes.IntNode(enumerate_function.pos, value='0',
-                                                      type=counter_type))
+        temp = UtilNodes.LetRefNode(ExprNodes.IntNode(enumerate_function.pos,
+                                                      value='0',
+                                                      type=counter_type,
+                                                      constant_result=0))
         inc_expression = ExprNodes.AddNode(
             enumerate_function.pos,
             operand1 = temp,
             operand2 = ExprNodes.IntNode(node.pos, value='1',
-                                         type=counter_type),
+                                         type=counter_type,
+                                         constant_result=1),
             operator = '+',
             type = counter_type,
             is_temp = counter_type.is_pyobject
@@ -190,7 +193,8 @@ class IterationTransform(Visitor.VisitorTransform):
         if len(args) < 3:
             step_pos = range_function.pos
             step_value = 1
-            step = ExprNodes.IntNode(step_pos, value=1)
+            step = ExprNodes.IntNode(step_pos, value='1',
+                                     constant_result=1)
         else:
             step = args[2]
             step_pos = step.pos
@@ -202,7 +206,8 @@ class IterationTransform(Visitor.VisitorTransform):
                 # will lead to an error elsewhere
                 return node
             if not isinstance(step, ExprNodes.IntNode):
-                step = ExprNodes.IntNode(step_pos, value=step_value)
+                step = ExprNodes.IntNode(step_pos, value=str(step_value),
+                                         constant_result=step_value)
 
         if step_value < 0:
             step.value = -step_value
@@ -213,7 +218,8 @@ class IterationTransform(Visitor.VisitorTransform):
             relation2 = '<'
 
         if len(args) == 1:
-            bound1 = ExprNodes.IntNode(range_function.pos, value=0)
+            bound1 = ExprNodes.IntNode(range_function.pos, value='0',
+                                       constant_result=0)
             bound2 = args[0].coerce_to_integer(self.current_scope)
         else:
             bound1 = args[0].coerce_to_integer(self.current_scope)
@@ -350,7 +356,8 @@ class IterationTransform(Visitor.VisitorTransform):
             Nodes.SingleAssignmentNode(
                 pos = node.pos,
                 lhs = pos_temp,
-                rhs = ExprNodes.IntNode(node.pos, value=0)),
+                rhs = ExprNodes.IntNode(node.pos, value='0',
+                                        constant_result=0)),
             Nodes.WhileStatNode(
                 pos = node.pos,
                 condition = ExprNodes.SimpleCallNode(
