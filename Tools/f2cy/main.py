@@ -1,7 +1,7 @@
 import os, sys
 from fparser import api
 from fparser import block_statements
-from Visitor import PrintTree
+from Visitor import PrintTree, KindResolutionVisitor, AutoConfigGenerator
 
 def ckind_from_fkind(basic_type, kind):
     #XXX this makes many assumptions -- rewrite for general compiler!!!
@@ -34,6 +34,8 @@ def ckind_from_fkind(basic_type, kind):
             'logical': logical_map,
             'character': character_map
             }
+    try: int_kind = int(kind)
+    except ValueError: return 'c_long' # FIXME: not for general usage!!!
     return map_dispatch[basic_type][int(kind)]
 
 def wrap_subprogram(subp_tree, output_dir, orig_filename):
@@ -85,7 +87,6 @@ def wrap_subprogram(subp_tree, output_dir, orig_filename):
 def wrap(filename, directory, workdir):
     print >>sys.stderr, "wrapping %s from %s in %s" % (filename, directory, workdir)
     block = api.parse(os.path.join(directory, filename), analyze=True)
-    PrintTree()(block)
-    for subp in block.a.external_subprogram.values():
-        wrap_subprogram(subp, workdir, filename)
+    KindResolutionVisitor()(block)
+    AutoConfigGenerator()(block, open('%s_autoconf.f95'%filename.split('.')[0],'w'))
 
