@@ -7,8 +7,16 @@ import inspect
 from pprint import pprint
 import re
 import sys
-from fparser.block_statements import Function, SubProgramStatement, Module, Program
+from Code import CodeWriter, CompositeBlock, \
+        ModuleCode, SubProgramCode, \
+        SubroutineCode, ProgramCode, \
+        UtilityCode, FunctionCode, InterfaceCode
 from Cython.StringIOTree import StringIOTree
+from fparser.block_statements import Function, SubProgramStatement, \
+        Module, Program, Subroutine, \
+        EndFunction, EndSubroutine, Interface
+from fparser.statements import Use, Parameter, Dimension, Pointer
+from fparser.typedecl_statements import TypeDeclarationStatement
 
 LEVEL = 0
 
@@ -168,7 +176,7 @@ class KindResolutionVisitor(TreeVisitor):
         # integer*8 :: a
         # the get_kind() is the default integer kind (i.e., '4')
         # while the selector is ('8', '').
-        interface_var_names = node.args
+        interface_var_names = node.args[:]
         if isinstance(node, Function):
             interface_var_names += [node.result]
         for argname in interface_var_names:
@@ -184,7 +192,6 @@ class KindResolutionVisitor(TreeVisitor):
             var.f2cy_var_kind_res = vkr
         return node
 
-
 class VarKindResolution(object):
 
     def __init__(self, variable):
@@ -197,7 +204,6 @@ class VarKindResolution(object):
 
         self.type_name, self.resolved_name, self.ktp_str, self.defining_scope, self.defining_var =\
                 self.init_from_var(self.var)
-
 
     def init_from_var(self, var):
         var_scope = var.typedecl.parent
@@ -275,8 +281,6 @@ class VarKindResolution(object):
     @staticmethod
     def parse_ktp(ktp):
         # this should ideally all be in the parser
-        if isinstance(ktp, int):
-            import pdb; pdb.set_trace()
         ktp = ktp.lower().strip()
         try:
             ktp_int = int(ktp)
@@ -310,7 +314,6 @@ class VarKindResolution(object):
             return tuple(retval)
 
         # nothing matches, raise error for now...
-        import pdb; pdb.set_trace()
         raise KindResolutionError("unable to resolve kind-type-parameter '%s'" % ktp)
 
     @staticmethod
@@ -358,8 +361,6 @@ class VarKindResolution(object):
 
         return (type_name, resolve_name, ktp_str, scope, var)
 
-from Code import CompositeBlock, ModuleCode, SubProgramCode, SubroutineCode, ProgramCode, UtilityCode
-
 class AutoConfigGenerator(TreeVisitor):
 
     def __init__(self, *args, **kwargs):
@@ -394,7 +395,7 @@ class AutoConfigGenerator(TreeVisitor):
         self.driver_prog.declarations.putln("integer :: fh_num, ch_num, iserr")
 
     def visit_SubProgramStatement(self, node):
-        interface_var_names = node.args
+        interface_var_names = node.args[:]
         if isinstance(node, Function):
             interface_var_names += [node.result]
         for argname in interface_var_names:
@@ -416,8 +417,6 @@ class AutoConfigGenerator(TreeVisitor):
             'type_name': vkr.type_name,
             'mapped_name' : vkr.resolved_name
             }, indent=True)
-
-
 
     def __call__(self, tree, fh):
         self.visit(tree)
@@ -442,25 +441,178 @@ class AutoConfigGenerator(TreeVisitor):
         # write the driver_prog
         self.driver_prog.executable_stmts.put(close_files_code,indent=True)
         self.driver_prog.copyto(fh)
+        return tree
 
-class FortranWrapperVisitor(TreeVisitor):
+class WrapperError(RuntimeError):
+    pass
+
+class FortranWrapperGenerator(TreeVisitor):
+
+    def __init__(self, *args, **kwargs):
+        TreeVisitor.__init__(self, *args, **kwargs)
+
+        self.utility = UtilityCode()
+        self.wrapped_subps = []
+        self.wrapped = set()
+
+    def make_interface(self, node):
+
+        assert isinstance(node, (Function, Subroutine))
+
+        ifce_code = InterfaceCode(level=1)
+        # put down the opening & closing.
+        ifce_code.block_start.putln("interface")
+        ifce_code.block_start.putln(node.tostr())
+        endln = [ln for ln in node.content if isinstance(ln, (EndFunction, EndSubroutine))]
+        assert len(endln) == 1 
+        endln = endln[0]
+        ifce_code.block_end.putln("end %s %s" % (endln.blocktype, endln.name))
+        ifce_code.block_end.putln("end interface")
+        # use statements
+        use_stmts = [st for st in node.content if isinstance(st, Use)]
+        for us in use_stmts:
+            ifce_code.use_stmts.putln(us.tofortran().strip())
+        # declaration statements
+        if node.a.implicit_rules is not None: #XXX
+            warning("only 'implicit none' is supported currently -- may yield incorrect results.")
+        ifce_code.declarations.putln("implicit none")
+        ifce_decs = [st for st in node.content if isinstance(st, (TypeDeclarationStatement, Parameter, Dimension, Pointer))]
+        for dec in ifce_decs:
+            ifce_code.declarations.putln(dec.item.line.strip())
+        return ifce_code
+
 
     def visit_SubProgramStatement(self, node):
-        pass
+        if isinstance(node.parent, Interface) and node.name in self.wrapped:
+            return node
+        else:
+            self.wrapped.add(node.name)
+        if isinstance(node, Function):
+            subp_type_str = 'function'
+            subp_code = FunctionCode()
+        elif isinstance(node, Subroutine):
+            subp_type_str = 'subroutine'
+            subp_code = SubroutineCode()
+        else:
+            raise WrapperError()
 
-class CHeaderVisitor(TreeVisitor):
+        self.wrapped_subps.append(subp_code)
+
+        wrapname = mangle_prefix+node.name
+        argnames = node.args[:]
+        subp_code.block_start.putln("%(subp_type_str)s %(wrapname)s(%(arglst)s) bind(c,name=\"%(bindname)s\")" % \
+                { 'subp_type_str' : subp_type_str,
+                  'wrapname' : wrapname,
+                  'arglst'   : ', '.join(argnames),
+                  'bindname' : node.name
+                })
+        subp_code.block_end.putln("end %s %s" % (subp_type_str, wrapname))
+        subp_code.use_stmts.putln("use autoconfig_mod")
+
+        for argname in argnames:
+            var = node.a.variables[argname]
+            vkr = var.f2cy_var_kind_res
+            # collect the attributes.
+            attributes = []
+            if var.intent is not None:
+                assert isinstance(var.intent, list)
+                if 'IN' in var.intent: intent = 'IN'
+                elif 'INOUT' in var.intent: intent = 'INOUT'
+                elif 'OUT' in var.intent: intent = 'OUT'
+                else: raise WrapperError('unknown intent attribute for variable "%s", given "%s"' % (var.name, var.intent))
+                # XXX: when var.intent is None, should fallback to IN/INOUT?
+                attributes.append('intent(%s)' % intent)
+            # collect other attributes here...
+            # put down the dummy declaration.
+            subp_code.declarations.putln("%(type_name)s(kind=%(ktp)s) %(attrs)s :: %(var_name)s" % \
+                    { 'type_name' : vkr.type_name,
+                      'attrs'     : ", "+(", ".join(attributes)),
+                      'ktp'       : vkr.resolved_name,
+                      'var_name'  : argname
+                      })
+
+        # put down the wrapped subprog's interface here.
+        ifce_code = self.make_interface(node)
+        subp_code.declarations.insert(ifce_code.root)
+
+        # call the wrapped function/subr.
+        if isinstance(node, Function):
+            subp_code.executable_stmts.putln("%(wrapname)s = %(funcname)s(%(arglst)s)" % \
+                    { 'wrapname' : wrapname,
+                      'funcname' : node.name,
+                      'arglst'   : ', '.join(argnames)
+                      })
+        elif isinstance(node, Subroutine):
+            subp_code.executable_stmts.putln("call %(subrname)s(%(arglst)s)" % \
+                    { 'subrname' : node.name,
+                      'arglst'   : ', '.join(argnames)
+                      })
+        return node
+
+    def __call__(self, tree, fh):
+        self.visit(tree)
+        self.utility.copyto(fh)
+        for wrapped_subp in self.wrapped_subps:
+            wrapped_subp.copyto(fh)
+        return tree
+
+
+
+class CHeaderGenerator(TreeVisitor):
+
+    def __init__(self, *args, **kwargs):
+        TreeVisitor.__init__(self, *args, **kwargs)
+
+        self.preamble = CodeWriter(level=0)
+        self.c_protos = CodeWriter(level=0)
+        self.wrapped = set()
+
+        # add include statement.
+        self.preamble.putln('#include "autoconfig_header.h"')
+        self.preamble.putln('\n')
+
+    def visit_SubProgramStatement(self, node):
+        if node.name in self.wrapped:
+            return node
+        else:
+            self.wrapped.add(node.name)
+        argnames = node.args[:]
+        c_arg_list = []
+        for argname in argnames:
+            var = node.a.variables[argname]
+            vkr = var.f2cy_var_kind_res
+            # XXX: arrays will need to be handled specially here.
+            if var.is_array():
+                raise WrapperError("arrays not currently supported")
+            c_type_str = vkr.resolved_name
+            if 'VALUE' not in var.attributes:
+                c_type_str += " *"
+            c_arg_list.append(c_type_str)
+        # get the return type string
+        if isinstance(node, Subroutine):
+            c_return_type_str = "void"
+        elif isinstance(node, Function):
+            res_var = node.a.variables[node.result]
+            res_var_type_str = res_var.f2cy_var_kind_res.resolved_name
+            c_return_type_str = res_var_type_str
+        # write down the prototype.
+        self.c_protos.putln("%(c_return_type_str)s %(subp_name)s(%(arglst)s);" % \
+                {'c_return_type_str' : c_return_type_str,
+                 'subp_name'         : node.name,
+                 'arglst'            : ", ".join(c_arg_list)
+                 }
+                )
+        return node
+
+    def __call__(self, tree, fh):
+        self.visit(tree)
+        self.preamble.copyto(fh)
+        self.c_protos.copyto(fh)
+        return tree
+
+class PxdGenerator(TreeVisitor):
     pass
 
-class PxdVisitor(TreeVisitor):
-    pass
-
-autoconfig_header = """
-module autoconfig_mod
-  use iso_c_binding
-  implicit none
-"""
-
-autoconfig_footer = """end module autoconfig_mod"""
 
 open_files_code = """
 fh_num = 17
@@ -489,7 +641,6 @@ write(unit=fh_num, fmt="(' ',A)") "end module autoconfig_mod"
 close(unit=fh_num)
 close(unit=ch_num)
 """
-
 
 ktp_scalar_int_code = '''
 
@@ -723,37 +874,3 @@ module lookup_types
 
 end module lookup_types
 '''
-
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
-
-    # 'lookup_mod' : lookup_mod,
-    # 'resolve_mod' : resolve_mod
-    # 'proc_local_resolve' : proc_local_resolve
-    # 'driver_program' : driver_program
-
-    # lookup_mod is a single, unchanged block.
-
-    # resolve mod is:
-        # header
-        # [module_resolve_subr]
-        # proc_local_resolve
-        # footer
-
-    # each module_resolve_subr is:
-        # header
-        # body -> where the entries are written from above.
-        # footer
-
-    # the proc_local_resolve is:
-        # header
-        # body -> ditto.
-        # footer
-
-    # the driver program is:
-        # header -> 'use' the resolve mod to pull in all module_resolve_subrs and proc_local_resolve
-        # body -> call all the module_resolve_subrs, with error-handling.
-        # footer
-
-

@@ -172,7 +172,7 @@ class F2CYCompileTestCase(unittest.TestCase):
         self.runCompileTest()
 
     def runCompileTest(self):
-        self.compile(self.directory, self.filename, self.workdir, self.directory)
+        wrap(self.filename, self.directory, self.workdir)
 
     def build_target_filenames(self, filename):
         fortran_wrapper = "wrap_%s" % filename

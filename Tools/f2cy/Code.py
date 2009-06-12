@@ -25,6 +25,9 @@ class CodeWriter(object):
             level = self.level
         return CodeWriter(level, writer=self.sit.insertion_point())
 
+    def insert(self, writer):
+        self.sit.insert(writer.sit)
+
     def __getattr__(self, attr):
         return getattr(self.sit, attr)
 
@@ -34,6 +37,25 @@ class UtilityCode(object):
     def __init__(self, level=0):
         self.level = level
         self.root = CodeWriter(level)
+
+    def copyto(self, target):
+        self.root.copyto(target)
+
+class InterfaceCode(object):
+
+    def __init__(self, level=0):
+        self.level = level
+        self.has_subprogs = False
+        self.root = CodeWriter(level)
+        self.top = self.root.insertion_point(level)
+        self.block_start = self.root.insertion_point(level)
+        self.use_stmts = self.root.insertion_point(level+1)
+        self.declarations = self.root.insertion_point(level+1)
+        self.block_end = self.root.insertion_point(level)
+        self.bottom = self.root.insertion_point(level)
+
+    def getvalue(self):
+        return self.root.getvalue()
 
     def copyto(self, target):
         self.root.copyto(target)
