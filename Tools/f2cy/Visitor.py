@@ -363,7 +363,21 @@ class VarKindResolution(object):
 
         return (type_name, resolve_name, ktp_str, scope, var)
 
-class AutoConfigGenerator(TreeVisitor):
+class GeneratorBase(TreeVisitor):
+
+    is_generator = True
+
+    def make_fname(self, base):
+        raise NotImplementedError()
+
+    def copyto(self, fh):
+        raise NotImplementedError()
+
+    def __call__(self, tree):
+        self.visit(tree)
+        return tree
+
+class AutoConfigGenerator(GeneratorBase):
 
     is_generator = True
 
@@ -371,7 +385,7 @@ class AutoConfigGenerator(TreeVisitor):
         return "autoconfig_%s.f95" % base.lower().strip()
 
     def __init__(self, projname, *args, **kwargs):
-        TreeVisitor.__init__(self, *args, **kwargs)
+        GeneratorBase.__init__(self, *args, **kwargs)
 
         self.projname = projname
 
@@ -427,9 +441,6 @@ class AutoConfigGenerator(TreeVisitor):
             'mapped_name' : vkr.resolved_name
             }, indent=True)
 
-    def __call__(self, tree):
-        self.visit(tree)
-        return tree
 
     def copyto(self, fh):
         # write the utility code.
@@ -458,15 +469,14 @@ class AutoConfigGenerator(TreeVisitor):
 class WrapperError(RuntimeError):
     pass
 
-class FortranWrapperGenerator(TreeVisitor):
+class FortranWrapperGenerator(GeneratorBase):
 
-    is_generator = True
 
     def make_fname(self, base):
         return "wrap_%s_f.f95" % base.lower().strip()
 
     def __init__(self, projname, *args, **kwargs):
-        TreeVisitor.__init__(self, *args, **kwargs)
+        GeneratorBase.__init__(self, *args, **kwargs)
 
         self.projname = projname
         self.utility = UtilityCode()
@@ -567,24 +577,19 @@ class FortranWrapperGenerator(TreeVisitor):
                       })
         return node
 
-    def __call__(self, tree):
-        self.visit(tree)
-        return tree
 
     def copyto(self, fh):
         self.utility.copyto(fh)
         for wrapped_subp in self.wrapped_subps:
             wrapped_subp.copyto(fh)
 
-class CHeaderGenerator(TreeVisitor):
-
-    is_generator = True
+class CHeaderGenerator(GeneratorBase):
 
     def make_fname(self, base):
         return "wrap_%s_h.h" % base.lower().strip()
 
     def __init__(self, projname, *args, **kwargs):
-        TreeVisitor.__init__(self, *args, **kwargs)
+        GeneratorBase.__init__(self, *args, **kwargs)
 
         self.projname = projname
         self.preamble = CodeWriter(level=0)
@@ -592,7 +597,7 @@ class CHeaderGenerator(TreeVisitor):
         self.wrapped = set()
 
         # add include statement.
-        self.preamble.putln('#include "autoconfig_header.h"')
+        self.preamble.putln('#include "config_%s.h"' % self.projname)
         self.preamble.putln('\n')
 
     def visit_SubProgramStatement(self, node):
@@ -628,16 +633,14 @@ class CHeaderGenerator(TreeVisitor):
                 )
         return node
 
-    def __call__(self, tree):
-        self.visit(tree)
-        return tree
-
     def copyto(self, fh):
         self.preamble.copyto(fh)
         self.c_protos.copyto(fh)
 
-class PxdGenerator(TreeVisitor):
-    pass
+class PxdGenerator(GeneratorBase):
+
+    def make_fname(self, base):
+        return "wrap_%s.pxd" % base.lower().rstrip()
 
 
 open_files_code = """
