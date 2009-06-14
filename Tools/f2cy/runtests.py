@@ -153,7 +153,7 @@ class F2CYCompileTestCase(unittest.TestCase):
         if os.path.exists(self.workdir):
             for rmfile in os.listdir(self.workdir):
                 if not self.cleanup_workdir:
-                    if rmfile.lower().startswith("wrap"):
+                    if rmfile.lower().startswith("wrap") or rmfile.lower().startswith("autoconfig"):
                         continue
                 if not self.cleanup_sharedlibs and rmfile.endswith(".so") or rmfile.endswith(".dll"):
                     continue
@@ -172,7 +172,7 @@ class F2CYCompileTestCase(unittest.TestCase):
         self.runCompileTest()
 
     def runCompileTest(self):
-        wrap(self.filename, self.directory, self.workdir)
+        wrap([self.filename], self.directory, self.workdir, os.path.splitext(self.filename)[0])
 
     def build_target_filenames(self, filename):
         fortran_wrapper = "wrap_%s" % filename

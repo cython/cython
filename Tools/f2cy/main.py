@@ -5,11 +5,26 @@ from Visitor import PrintTree, KindResolutionVisitor, \
         AutoConfigGenerator, FortranWrapperGenerator, \
         CHeaderGenerator
 
-def wrap(filename, directory, workdir):
-    print >>sys.stderr, "wrapping %s from %s in %s" % (filename, directory, workdir)
-    block = api.parse(os.path.join(directory, filename), analyze=True)
-    KindResolutionVisitor()(block)
-    AutoConfigGenerator()(block, open('%s_autoconf.f95'%filename.split('.')[0],'w'))
-    FortranWrapperGenerator()(block, open('%s_wrapper.f95'%filename.split('.')[0],'w'))
-    CHeaderGenerator()(block, open('%s_wrapper.h'%filename.split('.')[0],'w'))
+def wrap(filenames, directory, outdir, projectname):
+    print >>sys.stderr, "wrapping %s from %s in %s" % (filenames, directory, outdir)
+    projectname = projectname.lower().strip()
+    pipeline = [ KindResolutionVisitor(),
+                 AutoConfigGenerator(projectname),
+                 FortranWrapperGenerator(projectname),
+                 CHeaderGenerator(projectname)
+               ]
 
+    for fname in filenames:
+        block = api.parse(os.path.join(directory, fname), analyze=True)
+        for stage in pipeline:
+            stage(block) # assumes no transformations to the parse tree.
+
+    # write out the files.
+    for stage in pipeline:
+        if not stage.is_generator:
+            continue
+        out_fname = stage.make_fname(projectname)
+        full_path = os.path.join(outdir, out_fname)
+        fh = open(full_path, 'w')
+        stage.copyto(fh)
+        fh.close()

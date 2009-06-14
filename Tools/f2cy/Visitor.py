@@ -171,6 +171,8 @@ class KindResolutionError(Exception):
 
 class KindResolutionVisitor(TreeVisitor):
 
+    is_generator = False
+
     def visit_SubProgramStatement(self, node):
         #FIXME: when a variable's type is
         # integer*8 :: a
@@ -363,8 +365,15 @@ class VarKindResolution(object):
 
 class AutoConfigGenerator(TreeVisitor):
 
-    def __init__(self, *args, **kwargs):
+    is_generator = True
+
+    def make_fname(self, base):
+        return "autoconfig_%s.f95" % base.lower().strip()
+
+    def __init__(self, projname, *args, **kwargs):
         TreeVisitor.__init__(self, *args, **kwargs)
+
+        self.projname = projname
 
         self.utility = UtilityCode()
         self.resolve_mod = ModuleCode()
@@ -418,12 +427,15 @@ class AutoConfigGenerator(TreeVisitor):
             'mapped_name' : vkr.resolved_name
             }, indent=True)
 
-    def __call__(self, tree, fh):
+    def __call__(self, tree):
         self.visit(tree)
+        return tree
+
+    def copyto(self, fh):
         # write the utility code.
         self.utility.copyto(fh)
         # write the resove_mod code.
-        self.driver_prog.executable_stmts.put(open_files_code,indent=True)
+        self.driver_prog.executable_stmts.put(open_files_code % dict(projname=self.projname),indent=True)
         for subr_code_name, subr_code in self.resolve_subrs.items():
             subr_code.block_start.putln("subroutine %s(fh_num, ch_num, iserr)" % subr_code_name)
             subr_code.block_end.putln("end subroutine %s" % subr_code_name)
@@ -439,18 +451,24 @@ class AutoConfigGenerator(TreeVisitor):
             self.driver_prog.executable_stmts.putln("end if")
         self.resolve_mod.copyto(fh)
         # write the driver_prog
-        self.driver_prog.executable_stmts.put(close_files_code,indent=True)
+        self.driver_prog.executable_stmts.put(close_files_code % dict(projname=self.projname),indent=True)
         self.driver_prog.copyto(fh)
-        return tree
+
 
 class WrapperError(RuntimeError):
     pass
 
 class FortranWrapperGenerator(TreeVisitor):
 
-    def __init__(self, *args, **kwargs):
+    is_generator = True
+
+    def make_fname(self, base):
+        return "wrap_%s_f.f95" % base.lower().strip()
+
+    def __init__(self, projname, *args, **kwargs):
         TreeVisitor.__init__(self, *args, **kwargs)
 
+        self.projname = projname
         self.utility = UtilityCode()
         self.wrapped_subps = []
         self.wrapped = set()
@@ -507,7 +525,7 @@ class FortranWrapperGenerator(TreeVisitor):
                   'bindname' : node.name
                 })
         subp_code.block_end.putln("end %s %s" % (subp_type_str, wrapname))
-        subp_code.use_stmts.putln("use autoconfig_mod")
+        subp_code.use_stmts.putln("use config_%s" % self.projname)
 
         for argname in argnames:
             var = node.a.variables[argname]
@@ -549,20 +567,26 @@ class FortranWrapperGenerator(TreeVisitor):
                       })
         return node
 
-    def __call__(self, tree, fh):
+    def __call__(self, tree):
         self.visit(tree)
+        return tree
+
+    def copyto(self, fh):
         self.utility.copyto(fh)
         for wrapped_subp in self.wrapped_subps:
             wrapped_subp.copyto(fh)
-        return tree
-
-
 
 class CHeaderGenerator(TreeVisitor):
 
-    def __init__(self, *args, **kwargs):
+    is_generator = True
+
+    def make_fname(self, base):
+        return "wrap_%s_h.h" % base.lower().strip()
+
+    def __init__(self, projname, *args, **kwargs):
         TreeVisitor.__init__(self, *args, **kwargs)
 
+        self.projname = projname
         self.preamble = CodeWriter(level=0)
         self.c_protos = CodeWriter(level=0)
         self.wrapped = set()
@@ -604,11 +628,13 @@ class CHeaderGenerator(TreeVisitor):
                 )
         return node
 
-    def __call__(self, tree, fh):
+    def __call__(self, tree):
         self.visit(tree)
+        return tree
+
+    def copyto(self, fh):
         self.preamble.copyto(fh)
         self.c_protos.copyto(fh)
-        return tree
 
 class PxdGenerator(TreeVisitor):
     pass
@@ -617,18 +643,18 @@ class PxdGenerator(TreeVisitor):
 open_files_code = """
 fh_num = 17
 ch_num = 18
-open(unit=fh_num, file='autoconfig_mod.f95', status='REPLACE', form='FORMATTED', action='WRITE', iostat=iserr)
+open(unit=fh_num, file='config_%(projname)s.f95', status='REPLACE', form='FORMATTED', action='WRITE', iostat=iserr)
 if (iserr .gt. 0) then
-  print *, \"an error occured opening the file 'autoconfig_mod.f95', unable to continue\"
+  print *, \"an error occured opening the file 'config_%(projname)s.f95', unable to continue\"
   stop
 end if
-open(unit=ch_num, file='autoconfig_header.h', status='REPLACE', form='FORMATTED', action='WRITE', iostat=iserr)
+open(unit=ch_num, file='config_%(projname)s.h', status='REPLACE', form='FORMATTED', action='WRITE', iostat=iserr)
 if (iserr .gt. 0) then
-  print *, \"an error occured opening the file 'autoconfig_header.h', unable to continue\"
+  print *, \"an error occured opening the file 'config_%(projname)s.h', unable to continue\"
   stop
 end if
 
-write(unit=fh_num, fmt="(' ',A)") "module autoconfig_mod"
+write(unit=fh_num, fmt="(' ',A)") "module config_%(projname)s"
 write(unit=fh_num, fmt="(' ',A)") "  use iso_c_binding"
 write(unit=fh_num, fmt="(' ',A)") "  implicit none"
 
@@ -636,7 +662,7 @@ write(unit=fh_num, fmt="(' ',A)") "  implicit none"
 
 close_files_code = """
 
-write(unit=fh_num, fmt="(' ',A)") "end module autoconfig_mod"
+write(unit=fh_num, fmt="(' ',A)") "end module config_%(projname)s"
 
 close(unit=fh_num)
 close(unit=ch_num)
