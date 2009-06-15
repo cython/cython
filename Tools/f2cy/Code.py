@@ -28,11 +28,13 @@ class CodeWriter(object):
     def insert(self, writer):
         self.sit.insert(writer.sit)
 
+    def tell(self):
+        return self.sit.stream.tell()
+
     def __getattr__(self, attr):
         return getattr(self.sit, attr)
 
-
-class UtilityCode(object):
+class CompositeCodeBase(object):
 
     def __init__(self, level=0):
         self.level = level
@@ -41,12 +43,17 @@ class UtilityCode(object):
     def copyto(self, target):
         self.root.copyto(target)
 
-class InterfaceCode(object):
+    def getvalue(self):
+        return self.root.getvalue()
+
+class UtilityCode(CompositeCodeBase):
+    pass
+
+class InterfaceCode(CompositeCodeBase):
 
     def __init__(self, level=0):
-        self.level = level
+        CompositeCodeBase.__init__(self, level)
         self.has_subprogs = False
-        self.root = CodeWriter(level)
         self.top = self.root.insertion_point(level)
         self.block_start = self.root.insertion_point(level)
         self.use_stmts = self.root.insertion_point(level+1)
@@ -54,22 +61,15 @@ class InterfaceCode(object):
         self.block_end = self.root.insertion_point(level)
         self.bottom = self.root.insertion_point(level)
 
-    def getvalue(self):
-        return self.root.getvalue()
-
-    def copyto(self, target):
-        self.root.copyto(target)
-
-class CompositeBlock(object):
+class CompositeBlock(CompositeCodeBase):
     '''
     Base class for all Module, SubProgram (functions/subroutines) & program
     code blocks.
     '''
 
     def __init__(self, level=0):
-        self.level = level
+        CompositeCodeBase.__init__(self, level)
         self.has_subprogs = False
-        self.root = CodeWriter(level)
         self.top = self.root.insertion_point(level)
         self.block_start = self.root.insertion_point(level)
         self.use_stmts = self.root.insertion_point(level+1)
@@ -91,12 +91,6 @@ class CompositeBlock(object):
     def add_declaration_block(self, dec):
         self.declarations.insert(dec.root)
 
-    def getvalue(self):
-        return self.root.getvalue()
-
-    def copyto(self, target):
-        self.root.copyto(target)
-
 class ModuleCode(CompositeBlock):
 
     block_type_str = "module"
@@ -115,3 +109,10 @@ class SubroutineCode(SubProgramCode):
 class ProgramCode(CompositeBlock):
 
     block_type_str = "program"
+
+class CySuiteCode(CompositeCodeBase):
+
+    def __init__(self, level=0):
+        CompositeCodeBase.__init__(self, level)
+        self.suite_start = self.root.insertion_point(level)
+        self.suite_body = self.root.insertion_point(level+1)
