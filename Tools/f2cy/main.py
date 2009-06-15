@@ -3,7 +3,7 @@ from fparser import api
 from fparser import block_statements
 from Visitor import PrintTree, KindResolutionVisitor, \
         AutoConfigGenerator, FortranWrapperGenerator, \
-        CHeaderGenerator, PxdGenerator
+        CHeaderGenerator, PxdGenerator, CyHeaderGenerator
 
 def wrap(filenames, directory, outdir, projectname):
     print >>sys.stderr, "wrapping %s from %s in %s" % (filenames, directory, outdir)
@@ -12,7 +12,8 @@ def wrap(filenames, directory, outdir, projectname):
                  AutoConfigGenerator(projectname),
                  FortranWrapperGenerator(projectname),
                  CHeaderGenerator(projectname),
-                 PxdGenerator(projectname)
+                 PxdGenerator(projectname),
+                 CyHeaderGenerator(projectname)
                ]
 
     for fname in filenames:

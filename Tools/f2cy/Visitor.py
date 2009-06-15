@@ -775,10 +775,62 @@ class PxdGenerator(GeneratorBase):
         self.proto_suite.copyto(fh)
 
 class CyHeaderGenerator(GeneratorBase):
-    pass
+
+    @staticmethod
+    def make_fname(base):
+        return "wrap_%s_cy.pxd" % base.lower().rstrip()
+
+    def __init__(self, projname, *args, **kwargs):
+        GeneratorBase.__init__(self, *args, **kwargs)
+        self.projname = projname
+
+        self.import_alias = "wf"
+
+        self.import_code = UtilityCode(level=0)
+        self.proto_code  = UtilityCode(level=0)
+
+        self.seen_subps = set()
+
+    def visit_SubProgramStatement(self, node):
+        if node.name in self.seen_subps:
+            return node
+        self.seen_subps.add(node.name)
+        # TODO: return struct typedecl
+        # Cython API function prototype
+        proto = c_prototype(node)
+        arg_lst_vkrs = arg_vkrs(node)
+        res_vkr = None
+        if isinstance(node, Function):
+            res_vkr = result_vkr(node)
+
+        arglst = proto['arglst'][:]
+        arglst = [("%s.%s" % (self.import_alias, arg)) for arg in arglst]
+
+        if res_vkr is None:
+            res_str = "void"
+        else:
+            res_str = "%s.%s" % (self.import_alias, res_vkr.resolved_name)
+
+        self.proto_code.root.putln("cdef api %s cy_%s(%s)" % (res_str, node.name, ", ".join(arglst)))
+
+    def copyto(self, fh):
+        self.import_code.root.putln("cimport %s as %s" % (PxdGenerator.make_fname(self.projname).split('.')[0], self.import_alias))
+        self.import_code.root.putln("")
+        self.import_code.copyto(fh)
+        self.proto_code.copyto(fh)
 
 class CyImplGenerator(GeneratorBase):
-    pass
+
+    @staticmethod
+    def make_fname(base):
+        return "wrap_%s_cy.pyx" % base.lower().rstrip()
+
+    def __init__(self, projname, *args, **kwargs):
+        GeneratorBase.__init__(self, *args, **kwargs)
+        self.projname = projname
+
+    def visit_SubProgramStatement(self, node):
+        pass
 
 open_files_code = """
 fh_num = 17
