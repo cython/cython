@@ -10,7 +10,8 @@ import sys
 from Code import CodeWriter, CompositeBlock, \
         ModuleCode, SubProgramCode, \
         SubroutineCode, ProgramCode, \
-        UtilityCode, FunctionCode, InterfaceCode
+        UtilityCode, FunctionCode, InterfaceCode, \
+        CySuiteCode
 from Cython.StringIOTree import StringIOTree
 from fparser.block_statements import Function, SubProgramStatement, \
         Module, Program, Subroutine, \
@@ -207,11 +208,15 @@ class VarKindResolution(object):
         self.type_name, self.resolved_name, self.ktp_str, self.defining_scope, self.defining_var =\
                 self.init_from_var(self.var)
 
+        if self.type_name not in ('integer', 'real', 'character', 'logical', 'doubleprecision', 'complex', 'doublecomplex'):
+            raise WrapperError("unknown type name '%s'." % self.type_name)
+
+
     def init_from_var(self, var):
         var_scope = var.typedecl.parent
         assert isinstance(var_scope, (SubProgramStatement, Module, Program))
         length, ktp = var.typedecl.selector
-        type_name = var.typedecl.name.lower()
+        type_name = var.typedecl.name.lower().strip()
 
         resolve_name = ''
 
@@ -367,7 +372,8 @@ class GeneratorBase(TreeVisitor):
 
     is_generator = True
 
-    def make_fname(self, base):
+    @staticmethod
+    def make_fname(base):
         raise NotImplementedError()
 
     def copyto(self, fh):
@@ -381,7 +387,8 @@ class AutoConfigGenerator(GeneratorBase):
 
     is_generator = True
 
-    def make_fname(self, base):
+    @staticmethod
+    def make_fname(base):
         return "autoconfig_%s.f95" % base.lower().strip()
 
     def __init__(self, projname, *args, **kwargs):
@@ -418,12 +425,7 @@ class AutoConfigGenerator(GeneratorBase):
         self.driver_prog.declarations.putln("integer :: fh_num, ch_num, iserr")
 
     def visit_SubProgramStatement(self, node):
-        interface_var_names = node.args[:]
-        if isinstance(node, Function):
-            interface_var_names += [node.result]
-        for argname in interface_var_names:
-            var = node.a.variables[argname]
-            vkr = var.f2cy_var_kind_res
+        for vkr in all_vkrs(node):
             if vkr.resolved_name in self.seen_resolved_names:
                 continue
             self.seen_resolved_names.add(vkr.resolved_name)
@@ -432,6 +434,9 @@ class AutoConfigGenerator(GeneratorBase):
                 assert vkr.defining_scope is vkr.var.parent.parent, `vkr.defining_scope,vkr.var.parent`
                 subr_code = self.resolve_subrs['local_ktp']
                 self.put_scalar_int_code(subr_code, vkr)
+            else:
+                raise NotImplementedError("ktps other than literal "
+                        "integers or kind() calls not currently supported")
         return node
 
     def put_scalar_int_code(self, subr_code, vkr):
@@ -472,7 +477,8 @@ class WrapperError(RuntimeError):
 class FortranWrapperGenerator(GeneratorBase):
 
 
-    def make_fname(self, base):
+    @staticmethod
+    def make_fname(base):
         return "wrap_%s_f.f95" % base.lower().strip()
 
     def __init__(self, projname, *args, **kwargs):
@@ -585,7 +591,8 @@ class FortranWrapperGenerator(GeneratorBase):
 
 class CHeaderGenerator(GeneratorBase):
 
-    def make_fname(self, base):
+    @staticmethod
+    def make_fname(base):
         return "wrap_%s_h.h" % base.lower().strip()
 
     def __init__(self, projname, *args, **kwargs):
@@ -605,43 +612,112 @@ class CHeaderGenerator(GeneratorBase):
             return node
         else:
             self.wrapped.add(node.name)
-        argnames = node.args[:]
-        c_arg_list = []
-        for argname in argnames:
-            var = node.a.variables[argname]
-            vkr = var.f2cy_var_kind_res
-            # XXX: arrays will need to be handled specially here.
-            if var.is_array():
-                raise WrapperError("arrays not currently supported")
-            c_type_str = vkr.resolved_name
-            if 'VALUE' not in var.attributes:
-                c_type_str += " *"
-            c_arg_list.append(c_type_str)
-        # get the return type string
-        if isinstance(node, Subroutine):
-            c_return_type_str = "void"
-        elif isinstance(node, Function):
-            res_var = node.a.variables[node.result]
-            res_var_type_str = res_var.f2cy_var_kind_res.resolved_name
-            c_return_type_str = res_var_type_str
-        # write down the prototype.
-        self.c_protos.putln("%(c_return_type_str)s %(subp_name)s(%(arglst)s);" % \
-                {'c_return_type_str' : c_return_type_str,
-                 'subp_name'         : node.name,
-                 'arglst'            : ", ".join(c_arg_list)
-                 }
-                )
+        proto = c_prototype(node)
+
+        self.c_protos.putln("%s %s(%s);" % \
+                (proto['return_type'], proto['proto_name'], ", ".join(proto['arglst'])))
+
         return node
 
     def copyto(self, fh):
         self.preamble.copyto(fh)
         self.c_protos.copyto(fh)
 
+def all_vkrs(node):
+    vkrs = []
+    interface_var_names = node.args[:]
+    if isinstance(node, Function):
+        interface_var_names += [node.result]
+    for argname in interface_var_names:
+        var = node.a.variables[argname]
+        vkrs.append(var.f2cy_var_kind_res)
+    return vkrs
+
+def c_prototype(node):
+    argnames = node.args[:]
+    c_arg_list = []
+    for argname in argnames:
+        var = node.a.variables[argname]
+        vkr = var.f2cy_var_kind_res
+        # XXX: arrays will need to be handled specially here.
+        if var.is_array():
+            raise NotImplementedError("arrays not currently supported")
+        c_type_str = vkr.resolved_name
+        if 'VALUE' not in var.attributes:
+            c_type_str += " *"
+        c_arg_list.append(c_type_str)
+    # get the return type string
+    if isinstance(node, Subroutine):
+        res_var_type_str = "void"
+    elif isinstance(node, Function):
+        res_var = node.a.variables[node.result]
+        res_var_type_str = res_var.f2cy_var_kind_res.resolved_name
+
+    return {'return_type' : res_var_type_str,
+            'proto_name'  : node.name,
+            'arglst'      : c_arg_list
+            }
+
 class PxdGenerator(GeneratorBase):
 
-    def make_fname(self, base):
+    @staticmethod
+    def make_fname(base):
         return "wrap_%s.pxd" % base.lower().rstrip()
 
+    def __init__(self, projname, *args, **kwargs):
+        GeneratorBase.__init__(self, *args, **kwargs)
+
+        self.projname = projname
+
+        self.seen_resolved_names = set()
+        self.seen_subps = set()
+
+        self.typedef_suite = CySuiteCode(level=0)
+        self.proto_suite = CySuiteCode(level=0)
+
+    def visit_SubProgramStatement(self, node):
+        if node.name in self.seen_subps:
+            return node
+        self.seen_subps.add(node.name)
+        for vkr in all_vkrs(node):
+            if vkr.resolved_name in self.seen_resolved_names:
+                continue
+            self.seen_resolved_names.add(vkr.resolved_name)
+            typemap = {'integer' : 'int',
+                       'character' : 'char',
+                       'logical' : 'int',
+                       'real'    : 'float',
+                       'doubleprecision' : 'float'
+                       }
+            if 'complex' in vkr.type_name: #XXX TODO
+                raise NotImplementedError("complex ktp not currently supported.")
+            self.typedef_suite.suite_body.putln("ctypedef %s %s" % \
+                    (typemap[vkr.type_name], vkr.resolved_name))
+
+        proto = c_prototype(node)
+        self.proto_suite.suite_body.putln("%s %s(%s)" % \
+                (proto['return_type'],
+                 proto['proto_name'],
+                 ", ".join(proto['arglst'])))
+        return node
+
+    def copyto(self, fh):
+        h_name = CHeaderGenerator.make_fname(self.projname)
+        self.typedef_suite.suite_start.putln("cdef extern from \"%s\":" % h_name)
+        self.proto_suite.suite_start.putln("cdef extern:")
+        if not self.typedef_suite.suite_body.tell():
+            self.typedef_suite.suite_body.putln("pass")
+        self.typedef_suite.copyto(fh)
+        fh.write('\n')
+        if not self.proto_suite.suite_body.tell():
+            self.proto_suite.suite_body.putln("pass")
+        self.proto_suite.copyto(fh)
+
+class CyHeaderGenerator(GeneratorBase):
+    pass
+
+class CyImplGenerator(GeneratorBase):
+    pass
 
 open_files_code = """
 fh_num = 17
