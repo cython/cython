@@ -415,7 +415,7 @@ class AutoConfigGenerator(GeneratorBase):
 
     @staticmethod
     def make_fname(base):
-        return "autoconfig_%s.f95" % base.lower().strip()
+        return "genconfig.f95"
 
     def get_temp_int(self):
         self.temp_ctr += 1
@@ -523,10 +523,9 @@ class WrapperError(RuntimeError):
 
 class FortranWrapperGenerator(GeneratorBase):
 
-
     @staticmethod
     def make_fname(base):
-        return "wrap_%s_f.f95" % base.lower().strip()
+        return "%s_fortran.f95" % base.lower().strip()
 
     def __init__(self, projname, *args, **kwargs):
         GeneratorBase.__init__(self, *args, **kwargs)
@@ -588,7 +587,7 @@ class FortranWrapperGenerator(GeneratorBase):
                   'bindname' : node.name
                 })
         subp_code.block_end.putln("end %s %s" % (subp_type_str, wrapname))
-        subp_code.use_stmts.putln("use config_%s" % self.projname)
+        subp_code.use_stmts.putln("use config")
 
         for argname in argnames:
             var = node.a.variables[argname]
@@ -644,7 +643,7 @@ class CHeaderGenerator(GeneratorBase):
 
     @staticmethod
     def make_fname(base):
-        return "wrap_%s_h.h" % base.lower().strip()
+        return "%s_header.h" % base.lower().strip()
 
     def __init__(self, projname, *args, **kwargs):
         GeneratorBase.__init__(self, *args, **kwargs)
@@ -655,7 +654,7 @@ class CHeaderGenerator(GeneratorBase):
         self.wrapped = set()
 
         # add include statement.
-        self.preamble.putln('#include "config_%s.h"' % self.projname)
+        self.preamble.putln('#include "config.h"')
         self.preamble.putln('\n')
 
     def visit_SubProgramStatement(self, node):
@@ -723,7 +722,7 @@ class PxdGenerator(GeneratorBase):
 
     @staticmethod
     def make_fname(base):
-        return "wrap_%s.pxd" % base.lower().rstrip()
+        return "%s_fortran.pxd" % base.lower().rstrip()
 
     def __init__(self, projname, *args, **kwargs):
         GeneratorBase.__init__(self, *args, **kwargs)
@@ -778,7 +777,7 @@ class CyHeaderGenerator(GeneratorBase):
 
     @staticmethod
     def make_fname(base):
-        return "wrap_%s_cy.pxd" % base.lower().rstrip()
+        return "%s.pxd" % base.lower().rstrip()
 
     def __init__(self, projname, *args, **kwargs):
         GeneratorBase.__init__(self, *args, **kwargs)
@@ -823,7 +822,7 @@ class CyImplGenerator(GeneratorBase):
 
     @staticmethod
     def make_fname(base):
-        return "wrap_%s_cy.pyx" % base.lower().rstrip()
+        return "%s.pyx" % base.lower().rstrip()
 
     def __init__(self, projname, *args, **kwargs):
         GeneratorBase.__init__(self, *args, **kwargs)
@@ -835,18 +834,18 @@ class CyImplGenerator(GeneratorBase):
 open_files_code = """
 fh_num = 17
 ch_num = 18
-open(unit=fh_num, file='config_%(projname)s.f95', status='REPLACE', form='FORMATTED', action='WRITE', iostat=iserr)
+open(unit=fh_num, file='config.f95', status='REPLACE', form='FORMATTED', action='WRITE', iostat=iserr)
 if (iserr .gt. 0) then
-  print *, \"an error occured opening the file 'config_%(projname)s.f95', unable to continue\"
+  print *, \"an error occured opening the file 'config.f95', unable to continue\"
   stop
 end if
-open(unit=ch_num, file='config_%(projname)s.h', status='REPLACE', form='FORMATTED', action='WRITE', iostat=iserr)
+open(unit=ch_num, file='config.h', status='REPLACE', form='FORMATTED', action='WRITE', iostat=iserr)
 if (iserr .gt. 0) then
-  print *, \"an error occured opening the file 'config_%(projname)s.h', unable to continue\"
+  print *, \"an error occured opening the file 'config.h', unable to continue\"
   stop
 end if
 
-write(unit=fh_num, fmt="(' ',A)") "module config_%(projname)s"
+write(unit=fh_num, fmt="(' ',A)") "module config"
 write(unit=fh_num, fmt="(' ',A)") "  use iso_c_binding"
 write(unit=fh_num, fmt="(' ',A)") "  implicit none"
 
@@ -854,7 +853,7 @@ write(unit=fh_num, fmt="(' ',A)") "  implicit none"
 
 close_files_code = """
 
-write(unit=fh_num, fmt="(' ',A)") "end module config_%(projname)s"
+write(unit=fh_num, fmt="(' ',A)") "end module config"
 
 close(unit=fh_num)
 close(unit=ch_num)

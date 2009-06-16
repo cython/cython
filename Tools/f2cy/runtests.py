@@ -151,20 +151,21 @@ class F2CYCompileTestCase(unittest.TestCase):
         except ValueError:
             pass
         if os.path.exists(self.workdir):
-            for rmfile in os.listdir(self.workdir):
-                if not self.cleanup_workdir:
-                    if rmfile.lower().startswith("wrap") or rmfile.lower().startswith("autoconfig"):
-                        continue
-                if not self.cleanup_sharedlibs and rmfile.endswith(".so") or rmfile.endswith(".dll"):
-                    continue
-                try:
-                    rmfile = os.path.join(self.workdir, rmfile)
-                    if os.path.isdir(rmfile):
-                        shutil.rmtree(rmfile, ignore_errors=True)
-                    else:
-                        os.remove(rmfile)
-                except IOError:
-                    pass
+            if self.cleanup_workdir:
+                for rmfile in os.listdir(self.workdir):
+                    # if not self.cleanup_workdir:
+                        # if rmfile.lower().startswith("wrap") or rmfile.lower().startswith("autoconfig"):
+                            # continue
+                    # if not self.cleanup_sharedlibs and rmfile.endswith(".so") or rmfile.endswith(".dll"):
+                        # continue
+                    try:
+                        rmfile = os.path.join(self.workdir, rmfile)
+                        if os.path.isdir(rmfile):
+                            shutil.rmtree(rmfile, ignore_errors=True)
+                        else:
+                            os.remove(rmfile)
+                    except IOError:
+                        pass
         else:
             os.makedirs(self.workdirs)
 
