@@ -390,6 +390,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_typedef(entry, code)
                     elif type.is_struct_or_union:
                         self.generate_struct_union_definition(entry, code)
+                    elif type.is_cpp_class:
+                        self.generate_cpp_class_definition(entry, code)
                     elif type.is_enum:
                         self.generate_enum_definition(entry, code)
                     elif type.is_extension_type and entry not in vtabslot_entries:
@@ -637,6 +639,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     self.generate_typedef(entry, code)
                 elif type.is_struct_or_union:
                     self.generate_struct_union_definition(entry, code)
+                elif type.is_cpp_class:
+                    self.generate_cpp_class_definition(entry, code)
                 elif type.is_enum:
                     self.generate_enum_definition(entry, code)
                 elif type.is_extension_type:

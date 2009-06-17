@@ -1372,7 +1372,7 @@ class CppClassType(CType):
     has_attributes = 1
     base_classes = []
     namespace = None
-    
+
     def __init__(self, name, kind, scope, typedef_flag, cname, base_classes,
                  namespace = None, packed=False):
         self.name = name
@@ -1396,16 +1396,18 @@ class CppClassType(CType):
         return "%s %s" % (name, entity_code)
 
     def is_subclass(self, other_type):
-        if not base_classes.empty():
-            for base_class in self.base_classes:
-                if base_class.is_subclass(other_type):
-                    return 1
+        for base_class in self.base_classes:
+            if base_class.is_subclass(other_type):
+                return 1
         return 0
 
     def assignable_from_resolved_type(self, other_type):
+        print self.same_as_resolved_type(other_type)
+        print self.same_as(other_type)
+        print other_type.is_subclass(self)
         if self.same_as_resolved_type(other_type):
             return 1
-        if other.is_subclass(self) or self.same_as(other_type):
+        if other_type.is_subclass(self) or self.same_as(other_type):
             return 1
         return 0
 
