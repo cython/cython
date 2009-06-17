@@ -615,6 +615,16 @@ class FortranWrapperGenerator(GeneratorBase):
                       'var_name'  : argname
                       })
 
+        if isinstance(node, Function):
+            # declare function return type
+            retvar = node.a.variables[node.result]
+            vkr = retvar.f2cy_var_kind_res
+            subp_code.declarations.putln("%(type_name)s(kind=%(ktp)s) :: %(func_name)s" % \
+                    {'type_name' : vkr.type_name,
+                     'ktp'       : vkr.resolved_name,
+                     'func_name' : wrapname
+                     })
+
         # put down the wrapped subprog's interface here.
         ifce_code = self.make_interface(node)
         subp_code.declarations.insert(ifce_code.root)
@@ -796,27 +806,36 @@ class CyHeaderGenerator(GeneratorBase):
         self.seen_subps.add(node.name)
         # TODO: return struct typedecl
         # Cython API function prototype
-        proto = c_prototype(node)
-        arg_lst_vkrs = arg_vkrs(node)
-        res_vkr = None
-        if isinstance(node, Function):
-            res_vkr = result_vkr(node)
+        cypro = cy_prototype(node, self.import_alias)
 
-        arglst = proto['arglst'][:]
-        arglst = [("%s.%s" % (self.import_alias, arg)) for arg in arglst]
-
-        if res_vkr is None:
-            res_str = "void"
-        else:
-            res_str = "%s.%s" % (self.import_alias, res_vkr.resolved_name)
-
-        self.proto_code.root.putln("cdef api %s cy_%s(%s)" % (res_str, node.name, ", ".join(arglst)))
+        self.proto_code.root.putln("cdef api %s cy_%s(%s)" % (cypro['return_type'],
+            cypro['proto_name'], ", ".join(cypro['arglst'])))
 
     def copyto(self, fh):
         self.import_code.root.putln("cimport %s as %s" % (PxdGenerator.make_fname(self.projname).split('.')[0], self.import_alias))
         self.import_code.root.putln("")
         self.import_code.copyto(fh)
         self.proto_code.copyto(fh)
+
+def cy_prototype(node, import_alias):
+    c_proto = c_prototype(node)
+    arg_lst_vkrs = arg_vkrs(node)
+    res_vkr = None
+    if isinstance(node, Function):
+        res_vkr = result_vkr(node)
+
+    arglst = c_proto['arglst'][:]
+    arglst = [("%s.%s" % (import_alias, arg)) for arg in arglst]
+
+    if res_vkr is None:
+        res_str = "void"
+    else:
+        res_str = "%s.%s" % (import_alias, res_vkr.resolved_name)
+
+    return { 'arglst'      : arglst,
+             'arglst_vkrs' : arg_lst_vkrs,
+             'proto_name'  : node.name,
+             'return_type' : res_str}
 
 class CyImplGenerator(GeneratorBase):
 
@@ -828,9 +847,80 @@ class CyImplGenerator(GeneratorBase):
         GeneratorBase.__init__(self, *args, **kwargs)
         self.projname = projname
 
-    def visit_SubProgramStatement(self, node):
-        pass
+        self.import_alias = 'wf'
+        self.import_code = UtilityCode(level=0)
+        self.functions = []
 
+        self.seen_subps = set()
+
+    def gen_api_func(self, node):
+        cypro = cy_prototype(node, self.import_alias)
+        api_func = CySuiteCode(level=0)
+
+        args = []; call_args = []
+        for type_name, vkr in zip(cypro['arglst'], cypro['arglst_vkrs']):
+            args.append("%s %s" % (type_name, vkr.var.name))
+            call_args.append(vkr.var.name)
+
+        api_func.suite_start.putln("cdef api %s cy_%s(%s):" % (cypro['return_type'], cypro['proto_name'], ", ".join(args)))
+
+        if isinstance(node, Function):
+            ret_var = '__f2cy_return'
+            api_func.suite_body.putln("cdef %s %s" % (cypro['return_type'], ret_var))
+            api_func.suite_body.putln("%s = %s.%s(%s)" % (ret_var, self.import_alias, cypro['proto_name'], ", ".join(call_args)))
+            api_func.suite_body.putln("return %s" % ret_var)
+        elif isinstance(node, Subroutine):
+            api_func.suite_body.putln("%s.%s(%s)" % (self.import_alias, cypro['proto_name'], ", ".join(call_args)))
+        self.functions.append(api_func)
+
+    def gen_py_func(self, node):
+        cypro = cy_prototype(node, self.import_alias)
+        py_func = CySuiteCode(level=0)
+        args = []; call_args = []; ret_lst = []
+        for type_name, vkr in zip(cypro['arglst'], cypro['arglst_vkrs']):
+            # no pointer types in python function argument list.
+            args.append("%s.%s %s" % (self.import_alias, vkr.resolved_name, vkr.var.name))
+            if '*' in type_name:
+                call_args.append("&%s" % vkr.var.name)
+            else:
+                call_args.append(vkr.var.name)
+            if vkr.var.is_intent_out() or vkr.var.is_intent_inout():
+                ret_lst.append(vkr.var.name)
+
+        py_func.suite_start.putln("def %s(%s):" % (cypro['proto_name'], ", ".join(args)))
+
+        proc_call = "cy_%s(%s)" % (cypro['proto_name'], ", ".join(call_args))
+
+        if isinstance(node, Function):
+            ret_var = '__f2cy_return'
+            ret_lst.insert(0, ret_var)
+            py_func.suite_body.putln("cdef %s %s" % (cypro['return_type'], ret_var))
+            proc_call = "%s = %s" % (ret_var, proc_call)
+
+        py_func.suite_body.putln(proc_call)
+        py_func.suite_body.putln("return (%s)" % (", ".join(ret_lst)))
+
+        self.functions.append(py_func)
+
+
+    def visit_SubProgramStatement(self, node):
+        if node.name in self.seen_subps:
+            return node
+        self.seen_subps.add(node.name)
+        self.gen_api_func(node)
+        self.gen_py_func(node)
+
+    def copyto(self, fh):
+        self.import_code.root.putln("cimport %s as %s" % (PxdGenerator.make_fname(self.projname).split('.')[0], self.import_alias))
+        self.import_code.root.putln("")
+        self.import_code.copyto(fh)
+
+        for func_code in self.functions:
+            func_code.copyto(fh)
+
+#-------------------------------------------------------------------------------
+#  Code templates.
+#-------------------------------------------------------------------------------
 open_files_code = """
 fh_num = 17
 ch_num = 18

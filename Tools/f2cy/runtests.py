@@ -173,7 +173,12 @@ class F2CYCompileTestCase(unittest.TestCase):
         self.runCompileTest()
 
     def runCompileTest(self):
-        wrap([self.filename], self.directory, self.workdir, os.path.splitext(self.filename)[0])
+        from subprocess import check_call
+        projname = os.path.splitext(self.filename)[0] + '_f2cy'
+        projdir = os.path.join(self.workdir, projname)
+        wrap([self.filename], self.directory, self.workdir, projname)
+        check_call('make', cwd=projdir)
+
 
     def build_target_filenames(self, filename):
         fortran_wrapper = "wrap_%s" % filename

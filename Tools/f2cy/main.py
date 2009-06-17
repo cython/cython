@@ -3,7 +3,8 @@ from fparser import api
 from fparser import block_statements
 from Visitor import PrintTree, KindResolutionVisitor, \
         AutoConfigGenerator, FortranWrapperGenerator, \
-        CHeaderGenerator, PxdGenerator, CyHeaderGenerator
+        CHeaderGenerator, PxdGenerator, CyHeaderGenerator, \
+        CyImplGenerator
 
 def setup_project(projectname, src_dir, outdir):
     fq_projdir = os.path.join(outdir, projectname)
@@ -27,7 +28,8 @@ def wrap(filenames, directory, outdir, projectname):
                  FortranWrapperGenerator(projectname),
                  CHeaderGenerator(projectname),
                  PxdGenerator(projectname),
-                 CyHeaderGenerator(projectname)
+                 CyHeaderGenerator(projectname),
+                 CyImplGenerator(projectname)
                ]
 
     for fname in filenames:
@@ -44,3 +46,80 @@ def wrap(filenames, directory, outdir, projectname):
         fh = open(full_path, 'w')
         stage.copyto(fh)
         fh.close()
+
+    # write out the makefile
+    gen_makefile(projectname, filenames, directory, projdir)
+
+def gen_makefile(projname, src_files, src_dir, out_dir):
+    import sys
+    PYTHON = '/usr/bin/python2.6'
+    PY_INC = '-I/usr/include/python2.6'
+    CYTHON = '/home/ksmith/GSoC/gsoc-kurt/cython.py'
+    SRCDIR = src_dir
+    if len(src_files) != 1:
+        raise RuntimeError("not set-up for multiple fortran source files, yet.")
+    SRCFILE = src_files[0]
+    FORTSRCBASE, FORTSRCEXT = os.path.splitext(SRCFILE)
+    PROJECTNAME = projname
+    fh = open(os.path.join(out_dir, 'Makefile'), 'w')
+    fh.write(makefile_template % locals())
+
+    fh.close()
+
+makefile_template = '''
+PYTHON=%(PYTHON)s
+PY_INC=%(PY_INC)s
+CYTHON=%(CYTHON)s
+
+SRCDIR =%(SRCDIR)s
+
+FORTSRCBASE = %(FORTSRCBASE)s
+FORTSRCEXT = %(FORTSRCEXT)s
+
+CONFIG = config
+GENCONFIG = genconfig
+PROJNAME = %(PROJECTNAME)s
+FORTSOURCE = $(FORTSRCBASE)$(FORTSRCEXT)
+FORTWRAP = $(PROJNAME)_fortran
+
+FC = gfortran
+FFLAGS = -g -Wall -fPIC
+CFLAGS = -pthread -fno-strict-aliasing -g -fwrapv -Wall -Wstrict-prototypes -fPIC
+LFLAGS = -pthread -shared -Wl,-Bsymbolic-functions -lgfortran
+CC = gcc
+
+
+#------------------------------------------------------------------------------
+all: $(PROJNAME).so
+
+%%.c : %%.pyx $(CONFIG).h
+	$(PYTHON) $(CYTHON) $<
+
+$(FORTSRCBASE).o : $(SRCDIR)/$(FORTSOURCE)
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(CONFIG).h : $(GENCONFIG).f95
+	$(FC) $< -o $(GENCONFIG)
+	./$(GENCONFIG)
+	rm $(GENCONFIG)
+
+$(CONFIG).f95 : $(GENCONFIG).f95
+	$(FC) $< -o $(GENCONFIG)
+	./$(GENCONFIG)
+	rm $(GENCONFIG)
+
+$(CONFIG).o : $(CONFIG).f95
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(FORTWRAP).o : $(FORTWRAP).f95 $(CONFIG).o
+	$(FC) $(FFLAGS) -c $< -o $@
+
+$(PROJNAME).o : $(PROJNAME).c
+	$(CC) $(CFLAGS) $(PY_INC) -c $< -o $@
+
+$(PROJNAME).so : $(PROJNAME).o $(FORTWRAP).o $(FORTSRCBASE).o $(PROJNAME).o
+	$(CC) $(LFLAGS) $? -o $@
+
+clean:
+	rm *.o *.so *.c *.mod
+'''
