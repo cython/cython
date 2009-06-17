@@ -2564,7 +2564,6 @@ def p_cpp_class_definition(s, pos,  ctx):
     if s.sy == '[':
         error(s.position(), "Name options not allowed for C++ class")
     if s.sy == ':':
-        attributes = None
         s.next()
         s.expect('NEWLINE')
         s.expect_indent()

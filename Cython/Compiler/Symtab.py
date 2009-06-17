@@ -384,34 +384,6 @@ class Scope(object):
             self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
         return entry
     
-    def declare_cpp_class(self, name, kind, scope,
-            typedef_flag, pos, cname = None, base_classes = [], namespace = None,
-            visibility = 'extern', packed = False):
-        if visibility != 'extern':
-            error(pos, "C++ classes may only be extern")
-        if cname is None:
-            cname = name
-        entry = self.lookup(name)
-        if not entry:
-            type = PyrexTypes.CppClassType(
-                name, kind, scope, typedef_flag, cname, base_classes, namespace, packed)
-            entry = self.declare_type(name, type, pos, cname,
-                visibility = visibility, defining = scope is not None)
-        else:
-            if not (entry.is_type and entry.type.is_cpp_class
-                    and entry.type.kind == kind):
-                warning(pos, "'%s' redeclared  " % name, 0)
-            elif scope and entry.type.scope:
-                warning(pos, "'%s' already defined  (ignoring second definition)" % name, 0)
-            else:
-                self.check_previous_typedef_flag(entry, typedef_flag, pos)
-                if scope:
-                    entry.type.scope = scope
-                    self.type_entries.append(entry)
-        if not scope and not entry.type.scope:
-            self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
-        return entry
-    
     def check_previous_typedef_flag(self, entry, typedef_flag, pos):
         if typedef_flag != entry.type.typedef_flag:
             error(pos, "'%s' previously declared using '%s'" % (
@@ -1122,6 +1094,44 @@ class ModuleScope(Scope):
         #
         return entry
     
+    def declare_cpp_class(self, name, kind, scope,
+            typedef_flag, pos, cname = None, base_classes = [], namespace = None,
+            visibility = 'extern', packed = False):
+        def declare_inherited_attributes(entry, base_entry):
+            if base_entry:
+                for base_class in base_entry.type.base_classes:
+                    new_entry = self.lookup(base_class)
+                    if base_entry:
+                        declare_inherited_attributes(entry, new_entry)
+                        entry.type.scope.declare_inherited_cpp_attributes(new_entry.type.scope)
+                    
+        if visibility != 'extern':
+            error(pos, "C++ classes may only be extern")
+        if cname is None:
+            cname = name
+        entry = self.lookup(name)
+        if not entry:
+            type = PyrexTypes.CppClassType(
+                name, kind, scope, typedef_flag, cname, base_classes, namespace, packed)
+            entry = self.declare_type(name, type, pos, cname,
+                visibility = visibility, defining = scope is not None)
+        else:
+            if not (entry.is_type and entry.type.is_cpp_class
+                    and entry.type.kind == kind):
+                warning(pos, "'%s' redeclared  " % name, 0)
+            elif scope and entry.type.scope:
+                warning(pos, "'%s' already defined  (ignoring second definition)" % name, 0)
+            else:
+                self.check_previous_typedef_flag(entry, typedef_flag, pos)
+                if scope:
+                    entry.type.scope = scope
+                    self.type_entries.append(entry)
+        if not scope and not entry.type.scope:
+            self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
+            entry.type.scope = CppClassScope(name)
+        declare_inherited_attributes(entry, entry)
+        return entry
+    
     def check_for_illegal_incomplete_ctypedef(self, typedef_flag, pos):
         if typedef_flag and not self.in_cinclude:
             error(pos, "Forward-referenced type must use 'cdef', not 'ctypedef'")
@@ -1582,6 +1592,7 @@ class CClassScope(ClassScope):
 
 class CppClassScope(Scope):
     #  Namespace of a C++ class.
+    inherited_var_entries = []
     
     def __init__(self, name="?"):
         Scope.__init__(self, name, None, None)
@@ -1591,8 +1602,6 @@ class CppClassScope(Scope):
         # Add an entry for an attribute.
         if not cname:
             cname = name
-        if visibility != 'extern':
-            error(pos, "Visibility for C++ class member are extern only")
         if type.is_cfunction:
             type = PyrexTypes.CPtrType(type)
         entry = self.declare(name, cname, type, pos, visibility)
