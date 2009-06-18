@@ -898,7 +898,13 @@ class CyImplGenerator(GeneratorBase):
             proc_call = "%s = %s" % (ret_var, proc_call)
 
         py_func.suite_body.putln(proc_call)
-        py_func.suite_body.putln("return (%s)" % (", ".join(ret_lst)+", "))
+        if not ret_lst:
+            ret_tpl = ""
+        elif len(ret_lst) == 1:
+            ret_tpl = "(%s,)" % ret_lst[0]
+        else:
+            ret_tpl = "(%s)" % ", ".join(ret_lst)
+        py_func.suite_body.putln("return %s" % ret_tpl)
 
         self.functions.append(py_func)
 
