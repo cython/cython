@@ -250,7 +250,8 @@ class VarKindResolution(object):
 
         elif ktp_parse[0] == 'kind':
             self.ktp_str = ktp
-            self.resolved_name = mangle_prefix+stn[self.type_name]+'_kind'+ktp_parse[1]
+            num_str = ktp_parse[1].replace('.','')
+            self.resolved_name = mangle_prefix+stn[self.type_name]+'_kind'+num_str
             self.defining_scope = var_scope
             self.defining_param = None
 
