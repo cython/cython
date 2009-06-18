@@ -93,33 +93,33 @@ CC = gcc
 all: $(PROJNAME).so
 
 %%.c : %%.pyx $(CONFIG).h
-	$(PYTHON) $(CYTHON) $<
+	@$(PYTHON) $(CYTHON) $<
 
 $(FORTSRCBASE).o : $(SRCDIR)/$(FORTSOURCE)
-	$(FC) $(FFLAGS) -c $< -o $@
+	@$(FC) $(FFLAGS) -c $< -o $@
 
 $(CONFIG).h : $(GENCONFIG).f95
-	$(FC) $< -o $(GENCONFIG)
-	./$(GENCONFIG)
-	rm $(GENCONFIG)
+	@$(FC) $< -o $(GENCONFIG)
+	@./$(GENCONFIG)
+	@rm $(GENCONFIG)
 
 $(CONFIG).f95 : $(GENCONFIG).f95
-	$(FC) $< -o $(GENCONFIG)
-	./$(GENCONFIG)
-	rm $(GENCONFIG)
+	@$(FC) $< -o $(GENCONFIG)
+	@./$(GENCONFIG)
+	@rm $(GENCONFIG)
 
 $(CONFIG).o : $(CONFIG).f95
-	$(FC) $(FFLAGS) -c $< -o $@
+	@$(FC) $(FFLAGS) -c $< -o $@
 
 $(FORTWRAP).o : $(FORTWRAP).f95 $(CONFIG).o
-	$(FC) $(FFLAGS) -c $< -o $@
+	@$(FC) $(FFLAGS) -c $< -o $@
 
 $(PROJNAME).o : $(PROJNAME).c
-	$(CC) $(CFLAGS) $(PY_INC) -c $< -o $@
+	@$(CC) $(CFLAGS) $(PY_INC) -c $< -o $@
 
 $(PROJNAME).so : $(PROJNAME).o $(FORTWRAP).o $(FORTSRCBASE).o $(PROJNAME).o
-	$(CC) $(LFLAGS) $? -o $@
+	@$(CC) $(LFLAGS) $? -o $@
 
 clean:
-	rm *.o *.so *.c *.mod
+	@rm *.o *.so *.c *.mod
 '''

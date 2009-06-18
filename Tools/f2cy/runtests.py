@@ -119,7 +119,11 @@ class F2CYTestBuilder(object):
             if self.exclude_selectors:
                 if [1 for match in self.exclude_selectors if match(fqbasename)]:
                     continue
-            test_class = F2CYCompileTestCase
+            if context in TEST_RUN_DIRS:
+                # test_class = F2CYCompileTestCase
+                test_class = F2CYRunTestCase
+            else:
+                test_class = F2CYCompileTestCase
             suite.addTest(self.build_test(test_class, path, workdir, filename))
         return suite
 
@@ -127,6 +131,8 @@ class F2CYTestBuilder(object):
         return test_class(path, workdir, filename,
                 cleanup_workdir=self.cleanup_workdir,
                 cleanup_sharedlibs=self.cleanup_sharedlibs)
+
+
 
 class F2CYCompileTestCase(unittest.TestCase):
     def __init__(self, directory, workdir, filename,
@@ -174,10 +180,10 @@ class F2CYCompileTestCase(unittest.TestCase):
 
     def runCompileTest(self):
         from subprocess import check_call
-        projname = os.path.splitext(self.filename)[0] + '_f2cy'
-        projdir = os.path.join(self.workdir, projname)
-        wrap([self.filename], self.directory, self.workdir, projname)
-        check_call('make', cwd=projdir)
+        self.projname = os.path.splitext(self.filename)[0] + '_f2cy'
+        self.projdir = os.path.join(self.workdir, self.projname)
+        wrap([self.filename], self.directory, self.workdir, self.projname)
+        check_call('make', cwd=self.projdir)
 
 
     def build_target_filenames(self, filename):
@@ -191,6 +197,31 @@ class F2CYCompileTestCase(unittest.TestCase):
     def run_wrapper(self, directory, filename, workdir, incdir):
         wrap(filename, directory, workdir)
 
+
+class F2CYRunTestCase(F2CYCompileTestCase):
+    def shortDescription(self):
+        return "compiling and running %s" % self.filename
+
+    def run(self, result=None):
+        if result is None:
+            result = self.defaultTestResult()
+        result.startTest(self)
+        try:
+            self.setUp()
+            self.runCompileTest()
+            if self.projdir not in sys.path:
+                sys.path.insert(0, self.projdir)
+            doctest_mod_base = self.projname+'_doctest'
+            doctest_mod_fqpath = os.path.join(self.directory, doctest_mod_base+'.py')
+            shutil.copy(doctest_mod_fqpath, self.projdir)
+            doctest.DocTestSuite(self.projname+'_doctest').run(result) #??
+        except Exception:
+            result.addError(self, sys.exc_info())
+            result.stopTest(self)
+        try:
+            self.tearDown()
+        except Exception:
+            pass
 
 
 class TestBuilder(object):

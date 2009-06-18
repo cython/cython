@@ -222,7 +222,7 @@ class VarKindResolution(object):
             raise WrapperError("unknown type name '%s'." % self.type_name)
 
         if not self.resolved_name:
-            import pdb; pdb.set_trace()
+            raise WrapperError("unable to resolve the kind type parameter for variable %s" % self.var.name)
 
 
     def init_from_var(self):
@@ -713,7 +713,7 @@ def c_prototype(node):
         if var.is_array():
             raise NotImplementedError("arrays not currently supported")
         c_type_str = vkr.resolved_name
-        if 'VALUE' not in var.attributes or not var.is_intent_in():
+        if not ('VALUE' in var.attributes or var.is_intent_in()):
             c_type_str += " *"
         c_arg_list.append(c_type_str)
     # get the return type string
@@ -898,7 +898,7 @@ class CyImplGenerator(GeneratorBase):
             proc_call = "%s = %s" % (ret_var, proc_call)
 
         py_func.suite_body.putln(proc_call)
-        py_func.suite_body.putln("return (%s)" % (", ".join(ret_lst)))
+        py_func.suite_body.putln("return (%s)" % (", ".join(ret_lst)+", "))
 
         self.functions.append(py_func)
 
