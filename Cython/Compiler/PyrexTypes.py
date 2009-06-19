@@ -993,6 +993,9 @@ class CPtrType(CType):
                 return self.base_type.pointer_assignable_from_resolved_type(other_type)
             else:
                 return 0
+        if (self.base_type.is_cpp_class and other_type.is_ptr 
+                and other_type.base_type.is_cpp_class and other_type.base_type.is_subclass(self.base_type)):
+            return 1
         if other_type.is_array or other_type.is_ptr:
             return self.base_type.is_void or self.base_type.same_as(other_type.base_type)
         return 0
@@ -1396,19 +1399,11 @@ class CppClassType(CType):
         return "%s %s" % (name, entity_code)
 
     def is_subclass(self, other_type):
+        if self.same_as_resolved_type(other_type):
+            return 1
         for base_class in self.base_classes:
             if base_class.is_subclass(other_type):
                 return 1
-        return 0
-
-    def assignable_from_resolved_type(self, other_type):
-        print self.same_as_resolved_type(other_type)
-        print self.same_as(other_type)
-        print other_type.is_subclass(self)
-        if self.same_as_resolved_type(other_type):
-            return 1
-        if other_type.is_subclass(self) or self.same_as(other_type):
-            return 1
         return 0
 
     def attributes_known(self):
