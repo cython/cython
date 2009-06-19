@@ -1963,6 +1963,8 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                 error(s.position(), "Empty declarator")
             name = ""
             cname = None
+        if cname is None and ctx.namespace is not None:
+            cname = ctx.namespace + "::" + name
         result = Nodes.CNameDeclaratorNode(pos,
             name = name, cname = cname, default = rhs)
     result.calling_convention = calling_convention
@@ -2124,7 +2126,7 @@ def p_cdef_extern_block(s, pos, ctx):
         _, include_file = p_string_literal(s)
     if s.systring == "namespace":
         s.next()
-        ctx.namespace = p_ident(s)
+        ctx.namespace = p_dotted_name(s, as_allowed=False)[2].replace('.', '::')
     ctx = ctx(cdef_flag = 1, visibility = 'extern')
     if p_nogil(s):
         ctx.nogil = 1
@@ -2141,6 +2143,8 @@ def p_c_enum_definition(s, pos, ctx):
         name = s.systring
         s.next()
         cname = p_opt_cname(s)
+        if cname is None and ctx.namespace is not None:
+            cname = ctx.namespace + "::" + name
     else:
         name = None
         cname = None
@@ -2195,6 +2199,8 @@ def p_c_struct_or_union_definition(s, pos, ctx):
     s.next()
     name = p_ident(s)
     cname = p_opt_cname(s)
+    if cname is None and ctx.namespace is not None:
+        cname = ctx.namespace + "::" + name
     attributes = None
     if s.sy == ':':
         s.next()
@@ -2539,13 +2545,14 @@ def p_cpp_class_definition(s, pos,  ctx):
     s.next()
     module_path = []
     class_name = p_ident(s)
+    cname = p_opt_cname(s)
+    if cname is None and ctx.namespace is not None:
+        cname = ctx.namespace + "::" + class_name
     if s.sy == '.':
         error(pos, "Qualified class name not allowed C++ class")
     base_classes = []
     objstruct_name = None
     typeobj_name = None
-    base_class_module = None
-    base_class_name = None
     if s.sy == '(':
         base_class = True
         while (base_class):
@@ -2581,9 +2588,8 @@ def p_cpp_class_definition(s, pos,  ctx):
         s.expect_newline("Syntax error in C++ class definition")
     return Nodes.CppClassNode(pos,
         name = class_name,
-        cname = None,
+        cname = cname,
         base_classes = base_classes,
-        namespace = ctx.namespace,
         visibility = ctx.visibility,
         in_pxd = ctx.level == 'module_pxd',
         attributes = attributes)
