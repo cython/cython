@@ -179,11 +179,16 @@ class F2CYCompileTestCase(unittest.TestCase):
         self.runCompileTest()
 
     def runCompileTest(self):
-        from subprocess import check_call
+        from subprocess import Popen, PIPE, STDOUT, CalledProcessError
         self.projname = os.path.splitext(self.filename)[0] + '_f2cy'
         self.projdir = os.path.join(self.workdir, self.projname)
         wrap([self.filename], self.directory, self.workdir, self.projname)
-        check_call('make', cwd=self.projdir)
+        p = Popen(['make'], cwd=self.projdir, close_fds=True,
+                stdout=PIPE, stderr=STDOUT)
+        output = p.communicate()[0]
+        if p.returncode:
+            raise CalledProcessError(p.returncode, "make")
+
 
 
     def build_target_filenames(self, filename):
