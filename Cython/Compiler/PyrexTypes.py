@@ -1374,10 +1374,8 @@ class CppClassType(CType):
     is_cpp_class = 1
     has_attributes = 1
     base_classes = []
-    namespace = None
-
-    def __init__(self, name, kind, scope, typedef_flag, cname, base_classes,
-                 namespace = None, packed=False):
+    
+    def __init__(self, name, kind, scope, typedef_flag, cname, base_classes, packed=False):
         self.name = name
         self.cname = cname
         self.kind = kind
@@ -1387,15 +1385,12 @@ class CppClassType(CType):
         self._convert_code = None
         self.packed = packed
         self.base_classes = base_classes
-        self.namespace = namespace
 
     def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
         if for_display or pyrex:
             name = self.name
         else:
             name = self.cname
-            if self.namespace is not None:
-                name = "%s::%s" % (self.namespace.replace('.', '::'), name)
         return "%s %s" % (name, entity_code)
 
     def is_subclass(self, other_type):

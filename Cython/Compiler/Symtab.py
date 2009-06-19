@@ -1095,7 +1095,7 @@ class ModuleScope(Scope):
         return entry
     
     def declare_cpp_class(self, name, kind, scope,
-            typedef_flag, pos, cname = None, base_classes = [], namespace = None,
+            typedef_flag, pos, cname = None, base_classes = [],
             visibility = 'extern', packed = False):
         if visibility != 'extern':
             error(pos, "C++ classes may only be extern")
@@ -1104,7 +1104,7 @@ class ModuleScope(Scope):
         entry = self.lookup(name)
         if not entry:
             type = PyrexTypes.CppClassType(
-                name, kind, scope, typedef_flag, cname, base_classes, namespace, packed)
+                name, kind, scope, typedef_flag, cname, base_classes, packed)
             entry = self.declare_type(name, type, pos, cname,
                 visibility = visibility, defining = scope is not None)
         else:

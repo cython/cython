@@ -912,7 +912,6 @@ class CppClassNode(CStructOrUnionDefNode):
     #  attributes    [CVarDefNode] or None
     #  entry         Entry
     #  base_classes  [string]
-    #  namespace     string or None
 
     def analyse_declarations(self, env):
         scope = None
@@ -931,7 +930,7 @@ class CppClassNode(CStructOrUnionDefNode):
                 base_class_types.append(base_class_entry.type)
         self.entry = env.declare_cpp_class(
             self.name, "cppclass", scope, 0, self.pos,
-            self.cname, base_class_types, self.namespace, visibility = self.visibility)
+            self.cname, base_class_types, visibility = self.visibility)
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
