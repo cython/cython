@@ -920,9 +920,18 @@ class CppClassNode(CStructOrUnionDefNode):
             scope = CppClassScope(self.name)
         else:
             self.attributes = None
+        base_class_types = []
+        for base_class_name in self.base_classes:
+            base_class_entry = env.lookup(base_class_name)
+            if base_class_entry is None:
+                error(self.pos, "'%s' not found" % base_class_name)
+            elif not base_class_entry.is_type or not base_class_entry.type.is_cpp_class:
+                error(self.pos, "'%s' is not a cpp class type" % base_class_name)
+            else:
+                base_class_types.append(base_class_entry.type)
         self.entry = env.declare_cpp_class(
             self.name, "cppclass", scope, 0, self.pos,
-            self.cname, self.base_classes, self.namespace, visibility = self.visibility)
+            self.cname, base_class_types, self.namespace, visibility = self.visibility)
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1

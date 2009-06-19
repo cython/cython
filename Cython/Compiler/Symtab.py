@@ -1097,14 +1097,6 @@ class ModuleScope(Scope):
     def declare_cpp_class(self, name, kind, scope,
             typedef_flag, pos, cname = None, base_classes = [], namespace = None,
             visibility = 'extern', packed = False):
-        def declare_inherited_attributes(entry, base_entry):
-            if base_entry:
-                for base_class in base_entry.type.base_classes:
-                    new_entry = self.lookup(base_class)
-                    if base_entry:
-                        declare_inherited_attributes(entry, new_entry)
-                        entry.type.scope.declare_inherited_cpp_attributes(new_entry.type.scope)
-                    
         if visibility != 'extern':
             error(pos, "C++ classes may only be extern")
         if cname is None:
@@ -1129,7 +1121,12 @@ class ModuleScope(Scope):
         if not scope and not entry.type.scope:
             self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
             entry.type.scope = CppClassScope(name)
-        declare_inherited_attributes(entry, entry)
+        
+        def declare_inherited_attributes(entry, base_classes):
+            for base_class in base_classes:
+                declare_inherited_attributes(entry, base_class.base_classes)
+                entry.type.scope.declare_inherited_cpp_attributes(base_class.scope)                 
+        declare_inherited_attributes(entry, base_classes)
         return entry
     
     def check_for_illegal_incomplete_ctypedef(self, typedef_flag, pos):
@@ -1621,11 +1618,9 @@ class CppClassScope(Scope):
         # Declare entries for all the C++ attributes of an
         # inherited type, with cnames modified appropriately
         # to work with this type.
-        def adapt(cname):
-            return "%s.%s" % (Naming.obj_base_cname, base_entry.cname)
         for base_entry in \
             base_scope.inherited_var_entries + base_scope.var_entries:
-                entry = self.declare(base_entry.name, adapt(base_entry.cname), 
+                entry = self.declare(base_entry.name, base_entry.cname, 
                     base_entry.type, None, 'extern')
                 entry.is_variable = 1
                 self.inherited_var_entries.append(entry)
