@@ -30,11 +30,6 @@ module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_
 
 verbose = 0
 
-def dumptree(t):
-    # For quick debugging in pipelines
-    print t.dump()
-    return t
-
 class CompilationData(object):
     #  Bundles the information that is passed from transform to transform.
     #  (For now, this is only)
@@ -75,116 +70,11 @@ class Context(object):
             os.path.join(os.path.dirname(__file__), '..', 'Includes'))
         self.include_directories = include_directories + [standard_include_path]
 
-    def create_pipeline(self, pxd, py=False):
-        from Visitor import PrintTree
-        from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
-        from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
-        from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
-        from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
-        from ParseTreeTransforms import AlignFunctionDefinitions, GilCheck
-        from AutoDocTransforms import EmbedSignature
-        from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
-        from Optimize import OptimizeBuiltinCalls, ConstantFolding, FinalOptimizePhase
-        from Buffer import IntroduceBufferAuxiliaryVars
-        from ModuleNode import check_c_declarations
-
-        # Temporary hack that can be used to ensure that all result_code's
-        # are generated at code generation time.
-        import Visitor
-        class ClearResultCodes(Visitor.CythonTransform):
-            def visit_ExprNode(self, node):
-                self.visitchildren(node)
-                node.result_code = "<cleared>"
-                return node
-
-        if pxd:
-            _check_c_declarations = None
-            _specific_post_parse = PxdPostParse(self)
-        else:
-            _check_c_declarations = check_c_declarations
-            _specific_post_parse = None
-            
-        if py and not pxd:
-            _align_function_definitions = AlignFunctionDefinitions(self)
-        else:
-            _align_function_definitions = None
- 
-        return [
-            NormalizeTree(self),
-            PostParse(self),
-            _specific_post_parse,
-            InterpretCompilerDirectives(self, self.pragma_overrides),
-            _align_function_definitions,
-            ConstantFolding(),
-            FlattenInListTransform(),
-            WithTransform(self),
-            DecoratorTransform(self),
-            AnalyseDeclarationsTransform(self),
-            EmbedSignature(self),
-            TransformBuiltinMethods(self),
-            IntroduceBufferAuxiliaryVars(self),
-            _check_c_declarations,
-            AnalyseExpressionsTransform(self),
-            OptimizeBuiltinCalls(),
-            ConstantFolding(),
-            IterationTransform(),
-            SwitchTransform(),
-            FinalOptimizePhase(self),
-            GilCheck(),
-#            ClearResultCodes(self),
-#            SpecialFunctions(self),
-            #        CreateClosureClasses(context),
-            ]
-
-    def create_pyx_pipeline(self, options, result, py=False):
-        def generate_pyx_code(module_node):
-            module_node.process_implementation(options, result)
-            result.compilation_source = module_node.compilation_source
-            return result
-
-        def inject_pxd_code(module_node):
-            from textwrap import dedent
-            stats = module_node.body.stats
-            for name, (statlistnode, scope) in self.pxds.iteritems():
-                # Copy over function nodes to the module
-                # (this seems strange -- I believe the right concept is to split
-                # ModuleNode into a ModuleNode and a CodeGenerator, and tell that
-                # CodeGenerator to generate code both from the pyx and pxd ModuleNodes.
-                 stats.append(statlistnode)
-                 # Until utility code is moved to code generation phase everywhere,
-                 # we need to copy it over to the main scope
-                 module_node.scope.utility_code_list.extend(scope.utility_code_list)
-            return module_node
-
-        return ([
-                create_parse(self),
-            ] + self.create_pipeline(pxd=False, py=py) + [
-                inject_pxd_code,
-                generate_pyx_code,
-            ])
-
-    def create_pxd_pipeline(self, scope, module_name):
-        def parse_pxd(source_desc):
-            tree = self.parse(source_desc, scope, pxd=True,
-                              full_module_name=module_name)
-            tree.scope = scope
-            tree.is_pxd = True
-            return tree
-
-        from CodeGeneration import ExtractPxdCode
-
-        # The pxd pipeline ends up with a CCodeWriter containing the
-        # code of the pxd, as well as a pxd scope.
-        return [parse_pxd] + self.create_pipeline(pxd=True) + [
-            ExtractPxdCode(self),
-            ]
-            
-    def create_py_pipeline(self, options, result):
-        return self.create_pyx_pipeline(options, result, py=True)
-
+    # pipeline creation functions can now be found in Pipeline.py
 
     def process_pxd(self, source_desc, scope, module_name):
-        pipeline = self.create_pxd_pipeline(scope, module_name)
+        import Pipeline
+        pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
         result = self.run_pipeline(pipeline, source_desc)
         return result
     
@@ -525,6 +415,7 @@ def create_default_resultobj(compilation_source, options):
     return result
 
 def run_pipeline(source, options, full_module_name = None):
+    import Pipeline
     # Set up context
     context = Context(options.include_path, options.pragma_overrides)
 
@@ -539,9 +430,9 @@ def run_pipeline(source, options, full_module_name = None):
     
     # Get pipeline
     if source_desc.filename.endswith(".py"):
-        pipeline = context.create_py_pipeline(options, result)
+        pipeline = Pipeline.create_py_pipeline(context, options, result)
     else:
-        pipeline = context.create_pyx_pipeline(options, result)
+        pipeline = Pipeline.create_pyx_pipeline(context, options, result)
 
     context.setup_errors(options)
     err, enddata = context.run_pipeline(pipeline, source)
