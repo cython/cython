@@ -14,7 +14,6 @@ except NameError:
     from sets import Set as set
 
 import itertools
-from time import time
 
 import Code
 import Errors
@@ -36,17 +35,6 @@ import Options
 module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
 
 verbose = 0
-
-def dumptree(t):
-    # For quick debugging in pipelines
-    print t.dump()
-    return t
-
-def abort_on_errors(node):
-    # Stop the pipeline if there are any errors.
-    if Errors.num_errors != 0:
-        raise AbortError, "pipeline break"
-    return node
 
 class CompilationData(object):
     #  Bundles the information that is passed from transform to transform.
@@ -102,204 +90,22 @@ class Context(object):
             self.future_directives.add(unicode_literals)
             self.modules['builtins'] = self.modules['__builtin__']
 
-    def create_pipeline(self, pxd, py=False):
-        from Visitor import PrintTree
-        from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
-        from ParseTreeTransforms import ForwardDeclareTypes, AnalyseDeclarationsTransform
-        from ParseTreeTransforms import AnalyseExpressionsTransform
-        from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
-        from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
-        from ParseTreeTransforms import ExpandInplaceOperators, ParallelRangeTransform
-        from TypeInference import MarkAssignments, MarkOverflowingArithmetic
-        from ParseTreeTransforms import AdjustDefByDirectives, AlignFunctionDefinitions
-        from ParseTreeTransforms import RemoveUnreachableCode, GilCheck
-        from FlowControl import CreateControlFlowGraph
-        from AnalysedTreeTransforms import AutoTestDictTransform
-        from AutoDocTransforms import EmbedSignature
-        from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
-        from Optimize import EarlyReplaceBuiltinCalls, OptimizeBuiltinCalls
-        from Optimize import ConstantFolding, FinalOptimizePhase
-        from Optimize import DropRefcountingTransform
-        from Buffer import IntroduceBufferAuxiliaryVars
-        from ModuleNode import check_c_declarations, check_c_declarations_pxd
-
-        if pxd:
-            _check_c_declarations = check_c_declarations_pxd
-            _specific_post_parse = PxdPostParse(self)
-        else:
-            _check_c_declarations = check_c_declarations
-            _specific_post_parse = None
-
-        if py and not pxd:
-            _align_function_definitions = AlignFunctionDefinitions(self)
-        else:
-            _align_function_definitions = None
-
-        return [
-            NormalizeTree(self),
-            PostParse(self),
-            _specific_post_parse,
-            InterpretCompilerDirectives(self, self.compiler_directives),
-            ParallelRangeTransform(self),
-            AdjustDefByDirectives(self),
-            MarkClosureVisitor(self),
-            _align_function_definitions,
-            RemoveUnreachableCode(self),
-            ConstantFolding(),
-            FlattenInListTransform(),
-            WithTransform(self),
-            DecoratorTransform(self),
-            ForwardDeclareTypes(self),
-            AnalyseDeclarationsTransform(self),
-            AutoTestDictTransform(self),
-            EmbedSignature(self),
-            EarlyReplaceBuiltinCalls(self),  ## Necessary?
-            TransformBuiltinMethods(self),  ## Necessary?
-            CreateControlFlowGraph(self),
-            RemoveUnreachableCode(self),
-            MarkAssignments(self),
-            MarkOverflowingArithmetic(self),
-            IntroduceBufferAuxiliaryVars(self),
-            _check_c_declarations,
-            AnalyseExpressionsTransform(self),
-            CreateClosureClasses(self),  ## After all lookups and type inference
-            ExpandInplaceOperators(self),
-            OptimizeBuiltinCalls(self),  ## Necessary?
-            IterationTransform(),
-            SwitchTransform(),
-            DropRefcountingTransform(),
-            FinalOptimizePhase(self),
-            GilCheck(),
-            ]
-
-    def create_pyx_pipeline(self, options, result, py=False):
-        def generate_pyx_code(module_node):
-            module_node.process_implementation(options, result)
-            result.compilation_source = module_node.compilation_source
-            return result
-
-        def inject_pxd_code(module_node):
-            from textwrap import dedent
-            stats = module_node.body.stats
-            for name, (statlistnode, scope) in self.pxds.iteritems():
-                # Copy over function nodes to the module
-                # (this seems strange -- I believe the right concept is to split
-                # ModuleNode into a ModuleNode and a CodeGenerator, and tell that
-                # CodeGenerator to generate code both from the pyx and pxd ModuleNodes.
-                 stats.append(statlistnode)
-                 # Until utility code is moved to code generation phase everywhere,
-                 # we need to copy it over to the main scope
-                 module_node.scope.utility_code_list.extend(scope.utility_code_list)
-            return module_node
-
-        test_support = []
-        if options.evaluate_tree_assertions:
-            from Cython.TestUtils import TreeAssertVisitor
-            test_support.append(TreeAssertVisitor())
-
-        if options.gdb_debug:
-            from Cython.Debugger import DebugWriter
-            from ParseTreeTransforms import DebugTransform
-            self.gdb_debug_outputwriter = DebugWriter.CythonDebugWriter(
-                options.output_dir)
-            debug_transform = [DebugTransform(self, options, result)]
-        else:
-            debug_transform = []
-
-        return list(itertools.chain(
-            [create_parse(self)],
-            self.create_pipeline(pxd=False, py=py),
-            test_support,
-            [inject_pxd_code, abort_on_errors],
-            debug_transform,
-            [generate_pyx_code]))
-
-    def create_pxd_pipeline(self, scope, module_name):
-        def parse_pxd(source_desc):
-            tree = self.parse(source_desc, scope, pxd=True,
-                              full_module_name=module_name)
-            tree.scope = scope
-            tree.is_pxd = True
-            return tree
-
-        from CodeGeneration import ExtractPxdCode
-
-        # The pxd pipeline ends up with a CCodeWriter containing the
-        # code of the pxd, as well as a pxd scope.
-        return [parse_pxd] + self.create_pipeline(pxd=True) + [
-            ExtractPxdCode(self),
-            ]
-
-    def create_py_pipeline(self, options, result):
-        return self.create_pyx_pipeline(options, result, py=True)
-
-    def create_pyx_as_pxd_pipeline(self, source):
-        from ParseTreeTransforms import (AlignFunctionDefinitions,
-            MarkClosureVisitor, WithTransform, AnalyseDeclarationsTransform)
-        from Optimize import ConstantFolding, FlattenInListTransform
-        from Nodes import StatListNode
-        pipeline = []
-        result = create_default_resultobj(source, self.options)
-        pyx_pipeline = self.create_pyx_pipeline(self.options, result)
-        for stage in pyx_pipeline:
-            if stage.__class__ in [
-                    AlignFunctionDefinitions,
-                    MarkClosureVisitor,
-                    ConstantFolding,
-                    FlattenInListTransform,
-                    WithTransform,
-                    ]:
-                # Skip these unnecessary stages.
-                continue
-            pipeline.append(stage)
-            if isinstance(stage, AnalyseDeclarationsTransform):
-                # This is the last stage we need.
-                break
-        def fake_pxd(root):
-            for entry in root.scope.entries.values():
-                entry.defined_in_pxd = 1
-            return StatListNode(root.pos, stats=[]), root.scope
-        pipeline.append(fake_pxd)
-        return pipeline
+    # pipeline creation functions can now be found in Pipeline.py
 
     def process_pxd(self, source_desc, scope, module_name):
+        import Pipeline
         if isinstance(source_desc, FileSourceDescriptor) and source_desc._file_type == 'pyx':
             source = CompilationSource(source_desc, module_name, os.getcwd())
-            pipeline = self.create_pyx_as_pxd_pipeline(source)
-            result = self.run_pipeline(pipeline, source)
+            result_sink = create_default_resultobj(source, self.options)
+            pipeline = Pipeline.create_pyx_as_pxd_pipeline(self, result_sink)
+            result = Pipeline.run_pipeline(pipeline, source)
         else:
-            pipeline = self.create_pxd_pipeline(scope, module_name)
-            result = self.run_pipeline(pipeline, source_desc)
+            pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
+            result = Pipeline.run_pipeline(pipeline, source_desc)
         return result
 
     def nonfatal_error(self, exc):
         return Errors.report_error(exc)
-
-    def run_pipeline(self, pipeline, source):
-        error = None
-        data = source
-        try:
-            try:
-                for phase in pipeline:
-                    if phase is not None:
-                        if DebugFlags.debug_verbose_pipeline:
-                            t = time()
-                            print "Entering pipeline phase %r" % phase
-                        data = phase(data)
-                        if DebugFlags.debug_verbose_pipeline:
-                            print "    %.3f seconds" % (time() - t)
-            except CompileError, err:
-                # err is set
-                Errors.report_error(err)
-                error = err
-        except InternalError, err:
-            # Only raise if there was not an earlier error
-            if Errors.num_errors == 0:
-                raise
-            error = err
-        except AbortError, err:
-            error = err
-        return (error, data)
 
     def find_module(self, module_name,
             relative_to = None, pos = None, need_pxd = 1):
@@ -604,21 +410,6 @@ class Context(object):
                 pass
             result.c_file = None
 
-def create_parse(context):
-    def parse(compsrc):
-        source_desc = compsrc.source_desc
-        full_module_name = compsrc.full_module_name
-        initial_pos = (source_desc, 1, 0)
-        saved_cimport_from_pyx, Options.cimport_from_pyx = Options.cimport_from_pyx, False
-        scope = context.find_module(full_module_name, pos = initial_pos, need_pxd = 0)
-        Options.cimport_from_pyx = saved_cimport_from_pyx
-        tree = context.parse(source_desc, scope, pxd = 0, full_module_name = full_module_name)
-        tree.compilation_source = compsrc
-        tree.scope = scope
-        tree.is_pxd = False
-        return tree
-    return parse
-
 def create_default_resultobj(compilation_source, options):
     result = CompilationResult()
     result.main_source_file = compilation_source.source_desc.filename
@@ -635,6 +426,7 @@ def create_default_resultobj(compilation_source, options):
     return result
 
 def run_pipeline(source, options, full_module_name = None):
+    import Pipeline
     # Set up context
     context = options.create_context()
 
@@ -665,12 +457,12 @@ def run_pipeline(source, options, full_module_name = None):
 
     # Get pipeline
     if source_ext.lower() == '.py' or not source_ext:
-        pipeline = context.create_py_pipeline(options, result)
+        pipeline = Pipeline.create_py_pipeline(context, options, result)
     else:
-        pipeline = context.create_pyx_pipeline(options, result)
+        pipeline = Pipeline.create_pyx_pipeline(context, options, result)
 
     context.setup_errors(options, result)
-    err, enddata = context.run_pipeline(pipeline, source)
+    err, enddata = Pipeline.run_pipeline(pipeline, source)
     context.teardown_errors(err, options, result)
     return result
 
