@@ -778,25 +778,18 @@ class CVarDefNode(StatNode):
         self.dest_scope = dest_scope
         base_type = self.base_type.analyse(env)
 
-        need_property = False
+        # If the field is an external typedef, we cannot be sure about the type,
+        # so do conversion ourself rather than rely on the CPython mechanism (through
+        # a property; made in AnalyseDeclarationsTransform).
         if (dest_scope.is_c_class_scope
-              and self.visibility == 'public'
-              and base_type.is_pyobject
-              and (base_type.is_builtin_type or base_type.is_extension_type)):
-            # If the field is settable and extension type, then the CPython mechanism does
-            # not do enough type-checking for us.
-            need_property = True
-        elif (base_type.is_typedef and base_type.typedef_is_external
-              and (self.visibility in ('public', 'readonly'))):
-            # If the field is an external typedef, we cannot be sure about the type,
-            # so do conversion ourself rather than rely on the CPython mechanism (through
-            # a property; made in AnalyseDeclarationsTransform).
-            need_property = True
-
-        if need_property:
-            visibility = 'private'
+                and self.visibility == 'public' 
+                and base_type.is_pyobject 
+                and (base_type.is_builtin_type or base_type.is_extension_type)):
             self.need_properties = []
+            need_property = True
+            visibility = 'private'
         else:
+            need_property = False
             visibility = self.visibility
             
         for declarator in self.declarators:
@@ -1187,6 +1180,11 @@ class FuncDefNode(StatNode, BlockNode):
                 code.put_xgiveref(self.return_type.as_pyobject(Naming.retval_cname))
 
             code.put_finish_refcount_context()
+
+        if self.entry.is_special and self.entry.name == "__hash__":
+            # Returning -1 for __hash__ is supposed to signal an error
+            # We do as Python instances and coerce -1 into -2. 
+            code.putln("if (unlikely(%s == -1) && !PyErr_Occurred()) %s = -2;" % (Naming.retval_cname, Naming.retval_cname))
 
         if acquire_gil:
             code.putln("PyGILState_Release(_save);")
