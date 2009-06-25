@@ -34,22 +34,6 @@ class UtilityCode(object):
         self._cache = {}
         self.specialize_list = []
 
-    def write_init_code(self, writer, pos):
-        if not self.init:
-            return
-        if isinstance(self.init, basestring):
-            writer.put(self.init)
-        else:
-            self.init(writer, pos)
-
-    def write_cleanup_code(self, writer, pos):
-        if not self.cleanup:
-            return
-        if isinstance(self.cleanup, basestring):
-            writer.put(self.cleanup)
-        else:
-            self.cleanup(writer, pos)
-    
     def specialize(self, pyrex_type=None, **data):
         # Dicts aren't hashable...
         if pyrex_type is not None:
@@ -80,8 +64,19 @@ class UtilityCode(object):
             output['utility_code_proto'].put(self.proto)
         if self.impl:
             output['utility_code_def'].put(self.impl)
-        self.write_init_code(output.initwriter, output.module_pos)
-        self.write_cleanup_code(output.cleanupwriter, output.module_pos)
+        if self.init:
+            writer = output['init_globals']
+            if isinstance(self.init, basestring):
+                writer.put(self.init)
+            else:
+                self.init(writer, output.module_pos)
+        if self.cleanup and Options.generate_cleanup_code:
+            writer = output['cleanup_globals']
+            if isinstance(self.cleanup, basestring):
+                writer.put(self.cleanup)
+            else:
+                self.cleanup(writer, output.module_pos)
+            
         
 
 class FunctionState(object):
@@ -375,9 +370,7 @@ class GlobalState(object):
     
     # interned_strings
     # consts
-    # py_string_decls
     # interned_nums
-    # cached_builtins
 
     # directives       set             Temporary variable used to track
     #                                  the current set of directives in the code generation
@@ -395,6 +388,14 @@ class GlobalState(object):
         'global_var',
         'decls',
         'all_the_rest',
+        'pystring_table',
+        'cached_builtins',
+        'init_globals',
+        'init_module',
+        'cleanup_globals',
+        'cleanup_module',
+        'main_method',
+        'filename_table',
         'utility_code_def',
         'end'
     ]
@@ -424,22 +425,26 @@ class GlobalState(object):
         for part in self.code_layout:
             self.parts[part] = rootwriter.insertion_point()
 
-        self.pystring_table = rootwriter.new_writer()
-        self.init_cached_builtins_writer = rootwriter.new_writer()
-        self.initwriter = rootwriter.new_writer()
-        self.cleanupwriter = rootwriter.new_writer()
+        if not Options.cache_builtins:
+            del self.parts['cached_builtins']
+        else:
+            w = self.parts['cached_builtins']
+            w.enter_cfunc_scope()
+            w.putln("static int __Pyx_InitCachedBuiltins(void) {")
 
-        if Options.cache_builtins:
-            self.init_cached_builtins_writer.enter_cfunc_scope()
-            self.init_cached_builtins_writer.putln("static int __Pyx_InitCachedBuiltins(void) {")
+        
+        w = self.parts['init_globals']
+        w.enter_cfunc_scope()
+        w.putln("")
+        w.putln("static int __Pyx_InitGlobals(void) {")
 
-        self.initwriter.enter_cfunc_scope()
-        self.initwriter.putln("")
-        self.initwriter.putln("static int __Pyx_InitGlobals(void) {")
-
-        self.cleanupwriter.enter_cfunc_scope()
-        self.cleanupwriter.putln("")
-        self.cleanupwriter.putln("static void __Pyx_CleanupGlobals(void) {")
+        if not Options.generate_cleanup_code:
+            del self.parts['cleanup_globals']
+        else:
+            w = self.parts['cleanup_globals']
+            w.enter_cfunc_scope()
+            w.putln("")
+            w.putln("static void __Pyx_CleanupGlobals(void) {")
 
         #
         # utility_code_def
@@ -474,36 +479,28 @@ class GlobalState(object):
     #
     def close_global_decls(self):
         # This is called when it is known that no more global declarations will
-        # declared (but can be called before or after insert_XXX).
+        # declared.
         self.generate_const_declarations()
         if Options.cache_builtins:
-            w = self.init_cached_builtins_writer
+            w = self.parts['cached_builtins']
             w.putln("return 0;")
             w.put_label(w.error_label)
             w.putln("return -1;")
             w.putln("}")
             w.exit_cfunc_scope()
 
-        w = self.initwriter
+        w = self.parts['init_globals']
         w.putln("return 0;")
         w.put_label(w.error_label)
         w.putln("return -1;")
         w.putln("}")
         w.exit_cfunc_scope()
 
-        w = self.cleanupwriter
-        w.putln("}")
-        w.exit_cfunc_scope()
+        if Options.generate_cleanup_code:
+            w = self.parts['cleanup_module']
+            w.putln("}")
+            w.exit_cfunc_scope()
          
-    def insert_initcode_into(self, code):
-        code.insert(self.pystring_table)
-        if Options.cache_builtins:
-            code.insert(self.init_cached_builtins_writer)
-        code.insert(self.initwriter)
-
-    def insert_cleanupcode_into(self, code):
-        code.insert(self.cleanupwriter)
-
     def put_pyobject_decl(self, entry):
         self['global_var'].putln("static PyObject *%s;" % entry.cname)
 
@@ -581,12 +578,13 @@ class GlobalState(object):
             if self.should_declare(entry.cname, entry):
                 interned_cname = self.get_py_string_const(entry.name, True).cname
                 self.put_pyobject_decl(entry)
-                self.init_cached_builtins_writer.putln('%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
+                w = self.parts['cached_builtins']
+                w.putln('%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
                     entry.cname,
                     Naming.builtins_cname,
                     interned_cname,
                     entry.cname,
-                    self.init_cached_builtins_writer.error_goto(entry.pos)))
+                    w.error_goto(entry.pos)))
 
     def generate_const_declarations(self):
         self.generate_string_constants()
@@ -621,13 +619,14 @@ class GlobalState(object):
             self.use_utility_code(Nodes.init_string_tab_utility_code)
 
             py_strings.sort()
-            self.pystring_table.putln("")
-            self.pystring_table.putln("static __Pyx_StringTabEntry %s[] = {" %
+            w = self.parts['pystring_table']
+            w.putln("")
+            w.putln("static __Pyx_StringTabEntry %s[] = {" %
                                       Naming.stringtab_cname)
             for c_cname, _, py_string in py_strings:
                 decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
-                self.pystring_table.putln(
+                w.putln(
                     "{&%s, %s, sizeof(%s), %d, %d, %d}," % (
                     py_string.cname,
                     c_cname,
@@ -636,13 +635,14 @@ class GlobalState(object):
                     py_string.intern,
                     py_string.identifier
                     ))
-            self.pystring_table.putln("{0, 0, 0, 0, 0, 0}")
-            self.pystring_table.putln("};")
+            w.putln("{0, 0, 0, 0, 0, 0}")
+            w.putln("};")
 
-            self.initwriter.putln(
+            init_globals = self.parts['init_globals']
+            init_globals.putln(
                 "if (__Pyx_InitStrings(%s) < 0) %s;" % (
                     Naming.stringtab_cname,
-                    self.initwriter.error_goto(self.module_pos)))
+                    init_globals.error_goto(self.module_pos)))
 
     def generate_int_constants(self):
         consts = [ (len(c.value), c.value, c.is_long, c)
@@ -656,10 +656,11 @@ class GlobalState(object):
                 function = '%s = PyLong_FromString((char *)"%s", 0, 0); %s;'
             else:
                 function = "%s = PyInt_FromLong(%s); %s;"
-            self.initwriter.putln(function % (
+            init_globals = self.parts['init_globals']
+            init_globals.putln(function % (
                 cname,
                 value,
-                self.initwriter.error_goto_if_null(cname, self.module_pos)))
+                init_globals.error_goto_if_null(cname, self.module_pos)))
 
     # The functions below are there in a transition phase only
     # and will be deprecated. They are called from Nodes.BlockNode.
