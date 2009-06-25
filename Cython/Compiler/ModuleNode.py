@@ -574,8 +574,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static const char *%s;' % Naming.filename_cname)
         code.putln('static const char **%s;' % Naming.filetable_cname)
 
-        env.use_utility_code(streq_utility_code)
-
         # XXX this is a mess
         for utility_code in PyrexTypes.c_int_from_py_function.specialize_list:
             env.use_utility_code(utility_code)
@@ -1548,6 +1546,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("static void %s(void); /*proto*/" % Naming.fileinit_cname)
         
     def generate_import_star(self, env, code):
+        env.use_utility_code(streq_utility_code)
         code.putln()
         code.putln("char* %s_type_names[] = {" % Naming.import_star)
         for name, entry in env.entries.items():
