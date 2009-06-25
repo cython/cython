@@ -24,6 +24,7 @@ from Symtab import BuiltinScope, ModuleScope
 from Cython import Utils
 from Cython.Utils import open_new_file, replace_suffix
 import CythonScope
+import DebugFlags
 
 module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
 
@@ -80,10 +81,10 @@ class Context(object):
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
         from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
-        from ParseTreeTransforms import AlignFunctionDefinitions
+        from ParseTreeTransforms import AlignFunctionDefinitions, GilCheck
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
-        from Optimize import FlattenBuiltinTypeCreation, ConstantFolding, FinalOptimizePhase
+        from Optimize import OptimizeBuiltinCalls, ConstantFolding, FinalOptimizePhase
         from Buffer import IntroduceBufferAuxiliaryVars
         from ModuleNode import check_c_declarations
 
@@ -114,6 +115,7 @@ class Context(object):
             _specific_post_parse,
             InterpretCompilerDirectives(self, self.pragma_overrides),
             _align_function_definitions,
+            ConstantFolding(),
             FlattenInListTransform(),
             WithTransform(self),
             DecoratorTransform(self),
@@ -123,11 +125,12 @@ class Context(object):
             IntroduceBufferAuxiliaryVars(self),
             _check_c_declarations,
             AnalyseExpressionsTransform(self),
-            FlattenBuiltinTypeCreation(),
+            OptimizeBuiltinCalls(),
             ConstantFolding(),
             IterationTransform(),
             SwitchTransform(),
             FinalOptimizePhase(self),
+            GilCheck(),
 #            ClearResultCodes(self),
 #            SpecialFunctions(self),
             #        CreateClosureClasses(context),
@@ -194,6 +197,8 @@ class Context(object):
         try:
             for phase in pipeline:
                 if phase is not None:
+                    if DebugFlags.debug_verbose_pipeline:
+                        print "Entering pipeline phase %r" % phase
                     data = phase(data)
         except CompileError, err:
             # err is set

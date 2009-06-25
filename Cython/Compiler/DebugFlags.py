@@ -8,3 +8,9 @@ debug_temp_code_comments = 0
 
 # Write a call trace of the code generation phase into the C code
 debug_trace_code_generation = 0
+
+# Do not replace exceptions with user-friendly error messages
+debug_no_exception_intercept = 1
+
+# Print a message each time a new stage in the pipeline is entered
+debug_verbose_pipeline = 0

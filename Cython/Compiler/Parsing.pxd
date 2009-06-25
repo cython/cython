@@ -16,6 +16,7 @@ cpdef p_not_test(PyrexScanner s)
 cpdef p_comparison(PyrexScanner s)
 cpdef p_cascaded_cmp(PyrexScanner s)
 cpdef p_cmp_op(PyrexScanner s)
+cpdef p_starred_expr(PyrexScanner s)
 cpdef p_bit_expr(PyrexScanner s)
 cpdef p_xor_expr(PyrexScanner s)
 cpdef p_and_expr(PyrexScanner s)
@@ -58,7 +59,6 @@ cpdef p_testlist(PyrexScanner s)
 #-------------------------------------------------------
 
 cpdef flatten_parallel_assignments(input, output)
-cpdef find_parallel_assignment_size(input)
 
 cpdef p_global_statement(PyrexScanner s)
 cpdef p_expression_or_assignment(PyrexScanner s)

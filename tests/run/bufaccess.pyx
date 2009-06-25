@@ -685,7 +685,7 @@ TODO
     uc[0] = <int>3.14
     print uc[0]
 
-    cdef char* ch = "asfd"
+    cdef char* ch = b"asfd"
     cdef object[object] objbuf
     objbuf[3] = ch
 

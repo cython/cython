@@ -5,7 +5,7 @@ from Cython.Compiler.ExprNodes import *
 from Cython.Compiler.UtilNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment, TemplateTransform
 from Cython.Compiler.StringEncoding import EncodedString
-from Cython.Compiler.Errors import CompileError
+from Cython.Compiler.Errors import error, CompileError
 try:
     set
 except NameError:
@@ -830,7 +830,43 @@ class CreateClosureClasses(CythonTransform):
     def visit_FuncDefNode(self, node):
         self.create_class_from_scope(node, self.module_scope)
         return node
-        
+
+
+class GilCheck(VisitorTransform):
+    """
+    Call `node.gil_check(env)` on each node to make sure we hold the
+    GIL when we need it.  Raise an error when on Python operations
+    inside a `nogil` environment.
+    """
+    def __call__(self, root):
+        self.env_stack = [root.scope]
+        return super(GilCheck, self).__call__(root)
+
+    def visit_FuncDefNode(self, node):
+        self.env_stack.append(node.local_scope)
+        if node.gil_check is not None:
+            node.gil_check(self.env_stack[-1])
+        self.visitchildren(node)
+        self.env_stack.pop()
+        return node
+
+    def visit_GILStatNode(self, node):
+        # FIXME: should we do some kind of GIL checking here, too?
+        # if node.gil_check is not None:
+        #     node.gil_check(self.env_stack[-1])
+        env = self.env_stack[-1]
+        was_nogil = env.nogil
+        env.nogil = node.state == 'nogil'
+        self.visitchildren(node)
+        env.nogil = was_nogil
+        return node
+
+    def visit_Node(self, node):
+        if self.env_stack and node.gil_check is not None:
+            node.gil_check(self.env_stack[-1])
+        self.visitchildren(node)
+        return node
+
 
 class EnvTransform(CythonTransform):
     """

@@ -82,14 +82,14 @@ _ERRORS = u"""
 6: 6: Assignment of Python object not allowed without gil
 4: 5: Function declared nogil has Python locals or temporaries
 11: 5: Function with Python return type cannot be declared nogil
-15: 5: Calling gil-requiring function without gil
-24: 9: Calling gil-requiring function without gil
+15: 5: Calling gil-requiring function not allowed without gil
+24: 9: Calling gil-requiring function not allowed without gil
 26:12: Assignment of Python object not allowed without gil
 28:16: Constructing complex number not allowed without gil
 29:12: Accessing Python global or builtin not allowed without gil
 30: 8: Backquote expression not allowed without gil
-31:15: Python import not allowed without gil
 31:15: Assignment of Python object not allowed without gil
+31:15: Python import not allowed without gil
 32:13: Python import not allowed without gil
 32:25: Constructing Python list not allowed without gil
 33:17: Iterating over Python object not allowed without gil
@@ -126,7 +126,6 @@ _ERRORS = u"""
 54: 8: Raising exception not allowed without gil
 55:14: Truth-testing Python object not allowed without gil
 57:17: Truth-testing Python object not allowed without gil
-59: 8: Converting to Python object not allowed without gil
 61: 8: Try-except statement not allowed without gil
 65: 8: Try-finally statement not allowed without gil
 """

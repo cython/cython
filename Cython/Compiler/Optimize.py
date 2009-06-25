@@ -7,9 +7,16 @@ import UtilNodes
 import TypeSlots
 import Symtab
 import Options
-from StringEncoding import EncodedString
 
+from Code import UtilityCode
+from StringEncoding import EncodedString
+from Errors import error
 from ParseTreeTransforms import SkipDeclarations
+
+try:
+    reduce
+except NameError:
+    from functools import reduce
 
 #def unwrap_node(node):
 #    while isinstance(node, ExprNodes.PersistentNode):
@@ -65,6 +72,9 @@ class IterationTransform(Visitor.VisitorTransform):
 
     def visit_ForInStatNode(self, node):
         self.visitchildren(node)
+        return self._optimise_for_loop(node)
+
+    def _optimise_for_loop(self, node):
         iterator = node.iterator.sequence
         if iterator.type is Builtin.dict_type:
             # like iterating over dict.keys()
@@ -92,6 +102,13 @@ class IterationTransform(Visitor.VisitorTransform):
             return self._transform_dict_iteration(
                 node, dict_obj, keys, values)
 
+        # enumerate() ?
+        if iterator.self is None and \
+               isinstance(function, ExprNodes.NameNode) and \
+               function.entry.is_builtin and \
+               function.name == 'enumerate':
+            return self._transform_enumerate_iteration(node, iterator)
+
         # range() iteration?
         if Options.convert_range and node.target.type.is_int:
             if iterator.self is None and \
@@ -101,6 +118,72 @@ class IterationTransform(Visitor.VisitorTransform):
                 return self._transform_range_iteration(node, iterator)
 
         return node
+
+    def _transform_enumerate_iteration(self, node, enumerate_function):
+        args = enumerate_function.arg_tuple.args
+        if len(args) == 0:
+            error(enumerate_function.pos,
+                  "enumerate() requires an iterable argument")
+            return node
+        elif len(args) > 1:
+            error(enumerate_function.pos,
+                  "enumerate() takes at most 1 argument")
+            return node
+
+        if not node.target.is_sequence_constructor:
+            # leave this untouched for now
+            return node
+        targets = node.target.args
+        if len(targets) != 2:
+            # leave this untouched for now
+            return node
+        if not isinstance(targets[0], ExprNodes.NameNode):
+            # leave this untouched for now
+            return node
+
+        enumerate_target, iterable_target = targets
+        counter_type = enumerate_target.type
+
+        if not counter_type.is_pyobject and not counter_type.is_int:
+            # nothing we can do here, I guess
+            return node
+
+        temp = UtilNodes.LetRefNode(ExprNodes.IntNode(enumerate_function.pos, value='0',
+                                                      type=counter_type))
+        inc_expression = ExprNodes.AddNode(
+            enumerate_function.pos,
+            operand1 = temp,
+            operand2 = ExprNodes.IntNode(node.pos, value='1',
+                                         type=counter_type),
+            operator = '+',
+            type = counter_type,
+            is_temp = counter_type.is_pyobject
+            )
+
+        loop_body = [
+            Nodes.SingleAssignmentNode(
+                pos = enumerate_target.pos,
+                lhs = enumerate_target,
+                rhs = temp),
+            Nodes.SingleAssignmentNode(
+                pos = enumerate_target.pos,
+                lhs = temp,
+                rhs = inc_expression)
+            ]
+
+        if isinstance(node.body, Nodes.StatListNode):
+            node.body.stats = loop_body + node.body.stats
+        else:
+            loop_body.append(node.body)
+            node.body = Nodes.StatListNode(
+                node.body.pos,
+                stats = loop_body)
+
+        node.target = iterable_target
+        node.iterator.sequence = enumerate_function.arg_tuple.args[0]
+
+        # recurse into loop to check for further optimisations
+        return UtilNodes.LetNode(temp, self._optimise_for_loop(node)) 
 
     def _transform_range_iteration(self, node, range_function):
         args = range_function.arg_tuple.args
@@ -414,63 +497,132 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
 
-class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
-    """Optimise some common instantiation patterns for builtin types.
+class OptimizeBuiltinCalls(Visitor.VisitorTransform):
+    """Optimize some common methods calls and instantiation patterns
+    for builtin types.
     """
-    PyList_AsTuple_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.py_object_type, [
-            PyrexTypes.CFuncTypeArg("list",  Builtin.list_type, None)
-            ])
-
-    PyList_AsTuple_name = EncodedString("PyList_AsTuple")
-
-    PyList_AsTuple_entry = Symtab.Entry(
-        PyList_AsTuple_name, PyList_AsTuple_name, PyList_AsTuple_func_type)
+    # only intercept on call nodes
+    visit_Node = Visitor.VisitorTransform.recurse_to_children
 
     def visit_GeneralCallNode(self, node):
         self.visitchildren(node)
-        handler = self._find_handler('general', node.function)
-        if handler is not None:
-            node = handler(node, node.positional_args, node.keyword_args)
-        return node
+        function = node.function
+        if not function.type.is_pyobject:
+            return node
+        arg_tuple = node.positional_args
+        if not isinstance(arg_tuple, ExprNodes.TupleNode):
+            return node
+        return self._dispatch_to_handler(
+            node, function, arg_tuple, node.keyword_args)
 
     def visit_SimpleCallNode(self, node):
         self.visitchildren(node)
-        handler = self._find_handler('simple', node.function)
-        if handler is not None:
-            node = handler(node, node.arg_tuple)
-        return node
+        function = node.function
+        if not function.type.is_pyobject:
+            return node
+        arg_tuple = node.arg_tuple
+        if not isinstance(arg_tuple, ExprNodes.TupleNode):
+            return node
+        return self._dispatch_to_handler(
+            node, node.function, arg_tuple)
 
-    def _find_handler(self, call_type, function):
-        if not function.type.is_builtin_type:
-            return None
-        if not isinstance(function, ExprNodes.NameNode):
-            return None
-        handler = getattr(self, '_handle_%s_%s' % (call_type, function.name), None)
+    def visit_PyTypeTestNode(self, node):
+        """Flatten redundant type checks after tree changes.
+        """
+        old_arg = node.arg
+        self.visitchildren(node)
+        if old_arg is node.arg or node.arg.type != node.type:
+            return node
+        return node.arg
+
+    def _find_handler(self, match_name, has_kwargs):
+        call_type = has_kwargs and 'general' or 'simple'
+        handler = getattr(self, '_handle_%s_%s' % (call_type, match_name), None)
         if handler is None:
-            handler = getattr(self, '_handle_any_%s' % function.name, None)
+            handler = getattr(self, '_handle_any_%s' % match_name, None)
         return handler
 
-    def _handle_general_dict(self, node, pos_args, kwargs):
+    def _dispatch_to_handler(self, node, function, arg_tuple, kwargs=None):
+        if function.is_name:
+            match_name = "_function_%s" % function.name
+            function_handler = self._find_handler(
+                "function_%s" % function.name, kwargs)
+            if function_handler is None:
+                return node
+            if kwargs:
+                return function_handler(node, arg_tuple, kwargs)
+            else:
+                return function_handler(node, arg_tuple)
+        elif isinstance(function, ExprNodes.AttributeNode):
+            arg_list = arg_tuple.args
+            self_arg = function.obj
+            obj_type = self_arg.type
+            is_unbound_method = False
+            if obj_type.is_builtin_type:
+                if obj_type is Builtin.type_type and arg_list and \
+                         arg_list[0].type.is_pyobject:
+                    # calling an unbound method like 'list.append(L,x)'
+                    # (ignoring 'type.mro()' here ...)
+                    type_name = function.obj.name
+                    self_arg = None
+                    is_unbound_method = True
+                else:
+                    type_name = obj_type.name
+            else:
+                type_name = "object" # safety measure
+            method_handler = self._find_handler(
+                "method_%s_%s" % (type_name, function.attribute), kwargs)
+            if method_handler is None:
+                return node
+            if self_arg is not None:
+                arg_list = [self_arg] + list(arg_list)
+            if kwargs:
+                return method_handler(node, arg_list, kwargs, is_unbound_method)
+            else:
+                return method_handler(node, arg_list, is_unbound_method)
+        else:
+            return node
+
+    ### builtin types
+
+    def _handle_general_function_dict(self, node, pos_args, kwargs):
         """Replace dict(a=b,c=d,...) by the underlying keyword dict
         construction which is done anyway.
         """
-        if not isinstance(pos_args, ExprNodes.TupleNode):
-            return node
         if len(pos_args.args) > 0:
             return node
         if not isinstance(kwargs, ExprNodes.DictNode):
             return node
         if node.starstar_arg:
-            # we could optimise this by updating the kw dict instead
+            # we could optimize this by updating the kw dict instead
             return node
         return kwargs
 
-    def _handle_simple_set(self, node, pos_args):
+    PyDict_Copy_func_type = PyrexTypes.CFuncType(
+        Builtin.dict_type, [
+            PyrexTypes.CFuncTypeArg("dict", Builtin.dict_type, None)
+            ])
+
+    def _handle_simple_function_dict(self, node, pos_args):
+        """Replace dict(some_dict) by PyDict_Copy(some_dict).
+        """
+        if len(pos_args.args) != 1:
+            return node
+        dict_arg = pos_args.args[0]
+        if dict_arg.type is not Builtin.dict_type:
+            return node
+
+        dict_arg = ExprNodes.NoneCheckNode(
+            dict_arg, "PyExc_TypeError", "'NoneType' is not iterable")
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "PyDict_Copy", self.PyDict_Copy_func_type,
+            args = [dict_arg],
+            is_temp = node.is_temp
+            )
+
+    def _handle_simple_function_set(self, node, pos_args):
         """Replace set([a,b,...]) by a literal set {a,b,...}.
         """
-        if not isinstance(pos_args, ExprNodes.TupleNode):
-            return node
         arg_count = len(pos_args.args)
         if arg_count == 0:
             return ExprNodes.SetNode(node.pos, args=[],
@@ -491,11 +643,14 @@ class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
         else:
             return node
 
-    def _handle_simple_tuple(self, node, pos_args):
+    PyList_AsTuple_func_type = PyrexTypes.CFuncType(
+        Builtin.tuple_type, [
+            PyrexTypes.CFuncTypeArg("list", Builtin.list_type, None)
+            ])
+
+    def _handle_simple_function_tuple(self, node, pos_args):
         """Replace tuple([...]) by a call to PyList_AsTuple.
         """
-        if not isinstance(pos_args, ExprNodes.TupleNode):
-            return node
         if len(pos_args.args) != 1:
             return node
         list_arg = pos_args.args[0]
@@ -506,27 +661,149 @@ class FlattenBuiltinTypeCreation(Visitor.VisitorTransform):
             # everything else may be None => take the safe path
             return node
 
-        node.args = pos_args.args
-        node.arg_tuple = None
-        node.type = Builtin.tuple_type
-        node.result_ctype = Builtin.tuple_type
-        node.function = ExprNodes.NameNode(
-            pos = node.pos,
-            name = self.PyList_AsTuple_name,
-            type = self.PyList_AsTuple_func_type,
-            entry = self.PyList_AsTuple_entry)
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "PyList_AsTuple", self.PyList_AsTuple_func_type,
+            args = pos_args.args,
+            is_temp = node.is_temp
+            )
+
+    ### builtin functions
+
+    PyObject_GetAttr2_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("attr_name", PyrexTypes.py_object_type, None),
+            ])
+
+    PyObject_GetAttr3_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("attr_name", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
+            ])
+
+    def _handle_simple_function_getattr(self, node, pos_args):
+        # not really a builtin *type*, but worth optimising anyway
+        args = pos_args.args
+        if len(args) == 2:
+            node = ExprNodes.PythonCapiCallNode(
+                node.pos, "PyObject_GetAttr", self.PyObject_GetAttr2_func_type,
+                args = args,
+                is_temp = node.is_temp
+                )
+        elif len(args) == 3:
+            node = ExprNodes.PythonCapiCallNode(
+                node.pos, "__Pyx_GetAttr3", self.PyObject_GetAttr3_func_type,
+                utility_code = Builtin.getattr3_utility_code,
+                args = args,
+                is_temp = node.is_temp
+                )
+        else:
+            error(node.pos, "getattr() called with wrong number of args, "
+                  "expected 2 or 3, found %d" % len(args))
         return node
 
-    def visit_PyTypeTestNode(self, node):
-        """Flatten redundant type checks after tree changes.
-        """
-        old_arg = node.arg
-        self.visitchildren(node)
-        if old_arg is node.arg or node.arg.type != node.type:
-            return node
-        return node.arg
+    ### methods of builtin types
 
-    visit_Node = Visitor.VisitorTransform.recurse_to_children
+    PyObject_Append_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("item", PyrexTypes.py_object_type, None),
+            ])
+
+    def _handle_simple_method_object_append(self, node, args, is_unbound_method):
+        # X.append() is almost always referring to a list
+        if len(args) != 2:
+            return node
+
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "__Pyx_PyObject_Append", self.PyObject_Append_func_type,
+            args = args,
+            is_temp = node.is_temp,
+            utility_code = append_utility_code
+            )
+
+    PyList_Append_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_int_type, [
+            PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("item", PyrexTypes.py_object_type, None),
+            ],
+        exception_value = "-1")
+
+    def _handle_simple_method_list_append(self, node, args, is_unbound_method):
+        if len(args) != 2:
+            error(node.pos, "list.append(x) called with wrong number of args, found %d" %
+                  len(args))
+            return node
+        return self._substitute_method_call(
+            node, "PyList_Append", self.PyList_Append_func_type,
+            'append', is_unbound_method, args)
+
+    single_param_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_int_type, [
+            PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None),
+            ],
+        exception_value = "-1")
+
+    def _handle_simple_method_list_sort(self, node, args, is_unbound_method):
+        if len(args) != 1:
+            return node
+        return self._substitute_method_call(
+            node, "PyList_Sort", self.single_param_func_type,
+            'sort', is_unbound_method, args)
+
+    def _handle_simple_method_list_reverse(self, node, args, is_unbound_method):
+        if len(args) != 1:
+            error(node.pos, "list.reverse(x) called with wrong number of args, found %d" %
+                  len(args))
+            return node
+        return self._substitute_method_call(
+            node, "PyList_Reverse", self.single_param_func_type,
+            'reverse', is_unbound_method, args)
+
+    def _substitute_method_call(self, node, name, func_type,
+                                attr_name, is_unbound_method, args=()):
+        args = list(args)
+        if args:
+            self_arg = args[0]
+            if is_unbound_method:
+                self_arg = ExprNodes.NoneCheckNode(
+                    self_arg, "PyExc_TypeError",
+                    "descriptor '%s' requires a '%s' object but received a 'NoneType'" % (
+                    attr_name, node.function.obj.name))
+            else:
+                self_arg = ExprNodes.NoneCheckNode(
+                    self_arg, "PyExc_AttributeError",
+                    "'NoneType' object has no attribute '%s'" % attr_name)
+            args[0] = self_arg
+        # FIXME: args[0] may need a runtime None check (ticket #166)
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, name, func_type,
+            args = args,
+            is_temp = node.is_temp
+            )
+
+
+append_utility_code = UtilityCode(
+proto = """
+static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
+    if (likely(PyList_CheckExact(L))) {
+        if (PyList_Append(L, x) < 0) return NULL;
+        Py_INCREF(Py_None);
+        return Py_None; /* this is just to have an accurate signature */
+    }
+    else {
+        PyObject *r, *m;
+        m = __Pyx_GetAttrString(L, "append");
+        if (!m) return NULL;
+        r = PyObject_CallFunctionObjArgs(m, x, NULL);
+        Py_DECREF(m);
+        return r;
+    }
+}
+""",
+impl = ""
+)
 
 
 class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
@@ -565,44 +842,60 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             import traceback, sys
             traceback.print_exc(file=sys.stdout)
 
+    NODE_TYPE_ORDER = (ExprNodes.CharNode, ExprNodes.IntNode,
+                       ExprNodes.LongNode, ExprNodes.FloatNode)
+
+    def _widest_node_class(self, *nodes):
+        try:
+            return self.NODE_TYPE_ORDER[
+                max(map(self.NODE_TYPE_ORDER.index, map(type, nodes)))]
+        except ValueError:
+            return None
+
     def visit_ExprNode(self, node):
         self._calculate_const(node)
         return node
 
-#    def visit_NumBinopNode(self, node):
     def visit_BinopNode(self, node):
         self._calculate_const(node)
-        if node.type is PyrexTypes.py_object_type:
-            return node
         if node.constant_result is ExprNodes.not_a_constant:
             return node
-#        print node.constant_result, node.operand1, node.operand2, node.pos
+        try:
+            if node.operand1.type is None or node.operand2.type is None:
+                return node
+        except AttributeError:
+            return node
+
+        type1, type2 = node.operand1.type, node.operand2.type
         if isinstance(node.operand1, ExprNodes.ConstNode) and \
-                node.type is node.operand1.type:
-            new_node = node.operand1
-        elif isinstance(node.operand2, ExprNodes.ConstNode) and \
-                node.type is node.operand2.type:
-            new_node = node.operand2
+               isinstance(node.operand1, ExprNodes.ConstNode):
+            if type1 is type2:
+                new_node = node.operand1
+            else:
+                widest_type = PyrexTypes.widest_numeric_type(type1, type2)
+                if type(node.operand1) is type(node.operand2):
+                    new_node = node.operand1
+                    new_node.type = widest_type
+                elif type1 is widest_type:
+                    new_node = node.operand1
+                elif type2 is widest_type:
+                    new_node = node.operand2
+                else:
+                    target_class = self._widest_node_class(
+                        node.operand1, node.operand2)
+                    if target_class is None:
+                        return node
+                    new_node = target_class(type = widest_type)
         else:
             return node
-        new_node.value = new_node.constant_result = node.constant_result
-        new_node = new_node.coerce_to(node.type, self.current_scope)
+
+        new_node.constant_result = node.constant_result
+        new_node.value = str(node.constant_result)
+        #new_node = new_node.coerce_to(node.type, self.current_scope)
         return new_node
 
     # in the future, other nodes can have their own handler method here
     # that can replace them with a constant result node
-    
-    def visit_ModuleNode(self, node):
-        self.current_scope = node.scope
-        self.visitchildren(node)
-        return node
-
-    def visit_FuncDefNode(self, node):
-        old_scope = self.current_scope
-        self.current_scope = node.entry.scope
-        self.visitchildren(node)
-        self.current_scope = old_scope
-        return node
 
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 

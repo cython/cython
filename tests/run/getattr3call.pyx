@@ -12,9 +12,7 @@ __doc__ = u"""
     1
     >>> g(t, 'b', 2)
     2
-"""
 
-BROKEN = """
     >>> h(t, 'a', 2)
     1
     >>> h(t, 'b', 2)
@@ -27,5 +25,5 @@ def f(a, b):
 def g(a, b, c):
     return getattr3(a, b, c)
 
-#def h(a, b, c):
-#    return getattr(a, b, c)
+def h(a, b, c):
+    return getattr(a, b, c)

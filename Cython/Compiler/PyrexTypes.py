@@ -2,7 +2,7 @@
 #   Pyrex - Types
 #
 
-from Cython.Utils import UtilityCode
+from Code import UtilityCode
 import StringEncoding
 import Naming
 import copy
@@ -263,7 +263,8 @@ class PyObjectType(PyrexType):
     #  Base class for all Python object types (reference-counted).
     #
     #  buffer_defaults  dict or None     Default options for bu
-    
+
+    name = "object"
     is_pyobject = 1
     default_value = "0"
     pymemberdef_typecode = "T_OBJECT"
@@ -1248,6 +1249,44 @@ class CFuncTypeArg(object):
     def declaration_code(self, for_display = 0):
         return self.type.declaration_code(self.cname, for_display)
 
+class StructUtilityCode(object):
+    def __init__(self, type, forward_decl):
+        self.type = type
+        self.header = "static PyObject* %s(%s)" % (type.to_py_function, type.declaration_code('s'))
+        self.forward_decl = forward_decl
+
+    def __eq__(self, other):
+        return isinstance(other, StructUtilityCode) and self.header == other.header
+    def __hash__(self):
+        return hash(self.header)
+    
+    def put_code(self, output):
+        code = output['utility_code_def']
+        proto = output['utility_code_proto']
+        
+        code.putln("%s {" % self.header)
+        code.putln("PyObject* res;")
+        code.putln("PyObject* member;")
+        code.putln("res = PyDict_New(); if (res == NULL) return NULL;")
+        for member in self.type.scope.var_entries:
+            nameconst_cname = code.get_py_string_const(member.name, identifier=True)
+            code.putln("member = %s(s.%s); if (member == NULL) goto bad;" % (
+                member.type.to_py_function, member.cname))
+            code.putln("if (PyDict_SetItem(res, %s, member) < 0) goto bad;" % nameconst_cname)
+            code.putln("Py_DECREF(member);")
+        code.putln("return res;")
+        code.putln("bad:")
+        code.putln("Py_XDECREF(member);")
+        code.putln("Py_DECREF(res);")
+        code.putln("return NULL;")
+        code.putln("}")
+
+        # This is a bit of a hack, we need a forward declaration
+        # due to the way things are ordered in the module...
+        if self.forward_decl:
+            proto.putln(self.type.declaration_code('') + ';')
+        proto.putln(self.header + ";")
+        
 
 class CStructOrUnionType(CType):
     #  name          string
@@ -1276,39 +1315,18 @@ class CStructOrUnionType(CType):
     def create_to_py_utility_code(self, env):
         if env.outer_scope is None:
             return False
+
+        if self._convert_code is False: return # tri-state-ish
+
         if self._convert_code is None:
-            import Code
-            code = Code.CCodeWriter()
-            Code.GlobalState(code)
-            header = "static PyObject* %s(%s)" % (self.to_py_function, self.declaration_code('s'))
-            code.putln("%s {" % header)
-            code.putln("PyObject* res;")
-            code.putln("PyObject* member;")
-            code.putln("res = PyDict_New(); if (res == NULL) return NULL;")
             for member in self.scope.var_entries:
-                if member.type.to_py_function and member.type.create_to_py_utility_code(env):
-                    interned_name = env.get_string_const(member.name, identifier=True)
-                    env.add_py_string(interned_name)
-                    code.putln("member = %s(s.%s); if (member == NULL) goto bad;" % (
-                                                member.type.to_py_function, member.cname))
-                    code.putln("if (PyDict_SetItem(res, %s, member) < 0) goto bad;" % interned_name.pystring_cname)
-                    code.putln("Py_DECREF(member);")
-                else:
+                if not member.type.to_py_function or not member.type.create_to_py_utility_code(env):
                     self.to_py_function = None
+                    self._convert_code = False
                     return False
-            code.putln("return res;")
-            code.putln("bad:")
-            code.putln("Py_XDECREF(member);")
-            code.putln("Py_DECREF(res);")
-            code.putln("return NULL;")
-            code.putln("}")
-            proto = header + ";"
-            # This is a bit of a hack, we need a forward declaration
-            # due to the way things are ordered in the module...
             entry = env.lookup(self.name)
-            if entry.visibility != 'extern':
-                proto = self.declaration_code('') + ';\n' + proto
-            self._convert_code = UtilityCode(proto=proto, impl=code.buffer.getvalue())
+            forward_decl = (entry.visibility != 'extern')
+            self._convert_code = StructUtilityCode(self, forward_decl)
         
         env.use_utility_code(self._convert_code)
         return True

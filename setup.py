@@ -10,6 +10,18 @@ if sys.platform == "win32":
 
 setup_args = {}
 
+if sys.version_info[0] >= 3:
+    import lib2to3.refactor
+    from distutils.command.build_py \
+         import build_py_2to3 as build_py
+    # need to convert sources to Py3 on installation
+    fixers = [ fix for fix in lib2to3.refactor.get_fixers_from_package("lib2to3.fixes")
+               if fix.split('fix_')[-1] not in ('next',)
+               ]
+    build_py.fixer_names = fixers
+    setup_args['cmdclass'] = {"build_py" : build_py}
+
+
 if sys.version_info < (2,4):
     import glob
     cython_dir = os.path.join(get_python_lib(prefix=''), 'Cython')
@@ -35,6 +47,8 @@ else:
     scripts = ["cython.py"]
 
 try:
+    if sys.version_info[0] >= 3:
+        raise ValueError
     sys.argv.remove("--no-cython-compile")
 except ValueError:
     try:

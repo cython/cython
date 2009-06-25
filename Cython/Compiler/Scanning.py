@@ -232,6 +232,7 @@ class SourceDescriptor(object):
     A SourceDescriptor should be considered immutable.
     """
     _escaped_description = None
+    _cmp_name = ''
     def __str__(self):
         assert False # To catch all places where a descriptor is used directly as a filename
     
@@ -240,6 +241,27 @@ class SourceDescriptor(object):
             self._escaped_description = \
                 self.get_description().encode('ASCII', 'replace').decode("ASCII")
         return self._escaped_description
+
+    def __gt__(self, other):
+        # this is only used to provide some sort of order
+        try:
+            return self._cmp_name > other._cmp_name
+        except AttributeError:
+            return False
+
+    def __lt__(self, other):
+        # this is only used to provide some sort of order
+        try:
+            return self._cmp_name < other._cmp_name
+        except AttributeError:
+            return False
+
+    def __le__(self, other):
+        # this is only used to provide some sort of order
+        try:
+            return self._cmp_name <= other._cmp_name
+        except AttributeError:
+            return False
 
 class FileSourceDescriptor(SourceDescriptor):
     """
@@ -251,6 +273,7 @@ class FileSourceDescriptor(SourceDescriptor):
     """
     def __init__(self, filename):
         self.filename = filename
+        self._cmp_name = filename
     
     def get_lines(self):
         return Utils.open_source_file(self.filename)
@@ -278,6 +301,7 @@ class StringSourceDescriptor(SourceDescriptor):
     def __init__(self, name, code):
         self.name = name
         self.codelines = [x + "\n" for x in code.split("\n")]
+        self._cmp_name = name
     
     def get_lines(self):
         return self.codelines

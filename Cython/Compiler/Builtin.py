@@ -3,7 +3,7 @@
 #
 
 from Symtab import BuiltinScope, StructOrUnionScope
-from Cython.Utils import UtilityCode
+from Code import UtilityCode
 from TypeSlots import Signature
 import PyrexTypes
 import Naming
@@ -21,7 +21,7 @@ builtin_function_table = [
     #('eval',      "",     "",      ""),
     #('execfile',  "",     "",      ""),
     #('filter',    "",     "",      ""),
-    ('getattr',    "OO",   "O",     "PyObject_GetAttr"),
+    #('getattr',    "OO",   "O",     "PyObject_GetAttr"),   # optimised later on
     ('getattr3',   "OOO",  "O",     "__Pyx_GetAttr3",       "getattr"),
     ('hasattr',    "OO",   "b",     "PyObject_HasAttr"),
     ('hash',       "O",    "l",     "PyObject_Hash"),
@@ -103,10 +103,7 @@ builtin_types_table = [
 
     ("tuple",   "PyTuple_Type",    []),
 
-    ("list",    "PyList_Type",     [("append", "OO",   "i", "PyList_Append"),
-                                    ("insert", "OZO",  "i", "PyList_Insert"),
-#                                    ("sort",   "O",    "i", "PyList_Sort"), # has optional arguments
-                                    ("reverse","O",    "i", "PyList_Reverse")]),
+    ("list",    "PyList_Type",     [("insert", "OZO",  "i", "PyList_Insert")]),
 
     ("dict",    "PyDict_Type",     [("items", "O",   "O", "PyDict_Items"),
                                     ("keys",  "O",   "O", "PyDict_Keys"),

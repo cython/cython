@@ -14,6 +14,7 @@ from TypeSlots import \
     pyfunction_signature, pymethod_signature, \
     get_special_method_signature, get_property_accessor_signature
 import ControlFlow
+import Code
 import __builtin__
 try:
     set
@@ -184,9 +185,6 @@ class Scope(object):
     # pyfunc_entries    [Entry]            Python function entries
     # cfunc_entries     [Entry]            C function entries
     # c_class_entries   [Entry]            All extension type entries
-    # temp_entries      [Entry]            Temporary variable entries
-    # free_temp_entries [Entry]            Temp variables currently unused
-    # temp_counter      integer            Counter for naming temp vars
     # cname_to_entry    {string : Entry}   Temp cname to entry mapping
     # int_to_entry      {int : Entry}      Temp cname to entry mapping
     # return_type       PyrexType or None  Return type of function owning scope
@@ -208,8 +206,6 @@ class Scope(object):
     scope_prefix = ""
     in_cinclude = 0
     nogil = 0
-    
-    temp_prefix = Naming.pyrex_prefix
     
     def __init__(self, name, outer_scope, parent_scope):
         # The outer_scope is the next scope in the lookup chain.
@@ -236,10 +232,6 @@ class Scope(object):
         self.c_class_entries = []
         self.defined_c_classes = []
         self.imported_c_classes = {}
-        self.temp_entries = []
-        self.free_temp_entries = []
-        #self.pending_temp_entries = [] # TEMPORARY
-        self.temp_counter = 1
         self.cname_to_entry = {}
         self.string_to_entry = {}
         self.identifier_to_entry = {}
@@ -260,9 +252,6 @@ class Scope(object):
         
     def __str__(self):
         return "<%s %s>" % (self.__class__.__name__, self.qualified_name)
-
-    def intern_identifier(self, name):
-        return self.global_scope().intern_identifier(name)
 
     def qualifying_scope(self):
         return self.parent_scope
@@ -312,7 +301,7 @@ class Scope(object):
     
     def qualify_name(self, name):
         return "%s.%s" % (self.qualified_name, name)
-    
+
     def declare_const(self, name, type, value, pos, cname = None, visibility = 'private'):
         # Add an entry for a named constant.
         if not cname:
@@ -322,7 +311,7 @@ class Scope(object):
                 cname = self.mangle(Naming.enum_prefix, name)
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_const = 1
-        entry.value = value
+        entry.value_node = value
         return entry
     
     def declare_type(self, name, type, pos, 
@@ -535,138 +524,8 @@ class Scope(object):
         if entry and entry.is_type:
             return entry.type
 
-    def add_string_const(self, value, identifier = False):
-        # Add an entry for a string constant.
-        if identifier:
-            cname = self.new_string_const_cname(value)
-        else:
-            cname = self.new_const_cname()
-        if value.is_unicode:
-            c_type = PyrexTypes.c_utf8_char_array_type
-            value = value.utf8encode()
-        else:
-            c_type = PyrexTypes.c_char_array_type
-            value = value.byteencode()
-        entry = Entry("", cname, c_type, init = value)
-        entry.used = 1
-        self.const_entries.append(entry)
-        return entry
-
-    def get_string_const(self, value, identifier = False):
-        # Get entry for string constant. Returns an existing
-        # one if possible, otherwise creates a new one.
-        genv = self.global_scope()
-        if identifier:
-            string_map = genv.identifier_to_entry
-        else:
-            string_map = genv.string_to_entry
-        entry = string_map.get(value)
-        if not entry:
-            entry = self.add_string_const(value, identifier)
-            entry.is_identifier = identifier
-            string_map[value] = entry
-        return entry
-
-    def add_py_string(self, entry, identifier = None):
-        # If not already done, allocate a C name for a Python version of
-        # a string literal, and add it to the list of Python strings to
-        # be created at module init time. If the string resembles a
-        # Python identifier, it will be interned.
-        if entry.pystring_cname:
-            return
-        value = entry.init
-        entry.pystring_cname = Naming.py_const_prefix + entry.cname[len(Naming.const_prefix):]
-        self.pystring_entries.append(entry)
-        self.global_scope().all_pystring_entries.append(entry)
-        if identifier or (identifier is None and possible_identifier(value)):
-            entry.is_interned = 1
-            self.global_scope().new_interned_string_entries.append(entry)
-
-    def add_py_num(self, value):
-        # Add an entry for an int constant.
-        cname = "%s%s" % (Naming.interned_num_prefix, value)
-        cname = cname.replace('-', 'neg_').replace('.','_')
-        entry = Entry("", cname, py_object_type, init = value)
-        entry.used = 1
-        entry.is_interned = 1
-        self.const_entries.append(entry)
-        self.interned_nums.append(entry)
-        return entry
-        
-    def get_py_num(self, value, longness):
-        # Get entry for int constant. Returns an existing
-        # one if possible, otherwise creates a new one.
-        if longness or Utils.long_literal(value):
-            value += "L"
-        genv = self.global_scope()
-        entry = genv.num_to_entry.get(value)
-        if not entry:
-            entry = genv.add_py_num(value)
-            genv.num_to_entry[value] = entry
-            genv.pynum_entries.append(entry)
-        return entry
-        
-    def get_py_obj(self, obj, c_prefix=''):
-        # Get entry for a generic constant. Returns an existing
-        # one if possible, otherwise creates a new one.
-        genv = self.global_scope()
-        entry = genv.obj_to_entry.get(obj)
-        if not entry:
-            entry = genv.add_py_num(obj, c_prefix)
-            genv.obj_to_entry[obj] = entry
-        return entry
-    
-    def new_string_const_cname(self, value):
-        # Create a new globally-unique nice name for a string constant.
-        if len(value) < 20 and nice_identifier(value):
-            return "%s%s" % (Naming.const_prefix, value)
-        else:
-            return self.global_scope().new_const_cname()
-
-    def new_const_cname(self):
-        # Create a new globally-unique name for a constant.
-        return self.global_scope().new_const_cname()
-
-    def allocate_temp(self, type):
-        # Allocate a temporary variable of the given type from the 
-        # free list if available, otherwise create a new one.
-        # Returns the cname of the variable.
-        for entry in self.free_temp_entries:
-            if entry.type == type:
-                self.free_temp_entries.remove(entry)
-                return entry.cname
-        n = self.temp_counter
-        self.temp_counter = n + 1
-        cname = "%s%d" % (self.temp_prefix, n)
-        entry = Entry("", cname, type)
-        entry.used = 1
-        if type.is_pyobject or type == PyrexTypes.c_py_ssize_t_type:
-            entry.init = "0"
-        self.cname_to_entry[entry.cname] = entry
-        self.temp_entries.append(entry)
-        return entry.cname
-    
-    def allocate_temp_pyobject(self):
-        # Allocate a temporary PyObject variable.
-        return self.allocate_temp(py_object_type)
-
-    def release_temp(self, cname):
-        # Release a temporary variable for re-use.
-        if not cname: # can happen when type of an expr is void
-            return
-        entry = self.cname_to_entry[cname]
-        if entry in self.free_temp_entries:
-            raise InternalError("Temporary variable %s released more than once"
-                % cname)
-        self.free_temp_entries.append(entry)
-    
-    def temps_in_use(self):
-        # Return a new list of temp entries currently in use.
-        return [entry for entry in self.temp_entries
-            if entry not in self.free_temp_entries]
-    
-    def use_utility_code(self, new_code, name=None):
-        self.global_scope().use_utility_code(new_code, name)
+    def use_utility_code(self, new_code):
+        self.global_scope().use_utility_code(new_code)
 
     def generate_library_function_declarations(self, code):
         # Generate extern decls for C library funcs used.
@@ -792,9 +651,7 @@ class ModuleScope(Scope):
     # method_table_cname   string             C name of method table
     # doc                  string             Module doc string
     # doc_cname            string             C name of module doc string
-    # const_counter        integer            Counter for naming constants (PS: MOVED TO GLOBAL)
-    # utility_code_list    [(UtilityCode, string)] Queuing utility codes for forwarding to Code.py
-    # default_entries      [Entry]            Function argument default entries
+    # utility_code_list    [UtilityCode]      Queuing utility codes for forwarding to Code.py
     # python_include_files [string]           Standard  Python headers to be included
     # include_files        [string]           Other C headers to be included
     # string_to_entry      {string : Entry}   Map string const to entry
@@ -806,9 +663,6 @@ class ModuleScope(Scope):
     # included_files       [string]           Cython sources included with 'include'
     # pxd_file_loaded      boolean            Corresponding .pxd file has been processed
     # cimported_modules    [ModuleScope]      Modules imported with cimport
-    # new_interned_string_entries [Entry]     New interned strings waiting to be declared
-    # interned_nums        [int/long]         Interned numeric constants
-    # all_pystring_entries [Entry]            Python string consts from all scopes
     # types_imported       {PyrexType : 1}    Set of types for which import code generated
     # has_import_star      boolean            Module contains import *
     
@@ -832,20 +686,14 @@ class ModuleScope(Scope):
         self.doc = ""
         self.doc_cname = Naming.moddoc_cname
         self.utility_code_list = []
-        self.default_entries = []
         self.module_entries = {}
         self.python_include_files = ["Python.h", "structmember.h"]
         self.include_files = []
         self.type_names = dict(outer_scope.type_names)
         self.pxd_file_loaded = 0
         self.cimported_modules = []
-        self.new_interned_string_entries = []
-        self.interned_nums = []
-        self.interned_objs = []
-        self.all_pystring_entries = []
         self.types_imported = {}
         self.included_files = []
-        self.pynum_entries = []
         self.has_extern_class = 0
         self.cached_builtins = []
         self.undeclared_cached_builtins = []
@@ -883,11 +731,6 @@ class ModuleScope(Scope):
         else:
             entry.is_builtin = 1
         return entry
-
-    def intern_identifier(self, name):
-        string_entry = self.get_string_const(name, identifier = True)
-        self.add_py_string(string_entry, identifier = 1)
-        return string_entry.pystring_cname
 
     def find_module(self, module_name, pos):
         # Find a module in the import namespace, interpreting
@@ -983,25 +826,9 @@ class ModuleScope(Scope):
         if not entry:
             self.declare_var(name, py_object_type, pos)
     
-    def add_default_value(self, type):
-        # Add an entry for holding a function argument
-        # default value.
-        cname = self.new_const_cname()
-        entry = Entry("", cname, type)
-        self.default_entries.append(entry)
-        return entry
-        
-    def new_const_cname(self):
-        global const_counter
-        # Create a new globally-unique name for a constant.
-        prefix=''
-        n = const_counter
-        const_counter = n + 1
-        return "%s%s%d" % (Naming.const_prefix, prefix, n)
-    
-    def use_utility_code(self, new_code, name=None):
+    def use_utility_code(self, new_code):
         if new_code is not None:
-            self.utility_code_list.append((new_code, name))
+            self.utility_code_list.append(new_code)
 
     def declare_c_class(self, name, pos, defining = 0, implementing = 0,
         module_name = None, base_type = None, objstruct_cname = None,
@@ -1245,11 +1072,9 @@ class LocalScope(Scope):
 
 class GeneratorLocalScope(LocalScope):
 
-    temp_prefix = Naming.cur_scope_cname + "->" + LocalScope.temp_prefix
-    
     def mangle_closure_cnames(self, scope_var):
-        for entry in self.entries.values() + self.temp_entries:
-            entry.in_closure = 1
+#        for entry in self.entries.values() + self.temp_entries:
+#            entry.in_closure = 1
         LocalScope.mangle_closure_cnames(self, scope_var)
     
 #    def mangle(self, prefix, name):
@@ -1325,7 +1150,6 @@ class ClassScope(Scope):
 class PyClassScope(ClassScope):
     #  Namespace of a Python class.
     #
-    #  class_dict_cname    string   C variable holding class dict
     #  class_obj_cname     string   C variable holding class object
 
     is_py_class_scope = 1
@@ -1337,15 +1161,6 @@ class PyClassScope(ClassScope):
             cname, visibility, is_cdef)
         entry.is_pyglobal = 1
         return entry
-
-    def allocate_temp(self, type):
-        return self.outer_scope.allocate_temp(type)
-
-    def release_temp(self, cname):
-        self.outer_scope.release_temp(cname)
-
-    #def recycle_pending_temps(self):
-    #    self.outer_scope.recycle_pending_temps()
 
     def add_default_value(self, type):
         return self.outer_scope.add_default_value(type)
@@ -1434,7 +1249,6 @@ class CClassScope(ClassScope):
                                   # I keep it in for now. is_member should be enough
                                   # later on
             self.namespace_cname = "(PyObject *)%s" % self.parent_type.typeptr_cname
-            entry.interned_cname = self.intern_identifier(name)
             return entry
 
 
@@ -1542,12 +1356,6 @@ class CClassScope(ClassScope):
                                        base_entry.visibility, base_entry.func_modifiers)
             entry.is_inherited = 1
             
-    def allocate_temp(self, type):
-        return Scope.allocate_temp(self.global_scope(), type)
-
-    def release_temp(self, cname):
-        return Scope.release_temp(self.global_scope(), cname)
-        
         
 class PropertyScope(Scope):
     #  Scope holding the __get__, __set__ and __del__ methods for
@@ -1572,7 +1380,7 @@ class PropertyScope(Scope):
 # Should this go elsewhere (and then get imported)?
 #------------------------------------------------------------------------------------
 
-classmethod_utility_code = Utils.UtilityCode(
+classmethod_utility_code = Code.UtilityCode(
 proto = """
 #include "descrobject.h"
 static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
@@ -1580,8 +1388,14 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
 impl = """
 static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     /* It appears that PyMethodDescr_Type is not anywhere exposed in the Python/C API */
-    /* if (!PyObject_TypeCheck(method, &PyMethodDescr_Type)) { */ 
-    if (__Pyx_StrEq(Py_TYPE(method)->tp_name, "method_descriptor")) { /* cdef classes */
+    static PyTypeObject *methoddescr_type = NULL;
+    if (methoddescr_type == NULL) {
+       PyObject *meth = __Pyx_GetAttrString((PyObject*)&PyList_Type, "append");
+       if (!meth) return NULL;
+       methoddescr_type = Py_TYPE(meth);
+       Py_DECREF(meth);
+    }
+    if (PyObject_TypeCheck(method, methoddescr_type)) { /* cdef classes */
         PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
         return PyDescr_NewClassMethod(descr->d_type, descr->d_method);
     }
