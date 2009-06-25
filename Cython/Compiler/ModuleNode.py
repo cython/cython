@@ -275,12 +275,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if env.has_import_star:
             self.generate_import_star(env, code)
         self.generate_pymoduledef_struct(env, code)
-        self.generate_module_init_func(modules[:-1], env, code)
-        code.mark_pos(None)
-        self.generate_module_cleanup_func(env, code)
+
+        # init_globals is inserted before this
+        self.generate_module_init_func(modules[:-1], env, globalstate['init_module'])
+        self.generate_module_cleanup_func(env, globalstate['cleanup_module'])
         if Options.embed:
-            self.generate_main_method(env, code)
-        self.generate_filename_table(code)
+            self.generate_main_method(env, globalstate['main_method'])
+        self.generate_filename_table(globalstate['filename_table'])
         
         self.generate_declarations_for_modules(env, modules, globalstate)
         h_code.write('\n')
@@ -1609,9 +1610,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.exit_cfunc_scope() # done with labels
 
     def generate_module_init_func(self, imported_modules, env, code):
-        # Insert code stream of __Pyx_InitGlobals()
-        code.globalstate.insert_initcode_into(code)
-        
         code.enter_cfunc_scope()
         code.putln("")
         header2 = "PyMODINIT_FUNC init%s(void)" % env.module_name
@@ -1716,10 +1714,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_module_cleanup_func(self, env, code):
         if not Options.generate_cleanup_code:
             return
-        env.use_utility_code(register_cleanup_utility_code)
-        # Insert code stream of __Pyx_CleanupGlobals()
-        code.globalstate.insert_cleanupcode_into(code)
-        code.putln()
+        code.globalstate.use_utility_code(register_cleanup_utility_code)
         code.putln('static PyObject* %s(PyObject *self, PyObject *unused) {' % Naming.cleanup_cname)
         if Options.generate_cleanup_code >= 2:
             code.putln("/*--- Global cleanup code ---*/")
