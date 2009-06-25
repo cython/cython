@@ -16,6 +16,7 @@ from Cython.Compiler.Main import Context, CompilationOptions, default_options
 from Cython.Compiler.ParseTreeTransforms import CythonTransform, SkipDeclarations, AnalyseDeclarationsTransform
 from Cython.Compiler.TreeFragment import parse_from_strings
 from Cython.Build.Dependencies import strip_string_literals, cythonize
+from Cython.Compiler import Pipeline
 
 # A utility function to convert user-supplied ASCII strings to unicode.
 if sys.version_info[0] < 3:
@@ -43,7 +44,7 @@ def unbound_symbols(code, context=None):
         context = Context([], default_options)
     from Cython.Compiler.ParseTreeTransforms import AnalyseDeclarationsTransform
     tree = parse_from_strings('(tree fragment)', code)
-    for phase in context.create_pipeline(pxd=False):
+    for phase in Pipeline.create_pipeline(context, 'pyx'):
         if phase is None:
             continue
         tree = phase(tree)
