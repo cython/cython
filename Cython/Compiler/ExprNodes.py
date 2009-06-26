@@ -1077,6 +1077,26 @@ class ImagNode(AtomicNewTempExprNode):
             self.c99_complex = code.globalstate.directives['c99_complex']
         
 
+class NewExprNode(AtomicExprNode):
+    
+    type = PyrexTypes.cpp_class_type
+    subexpr = ['arg']
+    
+    def analyse_types(self, env):
+        entry = env.lookup(self.arg.name)
+        if not entry:
+            self.type = PyrexTypes.error_type
+            return
+    
+    def coerce_to(self, type, env):
+        return self
+    
+    def generate_result_code(self, code):
+        pass
+    
+    def calculate_result_code(self):
+        pass
+
 
 class NameNode(AtomicExprNode):
     #  Reference to a local or global variable name.
