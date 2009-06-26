@@ -597,22 +597,48 @@ class WithTransform(CythonTransform, SkipDeclarations):
 class DecoratorTransform(CythonTransform, SkipDeclarations):
 
     def visit_DefNode(self, func_node):
+        self.visitchildren(func_node)
         if not func_node.decorators:
             return func_node
+        return self._handle_decorators(
+            func_node, func_node.name)
 
-        decorator_result = NameNode(func_node.pos, name = func_node.name)
-        for decorator in func_node.decorators[::-1]:
+    def _visit_CClassDefNode(self, class_node):
+        # This doesn't currently work, so it's disabled (also in the
+        # parser).
+        #
+        # Problem: assignments to cdef class names do not work.  They
+        # would require an additional check anyway, as the extension
+        # type must not change its C type, so decorators cannot
+        # replace an extension type, just alter it and return it.
+
+        self.visitchildren(class_node)
+        if not class_node.decorators:
+            return class_node
+        return self._handle_decorators(
+            class_node, class_node.class_name)
+
+    def visit_ClassDefNode(self, class_node):
+        self.visitchildren(class_node)
+        if not class_node.decorators:
+            return class_node
+        return self._handle_decorators(
+            class_node, class_node.name)
+
+    def _handle_decorators(self, node, name):
+        decorator_result = NameNode(node.pos, name = name)
+        for decorator in node.decorators[::-1]:
             decorator_result = SimpleCallNode(
                 decorator.pos,
                 function = decorator.decorator,
                 args = [decorator_result])
 
-        func_name_node = NameNode(func_node.pos, name = func_node.name)
+        name_node = NameNode(node.pos, name = name)
         reassignment = SingleAssignmentNode(
-            func_node.pos,
-            lhs = func_name_node,
+            node.pos,
+            lhs = name_node,
             rhs = decorator_result)
-        return [func_node, reassignment]
+        return [node, reassignment]
 
 
 class AnalyseDeclarationsTransform(CythonTransform):
