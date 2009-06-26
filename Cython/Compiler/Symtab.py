@@ -186,14 +186,12 @@ class Scope(object):
     # cfunc_entries     [Entry]            C function entries
     # c_class_entries   [Entry]            All extension type entries
     # cname_to_entry    {string : Entry}   Temp cname to entry mapping
-    # int_to_entry      {int : Entry}      Temp cname to entry mapping
     # return_type       PyrexType or None  Return type of function owning scope
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
     # scope_prefix      string             Disambiguator for C names
     # in_cinclude       boolean            Suppress C declaration code
     # qualified_name    string             "modname" or "modname.classname"
-    # pystring_entries  [Entry]            String const entries newly used as
     #                                        Python strings in this scope
     # control_flow     ControlFlow  Used for keeping track of environment state
     # nogil             boolean            In a nogil section
@@ -237,7 +235,6 @@ class Scope(object):
         self.identifier_to_entry = {}
         self.num_to_entry = {}
         self.obj_to_entry = {}
-        self.pystring_entries = []
         self.buffer_entries = []
         self.control_flow = ControlFlow.LinearControlFlow()
         

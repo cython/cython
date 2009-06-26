@@ -1,12 +1,16 @@
+from Errors import PyrexError, CompileError, InternalError, error
+import Errors
+import DebugFlags
+
 #
-# Really small pipeline stages
+# Really small pipeline stages.
 #
 def dumptree(t):
     # For quick debugging in pipelines
     print t.dump()
     return t
 
-def create_parse(context):
+def parse_stage_factory(context):
     def parse(compsrc):
         source_desc = compsrc.source_desc
         full_module_name = compsrc.full_module_name
@@ -19,11 +23,46 @@ def create_parse(context):
         return tree
     return parse
 
+def parse_pxd_stage_factory(context, scope, module_name):
+    def parse(source_desc):
+        tree = context.parse(source_desc, scope, pxd=True,
+                             full_module_name=module_name)
+        tree.scope = scope
+        tree.is_pxd = True
+        return tree
+    return parse
+
+def generate_pyx_code_stage_factory(options, result):
+    def generate_pyx_code_stage(module_node):
+        module_node.process_implementation(options, result)
+        result.compilation_source = module_node.compilation_source
+        return result
+    return generate_pyx_code_stage
+
+def inject_pxd_code_stage_factory(context):
+    def inject_pxd_code_stage(module_node):
+        from textwrap import dedent
+        stats = module_node.body.stats
+        for name, (statlistnode, scope) in context.pxds.iteritems():
+            module_node.merge_in(statlistnode, scope)
+        return module_node
+    return inject_pxd_code_stage
+
+def inject_utility_code_stage(module_node):
+    # need to copy list as the list will be altered!
+    added = []
+    for utilcode in module_node.scope.utility_code_list[:]:
+        if utilcode in added: continue
+        added.append(utilcode)
+        utilcode.inject_tree_and_scope_into(module_node)
+    return module_node
+
 #
 # Pipeline factories
 #
 
-def create_pipeline(context, pxd, py=False):
+def create_pipeline(context, mode):
+    assert mode in ('pyx', 'py', 'pxd')
     from Visitor import PrintTree
     from ParseTreeTransforms import WithTransform, NormalizeTree, PostParse, PxdPostParse
     from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
@@ -46,14 +85,14 @@ def create_pipeline(context, pxd, py=False):
             node.result_code = "<cleared>"
             return node
 
-    if pxd:
+    if mode == 'pxd':
         _check_c_declarations = None
         _specific_post_parse = PxdPostParse(context)
     else:
         _check_c_declarations = check_c_declarations
         _specific_post_parse = None
 
-    if py and not pxd:
+    if mode == 'py':
         _align_function_definitions = AlignFunctionDefinitions(context)
     else:
         _align_function_definitions = None
@@ -86,48 +125,50 @@ def create_pipeline(context, pxd, py=False):
         ]
 
 def create_pyx_pipeline(context, options, result, py=False):
-    def generate_pyx_code(module_node):
-        module_node.process_implementation(options, result)
-        result.compilation_source = module_node.compilation_source
-        return result
-
-    def inject_pxd_code(module_node):
-        from textwrap import dedent
-        stats = module_node.body.stats
-        for name, (statlistnode, scope) in context.pxds.iteritems():
-            # Copy over function nodes to the module
-            # (this seems strange -- I believe the right concept is to split
-            # ModuleNode into a ModuleNode and a CodeGenerator, and tell that
-            # CodeGenerator to generate code both from the pyx and pxd ModuleNodes.
-             stats.append(statlistnode)
-             # Until utility code is moved to code generation phase everywhere,
-             # we need to copy it over to the main scope
-             module_node.scope.utility_code_list.extend(scope.utility_code_list)
-        return module_node
-
+    if py:
+        mode = 'py'
+    else:
+        mode = 'pyx'
     return ([
-            create_parse(context),
-        ] + create_pipeline(context, pxd=False, py=py) + [
-            inject_pxd_code,
-            generate_pyx_code,
+            parse_stage_factory(context),
+        ] + create_pipeline(context, mode) + [
+            inject_pxd_code_stage_factory(context),
+            inject_utility_code_stage,
+            generate_pyx_code_stage_factory(options, result),
         ])
 
 def create_pxd_pipeline(context, scope, module_name):
-    def parse_pxd(source_desc):
-        tree = context.parse(source_desc, scope, pxd=True,
-                          full_module_name=module_name)
-        tree.scope = scope
-        tree.is_pxd = True
-        return tree
-
     from CodeGeneration import ExtractPxdCode
 
     # The pxd pipeline ends up with a CCodeWriter containing the
     # code of the pxd, as well as a pxd scope.
-    return [parse_pxd] + create_pipeline(context, pxd=True) + [
-        ExtractPxdCode(context),
+    return [
+        parse_pxd_stage_factory(context, scope, module_name)
+        ] + create_pipeline(context, 'pxd') + [
+        ExtractPxdCode(context)
         ]
 
 def create_py_pipeline(context, options, result):
     return create_pyx_pipeline(context, options, result, py=True)
+
+#
+# Running a pipeline
+#
+def run_pipeline(pipeline, source):
+    err = None
+    data = source
+    try:
+        for phase in pipeline:
+            if phase is not None:
+                if DebugFlags.debug_verbose_pipeline:
+                    print "Entering pipeline phase %r" % phase
+                data = phase(data)
+    except CompileError, err:
+        # err is set
+        Errors.report_error(err)
+    except InternalError, err:
+        # Only raise if there was not an earlier error
+        if Errors.num_errors == 0:
+            raise
+    return (err, data)
 

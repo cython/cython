@@ -34,6 +34,9 @@ class UtilityCode(object):
         self._cache = {}
         self.specialize_list = []
 
+    def inject_tree_and_scope_into(self, module_node):
+        pass
+    
     def specialize(self, pyrex_type=None, **data):
         # Dicts aren't hashable...
         if pyrex_type is not None:

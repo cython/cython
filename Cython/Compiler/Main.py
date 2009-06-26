@@ -75,29 +75,11 @@ class Context(object):
     def process_pxd(self, source_desc, scope, module_name):
         import Pipeline
         pipeline = Pipeline.create_pxd_pipeline(self, scope, module_name)
-        result = self.run_pipeline(pipeline, source_desc)
+        result = Pipeline.run_pipeline(pipeline, source_desc)
         return result
     
     def nonfatal_error(self, exc):
         return Errors.report_error(exc)
-
-    def run_pipeline(self, pipeline, source):
-        err = None
-        data = source
-        try:
-            for phase in pipeline:
-                if phase is not None:
-                    if DebugFlags.debug_verbose_pipeline:
-                        print "Entering pipeline phase %r" % phase
-                    data = phase(data)
-        except CompileError, err:
-            # err is set
-            Errors.report_error(err)
-        except InternalError, err:
-            # Only raise if there was not an earlier error
-            if Errors.num_errors == 0:
-                raise
-        return (err, data)
 
     def find_module(self, module_name, 
             relative_to = None, pos = None, need_pxd = 1):
@@ -435,7 +417,7 @@ def run_pipeline(source, options, full_module_name = None):
         pipeline = Pipeline.create_pyx_pipeline(context, options, result)
 
     context.setup_errors(options)
-    err, enddata = context.run_pipeline(pipeline, source)
+    err, enddata = Pipeline.run_pipeline(pipeline, source)
     context.teardown_errors(err, options, result)
     return result
 
