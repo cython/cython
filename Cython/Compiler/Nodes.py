@@ -2477,6 +2477,7 @@ class PyClassDefNode(ClassDefNode):
     #  body     StatNode        Attribute definition code
     #  entry    Symtab.Entry
     #  scope    PyClassScope
+    #  decorators    [DecoratorNode]        list of decorators or None
     #
     #  The following subnodes are constructed internally:
     #
@@ -2485,12 +2486,14 @@ class PyClassDefNode(ClassDefNode):
     #  target   NameNode   Variable to assign class object to
 
     child_attrs = ["body", "dict", "classobj", "target"]
+    decorators = None
     
-    def __init__(self, pos, name, bases, doc, body):
+    def __init__(self, pos, name, bases, doc, body, decorators = None):
         StatNode.__init__(self, pos)
         self.name = name
         self.doc = doc
         self.body = body
+        self.decorators = decorators
         import ExprNodes
         self.dict = ExprNodes.DictNode(pos, key_value_pairs = [])
         if self.doc and Options.docstrings:
@@ -2536,6 +2539,7 @@ class PyClassDefNode(ClassDefNode):
                              class_name = self.name,
                              base_class_module = base_class_module,
                              base_class_name = base_class_name,
+                             decorators = self.decorators,
                              body = self.body,
                              in_pxd = False,
                              doc = self.doc)
@@ -2592,6 +2596,7 @@ class CClassDefNode(ClassDefNode):
     #  objstruct_name     string or None    Specified C name of object struct
     #  typeobj_name       string or None    Specified C name of type object
     #  in_pxd             boolean           Is in a .pxd file
+    #  decorators         [DecoratorNode]   list of decorators or None
     #  doc                string or None
     #  body               StatNode or None
     #  entry              Symtab.Entry
@@ -2606,6 +2611,7 @@ class CClassDefNode(ClassDefNode):
     api = False
     objstruct_name = None
     typeobj_name = None
+    decorators = None
 
     def analyse_declarations(self, env):
         #print "CClassDefNode.analyse_declarations:", self.class_name
