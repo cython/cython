@@ -279,6 +279,8 @@ def p_yield_expression(s):
 #power: atom trailer* ('**' factor)*
 
 def p_power(s):
+    if s.systring == 'new':
+        return p_new_expr(s)
     n1 = p_atom(s)
     while s.sy in ('(', '[', '.'):
         n1 = p_trailer(s, n1)
@@ -288,6 +290,14 @@ def p_power(s):
         n2 = p_factor(s)
         n1 = ExprNodes.binop_node(pos, '**', n1, n2)
     return n1
+
+def p_new_expr(s):
+    # s.systring == 'new'
+    pos = s.position()
+    s.next()
+    args = p_simple_expr_list(s)
+    return ExprNodes.NewExprNode(pos, arg = args[0])
+    
 
 #trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
 

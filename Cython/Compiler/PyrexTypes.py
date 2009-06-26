@@ -1586,6 +1586,8 @@ c_anon_enum_type =    CAnonEnumType(-1, 1)
 c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer")
 c_py_buffer_ptr_type = CPtrType(c_py_buffer_type)
 
+cpp_class_type = CppClassType("cpp_class", "cppclass", None, 1, "cpp_class", [])
+
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()
 
