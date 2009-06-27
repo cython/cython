@@ -1,6 +1,8 @@
 from Symtab import ModuleScope
 from PyrexTypes import *
 from UtilityCode import CythonUtilityCode
+from Errors import error
+from Scanning import StringSourceDescriptor
 
 class CythonScope(ModuleScope):
     def __init__(self):
@@ -15,7 +17,19 @@ class CythonScope(ModuleScope):
             return type
 
     def find_module(self, module_name, pos):
-        error("cython.%s is not available" % module_name)
+        error("cython.%s is not available" % module_name, pos)
+
+    def find_submodule(self, module_name):
+        entry = self.entries.get(module_name, None)
+        if entry and entry.as_module:
+            return entry.as_module
+        else:
+            # TODO: fix find_submodule control flow so that we're not
+            # expected to create a submodule here (to protect CythonScope's
+            # possible immutability). Hack ourselves out of the situation
+            # for now.
+            raise error((StringSourceDescriptor(u"cython", u""), 0, 0),
+                  "cython.%s is not available" % module_name)
 
     def populate_cython_scope(self):
         # These are used to optimize isinstance in FinalOptimizePhase
@@ -34,19 +48,32 @@ class CythonScope(ModuleScope):
             defining = 1,
             cname = 'PyObject_TypeCheck')
 
-        #
         # A special function just to make it easy to test the scope and
         # utility code functionality in isolation. It is available to
         # "end-users" but nobody will know it is there anyway...
-        #
-        testcythonscope = self.declare_cfunction(
-            '_testcythonscope',
+        entry = self.declare_cfunction(
+            '_testscope',
             CFuncType(py_object_type, [CFuncTypeArg("value", c_int_type, None)]),
             pos=None,
             defining=1,
-            cname='__pyx_cython__testcythonscope'
+            cname='__pyx_cython__testscope'
         )
-        testcythonscope.utility_code_definition = cython_testscope_utility_code
+        entry.utility_code_definition = cython_testscope_utility_code
+
+        #
+        # The view sub-scope
+        #
+        self.viewscope = viewscope = ModuleScope(u'cython.view', self, None, no_outer_scope=True)
+        self.declare_module('view', viewscope, None)
+        viewscope.pxd_file_loaded = True
+        entry = viewscope.declare_cfunction(
+            '_testscope',
+            CFuncType(py_object_type, [CFuncTypeArg("value", c_int_type, None)]),
+            pos=None,
+            defining=1,
+            cname='__pyx_cython_view__testscope'
+        )
+        entry.utility_code_definition = cythonview_testscope_utility_code
 
 def create_cython_scope(context):
     # One could in fact probably make it a singleton,
@@ -55,6 +82,11 @@ def create_cython_scope(context):
     return CythonScope()
 
 cython_testscope_utility_code = CythonUtilityCode(u"""
-cdef object _testcythonscope(int value):
-    return "hello value=%d" % value
+cdef object _testscope(int value):
+    return "hello from cython scope, value=%d" % value
 """, name="cython utility code", prefix="__pyx_cython_")
+
+cythonview_testscope_utility_code = CythonUtilityCode(u"""
+cdef object _testscope(int value):
+    return "hello from cython.view scope, value=%d" % value
+""", name="cython utility code", prefix="__pyx_cython_view_")

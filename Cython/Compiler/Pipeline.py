@@ -48,16 +48,30 @@ def inject_pxd_code_stage_factory(context):
         return module_node
     return inject_pxd_code_stage
 
-def inject_utility_code_stage(module_node):
-    added = []
-    # need to copy list as the list will be altered!
-    for utilcode in module_node.scope.utility_code_list[:]:
-        if utilcode in added: continue
-        added.append(utilcode)
-        tree = utilcode.get_tree()
-        if tree:
-            module_node.merge_in(tree.body, tree.scope, merge_scope=True)
-    return module_node
+def use_utility_code_definitions(scope, target):
+    for entry in scope.entries.itervalues():
+        if entry.used and entry.utility_code_definition:
+            target.use_utility_code(entry.utility_code_definition)
+        elif entry.as_module:
+            use_utility_code_definitions(entry.as_module, target)
+
+def inject_utility_code_stage_factory(context):
+    def inject_utility_code_stage(module_node):
+        # First, make sure any utility code pulled in by using symbols in the cython
+        # scope is included
+        use_utility_code_definitions(context.cython_scope, module_node.scope)
+        
+        added = []
+        # Note: the list might be extended inside the loop (if some utility code
+        # pulls in other utility code)
+        for utilcode in module_node.scope.utility_code_list:
+            if utilcode in added: continue
+            added.append(utilcode)
+            tree = utilcode.get_tree()
+            if tree:
+                module_node.merge_in(tree.body, tree.scope, merge_scope=True)
+        return module_node
+    return inject_utility_code_stage
 
 #
 # Pipeline factories
@@ -99,6 +113,10 @@ def create_pipeline(context, mode):
     else:
         _align_function_definitions = None
 
+    # NOTE: This is the "common" parts of the pipeline, which is also
+    # used e.g. for dealing with utility code written in Cython, or
+    # code in pxd files. So it will be run multiple times in a
+    # compilation stage.
     return [
         NormalizeTree(context),
         PostParse(context),
@@ -135,7 +153,7 @@ def create_pyx_pipeline(context, options, result, py=False):
             parse_stage_factory(context),
         ] + create_pipeline(context, mode) + [
             inject_pxd_code_stage_factory(context),
-            inject_utility_code_stage,
+            inject_utility_code_stage_factory(context),
             generate_pyx_code_stage_factory(options, result),
         ])
 

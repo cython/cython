@@ -962,8 +962,6 @@ class TransformBuiltinMethods(EnvTransform):
                     node.cdivision = True
             else:
                 entry = self.context.cython_scope.lookup(function)
-                if entry and entry.utility_code_definition:
-                    self.env_stack[0].use_utility_code(entry.utility_code_definition)
                 if not entry:
                     error(node.function.pos,
                           u"'%s' not a valid cython language construct" % function)
