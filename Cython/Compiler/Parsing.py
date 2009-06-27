@@ -1574,8 +1574,8 @@ def p_statement(s, ctx, first_statement = 0):
             s.error('decorator not allowed here')
         s.level = ctx.level
         decorators = p_decorators(s)
-        if s.sy not in ('def', 'cdef', 'cpdef'):
-            s.error("Decorators can only be followed by functions ")
+        if s.sy not in ('def', 'cdef', 'cpdef', 'class'):
+            s.error("Decorators can only be followed by functions or classes")
     elif s.sy == 'pass' and cdef_flag:
         # empty cdef block
         return p_pass_statement(s, with_newline = 1)
@@ -1595,7 +1595,7 @@ def p_statement(s, ctx, first_statement = 0):
         node = p_cdef_statement(s, ctx(overridable = overridable))
         if decorators is not None:
             if not isinstance(node, (Nodes.CFuncDefNode, Nodes.CVarDefNode)):
-                s.error("Decorators can only be followed by functions ")
+                s.error("Decorators can only be followed by functions or Python classes")
             node.decorators = decorators
         return node
     else:
@@ -1609,7 +1609,7 @@ def p_statement(s, ctx, first_statement = 0):
         elif s.sy == 'class':
             if ctx.level != 'module':
                 s.error("class definition not allowed here")
-            return p_class_statement(s)
+            return p_class_statement(s, decorators)
         elif s.sy == 'include':
             if ctx.level not in ('module', 'module_pxd'):
                 s.error("include statement not allowed here")
@@ -2426,7 +2426,7 @@ def p_py_arg_decl(s):
     name = p_ident(s)
     return Nodes.PyArgDeclNode(pos, name = name)
 
-def p_class_statement(s):
+def p_class_statement(s, decorators):
     # s.sy == 'class'
     pos = s.position()
     s.next()
@@ -2442,7 +2442,7 @@ def p_class_statement(s):
     return Nodes.PyClassDefNode(pos,
         name = class_name,
         bases = ExprNodes.TupleNode(pos, args = base_list),
-        doc = doc, body = body)
+        doc = doc, body = body, decorators = decorators)
 
 def p_c_class_definition(s, pos,  ctx):
     # s.sy == 'class'
