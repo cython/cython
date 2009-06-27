@@ -34,7 +34,7 @@ class UtilityCode(object):
         self._cache = {}
         self.specialize_list = []
 
-    def inject_tree_and_scope_into(self, module_node):
+    def get_tree(self):
         pass
     
     def specialize(self, pyrex_type=None, **data):

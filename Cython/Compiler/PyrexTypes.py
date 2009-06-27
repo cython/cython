@@ -1259,6 +1259,9 @@ class StructUtilityCode(object):
         return isinstance(other, StructUtilityCode) and self.header == other.header
     def __hash__(self):
         return hash(self.header)
+
+    def get_tree(self):
+        pass
     
     def put_code(self, output):
         code = output['utility_code_def']

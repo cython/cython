@@ -905,12 +905,13 @@ class TransformBuiltinMethods(EnvTransform):
                 node = BoolNode(node.pos, value=True)
             elif attribute == u'NULL':
                 node = NullNode(node.pos)
-            elif not PyrexTypes.parse_basic_type(attribute):
+            elif PyrexTypes.parse_basic_type(attribute):
+                pass
+            elif not self.context.cython_scope.lookup(attribute):
                 error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
         return node
 
     def visit_SimpleCallNode(self, node):
-
         # locals builtin
         if isinstance(node.function, ExprNodes.NameNode):
             if node.function.name == 'locals':
@@ -960,7 +961,12 @@ class TransformBuiltinMethods(EnvTransform):
                     node = binop_node(node.function.pos, '/', node.args[0], node.args[1])
                     node.cdivision = True
             else:
-                error(node.function.pos, u"'%s' not a valid cython language construct" % function)
+                entry = self.context.cython_scope.lookup(function)
+                if entry and entry.utility_code_definition:
+                    self.env_stack[0].use_utility_code(entry.utility_code_definition)
+                if not entry:
+                    error(node.function.pos,
+                          u"'%s' not a valid cython language construct" % function)
         
         self.visitchildren(node)
         return node

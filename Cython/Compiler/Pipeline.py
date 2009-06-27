@@ -49,12 +49,14 @@ def inject_pxd_code_stage_factory(context):
     return inject_pxd_code_stage
 
 def inject_utility_code_stage(module_node):
-    # need to copy list as the list will be altered!
     added = []
+    # need to copy list as the list will be altered!
     for utilcode in module_node.scope.utility_code_list[:]:
         if utilcode in added: continue
         added.append(utilcode)
-        utilcode.inject_tree_and_scope_into(module_node)
+        tree = utilcode.get_tree()
+        if tree:
+            module_node.merge_in(tree.body, tree.scope, merge_scope=True)
     return module_node
 
 #

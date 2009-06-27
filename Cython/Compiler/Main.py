@@ -23,7 +23,6 @@ from Errors import PyrexError, CompileError, InternalError, error
 from Symtab import BuiltinScope, ModuleScope
 from Cython import Utils
 from Cython.Utils import open_new_file, replace_suffix
-import CythonScope
 import DebugFlags
 
 module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
@@ -54,12 +53,18 @@ class Context(object):
     #  modules               {string : ModuleScope}
     #  include_directories   [string]
     #  future_directives     [object]
+
+    cython_scope = None
     
     def __init__(self, include_directories, pragma_overrides):
+        # cython_scope is a hack, set to False by subclasses, in order to break
+        # an infinite loop.
+        # Better code organization would fix it.
+        
         #self.modules = {"__builtin__" : BuiltinScope()}
         import Builtin, CythonScope
         self.modules = {"__builtin__" : Builtin.builtin_scope}
-        self.modules["cython"] = CythonScope.create_cython_scope(self)
+        self.modules["cython"] = self.cython_scope = CythonScope.create_cython_scope(self)
         self.include_directories = include_directories
         self.future_directives = set()
         self.pragma_overrides = pragma_overrides

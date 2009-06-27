@@ -114,6 +114,10 @@ class Entry(object):
     # buffer_aux      BufferAux or None  Extra information needed for buffer variables
     # inline_func_in_pxd boolean  Hacky special case for inline function in pxd file.
     #                             Ideally this should not be necesarry.
+    #
+    # utility_code_definition     For some Cython builtins, the utility code
+    #                             which contains the definition of the entry.
+    #                             Currently only supported for CythonScope entries.
 
     inline_func_in_pxd = False
     borrowed = 0
@@ -161,6 +165,7 @@ class Entry(object):
     is_overridable = 0
     buffer_aux = None
     prev_entry = None
+    utility_code_definition = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -237,7 +242,20 @@ class Scope(object):
         self.obj_to_entry = {}
         self.buffer_entries = []
         self.control_flow = ControlFlow.LinearControlFlow()
-        
+
+    def merge_in(self, other):
+        # Use with care...
+        self.entries.update(other.entries)
+        for x in ('const_entries',
+                  'type_entries',
+                  'sue_entries',
+                  'arg_entries',
+                  'var_entries',
+                  'pyfunc_entries',
+                  'cfunc_entries',
+                  'c_class_entries'):
+            getattr(self, x).extend(getattr(other, x))
+
     def start_branching(self, pos):
         self.control_flow = self.control_flow.start_branch(pos)
     
@@ -666,9 +684,13 @@ class ModuleScope(Scope):
     is_module_scope = 1
     has_import_star = 0
 
-    def __init__(self, name, parent_module, context):
+    def __init__(self, name, parent_module, context, no_outer_scope=False):
         self.parent_module = parent_module
-        outer_scope = context.find_submodule("__builtin__")
+        if not no_outer_scope:
+            outer_scope = context.find_submodule("__builtin__")
+            self.type_names = dict(outer_scope.type_names)
+        else:
+            outer_scope = None
         Scope.__init__(self, name, outer_scope, parent_module)
         if name != "__init__":
             self.module_name = name
@@ -686,7 +708,6 @@ class ModuleScope(Scope):
         self.module_entries = {}
         self.python_include_files = ["Python.h", "structmember.h"]
         self.include_files = []
-        self.type_names = dict(outer_scope.type_names)
         self.pxd_file_loaded = 0
         self.cimported_modules = []
         self.types_imported = {}
