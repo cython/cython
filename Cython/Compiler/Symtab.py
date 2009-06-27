@@ -44,12 +44,9 @@ def c_safe_identifier(cname):
 class BufferAux(object):
     writable_needed = False
     
-    def __init__(self, buffer_info_var, stridevars, shapevars,
-                 suboffsetvars):
-        self.buffer_info_var = buffer_info_var
-        self.stridevars = stridevars
-        self.shapevars = shapevars
-        self.suboffsetvars = suboffsetvars
+    def __init__(self, buflocal_nd_var, rcbuf_var):
+        self.buflocal_nd_var = buflocal_nd_var
+        self.rcbuf_var = rcbuf_var
         
     def __repr__(self):
         return "<BufferAux %r>" % self.__dict__
@@ -117,6 +114,10 @@ class Entry(object):
     # buffer_aux      BufferAux or None  Extra information needed for buffer variables
     # inline_func_in_pxd boolean  Hacky special case for inline function in pxd file.
     #                             Ideally this should not be necesarry.
+    #
+    # utility_code_definition     For some Cython builtins, the utility code
+    #                             which contains the definition of the entry.
+    #                             Currently only supported for CythonScope entries.
 
     inline_func_in_pxd = False
     borrowed = 0
@@ -164,6 +165,7 @@ class Entry(object):
     is_overridable = 0
     buffer_aux = None
     prev_entry = None
+    utility_code_definition = None
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -189,14 +191,12 @@ class Scope(object):
     # cfunc_entries     [Entry]            C function entries
     # c_class_entries   [Entry]            All extension type entries
     # cname_to_entry    {string : Entry}   Temp cname to entry mapping
-    # int_to_entry      {int : Entry}      Temp cname to entry mapping
     # return_type       PyrexType or None  Return type of function owning scope
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
     # scope_prefix      string             Disambiguator for C names
     # in_cinclude       boolean            Suppress C declaration code
     # qualified_name    string             "modname" or "modname.classname"
-    # pystring_entries  [Entry]            String const entries newly used as
     #                                        Python strings in this scope
     # control_flow     ControlFlow  Used for keeping track of environment state
     # nogil             boolean            In a nogil section
@@ -240,10 +240,22 @@ class Scope(object):
         self.identifier_to_entry = {}
         self.num_to_entry = {}
         self.obj_to_entry = {}
-        self.pystring_entries = []
         self.buffer_entries = []
         self.control_flow = ControlFlow.LinearControlFlow()
-        
+
+    def merge_in(self, other):
+        # Use with care...
+        self.entries.update(other.entries)
+        for x in ('const_entries',
+                  'type_entries',
+                  'sue_entries',
+                  'arg_entries',
+                  'var_entries',
+                  'pyfunc_entries',
+                  'cfunc_entries',
+                  'c_class_entries'):
+            getattr(self, x).extend(getattr(other, x))
+
     def start_branching(self, pos):
         self.control_flow = self.control_flow.start_branch(pos)
     
@@ -672,9 +684,13 @@ class ModuleScope(Scope):
     is_module_scope = 1
     has_import_star = 0
 
-    def __init__(self, name, parent_module, context):
+    def __init__(self, name, parent_module, context, no_outer_scope=False):
         self.parent_module = parent_module
-        outer_scope = context.find_submodule("__builtin__")
+        if not no_outer_scope:
+            outer_scope = context.find_submodule("__builtin__")
+            self.type_names = dict(outer_scope.type_names)
+        else:
+            outer_scope = None
         Scope.__init__(self, name, outer_scope, parent_module)
         if name != "__init__":
             self.module_name = name
@@ -692,7 +708,6 @@ class ModuleScope(Scope):
         self.module_entries = {}
         self.python_include_files = ["Python.h", "structmember.h"]
         self.include_files = []
-        self.type_names = dict(outer_scope.type_names)
         self.pxd_file_loaded = 0
         self.cimported_modules = []
         self.types_imported = {}

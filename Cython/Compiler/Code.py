@@ -24,7 +24,7 @@ class UtilityCode(object):
     # See GlobalState.put_utility_code.
     #
     # hashes/equals by instance
-    
+
     def __init__(self, proto=None, impl=None, init=None, cleanup=None, requires=None):
         self.proto = proto
         self.impl = impl
@@ -34,6 +34,9 @@ class UtilityCode(object):
         self._cache = {}
         self.specialize_list = []
 
+    def get_tree(self):
+        pass
+    
     def specialize(self, pyrex_type=None, **data):
         # Dicts aren't hashable...
         if pyrex_type is not None:

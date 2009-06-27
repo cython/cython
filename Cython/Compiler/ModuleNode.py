@@ -46,7 +46,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     child_attrs = ["body"]
     directives = None
-    
+
+    def merge_in(self, tree, scope, merge_scope=False):
+        # Merges in the contents of another tree, and possibly scope. With the
+        # current implementation below, this must be done right prior
+        # to code generation.
+        #
+        # Note: This way of doing it seems strange -- I believe the
+        # right concept is to split ModuleNode into a ModuleNode and a
+        # CodeGenerator, and tell that CodeGenerator to generate code
+        # from multiple sources.
+        assert isinstance(self.body, Nodes.StatListNode)
+        if isinstance(tree, Nodes.StatListNode):
+            self.body.stats.extend(tree.stats)
+        else:
+            self.body.stats.append(tree)
+        selfscope = self.scope
+        selfscope.utility_code_list.extend(scope.utility_code_list)
+        if merge_scope:
+            selfscope.merge_in(scope)
+
     def analyse_declarations(self, env):
         if Options.embed_pos_in_docstring:
             env.doc = EncodedString(u'File: %s (starting at line %s)' % Nodes.relative_position(self.pos))

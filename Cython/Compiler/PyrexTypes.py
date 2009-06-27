@@ -1259,6 +1259,9 @@ class StructUtilityCode(object):
         return isinstance(other, StructUtilityCode) and self.header == other.header
     def __hash__(self):
         return hash(self.header)
+
+    def get_tree(self):
+        pass
     
     def put_code(self, output):
         code = output['utility_code_def']
@@ -1558,6 +1561,15 @@ c_anon_enum_type =    CAnonEnumType(-1, 1)
 # the Py_buffer type is defined in Builtin.py
 c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer")
 c_py_buffer_ptr_type = CPtrType(c_py_buffer_type)
+
+# buffer-related structs
+c_buf_diminfo_type =  CStructOrUnionType("__Pyx_Buf_DimInfo", "struct",
+                                      None, 1, "__Pyx_Buf_DimInfo")
+c_pyx_buffer_type = CStructOrUnionType("__Pyx_Buffer", "struct", None, 1, "__Pyx_Buffer")
+c_pyx_buffer_ptr_type = CPtrType(c_pyx_buffer_type)
+c_pyx_buffer_nd_type = CStructOrUnionType("__Pyx_LocalBuf_ND", "struct",
+                                      None, 1, "__Pyx_LocalBuf_ND")
+
 
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()

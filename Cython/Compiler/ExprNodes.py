@@ -1251,10 +1251,8 @@ class NameNode(AtomicExprNode):
             rhstmp = code.funcstate.allocate_temp(self.entry.type, manage_ref=False)
             code.putln('%s = %s;' % (rhstmp, rhs.result_as(self.ctype())))
 
-        buffer_aux = self.entry.buffer_aux
-        bufstruct = buffer_aux.buffer_info_var.cname
         import Buffer
-        Buffer.put_assign_to_buffer(self.result(), rhstmp, buffer_aux, self.entry.type,
+        Buffer.put_assign_to_buffer(self.result(), rhstmp, self.entry,
                                     is_initialized=not self.lhs_of_first_assignment,
                                     pos=self.pos, code=code)
         
@@ -2663,6 +2661,7 @@ class AttributeNode(ExprNode):
                 entry.is_cglobal or entry.is_cfunction
                 or entry.is_type or entry.is_const):
                     self.mutate_into_name_node(env, entry, target)
+                    entry.used = 1
                     return 1
         return 0
     
