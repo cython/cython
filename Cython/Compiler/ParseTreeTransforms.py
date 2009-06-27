@@ -2214,7 +2214,7 @@ class TransformBuiltinMethods(EnvTransform):
                                           entry=self.current_env().builtin_scope().lookup_here(attribute))
             elif PyrexTypes.parse_basic_type(attribute):
                 pass
-            elif self.context.cython_scope.lookup(attribute):
+            elif self.context.cython_scope.lookup_qualified_name(attribute):
                 pass
             else:
                 error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
@@ -2305,13 +2305,11 @@ class TransformBuiltinMethods(EnvTransform):
                     node.cdivision = True
             elif function == u'set':
                 node.function = ExprNodes.NameNode(node.pos, name=EncodedString('set'))
+            elif self.context.cython_scope.lookup_qualified_name(function):
+                pass
             else:
-                entry = self.context.cython_scope.lookup(function)
-                if entry and entry.utility_code_definition:
-                    self.env_stack[0].use_utility_code(entry.utility_code_definition)
-                if not entry:
-                    error(node.function.pos,
-                          u"'%s' not a valid cython language construct" % function)
+                error(node.function.pos,
+                      u"'%s' not a valid cython language construct" % function)
 
         self.visitchildren(node)
         return node

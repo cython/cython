@@ -1029,6 +1029,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     entry.type.typeptr_cname)
 
     def generate_cvariable_declarations(self, env, code, definition):
+        if env.is_cython_builtin:
+            return
         for entry in env.var_entries:
             if (entry.in_cinclude or entry.in_closure or
                 (entry.visibility == 'private' and
