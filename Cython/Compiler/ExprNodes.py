@@ -3177,7 +3177,7 @@ class SequenceNode(ExprNode):
                         arg.py_result(),
                         target_list, target_list))
                 # resize the list the hard way
-                code.putln("((PyListObject*)%s)->ob_size--;" % target_list)
+                code.putln("((PyVarObject*)%s)->ob_size--;" % target_list)
                 code.put_gotref(arg.py_result())
                 coerced_arg.generate_evaluation_code(code)
 
