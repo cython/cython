@@ -892,9 +892,11 @@ class ModuleScope(Scope):
     # types_imported       {PyrexType : 1}    Set of types for which import code generated
     # has_import_star      boolean            Module contains import *
     # cpp                  boolean            Compiling a C++ file
+    # is_cython_builtin    boolean            Is this the Cython builtin scope (or a child scope)
 
     is_module_scope = 1
     has_import_star = 0
+    is_cython_builtin = 0
 
     def __init__(self, name, parent_module, context):
         import Builtin
