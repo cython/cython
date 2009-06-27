@@ -4,15 +4,20 @@ import Symtab
 import Naming
 
 class NonManglingModuleScope(Symtab.ModuleScope):
+
+    def __init__(self, prefix, *args, **kw):
+        self.prefix = prefix
+        Symtab.ModuleScope.__init__(self, *args, **kw)
+    
     def mangle(self, prefix, name=None):
         if name:
-            if prefix in (Naming.typeobj_prefix, Naming.func_prefix):
+            if prefix in (Naming.typeobj_prefix, Naming.func_prefix, Naming.var_prefix):
                 # Functions, classes etc. gets a manually defined prefix easily
                 # manually callable instead (the one passed to CythonUtilityCode)
                 prefix = self.prefix
             return "%s%s" % (prefix, name)
         else:
-            return self.base.name
+            return Symtab.ModuleScope.mangle(self, prefix)
 
 class CythonUtilityCodeContext(StringParseContext):
     scope = None
@@ -21,8 +26,8 @@ class CythonUtilityCodeContext(StringParseContext):
         if module_name != self.module_name:
             raise AssertionError("Not yet supporting any cimports/includes from string code snippets")
         if self.scope is None:
-            self.scope = NonManglingModuleScope(module_name, parent_module = None, context = self)
-            self.scope.prefix = self.prefix
+            self.scope = NonManglingModuleScope(self.prefix,
+                                                module_name, parent_module = None, context = self)
         return self.scope
 
 class CythonUtilityCode:
@@ -30,7 +35,7 @@ class CythonUtilityCode:
     Utility code written in the Cython language itself.
     """
 
-    def __init__(self, pyx, name="<utility code>", prefix=""):
+    def __init__(self, pyx, name="__pyxutil", prefix=""):
         # 1) We need to delay the parsing/processing, so that all modules can be
         #    imported without import loops
         # 2) The same utility code object can be used for multiple source files;
@@ -46,7 +51,6 @@ class CythonUtilityCode:
         context = CythonUtilityCodeContext(self.name)
         context.prefix = self.prefix
         tree = parse_from_strings(self.name, self.pyx, context=context)
-        tree.scope.scope_prefix = 'dagss'
         pipeline = Pipeline.create_pipeline(context, 'pyx')
         (err, tree) = Pipeline.run_pipeline(pipeline, tree)
         assert not err

@@ -63,7 +63,7 @@ class CythonScope(ModuleScope):
         #
         # The view sub-scope
         #
-        self.viewscope = viewscope = ModuleScope(u'cython.view', self, None, no_outer_scope=True)
+        self.viewscope = viewscope = ModuleScope(u'view', self, None, no_outer_scope=True)
         self.declare_module('view', viewscope, None)
         viewscope.pxd_file_loaded = True
         entry = viewscope.declare_cfunction(
@@ -74,6 +74,12 @@ class CythonScope(ModuleScope):
             cname='__pyx_cython_view__testscope'
         )
         entry.utility_code_definition = cythonview_testscope_utility_code
+
+        for x in ('strided', 'contig', 'follow', 'direct', 'ptr', 'full'):
+            entry = viewscope.declare_var(x, py_object_type, None,
+                                          cname='__pyx_viewaxis_%s' % x,
+                                          is_cdef=True)
+            entry.utility_code_definition = view_utility_code
 
 def create_cython_scope(context):
     # One could in fact probably make it a singleton,
@@ -90,3 +96,19 @@ cythonview_testscope_utility_code = CythonUtilityCode(u"""
 cdef object _testscope(int value):
     return "hello from cython.view scope, value=%d" % value
 """, name="cython utility code", prefix="__pyx_cython_view_")
+
+view_utility_code = CythonUtilityCode(u"""
+cdef class Enum:
+    cdef object name
+    def __init__(self, name):
+        self.name = name
+    def __repr__(self):
+        return self.name
+
+cdef strided = Enum("<strided axis packing mode>")
+cdef contig = Enum("<contig axis packing mode>")
+cdef follow = Enum("<follow axis packing mode>")
+cdef direct = Enum("<direct axis access mode>")
+cdef ptr = Enum("<ptr axis access mode>")
+cdef full = Enum("<full axis access mode>")
+""", prefix="__pyx_viewaxis_")
