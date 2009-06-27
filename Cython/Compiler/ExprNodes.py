@@ -3683,6 +3683,7 @@ class AttributeNode(ExprNode):
                 entry.is_cglobal or entry.is_cfunction
                 or entry.is_type or entry.is_const):
                     self.mutate_into_name_node(env, entry, target)
+                    entry.used = 1
                     return 1
         return 0
 

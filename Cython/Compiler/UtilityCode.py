@@ -6,20 +6,24 @@ from Cython.Compiler import Visitor
 
 class NonManglingModuleScope(Symtab.ModuleScope):
 
+    def __init__(self, prefix, *args, **kw):
+        self.prefix = prefix
+        Symtab.ModuleScope.__init__(self, *args, **kw)
+
     def add_imported_entry(self, name, entry, pos):
         entry.used = True
         return super(NonManglingModuleScope, self).add_imported_entry(
                                                         name, entry, pos)
-
+    
     def mangle(self, prefix, name=None):
         if name:
-            if prefix in (Naming.typeobj_prefix, Naming.func_prefix):
+            if prefix in (Naming.typeobj_prefix, Naming.func_prefix, Naming.var_prefix):
                 # Functions, classes etc. gets a manually defined prefix easily
                 # manually callable instead (the one passed to CythonUtilityCode)
                 prefix = self.prefix
             return "%s%s" % (prefix, name)
         else:
-            return self.base.name
+            return Symtab.ModuleScope.mangle(self, prefix)
 
 class CythonUtilityCodeContext(StringParseContext):
     scope = None
@@ -31,9 +35,10 @@ class CythonUtilityCodeContext(StringParseContext):
                                  "from string code snippets")
 
         if self.scope is None:
-            self.scope = NonManglingModuleScope(
-                    module_name, parent_module=None, context=self)
-            self.scope.prefix = self.prefix
+            self.scope = NonManglingModuleScope(self.prefix,
+                                                module_name,
+                                                parent_module=None,
+                                                context=self)
 
         return self.scope
 
@@ -57,7 +62,7 @@ class CythonUtilityCode(object):
 
     is_cython_utility = True
 
-    def __init__(self, impl, name="CythonUtilityCode", prefix="", requires=None):
+    def __init__(self, impl, name="__pyxutil", prefix="", requires=None):
         # 1) We need to delay the parsing/processing, so that all modules can be
         #    imported without import loops
         # 2) The same utility code object can be used for multiple source files;
