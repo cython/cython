@@ -145,3 +145,20 @@ def test_cython_utility_dep():
     test_call('second')
     __pyx_test_dep('third')
     __pyx_test_call_other_cy_util('fourth')
+
+def viewobjs():
+    """
+    >>> viewobjs()
+    <strided axis packing mode>
+    <contig axis packing mode>
+    <follow axis packing mode>
+    <direct axis access mode>
+    <ptr axis access mode>
+    <full axis access mode>
+    """
+    print cython.view.strided
+    print cython.view.contig
+    print cython.view.follow
+    print cython.view.direct
+    print cython.view.ptr
+    print cython.view.full
