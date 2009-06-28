@@ -1824,16 +1824,63 @@ def p_c_simple_base_type(s, self_flag, nonempty):
         is_self_arg = self_flag)
 
 
-    # Treat trailing [] on type as buffer access if it appears in a context
-    # where declarator names are required (so that it cannot mean int[] or
-    # sizeof(int[SIZE]))...
+    # Treat trailing [] on type as buffer access or memview declaration if it
+    # appears in a context where declarator names are required (so that it
+    # cannot mean int[] or sizeof(int[SIZE]))...
     #
-    # (This means that buffers cannot occur where there can be empty declarators,
-    # which is an ok restriction to make.)
+    # (This means that buffers/memviews cannot occur where there can be empty
+    # declarators, which is an ok restriction to make.)
     if nonempty and s.sy == '[':
-        return p_buffer_access(s, type_node)
+        return p_buffer_or_memview_access(s, type_node)
     else:
         return type_node
+
+def p_buffer_or_memview_access(s, base_type_node):
+    if is_memview_access(s):
+        return p_memview_access(s, base_type_node)
+    else:
+        return p_buffer_access(s, base_type_node)
+
+def p_memview_access(s, base_type_node):
+    # s.sy == '['
+    pos = s.position()
+    s.next()
+    subscripts = p_subscript_list(s)
+    # make sure each entry in subscripts is a slice
+    for subscript in subscripts:
+        if len(subscript) < 2:
+            s.error("An axis specification in memoryview declaration does not have a ':'.")
+    indices = make_slice_nodes(pos, subscripts)
+    if len(indices) == 1:
+        index = indices[0]
+    else:
+        index = ExprNodes.TupleNode(pos, args = indices)
+    s.expect(']')
+    result = Nodes.MemoryViewTypeNode(pos,
+            base_type_node = base_type_node,
+            axes = index)
+    return result
+
+def is_memview_access(s):
+    # s.sy == '['
+    # a memview declaration is distinguishable from a buffer access declaration
+    # by the first entry in the bracketed list.  The buffer will not have an
+    # unnested colon in the first entry; the memview will.
+    saved = [(s.sy, s.systring)]
+    s.next()
+    retval = False
+    if s.systring == ':':
+        retval = True
+    elif s.systring == u'0':
+        saved.append((s.sy, s.systring))
+        s.next()
+        if s.sy == ':':
+            retval = True
+
+    for sv in reversed(saved):
+        s.put_back(*sv)
+
+    return retval
 
 def p_buffer_access(s, base_type_node):
     # s.sy == '['

@@ -709,6 +709,10 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
         else:
             return PyrexTypes.error_type
 
+class MemoryViewTypeNode(CBaseTypeNode):
+
+    child_attrs = ['base_type_node', 'axes']
+
 class CBufferAccessTypeNode(CBaseTypeNode):
     #  After parsing:
     #  positional_args  [ExprNode]        List of positional arguments
