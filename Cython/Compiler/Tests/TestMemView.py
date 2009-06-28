@@ -30,6 +30,12 @@ class TestMemviewParsing(CythonTest):
     def test_zero_offset_ndim(self):
         self.parse(u"cdef int[0:,0:,0:,0:] x")
 
+    def test_def_arg(self):
+        self.parse(u"def foo(int[:,:] x): pass")
+
+    def test_cdef_arg(self):
+        self.parse(u"cdef foo(int[:,:] x): pass")
+
     def test_general_slice(self):
         self.parse(u'cdef float[::ptr, ::direct & contig, 0::full & strided] x')
 
