@@ -308,7 +308,12 @@ class CTypedefType(BaseType):
     def __getattr__(self, name):
         return getattr(self.typedef_base_type, name)
 
+class MemoryViewType(BaseType):
 
+    def __init__(self, base, axes):
+        self.base = base
+        self.axes = axes
+        
 class BufferType(BaseType):
     #
     #  Delegates most attribute

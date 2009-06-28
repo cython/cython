@@ -1938,7 +1938,7 @@ def p_c_complex_base_type(s):
     # s.sy == '('
     pos = s.position()
     s.next()
-    base_type = p_c_base_type(s)
+    base_type = p_c_base_type(s, empty = 1)
     declarator = p_c_declarator(s, empty = 1)
     s.expect(')')
     return Nodes.CComplexBaseTypeNode(pos,
@@ -2003,7 +2003,10 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
         is_self_arg = self_flag, templates = templates)
 
     if s.sy == '[':
-        type_node = p_buffer_or_template(s, type_node, templates)
+        if is_memoryviewslice_access(s):
+            type_node = p_memoryview_access(s, type_node)
+        else:
+            type_node = p_buffer_or_template(s, type_node, templates)
 
     if s.sy == '.':
         s.next()
@@ -2034,6 +2037,61 @@ def p_buffer_or_template(s, base_type_node, templates):
         base_type_node = base_type_node)
     return result
 
+def p_bracketed_base_type(s, base_type_node, nonempty, empty):
+    # s.sy == '['
+    if empty and not nonempty:
+        # sizeof-like thing.  Only anonymous C arrays allowed (int[SIZE]).
+        return base_type_node
+    elif not empty and nonempty:
+        # declaration of either memoryview or buffer.
+        if is_memoryview_access(s):
+            return p_memoryview_access(s, base_type_node)
+        else:
+            return p_buffer_access(s, base_type_node)
+    elif not empty and not nonempty:
+        # only anonymous C arrays and memoryview arrays here.  We disallow buffer
+        # declarations for now, due to ambiguity with anonymous C arrays.
+        if is_memoryview_access(s):
+            return p_memoryview_access(s, base_type_node)
+        else:
+            return base_type_node
+
+def is_memoryview_access(s):
+    # s.sy == '['
+    # a memoryview declaration is distinguishable from a buffer access
+    # declaration by the first entry in the bracketed list.  The buffer will
+    # not have an unnested colon in the first entry; the memoryview will.
+    saved = [(s.sy, s.systring)]
+    s.next()
+    retval = False
+    if s.systring == ':':
+        retval = True
+    elif s.sy == 'INT':
+        saved.append((s.sy, s.systring))
+        s.next()
+        if s.sy == ':':
+            retval = True
+
+    for sv in reversed(saved):
+        s.put_back(*sv)
+
+    return retval
+
+def p_memoryview_access(s, base_type_node):
+    # s.sy == '['
+    pos = s.position()
+    s.next()
+    subscripts = p_subscript_list(s)
+    # make sure each entry in subscripts is a slice
+    for subscript in subscripts:
+        if len(subscript) < 2:
+            s.error("An axis specification in memoryview declaration does not have a ':'.")
+    s.expect(']')
+    indexes = make_slice_nodes(pos, subscripts)
+    result = Nodes.MemoryViewTypeNode(pos,
+            base_type_node = base_type_node,
+            axes = indexes)
+    return result
 
 def looking_at_name(s):
     return s.sy == 'IDENT' and not s.systring in calling_convention_words
@@ -2977,4 +3035,3 @@ def print_parse_tree(f, node, level, key = None):
             f.write("%s]\n" % ind)
             return
     f.write("%s%s\n" % (ind, node))
-
