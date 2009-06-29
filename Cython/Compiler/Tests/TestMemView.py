@@ -40,15 +40,31 @@ class TestMemviewParsing(CythonTest):
         self.parse(u'cdef float[::ptr, ::direct & contig, 0::full & strided] x')
 
     def test_non_slice_memview(self):
-        self.not_parseable("An axis specification in memoryview declaration does not have a ':'.",
+        self.not_parseable(u"An axis specification in memoryview declaration does not have a ':'.",
                 u"cdef double[:foo, bar] x")
-        self.not_parseable("An axis specification in memoryview declaration does not have a ':'.",
+        self.not_parseable(u"An axis specification in memoryview declaration does not have a ':'.",
                 u"cdef double[0:foo, bar] x")
 
     def test_basic(self):
         t = self.parse(u"cdef int[:] x")
         memv_node = t.stats[0].base_type
         self.assert_(isinstance(memv_node, MemoryViewTypeNode))
+
+    # we also test other similar declarations (buffers, anonymous C arrays)
+    # since the parsing has to distinguish between them.
+
+    def test_no_buf_arg(self):
+        self.not_parseable(u"Expected ']'",
+                u"cdef extern foo(object[int, ndim=2])")
+
+    def test_parse_sizeof(self):
+        self.parse(u"sizeof(int[NN])")
+        self.parse(u"sizeof(int[])")
+        self.parse(u"sizeof(int[][NN])")
+        self.not_parseable(u"Expected an identifier or literal",
+                u"sizeof(int[:NN])")
+        self.not_parseable(u"Expected ']'",
+                u"sizeof(foo[dtype=bar]")
 
 if __name__ == '__main__':
     import unittest
