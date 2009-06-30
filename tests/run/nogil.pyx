@@ -20,3 +20,5 @@ cdef int g(int x) nogil:
         cdef int y
         y = x + 42
         return y
+
+        

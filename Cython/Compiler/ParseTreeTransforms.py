@@ -866,30 +866,32 @@ class GilCheck(VisitorTransform):
     """
     def __call__(self, root):
         self.env_stack = [root.scope]
+        self.nogil = False
         return super(GilCheck, self).__call__(root)
 
     def visit_FuncDefNode(self, node):
         self.env_stack.append(node.local_scope)
-        if node.gil_check is not None:
-            node.gil_check(self.env_stack[-1])
+        was_nogil = self.nogil
+        self.nogil = node.local_scope.nogil
+        if self.nogil and node.nogil_check:
+            node.nogil_check(node.local_scope)
         self.visitchildren(node)
         self.env_stack.pop()
+        self.nogil = was_nogil
         return node
 
     def visit_GILStatNode(self, node):
-        # FIXME: should we do some kind of GIL checking here, too?
-        # if node.gil_check is not None:
-        #     node.gil_check(self.env_stack[-1])
         env = self.env_stack[-1]
-        was_nogil = env.nogil
-        env.nogil = node.state == 'nogil'
+        if self.nogil and node.nogil_check: node.nogil_check()
+        was_nogil = self.nogil
+        self.nogil = (node.state == 'nogil')
         self.visitchildren(node)
-        env.nogil = was_nogil
+        self.nogil = was_nogil
         return node
 
     def visit_Node(self, node):
-        if self.env_stack and node.gil_check is not None:
-            node.gil_check(self.env_stack[-1])
+        if self.env_stack and self.nogil and node.nogil_check:
+            node.nogil_check(self.env_stack[-1])
         self.visitchildren(node)
         return node
 
