@@ -318,14 +318,22 @@ class CythonCompileTestCase(unittest.TestCase):
                 sys.stderr = old_stderr
 
         if errors or expected_errors:
-            for expected, error in zip(expected_errors, errors):
-                self.assertEquals(expected, error)
-            if len(errors) < len(expected_errors):
-                expected_error = expected_errors[len(errors)]
-                self.assertEquals(expected_error, None)
-            elif len(errors) > len(expected_errors):
-                unexpected_error = errors[len(expected_errors)]
-                self.assertEquals(None, unexpected_error)
+            try:
+                for expected, error in zip(expected_errors, errors):
+                    self.assertEquals(expected, error)
+                if len(errors) < len(expected_errors):
+                    expected_error = expected_errors[len(errors)]
+                    self.assertEquals(expected_error, None)
+                elif len(errors) > len(expected_errors):
+                    unexpected_error = errors[len(expected_errors)]
+                    self.assertEquals(None, unexpected_error)
+            except AssertionError:
+                print("\n=== Expected errors: ===")
+                print('\n'.join(expected_errors))
+                print "\n\n=== Got errors: ==="
+                print('\n'.join(errors))
+                print('\n')
+                raise
         else:
             if not self.cython_only:
                 self.run_distutils(module, workdir, incdir)
