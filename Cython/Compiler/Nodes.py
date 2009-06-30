@@ -133,12 +133,9 @@ class Node(object):
     
     gil_message = "Operation"
 
-    gil_check = None
-    def _gil_check(self, env):
-        if env.nogil:
-            self.gil_error()
+    nogil_check = None
 
-    def gil_error(self):
+    def gil_error(self, env=None):
         error(self.pos, "%s not allowed without gil" % self.gil_message)
 
     def clone_node(self):
@@ -1365,14 +1362,14 @@ class CFuncDefNode(FuncDefNode):
     def need_gil_acquisition(self, lenv):
         return self.type.with_gil
 
-    def gil_check(self, env):
+    def nogil_check(self, env):
         type = self.type
         with_gil = type.with_gil
         if type.nogil and not with_gil:
             if type.return_type.is_pyobject:
                 error(self.pos,
                       "Function with Python return type cannot be declared nogil")
-            for entry in env.var_entries:
+            for entry in self.local_scope.var_entries:
                 if entry.type.is_pyobject:
                     error(self.pos, "Function declared nogil has Python locals or temporaries")
 
@@ -3190,7 +3187,7 @@ class PrintStatNode(StatNode):
         if len(self.arg_tuple.args) == 1 and self.append_newline:
             env.use_utility_code(printing_one_utility_code)
 
-    gil_check = StatNode._gil_check
+    nogil_check = Node.gil_error
     gil_message = "Python print statement"
 
     def generate_execution_code(self, code):
@@ -3232,7 +3229,7 @@ class ExecStatNode(StatNode):
             self.args[i] = arg
         env.use_utility_code(Builtin.pyexec_utility_code)
 
-    gil_check = StatNode._gil_check
+    nogil_check = Node.gil_error
     gil_message = "Python exec statement"
 
     def generate_execution_code(self, code):
@@ -3276,10 +3273,10 @@ class DelStatNode(StatNode):
                 error(arg.pos, "Deletion of non-Python object")
             #arg.release_target_temp(env)
 
-    def gil_check(self, env):
+    def nogil_check(self, env):
         for arg in self.args:
             if arg.type.is_pyobject:
-                self._gil_check(env)
+                self.gil_error()
 
     gil_message = "Deleting Python object"
 
@@ -3363,9 +3360,9 @@ class ReturnStatNode(StatNode):
                 and not return_type.is_returncode):
                     error(self.pos, "Return value required")
 
-    def gil_check(self, env):
+    def nogil_check(self, env):
         if self.return_type.is_pyobject:
-            self._gil_check(env)
+            self.gil_error()
 
     gil_message = "Returning Python object"
 
@@ -3425,7 +3422,7 @@ class RaiseStatNode(StatNode):
         env.use_utility_code(raise_utility_code)
         env.use_utility_code(restore_exception_utility_code)
 
-    gil_check = StatNode._gil_check
+    nogil_check = Node.gil_error
     gil_message = "Raising exception"
 
     def generate_execution_code(self, code):
@@ -3477,7 +3474,7 @@ class ReraiseStatNode(StatNode):
         env.use_utility_code(raise_utility_code)
         env.use_utility_code(restore_exception_utility_code)
 
-    gil_check = StatNode._gil_check
+    nogil_check = Node.gil_error
     gil_message = "Raising exception"
 
     def generate_execution_code(self, code):
@@ -3503,7 +3500,7 @@ class AssertStatNode(StatNode):
             self.value.analyse_types(env)
             self.value = self.value.coerce_to_pyobject(env)
 
-    gil_check = StatNode._gil_check
+    nogil_check = Node.gil_error
     gil_message = "Raising exception"
     
     def generate_execution_code(self, code):
@@ -3820,6 +3817,13 @@ class ForFromStatNode(LoopNode, StatNode):
     py_loopvar_node = None
     from_range = False
 
+    gil_message = "For-loop using object bounds or target"
+
+    def nogil_check(self, env):
+        for x in (self.target, self.bound1, self.bound2):
+            if x.type.is_pyobject:
+                self.gil_error()
+
     def analyse_declarations(self, env):
         self.target.analyse_target_declaration(env)
         self.body.analyse_declarations(env)
@@ -4038,7 +4042,7 @@ class TryExceptStatNode(StatNode):
         if self.else_clause:
             self.else_clause.analyse_expressions(env)
 
-    gil_check = StatNode._gil_check
+    nogil_check = Node.gil_error
     gil_message = "Try-except statement"
 
     def generate_execution_code(self, code):
@@ -4325,7 +4329,7 @@ class TryFinallyStatNode(StatNode):
         self.body.analyse_expressions(env)
         self.finally_clause.analyse_expressions(env)
 
-    gil_check = StatNode._gil_check
+    nogil_check = Node.gil_error
     gil_message = "Try-finally statement"
 
     def generate_execution_code(self, code):
@@ -4489,8 +4493,7 @@ class GILStatNode(TryFinallyStatNode):
         TryFinallyStatNode.analyse_expressions(self, env)
         env.nogil = was_nogil
 
-    def gil_check(self, env):
-        pass
+    nogil_check = None
 
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)

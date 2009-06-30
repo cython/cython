@@ -330,12 +330,12 @@ class ExprNode(Node):
     def analyse_target_types(self, env):
         self.analyse_types(env)
 
-    def gil_check(self, env):
+    def nogil_check(self, env):
         # By default, any expression based on Python objects is
         # prevented in nogil environments.  Subtypes must override
         # this if they can work without the GIL.
         if self.type.is_pyobject:
-            self._gil_check(env)
+            self.gil_error()
 
     def gil_assignment_check(self, env):
         if env.nogil and self.type.is_pyobject:
@@ -599,7 +599,8 @@ class NoneNode(PyConstNode):
     value = "Py_None"
 
     constant_result = None
-    gil_check = None
+    
+    nogil_check = None
 
     def compile_time_value(self, denv):
         return None
@@ -621,7 +622,7 @@ class ConstNode(AtomicExprNode):
     # value     string      C code fragment
     
     is_literal = 1
-    gil_check = None
+    nogil_check = None
 
     def is_simple(self):
         return 1
@@ -1065,14 +1066,14 @@ class NameNode(AtomicExprNode):
             self.is_used_as_rvalue = 1
             env.use_utility_code(get_name_interned_utility_code)
 
-    def gil_check(self, env):
+    def nogil_check(self, env):
         if self.is_used_as_rvalue:
             entry = self.entry
             if entry.is_builtin:
                 # if not Options.cache_builtins: # cached builtins are ok
-                self._gil_check(env)
+                self.gil_error()
             elif entry.is_pyglobal:
-                self._gil_check(env)
+                self.gil_error()
 
     gil_message = "Accessing Python global or builtin"
 
@@ -1671,24 +1672,17 @@ class IndexNode(ExprNode):
                     error(self.pos,
                         "Invalid index type '%s'" %
                             self.index.type)
-        self.gil_check(env)
-
-    def gil_check(self, env):
-        if not self.is_buffer_access:
-            if self.base.type.is_pyobject:
-                self._gil_check(env)
-
     gil_message = "Indexing Python object"
 
-    def gil_check(self, env):
-        if self.is_buffer_access and env.nogil:
+    def nogil_check(self, env):
+        if self.is_buffer_access:
             if env.directives['boundscheck']:
                 error(self.pos, "Cannot check buffer index bounds without gil; use boundscheck(False) directive")
                 return
             elif self.type.is_pyobject:
                 error(self.pos, "Cannot access buffer with object dtype without gil")
                 return
-        super(IndexNode, self).gil_check(env)
+        super(IndexNode, self).nogil_check(env)
 
 
     def check_const_addr(self):
@@ -1946,7 +1940,7 @@ class SliceIndexNode(ExprNode):
             self.stop = self.stop.coerce_to(c_int, env)
         self.is_temp = 1
 
-    gil_check = ExprNode._gil_check
+    nogil_check = Node.gil_error
     gil_message = "Slicing Python object"
 
     def generate_result_code(self, code):
@@ -2164,12 +2158,12 @@ class CallNode(ExprNode):
             self.coerce_to(type, env)
             return True
 
-    def gil_check(self, env):
+    def nogil_check(self, env):
         func_type = self.function_type()
         if func_type.is_pyobject:
-            self._gil_check(env)
+            self.gil_error()
         elif not getattr(func_type, 'nogil', False):
-            self._gil_check(env)
+            self.gil_error()
 
     gil_message = "Calling gil-requiring function"
 
@@ -2466,7 +2460,7 @@ class GeneralCallNode(CallNode):
     
     subexprs = ['function', 'positional_args', 'keyword_args', 'starstar_arg']
 
-    gil_check = CallNode._gil_check
+    nogil_check = Node.gil_error
 
     def compile_time_value(self, denv):
         function = self.function.compile_time_value(denv)
@@ -2568,7 +2562,7 @@ class AsTupleNode(ExprNode):
         self.type = tuple_type
         self.is_temp = 1
 
-    gil_check = ExprNode._gil_check
+    nogil_check = Node.gil_error
     gil_message = "Constructing Python tuple"
 
     def generate_result_code(self, code):
@@ -2799,9 +2793,9 @@ class AttributeNode(ExprNode):
                     "Object of type '%s' has no attribute '%s'" %
                     (obj_type, self.attribute))
 
-    def gil_check(self, env):
+    def nogil_check(self, env):
         if self.is_py_attr:
-            self._gil_check(env)
+            self.gil_error()
 
     gil_message = "Accessing Python attribute"
 
@@ -3595,7 +3589,7 @@ class DictItemNode(ExprNode):
     # value        ExprNode
     subexprs = ['key', 'value']
 
-    gil_check = None # handled by DictNode
+    nogil_check = None # Parent DictNode takes care of it
 
     def calculate_constant_result(self):
         self.constant_result = (
@@ -3772,9 +3766,9 @@ class UnopNode(ExprNode):
     def is_py_operation(self):
         return self.operand.type.is_pyobject
 
-    def gil_check(self, env):
+    def nogil_check(self, env):
         if self.is_py_operation():
-            self._gil_check(env)
+            self.gil_error()
 
     def coerce_operand_to_pyobject(self, env):
         self.operand = self.operand.coerce_to_pyobject(env)
@@ -3979,9 +3973,9 @@ class TypecastNode(ExprNode):
             if self.typecheck and self.type.is_extension_type:
                 self.operand = PyTypeTestNode(self.operand, self.type, env)
 
-    def gil_check(self, env):
-        if self.type.is_pyobject and self.is_temp:
-            self._gil_check(env)
+    def nogil_check(self, env):
+        if self.type and self.type.is_pyobject and self.is_temp:
+            self.gil_error()
 
     def check_const(self):
         self.operand.check_const()
@@ -4186,9 +4180,9 @@ class BinopNode(ExprNode):
         return (self.operand1.type.is_pyobject 
             or self.operand2.type.is_pyobject)
 
-    def gil_check(self, env):
+    def nogil_check(self, env):
         if self.is_py_operation():
-            self._gil_check(env)
+            self.gil_error()
     
     def coerce_operands_to_pyobjects(self, env):
         self.operand1 = self.operand1.coerce_to_pyobject(env)
@@ -5137,7 +5131,7 @@ class PyTypeTestNode(CoercionNode):
         self.type = dst_type
         self.result_ctype = arg.ctype()
 
-    gil_check = CoercionNode._gil_check
+    nogil_check = Node.gil_error
     gil_message = "Python type test"
     
     def analyse_types(self, env):
@@ -5293,9 +5287,9 @@ class CoerceToBooleanNode(CoercionNode):
         if arg.type.is_pyobject:
             self.is_temp = 1
 
-    def gil_check(self, env):
+    def nogil_check(self, env):
         if self.arg.type.is_pyobject:
-            self._gil_check(env)
+            self.gil_error()
 
     gil_message = "Truth-testing Python object"
     
@@ -5381,7 +5375,7 @@ class CloneNode(CoercionNode):
     #  node is responsible for doing those things.
     
     subexprs = [] # Arg is not considered a subexpr
-    gil_check = None
+    nogil_check = None
     
     def __init__(self, arg):
         CoercionNode.__init__(self, arg)
