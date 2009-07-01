@@ -56,7 +56,7 @@ What an Implementation File contains
 An implementation file can contain any kind of Cython statement, although there
 are some restrictions on the implementation part of an extension type if the
 corresponding definition file also defines that type (see below). 
-If one doesn't need to :keyword:`comport` anything from this module, then this
+If one doesn't need to :keyword:`cimport` anything from this module, then this
 is the only file one needs. 
 
 The cimport statement
