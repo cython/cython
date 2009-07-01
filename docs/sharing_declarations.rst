@@ -212,7 +212,7 @@ and another module which uses it.::
         
     # Shrubbing.pyx
     cdef class Shrubbery:
-        def __new__(self, int w, int l):
+        def __cinit__(self, int w, int l):
             self.width = w
             self.length = l
 

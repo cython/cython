@@ -65,11 +65,19 @@ subclassing your extension type in Python, you may find it useful to give the
 :meth:`__cinit__` method `*` and `**` arguments so that it can accept and
 ignore extra arguments. Otherwise, any Python subclass which has an
 :meth:`__init__` with a different signature will have to override
-:meth:`__new__` as well as :meth:`__init__`, which the writer of a Python
-class wouldn't expect to have to do.  As a convenience, if you declare
+:meth:`__new__`[#] as well as :meth:`__init__`, which the writer of a Python
+class wouldn't expect to have to do.  Alternatively, as a convenience, if you declare
 your :meth:`__cinit__`` method to take no arguments (other than self) it 
 will simply ignore any extra arguments passed to the constructor without
 complaining about the signature mismatch. 
+
+.. Note: Older Cython files may use :meth:`__new__` rather than :meth:`__cinit__`. The two are synonyms. 
+  The name change from :meth:`__new__` to :meth:`__cinit__` was to avoid 
+  confusion with Python :meth:`__new__` (which is an entirely different 
+  concept) and eventually the use of :meth:`__new__` in Cython will be 
+  disallowed to pave the way for supporting Python-style :meth:`__new__`  
+
+.. [#] http://docs.python.org/reference/datamodel.html#object.__new__
 
 Finalization method: :meth:`__dealloc__`
 ----------------------------------------
