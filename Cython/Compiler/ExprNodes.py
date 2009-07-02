@@ -1080,13 +1080,11 @@ class ImagNode(AtomicNewTempExprNode):
 class NewExprNode(AtomicExprNode):
     
     type = PyrexTypes.cpp_class_type
-    subexpr = ['arg']
+    subexpr = ['args']
     
     def analyse_types(self, env):
-        entry = env.lookup(self.arg.name)
-        if not entry:
-            self.type = PyrexTypes.error_type
-            return
+        for arg in self.args:
+            arg.analyse_types(env)
     
     def coerce_to(self, type, env):
         return self
@@ -1095,7 +1093,7 @@ class NewExprNode(AtomicExprNode):
         pass
     
     def calculate_result_code(self):
-        pass
+        return ""
 
 
 class NameNode(AtomicExprNode):
@@ -1247,7 +1245,8 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         #entry.used = 1
         if not (entry.is_const or entry.is_variable 
-            or entry.is_builtin or entry.is_cfunction):
+            or entry.is_builtin or entry.is_cfunction
+            or entry.is_cpp_class):
                 if self.entry.as_variable:
                     self.entry = self.entry.as_variable
                 else:
@@ -2375,6 +2374,15 @@ class SimpleCallNode(CallNode):
             self.type = py_object_type
             self.gil_check(env)
             self.is_temp = 1
+        if func_type.is_cpp_class:
+            for arg in self.args:
+                arg.analyse_types(env)
+            entry = env.lookup(self.function.name)
+            self.type = entry.type
+            self.function.type = PyrexTypes.CppMethodType(self.function.name,
+                                     PyrexTypes.CppClassType(self.function.name, "cppclass",
+                                             entry.scope, 0, entry.cname, []), self.args)
+            self.analyse_c_function_call(env)
         else:
             for arg in self.args:
                 arg.analyse_types(env)
@@ -2398,7 +2406,7 @@ class SimpleCallNode(CallNode):
     def analyse_c_function_call(self, env):
         func_type = self.function_type()
         # Check function type
-        if not func_type.is_cfunction:
+        if not func_type.is_cfunction and not func_type.is_cpp_method:
             if not func_type.is_error:
                 error(self.pos, "Calling non-function type '%s'" %
                     func_type)

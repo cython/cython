@@ -296,7 +296,7 @@ def p_new_expr(s):
     pos = s.position()
     s.next()
     args = p_simple_expr_list(s)
-    return ExprNodes.NewExprNode(pos, arg = args[0])
+    return ExprNodes.NewExprNode(pos, args = args)
     
 
 #trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
