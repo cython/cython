@@ -292,12 +292,11 @@ def p_power(s):
     return n1
 
 def p_new_expr(s):
-    # s.systring == 'new'
+    # s.systring == 'new'.
     pos = s.position()
     s.next()
-    args = p_simple_expr_list(s)
-    return ExprNodes.NewExprNode(pos, args = args)
-    
+    name = p_ident(s)
+    return p_call(s, ExprNodes.NewExprNode(pos, cppclass = name))
 
 #trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
 

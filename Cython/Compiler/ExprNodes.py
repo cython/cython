@@ -1080,20 +1080,27 @@ class ImagNode(AtomicNewTempExprNode):
 class NewExprNode(AtomicExprNode):
     
     type = PyrexTypes.cpp_class_type
-    subexpr = ['args']
+    subexpr = ['cppclass']
     
     def analyse_types(self, env):
-        for arg in self.args:
-            arg.analyse_types(env)
-    
-    def coerce_to(self, type, env):
-        return self
-    
+        entry = env.lookup(self.cppclass)
+        if entry is None or not entry.is_cpp_class:
+            error(self.pos, "new operator can only be applied to a C++ class")
+            return
+ 
+        constructor = entry.scope.lookup('__init__')
+        if constructor is None:
+            print "no constructor declared"
+            # create one
+        self.class_entry = entry
+        self.type = PyrexTypes.CPtrType(entry.type)
+        self.func_type = constructor.type
+   
     def generate_result_code(self, code):
         pass
-    
+   
     def calculate_result_code(self):
-        return ""
+        return "new " + self.entry.cname
 
 
 class NameNode(AtomicExprNode):
@@ -2377,10 +2384,11 @@ class SimpleCallNode(CallNode):
         if func_type.is_cpp_class:
             for arg in self.args:
                 arg.analyse_types(env)
-            entry = env.lookup(self.function.name)
+            entry = env.lookup(self.function.cppclass)
+            print entry.name
             self.type = entry.type
-            self.function.type = PyrexTypes.CppMethodType(self.function.name,
-                                     PyrexTypes.CppClassType(self.function.name, "cppclass",
+            self.function.type = PyrexTypes.CppMethodType(self.function.cppclass,
+                                     PyrexTypes.CppClassType(self.function.cppclass, "cppclass",
                                              entry.scope, 0, entry.cname, []), self.args)
             self.analyse_c_function_call(env)
         else:
