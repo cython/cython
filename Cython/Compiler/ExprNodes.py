@@ -2377,16 +2377,6 @@ class SimpleCallNode(CallNode):
             self.type = py_object_type
             self.gil_check(env)
             self.is_temp = 1
-        if func_type.is_cpp_class:
-            for arg in self.args:
-                arg.analyse_types(env)
-            entry = env.lookup(self.function.cppclass)
-            print entry.name
-            self.type = entry.type
-            self.function.type = PyrexTypes.CppMethodType(self.function.cppclass,
-                                     PyrexTypes.CppClassType(self.function.cppclass, "cppclass",
-                                             entry.scope, 0, entry.cname, []), self.args)
-            self.analyse_c_function_call(env)
         else:
             for arg in self.args:
                 arg.analyse_types(env)
@@ -2410,7 +2400,7 @@ class SimpleCallNode(CallNode):
     def analyse_c_function_call(self, env):
         func_type = self.function_type()
         # Check function type
-        if not func_type.is_cfunction and not func_type.is_cpp_method:
+        if not func_type.is_cfunction:
             if not func_type.is_error:
                 error(self.pos, "Calling non-function type '%s'" %
                     func_type)
