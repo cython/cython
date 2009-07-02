@@ -20,7 +20,7 @@ cdef extern from "Python.h":
 cdef extern from "numpy/arrayobject.h":
     ctypedef Py_intptr_t npy_intp
         
-    cdef enum:
+    cdef enum NPY_TYPES:
         NPY_BOOL,
         NPY_BYTE, NPY_UBYTE,
         NPY_SHORT, NPY_USHORT,
