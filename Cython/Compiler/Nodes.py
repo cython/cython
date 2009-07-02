@@ -3386,10 +3386,12 @@ class DelStatNode(StatNode):
     def analyse_expressions(self, env):
         for arg in self.args:
             arg.analyse_target_expression(env, None)
-            if arg.type.is_pyobject or (arg.type.is_ptr and arg.type.base_type.is_cpp_class):
+            if arg.type.is_pyobject:
                 self.gil_check(env)
+            elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
+                pass
             else:
-                error(arg.pos, "Deletion of non-Python object")
+                error(arg.pos, "Deletion of non-Python, non-C++ object")
             #arg.release_target_temp(env)
 
     gil_message = "Deleting Python object"
@@ -3399,7 +3401,8 @@ class DelStatNode(StatNode):
             if arg.type.is_pyobject:
                 arg.generate_deletion_code(code)
             elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
-                code.putln("delete %s" % arg.name)
+                arg.generate_result_code()
+                code.putln("delete %s" % arg.result())
             # else error reported earlier
 
     def annotate(self, code):
