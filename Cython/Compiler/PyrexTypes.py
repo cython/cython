@@ -39,6 +39,7 @@ class PyrexType(BaseType):
     #  is_ptr                boolean     Is a C pointer type
     #  is_null_ptr           boolean     Is the type of NULL
     #  is_cfunction          boolean     Is a C function type
+    #  is_cpp_method         boolean     Is a C++ method type
     #  is_struct_or_union    boolean     Is a C struct or union type
     #  is_struct             boolean     Is a C struct type
     #  is_enum               boolean     Is a C enum type
@@ -90,6 +91,7 @@ class PyrexType(BaseType):
     is_ptr = 0
     is_null_ptr = 0
     is_cfunction = 0
+    is_cpp_method = 0
     is_struct_or_union = 0
     is_cpp_class = 0
     is_struct = 0
@@ -1227,6 +1229,28 @@ class CFuncType(CType):
     def signature_cast_string(self):
         s = self.declaration_code("(*)", with_calling_convention=False)
         return '(%s)' % s
+
+class CppMethodType(CFuncType):
+    
+    # return_type    CppClassType
+
+    is_cpp_method = 1
+
+    def __init__(self, class_name, return_type, args, has_varargs = 0,
+            exception_value = None, exception_check = 0, calling_convention = "",
+            nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0):
+        self.class_name = class_name
+        self.return_type = return_type
+        self.args = args
+        self.has_varargs = has_varargs
+        self.exception_value = exception_value
+        self.exception_check = exception_check
+        self.calling_convention = calling_convention
+        self.nogil = nogil
+        self.with_gil = with_gil
+        self.is_overridable = is_overridable
+        self.optional_arg_count = optional_arg_count
+
 
 
 class CFuncTypeArg(object):
