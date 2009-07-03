@@ -690,7 +690,6 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
             ])
 
     def _handle_simple_function_getattr(self, node, pos_args):
-        # not really a builtin *type*, but worth optimising anyway
         args = pos_args.args
         if len(args) == 2:
             node = ExprNodes.PythonCapiCallNode(
@@ -708,6 +707,23 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
         else:
             error(node.pos, "getattr() called with wrong number of args, "
                   "expected 2 or 3, found %d" % len(args))
+        return node
+
+    Pyx_Type_func_type = PyrexTypes.CFuncType(
+        Builtin.type_type, [
+            PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None)
+            ])
+
+    def _handle_simple_function_type(self, node, pos_args):
+        args = pos_args.args
+        if len(args) != 1:
+            return node
+        node = ExprNodes.PythonCapiCallNode(
+            node.pos, "__Pyx_Type", self.Pyx_Type_func_type,
+                args = args,
+                is_temp = node.is_temp,
+                utility_code = pytype_utility_code,
+                )
         return node
 
     ### methods of builtin types
@@ -810,6 +826,17 @@ static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
 }
 """,
 impl = ""
+)
+
+
+pytype_utility_code = UtilityCode(
+proto = """
+static INLINE PyObject* __Pyx_Type(PyObject* o) {
+    PyObject* type = (PyObject*) Py_TYPE(o);
+    Py_INCREF(type);
+    return type;
+}
+"""
 )
 
 
