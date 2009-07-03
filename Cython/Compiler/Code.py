@@ -723,8 +723,15 @@ class GlobalState(object):
 
 
 def funccontext_property(name):
+    try:
+        import operator
+        attribute_of = operator.attrgetter(name)
+    except:
+        def attribute_of(o):
+            return getattr(o, name)
+
     def get(self):
-        return getattr(self.funcstate, name)
+        return attribute_of(self.funcstate)
     def set(self, value):
         setattr(self.funcstate, name, value)
     return property(get, set)
