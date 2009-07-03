@@ -60,6 +60,7 @@ except ValueError:
                 except StandardError:
                     print("Compilation of '%s' failed" % ext.sources[0])
         from Cython.Compiler.Main import compile
+        from Cython import Utils
         source_root = os.path.dirname(__file__)
         compiled_modules = ["Cython.Plex.Scanners",
                             "Cython.Compiler.Scanning",
@@ -70,14 +71,19 @@ except ValueError:
         for module in compiled_modules:
             source_file = os.path.join(source_root, *module.split('.'))
             if os.path.exists(source_file + ".py"):
-                source_file = source_file + ".py"
+                pyx_source_file = source_file + ".py"
             else:
-                source_file = source_file + ".pyx"
-            print("Compiling module %s ..." % module)
-            result = compile(source_file)
-            if result.c_file:
+                pyx_source_file = source_file + ".pyx"
+            c_source_file = source_file + ".c"
+            if not os.path.exists(c_source_file) or \
+               Utils.file_newer_than(pyx_source_file,
+                                     Utils.modification_time(c_source_file)):
+                print("Compiling module %s ..." % module)
+                result = compile(pyx_source_file)
+                c_source_file = result.c_file
+            if c_source_file:
                 extensions.append(
-                    Extension(module, sources = [result.c_file])
+                    Extension(module, sources = [c_source_file])
                     )
             else:
                 print("Compilation failed")
