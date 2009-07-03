@@ -6,7 +6,7 @@ import sys, os, time, copy
 
 import Code
 import Builtin
-from Errors import error, warning, InternalError
+from Errors import error, warning, InternalError, CompileError
 import Naming
 import PyrexTypes
 import TypeSlots
@@ -712,6 +712,26 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
 class MemoryViewTypeNode(CBaseTypeNode):
 
     child_attrs = ['base_type_node', 'axes']
+
+    def analyse(self, env, could_be_name = False):
+
+        # import pdb; pdb.set_trace()
+        base_type = self.base_type_node.analyse(env)
+        if base_type.is_error: return base_type
+
+        import Memoryview
+
+        try:
+            axes_specs = Memoryview.get_axes_specs(env, self.axes)
+        except CompileError, e:
+            error(e.position, e.message_only)
+            self.type = PyrexTypes.ErrorType()
+            return self.type
+
+        self.type = PyrexTypes.MemoryViewType(base_type, axes_specs)
+        return base_type # XXX: just for testing!!!
+
+
 
 class CBufferAccessTypeNode(CBaseTypeNode):
     #  After parsing:

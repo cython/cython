@@ -1875,7 +1875,7 @@ def is_memview_access(s):
     retval = False
     if s.systring == ':':
         retval = True
-    elif s.systring == u'0':
+    elif s.sy == 'INT':
         saved.append((s.sy, s.systring))
         s.next()
         if s.sy == ':':
@@ -1895,15 +1895,11 @@ def p_memview_access(s, base_type_node):
     for subscript in subscripts:
         if len(subscript) < 2:
             s.error("An axis specification in memoryview declaration does not have a ':'.")
-    indices = make_slice_nodes(pos, subscripts)
-    if len(indices) == 1:
-        index = indices[0]
-    else:
-        index = ExprNodes.TupleNode(pos, args = indices)
     s.expect(']')
+    indexes = make_slice_nodes(pos, subscripts)
     result = Nodes.MemoryViewTypeNode(pos,
             base_type_node = base_type_node,
-            axes = index)
+            axes = indexes)
     return result
 
 def p_buffer_access(s, base_type_node):
