@@ -330,7 +330,7 @@ class CythonCompileTestCase(unittest.TestCase):
             except AssertionError:
                 print("\n=== Expected errors: ===")
                 print('\n'.join(expected_errors))
-                print "\n\n=== Got errors: ==="
+                print("\n\n=== Got errors: ===")
                 print('\n'.join(errors))
                 print('\n')
                 raise
