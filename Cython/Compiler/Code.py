@@ -3,7 +3,6 @@
 #
 
 import re
-import codecs
 import Naming
 import Options
 import StringEncoding
