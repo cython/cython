@@ -187,14 +187,13 @@ class TreeVisitor(BasicVisitor):
         or a list of return values (in the case of multiple children
         in an attribute)).
         """
-
         if parent is None: return None
         result = {}
         for attr in parent.child_attrs:
             if attrs is not None and attr not in attrs: continue
             child = getattr(parent, attr)
             if child is not None:
-                if isinstance(child, list):
+                if type(child) is list:
                     childretval = [self.visitchild(x, parent, attr, idx) for idx, x in enumerate(child)]
                 else:
                     childretval = self.visitchild(child, parent, attr, None)
@@ -223,22 +222,18 @@ class VisitorTransform(TreeVisitor):
     was not, an exception will be raised. (Typically you want to ensure that you
     are within a StatListNode or similar before doing this.)
     """
-    def __init__(self):
-        super(VisitorTransform, self).__init__()
-        self._super_visitchildren = super(VisitorTransform, self).visitchildren
-
     def visitchildren(self, parent, attrs=None):
         result = cython.declare(dict)
-        result = self._super_visitchildren(parent, attrs)
+        result = TreeVisitor.visitchildren(self, parent, attrs)
         for attr, newnode in result.iteritems():
-            if not isinstance(newnode, list):
+            if not type(newnode) is list:
                 setattr(parent, attr, newnode)
             else:
                 # Flatten the list one level and remove any None
                 newlist = []
                 for x in newnode:
                     if x is not None:
-                        if isinstance(x, list):
+                        if type(x) is list:
                             newlist += x
                         else:
                             newlist.append(x)
