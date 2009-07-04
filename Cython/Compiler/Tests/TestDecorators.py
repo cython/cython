@@ -12,7 +12,6 @@ class TestDecorator(TransformTest):
         def decorated():
             pass
         """)
-        
         self.assertCode(u"""
         def decorator(fun):
             return fun
