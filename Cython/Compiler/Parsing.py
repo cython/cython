@@ -10,7 +10,6 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object)
 import os
 import re
 import sys
-from types import ListType, TupleType
 from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
 import ExprNodes
@@ -2617,7 +2616,7 @@ def print_parse_tree(f, node, level, key = None):
         if key:
             f.write("%s: " % key)
         t = type(node)
-        if t == TupleType:
+        if t is tuple:
             f.write("(%s @ %s\n" % (node[0], node[1]))
             for i in xrange(2, len(node)):
                 print_parse_tree(f, node[i], level+1)
@@ -2633,7 +2632,7 @@ def print_parse_tree(f, node, level, key = None):
                 if name != 'tag' and name != 'pos':
                     print_parse_tree(f, value, level+1, name)
             return
-        elif t == ListType:
+        elif t is list:
             f.write("[\n")
             for i in xrange(len(node)):
                 print_parse_tree(f, node[i], level+1)
