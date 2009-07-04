@@ -106,7 +106,50 @@ def get_axes_specs(env, axes):
         else:
             raise CompileError(axis.step.pos, INVALID_ERR)
 
+
+    validate_axes_specs(axes[0].start.pos, axes_specs)
+
     return axes_specs
+
+def validate_axes_specs(pos, specs):
+
+    packing_specs = ('contig', 'strided', 'follow')
+    access_specs = ('direct', 'ptr', 'full')
+
+    is_c_contig = is_f_contig = False
+
+    packing_idx = 1
+
+    if (specs[0][packing_idx] == 'contig' and 
+        all(axis[packing_idx] == 'follow' for axis in specs[1:])):
+        # f_contiguous: 'contig', 'follow', 'follow', ..., 'follow'
+        is_f_contig = True
+
+    elif (len(specs) > 1 and 
+          specs[-1][packing_idx] == 'contig' and 
+          all(axis[packing_idx] == 'follow' for axis in specs[:-1])):
+        # c_contiguous: 'follow', 'follow', ..., 'follow', 'contig'
+        is_c_contig = True
+    
+    has_contig = has_follow = has_strided = False
+
+    for access, packing in specs:
+
+        if not (access in access_specs and
+                packing in packing_specs):
+            raise CompileError(pos, "Invalid axes specification.")
+
+        if packing == 'strided':
+            has_strided = True
+        elif packing == 'contig':
+            if has_contig:
+                raise CompileError(pos, "Only one contiguous axis may be specified.")
+            has_contig = True
+        elif packing == 'follow':
+            if has_strided:
+                raise CompileError(pos, "A memoryview cannot have both follow and strided axis specifiers.")
+            if not (is_c_contig or is_f_contig):
+                raise CompileError(pos, "Invalid use of the follow specifier.")
 
 
 def _get_resolved_spec(env, spec):
