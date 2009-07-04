@@ -8,7 +8,6 @@
 
 import sys
 from sys import maxint
-from types import TupleType
 
 from Transitions import TransitionMap
 
@@ -169,7 +168,7 @@ class FastMachine(object):
     self.initial_states[name] = state
   
   def add_transitions(self, state, event, new_state):
-    if type(event) == TupleType:
+    if type(event) is tuple:
       code0, code1 = event
       if code0 == -maxint:
         state['else'] = new_state
