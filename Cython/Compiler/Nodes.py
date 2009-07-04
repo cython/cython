@@ -3390,6 +3390,8 @@ class DelStatNode(StatNode):
                 self.gil_check(env)
             elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
                 pass
+            elif arg.type.is_cpp_class:
+                error(arg.pos, "Deletion of non-heap C++ object")
             else:
                 error(arg.pos, "Deletion of non-Python, non-C++ object")
             #arg.release_target_temp(env)
@@ -3402,7 +3404,7 @@ class DelStatNode(StatNode):
                 arg.generate_deletion_code(code)
             elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
                 arg.generate_result_code()
-                code.putln("delete %s" % arg.result())
+                code.putln("delete %s;" % arg.result())
             # else error reported earlier
 
     def annotate(self, code):
