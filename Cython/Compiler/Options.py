@@ -61,7 +61,7 @@ option_defaults = {
     'embedsignature' : False,
     'locals' : {},
     'auto_cpdef': False,
-    'cdivision': True,  # Will be False in 0.12
+    'cdivision': False, # was True before 0.12
     'cdivision_warnings': False,
     'always_allow_keywords': False,
     'wraparound' : True,
