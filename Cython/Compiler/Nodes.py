@@ -715,14 +715,13 @@ class MemoryViewTypeNode(CBaseTypeNode):
 
     def analyse(self, env, could_be_name = False):
 
-        # import pdb; pdb.set_trace()
         base_type = self.base_type_node.analyse(env)
         if base_type.is_error: return base_type
 
-        import Memoryview
+        import MemoryView
 
         try:
-            axes_specs = Memoryview.get_axes_specs(env, self.axes)
+            axes_specs = MemoryView.get_axes_specs(env, self.axes)
         except CompileError, e:
             error(e.position, e.message_only)
             self.type = PyrexTypes.ErrorType()
