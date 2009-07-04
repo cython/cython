@@ -14,4 +14,4 @@ cdef unsigned long[0:, 0:, 0:, 0::0x0001] c_contig0
 
 cdef float[::foo & bar, ::cython.view.direct & cython.view.follow] view4
 cdef int[::view.full & foo] view3
-cdef int[::view.ptr & follow] view1000
+cdef int[::view.ptr & view.strided] view1000

@@ -311,9 +311,43 @@ class CTypedefType(BaseType):
 class MemoryViewType(BaseType):
 
     def __init__(self, base, axes):
+        '''
+        MemoryViewType(base, axes)
+
+        Base is the C base type; axes is a list of (access, packing) strings,
+        where access is one of 'full', 'direct' or 'ptr' and packing is one of
+        'contig', 'strided' or 'follow'.  There is one (access, packing) tuple
+        for each dimension.
+
+        the access specifiers determine whether the array data contains
+        pointers that need to be dereferenced along that axis when
+        retrieving/setting:
+
+        'direct' -- No pointers stored in this dimension.
+        'ptr' -- Pointer stored in this dimension.
+        'full' -- Check along this dimension, don't assume either.
+
+        the packing specifiers specify how the array elements are layed-out
+        in memory.
+
+        'contig' -- The data are contiguous in memory along this dimension.
+                At most one dimension may be specified as 'contig'.
+        'strided' -- The data aren't contiguous along this dimenison.
+        'follow' -- Used for C/Fortran contiguous arrays, a 'follow' dimension
+            has its stride automatically computed from extents of the other
+            dimensions to ensure C or Fortran memory layout.
+
+        C-contiguous memory has 'direct' as the access spec, 'contig' as the
+        *last* axis' packing spec and 'follow' for all other packing specs.
+
+        Fortran-contiguous memory has 'direct' as the access spec, 'contig' as
+        the *first* axis' packing spec and 'follow' for all other packing
+        specs.
+        '''
+
         self.base = base
         self.axes = axes
-        
+
 class BufferType(BaseType):
     #
     #  Delegates most attribute

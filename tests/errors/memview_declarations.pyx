@@ -1,10 +1,10 @@
+# mode: error
+
 cimport cython
 from cython.view cimport contig as foo, full as bar, follow
 from cython cimport view
-
 biz = cython.view.contig
 foz = cython.view.full
-
 adict = {'view': cython.view}
 alist = [adict]
 
@@ -24,6 +24,7 @@ cdef signed char[::view.ptr & view.direct] no_access_spec
 cdef signed char[::1-1+1] expr_spec
 cdef signed char[::blargh] bad_name
 cdef double[::alist[0]['view'].full] expr_attribute
+cdef double[::view.ptr & view.follow] no_single_follow
 
 _ERRORS = u'''
 11:25: Cannot specify an array that is both C and Fortran contiguous.
@@ -42,4 +43,5 @@ _ERRORS = u'''
 24:22: Invalid axis specification.
 25:25: Invalid axis specification.
 26:22: no expressions allowed in axis spec, only names (e.g. cython.view.contig).
+27:12: Invalid use of the follow specifier.
 '''
