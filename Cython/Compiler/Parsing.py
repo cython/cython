@@ -594,7 +594,7 @@ def p_cat_string_literal(s):
         if kind == 'u':
             value = EncodedString( u''.join(strings) )
         else:
-            value = BytesLiteral( ''.join(strings) )
+            value = BytesLiteral( StringEncoding.join_bytes(strings) )
             value.encoding = s.source_encoding
     return kind, value
 
