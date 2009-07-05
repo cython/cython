@@ -214,14 +214,18 @@ def initial_compile_time_env():
         'UNAME_VERSION', 'UNAME_MACHINE')
     for name, value in zip(names, platform.uname()):
         benv.declare(name, value)
-    import __builtin__
+    import __builtin__ as builtins
     names = ('False', 'True',
         'abs', 'bool', 'chr', 'cmp', 'complex', 'dict', 'divmod', 'enumerate',
         'float', 'hash', 'hex', 'int', 'len', 'list', 'long', 'map', 'max', 'min',
         'oct', 'ord', 'pow', 'range', 'reduce', 'repr', 'round', 'slice', 'str',
         'sum', 'tuple', 'xrange', 'zip')
     for name in names:
-        benv.declare(name, getattr(__builtin__, name))
+        try:
+            benv.declare(name, getattr(builtins, name))
+        except AttributeError:
+            # ignore, likely Py3
+            pass
     denv = CompileTimeScope(benv)
     return denv
 
