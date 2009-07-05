@@ -84,7 +84,7 @@ class BytesLiteral(_bytes):
     encoding = None
 
     def byteencode(self):
-        return str(self)
+        return _bytes(self)
 
     def utf8encode(self):
         assert False, "this is not a unicode string: %r" % self

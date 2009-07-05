@@ -284,7 +284,8 @@ class PyObjectConst(object):
         self.cname = cname
         self.type = type
 
-possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
+possible_unicode_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
+possible_bytes_identifier = re.compile(r"(?![0-9])\w+$".encode('ASCII')).match
 nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
 
 class StringConst(object):
@@ -313,8 +314,15 @@ class StringConst(object):
             if py_strings is None:
                 self.py_strings = {}
             is_unicode = encoding is None
-            intern = bool(identifier or (
-                identifier is None and possible_identifier(text)))
+            if identifier:
+                intern = True
+            elif identifier is None:
+                if is_unicode:
+                    intern = bool(possible_unicode_identifier(text))
+                else:
+                    intern = bool(possible_bytes_identifier(text))
+            else:
+                intern = False
             if intern:
                 prefix = Naming.interned_str_prefix
             else:
