@@ -894,34 +894,43 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         self._calculate_const(node)
         if node.constant_result is ExprNodes.not_a_constant:
             return node
+        if isinstance(node.constant_result, float):
+            # We calculate float constants to make them available to
+            # the compiler, but we do not aggregate them into a
+            # constant node to prevent any loss of precision.
+            return node
+        if not isinstance(node.operand1, ExprNodes.ConstNode) or \
+               not isinstance(node.operand1, ExprNodes.ConstNode):
+            # We calculate other constants to make them available to
+            # the compiler, but we only aggregate constant nodes
+            # recursively, so non-const nodes are straight out.
+            return node
+
+        # now inject a new constant node with the calculated value
         try:
-            if node.operand1.type is None or node.operand2.type is None:
+            type1, type2 = node.operand1.type, node.operand2.type
+            if type1 is None or type2 is None:
                 return node
         except AttributeError:
             return node
 
-        type1, type2 = node.operand1.type, node.operand2.type
-        if isinstance(node.operand1, ExprNodes.ConstNode) and \
-               isinstance(node.operand1, ExprNodes.ConstNode):
-            if type1 is type2:
-                new_node = node.operand1
-            else:
-                widest_type = PyrexTypes.widest_numeric_type(type1, type2)
-                if type(node.operand1) is type(node.operand2):
-                    new_node = node.operand1
-                    new_node.type = widest_type
-                elif type1 is widest_type:
-                    new_node = node.operand1
-                elif type2 is widest_type:
-                    new_node = node.operand2
-                else:
-                    target_class = self._widest_node_class(
-                        node.operand1, node.operand2)
-                    if target_class is None:
-                        return node
-                    new_node = target_class(type = widest_type)
+        if type1 is type2:
+            new_node = node.operand1
         else:
-            return node
+            widest_type = PyrexTypes.widest_numeric_type(type1, type2)
+            if type(node.operand1) is type(node.operand2):
+                new_node = node.operand1
+                new_node.type = widest_type
+            elif type1 is widest_type:
+                new_node = node.operand1
+            elif type2 is widest_type:
+                new_node = node.operand2
+            else:
+                target_class = self._widest_node_class(
+                    node.operand1, node.operand2)
+                if target_class is None:
+                    return node
+                new_node = target_class(pos=node.pos, type = widest_type)
 
         new_node.constant_result = node.constant_result
         new_node.value = str(node.constant_result)
