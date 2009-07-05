@@ -7,7 +7,6 @@
 #=======================================================================
 
 import sys
-from sys import maxint
 
 from Transitions import TransitionMap
 
@@ -116,7 +115,9 @@ class Node(object):
     priority = self.action_priority
     if action is not None:
       file.write("      %s [priority %d]\n" % (action, priority))
-  
+
+  def __lt__(self, other):
+    return self.number < other.number
 
 class FastMachine(object):
   """
@@ -167,7 +168,7 @@ class FastMachine(object):
   def make_initial_state(self, name, state):
     self.initial_states[name] = state
   
-  def add_transitions(self, state, event, new_state):
+  def add_transitions(self, state, event, new_state, maxint=sys.maxint):
     if type(event) is tuple:
       code0, code1 = event
       if code0 == -maxint:

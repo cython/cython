@@ -110,6 +110,7 @@ class TransitionMap(object):
       if set:
         result.append((event, set))
     return iter(result)
+  items = iteritems
   
   # ------------------- Private methods --------------------
 
