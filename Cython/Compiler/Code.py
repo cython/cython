@@ -697,7 +697,7 @@ class GlobalState(object):
                     u'*/', u'*[inserted by cython to avoid comment closer]/'
                     ).replace(
                     u'/*', u'/[inserted by cython to avoid comment start]*'
-                    ).encode('ASCII', 'replace') # + Py2 auto-decode to unicode
+                    ).encode('ASCII', 'replace').decode('ASCII')
                  for line in source_desc.get_lines()]
             if len(F) == 0: F.append(u'')
             self.input_file_contents[source_desc] = F
