@@ -131,7 +131,7 @@ class TransitionMap(object):
     # loop invariant: map[lo] <= code < map[hi] and hi - lo >= 2
     while hi - lo >= 4:
       # Find midpoint truncated to even index
-      mid = ((lo + hi) / 2) & ~1
+      mid = ((lo + hi) // 2) & ~1
       if code < map[mid]:
         hi = mid
       else:

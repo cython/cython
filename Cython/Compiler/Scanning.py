@@ -65,7 +65,7 @@ def hash_source_file(path):
     # tabs by a single space.
     import re
     text = re.sub("[ \t]+", " ", text)
-    hash = new_md5(text).hexdigest()
+    hash = new_md5(text.encode("ASCII")).hexdigest()
     return hash
 
 def open_pickled_lexicon(expected_hash):
