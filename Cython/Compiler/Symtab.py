@@ -15,7 +15,7 @@ from TypeSlots import \
     get_special_method_signature, get_property_accessor_signature
 import ControlFlow
 import Code
-import __builtin__
+import __builtin__ as builtins
 try:
     set
 except NameError:
@@ -571,7 +571,7 @@ class BuiltinScope(Scope):
             self.declare_var(name, type, None, cname)
         
     def declare_builtin(self, name, pos):
-        if not hasattr(__builtin__, name):
+        if not hasattr(builtins, name):
             if self.outer_scope is not None:
                 return self.outer_scope.declare_builtin(name, pos)
             else:
@@ -711,7 +711,7 @@ class ModuleScope(Scope):
         return self
     
     def declare_builtin(self, name, pos):
-        if not hasattr(__builtin__, name):
+        if not hasattr(builtins, name):
             if self.has_import_star:
                 entry = self.declare_var(name, py_object_type, pos)
                 return entry
