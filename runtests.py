@@ -544,10 +544,38 @@ if __name__ == '__main__':
 
     options, cmd_args = parser.parse_args()
 
-    if sys.version_info[0] >= 3:
-        # make sure we do not import (or run) Cython itself
+    DISTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
+    ROOTDIR = os.path.join(DISTDIR, 'tests')
+    WORKDIR = os.path.join(os.getcwd(), 'BUILD')
+
+    if sys.version_info >= (3,1):
         options.doctests    = False
+        options.unittests   = False
+        options.pyregr      = False
+        if options.with_cython:
+            # need to convert Cython sources first
+            import lib2to3.refactor
+            from distutils.util import copydir_run_2to3
+            fixers = [ fix for fix in lib2to3.refactor.get_fixers_from_package("lib2to3.fixes")
+                       if fix.split('fix_')[-1] not in ('next',)
+                       ]
+            cy3_dir = os.path.join(WORKDIR, 'Cy3')
+            if not os.path.exists(cy3_dir):
+                os.makedirs(cy3_dir)
+            import distutils.log as dlog
+            dlog.set_threshold(dlog.DEBUG)
+            copydir_run_2to3(DISTDIR, cy3_dir, fixer_names=fixers,
+                             template = '''
+                             global-exclude *
+                             graft Cython
+                             recursive-exclude Cython *
+                             recursive-include Cython *.py *.pyx *.pxd
+                             ''')
+            sys.path.insert(0, cy3_dir)
+    elif sys.version_info[0] >= 3:
+        # make sure we do not import (or run) Cython itself
         options.with_cython = False
+        options.doctests    = False
         options.unittests   = False
         options.pyregr      = False
 
@@ -567,14 +595,12 @@ if __name__ == '__main__':
         Errors.LEVEL = 0 # show all warnings
 
     # RUN ALL TESTS!
-    ROOTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]), 'tests')
-    WORKDIR = os.path.join(os.getcwd(), 'BUILD')
     UNITTEST_MODULE = "Cython"
     UNITTEST_ROOT = os.path.join(os.getcwd(), UNITTEST_MODULE)
     if WITH_CYTHON:
         if os.path.exists(WORKDIR):
             for path in os.listdir(WORKDIR):
-                if path in ("support",): continue
+                if path in ("support", "Cy3"): continue
                 shutil.rmtree(os.path.join(WORKDIR, path), ignore_errors=True)
     if not os.path.exists(WORKDIR):
         os.makedirs(WORKDIR)
