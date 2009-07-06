@@ -317,7 +317,7 @@ class StringConst(object):
             if identifier:
                 intern = True
             elif identifier is None:
-                if is_unicode:
+                if isinstance(text, unicode):
                     intern = bool(possible_unicode_identifier(text))
                 else:
                     intern = bool(possible_bytes_identifier(text))
@@ -352,6 +352,9 @@ class PyStringConst(object):
         self.identifier = identifier
         self.unicode = is_unicode
         self.intern = intern
+
+    def __lt__(self, other):
+        return self.cname < other.cname
 
 
 class GlobalState(object):
@@ -544,7 +547,7 @@ class GlobalState(object):
         return py_string
 
     def new_string_const(self, text, byte_string):
-        cname = self.new_string_const_cname(text)
+        cname = self.new_string_const_cname(byte_string)
         c = StringConst(cname, text, byte_string)
         self.string_const_index[byte_string] = c
         return c
@@ -561,8 +564,13 @@ class GlobalState(object):
         self.py_constants.append(c)
         return c
 
-    def new_string_const_cname(self, value, intern=None):
+    def new_string_const_cname(self, bytes_value, intern=None):
         # Create a new globally-unique nice name for a C string constant.
+        try:
+            value = bytes_value.decode('ASCII')
+        except UnicodeError:
+            return self.new_const_cname()
+
         if len(value) < 20 and nice_identifier(value):
             return "%s%s" % (Naming.const_prefix, value)
         else:
