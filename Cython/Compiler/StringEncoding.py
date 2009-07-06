@@ -89,9 +89,9 @@ class BytesLiteral(_bytes):
     def utf8encode(self):
         assert False, "this is not a unicode string: %r" % self
 
-    def as_unicode(self):
-        """Returns a Unicode sequence that matches the byte sequence
-        of this literal.
+    def __str__(self):
+        """Fake-decode the byte string to unicode to support %
+        formatting of unicode strings.
         """
         return self.decode('ISO-8859-1')
 
