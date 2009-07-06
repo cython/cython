@@ -591,7 +591,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_includes(self, env, cimported_modules, code):
         includes = []
         for filename in env.include_files:
-            code.putln('#include "%s"' % filename)
+            # fake decoding of filenames to their original byte sequence
+            code.putln('#include "%s"' % filename.as_unicode())
     
     def generate_filename_table(self, code):
         code.putln("")
