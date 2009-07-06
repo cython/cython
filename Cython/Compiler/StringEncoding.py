@@ -145,12 +145,16 @@ def escape_character(c):
         return c
 
 def escape_byte_string(s):
+    """Escape a byte string so that it can be written into C code.
+    Note that this returns a Unicode string instead which, when
+    encoded as ISO-8859-1, will result in the correct byte sequence
+    being written.
+    """
     if _has_specials(s):
         for special, replacement in _c_special_replacements:
             s = s.replace(special, replacement)
     try:
-        s.decode("ASCII") # trial decoding: plain ASCII => done
-        return s
+        return s.decode("ASCII") # trial decoding: plain ASCII => done
     except UnicodeDecodeError:
         pass
     if sys.version_info[0] >= 3:
@@ -161,7 +165,7 @@ def escape_byte_string(s):
                 extend(('\\%3o' % b).encode('ASCII'))
             else:
                 append(b)
-        return bytes(s_new)
+        return s_new.decode('ISO-8859-1')
     else:
         l = []
         append = l.append
@@ -171,7 +175,7 @@ def escape_byte_string(s):
                 append('\\%3o' % o)
             else:
                 append(c)
-        return join_bytes(l)
+        return join_bytes(l).decode('ISO-8859-1')
 
 def split_docstring(s):
     if len(s) < 2047:
