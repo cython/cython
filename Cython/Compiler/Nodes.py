@@ -3403,7 +3403,7 @@ class DelStatNode(StatNode):
             if arg.type.is_pyobject:
                 arg.generate_deletion_code(code)
             elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
-                arg.generate_result_code()
+                arg.generate_result_code(code)
                 code.putln("delete %s;" % arg.result())
             # else error reported earlier
 
