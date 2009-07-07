@@ -3,11 +3,15 @@
 
 namespace shapes {
     
+    int constructor_count = 0;
+    int destructor_count = 0;
+    
     class Shape
     {
     public:
         virtual float area() = 0;
-        virtual ~Shape() { }
+        Shape() { constructor_count++; } 
+        virtual ~Shape() { destructor_count++; }
     };
 
     class Rectangle : public Shape
