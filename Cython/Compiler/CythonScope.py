@@ -88,11 +88,12 @@ class CythonScope(ModuleScope):
                                           is_cdef=True)
             entry.utility_code_definition = view_utility_code
 
+        name = u'array'
         entry = self.declare_c_class(u'array', None,
                 implementing=1,
                 objstruct_cname='__pyx_obj_array',
                 typeobj_cname='__pyx_tobj_array',
-                typeptr_cname='__pyx_ptype_array')
+                typeptr_cname=Naming.typeptr_prefix+name)
 
         # NOTE: the typeptr_cname is constrained to be '__pyx_ptype_<name>'
         # (name is 'array' in this case).  otherwise the code generation for
