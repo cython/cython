@@ -1,5 +1,6 @@
 __doc__ = u"""
     >>> test_new_del()
+    (2, 2)
     >>> test_rect_area(3, 4)
     12.0
     >>> test_square_area(15)
@@ -23,11 +24,14 @@ cdef extern from "shapes.h" namespace shapes:
     cdef cppclass Square(Rectangle):
         int side
         # __init__(int) # need function overloading
+        
+    int constructor_count, destructor_count
 
 def test_new_del():
     cdef Rectangle *rect = new Rectangle(10, 20)
     cdef Circle *circ = new Circle(15)
     del rect, circ
+    return constructor_count, destructor_count
 
 def test_rect_area(w, h):
     cdef Rectangle *rect = new Rectangle(w, h)
