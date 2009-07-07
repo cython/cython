@@ -1160,7 +1160,7 @@ class ModuleScope(Scope):
 
     def declare_c_class(self, name, pos, defining = 0, implementing = 0,
         module_name = None, base_type = None, objstruct_cname = None,
-        typeobj_cname = None, visibility = 'private', typedef_flag = 0, api = 0,
+        typeobj_cname = None, typeptr_cname = None, visibility = 'private', typedef_flag = 0, api = 0,
         buffer_defaults = None, shadow = 0):
         # If this is a non-extern typedef class, expose the typedef, but use
         # the non-typedef struct internally to avoid needing forward
@@ -1202,7 +1202,10 @@ class ModuleScope(Scope):
                 type.module_name = module_name
             else:
                 type.module_name = self.qualified_name
-            type.typeptr_cname = self.mangle(Naming.typeptr_prefix, name)
+            if typeptr_cname:
+                type.typeptr_cname = typeptr_cname
+            else:
+                type.typeptr_cname = self.mangle(Naming.typeptr_prefix, name)
             entry = self.declare_type(name, type, pos, visibility = visibility,
                 defining = 0, shadow = shadow)
             entry.is_cclass = True

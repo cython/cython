@@ -88,6 +88,27 @@ class CythonScope(ModuleScope):
                                           is_cdef=True)
             entry.utility_code_definition = view_utility_code
 
+        entry = self.declare_c_class(u'array', None,
+                implementing=1,
+                objstruct_cname='__pyx_obj_array',
+                typeobj_cname='__pyx_tobj_array',
+                typeptr_cname='__pyx_ptype_array')
+
+        # NOTE: the typeptr_cname is constrained to be '__pyx_ptype_<name>'
+        # (name is 'array' in this case).  otherwise the code generation for
+        # the struct pointers will not work!
+
+        entry.utility_code_definition = cython_array_utility_code
+
+        entry.type.scope.declare_var(u'data', c_char_ptr_type, None, is_cdef = 1)
+        entry.type.scope.declare_var(u'len', c_size_t_type, None, is_cdef = 1)
+        entry.type.scope.declare_var(u'format', c_char_ptr_type, None, is_cdef = 1)
+        entry.type.scope.declare_var(u'ndim', c_int_type, None, is_cdef = 1)
+        entry.type.scope.declare_var(u'shape', c_py_ssize_t_ptr_type, None, is_cdef = 1)
+        entry.type.scope.declare_var(u'strides', c_py_ssize_t_ptr_type, None, is_cdef = 1)
+        entry.type.scope.declare_var(u'itemsize', c_py_ssize_t_type, None, is_cdef = 1)
+
+
 def create_cython_scope(context, create_testscope):
     # One could in fact probably make it a singleton,
     # but not sure yet whether any code mutates it (which would kill reusing
@@ -193,3 +214,139 @@ cdef direct = Enum("<direct axis access mode>")
 cdef ptr = Enum("<ptr axis access mode>")
 cdef full = Enum("<full axis access mode>")
 """, prefix="__pyx_viewaxis_")
+
+cython_array_utility_code = CythonUtilityCode(u'''
+cdef extern from "stdlib.h":
+    void *malloc(size_t)
+    void free(void *)
+
+cdef extern from "Python.h":
+
+    cdef enum:
+        PyBUF_SIMPLE,
+        PyBUF_WRITABLE,
+        PyBUF_WRITEABLE, # backwards compatability
+        PyBUF_FORMAT,
+        PyBUF_ND,
+        PyBUF_STRIDES,
+        PyBUF_C_CONTIGUOUS,
+        PyBUF_F_CONTIGUOUS,
+        PyBUF_ANY_CONTIGUOUS,
+        PyBUF_INDIRECT,
+        PyBUF_CONTIG,
+        PyBUF_CONTIG_RO,
+        PyBUF_STRIDED,
+        PyBUF_STRIDED_RO,
+        PyBUF_RECORDS,
+        PyBUF_RECORDS_RO,
+        PyBUF_FULL,
+        PyBUF_FULL_RO,
+        PyBUF_READ,
+        PyBUF_WRITE,
+        PyBUF_SHADOW
+
+cdef class array:
+
+    cdef:
+        char *data
+        Py_ssize_t len
+        char *format
+        int ndim
+        Py_ssize_t *shape
+        Py_ssize_t *strides
+        Py_ssize_t itemsize
+        char *mode
+
+    def __cinit__(array self, tuple shape, Py_ssize_t itemsize, char *format, mode="c"):
+
+        self.ndim = len(shape)
+        self.itemsize = itemsize
+
+        if not self.ndim:
+            raise ValueError("Empty shape tuple for cython.array")
+        
+        if self.itemsize <= 0:
+            raise ValueError("itemsize <= 0 for cython.array")
+
+        self.format = format
+        
+        self.shape = <Py_ssize_t *>malloc(sizeof(Py_ssize_t)*self.ndim)
+        self.strides = <Py_ssize_t *>malloc(sizeof(Py_ssize_t)*self.ndim)
+
+        if not self.shape or not self.strides:
+            raise MemoryError("unable to allocate shape or strides.")
+
+        cdef int idx
+        cdef Py_ssize_t int_dim, stride
+        idx = 0
+        for dim in shape:
+            int_dim = <Py_ssize_t>dim
+            if int_dim <= 0:
+                raise ValueError("Invalid shape.")
+            self.shape[idx] = int_dim
+            idx += 1
+        assert idx == self.ndim
+
+        if mode == "fortran":
+            idx = 0; stride = 1
+            for dim in shape:
+                self.strides[idx] = stride
+                int_dim = <Py_ssize_t>dim
+                stride = stride * int_dim
+                idx += 1
+            assert idx == self.ndim
+            self.len = stride * self.itemsize
+        elif mode == "c":
+            idx = self.ndim-1; stride = 1
+            for dim in reversed(shape):
+                self.strides[idx] = stride
+                int_dim = <Py_ssize_t>dim
+                stride = stride * int_dim
+                idx -= 1
+            assert idx == -1
+            self.len = stride * self.itemsize
+        else:
+            raise ValueError("Invalid mode, expected 'c' or 'fortran', got %s" % mode)
+
+        self.mode = mode
+
+        
+        self.data = <char *>malloc(self.len)
+        if not self.data:
+            raise MemoryError("unable to allocate array data.")
+
+    def __getbuffer__(array self, Py_buffer *info, int flags):
+
+        cdef int bufmode
+        if self.mode == b"c":
+            bufmode = PyBUF_C_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
+        if self.mode == b"fortran":
+            bufmode = PyBUF_F_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
+        if not (flags & bufmode):
+            raise ValueError("Can only create a buffer that is contiguous in memory.")
+        info.buf = self.data
+        info.ndim = self.ndim
+        info.shape = self.shape
+        info.strides = self.strides
+        info.suboffsets = NULL
+        info.itemsize = self.itemsize
+        info.format = self.format
+        # we do not need to call releasebuffer
+        info.obj = None
+
+    def __releasebuffer__(array self, Py_buffer* info):
+        print "array.__releasebuffer__"
+
+    def __dealloc__(array self):
+        if self.data:
+            free(self.data)
+            self.data = NULL
+        if self.strides:
+            free(self.strides)
+            self.strides = NULL
+        if self.shape:
+            free(self.shape)
+            self.shape = NULL
+        self.format = NULL
+        self.itemsize = 0
+''', prefix='__pyx_cythonarray_')
