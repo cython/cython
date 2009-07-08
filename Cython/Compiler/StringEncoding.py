@@ -126,7 +126,7 @@ _c_special_replacements = [(orig.encode('ASCII'),
 def _build_specials_test():
     subexps = []
     for special in _c_special:
-        regexp = ''.join(['[%s]' % c for c in special])
+        regexp = ''.join(['[%s]' % c.replace('\\', '\\\\') for c in special])
         subexps.append(regexp)
     return re.compile('|'.join(subexps).encode('ASCII')).search
 
