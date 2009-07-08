@@ -1090,6 +1090,7 @@ class NewExprNode(AtomicExprNode):
             print "no constructor declared"
             # create one
         self.class_entry = entry
+        self.entry = constructor
         self.type = constructor.type
    
     def generate_result_code(self, code):
@@ -2387,6 +2388,7 @@ class SimpleCallNode(CallNode):
                     expected_type, env)
                 # Insert coerced 'self' argument into argument list.
                 self.args.insert(0, self.coerced_self)
+            entry = self.function.entry
             self.analyse_c_function_call(env)
     
     def function_type(self):
@@ -2407,6 +2409,22 @@ class SimpleCallNode(CallNode):
             self.type = PyrexTypes.error_type
             self.result_code = "<error>"
             return
+        if not self.analyse_args(env, func_type):
+            entry = self.function.entry
+            has_overloaded = 0
+            for overloaded in entry.overloaded_alternatives:
+                if self.analyse_args(env, overloaded.type.base_type):
+                    has_overloaded = 1
+                    break
+            if not has_overloaded:
+                error(self.pos, "Call with wrong number of arguments")
+                #    "Call with wrong number of arguments (expected %s, got %s)"
+                #        % (expected_str, actual_nargs))
+                self.args = None
+                self.type = PyrexTypes.error_type
+                self.result_code = "<error>"            
+
+    def analyse_args(self, env, func_type):
         # Check no. of args
         max_nargs = len(func_type.args)
         expected_nargs = max_nargs - func_type.optional_arg_count
@@ -2421,18 +2439,13 @@ class SimpleCallNode(CallNode):
                         expected_str = "at least " + expected_str
                     else:
                         expected_str = "at most " + str(max_nargs)
-                error(self.pos, 
-                    "Call with wrong number of arguments (expected %s, got %s)"
-                        % (expected_str, actual_nargs))
-                self.args = None
-                self.type = PyrexTypes.error_type
-                self.result_code = "<error>"
-                return
-        if func_type.optional_arg_count and expected_nargs != actual_nargs:
-            self.has_optional_args = 1
-            self.is_temp = 1
-            self.opt_arg_struct = env.allocate_temp(func_type.op_arg_struct.base_type)
-            env.release_temp(self.opt_arg_struct)
+                #error(self.pos, 
+                #    "Call with wrong number of arguments (expected %s, got %s)"
+                #        % (expected_str, actual_nargs))
+                #self.args = None
+                #self.type = PyrexTypes.error_type
+                #self.result_code = "<error>"
+                return 0
         # Coerce arguments
         for i in range(min(max_nargs, actual_nargs)):
             formal_type = func_type.args[i].type
@@ -2459,7 +2472,13 @@ class SimpleCallNode(CallNode):
         # Check gil
         if not func_type.nogil:
             self.gil_check(env)
-
+        if func_type.optional_arg_count and expected_nargs != actual_nargs:
+            self.has_optional_args = 1
+            self.is_temp = 1
+            self.opt_arg_struct = env.allocate_temp(func_type.op_arg_struct.base_type)
+            env.release_temp(self.opt_arg_struct)
+        return 1
+    
     def calculate_result_code(self):
         return self.c_call_code()
     

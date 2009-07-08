@@ -172,6 +172,7 @@ class Entry(object):
         self.type = type
         self.pos = pos
         self.init = init
+        self.overloaded_alternatives = []
         
     def redeclared(self, pos):
         error(pos, "'%s' does not match previous declaration" % self.name)
@@ -301,16 +302,22 @@ class Scope(object):
             # See http://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names 
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
         entries = self.entries
+        overloaded = False
         if name and name in entries:
             if visibility == 'extern':
                 warning(pos, "'%s' redeclared " % name, 0)
             elif visibility != 'ignore':
-                error(pos, "'%s' redeclared " % name)
+                overloaded = True
+                #error(pos, "'%s' redeclared " % name)
         entry = Entry(name, cname, type, pos = pos)
         entry.in_cinclude = self.in_cinclude
         if name:
             entry.qualified_name = self.qualify_name(name)
-            entries[name] = entry
+            if overloaded:
+                entries[name].overloaded_alternatives.append(entry)
+                #print entries[name].overloaded_alternatives
+            else:
+                entries[name] = entry
         entry.scope = self
         entry.visibility = visibility
         return entry
