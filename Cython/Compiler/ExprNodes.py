@@ -728,9 +728,7 @@ class FloatNode(ConstNode):
     type = PyrexTypes.c_double_type
 
     def calculate_constant_result(self):
-        # calculating float values is usually not a good idea
-        #self.constant_result = float(self.value)
-        pass
+        self.constant_result = float(self.value)
 
     def compile_time_value(self, denv):
         return float(self.value)
@@ -4111,7 +4109,7 @@ compile_time_binary_operators = {
     'is_not': operator.is_not,
     '+': operator.add,
     '&': operator.and_,
-    '/': operator.div,
+    '/': operator.truediv,
     '//': operator.floordiv,
     '<<': operator.lshift,
     '%': operator.mod,
@@ -4120,7 +4118,6 @@ compile_time_binary_operators = {
     '**': operator.pow,
     '>>': operator.rshift,
     '-': operator.sub,
-    #'/': operator.truediv,
     '^': operator.xor,
     'in': operator.contains,
     'not_in': _not_in,
@@ -4278,13 +4275,13 @@ class NumBinopNode(BinopNode):
         "|":        "PyNumber_Or",
         "^":        "PyNumber_Xor",
         "&":        "PyNumber_And",
-        "<<":        "PyNumber_Lshift",
-        ">>":        "PyNumber_Rshift",
+        "<<":       "PyNumber_Lshift",
+        ">>":       "PyNumber_Rshift",
         "+":        "PyNumber_Add",
         "-":        "PyNumber_Subtract",
         "*":        "PyNumber_Multiply",
         "/":        "__Pyx_PyNumber_Divide",
-        "//":        "PyNumber_FloorDivide",
+        "//":       "PyNumber_FloorDivide",
         "%":        "PyNumber_Remainder",
         "**":       "PyNumber_Power"
     }
@@ -4350,20 +4347,63 @@ class DivNode(NumBinopNode):
     #  '/' or '//' operator.
     
     cdivision = None
+    truedivision = None   # == "unknown" if operator == '/'
+    ctruedivision = False
     cdivision_warnings = False
     zerodivision_check = None
-    
+
+    def find_compile_time_binary_operator(self, op1, op2):
+        func = compile_time_binary_operators[self.operator]
+        if self.operator == '/' and self.truedivision is None:
+            # => true div for floats, floor div for integers
+            if isinstance(op1, (int,long)) and isinstance(op2, (int,long)):
+                func = compile_time_binary_operators['//']
+        return func
+
+    def calculate_constant_result(self):
+        op1 = self.operand1.constant_result
+        op2 = self.operand2.constant_result
+        func = self.find_compile_time_binary_operator(op1, op2)
+        self.constant_result = func(
+            self.operand1.constant_result,
+            self.operand2.constant_result)
+
+    def compile_time_value(self, denv):
+        operand1 = self.operand1.compile_time_value(denv)
+        operand2 = self.operand2.compile_time_value(denv)
+        try:
+            func = self.find_compile_time_binary_operator(
+                self, operand1, operand2)
+            return func(operand1, operand2)
+        except Exception, e:
+            self.compile_time_value_error(e)
+
     def analyse_types(self, env):
+        if self.cdivision or env.directives['cdivision']:
+            self.ctruedivision = False
+        else:
+            self.ctruedivision = self.truedivision
         NumBinopNode.analyse_types(self, env)
         if not self.type.is_pyobject:
-            self.zerodivision_check = self.cdivision is None and not env.directives['cdivision']
+            self.zerodivision_check = (
+                self.cdivision is None and not env.directives['cdivision']
+                and (self.operand2.constant_result is not_a_constant or
+                     self.operand2.constant_result == 0))
             if self.zerodivision_check or env.directives['cdivision_warnings']:
                 # Need to check ahead of time to warn or raise zero division error
                 self.operand1 = self.operand1.coerce_to_simple(env)
                 self.operand2 = self.operand2.coerce_to_simple(env)
                 if env.nogil:
                     error(self.pos, "Pythonic division not allowed without gil, consider using cython.cdivision(True)")
-    
+
+    def compute_c_result_type(self, type1, type2):
+        if self.operator == '/' and self.ctruedivision:
+            if not type1.is_float and not type2.is_float:
+                widest_type = PyrexTypes.widest_numeric_type(type1, PyrexTypes.c_double_type)
+                widest_type = PyrexTypes.widest_numeric_type(type2, widest_type)
+                return widest_type
+        return NumBinopNode.compute_c_result_type(self, type1, type2)
+
     def zero_division_message(self):
         if self.type.is_int:
             return "integer division or modulo by zero"
@@ -4416,12 +4456,17 @@ class DivNode(NumBinopNode):
             return NumBinopNode.calculate_result_code(self)
         elif self.type.is_float and self.operator == '//':
             return "floor(%s / %s)" % (
-                self.operand1.result(), 
+                self.operand1.result(),
                 self.operand2.result())
-        elif self.cdivision:
-            return "(%s / %s)" % (
-                self.operand1.result(), 
-                self.operand2.result())
+        elif self.truedivision or self.cdivision:
+            op1 = self.operand1.result()
+            op2 = self.operand2.result()
+            if self.truedivision:
+                if self.type != self.operand1.type:
+                    op1 = self.type.cast_code(op1)
+                if self.type != self.operand2.type:
+                    op2 = self.type.cast_code(op2)
+            return "(%s / %s)" % (op1, op2)
         else:
             return "__Pyx_div_%s(%s, %s)" % (
                     self.type.specalization_name(),

@@ -734,7 +734,7 @@ class CBufferAccessTypeNode(CBaseTypeNode):
             self.positional_args,
             self.keyword_args,
             base_type.buffer_defaults)
-        
+
         self.type = PyrexTypes.BufferType(base_type, **options)
         return self.type
 

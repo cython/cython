@@ -65,14 +65,23 @@ def p_ident_list(s):
 #
 #------------------------------------------
 
+def p_binop_operator(s):
+    pos = s.position()
+    op = s.sy
+    s.next()
+    return op, pos
+
 def p_binop_expr(s, ops, p_sub_expr):
     n1 = p_sub_expr(s)
     while s.sy in ops:
-        op = s.sy
-        pos = s.position()
-        s.next()
+        op, pos = p_binop_operator(s)
         n2 = p_sub_expr(s)
         n1 = ExprNodes.binop_node(pos, op, n1, n2)
+        if op == '/':
+            if Future.division in s.context.future_directives:
+                n1.truedivision = True
+            else:
+                n1.truedivision = None # unknown
     return n1
 
 #expression: or_test [if or_test else test] | lambda_form
