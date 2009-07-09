@@ -31,8 +31,6 @@ namespace shapes {
     {
     public:
         Square(int side) : Rectangle(side, side) { this->side = side; }
-        /* need until function overloading in Cython */
-        Square(int side, int ignored) : Rectangle(side, side) { this->side = side; }
         int side;
     };
 

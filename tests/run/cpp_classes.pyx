@@ -23,7 +23,7 @@ cdef extern from "shapes.h" namespace shapes:
     
     cdef cppclass Square(Rectangle):
         int side
-        # __init__(int) # need function overloading
+        __init__(int)
         
     int constructor_count, destructor_count
 
@@ -41,7 +41,7 @@ def test_rect_area(w, h):
         del rect
 
 def test_square_area(w):
-    cdef Square *sqr = new Square(w, w)
+    cdef Square *sqr = new Square(w)
     cdef Rectangle *rect = sqr
     try:
         return rect.area(), sqr.area()
