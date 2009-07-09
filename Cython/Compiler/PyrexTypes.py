@@ -1660,6 +1660,11 @@ modifiers_and_name_to_type = {
     (1, 0, "bint"): c_bint_type,
 }
 
+def is_promotion(type, other_type):
+    return (type.is_int and type.is_int and type.signed == other_type.signed) \
+                    or (type.is_float and other_type.is_float) \
+                    or (type.is_enum and other_type.is_int)
+
 def widest_numeric_type(type1, type2):
     # Given two numeric types, return the narrowest type
     # encompassing both of them.
