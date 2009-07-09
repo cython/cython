@@ -2418,8 +2418,9 @@ class SimpleCallNode(CallNode):
                     else:
                         score[0] += 1
                 else:
-                    continue
-            possibilities.append((score, entry)) # so we can sort it
+                    break
+            else:
+                possibilities.append((score, entry)) # so we can sort it
         if len(possibilities):
             possibilities.sort()
             if len(possibilities) > 1 and possibilities[0][0] == possibilities[1][0]:
