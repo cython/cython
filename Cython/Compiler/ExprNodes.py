@@ -2395,7 +2395,9 @@ class SimpleCallNode(CallNode):
         actual_nargs = len(self.args)
         possibilities = []
         for entry in entries:
-            type = entry.type.base_type
+            type = entry.type
+            if type.is_ptr:
+                type = type.base_type
             # Check no. of args
             max_nargs = len(type.args)
             expected_nargs = max_nargs - type.optional_arg_count
@@ -2422,6 +2424,9 @@ class SimpleCallNode(CallNode):
             possibilities.sort()
             if len(possibilities) > 1 and possibilities[0][0] == possibilities[1][0]:
                 error(self.pos, "Ambiguity found on %s" % possibilities[0][1].name)
+                self.args = None
+                self.type = PyrexTypes.error_type
+                self.result_code = "<error>"
                 return None
             return possibilities[0][1]
         error(self.pos, 
@@ -2442,6 +2447,8 @@ class SimpleCallNode(CallNode):
     
     def analyse_c_function_call(self, env):
         entry = self.best_match()
+        if not entry:
+            return
         self.function.entry = entry
         self.function.type = entry.type
         func_type = self.function_type()
