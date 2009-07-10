@@ -114,6 +114,7 @@ class PyrexType(BaseType):
     is_returncode = 0
     is_error = 0
     is_buffer = 0
+    is_memoryview = 0
     has_attributes = 0
     default_value = ""
 
@@ -308,9 +309,11 @@ class CTypedefType(BaseType):
     def __getattr__(self, name):
         return getattr(self.typedef_base_type, name)
 
-class MemoryViewType(BaseType):
+class MemoryViewType(PyrexType):
 
-    def __init__(self, base, axes):
+    is_memoryview = 1
+
+    def __init__(self, base_dtype, axes):
         '''
         MemoryViewType(base, axes)
 
@@ -345,8 +348,16 @@ class MemoryViewType(BaseType):
         specs.
         '''
 
-        self.base = base
+        self.dtype = base_dtype
         self.axes = axes
+
+    def is_complete(self):
+        # incomplete since the underlying struct doesn't have a memoryview.
+        return 0
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        return 'foo'
 
 class BufferType(BaseType):
     #
