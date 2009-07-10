@@ -728,9 +728,7 @@ class MemoryViewTypeNode(CBaseTypeNode):
             return self.type
 
         self.type = PyrexTypes.MemoryViewType(base_type, axes_specs)
-        return base_type # XXX: just for testing!!!
-
-
+        return self.type
 
 class CBufferAccessTypeNode(CBaseTypeNode):
     #  After parsing:
@@ -1779,13 +1777,16 @@ class DefNode(FuncDefNode):
         self.entry = entry
         prefix = env.scope_prefix
         entry.func_cname = \
-            Naming.pyfunc_prefix + prefix + name
+            env.mangle(Naming.pyfunc_prefix, name)
+            # Naming.pyfunc_prefix + prefix + name
         entry.pymethdef_cname = \
-            Naming.pymethdef_prefix + prefix + name
+            env.mangle(Naming.pymethdef_prefix, name)
+            # Naming.pymethdef_prefix + prefix + name
         if Options.docstrings:
             entry.doc = embed_position(self.pos, self.doc)
             entry.doc_cname = \
-                Naming.funcdoc_prefix + prefix + name
+                env.mangle(Naming.funcdoc_prefix, name)
+                # Naming.funcdoc_prefix + prefix + name
         else:
             entry.doc = None
 
