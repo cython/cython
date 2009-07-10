@@ -19,7 +19,7 @@ def get_axes_specs(env, axes):
     packing is one of 'contig', 'strided' or 'follow'
     '''
 
-    cythonscope = env.context.cython_scope
+    cythonscope = env.global_scope().context.cython_scope
     viewscope = cythonscope.viewscope
 
     access_specs = tuple([viewscope.lookup(name)

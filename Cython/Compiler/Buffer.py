@@ -4,6 +4,7 @@ from Nodes import *
 from ExprNodes import *
 from StringEncoding import EncodedString
 from Errors import CompileError
+from UtilityCode import CythonUtilityCode
 from Code import UtilityCode
 import Cython.Compiler.Options
 import Interpreter
@@ -27,12 +28,13 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
     #
 
     buffers_exists = False
+    using_memoryview = False
 
     def __call__(self, node):
         assert isinstance(node, ModuleNode)
         self.max_ndim = 0
         result = super(IntroduceBufferAuxiliaryVars, self).__call__(node)
-        if self.buffers_exists:
+        if self.buffers_exists or self.using_memoryview:
             use_bufstruct_declare_code(node.scope)
             use_py2_buffer_functions(node.scope)
             use_empty_bufstruct_code(node.scope, self.max_ndim)
@@ -51,6 +53,18 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
                    if entry.type.is_buffer]
         if len(bufvars) > 0:
             self.buffers_exists = True
+
+        memviewvars = [entry for name, entry
+                in scope.entries.iteritems()
+                if entry.type.is_memoryview]
+        if len(memviewvars) > 0:
+            self.buffers_exists = True
+
+
+        for (name, entry) in scope.entries.iteritems():
+            if name == 'memoryview' and isinstance(entry.utility_code_definition, CythonUtilityCode):
+                self.using_memoryview = True
+                break
 
 
         if isinstance(node, ModuleNode) and len(bufvars) > 0:

@@ -88,8 +88,23 @@ class CythonScope(ModuleScope):
                                           is_cdef=True)
             entry.utility_code_definition = view_utility_code
 
+        #
+        # cython.view.memoryview declaration
+        #
+        name = u'memoryview'
+        entry = viewscope.declare_c_class(name, None,
+                implementing=1,
+                objstruct_cname = '__pyx_obj_'+name,
+                typeobj_cname = '__pyx_tobj_'+name,
+                typeptr_cname=Naming.typeptr_prefix+name)
+
+        entry.utility_code_definition = view_utility_code
+
+        #
+        # cython.array declaration
+        #
         name = u'array'
-        entry = self.declare_c_class(u'array', None,
+        entry = self.declare_c_class(name, None,
                 implementing=1,
                 objstruct_cname='__pyx_obj_array',
                 typeobj_cname='__pyx_tobj_array',
@@ -101,13 +116,34 @@ class CythonScope(ModuleScope):
 
         entry.utility_code_definition = cython_array_utility_code
 
-        entry.type.scope.declare_var(u'data', c_char_ptr_type, None, is_cdef = 1)
-        entry.type.scope.declare_var(u'len', c_size_t_type, None, is_cdef = 1)
-        entry.type.scope.declare_var(u'format', c_char_ptr_type, None, is_cdef = 1)
-        entry.type.scope.declare_var(u'ndim', c_int_type, None, is_cdef = 1)
-        entry.type.scope.declare_var(u'shape', c_py_ssize_t_ptr_type, None, is_cdef = 1)
-        entry.type.scope.declare_var(u'strides', c_py_ssize_t_ptr_type, None, is_cdef = 1)
-        entry.type.scope.declare_var(u'itemsize', c_py_ssize_t_type, None, is_cdef = 1)
+        arr_scope = entry.type.scope
+
+        arr_scope.declare_var(u'data', c_char_ptr_type, None, is_cdef = 1)
+        arr_scope.declare_var(u'len', c_size_t_type, None, is_cdef = 1)
+        arr_scope.declare_var(u'format', c_char_ptr_type, None, is_cdef = 1)
+        arr_scope.declare_var(u'ndim', c_int_type, None, is_cdef = 1)
+        arr_scope.declare_var(u'shape', c_py_ssize_t_ptr_type, None, is_cdef = 1)
+        arr_scope.declare_var(u'strides', c_py_ssize_t_ptr_type, None, is_cdef = 1)
+        arr_scope.declare_var(u'itemsize', c_py_ssize_t_type, None, is_cdef = 1)
+
+        # declare the __getbuffer__ & __releasebuffer__ functions
+
+        for name in ('__getbuffer__', '__releasebuffer__'):
+            entry = arr_scope.declare_pyfunction(name, None)
+            # XXX: absolutely horrendous hack right here!!!
+            # To be fixed!!!
+            entry.func_cname = '__pyx_pf_9__pyxutil_5array_' + name
+            entry.utility_code_definition = cython_array_utility_code
+
+        #
+        # Declare the array modes
+        #
+        entry = self.declare_var(u'PyBUF_C_CONTIGUOUS', c_int_type, None,
+                cname='PyBUF_C_CONTIGUOUS',is_cdef = 1)
+        entry = self.declare_var(u'PyBUF_F_CONTIGUOUS', c_int_type, None,
+                is_cdef = 1)
+        entry = self.declare_var(u'PyBUF_ANY_CONTIGUOUS', c_int_type, None,
+                is_cdef = 1)
 
 
 def create_cython_scope(context, create_testscope):
@@ -214,8 +250,25 @@ cdef follow = Enum("<follow axis packing mode>")
 cdef direct = Enum("<direct axis access mode>")
 cdef ptr = Enum("<ptr axis access mode>")
 cdef full = Enum("<full axis access mode>")
+
+cdef extern from *:
+    int __Pyx_GetBuffer(object, Py_buffer *, int)
+    void __Pyx_ReleaseBuffer(Py_buffer *)
+
+cdef class memoryview:
+
+    cdef Py_buffer view
+
+    def __cinit__(memoryview self, obj, int flags):
+        __Pyx_GetBuffer(obj, &self.view, flags)
+
+    def __dealloc__(memoryview self):
+        __Pyx_ReleaseBuffer(&self.view)
+
+
 """, prefix="__pyx_viewaxis_")
 
+cyarray_prefix = u'__pyx_cythonarray_'
 cython_array_utility_code = CythonUtilityCode(u'''
 cdef extern from "stdlib.h":
     void *malloc(size_t)
@@ -224,27 +277,9 @@ cdef extern from "stdlib.h":
 cdef extern from "Python.h":
 
     cdef enum:
-        PyBUF_SIMPLE,
-        PyBUF_WRITABLE,
-        PyBUF_WRITEABLE, # backwards compatability
-        PyBUF_FORMAT,
-        PyBUF_ND,
-        PyBUF_STRIDES,
         PyBUF_C_CONTIGUOUS,
         PyBUF_F_CONTIGUOUS,
-        PyBUF_ANY_CONTIGUOUS,
-        PyBUF_INDIRECT,
-        PyBUF_CONTIG,
-        PyBUF_CONTIG_RO,
-        PyBUF_STRIDED,
-        PyBUF_STRIDED_RO,
-        PyBUF_RECORDS,
-        PyBUF_RECORDS_RO,
-        PyBUF_FULL,
-        PyBUF_FULL_RO,
-        PyBUF_READ,
-        PyBUF_WRITE,
-        PyBUF_SHADOW
+        PyBUF_ANY_CONTIGUOUS
 
 cdef class array:
 
@@ -336,7 +371,9 @@ cdef class array:
         info.obj = None
 
     def __releasebuffer__(array self, Py_buffer* info):
-        print "array.__releasebuffer__"
+        # array.__releasebuffer__ should not be called, 
+        # because the Py_buffer's 'obj' field is set to None.
+        raise NotImplementedError()
 
     def __dealloc__(array self):
         if self.data:
@@ -350,4 +387,4 @@ cdef class array:
             self.shape = NULL
         self.format = NULL
         self.itemsize = 0
-''', prefix='__pyx_cythonarray_')
+''', prefix=cyarray_prefix)

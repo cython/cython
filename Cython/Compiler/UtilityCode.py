@@ -17,7 +17,7 @@ class NonManglingModuleScope(Symtab.ModuleScope):
     
     def mangle(self, prefix, name=None):
         if name:
-            if prefix in (Naming.typeobj_prefix, Naming.func_prefix, Naming.var_prefix):
+            if prefix in (Naming.typeobj_prefix, Naming.func_prefix, Naming.var_prefix, Naming.pyfunc_prefix):
                 # Functions, classes etc. gets a manually defined prefix easily
                 # manually callable instead (the one passed to CythonUtilityCode)
                 prefix = self.prefix

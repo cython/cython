@@ -823,16 +823,14 @@ class MemoryViewTypeNode(CBaseTypeNode):
             return self.type
 
         self.type = PyrexTypes.MemoryViewType(base_type, axes_specs)
-        return base_type # XXX: just for testing!!!
+        return self.type
 
 class CNestedBaseTypeNode(CBaseTypeNode):
     # For C++ classes that live inside other C++ classes.
 
     # name             string
     # base_type        CBaseTypeNode
-
     child_attrs = ['base_type']
-
     def analyse(self, env, could_be_name = None):
         base_type = self.base_type.analyse(env)
         if base_type is PyrexTypes.error_type:
@@ -2277,13 +2275,15 @@ class DefNode(FuncDefNode):
         prefix = env.next_id(env.scope_prefix)
 
         entry.func_cname = \
-            Naming.pyfunc_prefix + prefix + name
+            env.mangle(Naming.pyfunc_prefix, name)
+            # Naming.pyfunc_prefix + prefix + name
         entry.pymethdef_cname = \
-            Naming.pymethdef_prefix + prefix + name
+            env.mangle(Naming.pymethdef_prefix, name)
+            # Naming.pymethdef_prefix + prefix + name
         if Options.docstrings:
             entry.doc = embed_position(self.pos, self.doc)
             entry.doc_cname = \
-                Naming.funcdoc_prefix + prefix + name
+                env.mangle(Naming.funcdoc_prefix, name)
             if entry.is_special:
                 if entry.name in TypeSlots.invisible or not entry.doc or (entry.name in '__getattr__' and env.directives['fast_getattr']):
                     entry.wrapperbase_cname = None
