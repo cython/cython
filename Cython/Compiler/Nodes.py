@@ -1332,7 +1332,7 @@ class CFuncDefNode(FuncDefNode):
         return self.entry.name
         
     def analyse_declarations(self, env):
-        directive_locals = self.directive_locals = env.directives['locals']
+        self.directive_locals.update(env.directives['locals'])
         base_type = self.base_type.analyse(env)
         # The 2 here is because we need both function and argument names. 
         name_declarator, type = self.declarator.analyse(base_type, env, nonempty = 2 * (self.body is not None))
