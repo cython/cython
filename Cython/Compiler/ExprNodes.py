@@ -7809,6 +7809,7 @@ class CoerceFromPyTypeNode(CoercionNode):
         CoercionNode.__init__(self, arg)
         self.type = result_type
         self.is_temp = 1
+        import pdb; pdb.set_trace()
         if not result_type.create_from_py_utility_code(env):
             error(arg.pos,
                   "Cannot convert Python object to '%s'" % result_type)

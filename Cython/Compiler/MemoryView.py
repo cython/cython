@@ -1,5 +1,6 @@
 from Errors import CompileError
 from ExprNodes import IntNode, NoneNode, IntBinopNode, NameNode, AttributeNode
+from Visitor import CythonTransform
 
 START_ERR = "there must be nothing or the value 0 (zero) in the start slot."
 STOP_ERR = "Axis specification only allowed in the 'stop' slot."
@@ -186,3 +187,43 @@ def _resolve_AttributeNode(env, node):
         scope = scope.lookup(modname).as_module
     return scope.lookup(path[-1])
 
+class MemoryViewTransform(CythonTransform):
+
+    memviews_exist = False
+
+    def __call__(self, node):
+        return super(MemoryViewTransform, self).__call__(node)
+
+    def inspect_scope(self, node, scope):
+
+        memviewvars = [entry for name, entry
+                in scope.entries.iteritems()
+                if entry.type.is_memoryview]
+        if memviewvars:
+            self.memviews_exist = True
+
+    def visit_FuncDefNode(self, node):
+        # check for the existence of memview entries here.
+        self.inspect_scope(node, node.local_scope)
+        self.visitchildren(node)
+        return node
+
+    def visit_ModuleNode(self, node):
+        # check for memviews here.
+        self.inspect_scope(node, node.scope)
+        self.visitchildren(node)
+        return node
+
+    def visit_ClassDefNode(self, node):
+        # check for memviews in the class scope
+        if hasattr(node, 'scope'):
+            scope = node.scope
+        else:
+            scope = node.entry.type.scope
+        self.inspect_scope(node, scope)
+        self.visitchildren(node)
+        return node
+
+    def visit_SingleAssignmentNode(self, node):
+        import pdb; pdb.set_trace()
+        return node

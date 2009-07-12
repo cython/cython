@@ -964,7 +964,7 @@ class CVarDefNode(StatNode):
             else:
                 name_declarator, type = declarator.analyse(base_type, env)
             if not type.is_complete():
-                if not (self.visibility == 'extern' and type.is_array):
+                if not (self.visibility == 'extern' and type.is_array or type.is_memoryview):
                     error(declarator.pos,
                         "Variable type '%s' is incomplete" % type)
             if self.visibility == 'extern' and type.is_pyobject:
