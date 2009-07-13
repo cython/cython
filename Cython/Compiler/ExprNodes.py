@@ -2392,6 +2392,7 @@ class SimpleCallNode(CallNode):
     
     def best_match(self):
         entries = [self.function.entry] + self.function.entry.overloaded_alternatives
+        #print self.function.entry.name, self.function.entry.type, self.function.entry.overloaded_alternatives
         actual_nargs = len(self.args)
         possibilities = []
         for entry in entries:
@@ -2407,7 +2408,10 @@ class SimpleCallNode(CallNode):
             score = [0,0,0]
             for i in range(len(self.args)):
                 src_type = self.args[i].type
-                dst_type = entry.type.base_type.args[i].type
+                if entry.type.is_ptr:
+                    dst_type = entry.type.base_type.args[i].type
+                else:
+                    dst_type = entry.type.args[i].type
                 if dst_type.assignable_from(src_type):
                     if src_type == dst_type:
                         pass # score 0
@@ -2429,9 +2433,11 @@ class SimpleCallNode(CallNode):
                 self.type = PyrexTypes.error_type
                 self.result_code = "<error>"
                 return None
+            #for (score, entry) in possibilities:
+                #print entry.name, entry.type, score
             return possibilities[0][1]
         error(self.pos, 
-            "Call with wrong number of arguments")# (expected %s, got %s)"
+            "Call with wrong arguments")# (expected %s, got %s)"
                 #% (expected_str, actual_nargs))
         self.args = None
         self.type = PyrexTypes.error_type
@@ -4225,12 +4231,24 @@ class BinopNode(NewTempExprNode):
             self.is_temp = 1
             if Options.incref_local_binop and self.operand1.type.is_pyobject:
                 self.operand1 = self.operand1.coerce_to_temp(env)
+        elif self.is_cpp_operation():
+            self.analyse_cpp_operation(env)
         else:
             self.analyse_c_operation(env)
     
     def is_py_operation(self):
         return (self.operand1.type.is_pyobject 
             or self.operand2.type.is_pyobject)
+    
+    def is_cpp_operation(self):
+        type1 = self.operand1.type
+        type2 = self.operand2.type
+        if type1.is_ptr:
+            type1 = type1.base_type
+        if type2.is_ptr:
+            type2 = type2.base_type
+        return (type1.is_cpp_class
+            or type2.is_cpp_class)
     
     def coerce_operands_to_pyobjects(self, env):
         self.operand1 = self.operand1.coerce_to_pyobject(env)
@@ -4345,6 +4363,74 @@ class IntBinopNode(NumBinopNode):
 class AddNode(NumBinopNode):
     #  '+' operator.
     
+    def analyse_cpp_operation(self, env):
+        type1 = self.operand1.type
+        type2 = self.operand2.type
+        if type1.is_ptr:
+            type1 = type1.base_type
+        if type2.is_ptr:
+            type2 = type2.base_type
+        entry1 = env.lookup(type1.name)
+        entry2 = env.lookup(type2.name)
+        entry = entry1.scope.lookup_here("__add__")
+        if not entry:
+            error(self.pos, "'+' operator not defined for '%s + %s'"
+                % (self.operand1.type, self.operand2.type))
+            self.type_error()
+            return
+        self.type = self.best_match(entry)
+
+    def best_match(self, entry):
+        entries = [entry] + entry.overloaded_alternatives
+        actual_nargs = 2
+        possibilities = []
+        for entry in entries:
+            type = entry.type
+            if type.is_ptr:
+                type = type.base_type
+            # Check no. of args
+            max_nargs = len(type.args)
+            expected_nargs = max_nargs - type.optional_arg_count
+            if actual_nargs < expected_nargs \
+                or (not type.has_varargs and actual_nargs > max_nargs):
+                    continue
+            score = [0,0,0]
+            for i in range(len(self.args)):
+                src_type = self.args[i].type
+                if entry.type.is_ptr:
+                    dst_type = entry.type.base_type.args[i].type
+                else:
+                    dst_type = entry.type.args[i].type
+                if dst_type.assignable_from(src_type):
+                    if src_type == dst_type:
+                        pass # score 0
+                    elif PyrexTypes.is_promotion(src_type, dst_type):
+                        score[2] += 1
+                    elif not src_type.is_pyobject:
+                        score[1] += 1
+                    else:
+                        score[0] += 1
+                else:
+                    break
+            else:
+                possibilities.append((score, entry)) # so we can sort it
+        if len(possibilities):
+            possibilities.sort()
+            if len(possibilities) > 1 and possibilities[0][0] == possibilities[1][0]:
+                error(self.pos, "Ambiguity found on %s" % possibilities[0][1].name)
+                self.args = None
+                self.type = PyrexTypes.error_type
+                self.result_code = "<error>"
+                return None
+            return possibilities[0][1]
+        error(self.pos, 
+            "Call with wrong arguments")# (expected %s, got %s)"
+                #% (expected_str, actual_nargs))
+        self.args = None
+        self.type = PyrexTypes.error_type
+        self.result_code = "<error>"
+        return None
+            
     def is_py_operation(self):
         if self.operand1.type.is_string \
             and self.operand2.type.is_string:

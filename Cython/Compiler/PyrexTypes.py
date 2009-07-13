@@ -1385,6 +1385,7 @@ class CppClassType(CType):
         self._convert_code = None
         self.packed = packed
         self.base_classes = base_classes
+        self.operators = []
 
     def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
         if for_display or pyrex:
