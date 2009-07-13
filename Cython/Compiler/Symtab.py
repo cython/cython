@@ -454,24 +454,29 @@ class Scope(object):
                           cname = None, visibility = 'private', defining = 0,
                           api = 0, in_pxd = 0, modifiers = ()):
         # Add an entry for a C function.
+        if not cname:
+            if api or visibility != 'private':
+                cname = name
+            else:
+                cname = self.mangle(Naming.func_prefix, name)
         entry = self.lookup_here(name)
         if entry:
+            entry.overloaded_alternatives.append(self.add_cfunction(name, type, pos, cname, visibility, modifiers))
             if visibility != 'private' and visibility != entry.visibility:
                 warning(pos, "Function '%s' previously declared as '%s'" % (name, entry.visibility), 1)
             if not entry.type.same_as(type):
                 if visibility == 'extern' and entry.visibility == 'extern':
                     warning(pos, "Function signature does not match previous declaration", 1)
-                    entry.type = type
+                    #entry.type = type
                 else:
                     error(pos, "Function signature does not match previous declaration")
         else:
-            if not cname:
-                if api or visibility != 'private':
-                    cname = name
-                else:
-                    cname = self.mangle(Naming.func_prefix, name)
             entry = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
             entry.func_cname = cname
+            #try:
+            #    print entry.name, entry.type, entry.overloaded_alternatives
+            #except:
+            #    pass
         if in_pxd and visibility != 'extern':
             entry.defined_in_pxd = 1
         if api:
@@ -482,6 +487,12 @@ class Scope(object):
             entry.is_implemented = True
         if modifiers:
             entry.func_modifiers = modifiers
+        #try:
+        #    print entry.name, entry.type, entry.overloaded_alternatives
+        #except:
+        #    pass
+        #if len(entry.overloaded_alternatives) > 0:
+        #    print entry.name, entry.type, entry.overloaded_alternatives[0].type
         return entry
     
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers):
