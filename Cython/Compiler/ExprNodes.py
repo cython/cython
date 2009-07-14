@@ -4301,6 +4301,22 @@ class NumBinopNode(BinopNode):
         if not self.infix:
             self.operand1 = self.operand1.coerce_to(self.type, env)
             self.operand2 = self.operand2.coerce_to(self.type, env)
+            
+    def analyse_cpp_operation(self, env):
+        type1 = self.operand1.type
+        type2 = self.operand2.type
+        if type1.is_ptr:
+            type1 = type1.base_type
+        if type2.is_ptr:
+            type2 = type2.base_type
+        entry = env.lookup(type1.name)
+        function = entry.type.scope.lookup(self.operators[self.operator])
+        if not function:
+            error(self.pos, "'%s' operator not defined for '%s %s %s'"
+                % (self.operator, type1, type2, self.operator))
+            self.type_error()
+            return
+        self.type = self.best_match(function)
     
     def compute_c_result_type(self, type1, type2):
         if self.c_types_okay(type1, type2):
@@ -4390,6 +4406,12 @@ class NumBinopNode(BinopNode):
         "%":        "PyNumber_Remainder",
         "**":       "PyNumber_Power"
     }
+    
+    operators = {
+        "+":        u"__add__",
+        "-":        u"__sub__",
+        "*":        u"__mul__"
+    } #for now
 
 
 class IntBinopNode(NumBinopNode):
@@ -4403,22 +4425,6 @@ class IntBinopNode(NumBinopNode):
     
 class AddNode(NumBinopNode):
     #  '+' operator.
-    
-    def analyse_cpp_operation(self, env):
-        type1 = self.operand1.type
-        type2 = self.operand2.type
-        if type1.is_ptr:
-            type1 = type1.base_type
-        if type2.is_ptr:
-            type2 = type2.base_type
-        entry = env.lookup(type1.name)
-        function = entry.type.scope.lookup(u'__add__')
-        if not function:
-            error(self.pos, "'+' operator not defined for '%s + %s'"
-                % (type1, type2))
-            self.type_error()
-            return
-        self.type = self.best_match(function)
             
     def is_py_operation(self):
         if self.operand1.type.is_string \
@@ -4440,22 +4446,6 @@ class AddNode(NumBinopNode):
 
 class SubNode(NumBinopNode):
     #  '-' operator.
-
-    def analyse_cpp_operation(self, env):
-        type1 = self.operand1.type
-        type2 = self.operand2.type
-        if type1.is_ptr:
-            type1 = type1.base_type
-        if type2.is_ptr:
-            type2 = type2.base_type
-        entry = env.lookup(type1.name)
-        function = entry.type.scope.lookup(u'__sub__')
-        if not function:
-            error(self.pos, "'-' operator not defined for '%s - %s'"
-                % (type1, type2))
-            self.type_error()
-            return
-        self.type = self.best_match(function)
     
     def compute_c_result_type(self, type1, type2):
         if (type1.is_ptr or type1.is_array) and (type2.is_int or type2.is_enum):
