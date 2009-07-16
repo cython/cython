@@ -5412,7 +5412,6 @@ static void __Pyx_AddTraceback(const char *funcname) {
     PyObject *py_srcfile = 0;
     PyObject *py_funcname = 0;
     PyObject *py_globals = 0;
-    PyObject *empty_string = 0;
     PyCodeObject *py_code = 0;
     PyFrameObject *py_frame = 0;
 
@@ -5439,12 +5438,6 @@ static void __Pyx_AddTraceback(const char *funcname) {
     if (!py_funcname) goto bad;
     py_globals = PyModule_GetDict(%(GLOBALS)s);
     if (!py_globals) goto bad;
-    #if PY_MAJOR_VERSION < 3
-    empty_string = PyString_FromStringAndSize("", 0);
-    #else
-    empty_string = PyBytes_FromStringAndSize("", 0);
-    #endif
-    if (!empty_string) goto bad;
     py_code = PyCode_New(
         0,            /*int argcount,*/
         #if PY_MAJOR_VERSION >= 3
@@ -5453,7 +5446,7 @@ static void __Pyx_AddTraceback(const char *funcname) {
         0,            /*int nlocals,*/
         0,            /*int stacksize,*/
         0,            /*int flags,*/
-        empty_string, /*PyObject *code,*/
+        %(EMPTY_BYTES)s, /*PyObject *code,*/
         %(EMPTY_TUPLE)s,  /*PyObject *consts,*/
         %(EMPTY_TUPLE)s,  /*PyObject *names,*/
         %(EMPTY_TUPLE)s,  /*PyObject *varnames,*/
@@ -5462,7 +5455,7 @@ static void __Pyx_AddTraceback(const char *funcname) {
         py_srcfile,   /*PyObject *filename,*/
         py_funcname,  /*PyObject *name,*/
         %(LINENO)s,   /*int firstlineno,*/
-        empty_string  /*PyObject *lnotab*/
+        %(EMPTY_BYTES)s  /*PyObject *lnotab*/
     );
     if (!py_code) goto bad;
     py_frame = PyFrame_New(
@@ -5477,7 +5470,6 @@ static void __Pyx_AddTraceback(const char *funcname) {
 bad:
     Py_XDECREF(py_srcfile);
     Py_XDECREF(py_funcname);
-    Py_XDECREF(empty_string);
     Py_XDECREF(py_code);
     Py_XDECREF(py_frame);
 }
@@ -5488,6 +5480,7 @@ bad:
     'CLINENO':  Naming.clineno_cname,
     'GLOBALS': Naming.module_cname,
     'EMPTY_TUPLE' : Naming.empty_tuple,
+    'EMPTY_BYTES' : Naming.empty_bytes,
 })
 
 restore_exception_utility_code = UtilityCode(
