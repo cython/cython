@@ -1,6 +1,9 @@
 from Errors import CompileError
 from ExprNodes import IntNode, NoneNode, IntBinopNode, NameNode, AttributeNode
 from Visitor import CythonTransform
+import Options
+import CythonScope
+from Code import UtilityCode
 
 START_ERR = "there must be nothing or the value 0 (zero) in the start slot."
 STOP_ERR = "Axis specification only allowed in the 'stop' slot."
@@ -11,6 +14,14 @@ NOT_AMP_ERR = "Invalid operator, only an ampersand '&' is allowed."
 INVALID_ERR = "Invalid axis specification."
 EXPR_ERR = "no expressions allowed in axis spec, only names (e.g. cython.view.contig)."
 CF_ERR = "Invalid axis specification for a C/Fortran contiguous array."
+
+def use_memview_util_code(env):
+    import CythonScope
+    cythonscope = env.global_scope().context.cython_scope
+    viewscope = cythonscope.viewscope
+    memview_entry = viewscope.lookup_here(CythonScope.memview_name)
+    assert memview_entry is cythonscope.memviewentry
+    memview_entry.used = 1
 
 def get_axes_specs(env, axes):
     '''
@@ -227,3 +238,23 @@ class MemoryViewTransform(CythonTransform):
     def visit_SingleAssignmentNode(self, node):
         import pdb; pdb.set_trace()
         return node
+
+memviewstruct_cname = u'__Pyx_memviewstruct'
+memviewstruct_declare_code = UtilityCode(proto="""
+
+/* memoryview struct */
+
+typedef struct {
+  Py_ssize_t shape, strides, suboffsets;
+} __Pyx_mv_DimInfo;
+
+typedef struct {
+  struct %s *memviewext;
+  char *data;
+  __Pyx_mv_DimInfo diminfo[%d];
+} %s;
+
+""" % (CythonScope.memviewext_objstruct_cname,
+       Options.buffer_max_dims,
+       memviewstruct_cname)
+)

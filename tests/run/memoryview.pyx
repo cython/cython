@@ -23,9 +23,8 @@ cdef class Foo:
 class pyfoo:
 
     def __init__(self):
-        cdef int arr[10]
-        # self.mview = array((10,), itemsize=sizeof(long), format='l')
-        self.mview = arr
+        self.mview = array((10,), itemsize=sizeof(long), format='l')
+        # self.mview = arr
 
 cdef cdg():
     cdef double[:] dmv = array((10,), itemsize=sizeof(double), format='d')

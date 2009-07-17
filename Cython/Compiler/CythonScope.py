@@ -91,12 +91,11 @@ class CythonScope(ModuleScope):
         #
         # cython.view.memoryview declaration
         #
-        name = u'memoryview'
-        entry = viewscope.declare_c_class(name, None,
+        self.memviewentry = entry = viewscope.declare_c_class(memview_name, None,
                 implementing=1,
-                objstruct_cname = '__pyx_obj_'+name,
-                typeobj_cname = '__pyx_tobj_'+name,
-                typeptr_cname=Naming.typeptr_prefix+name)
+                objstruct_cname = memviewext_objstruct_cname,
+                typeobj_cname = memviewext_typeobj_cname,
+                typeptr_cname= memviewext_typeptr_cname)
 
         entry.utility_code_definition = view_utility_code
 
@@ -130,8 +129,7 @@ class CythonScope(ModuleScope):
 
         for idx, name in enumerate(('__getbuffer__', '__releasebuffer__')):
             entry = arr_scope.declare_pyfunction(name, None)
-            # XXX: absolutely horrendous hack right here!!!
-            # To be fixed!!!
+            # FIXME XXX: hack right here!!!
             entry.func_cname = '__pyx_pf_9__pyxutil_5array_%d' % (idx + 1) + name
             entry.utility_code_definition = cython_array_utility_code
 
@@ -236,6 +234,10 @@ cdef object _testscope(int value):
     return "hello from cython.view scope, value=%d" % value
 """)
 
+memview_name = u'memoryview'
+memviewext_typeptr_cname = Naming.typeptr_prefix+memview_name
+memviewext_typeobj_cname = '__pyx_tobj_'+memview_name
+memviewext_objstruct_cname = '__pyx_obj_'+memview_name
 view_utility_code = CythonUtilityCode(u"""
 cdef class Enum:
     cdef object name
@@ -258,12 +260,19 @@ cdef extern from *:
 cdef class memoryview:
 
     cdef Py_buffer view
+    cdef int gotbuf_flag
 
-    def __cinit__(memoryview self, obj, int flags):
+    def __cinit__(self):
+        self.gotbuf_flag = 0
+
+    cdef memoryview from_obj(memoryview self, obj, int flags):
         __Pyx_GetBuffer(obj, &self.view, flags)
+        self.gotbuf_flag = 1
 
     def __dealloc__(memoryview self):
-        __Pyx_ReleaseBuffer(&self.view)
+        if self.gotbuf_flag:
+            __Pyx_ReleaseBuffer(&self.view)
+            self.gotbuf_flag = 0
 
 
 """, prefix="__pyx_viewaxis_")

@@ -313,7 +313,7 @@ class MemoryViewType(PyrexType):
 
     is_memoryview = 1
 
-    def __init__(self, base_dtype, axes):
+    def __init__(self, base_dtype, axes, env):
         '''
         MemoryViewType(base, axes)
 
@@ -350,6 +350,7 @@ class MemoryViewType(PyrexType):
 
         self.dtype = base_dtype
         self.axes = axes
+        self.env = env
 
     def is_complete(self):
         # incomplete since the underlying struct doesn't have a memoryview.
@@ -357,7 +358,14 @@ class MemoryViewType(PyrexType):
 
     def declaration_code(self, entity_code,
             for_display = 0, dll_linkage = None, pyrex = 0):
-        return 'foo'
+        # XXX: we put these guards in for now...
+        assert not pyrex
+        assert not dll_linkage
+        import MemoryView
+        self.env.use_utility_code(MemoryView.memviewstruct_declare_code)
+        return self.base_declaration_code(
+                MemoryView.memviewstruct_cname,
+                entity_code)
 
 class BufferType(BaseType):
     #
