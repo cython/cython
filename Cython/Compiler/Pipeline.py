@@ -89,7 +89,6 @@ def create_pipeline(context, mode):
     from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
     from Optimize import OptimizeBuiltinCalls, ConstantFolding, FinalOptimizePhase
     from Buffer import IntroduceBufferAuxiliaryVars
-    from MemoryView import MemoryViewTransform
     from ModuleNode import check_c_declarations
 
 
@@ -132,7 +131,6 @@ def create_pipeline(context, mode):
         EmbedSignature(context),
         TransformBuiltinMethods(context),
         IntroduceBufferAuxiliaryVars(context),
-        MemoryViewTransform(context),
         _check_c_declarations,
         AnalyseExpressionsTransform(context),
         OptimizeBuiltinCalls(),

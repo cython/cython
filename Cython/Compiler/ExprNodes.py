@@ -495,6 +495,11 @@ class ExprNode(Node):
         src_is_py_type = src_type.is_pyobject
         dst_is_py_type = dst_type.is_pyobject
 
+        if dst_type.is_memoryview:
+            src = CoerceToMemViewNode(src, dst_type, env)
+            # src = AcquireBufferFromNode(src, env)
+            # src = CheckMemoryViewFormatNode(src, dst_type, env)
+
         if dst_type.is_pyobject:
             if not src.type.is_pyobject:
                 src = CoerceToPyTypeNode(src, env)
@@ -5108,6 +5113,28 @@ class CoercionNode(ExprNode):
             file, line, col = self.pos
             code.annotate((file, line, col-1), AnnotationItem(style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
 
+class CoerceToMemViewNode(CoercionNode):
+
+    def __init__(self, arg, dst_type, env):
+        assert dst_type.is_memoryview
+        CoercionNode.__init__(self, arg)
+        self.type = dst_type
+        self.is_temp = 1
+        self.env = env
+
+    def generate_result_code(self, code):
+        #  create a cython.memoryview object.
+        #  declare a new temporary cython.memoryview variable.
+        import MemoryView
+
+        # -) initialize cython.memview object with self.arg, it calls
+        #    __Pyx_GetBuffer on it.
+        # -) check the axes specifiers for the underlying memview's Py_buffer,
+        #    make sure they're compatible with the dst_type's axes specs.
+        # -) output the temp assignment code (see
+        #    CoerceFromPyTypeNode.generate_result_code for example)
+        pass
+        
 
 class CastNode(CoercionNode):
     #  Wrap a node in a C type cast.
@@ -5257,7 +5284,6 @@ class CoerceFromPyTypeNode(CoercionNode):
         CoercionNode.__init__(self, arg)
         self.type = result_type
         self.is_temp = 1
-        import pdb; pdb.set_trace()
         if not result_type.create_from_py_utility_code(env):
             error(arg.pos,
                 "Cannot convert Python object to '%s'" % result_type)
