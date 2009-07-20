@@ -1057,7 +1057,7 @@ class FuncDefNode(StatNode, BlockNode):
                              self.entry.scope.is_c_class_scope)
         
         if code.globalstate.directives['profile'] is None:
-            profile = 'inline' not in self.modifiers
+            profile = 'inline' not in self.modifiers and not lenv.nogil
         else:
             profile = code.globalstate.directives['profile']
             if profile and lenv.nogil:
@@ -5788,7 +5788,7 @@ proto="""
 # but maybe some other profilers don't. 
 
 trace_utility_code = UtilityCode(proto="""
-#define CYTHON_TRACING 0
+#define CYTHON_TRACING 1
 #define CYTHON_TRACING_REUSE_FRAME 0
 
 #if CYTHON_TRACING
