@@ -1002,6 +1002,7 @@ class FuncDefNode(StatNode, BlockNode):
     py_func = None
     assmt = None
     needs_closure = False
+    modifiers = []
     
     def analyse_default_values(self, env):
         genv = env.global_scope()
@@ -1054,6 +1055,15 @@ class FuncDefNode(StatNode, BlockNode):
 
         is_getbuffer_slot = (self.entry.name == "__getbuffer__" and
                              self.entry.scope.is_c_class_scope)
+        
+        if code.globalstate.directives['profile'] is None:
+            profile = 'inline' not in self.modifiers
+        else:
+            profile = code.globalstate.directives['profile']
+            if profile and lenv.nogil:
+                error(self.pos, "Cannot profile nogil function.")
+        if profile:
+            code.globalstate.use_utility_code(trace_utility_code)
 
         # Generate C code for header and body of function
         code.enter_cfunc_scope()
@@ -1101,6 +1111,8 @@ class FuncDefNode(StatNode, BlockNode):
             env.use_utility_code(force_init_threads_utility_code)
             code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
         # ----- Automatic lead-ins for certain special functions
+        if profile:
+            code.put_trace_call(self.entry.name, self.pos)
         if not lenv.nogil:
             code.put_setup_refcount_context(self.entry.name)
         if is_getbuffer_slot:
@@ -1165,6 +1177,9 @@ class FuncDefNode(StatNode, BlockNode):
             err_val = self.error_value()
             exc_check = self.caller_will_check_exceptions()
             if err_val is not None or exc_check:
+                # TODO: Fix exception tracing (though currently unused by cProfile). 
+                # code.globalstate.use_utility_code(get_exception_tuple_utility_code)
+                # code.put_trace_exception()
                 code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
             else:
                 warning(self.entry.pos, "Unraisable exception in function '%s'." \
@@ -1194,9 +1209,6 @@ class FuncDefNode(StatNode, BlockNode):
 
 
         # ----- Non-error return cleanup
-        # If you add anything here, remember to add a condition to the
-        # if-test above in the error block (so that it can jump past this
-        # block).
         code.put_label(code.return_label)
         for entry in lenv.buffer_entries:
             if entry.used:
@@ -1233,6 +1245,12 @@ class FuncDefNode(StatNode, BlockNode):
             # We do as Python instances and coerce -1 into -2. 
             code.putln("if (unlikely(%s == -1) && !PyErr_Occurred()) %s = -2;" % (Naming.retval_cname, Naming.retval_cname))
 
+        if profile:
+            if self.return_type.is_pyobject:
+                code.put_trace_return(Naming.retval_cname)
+            else:
+                code.put_trace_return("Py_None")
+        
         if acquire_gil:
             code.putln("PyGILState_Release(_save);")
 
@@ -5695,6 +5713,31 @@ bad:
 
 #------------------------------------------------------------------------------------
 
+get_exception_tuple_utility_code = UtilityCode(proto="""
+static PyObject *__Pyx_GetExceptionTuple(void); /*proto*/
+""",
+impl = """
+static PyObject *__Pyx_GetExceptionTuple(void) {
+    PyObject *type = NULL, *value = NULL, *tb = NULL;
+    if (__Pyx_GetException(&type, &value, &tb) == 0) {
+        PyObject* exc_info = PyTuple_New(3);
+        if (exc_info) {
+            Py_INCREF(type);
+            Py_INCREF(value);
+            Py_INCREF(tb);
+            PyTuple_SET_ITEM(exc_info, 0, type);
+            PyTuple_SET_ITEM(exc_info, 1, value);
+            PyTuple_SET_ITEM(exc_info, 2, tb);
+            return exc_info;
+        }
+    }
+    return NULL;
+}
+""",
+requires=[get_exception_utility_code])
+
+#------------------------------------------------------------------------------------
+
 reset_exception_utility_code = UtilityCode(
 proto = """
 static INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
@@ -5740,3 +5783,138 @@ proto="""
 """)
 
 #------------------------------------------------------------------------------------
+
+# Note that cPython ignores PyTrace_EXCEPTION, 
+# but maybe some other profilers don't. 
+
+trace_utility_code = UtilityCode(proto="""
+#define CYTHON_TRACING 1 
+#define CYTHON_TRACING_REUSE_FRAME 0
+
+#if CYTHON_TRACING
+
+#include "compile.h"
+#include "frameobject.h"
+#include "traceback.h"
+
+#if CYTHON_TRACING_REUSE_FRAME
+#define CYTHON_FRAME_MODIFIER static
+#define CYTHON_FRAME_DEL
+#else
+#define CYTHON_FRAME_MODIFIER
+#define CYTHON_FRAME_DEL Py_DECREF(%(FRAME)s)
+#endif
+
+#define __Pyx_TraceCall(funcname, srcfile, firstlineno)                            \\
+static PyCodeObject *%(FRAME_CODE)s = NULL;                                        \\
+CYTHON_FRAME_MODIFIER PyFrameObject *%(FRAME)s = NULL;                             \\
+int __Pyx_use_tracing = 0;                                                         \\
+if (PyThreadState_GET()->use_tracing && PyThreadState_GET()->c_profilefunc) {      \\
+    __Pyx_use_tracing = __Pyx_TraceSetupAndCall(&%(FRAME_CODE)s, &%(FRAME)s, funcname, srcfile, firstlineno);  \\
+}
+
+#define __Pyx_TraceException()                                                           \\
+if (__Pyx_use_tracing && PyThreadState_GET()->use_tracing && PyThreadState_GET()->c_profilefunc) {  \\
+    PyObject *exc_info = __Pyx_GetExceptionTuple();                                      \\
+    if (exc_info) {                                                                      \\
+        PyThreadState_GET()->c_profilefunc(                                              \\
+            PyThreadState_GET()->c_profileobj, %(FRAME)s, PyTrace_EXCEPTION, exc_info);  \\
+        Py_DECREF(exc_info);                                                             \\
+    }                                                                                    \\
+}
+
+#define __Pyx_TraceReturn(result)                                                  \\
+if (__Pyx_use_tracing && PyThreadState_GET()->use_tracing && PyThreadState_GET()->c_profilefunc) {  \\
+    PyThreadState_GET()->c_profilefunc(                                            \\
+        PyThreadState_GET()->c_profileobj, %(FRAME)s, PyTrace_RETURN, (PyObject*)result);     \\
+    CYTHON_FRAME_DEL;                                                               \\
+}
+
+static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno); /*proto*/
+static int __Pyx_TraceSetupAndCall(PyCodeObject** code, PyFrameObject** frame, const char *funcname, const char *srcfile, int firstlineno); /*proto*/
+
+#else
+#define __Pyx_TraceCall(funcname, srcfile, firstlineno) 
+#define __Pyx_TraceException() 
+#define __Pyx_TraceReturn(result) 
+#endif /* CYTHON_TRACING */
+""" 
+% {
+    "FRAME": Naming.frame_cname,
+    "FRAME_CODE": Naming.frame_code_cname,
+},
+impl = """
+
+#if CYTHON_TRACING
+
+static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
+                                   PyFrameObject** frame,
+                                   const char *funcname,
+                                   const char *srcfile,
+                                   int firstlineno) {
+    if (*frame == NULL || !CYTHON_TRACING_REUSE_FRAME) {
+        if (*code == NULL) {
+            *code = __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno);
+            if (*code == NULL) return 0;
+        }
+        *frame = PyFrame_New(
+            PyThreadState_GET(),            /*PyThreadState *tstate*/
+            *code,                          /*PyCodeObject *code*/
+            PyModule_GetDict(%(MODULE)s),      /*PyObject *globals*/
+            0                               /*PyObject *locals*/
+        );
+        if (*frame == NULL) return 0;
+    }
+    else {
+        (*frame)->f_tstate = PyThreadState_GET();
+    }
+    return PyThreadState_GET()->c_profilefunc(PyThreadState_GET()->c_profileobj, *frame, PyTrace_CALL, NULL) == 0;
+}
+
+static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno) {
+    PyObject *py_srcfile = 0;
+    PyObject *py_funcname = 0;
+    PyCodeObject *py_code = 0;
+
+    #if PY_MAJOR_VERSION < 3
+    py_funcname = PyString_FromString(funcname);
+    py_srcfile = PyString_FromString(srcfile);
+    #else
+    py_funcname = PyUnicode_FromString(funcname);
+    py_srcfile = PyUnicode_FromString(srcfile);
+    #endif
+    if (!py_funcname | !py_srcfile) goto bad;
+
+    py_code = PyCode_New(
+        0,                /*int argcount,*/
+        #if PY_MAJOR_VERSION >= 3
+        0,                /*int kwonlyargcount,*/
+        #endif
+        0,                /*int nlocals,*/
+        0,                /*int stacksize,*/
+        0,                /*int flags,*/
+        %(EMPTY_BYTES)s,  /*PyObject *code,*/
+        %(EMPTY_TUPLE)s,  /*PyObject *consts,*/
+        %(EMPTY_TUPLE)s,  /*PyObject *names,*/
+        %(EMPTY_TUPLE)s,  /*PyObject *varnames,*/
+        %(EMPTY_TUPLE)s,  /*PyObject *freevars,*/
+        %(EMPTY_TUPLE)s,  /*PyObject *cellvars,*/
+        py_srcfile,       /*PyObject *filename,*/
+        py_funcname,      /*PyObject *name,*/
+        firstlineno,      /*int firstlineno,*/
+        %(EMPTY_BYTES)s   /*PyObject *lnotab*/
+    );
+
+bad: 
+    Py_XDECREF(py_srcfile);
+    Py_XDECREF(py_funcname);
+    
+    return py_code;
+}
+
+#endif /* CYTHON_TRACING */
+""" % {
+    'EMPTY_TUPLE' : Naming.empty_tuple,
+    'EMPTY_BYTES' : Naming.empty_bytes,
+    "MODULE": Naming.module_cname,
+})
