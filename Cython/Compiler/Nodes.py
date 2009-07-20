@@ -5788,7 +5788,7 @@ proto="""
 # but maybe some other profilers don't. 
 
 trace_utility_code = UtilityCode(proto="""
-#define CYTHON_TRACING 1 
+#define CYTHON_TRACING 0
 #define CYTHON_TRACING_REUSE_FRAME 0
 
 #if CYTHON_TRACING
