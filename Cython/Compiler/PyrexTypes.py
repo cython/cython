@@ -827,13 +827,14 @@ static %(type)s __pyx_PyObject_As_%(type_name)s(PyObject* o); /* proto */
 """, 
 impl="""
 static %(type)s __pyx_PyObject_As_%(type_name)s(PyObject* o) {
-    if (PyComplex_Check(o)) {
+    if (PyComplex_CheckExact(o)) {
         return %(type_name)s_from_parts(
             (%(real_type)s)((PyComplexObject *)o)->cval.real,
             (%(real_type)s)((PyComplexObject *)o)->cval.imag);
     }
     else {
-        return %(type_name)s_from_parts(%(type_convert)s(o), 0);
+        Py_complex cval = PyComplex_AsCComplex(o);
+        return %(type_name)s_from_parts((%(real_type)s)cval.real, (%(real_type)s)cval.imag);
     }
 }
 """)
