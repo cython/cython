@@ -2547,6 +2547,9 @@ c_pyx_buffer_ptr_type = CPtrType(c_pyx_buffer_type)
 c_pyx_buffer_nd_type = CStructOrUnionType("__Pyx_LocalBuf_ND", "struct",
                                       None, 1, "__Pyx_LocalBuf_ND")
 
+cython_memoryview_type = CStructOrUnionType("__pyx_obj_memoryview", "struct",
+                                      None, 1, "__pyx_obj_memoryview")
+
 
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()

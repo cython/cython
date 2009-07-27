@@ -3,6 +3,7 @@ from PyrexTypes import *
 from UtilityCode import CythonUtilityCode
 from Errors import error
 from Scanning import StringSourceDescriptor
+import Options
 
 class CythonScope(ModuleScope):
     is_cython_builtin = 1
@@ -239,7 +240,7 @@ memviewext_typeptr_cname = Naming.typeptr_prefix+memview_name
 memviewext_typeobj_cname = '__pyx_tobj_'+memview_name
 memviewext_objstruct_cname = '__pyx_obj_'+memview_name
 view_utility_code = CythonUtilityCode(u"""
-cdef class Enum:
+cdef class Enum(object):
     cdef object name
     def __init__(self, name):
         self.name = name
@@ -257,25 +258,141 @@ cdef extern from *:
     int __Pyx_GetBuffer(object, Py_buffer *, int)
     void __Pyx_ReleaseBuffer(Py_buffer *)
 
-cdef class memoryview:
+
+cdef class memoryview(object):
 
     cdef Py_buffer view
     cdef int gotbuf_flag
 
-    def __cinit__(self):
-        self.gotbuf_flag = 0
-
-    cdef memoryview from_obj(memoryview self, obj, int flags):
+    def __cinit__(memoryview self, object obj, int flags):
         __Pyx_GetBuffer(obj, &self.view, flags)
-        self.gotbuf_flag = 1
 
     def __dealloc__(memoryview self):
-        if self.gotbuf_flag:
-            __Pyx_ReleaseBuffer(&self.view)
-            self.gotbuf_flag = 0
+        __Pyx_ReleaseBuffer(&self.view)
 
+cdef memoryview memoryview_cwrapper(object o, int flags):
+    return memoryview(o, flags)
 
-""", prefix="__pyx_viewaxis_")
+# XXX: put in #defines...
+DEF BUF_MAX_NDIMS = %d
+DEF __Pyx_MEMVIEW_DIRECT  = 1
+DEF __Pyx_MEMVIEW_PTR     = 2
+DEF __Pyx_MEMVIEW_FULL    = 4
+DEF __Pyx_MEMVIEW_CONTIG  = 8
+DEF __Pyx_MEMVIEW_STRIDED = 16
+DEF __Pyx_MEMVIEW_FOLLOW  = 32
+
+cdef extern from *:
+    struct __pyx_obj_memoryview:
+        Py_buffer view
+
+    ctypedef struct __Pyx_mv_DimInfo:
+        Py_ssize_t shape, strides, suboffsets
+
+    ctypedef struct __Pyx_memviewstruct:
+        __pyx_obj_memoryview *memviewext
+        char *data
+        __Pyx_mv_DimInfo diminfo[BUF_MAX_NDIMS]
+
+cdef is_cf_contig(int *specs, int ndim):
+
+    is_c_contig = is_f_contig = False
+
+    # c_contiguous: 'follow', 'follow', ..., 'follow', 'contig'
+    if specs[ndim-1] & __Pyx_MEMVIEW_CONTIG:
+        for i in range(0, ndim-1):
+            if not (specs[i] & __Pyx_MEMVIEW_FOLLOW):
+                break
+        else:
+            is_c_contig = True
+
+    # f_contiguous: 'contig', 'follow', 'follow', ..., 'follow'
+    elif ndim > 1 and (specs[0] & __Pyx_MEMVIEW_CONTIG):
+        for i in range(1, ndim):
+            if not (specs[i] & __Pyx_MEMVIEW_FOLLOW):
+                break
+        else:
+            is_f_contig = True
+
+    return is_c_contig, is_f_contig
+    
+cdef object pyxmemview_from_memview(
+        memoryview memview,
+        int *axes_specs, 
+        int ndim, 
+        Py_ssize_t itemsize,
+        char *format,
+        __Pyx_memviewstruct *pyx_memview):
+
+    cdef int i
+
+    if ndim > BUF_MAX_NDIMS:
+        raise ValueError("number of dimensions exceed maximum of" + str(BUF_MAX_NDIMS))
+    
+    cdef Py_buffer pybuf = memview.view
+    if pybuf.ndim != ndim:
+        raise ValueError("incompatible number of dimensions.")
+
+    cdef str pyx_format = pybuf.format
+    cdef str view_format = format
+    if pyx_format != view_format:
+        raise ValueError("Buffer and memoryview datatype formats do not match.")
+
+    if itemsize != pybuf.itemsize:
+        raise ValueError("Buffer and memoryview itemsize do not match.")
+
+    if not pybuf.strides:
+        raise ValueError("no stride information provided.")
+
+    has_suboffsets = True
+    if not pybuf.suboffsets:
+        has_suboffsets = False
+
+    is_c_contig, is_f_contig = is_cf_contig(axes_specs, ndim)
+
+    cdef int spec = 0
+    for i in range(ndim):
+        istr = str(i)
+        spec = axes_specs[i]
+        if spec & __Pyx_MEMVIEW_CONTIG:
+            if pybuf.strides[i] != 1:
+                raise ValueError("Dimension "+istr+" in axes specification is incompatible with buffer.")
+        if spec & (__Pyx_MEMVIEW_STRIDED | __Pyx_MEMVIEW_FOLLOW):
+            if pybuf.strides[i] <= 1:
+                raise ValueError("Dimension "+istr+" in axes specification is incompatible with buffer.")
+        if spec & __Pyx_MEMVIEW_DIRECT:
+            if has_suboffsets and pybuf.suboffsets[i] >= 0:
+                raise ValueError("Dimension "+istr+" in axes specification is incompatible with buffer.")
+        if spec & (__Pyx_MEMVIEW_PTR | __Pyx_MEMVIEW_FULL):
+            if not has_suboffsets:
+                raise ValueError("Buffer object does not provide suboffsets.")
+        if spec & __Pyx_MEMVIEW_PTR:
+            if pybuf.suboffsets[i] < 0:
+                raise ValueError("Buffer object suboffset in dimension "+istr+"must be >= 0.")
+
+    if is_f_contig:
+        idx = 0; stride = 1
+        for i in range(ndim):
+            if stride != pybuf.strides[i]:
+                raise ValueError("Buffer object not fortran contiguous.")
+            stride = stride * pybuf.shape[i]
+    elif is_c_contig:
+        idx = ndim-1; stride = 1
+        for i in range(ndim-1,-1,-1):
+            if stride != pybuf.strides[i]:
+                raise ValueError("Buffer object not C contiguous.")
+            stride = stride * pybuf.shape[i]
+
+    for i in range(ndim):
+        pyx_memview.diminfo[i].strides = pybuf.strides[i]
+        pyx_memview.diminfo[i].shape = pybuf.shape[i]
+        if has_suboffsets:
+            pyx_memview.diminfo[i].suboffsets = pybuf.suboffsets[i]
+
+    pyx_memview.memviewext = <__pyx_obj_memoryview*>memview
+    pyx_memview.data = <char *>pybuf.buf
+
+""" % Options.buffer_max_dims, name="foobar", prefix="__pyx_viewaxis_")
 
 cyarray_prefix = u'__pyx_cythonarray_'
 cython_array_utility_code = CythonUtilityCode(u'''
@@ -300,7 +417,7 @@ cdef class array:
         Py_ssize_t *shape
         Py_ssize_t *strides
         Py_ssize_t itemsize
-        char *mode
+        str mode
 
     def __cinit__(array self, tuple shape, Py_ssize_t itemsize, char *format, mode="c"):
 
@@ -360,12 +477,12 @@ cdef class array:
         if not self.data:
             raise MemoryError("unable to allocate array data.")
 
-    def __getbuffer__(array self, Py_buffer *info, int flags):
+    def __getbuffer__(self, Py_buffer *info, int flags):
 
-        cdef int bufmode
+        cdef int bufmode = -1
         if self.mode == b"c":
             bufmode = PyBUF_C_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
-        if self.mode == b"fortran":
+        elif self.mode == b"fortran":
             bufmode = PyBUF_F_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
         if not (flags & bufmode):
             raise ValueError("Can only create a buffer that is contiguous in memory.")

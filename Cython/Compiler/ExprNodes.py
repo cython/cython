@@ -7578,20 +7578,26 @@ class CoerceToMemViewNode(CoercionNode):
         self.type = dst_type
         self.is_temp = 1
         self.env = env
+        import MemoryView
+        self.env.use_utility_code(MemoryView.obj_to_memview_code)
+        # MemoryView.use_memview_cwrap(env)
 
     def generate_result_code(self, code):
-        #  create a cython.memoryview object.
-        #  declare a new temporary cython.memoryview variable.
         import MemoryView
-
-        # -) initialize cython.memview object with self.arg, it calls
-        #    __Pyx_GetBuffer on it.
-        # -) check the axes specifiers for the underlying memview's Py_buffer,
-        #    make sure they're compatible with the dst_type's axes specs.
-        # -) output the temp assignment code (see
-        #    CoerceFromPyTypeNode.generate_result_code for example)
-        pass
-        
+        memviewobj = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
+        buf_flag = MemoryView.get_buf_flag(self.type.axes)
+        code.putln("%s = (PyObject *)__pyx_viewaxis_memoryview_cwrapper(%s, %s);" % (memviewobj, self.arg.result(), buf_flag))
+        ndim = len(self.type.axes)
+        spec_int_arr = code.funcstate.allocate_temp(PyrexTypes.c_array_type(PyrexTypes.c_int_type, ndim),manage_ref=True)
+        specs_code = MemoryView.specs_to_code(self.type.axes)
+        for idx, cspec in enumerate(specs_code):
+            code.putln("%s[%d] = %s;" % (spec_int_arr, idx, cspec))
+        itemsize = self.type.dtype.sign_and_name()
+        format = MemoryView.format_from_type(self.type.dtype)
+        code.putln("__pyx_viewaxis_pyxmemview_from_memview((struct __pyx_obj_memoryview *)%s, %s, %d, sizeof(%s), \"%s\", &%s);" % (memviewobj, spec_int_arr, ndim, itemsize, format, self.result()))
+        code.funcstate.release_temp(memviewobj)
+        code.funcstate.release_temp(spec_int_arr)
+        code.putln('/* @@@ */')
 
 class CastNode(CoercionNode):
     #  Wrap a node in a C type cast.

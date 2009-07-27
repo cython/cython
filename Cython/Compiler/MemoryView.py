@@ -4,6 +4,7 @@ from Visitor import CythonTransform
 import Options
 import CythonScope
 from Code import UtilityCode
+from UtilityCode import CythonUtilityCode
 
 START_ERR = "there must be nothing or the value 0 (zero) in the start slot."
 STOP_ERR = "Axis specification only allowed in the 'stop' slot."
@@ -15,13 +16,87 @@ INVALID_ERR = "Invalid axis specification."
 EXPR_ERR = "no expressions allowed in axis spec, only names (e.g. cython.view.contig)."
 CF_ERR = "Invalid axis specification for a C/Fortran contiguous array."
 
-def use_memview_util_code(env):
+memview_c_contiguous = "PyBUF_C_CONTIGUOUS"
+memview_f_contiguous = "PyBUF_F_CONTIGUOUS"
+memview_any_contiguous = "PyBUF_ANY_CONTIGUOUS"
+memview_full_access = "PyBUF_FULL"
+memview_strided_access = "PyBUF_STRIDED"
+
+MEMVIEW_DIRECT = 1
+MEMVIEW_PTR    = 2
+MEMVIEW_FULL   = 4
+MEMVIEW_CONTIG = 8
+MEMVIEW_STRIDED= 16
+MEMVIEW_FOLLOW = 32
+
+_spec_to_const = {
+        'contig' : MEMVIEW_CONTIG,
+        'strided': MEMVIEW_STRIDED,
+        'follow' : MEMVIEW_FOLLOW,
+        'direct' : MEMVIEW_DIRECT,
+        'ptr'    : MEMVIEW_PTR,
+        'full'   : MEMVIEW_FULL
+        }
+
+def specs_to_code(specs):
+    arr = []
+    for access, packing in specs:
+        arr.append("(%s | %s)" % (_spec_to_const[access], _spec_to_const[packing]))
+    return arr
+
+# XXX: add complex support below...
+_typename_to_format = {
+        'char' : 'c',
+        'signed char' : 'b',
+        'unsigned char' : 'B',
+        'short' : 'h',
+        'unsigned short' : 'H',
+        'int' : 'i',
+        'unsigned int' : 'I',
+        'long' : 'l',
+        'unsigned long' : 'L',
+        'long long' : 'q',
+        'unsigned long long' : 'Q',
+        'float' : 'f',
+        'double' : 'd',
+        }
+
+def format_from_type(base_type):
+    return _typename_to_format[base_type.sign_and_name()]
+
+def get_buf_flag(specs):
+    is_c_contig, is_f_contig = is_cf_contig(specs)
+
+    if is_c_contig:
+        return memview_c_contiguous
+    elif is_f_contig:
+        return memview_f_contiguous
+
+    access, packing = zip(*specs)
+
+    assert 'follow' not in packing
+
+    if 'full' in access or 'ptr' in access:
+        return memview_full_access
+    else:
+        return memview_strided_access
+
+def use_cython_util_code(env, lu_name):
     import CythonScope
     cythonscope = env.global_scope().context.cython_scope
     viewscope = cythonscope.viewscope
-    memview_entry = viewscope.lookup_here(CythonScope.memview_name)
-    assert memview_entry is cythonscope.memviewentry
-    memview_entry.used = 1
+    entry = viewscope.lookup_here(lu_name)
+    entry.used = 1
+    return entry
+
+def use_memview_util_code(env):
+    import CythonScope
+    memview_entry = use_cython_util_code(env, CythonScope.memview_name)
+
+def use_memview_cwrap(env):
+    import CythonScope
+    mv_cwrap_entry = use_cython_util_code(env, CythonScope.memview_cwrap_name)
+
 
 def get_axes_specs(env, axes):
     '''
@@ -123,25 +198,30 @@ def get_axes_specs(env, axes):
 
     return axes_specs
 
+def is_cf_contig(specs):
+    is_c_contig = is_f_contig = False
+
+    packing_idx = 1
+
+    if (specs[-1][packing_idx] == 'contig' and 
+          all(axis[packing_idx] == 'follow' for axis in specs[:-1])):
+        # c_contiguous: 'follow', 'follow', ..., 'follow', 'contig'
+        is_c_contig = True
+
+    elif (len(specs) > 1 and 
+        specs[0][packing_idx] == 'contig' and 
+        all(axis[packing_idx] == 'follow' for axis in specs[1:])):
+        # f_contiguous: 'contig', 'follow', 'follow', ..., 'follow'
+        is_f_contig = True
+
+    return is_c_contig, is_f_contig
+
 def validate_axes_specs(pos, specs):
 
     packing_specs = ('contig', 'strided', 'follow')
     access_specs = ('direct', 'ptr', 'full')
 
-    is_c_contig = is_f_contig = False
-
-    packing_idx = 1
-
-    if (specs[0][packing_idx] == 'contig' and 
-        all(axis[packing_idx] == 'follow' for axis in specs[1:])):
-        # f_contiguous: 'contig', 'follow', 'follow', ..., 'follow'
-        is_f_contig = True
-
-    elif (len(specs) > 1 and 
-          specs[-1][packing_idx] == 'contig' and 
-          all(axis[packing_idx] == 'follow' for axis in specs[:-1])):
-        # c_contiguous: 'follow', 'follow', ..., 'follow', 'contig'
-        is_c_contig = True
+    is_c_contig, is_f_contig = is_cf_contig(specs)
     
     has_contig = has_follow = has_strided = False
 
@@ -236,8 +316,17 @@ class MemoryViewTransform(CythonTransform):
         return node
 
     def visit_SingleAssignmentNode(self, node):
-        import pdb; pdb.set_trace()
         return node
+
+spec_constants_code = UtilityCode(proto="""
+#define __Pyx_MEMVIEW_DIRECT  1
+#define __Pyx_MEMVIEW_PTR     2
+#define __Pyx_MEMVIEW_FULL    4
+#define __Pyx_MEMVIEW_CONTIG  8
+#define __Pyx_MEMVIEW_STRIDED 16
+#define __Pyx_MEMVIEW_FOLLOW  32
+"""
+)
 
 memviewstruct_cname = u'__Pyx_memviewstruct'
 memviewstruct_declare_code = UtilityCode(proto="""
