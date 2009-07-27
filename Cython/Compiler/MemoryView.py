@@ -64,6 +64,10 @@ _typename_to_format = {
 def format_from_type(base_type):
     return _typename_to_format[base_type.sign_and_name()]
 
+def put_assign_to_memview(lhs_cname, rhs_cname, buf_entry,
+                         is_initialized, pos, code):
+    pass
+
 def get_buf_flag(specs):
     is_c_contig, is_f_contig = is_cf_contig(specs)
 

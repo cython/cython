@@ -1650,6 +1650,9 @@ class NameNode(AtomicExprNode):
                 rhs.generate_disposal_code(code)
                 rhs.free_temps(code)
         else:
+            if self.type.is_memoryview:
+                self.generate_acquire_memoryview(rhs, code)
+
             if self.type.is_buffer:
                 # Generate code for doing the buffer release/acquisition.
                 # This might raise an exception in which case the assignment (done
@@ -1692,6 +1695,13 @@ class NameNode(AtomicExprNode):
                 print("...generating post-assignment code for %s" % rhs)
             rhs.generate_post_assignment_code(code)
             rhs.free_temps(code)
+
+    def generate_acquire_memoryview(self, rhs, code):
+        import MemoryView
+        import pdb; pdb.set_trace()
+        MemoryView.put_assign_to_memview(self.result(), rhs.result(), self.entry,
+                                         is_initialized=not self.lhs_of_first_assignment,
+                                         pos=self.pos, code=code)
 
     def generate_acquire_buffer(self, rhs, code):
         # rhstmp is only used in case the rhs is a complicated expression leading to
@@ -7578,9 +7588,6 @@ class CoerceToMemViewNode(CoercionNode):
         self.type = dst_type
         self.is_temp = 1
         self.env = env
-        import MemoryView
-        self.env.use_utility_code(MemoryView.obj_to_memview_code)
-        # MemoryView.use_memview_cwrap(env)
 
     def generate_result_code(self, code):
         import MemoryView
