@@ -32,6 +32,7 @@ class Ctx(object):
     overridable = 0
     nogil = 0
     namespace = None
+    templates = None
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
@@ -1379,6 +1380,29 @@ def p_with_statement(s):
         s.next()
         body = p_suite(s)
         return Nodes.GILStatNode(pos, state = state, body = body)
+    elif s.systring == 'template':
+        templates = []
+        s.next()
+        s.expect('[')
+        #s.next()
+        templates.append(s.systring)
+        s.next()
+        while s.systring == ',':
+            s.next()
+            templates.append(s.systring)
+            s.next()
+        s.expect(']')
+        if s.sy == ':':
+            s.next()
+            s.expect_newline("Syntax error in template function declaration")
+            s.expect_indent()
+            body_ctx = Ctx()
+            body_ctx.templates = templates
+            func_or_var = p_c_func_or_var_declaration(s, pos, body_ctx)
+            s.expect_dedent()
+            return func_or_var
+        else:
+            error(pos, "Syntax error in template function declaration")
     else:
         manager = p_expr(s)
         target = None
@@ -1669,13 +1693,13 @@ def p_positional_and_keyword_args(s, end_sy_set, type_positions=(), type_keyword
         s.next()
     return positional_args, keyword_args
 
-def p_c_base_type(s, self_flag = 0, nonempty = 0):
+def p_c_base_type(s, self_flag = 0, nonempty = 0, templates = None):
     # If self_flag is true, this is the base type for the
     # self argument of a C method of an extension type.
     if s.sy == '(':
         return p_c_complex_base_type(s)
     else:
-        return p_c_simple_base_type(s, self_flag, nonempty = nonempty)
+        return p_c_simple_base_type(s, self_flag, nonempty = nonempty, templates = templates)
 
 def p_calling_convention(s):
     if s.sy == 'IDENT' and s.systring in calling_convention_words:
@@ -1697,7 +1721,7 @@ def p_c_complex_base_type(s):
     return Nodes.CComplexBaseTypeNode(pos, 
         base_type = base_type, declarator = declarator)
 
-def p_c_simple_base_type(s, self_flag, nonempty):
+def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
     #print "p_c_simple_base_type: self_flag =", self_flag, nonempty
     is_basic = 0
     signed = 1
@@ -1753,7 +1777,7 @@ def p_c_simple_base_type(s, self_flag, nonempty):
         name = name, module_path = module_path,
         is_basic_c_type = is_basic, signed = signed,
         complex = complex, longness = longness, 
-        is_self_arg = self_flag)
+        is_self_arg = self_flag, templates = templates)
 
 
     # Treat trailing [] on type as buffer access if it appears in a context
@@ -2253,12 +2277,12 @@ def p_c_modifiers(s):
 def p_c_func_or_var_declaration(s, pos, ctx):
     cmethod_flag = ctx.level in ('c_class', 'c_class_pxd')
     modifiers = p_c_modifiers(s)
-    base_type = p_c_base_type(s, nonempty = 1)
+    base_type = p_c_base_type(s, nonempty = 1, templates = ctx.templates)
     declarator = p_c_declarator(s, ctx, cmethod_flag = cmethod_flag,
                                 assignable = 1, nonempty = 1)
     declarator.overridable = ctx.overridable
     if s.sy == ':':
-        if ctx.level not in ('module', 'c_class', 'module_pxd', 'c_class_pxd'):
+        if ctx.level not in ('module', 'c_class', 'module_pxd', 'c_class_pxd') and not ctx.templates:
             s.error("C function definition not allowed here")
         doc, suite = p_suite(s, Ctx(level = 'function'), with_doc = 1)
         result = Nodes.CFuncDefNode(pos,
@@ -2559,6 +2583,17 @@ def p_cpp_class_definition(s, pos,  ctx):
         cname = ctx.namespace + "::" + class_name
     if s.sy == '.':
         error(pos, "Qualified class name not allowed C++ class")
+    templates = None
+    if s.sy == '[':
+        s.next()
+        templates = []
+        templates.append(s.systring)
+        s.next()
+        while s.sy == ',':
+            s.next()
+            templates.append(s.systring)
+            s.next()
+        s.expect(']')
     base_classes = []
     objstruct_name = None
     typeobj_name = None
@@ -2585,6 +2620,7 @@ def p_cpp_class_definition(s, pos,  ctx):
         s.expect_indent()
         attributes = []
         body_ctx = Ctx()
+        body_ctx.templates = templates
         while s.sy != 'DEDENT':
             if s.sy != 'pass':
                 attributes.append(
@@ -2601,7 +2637,8 @@ def p_cpp_class_definition(s, pos,  ctx):
         base_classes = base_classes,
         visibility = ctx.visibility,
         in_pxd = ctx.level == 'module_pxd',
-        attributes = attributes)
+        attributes = attributes,
+        templates = templates)
 
 
 
