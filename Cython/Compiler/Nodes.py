@@ -721,6 +721,9 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                     else:
                         type = py_object_type
                     self.arg_name = self.name
+                elif self.templates:
+                    if not self.name in self.templates:
+                        error(self.pos, "'%s' is not a type identifier" % self.name) 
                 else:
                     error(self.pos, "'%s' is not a type identifier" % self.name)
         if self.complex:
@@ -913,6 +916,7 @@ class CppClassNode(CStructOrUnionDefNode):
     #  attributes    [CVarDefNode] or None
     #  entry         Entry
     #  base_classes  [string]
+    #  templates     [string] or None
 
     def analyse_declarations(self, env):
         scope = None
