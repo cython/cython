@@ -13,5 +13,5 @@ build/
 *.dep
 
 tags
-Tools/f2cy/fparser
-Tools/f2cy/Cython
+Tools/fwrap/fparser
+Tools/fwrap/Cython
