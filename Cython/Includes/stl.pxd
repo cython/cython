@@ -16,7 +16,7 @@ cdef extern from "<vector>" namespace std:
 		bool __lt__(vector&, vector&)
 		bool __gt__(vector&, vector&)
 		bool __le__(vector&, vector&)
-		bool _­_ge__(vector&, vector&)
+		bool __ge__(vector&, vector&)
 		#others
 		void assign(int, TYPE)
 		#void assign(iterator, iterator)
