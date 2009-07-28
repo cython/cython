@@ -79,7 +79,7 @@ class TestBuilderBase(object):
     def build_suite(self):
         pass
 
-class FWRAPTestBuilder(object):
+class FwrapTestBuilder(object):
     def __init__(self, rootdir, workdir, selectors, exclude_selectors,
             cleanup_workdir, cleanup_sharedlibs):
         self.rootdir = rootdir
@@ -120,10 +120,10 @@ class FWRAPTestBuilder(object):
                 if [1 for match in self.exclude_selectors if match(fqbasename)]:
                     continue
             if context in TEST_RUN_DIRS:
-                # test_class = FWRAPCompileTestCase
-                test_class = FWRAPRunTestCase
+                # test_class = FwrapCompileTestCase
+                test_class = FwrapRunTestCase
             else:
-                test_class = FWRAPCompileTestCase
+                test_class = FwrapCompileTestCase
             suite.addTest(self.build_test(test_class, path, workdir, filename))
         return suite
 
@@ -134,7 +134,7 @@ class FWRAPTestBuilder(object):
 
 
 
-class FWRAPCompileTestCase(unittest.TestCase):
+class FwrapCompileTestCase(unittest.TestCase):
     def __init__(self, directory, workdir, filename,
             cleanup_workdir=True, cleanup_sharedlibs=True):
         self.directory = directory
@@ -203,7 +203,7 @@ class FWRAPCompileTestCase(unittest.TestCase):
         wrap(filename, directory, workdir)
 
 
-class FWRAPRunTestCase(FWRAPCompileTestCase):
+class FwrapRunTestCase(FwrapCompileTestCase):
     def shortDescription(self):
         return "compiling and running %s" % self.filename
 
@@ -804,7 +804,7 @@ if __name__ == '__main__':
             collect_doctests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors)
     # if 0
 
-    filetests = FWRAPTestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
+    filetests = FwrapTestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
             options.cleanup_workdir, options.cleanup_sharedlibs)
     test_suite.addTest(filetests.build_suite())
 

@@ -18,15 +18,8 @@ from fparser.block_statements import Function, SubProgramStatement, \
         EndFunction, EndSubroutine, Interface
 from fparser.statements import Use, Parameter, Dimension, Pointer
 from fparser.typedecl_statements import TypeDeclarationStatement
-
-LEVEL = 0
-
-def warning(message, position=None, level=0, stream=sys.stderr):
-    if level < LEVEL:
-        return
-    # for now, echo on stream
-    stream.write("warning: %s\n" % message)
-    stream.flush()
+from WrapperArgs import FortranWrapperVar
+from utils import warning, mangle_prefix, valid_name
 
 class BasicVisitor(object):
     """A generic visitor base class which can be used for visiting any kind of object."""
@@ -164,8 +157,6 @@ class PrintTree(TreeVisitor):
         print("%s %s" % (self._indent, node.name))
         return node
 
-mangle_prefix = 'fwrap_'
-valid_name = re.compile(r'[a-z]\w+$',re.I).match
 
 class KindResolutionError(Exception):
     pass
@@ -184,216 +175,11 @@ class KindResolutionVisitor(TreeVisitor):
             interface_var_names += [node.result]
         for argname in interface_var_names:
             var = node.a.variables[argname]
-            # print "%s: " % argname
-            vkr = VarKindResolution(var)
-            # print "    type_name   : %s" % vkr.type_name
-            # print "    resolve_name: %s" % vkr.resolved_name
-            # print "    scope_name  : %s" % vkr.defining_scope.name
-            # print "    defining_param: %s" % vkr.defining_param
-            # add vkr to the variable instance
-            # XXX: a better way to do the below?
-            var.fwrap_var_kind_res = vkr
+            # vkr = VarKindResolution(var)
+            wrapper_var = FortranWrapperVar(var)
+            var.fwrap_wrapper_var = wrapper_var
+            # var.fwrap_var_kind_res = vkr
         return node
-
-class VarKindResolution(object):
-
-    short_type_name = {
-            "integer" : "int",
-            "real"    : "real",
-            "character" : "char",
-            "logical" : "lgcl",
-            "doubleprecision" : "dprc",
-            "complex" : "cpx",
-            "doublecomplex" : "dcpx"
-            }
-
-    def __init__(self, variable):
-        self.var = variable # the variable that will have the ktp resolved.
-        self.type_name = None # type of the variable ('integer', 'real', 'complex', 'logical', 'character')
-        self.resolved_name = None # name that will be used for the ktp in the wrapper.
-        self.ktp_str = None # string-form of the ktp.
-        self.defining_param = None # 'variable' (parameter) that defines the ktp.
-        self.defining_scope = None # scope in which the defining_param is defined.
-        self.length = None
-
-        self.init_from_var()
-
-        if self.type_name not in ('integer', 'real', 'character', 'logical', 'doubleprecision', 'complex', 'doublecomplex'):
-            raise WrapperError("unknown type name '%s'." % self.type_name)
-
-        if not self.resolved_name:
-            raise WrapperError("unable to resolve the kind type parameter for variable %s" % self.var.name)
-
-
-    def init_from_var(self):
-        self.type_name = self.var.typedecl.name.lower().replace(' ', '')
-        var_scope = self.var.typedecl.parent
-        assert isinstance(var_scope, (SubProgramStatement, Module, Program))
-        length, ktp = self.var.typedecl.selector
-        ktp_str = str(ktp).lower().strip()
-
-        self.resolved_name = ''
-
-        if not ktp:
-            self.handle_default_ktp()
-            return
-
-        ktp_parse = VarKindResolution.parse_ktp(ktp)
-
-        stn = self.short_type_name
-
-        if isinstance(ktp_parse[0], int):
-            self.ktp_str = str(ktp_parse[0])
-            self.resolved_name = mangle_prefix+stn[self.type_name]+ktp_str
-            self.defining_scope = var_scope
-            self.defining_param = None
-
-        elif ktp_parse[0] == 'kind':
-            self.ktp_str = ktp
-            num_str = ktp_parse[1].replace('.','')
-            self.resolved_name = mangle_prefix+stn[self.type_name]+'_kind'+num_str
-            self.defining_scope = var_scope
-            self.defining_param = None
-
-        elif ktp_parse[0] == 'selected_int_kind':
-            self.ktp_str = ktp
-            self.resolved_name = mangle_prefix+stn[self.type_name]+'_slctd_int'+ktp_parse[1]
-            self.defining_scope = var_scope
-            self.defining_param = None
-
-        elif ktp_parse[0] == 'selected_real_kind':
-            self.resolved_name = mangle_prefix+stn[self.type_name]+'slctd_real'+ktp_parse[1]
-            if len(ktp_parse) == 3:
-                self.resolved_name += ktp_parse[2]
-            self.ktp_str = ktp
-            self.defining_scope = var_scope
-            self.defining_param = None
-
-        elif valid_name(ktp_parse[0]):
-            # XXX TODO: still have to fill this in...
-            raise NotImplementedError("kind-type-parameter '%s' is not resolvable yet" % ktp)
-            # lookup_name = ktp_parse[0]
-            # def_scope, var = find_defining_scope(var_scope, lookup_name)
-            # assert var.is_parameter()
-            # assert type(var.typedecl).name.lower() == 'integer'
-            # if def_scope is var_scope:
-                # # it's defined locally.
-                # # TODO: check this over...
-                # resolve_name = "%s_%s_%s" % (mangle_prefix, var_scope.name, var.name)
-                # # self.local_param_ktp.append((resolve_name, var.init))
-            # else:
-                # # it's defined in a module, possibly with a use-rename.
-                # resolve_name = "%s_%s_%s" % (mangle_prefix, var_scope.name, var.name)
-                # raise RuntimeError("finish here!!!")
-
-        else:
-            raise KindResolutionError("unable to resolve kind-type-parameter '%s'" % ktp)
-
-    @staticmethod
-    def find_defining_scope(node, param_name):
-        '''
-        finds where param_name is defined in the local & enclosing scopes of node.
-
-        returns (<defining-scope-block>, <variable-defined>)
-
-        NOTE: the variable returned may not have the same name as param_name, due
-        to a renaming in a use statement.
-        '''
-        raise NotImplementedError("finish me!!!")
-
-    @staticmethod
-    def parse_ktp(ktp):
-        # this should ideally all be in the parser
-        ktp = ktp.lower().strip()
-        try:
-            ktp_int = int(ktp)
-        except ValueError:
-            pass
-        else:
-            return (ktp_int,)
-
-        if valid_name(ktp):
-            return (ktp,)
-
-        for sw in ('kind', 'selected_int_kind'):
-            if ktp.startswith(sw):
-                retval = [sw]
-                ktp = ktp[len(sw):].strip()
-                assert ktp[0] + ktp[-1] == '()'
-                # handle the middle...
-                arg = ktp[1:-1].strip()
-                retval.append(arg.replace(' ',''))
-                return tuple(retval)
-
-        srk = 'selected_real_kind'
-        if ktp.startswith(srk):
-            retval = [srk]
-            ktp = ktp[len(srk):].strip()
-            assert ktp[0] + ktp[-1] == '()'
-            arg = ktp[1:-1].split(',')
-            retval.append(arg[0].replace(' ',''))
-            if len(arg) == 2:
-                retval.append(arg[1].replace(' ', ''))
-            return tuple(retval)
-
-        # nothing matches, raise error for now...
-        raise KindResolutionError("unable to resolve kind-type-parameter '%s'" % ktp)
-
-    def handle_default_ktp(self):
-        length, ktp = self.var.typedecl.selector
-        assert not ktp
-        length = str(length).strip()
-        type_name = self.type_name
-        scope = self.var.typedecl.parent
-
-        stn = self.short_type_name
-        if length:
-            warning("variable '%s' in '%s' declared with old syntax." % (self.var.name, scope.name))
-            #XXX TODO ktp_str here is incorrect -- assumes the length is the same as a ktp, which ain't always so!!!
-            # in autoconfig, for an integer*N variable:
-            # declare local variable integer*N
-            self.length = length
-            self.ktp_str = None
-            self.resolved_name = mangle_prefix+stn[type_name]+'_x_'+length
-
-        # the default types follow.
-        elif type_name == 'doubleprecision':
-            self.ktp_str = 'kind(1.0D0)'
-            self.resolved_name = mangle_prefix+'default_'+stn[type_name]
-            self.type_name = 'real'
-
-        elif type_name == 'logical':
-            self.ktp_str = 'kind(.true.)'
-            self.resolved_name = mangle_prefix+'default_'+stn[type_name]
-            self.type_name = 'integer'
-
-        elif type_name == 'integer':
-            self.ktp_str = 'kind(0)'
-            self.resolved_name = mangle_prefix+'default_'+stn[type_name]
-
-        elif type_name == 'real':
-            self.ktp_str = 'kind(0.0)'
-            self.resolved_name = mangle_prefix+'default_'+stn[type_name]
-
-        elif type_name == 'character':
-            self.ktp_str = "kind('a')"
-            self.resolved_name = mangle_prefix+'default_'+stn[type_name]
-
-        elif type_name == 'complex':
-            self.ktp_str = 'kind((0.0,0.0))'
-            self.resolved_name = mangle_prefix+'default_'+stn[type_name]
-
-        elif type_name == 'doublecomplex':
-            self.ktp_str = 'kind((0.0D0,0.0D0))'
-            self.resolved_name = mangle_prefix+'default_'+stn[type_name]
-
-        else:
-            raise KindResolutionError()
-
-        # self.type_name, self.ktp_str, self.resolved_name are all set at this point.
-
-        self.defining_scope = scope
-        self.defining_param = None
 
 class GeneratorBase(TreeVisitor):
 
@@ -440,9 +226,11 @@ class AutoConfigGenerator(GeneratorBase):
         self.seen_subprograms = set()
         self.seen_resolved_names = set()
         self.resolve_subrs = {}
+
         local_ktp_subr = SubroutineCode(level=1)
         self.resolve_mod.add_subprogram_block(local_ktp_subr)
         self.resolve_subrs['local_ktp'] = local_ktp_subr
+
         self.type_len_subr = SubroutineCode(level=1)
         self.resolve_mod.add_subprogram_block(self.type_len_subr)
         self.resolve_subrs['type_len_subr'] = self.type_len_subr
@@ -462,24 +250,24 @@ class AutoConfigGenerator(GeneratorBase):
         self.driver_prog.declarations.putln("integer :: fh_num, ch_num, iserr")
 
     def visit_SubProgramStatement(self, node):
-        for vkr in all_vkrs(node):
-            if vkr.resolved_name in self.seen_resolved_names:
+        for varw in all_varws(node):
+            if varw.resolved_name in self.seen_resolved_names:
                 continue
-            self.seen_resolved_names.add(vkr.resolved_name)
-            if vkr.defining_param is None and vkr.length is None:
+            self.seen_resolved_names.add(varw.resolved_name)
+            if varw.defining_param is None and varw.length is None:
                 # it's a literal integer, or selected_*_kind() or kind() call...
-                assert vkr.defining_scope is vkr.var.parent.parent, `vkr.defining_scope,vkr.var.parent`
+                assert varw.defining_scope is varw.var.parent.parent, `varw.defining_scope,varw.var.parent`
                 subr_code = self.resolve_subrs['local_ktp']
-                self.put_scalar_int_code(subr_code, vkr)
-            elif vkr.defining_param is None and vkr.length:
+                self.put_scalar_int_code(subr_code, varw)
+            elif varw.defining_param is None and varw.length:
                 # older declaration -- integer*8, integer*4, etc...
                 subr_code = self.type_len_subr
                 temp_name = "fwrap_temp%d" % self.get_temp_int()
-                subr_code.declarations.putln("%s*%s :: %s" % (vkr.type_name, vkr.length, temp_name))
+                subr_code.declarations.putln("%s*%s :: %s" % (varw.type_name, varw.length, temp_name))
                 subr_code.executable_stmts.put(ktp_scalar_int_code % {
                     'scalar_int_expr' : 'kind(%s)' % temp_name,
-                    'type_name'       : vkr.type_name,
-                    'mapped_name'     : vkr.resolved_name
+                    'type_name'       : varw.type_name,
+                    'mapped_name'     : varw.resolved_name
                     }, indent=True)
 
             else:
@@ -487,11 +275,11 @@ class AutoConfigGenerator(GeneratorBase):
                         "integers or kind() calls not currently supported")
         return node
 
-    def put_scalar_int_code(self, subr_code, vkr):
+    def put_scalar_int_code(self, subr_code, varw):
         subr_code.executable_stmts.put(ktp_scalar_int_code % {
-            'scalar_int_expr' : vkr.ktp_str,
-            'type_name': vkr.type_name,
-            'mapped_name' : vkr.resolved_name
+            'scalar_int_expr' : varw.ktp_str,
+            'type_name': varw.type_name,
+            'mapped_name' : varw.resolved_name
             }, indent=True)
 
 
@@ -518,9 +306,9 @@ class AutoConfigGenerator(GeneratorBase):
         self.driver_prog.executable_stmts.put(close_files_code % dict(projname=self.projname),indent=True)
         self.driver_prog.copyto(fh)
 
-
 class WrapperError(RuntimeError):
     pass
+
 
 class FortranWrapperGenerator(GeneratorBase):
 
@@ -592,37 +380,38 @@ class FortranWrapperGenerator(GeneratorBase):
 
         for argname in argnames:
             var = node.a.variables[argname]
-            vkr = var.fwrap_var_kind_res
-            # collect the attributes.
-            attributes = []
-            if var.intent is not None:
-                assert isinstance(var.intent, list)
-                if var.is_intent_in(): intent = 'IN'
-                elif var.is_intent_inout(): intent = 'INOUT'
-                elif var.is_intent_out(): intent = 'OUT'
-                else: raise WrapperError('unknown intent attribute for variable "%s", given "%s"' % (var.name, var.intent))
-                attributes.append('intent(%s)' % intent)
-                if var.is_intent_in():
-                    attributes.append('value')
-            # collect other attributes here...
-            attr_str = ''
-            if attributes:
-                attr_str += ", " + (", ".join(attributes))
-            # put down the dummy declaration.
-            subp_code.declarations.putln("%(type_name)s(kind=%(ktp)s) %(attrs)s :: %(var_name)s" % \
-                    { 'type_name' : vkr.type_name,
-                      'attrs'     : attr_str,
-                      'ktp'       : vkr.resolved_name,
-                      'var_name'  : argname
-                      })
+            varw = var.fwrap_wrapper_var
+            # # collect the attributes.
+            # attributes = []
+            # if var.intent is not None:
+                # assert isinstance(var.intent, list)
+                # if var.is_intent_in(): intent = 'IN'
+                # elif var.is_intent_inout(): intent = 'INOUT'
+                # elif var.is_intent_out(): intent = 'OUT'
+                # else: raise WrapperError('unknown intent attribute for variable "%s", given "%s"' % (var.name, var.intent))
+                # attributes.append('intent(%s)' % intent)
+                # if var.is_intent_in():
+                    # attributes.append('value')
+            # # collect other attributes here...
+            # attr_str = ''
+            # if attributes:
+                # attr_str += ", " + (", ".join(attributes))
+            # # put down the dummy declaration.
+            # subp_code.declarations.putln("%(type_name)s(kind=%(ktp)s) %(attrs)s :: %(var_name)s" % \
+                    # { 'type_name' : varw.type_name,
+                      # 'attrs'     : attr_str,
+                      # 'ktp'       : varw.resolved_name,
+                      # 'var_name'  : argname
+                      # })
+            subp_code.declarations.putln(varw.get_declaration())
 
         if isinstance(node, Function):
             # declare function return type
             retvar = node.a.variables[node.result]
-            vkr = retvar.fwrap_var_kind_res
+            varw = retvar.fwrap_wrapper_var
             subp_code.declarations.putln("%(type_name)s(kind=%(ktp)s) :: %(func_name)s" % \
-                    {'type_name' : vkr.type_name,
-                     'ktp'       : vkr.resolved_name,
+                    {'type_name' : varw.type_name,
+                     'ktp'       : varw.resolved_name,
                      'func_name' : wrapname
                      })
 
@@ -684,36 +473,36 @@ class CHeaderGenerator(GeneratorBase):
         self.preamble.copyto(fh)
         self.c_protos.copyto(fh)
 
-def arg_vkrs(node):
-    vkrs = []
+def arg_varws(node):
+    varws = []
     interface_var_names = node.args[:]
     for argname in interface_var_names:
         var = node.a.variables[argname]
-        vkrs.append(var.fwrap_var_kind_res)
-    return vkrs
+        varws.append(var.fwrap_wrapper_var)
+    return varws
 
-def result_vkr(node):
+def result_varw(node):
     if isinstance(node, Subroutine):
         return None
     var = node.a.variables[node.result]
-    return var.fwrap_var_kind_res
+    return var.fwrap_wrapper_var
 
-def all_vkrs(node):
-    vkrs = arg_vkrs(node)
+def all_varws(node):
+    varws = arg_varws(node)
     if isinstance(node, Function):
-        vkrs.append(result_vkr(node))
-    return vkrs
+        varws.append(result_varw(node))
+    return varws
 
 def c_prototype(node):
     argnames = node.args[:]
     c_arg_list = []
     for argname in argnames:
         var = node.a.variables[argname]
-        vkr = var.fwrap_var_kind_res
+        varw = var.fwrap_wrapper_var
         # XXX: arrays will need to be handled specially here.
         if var.is_array():
             raise NotImplementedError("arrays not currently supported")
-        c_type_str = vkr.resolved_name
+        c_type_str = varw.resolved_name
         if not ('VALUE' in var.attributes or var.is_intent_in()):
             c_type_str += " *"
         c_arg_list.append(c_type_str)
@@ -722,7 +511,7 @@ def c_prototype(node):
         res_var_type_str = "void"
     elif isinstance(node, Function):
         res_var = node.a.variables[node.result]
-        res_var_type_str = res_var.fwrap_var_kind_res.resolved_name
+        res_var_type_str = res_var.fwrap_wrapper_var.resolved_name
 
     return {'return_type' : res_var_type_str,
             'proto_name'  : node.name,
@@ -750,20 +539,20 @@ class PxdGenerator(GeneratorBase):
         if node.name in self.seen_subps:
             return node
         self.seen_subps.add(node.name)
-        for vkr in all_vkrs(node):
-            if vkr.resolved_name in self.seen_resolved_names:
+        for varw in all_varws(node):
+            if varw.resolved_name in self.seen_resolved_names:
                 continue
-            self.seen_resolved_names.add(vkr.resolved_name)
+            self.seen_resolved_names.add(varw.resolved_name)
             typemap = {'integer' : 'int',
                        'character' : 'char',
                        'logical' : 'int',
                        'real'    : 'float',
                        'doubleprecision' : 'float'
                        }
-            if 'complex' in vkr.type_name: #XXX TODO
+            if 'complex' in varw.type_name: #XXX TODO
                 raise NotImplementedError("complex ktp not currently supported.")
             self.typedef_suite.suite_body.putln("ctypedef %s %s" % \
-                    (typemap[vkr.type_name], vkr.resolved_name))
+                    (typemap[varw.type_name], varw.resolved_name))
 
         proto = c_prototype(node)
         self.proto_suite.suite_body.putln("%s %s(%s)" % \
@@ -820,21 +609,21 @@ class CyHeaderGenerator(GeneratorBase):
 
 def cy_prototype(node, import_alias):
     c_proto = c_prototype(node)
-    arg_lst_vkrs = arg_vkrs(node)
-    res_vkr = None
+    arg_lst_varws = arg_varws(node)
+    res_varw = None
     if isinstance(node, Function):
-        res_vkr = result_vkr(node)
+        res_varw = result_varw(node)
 
     arglst = c_proto['arglst'][:]
     arglst = [("%s.%s" % (import_alias, arg)) for arg in arglst]
 
-    if res_vkr is None:
+    if res_varw is None:
         res_str = "void"
     else:
-        res_str = "%s.%s" % (import_alias, res_vkr.resolved_name)
+        res_str = "%s.%s" % (import_alias, res_varw.resolved_name)
 
     return { 'arglst'      : arglst,
-             'arglst_vkrs' : arg_lst_vkrs,
+             'arglst_varws' : arg_lst_varws,
              'proto_name'  : node.name,
              'return_type' : res_str}
 
@@ -859,9 +648,9 @@ class CyImplGenerator(GeneratorBase):
         api_func = CySuiteCode(level=0)
 
         args = []; call_args = []
-        for type_name, vkr in zip(cypro['arglst'], cypro['arglst_vkrs']):
-            args.append("%s %s" % (type_name, vkr.var.name))
-            call_args.append(vkr.var.name)
+        for type_name, varw in zip(cypro['arglst'], cypro['arglst_varws']):
+            args.append("%s %s" % (type_name, varw.var.name))
+            call_args.append(varw.var.name)
 
         api_func.suite_start.putln("cdef api %s cy_%s(%s):" % (cypro['return_type'], cypro['proto_name'], ", ".join(args)))
 
@@ -878,15 +667,15 @@ class CyImplGenerator(GeneratorBase):
         cypro = cy_prototype(node, self.import_alias)
         py_func = CySuiteCode(level=0)
         args = []; call_args = []; ret_lst = []
-        for type_name, vkr in zip(cypro['arglst'], cypro['arglst_vkrs']):
+        for type_name, varw in zip(cypro['arglst'], cypro['arglst_varws']):
             # no pointer types in python function argument list.
-            args.append("%s.%s %s" % (self.import_alias, vkr.resolved_name, vkr.var.name))
+            args.append("%s.%s %s" % (self.import_alias, varw.resolved_name, varw.var.name))
             if '*' in type_name:
-                call_args.append("&%s" % vkr.var.name)
+                call_args.append("&%s" % varw.var.name)
             else:
-                call_args.append(vkr.var.name)
-            if vkr.var.is_intent_out() or vkr.var.is_intent_inout():
-                ret_lst.append(vkr.var.name)
+                call_args.append(varw.var.name)
+            if varw.var.is_intent_out() or varw.var.is_intent_inout():
+                ret_lst.append(varw.var.name)
 
         py_func.suite_start.putln("def %s(%s):" % (cypro['proto_name'], ", ".join(args)))
 
