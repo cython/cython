@@ -1,4 +1,4 @@
-from all_ints_f2cy import *
+from all_ints_fwrap import *
 
 __doc__ = u'''
 >>> int_default(1,2,3)

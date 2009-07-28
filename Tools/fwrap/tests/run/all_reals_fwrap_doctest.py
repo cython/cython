@@ -1,4 +1,4 @@
-from all_reals_f2cy import *
+from all_reals_fwrap import *
 
 __doc__ = u'''
 >>> real_default(1,2,3)

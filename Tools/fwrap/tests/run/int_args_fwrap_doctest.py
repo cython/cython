@@ -1,4 +1,4 @@
-from int_args_f2cy import *
+from int_args_fwrap import *
 
 __doc__ = u'''
 >>> int_args_func(1,2,3,4)

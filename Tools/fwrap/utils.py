@@ -10,5 +10,5 @@ def warning(message, position=None, level=0, stream=sys.stderr):
     stream.write("warning: %s\n" % message)
     stream.flush()
 
-mangle_prefix = 'f2cy_'
+mangle_prefix = 'fwrap_'
 valid_name = re.compile(r'[a-z]\w+$',re.I).match

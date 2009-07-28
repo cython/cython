@@ -1,4 +1,4 @@
-from all_logicals_f2cy import *
+from all_logicals_fwrap import *
 
 __doc__ = u'''
 >>> log_default(1,0,3)

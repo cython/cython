@@ -1,4 +1,4 @@
-from old_decl_f2cy import *
+from old_decl_fwrap import *
 
 __doc__ = u'''
 >>> bar(1,2,3,4,5,6,7)

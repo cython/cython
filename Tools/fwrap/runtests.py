@@ -79,7 +79,7 @@ class TestBuilderBase(object):
     def build_suite(self):
         pass
 
-class F2CYTestBuilder(object):
+class FwrapTestBuilder(object):
     def __init__(self, rootdir, workdir, selectors, exclude_selectors,
             cleanup_workdir, cleanup_sharedlibs):
         self.rootdir = rootdir
@@ -120,10 +120,10 @@ class F2CYTestBuilder(object):
                 if [1 for match in self.exclude_selectors if match(fqbasename)]:
                     continue
             if context in TEST_RUN_DIRS:
-                # test_class = F2CYCompileTestCase
-                test_class = F2CYRunTestCase
+                # test_class = FwrapCompileTestCase
+                test_class = FwrapRunTestCase
             else:
-                test_class = F2CYCompileTestCase
+                test_class = FwrapCompileTestCase
             suite.addTest(self.build_test(test_class, path, workdir, filename))
         return suite
 
@@ -134,7 +134,7 @@ class F2CYTestBuilder(object):
 
 
 
-class F2CYCompileTestCase(unittest.TestCase):
+class FwrapCompileTestCase(unittest.TestCase):
     def __init__(self, directory, workdir, filename,
             cleanup_workdir=True, cleanup_sharedlibs=True):
         self.directory = directory
@@ -180,7 +180,7 @@ class F2CYCompileTestCase(unittest.TestCase):
 
     def runCompileTest(self):
         from subprocess import Popen, PIPE, STDOUT, CalledProcessError
-        self.projname = os.path.splitext(self.filename)[0] + '_f2cy'
+        self.projname = os.path.splitext(self.filename)[0] + '_fwrap'
         self.projdir = os.path.join(self.workdir, self.projname)
         wrap([self.filename], self.directory, self.workdir, self.projname)
         p = Popen(['make'], cwd=self.projdir, close_fds=True,
@@ -203,7 +203,7 @@ class F2CYCompileTestCase(unittest.TestCase):
         wrap(filename, directory, workdir)
 
 
-class F2CYRunTestCase(F2CYCompileTestCase):
+class FwrapRunTestCase(FwrapCompileTestCase):
     def shortDescription(self):
         return "compiling and running %s" % self.filename
 
@@ -739,7 +739,7 @@ if __name__ == '__main__':
             sys.stderr.write("Running tests without Cython.\n")
     #if 0
 
-    from main import wrap
+    from Main import wrap
 
     sys.stderr.write("Python %s\n" % sys.version)
     sys.stderr.write("\n")
@@ -804,7 +804,7 @@ if __name__ == '__main__':
             collect_doctests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors)
     # if 0
 
-    filetests = F2CYTestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
+    filetests = FwrapTestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
             options.cleanup_workdir, options.cleanup_sharedlibs)
     test_suite.addTest(filetests.build_suite())
 

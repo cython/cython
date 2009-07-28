@@ -1,6 +1,6 @@
 #
 # classes BasicVisitor & TreeVisitor were lifted from Cython.Compiler.Visitor
-# and adapted for f2cy.
+# and adapted for fwrap.
 # 
 
 import inspect
@@ -177,8 +177,8 @@ class KindResolutionVisitor(TreeVisitor):
             var = node.a.variables[argname]
             # vkr = VarKindResolution(var)
             wrapper_var = FortranWrapperVar(var)
-            var.f2cy_wrapper_var = wrapper_var
-            # var.f2cy_var_kind_res = vkr
+            var.fwrap_wrapper_var = wrapper_var
+            # var.fwrap_var_kind_res = vkr
         return node
 
 class GeneratorBase(TreeVisitor):
@@ -262,7 +262,7 @@ class AutoConfigGenerator(GeneratorBase):
             elif varw.defining_param is None and varw.length:
                 # older declaration -- integer*8, integer*4, etc...
                 subr_code = self.type_len_subr
-                temp_name = "f2cy_temp%d" % self.get_temp_int()
+                temp_name = "fwrap_temp%d" % self.get_temp_int()
                 subr_code.declarations.putln("%s*%s :: %s" % (varw.type_name, varw.length, temp_name))
                 subr_code.executable_stmts.put(ktp_scalar_int_code % {
                     'scalar_int_expr' : 'kind(%s)' % temp_name,
@@ -380,7 +380,7 @@ class FortranWrapperGenerator(GeneratorBase):
 
         for argname in argnames:
             var = node.a.variables[argname]
-            varw = var.f2cy_wrapper_var
+            varw = var.fwrap_wrapper_var
             # # collect the attributes.
             # attributes = []
             # if var.intent is not None:
@@ -408,7 +408,7 @@ class FortranWrapperGenerator(GeneratorBase):
         if isinstance(node, Function):
             # declare function return type
             retvar = node.a.variables[node.result]
-            varw = retvar.f2cy_wrapper_var
+            varw = retvar.fwrap_wrapper_var
             subp_code.declarations.putln("%(type_name)s(kind=%(ktp)s) :: %(func_name)s" % \
                     {'type_name' : varw.type_name,
                      'ktp'       : varw.resolved_name,
@@ -478,14 +478,14 @@ def arg_varws(node):
     interface_var_names = node.args[:]
     for argname in interface_var_names:
         var = node.a.variables[argname]
-        varws.append(var.f2cy_wrapper_var)
+        varws.append(var.fwrap_wrapper_var)
     return varws
 
 def result_varw(node):
     if isinstance(node, Subroutine):
         return None
     var = node.a.variables[node.result]
-    return var.f2cy_wrapper_var
+    return var.fwrap_wrapper_var
 
 def all_varws(node):
     varws = arg_varws(node)
@@ -498,7 +498,7 @@ def c_prototype(node):
     c_arg_list = []
     for argname in argnames:
         var = node.a.variables[argname]
-        varw = var.f2cy_wrapper_var
+        varw = var.fwrap_wrapper_var
         # XXX: arrays will need to be handled specially here.
         if var.is_array():
             raise NotImplementedError("arrays not currently supported")
@@ -511,7 +511,7 @@ def c_prototype(node):
         res_var_type_str = "void"
     elif isinstance(node, Function):
         res_var = node.a.variables[node.result]
-        res_var_type_str = res_var.f2cy_wrapper_var.resolved_name
+        res_var_type_str = res_var.fwrap_wrapper_var.resolved_name
 
     return {'return_type' : res_var_type_str,
             'proto_name'  : node.name,
@@ -655,7 +655,7 @@ class CyImplGenerator(GeneratorBase):
         api_func.suite_start.putln("cdef api %s cy_%s(%s):" % (cypro['return_type'], cypro['proto_name'], ", ".join(args)))
 
         if isinstance(node, Function):
-            ret_var = '__f2cy_return'
+            ret_var = '__fwrap_return'
             api_func.suite_body.putln("cdef %s %s" % (cypro['return_type'], ret_var))
             api_func.suite_body.putln("%s = %s.%s(%s)" % (ret_var, self.import_alias, cypro['proto_name'], ", ".join(call_args)))
             api_func.suite_body.putln("return %s" % ret_var)
@@ -682,7 +682,7 @@ class CyImplGenerator(GeneratorBase):
         proc_call = "cy_%s(%s)" % (cypro['proto_name'], ", ".join(call_args))
 
         if isinstance(node, Function):
-            ret_var = '__f2cy_return'
+            ret_var = '__fwrap_return'
             ret_lst.insert(0, ret_var)
             py_func.suite_body.putln("cdef %s %s" % (cypro['return_type'], ret_var))
             proc_call = "%s = %s" % (ret_var, proc_call)
