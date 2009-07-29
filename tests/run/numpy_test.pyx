@@ -194,6 +194,11 @@ try:
     Traceback (most recent call last):
         ...
     ValueError: Item size of buffer (1 byte) does not match size of 'int' (4 bytes)
+
+    >>> test_complextypes()
+    1,1
+    1,1
+    8,16
     
 """
 except:
@@ -376,3 +381,15 @@ def test_unpacked_align(np.ndarray[UnpackedStruct] arr):
     arr[0].a = 22
     arr[0].b = 23    
     return repr(arr).replace('<', '!').replace('>', '!')
+
+def test_complextypes():
+    cdef np.complex64_t x64 = 1, y64 = 1j
+    cdef np.complex128_t x128 = 1, y128 = 1j
+    x64 = x64 + y64
+    print "%.0f,%.0f" % (x64.real, x64.imag)
+    x128 = x128 + y128
+    print "%.0f,%.0f" % (x128.real, x128.imag)
+    print "%d,%d" % (sizeof(x64), sizeof(x128))
+
+
+    
