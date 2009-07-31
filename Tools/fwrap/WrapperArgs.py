@@ -3,6 +3,21 @@ from fparser.block_statements import Function, SubProgramStatement, \
         EndFunction, EndSubroutine, Interface
 from utils import warning, mangle_prefix, valid_name
 
+def _get_type_name(var):
+    return var.typedecl.name.lower().replace(' ', '')
+
+def type_from_vkr(vkr):
+    typename_to_class = {
+            'integer' : FortranIntegerType,
+            'real'    : FortranRealType,
+            'doubleprecision' : FortranRealType,
+            'character': FortranCharacterType,
+            'logical' : FortranLogicalType,
+            'complex' : FortranComplexType,
+            'doublecomplex' : FortranComplexType
+        }
+    return typename_to_class[vkr.type_name](ktp=vkr.resolved_name)
+
 class VarKindResolution(object):
 
     short_type_name = {
@@ -34,7 +49,7 @@ class VarKindResolution(object):
 
 
     def init_from_var(self):
-        self.type_name = self.var.typedecl.name.lower().replace(' ', '')
+        self.type_name = _get_type_name(self.var)
         var_scope = self.var.typedecl.parent
         assert isinstance(var_scope, (SubProgramStatement, Module, Program))
         length, ktp = self.var.typedecl.selector
@@ -59,6 +74,9 @@ class VarKindResolution(object):
         elif ktp_parse[0] == 'kind':
             self.ktp_str = ktp
             num_str = ktp_parse[1].replace('.','')
+            num_str = num_str.replace('(','')
+            num_str = num_str.replace(')','')
+            num_str = num_str.replace(',','')
             self.resolved_name = mangle_prefix+stn[self.type_name]+'_kind'+num_str
             self.defining_scope = var_scope
             self.defining_param = None
@@ -203,9 +221,75 @@ class VarKindResolution(object):
         self.defining_scope = scope
         self.defining_param = None
 
-class FortranWrapperVar(object):
+class Disambiguator(object):
 
-    def __init__(self, var):
+    def __init__(self):
+        self.counter = 0
+
+    def __call__(self):
+        ret = 'fw%d' % self.counter
+        self.counter += 1
+        return ret
+
+def wrapper_var_factory(node, var, _cache={}):
+    _type_name_to_class = {
+            'integer' : IntegerWrapperVar,
+            'real'    : RealWrapperVar,
+            'doubleprecision' : RealWrapperVar,
+            'character': CharacterWrapperVar,
+            'logical' : LogicalWrapperVar,
+            'complex' : ComplexWrapperVar,
+            'doublecomplex' : ComplexWrapperVar
+            }
+
+    _array_to_class = {
+            'integer' : IntegerArrayWrapperVar,
+            'real'    : RealArrayWrapperVar,
+            'doubleprecision' : RealArrayWrapperVar,
+            'character': CharacterWrapperVar,
+            'logical' : LogicalArrayWrapperVar,
+            'complex' : ComplexArrayWrapperVar,
+            'doublecomplex' : ComplexArrayWrapperVar
+            }
+
+    d = _cache.get(node)
+    if d is None:
+        d = Disambiguator()
+        _cache[node] = d
+
+    type_name = _get_type_name(var)
+
+    if var.is_array():
+        return _array_to_class[type_name](var, d)
+    else:
+        return _type_name_to_class[type_name](var, d)
+
+INTENT_IN = 'IN'
+INTENT_OUT = 'OUT'
+INTENT_INOUT = 'INOUT'
+
+class FortranWrapperVar(object):
+    #
+    # A FortranWrapperVar is responsible for setting-up an appropriate
+    # conversion between the fortran-wrapper procedure input arguments and the
+    # argument of the wrapped procedure.  Some argument types (real, integer,
+    # complex if C99 _Complex is supported, etc.) have a 1-to-1 correspondence
+    # with a C type.  Others (logical) must be passed to the fortran wrapper
+    # procedure as a different type (a C-int) and converted before or after the
+    # wrapped procedure call, as appropriate.
+
+    # Arrays are different.  Each array argument of the wrapped procedure
+    # requires multiple wrapper arguments (at least a data pointer and the
+    # extent in each dimension).  A c_f_pointer() call is required before the
+    # wrapped procedure call, and possibly a copy is required for, e.g., a
+    # C-int -> logical -> C-int type. Each array requires a temporary array
+    # pointer that is the second argument to the c_f_pointer() call, and is the
+    # array passed to the wrapped procedure.
+     
+    # XXX: user-defined type description here.
+
+    def __init__(self, var, disambig):
+        self.disambig = disambig
         vkr = VarKindResolution(var)
         self.var = var
         self.type_name = vkr.type_name
@@ -217,25 +301,27 @@ class FortranWrapperVar(object):
         self.vkr = vkr
         self.intent = None
 
-        if var.is_intent_in(): self.intent = 'IN'
-        elif var.is_intent_inout(): self.intent = 'INOUT'
-        elif var.is_intent_out(): self.intent = 'OUT'
+        if var.is_intent_in(): self.intent = INTENT_IN
+        elif var.is_intent_inout(): self.intent = INTENT_INOUT
+        elif var.is_intent_out(): self.intent = INTENT_OUT
         # else:
             # node = self.defining_scope
             # if isinstance(node, Function) and \
                     # self.var is node.a.variables[node.result]:
                         # self.intent = None
 
-    def need_conversion(self):
-        return False
+    def get_argnames(self):
+        return [self.var.name]
 
-    
-    def get_declaration(self):
+    def get_pass_argname(self):
+        return (self.var.name, self.var.name)
+
+    def generate_declaration(self, code):
         var = self.var
         attributes = []
         if self.intent is not None:
             attributes.append('intent(%s)' % self.intent)
-            if self.intent == 'IN':
+            if self.intent == INTENT_IN:
                 attributes.append('value')
             # collect other attributes here...
         attr_str = ''
@@ -247,38 +333,185 @@ class FortranWrapperVar(object):
                   'ktp'       : self.resolved_name,
                   'var_name'  : self.var.name
                   }
-        return decl
+        code.putln(decl)
 
-    def convert_temp_declaration(self):
-        raise NotImplementedError()
-        # return "%s(kind=%s) :: %s" % (self.orig_type, 
+    def pre_call_code(self, code):
+        pass
 
-    def gen_temp(self):
-        self.temp_name = mangle_prefix+'_tmp_'+self.var.name
-        return self.temp_name
-
-    def pre_call_conversion(self):
-        if not self.need_conversion():
-            return None
-
-    def post_call_conversion(self):
-        if not self.need_conversion():
-            return None
+    def post_call_code(self, code):
+        pass
 
 class LogicalWrapperVar(FortranWrapperVar):
 
-    def need_conversion(self):
-        return True
+    def __init__(self, *args, **kwargs):
+        FortranWrapperVar.__init__(self, *args, **kwargs)
 
-    def get_temp_declaration(self, temp_name):
-        return "%s(kind=%s) :: %s" % (self.type_name, self.resolved_name, temp_name)
+        self.int_proxy = Entry(self.disambig()+self.var.name, FortranIntegerType(self.resolved_name))
+        self.int_proxy.is_arg = True
+        self.int_proxy.attributes.append("intent(%s)" % self.intent)
+        if self.intent == INTENT_IN:
+            self.int_proxy.attributes.append("value")
 
-    def pre_call_conversion(self, temp_name):
-        if self.intent == 'OUT':
-            return ''
-        return "%s = logical(%s .ne. 0, kind=%s)" % (temp_name, self.var.name, self.resolved_name)
+        self.log_var = Entry(self.disambig()+self.var.name, FortranLogicalType(self.resolved_name))
+        self.log_var.is_arg = False
 
-    def post_call_conversion(self, temp_name):
-        if self.intent == 'IN':
-            return ''
-        return """if (%s) then\n%s = 1\nelse\n%s = 0\nendif""" % (temp_name, self.var.name, self.var.name)
+    def get_argnames(self):
+        return [self.int_proxy.name]
+
+    def get_pass_argname(self):
+        return (self.var.name, self.log_var.name)
+
+    def generate_declaration(self, code):
+        for entry in (self.int_proxy, self.log_var):
+            entry.generate_declaration(code)
+
+    def pre_call_code(self, code):
+        if self.intent in (INTENT_IN, INTENT_INOUT):
+            code.putln("%s = logical(%s .ne. 0, kind=%s)" % (self.log_var.name, self.int_proxy.name, self.int_proxy.type.ktp))
+
+    def post_call_code(self, code):
+        if self.intent in (INTENT_INOUT, INTENT_OUT):
+            code.putln("if (%s) then" % self.log_var.name  )
+            code.putln("  %s = 1    " % self.int_proxy.name)
+            code.putln("else        "                      )
+            code.putln("  %s = 0    " % self.int_proxy.name)
+            code.putln("endif       "                      )
+
+class IntegerWrapperVar(FortranWrapperVar):
+    pass
+
+class RealWrapperVar(FortranWrapperVar):
+    pass
+
+class ComplexWrapperVar(FortranWrapperVar):
+    pass
+
+class CharacterWrapperVar(FortranWrapperVar):
+    pass
+
+class ArrayWrapperVar(FortranWrapperVar):
+
+    def __init__(self, var, disambig):
+        assert var.is_array()
+        FortranWrapperVar.__init__(self, var, disambig)
+        # array-specific initializations
+        self.is_explicit_shape = var.is_explicit_shape_array()
+        self.is_assumed_shape  = var.is_assumed_shape_array()
+        self.is_assumed_size   = var.is_assumed_size_array()
+        self.array_spec = var.get_array_spec()
+        self.ndim = len(self.array_spec)
+
+        if not self.is_assumed_shape:
+            raise NotImplementedError("only assumed shape arrays for now...")
+
+        self.shape_array = Entry(self.disambig()+self.var.name, FortranArrayType(FortranIntegerType(ktp="c_int"), (str(self.ndim),)))
+        self.shape_array.is_arg = True
+        self.shape_array.attributes.append("intent(%s)" % INTENT_IN)
+
+        self.data_ptr = Entry(self.disambig()+self.var.name, FortranCPtrType())
+        self.data_ptr.is_arg = True
+        self.data_ptr.attributes.append("value")
+
+        self.arr_proxy = Entry(self.disambig()+self.var.name, FortranArrayType(type_from_vkr(self.vkr), (('',''),)*self.ndim))
+        self.arr_proxy.attributes.append("pointer")
+
+
+    def get_argnames(self):
+        return [self.data_ptr.name, self.shape_array.name]
+
+    def get_pass_argname(self):
+        return (self.var.name, self.arr_proxy.name)
+
+    def generate_declaration(self, code):
+        if self.is_assumed_shape:
+            for entry in (self.shape_array, self.data_ptr, self.arr_proxy):
+                entry.generate_declaration(code)
+        else:
+            raise NotImplementedError("only assumed shape arrays for now...")
+
+    def pre_call_code(self, code):
+        code.putln("call c_f_pointer(%s, %s, %s)" % (self.data_ptr.name, self.arr_proxy.name, self.shape_array.name))
+
+    def post_call_code(self, code):
+        pass
+
+class IntegerArrayWrapperVar(ArrayWrapperVar):
+    pass
+
+class RealArrayWrapperVar(ArrayWrapperVar):
+    pass
+
+class ComplexArrayWrapperVar(ArrayWrapperVar):
+    pass
+
+class LogicalArrayWrapperVar(ArrayWrapperVar):
+    pass
+
+
+class Entry(object):
+
+    def __init__(self, name, type):
+        self.name = name
+        self.type = type
+        self.attributes = []
+        self.is_arg = False
+
+    def generate_declaration(self, code):
+        before_colons = [self.type.get_type_code()] + self.type.attributes + self.attributes
+        code.putln("%s :: %s" % (",".join(before_colons), self.name))
+
+class FortranType(object):
+
+    def __init__(self, ktp=None):
+        self.ktp = ktp
+        self.attributes = []
+
+    def get_type_code(self):
+        if self.ktp:
+            return "%s(kind=%s)" % (self.type_name, self.ktp)
+        else:
+            return self.type_name
+
+class FortranIntegerType(FortranType):
+
+    type_name = "integer"
+
+class FortranRealType(FortranType):
+    
+    type_name = "real"
+
+class FortranCharacterType(FortranType):
+    
+    type_name = "character"
+
+class FortranLogicalType(FortranType):
+    
+    type_name = "logical"
+
+class FortranComplexType(FortranType):
+    
+    type_name = "complex"
+
+class FortranCPtrType(FortranType):
+
+    def get_type_code(self):
+        return "type(c_ptr)"
+
+class FortranArrayType(FortranType):
+
+    def __init__(self, base_type, shape):
+        self.base_type = base_type
+        self.shape = shape
+        self.attributes = []
+
+        dims = []
+        for sh in shape:
+            if len(sh) == 1:
+                dims.append(sh[0])
+            else:
+                dims.append("%s:%s" % (sh[0], sh[1]))
+
+        self.attributes.append("dimension(%s)" % (",".join(dims)))
+
+    def get_type_code(self):
+        return self.base_type.get_type_code()

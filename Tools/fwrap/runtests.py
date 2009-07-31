@@ -91,11 +91,12 @@ class FwrapTestBuilder(object):
 
     def build_suite(self):
         suite = unittest.TestSuite()
+        test_dirs = TEST_DIRS
         filenames = os.listdir(self.rootdir)
         filenames.sort()
         for filename in filenames:
             path = os.path.join(self.rootdir, filename)
-            if os.path.isdir(path):
+            if os.path.isdir(path) and filename in test_dirs:
                 suite.addTest(
                         self.handle_directory(path, filename))
         return suite

@@ -18,7 +18,7 @@ from fparser.block_statements import Function, SubProgramStatement, \
         EndFunction, EndSubroutine, Interface
 from fparser.statements import Use, Parameter, Dimension, Pointer
 from fparser.typedecl_statements import TypeDeclarationStatement
-from WrapperArgs import FortranWrapperVar
+from WrapperArgs import wrapper_var_factory
 from utils import warning, mangle_prefix, valid_name
 
 class BasicVisitor(object):
@@ -176,7 +176,7 @@ class KindResolutionVisitor(TreeVisitor):
         for argname in interface_var_names:
             var = node.a.variables[argname]
             # vkr = VarKindResolution(var)
-            wrapper_var = FortranWrapperVar(var)
+            wrapper_var = wrapper_var_factory(node, var)
             var.fwrap_wrapper_var = wrapper_var
             # var.fwrap_var_kind_res = vkr
         return node
@@ -367,8 +367,12 @@ class FortranWrapperGenerator(GeneratorBase):
 
         self.wrapped_subps.append(subp_code)
 
+        argnames = []
+        for varw in arg_varws(node):
+            argnames.extend(varw.get_argnames())
+
         wrapname = mangle_prefix+node.name
-        argnames = node.args[:]
+        # argnames = node.args[:]
         subp_code.block_start.putln("%(subp_type_str)s %(wrapname)s(%(arglst)s) bind(c,name=\"%(bindname)s\")" % \
                 { 'subp_type_str' : subp_type_str,
                   'wrapname' : wrapname,
@@ -378,32 +382,8 @@ class FortranWrapperGenerator(GeneratorBase):
         subp_code.block_end.putln("end %s %s" % (subp_type_str, wrapname))
         subp_code.use_stmts.putln("use config")
 
-        for argname in argnames:
-            var = node.a.variables[argname]
-            varw = var.fwrap_wrapper_var
-            # # collect the attributes.
-            # attributes = []
-            # if var.intent is not None:
-                # assert isinstance(var.intent, list)
-                # if var.is_intent_in(): intent = 'IN'
-                # elif var.is_intent_inout(): intent = 'INOUT'
-                # elif var.is_intent_out(): intent = 'OUT'
-                # else: raise WrapperError('unknown intent attribute for variable "%s", given "%s"' % (var.name, var.intent))
-                # attributes.append('intent(%s)' % intent)
-                # if var.is_intent_in():
-                    # attributes.append('value')
-            # # collect other attributes here...
-            # attr_str = ''
-            # if attributes:
-                # attr_str += ", " + (", ".join(attributes))
-            # # put down the dummy declaration.
-            # subp_code.declarations.putln("%(type_name)s(kind=%(ktp)s) %(attrs)s :: %(var_name)s" % \
-                    # { 'type_name' : varw.type_name,
-                      # 'attrs'     : attr_str,
-                      # 'ktp'       : varw.resolved_name,
-                      # 'var_name'  : argname
-                      # })
-            subp_code.declarations.putln(varw.get_declaration())
+        for varw in arg_varws(node):
+            varw.generate_declaration(subp_code.declarations)
 
         if isinstance(node, Function):
             # declare function return type
@@ -419,18 +399,31 @@ class FortranWrapperGenerator(GeneratorBase):
         ifce_code = self.make_interface(node)
         subp_code.declarations.insert(ifce_code.root)
 
+        # pre-call code here.
+        for varw in all_varws(node):
+            varw.pre_call_code(subp_code.executable_stmts)
+
         # call the wrapped function/subr.
+        pass_argnames = []
+        for varw in arg_varws(node):
+            pass_argnames.append(varw.get_pass_argname()[1])
+
         if isinstance(node, Function):
             subp_code.executable_stmts.putln("%(wrapname)s = %(funcname)s(%(arglst)s)" % \
                     { 'wrapname' : wrapname,
                       'funcname' : node.name,
-                      'arglst'   : ', '.join(argnames)
+                      'arglst'   : ', '.join(pass_argnames)
                       })
         elif isinstance(node, Subroutine):
             subp_code.executable_stmts.putln("call %(subrname)s(%(arglst)s)" % \
                     { 'subrname' : node.name,
-                      'arglst'   : ', '.join(argnames)
+                      'arglst'   : ', '.join(pass_argnames)
                       })
+
+        # post-call code here.
+        for varw in all_varws(node):
+            varw.post_call_code(subp_code.executable_stmts)
+
         return node
 
 
@@ -500,8 +493,8 @@ def c_prototype(node):
         var = node.a.variables[argname]
         varw = var.fwrap_wrapper_var
         # XXX: arrays will need to be handled specially here.
-        if var.is_array():
-            raise NotImplementedError("arrays not currently supported")
+        # if var.is_array():
+            # raise NotImplementedError("arrays not currently supported")
         c_type_str = varw.resolved_name
         if not ('VALUE' in var.attributes or var.is_intent_in()):
             c_type_str += " *"
@@ -547,10 +540,12 @@ class PxdGenerator(GeneratorBase):
                        'character' : 'char',
                        'logical' : 'int',
                        'real'    : 'float',
-                       'doubleprecision' : 'float'
+                       'doubleprecision' : 'float',
+                       'complex' : 'float complex',
+                       'doublecomplex' : 'double complex',
                        }
-            if 'complex' in varw.type_name: #XXX TODO
-                raise NotImplementedError("complex ktp not currently supported.")
+            # if 'complex' in varw.type_name: #XXX TODO
+                # raise NotImplementedError("complex ktp not currently supported.")
             self.typedef_suite.suite_body.putln("ctypedef %s %s" % \
                     (typemap[varw.type_name], varw.resolved_name))
 
@@ -900,11 +895,12 @@ module lookup_types
         return
     endif
     
-    if (log_kind .eq. c_bool) then
-        fort_ktp_str = "c_bool"
-        c_type_str = "_Bool"
-        return
-    else if (log_kind .eq. c_signed_char) then
+!    if (log_kind .eq. c_bool) then
+!        fort_ktp_str = "c_bool"
+!        c_type_str = "_Bool"
+!        return
+!    else if (log_kind .eq. c_signed_char) then
+     if (log_kind .eq. c_signed_char) then
         fort_ktp_str = "c_signed_char"
         c_type_str = "signed char"
         return

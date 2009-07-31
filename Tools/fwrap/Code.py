@@ -2,6 +2,42 @@ from Cython.StringIOTree import StringIOTree
 from cStringIO import StringIO
 
 INDENT = "  "
+LINE_LENGTH = 79
+BREAK_CHARS = (' ', '\t', ',', '!')
+COMMENT_CHAR = '!'
+
+def break_line(line, level, max_len):
+
+    line = INDENT*level+line
+
+    if len(line) <= max_len:
+        return [line, '']
+
+    # break up line.
+    in_comment = False
+    in_string = False
+    in_escape = False
+    last_break_pos = -1
+    for idx, ch in enumerate(line):
+        if idx+1 > max_len:
+            if last_break_pos < 0:
+                raise RuntimeError("line too long and unable to break it up.")
+            return [line[:last_break_pos]] + break_line(line[last_break_pos:], level, max_len)
+
+        if ch in BREAK_CHARS and not in_comment and not in_string:
+            last_break_pos = idx
+
+        if ch == COMMENT_CHAR and not in_comment and not in_string:
+            in_comment = True
+        elif ch in ('"', "'") and not in_string and not in_comment:
+            in_string = True
+        elif ch in ('"', "'") and in_string and not in_escape and not in_comment:
+            in_string = False
+
+        if ch == '\\' and not in_escape:
+            in_escape = True
+        elif in_escape:
+            in_escape = False
 
 class CodeWriter(object):
 
@@ -23,7 +59,7 @@ class CodeWriter(object):
     def insertion_point(self, level=None):
         if level is None:
             level = self.level
-        return CodeWriter(level, writer=self.sit.insertion_point())
+        return type(self)(level, writer=self.sit.insertion_point())
 
     def insert(self, writer):
         self.sit.insert(writer.sit)
@@ -34,11 +70,21 @@ class CodeWriter(object):
     def __getattr__(self, attr):
         return getattr(self.sit, attr)
 
+class FortranCodeWriter(CodeWriter):
+
+    def putln(self, line, max_len=LINE_LENGTH):
+
+        if len(line) <= max_len:
+            self.sit.write(INDENT*self.level+line+"\n")
+        else:
+            multiline = "&\n".join([ln for ln in break_line(line, self.level, max_len) if ln])
+            self.sit.write(multiline+'\n')
+
 class CompositeCodeBase(object):
 
-    def __init__(self, level=0):
+    def __init__(self, level=0, writer=CodeWriter):
         self.level = level
-        self.root = CodeWriter(level)
+        self.root = writer(level)
 
     def copyto(self, target):
         self.root.copyto(target)
@@ -52,7 +98,7 @@ class UtilityCode(CompositeCodeBase):
 class InterfaceCode(CompositeCodeBase):
 
     def __init__(self, level=0):
-        CompositeCodeBase.__init__(self, level)
+        CompositeCodeBase.__init__(self, level, writer=FortranCodeWriter)
         self.has_subprogs = False
         self.top = self.root.insertion_point(level)
         self.block_start = self.root.insertion_point(level)
@@ -68,7 +114,7 @@ class CompositeBlock(CompositeCodeBase):
     '''
 
     def __init__(self, level=0):
-        CompositeCodeBase.__init__(self, level)
+        CompositeCodeBase.__init__(self, level, writer=FortranCodeWriter)
         self.has_subprogs = False
         self.top = self.root.insertion_point(level)
         self.block_start = self.root.insertion_point(level)
