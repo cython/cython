@@ -487,24 +487,18 @@ def all_varws(node):
     return varws
 
 def c_prototype(node):
-    argnames = node.args[:]
+    varws = arg_varws(node)
     c_arg_list = []
-    for argname in argnames:
-        var = node.a.variables[argname]
-        varw = var.fwrap_wrapper_var
-        # XXX: arrays will need to be handled specially here.
-        # if var.is_array():
-            # raise NotImplementedError("arrays not currently supported")
-        c_type_str = varw.resolved_name
-        if not ('VALUE' in var.attributes or var.is_intent_in()):
-            c_type_str += " *"
-        c_arg_list.append(c_type_str)
+    for varw in varws:
+        c_arg_list.extend(varw.get_c_proto_types())
     # get the return type string
     if isinstance(node, Subroutine):
         res_var_type_str = "void"
     elif isinstance(node, Function):
-        res_var = node.a.variables[node.result]
-        res_var_type_str = res_var.fwrap_wrapper_var.resolved_name
+        res_varw = result_varw(node)
+        proto_code_lst = res_varw.get_c_proto_types()
+        assert len(proto_code_lst) == 1
+        res_var_type_str = proto_code_lst[0]
 
     return {'return_type' : res_var_type_str,
             'proto_name'  : node.name,

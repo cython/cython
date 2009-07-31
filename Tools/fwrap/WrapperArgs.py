@@ -310,6 +310,13 @@ class FortranWrapperVar(object):
                     # self.var is node.a.variables[node.result]:
                         # self.intent = None
 
+    def get_c_proto_types(self):
+        if self.intent == INTENT_IN:
+            ret = self.resolved_name
+        else:
+            ret = self.resolved_name+'*'
+        return [ret]
+
     def get_argnames(self):
         return [self.var.name]
 
@@ -348,12 +355,16 @@ class LogicalWrapperVar(FortranWrapperVar):
 
         self.int_proxy = Entry(self.disambig()+self.var.name, FortranIntegerType(self.resolved_name))
         self.int_proxy.is_arg = True
-        self.int_proxy.attributes.append("intent(%s)" % self.intent)
+        self.int_proxy.intent = self.intent
+        # self.int_proxy.attributes.append("intent(%s)" % self.intent)
         if self.intent == INTENT_IN:
-            self.int_proxy.attributes.append("value")
+            self.int_proxy.is_value = True
 
         self.log_var = Entry(self.disambig()+self.var.name, FortranLogicalType(self.resolved_name))
         self.log_var.is_arg = False
+
+    def get_c_proto_types(self):
+        return [self.int_proxy.get_c_proto_type()]
 
     def get_argnames(self):
         return [self.int_proxy.name]
@@ -406,15 +417,19 @@ class ArrayWrapperVar(FortranWrapperVar):
 
         self.shape_array = Entry(self.disambig()+self.var.name, FortranArrayType(FortranIntegerType(ktp="c_int"), (str(self.ndim),)))
         self.shape_array.is_arg = True
-        self.shape_array.attributes.append("intent(%s)" % INTENT_IN)
+        self.shape_array.intent = INTENT_IN
 
         self.data_ptr = Entry(self.disambig()+self.var.name, FortranCPtrType())
         self.data_ptr.is_arg = True
-        self.data_ptr.attributes.append("value")
+        self.data_ptr.is_value = True
 
         self.arr_proxy = Entry(self.disambig()+self.var.name, FortranArrayType(type_from_vkr(self.vkr), (('',''),)*self.ndim))
-        self.arr_proxy.attributes.append("pointer")
+        self.arr_proxy.is_pointer = True
 
+        self.var_entry = Entry(self.var.name, type_from_vkr(self.vkr))
+
+    def get_c_proto_types(self):
+        return [self.var_entry.get_c_proto_type(), self.shape_array.get_c_proto_type()]
 
     def get_argnames(self):
         return [self.data_ptr.name, self.shape_array.name]
@@ -447,18 +462,38 @@ class ComplexArrayWrapperVar(ArrayWrapperVar):
 class LogicalArrayWrapperVar(ArrayWrapperVar):
     pass
 
+_c_binding_to_c_type = {
+        'c_int' : 'int',
+        }
 
 class Entry(object):
 
     def __init__(self, name, type):
         self.name = name
         self.type = type
-        self.attributes = []
         self.is_arg = False
+        self.is_value = False
+        self.is_pointer = False
+        self.intent = None
 
     def generate_declaration(self, code):
-        before_colons = [self.type.get_type_code()] + self.type.attributes + self.attributes
+        attributes = []
+        if self.is_pointer:
+            attributes.append('pointer')
+        if self.is_value:
+            # assert self.intent == INTENT_IN
+            attributes.append('value')
+        if self.intent:
+            attributes.append('intent(%s)' % self.intent)
+        before_colons = [self.type.get_type_code()] + self.type.attributes + attributes
         code.putln("%s :: %s" % (",".join(before_colons), self.name))
+
+    def get_c_proto_type(self):
+        ret = _c_binding_to_c_type.get(self.type.ktp, self.type.ktp)
+        if self.is_value:
+            return ret
+        else:
+            return ret+"*"
 
 class FortranType(object):
 
@@ -501,6 +536,7 @@ class FortranArrayType(FortranType):
 
     def __init__(self, base_type, shape):
         self.base_type = base_type
+        self.ktp = self.base_type.ktp
         self.shape = shape
         self.attributes = []
 
