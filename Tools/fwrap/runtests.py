@@ -133,6 +133,12 @@ class FwrapTestBuilder(object):
                 cleanup_workdir=self.cleanup_workdir,
                 cleanup_sharedlibs=self.cleanup_sharedlibs)
 
+class _devnull(object):
+
+    def flush(self): pass
+    def write(self, s): pass
+
+    def read(self): return ''
 
 
 class FwrapCompileTestCase(unittest.TestCase):
@@ -177,13 +183,18 @@ class FwrapCompileTestCase(unittest.TestCase):
             os.makedirs(self.workdirs)
 
     def runTest(self):
-        self.runCompileTest()
+        self.projname = os.path.splitext(self.filename)[0] + '_fwrap'
+        self.projdir = os.path.join(self.workdir, self.projname)
+        self.wrapped_filename = self.projname+'_fortran.f95'
+        self.fwrap_config_source='genconfig.f95'
+        self.fwrap_config_module_source='config.f95'
+        self.fwrap_cython_source=self.projname+'.pyx'
+        wrap([self.filename], self.directory, self.workdir, self.projname)
+        # self.runCompileTest()
+        self.runCompileTest_distutils()
 
     def runCompileTest(self):
         from subprocess import Popen, PIPE, STDOUT, CalledProcessError
-        self.projname = os.path.splitext(self.filename)[0] + '_fwrap'
-        self.projdir = os.path.join(self.workdir, self.projname)
-        wrap([self.filename], self.directory, self.workdir, self.projname)
         p = Popen(['make'], cwd=self.projdir, close_fds=True,
                 stdout=PIPE, stderr=STDOUT)
         output = p.communicate()[0]
@@ -191,6 +202,50 @@ class FwrapCompileTestCase(unittest.TestCase):
             raise CalledProcessError(p.returncode, "make")
 
 
+    def runCompileTest_distutils(self):
+        import sys
+        CYTHON_DIR = os.path.abspath(os.path.join(os.path.pardir, os.path.pardir))
+        FILENAME = self.filename
+        WRAPPED_FILENAME = self.wrapped_filename
+        PROJNAME = self.projname
+        FWRAP_CONFIG_SOURCE = self.fwrap_config_source
+        FWRAP_CONFIG_MODULE_SOURCE = self.fwrap_config_module_source
+        FWRAP_CYTHON_SOURCE = self.fwrap_cython_source
+
+        setup_source = '''
+import os,sys
+sys.path.insert(0, '%(CYTHON_DIR)s')
+
+from fwrap_setup import FwrapExtension, fwrap_build_ext, setup
+sources = ['%(FILENAME)s', '%(WRAPPED_FILENAME)s']
+ext = FwrapExtension(
+            '%(PROJNAME)s',
+            sources= ['%(FILENAME)s', '%(WRAPPED_FILENAME)s'],
+            fwrap_config_sources=[('%(FWRAP_CONFIG_SOURCE)s', '%(FWRAP_CONFIG_MODULE_SOURCE)s')],
+            fwrap_cython_sources=['%(FWRAP_CYTHON_SOURCE)s'],
+            )
+setup(cmdclass={'build_ext' : fwrap_build_ext},
+        ext_modules = [ext])
+''' % locals()
+
+        setup_fqpath = os.path.join(self.projdir, 'setup.py')
+        f = open(setup_fqpath,'w')
+        f.write(setup_source)
+        f.close()
+
+        shutil.copy('fwrap_setup.py', self.projdir)
+        shutil.copy(os.path.join(self.directory, self.filename), self.projdir)
+        from distutils.core import run_setup
+        thisdir = os.path.abspath(os.curdir)
+        try:
+            os.chdir(self.projdir)
+            orig_stdout, orig_stderr = sys.stdout, sys.stderr
+            sys.stdout = _devnull()
+            sys.stderr = _devnull()
+            run_setup(setup_fqpath, script_args=['build_ext', '--inplace'])
+        finally:
+            os.chdir(thisdir)
+            sys.stdout,sys.stderr = orig_stdout, orig_stderr
 
     def build_target_filenames(self, filename):
         fortran_wrapper = "wrap_%s" % filename
@@ -214,7 +269,7 @@ class FwrapRunTestCase(FwrapCompileTestCase):
         result.startTest(self)
         try:
             self.setUp()
-            self.runCompileTest()
+            self.runTest()
             if self.projdir not in sys.path:
                 sys.path.insert(0, self.projdir)
             doctest_mod_base = self.projname+'_doctest'
@@ -744,6 +799,10 @@ if __name__ == '__main__':
 
     sys.stderr.write("Python %s\n" % sys.version)
     sys.stderr.write("\n")
+
+    # insert cython.py/Cython source directory into sys.path
+    cython_dir = os.path.abspath(os.path.join(os.path.pardir, os.path.pardir))
+    sys.path.insert(0, cython_dir)
 
     if 0:
         if options.with_refnanny:
