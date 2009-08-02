@@ -298,8 +298,7 @@ class AutoConfigGenerator(GeneratorBase):
             # write the subroutine wrapper call inside the driver_prog
             self.driver_prog.executable_stmts.putln("call %s(fh_num, ch_num, iserr)" % subr_code_name)
             self.driver_prog.executable_stmts.putln("if (iserr .gt. 0) then")
-            self.driver_prog.executable_stmts.putln("print *, \"an error occurred in the kind resolution\"")
-            self.driver_prog.executable_stmts.putln("stop")
+            self.driver_prog.executable_stmts.putln("stop \"an error occurred in the kind resolution\"")
             self.driver_prog.executable_stmts.putln("end if")
         self.resolve_mod.copyto(fh)
         # write the driver_prog
@@ -711,13 +710,11 @@ fh_num = 17
 ch_num = 18
 open(unit=fh_num, file='config.f95', status='REPLACE', form='FORMATTED', action='WRITE', iostat=iserr)
 if (iserr .gt. 0) then
-  print *, \"an error occured opening the file 'config.f95', unable to continue\"
-  stop
+  stop \"an error occured opening the file 'config.f95', unable to continue\"
 end if
 open(unit=ch_num, file='config.h', status='REPLACE', form='FORMATTED', action='WRITE', iostat=iserr)
 if (iserr .gt. 0) then
-  print *, \"an error occured opening the file 'config.h', unable to continue\"
-  stop
+  stop \"an error occured opening the file 'config.h', unable to continue\"
 end if
 
 write(unit=fh_num, fmt="(' ',A)") "module config"
