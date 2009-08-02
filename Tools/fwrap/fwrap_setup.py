@@ -2,6 +2,7 @@ from distutils.errors import DistutilsFileError
 from Cython.Distutils import build_ext as cy_build_ext
 from numpy.distutils.command.build_ext import build_ext as np_build_ext
 from numpy.distutils.extension import Extension as np_extension
+from numpy.distutils.core import setup
 import os
 
 
