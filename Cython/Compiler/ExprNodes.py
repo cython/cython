@@ -1698,7 +1698,6 @@ class NameNode(AtomicExprNode):
 
     def generate_acquire_memoryview(self, rhs, code):
         import MemoryView
-        import pdb; pdb.set_trace()
         MemoryView.put_assign_to_memview(self.result(), rhs.result(), self.entry,
                                          is_initialized=not self.lhs_of_first_assignment,
                                          pos=self.pos, code=code)

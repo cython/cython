@@ -94,9 +94,9 @@ class CythonScope(ModuleScope):
         #
         self.memviewentry = entry = viewscope.declare_c_class(memview_name, None,
                 implementing=1,
-                objstruct_cname = memviewext_objstruct_cname,
-                typeobj_cname = memviewext_typeobj_cname,
-                typeptr_cname= memviewext_typeptr_cname)
+                objstruct_cname = memview_objstruct_cname,
+                typeobj_cname = memview_typeobj_cname,
+                typeptr_cname= memview_typeptr_cname)
 
         entry.utility_code_definition = view_utility_code
 
@@ -236,9 +236,9 @@ cdef object _testscope(int value):
 """)
 
 memview_name = u'memoryview'
-memviewext_typeptr_cname = Naming.typeptr_prefix+memview_name
-memviewext_typeobj_cname = '__pyx_tobj_'+memview_name
-memviewext_objstruct_cname = '__pyx_obj_'+memview_name
+memview_typeptr_cname = Naming.typeptr_prefix+memview_name
+memview_typeobj_cname = '__pyx_tobj_'+memview_name
+memview_objstruct_cname = '__pyx_obj_'+memview_name
 view_utility_code = CythonUtilityCode(u"""
 cdef class Enum(object):
     cdef object name
@@ -289,8 +289,8 @@ cdef extern from *:
     ctypedef struct __Pyx_mv_DimInfo:
         Py_ssize_t shape, strides, suboffsets
 
-    ctypedef struct __Pyx_memviewstruct:
-        __pyx_obj_memoryview *memviewext
+    ctypedef struct __Pyx_memviewslice:
+        __pyx_obj_memoryview *memview
         char *data
         __Pyx_mv_DimInfo diminfo[BUF_MAX_NDIMS]
 
@@ -316,13 +316,13 @@ cdef is_cf_contig(int *specs, int ndim):
 
     return is_c_contig, is_f_contig
     
-cdef object pyxmemview_from_memview(
+cdef object pyxmemviewslice_from_memview(
         memoryview memview,
         int *axes_specs, 
         int ndim, 
         Py_ssize_t itemsize,
         char *format,
-        __Pyx_memviewstruct *pyx_memview):
+        __Pyx_memviewslice *memviewslice):
 
     cdef int i
 
@@ -384,13 +384,13 @@ cdef object pyxmemview_from_memview(
             stride = stride * pybuf.shape[i]
 
     for i in range(ndim):
-        pyx_memview.diminfo[i].strides = pybuf.strides[i]
-        pyx_memview.diminfo[i].shape = pybuf.shape[i]
+        memviewslice.diminfo[i].strides = pybuf.strides[i]
+        memviewslice.diminfo[i].shape = pybuf.shape[i]
         if has_suboffsets:
-            pyx_memview.diminfo[i].suboffsets = pybuf.suboffsets[i]
+            memviewslice.diminfo[i].suboffsets = pybuf.suboffsets[i]
 
-    pyx_memview.memviewext = <__pyx_obj_memoryview*>memview
-    pyx_memview.data = <char *>pybuf.buf
+    memviewslice.memview = <__pyx_obj_memoryview*>memview
+    memviewslice.data = <char *>pybuf.buf
 
 """ % Options.buffer_max_dims, name="foobar", prefix="__pyx_viewaxis_")
 

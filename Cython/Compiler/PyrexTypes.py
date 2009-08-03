@@ -362,9 +362,9 @@ class MemoryViewType(PyrexType):
         assert not pyrex
         assert not dll_linkage
         import MemoryView
-        self.env.use_utility_code(MemoryView.memviewstruct_declare_code)
+        self.env.use_utility_code(MemoryView.memviewslice_declare_code)
         return self.base_declaration_code(
-                MemoryView.memviewstruct_cname,
+                MemoryView.memviewslice_cname,
                 entity_code)
 
 class BufferType(BaseType):
