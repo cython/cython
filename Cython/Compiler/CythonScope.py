@@ -316,7 +316,7 @@ cdef is_cf_contig(int *specs, int ndim):
 
     return is_c_contig, is_f_contig
     
-cdef object pyxmemviewslice_from_memview(
+cdef object init_memviewslice_from_memview(
         memoryview memview,
         int *axes_specs, 
         int ndim, 

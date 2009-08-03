@@ -7600,7 +7600,7 @@ class CoerceToMemViewNode(CoercionNode):
             code.putln("%s[%d] = %s;" % (spec_int_arr, idx, cspec))
         itemsize = self.type.dtype.sign_and_name()
         format = MemoryView.format_from_type(self.type.dtype)
-        code.putln("__pyx_viewaxis_pyxmemview_from_memview((struct __pyx_obj_memoryview *)%s, %s, %d, sizeof(%s), \"%s\", &%s);" % (memviewobj, spec_int_arr, ndim, itemsize, format, self.result()))
+        code.putln("__pyx_viewaxis_init_memviewslice_from_memview((struct __pyx_obj_memoryview *)%s, %s, %d, sizeof(%s), \"%s\", &%s);" % (memviewobj, spec_int_arr, ndim, itemsize, format, self.result()))
         code.funcstate.release_temp(memviewobj)
         code.funcstate.release_temp(spec_int_arr)
         code.putln('/* @@@ */')
