@@ -3,7 +3,7 @@
       logical, intent(in) :: i1
       logical, intent(inout) :: i2
       logical, intent(out) :: i3
-      i2 = .false.
+      i2 = .false. .and. i1
       i3 = .false.
       end subroutine
       subroutine log_x_len(i4,i5,i6,i7,i8,i9,i10,i11,i12,i13,i14,i15)
@@ -21,13 +21,13 @@
       logical*8, intent(inout) :: i14
       logical*8, intent(out) :: i15
 
-      i5= .false.
-      i6= .false.
+      i5= .false. .and. i4
+      i6= .false. .and. i7
       i8= .false.
-      i9= .false.
+      i9= .false. .and. i10
       i11= .false.
       i12= .false.
-      i14= .false.
+      i14= .false. .and. i13
       i15= .false.
 
       end subroutine
@@ -46,13 +46,13 @@
       logical(kind=8), intent(inout) :: i11
       logical(kind=8), intent(out) :: i12
 
-      i2= .false.
+      i2= .false. .and. i1
       i3= .false.
-      i5= .false.
+      i5= .false. .and. i4
       i6= .false.
-      i8= .false.
+      i8= .false. .and. i7
       i9= .false.
-      i11= .false.
+      i11= .false. .and. i10
       i12= .false.
 
       end subroutine
@@ -65,9 +65,9 @@
       logical(kind=kind(0)), intent(inout) :: i5
       logical(kind=kind(0)), intent(out) :: i6
 
-      i2= .false.
+      i2= .false. .and. i1
       i3= .false.
-      i5= .false.
+      i5= .false. .and. i4
       i6= .false.
 
       end subroutine
@@ -83,11 +83,11 @@
       logical(kind=selected_int_kind(10)), intent(inout) :: i8
       logical(kind=selected_int_kind(10)), intent(out) :: i9
 
-      i2= .false.
+      i2= .false. .and. i1
       i3= .false.
-      i5= .false.
+      i5= .false. .and. i4
       i6= .false.
-      i8= .false.
+      i8= .false. .and. i7
       i9= .false.
 
       end subroutine

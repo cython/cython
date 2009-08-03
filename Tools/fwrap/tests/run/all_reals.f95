@@ -4,8 +4,7 @@
           real, intent(in) :: r1
           real, intent(inout) :: r2
           real, intent(out) :: r3
-          r3 = r3 + r1 - r1
-          r2 = r2 + r3 - r3
+          r3 = r1 + r2
       end subroutine
       subroutine real_x_len(r10,r11,r12,r13,r14,r15)
           implicit none
@@ -15,6 +14,8 @@
           real*8, intent(in) :: r13
           real*8, intent(inout) :: r14
           real*8, intent(out) :: r15
+          r12 = r10 + r11
+          r15 = r13 + r14
       end subroutine
       subroutine real_kind_x(r7,r8,r9,r10,r11,r12)
           implicit none
@@ -24,6 +25,8 @@
           real(kind=8), intent(in) :: r10
           real(kind=8), intent(inout) :: r11
           real(kind=8), intent(out) :: r12
+          r9 = r7 + r8
+          r12 = r11 + r10
       end subroutine
       subroutine real_kind_call(r1,r2,r3,r4,r5,r6)
           implicit none
@@ -33,6 +36,8 @@
           real(kind=kind(0.0D0)), intent(in) :: r4
           real(kind=kind(0.0D0)), intent(inout) :: r5
           real(kind=kind(0.0D0)), intent(out) :: r6
+          r3 = r2 + r1
+          r6 = r4 + r5
       end subroutine
       subroutine real_srk_call(r1,r2,r3,r4,r5,r6,r7,r8,r9)
           implicit none
@@ -45,4 +50,7 @@
           real(kind=selected_real_kind(14)), intent(in) :: r7
           real(kind=selected_real_kind(14)), intent(inout) :: r8
           real(kind=selected_real_kind(14)), intent(out) :: r9
+          r3 = r1 + r2
+          r6 = r4 + r5
+          r9 = r7 + r8
       end subroutine
