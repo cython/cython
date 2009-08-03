@@ -332,22 +332,22 @@ spec_constants_code = UtilityCode(proto="""
 """
 )
 
-memviewstruct_cname = u'__Pyx_memviewstruct'
-memviewstruct_declare_code = UtilityCode(proto="""
+memviewslice_cname = u'__Pyx_memviewslice'
+memviewslice_declare_code = UtilityCode(proto="""
 
-/* memoryview struct */
+/* memoryview slice struct */
 
 typedef struct {
   Py_ssize_t shape, strides, suboffsets;
 } __Pyx_mv_DimInfo;
 
 typedef struct {
-  struct %s *memviewext;
+  struct %s *memview;
   char *data;
   __Pyx_mv_DimInfo diminfo[%d];
 } %s;
 
-""" % (CythonScope.memviewext_objstruct_cname,
+""" % (CythonScope.memview_objstruct_cname,
        Options.buffer_max_dims,
-       memviewstruct_cname)
+       memviewslice_cname)
 )
