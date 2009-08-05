@@ -257,6 +257,11 @@ cdef full = Enum("<full axis access mode>")
 cdef extern from *:
     int __Pyx_GetBuffer(object, Py_buffer *, int)
     void __Pyx_ReleaseBuffer(Py_buffer *)
+    void __Pyx_XDECREF(object)
+    void __Pyx_DECREF(object)
+    void __Pyx_GIVEREF(object)
+    void __Pyx_INCREF(object)
+    void __Pyx_GOTREF(object)
 
 
 cdef class memoryview(object):
@@ -389,9 +394,13 @@ cdef object init_memviewslice_from_memview(
         if has_suboffsets:
             memviewslice.diminfo[i].suboffsets = pybuf.suboffsets[i]
 
+    __Pyx_INCREF(<object>memview)
+    __Pyx_GIVEREF(<object>memview)
+    __Pyx_GOTREF(<object>memviewslice.memview)
+    __Pyx_DECREF(<object>memviewslice.memview)
     memviewslice.memview = <__pyx_obj_memoryview*>memview
-    memviewslice.data = <char *>pybuf.buf
 
+    memviewslice.data = <char *>pybuf.buf
 """ % Options.buffer_max_dims, name="foobar", prefix="__pyx_viewaxis_")
 
 cyarray_prefix = u'__pyx_cythonarray_'

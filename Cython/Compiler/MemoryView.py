@@ -5,6 +5,7 @@ import Options
 import CythonScope
 from Code import UtilityCode
 from UtilityCode import CythonUtilityCode
+from PyrexTypes import py_object_type, cython_memoryview_type
 
 START_ERR = "there must be nothing or the value 0 (zero) in the start slot."
 STOP_ERR = "Axis specification only allowed in the 'stop' slot."
@@ -64,9 +65,24 @@ _typename_to_format = {
 def format_from_type(base_type):
     return _typename_to_format[base_type.sign_and_name()]
 
-def put_assign_to_memview(lhs_cname, rhs_cname, buf_entry,
-                         is_initialized, pos, code):
-    pass
+def put_init_entry(mv_cname, code):
+    code.putln("%s.data = NULL;" % mv_cname)
+    code.put_init_to_py_none("%s.memview" % mv_cname, cython_memoryview_type)
+    code.put_giveref("%s.memview" % mv_cname)
+
+def put_assign_to_memview(lhs_cname, rhs_cname, memviewtype, pos, code):
+
+    # XXX: add error checks!
+
+    code.put_giveref("%s.memview" % (rhs_cname))
+    code.put_incref("%s.memview" % (rhs_cname), py_object_type)
+    code.put_gotref("%s.memview" % (lhs_cname))
+    code.put_xdecref("%s.memview" % (lhs_cname), py_object_type)
+    code.putln("%s.memview = %s.memview;" % (lhs_cname, rhs_cname))
+    code.putln("%s.data = %s.data;" % (lhs_cname, rhs_cname))
+    ndim = len(memviewtype.axes)
+    for i in range(ndim):
+        code.putln("%s.diminfo[%d] = %s.diminfo[%d];" % (lhs_cname, i, rhs_cname, i))
 
 def get_buf_flag(specs):
     is_c_contig, is_f_contig = is_cf_contig(specs)
@@ -100,6 +116,36 @@ def use_memview_util_code(env):
 def use_memview_cwrap(env):
     import CythonScope
     mv_cwrap_entry = use_cython_util_code(env, CythonScope.memview_cwrap_name)
+
+def src_conforms_to_dst(src, dst):
+    '''
+    returns True if src conforms to dst, False otherwise.
+
+    If conformable, the types are the same, the ndims are equal, and each axis spec is conformable.
+
+    Any packing/access spec is conformable to itself.
+
+    'contig' and 'follow' are conformable to 'strided'.
+
+    'direct' and 'ptr' are conformable to 'full'.
+
+    Any other combo is not conformable.
+    '''
+
+    if src.dtype != dst.dtype:
+        return False
+    if len(src.axes) != len(dst.axes):
+        return False
+
+    for src_spec, dst_spec in zip(src.axes, dst.axes):
+        src_access, src_packing = src_spec
+        dst_access, dst_packing = dst_spec
+        if src_access != dst_access and dst_access != 'strided':
+            return False
+        if src_packing != dst_packing and dst_packing != 'full':
+            return False
+
+    return True
 
 
 def get_axes_specs(env, axes):

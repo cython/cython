@@ -1185,10 +1185,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         type = scope.parent_type
         base_type = type.base_type
         py_attrs = []
+        memview_attrs = []
         for entry in scope.var_entries:
             if entry.type.is_pyobject:
                 py_attrs.append(entry)
-        need_self_cast = type.vtabslot_cname or py_attrs
+            elif entry.type.is_memoryview:
+                memview_attrs.append(entry)
+        need_self_cast = type.vtabslot_cname or py_attrs or memview_attrs
         code.putln("")
         code.putln(
             "static PyObject *%s(PyTypeObject *t, PyObject *a, PyObject *k) {"
@@ -1231,6 +1234,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("p->%s = 0;" % entry.cname)
             else:
                 code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
+        for entry in memview_attrs:
+            code.putln("p->%s.data = NULL;" % entry.cname)
+            code.put_init_to_py_none("p->%s.memview" % entry.cname,
+                    PyrexTypes.cython_memoryview_type, nanny=False)
         entry = scope.lookup_here("__new__")
         if entry and entry.is_special:
             if entry.trivial_signature:
@@ -2134,8 +2141,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # variables to None.
         for entry in env.var_entries:
             if entry.visibility != 'extern':
-                if entry.type.is_pyobject and entry.used:
-                    code.put_init_var_to_py_none(entry, nanny=False)
+                if entry.used:
+                    entry.type.global_init_code(entry, code)
 
     def generate_c_variable_export_code(self, env, code):
         # Generate code to create PyCFunction wrappers for exported C functions.

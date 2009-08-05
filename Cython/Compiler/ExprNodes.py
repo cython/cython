@@ -585,11 +585,15 @@ class ExprNode(Node):
             dst_type = dst_type.ref_base_type
 
         if dst_type.is_memoryview:
-            src = CoerceToMemViewNode(src, dst_type, env)
-            # src = AcquireBufferFromNode(src, env)
-            # src = CheckMemoryViewFormatNode(src, dst_type, env)
+            import MemoryView
+            if not src.type.is_memoryview:
+                src = CoerceToMemViewNode(src, dst_type, env)
+            elif not MemoryView.src_conforms_to_dst(src.type, dst_type):
+                error(self.pos, "Memoryview '%s' not conformable to memoryview '%s'." %
+                        (src.type, dst_type))
 
-        if dst_type.is_pyobject:
+
+        elif dst_type.is_pyobject:
             if not src.type.is_pyobject:
                 if dst_type is bytes_type and src.type.is_int:
                     src = CoerceIntToBytesNode(src, env)
@@ -1653,7 +1657,7 @@ class NameNode(AtomicExprNode):
             if self.type.is_memoryview:
                 self.generate_acquire_memoryview(rhs, code)
 
-            if self.type.is_buffer:
+            elif self.type.is_buffer:
                 # Generate code for doing the buffer release/acquisition.
                 # This might raise an exception in which case the assignment (done
                 # below) will not happen.
@@ -1687,9 +1691,8 @@ class NameNode(AtomicExprNode):
                                 code.put_decref(self.result(), self.ctype())
                     if is_external_ref:
                         code.put_giveref(rhs.py_result())
-
-            code.putln('%s = %s;' % (self.result(),
-                                     rhs.result_as(self.ctype())))
+            if not self.type.is_memoryview:
+                code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
                 print("...generating post-assignment code for %s" % rhs)
@@ -1698,9 +1701,10 @@ class NameNode(AtomicExprNode):
 
     def generate_acquire_memoryview(self, rhs, code):
         import MemoryView
-        MemoryView.put_assign_to_memview(self.result(), rhs.result(), self.entry,
-                                         is_initialized=not self.lhs_of_first_assignment,
+        MemoryView.put_assign_to_memview(self.result(), rhs.result(), self.type,
                                          pos=self.pos, code=code)
+        if rhs.is_temp:
+            code.put_xdecref_clear("%s.memview" % rhs.result(), py_object_type)
 
     def generate_acquire_buffer(self, rhs, code):
         # rhstmp is only used in case the rhs is a complicated expression leading to
@@ -3940,11 +3944,18 @@ class AttributeNode(ExprNode):
                 code.put_giveref(rhs.py_result())
                 code.put_gotref(select_code)
                 code.put_decref(select_code, self.ctype())
-            code.putln(
-                "%s = %s;" % (
-                    select_code,
-                    rhs.result_as(self.ctype())))
-                    #rhs.result()))
+            elif self.type.is_memoryview:
+                import MemoryView
+                MemoryView.put_assign_to_memview(select_code, rhs.result(), self.type,
+                        pos=self.pos, code=code)
+                if rhs.is_temp:
+                    code.put_xdecref_clear("%s.memview" % rhs.result(), py_object_type)
+            if not self.type.is_memoryview:
+                code.putln(
+                    "%s = %s;" % (
+                        select_code,
+                        rhs.result_as(self.ctype())))
+                        #rhs.result()))
             rhs.generate_post_assignment_code(code)
             rhs.free_temps(code)
         self.obj.generate_disposal_code(code)
@@ -7583,27 +7594,35 @@ class CoerceToMemViewNode(CoercionNode):
 
     def __init__(self, arg, dst_type, env):
         assert dst_type.is_memoryview
+        assert not arg.type.is_memoryview
         CoercionNode.__init__(self, arg)
         self.type = dst_type
-        self.is_temp = 1
         self.env = env
+        self.is_temp = 1
 
     def generate_result_code(self, code):
         import MemoryView
         memviewobj = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
         buf_flag = MemoryView.get_buf_flag(self.type.axes)
-        code.putln("%s = (PyObject *)__pyx_viewaxis_memoryview_cwrapper(%s, %s);" % (memviewobj, self.arg.result(), buf_flag))
+        code.putln("%s = (PyObject *)"
+                "__pyx_viewaxis_memoryview_cwrapper(%s, %s);" %\
+                        (memviewobj, self.arg.result(), buf_flag))
         ndim = len(self.type.axes)
-        spec_int_arr = code.funcstate.allocate_temp(PyrexTypes.c_array_type(PyrexTypes.c_int_type, ndim),manage_ref=True)
+        spec_int_arr = code.funcstate.allocate_temp(
+                PyrexTypes.c_array_type(PyrexTypes.c_int_type, ndim),
+                manage_ref=False)
         specs_code = MemoryView.specs_to_code(self.type.axes)
         for idx, cspec in enumerate(specs_code):
             code.putln("%s[%d] = %s;" % (spec_int_arr, idx, cspec))
         itemsize = self.type.dtype.sign_and_name()
         format = MemoryView.format_from_type(self.type.dtype)
-        code.putln("__pyx_viewaxis_init_memviewslice_from_memview((struct __pyx_obj_memoryview *)%s, %s, %d, sizeof(%s), \"%s\", &%s);" % (memviewobj, spec_int_arr, ndim, itemsize, format, self.result()))
+        MemoryView.put_init_entry(self.result(), code)
+        code.putln("__pyx_viewaxis_init_memviewslice_from_memview"
+                "((struct __pyx_obj_memoryview *)%s, %s, %d, sizeof(%s), \"%s\", &%s);" %\
+                (memviewobj, spec_int_arr, ndim, itemsize, format, self.result()))
+        code.put_gotref("%s.memview" % self.result())
         code.funcstate.release_temp(memviewobj)
         code.funcstate.release_temp(spec_int_arr)
-        code.putln('/* @@@ */')
 
 class CastNode(CoercionNode):
     #  Wrap a node in a C type cast.

@@ -12,7 +12,6 @@ def f():
     cdef memoryview mv = memoryview(arr, PyBUF_C_CONTIGUOUS)
 
 def g():
-    # cdef int[::1] mview = array((10,), itemsize=sizeof(int), format='i')
     cdef int[::1] mview = array((10,), itemsize=sizeof(int), format='i')
     mview = array((10,), itemsize=sizeof(int), format='i')
 
@@ -36,6 +35,8 @@ cdef float[:,::1] global_mv = array((10,10), itemsize=sizeof(float), format='f')
 global_mv = array((10,10), itemsize=sizeof(float), format='f')
 
 def call():
+    global global_mv
+    global_mv = array((3,3), itemsize=sizeof(float), format='f')
     cdg()
     f = Foo()
     pf = pyfoo()

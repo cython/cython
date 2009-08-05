@@ -170,6 +170,10 @@ class PyrexType(BaseType):
         # type information of the struct.
         return 1
 
+    def global_init_code(self, entry, code):
+        # abstract
+        raise NotImplementedError()
+
 
 def public_decl(base_code, dll_linkage):
     if dll_linkage:
@@ -362,10 +366,15 @@ class MemoryViewType(PyrexType):
         assert not pyrex
         assert not dll_linkage
         import MemoryView
-        self.env.use_utility_code(MemoryView.memviewslice_declare_code)
+        if not for_display:
+            self.env.use_utility_code(MemoryView.memviewslice_declare_code)
         return self.base_declaration_code(
                 MemoryView.memviewslice_cname,
                 entity_code)
+
+    def global_init_code(self, entry, code):
+        code.putln("%s.data = NULL;" % entry.cname)
+        code.put_init_to_py_none("%s.memview" % entry.cname, cython_memoryview_type, nanny=False)
 
 class BufferType(BaseType):
     #
@@ -446,6 +455,12 @@ class PyObjectType(PyrexType):
             return "(PyObject *)" + cname
         else:
             return cname
+
+    def invalid_value(self):
+        return "1"
+
+    def global_init_code(self, entry, code):
+        code.put_init_var_to_py_none(entry, nanny=False)
 
 
 class BuiltinObjectType(PyObjectType):
@@ -2547,8 +2562,8 @@ c_pyx_buffer_ptr_type = CPtrType(c_pyx_buffer_type)
 c_pyx_buffer_nd_type = CStructOrUnionType("__Pyx_LocalBuf_ND", "struct",
                                       None, 1, "__Pyx_LocalBuf_ND")
 
-cython_memoryview_type = CStructOrUnionType("__pyx_obj_memoryview", "struct",
-                                      None, 1, "__pyx_obj_memoryview")
+cython_memoryview_type = CPtrType(CStructOrUnionType("__pyx_obj_memoryview", "struct",
+                                      None, 0, "__pyx_obj_memoryview"))
 
 
 error_type =    ErrorType()
