@@ -1032,7 +1032,7 @@ class FuncDefNode(StatNode, BlockNode):
         return lenv
                 
     def generate_function_definitions(self, env, code):
-        import Buffer
+        import Buffer, MemoryView
 
         lenv = self.local_scope
 
@@ -1098,6 +1098,10 @@ class FuncDefNode(StatNode, BlockNode):
         for entry in lenv.var_entries + lenv.arg_entries:
             if entry.type.is_buffer and entry.buffer_aux.buflocal_nd_var.used:
                 Buffer.put_init_vars(entry, code)
+        # ----- Initialise local memoryviews
+        for entry in lenv.var_entries + lenv.arg_entries:
+            if entry.type.is_memoryview:
+                MemoryView.put_init_entry(entry.cname, code)
         # ----- Check and convert arguments
         self.generate_argument_type_tests(code)
         # ----- Acquire buffer arguments
