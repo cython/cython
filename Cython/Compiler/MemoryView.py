@@ -70,7 +70,7 @@ def put_init_entry(mv_cname, code):
     code.put_init_to_py_none("%s.memview" % mv_cname, cython_memoryview_type)
     code.put_giveref("%s.memview" % mv_cname)
 
-def put_assign_to_memview(lhs_cname, rhs_cname, memviewtype, pos, code):
+def put_assign_to_memviewslice(lhs_cname, rhs_cname, memviewslicetype, pos, code):
 
     # XXX: add error checks!
 
@@ -80,7 +80,7 @@ def put_assign_to_memview(lhs_cname, rhs_cname, memviewtype, pos, code):
     code.put_xdecref("%s.memview" % (lhs_cname), py_object_type)
     code.putln("%s.memview = %s.memview;" % (lhs_cname, rhs_cname))
     code.putln("%s.data = %s.data;" % (lhs_cname, rhs_cname))
-    ndim = len(memviewtype.axes)
+    ndim = len(memviewslicetype.axes)
     for i in range(ndim):
         code.putln("%s.diminfo[%d] = %s.diminfo[%d];" % (lhs_cname, i, rhs_cname, i))
 
@@ -328,18 +328,18 @@ def _resolve_AttributeNode(env, node):
         scope = scope.lookup(modname).as_module
     return scope.lookup(path[-1])
 
-class MemoryViewTransform(CythonTransform):
+class MemoryViewSliceTransform(CythonTransform):
 
     memviews_exist = False
 
     def __call__(self, node):
-        return super(MemoryViewTransform, self).__call__(node)
+        return super(MemoryViewSliceTransform, self).__call__(node)
 
     def inspect_scope(self, node, scope):
 
         memviewvars = [entry for name, entry
                 in scope.entries.iteritems()
-                if entry.type.is_memoryview]
+                if entry.type.is_memoryviewslice]
         if memviewvars:
             self.memviews_exist = True
 
