@@ -114,7 +114,7 @@ class PyrexType(BaseType):
     is_returncode = 0
     is_error = 0
     is_buffer = 0
-    is_memoryview = 0
+    is_memoryviewslice = 0
     has_attributes = 0
     default_value = ""
 
@@ -313,13 +313,13 @@ class CTypedefType(BaseType):
     def __getattr__(self, name):
         return getattr(self.typedef_base_type, name)
 
-class MemoryViewType(PyrexType):
+class MemoryViewSliceType(PyrexType):
 
-    is_memoryview = 1
+    is_memoryviewslice = 1
 
     def __init__(self, base_dtype, axes, env):
         '''
-        MemoryViewType(base, axes)
+        MemoryViewSliceType(base, axes)
 
         Base is the C base type; axes is a list of (access, packing) strings,
         where access is one of 'full', 'direct' or 'ptr' and packing is one of
@@ -357,7 +357,7 @@ class MemoryViewType(PyrexType):
         self.env = env
 
     def is_complete(self):
-        # incomplete since the underlying struct doesn't have a memoryview.
+        # incomplete since the underlying struct doesn't have a cython.memoryview object.
         return 0
 
     def declaration_code(self, entity_code,

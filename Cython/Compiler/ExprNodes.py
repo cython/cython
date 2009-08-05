@@ -584,10 +584,10 @@ class ExprNode(Node):
         if dst_type.is_reference:
             dst_type = dst_type.ref_base_type
 
-        if dst_type.is_memoryview:
+        if dst_type.is_memoryviewslice:
             import MemoryView
-            if not src.type.is_memoryview:
-                src = CoerceToMemViewNode(src, dst_type, env)
+            if not src.type.is_memoryviewslice:
+                src = CoerceToMemViewSliceNode(src, dst_type, env)
             elif not MemoryView.src_conforms_to_dst(src.type, dst_type):
                 error(self.pos, "Memoryview '%s' not conformable to memoryview '%s'." %
                         (src.type, dst_type))
@@ -1654,8 +1654,8 @@ class NameNode(AtomicExprNode):
                 rhs.generate_disposal_code(code)
                 rhs.free_temps(code)
         else:
-            if self.type.is_memoryview:
-                self.generate_acquire_memoryview(rhs, code)
+            if self.type.is_memoryviewslice:
+                self.generate_acquire_memoryviewslice(rhs, code)
 
             elif self.type.is_buffer:
                 # Generate code for doing the buffer release/acquisition.
@@ -1691,7 +1691,7 @@ class NameNode(AtomicExprNode):
                                 code.put_decref(self.result(), self.ctype())
                     if is_external_ref:
                         code.put_giveref(rhs.py_result())
-            if not self.type.is_memoryview:
+            if not self.type.is_memoryviewslice:
                 code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
@@ -1699,9 +1699,9 @@ class NameNode(AtomicExprNode):
             rhs.generate_post_assignment_code(code)
             rhs.free_temps(code)
 
-    def generate_acquire_memoryview(self, rhs, code):
+    def generate_acquire_memoryviewslice(self, rhs, code):
         import MemoryView
-        MemoryView.put_assign_to_memview(self.result(), rhs.result(), self.type,
+        MemoryView.put_assign_to_memviewslice(self.result(), rhs.result(), self.type,
                                          pos=self.pos, code=code)
         if rhs.is_temp:
             code.put_xdecref_clear("%s.memview" % rhs.result(), py_object_type)
@@ -3944,13 +3944,13 @@ class AttributeNode(ExprNode):
                 code.put_giveref(rhs.py_result())
                 code.put_gotref(select_code)
                 code.put_decref(select_code, self.ctype())
-            elif self.type.is_memoryview:
+            elif self.type.is_memoryviewslice:
                 import MemoryView
-                MemoryView.put_assign_to_memview(select_code, rhs.result(), self.type,
+                MemoryView.put_assign_to_memviewslice(select_code, rhs.result(), self.type,
                         pos=self.pos, code=code)
                 if rhs.is_temp:
                     code.put_xdecref_clear("%s.memview" % rhs.result(), py_object_type)
-            if not self.type.is_memoryview:
+            if not self.type.is_memoryviewslice:
                 code.putln(
                     "%s = %s;" % (
                         select_code,
@@ -7590,11 +7590,11 @@ class CoercionNode(ExprNode):
             file, line, col = self.pos
             code.annotate((file, line, col-1), AnnotationItem(style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
 
-class CoerceToMemViewNode(CoercionNode):
+class CoerceToMemViewSliceNode(CoercionNode):
 
     def __init__(self, arg, dst_type, env):
-        assert dst_type.is_memoryview
-        assert not arg.type.is_memoryview
+        assert dst_type.is_memoryviewslice
+        assert not arg.type.is_memoryviewslice
         CoercionNode.__init__(self, arg)
         self.type = dst_type
         self.env = env

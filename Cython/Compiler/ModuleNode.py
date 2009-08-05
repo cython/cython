@@ -1185,13 +1185,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         type = scope.parent_type
         base_type = type.base_type
         py_attrs = []
-        memview_attrs = []
+        memviewslice_attrs = []
         for entry in scope.var_entries:
             if entry.type.is_pyobject:
                 py_attrs.append(entry)
-            elif entry.type.is_memoryview:
-                memview_attrs.append(entry)
-        need_self_cast = type.vtabslot_cname or py_attrs or memview_attrs
+            elif entry.type.is_memoryviewslice:
+                memviewslice_attrs.append(entry)
+        need_self_cast = type.vtabslot_cname or py_attrs or memviewslice_attrs
         code.putln("")
         code.putln(
             "static PyObject *%s(PyTypeObject *t, PyObject *a, PyObject *k) {"
@@ -1234,7 +1234,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("p->%s = 0;" % entry.cname)
             else:
                 code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
-        for entry in memview_attrs:
+        for entry in memviewslice_attrs:
             code.putln("p->%s.data = NULL;" % entry.cname)
             code.put_init_to_py_none("p->%s.memview" % entry.cname,
                     PyrexTypes.cython_memoryview_type, nanny=False)

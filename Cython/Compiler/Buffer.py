@@ -54,10 +54,10 @@ class IntroduceBufferAuxiliaryVars(CythonTransform):
         if len(bufvars) > 0:
             self.buffers_exists = True
 
-        memviewvars = [entry for name, entry
+        memviewslicevars = [entry for name, entry
                 in scope.entries.iteritems()
-                if entry.type.is_memoryview]
-        if len(memviewvars) > 0:
+                if entry.type.is_memoryviewslice]
+        if len(memviewslicevars) > 0:
             self.buffers_exists = True
 
 

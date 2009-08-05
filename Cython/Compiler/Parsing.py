@@ -2002,6 +2002,7 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
         complex = complex, longness = longness,
         is_self_arg = self_flag, templates = templates)
 
+    #    declarations here.
     if s.sy == '[':
         if is_memoryviewslice_access(s):
             type_node = p_memoryview_access(s, type_node)
@@ -2043,24 +2044,25 @@ def p_bracketed_base_type(s, base_type_node, nonempty, empty):
         # sizeof-like thing.  Only anonymous C arrays allowed (int[SIZE]).
         return base_type_node
     elif not empty and nonempty:
-        # declaration of either memoryview or buffer.
-        if is_memoryview_access(s):
-            return p_memoryview_access(s, base_type_node)
+        # declaration of either memoryview slice or buffer.
+        if is_memoryviewslice_access(s):
+            return p_memoryviewslice_access(s, base_type_node)
         else:
             return p_buffer_access(s, base_type_node)
     elif not empty and not nonempty:
-        # only anonymous C arrays and memoryview arrays here.  We disallow buffer
-        # declarations for now, due to ambiguity with anonymous C arrays.
-        if is_memoryview_access(s):
-            return p_memoryview_access(s, base_type_node)
+        # only anonymous C arrays and memoryview slice arrays here.  We
+        # disallow buffer declarations for now, due to ambiguity with anonymous
+        # C arrays.
+        if is_memoryviewslice_access(s):
+            return p_memoryviewslice_access(s, base_type_node)
         else:
             return base_type_node
 
-def is_memoryview_access(s):
+def is_memoryviewslice_access(s):
     # s.sy == '['
-    # a memoryview declaration is distinguishable from a buffer access
+    # a memoryview slice declaration is distinguishable from a buffer access
     # declaration by the first entry in the bracketed list.  The buffer will
-    # not have an unnested colon in the first entry; the memoryview will.
+    # not have an unnested colon in the first entry; the memoryview slice will.
     saved = [(s.sy, s.systring)]
     s.next()
     retval = False
@@ -2077,7 +2079,7 @@ def is_memoryview_access(s):
 
     return retval
 
-def p_memoryview_access(s, base_type_node):
+def p_memoryviewslice_access(s, base_type_node):
     # s.sy == '['
     pos = s.position()
     s.next()
@@ -2088,7 +2090,7 @@ def p_memoryview_access(s, base_type_node):
             s.error("An axis specification in memoryview declaration does not have a ':'.")
     s.expect(']')
     indexes = make_slice_nodes(pos, subscripts)
-    result = Nodes.MemoryViewTypeNode(pos,
+    result = Nodes.MemoryViewSliceTypeNode(pos,
             base_type_node = base_type_node,
             axes = indexes)
     return result
