@@ -5,7 +5,7 @@ import Options
 import CythonScope
 from Code import UtilityCode
 from UtilityCode import CythonUtilityCode
-from PyrexTypes import py_object_type, cython_memoryview_type
+from PyrexTypes import py_object_type, cython_memoryview_ptr_type
 
 START_ERR = "there must be nothing or the value 0 (zero) in the start slot."
 STOP_ERR = "Axis specification only allowed in the 'stop' slot."
@@ -67,17 +67,11 @@ def format_from_type(base_type):
 
 def put_init_entry(mv_cname, code):
     code.putln("%s.data = NULL;" % mv_cname)
-    code.put_init_to_py_none("%s.memview" % mv_cname, cython_memoryview_type)
-    code.put_giveref("%s.memview" % mv_cname)
+    code.put_init_to_py_none("%s.memview" % mv_cname, cython_memoryview_ptr_type)
+    code.put_giveref(code.as_pyobject("%s.memview" % mv_cname, cython_memoryview_ptr_type))
 
 def put_assign_to_memviewslice(lhs_cname, rhs_cname, memviewslicetype, pos, code):
 
-    # XXX: add error checks!
-
-    code.put_giveref("%s.memview" % (rhs_cname))
-    code.put_incref("%s.memview" % (rhs_cname), py_object_type)
-    code.put_gotref("%s.memview" % (lhs_cname))
-    code.put_xdecref("%s.memview" % (lhs_cname), py_object_type)
     code.putln("%s.memview = %s.memview;" % (lhs_cname, rhs_cname))
     code.putln("%s.data = %s.data;" % (lhs_cname, rhs_cname))
     ndim = len(memviewslicetype.axes)

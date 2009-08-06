@@ -155,7 +155,7 @@ class PyrexType(BaseType):
 
     def global_init_code(self, entry, code):
         # abstract
-        raise NotImplementedError()
+        pass
 
 class CTypedefType(BaseType):
     #
@@ -285,7 +285,7 @@ class MemoryViewSliceType(PyrexType):
 
     def global_init_code(self, entry, code):
         code.putln("%s.data = NULL;" % entry.cname)
-        code.put_init_to_py_none("%s.memview" % entry.cname, cython_memoryview_type, nanny=False)
+        code.put_init_to_py_none("%s.memview" % entry.cname, cython_memoryview_ptr_type, nanny=False)
 
 class BufferType(BaseType):
     #
@@ -1642,9 +1642,10 @@ c_pyx_buffer_ptr_type = CPtrType(c_pyx_buffer_type)
 c_pyx_buffer_nd_type = CStructOrUnionType("__Pyx_LocalBuf_ND", "struct",
                                       None, 1, "__Pyx_LocalBuf_ND")
 
-cython_memoryview_type = CPtrType(CStructOrUnionType("__pyx_obj_memoryview", "struct",
-                                      None, 0, "__pyx_obj_memoryview"))
+cython_memoryview_type = CStructOrUnionType("__pyx_obj_memoryview", "struct",
+                                      None, 0, "__pyx_obj_memoryview")
 
+cython_memoryview_ptr_type = CPtrType(cython_memoryview_type)
 
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()
