@@ -22,7 +22,7 @@ import Nodes
 from Nodes import Node
 import PyrexTypes
 from PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
-     unspecified_type
+     unspecified_type, cython_memoryview_ptr_type
 import TypeSlots
 from Builtin import list_type, tuple_type, set_type, dict_type, \
      unicode_type, str_type, bytes_type, type_type
@@ -1693,18 +1693,35 @@ class NameNode(AtomicExprNode):
                         code.put_giveref(rhs.py_result())
             if not self.type.is_memoryviewslice:
                 code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
-            if debug_disposal_code:
-                print("NameNode.generate_assignment_code:")
-                print("...generating post-assignment code for %s" % rhs)
-            rhs.generate_post_assignment_code(code)
+                if debug_disposal_code:
+                    print("NameNode.generate_assignment_code:")
+                    print("...generating post-assignment code for %s" % rhs)
+                rhs.generate_post_assignment_code(code)
             rhs.free_temps(code)
 
     def generate_acquire_memoryviewslice(self, rhs, code):
+        # to explicitly manange the memviewslice.memview object correctly.
         import MemoryView
+        assert rhs.type.is_memoryviewslice
+        if not rhs.result_in_temp():
+            code.put_incref("%s.memview" % rhs.result(), cython_memoryview_ptr_type)
+
+        if self.entry.is_cglobal:
+            code.put_gotref("%s.memview" % self.result())
+
+        if not self.lhs_of_first_assignment:
+            if self.entry.is_local and not Options.init_local_none:
+                code.put_xdecref("%s.memview" % self.result(), cython_memoryview_ptr_type)
+            else:
+                code.put_decref("%s.memview" % self.result(), cython_memoryview_ptr_type)
+
+        if self.entry.is_cglobal:
+            code.put_giveref("%s.memview" % rhs.result())
+
         MemoryView.put_assign_to_memviewslice(self.result(), rhs.result(), self.type,
                                          pos=self.pos, code=code)
-        if rhs.is_temp:
-            code.put_xdecref_clear("%s.memview" % rhs.result(), py_object_type)
+        if rhs.result_in_temp():
+            code.putln("%s.memview = 0;" % rhs.result())
 
     def generate_acquire_buffer(self, rhs, code):
         # rhstmp is only used in case the rhs is a complicated expression leading to
@@ -3949,7 +3966,7 @@ class AttributeNode(ExprNode):
                 MemoryView.put_assign_to_memviewslice(select_code, rhs.result(), self.type,
                         pos=self.pos, code=code)
                 if rhs.is_temp:
-                    code.put_xdecref_clear("%s.memview" % rhs.result(), py_object_type)
+                    code.put_xdecref_clear("%s.memview" % rhs.result(), cython_memoryview_ptr_type)
             if not self.type.is_memoryviewslice:
                 code.putln(
                     "%s = %s;" % (
@@ -7620,7 +7637,7 @@ class CoerceToMemViewSliceNode(CoercionNode):
         code.putln("__pyx_viewaxis_init_memviewslice_from_memview"
                 "((struct __pyx_obj_memoryview *)%s, %s, %d, sizeof(%s), \"%s\", &%s);" %\
                 (memviewobj, spec_int_arr, ndim, itemsize, format, self.result()))
-        code.put_gotref("%s.memview" % self.result())
+        code.put_gotref(code.as_pyobject("%s.memview" % self.result(), cython_memoryview_ptr_type))
         code.funcstate.release_temp(memviewobj)
         code.funcstate.release_temp(spec_int_arr)
 

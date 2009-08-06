@@ -17,7 +17,7 @@ from Errors import error, warning, InternalError, CompileError
 import Naming
 import PyrexTypes
 import TypeSlots
-from PyrexTypes import py_object_type, error_type, CFuncType
+from PyrexTypes import py_object_type, error_type, CTypedefType, CFuncType, cython_memoryview_ptr_type
 from Symtab import ModuleScope, LocalScope, ClosureScope, \
     StructOrUnionScope, PyClassScope, CClassScope, CppClassScope
 from Cython.Utils import open_new_file, replace_suffix
@@ -1424,12 +1424,14 @@ class FuncDefNode(StatNode, BlockNode):
             if entry.type.is_pyobject:
                 if (acquire_gil or entry.assignments) and not entry.in_closure:
                     code.put_var_incref(entry)
+            if entry.type.is_memoryviewslice:
+                code.put_incref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
             if entry.type.is_buffer and entry.buffer_aux.buflocal_nd_var.used:
                 Buffer.put_init_vars(entry, code)
-        # ----- Initialise local memoryview slices
-        for entry in lenv.var_entries + lenv.arg_entries:
+        # ----- Initialise local memoryviewslices
+        for entry in lenv.var_entries:
             if entry.type.is_memoryviewslice:
                 MemoryView.put_init_entry(entry.cname, code)
         # ----- Check and convert arguments
@@ -1533,14 +1535,20 @@ class FuncDefNode(StatNode, BlockNode):
         code.put_label(code.return_from_error_cleanup_label)
 
         for entry in lenv.var_entries:
+            if not entry.used or entry.in_closure:
+                continue
+            if entry.type.is_memoryviewslice:
+                code.put_xdecref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
             if entry.type.is_pyobject:
-                if entry.used and not entry.in_closure:
-                    code.put_var_decref(entry)
+                code.put_var_decref(entry)
+
         # Decref any increfed args
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
                 if (acquire_gil or entry.assignments) and not entry.in_closure:
                     code.put_var_decref(entry)
+            if entry.type.is_memoryviewslice:
+                code.put_decref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
         if self.needs_closure:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
 
@@ -1600,7 +1608,7 @@ class FuncDefNode(StatNode, BlockNode):
     def declare_argument(self, env, arg):
         if arg.type.is_void:
             error(arg.pos, "Invalid use of 'void'")
-        elif not arg.type.is_complete() and not arg.type.is_array:
+        elif not arg.type.is_complete() and not (arg.type.is_array or arg.type.is_memoryviewslice):
             error(arg.pos,
                 "Argument type '%s' is incomplete" % arg.type)
         return env.declare_arg(arg.name, arg.type, arg.pos)
