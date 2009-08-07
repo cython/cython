@@ -67,8 +67,41 @@ def format_from_type(base_type):
 
 def put_init_entry(mv_cname, code):
     code.putln("%s.data = NULL;" % mv_cname)
-    code.put_init_to_py_none("%s.memview" % mv_cname, cython_memoryview_ptr_type)
-    code.put_giveref(code.as_pyobject("%s.memview" % mv_cname, cython_memoryview_ptr_type))
+    code.putln("%s.memview = NULL;" % mv_cname)
+
+def gen_acquire_memoryviewslice(rhs, lhs_type, lhs_is_cglobal, lhs_result, lhs_pos, code):
+    # import MemoryView
+    assert rhs.type.is_memoryviewslice
+
+    pretty_rhs = isinstance(rhs, NameNode) or rhs.result_in_temp()
+    if pretty_rhs:
+        rhstmp = rhs.result()
+    else:
+        rhstmp = code.funcstate.allocate_temp(lhs_type, manage_ref=False)
+        code.putln("%s = %s;" % (rhstmp, rhs.result_as(lhs_type)))
+
+    if not rhs.result_in_temp():
+        code.put_incref("%s.memview" % rhstmp, cython_memoryview_ptr_type)
+
+    if lhs_is_cglobal:
+        code.put_gotref("%s.memview" % lhs_result)
+
+    #XXX: this is here because self.lhs_of_first_assignment is not set correctly,
+    #     once that is working this should take that flag into account.
+    #     See NameNode.generate_assignment_code
+    code.put_xdecref("%s.memview" % lhs_result, cython_memoryview_ptr_type)
+
+    if lhs_is_cglobal:
+        code.put_giveref("%s.memview" % rhstmp)
+
+    put_assign_to_memviewslice(lhs_result, rhstmp, lhs_type,
+                                     lhs_pos, code=code)
+
+    if rhs.result_in_temp() or not pretty_rhs:
+        code.putln("%s.memview = 0;" % rhstmp)
+
+    if not pretty_rhs:
+        code.funcstate.release_temp(rhstmp)
 
 def put_assign_to_memviewslice(lhs_cname, rhs_cname, memviewslicetype, pos, code):
 
