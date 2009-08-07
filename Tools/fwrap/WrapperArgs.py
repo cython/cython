@@ -3,6 +3,9 @@ from fparser.block_statements import Function, SubProgramStatement, \
         EndFunction, EndSubroutine, Interface
 from utils import warning, mangle_prefix, valid_name
 
+class WrapperError(Exception):
+    pass
+
 def _get_type_name(var):
     return var.typedecl.name.lower().replace(' ', '')
 
