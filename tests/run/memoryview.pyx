@@ -2,6 +2,7 @@ u'''
 >>> f()
 >>> g()
 >>> call()
+>>> assignmvs()
 '''
 
 from cython.view cimport memoryview
@@ -9,9 +10,21 @@ from cython cimport array, PyBUF_C_CONTIGUOUS
 
 def init_obj():
     return 3
+
 cdef passmvs(float[:,::1] mvs, object foo):
     mvs = array((10,10), itemsize=sizeof(float), format='f')
     foo = init_obj()
+
+cdef object returnobj():
+    cdef obj = object()
+    return obj
+
+cdef float[::1] returnmvs_inner():
+    return array((10,), itemsize=sizeof(float), format='f')
+
+cdef float[::1] returnmvs():
+    cdef float[::1] mvs = returnmvs_inner()
+    return mvs
 
 def f():
     cdef array arr = array(shape=(10,10), itemsize=sizeof(int), format='i')
@@ -43,10 +56,20 @@ cdef float[:,::1] global_mv = array((10,10), itemsize=sizeof(float), format='f')
 global_mv = array((10,10), itemsize=sizeof(float), format='f')
 cdef object global_obj
 
+def assignmvs():
+    cdef int[::1] mv1, mv2
+    mv1 = array((10,), itemsize=sizeof(int), format='i')
+    mv2 = mv1
+    mv1 = mv2
+
 def call():
     global global_mv
     passmvs(global_mv, global_obj)
     global_mv = array((3,3), itemsize=sizeof(float), format='f')
+    cdef float[::1] getmvs = returnmvs()
+    returnmvs()
+    cdef object obj = returnobj()
     cdg()
     f = Foo()
     pf = pyfoo()
+

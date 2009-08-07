@@ -1655,7 +1655,10 @@ class NameNode(AtomicExprNode):
                 rhs.free_temps(code)
         else:
             if self.type.is_memoryviewslice:
-                self.generate_acquire_memoryviewslice(rhs, code)
+                import MemoryView
+                MemoryView.gen_acquire_memoryviewslice(rhs, self.type,
+                        self.entry.is_cglobal, self.result(), self.pos, code)
+                # self.generate_acquire_memoryviewslice(rhs, code)
 
             elif self.type.is_buffer:
                 # Generate code for doing the buffer release/acquisition.
@@ -1698,30 +1701,6 @@ class NameNode(AtomicExprNode):
                     print("...generating post-assignment code for %s" % rhs)
                 rhs.generate_post_assignment_code(code)
             rhs.free_temps(code)
-
-    def generate_acquire_memoryviewslice(self, rhs, code):
-        # to explicitly manange the memviewslice.memview object correctly.
-        import MemoryView
-        assert rhs.type.is_memoryviewslice
-        if not rhs.result_in_temp():
-            code.put_incref("%s.memview" % rhs.result(), cython_memoryview_ptr_type)
-
-        if self.entry.is_cglobal:
-            code.put_gotref("%s.memview" % self.result())
-
-        if not self.lhs_of_first_assignment:
-            if self.entry.is_local and not Options.init_local_none:
-                code.put_xdecref("%s.memview" % self.result(), cython_memoryview_ptr_type)
-            else:
-                code.put_decref("%s.memview" % self.result(), cython_memoryview_ptr_type)
-
-        if self.entry.is_cglobal:
-            code.put_giveref("%s.memview" % rhs.result())
-
-        MemoryView.put_assign_to_memviewslice(self.result(), rhs.result(), self.type,
-                                         pos=self.pos, code=code)
-        if rhs.result_in_temp():
-            code.putln("%s.memview = 0;" % rhs.result())
 
     def generate_acquire_buffer(self, rhs, code):
         # rhstmp is only used in case the rhs is a complicated expression leading to
@@ -7623,7 +7602,7 @@ class CoerceToMemViewSliceNode(CoercionNode):
         buf_flag = MemoryView.get_buf_flag(self.type.axes)
         code.putln("%s = (PyObject *)"
                 "__pyx_viewaxis_memoryview_cwrapper(%s, %s);" %\
-                        (memviewobj, self.arg.result(), buf_flag))
+                        (memviewobj, self.arg.py_result(), buf_flag))
         ndim = len(self.type.axes)
         spec_int_arr = code.funcstate.allocate_temp(
                 PyrexTypes.c_array_type(PyrexTypes.c_int_type, ndim),

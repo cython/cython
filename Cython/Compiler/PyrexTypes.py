@@ -317,6 +317,9 @@ class MemoryViewSliceType(PyrexType):
 
     is_memoryviewslice = 1
 
+    has_attributes = 1
+    scope = None
+
     def __init__(self, base_dtype, axes, env):
         '''
         MemoryViewSliceType(base, axes)
@@ -371,6 +374,15 @@ class MemoryViewSliceType(PyrexType):
         return self.base_declaration_code(
                 MemoryView.memviewslice_cname,
                 entity_code)
+
+    def attributes_known(self):
+        if self.scope is None:
+            import Symtab
+            self.scope = Symtab.StructOrUnionScope(self.specalization_name())
+            # XXX: we don't necessarily want to have this exposed -- for
+            # testing purposes currently.
+            self.scope.declare_var("data", c_char_ptr_type, None, "data")
+        return True
 
     def global_init_code(self, entry, code):
         code.putln("%s.data = NULL;" % entry.cname)

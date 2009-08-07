@@ -1349,6 +1349,9 @@ class FuncDefNode(StatNode, BlockNode):
                 "%s%s;" %
                     (self.return_type.declaration_code(Naming.retval_cname),
                      init))
+            if self.return_type.is_memoryviewslice:
+                import MemoryView
+                MemoryView.put_init_entry(Naming.retval_cname, code)
         tempvardecl_code = code.insertion_point()
         self.generate_keyword_list(code)
 
@@ -1561,6 +1564,8 @@ class FuncDefNode(StatNode, BlockNode):
                 err_val = default_retval
             if self.return_type.is_pyobject:
                 code.put_xgiveref(self.return_type.as_pyobject(Naming.retval_cname))
+            elif self.return_type.is_memoryviewslice:
+                code.put_xgiveref(code.as_pyobject("%s.memview" % Naming.retval_cname,cython_memoryview_ptr_type))
 
         if self.entry.is_special and self.entry.name == "__hash__":
             # Returning -1 for __hash__ is supposed to signal an error
@@ -4265,11 +4270,23 @@ class ReturnStatNode(StatNode):
         if self.return_type.is_pyobject:
             code.put_xdecref(Naming.retval_cname,
                              self.return_type)
+        elif self.return_type.is_memoryviewslice:
+            code.put_xdecref("%s.memview" % Naming.retval_cname,
+                    self.return_type)
+
         if self.value:
             self.value.generate_evaluation_code(code)
-            self.value.make_owned_reference(code)
-            self.put_return(code, self.value.result_as(self.return_type))
-            self.value.generate_post_assignment_code(code)
+            if self.return_type.is_memoryviewslice:
+                import MemoryView
+                MemoryView.gen_acquire_memoryviewslice(self.value, self.return_type,
+                        False, Naming.retval_cname, None, code)
+            else:
+                self.value.make_owned_reference(code)
+                code.putln(
+                    "%s = %s;" % (
+                        Naming.retval_cname,
+                        self.value.result_as(self.return_type)))
+                self.value.generate_post_assignment_code(code)
             self.value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
