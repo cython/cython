@@ -320,6 +320,8 @@ cdef is_cf_contig(int *specs, int ndim):
             is_f_contig = True
 
     return is_c_contig, is_f_contig
+
+cdef bint DEBUG = 0
     
 cdef object init_memviewslice_from_memview(
         memoryview memview,
@@ -328,6 +330,9 @@ cdef object init_memviewslice_from_memview(
         Py_ssize_t itemsize,
         char *format,
         __Pyx_memviewslice *memviewslice):
+
+    if memviewslice.data or memviewslice.memview:
+        raise ValueError("memviewslice must be empty and initialized to NULL.")
 
     cdef int i
 
@@ -338,13 +343,19 @@ cdef object init_memviewslice_from_memview(
     if pybuf.ndim != ndim:
         raise ValueError("incompatible number of dimensions.")
 
+    if DEBUG: print pybuf.ndim
+
     cdef str pyx_format = pybuf.format
     cdef str view_format = format
     if pyx_format != view_format:
         raise ValueError("Buffer and memoryview datatype formats do not match.")
 
+    if DEBUG: print pybuf.format
+
     if itemsize != pybuf.itemsize:
         raise ValueError("Buffer and memoryview itemsize do not match.")
+
+    if DEBUG: print pybuf.itemsize
 
     if not pybuf.strides:
         raise ValueError("no stride information provided.")
@@ -388,19 +399,22 @@ cdef object init_memviewslice_from_memview(
                 raise ValueError("Buffer object not C contiguous.")
             stride = stride * pybuf.shape[i]
 
+    if DEBUG: print "pybuf.len", pybuf.len
+
     for i in range(ndim):
         memviewslice.diminfo[i].strides = pybuf.strides[i]
         memviewslice.diminfo[i].shape = pybuf.shape[i]
+        if DEBUG: print 'pybuf.shape', pybuf.shape[i]
+        if DEBUG: print 'pybuf.strides', pybuf.strides[i]
         if has_suboffsets:
+            if DEBUG: print 'pybuf.suboffsets', pybuf.suboffsets[i]
             memviewslice.diminfo[i].suboffsets = pybuf.suboffsets[i]
 
     __Pyx_INCREF(<object>memview)
     __Pyx_GIVEREF(<object>memview)
-    __Pyx_GOTREF(<object>memviewslice.memview)
-    __Pyx_DECREF(<object>memviewslice.memview)
     memviewslice.memview = <__pyx_obj_memoryview*>memview
-
     memviewslice.data = <char *>pybuf.buf
+
 """ % Options.buffer_max_dims, name="foobar", prefix="__pyx_viewaxis_")
 
 cyarray_prefix = u'__pyx_cythonarray_'
@@ -481,7 +495,6 @@ cdef class array:
 
         self.mode = mode
 
-        
         self.data = <char *>malloc(self.len)
         if not self.data:
             raise MemoryError("unable to allocate array data.")
@@ -496,6 +509,7 @@ cdef class array:
         if not (flags & bufmode):
             raise ValueError("Can only create a buffer that is contiguous in memory.")
         info.buf = self.data
+        info.len = self.len
         info.ndim = self.ndim
         info.shape = self.shape
         info.strides = self.strides
