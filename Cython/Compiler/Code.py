@@ -943,6 +943,15 @@ class CCodeWriter(object):
     def put_finish_refcount_context(self):
         self.putln("__Pyx_FinishRefcountContext();")
 
+    def put_trace_call(self, name, pos):
+        self.putln('__Pyx_TraceCall("%s", %s[%s], %s);' % (name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1]));
+    
+    def put_trace_exception(self):
+        self.putln("__Pyx_TraceException();")
+    
+    def put_trace_return(self, retvalue_cname):
+        self.putln("__Pyx_TraceReturn(%s);" % retvalue_cname)
+
 
 class PyrexCodeWriter(object):
     # f                file      output file

@@ -170,6 +170,19 @@ class CTypedefType(BaseType):
         self.typedef_cname = cname
         self.typedef_base_type = base_type
         self.typedef_is_external = is_external
+
+        # Make typecodes in external typedefs use typesize-neutral macros
+        if is_external:
+            typecode = None
+            if base_type.is_int:
+                if base_type.signed == 0:
+                    typecode = "__Pyx_T_UNSIGNED_INT"
+                else:
+                    typecode = "__Pyx_T_SIGNED_INT"
+            elif base_type.is_float and not rank_to_type_name[base_type.rank] == "long double":
+                typecode = "__Pyx_T_FLOATING"
+            if typecode:
+                self.pymemberdef_typecode = "%s(%s)" % (typecode, cname)
     
     def resolve(self):
         return self.typedef_base_type.resolve()
@@ -814,13 +827,14 @@ static %(type)s __pyx_PyObject_As_%(type_name)s(PyObject* o); /* proto */
 """, 
 impl="""
 static %(type)s __pyx_PyObject_As_%(type_name)s(PyObject* o) {
-    if (PyComplex_Check(o)) {
+    if (PyComplex_CheckExact(o)) {
         return %(type_name)s_from_parts(
             (%(real_type)s)((PyComplexObject *)o)->cval.real,
             (%(real_type)s)((PyComplexObject *)o)->cval.imag);
     }
     else {
-        return %(type_name)s_from_parts(%(type_convert)s(o), 0);
+        Py_complex cval = PyComplex_AsCComplex(o);
+        return %(type_name)s_from_parts((%(real_type)s)cval.real, (%(real_type)s)cval.imag);
     }
 }
 """)
@@ -1725,6 +1739,40 @@ static INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x);
         ((sizeof(Py_ssize_t) == sizeof(PY_LONG_LONG)) ? T_LONGLONG : -1)))
 #endif
 #endif
+
+
+#if !defined(T_ULONGLONG)
+#define __Pyx_T_UNSIGNED_INT(x) \\
+        ((sizeof(x) == sizeof(unsigned char))  ? T_UBYTE : \\
+        ((sizeof(x) == sizeof(unsigned short)) ? T_USHORT : \\
+        ((sizeof(x) == sizeof(unsigned int))   ? T_UINT : \\
+        ((sizeof(x) == sizeof(unsigned long))  ? T_ULONG : -1))))
+#else
+#define __Pyx_T_UNSIGNED_INT(x) \\
+        ((sizeof(x) == sizeof(unsigned char))  ? T_UBYTE : \\
+        ((sizeof(x) == sizeof(unsigned short)) ? T_USHORT : \\
+        ((sizeof(x) == sizeof(unsigned int))   ? T_UINT : \\
+        ((sizeof(x) == sizeof(unsigned long))  ? T_ULONG : \\
+        ((sizeof(x) == sizeof(unsigned PY_LONG_LONG)) ? T_ULONGLONG : -1)))))
+#endif
+#if !defined(T_LONGLONG)
+#define __Pyx_T_SIGNED_INT(x) \\
+        ((sizeof(x) == sizeof(char))  ? T_BYTE : \\
+        ((sizeof(x) == sizeof(short)) ? T_SHORT : \\
+        ((sizeof(x) == sizeof(int))   ? T_INT : \\
+        ((sizeof(x) == sizeof(long))  ? T_LONG : -1))))
+#else
+#define __Pyx_T_SIGNED_INT(x) \\
+        ((sizeof(x) == sizeof(char))  ? T_BYTE : \\
+        ((sizeof(x) == sizeof(short)) ? T_SHORT : \\
+        ((sizeof(x) == sizeof(int))   ? T_INT : \\
+        ((sizeof(x) == sizeof(long))  ? T_LONG : \\
+        ((sizeof(x) == sizeof(PY_LONG_LONG))   ? T_LONGLONG : -1)))))
+#endif
+
+#define __Pyx_T_FLOATING(x) \\
+        ((sizeof(x) == sizeof(float)) ? T_FLOAT : \\
+        ((sizeof(x) == sizeof(double)) ? T_DOUBLE : -1))
 
 #if !defined(T_SIZET)
 #if !defined(T_ULONGLONG)

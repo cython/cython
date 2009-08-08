@@ -573,6 +573,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static PyObject *%s;' % env.module_cname)
         code.putln('static PyObject *%s;' % Naming.builtins_cname)
         code.putln('static PyObject *%s;' % Naming.empty_tuple)
+        code.putln('static PyObject *%s;' % Naming.empty_bytes)
         if Options.pre_import is not None:
             code.putln('static PyObject *%s;' % Naming.preimport_cname)
         code.putln('static int %s;' % Naming.lineno_cname)
@@ -587,8 +588,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('')
             code.putln('static char %s[] = "%s";' % (
                     env.doc_cname, escape_byte_string(docstr)))
-
-        env.use_utility_code(streq_utility_code)
 
         # XXX this is a mess
         for utility_code in PyrexTypes.c_int_from_py_function.specialize_list:
@@ -1556,6 +1555,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("static void %s(void); /*proto*/" % Naming.fileinit_cname)
         
     def generate_import_star(self, env, code):
+        env.use_utility_code(streq_utility_code)
         code.putln()
         code.putln("char* %s_type_names[] = {" % Naming.import_star)
         for name, entry in env.entries.items():
@@ -1648,6 +1648,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
+        code.putln("#if PY_MAJOR_VERSION < 3");
+        code.putln("%s = PyString_FromStringAndSize(\"\", 0); %s" % (Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)));
+        code.putln("#else");
+        code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)));
+        code.putln("#endif");
 
         code.putln("/*--- Library function declarations ---*/")
         env.generate_library_function_declarations(code)
@@ -2474,6 +2479,7 @@ static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
 #define __Pyx_XGIVEREF(r) if((r) == NULL) ; else __Pyx_GIVEREF(r)
 #define __Pyx_XGOTREF(r) if((r) == NULL) ; else __Pyx_GOTREF(r)
 """)
+
 
 main_method = UtilityCode(
 impl = """
