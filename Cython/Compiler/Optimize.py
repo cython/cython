@@ -11,13 +11,9 @@ from StringEncoding import EncodedString
 
 from ParseTreeTransforms import SkipDeclarations
 
-#def unwrap_node(node):
-#    while isinstance(node, ExprNodes.PersistentNode):
-#        node = node.arg
-#    return node
-
-# Temporary hack while PersistentNode is out of order
 def unwrap_node(node):
+    while isinstance(node, UtilNodes.ResultRefNode):
+        node = node.expression
     return node
 
 def is_common_value(a, b):
@@ -301,13 +297,17 @@ class SwitchTransform(Visitor.VisitorTransform):
     is common among all clauses and both var and value are ints. 
     """
     def extract_conditions(self, cond):
-    
-        if isinstance(cond, ExprNodes.CoerceToTempNode):
-            cond = cond.arg
+        while True:
+            if isinstance(cond, ExprNodes.CoerceToTempNode):
+                cond = cond.arg
+            elif isinstance(cond, UtilNodes.EvalWithTempExprNode):
+                # this is what we get from the FlattenInListTransform
+                cond = cond.subexpression
+            elif isinstance(cond, ExprNodes.TypecastNode):
+                cond = cond.operand
+            else:
+                break
 
-        if isinstance(cond, ExprNodes.TypecastNode):
-            cond = cond.operand
-    
         if (isinstance(cond, ExprNodes.PrimaryCmpNode) 
                 and cond.cascade is None 
                 and cond.operator == '=='
