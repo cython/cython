@@ -128,7 +128,7 @@ def get_buf_flag(specs):
     else:
         return memview_strided_access
 
-def use_cython_util_code(env, lu_name):
+def use_cython_view_util_code(env, lu_name):
     import CythonScope
     cythonscope = env.global_scope().context.cython_scope
     viewscope = cythonscope.viewscope
@@ -136,13 +136,23 @@ def use_cython_util_code(env, lu_name):
     entry.used = 1
     return entry
 
+def use_cython_util_code(env, lu_name):
+    import CythonScope
+    cythonscope = env.global_scope().context.cython_scope
+    entry = cythonscope.lookup_here(lu_name)
+    entry.used = 1
+    return entry
+
 def use_memview_util_code(env):
     import CythonScope
-    memview_entry = use_cython_util_code(env, CythonScope.memview_name)
+    return use_cython_view_util_code(env, CythonScope.memview_name)
 
 def use_memview_cwrap(env):
     import CythonScope
-    mv_cwrap_entry = use_cython_util_code(env, CythonScope.memview_cwrap_name)
+    return use_cython_view_util_code(env, CythonScope.memview_cwrap_name)
+
+def use_cython_array(env):
+    return use_cython_util_code(env, 'array')
 
 def src_conforms_to_dst(src, dst):
     '''
