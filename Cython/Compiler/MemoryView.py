@@ -434,3 +434,197 @@ typedef struct {
        Options.buffer_max_dims,
        memviewslice_cname)
 )
+
+memviewslice_init_code = UtilityCode(proto="""\
+
+#define __Pyx_BUF_MAX_NDIMS %(BUF_MAX_NDIMS)d
+
+#define __Pyx_MEMVIEW_DIRECT   1
+#define __Pyx_MEMVIEW_PTR      2
+#define __Pyx_MEMVIEW_FULL     4
+#define __Pyx_MEMVIEW_CONTIG   8
+#define __Pyx_MEMVIEW_STRIDED  16
+#define __Pyx_MEMVIEW_FOLLOW   32
+
+#define __Pyx_IS_C_CONTIG 1
+#define __Pyx_IS_F_CONTIG 2
+
+static int __Pyx_ValidateAndInit_memviewslice(struct __pyx_obj_memoryview *memview, 
+                                int *axes_specs, int c_or_f_flag,  int ndim, __Pyx_TypeInfo *dtype,
+                                __Pyx_BufFmt_StackElem stack[], __Pyx_memviewslice *memviewslice);
+
+static int __Pyx_init_memviewslice(
+                struct __pyx_obj_memoryview *memview,
+                int ndim,
+                __Pyx_memviewslice *memviewslice);
+""" % {'BUF_MAX_NDIMS' :Options.buffer_max_dims},
+impl = """\
+static int __Pyx_ValidateAndInit_memviewslice(
+                struct __pyx_obj_memoryview *memview,
+                int *axes_specs,
+                int c_or_f_flag,
+                int ndim,
+                __Pyx_TypeInfo *dtype, 
+                __Pyx_BufFmt_StackElem stack[],
+                __Pyx_memviewslice *memviewslice) {
+
+    __Pyx_SetupRefcountContext("ValidateAndInit_memviewslice");
+    Py_buffer *buf = &memview->view;
+    int stride, i, spec = 0, retval = -1;
+
+    if (!buf) goto fail;
+
+    if(memviewslice->data || memviewslice->memview) {
+        PyErr_SetString(PyExc_ValueError,
+            "memoryviewslice struct must be initialized to NULL.");
+        goto fail;
+    }
+
+    if (buf->ndim != ndim) {
+        PyErr_Format(PyExc_ValueError,
+                "Buffer has wrong number of dimensions (expected %d, got %d)",
+                ndim, buf->ndim);
+        goto fail;
+    }
+
+    __Pyx_BufFmt_Context ctx;
+    __Pyx_BufFmt_Init(&ctx, stack, dtype);
+    if (!__Pyx_BufFmt_CheckString(&ctx, buf->format)) goto fail;
+
+    if ((unsigned)buf->itemsize != dtype->size) {
+        PyErr_Format(PyExc_ValueError,
+          "Item size of buffer (%"PY_FORMAT_SIZE_T"d byte%s) does not match size of '%s' (%"PY_FORMAT_SIZE_T"d byte%s)",
+          buf->itemsize, (buf->itemsize > 1) ? "s" : "",
+          dtype->name,
+          dtype->size, (dtype->size > 1) ? "s" : "");
+        goto fail;
+    }
+
+    if (!buf->strides) {
+        PyErr_SetString(PyExc_ValueError,
+            "buffer does not supply strides necessary for memoryview.");
+        goto fail;
+    }
+
+    for(i=0; i<ndim; i++) {
+        spec = axes_specs[i];
+        if (spec & __Pyx_MEMVIEW_CONTIG) {
+            if (buf->strides[i] != buf->itemsize) {
+                PyErr_SetString(PyExc_ValueError,
+                    "Buffer and memoryview are not contiguous in the same dimension.");
+                goto fail;
+            }
+        }
+
+        if (spec & (__Pyx_MEMVIEW_STRIDED | __Pyx_MEMVIEW_FOLLOW)) {
+            if (buf->strides[i] <= buf->itemsize) {
+                PyErr_SetString(PyExc_ValueError,
+                    "Buffer and memoryview are not contiguous in the same dimension.");
+                goto fail;
+            }
+        }
+
+        if (spec & __Pyx_MEMVIEW_DIRECT) {
+            if (buf->suboffsets && buf->suboffsets[i] >= 0) {
+                PyErr_SetString(PyExc_ValueError,
+                    "Buffer not compatible with direct access.");
+                goto fail;
+            }
+        }
+
+        if (spec & (__Pyx_MEMVIEW_PTR | __Pyx_MEMVIEW_FULL)) {
+            if (!buf->suboffsets) {
+                PyErr_SetString(PyExc_ValueError,
+                    "Buffer not able to be indirectly accessed.");
+                goto fail;
+            }
+        }
+
+        if (spec & __Pyx_MEMVIEW_PTR) {
+            if (buf->suboffsets[i] < 0) {
+                PyErr_Format(PyExc_ValueError,
+                    "Buffer not indirectly accessed in %d dimension, although memoryview is.", i);
+                goto fail;
+            }
+        }
+    }
+
+    if (c_or_f_flag & __Pyx_IS_F_CONTIG) {
+        stride = 1;
+        for(i=0; i<ndim; i++) {
+            if(stride * buf->itemsize != buf->strides[i]) {
+                PyErr_SetString(PyExc_ValueError,
+                    "Buffer not fortran contiguous.");
+                goto fail;
+            }
+            stride = stride * buf->shape[i];
+        }
+    } else if (c_or_f_flag & __Pyx_IS_F_CONTIG) {
+        for(i=ndim-1; i>-1; i--) {
+            if(stride * buf->itemsize != buf->strides[i]) {
+                PyErr_SetString(PyExc_ValueError,
+                    "Buffer not C contiguous.");
+                goto fail;
+            }
+            stride = stride * buf->shape[i];
+        }
+    }
+
+    if(unlikely(__Pyx_init_memviewslice(memview, ndim, memviewslice) == -1)) {
+        goto fail;
+    }
+
+    retval = 0;
+    goto no_fail;
+fail:
+    __Pyx_XDECREF(memviewslice->memview);
+    memviewslice->memview = 0;
+    memviewslice->data = 0;
+    retval = -1;
+
+no_fail:
+    __Pyx_FinishRefcountContext();
+    return retval;
+}
+
+static int __Pyx_init_memviewslice(
+                struct __pyx_obj_memoryview *memview,
+                int ndim,
+                __Pyx_memviewslice *memviewslice) {
+    
+    __Pyx_SetupRefcountContext("init_memviewslice");
+    int i, retval=-1;
+    Py_buffer *buf = &memview->view;
+
+    if(!buf || memviewslice->memview || memviewslice->data) {
+        goto fail;
+    }
+
+    for(i=0; i<ndim; i++) {
+        memviewslice->diminfo[i].strides = buf->strides[i];
+        memviewslice->diminfo[i].shape   = buf->shape[i];
+        if(buf->suboffsets) {
+            memviewslice->diminfo[i].suboffsets = buf->suboffsets[i];
+        }
+    }
+
+    __Pyx_INCREF((PyObject *)memview);
+    __Pyx_GIVEREF((PyObject *)memview);
+    memviewslice->memview = memview;
+    memviewslice->data = (char *)buf->buf;
+    retval = 0;
+    goto no_fail;
+
+fail:
+    __Pyx_XDECREF(memviewslice->memview);
+    memviewslice->memview = 0;
+    memviewslice->data = 0;
+    retval = -1;
+no_fail:
+    __Pyx_FinishRefcountContext();
+    return retval;
+}
+""")
+
+memviewslice_init_code.requires = [memviewslice_declare_code]
+

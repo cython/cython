@@ -7597,12 +7597,13 @@ class CoerceToMemViewSliceNode(CoercionNode):
         self.is_temp = 1
 
     def generate_result_code(self, code):
-        import MemoryView
+        import MemoryView, Buffer
         memviewobj = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
         buf_flag = MemoryView.get_buf_flag(self.type.axes)
         code.putln("%s = (PyObject *)"
                 "__pyx_viewaxis_memoryview_cwrapper(%s, %s);" %\
                         (memviewobj, self.arg.py_result(), buf_flag))
+        code.putln(code.error_goto_if_null(memviewobj, self.pos))
         ndim = len(self.type.axes)
         spec_int_arr = code.funcstate.allocate_temp(
                 PyrexTypes.c_array_type(PyrexTypes.c_int_type, ndim),
@@ -7611,12 +7612,29 @@ class CoerceToMemViewSliceNode(CoercionNode):
         for idx, cspec in enumerate(specs_code):
             code.putln("%s[%d] = %s;" % (spec_int_arr, idx, cspec))
         itemsize = self.type.dtype.sign_and_name()
-        format = MemoryView.format_from_type(self.type.dtype)
+
+        code.globalstate.use_utility_code(Buffer.acquire_utility_code)
+        code.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
+        dtype_typeinfo = Buffer.get_type_information_cname(code, self.type.dtype)
+
         MemoryView.put_init_entry(self.result(), code)
-        code.putln("__pyx_viewaxis_init_memviewslice_from_memview"
-                "((struct __pyx_obj_memoryview *)%s, %s, %d, sizeof(%s), \"%s\", &%s);" %\
-                (memviewobj, spec_int_arr, ndim, itemsize, format, self.result()))
-        code.put_gotref(code.as_pyobject("%s.memview" % self.result(), cython_memoryview_ptr_type))
+        code.putln("{")
+        code.putln("__Pyx_BufFmt_StackElem __pyx_stack[%d];" %
+                self.type.dtype.struct_nesting_depth())
+        result = self.result()
+        if self.type.is_c_contig:
+            c_or_f_flag = "__Pyx_IS_C_CONTIG"
+        elif self.type.is_f_contig:
+            c_or_f_flag = "__Pyx_IS_F_CONTIG"
+        else:
+            c_or_f_flag = "0"
+        code.putln(code.error_goto_if("-1 == __Pyx_ValidateAndInit_memviewslice("
+                        "(struct __pyx_obj_memoryview *) %(memviewobj)s,"
+                        " %(spec_int_arr)s, %(c_or_f_flag)s, %(ndim)d,"
+                        " &%(dtype_typeinfo)s, __pyx_stack, &%(result)s)" % locals(), self.pos))
+        code.putln("}")
+        code.put_gotref(
+                code.as_pyobject("%s.memview" % self.result(), cython_memoryview_ptr_type))
         code.funcstate.release_temp(memviewobj)
         code.funcstate.release_temp(spec_int_arr)
 
