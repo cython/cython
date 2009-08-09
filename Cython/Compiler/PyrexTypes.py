@@ -381,12 +381,51 @@ class MemoryViewSliceType(PyrexType):
 
     def attributes_known(self):
         if self.scope is None:
-            import Symtab
-            self.scope = Symtab.StructOrUnionScope(self.specalization_name())
-            # XXX: we don't necessarily want to have this exposed -- for
-            # testing purposes currently.
-            self.scope.declare_var("data", c_char_ptr_type, None, "data")
+
+            import Symtab, MemoryView
+
+            self.scope = scope = Symtab.CClassScope(
+                    'mvs_class_'+self.specialization_suffix(),
+                    self.env.global_scope(),
+                    visibility='private')
+
+            scope.parent_type = self
+
+            # the C copy method
+            c_copy_name = '__Pyx_CopyBuffer_C_'+self.specialization_suffix()
+            scope.declare_cfunction('copy',
+                    CFuncType(cython_memoryview_ptr_type,
+                        [CFuncTypeArg("memviewslice", self, None)]),
+                    pos = None,
+                    defining = 1,
+                    cname = c_copy_name)
+
+            # the Fortran copy method
+            f_copy_name = '__Pyx_CopyBuffer_F_'+self.specialization_suffix()
+            scope.declare_cfunction('copy_fortran',
+                    CFuncType(cython_memoryview_ptr_type,
+                        [CFuncTypeArg("memviewslice", self, None)]),
+                    pos = None,
+                    defining = 1,
+                    cname = f_copy_name)
+
+            # ensure the right util code is used 
+            MemoryView.use_cython_array(self.env)
+            MemoryView.use_memview_util_code(self.env)
+
+            # C copy method implementation.
+            ccopy_util_code = UtilityCode()
+            # ccopy_util_code.proto =#XXX 
+
+
+
         return True
+
+    def axes_to_str(self):
+        return "".join([access[0]+packing[0] for (access, packing) in self.axes])
+
+    def specialization_suffix(self):
+        return self.axes_to_str() + '_' + self.dtype.specalization_name()
 
     def global_init_code(self, entry, code):
         code.putln("%s.data = NULL;" % entry.cname)
