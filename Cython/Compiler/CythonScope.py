@@ -536,4 +536,8 @@ cdef class array:
             self.shape = NULL
         self.format = NULL
         self.itemsize = 0
+
+cdef array array_cwrapper(tuple shape, Py_ssize_t itemsize, char *format, char mode):
+    return array(shape, itemsize, format, mode)
+
 ''', prefix=cyarray_prefix)
