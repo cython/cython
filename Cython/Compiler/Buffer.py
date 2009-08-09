@@ -801,6 +801,16 @@ typedef struct {
   char enc_packmode;
 } __Pyx_BufFmt_Context;
 
+
+static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
+static int __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj, __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack);
+""", impl="""
+static INLINE int __Pyx_IsLittleEndian(void) {
+  unsigned int n = 1;
+  return *(unsigned char*)(&n) != 0;
+}
+
+
 static void __Pyx_BufFmt_Init(__Pyx_BufFmt_Context* ctx,
                               __Pyx_BufFmt_StackElem* stack,
                               __Pyx_TypeInfo* type) {
