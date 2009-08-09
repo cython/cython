@@ -359,6 +359,10 @@ class MemoryViewSliceType(PyrexType):
         self.axes = axes
         self.env = env
 
+        import MemoryView
+        self.is_c_contig, self.is_f_contig = MemoryView.is_cf_contig(self.axes)
+        assert not (self.is_c_contig and self.is_f_contig)
+
     def is_complete(self):
         # incomplete since the underlying struct doesn't have a cython.memoryview object.
         return 0
