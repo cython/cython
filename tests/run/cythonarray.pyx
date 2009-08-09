@@ -10,10 +10,10 @@ from cython cimport array
 def contiguity():
     u'''
     >>> contiguity()
-    3 1
+    12 4
     2 3
     2
-    1 2
+    4 8
     2 3
     2
     '''

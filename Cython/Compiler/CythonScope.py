@@ -392,21 +392,21 @@ cdef class array:
         if mode == "fortran":
             idx = 0; stride = 1
             for dim in shape:
-                self.strides[idx] = stride
+                self.strides[idx] = stride*itemsize
                 int_dim = <Py_ssize_t>dim
                 stride = stride * int_dim
                 idx += 1
             assert idx == self.ndim
-            self.len = stride * self.itemsize
+            self.len = stride * itemsize
         elif mode == "c":
             idx = self.ndim-1; stride = 1
             for dim in reversed(shape):
-                self.strides[idx] = stride
+                self.strides[idx] = stride*itemsize
                 int_dim = <Py_ssize_t>dim
                 stride = stride * int_dim
                 idx -= 1
             assert idx == -1
-            self.len = stride * self.itemsize
+            self.len = stride * itemsize
         else:
             raise ValueError("Invalid mode, expected 'c' or 'fortran', got %s" % mode)
 
