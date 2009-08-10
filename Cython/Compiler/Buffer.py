@@ -543,6 +543,8 @@ def use_py2_buffer_functions(env):
         for e in scope.type_entries:
             t = e.type
             if t.is_extension_type:
+                if e.name == 'array' and not e.used:
+                    continue
                 release = get = None
                 for x in t.scope.pyfunc_entries:
                     if x.name == u"__getbuffer__": get = x.func_cname

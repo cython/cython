@@ -5808,6 +5808,7 @@ class FromCImportStatNode(StatNode):
                 if entry:
                     if kind and not self.declaration_matches(entry, kind):
                         entry.redeclared(pos)
+                    entry.used = 1
                 else:
                     if kind == 'struct' or kind == 'union':
                         entry = module_scope.declare_struct_or_union(name,
