@@ -7611,7 +7611,6 @@ class CoerceToMemViewSliceNode(CoercionNode):
         specs_code = MemoryView.specs_to_code(self.type.axes)
         for idx, cspec in enumerate(specs_code):
             code.putln("%s[%d] = %s;" % (spec_int_arr, idx, cspec))
-        itemsize = self.type.dtype.sign_and_name()
 
         code.globalstate.use_utility_code(Buffer.acquire_utility_code)
         code.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
