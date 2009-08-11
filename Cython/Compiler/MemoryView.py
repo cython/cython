@@ -45,26 +45,6 @@ def specs_to_code(specs):
         arr.append("(%s | %s)" % (_spec_to_const[access], _spec_to_const[packing]))
     return arr
 
-# XXX: add complex support below...
-_typename_to_format = {
-        'char' : 'c',
-        'signed char' : 'b',
-        'unsigned char' : 'B',
-        'short' : 'h',
-        'unsigned short' : 'H',
-        'int' : 'i',
-        'unsigned int' : 'I',
-        'long' : 'l',
-        'unsigned long' : 'L',
-        'long long' : 'q',
-        'unsigned long long' : 'Q',
-        'float' : 'f',
-        'double' : 'd',
-        }
-
-def format_from_type(base_type):
-    return _typename_to_format[base_type.sign_and_name()]
-
 def put_init_entry(mv_cname, code):
     code.putln("%s.data = NULL;" % mv_cname)
     code.putln("%s.memview = NULL;" % mv_cname)
