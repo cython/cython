@@ -1398,10 +1398,8 @@ class CppClassType(CType):
         if self.templates:
             templates = "<"
             for i in range(len(self.templates)-1):
-                templates += "class "
                 templates += self.templates[i]
                 templates += ','
-            templates += "class "
             templates += self.templates[-1]
             templates += ">"
         if for_display or pyrex:
