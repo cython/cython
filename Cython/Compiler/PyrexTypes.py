@@ -1015,13 +1015,15 @@ class CFuncType(CType):
     #  calling_convention  string  Function calling convention
     #  nogil            boolean    Can be called without gil
     #  with_gil         boolean    Acquire gil around function body
+    #  templates        [string] or None
     
     is_cfunction = 1
     original_sig = None
     
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
-            nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0):
+            nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
+            templates = None):
         self.return_type = return_type
         self.args = args
         self.has_varargs = has_varargs
@@ -1032,6 +1034,7 @@ class CFuncType(CType):
         self.nogil = nogil
         self.with_gil = with_gil
         self.is_overridable = is_overridable
+        self.templates = templates
     
     def __repr__(self):
         arg_reprs = map(repr, self.args)
@@ -1370,12 +1373,14 @@ class CppClassType(CType):
     #  scope         CppClassScope
     #  typedef_flag  boolean
     #  packed        boolean
+    #  templates     [string] or None
     
     is_cpp_class = 1
     has_attributes = 1
     base_classes = []
     
-    def __init__(self, name, kind, scope, typedef_flag, cname, base_classes, packed=False):
+    def __init__(self, name, kind, scope, typedef_flag, cname, base_classes, packed=False,
+                 templates = None):
         self.name = name
         self.cname = cname
         self.kind = kind
@@ -1386,13 +1391,24 @@ class CppClassType(CType):
         self.packed = packed
         self.base_classes = base_classes
         self.operators = []
+        self.templates = templates
 
     def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
+        templates = ""
+        if self.templates:
+            templates = "<"
+            for i in range(len(self.templates)-1):
+                templates += "class "
+                templates += self.templates[i]
+                templates += ','
+            templates += "class "
+            templates += self.templates[-1]
+            templates += ">"
         if for_display or pyrex:
             name = self.name
         else:
             name = self.cname
-        return "%s %s" % (name, entity_code)
+        return "%s %s%s" % (name, entity_code, templates)
 
     def is_subclass(self, other_type):
         if self.same_as_resolved_type(other_type):
@@ -1404,6 +1420,14 @@ class CppClassType(CType):
 
     def attributes_known(self):
         return self.scope is not None
+
+class TemplatedType(CType):
+    
+    def __init__(self, name):
+        self.name = name
+    
+    def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
+        return ""
 
 class CEnumType(CType):
     #  name           string

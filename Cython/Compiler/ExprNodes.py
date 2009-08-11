@@ -1123,6 +1123,7 @@ class ImagNode(AtomicNewTempExprNode):
 class NewExprNode(AtomicExprNode):
     
     def analyse_types(self, env):
+        print self.cppclass
         entry = env.lookup(self.cppclass)
         if entry is None or not entry.is_cpp_class:
             error(self.pos, "new operator can only be applied to a C++ class")

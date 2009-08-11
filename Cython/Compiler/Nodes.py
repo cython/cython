@@ -721,11 +721,13 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                     else:
                         type = py_object_type
                     self.arg_name = self.name
-                elif self.templates:
-                    if not self.name in self.templates:
-                        error(self.pos, "'%s' is not a type identifier" % self.name) 
                 else:
-                    error(self.pos, "'%s' is not a type identifier" % self.name)
+                    if self.templates:
+                        if not self.name in self.templates:
+                            error(self.pos, "'%s' is not a type identifier" % self.name)
+                        type = PyrexTypes.TemplatedType(self.name)
+                    else:
+                        error(self.pos, "'%s' is not a type identifier" % self.name)
         if self.complex:
             if not type.is_numeric or type.is_complex:
                 error(self.pos, "can only complexify c numeric types")
@@ -735,6 +737,24 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
             return type
         else:
             return PyrexTypes.error_type
+
+class TemplatedTypeNode(CBaseTypeNode):
+    #  name
+    #  base_type_node    CSimpleBaseTypeNode
+    #  templates         [CSimpleBaseTypeNode]
+
+    child_attrs = ["base_type_node", "templates"]
+    
+    def analyse(self, env, could_be_name = False):
+        entry = env.lookup(self.base_type_node.name)
+        base_types = entry.type.templates
+        if not base_types:
+            error(self.pos, "%s type is not a template" % entry.type)
+        if len(base_types) != len(self.templates):
+            error(self.pos, "%s templated type receives %d arguments, got %d" % 
+                  (entry.type, len(base_types), len(self.templates)))
+        print entry.type
+        return entry.type
 
 class CBufferAccessTypeNode(CBaseTypeNode):
     #  After parsing:
@@ -935,7 +955,7 @@ class CppClassNode(CStructOrUnionDefNode):
                 base_class_types.append(base_class_entry.type)
         self.entry = env.declare_cpp_class(
             self.name, "cppclass", scope, 0, self.pos,
-            self.cname, base_class_types, visibility = self.visibility)
+            self.cname, base_class_types, visibility = self.visibility, templates = self.templates)
         self.entry.is_cpp_class = 1
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:

@@ -473,10 +473,6 @@ class Scope(object):
         else:
             entry = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
             entry.func_cname = cname
-            #try:
-            #    print entry.name, entry.type, entry.overloaded_alternatives
-            #except:
-            #    pass
         if in_pxd and visibility != 'extern':
             entry.defined_in_pxd = 1
         if api:
@@ -1116,7 +1112,7 @@ class ModuleScope(Scope):
     
     def declare_cpp_class(self, name, kind, scope,
             typedef_flag, pos, cname = None, base_classes = [],
-            visibility = 'extern', packed = False):
+            visibility = 'extern', packed = False, templates = None):
         if visibility != 'extern':
             error(pos, "C++ classes may only be extern")
         if cname is None:
@@ -1124,7 +1120,7 @@ class ModuleScope(Scope):
         entry = self.lookup(name)
         if not entry:
             type = PyrexTypes.CppClassType(
-                name, kind, scope, typedef_flag, cname, base_classes, packed)
+                name, kind, scope, typedef_flag, cname, base_classes, packed, templates = templates)
             entry = self.declare_type(name, type, pos, cname,
                 visibility = visibility, defining = scope is not None)
         else:
