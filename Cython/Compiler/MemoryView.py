@@ -69,6 +69,14 @@ def put_init_entry(mv_cname, code):
     code.putln("%s.data = NULL;" % mv_cname)
     code.putln("%s.memview = NULL;" % mv_cname)
 
+def mangle_dtype_name(dtype):
+    # a dumb wrapper for now; move Buffer.mangle_dtype_name in here later?
+    import Buffer
+    return Buffer.mangle_dtype_name(dtype)
+
+def axes_to_str(axes):
+    return "".join([access[0]+packing[0] for (access, packing) in axes])
+
 def gen_acquire_memoryviewslice(rhs, lhs_type, lhs_is_cglobal, lhs_result, lhs_pos, code):
     # import MemoryView
     assert rhs.type.is_memoryviewslice
@@ -79,6 +87,7 @@ def gen_acquire_memoryviewslice(rhs, lhs_type, lhs_is_cglobal, lhs_result, lhs_p
     else:
         rhstmp = code.funcstate.allocate_temp(lhs_type, manage_ref=False)
         code.putln("%s = %s;" % (rhstmp, rhs.result_as(lhs_type)))
+        code.putln(code.error_goto_if_null("%s.memview" % rhstmp, lhs_pos))
 
     if not rhs.result_in_temp():
         code.put_incref("%s.memview" % rhstmp, cython_memoryview_ptr_type)
@@ -184,6 +193,157 @@ def src_conforms_to_dst(src, dst):
 
     return True
 
+def get_copy_contents_name(from_mvs, to_mvs):
+    dtype = from_mvs.dtype
+    assert dtype == to_mvs.dtype
+    return ('__Pyx_BufferCopyContents_%s_%s_%s' %
+            (axes_to_str(from_mvs.axes),
+             axes_to_str(to_mvs.axes),
+             mangle_dtype_name(dtype)))
+
+
+copy_template = '''
+static __Pyx_memviewslice %(copy_name)s(const __Pyx_memviewslice from_mvs) {
+
+    int i;
+    __Pyx_memviewslice new_mvs = {0, 0};
+    struct __pyx_obj_memoryview *from_memview = from_mvs.memview;
+    Py_buffer *buf = &from_memview->view;
+    PyObject *shape_tuple = 0;
+    PyObject *temp_int = 0;
+    struct __pyx_obj_array *array_obj = 0;
+    struct __pyx_obj_memoryview *memview_obj = 0;
+    char mode[] = "%(mode)s";
+
+    __Pyx_SetupRefcountContext("%(copy_name)s");
+
+    shape_tuple = PyTuple_New((Py_ssize_t)(buf->ndim));
+    if(unlikely(!shape_tuple)) {
+        goto fail;
+    }
+    __Pyx_GOTREF(shape_tuple);
+
+
+    for(i=0; i<buf->ndim; i++) {
+        temp_int = PyInt_FromLong(buf->shape[i]);
+        if(unlikely(!temp_int)) {
+            goto fail;
+        } else {
+            PyTuple_SET_ITEM(shape_tuple, i, temp_int);
+        }
+    }
+
+    array_obj = __pyx_cythonarray_array_cwrapper(shape_tuple, %(sizeof_dtype)s, buf->format, mode);
+    if (unlikely(!array_obj)) {
+        goto fail;
+    }
+    __Pyx_GOTREF(array_obj);
+
+    memview_obj = __pyx_viewaxis_memoryview_cwrapper((PyObject *)array_obj, %(contig_flag)s);
+    if (unlikely(!memview_obj)) {
+        goto fail;
+    }
+
+    /* initialize new_mvs */
+    if (unlikely(-1 == __Pyx_init_memviewslice(memview_obj, buf->ndim, &new_mvs))) {
+        PyErr_SetString(PyExc_RuntimeError,
+            "Could not initialize new memoryviewslice object.");
+        goto fail;
+    }
+
+    if (unlikely(-1 == %(copy_contents_name)s(&from_mvs, &new_mvs))) {
+        /* PyErr_SetString(PyExc_RuntimeError,
+            "Could not copy contents of memoryview slice."); */
+        goto fail;
+    }
+
+    goto no_fail;
+
+fail:
+    __Pyx_XDECREF(new_mvs.memview); new_mvs.memview = 0;
+    new_mvs.data = 0;
+no_fail:
+    __Pyx_XDECREF(shape_tuple); shape_tuple = 0;
+    __Pyx_GOTREF(temp_int);
+    __Pyx_XDECREF(temp_int); temp_int = 0;
+    __Pyx_XDECREF(array_obj); array_obj = 0;
+    __Pyx_FinishRefcountContext();
+    return new_mvs;
+
+}
+'''
+
+def get_copy_contents_code(from_mvs, to_mvs, cfunc_name):
+    assert from_mvs.dtype == to_mvs.dtype
+    assert len(from_mvs.axes) == len(to_mvs.axes)
+
+    ndim = len(from_mvs.axes)
+
+    # XXX: we only support direct access for now.
+    for (access, packing) in from_mvs.axes:
+        if access != 'direct':
+            raise NotImplementedError("only direct access supported currently.")
+
+    code = '''
+
+static int %(cfunc_name)s(const __Pyx_memviewslice *from_mvs, __Pyx_memviewslice *to_mvs) {
+
+    char *to_buf = (char *)to_mvs->data;
+    char *from_buf = (char *)from_mvs->data;
+    struct __pyx_obj_memoryview *temp_memview = 0;
+    char *temp_data = 0;
+
+''' % {'cfunc_name' : cfunc_name}
+
+    if to_mvs.is_c_contig:
+        start, stop, step = 0, ndim, 1
+    elif to_mvs.is_f_contig:
+        start, stop, step = ndim-1, -1, -1
+    else:
+        assert False
+
+    INDENT = "    "
+
+    for i, idx in enumerate(range(start, stop, step)):
+        # the crazy indexing is to account for the fortran indexing.
+        # 'i' always goes up from zero to ndim-1.
+        # 'idx' is the same as 'i' for c_contig, and goes from ndim-1 to 0 for f_contig.
+        # this makes the loop code below identical in both cases.
+        code += INDENT+"Py_ssize_t i%d = 0, idx%d = 0;\n" % (i,i)
+        code += INDENT+"Py_ssize_t stride%(i)d = from_mvs->diminfo[%(idx)d].strides;\n" % {'i':i, 'idx':idx}
+        code += INDENT+"Py_ssize_t shape%(i)d = from_mvs->diminfo[%(idx)d].shape;\n" % {'i':i, 'idx':idx}
+
+    code += "\n"
+
+    # put down the nested for-loop.
+    for k in range(ndim):
+
+        code += INDENT*(k+1) + "for(i%(k)d=0; i%(k)d<shape%(k)d; i%(k)d++) {\n" % {'k' : k}
+        code += INDENT*(k+2) + "idx%(k)d = i%(k)d * stride%(k)d;\n" % {'k' : k}
+
+    # the inner part of the loop.
+    dtype_decl = from_mvs.dtype.declaration_code("")
+    last_idx = ndim-1
+    code += INDENT*ndim+"memcpy(to_buf, from_buf+idx%(last_idx)d, sizeof(%(dtype_decl)s));\n" % locals()
+    code += INDENT*ndim+"to_buf += sizeof(%(dtype_decl)s);\n" % locals()
+
+    # for-loop closing braces
+    for k in range(ndim-1, -1, -1):
+        code += INDENT*(k+1)+"}\n"
+
+    # init to_mvs->data and to_mvs->diminfo.
+    code += INDENT+"temp_memview = to_mvs->memview;\n"
+    code += INDENT+"temp_data = to_mvs->data;\n"
+    code += INDENT+"to_mvs->memview = 0; to_mvs->data = 0;\n"
+    code += INDENT+"if(unlikely(-1 == __Pyx_init_memviewslice(temp_memview, %d, to_mvs))) {\n" % (ndim,)
+    code += INDENT*2+"return -1;\n"
+    code +=   INDENT+"}\n"
+
+    code += INDENT + "return 0;\n"
+
+    code += '}\n'
+
+    return code
 
 def get_axes_specs(env, axes):
     '''
@@ -288,16 +448,17 @@ def get_axes_specs(env, axes):
 def is_cf_contig(specs):
     is_c_contig = is_f_contig = False
 
-    packing_idx = 1
+    if (len(specs) == 1 and specs == [('direct', 'contig')]):
+        is_c_contig = True
 
-    if (specs[-1][packing_idx] == 'contig' and 
-          all(axis[packing_idx] == 'follow' for axis in specs[:-1])):
+    elif (specs[-1] == ('direct','contig') and 
+          all(axis == ('direct','follow') for axis in specs[:-1])):
         # c_contiguous: 'follow', 'follow', ..., 'follow', 'contig'
         is_c_contig = True
 
     elif (len(specs) > 1 and 
-        specs[0][packing_idx] == 'contig' and 
-        all(axis[packing_idx] == 'follow' for axis in specs[1:])):
+        specs[0] == ('direct','contig') and 
+        all(axis == ('direct','follow') for axis in specs[1:])):
         # f_contiguous: 'contig', 'follow', 'follow', ..., 'follow'
         is_f_contig = True
 
@@ -596,7 +757,13 @@ static int __Pyx_init_memviewslice(
     int i, retval=-1;
     Py_buffer *buf = &memview->view;
 
-    if(!buf || memviewslice->memview || memviewslice->data) {
+    if(!buf) {
+        PyErr_SetString(PyExc_ValueError,
+            "buf is NULL.");
+        goto fail;
+    } else if(memviewslice->memview || memviewslice->data) {
+        PyErr_SetString(PyExc_ValueError,
+            "memviewslice is already initialized!");
         goto fail;
     }
 

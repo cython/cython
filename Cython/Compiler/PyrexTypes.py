@@ -383,6 +383,7 @@ class MemoryViewSliceType(PyrexType):
         if self.scope is None:
 
             import Symtab, MemoryView
+            from MemoryView import axes_to_str
 
             self.scope = scope = Symtab.CClassScope(
                     'mvs_class_'+self.specialization_suffix(),
@@ -391,41 +392,90 @@ class MemoryViewSliceType(PyrexType):
 
             scope.parent_type = self
 
-            # the C copy method
-            c_copy_name = '__Pyx_CopyBuffer_C_'+self.specialization_suffix()
-            scope.declare_cfunction('copy',
-                    CFuncType(cython_memoryview_ptr_type,
-                        [CFuncTypeArg("memviewslice", self, None)]),
-                    pos = None,
-                    defining = 1,
-                    cname = c_copy_name)
+            scope.declare_var('_data', c_char_ptr_type, None, cname='data', is_cdef=1)
 
-            # the Fortran copy method
-            f_copy_name = '__Pyx_CopyBuffer_F_'+self.specialization_suffix()
-            scope.declare_cfunction('copy_fortran',
-                    CFuncType(cython_memoryview_ptr_type,
-                        [CFuncTypeArg("memviewslice", self, None)]),
-                    pos = None,
-                    defining = 1,
-                    cname = f_copy_name)
+            mangle_dtype = MemoryView.mangle_dtype_name(self.dtype)
+            ndim = len(self.axes)
+
+            to_axes_c = [('direct', 'contig')]
+            to_axes_f = [('direct', 'contig')]
+            if ndim-1:
+                to_axes_c = [('direct', 'follow')*(ndim-1)] + to_axes_c
+                to_axes_f = to_axes_f + [('direct', 'follow')*(ndim-1)]
+
+            to_memview_c = MemoryViewSliceType(self.dtype, to_axes_c, self.env)
+            to_memview_f = MemoryViewSliceType(self.dtype, to_axes_f, self.env)
+
+            copy_name_c = '__Pyx_BufferNew_C_From_'+self.specialization_suffix()
+            copy_name_f = '__Pyx_BufferNew_F_From_'+self.specialization_suffix()
+
+            cython_name_c = 'copy'
+            cython_name_f = 'copy_fortran'
+
+            c_copy_util_code = UtilityCode()
+            f_copy_util_code = UtilityCode()
+
+            for (to_memview, copy_name, cython_name, mode, contig_flag, util_code) in (
+                    (to_memview_c, copy_name_c, cython_name_c, 'c', 'PyBUF_C_CONTIGUOUS', c_copy_util_code),
+                    (to_memview_f, copy_name_f, cython_name_f, 'f', 'PyBUF_F_CONTIGUOUS', f_copy_util_code)):
+
+                copy_contents_name = MemoryView.get_copy_contents_name(self, to_memview)
+
+                scope.declare_cfunction(cython_name,
+                        CFuncType(self,
+                            [CFuncTypeArg("memviewslice", self, None)]),
+                        pos = None,
+                        defining = 1,
+                        cname = copy_name)
+
+                copy_impl = MemoryView.copy_template %\
+                        dict(copy_name=copy_name,
+                            mode=mode,
+                            sizeof_dtype="sizeof(%s)" % self.dtype.declaration_code(''),
+                            contig_flag=contig_flag,
+                            copy_contents_name=copy_contents_name)
+
+                copy_decl = '''\
+static __Pyx_memviewslice %s(const __Pyx_memviewslice); /* proto */
+    ''' % (copy_name,)
+
+                util_code.proto = copy_decl
+                util_code.impl = copy_impl
+
+            copy_contents_name_c = MemoryView.get_copy_contents_name(self, to_memview_c)
+            copy_contents_name_f = MemoryView.get_copy_contents_name(self, to_memview_f)
+
+            c_copy_util_code.proto += ('static int %s'
+                        '(const __Pyx_memviewslice *,'
+                              ' __Pyx_memviewslice *); /* proto */\n' %
+                        (copy_contents_name_c,))
+
+            c_copy_util_code.impl += \
+                    MemoryView.get_copy_contents_code(self, to_memview_c, copy_contents_name_c)
+
+            if (MemoryView.get_copy_contents_code(self, to_memview_c, copy_contents_name_c) !=
+                    MemoryView.get_copy_contents_code(self, to_memview_f, copy_contents_name_f)):
+                
+                f_copy_util_code.proto += ('static int %s'
+                        '(const __Pyx_memviewslice *,'
+                              ' __Pyx_memviewslice *); /* proto */\n' %
+                                (copy_contents_name_f,))
+
+                f_copy_util_code.impl += \
+                    MemoryView.get_copy_contents_code(self, to_memview_f, copy_contents_name_f)
+
+            self.env.use_utility_code(c_copy_util_code)
+            self.env.use_utility_code(c_copy_util_code)
 
             # ensure the right util code is used 
             MemoryView.use_cython_array(self.env)
             MemoryView.use_memview_util_code(self.env)
 
-            # C copy method implementation.
-            ccopy_util_code = UtilityCode()
-            # ccopy_util_code.proto =#XXX 
-
-
-
         return True
 
-    def axes_to_str(self):
-        return "".join([access[0]+packing[0] for (access, packing) in self.axes])
-
     def specialization_suffix(self):
-        return self.axes_to_str() + '_' + self.dtype.specalization_name()
+        import MemoryView
+        return MemoryView.axes_to_str(self.axes) + '_' + MemoryView.mangle_dtype_name(self.dtype)
 
     def global_init_code(self, entry, code):
         code.putln("%s.data = NULL;" % entry.cname)
@@ -2621,6 +2671,9 @@ cython_memoryview_type = CStructOrUnionType("__pyx_obj_memoryview", "struct",
                                       None, 0, "__pyx_obj_memoryview")
 
 cython_memoryview_ptr_type = CPtrType(cython_memoryview_type)
+
+memoryviewslice_type = CStructOrUnionType("__Pyx_memviewslice", "struct",
+                                    None, 1, "__Pyx_memviewslice")
 
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()
