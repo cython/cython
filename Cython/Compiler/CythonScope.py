@@ -301,7 +301,7 @@ cdef class array:
         Py_ssize_t itemsize
         str mode
 
-    def __cinit__(array self, tuple shape, Py_ssize_t itemsize, char *format, str mode="c"):
+    def __cinit__(array self, tuple shape, Py_ssize_t itemsize, char *format, mode="c"):
 
         self.ndim = len(shape)
         self.itemsize = itemsize
@@ -331,7 +331,7 @@ cdef class array:
             idx += 1
         assert idx == self.ndim
 
-        if mode == "f":
+        if mode == "fortran":
             idx = 0; stride = 1
             for dim in shape:
                 self.strides[idx] = stride
@@ -350,7 +350,7 @@ cdef class array:
             assert idx == -1
             self.len = stride * self.itemsize
         else:
-            raise ValueError("Invalid mode, expected 'c' or 'f', got %s" % mode)
+            raise ValueError("Invalid mode, expected 'c' or 'fortran', got %s" % mode)
 
         self.mode = mode
 
@@ -363,7 +363,7 @@ cdef class array:
         cdef int bufmode = -1
         if self.mode == b"c":
             bufmode = PyBUF_C_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
-        elif self.mode == b"f":
+        elif self.mode == b"fortran":
             bufmode = PyBUF_F_CONTIGUOUS | PyBUF_ANY_CONTIGUOUS
         if not (flags & bufmode):
             raise ValueError("Can only create a buffer that is contiguous in memory.")
