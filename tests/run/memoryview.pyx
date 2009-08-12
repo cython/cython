@@ -58,9 +58,11 @@ cdef object global_obj
 
 def assignmvs():
     cdef int[::1] mv1, mv2
+    cdef int[:] mv3
     mv1 = array((10,), itemsize=sizeof(int), format='i')
     mv2 = mv1
     mv1 = mv2
+    mv3 = mv2
 
 def call():
     global global_mv
