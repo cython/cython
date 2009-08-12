@@ -35,7 +35,7 @@ class CythonUtilityCode:
     Utility code written in the Cython language itself.
     """
 
-    def __init__(self, pyx, name="__pyxutil", prefix=""):
+    def __init__(self, pyx, name="__pyxutil", prefix="", requires=None):
         # 1) We need to delay the parsing/processing, so that all modules can be
         #    imported without import loops
         # 2) The same utility code object can be used for multiple source files;
@@ -45,6 +45,7 @@ class CythonUtilityCode:
         self.pyx = pyx
         self.name = name
         self.prefix = prefix
+        self.requires = requires
 
     def get_tree(self):
         import Pipeline
