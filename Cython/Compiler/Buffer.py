@@ -527,87 +527,111 @@ def buf_lookup_fortran_code(proto, defin, name, nd):
 
 
 def use_py2_buffer_functions(env):
+    env.use_utility_code(GetAndReleaseBufferUtilityCode())
+
+class GetAndReleaseBufferUtilityCode(object):
     # Emulation of PyObject_GetBuffer and PyBuffer_Release for Python 2.
     # For >= 2.6 we do double mode -- use the new buffer interface on objects
     # which has the right tp_flags set, but emulation otherwise.
 
-    # Search all types for __getbuffer__ overloads
-    types = []
-    visited_scopes = set()
-    def find_buffer_types(scope):
-        if scope in visited_scopes:
-            return
-        visited_scopes.add(scope)
-        for m in scope.cimported_modules:
-            find_buffer_types(m)
-        for e in scope.type_entries:
-            t = e.type
-            if t.is_extension_type:
-                if e.name == 'array' and not e.used:
-                    continue
-                release = get = None
-                for x in t.scope.pyfunc_entries:
-                    if x.name == u"__getbuffer__": get = x.func_cname
-                    elif x.name == u"__releasebuffer__": release = x.func_cname
-                if get:
-                    types.append((t.typeptr_cname, get, release))
+    requires = None
 
-    find_buffer_types(env)
+    def __init__(self):
+        pass
 
-    code = dedent("""
-        #if PY_MAJOR_VERSION < 3
-        static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
-          #if PY_VERSION_HEX >= 0x02060000
-          if (PyObject_CheckBuffer(obj)) return PyObject_GetBuffer(obj, view, flags);
-          #endif
-    """)
-    if len(types) > 0:
-        clause = "if"
-        for t, get, release in types:
-            code += "  %s (PyObject_TypeCheck(obj, %s)) return %s(obj, view, flags);\n" % (clause, t, get)
-            clause = "else if"
-        code += "  else {\n"
-    code += dedent("""\
-        PyErr_Format(PyExc_TypeError, "'%100s' does not have the buffer interface", Py_TYPE(obj)->tp_name);
-        return -1;
-    """, 2)
-    if len(types) > 0: code += "  }"
-    code += dedent("""
-        }
+    def __eq__(self, other):
+        return isinstance(other, GetAndReleaseBufferUtilityCode)
 
-        static void __Pyx_ReleaseBuffer(Py_buffer *view) {
-          PyObject* obj = view->obj;
-          if (obj) {
-            #if PY_VERSION_HEX >= 0x02060000
-            if (PyObject_CheckBuffer(obj)) {PyBuffer_Release(view); return;}
+    def __hash__(self):
+        return 24342342
+
+    def get_tree(self): pass
+
+    def put_code(self, output):
+        code = output['utility_code_def']
+        proto = output['utility_code_proto']
+        env = output.module_node.scope
+        cython_scope = env.context.cython_scope
+
+        proto.put(dedent("""\
+            #if PY_MAJOR_VERSION < 3
+            static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
+            static void __Pyx_ReleaseBuffer(Py_buffer *view);
+            #else
+            #define __Pyx_GetBuffer PyObject_GetBuffer
+            #define __Pyx_ReleaseBuffer PyBuffer_Release
             #endif
-    """)
-    if len(types) > 0:
-        clause = "if"
-        for t, get, release in types:
-            if release:
-                code += "    "
-                code += "%s (PyObject_TypeCheck(obj, %s)) %s(obj, view);" % (clause, t, release)
+        """))
+        
+        # Search all types for __getbuffer__ overloads
+        types = []
+        visited_scopes = set()
+        def find_buffer_types(scope):
+            if scope in visited_scopes:
+                return
+            visited_scopes.add(scope)
+            for m in scope.cimported_modules:
+                find_buffer_types(m)
+            for e in scope.type_entries:
+                t = e.type
+                if t.is_extension_type:
+                    if scope is cython_scope and not e.used:
+                        continue
+                    release = get = None
+                    for x in t.scope.pyfunc_entries:
+                        if x.name == u"__getbuffer__": get = x.func_cname
+                        elif x.name == u"__releasebuffer__": release = x.func_cname
+                    if get:
+                        types.append((t.typeptr_cname, get, release))
+
+        find_buffer_types(env)
+
+        code.put(dedent("""
+            #if PY_MAJOR_VERSION < 3
+            static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags) {
+              #if PY_VERSION_HEX >= 0x02060000
+              if (PyObject_CheckBuffer(obj)) return PyObject_GetBuffer(obj, view, flags);
+              #endif
+            """))
+        
+        if len(types) > 0:
+            clause = "if"
+            for t, get, release in types:
+                code.putln("  %s (PyObject_TypeCheck(obj, %s)) return %s(obj, view, flags);" % (clause, t, get))
                 clause = "else if"
-    code += dedent("""
-            Py_DECREF(obj);
-            view->obj = NULL;
-          }
-        }
+            code.putln("  else {")
+        code.put(dedent("""\
+            PyErr_Format(PyExc_TypeError, "'%100s' does not have the buffer interface", Py_TYPE(obj)->tp_name);
+            return -1;
+            """, 2))
+        if len(types) > 0:
+            code.putln("  }")
+        code.put(dedent("""\
+             }
 
-        #endif
-    """)
+            static void __Pyx_ReleaseBuffer(Py_buffer *view) {
+              PyObject* obj = view->obj;
+              if (obj) {
+                #if PY_VERSION_HEX >= 0x02060000
+                if (PyObject_CheckBuffer(obj)) {PyBuffer_Release(view); return;}
+                #endif
+        """))
+                 
+        if len(types) > 0:
+            clause = "if"
+            for t, get, release in types:
+                if release:
+                    code.putln("%s (PyObject_TypeCheck(obj, %s)) %s(obj, view);" % (clause, t, release))
+                    clause = "else if"
+        code.put(dedent("""
+                Py_DECREF(obj);
+                view->obj = NULL;
+              }
+            }
 
-    env.use_utility_code(UtilityCode(
-            proto = dedent("""\
-        #if PY_MAJOR_VERSION < 3
-        static int __Pyx_GetBuffer(PyObject *obj, Py_buffer *view, int flags);
-        static void __Pyx_ReleaseBuffer(Py_buffer *view);
-        #else
-        #define __Pyx_GetBuffer PyObject_GetBuffer
-        #define __Pyx_ReleaseBuffer PyBuffer_Release
-        #endif
-    """), impl = code))
+            #endif
+        """))
+
 
 
 def mangle_dtype_name(dtype):
@@ -783,15 +807,6 @@ typedef struct {
   size_t parent_offset;
 } __Pyx_BufFmt_StackElem;
 
-
-static CYTHON_INLINE int  __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj, __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack);
-static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
-""", impl="""
-static CYTHON_INLINE int __Pyx_IsLittleEndian(void) {
-  unsigned int n = 1;
-  return *(unsigned char*)(&n) != 0;
-}
-
 typedef struct {
   __Pyx_StructField root;
   __Pyx_BufFmt_StackElem* head;
@@ -804,10 +819,11 @@ typedef struct {
 } __Pyx_BufFmt_Context;
 
 
-static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
-static int __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj, __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack);
+static CYTHON_INLINE int  __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj, __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack);
+static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
 """, impl="""
-static INLINE int __Pyx_IsLittleEndian(void) {
+
+static CYTHON_INLINE int __Pyx_IsLittleEndian(void) {
   unsigned int n = 1;
   return *(unsigned char*)(&n) != 0;
 }

@@ -822,8 +822,11 @@ class MemoryViewSliceTypeNode(CBaseTypeNode):
             self.type = PyrexTypes.ErrorType()
             return self.type
 
-        self.type = PyrexTypes.MemoryViewSliceType(base_type, axes_specs, env)
+        self.type = PyrexTypes.MemoryViewSliceType(base_type, axes_specs)
         MemoryView.use_memview_util_code(env)
+        MemoryView.use_cython_array(env)
+        MemoryView.use_memview_util_code(env)
+        env.use_utility_code(MemoryView.memviewslice_declare_code)
         return self.type
 
 class CNestedBaseTypeNode(CBaseTypeNode):

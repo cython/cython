@@ -4,6 +4,7 @@ from time import time
 import Errors
 import DebugFlags
 import Options
+from Visitor import CythonTransform
 from Errors import PyrexError, CompileError, InternalError, AbortError, error
 
 #
@@ -78,16 +79,39 @@ def inject_utility_code_stage_factory(context):
 
         added = []
         # Note: the list might be extended inside the loop (if some utility code
-        # pulls in other utility code)
+        # pulls in other utility code, explicitly or implicitly)
         for utilcode in module_node.scope.utility_code_list:
             if utilcode in added: continue
             added.append(utilcode)
+            if utilcode.requires:
+                for dep in utilcode.requires:
+                    if not dep in added and not dep in module_node.scope.utility_code_list:
+                        module_node.scope.utility_code_list.append(dep)
             tree = utilcode.get_tree()
             if tree:
                 module_node.merge_in(tree.body, tree.scope, merge_scope=True)
         return module_node
     return inject_utility_code_stage
 
+#class UseUtilityCodeDefinitions(CythonTransform):
+#    # Temporary hack to use any utility code in nodes' "utility_code_definitions".
+#    # This should be moved to the code generation phase of the relevant nodes once
+#    # it is safe to generate CythonUtilityCode at code generation time.
+#    def __call__(self, node):
+#        self.scope = node.scope
+#        return super(UseUtilityCodeDefinitions, self).__call__(node)
+#
+#    def visit_AttributeNode(self, node):
+#        if node.entry and node.entry.utility_code_definition:
+#            self.scope.use_utility_code(node.entry.utility_code_definition)
+#        return node
+#
+#    def visit_NameNode(self, node):
+#        for e in (node.entry, node.type_entry):
+#            if e and e.utility_code_definition:
+#                self.scope.use_utility_code(e.utility_code_definition)
+#        return node
+                     
 #
 # Pipeline factories
 #
@@ -167,6 +191,7 @@ def create_pipeline(context, mode, exclude_classes=()):
         DropRefcountingTransform(),
         FinalOptimizePhase(context),
         GilCheck(),
+#        UseUtilityCodeDefinitions(context),
         ]
     filtered_stages = []
     for s in stages:

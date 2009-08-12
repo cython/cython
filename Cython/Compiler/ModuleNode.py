@@ -126,7 +126,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if (h_types or  h_vars or h_funcs or h_extension_types):
             result.h_file = replace_suffix(result.c_file, ".h")
             h_code = Code.CCodeWriter()
-            Code.GlobalState(h_code)
+            Code.GlobalState(h_code, self)
             if options.generate_pxi:
                 result.i_file = replace_suffix(result.c_file, ".pxi")
                 i_code = Code.PyrexCodeWriter(result.i_file)
@@ -195,7 +195,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if api_vars or api_funcs or api_extension_types:
             result.api_file = replace_suffix(result.c_file, "_api.h")
             h_code = Code.CCodeWriter()
-            Code.GlobalState(h_code)
+            Code.GlobalState(h_code, self)
             api_guard = Naming.api_guard_prefix + self.api_name(env)
             h_code.put_h_guard(api_guard)
             h_code.putln('#include "Python.h"')
@@ -293,7 +293,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             emit_linenums = options.emit_linenums
             rootwriter = Code.CCodeWriter(emit_linenums=emit_linenums, c_line_in_traceback=options.c_line_in_traceback)
-        globalstate = Code.GlobalState(rootwriter, emit_linenums)
+        globalstate = Code.GlobalState(rootwriter, self, emit_linenums)
         globalstate.initialize_main_c_code()
         h_code = globalstate['h_code']
 

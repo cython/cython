@@ -320,7 +320,7 @@ class MemoryViewSliceType(PyrexType):
     has_attributes = 1
     scope = None
 
-    def __init__(self, base_dtype, axes, env):
+    def __init__(self, base_dtype, axes):
         '''
         MemoryViewSliceType(base, axes)
 
@@ -357,7 +357,6 @@ class MemoryViewSliceType(PyrexType):
 
         self.dtype = base_dtype
         self.axes = axes
-        self.env = env
 
         import MemoryView
         self.is_c_contig, self.is_f_contig = MemoryView.is_cf_contig(self.axes)
@@ -373,8 +372,6 @@ class MemoryViewSliceType(PyrexType):
         assert not pyrex
         assert not dll_linkage
         import MemoryView
-        if not for_display:
-            self.env.use_utility_code(MemoryView.memviewslice_declare_code)
         return self.base_declaration_code(
                 MemoryView.memviewslice_cname,
                 entity_code)
@@ -384,11 +381,10 @@ class MemoryViewSliceType(PyrexType):
 
             import Symtab, MemoryView
             from MemoryView import axes_to_str
-
             self.scope = scope = Symtab.CClassScope(
                     'mvs_class_'+self.specialization_suffix(),
-                    self.env.global_scope(),
-                    visibility='private')
+                    None,
+                    visibility='extern')
 
             scope.parent_type = self
 
@@ -403,17 +399,17 @@ class MemoryViewSliceType(PyrexType):
                 to_axes_c = [('direct', 'follow')]*(ndim-1) + to_axes_c
                 to_axes_f = to_axes_f + [('direct', 'follow')]*(ndim-1)
 
-            to_memview_c = MemoryViewSliceType(self.dtype, to_axes_c, self.env)
-            to_memview_f = MemoryViewSliceType(self.dtype, to_axes_f, self.env)
+            to_memview_c = MemoryViewSliceType(self.dtype, to_axes_c)
+            to_memview_f = MemoryViewSliceType(self.dtype, to_axes_f)
 
             copy_contents_name_c =\
                     MemoryView.get_copy_contents_name(self, to_memview_c)
             copy_contents_name_f =\
                     MemoryView.get_copy_contents_name(self, to_memview_f)
 
-            c_copy_decl, c_copy_impl = \
+            c_copy_decl, c_copy_impl, c_entry = \
                     MemoryView.memoryviewslice_get_copy_func(self, to_memview_c, 'c', self.scope)
-            f_copy_decl, f_copy_impl = \
+            f_copy_decl, f_copy_impl, f_entry = \
                     MemoryView.memoryviewslice_get_copy_func(self, to_memview_f, 'fortran', self.scope)
 
             c_copy_contents_decl, c_copy_contents_impl = \
@@ -430,18 +426,12 @@ class MemoryViewSliceType(PyrexType):
                     proto = f_copy_decl,
                     impl = f_copy_impl)
 
+            c_entry.utility_code_definition = c_util_code
+            f_entry.utility_code_definition = f_util_code           
+
             if copy_contents_name_c != copy_contents_name_f:
                 f_util_code.proto += f_copy_contents_decl
                 f_util_code.impl  += f_copy_contents_impl
-
-            c_copy_used = [1 for util_code in self.env.global_scope().utility_code_list if c_util_code.proto == util_code.proto]
-            f_copy_used = [1 for util_code in self.env.global_scope().utility_code_list if f_util_code.proto == util_code.proto]
-
-            if not c_copy_used:
-                self.env.use_utility_code(c_util_code)
-
-            if not f_copy_used:
-                self.env.use_utility_code(f_util_code)
 
             # is_c_contiguous and is_f_contiguous functions
 
@@ -459,17 +449,6 @@ class MemoryViewSliceType(PyrexType):
 
                 contig_util_code = UtilityCode(
                         proto = contig_decl, impl = contig_impl)
-
-                contig_used = [1 for util_code in \
-                        self.env.global_scope().utility_code_list \
-                        if contig_decl == util_code.proto]
-
-                if not contig_used:
-                    self.env.use_utility_code(contig_util_code)
-
-            # use the supporting util code
-            MemoryView.use_cython_array(self.env)
-            MemoryView.use_memview_util_code(self.env)
 
         return True
 

@@ -124,6 +124,8 @@ class Entry(object):
     #                             used uninitialized
     # cf_used          boolean    Entry is used
 
+    # TODO: utility_code and utility_code_definition serves the same purpose...
+
     inline_func_in_pxd = False
     borrowed = 0
     init = ""
