@@ -151,10 +151,8 @@ def src_conforms_to_dst(src, dst):
 
     Any packing/access spec is conformable to itself.
 
-    'contig' and 'follow' are conformable to 'strided'.
-
     'direct' and 'ptr' are conformable to 'full'.
-
+    'contig' and 'follow' are conformable to 'strided'.
     Any other combo is not conformable.
     '''
 
@@ -166,9 +164,9 @@ def src_conforms_to_dst(src, dst):
     for src_spec, dst_spec in zip(src.axes, dst.axes):
         src_access, src_packing = src_spec
         dst_access, dst_packing = dst_spec
-        if src_access != dst_access and dst_access != 'strided':
+        if src_access != dst_access and dst_access != 'full':
             return False
-        if src_packing != dst_packing and dst_packing != 'full':
+        if src_packing != dst_packing and dst_packing != 'strided':
             return False
 
     return True
