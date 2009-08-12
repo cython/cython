@@ -394,15 +394,14 @@ class MemoryViewSliceType(PyrexType):
 
             scope.declare_var('_data', c_char_ptr_type, None, cname='data', is_cdef=1)
 
-
             mangle_dtype = MemoryView.mangle_dtype_name(self.dtype)
             ndim = len(self.axes)
 
             to_axes_c = [('direct', 'contig')]
             to_axes_f = [('direct', 'contig')]
             if ndim-1:
-                to_axes_c = [('direct', 'follow')*(ndim-1)] + to_axes_c
-                to_axes_f = to_axes_f + [('direct', 'follow')*(ndim-1)]
+                to_axes_c = [('direct', 'follow')]*(ndim-1) + to_axes_c
+                to_axes_f = to_axes_f + [('direct', 'follow')]*(ndim-1)
 
             to_memview_c = MemoryViewSliceType(self.dtype, to_axes_c, self.env)
             to_memview_f = MemoryViewSliceType(self.dtype, to_axes_f, self.env)
@@ -473,7 +472,31 @@ static __Pyx_memviewslice %s(const __Pyx_memviewslice); /* proto */
             if not f_copy_used:
                 self.env.use_utility_code(f_copy_util_code)
 
-            # ensure the right util code is used 
+            # is_c_contiguous and is_f_contiguous functions
+
+            for c_or_f, cython_name in (('c', 'is_c_contig'), ('fortran', 'is_f_contig')):
+
+                is_contig_name = MemoryView.get_is_contig_func_name(c_or_f)
+                scope.declare_cfunction(cython_name,
+                            CFuncType(c_int_type,
+                                [CFuncTypeArg("memviewslice", self, None)]),
+                            pos = None,
+                            defining = 1,
+                            cname = is_contig_name)
+
+                contig_decl, contig_impl = MemoryView.get_is_contiguous_func(c_or_f)
+
+                contig_util_code = UtilityCode(
+                        proto = contig_decl, impl = contig_impl)
+
+                contig_used = [1 for util_code in \
+                        self.env.global_scope().utility_code_list \
+                        if contig_decl == util_code.proto]
+
+                if not contig_used:
+                    self.env.use_utility_code(contig_util_code)
+
+            # use the supporting util code
             MemoryView.use_cython_array(self.env)
             MemoryView.use_memview_util_code(self.env)
 
