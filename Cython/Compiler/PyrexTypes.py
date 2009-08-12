@@ -394,6 +394,7 @@ class MemoryViewSliceType(PyrexType):
 
             scope.declare_var('_data', c_char_ptr_type, None, cname='data', is_cdef=1)
 
+
             mangle_dtype = MemoryView.mangle_dtype_name(self.dtype)
             ndim = len(self.axes)
 
@@ -406,18 +407,18 @@ class MemoryViewSliceType(PyrexType):
             to_memview_c = MemoryViewSliceType(self.dtype, to_axes_c, self.env)
             to_memview_f = MemoryViewSliceType(self.dtype, to_axes_f, self.env)
 
-            copy_name_c = '__Pyx_BufferNew_C_From_'+self.specialization_suffix()
-            copy_name_f = '__Pyx_BufferNew_F_From_'+self.specialization_suffix()
-
             cython_name_c = 'copy'
             cython_name_f = 'copy_fortran'
+
+            copy_name_c = '__Pyx_BufferNew_C_From_'+self.specialization_suffix()
+            copy_name_f = '__Pyx_BufferNew_F_From_'+self.specialization_suffix()
 
             c_copy_util_code = UtilityCode()
             f_copy_util_code = UtilityCode()
 
             for (to_memview, copy_name, cython_name, mode, contig_flag, util_code) in (
                     (to_memview_c, copy_name_c, cython_name_c, 'c', 'PyBUF_C_CONTIGUOUS', c_copy_util_code),
-                    (to_memview_f, copy_name_f, cython_name_f, 'f', 'PyBUF_F_CONTIGUOUS', f_copy_util_code)):
+                    (to_memview_f, copy_name_f, cython_name_f, 'fortran', 'PyBUF_F_CONTIGUOUS', f_copy_util_code)):
 
                 copy_contents_name = MemoryView.get_copy_contents_name(self, to_memview)
 
