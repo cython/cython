@@ -487,7 +487,7 @@ def _resolve_NameNode(env, node):
         resolved_name = env.lookup(node.name).name
     except AttributeError:
         raise CompileError(node.pos, INVALID_ERR)
-    viewscope = env.context.cython_scope.viewscope
+    viewscope = env.global_scope().context.cython_scope.viewscope
     return viewscope.lookup(resolved_name)
 
 def _resolve_AttributeNode(env, node):
