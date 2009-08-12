@@ -157,6 +157,9 @@ class PyrexType(BaseType):
         # abstract
         pass
 
+    def needs_nonecheck(self):
+        return 0
+
 class CTypedefType(BaseType):
     #
     #  Pseudo-type defined with a ctypedef statement in a
@@ -273,6 +276,9 @@ class MemoryViewSliceType(PyrexType):
         import MemoryView
         self.is_c_contig, self.is_f_contig = MemoryView.is_cf_contig(self.axes)
         assert not (self.is_c_contig and self.is_f_contig)
+
+    def needs_nonecheck(self):
+        return True
 
     def is_complete(self):
         # incomplete since the underlying struct doesn't have a cython.memoryview object.
@@ -557,6 +563,9 @@ class PyExtensionType(PyObjectType):
     
     is_extension_type = 1
     has_attributes = 1
+
+    def needs_nonecheck(self):
+        return True
     
     def __init__(self, name, typedef_flag, base_type):
         self.name = name
