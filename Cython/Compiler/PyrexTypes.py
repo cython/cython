@@ -454,8 +454,7 @@ static __Pyx_memviewslice %s(const __Pyx_memviewslice); /* proto */
             c_copy_util_code.impl += \
                     MemoryView.get_copy_contents_code(self, to_memview_c, copy_contents_name_c)
 
-            if (MemoryView.get_copy_contents_code(self, to_memview_c, copy_contents_name_c) !=
-                    MemoryView.get_copy_contents_code(self, to_memview_f, copy_contents_name_f)):
+            if copy_contents_name_c != copy_contents_name_f:
                 
                 f_copy_util_code.proto += ('static int %s'
                         '(const __Pyx_memviewslice *,'
@@ -465,8 +464,14 @@ static __Pyx_memviewslice %s(const __Pyx_memviewslice); /* proto */
                 f_copy_util_code.impl += \
                     MemoryView.get_copy_contents_code(self, to_memview_f, copy_contents_name_f)
 
-            self.env.use_utility_code(c_copy_util_code)
-            self.env.use_utility_code(c_copy_util_code)
+            c_copy_used = [1 for util_code in self.env.global_scope().utility_code_list if c_copy_util_code.proto == util_code.proto]
+            f_copy_used = [1 for util_code in self.env.global_scope().utility_code_list if f_copy_util_code.proto == util_code.proto]
+
+            if not c_copy_used:
+                self.env.use_utility_code(c_copy_util_code)
+
+            if not f_copy_used:
+                self.env.use_utility_code(f_copy_util_code)
 
             # ensure the right util code is used 
             MemoryView.use_cython_array(self.env)
