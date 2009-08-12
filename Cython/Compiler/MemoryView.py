@@ -117,31 +117,18 @@ def get_buf_flag(specs):
     else:
         return memview_strided_access
 
-def use_cython_view_util_code(env, lu_name):
-    import CythonScope
-    cythonscope = env.global_scope().context.cython_scope
-    viewscope = cythonscope.viewscope
-    entry = viewscope.lookup_here(lu_name)
-    entry.used = 1
-    return entry
-
-def use_cython_util_code(env, lu_name):
-    import CythonScope
-    cythonscope = env.global_scope().context.cython_scope
-    entry = cythonscope.lookup_here(lu_name)
-    entry.used = 1
-    return entry
-
 def use_memview_util_code(env):
     import CythonScope
-    return use_cython_view_util_code(env, CythonScope.memview_name)
+    env.use_utility_code(CythonScope.view_utility_code)
+    env.use_utility_code(memviewslice_declare_code)
 
 def use_memview_cwrap(env):
     import CythonScope
-    return use_cython_view_util_code(env, CythonScope.memview_cwrap_name)
+    env.use_utility_code(CythonScope.view_utility_code)
 
 def use_cython_array(env):
-    return use_cython_util_code(env, 'array')
+    import CythonScope
+    env.use_utility_code(CythonScope.cython_array_utility_code)
 
 def src_conforms_to_dst(src, dst):
     '''
@@ -318,7 +305,7 @@ def memoryviewslice_get_copy_func(from_memview, to_memview, mode, scope):
 
     copy_contents_name = get_copy_contents_name(from_memview, to_memview)
 
-    scope.declare_cfunction(cython_name,
+    entry = scope.declare_cfunction(cython_name,
                 CFuncType(from_memview,
                     [CFuncTypeArg("memviewslice", from_memview, None)]),
                 pos = None,
@@ -335,7 +322,7 @@ def memoryviewslice_get_copy_func(from_memview, to_memview, mode, scope):
     copy_decl = ("static __Pyx_memviewslice "
                 "%s(const __Pyx_memviewslice); /* proto */\n" % (copy_name,))
 
-    return (copy_decl, copy_impl)
+    return (copy_decl, copy_impl, entry)
 
 def get_copy_contents_func(from_mvs, to_mvs, cfunc_name):
     assert from_mvs.dtype == to_mvs.dtype

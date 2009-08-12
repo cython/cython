@@ -119,6 +119,8 @@ class Entry(object):
     #                             which contains the definition of the entry.
     #                             Currently only supported for CythonScope entries.
 
+    # TODO: utility_code and utility_code_definition serves the same purpose...
+
     inline_func_in_pxd = False
     borrowed = 0
     init = ""

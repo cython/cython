@@ -4,6 +4,7 @@ from UtilityCode import CythonUtilityCode
 from Errors import error
 from Scanning import StringSourceDescriptor
 import Options
+import Buffer
 
 class CythonScope(ModuleScope):
     def __init__(self):
@@ -74,6 +75,8 @@ class CythonScope(ModuleScope):
             defining=1,
             cname='__pyx_cython_view__testscope'
         )
+        entry.utility_code_definition = cythonview_testscope_utility_code
+        
 
         for x in ('strided', 'contig', 'follow', 'direct', 'ptr', 'full'):
             entry = viewscope.declare_var(x, py_object_type, None,
@@ -156,7 +159,8 @@ memview_name = u'memoryview'
 memview_typeptr_cname = Naming.typeptr_prefix+memview_name
 memview_typeobj_cname = '__pyx_tobj_'+memview_name
 memview_objstruct_cname = '__pyx_obj_'+memview_name
-view_utility_code = CythonUtilityCode(u"""
+view_utility_code = CythonUtilityCode(
+u"""
 cdef class Enum(object):
     cdef object name
     def __init__(self, name):
@@ -191,7 +195,9 @@ cdef class memoryview(object):
 
 cdef memoryview memoryview_cwrapper(object o, int flags):
     return memoryview(o, flags)
-""", name="view_code", prefix="__pyx_viewaxis_")
+""", name="view_code",
+    prefix="__pyx_viewaxis_",
+    requires=(Buffer.GetAndReleaseBufferUtilityCode(),))
 
 cyarray_prefix = u'__pyx_cythonarray_'
 cython_array_utility_code = CythonUtilityCode(u'''

@@ -1,6 +1,7 @@
 from Errors import PyrexError, CompileError, InternalError, error
 import Errors
 import DebugFlags
+from Visitor import CythonTransform
 
 #
 # Really small pipeline stages.
@@ -48,31 +49,43 @@ def inject_pxd_code_stage_factory(context):
         return module_node
     return inject_pxd_code_stage
 
-def use_utility_code_definitions(scope, target):
-    for entry in scope.entries.itervalues():
-        if entry.used and entry.utility_code_definition:
-            target.use_utility_code(entry.utility_code_definition)
-        elif entry.as_module:
-            use_utility_code_definitions(entry.as_module, target)
-
 def inject_utility_code_stage_factory(context):
     def inject_utility_code_stage(module_node):
-        # First, make sure any utility code pulled in by using symbols in the cython
-        # scope is included
-        use_utility_code_definitions(context.cython_scope, module_node.scope)
-        
         added = []
         # Note: the list might be extended inside the loop (if some utility code
-        # pulls in other utility code)
+        # pulls in other utility code, explicitly or implicitly)
         for utilcode in module_node.scope.utility_code_list:
             if utilcode in added: continue
             added.append(utilcode)
+            if utilcode.requires:
+                for dep in utilcode.requires:
+                    if not dep in added and not dep in module_node.scope.utility_code_list:
+                        module_node.scope.utility_code_list.append(dep)
             tree = utilcode.get_tree()
             if tree:
                 module_node.merge_in(tree.body, tree.scope, merge_scope=True)
         return module_node
     return inject_utility_code_stage
 
+class UseUtilityCodeDefinitions(CythonTransform):
+    # Temporary hack to use any utility code in nodes' "utility_code_definitions".
+    # This should be moved to the code generation phase of the relevant nodes once
+    # it is safe to generate CythonUtilityCode at code generation time.
+    def __call__(self, node):
+        self.scope = node.scope
+        return super(UseUtilityCodeDefinitions, self).__call__(node)
+
+    def visit_AttributeNode(self, node):
+        if node.entry and node.entry.utility_code_definition:
+            self.scope.use_utility_code(node.entry.utility_code_definition)
+        return node
+
+    def visit_NameNode(self, node):
+        for e in (node.entry, node.type_entry):
+            if e and e.utility_code_definition:
+                self.scope.use_utility_code(e.utility_code_definition)
+        return node
+                     
 #
 # Pipeline factories
 #
@@ -139,6 +152,7 @@ def create_pipeline(context, mode):
         SwitchTransform(),
         FinalOptimizePhase(context),
         GilCheck(),
+        UseUtilityCodeDefinitions(context),
     #            ClearResultCodes(context),
     #            SpecialFunctions(context),
         #        CreateClosureClasses(context),
