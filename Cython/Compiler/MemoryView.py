@@ -650,6 +650,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
 
     for(i=0; i<ndim; i++) {
         spec = axes_specs[i];
+
         if (spec & __Pyx_MEMVIEW_CONTIG) {
             if (buf->strides[i] != buf->itemsize) {
                 PyErr_SetString(PyExc_ValueError,
@@ -659,7 +660,7 @@ static int __Pyx_ValidateAndInit_memviewslice(
         }
 
         if (spec & (__Pyx_MEMVIEW_STRIDED | __Pyx_MEMVIEW_FOLLOW)) {
-            if (buf->strides[i] <= buf->itemsize) {
+            if (buf->strides[i] < buf->itemsize) {
                 PyErr_SetString(PyExc_ValueError,
                     "Buffer and memoryview are not contiguous in the same dimension.");
                 goto fail;
