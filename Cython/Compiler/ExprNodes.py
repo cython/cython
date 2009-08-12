@@ -503,7 +503,6 @@ class ExprNode(Node):
                 error(self.pos, "Memoryview '%s' not conformable to memoryview '%s'." %
                         (src.type, dst_type))
 
-
         elif dst_type.is_pyobject:
             if not src.type.is_pyobject:
                 src = CoerceToPyTypeNode(src, env)
