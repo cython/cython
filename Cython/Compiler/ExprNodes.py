@@ -3929,7 +3929,7 @@ class AttributeNode(ExprNode):
                 self.obj.result_as(self.obj.type),
                 rhs.result_as(self.ctype())))
         else:
-            if (self.obj.type.is_extension_type
+            if (self.obj.type.needs_nonecheck()
                   and self.needs_none_check
                   and code.globalstate.directives['nonecheck']):
                 self.put_nonecheck(code)
@@ -3978,7 +3978,13 @@ class AttributeNode(ExprNode):
 
     def put_nonecheck(self, code):
         code.globalstate.use_utility_code(raise_noneattr_error_utility_code)
-        code.putln("if (%s) {" % code.unlikely("%s == Py_None") % self.obj.result_as(PyrexTypes.py_object_type))
+        if self.obj.type.is_extension_type:
+            test = "%s == Py_None" % self.obj.result_as(PyrexTypes.py_object_type)
+        elif self.obj.type.is_memoryviewslice:
+            test = "!%s.memview" % self.obj.result()
+        else:
+            assert False
+        code.putln("if (%s) {" % code.unlikely(test))
         code.putln("__Pyx_RaiseNoneAttributeError(\"%s\");" % self.attribute)
         code.putln(code.error_goto(self.pos))
         code.putln("}")

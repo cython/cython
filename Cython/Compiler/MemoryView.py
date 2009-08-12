@@ -218,6 +218,14 @@ static int %s(const __Pyx_memviewslice mvs) {
 
     return decl, impl
 
+copy_to_template = '''
+static int %(copy_to_name)s(const __Pyx_memviewslice from_mvs, __Pyx_memviewslice to_mvs) {
+
+    /* ensure from_mvs & to_mvs have the same shape & dtype */
+
+}
+'''
+
 copy_template = '''
 static __Pyx_memviewslice %(copy_name)s(const __Pyx_memviewslice from_mvs) {
 
