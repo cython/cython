@@ -406,71 +406,42 @@ class MemoryViewSliceType(PyrexType):
             to_memview_c = MemoryViewSliceType(self.dtype, to_axes_c, self.env)
             to_memview_f = MemoryViewSliceType(self.dtype, to_axes_f, self.env)
 
-            cython_name_c = 'copy'
-            cython_name_f = 'copy_fortran'
+            copy_contents_name_c =\
+                    MemoryView.get_copy_contents_name(self, to_memview_c)
+            copy_contents_name_f =\
+                    MemoryView.get_copy_contents_name(self, to_memview_f)
 
-            copy_name_c = '__Pyx_BufferNew_C_From_'+self.specialization_suffix()
-            copy_name_f = '__Pyx_BufferNew_F_From_'+self.specialization_suffix()
+            c_copy_decl, c_copy_impl = \
+                    MemoryView.memoryviewslice_get_copy_func(self, to_memview_c, 'c', self.scope)
+            f_copy_decl, f_copy_impl = \
+                    MemoryView.memoryviewslice_get_copy_func(self, to_memview_f, 'fortran', self.scope)
 
-            c_copy_util_code = UtilityCode()
-            f_copy_util_code = UtilityCode()
+            c_copy_contents_decl, c_copy_contents_impl = \
+                    MemoryView.get_copy_contents_func(
+                            self, to_memview_c, copy_contents_name_c)
+            f_copy_contents_decl, f_copy_contents_impl = \
+                    MemoryView.get_copy_contents_func(
+                            self, to_memview_f, copy_contents_name_f)
 
-            for (to_memview, copy_name, cython_name, mode, contig_flag, util_code) in (
-                    (to_memview_c, copy_name_c, cython_name_c, 'c', 'PyBUF_C_CONTIGUOUS', c_copy_util_code),
-                    (to_memview_f, copy_name_f, cython_name_f, 'fortran', 'PyBUF_F_CONTIGUOUS', f_copy_util_code)):
-
-                copy_contents_name = MemoryView.get_copy_contents_name(self, to_memview)
-
-                scope.declare_cfunction(cython_name,
-                        CFuncType(self,
-                            [CFuncTypeArg("memviewslice", self, None)]),
-                        pos = None,
-                        defining = 1,
-                        cname = copy_name)
-
-                copy_impl = MemoryView.copy_template %\
-                        dict(copy_name=copy_name,
-                            mode=mode,
-                            sizeof_dtype="sizeof(%s)" % self.dtype.declaration_code(''),
-                            contig_flag=contig_flag,
-                            copy_contents_name=copy_contents_name)
-
-                copy_decl = '''\
-static __Pyx_memviewslice %s(const __Pyx_memviewslice); /* proto */
-    ''' % (copy_name,)
-
-                util_code.proto = copy_decl
-                util_code.impl = copy_impl
-
-            copy_contents_name_c = MemoryView.get_copy_contents_name(self, to_memview_c)
-            copy_contents_name_f = MemoryView.get_copy_contents_name(self, to_memview_f)
-
-            c_copy_util_code.proto += ('static int %s'
-                        '(const __Pyx_memviewslice *,'
-                              ' __Pyx_memviewslice *); /* proto */\n' %
-                        (copy_contents_name_c,))
-
-            c_copy_util_code.impl += \
-                    MemoryView.get_copy_contents_code(self, to_memview_c, copy_contents_name_c)
+            c_util_code = UtilityCode(
+                    proto = "%s%s" % (c_copy_decl, c_copy_contents_decl),
+                    impl = "%s%s" % (c_copy_impl, c_copy_contents_impl))
+            f_util_code = UtilityCode(
+                    proto = f_copy_decl,
+                    impl = f_copy_impl)
 
             if copy_contents_name_c != copy_contents_name_f:
-                
-                f_copy_util_code.proto += ('static int %s'
-                        '(const __Pyx_memviewslice *,'
-                              ' __Pyx_memviewslice *); /* proto */\n' %
-                                (copy_contents_name_f,))
+                f_util_code.proto += f_copy_contents_decl
+                f_util_code.impl  += f_copy_contents_impl
 
-                f_copy_util_code.impl += \
-                    MemoryView.get_copy_contents_code(self, to_memview_f, copy_contents_name_f)
-
-            c_copy_used = [1 for util_code in self.env.global_scope().utility_code_list if c_copy_util_code.proto == util_code.proto]
-            f_copy_used = [1 for util_code in self.env.global_scope().utility_code_list if f_copy_util_code.proto == util_code.proto]
+            c_copy_used = [1 for util_code in self.env.global_scope().utility_code_list if c_util_code.proto == util_code.proto]
+            f_copy_used = [1 for util_code in self.env.global_scope().utility_code_list if f_util_code.proto == util_code.proto]
 
             if not c_copy_used:
-                self.env.use_utility_code(c_copy_util_code)
+                self.env.use_utility_code(c_util_code)
 
             if not f_copy_used:
-                self.env.use_utility_code(f_copy_util_code)
+                self.env.use_utility_code(f_util_code)
 
             # is_c_contiguous and is_f_contiguous functions
 

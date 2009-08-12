@@ -302,7 +302,42 @@ no_fail:
 }
 '''
 
-def get_copy_contents_code(from_mvs, to_mvs, cfunc_name):
+def memoryviewslice_get_copy_func(from_memview, to_memview, mode, scope):
+    from PyrexTypes import CFuncType, CFuncTypeArg
+
+    if mode == 'c':
+        cython_name = "copy"
+        copy_name = '__Pyx_BufferNew_C_From_'+from_memview.specialization_suffix()
+        contig_flag = 'PyBUF_C_CONTIGUOUS'
+    elif mode == 'fortran':
+        cython_name = "copy_fortran"
+        copy_name = "__Pyx_BufferNew_F_From_"+from_memview.specialization_suffix()
+        contig_flag = 'PyBUF_F_CONTIGUOUS'
+    else:
+        assert False
+
+    copy_contents_name = get_copy_contents_name(from_memview, to_memview)
+
+    scope.declare_cfunction(cython_name,
+                CFuncType(from_memview,
+                    [CFuncTypeArg("memviewslice", from_memview, None)]),
+                pos = None,
+                defining = 1,
+                cname = copy_name)
+
+    copy_impl = copy_template % dict(
+                         copy_name=copy_name,
+                         mode=mode,
+                         sizeof_dtype="sizeof(%s)" % from_memview.dtype.declaration_code(''),
+                         contig_flag=contig_flag,
+                         copy_contents_name=copy_contents_name)
+
+    copy_decl = ("static __Pyx_memviewslice "
+                "%s(const __Pyx_memviewslice); /* proto */\n" % (copy_name,))
+
+    return (copy_decl, copy_impl)
+
+def get_copy_contents_func(from_mvs, to_mvs, cfunc_name):
     assert from_mvs.dtype == to_mvs.dtype
     assert len(from_mvs.axes) == len(to_mvs.axes)
 
@@ -313,7 +348,10 @@ def get_copy_contents_code(from_mvs, to_mvs, cfunc_name):
         if access != 'direct':
             raise NotImplementedError("only direct access supported currently.")
 
-    code = '''
+    code_decl = ("static int %(cfunc_name)s(const __Pyx_memviewslice *from_mvs,"
+                "__Pyx_memviewslice *to_mvs); /* proto */" % {'cfunc_name' : cfunc_name})
+
+    code_impl = '''
 
 static int %(cfunc_name)s(const __Pyx_memviewslice *from_mvs, __Pyx_memviewslice *to_mvs) {
 
@@ -338,44 +376,44 @@ static int %(cfunc_name)s(const __Pyx_memviewslice *from_mvs, __Pyx_memviewslice
         # 'i' always goes up from zero to ndim-1.
         # 'idx' is the same as 'i' for c_contig, and goes from ndim-1 to 0 for f_contig.
         # this makes the loop code below identical in both cases.
-        code += INDENT+"Py_ssize_t i%d = 0, idx%d = 0;\n" % (i,i)
-        code += INDENT+"Py_ssize_t stride%(i)d = from_mvs->diminfo[%(idx)d].strides;\n" % {'i':i, 'idx':idx}
-        code += INDENT+"Py_ssize_t shape%(i)d = from_mvs->diminfo[%(idx)d].shape;\n" % {'i':i, 'idx':idx}
+        code_impl += INDENT+"Py_ssize_t i%d = 0, idx%d = 0;\n" % (i,i)
+        code_impl += INDENT+"Py_ssize_t stride%(i)d = from_mvs->diminfo[%(idx)d].strides;\n" % {'i':i, 'idx':idx}
+        code_impl += INDENT+"Py_ssize_t shape%(i)d = from_mvs->diminfo[%(idx)d].shape;\n" % {'i':i, 'idx':idx}
 
-    code += "\n"
+    code_impl += "\n"
 
     # put down the nested for-loop.
     for k in range(ndim):
 
-        code += INDENT*(k+1) + "for(i%(k)d=0; i%(k)d<shape%(k)d; i%(k)d++) {\n" % {'k' : k}
+        code_impl += INDENT*(k+1) + "for(i%(k)d=0; i%(k)d<shape%(k)d; i%(k)d++) {\n" % {'k' : k}
         if k >= 1:
-            code += INDENT*(k+2) + "idx%(k)d = i%(k)d * stride%(k)d + idx%(km1)d;\n" % {'k' : k, 'km1' : k-1}
+            code_impl += INDENT*(k+2) + "idx%(k)d = i%(k)d * stride%(k)d + idx%(km1)d;\n" % {'k' : k, 'km1' : k-1}
         else:
-            code += INDENT*(k+2) + "idx%(k)d = i%(k)d * stride%(k)d;\n" % {'k' : k}
+            code_impl += INDENT*(k+2) + "idx%(k)d = i%(k)d * stride%(k)d;\n" % {'k' : k}
 
     # the inner part of the loop.
     dtype_decl = from_mvs.dtype.declaration_code("")
     last_idx = ndim-1
-    code += INDENT*ndim+"memcpy(to_buf, from_buf+idx%(last_idx)d, sizeof(%(dtype_decl)s));\n" % locals()
-    code += INDENT*ndim+"to_buf += sizeof(%(dtype_decl)s);\n" % locals()
+    code_impl += INDENT*ndim+"memcpy(to_buf, from_buf+idx%(last_idx)d, sizeof(%(dtype_decl)s));\n" % locals()
+    code_impl += INDENT*ndim+"to_buf += sizeof(%(dtype_decl)s);\n" % locals()
 
     # for-loop closing braces
     for k in range(ndim-1, -1, -1):
-        code += INDENT*(k+1)+"}\n"
+        code_impl += INDENT*(k+1)+"}\n"
 
     # init to_mvs->data and to_mvs->diminfo.
-    code += INDENT+"temp_memview = to_mvs->memview;\n"
-    code += INDENT+"temp_data = to_mvs->data;\n"
-    code += INDENT+"to_mvs->memview = 0; to_mvs->data = 0;\n"
-    code += INDENT+"if(unlikely(-1 == __Pyx_init_memviewslice(temp_memview, %d, to_mvs))) {\n" % (ndim,)
-    code += INDENT*2+"return -1;\n"
-    code +=   INDENT+"}\n"
+    code_impl += INDENT+"temp_memview = to_mvs->memview;\n"
+    code_impl += INDENT+"temp_data = to_mvs->data;\n"
+    code_impl += INDENT+"to_mvs->memview = 0; to_mvs->data = 0;\n"
+    code_impl += INDENT+"if(unlikely(-1 == __Pyx_init_memviewslice(temp_memview, %d, to_mvs))) {\n" % (ndim,)
+    code_impl += INDENT*2+"return -1;\n"
+    code_impl +=   INDENT+"}\n"
 
-    code += INDENT + "return 0;\n"
+    code_impl += INDENT + "return 0;\n"
 
-    code += '}\n'
+    code_impl += '}\n'
 
-    return code
+    return code_decl, code_impl
 
 def get_axes_specs(env, axes):
     '''
