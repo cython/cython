@@ -55,7 +55,7 @@ def mangle_dtype_name(dtype):
     return Buffer.mangle_dtype_name(dtype)
 
 def axes_to_str(axes):
-    return "".join([access[0]+packing[0] for (access, packing) in axes])
+    return "".join([access[0].upper()+packing[0] for (access, packing) in axes])
 
 def gen_acquire_memoryviewslice(rhs, lhs_type, lhs_is_cglobal, lhs_result, lhs_pos, code):
     # import MemoryView
