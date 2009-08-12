@@ -180,6 +180,57 @@ def get_copy_contents_name(from_mvs, to_mvs):
              mangle_dtype_name(dtype)))
 
 
+def get_is_contig_func_name(c_or_f):
+    return "__Pyx_Buffer_is_%s_contiguous" % c_or_f
+
+def get_is_contiguous_func(c_or_f):
+
+    func_name = get_is_contig_func_name(c_or_f)
+    decl = "static int %s(const __Pyx_memviewslice); /* proto */\n" % func_name
+
+    impl = """
+static int %s(const __Pyx_memviewslice mvs) {
+    /* returns 1 if mvs is the right contiguity, 0 otherwise */
+
+    int i, ndim = mvs.memview->view.ndim;
+    Py_ssize_t itemsize = mvs.memview->view.itemsize;
+    unsigned long size = 0;
+""" % func_name
+
+    if c_or_f == 'fortran':
+        for_loop = "for(i=0; i<ndim; i++)"
+    elif c_or_f == 'c':
+        for_loop = "for(i=ndim-1; i>-1; i--)"
+    else:
+        assert False
+
+    impl += """
+    size = 1;
+    %(for_loop)s {
+
+#ifdef DEBUG
+        printf("mvs.diminfo[i].suboffsets %%d\\n", mvs.diminfo[i].suboffsets);
+        printf("mvs.diminfo[i].strides %%d\\n", mvs.diminfo[i].strides);
+        printf("mvs.diminfo[i].shape %%d\\n", mvs.diminfo[i].shape);
+        printf("size %%d\\n", size);
+        printf("ndim %%d\\n", ndim);
+#endif
+#undef DEBUG
+
+        if(mvs.diminfo[i].suboffsets >= 0) {
+            return 0;
+        }
+        if(size * itemsize != mvs.diminfo[i].strides) {
+            return 0;
+        }
+        size *= mvs.diminfo[i].shape;
+    }
+    return 1;
+
+}""" % {'for_loop' : for_loop}
+
+    return decl, impl
+
 copy_template = '''
 static __Pyx_memviewslice %(copy_name)s(const __Pyx_memviewslice from_mvs) {
 
@@ -754,6 +805,8 @@ static int __Pyx_init_memviewslice(
         memviewslice->diminfo[i].shape   = buf->shape[i];
         if(buf->suboffsets) {
             memviewslice->diminfo[i].suboffsets = buf->suboffsets[i];
+        } else {
+            memviewslice->diminfo[i].suboffsets = -1;
         }
     }
 
