@@ -6,6 +6,8 @@ import CythonScope
 from Code import UtilityCode
 from UtilityCode import CythonUtilityCode
 from PyrexTypes import py_object_type, cython_memoryview_ptr_type
+import Buffer
+
 
 START_ERR = "there must be nothing or the value 0 (zero) in the start slot."
 STOP_ERR = "Axis specification only allowed in the 'stop' slot."
@@ -158,6 +160,14 @@ def src_conforms_to_dst(src, dst):
 
     return True
 
+
+def get_copy_func_name(to_memview):
+    base = "__Pyx_BufferNew_%s_From_%s_%s"
+    if to_memview.is_c_contig:
+        return base % ('C', axes_to_str(to_memview.axes), mangle_dtype_name(to_memview.dtype))
+    else:
+        return base % ('F', axes_to_str(to_memview.axes), mangle_dtype_name(to_memview.dtype))
+
 def get_copy_contents_name(from_mvs, to_mvs):
     dtype = from_mvs.dtype
     assert dtype == to_mvs.dtype
@@ -166,6 +176,33 @@ def get_copy_contents_name(from_mvs, to_mvs):
              axes_to_str(to_mvs.axes),
              mangle_dtype_name(dtype)))
 
+class IsContigFuncUtilCode(object):
+    
+    requires = None
+
+    def __init__(self, c_or_f):
+        self.c_or_f = c_or_f
+
+        self.is_contig_func_name = get_is_contig_func_name(self.c_or_f)
+
+    def __eq__(self, other):
+        if not isinstance(other, IsContigFuncUtilCode):
+            return False
+        return self.is_contig_func_name == other.is_contig_func_name
+
+    def __hash__(self):
+        return hash(self.is_contig_func_name)
+
+    def get_tree(self): pass
+
+    def put_code(self, output):
+        code = output['utility_code_def']
+        proto = output['utility_code_proto']
+
+        func_decl, func_impl = get_is_contiguous_func(self.c_or_f)
+
+        proto.put(func_decl)
+        code.put(func_impl)
 
 def get_is_contig_func_name(c_or_f):
     return "__Pyx_Buffer_is_%s_contiguous" % c_or_f
@@ -226,111 +263,91 @@ static int %(copy_to_name)s(const __Pyx_memviewslice from_mvs, __Pyx_memviewslic
 }
 '''
 
-copy_template = '''
-static __Pyx_memviewslice %(copy_name)s(const __Pyx_memviewslice from_mvs) {
+class CopyContentsFuncUtilCode(object):
+    
+    requires = None
 
-    int i;
-    __Pyx_memviewslice new_mvs = {0, 0};
-    struct __pyx_obj_memoryview *from_memview = from_mvs.memview;
-    Py_buffer *buf = &from_memview->view;
-    PyObject *shape_tuple = 0;
-    PyObject *temp_int = 0;
-    struct __pyx_obj_array *array_obj = 0;
-    struct __pyx_obj_memoryview *memview_obj = 0;
-    char mode[] = "%(mode)s";
+    def __init__(self, from_memview, to_memview):
+        self.from_memview = from_memview
+        self.to_memview = to_memview
+        self.copy_contents_name = get_copy_contents_name(from_memview, to_memview)
 
-    __Pyx_SetupRefcountContext("%(copy_name)s");
+    def __eq__(self, other):
+        if not isinstance(other, CopyContentsFuncUtilCode):
+            return False
+        return other.copy_contents_name == self.copy_contents_name
 
-    shape_tuple = PyTuple_New((Py_ssize_t)(buf->ndim));
-    if(unlikely(!shape_tuple)) {
-        goto fail;
-    }
-    __Pyx_GOTREF(shape_tuple);
+    def __hash__(self):
+        return hash(self.copy_contents_name)
 
+    def get_tree(self): pass
 
-    for(i=0; i<buf->ndim; i++) {
-        temp_int = PyInt_FromLong(buf->shape[i]);
-        if(unlikely(!temp_int)) {
-            goto fail;
-        } else {
-            PyTuple_SET_ITEM(shape_tuple, i, temp_int);
-        }
-    }
+    def put_code(self, output):
+        code = output['utility_code_def']
+        proto = output['utility_code_proto']
 
-    array_obj = __pyx_cythonarray_array_cwrapper(shape_tuple, %(sizeof_dtype)s, buf->format, mode);
-    if (unlikely(!array_obj)) {
-        goto fail;
-    }
-    __Pyx_GOTREF(array_obj);
+        func_decl, func_impl = \
+                get_copy_contents_func(self.from_memview, self.to_memview, self.copy_contents_name)
 
-    memview_obj = __pyx_viewaxis_memoryview_cwrapper((PyObject *)array_obj, %(contig_flag)s);
-    if (unlikely(!memview_obj)) {
-        goto fail;
-    }
+        proto.put(func_decl)
+        code.put(func_impl)
 
-    /* initialize new_mvs */
-    if (unlikely(-1 == __Pyx_init_memviewslice(memview_obj, buf->ndim, &new_mvs))) {
-        PyErr_SetString(PyExc_RuntimeError,
-            "Could not initialize new memoryviewslice object.");
-        goto fail;
-    }
+class CopyFuncUtilCode(object):
 
-    if (unlikely(-1 == %(copy_contents_name)s(&from_mvs, &new_mvs))) {
-        /* PyErr_SetString(PyExc_RuntimeError,
-            "Could not copy contents of memoryview slice."); */
-        goto fail;
-    }
+    requires = None
 
-    goto no_fail;
+    def __init__(self, from_memview, to_memview):
+        if from_memview.dtype != to_memview.dtype:
+            raise ValueError("dtypes must be the same!")
+        if len(from_memview.axes) != len(to_memview.axes):
+            raise ValueError("number of dimensions must be same")
+        if not (to_memview.is_c_contig or to_memview.is_f_contig):
+            raise ValueError("to_memview must be c or f contiguous.")
+        for (access, packing) in from_memview.axes:
+            if access != 'direct':
+                raise NotImplementedError("cannot handle 'full' or 'ptr' access at this time.")
 
-fail:
-    __Pyx_XDECREF(new_mvs.memview); new_mvs.memview = 0;
-    new_mvs.data = 0;
-no_fail:
-    __Pyx_XDECREF(shape_tuple); shape_tuple = 0;
-    __Pyx_GOTREF(temp_int);
-    __Pyx_XDECREF(temp_int); temp_int = 0;
-    __Pyx_XDECREF(array_obj); array_obj = 0;
-    __Pyx_FinishRefcountContext();
-    return new_mvs;
+        self.from_memview = from_memview
+        self.to_memview = to_memview
+        self.copy_func_name = get_copy_func_name(to_memview)
 
-}
-'''
+        self.requires = [CopyContentsFuncUtilCode(from_memview, to_memview)]
 
-def memoryviewslice_get_copy_func(from_memview, to_memview, mode, scope):
-    from PyrexTypes import CFuncType, CFuncTypeArg
+    def __eq__(self, other):
+        if not isinstance(other, CopyFuncUtilCode):
+            return False
+        return other.copy_func_name == self.copy_func_name
 
-    if mode == 'c':
-        cython_name = "copy"
-        copy_name = '__Pyx_BufferNew_C_From_'+from_memview.specialization_suffix()
-        contig_flag = 'PyBUF_C_CONTIGUOUS'
-    elif mode == 'fortran':
-        cython_name = "copy_fortran"
-        copy_name = "__Pyx_BufferNew_F_From_"+from_memview.specialization_suffix()
-        contig_flag = 'PyBUF_F_CONTIGUOUS'
-    else:
-        assert False
+    def __hash__(self):
+        return hash(self.copy_func_name)
 
-    copy_contents_name = get_copy_contents_name(from_memview, to_memview)
+    def get_tree(self): pass
 
-    entry = scope.declare_cfunction(cython_name,
-                CFuncType(from_memview,
-                    [CFuncTypeArg("memviewslice", from_memview, None)]),
-                pos = None,
-                defining = 1,
-                cname = copy_name)
+    def put_code(self, output):
+        code = output['utility_code_def']
+        proto = output['utility_code_proto']
 
-    copy_impl = copy_template % dict(
-                         copy_name=copy_name,
-                         mode=mode,
-                         sizeof_dtype="sizeof(%s)" % from_memview.dtype.declaration_code(''),
-                         contig_flag=contig_flag,
-                         copy_contents_name=copy_contents_name)
+        proto.put(Buffer.dedent("""\
+                static __Pyx_memviewslice %s(const __Pyx_memviewslice from_mvs); /* proto */
+        """ % self.copy_func_name))
 
-    copy_decl = ("static __Pyx_memviewslice "
-                "%s(const __Pyx_memviewslice); /* proto */\n" % (copy_name,))
+        copy_contents_name = get_copy_contents_name(self.from_memview, self.to_memview)
 
-    return (copy_decl, copy_impl, entry)
+        if self.to_memview.is_c_contig:
+            mode = 'c'
+            contig_flag = 'PyBUF_C_CONTIGUOUS'
+        elif self.to_memview.is_f_contig:
+            mode = 'fortran'
+            contig_flag = "PyBUF_F_CONTIGUOUS"
+
+        code.put(copy_template %
+            dict(
+                 copy_name=self.copy_func_name,
+                 mode=mode,
+                 sizeof_dtype="sizeof(%s)" % self.from_memview.dtype.declaration_code(''),
+                 contig_flag=contig_flag,
+                 copy_contents_name=copy_contents_name))
+
 
 def get_copy_contents_func(from_mvs, to_mvs, cfunc_name):
     assert from_mvs.dtype == to_mvs.dtype
@@ -630,6 +647,77 @@ class MemoryViewSliceTransform(CythonTransform):
 
     def visit_SingleAssignmentNode(self, node):
         return node
+
+copy_template = '''
+static __Pyx_memviewslice %(copy_name)s(const __Pyx_memviewslice from_mvs) {
+
+    int i;
+    __Pyx_memviewslice new_mvs = {0, 0};
+    struct __pyx_obj_memoryview *from_memview = from_mvs.memview;
+    Py_buffer *buf = &from_memview->view;
+    PyObject *shape_tuple = 0;
+    PyObject *temp_int = 0;
+    struct __pyx_obj_array *array_obj = 0;
+    struct __pyx_obj_memoryview *memview_obj = 0;
+    char mode[] = "%(mode)s";
+
+    __Pyx_SetupRefcountContext("%(copy_name)s");
+
+    shape_tuple = PyTuple_New((Py_ssize_t)(buf->ndim));
+    if(unlikely(!shape_tuple)) {
+        goto fail;
+    }
+    __Pyx_GOTREF(shape_tuple);
+
+
+    for(i=0; i<buf->ndim; i++) {
+        temp_int = PyInt_FromLong(buf->shape[i]);
+        if(unlikely(!temp_int)) {
+            goto fail;
+        } else {
+            PyTuple_SET_ITEM(shape_tuple, i, temp_int);
+        }
+    }
+
+    array_obj = __pyx_cythonarray_array_cwrapper(shape_tuple, %(sizeof_dtype)s, buf->format, mode);
+    if (unlikely(!array_obj)) {
+        goto fail;
+    }
+    __Pyx_GOTREF(array_obj);
+
+    memview_obj = __pyx_viewaxis_memoryview_cwrapper((PyObject *)array_obj, %(contig_flag)s);
+    if (unlikely(!memview_obj)) {
+        goto fail;
+    }
+
+    /* initialize new_mvs */
+    if (unlikely(-1 == __Pyx_init_memviewslice(memview_obj, buf->ndim, &new_mvs))) {
+        PyErr_SetString(PyExc_RuntimeError,
+            "Could not initialize new memoryviewslice object.");
+        goto fail;
+    }
+
+    if (unlikely(-1 == %(copy_contents_name)s(&from_mvs, &new_mvs))) {
+        /* PyErr_SetString(PyExc_RuntimeError,
+            "Could not copy contents of memoryview slice."); */
+        goto fail;
+    }
+
+    goto no_fail;
+
+fail:
+    __Pyx_XDECREF(new_mvs.memview); new_mvs.memview = 0;
+    new_mvs.data = 0;
+no_fail:
+    __Pyx_XDECREF(shape_tuple); shape_tuple = 0;
+    __Pyx_GOTREF(temp_int);
+    __Pyx_XDECREF(temp_int); temp_int = 0;
+    __Pyx_XDECREF(array_obj); array_obj = 0;
+    __Pyx_FinishRefcountContext();
+    return new_mvs;
+
+}
+'''
 
 spec_constants_code = UtilityCode(proto="""
 #define __Pyx_MEMVIEW_DIRECT  1

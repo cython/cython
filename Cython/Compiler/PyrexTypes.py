@@ -387,6 +387,7 @@ class MemoryViewSliceType(PyrexType):
 
             import Symtab, MemoryView
             from MemoryView import axes_to_str
+
             self.scope = scope = Symtab.CClassScope(
                     'mvs_class_'+self.specialization_suffix(),
                     None,
@@ -408,53 +409,41 @@ class MemoryViewSliceType(PyrexType):
             to_memview_c = MemoryViewSliceType(self.dtype, to_axes_c)
             to_memview_f = MemoryViewSliceType(self.dtype, to_axes_f)
 
-            copy_contents_name_c =\
-                    MemoryView.get_copy_contents_name(self, to_memview_c)
-            copy_contents_name_f =\
-                    MemoryView.get_copy_contents_name(self, to_memview_f)
+            cython_name_c, cython_name_f = "copy", "copy_fortran"
+            copy_name_c, copy_name_f = (
+                    MemoryView.get_copy_func_name(to_memview_c),
+                    MemoryView.get_copy_func_name(to_memview_f))
 
-            c_copy_decl, c_copy_impl, c_entry = \
-                    MemoryView.memoryviewslice_get_copy_func(self, to_memview_c, 'c', self.scope)
-            f_copy_decl, f_copy_impl, f_entry = \
-                    MemoryView.memoryviewslice_get_copy_func(self, to_memview_f, 'fortran', self.scope)
 
-            c_copy_contents_decl, c_copy_contents_impl = \
-                    MemoryView.get_copy_contents_func(
-                            self, to_memview_c, copy_contents_name_c)
-            f_copy_contents_decl, f_copy_contents_impl = \
-                    MemoryView.get_copy_contents_func(
-                            self, to_memview_f, copy_contents_name_f)
+            for (to_memview, cython_name, copy_name) in ((to_memview_c, cython_name_c, copy_name_c),
+                                                         (to_memview_f, cython_name_f, copy_name_f)):
 
-            c_util_code = UtilityCode(
-                    proto = "%s%s" % (c_copy_decl, c_copy_contents_decl),
-                    impl = "%s%s" % (c_copy_impl, c_copy_contents_impl))
-            f_util_code = UtilityCode(
-                    proto = f_copy_decl,
-                    impl = f_copy_impl)
+                entry = scope.declare_cfunction(cython_name,
+                            CFuncType(self,
+                                [CFuncTypeArg("memviewslice", self, None)]),
+                            pos = None,
+                            defining = 1,
+                            cname = copy_name)
 
-            c_entry.utility_code_definition = c_util_code
-            f_entry.utility_code_definition = f_util_code           
+                entry.utility_code_definition = \
+                        MemoryView.CopyFuncUtilCode(self, to_memview)
 
-            if copy_contents_name_c != copy_contents_name_f:
-                f_util_code.proto += f_copy_contents_decl
-                f_util_code.impl  += f_copy_contents_impl
+            # is_c_contig and is_f_contig functions
+            for (c_or_f, cython_name) in (('c', 'is_c_contig'), ('fortran', 'is_f_contig')):
 
-            # is_c_contiguous and is_f_contiguous functions
+                is_contig_name = \
+                        MemoryView.get_is_contig_func_name(c_or_f)
 
-            for c_or_f, cython_name in (('c', 'is_c_contig'), ('fortran', 'is_f_contig')):
-
-                is_contig_name = MemoryView.get_is_contig_func_name(c_or_f)
-                scope.declare_cfunction(cython_name,
+                entry = scope.declare_cfunction(cython_name,
                             CFuncType(c_int_type,
                                 [CFuncTypeArg("memviewslice", self, None)]),
                             pos = None,
                             defining = 1,
                             cname = is_contig_name)
 
-                contig_decl, contig_impl = MemoryView.get_is_contiguous_func(c_or_f)
+                entry.utility_code_definition = \
+                        MemoryView.IsContigFuncUtilCode(c_or_f)
 
-                contig_util_code = UtilityCode(
-                        proto = contig_decl, impl = contig_impl)
 
         return True
 
