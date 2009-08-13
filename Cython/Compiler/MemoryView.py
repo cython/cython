@@ -218,7 +218,7 @@ static int %s(const __Pyx_memviewslice mvs) {
 
     int i, ndim = mvs.memview->view.ndim;
     Py_ssize_t itemsize = mvs.memview->view.itemsize;
-    unsigned long size = 0;
+    long size = 0;
 """ % func_name
 
     if c_or_f == 'fortran':
@@ -358,7 +358,7 @@ def get_copy_contents_func(from_mvs, to_mvs, cfunc_name):
     # XXX: we only support direct access for now.
     for (access, packing) in from_mvs.axes:
         if access != 'direct':
-            raise NotImplementedError("only direct access supported currently.")
+            raise NotImplementedError("currently only direct access is supported.")
 
     code_decl = ("static int %(cfunc_name)s(const __Pyx_memviewslice *from_mvs,"
                 "__Pyx_memviewslice *to_mvs); /* proto */" % {'cfunc_name' : cfunc_name})
@@ -372,42 +372,73 @@ static int %(cfunc_name)s(const __Pyx_memviewslice *from_mvs, __Pyx_memviewslice
     struct __pyx_obj_memoryview *temp_memview = 0;
     char *temp_data = 0;
 
-''' % {'cfunc_name' : cfunc_name}
+    int ndim_idx = 0;
 
-    if to_mvs.is_c_contig:
-        start, stop, step = 0, ndim, 1
-    elif to_mvs.is_f_contig:
-        start, stop, step = ndim-1, -1, -1
-    else:
-        assert False
+    for(ndim_idx=0; ndim_idx<%(ndim)d; ndim_idx++) {
+        if(from_mvs->diminfo[ndim_idx].shape != to_mvs->diminfo[ndim_idx].shape) {
+            PyErr_Format(PyExc_ValueError,
+                "memoryview shapes not the same in dimension %%d", ndim_idx);
+            return -1;
+        }
+    }
+
+''' % {'cfunc_name' : cfunc_name, 'ndim' : ndim}
+
+    # raise NotImplementedError("put in shape checking code here!!!")
 
     INDENT = "    "
-
-    for i, idx in enumerate(range(start, stop, step)):
-        # the crazy indexing is to account for the fortran indexing.
-        # 'i' always goes up from zero to ndim-1.
-        # 'idx' is the same as 'i' for c_contig, and goes from ndim-1 to 0 for f_contig.
-        # this makes the loop code below identical in both cases.
-        code_impl += INDENT+"Py_ssize_t i%d = 0, idx%d = 0;\n" % (i,i)
-        code_impl += INDENT+"Py_ssize_t stride%(i)d = from_mvs->diminfo[%(idx)d].strides;\n" % {'i':i, 'idx':idx}
-        code_impl += INDENT+"Py_ssize_t shape%(i)d = from_mvs->diminfo[%(idx)d].shape;\n" % {'i':i, 'idx':idx}
-
-    code_impl += "\n"
-
-    # put down the nested for-loop.
-    for k in range(ndim):
-
-        code_impl += INDENT*(k+1) + "for(i%(k)d=0; i%(k)d<shape%(k)d; i%(k)d++) {\n" % {'k' : k}
-        if k >= 1:
-            code_impl += INDENT*(k+2) + "idx%(k)d = i%(k)d * stride%(k)d + idx%(km1)d;\n" % {'k' : k, 'km1' : k-1}
-        else:
-            code_impl += INDENT*(k+2) + "idx%(k)d = i%(k)d * stride%(k)d;\n" % {'k' : k}
-
-    # the inner part of the loop.
     dtype_decl = from_mvs.dtype.declaration_code("")
     last_idx = ndim-1
-    code_impl += INDENT*ndim+"memcpy(to_buf, from_buf+idx%(last_idx)d, sizeof(%(dtype_decl)s));\n" % locals()
-    code_impl += INDENT*ndim+"to_buf += sizeof(%(dtype_decl)s);\n" % locals()
+
+    if to_mvs.is_c_contig or to_mvs.is_f_contig:
+        if to_mvs.is_c_contig:
+            start, stop, step = 0, ndim, 1
+        elif to_mvs.is_f_contig:
+            start, stop, step = ndim-1, -1, -1
+
+
+        for i, idx in enumerate(range(start, stop, step)):
+            # the crazy indexing is to account for the fortran indexing.
+            # 'i' always goes up from zero to ndim-1.
+            # 'idx' is the same as 'i' for c_contig, and goes from ndim-1 to 0 for f_contig.
+            # this makes the loop code below identical in both cases.
+            code_impl += INDENT+"Py_ssize_t i%d = 0, idx%d = 0;\n" % (i,i)
+            code_impl += INDENT+"Py_ssize_t stride%(i)d = from_mvs->diminfo[%(idx)d].strides;\n" % {'i':i, 'idx':idx}
+            code_impl += INDENT+"Py_ssize_t shape%(i)d = from_mvs->diminfo[%(idx)d].shape;\n" % {'i':i, 'idx':idx}
+
+        code_impl += "\n"
+
+        # put down the nested for-loop.
+        for k in range(ndim):
+
+            code_impl += INDENT*(k+1) + "for(i%(k)d=0; i%(k)d<shape%(k)d; i%(k)d++) {\n" % {'k' : k}
+            if k >= 1:
+                code_impl += INDENT*(k+2) + "idx%(k)d = i%(k)d * stride%(k)d + idx%(km1)d;\n" % {'k' : k, 'km1' : k-1}
+            else:
+                code_impl += INDENT*(k+2) + "idx%(k)d = i%(k)d * stride%(k)d;\n" % {'k' : k}
+
+        # the inner part of the loop.
+        code_impl += INDENT*(ndim+1)+"memcpy(to_buf, from_buf+idx%(last_idx)d, sizeof(%(dtype_decl)s));\n" % locals()
+        code_impl += INDENT*(ndim+1)+"to_buf += sizeof(%(dtype_decl)s);\n" % locals()
+
+
+    else:
+
+        code_impl += INDENT+"/* 'f' prefix is for the 'from' memview, 't' prefix is for the 'to' memview */\n"
+        for i in range(ndim):
+            code_impl += INDENT+"char *fi%d = 0, *ti%d = 0, *end%d = 0;\n" % (i,i,i)
+            code_impl += INDENT+"Py_ssize_t fstride%(i)d = from_mvs->diminfo[%(i)d].strides;\n" % {'i':i}
+            code_impl += INDENT+"Py_ssize_t fshape%(i)d = from_mvs->diminfo[%(i)d].shape;\n" % {'i':i}
+            code_impl += INDENT+"Py_ssize_t tstride%(i)d = to_mvs->diminfo[%(i)d].strides;\n" % {'i':i}
+            # code_impl += INDENT+"Py_ssize_t tshape%(i)d = to_mvs->diminfo[%(i)d].shape;\n" % {'i':i}
+
+        code_impl += INDENT+"end0 = fshape0 * fstride0 + from_mvs->data;\n"
+        code_impl += INDENT+"for(fi0=from_buf, ti0=to_buf; fi0 < end0; fi0 += fstride0, ti0 += tstride0) {\n"
+        for i in range(1, ndim):
+            code_impl += INDENT*(i+1)+"end%(i)d = fshape%(i)d * fstride%(i)d + fi%(im1)d;\n" % {'i' : i, 'im1' : i-1}
+            code_impl += INDENT*(i+1)+"for(fi%(i)d=fi%(im1)d, ti%(i)d=ti%(im1)d; fi%(i)d < end%(i)d; fi%(i)d += fstride%(i)d, ti%(i)d += tstride%(i)d) {\n" % {'i':i, 'im1':i-1}
+
+        code_impl += INDENT*(ndim+1)+"*(%(dtype_decl)s*)(ti%(last_idx)d) = *(%(dtype_decl)s*)(fi%(last_idx)d);\n" % locals()
 
     # for-loop closing braces
     for k in range(ndim-1, -1, -1):

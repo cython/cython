@@ -1,4 +1,12 @@
 u'''
+>>> test_copy_mismatch()
+Traceback (most recent call last):
+  ...
+ValueError: memoryview shapes not the same in dimension 0
+>>> test_copy_to()
+0 1 2 3 4 5 6 7
+0 1 2 3 4 5 6 7
+0 1 2 3 4 5 6 7
 >>> test_is_contiguous()
 1 1
 0 1
@@ -50,6 +58,29 @@ AttributeError: 'NoneType' object has no attribute '_data'
 cimport cython
 from cython cimport array
 
+import numpy as np
+cimport numpy as np
+
+def test_copy_to():
+    cdef int[:,:,:] from_mvs, to_mvs
+    from_mvs = np.arange(8, dtype=np.int32).reshape(2,2,2)
+    cdef int *from_dta = <int*>from_mvs._data
+    for i in range(2*2*2):
+        print from_dta[i],
+    print 
+    # for i in range(2*2*2):
+        # from_dta[i] = i
+
+    to_mvs = array((2,2,2), sizeof(int), 'i')
+    to_mvs[...] = from_mvs
+    cdef int *to_data = <int*>to_mvs._data
+    for i in range(2*2*2):
+        print from_dta[i],
+    print 
+    for i in range(2*2*2):
+        print to_data[i],
+    print 
+
 @cython.nonecheck(True)
 def test_nonecheck1():
     cdef int[:,:,:] uninitialized
@@ -74,6 +105,12 @@ def test_nonecheck4():
 def test_nonecheck5():
     cdef int[:,:,:] uninitialized
     uninitialized._data
+
+def test_copy_mismatch():
+    cdef int[:,:,::1] mv1  = array((2,2,3), sizeof(int), 'i')
+    cdef int[:,:,::1] mv2  = array((1,2,3), sizeof(int), 'i')
+
+    mv1[...] = mv2
 
 def test_is_contiguous():
     cdef int[::1, :, :] fort_contig = array((1,1,1), sizeof(int), 'i', mode='fortran')
