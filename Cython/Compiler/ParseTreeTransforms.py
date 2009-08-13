@@ -127,7 +127,6 @@ class PostParseError(CompileError): pass
 
 # error strings checked by unit tests, so define them
 ERR_CDEF_INCLASS = 'Cannot assign default value to fields in cdef classes, structs or unions'
-ERR_BUF_LOCALONLY = 'Buffer types only allowed as function local variables'
 ERR_BUF_DEFAULTS = 'Invalid buffer defaults specification (see docs)'
 ERR_INVALID_SPECIALATTR_TYPE = 'Special attributes must not have a type declared'
 class PostParse(CythonTransform):
@@ -144,7 +143,7 @@ class PostParse(CythonTransform):
     
     - Interpret some node structures into Python runtime values.
     Some nodes take compile-time arguments (currently:
-    CBufferAccessTypeNode[args] and __cythonbufferdefaults__ = {args}),
+    TemplatedTypeNode[args] and __cythonbufferdefaults__ = {args}),
     which should be interpreted. This happens in a general way
     and other steps should be taken to ensure validity.
 
@@ -153,7 +152,7 @@ class PostParse(CythonTransform):
     - For __cythonbufferdefaults__ the arguments are checked for
     validity.
 
-    CBufferAccessTypeNode has its options interpreted:
+    TemplatedTypeNode has its options interpreted:
     Any first positional argument goes into the "dtype" attribute,
     any "ndim" keyword argument goes into the "ndim" attribute and
     so on. Also it is checked that the option combination is valid.
@@ -241,11 +240,6 @@ class PostParse(CythonTransform):
             # and try to move on to report more errors
             self.context.nonfatal_error(e)
             return None
-
-    def visit_CBufferAccessTypeNode(self, node):
-        if not self.scope_type == 'function':
-            raise PostParseError(node.pos, ERR_BUF_LOCALONLY)
-        return node
 
 class PxdPostParse(CythonTransform, SkipDeclarations):
     """

@@ -1110,9 +1110,9 @@ class ModuleScope(Scope):
         #
         return entry
     
-    def declare_cpp_class(self, name, kind, scope,
-            typedef_flag, pos, cname = None, base_classes = [],
-            visibility = 'extern', packed = False, templates = None):
+    def declare_cpp_class(self, name, scope,
+            pos, cname = None, base_classes = [],
+            visibility = 'extern', templates = None):
         if visibility != 'extern':
             error(pos, "C++ classes may only be extern")
         if cname is None:
@@ -1120,22 +1120,19 @@ class ModuleScope(Scope):
         entry = self.lookup(name)
         if not entry:
             type = PyrexTypes.CppClassType(
-                name, kind, scope, typedef_flag, cname, base_classes, packed, templates = templates)
+                name, scope, cname, base_classes, templates = templates)
             entry = self.declare_type(name, type, pos, cname,
                 visibility = visibility, defining = scope is not None)
         else:
-            if not (entry.is_type and entry.type.is_cpp_class
-                    and entry.type.kind == kind):
+            if not (entry.is_type and entry.type.is_cpp_class):
                 warning(pos, "'%s' redeclared  " % name, 0)
             elif scope and entry.type.scope:
                 warning(pos, "'%s' already defined  (ignoring second definition)" % name, 0)
             else:
-                self.check_previous_typedef_flag(entry, typedef_flag, pos)
                 if scope:
                     entry.type.scope = scope
                     self.type_entries.append(entry)
         if not scope and not entry.type.scope:
-            self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
             entry.type.scope = CppClassScope(name)
         
         def declare_inherited_attributes(entry, base_classes):
@@ -1144,10 +1141,6 @@ class ModuleScope(Scope):
                 entry.type.scope.declare_inherited_cpp_attributes(base_class.scope)                 
         declare_inherited_attributes(entry, base_classes)
         return entry
-    
-    def check_for_illegal_incomplete_ctypedef(self, typedef_flag, pos):
-        if typedef_flag and not self.in_cinclude:
-            error(pos, "Forward-referenced type must use 'cdef', not 'ctypedef'")
     
     def allocate_vtable_names(self, entry):
         #  If extension type has a vtable, allocate vtable struct and
@@ -1238,7 +1231,7 @@ class ModuleScope(Scope):
         var_entry.is_readonly = 1
         entry.as_variable = var_entry
         
-class LocalScope(Scope):    
+class LocalScope(Scope):
 
     def __init__(self, name, outer_scope):
         Scope.__init__(self, name, outer_scope, outer_scope)

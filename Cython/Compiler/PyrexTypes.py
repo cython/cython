@@ -1369,39 +1369,37 @@ class CStructOrUnionType(CType):
 class CppClassType(CType):
     #  name          string
     #  cname         string
-    #  kind          string              "cppclass"
     #  scope         CppClassScope
-    #  typedef_flag  boolean
-    #  packed        boolean
     #  templates     [string] or None
     
     is_cpp_class = 1
     has_attributes = 1
-    base_classes = []
+    exception_check = True
     
-    def __init__(self, name, kind, scope, typedef_flag, cname, base_classes, packed=False,
-                 templates = None):
+    def __init__(self, name, scope, cname, base_classes, templates = None):
         self.name = name
         self.cname = cname
-        self.kind = kind
         self.scope = scope
-        self.typedef_flag = typedef_flag
-        self.exception_check = True
-        self._convert_code = None
-        self.packed = packed
         self.base_classes = base_classes
         self.operators = []
         self.templates = templates
 
+    def specialize(self, pos, template_values):
+        if self.templates is None:
+            error(pos, "'%s' type is not a template" % self);
+            return PyrexTypes.error_type
+        if len(self.templates) != len(template_values):
+            error(pos, "%s templated type receives %d arguments, got %d" % 
+                  (base_type, len(self.templates), len(template_values)))
+            return PyrexTypes.error_type
+        return CppClassType(self.name, self.scope, self.cname, self.base_classes, template_values)
+
     def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
-        templates = ""
         if self.templates:
-            templates = "<"
-            for i in range(len(self.templates)-1):
-                templates += self.templates[i]
-                templates += ','
-            templates += self.templates[-1]
-            templates += ">"
+            template_strings = [param.declaration_code('', for_display, pyrex) for param in self.templates]
+            templates = "<" + ",".join(template_strings) + ">"
+        else:
+            templates = ""
         if for_display or pyrex:
             name = self.name
         else:
@@ -1418,6 +1416,7 @@ class CppClassType(CType):
 
     def attributes_known(self):
         return self.scope is not None
+
 
 class TemplatedType(CType):
     
@@ -1608,8 +1607,6 @@ c_anon_enum_type =    CAnonEnumType(-1, 1)
 # the Py_buffer type is defined in Builtin.py
 c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer")
 c_py_buffer_ptr_type = CPtrType(c_py_buffer_type)
-
-cpp_class_type = CppClassType("cpp_class", "cppclass", None, 1, "cpp_class", [])
 
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()

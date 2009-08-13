@@ -1795,43 +1795,23 @@ def p_buffer_or_template(s, base_type_node):
     # s.sy == '['
     pos = s.position()
     s.next()
-    if s.systring == 'int' or s.systring == 'long':
-        positional_args, keyword_args = (
-            p_positional_and_keyword_args(s, (']',), (0,), ('dtype',))
-        )
-        if keyword_args:
-            error(pos, "Keyword arguments not allowed for template types")
-        s.expect(']')
+    positional_args, keyword_args = (
+        p_positional_and_keyword_args(s, (']',), (0,), ('dtype',))
+    )
+    s.expect(']')
 
-        result = Nodes.TemplatedTypeNode(pos, base_type_node = base_type_node,
-            templates = positional_args)
-    else:
-        positional_args, keyword_args = (
-            p_positional_and_keyword_args(s, (']',), (0,), ('dtype',))
-        )
-        if positional_args:
-            if positional_args[0] != 'int' or positional_args != 'long':
-                if keyword_args:
-                    error(pos, "Keyword arguments not allowed for template types")
-                s.expect(']')
+    keyword_dict = ExprNodes.DictNode(pos,
+        key_value_pairs = [
+            ExprNodes.DictItemNode(pos=key.pos, key=key, value=value)
+            for key, value in keyword_args
+        ])
 
-                result = Nodes.TemplatedTypeNode(pos, base_type_node = base_type_node,
-                    templates = positional_args)
-            else:
-                s.expect(']')
-
-                keyword_dict = ExprNodes.DictNode(pos,
-                    key_value_pairs = [
-                        ExprNodes.DictItemNode(pos=key.pos, key=key, value=value)
-                        for key, value in keyword_args
-                    ])
-
-                result = Nodes.CBufferAccessTypeNode(pos,
-                    positional_args = positional_args,
-                    keyword_args = keyword_dict,
-                    base_type_node = base_type_node)
-                
+    result = Nodes.TemplatedTypeNode(pos,
+        positional_args = positional_args,
+        keyword_args = keyword_dict,
+        base_type_node = base_type_node)
     return result
+
     
 
 def looking_at_name(s):

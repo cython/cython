@@ -21,7 +21,7 @@ class TestBufferParsing(CythonTest):
     def test_basic(self):
         t = self.parse(u"cdef object[float, 4, ndim=2, foo=foo] x")
         bufnode = t.stats[0].base_type
-        self.assert_(isinstance(bufnode, CBufferAccessTypeNode))
+        self.assert_(isinstance(bufnode, TemplatedTypeNode))
         self.assertEqual(2, len(bufnode.positional_args))
 #        print bufnode.dump()
         # should put more here...
@@ -65,7 +65,7 @@ class TestBufferOptions(CythonTest):
             vardef = root.stats[0].body.stats[0]
             assert isinstance(vardef, CVarDefNode) # use normal assert as this is to validate the test code
             buftype = vardef.base_type
-            self.assert_(isinstance(buftype, CBufferAccessTypeNode))
+            self.assert_(isinstance(buftype, TemplatedTypeNode))
             self.assert_(isinstance(buftype.base_type_node, CSimpleBaseTypeNode))
             self.assertEqual(u"object", buftype.base_type_node.name)
             return buftype

@@ -1769,7 +1769,19 @@ class IndexNode(ExprNode):
     def analyse_as_type(self, env):
         base_type = self.base.analyse_as_type(env)
         if base_type and not base_type.is_pyobject:
-            return PyrexTypes.CArrayType(base_type, int(self.index.compile_time_value(env)))
+            if base_type.is_cpp_class:
+                if isinstance(self.index, TupleExprNode):
+                    template_values = self.index.args
+                else:
+                    template_values = [self.index]
+                import Nodes
+                type_node = Nodes.TemplatedTypeNode(
+                    pos = self.pos, 
+                    positional_args = template_values, 
+                    keyword_args = None)
+                return type_node.analyse(env, base_type = base_type)
+            else:
+                return PyrexTypes.CArrayType(base_type, int(self.index.compile_time_value(env)))
         return None
     
     def analyse_types(self, env):
