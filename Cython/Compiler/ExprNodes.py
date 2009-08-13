@@ -334,7 +334,7 @@ class ExprNode(Node):
         # By default, any expression based on Python objects is
         # prevented in nogil environments.  Subtypes must override
         # this if they can work without the GIL.
-        if self.type.is_pyobject:
+        if self.type and self.type.is_pyobject:
             self._gil_check(env)
 
     def gil_assignment_check(self, env):
@@ -1614,6 +1614,7 @@ class IndexNode(ExprNode):
         # For buffers, self.index is packed out on the initial analysis, and
         # when cloning self.indices is copied.
         self.is_buffer_access = False
+        self.is_memoryviewslice_access = False
 
         self.base.analyse_types(env)
         # Handle the case where base is a literal char* (and we expect a string, not an int)
@@ -1622,6 +1623,7 @@ class IndexNode(ExprNode):
 
         skip_child_analysis = False
         buffer_access = False
+        memoryviewslice_access = False
         if self.base.type.is_buffer:
             assert hasattr(self.base, "entry") # Must be a NameNode-like node
             if self.indices:
@@ -1638,6 +1640,12 @@ class IndexNode(ExprNode):
                     x.analyse_types(env)
                     if not x.type.is_int:
                         buffer_access = False
+        
+        if self.base.type.is_memoryviewslice:
+            assert hasattr(self.base, "entry")
+            if self.indices or not isinstance(self.index, EllipsisNode):
+                error(self.pos, "Memoryviews currently support ellipsis indexing only.")
+            else: memoryviewslice_access = True
 
         # On cloning, indices is cloned. Otherwise, unpack index into indices
         assert not (buffer_access and isinstance(self.index, CloneNode))
@@ -1656,6 +1664,13 @@ class IndexNode(ExprNode):
                     error(self.pos, "Writing to readonly buffer")
                 else:
                     self.base.entry.buffer_aux.writable_needed = True
+
+        elif memoryviewslice_access:
+            self.type = self.base.type
+            self.is_memoryviewslice_access = True
+            if getting:
+                error(self.pos, "memoryviews currently support setting only.")
+
         else:
             if isinstance(self.index, TupleNode):
                 self.index.analyse_types(env, skip_children=skip_child_analysis)
@@ -1813,6 +1828,14 @@ class IndexNode(ExprNode):
                 self.extra_index_params(),
                 code.error_goto(self.pos)))
 
+    def generate_memoryviewslice_setitem_code(self, rhs, code, op=""):
+        assert isinstance(self.index, EllipsisNode)
+        import MemoryView
+        util_code = MemoryView.CopyContentsFuncUtilCode(rhs.type, self.type)
+        func_name = util_code.copy_contents_name
+        code.putln(code.error_goto_if_neg("%s(&%s, &%s)" % (func_name, rhs.result(), self.base.result()), self.pos))
+        code.globalstate.use_utility_code(util_code)
+
     def generate_buffer_setitem_code(self, rhs, code, op=""):
         # Used from generate_assignment_code and InPlaceAssignmentNode
         if code.globalstate.directives['nonecheck']:
@@ -1839,6 +1862,8 @@ class IndexNode(ExprNode):
         self.generate_subexpr_evaluation_code(code)
         if self.is_buffer_access:
             self.generate_buffer_setitem_code(rhs, code)
+        elif self.is_memoryviewslice_access:
+            self.generate_memoryviewslice_setitem_code(rhs, code)
         elif self.type.is_pyobject:
             self.generate_setitem_code(rhs.py_result(), code)
         else:

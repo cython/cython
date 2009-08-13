@@ -355,7 +355,6 @@ class MemoryViewSliceType(PyrexType):
                 entry.utility_code_definition = \
                         MemoryView.IsContigFuncUtilCode(c_or_f)
 
-
         return True
 
     def specialization_suffix(self):
