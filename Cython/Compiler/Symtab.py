@@ -1638,6 +1638,13 @@ class CppClassScope(Scope):
                                        base_entry.pos, adapt(base_entry.cname),
                                        base_entry.visibility, base_entry.func_modifiers)
             entry.is_inherited = 1
+    
+    def specialize(self, values):
+        scope = CppClassScope()
+        for entry in self.entries.values():
+            scope.declare_var(entry.name, entry.type.specialize(values), entry.pos, entry.cname, entry.visibility)
+        return scope
+        
         
 class PropertyScope(Scope):
     #  Scope holding the __get__, __set__ and __del__ methods for
