@@ -668,6 +668,9 @@ class CBaseTypeNode(Node):
     
     pass
     
+    def analyse_as_type(self, env):
+        return self.analyse(env)
+    
 class CAnalysedBaseTypeNode(Node):
     # type            type
     
@@ -739,31 +742,13 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
             return PyrexTypes.error_type
 
 class TemplatedTypeNode(CBaseTypeNode):
-    #  name
-    #  base_type_node    CSimpleBaseTypeNode
-    #  templates         [CSimpleBaseTypeNode]
-
-    child_attrs = ["base_type_node", "templates"]
-    
-    def analyse(self, env, could_be_name = False):
-        entry = env.lookup(self.base_type_node.name)
-        base_types = entry.type.templates
-        if not base_types:
-            error(self.pos, "%s type is not a template" % entry.type)
-        if len(base_types) != len(self.templates):
-            error(self.pos, "%s templated type receives %d arguments, got %d" % 
-                  (entry.type, len(base_types), len(self.templates)))
-        print entry.type
-        return entry.type
-
-class CBufferAccessTypeNode(CBaseTypeNode):
     #  After parsing:
     #  positional_args  [ExprNode]        List of positional arguments
     #  keyword_args     DictNode          Keyword arguments
     #  base_type_node   CBaseTypeNode
 
     #  After analysis:
-    #  type             PyrexType.BufferType   ...containing the right options
+    #  type             PyrexTypes.BufferType or PyrexTypes.CppClassType  ...containing the right options
 
 
     child_attrs = ["base_type_node", "positional_args",
@@ -773,19 +758,37 @@ class CBufferAccessTypeNode(CBaseTypeNode):
 
     name = None
     
-    def analyse(self, env, could_be_name = False):
-        base_type = self.base_type_node.analyse(env)
+    def analyse(self, env, could_be_name = False, base_type = None):
+        if base_type is None:
+            base_type = self.base_type_node.analyse(env)
         if base_type.is_error: return base_type
-        import Buffer
-
-        options = Buffer.analyse_buffer_options(
-            self.pos,
-            env,
-            self.positional_args,
-            self.keyword_args,
-            base_type.buffer_defaults)
         
-        self.type = PyrexTypes.BufferType(base_type, **options)
+        if base_type.is_cpp_class:
+            if len(self.keyword_args.key_value_pairs) != 0:
+                error(self.pos, "c++ templates cannot take keyword arguments");
+                self.type = PyrexTypes.error_type
+            else:
+                template_types = []
+                for template_node in self.positional_args:
+                    template_types.append(template_node.analyse_as_type(env))
+                self.type = base_type.specialize(self.pos, template_types)
+        
+        else:
+        
+            if not isinstance(env, Symtab.LocalScope):
+                error(self.pos, ERR_BUF_LOCALONLY)
+        
+            import Buffer
+
+            options = Buffer.analyse_buffer_options(
+                self.pos,
+                env,
+                self.positional_args,
+                self.keyword_args,
+                base_type.buffer_defaults)
+            
+            self.type = PyrexTypes.BufferType(base_type, **options)
+        
         return self.type
 
 class CComplexBaseTypeNode(CBaseTypeNode):
@@ -954,7 +957,7 @@ class CppClassNode(CStructOrUnionDefNode):
             else:
                 base_class_types.append(base_class_entry.type)
         self.entry = env.declare_cpp_class(
-            self.name, "cppclass", scope, 0, self.pos,
+            self.name, scope, self.pos,
             self.cname, base_class_types, visibility = self.visibility, templates = self.templates)
         self.entry.is_cpp_class = 1
         if self.attributes is not None:
@@ -5809,3 +5812,5 @@ proto="""
 """)
 
 #------------------------------------------------------------------------------------
+
+ERR_BUF_LOCALONLY = 'Buffer types only allowed as function local variables'
