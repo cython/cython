@@ -609,49 +609,6 @@ class ExprNode(Node):
     def as_cython_attribute(self):
         return None
 
-    def best_match(self, args, env):
-        entries = [env] + env.overloaded_alternatives
-        possibilities = []
-        for entry in entries:
-            type = entry.type
-            if type.is_ptr:
-                type = type.base_type
-            score = [0,0,0]
-            for i in range(len(args)):
-                src_type = args[i].type
-                if entry.type.is_ptr:
-                    dst_type = entry.type.base_type.args[i].type
-                else:
-                    dst_type = entry.type.args[i].type
-                if dst_type.assignable_from(src_type):
-                    if src_type == dst_type:
-                        pass # score 0
-                    elif PyrexTypes.is_promotion(src_type, dst_type):
-                        score[2] += 1
-                    elif not src_type.is_pyobject:
-                        score[1] += 1
-                    else:
-                        score[0] += 1
-                else:
-                    break
-            else:
-                possibilities.append((score, entry)) # so we can sort it
-        if len(possibilities):
-            possibilities.sort()
-            if len(possibilities) > 1 and possibilities[0][0] == possibilities[1][0]:
-                error(self.pos, "Ambiguity found on %s" % possibilities[0][1].name)
-                self.args = None
-                self.type = PyrexTypes.error_type
-                self.result_code = "<error>"
-                return None
-            return possibilities[0][1].type
-        error(self.pos, 
-            "Call with wrong arguments")
-        self.args = None
-        self.type = PyrexTypes.error_type
-        self.result_code = "<error>"
-        return None
-
 
 class RemoveAllocateTemps(type):
     def __init__(cls, name, bases, dct):
@@ -2446,56 +2403,6 @@ class SimpleCallNode(CallNode):
                 self.args.insert(0, self.coerced_self)
             self.analyse_c_function_call(env)
     
-    def best_match(self, args, env):
-        entries = [env] + env.overloaded_alternatives
-        actual_nargs = len(self.args)
-        possibilities = []
-        for entry in entries:
-            type = entry.type
-            if type.is_ptr:
-                type = type.base_type
-            # Check no. of args
-            max_nargs = len(type.args)
-            expected_nargs = max_nargs - type.optional_arg_count
-            if actual_nargs < expected_nargs \
-                or (not type.has_varargs and actual_nargs > max_nargs):
-                    continue
-            score = [0,0,0]
-            for i in range(len(self.args)):
-                src_type = self.args[i].type
-                if entry.type.is_ptr:
-                    dst_type = entry.type.base_type.args[i].type
-                else:
-                    dst_type = entry.type.args[i].type
-                if dst_type.assignable_from(src_type):
-                    if src_type == dst_type:
-                        pass # score 0
-                    elif PyrexTypes.is_promotion(src_type, dst_type):
-                        score[2] += 1
-                    elif not src_type.is_pyobject:
-                        score[1] += 1
-                    else:
-                        score[0] += 1
-                else:
-                    break
-            else:
-                possibilities.append((score, entry)) # so we can sort it
-        if len(possibilities):
-            possibilities.sort()
-            if len(possibilities) > 1 and possibilities[0][0] == possibilities[1][0]:
-                error(self.pos, "Ambiguity found on %s" % possibilities[0][1].name)
-                self.args = None
-                self.type = PyrexTypes.error_type
-                self.result_code = "<error>"
-                return None
-            return possibilities[0][1]
-        error(self.pos, 
-            "Call with wrong arguments")
-        self.args = None
-        self.type = PyrexTypes.error_type
-        self.result_code = "<error>"
-        return None
-    
     def function_type(self):
         # Return the type of the function being called, coercing a function
         # pointer to a function if necessary.
@@ -2505,8 +2412,10 @@ class SimpleCallNode(CallNode):
         return func_type
     
     def analyse_c_function_call(self, env):
-        entry = self.best_match(self.args, self.function.entry)
+        entry = PyrexTypes.best_match(self.args, self.function.entry.all_alternatives(), self.pos)
         if not entry:
+            self.type = PyrexTypes.error_type
+            self.result_code = "<error>"
             return
         self.function.entry = entry
         self.function.type = entry.type
@@ -2523,23 +2432,6 @@ class SimpleCallNode(CallNode):
         max_nargs = len(func_type.args)
         expected_nargs = max_nargs - func_type.optional_arg_count
         actual_nargs = len(self.args)
-        #if actual_nargs < expected_nargs \
-        #    or (not func_type.has_varargs and actual_nargs > max_nargs):
-        #        expected_str = str(expected_nargs)
-        #        if func_type.has_varargs:
-        #            expected_str = "at least " + expected_str
-        #        elif func_type.optional_arg_count:
-        #            if actual_nargs < max_nargs:
-        #                expected_str = "at least " + expected_str
-        #            else:
-        #                expected_str = "at most " + str(max_nargs)
-                #error(self.pos, 
-                #    "Call with wrong number of arguments (expected %s, got %s)"
-                #        % (expected_str, actual_nargs))
-                #self.args = None
-                #self.type = PyrexTypes.error_type
-                #self.result_code = "<error>"
-                #return
         # Coerce arguments
         for i in range(min(max_nargs, actual_nargs)):
             formal_type = func_type.args[i].type
@@ -3922,7 +3814,7 @@ class UnopNode(ExprNode):
                 % (self.operator, type1, type2, self.operator))
             self.type_error()
             return
-        self.type = self.best_match([self.operand], function)
+        self.type = function.type.return_type
 
     operator = {
         "++":       u"__inc__",
@@ -4398,7 +4290,12 @@ class NumBinopNode(BinopNode):
                 % (self.operator, type1, type2, self.operator))
             self.type_error()
             return
-        self.type = self.best_match([self.operand1, self.operand2], function)
+        entry = PyrexTypes.best_match([self.operand1, self.operand2], function.all_alternatives(), self.pos)
+        if entry is None:
+            self.type = PyrexTypes.error_type
+            self.result_code = "<error>"
+            return
+        self.type = entry.type.return_type
     
     def compute_c_result_type(self, type1, type2):
         if self.c_types_okay(type1, type2):
@@ -4449,6 +4346,17 @@ class NumBinopNode(BinopNode):
         "+":        u"__add__",
         "-":        u"__sub__",
         "*":        u"__mul__",
+        "/":        u"__div__",
+        "%":        u"__mod__",
+
+        "<<":       u"__lshift__",
+        ">>":       u"__rshift__",
+
+        "&":        u"__and__",
+        "|":        u"__or__",
+        "^":        u"__xor__",
+        
+        # TODO(danilo): Handle these in CmpNode (perhaps dissallowing chaining). 
         "<":        u"__le__",
         ">":        u"__gt__",
         "==":       u"__eq__",

@@ -6,6 +6,7 @@ from Cython.Utils import UtilityCode
 import StringEncoding
 import Naming
 import copy
+from Errors import error
 
 class BaseType(object):
     #
@@ -1437,8 +1438,8 @@ class CppClassType(CType):
         if other_type.is_cpp_class:
             if self == other_type:
                 return 1
-            elif self.template_type == other.template_type:
-                for t1, t2 in zip(self.templates, other.templates):
+            elif self.template_type == other_type.template_type:
+                for t1, t2 in zip(self.templates, other_type.templates):
                     if not t1.same_as_resolved_type(t2):
                         return 0
                 return 1
@@ -1454,7 +1455,10 @@ class TemplatePlaceholderType(CType):
         self.name = name
     
     def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
-        return self.name + " " + entity_code
+        if entity_code:
+            return self.name + " " + entity_code
+        else:
+            return self.name
     
     def specialize(self, values):
         if self in values:
@@ -1464,7 +1468,7 @@ class TemplatePlaceholderType(CType):
 
     def same_as_resolved_type(self, other_type):
         if isinstance(other_type, TemplatePlaceholderType):
-            return self.name == other.name
+            return self.name == other_type.name
         else:
             return 0
         
@@ -1735,6 +1739,54 @@ def is_promotion(type, other_type):
     return (type.is_int and type.is_int and type.signed == other_type.signed) \
                     or (type.is_float and other_type.is_float) \
                     or (type.is_enum and other_type.is_int)
+
+def best_match(args, functions, pos):
+    actual_nargs = len(args)
+    possibilities = []
+    bad_types = 0
+    for func in functions:
+        func_type = func.type
+        if func_type.is_ptr:
+            func_type = func_type.base_type
+        # Check no. of args
+        max_nargs = len(func_type.args)
+        min_nargs = max_nargs - func_type.optional_arg_count
+        if actual_nargs < min_nargs \
+            or (not func_type.has_varargs and actual_nargs > max_nargs):
+                continue
+        score = [0,0,0]
+        for i in range(len(args)):
+            src_type = args[i].type
+            dst_type = func_type.args[i].type
+            if dst_type.assignable_from(src_type):
+                if src_type == dst_type:
+                    pass # score 0
+                elif is_promotion(src_type, dst_type):
+                    score[2] += 1
+                elif not src_type.is_pyobject:
+                    score[1] += 1
+                else:
+                    score[0] += 1
+            else:
+                bad_types = func
+                break
+        else:
+            possibilities.append((score, func)) # so we can sort it
+    if len(possibilities):
+        possibilities.sort()
+        if len(possibilities) > 1 and possibilities[0][0] == possibilities[1][0]:
+            error(pos, "ambiguous overloaded method")
+            return None
+        return possibilities[0][1]
+    if bad_types:
+        # This will raise the right error.
+        return func
+    else:
+        error(pos, "Call with wrong number of arguments (expected %s, got %s)"
+                            % (expected_str, actual_nargs))
+    return None
+
+
 
 def widest_numeric_type(type1, type2):
     # Given two numeric types, return the narrowest type
