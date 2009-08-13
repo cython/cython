@@ -728,7 +728,7 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                     if self.templates:
                         if not self.name in self.templates:
                             error(self.pos, "'%s' is not a type identifier" % self.name)
-                        type = PyrexTypes.TemplatedType(self.name)
+                        type = PyrexTypes.TemplatePlaceholderType(self.name)
                     else:
                         error(self.pos, "'%s' is not a type identifier" % self.name)
         if self.complex:
@@ -771,7 +771,7 @@ class TemplatedTypeNode(CBaseTypeNode):
                 template_types = []
                 for template_node in self.positional_args:
                     template_types.append(template_node.analyse_as_type(env))
-                self.type = base_type.specialize(self.pos, template_types)
+                self.type = base_type.specialize_here(self.pos, template_types)
         
         else:
         
@@ -956,9 +956,13 @@ class CppClassNode(CStructOrUnionDefNode):
                 error(self.pos, "'%s' is not a cpp class type" % base_class_name)
             else:
                 base_class_types.append(base_class_entry.type)
+        if self.templates is None:
+            template_types = None
+        else:
+            template_types = [PyrexTypes.TemplatePlaceholderType(template_name) for template_name in self.templates]
         self.entry = env.declare_cpp_class(
             self.name, scope, self.pos,
-            self.cname, base_class_types, visibility = self.visibility, templates = self.templates)
+            self.cname, base_class_types, visibility = self.visibility, templates = template_types)
         self.entry.is_cpp_class = 1
         if self.attributes is not None:
             if self.in_pxd and not env.in_cinclude:

@@ -108,6 +108,9 @@ class PyrexType(BaseType):
         # If a typedef, returns the base type.
         return self
     
+    def specialize(self, values):
+        return self
+    
     def literal_code(self, value):
         # Returns a C code fragment representing a literal
         # value of this type.
@@ -999,6 +1002,13 @@ class CPtrType(CType):
         if other_type.is_array or other_type.is_ptr:
             return self.base_type.is_void or self.base_type.same_as(other_type.base_type)
         return 0
+    
+    def specialize(self, values):
+        base_type = self.base_type.specialize(values)
+        if base_type == self.base_type:
+            return self
+        else:
+            return CPtrType(base_type)
 
 
 class CNullPtrType(CPtrType):
@@ -1376,15 +1386,17 @@ class CppClassType(CType):
     has_attributes = 1
     exception_check = True
     
-    def __init__(self, name, scope, cname, base_classes, templates = None):
+    def __init__(self, name, scope, cname, base_classes, templates = None, template_type = None):
         self.name = name
         self.cname = cname
         self.scope = scope
         self.base_classes = base_classes
         self.operators = []
         self.templates = templates
+        self.template_type = template_type
 
-    def specialize(self, pos, template_values):
+    def specialize_here(self, pos, template_values = None):
+        # TODO: cache for efficiency
         if self.templates is None:
             error(pos, "'%s' type is not a template" % self);
             return PyrexTypes.error_type
@@ -1392,7 +1404,13 @@ class CppClassType(CType):
             error(pos, "%s templated type receives %d arguments, got %d" % 
                   (base_type, len(self.templates), len(template_values)))
             return PyrexTypes.error_type
-        return CppClassType(self.name, self.scope, self.cname, self.base_classes, template_values)
+        return self.specialize(dict(zip(self.templates, template_values)))
+    
+    def specialize(self, values):
+        # TODO: cache for efficiency
+        template_values = [t.specialize(values) for t in self.templates]
+        return CppClassType(self.name, self.scope.specialize(values), self.cname, self.base_classes, 
+                            template_values, template_type=self)
 
     def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
         if self.templates:
@@ -1407,10 +1425,22 @@ class CppClassType(CType):
         return "%s %s%s" % (name, entity_code, templates)
 
     def is_subclass(self, other_type):
+        # TODO: handle templates
         if self.same_as_resolved_type(other_type):
             return 1
         for base_class in self.base_classes:
             if base_class.is_subclass(other_type):
+                return 1
+        return 0
+    
+    def same_as_resolved_type(self, other_type):
+        if other_type.is_cpp_class:
+            if self == other_type:
+                return 1
+            elif self.template_type == other.template_type:
+                for t1, t2 in zip(self.templates, other.templates):
+                    if not t1.same_as_resolved_type(t2):
+                        return 0
                 return 1
         return 0
 
@@ -1418,13 +1448,34 @@ class CppClassType(CType):
         return self.scope is not None
 
 
-class TemplatedType(CType):
+class TemplatePlaceholderType(CType):
     
     def __init__(self, name):
         self.name = name
     
     def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
-        return ""
+        return self.name + " " + entity_code
+    
+    def specialize(self, values):
+        if self in values:
+            return values[self]
+        else:
+            return self
+
+    def same_as_resolved_type(self, other_type):
+        if isinstance(other_type, TemplatePlaceholderType):
+            return self.name == other.name
+        else:
+            return 0
+        
+    def __hash__(self):
+        return hash(self.name)
+    
+    def __cmp__(self, other):
+        if isinstance(other, TemplatePlaceholderType):
+            return cmp(self.name, other.name)
+        else:
+            return cmp(type(self), type(other))
 
 class CEnumType(CType):
     #  name           string
