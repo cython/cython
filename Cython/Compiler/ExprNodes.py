@@ -3928,7 +3928,7 @@ class UnopNode(ExprNode):
         "++":       u"__inc__",
         "--":       u"__dec__",
         "*":        u"__deref__",
-        "!":        u"__not__"
+        "!":        u"__not__" # TODO(danilo): Also handle in NotNode.
     }
         
 

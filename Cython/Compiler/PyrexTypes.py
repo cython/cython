@@ -109,6 +109,7 @@ class PyrexType(BaseType):
         return self
     
     def specialize(self, values):
+        # TODO(danilo): Override wherever it makes sense.
         return self
     
     def literal_code(self, value):
@@ -1396,7 +1397,6 @@ class CppClassType(CType):
         self.template_type = template_type
 
     def specialize_here(self, pos, template_values = None):
-        # TODO: cache for efficiency
         if self.templates is None:
             error(pos, "'%s' type is not a template" % self);
             return PyrexTypes.error_type
@@ -1407,7 +1407,7 @@ class CppClassType(CType):
         return self.specialize(dict(zip(self.templates, template_values)))
     
     def specialize(self, values):
-        # TODO: cache for efficiency
+        # TODO(danilo): Cache for efficiency.
         template_values = [t.specialize(values) for t in self.templates]
         return CppClassType(self.name, self.scope.specialize(values), self.cname, self.base_classes, 
                             template_values, template_type=self)
@@ -1425,7 +1425,7 @@ class CppClassType(CType):
         return "%s %s%s" % (name, entity_code, templates)
 
     def is_subclass(self, other_type):
-        # TODO: handle templates
+        # TODO(danilo): Handle templates.
         if self.same_as_resolved_type(other_type):
             return 1
         for base_class in self.base_classes:
