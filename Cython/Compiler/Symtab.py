@@ -177,6 +177,9 @@ class Entry(object):
     def redeclared(self, pos):
         error(pos, "'%s' does not match previous declaration" % self.name)
         error(self.pos, "Previous declaration is here")
+    
+    def all_alternatives(self):
+        return [self] + self.overloaded_alternatives
 
 class Scope(object):
     # name              string             Unqualified name
@@ -1621,7 +1624,7 @@ class CppClassScope(Scope):
     def declare_cfunction(self, name, type, pos, 
                           cname = None, visibility = 'extern', defining = 0,
                           api = 0, in_pxd = 0, modifiers = ()):
-        self.declare_var(name, type, pos, cname, visibility)
+        entry = self.declare_var(name, type, pos, cname, visibility)
 
     def declare_inherited_cpp_attributes(self, base_scope):
         # Declare entries for all the C++ attributes of an
@@ -1642,7 +1645,11 @@ class CppClassScope(Scope):
     def specialize(self, values):
         scope = CppClassScope()
         for entry in self.entries.values():
-            scope.declare_var(entry.name, entry.type.specialize(values), entry.pos, entry.cname, entry.visibility)
+            scope.declare_var(entry.name,
+                                entry.type.specialize(values),
+                                entry.pos,
+                                entry.cname,
+                                entry.visibility)
         return scope
         
         
