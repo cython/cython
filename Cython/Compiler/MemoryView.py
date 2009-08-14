@@ -100,7 +100,9 @@ def put_assign_to_memviewslice(lhs_cname, rhs_cname, memviewslicetype, pos, code
     code.putln("%s.data = %s.data;" % (lhs_cname, rhs_cname))
     ndim = len(memviewslicetype.axes)
     for i in range(ndim):
-        code.putln("%s.diminfo[%d] = %s.diminfo[%d];" % (lhs_cname, i, rhs_cname, i))
+        code.putln("%s.shape[%d] = %s.shape[%d];" % (lhs_cname, i, rhs_cname, i))
+        code.putln("%s.strides[%d] = %s.strides[%d];" % (lhs_cname, i, rhs_cname, i))
+        code.putln("%s.suboffsets[%d] = %s.suboffsets[%d];" % (lhs_cname, i, rhs_cname, i))
 
 def get_buf_flag(specs):
     is_c_contig, is_f_contig = is_cf_contig(specs)
@@ -233,21 +235,21 @@ static int %s(const __Pyx_memviewslice mvs) {
     %(for_loop)s {
 
 #ifdef DEBUG
-        printf("mvs.diminfo[i].suboffsets %%d\\n", mvs.diminfo[i].suboffsets);
-        printf("mvs.diminfo[i].strides %%d\\n", mvs.diminfo[i].strides);
-        printf("mvs.diminfo[i].shape %%d\\n", mvs.diminfo[i].shape);
+        printf("mvs.suboffsets[i] %%d\\n", mvs.suboffsets[i]);
+        printf("mvs.strides[i] %%d\\n", mvs.strides[i]);
+        printf("mvs.shape[i] %%d\\n", mvs.shape[i]);
         printf("size %%d\\n", size);
         printf("ndim %%d\\n", ndim);
 #endif
 #undef DEBUG
 
-        if(mvs.diminfo[i].suboffsets >= 0) {
+        if(mvs.suboffsets[i] >= 0) {
             return 0;
         }
-        if(size * itemsize != mvs.diminfo[i].strides) {
+        if(size * itemsize != mvs.strides[i]) {
             return 0;
         }
-        size *= mvs.diminfo[i].shape;
+        size *= mvs.shape[i];
     }
     return 1;
 
@@ -375,7 +377,7 @@ static int %(cfunc_name)s(const __Pyx_memviewslice *from_mvs, __Pyx_memviewslice
     int ndim_idx = 0;
 
     for(ndim_idx=0; ndim_idx<%(ndim)d; ndim_idx++) {
-        if(from_mvs->diminfo[ndim_idx].shape != to_mvs->diminfo[ndim_idx].shape) {
+        if(from_mvs->shape[ndim_idx] != to_mvs->shape[ndim_idx]) {
             PyErr_Format(PyExc_ValueError,
                 "memoryview shapes not the same in dimension %%d", ndim_idx);
             return -1;
@@ -403,8 +405,8 @@ static int %(cfunc_name)s(const __Pyx_memviewslice *from_mvs, __Pyx_memviewslice
             # 'idx' is the same as 'i' for c_contig, and goes from ndim-1 to 0 for f_contig.
             # this makes the loop code below identical in both cases.
             code_impl += INDENT+"Py_ssize_t i%d = 0, idx%d = 0;\n" % (i,i)
-            code_impl += INDENT+"Py_ssize_t stride%(i)d = from_mvs->diminfo[%(idx)d].strides;\n" % {'i':i, 'idx':idx}
-            code_impl += INDENT+"Py_ssize_t shape%(i)d = from_mvs->diminfo[%(idx)d].shape;\n" % {'i':i, 'idx':idx}
+            code_impl += INDENT+"Py_ssize_t stride%(i)d = from_mvs->strides[%(idx)d];\n" % {'i':i, 'idx':idx}
+            code_impl += INDENT+"Py_ssize_t shape%(i)d = from_mvs->shape[%(idx)d];\n" % {'i':i, 'idx':idx}
 
         code_impl += "\n"
 
@@ -427,10 +429,10 @@ static int %(cfunc_name)s(const __Pyx_memviewslice *from_mvs, __Pyx_memviewslice
         code_impl += INDENT+"/* 'f' prefix is for the 'from' memview, 't' prefix is for the 'to' memview */\n"
         for i in range(ndim):
             code_impl += INDENT+"char *fi%d = 0, *ti%d = 0, *end%d = 0;\n" % (i,i,i)
-            code_impl += INDENT+"Py_ssize_t fstride%(i)d = from_mvs->diminfo[%(i)d].strides;\n" % {'i':i}
-            code_impl += INDENT+"Py_ssize_t fshape%(i)d = from_mvs->diminfo[%(i)d].shape;\n" % {'i':i}
-            code_impl += INDENT+"Py_ssize_t tstride%(i)d = to_mvs->diminfo[%(i)d].strides;\n" % {'i':i}
-            # code_impl += INDENT+"Py_ssize_t tshape%(i)d = to_mvs->diminfo[%(i)d].shape;\n" % {'i':i}
+            code_impl += INDENT+"Py_ssize_t fstride%(i)d = from_mvs->strides[%(i)d];\n" % {'i':i}
+            code_impl += INDENT+"Py_ssize_t fshape%(i)d = from_mvs->shape[%(i)d];\n" % {'i':i}
+            code_impl += INDENT+"Py_ssize_t tstride%(i)d = to_mvs->strides[%(i)d];\n" % {'i':i}
+            # code_impl += INDENT+"Py_ssize_t tshape%(i)d = to_mvs->shape[%(i)d];\n" % {'i':i}
 
         code_impl += INDENT+"end0 = fshape0 * fstride0 + from_mvs->data;\n"
         code_impl += INDENT+"for(fi0=from_buf, ti0=to_buf; fi0 < end0; fi0 += fstride0, ti0 += tstride0) {\n"
@@ -444,7 +446,7 @@ static int %(cfunc_name)s(const __Pyx_memviewslice *from_mvs, __Pyx_memviewslice
     for k in range(ndim-1, -1, -1):
         code_impl += INDENT*(k+1)+"}\n"
 
-    # init to_mvs->data and to_mvs->diminfo.
+    # init to_mvs->data and to_mvs shape/strides/suboffsets arrays.
     code_impl += INDENT+"temp_memview = to_mvs->memview;\n"
     code_impl += INDENT+"temp_data = to_mvs->data;\n"
     code_impl += INDENT+"to_mvs->memview = 0; to_mvs->data = 0;\n"
@@ -766,18 +768,16 @@ memviewslice_declare_code = UtilityCode(proto="""
 /* memoryview slice struct */
 
 typedef struct {
-  Py_ssize_t shape, strides, suboffsets;
-} __Pyx_mv_DimInfo;
-
-typedef struct {
-  struct %s *memview;
+  struct %(memview_struct_name)s *memview;
   char *data;
-  __Pyx_mv_DimInfo diminfo[%d];
-} %s;
+  Py_ssize_t shape[%(max_dims)d];
+  Py_ssize_t strides[%(max_dims)d];
+  Py_ssize_t suboffsets[%(max_dims)d];
+} %(memviewslice_name)s;
 
-""" % (CythonScope.memview_objstruct_cname,
-       Options.buffer_max_dims,
-       memviewslice_cname)
+""" % dict(memview_struct_name=CythonScope.memview_objstruct_cname,
+            max_dims=Options.buffer_max_dims,
+            memviewslice_name=memviewslice_cname)
 )
 
 memviewslice_init_code = UtilityCode(proto="""\
@@ -953,12 +953,12 @@ static int __Pyx_init_memviewslice(
     }
 
     for(i=0; i<ndim; i++) {
-        memviewslice->diminfo[i].strides = buf->strides[i];
-        memviewslice->diminfo[i].shape   = buf->shape[i];
+        memviewslice->strides[i] = buf->strides[i];
+        memviewslice->shape[i]   = buf->shape[i];
         if(buf->suboffsets) {
-            memviewslice->diminfo[i].suboffsets = buf->suboffsets[i];
+            memviewslice->suboffsets[i] = buf->suboffsets[i];
         } else {
-            memviewslice->diminfo[i].suboffsets = -1;
+            memviewslice->suboffsets[i] = -1;
         }
     }
 
