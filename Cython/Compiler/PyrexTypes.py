@@ -385,7 +385,7 @@ class MemoryViewSliceType(PyrexType):
     def attributes_known(self):
         if self.scope is None:
 
-            import Symtab, MemoryView
+            import Symtab, MemoryView, Options
             from MemoryView import axes_to_str
 
             self.scope = scope = Symtab.CClassScope(
@@ -396,6 +396,27 @@ class MemoryViewSliceType(PyrexType):
             scope.parent_type = self
 
             scope.declare_var('_data', c_char_ptr_type, None, cname='data', is_cdef=1)
+
+            scope.declare_var('shape',
+                    c_array_type(c_py_ssize_t_type,
+                        Options.buffer_max_dims),
+                    None,
+                    cname='shape',
+                    is_cdef=1)
+
+            scope.declare_var('strides',
+                    c_array_type(c_py_ssize_t_type,
+                        Options.buffer_max_dims),
+                    None,
+                    cname='strides',
+                    is_cdef=1)
+
+            scope.declare_var('suboffsets',
+                    c_array_type(c_py_ssize_t_type,
+                        Options.buffer_max_dims),
+                    None,
+                    cname='suboffsets',
+                    is_cdef=1)
 
             mangle_dtype = MemoryView.mangle_dtype_name(self.dtype)
             ndim = len(self.axes)
