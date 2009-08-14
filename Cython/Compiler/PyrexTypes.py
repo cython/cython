@@ -1403,6 +1403,9 @@ class CFuncTypeArg(object):
         return self.type.declaration_code(self.cname, for_display)
 
 class StructUtilityCode(object):
+
+    requires = None
+
     def __init__(self, type, forward_decl):
         self.type = type
         self.header = "static PyObject* %s(%s)" % (type.to_py_function, type.declaration_code('s'))
