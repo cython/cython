@@ -7633,7 +7633,7 @@ class CoerceToMemViewSliceNode(CoercionNode):
         code.putln("%s = (PyObject *)"
                 "__pyx_viewaxis_memoryview_cwrapper(%s, %s);" %\
                         (memviewobj, self.arg.py_result(), buf_flag))
-        code.putln(code.error_goto_if_null(memviewobj, self.pos))
+        code.putln(code.error_goto_if_PyErr(self.pos))
         ndim = len(self.type.axes)
         spec_int_arr = code.funcstate.allocate_temp(
                 PyrexTypes.c_array_type(PyrexTypes.c_int_type, ndim),
