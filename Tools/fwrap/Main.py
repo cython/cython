@@ -1,10 +1,22 @@
-import os, sys
+import os, sys, shutil
 from fparser import api
 from fparser import block_statements
 from Visitor import PrintTree, KindResolutionVisitor, \
         AutoConfigGenerator, FortranWrapperGenerator, \
         CHeaderGenerator, PxdGenerator, CyHeaderGenerator, \
         CyImplGenerator
+
+def main():
+    from optparse import OptionParser
+    parser = OptionParser()
+    parser.add_option('--outdir', dest='outdir', default=os.path.curdir, help='base of output directory')
+    parser.add_option('--indir',  dest='indir',  default=os.path.curdir, help='directory of fortran source files')
+    parser.add_option('--projname', dest='projectname', default='fwrap_default', help='name of fwrap project -- will be the name of the directory.')
+    options, sources = parser.parse_args()
+
+    wrap(sources, options.outdir, options.indir, options.projectname)
+
+
 
 def setup_project(projectname, src_dir, outdir):
     fq_projdir = os.path.join(outdir, projectname)
@@ -17,7 +29,7 @@ def setup_project(projectname, src_dir, outdir):
 
 def wrap(filenames, directory, outdir, projectname):
 
-    projectname = projectname.lower().strip()
+    projectname = projectname.strip()
 
     projdir = setup_project(projectname, directory, outdir)
 
@@ -49,6 +61,10 @@ def wrap(filenames, directory, outdir, projectname):
 
     # write out the makefile
     gen_makefile(projectname, filenames, directory, projdir)
+
+    # copy the fortran source files to the project dir.
+    for fname in filenames:
+       shutil.copy(fname, projdir)
 
 def gen_makefile(projname, src_files, src_dir, out_dir):
     import sys
