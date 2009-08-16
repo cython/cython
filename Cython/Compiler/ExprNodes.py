@@ -2429,14 +2429,6 @@ class SimpleCallNode(CallNode):
         self.function.entry = entry
         self.function.type = entry.type
         func_type = self.function_type()
-        # Check function type
-        if not func_type.is_cfunction:
-            if not func_type.is_error:
-                error(self.pos, "Calling non-function type '%s'" %
-                    func_type)
-            self.type = PyrexTypes.error_type
-            self.result_code = "<error>"
-            return
         # Check no. of args
         max_nargs = len(func_type.args)
         expected_nargs = max_nargs - func_type.optional_arg_count
@@ -2479,7 +2471,7 @@ class SimpleCallNode(CallNode):
     
     def c_call_code(self):
         func_type = self.function_type()
-        if self.args is None or not func_type.is_cfunction:
+        if self.type is PyrexTypes.error_type or not func_type.is_cfunction:
             return "<error>"
         formal_args = func_type.args
         arg_list_code = []
@@ -3772,8 +3764,8 @@ class UnopNode(ExprNode):
             self.type = py_object_type
             self.gil_check(env)
             self.is_temp = 1
-        elif self.is_cpp_operation:
-            self.analyse_cpp_operation
+        elif self.is_cpp_operation():
+            self.analyse_cpp_operation(env)
         else:
             self.analyse_c_operation(env)
     

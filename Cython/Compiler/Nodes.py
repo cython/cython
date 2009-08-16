@@ -775,9 +775,6 @@ class TemplatedTypeNode(CBaseTypeNode):
         
         else:
         
-            if not isinstance(env, Symtab.LocalScope):
-                error(self.pos, ERR_BUF_LOCALONLY)
-        
             import Buffer
 
             options = Buffer.analyse_buffer_options(
@@ -5817,4 +5814,3 @@ proto="""
 
 #------------------------------------------------------------------------------------
 
-ERR_BUF_LOCALONLY = 'Buffer types only allowed as function local variables'
