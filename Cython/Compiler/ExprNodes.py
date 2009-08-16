@@ -1078,19 +1078,28 @@ class ImagNode(AtomicNewTempExprNode):
         
 
 class NewExprNode(AtomicExprNode):
+
+    # C++ new statement
+    #
+    # cppclass              string               c++ class to create
+    # template_parameters   None or [ExprNode]   temlate parameters, if any
     
     def analyse_types(self, env):
-        print self.cppclass
         entry = env.lookup(self.cppclass)
         if entry is None or not entry.is_cpp_class:
             error(self.pos, "new operator can only be applied to a C++ class")
             return
+        if self.template_parameters is not None:
+            template_types = [v.analyse_as_type(env) for v in self.template_parameters]
+            type = entry.type.specialize_here(self.pos, template_types)
+        else:
+            type = entry.type
  
-        constructor = entry.type.scope.lookup(u'__init__')
+        constructor = type.scope.lookup(u'__init__')
         if constructor is None:
             print "no constructor declared"
-            # create one
-        self.class_entry = entry
+            # TODO(danilo): create one
+        self.class_type = type
         self.entry = constructor
         self.type = constructor.type
    
@@ -1098,7 +1107,7 @@ class NewExprNode(AtomicExprNode):
         pass
    
     def calculate_result_code(self):
-        return "new " + self.class_entry.cname
+        return "new " + self.class_type.declaration_code("")
 
 
 class NameNode(AtomicExprNode):
@@ -2442,7 +2451,7 @@ class SimpleCallNode(CallNode):
                     "Python object cannot be passed as a varargs parameter")
         # Calc result type and code fragment
         if isinstance(self.function, NewExprNode):
-            self.type = PyrexTypes.CPtrType(self.function.class_entry.type)
+            self.type = PyrexTypes.CPtrType(self.function.class_type)
         else:
             self.type = func_type.return_type
         if self.type.is_pyobject:

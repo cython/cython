@@ -297,7 +297,13 @@ def p_new_expr(s):
     pos = s.position()
     s.next()
     name = p_ident(s)
-    return p_call(s, ExprNodes.NewExprNode(pos, cppclass = name))
+    if s.sy == '[':
+        s.next()
+        template_parameters = p_simple_expr_list(s)
+        s.expect(']')        
+    else:
+        template_parameters = None
+    return p_call(s, ExprNodes.NewExprNode(pos, cppclass = name, template_parameters = template_parameters))
 
 #trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
 
