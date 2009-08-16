@@ -393,7 +393,6 @@ class Scope(object):
                     entry.type.scope = scope
                     self.type_entries.append(entry)
         if not scope and not entry.type.scope:
-            print pos
             self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
         return entry
     
