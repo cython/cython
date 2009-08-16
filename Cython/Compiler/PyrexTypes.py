@@ -1458,6 +1458,8 @@ class CppClassType(CType):
             if self == other_type:
                 return 1
             elif self.template_type == other_type.template_type:
+                if self.templates == other_type.templates:
+                    return 1
                 for t1, t2 in zip(self.templates, other_type.templates):
                     if not t1.same_as_resolved_type(t2):
                         return 0
@@ -1770,14 +1772,27 @@ def best_match(args, functions, pos):
         func_type = func.type
         if func_type.is_ptr:
             func_type = func_type.base_type
+        # Check function type
+        if not func_type.is_cfunction:
+            if not func_type.is_error:
+                error(pos, "Calling non-function type '%s'" % func_type)
+            return None
         # Check no. of args
         max_nargs = len(func_type.args)
         min_nargs = max_nargs - func_type.optional_arg_count
         if actual_nargs < min_nargs \
             or (not func_type.has_varargs and actual_nargs > max_nargs):
+                if max_nargs == min_nargs and not func_type.has_varargs:
+                    expectation = max_nargs
+                elif actual_nargs < min_nargs:
+                    expectation = "at least %s" % min_nargs
+                else:
+                    expectation = "at most %s" % max_nargs
+                error_str = "Call with wrong number of arguments (expected %s, got %s)" \
+                                % (expectation, actual_nargs)
                 continue
         score = [0,0,0]
-        for i in range(len(args)):
+        for i in range(min(len(args), len(func_type.args))):
             src_type = args[i].type
             dst_type = func_type.args[i].type
             if dst_type.assignable_from(src_type):
@@ -1804,8 +1819,7 @@ def best_match(args, functions, pos):
         # This will raise the right error.
         return func
     else:
-        error(pos, "Call with wrong number of arguments (expected %s, got %s)"
-                            % (expected_str, actual_nargs))
+        error(pos, error_str)
     return None
 
 

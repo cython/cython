@@ -301,26 +301,22 @@ class Scope(object):
         # Create new entry, and add to dictionary if
         # name is not None. Reports a warning if already 
         # declared.
+        if type.is_buffer and not isinstance(self, LocalScope):
+            error(pos, ERR_BUF_LOCALONLY)
         if not self.in_cinclude and cname and re.match("^_[_A-Z]+$", cname):
             # See http://www.gnu.org/software/libc/manual/html_node/Reserved-Names.html#Reserved-Names 
             warning(pos, "'%s' is a reserved name in C." % cname, -1)
         entries = self.entries
-        overloaded = False
         if name and name in entries:
             if visibility == 'extern':
                 warning(pos, "'%s' redeclared " % name, 0)
             elif visibility != 'ignore':
-                overloaded = True
-                #error(pos, "'%s' redeclared " % name)
+                error(pos, "'%s' redeclared " % name)
         entry = Entry(name, cname, type, pos = pos)
         entry.in_cinclude = self.in_cinclude
         if name:
             entry.qualified_name = self.qualify_name(name)
-            if overloaded:
-                entries[name].overloaded_alternatives.append(entry)
-                #print entries[name].overloaded_alternatives
-            else:
-                entries[name] = entry
+            entries[name] = entry
         entry.scope = self
         entry.visibility = visibility
         return entry
@@ -464,13 +460,14 @@ class Scope(object):
                 cname = self.mangle(Naming.func_prefix, name)
         entry = self.lookup_here(name)
         if entry:
-            entry.overloaded_alternatives.append(self.add_cfunction(name, type, pos, cname, visibility, modifiers))
             if visibility != 'private' and visibility != entry.visibility:
                 warning(pos, "Function '%s' previously declared as '%s'" % (name, entry.visibility), 1)
             if not entry.type.same_as(type):
                 if visibility == 'extern' and entry.visibility == 'extern':
                     warning(pos, "Function signature does not match previous declaration", 1)
                     #entry.type = type
+                    entry.overloaded_alternatives.append(
+                        self.add_cfunction(name, type, pos, cname, visibility, modifiers))
                 else:
                     error(pos, "Function signature does not match previous declaration")
         else:
@@ -1113,6 +1110,10 @@ class ModuleScope(Scope):
         #
         return entry
     
+    def check_for_illegal_incomplete_ctypedef(self, typedef_flag, pos):
+        if typedef_flag and not self.in_cinclude:
+            error(pos, "Forward-referenced type must use 'cdef', not 'ctypedef'")
+    
     def declare_cpp_class(self, name, scope,
             pos, cname = None, base_classes = [],
             visibility = 'extern', templates = None):
@@ -1626,6 +1627,11 @@ class CppClassScope(Scope):
                 "C++ class member cannot be a Python object")
         return entry
 
+    def declare_cfunction(self, name, type, pos,
+            cname = None, visibility = 'extern', defining = 0,
+            api = 0, in_pxd = 0, modifiers = ()):
+        entry = self.declare_var(name, type, pos, cname, visibility)
+
     def declare_inherited_cpp_attributes(self, base_scope):
         # Declare entries for all the C++ attributes of an
         # inherited type, with cnames modified appropriately
@@ -1638,7 +1644,7 @@ class CppClassScope(Scope):
                 self.inherited_var_entries.append(entry)
         for base_entry in base_scope.cfunc_entries:
             entry = self.declare_cfunction(base_entry.name, base_entry.type,
-                                       base_entry.pos, adapt(base_entry.cname),
+                                       base_entry.pos, base_entry.cname,
                                        base_entry.visibility, base_entry.func_modifiers)
             entry.is_inherited = 1
     
@@ -1699,3 +1705,7 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     return NULL;
 }
 """)
+
+#------------------------------------------------------------------------------------
+
+ERR_BUF_LOCALONLY = 'Buffer types only allowed as function local variables'
