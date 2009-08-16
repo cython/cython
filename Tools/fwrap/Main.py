@@ -64,7 +64,7 @@ def wrap(filenames, directory, outdir, projectname):
 
     # copy the fortran source files to the project dir.
     for fname in filenames:
-       shutil.copy(fname, projdir)
+        shutil.copy(fname, projdir)
 
 def gen_makefile(projname, src_files, src_dir, out_dir):
     import sys

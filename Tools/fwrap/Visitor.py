@@ -18,8 +18,9 @@ from fparser.block_statements import Function, SubProgramStatement, \
         EndFunction, EndSubroutine, Interface
 from fparser.statements import Use, Parameter, Dimension, Pointer
 from fparser.typedecl_statements import TypeDeclarationStatement
+import WrapperArgs
 from WrapperArgs import wrapper_var_factory
-from utils import warning, mangle_prefix, valid_name
+from utils import warning, mangle_prefix, valid_name, CY_IMPORT_ALIAS
 
 class BasicVisitor(object):
     """A generic visitor base class which can be used for visiting any kind of object."""
@@ -212,6 +213,8 @@ class AutoConfigGenerator(GeneratorBase):
     def __init__(self, projname, *args, **kwargs):
         GeneratorBase.__init__(self, *args, **kwargs)
 
+        self.default_types = []
+
         self.temp_ctr = 0
 
         self.projname = projname
@@ -234,6 +237,15 @@ class AutoConfigGenerator(GeneratorBase):
         self.type_len_subr = SubroutineCode(level=1)
         self.resolve_mod.add_subprogram_block(self.type_len_subr)
         self.resolve_subrs['type_len_subr'] = self.type_len_subr
+
+        # Type used for array shapes.
+        local_ktp_subr.executable_stmts.put(ktp_scalar_int_code % {
+            'scalar_int_expr' : 'c_long',
+            'type_name'       : 'integer',
+            'mapped_name'     : WrapperArgs.ARRAY_SHAPE_TYPE}
+            )
+
+
 
     def _init_toplevel(self):
         self.utility.root.put(lookup_mod_code,indent=True)
@@ -284,6 +296,7 @@ class AutoConfigGenerator(GeneratorBase):
 
 
     def copyto(self, fh):
+
         # write the utility code.
         self.utility.copyto(fh)
         # write the resove_mod code.
@@ -313,7 +326,7 @@ class FortranWrapperGenerator(GeneratorBase):
 
     @staticmethod
     def make_fname(base):
-        return "%s_fortran.f95" % base.lower().strip()
+        return "%s_fortran.f95" % base.strip()
 
     def __init__(self, projname, *args, **kwargs):
         GeneratorBase.__init__(self, *args, **kwargs)
@@ -368,7 +381,7 @@ class FortranWrapperGenerator(GeneratorBase):
 
         argnames = []
         for varw in arg_varws(node):
-            argnames.extend(varw.get_argnames())
+            argnames.extend(varw.get_fort_argnames())
 
         wrapname = mangle_prefix+node.name
         # argnames = node.args[:]
@@ -382,7 +395,7 @@ class FortranWrapperGenerator(GeneratorBase):
         subp_code.use_stmts.putln("use config")
 
         for varw in arg_varws(node):
-            varw.generate_declaration(subp_code.declarations)
+            varw.generate_fort_declarations(subp_code.declarations)
 
         if isinstance(node, Function):
             # declare function return type
@@ -400,12 +413,12 @@ class FortranWrapperGenerator(GeneratorBase):
 
         # pre-call code here.
         for varw in all_varws(node):
-            varw.pre_call_code(subp_code.executable_stmts)
+            varw.pre_call_fortran_code(subp_code.executable_stmts)
 
         # call the wrapped function/subr.
         pass_argnames = []
         for varw in arg_varws(node):
-            pass_argnames.append(varw.get_pass_argname()[1])
+            pass_argnames.append(varw.get_fort_pass_argnames_map()[1])
 
         if isinstance(node, Function):
             subp_code.executable_stmts.putln("%(wrapname)s = %(funcname)s(%(arglst)s)" % \
@@ -421,7 +434,7 @@ class FortranWrapperGenerator(GeneratorBase):
 
         # post-call code here.
         for varw in all_varws(node):
-            varw.post_call_code(subp_code.executable_stmts)
+            varw.post_call_fortran_code(subp_code.executable_stmts)
 
         return node
 
@@ -435,7 +448,7 @@ class CHeaderGenerator(GeneratorBase):
 
     @staticmethod
     def make_fname(base):
-        return "%s_header.h" % base.lower().strip()
+        return "%s_header.h" % base.strip()
 
     def __init__(self, projname, *args, **kwargs):
         GeneratorBase.__init__(self, *args, **kwargs)
@@ -508,7 +521,7 @@ class PxdGenerator(GeneratorBase):
 
     @staticmethod
     def make_fname(base):
-        return "%s_fortran.pxd" % base.lower().rstrip()
+        return "%s_fortran.pxd" % base.rstrip()
 
     def __init__(self, projname, *args, **kwargs):
         GeneratorBase.__init__(self, *args, **kwargs)
@@ -520,6 +533,10 @@ class PxdGenerator(GeneratorBase):
 
         self.typedef_suite = CySuiteCode(level=0)
         self.proto_suite = CySuiteCode(level=0)
+
+        # array shape type
+        self.typedef_suite.suite_body.putln("ctypedef %s %s" % \
+                ("long int", WrapperArgs.ARRAY_SHAPE_TYPE))
 
     def visit_SubProgramStatement(self, node):
         if node.name in self.seen_subps:
@@ -565,13 +582,12 @@ class CyHeaderGenerator(GeneratorBase):
 
     @staticmethod
     def make_fname(base):
-        return "%s.pxd" % base.lower().rstrip()
+        return "%s.pxd" % base.rstrip()
 
     def __init__(self, projname, *args, **kwargs):
         GeneratorBase.__init__(self, *args, **kwargs)
         self.projname = projname
 
-        self.import_alias = "wf"
 
         self.import_code = UtilityCode(level=0)
         self.proto_code  = UtilityCode(level=0)
@@ -584,34 +600,42 @@ class CyHeaderGenerator(GeneratorBase):
         self.seen_subps.add(node.name)
         # TODO: return struct typedecl
         # Cython API function prototype
-        cypro = cy_prototype(node, self.import_alias)
+        cypro = cy_prototype(node)
 
-        self.proto_code.root.putln("cdef api %s cy_%s(%s)" % (cypro['return_type'],
-            cypro['proto_name'], ", ".join(cypro['arglst'])))
+        ret_type = cypro['return_type']
+        if ret_type not in ('void',):
+            ret_type = "%s.%s" % (CY_IMPORT_ALIAS, ret_type)
+
+        arg_type_list = ["%s.%s" % (CY_IMPORT_ALIAS, arg_type) for (arg_type, _) in cypro['arglst']]
+        self.proto_code.root.putln("cdef api %s cy_%s(%s)" % (
+                                    ret_type,
+                                    cypro['proto_name'],
+                                    ", ".join(arg_type_list)))
 
     def copyto(self, fh):
-        self.import_code.root.putln("cimport %s as %s" % (PxdGenerator.make_fname(self.projname).split('.')[0], self.import_alias))
+        self.import_code.root.putln("cimport %s as %s" % (
+            PxdGenerator.make_fname(self.projname).split('.')[0],
+            CY_IMPORT_ALIAS))
         self.import_code.root.putln("")
         self.import_code.copyto(fh)
         self.proto_code.copyto(fh)
 
-def cy_prototype(node, import_alias):
-    c_proto = c_prototype(node)
-    arg_lst_varws = arg_varws(node)
+def cy_prototype(node):
     res_varw = None
     if isinstance(node, Function):
         res_varw = result_varw(node)
 
-    arglst = c_proto['arglst'][:]
-    arglst = [("%s.%s" % (import_alias, arg)) for arg in arglst]
+    arglst = []
+    for varw in arg_varws(node):
+        names = varw.get_cy_arg_declarations()
+        arglst.extend(names)
 
     if res_varw is None:
         res_str = "void"
     else:
-        res_str = "%s.%s" % (import_alias, res_varw.resolved_name)
+        res_str = res_varw.resolved_name
 
     return { 'arglst'      : arglst,
-             'arglst_varws' : arg_lst_varws,
              'proto_name'  : node.name,
              'return_type' : res_str}
 
@@ -619,61 +643,103 @@ class CyImplGenerator(GeneratorBase):
 
     @staticmethod
     def make_fname(base):
-        return "%s.pyx" % base.lower().rstrip()
+        return "%s.pyx" % base.rstrip()
 
     def __init__(self, projname, *args, **kwargs):
         GeneratorBase.__init__(self, *args, **kwargs)
         self.projname = projname
 
-        self.import_alias = 'wf'
         self.import_code = UtilityCode(level=0)
         self.functions = []
 
         self.seen_subps = set()
 
     def gen_api_func(self, node):
-        cypro = cy_prototype(node, self.import_alias)
+        is_func = isinstance(node, Function)
+        avws = arg_varws(node)
+        # cypro = cy_prototype(node)
         api_func = CySuiteCode(level=0)
 
         args = []; call_args = []
-        for type_name, varw in zip(cypro['arglst'], cypro['arglst_varws']):
-            args.append("%s %s" % (type_name, varw.var.name))
-            call_args.append(varw.var.name)
+        for varw in avws:
+            for type_name, arg_name in varw.get_cy_arg_declarations():
+                args.append("%s.%s %s" % (CY_IMPORT_ALIAS, type_name, arg_name))
+            for arg_name in varw.get_cy_pass_argnames():
+                call_args.append(arg_name)
 
-        api_func.suite_start.putln("cdef api %s cy_%s(%s):" % (cypro['return_type'], cypro['proto_name'], ", ".join(args)))
+        res_varw = result_varw(node)
+        if res_varw:
+            ret_type = "%s.%s" % (CY_IMPORT_ALIAS, res_varw.resolved_name)
+        else:
+            ret_type = 'void'
 
-        if isinstance(node, Function):
+        api_func.suite_start.putln("cdef api %s cy_%s(%s):" % (
+            ret_type, node.name, ", ".join(args)))
+
+        # generate declarations
+        if is_func:
             ret_var = '__fwrap_return'
-            api_func.suite_body.putln("cdef %s %s" % (cypro['return_type'], ret_var))
-            api_func.suite_body.putln("%s = %s.%s(%s)" % (ret_var, self.import_alias, cypro['proto_name'], ", ".join(call_args)))
+            api_func.suite_body.putln("cdef %s %s" % (
+                                        ret_type, ret_var))
+        for varw in avws:
+            varw.generate_cy_declarations(api_func.suite_body)
+
+        # generate pre-call code
+        for varw in avws:
+            varw.pre_call_cy_code(api_func.suite_body)
+
+        # generate the call itself
+        func_call = "%s.%s(%s)" % (CY_IMPORT_ALIAS,
+                                   node.name,
+                                   ", ".join(call_args))
+        if is_func:
+            api_func.suite_body.putln("%s = %s" % (
+                                    ret_var, func_call))
+        else:
+            api_func.suite_body.putln(func_call)
+
+        # post-call code
+        for varw in avws:
+            varw.post_call_cy_code(api_func.suite_body)
+
+        # return value if function.
+        if is_func:
             api_func.suite_body.putln("return %s" % ret_var)
-        elif isinstance(node, Subroutine):
-            api_func.suite_body.putln("%s.%s(%s)" % (self.import_alias, cypro['proto_name'], ", ".join(call_args)))
+
         self.functions.append(api_func)
 
     def gen_py_func(self, node):
-        cypro = cy_prototype(node, self.import_alias)
         py_func = CySuiteCode(level=0)
         args = []; call_args = []; ret_lst = []
-        for type_name, varw in zip(cypro['arglst'], cypro['arglst_varws']):
+        for varw in arg_varws(node):
             # no pointer types in python function argument list.
-            args.append("%s.%s %s" % (self.import_alias, varw.resolved_name, varw.var.name))
-            if '*' in type_name:
-                call_args.append("&%s" % varw.var.name)
-            else:
-                call_args.append(varw.var.name)
-            if varw.var.is_intent_out() or varw.var.is_intent_inout():
-                ret_lst.append(varw.var.name)
+            # if varw.is_array:
+                # import pdb; pdb.set_trace()
+            # else:
+            for type_name, arg_name in varw.get_py_arg_declarations():
+                if varw.is_array:
+                    args.append(arg_name)
+                    call_args.append(arg_name)
+                else:
+                    args.append("%s.%s %s" % (CY_IMPORT_ALIAS, type_name, arg_name))
+                    if varw.var.is_intent_inout() or varw.var.is_intent_out():
+                        call_args.append("&%s" % arg_name)
+                    else:
+                        call_args.append(arg_name)
+                if varw.var.is_intent_inout() or varw.var.is_intent_out():
+                    ret_lst.append(arg_name)
 
-        py_func.suite_start.putln("def %s(%s):" % (cypro['proto_name'], ", ".join(args)))
+        py_func.suite_start.putln("def %s(%s):" % (node.name, ", ".join(args)))
 
-        proc_call = "cy_%s(%s)" % (cypro['proto_name'], ", ".join(call_args))
+        proc_call = "cy_%s(%s)" % (node.name, ", ".join(call_args))
 
         if isinstance(node, Function):
-            ret_var = '__fwrap_return'
-            ret_lst.insert(0, ret_var)
-            py_func.suite_body.putln("cdef %s %s" % (cypro['return_type'], ret_var))
-            proc_call = "%s = %s" % (ret_var, proc_call)
+            ret_var_name = '__fwrap_return'
+            ret_varw = result_varw(node)
+            ret_lst.insert(0, ret_var_name)
+            ret_type = ret_varw.resolved_name
+            py_func.suite_body.putln("cdef %s.%s %s" % (CY_IMPORT_ALIAS, ret_type, ret_var_name))
+            proc_call = "%s = %s" % (ret_var_name, proc_call)
 
         py_func.suite_body.putln(proc_call)
         if not ret_lst:
@@ -695,7 +761,9 @@ class CyImplGenerator(GeneratorBase):
         self.gen_py_func(node)
 
     def copyto(self, fh):
-        self.import_code.root.putln("cimport %s as %s" % (PxdGenerator.make_fname(self.projname).split('.')[0], self.import_alias))
+        self.import_code.root.putln("cimport %s as %s" % (
+            PxdGenerator.make_fname(self.projname).split('.')[0],
+            CY_IMPORT_ALIAS))
         self.import_code.root.putln("")
         self.import_code.copyto(fh)
 

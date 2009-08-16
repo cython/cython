@@ -12,3 +12,5 @@ def warning(message, position=None, level=0, stream=sys.stderr):
 
 mangle_prefix = 'fwrap_'
 valid_name = re.compile(r'[a-z]\w+$',re.I).match
+
+CY_IMPORT_ALIAS = "__wf"

@@ -1,7 +1,7 @@
 from fparser.block_statements import Function, SubProgramStatement, \
         Module, Program, Subroutine, \
         EndFunction, EndSubroutine, Interface
-from utils import warning, mangle_prefix, valid_name
+from utils import warning, mangle_prefix, valid_name, CY_IMPORT_ALIAS
 
 class WrapperError(Exception):
     pass
@@ -291,6 +291,8 @@ class FortranWrapperVar(object):
      
     # XXX: user-defined type description here.
 
+    is_array = False
+
     def __init__(self, var, disambig):
         self.disambig = disambig
         vkr = VarKindResolution(var)
@@ -313,6 +315,28 @@ class FortranWrapperVar(object):
                     # self.var is node.a.variables[node.result]:
                         # self.intent = None
 
+    def get_py_arg_declarations(self):
+        return ((self.resolved_name, self.var.name),)
+
+    def get_py_pass_argnames(self):
+        return (self.var.name,)
+
+    def get_cy_arg_declarations(self):
+        return ((self.get_c_proto_types()[0], self.var.name),)
+
+    def pre_call_cy_code(self, code):
+        pass
+
+    def post_call_cy_code(self, code):
+        pass
+
+
+    def get_cy_pass_argnames(self):
+        return (self.var.name,)
+
+    def generate_cy_declarations(self, code):
+        pass
+
     def get_c_proto_types(self):
         if self.intent == INTENT_IN:
             ret = self.resolved_name
@@ -320,13 +344,13 @@ class FortranWrapperVar(object):
             ret = self.resolved_name+'*'
         return [ret]
 
-    def get_argnames(self):
+    def get_fort_argnames(self):
         return [self.var.name]
 
-    def get_pass_argname(self):
+    def get_fort_pass_argnames_map(self):
         return (self.var.name, self.var.name)
 
-    def generate_declaration(self, code):
+    def generate_fort_declarations(self, code):
         var = self.var
         attributes = []
         if self.intent is not None:
@@ -345,10 +369,10 @@ class FortranWrapperVar(object):
                   }
         code.putln(decl)
 
-    def pre_call_code(self, code):
+    def pre_call_fortran_code(self, code):
         pass
 
-    def post_call_code(self, code):
+    def post_call_fortran_code(self, code):
         pass
 
 class LogicalWrapperVar(FortranWrapperVar):
@@ -367,23 +391,26 @@ class LogicalWrapperVar(FortranWrapperVar):
         self.log_var.is_arg = False
 
     def get_c_proto_types(self):
-        return [self.int_proxy.get_c_proto_type()]
+        if not self.int_proxy.is_value:
+            return [self.int_proxy.get_base_type_name() + '*']
+        else:
+            return [self.int_proxy.get_base_type_name()]
 
-    def get_argnames(self):
+    def get_fort_argnames(self):
         return [self.int_proxy.name]
 
-    def get_pass_argname(self):
+    def get_fort_pass_argnames_map(self):
         return (self.var.name, self.log_var.name)
 
-    def generate_declaration(self, code):
+    def generate_fort_declarations(self, code):
         for entry in (self.int_proxy, self.log_var):
-            entry.generate_declaration(code)
+            entry.generate_fort_declaration(code)
 
-    def pre_call_code(self, code):
+    def pre_call_fortran_code(self, code):
         if self.intent in (INTENT_IN, INTENT_INOUT):
             code.putln("%s = logical(%s .ne. 0, kind=%s)" % (self.log_var.name, self.int_proxy.name, self.int_proxy.type.ktp))
 
-    def post_call_code(self, code):
+    def post_call_fortran_code(self, code):
         if self.intent in (INTENT_INOUT, INTENT_OUT):
             code.putln("if (%s) then" % self.log_var.name  )
             code.putln("  %s = 1    " % self.int_proxy.name)
@@ -403,12 +430,27 @@ class ComplexWrapperVar(FortranWrapperVar):
 class CharacterWrapperVar(FortranWrapperVar):
     pass
 
+# class CyArrayWrapperVar(object):
+
+    # def __init__(self, fort_wrapper_var, disambig):
+        # self.disambig = disambig
+        # self.fort_wrapper_var = fort_wrapper_var
+        # self.memview_in = Entry(self.disambig()+'mvs', fort_wrapper_var.var_entry.type)
+        # self.ndim = fort_wrapper_var.ndim
+
+    # def get_signature_types(self):
+        # slice_decl = [":"]*self.ndim
+        # slice_decl[0] = "::1"
+        # return ["%s[%s]" % (self.memview_in.get_base_type_name(),','.join(slice_decl))]
+
+ARRAY_SHAPE_TYPE = "fwrap_ardim_long"
 class ArrayWrapperVar(FortranWrapperVar):
 
     def __init__(self, var, disambig):
         assert var.is_array()
         FortranWrapperVar.__init__(self, var, disambig)
         # array-specific initializations
+        self.is_array = True
         self.is_explicit_shape = var.is_explicit_shape_array()
         self.is_assumed_shape  = var.is_assumed_shape_array()
         self.is_assumed_size   = var.is_assumed_size_array()
@@ -418,7 +460,12 @@ class ArrayWrapperVar(FortranWrapperVar):
         if not self.is_assumed_shape:
             raise NotImplementedError("only assumed shape arrays for now...")
 
-        self.shape_array = Entry(self.disambig()+self.var.name, FortranArrayType(FortranIntegerType(ktp="c_int"), (str(self.ndim),)))
+        self.shape_array = Entry(self.disambig()+self.var.name,
+                                 FortranArrayType(FortranIntegerType(ktp=ARRAY_SHAPE_TYPE),
+                                                  (str(self.ndim),)
+                                                  )
+                                 )
+
         self.shape_array.is_arg = True
         self.shape_array.intent = INTENT_IN
 
@@ -426,31 +473,73 @@ class ArrayWrapperVar(FortranWrapperVar):
         self.data_ptr.is_arg = True
         self.data_ptr.is_value = True
 
-        self.arr_proxy = Entry(self.disambig()+self.var.name, FortranArrayType(type_from_vkr(self.vkr), (('',''),)*self.ndim))
+        self.arr_proxy = Entry(self.disambig()+self.var.name,
+                               FortranArrayType(type_from_vkr(self.vkr),
+                                                (('',''),)*self.ndim))
         self.arr_proxy.is_pointer = True
 
         self.var_entry = Entry(self.var.name, type_from_vkr(self.vkr))
 
-    def get_c_proto_types(self):
-        return [self.var_entry.get_c_proto_type(), self.shape_array.get_c_proto_type()]
+    def get_py_arg_declarations(self):
+        return (('', self.var_entry.name),)
 
-    def get_argnames(self):
+    def get_py_pass_argnames(self):
+        return (self.var_entry.name,)
+
+    def get_cy_arg_declarations(self):
+        slice_decl = [":"]*self.ndim
+        slice_decl[0] = "::1"
+        return (("%s[%s]" % (self.var_entry.get_base_type_name(),','.join(slice_decl)),
+                    self.var_entry.name),)
+
+    def get_cy_pass_argnames(self):
+        return (self.data_ptr.name, self.shape_array.name)
+
+    def generate_cy_declarations(self, code):
+        if not self.is_assumed_shape:
+            raise NotImplementedError("only assumed shape arrays for now...")
+        code.putln("cdef %s.%s *%s" % (CY_IMPORT_ALIAS,
+                                      self.var_entry.get_base_type_name(),
+                                      self.data_ptr.name))
+        code.putln("cdef %s.%s *%s" % (CY_IMPORT_ALIAS,
+                                      self.shape_array.get_base_type_name(),
+                                      self.shape_array.name))
+
+    def pre_call_cy_code(self, code):
+        code.putln("%s = <%s.%s*>%s._data" % (
+                                    self.data_ptr.name,
+                                    CY_IMPORT_ALIAS,
+                                    self.var_entry.get_base_type_name(),
+                                    self.var_entry.name))
+        code.putln("%s = <%s.%s*>%s.shape" % (
+                                    self.shape_array.name,
+                                    CY_IMPORT_ALIAS,
+                                    self.shape_array.get_base_type_name(),
+                                    self.var_entry.name))
+
+    def post_call_cy_code(self, code):
+        pass
+
+    def get_c_proto_types(self):
+        return [self.var_entry.get_base_type_name()+'*', self.shape_array.get_base_type_name()+'*']
+
+    def get_fort_argnames(self):
         return [self.data_ptr.name, self.shape_array.name]
 
-    def get_pass_argname(self):
-        return (self.var.name, self.arr_proxy.name)
+    def get_fort_pass_argnames_map(self):
+        return [self.var.name, self.arr_proxy.name]
 
-    def generate_declaration(self, code):
+    def generate_fort_declarations(self, code):
         if self.is_assumed_shape:
             for entry in (self.shape_array, self.data_ptr, self.arr_proxy):
-                entry.generate_declaration(code)
+                entry.generate_fort_declaration(code)
         else:
             raise NotImplementedError("only assumed shape arrays for now...")
 
-    def pre_call_code(self, code):
+    def pre_call_fortran_code(self, code):
         code.putln("call c_f_pointer(%s, %s, %s)" % (self.data_ptr.name, self.arr_proxy.name, self.shape_array.name))
 
-    def post_call_code(self, code):
+    def post_call_fortran_code(self, code):
         pass
 
 class IntegerArrayWrapperVar(ArrayWrapperVar):
@@ -466,7 +555,7 @@ class LogicalArrayWrapperVar(ArrayWrapperVar):
     pass
 
 _c_binding_to_c_type = {
-        'c_int' : 'int',
+        # 'c_int' : 'int',
         }
 
 class Entry(object):
@@ -479,7 +568,7 @@ class Entry(object):
         self.is_pointer = False
         self.intent = None
 
-    def generate_declaration(self, code):
+    def generate_fort_declaration(self, code):
         attributes = []
         if self.is_pointer:
             attributes.append('pointer')
@@ -491,12 +580,13 @@ class Entry(object):
         before_colons = [self.type.get_type_code()] + self.type.attributes + attributes
         code.putln("%s :: %s" % (",".join(before_colons), self.name))
 
-    def get_c_proto_type(self):
-        ret = _c_binding_to_c_type.get(self.type.ktp, self.type.ktp)
-        if self.is_value:
-            return ret
-        else:
-            return ret+"*"
+    def get_base_type_name(self):
+        # ret = _c_binding_to_c_type.get(self.type.ktp, self.type.ktp)
+        return self.type.ktp
+        # if self.is_value:
+            # return ret
+        # else:
+            # return ret+"*"
 
 class FortranType(object):
 

@@ -189,7 +189,8 @@ class FwrapCompileTestCase(unittest.TestCase):
         self.fwrap_config_source='genconfig.f95'
         self.fwrap_config_module_source='config.f95'
         self.fwrap_cython_source=self.projname+'.pyx'
-        wrap([self.filename], self.directory, self.workdir, self.projname)
+        fq_fname = os.path.join(os.path.abspath(self.directory), self.filename)
+        wrap([fq_fname], self.directory, self.workdir, self.projname)
         # self.runCompileTest()
         self.runCompileTest_distutils()
 
