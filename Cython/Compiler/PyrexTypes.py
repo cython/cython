@@ -1242,7 +1242,23 @@ class CFuncType(CType):
     def signature_cast_string(self):
         s = self.declaration_code("(*)", with_calling_convention=False)
         return '(%s)' % s
-
+    
+    def specialize(self, values):
+        if self.templates is None:
+            new_templates = None
+        else:
+            new_templates = [v.specialize(values) for v in self.templates]
+        return CFuncType(self.return_type.specialize(values),
+                             [arg.specialize(values) for arg in self.args],
+                             has_varargs = 0,
+                             exception_value = self.exception_value,
+                             exception_check = self.exception_check,
+                             calling_convention = self.calling_convention,
+                             nogil = self.nogil,
+                             with_gil = self.with_gil,
+                             is_overridable = self.is_overridable,
+                             optional_arg_count = self.optional_arg_count,
+                             templates = new_templates)
 
 class CFuncTypeArg(object):
     #  name       string
@@ -1266,6 +1282,9 @@ class CFuncTypeArg(object):
     
     def declaration_code(self, for_display = 0):
         return self.type.declaration_code(self.cname, for_display)
+    
+    def specialize(self, values):
+        return CFuncTypeArg(self.name, self.type.specialize(values), self.pos, self.cname)
 
 
 class CStructOrUnionType(CType):
@@ -1736,9 +1755,12 @@ modifiers_and_name_to_type = {
 }
 
 def is_promotion(type, other_type):
-    return (type.is_int and type.is_int and type.signed == other_type.signed) \
-                    or (type.is_float and other_type.is_float) \
-                    or (type.is_enum and other_type.is_int)
+    if type.is_numeric and other_type.is_numeric:
+        return (type.is_int and type.is_int and type.signed == other_type.signed) \
+                        or (type.is_float and other_type.is_float) \
+                        or (type.is_enum and other_type.is_int)
+    else:
+        return False
 
 def best_match(args, functions, pos):
     actual_nargs = len(args)

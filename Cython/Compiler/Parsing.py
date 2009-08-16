@@ -2602,8 +2602,6 @@ def p_cpp_class_definition(s, pos,  ctx):
             s.next()
         s.expect(']')
     base_classes = []
-    objstruct_name = None
-    typeobj_name = None
     if s.sy == '(':
         base_class = True
         while (base_class):
@@ -2626,7 +2624,7 @@ def p_cpp_class_definition(s, pos,  ctx):
         s.expect('NEWLINE')
         s.expect_indent()
         attributes = []
-        body_ctx = Ctx()
+        body_ctx = Ctx(visibility = ctx.visibility)
         body_ctx.templates = templates
         while s.sy != 'DEDENT':
             if s.sy != 'pass':

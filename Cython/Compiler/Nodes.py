@@ -944,7 +944,7 @@ class CppClassNode(CStructOrUnionDefNode):
     def analyse_declarations(self, env):
         scope = None
         if len(self.attributes) != 0:
-            scope = CppClassScope(self.name)
+            scope = CppClassScope(self.name, env)
         else:
             self.attributes = None
         base_class_types = []
@@ -968,7 +968,7 @@ class CppClassNode(CStructOrUnionDefNode):
             if self.in_pxd and not env.in_cinclude:
                 self.entry.defined_in_pxd = 1
             for attr in self.attributes:
-                attr.analyse_declarations(env, scope) 
+                attr.analyse_declarations(scope)
 
 class CEnumDefNode(StatNode):
     #  name           string or None
