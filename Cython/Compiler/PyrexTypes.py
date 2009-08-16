@@ -365,6 +365,12 @@ class MemoryViewSliceType(PyrexType):
         self.is_c_contig, self.is_f_contig = MemoryView.is_cf_contig(self.axes)
         assert not (self.is_c_contig and self.is_f_contig)
 
+    def same_as_resolved_type(self, other_type):
+        return ((other_type.is_memoryviewslice and
+            self.dtype.same_as(other_type.dtype) and
+            self.axes == other_type.axes) or
+            other_type is error_type)
+
     def needs_nonecheck(self):
         return True
 
