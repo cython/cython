@@ -1423,7 +1423,7 @@ class CppClassType(CType):
             name = self.name
         else:
             name = self.cname
-        return "%s %s%s" % (name, entity_code, templates)
+        return "%s%s %s" % (name, templates, entity_code)
 
     def is_subclass(self, other_type):
         # TODO(danilo): Handle templates.
