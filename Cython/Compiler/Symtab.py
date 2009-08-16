@@ -1137,7 +1137,11 @@ class ModuleScope(Scope):
                     entry.type.scope = scope
                     self.type_entries.append(entry)
         if not scope and not entry.type.scope:
-            entry.type.scope = CppClassScope(name)
+            entry.type.scope = CppClassScope(name, self)
+        if templates is not None:
+            for T in templates:
+                template_entry = entry.type.scope.declare(T.name, T.name, T, None, 'extern')
+                template_entry.is_type = 1
         
         def declare_inherited_attributes(entry, base_classes):
             for base_class in base_classes:
@@ -1604,8 +1608,9 @@ class CppClassScope(Scope):
     #  Namespace of a C++ class.
     inherited_var_entries = []
     
-    def __init__(self, name="?"):
-        Scope.__init__(self, name, None, None)
+    def __init__(self, name, outer_scope):
+        Scope.__init__(self, name, outer_scope, None)
+        self.directives = outer_scope.directives
 
     def declare_var(self, name, type, pos, 
             cname = None, visibility = 'extern', is_cdef = 0, allow_pyobject = 0):
@@ -1621,11 +1626,6 @@ class CppClassScope(Scope):
             error(pos,
                 "C++ class member cannot be a Python object")
         return entry
-
-    def declare_cfunction(self, name, type, pos, 
-                          cname = None, visibility = 'extern', defining = 0,
-                          api = 0, in_pxd = 0, modifiers = ()):
-        entry = self.declare_var(name, type, pos, cname, visibility)
 
     def declare_inherited_cpp_attributes(self, base_scope):
         # Declare entries for all the C++ attributes of an
@@ -1644,7 +1644,7 @@ class CppClassScope(Scope):
             entry.is_inherited = 1
     
     def specialize(self, values):
-        scope = CppClassScope()
+        scope = CppClassScope(self.name, self.outer_scope)
         for entry in self.entries.values():
             scope.declare_var(entry.name,
                                 entry.type.specialize(values),
