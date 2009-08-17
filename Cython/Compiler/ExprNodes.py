@@ -1094,11 +1094,12 @@ class NewExprNode(AtomicExprNode):
             type = entry.type.specialize_here(self.pos, template_types)
         else:
             type = entry.type
- 
         constructor = type.scope.lookup(u'__init__')
         if constructor is None:
-            print "no constructor declared"
-            # TODO(danilo): create one
+            return_type = PyrexTypes.CFuncType(type, [])
+            return_type = PyrexTypes.CPtrType(return_type)
+            type.scope.declare_cfunction(u'__init__', return_type, self.pos)
+            constructor = type.scope.lookup(u'__init__')
         self.class_type = type
         self.entry = constructor
         self.type = constructor.type
@@ -3812,12 +3813,12 @@ class UnopNode(ExprNode):
         function = entry.type.scope.lookup(self.operators[self.operator])
         if not function:
             error(self.pos, "'%s' operator not defined for %s"
-                % (self.operator, type1, type2, self.operator))
+                % (self.operator, type))
             self.type_error()
             return
         self.type = function.type.return_type
 
-    operator = {
+    operators = {
         "++":       u"__inc__",
         "--":       u"__dec__",
         "*":        u"__deref__",
