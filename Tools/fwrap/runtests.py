@@ -243,7 +243,7 @@ setup(cmdclass={'build_ext' : fwrap_build_ext},
             orig_stdout, orig_stderr = sys.stdout, sys.stderr
             sys.stdout = _devnull()
             sys.stderr = _devnull()
-            run_setup(setup_fqpath, script_args=['build_ext', '--inplace'])
+            run_setup(setup_fqpath, script_args=['build_ext', '--fcompiler=gnu95', '-lgfortran', '--inplace'])
         finally:
             os.chdir(thisdir)
             sys.stdout,sys.stderr = orig_stdout, orig_stderr

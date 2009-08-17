@@ -764,6 +764,7 @@ class CyImplGenerator(GeneratorBase):
         self.import_code.root.putln("cimport %s as %s" % (
             PxdGenerator.make_fname(self.projname).split('.')[0],
             CY_IMPORT_ALIAS))
+        self.import_code.root.putln("cimport numpy as np")
         self.import_code.root.putln("")
         self.import_code.copyto(fh)
 
