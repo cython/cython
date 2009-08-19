@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 __doc__ = u"""
 #>>> a
 #Traceback (most recent call last):
@@ -43,6 +45,21 @@ __doc__ = u"""
 >>> list(add_iter())
 [2, 3, 4, 5]
 
+>>> d = {}
+>>> test_encoding(d, None)
+>>> print(d['b'])
+üöä
+
+>>> d = {}
+>>> test_encoding_unicode(d, None)
+>>> print(d['b'])
+üöä
+
+>>> d = dict(a=1, c=3)
+>>> test_compile(d)
+>>> d['b']
+4
+
 >>> # errors
 
 >>> d1, d2 = {}, {}
@@ -76,3 +93,23 @@ def test():
         yield x+1
 """ % varref in d
     return d[u'test']
+
+import sys
+
+def test_encoding(d1, d2):
+    if sys.version_info[0] >= 3:
+        s = "b = 'üöä'"
+    else:
+        s = "# -*- coding: utf-8 -*-" + "\n" + "b = u'üöä'"
+    exec s in d1, d2
+
+def test_encoding_unicode(d1, d2):
+    if sys.version_info[0] >= 3:
+        s = u"b = 'üöä'"
+    else:
+        s = u"b = u'üöä'"
+    exec s in d1, d2
+
+def test_compile(d):
+    c = compile(u"b = a+c", u"<string>", u"exec")
+    exec c in d

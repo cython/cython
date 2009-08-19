@@ -165,32 +165,42 @@ pyexec_utility_code = UtilityCode(
 proto = """
 static PyObject* __Pyx_PyRun(PyObject*, PyObject*, PyObject*);
 """,
-impl = """
+impl = '''
 static PyObject* __Pyx_PyRun(PyObject* o, PyObject* globals, PyObject* locals) {
     PyObject* result;
     PyObject* s = 0;
     char *code = 0;
 
-    if (!locals && !globals) {
-        globals = PyModule_GetDict(%s);""" % Naming.module_cname + """
+    if (!globals || globals == Py_None) {
+        globals = PyModule_GetDict(%s);''' % Naming.module_cname + '''
         if (!globals)
             goto bad;
-        locals = globals;
-    } else if (!locals) {
-        locals = globals;
-    } else if (!globals) {
-        globals = locals;
+    } else if (!PyDict_Check(globals)) {
+        PyErr_Format(PyExc_TypeError, "exec() arg 2 must be a dict, not %.100s",
+                     globals->ob_type->tp_name);
+        goto bad;
     }
+    if (!locals || locals == Py_None) {
+        locals = globals;
+    }
+
 
     if (PyDict_GetItemString(globals, "__builtins__") == NULL) {
 	PyDict_SetItemString(globals, "__builtins__", PyEval_GetBuiltins());
     }
-    
+
     if (PyCode_Check(o)) {
+        if (PyCode_GetNumFree((PyCodeObject *)o) > 0) {
+            PyErr_SetString(PyExc_TypeError,
+                "code object passed to exec() may not contain free variables");
+            goto bad;
+        }
 	result = PyEval_EvalCode((PyCodeObject *)o, globals, locals);
-    }
-    else {
+    } else {
+        PyCompilerFlags cf;
+        cf.cf_flags = 0;
 	if (PyUnicode_Check(o)) {
+            cf.cf_flags = PyCF_SOURCE_IS_UTF8;
     	    s = PyUnicode_AsUTF8String(o);
     	    if (!s) goto bad;
     	    o = s;
@@ -208,16 +218,20 @@ static PyObject* __Pyx_PyRun(PyObject* o, PyObject* globals, PyObject* locals) {
 	#else
 	code = PyString_AS_STRING(o);
 	#endif
-	result = PyRun_String(code, Py_file_input, globals, locals);
+	if (PyEval_MergeCompilerFlags(&cf)) {
+	    result = PyRun_StringFlags(code, Py_file_input, globals, locals, &cf);
+        } else {
+	    result = PyRun_String(code, Py_file_input, globals, locals);
+        }
+        Py_XDECREF(s);
     }
 
-    Py_XDECREF(s);
     return result;
 bad:
     Py_XDECREF(s);
     return 0;
 }
-""")
+''')
 
 intern_utility_code = UtilityCode(
 proto = """
