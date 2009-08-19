@@ -28,5 +28,5 @@ cdef extern from *:
     #    0xC (release candidate)
     #    0xF (final)
 
-    char[] PY_VERSION
-    char[] PY_PATCHLEVEL_REVISION
+    char PY_VERSION[]
+    char PY_PATCHLEVEL_REVISION[]
