@@ -1950,6 +1950,8 @@ def p_opt_cname(s):
     literal = p_opt_string_literal(s)
     if literal:
         _, cname = literal
+        cname = EncodedString(cname)
+        cname.encoding = s.source_encoding
     else:
         cname = None
     return cname
