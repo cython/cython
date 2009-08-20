@@ -4827,14 +4827,31 @@ class CmpNode(object):
         if 'not' in op: negation = "!"
         else: negation = ""
         if op == 'in' or op == 'not_in':
-            code.putln(
-                "%s = %s(%sPySequence_Contains(%s, %s)); %s" % (
-                    result_code, 
-                    coerce_result, 
-                    negation,
-                    operand2.py_result(), 
-                    operand1.py_result(), 
-                    code.error_goto_if_neg(result_code, self.pos)))
+            if operand2.type is dict_type:
+                code.globalstate.use_utility_code(
+                    raise_none_iter_error_utility_code)
+                code.putln("if (unlikely(%s == Py_None)) {" % operand2.py_result())
+                code.putln("__Pyx_RaiseNoneNotIterableError(); %s" %
+                           code.error_goto(self.pos))
+                code.putln("} else {")
+                code.putln(
+                    "%s = %s(%sPyDict_Contains(%s, %s)); %s" % (
+                        result_code, 
+                        coerce_result,
+                        negation,
+                        operand2.py_result(), 
+                        operand1.py_result(), 
+                        code.error_goto_if_neg(result_code, self.pos)))
+                code.putln("}")
+            else:
+                code.putln(
+                    "%s = %s(%sPySequence_Contains(%s, %s)); %s" % (
+                        result_code, 
+                        coerce_result,
+                        negation,
+                        operand2.py_result(), 
+                        operand1.py_result(), 
+                        code.error_goto_if_neg(result_code, self.pos)))
         elif (operand1.type.is_pyobject
             and op not in ('is', 'is_not')):
                 code.putln("%s = PyObject_RichCompare(%s, %s, %s); %s" % (
