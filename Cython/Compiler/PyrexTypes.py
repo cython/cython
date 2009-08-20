@@ -1768,6 +1768,8 @@ def best_match(args, functions, pos):
     actual_nargs = len(args)
     possibilities = []
     bad_types = 0
+    from_type = None
+    target_type = None
     for func in functions:
         func_type = func.type
         if func_type.is_ptr:
@@ -1806,6 +1808,8 @@ def best_match(args, functions, pos):
                     score[0] += 1
             else:
                 bad_types = func
+                from_type = src_type
+                target_type = dst_type
                 break
         else:
             possibilities.append((score, func)) # so we can sort it
@@ -1816,8 +1820,8 @@ def best_match(args, functions, pos):
             return None
         return possibilities[0][1]
     if bad_types:
-        # This will raise the right error.
-        return func
+        error(pos, "Invalid conversion from '%s' to '%s'" % (from_type, target_type))
+        return None
     else:
         error(pos, error_str)
     return None
