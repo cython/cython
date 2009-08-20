@@ -5750,7 +5750,7 @@ static INLINE void __Pyx_RaiseNoneNotIterableError(void);
 """,
 impl = '''
 static INLINE void __Pyx_RaiseNoneNotIterableError(void) {
-    PyErr_SetString(PyExc_TypeError, "'NoneType' object is iterable");
+    PyErr_SetString(PyExc_TypeError, "'NoneType' object is not iterable");
 }
 ''')
 
