@@ -14,7 +14,7 @@ from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
 import ExprNodes
 import StringEncoding
-from StringEncoding import EncodedString, BytesLiteral
+from StringEncoding import EncodedString, BytesLiteral, _str, _bytes
 from ModuleNode import ModuleNode
 from Errors import error, warning, InternalError
 from Cython import Utils
@@ -571,7 +571,7 @@ def p_name(s, name):
             return ExprNodes.IntNode(pos, value = rep, longness = "L")
         elif isinstance(value, float):
             return ExprNodes.FloatNode(pos, value = rep)
-        elif isinstance(value, (str, unicode)):
+        elif isinstance(value, (_str, _bytes)):
             return ExprNodes.StringNode(pos, value = value)
         else:
             error(pos, "Invalid type for compile-time constant: %s"
