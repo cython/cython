@@ -37,7 +37,7 @@ __doc__ = ur"""
     Existing string
 
     >>> print (Ext.m.__doc__)
-    Ext.m(self, a='spam')
+    Ext.m(self, a=u'spam')
 
     >>> print (Ext.get_int.__doc__)
     Ext.get_int(self) -> int
@@ -68,10 +68,10 @@ __doc__ = ur"""
     'with_doc_4(int a, str b, list c) -> str\n\n    Existing string\n    '
 
     >>> f_sd.__doc__
-    "f_sd(str s='spam')"
+    "f_sd(str s=u'spam')"
 
     >>> cf_sd.__doc__
-    "cf_sd(str s='spam') -> str"
+    "cf_sd(str s=u'spam') -> str"
 
     >>> types.__doc__
     'types(Ext a, int b, unsigned short c, float d, e)'
@@ -137,6 +137,10 @@ __doc__ = ur"""
 
 """
 
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u"u'spam'", u"'spam'")
+
 cdef class Ext:
 
     def __init__(self, a, b, c=None):
@@ -173,7 +177,7 @@ cdef class Ext:
         """Existing string"""
         pass
 
-    def m(self, a='spam'):
+    def m(self, a=u'spam'):
         pass
 
     cpdef int get_int(self):
@@ -215,10 +219,10 @@ cpdef str with_doc_4(int a, str b, list c):
     """
     return b
 
-def f_sd(str s='spam'):
+def f_sd(str s=u'spam'):
     return s
 
-cpdef str cf_sd(str s='spam'):
+cpdef str cf_sd(str s=u'spam'):
     return s
 
 cpdef char f_c(char c):
