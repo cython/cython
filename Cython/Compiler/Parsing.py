@@ -1430,6 +1430,7 @@ def p_include_statement(s, ctx):
     _, include_file_name = p_string_literal(s)
     s.expect_newline("Syntax error in include statement")
     if s.compile_time_eval:
+        include_file_name = include_file_name.decode(s.source_encoding)
         include_file_path = s.context.find_include_file(include_file_name, pos)
         if include_file_path:
             s.included_files.append(include_file_name)
