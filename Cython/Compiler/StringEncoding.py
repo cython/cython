@@ -49,7 +49,7 @@ class BytesLiteralBuilder(object):
         self.chars.append(characters)
 
     def append_charval(self, char_number):
-        self.chars.append( chr(char_number) )
+        self.chars.append( chr(char_number).encode('ISO-8859-1') )
 
     def getstring(self):
         # this *must* return a byte string! => fix it in Py3k!!
@@ -132,7 +132,8 @@ def _build_specials_test():
 
 _has_specials = _build_specials_test()
 
-def escape_character(c):
+def escape_char(c):
+    c = c.decode('ISO-8859-1')
     if c in '\n\r\t\\':
         return repr(c)[1:-1]
     elif c == "'":
