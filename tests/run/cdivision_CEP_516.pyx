@@ -32,7 +32,7 @@ True
 >>> all([div_int_py(a,b) == a // b for a in range(-10, 10) for b in range(-10, 10) if b != 0])
 True
 
->>> def simple_warn(msg, *args): print msg
+>>> def simple_warn(msg, *args): print(msg)
 >>> import warnings
 >>> warnings.showwarning = simple_warn
 
@@ -52,23 +52,25 @@ division with oppositely signed operands, C and Python semantics differ
 >>> mod_div_zero_int(25, 10, 2)
 verbose_call(5)
 2
->>> mod_div_zero_int(25, 10, 0)
+>>> print(mod_div_zero_int(25, 10, 0))
 verbose_call(5)
-'integer division or modulo by zero'
->>> mod_div_zero_int(25, 0, 0)
-'integer division or modulo by zero'
+integer division or modulo by zero
+>>> print(mod_div_zero_int(25, 0, 0))
+integer division or modulo by zero
 
 >>> mod_div_zero_float(25, 10, 2)
 2.5
->>> mod_div_zero_float(25, 10, 0)
-'float division'
->>> mod_div_zero_float(25, 0, 0)
-'float divmod()'
+>>> print(mod_div_zero_float(25, 10, 0))
+float division
+>>> print(mod_div_zero_float(25, 0, 0))
+float divmod()
 
->>> import sys
 >>> py_div_long(-5, -1)
 5
->>> py_div_long(-sys.maxint-1, -1)
+
+>>> import sys
+>>> maxint = getattr(sys, ((sys.version_info[0] >= 3) and 'maxsize' or 'maxint'))
+>>> py_div_long(-maxint-1, -1)
 Traceback (most recent call last):
 ...
 OverflowError: value too large to perform division
@@ -136,7 +138,7 @@ def complex_expression(int a, int b, int c, int d):
     return (a // verbose_call(b)) % (verbose_call(c) // d)
 
 cdef int verbose_call(int x):
-    print "verbose_call(%s)" % x
+    print u"verbose_call(%s)" % x
     return x
 
 
@@ -147,14 +149,14 @@ def mod_div_zero_int(int a, int b, int c):
     try:
         return verbose_call(a % b) / c
     except ZeroDivisionError, ex:
-        return str(ex)
+        return unicode(ex)
 
 @cython.cdivision(False)
 def mod_div_zero_float(float a, float b, float c):
     try:
         return (a % b) / c
     except ZeroDivisionError, ex:
-        return str(ex)
+        return unicode(ex)
 
 @cython.cdivision(False)
 def py_div_long(long a, long b):
