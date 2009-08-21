@@ -74,6 +74,17 @@ __doc__ = u"""
 >>> switch_or(4)
 0
 
+>>> switch_in(0)
+0
+>>> switch_in(1)
+1
+>>> switch_in(2)
+0
+>>> switch_in(7)
+1
+>>> switch_in(8)
+0
+
 >>> switch_short(0)
 0
 >>> switch_short(1)
@@ -160,6 +171,11 @@ def switch_or(int x):
     else:
         return 0
     return -1
+
+def switch_in(int X):
+    if X in (1,3,5,7):
+        return 1
+    return 0
 
 def switch_short(int x):
     if x == 1:
