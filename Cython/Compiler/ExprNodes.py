@@ -3528,9 +3528,10 @@ class DictNode(ExprNode):
                     error(item.key.pos, "Invalid struct field identifier")
                     item.key = IdentifierStringNode(item.key.pos, value="<error>")
                 else:
-                    member = dst_type.scope.lookup_here(item.key.value)
+                    key = str(item.key.value) # converts string literals to unicode in Py3
+                    member = dst_type.scope.lookup_here(key)
                     if not member:
-                        error(item.key.pos, "struct '%s' has no field '%s'" % (dst_type, item.key.value))
+                        error(item.key.pos, "struct '%s' has no field '%s'" % (dst_type, key))
                     else:
                         value = item.value
                         if isinstance(value, CoerceToPyTypeNode):

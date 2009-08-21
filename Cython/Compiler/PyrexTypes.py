@@ -1358,7 +1358,8 @@ class CStructOrUnionType(CType):
 
     def __eq__(self, other):
         try:
-            return self.name == other.name
+            return (isinstance(other, CStructOrUnionType) and
+                    self.name == other.name)
         except AttributeError:
             return False
 
@@ -1369,6 +1370,14 @@ class CStructOrUnionType(CType):
             # this is arbitrary, but it makes sure we always have
             # *some* kind of order
             return False
+
+    def __hash__(self):
+        try:
+            return self.__hashval
+        except AttributeError:
+            hashval = self.__hashval = hash(self.cname) ^ (sum([
+                hash(field.name) for field in self.scope.var_entries]) % 0xffff)
+            return hashval
 
     def is_complete(self):
         return self.scope is not None
