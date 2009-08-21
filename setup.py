@@ -2,7 +2,6 @@ from distutils.core import setup, Extension
 from distutils.sysconfig import get_python_lib
 import os, os.path
 import sys
-from Cython.Compiler.Version import version
 
 compiler_dir = os.path.join(get_python_lib(prefix=''), 'Cython/Compiler')
 if sys.platform == "win32":
@@ -94,6 +93,8 @@ except ValueError:
         print("ERROR: %s" % sys.exc_info()[1])
         print("Extension module compilation failed, using plain Python implementation")
 
+
+from Cython.Compiler.Version import version
 
 setup(
   name = 'Cython',
