@@ -320,7 +320,9 @@ class Context(object):
             else:
                 dirs = [self.find_root_package_dir(file_desc.filename)] + dirs
 
-        dotted_filename = qualified_name + suffix
+        dotted_filename = qualified_name
+        if suffix:
+            dotted_filename += suffix
         if not include:
             names = qualified_name.split('.')
             package_names = names[:-1]
