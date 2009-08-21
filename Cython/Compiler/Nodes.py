@@ -1839,7 +1839,7 @@ class DefNode(FuncDefNode):
             return
         if self.entry.doc and Options.docstrings:
             docstr = self.entry.doc
-            if not isinstance(docstr, str):
+            if docstr.is_unicode:
                 docstr = docstr.utf8encode()
             code.putln(
                 'static char %s[] = "%s";' % (
@@ -1972,7 +1972,7 @@ class DefNode(FuncDefNode):
             code.putln("if (unlikely(PyTuple_GET_SIZE(%s) > 0)) {" %
                        Naming.args_cname)
             code.put('__Pyx_RaiseArgtupleInvalid("%s", 1, 0, 0, PyTuple_GET_SIZE(%s)); return %s;' % (
-                    self.name.utf8encode(), Naming.args_cname, self.error_value()))
+                    self.name, Naming.args_cname, self.error_value()))
             code.putln("}")
 
         code.globalstate.use_utility_code(keyword_string_check_utility_code)
@@ -2062,7 +2062,7 @@ class DefNode(FuncDefNode):
                     pystring_cname = code.intern_identifier(arg.name)
                     # required keyword-only argument missing
                     code.put('__Pyx_RaiseKeywordRequired("%s", %s); ' % (
-                            self.name.utf8encode(),
+                            self.name,
                             pystring_cname))
                     code.putln(code.error_goto(self.pos))
                     break
@@ -2112,7 +2112,7 @@ class DefNode(FuncDefNode):
             code.put_goto(success_label)
             code.put_label(argtuple_error_label)
             code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, PyTuple_GET_SIZE(%s)); ' % (
-                    self.name.utf8encode(), has_fixed_positional_count,
+                    self.name, has_fixed_positional_count,
                     min_positional_args, max_positional_args,
                     Naming.args_cname))
             code.putln(code.error_goto(self.pos))
@@ -2237,14 +2237,14 @@ class DefNode(FuncDefNode):
                             # arguments up to this point
                             code.putln('else {')
                             code.put('__Pyx_RaiseArgtupleInvalid("%s", %d, %d, %d, %d); ' % (
-                                    self.name.utf8encode(), has_fixed_positional_count,
+                                    self.name, has_fixed_positional_count,
                                     min_positional_args, max_positional_args, i))
                             code.putln(code.error_goto(self.pos))
                             code.putln('}')
                     elif arg.kw_only:
                         code.putln('else {')
                         code.put('__Pyx_RaiseKeywordRequired("%s", %s); ' %(
-                                self.name.utf8encode(), pystring_cname))
+                                self.name, pystring_cname))
                         code.putln(code.error_goto(self.pos))
                         code.putln('}')
             if max_positional_args > 0:
@@ -2297,7 +2297,7 @@ class DefNode(FuncDefNode):
                 Naming.pykwdlist_cname,
                 self.starstar_arg and self.starstar_arg.entry.cname or '0',
                 pos_arg_count,
-                self.name.utf8encode()))
+                self.name))
         code.putln(code.error_goto(self.pos))
         code.putln('}')
 
