@@ -735,6 +735,11 @@ class CBufferAccessTypeNode(CBaseTypeNode):
             self.keyword_args,
             base_type.buffer_defaults)
 
+        if sys.version_info[0] < 3:
+            # Py 2.x enforces byte strings as keyword arguments ...
+            options = dict([ (name.encode('ASCII'), value)
+                             for name, value in options.iteritems() ])
+
         self.type = PyrexTypes.BufferType(base_type, **options)
         return self.type
 
