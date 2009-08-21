@@ -1,4 +1,4 @@
-"""
+__doc__ = u"""
 >>> f()
 42.0
 42.0
@@ -12,8 +12,12 @@ TypeError: readonly attribute
 Traceback (most recent call last):
     ...
 SystemError: bad memberdescr type
-
 """
+
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u'TypeError:', u'AttributeError:')
+
 
 cdef extern from "external_defs.h":
     ctypedef float DoubleTypedef

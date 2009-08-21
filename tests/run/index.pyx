@@ -48,6 +48,10 @@ TypeError: 'int' object is unsubscriptable
 >>> test_long_long()
 """
 
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u'is unsubscriptable', u'is not subscriptable')
+
 
 def index_tuple(tuple t, int i):
     return t[i]
