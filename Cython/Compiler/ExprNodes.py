@@ -2907,7 +2907,7 @@ class AttributeNode(ExprNode):
     def put_nonecheck(self, code):
         code.globalstate.use_utility_code(raise_noneattr_error_utility_code)
         code.putln("if (%s) {" % code.unlikely("%s == Py_None") % self.obj.result_as(PyrexTypes.py_object_type))
-        code.putln("__Pyx_RaiseNoneAttributeError(\"%s\");" % self.attribute.encode("UTF-8")) # todo: fix encoding
+        code.putln("__Pyx_RaiseNoneAttributeError(\"%s\");" % self.attribute)
         code.putln(code.error_goto(self.pos))
         code.putln("}")
 
