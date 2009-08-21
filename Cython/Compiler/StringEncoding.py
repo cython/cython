@@ -49,16 +49,16 @@ class BytesLiteralBuilder(object):
         self.chars.append(characters)
 
     def append_charval(self, char_number):
-        self.chars.append( chr(char_number).encode('ISO-8859-1') )
+        self.chars.append( unichr(char_number).encode('ISO-8859-1') )
 
     def getstring(self):
-        # this *must* return a byte string! => fix it in Py3k!!
+        # this *must* return a byte string!
         s = BytesLiteral(join_bytes(self.chars))
         s.encoding = self.target_encoding
         return s
 
     def getchar(self):
-        # this *must* return a byte string! => fix it in Py3k!!
+        # this *must* return a byte string!
         return self.getstring()
 
 class EncodedString(_str):
