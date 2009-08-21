@@ -38,8 +38,8 @@ VER_DEP_MODULES = {
 # such as:
 #    (2,4) : (operator.le, lambda x: x in ['run.set']),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
-                                        'run.extsetslice',
-                                        'run.extdelslice']),
+                                        'compile.extsetslice',
+                                        'compile.extdelslice']),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
