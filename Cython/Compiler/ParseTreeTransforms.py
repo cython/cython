@@ -439,7 +439,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                     if kwds is not None or len(args) != 1 or not isinstance(args[0], StringNode):
                         raise PostParseError(dec.function.pos,
                             'The %s option takes one compile-time string argument' % optname)
-                    return (optname, args[0].value)
+                    return (optname, str(args[0].value))
                 elif optiontype is dict:
                     if len(args) != 0:
                         raise PostParseError(dec.function.pos,
