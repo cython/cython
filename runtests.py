@@ -7,6 +7,7 @@ import codecs
 import shutil
 import unittest
 import doctest
+import operator
 
 WITH_CYTHON = True
 
@@ -35,7 +36,10 @@ EXT_DEP_INCLUDES = [
 
 VER_DEP_MODULES = {
 # such as:
-#    (2,4) : lambda x: x in ['run.set']
+#    (2,4) : (operator.le, lambda x: x in ['run.set']),
+    (3,): (operator.ge, lambda x: x in ['run.non_future_division',
+                                        'run.extsetslice',
+                                        'run.extdelslice']),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
@@ -468,8 +472,8 @@ class VersionDependencyExcluder:
         # deps: { version : matcher func }
         from sys import version_info
         self.exclude_matchers = []
-        for ver, matcher in deps.items():
-            if version_info < ver:
+        for ver, (compare, matcher) in deps.items():
+            if compare(version_info, ver):
                 self.exclude_matchers.append(matcher)
         self.tests_missing_deps = []
     def __call__(self, testname):
