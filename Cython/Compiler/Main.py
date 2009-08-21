@@ -192,7 +192,7 @@ class Context(object):
         return Errors.report_error(exc)
 
     def run_pipeline(self, pipeline, source):
-        err = None
+        error = None
         data = source
         try:
             for phase in pipeline:
@@ -203,11 +203,13 @@ class Context(object):
         except CompileError, err:
             # err is set
             Errors.report_error(err)
+            error = err
         except InternalError, err:
             # Only raise if there was not an earlier error
             if Errors.num_errors == 0:
                 raise
-        return (err, data)
+            error = err
+        return (error, data)
 
     def find_module(self, module_name, 
             relative_to = None, pos = None, need_pxd = 1):
