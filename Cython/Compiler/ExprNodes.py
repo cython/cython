@@ -676,7 +676,7 @@ class CharNode(ConstNode):
         return ord(self.value)
     
     def calculate_result_code(self):
-        return "'%s'" % StringEncoding.escape_character(self.value)
+        return "'%s'" % StringEncoding.escape_char(self.value)
 
 
 class IntNode(ConstNode):
