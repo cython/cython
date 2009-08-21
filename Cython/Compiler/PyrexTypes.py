@@ -736,12 +736,20 @@ class CComplexType(CNumericType):
         self.binops = {}
         self.from_parts = "%s_from_parts" % self.specalization_name()
     
-    def __cmp__(self, other):
+    def __eq__(self, other):
         if isinstance(self, CComplexType) and isinstance(other, CComplexType):
-            return cmp(self.real_type, other.real_type)
+            return self.real_type == other.real_type
         else:
-            return 1
-    
+            return False
+
+    def __lt__(self, other):
+        if isinstance(self, CComplexType) and isinstance(other, CComplexType):
+            return self.real_type < other.real_type
+        else:
+            # this is arbitrary, but it makes sure we always have
+            # *some* kind of order
+            return False
+
     def __hash__(self):
         return ~hash(self.real_type)
     
@@ -1348,14 +1356,19 @@ class CStructOrUnionType(CType):
                 base = "%s %s" % (self.kind, self.cname)
             return self.base_declaration_code(public_decl(base, dll_linkage), entity_code)
 
-    def __cmp__(self, other):
+    def __eq__(self, other):
         try:
-            if self.name == other.name:
-                return 0
-            else:
-                return 1
+            return self.name == other.name
         except AttributeError:
-            return 1
+            return False
+
+    def __lt__(self, other):
+        try:
+            return self.name < other.name
+        except AttributeError:
+            # this is arbitrary, but it makes sure we always have
+            # *some* kind of order
+            return False
 
     def is_complete(self):
         return self.scope is not None
