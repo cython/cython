@@ -2487,6 +2487,9 @@ class GeneralCallNode(CallNode):
         if self.starstar_arg:
             self.starstar_arg.analyse_types(env)
         if not self.function.type.is_pyobject:
+            if self.function.type.is_error:
+                self.type = error_type
+                return error_type
             if hasattr(self.function, 'entry') and not self.function.entry.as_variable:
                 error(self.pos, "Keyword arguments not allowed in cdef functions.")
             else:
@@ -2507,6 +2510,7 @@ class GeneralCallNode(CallNode):
         self.is_temp = 1
         
     def generate_result_code(self, code):
+        if self.type.is_error: return
         if self.keyword_args and self.starstar_arg:
             code.put_error_if_neg(self.pos, 
                 "PyDict_Update(%s, %s)" % (
