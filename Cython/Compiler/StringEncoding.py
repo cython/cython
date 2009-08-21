@@ -7,8 +7,10 @@ import sys
 
 if sys.version_info[0] >= 3:
     _str, _bytes = str, bytes
+    IS_PYTHON3 = True
 else:
     _str, _bytes = unicode, str
+    IS_PYTHON3 = False
 
 empty_bytes = _bytes()
 empty_str = _str()
@@ -84,7 +86,11 @@ class BytesLiteral(_bytes):
     encoding = None
 
     def byteencode(self):
-        return _bytes(self)
+        if IS_PYTHON3:
+            return _bytes(self)
+        else:
+            # fake-recode the string to make it a plain bytes object
+            return self.decode('ISO-8859-1').encode('ISO-8859-1')
 
     def utf8encode(self):
         assert False, "this is not a unicode string: %r" % self
@@ -133,7 +139,8 @@ def _build_specials_test():
 _has_specials = _build_specials_test()
 
 def escape_char(c):
-    c = c.decode('ISO-8859-1')
+    if IS_PYTHON3:
+        c = c.decode('ISO-8859-1')
     if c in '\n\r\t\\':
         return repr(c)[1:-1]
     elif c == "'":
@@ -158,7 +165,7 @@ def escape_byte_string(s):
         return s.decode("ASCII") # trial decoding: plain ASCII => done
     except UnicodeDecodeError:
         pass
-    if sys.version_info[0] >= 3:
+    if IS_PYTHON3:
         s_new = bytearray()
         append, extend = s_new.append, s_new.extend
         for b in s:
