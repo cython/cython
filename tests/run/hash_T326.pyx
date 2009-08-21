@@ -21,7 +21,7 @@ cdef class A:
         self.a = a
     def __hash__(self):
         if self.a == 100:
-            raise TypeError, "That's kind of a round number..."
+            raise TypeError, u"That's kind of a round number..."
         else:
             return self.a
 
