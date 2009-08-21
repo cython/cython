@@ -146,8 +146,8 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
     for name, (value, pos) in dictargs.iteritems():
         if not name in buffer_options:
             raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
-        options[name.encode("ASCII")] = value
-    
+        options[name] = value
+
     for name, (value, pos) in zip(buffer_options, posargs):
         if not name in buffer_options:
             raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
