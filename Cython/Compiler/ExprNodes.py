@@ -5257,7 +5257,8 @@ class NoneCheckNode(CoercionNode):
             "if (unlikely(%s == Py_None)) {" % self.arg.result())
         code.putln('PyErr_SetString(%s, "%s"); %s ' % (
             self.exception_type_cname,
-            StringEncoding.escape_byte_string(self.exception_message),
+            StringEncoding.escape_byte_string(
+                self.exception_message.encode('UTF-8')),
             code.error_goto(self.pos)))
         code.putln("}")
 
