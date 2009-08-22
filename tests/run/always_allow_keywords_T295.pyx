@@ -1,4 +1,4 @@
-__doc__ = """
+__doc__ = u"""
 >>> func1(None)
 >>> func1(*[None])
 >>> func1(arg=None)
