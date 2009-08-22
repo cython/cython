@@ -18,6 +18,7 @@ from python_ref cimport PyObject
 
 __test__ = {}
 
+import sys
 import re
 exclude = []#re.compile('object').search]
     
@@ -25,7 +26,11 @@ def testcase(func):
     for e in exclude:
         if e(func.__name__):
             return func
-    __test__[func.__name__] = func.__doc__
+    doctest = func.__doc__
+    if sys.version_info >= (3,1,1):
+        doctest = doctest.replace('does not have the buffer interface',
+                                  'does not support the buffer interface')
+    __test__[func.__name__] = doctest
     return func
 
 def testcas(a):
