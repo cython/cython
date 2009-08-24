@@ -1422,8 +1422,8 @@ class CppClassType(CType):
             return PyrexTypes.error_type
         if len(self.templates) != len(template_values):
             error(pos, "%s templated type receives %d arguments, got %d" % 
-                  (base_type, len(self.templates), len(template_values)))
-            return PyrexTypes.error_type
+                  (self.name, len(self.templates), len(template_values)))
+            return error_type
         return self.specialize(dict(zip(self.templates, template_values)))
     
     def specialize(self, values):
