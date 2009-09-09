@@ -42,7 +42,7 @@ master_doc = 'index'
 
 # General substitutions.
 project = 'Cython'
-copyright = '2009, Stefan Behnel, Robert Bradshaw, Grew Ewing, William Stein, Gary Furnish, Dag Seljebotn, Gabriel Gellner'
+copyright = '2009, Stefan Behnel, Robert Bradshaw, Grew Ewing, Gabriel Gellner, Dag Seljebotn, William Stein, et al.'
 
 # The default replacements for |version| and |release|, also used in various
 # other places throughout the built documents.
@@ -50,7 +50,7 @@ copyright = '2009, Stefan Behnel, Robert Bradshaw, Grew Ewing, William Stein, Ga
 # The short X.Y version.
 version = '0.11'
 # The full version, including alpha/beta/rc tags.
-release = '0.11'
+release = '0.11.2'
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
