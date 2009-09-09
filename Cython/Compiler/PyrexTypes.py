@@ -31,7 +31,6 @@ class PyrexType(BaseType):
     #  is_extension_type     boolean     Is a Python extension type
     #  is_numeric            boolean     Is a C numeric type
     #  is_int                boolean     Is a C integer type
-    #  is_longlong           boolean     Is a long long or unsigned long long.
     #  is_float              boolean     Is a C floating point type
     #  is_complex            boolean     Is a C complex type
     #  is_void               boolean     Is the C void type
@@ -82,7 +81,6 @@ class PyrexType(BaseType):
     is_builtin_type = 0
     is_numeric = 0
     is_int = 0
-    is_longlong = 0
     is_float = 0
     is_complex = 0
     is_void = 0
@@ -521,7 +519,7 @@ class CNumericType(CType):
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
         base = public_decl(self.sign_and_name(), dll_linkage)
-        if for_display and self.is_longlong:
+        if for_display:
             base = base.replace('PY_LONG_LONG', 'long long')
         return self.base_declaration_code(base,  entity_code)
 
@@ -680,13 +678,11 @@ class CULongType(CUIntType):
 
 class CLongLongType(CIntType):
 
-    is_longlong = 1
     to_py_function = "PyLong_FromLongLong"
 
 
 class CULongLongType(CUIntType):
 
-    is_longlong = 1
     to_py_function = "PyLong_FromUnsignedLongLong"
 
 
