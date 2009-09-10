@@ -27,6 +27,10 @@ from Cython.Utils import open_new_file, replace_suffix, UtilityCode
 from StringEncoding import escape_byte_string, EncodedString
 
 
+def check_c_declarations_pxd(module_node):
+    module_node.scope.check_c_classes_pxd()
+    return module_node
+
 def check_c_declarations(module_node):
     module_node.scope.check_c_classes()
     module_node.scope.check_c_functions()

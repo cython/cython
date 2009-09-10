@@ -85,7 +85,7 @@ class Context(object):
         from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
         from Optimize import FlattenBuiltinTypeCreation, ConstantFolding, FinalOptimizePhase
         from Buffer import IntroduceBufferAuxiliaryVars
-        from ModuleNode import check_c_declarations
+        from ModuleNode import check_c_declarations, check_c_declarations_pxd
 
         # Temporary hack that can be used to ensure that all result_code's
         # are generated at code generation time.
@@ -97,7 +97,7 @@ class Context(object):
                 return node
 
         if pxd:
-            _check_c_declarations = None
+            _check_c_declarations = check_c_declarations_pxd
             _specific_post_parse = PxdPostParse(self)
         else:
             _check_c_declarations = check_c_declarations
