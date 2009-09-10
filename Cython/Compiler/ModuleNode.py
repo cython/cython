@@ -1635,6 +1635,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("{")
         tempdecl_code = code.insertion_point()
 
+        self.generate_filename_init_call(code)
         code.putln("#ifdef CYTHON_REFNANNY")
         code.putln("void* __pyx_refchk = NULL;")
         code.putln("__Pyx_Refnanny = __Pyx_ImportRefcountAPI(\"refnanny\");")
@@ -1656,7 +1657,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.putln("/*--- Library function declarations ---*/")
         env.generate_library_function_declarations(code)
-        self.generate_filename_init_call(code)
 
         code.putln("/*--- Threads initialization code ---*/")
         code.putln("#if defined(__PYX_FORCE_INIT_THREADS) && __PYX_FORCE_INIT_THREADS")
@@ -1665,11 +1665,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
         code.putln("#endif")
 
-        code.putln("/*--- Initialize various global constants etc. ---*/")
-        code.putln(code.error_goto_if_neg("__Pyx_InitGlobals()", self.pos))
-
         code.putln("/*--- Module creation code ---*/")
         self.generate_module_creation_code(env, code)
+
+        code.putln("/*--- Initialize various global constants etc. ---*/")
+        code.putln(code.error_goto_if_neg("__Pyx_InitGlobals()", self.pos))
 
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
@@ -1710,9 +1710,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_var_xdecrefs(env.temp_entries)
         for cname, type in code.funcstate.all_managed_temps():
             code.put_xdecref(cname, type)
-        code.putln('__Pyx_AddTraceback("%s");' % env.qualified_name)
+        code.putln('if (%s) {' % env.module_cname)
+        code.putln('__Pyx_AddTraceback("init %s");' % env.qualified_name)
         env.use_utility_code(Nodes.traceback_utility_code)
         code.put_decref_clear(env.module_cname, py_object_type, nanny=False)
+        code.putln('} else if (!PyErr_Occurred()) {')
+        code.putln('PyErr_SetString(PyExc_ImportError, "init %s");' % env.qualified_name)
+        code.putln('}')
         code.put_label(code.return_label)
 
         code.put_finish_refcount_context()
