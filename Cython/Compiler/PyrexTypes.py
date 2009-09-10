@@ -163,12 +163,15 @@ class CTypedefType(BaseType):
     
     is_typedef = 1
     typedef_is_external = 0
+
+    to_py_utility_code = None
+    from_py_utility_code = None
+    
     
     def __init__(self, cname, base_type, is_external=0):
         self.typedef_cname = cname
         self.typedef_base_type = base_type
         self.typedef_is_external = is_external
-
         # Make typecodes in external typedefs use typesize-neutral macros
         if is_external:
             typecode = None
@@ -206,13 +209,70 @@ class CTypedefType(BaseType):
             return self.typedef_base_type.cast_code(expr_code)
         else:
             return BaseType.cast_code(self, expr_code)
-    
+
     def __repr__(self):
         return "<CTypedefType %s>" % self.typedef_cname
     
     def __str__(self):
         return self.declaration_name(for_display = 1)
-    
+
+    def _create_utility_code(self, template_utility_code,
+                             template_function_name):
+        type_name = self.typedef_cname.replace(" ","_")
+        utility_code = template_utility_code.specialize(
+            type     = self.typedef_cname,
+            TypeName = type_name)
+        function_name = template_function_name % type_name
+        return utility_code, function_name
+
+    def create_to_py_utility_code(self, env):
+        if self.typedef_is_external:
+            if not self.to_py_utility_code:
+                base_type = self.typedef_base_type
+                if base_type.is_int:
+                    self.to_py_utility_code, self.to_py_function = \
+                        self._create_utility_code(c_typedef_int_to_py_function,
+                                                  '__Pyx_PyInt_to_py_%s')
+                elif base_type.is_float:
+                    pass # XXX implement!
+                elif base_type.is_complex:
+                    pass # XXX implement!
+                    pass
+            if self.to_py_utility_code:
+                env.use_utility_code(self.to_py_utility_code)
+                return True
+        # delegation
+        return self.typedef_base_type.create_to_py_utility_code(env)
+
+    def create_from_py_utility_code(self, env):
+        if self.typedef_is_external:
+            if not self.from_py_utility_code:
+                base_type = self.typedef_base_type
+                if base_type.is_int:
+                    self.from_py_utility_code, self.from_py_function = \
+                        self._create_utility_code(c_typedef_int_from_py_function,
+                                                  '__Pyx_PyInt_from_py_%s')
+                elif base_type.is_float:
+                    pass # XXX implement!
+                elif base_type.is_complex:
+                    pass # XXX implement!
+            if self.from_py_utility_code:
+                env.use_utility_code(self.from_py_utility_code)
+                return True
+        # delegation
+        return self.typedef_base_type.create_from_py_utility_code(env)
+
+    def error_condition(self, result_code):
+        if self.typedef_is_external:
+            if self.exception_value:
+                condition = "(%s == (%s)%s)" % (
+                    result_code, self.typedef_cname, self.exception_value)
+                if self.exception_check:
+                    condition += " && PyErr_Occurred()"
+                return condition
+        # delegation
+        return self.typedef_base_type.error_condition(result_code)
+
     def __getattr__(self, name):
         return getattr(self.typedef_base_type, name)
 
@@ -540,9 +600,12 @@ static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
         long val = __Pyx_PyInt_AsLong(x);
         if (unlikely(val != (long)(%(type)s)val)) {
             if (unlikely(val == -1 && PyErr_Occurred()))
-                return (%(type)s)-1;""" + \
-           "%(IntValSignTest)s" + \
-"""
+                return (%(type)s)-1;
+            if (((%(type)s)-1) > ((%(type)s)0) && unlikely(val < 0)) {
+                PyErr_SetString(PyExc_OverflowError,
+                                "can't convert negative value to %(type)s");
+                return (%(type)s)-1;
+            }
             PyErr_SetString(PyExc_OverflowError,
                            "value too large to convert to %(type)s");
             return (%(type)s)-1;
@@ -552,12 +615,6 @@ static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
     return (%(type)s)__Pyx_PyInt_As%(SignWord)sLong(x);
 }
 """)
-intval_signtest = """
-            if (unlikely(%(var)s < 0)) {
-                PyErr_SetString(PyExc_OverflowError,
-                                "can't convert negative value to %(type)s");
-                return (%(type)s)-1;
-            }"""
 
 c_long_from_py_function = UtilityCode(
 proto="""
@@ -566,17 +623,25 @@ static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
 impl="""
 static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
 #if PY_VERSION_HEX < 0x03000000
-    if (likely(PyInt_CheckExact(x) || PyInt_Check(x))) {
-        long val = PyInt_AS_LONG(x);""" + \
-       "%(IntValSignTest)s" + \
-"""
+    if (likely(PyInt_Check(x))) {
+        long val = PyInt_AS_LONG(x);
+        if (((%(type)s)-1) > ((%(type)s)0) && unlikely(val < 0)) {
+            PyErr_SetString(PyExc_OverflowError,
+                            "can't convert negative value to %(type)s");
+            return (%(type)s)-1;
+        }
         return (%(type)s)val;
     } else
 #endif
-    if (likely(PyLong_CheckExact(x) || PyLong_Check(x))) {""" +\
-       "%(PyLongSignTest)s" + \
-"""
-        return %(PyLongConvert)s(x);
+    if (likely(PyLong_Check(x))) {
+        if (((%(type)s)-1) > ((%(type)s)0) && unlikely(Py_SIZE(x) < 0)) {
+            PyErr_SetString(PyExc_OverflowError,
+                            "can't convert negative value to %(type)s");
+            return (%(type)s)-1;
+        }
+        return (((%(type)s)-1) < ((%(type)s)0)) ?
+               PyLong_As%(TypeName)s(x) :
+               PyLong_AsUnsigned%(TypeName)s(x);
     } else {
         %(type)s val;
         PyObject *tmp = __Pyx_PyNumber_Int(x);
@@ -587,14 +652,63 @@ static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
     }
 }
 """)
-pylong_signtest = """
-        if (unlikely(Py_SIZE(%(var)s) < 0)) {
-            PyErr_SetString(PyExc_OverflowError,
-                            "can't convert negative value to %(type)s");
-            return (%(type)s)-1;
-        }"""
 
+c_typedef_int_from_py_function = UtilityCode(
+proto="""
+static INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject *);
+""",
+impl="""
+static INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject* x) {
+  /**/ if (sizeof(%(type)s) == sizeof(char))
+     return (((%(type)s)-1) < ((%(type)s)0)) ?
+            (%(type)s)__Pyx_PyInt_AsSignedChar(x) :
+            (%(type)s)__Pyx_PyInt_AsUnsignedChar(x);
+  else if (sizeof(%(type)s) == sizeof(short))
+     return (((%(type)s)-1) < ((%(type)s)0)) ?
+            (%(type)s)__Pyx_PyInt_AsSignedShort(x) :
+            (%(type)s)__Pyx_PyInt_AsUnsignedShort(x);
+  else if (sizeof(%(type)s) == sizeof(int))
+     return (((%(type)s)-1) < ((%(type)s)0)) ?
+            (%(type)s)__Pyx_PyInt_AsSignedInt(x) :
+            (%(type)s)__Pyx_PyInt_AsUnsignedInt(x);
+  else if (sizeof(%(type)s) == sizeof(long))
+     return (((%(type)s)-1) < ((%(type)s)0)) ?
+            (%(type)s)__Pyx_PyInt_AsSignedLong(x) :
+            (%(type)s)__Pyx_PyInt_AsUnsignedLong(x);
+  else if (sizeof(%(type)s) == sizeof(PY_LONG_LONG))
+     return (((%(type)s)-1) < ((%(type)s)0)) ?
+            (%(type)s)__Pyx_PyInt_AsSignedLongLong(x) :
+            (%(type)s)__Pyx_PyInt_AsUnsignedLongLong(x);
+#if 0
+  else if (sizeof(%(type)s) > sizeof(short) &&
+           sizeof(%(type)s) < sizeof(int)) /*  __int32 ILP64 ? */
+     return (((%(type)s)-1) < ((%(type)s)0)) ?
+            (%(type)s)__Pyx_PyInt_AsSignedInt(x) :
+            (%(type)s)__Pyx_PyInt_AsUnsignedInt(x);
+#endif
+  PyErr_SetString(PyExc_TypeError, "%(TypeName)s");
+  return (%(type)s)-1;
+}
+""")
 
+c_typedef_int_to_py_function = UtilityCode(
+proto="""
+static INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s);
+""",
+impl="""
+static INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s val) {
+  /**/ if (sizeof(%(type)s) <  sizeof(long))
+      return PyInt_FromLong((long)val);
+  else if (sizeof(%(type)s) == sizeof(long))
+     return (((%(type)s)-1) < ((%(type)s)0)) ? 
+            PyInt_FromLong((long)val) :
+            PyLong_FromUnsignedLong((unsigned long)val);
+  else /* (sizeof(%(type)s) >  sizeof(long)) */
+     return (((%(type)s)-1) < ((%(type)s)0)) ?
+            PyLong_FromLongLong((PY_LONG_LONG)val) :
+            PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG)val);
+}
+""")
 
 class CIntType(CNumericType):
 
@@ -620,27 +734,13 @@ class CIntType(CNumericType):
         type_name = type_name.replace("PY_LONG_LONG","long long")
         SignWord  = sign_word.title()
         TypeName  = type_name.title().replace(" ", "")
-        data = {'IntValSignTest' : "",
-                'PyLongSignTest' : "",
-                'PyLongConvert'  : "",
-                }
-        if not self.signed:
-            data['IntValSignTest'] = intval_signtest % {'var':"val", 'type':ctype}
-            data['PyLongSignTest'] = pylong_signtest % {'var':"x",   'type':ctype}
         if "Long" in TypeName:
-            data['PyLongConvert'] = \
-                "PyLong_As" + SignWord.replace("Signed", "") + TypeName
-            # the replaces below are just for generating well indented C code
-            data['IntValSignTest'] = "\n".join(
-                [ln.replace(" "*4, "", 1) for ln in data['IntValSignTest'].split('\n')]
-                )
             utility_code = c_long_from_py_function
         else:
             utility_code = c_int_from_py_function
         utility_code.specialize(self,
                                 SignWord=SignWord,
-                                TypeName=TypeName,
-                                **data)
+                                TypeName=TypeName)
         func_name = "__Pyx_PyInt_As%s%s" % (SignWord, TypeName)
         return func_name
 
