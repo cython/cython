@@ -1006,8 +1006,10 @@ class FuncDefNode(StatNode, BlockNode):
     
     def analyse_default_values(self, env):
         genv = env.global_scope()
+        default_seen = 0
         for arg in self.args:
             if arg.default:
+                default_seen = 1
                 if arg.is_generic:
                     if not hasattr(arg, 'default_entry'):
                         arg.default.analyse_types(env)
@@ -1028,6 +1030,10 @@ class FuncDefNode(StatNode, BlockNode):
                     error(arg.pos,
                         "This argument cannot have a default value")
                     arg.default = None
+            elif arg.kw_only:
+                default_seen = 1
+            elif default_seen:
+                error(arg.pos, "Non-default argument following default argument")
     
     def need_gil_acquisition(self, lenv):
         return 0
@@ -1106,7 +1112,7 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Extern library function declarations
         lenv.generate_library_function_declarations(code)
         # ----- GIL acquisition
-        acquire_gil = self.need_gil_acquisition(lenv)
+        acquire_gil = self.acquire_gil
         if acquire_gil:
             env.use_utility_code(force_init_threads_utility_code)
             code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
@@ -1446,6 +1452,7 @@ class CFuncDefNode(FuncDefNode):
         self.analyse_default_values(env)
         if self.py_func is not None:
             self.py_func.analyse_expressions(env)
+        self.acquire_gil = self.need_gil_acquisition(self.local_scope)
 
     def generate_function_header(self, code, with_pymethdef, with_opt_args = 1, with_dispatch = 1, cname = None):
         arg_decls = []
@@ -1869,6 +1876,7 @@ class DefNode(FuncDefNode):
         self.analyse_default_values(env)
         if env.is_py_class_scope:
             self.synthesize_assignment_node(env)
+        self.acquire_gil = 0
     
     def synthesize_assignment_node(self, env):
         import ExprNodes
@@ -1971,12 +1979,10 @@ class DefNode(FuncDefNode):
         else:
             positional_args = []
             kw_only_args = []
-            default_seen = 0
             for arg in self.args:
                 arg_entry = arg.entry
                 if arg.is_generic:
                     if arg.default:
-                        default_seen = 1
                         if not arg.is_self_arg:
                             if arg.kw_only:
                                 kw_only_args.append(arg)
@@ -1984,9 +1990,6 @@ class DefNode(FuncDefNode):
                                 positional_args.append(arg)
                     elif arg.kw_only:
                         kw_only_args.append(arg)
-                        default_seen = 1
-                    elif default_seen:
-                        error(arg.pos, "Non-default argument following default argument")
                     elif not arg.is_self_arg:
                         positional_args.append(arg)
 
