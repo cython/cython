@@ -1964,8 +1964,9 @@ class DefNode(FuncDefNode):
             or self.starstar_arg is not None or has_kwonly_args
 
         for arg in self.args:
-            if not arg.type.is_pyobject and arg.type.from_py_function is None:
-                arg.type.create_from_py_utility_code(env)
+            if not arg.type.is_pyobject:
+                done = arg.type.create_from_py_utility_code(env)
+                if not done: pass # will fail later
 
         if not self.signature_has_generic_args():
             if has_star_or_kw_args:
