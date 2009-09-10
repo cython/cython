@@ -34,6 +34,12 @@ def dumptree(t):
     print t.dump()
     return t
 
+def abort_on_errors(node):
+    # Stop the pipeline if there are any errors.
+    if Errors.num_errors != 0:
+        raise InternalError, "abort"
+    return node
+
 class CompilationData(object):
     #  Bundles the information that is passed from transform to transform.
     #  (For now, this is only)
@@ -157,6 +163,7 @@ class Context(object):
                 create_parse(self),
             ] + self.create_pipeline(pxd=False, py=py) + [
                 inject_pxd_code,
+                abort_on_errors,
                 generate_pyx_code,
             ])
 

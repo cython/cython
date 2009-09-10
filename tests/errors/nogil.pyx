@@ -103,7 +103,7 @@ _ERRORS = u"""
 38:11: Accessing Python attribute not allowed without gil
 39: 9: Constructing Python tuple not allowed without gil
 40: 8: Constructing Python list not allowed without gil
-41: 8: Constructing Python dict not allowed without gil
+#41: 8: Constructing Python dict not allowed without gil
 42:12: Truth-testing Python object not allowed without gil
 43:13: Python type test not allowed without gil
 #44: 4: Converting to Python object not allowed without gil
