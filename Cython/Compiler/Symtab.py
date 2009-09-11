@@ -1014,6 +1014,8 @@ class ModuleScope(Scope):
         # the non-typedef struct internally to avoid needing forward
         # declarations for anonymous structs. 
         if typedef_flag and visibility != 'extern':
+            if visibility != 'public':
+                warning(pos, "ctypedef only valid for public and extern classes", 2)
             objtypedef_cname = objstruct_cname
             objstruct_cname = None
             typedef_flag = 0
