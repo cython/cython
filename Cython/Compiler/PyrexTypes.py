@@ -599,15 +599,12 @@ static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
     if (sizeof(%(type)s) < sizeof(long)) {
         long val = __Pyx_PyInt_AsLong(x);
         if (unlikely(val != (long)(%(type)s)val)) {
-            if (unlikely(val == -1 && PyErr_Occurred()))
-                return (%(type)s)-1;
-            if (((%(type)s)-1) > ((%(type)s)0) && unlikely(val < 0)) {
+            if (!unlikely(val == -1 && PyErr_Occurred())) {
                 PyErr_SetString(PyExc_OverflowError,
-                                "can't convert negative value to %(type)s");
-                return (%(type)s)-1;
+                    (((%(type)s)-1) > ((%(type)s)0) && unlikely(val < 0)) ?
+                    "can't convert negative value to %(type)s" :
+                    "value too large to convert to %(type)s");
             }
-            PyErr_SetString(PyExc_OverflowError,
-                           "value too large to convert to %(type)s");
             return (%(type)s)-1;
         }
         return (%(type)s)val;
