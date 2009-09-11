@@ -9,7 +9,6 @@ unsignedbehaviour_T184
 funcexc_iter_T228
 pxd_override_T230
 ext_instance_type_T232
-large_consts_T237
 bad_c_struct_T252
 missing_baseclass_in_predecl_T262
 ifelseexpr_T267
