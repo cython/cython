@@ -3957,8 +3957,7 @@ class TypecastNode(ExprNode):
         if from_py and not to_py and self.operand.is_ephemeral() and not self.type.is_numeric:
             error(self.pos, "Casting temporary Python object to non-numeric non-Python type")
         if to_py and not from_py:
-            if (self.operand.type.to_py_function and
-                    self.operand.type.create_to_py_utility_code(env)):
+            if self.operand.type.create_to_py_utility_code(env):
                 self.result_ctype = py_object_type
                 self.operand = self.operand.coerce_to_pyobject(env)
             else:
@@ -3966,7 +3965,7 @@ class TypecastNode(ExprNode):
                     warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.operand.type, self.type))
                 self.operand = self.operand.coerce_to_simple(env)
         elif from_py and not to_py:
-            if self.type.from_py_function:
+            if self.type.create_from_py_utility_code(env):
                 self.operand = self.operand.coerce_to(self.type, env)
             elif self.type.is_ptr and not (self.type.base_type.is_void or self.type.base_type.is_struct):
                 error(self.pos, "Python objects cannot be casted to pointers of primitive types")

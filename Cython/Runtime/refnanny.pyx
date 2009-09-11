@@ -59,7 +59,7 @@ class Context(object):
         else:
             return None
 
-cpdef report_unraisable(e):
+cdef void report_unraisable(object e):
     try:
         print "refnanny raised an exception: %s" % e
     except:
@@ -84,7 +84,7 @@ cdef PyObject* NewContext(char* funcname, int lineno, char* filename) except NUL
         result = <PyObject*>ctx
     except Exception, e:
         report_unraisable(e)
-    PyErr_Restore(<object>type, <object>value, <object>tb)
+    PyErr_Restore(type, value, tb)
     return result
 
 cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
@@ -98,7 +98,7 @@ cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
             (<object>ctx).regref(<object>p_obj, lineno, False)
     except Exception, e:
         report_unraisable(e)
-    PyErr_Restore(<object>type, <object>value, <object>tb)
+    PyErr_Restore(type, value, tb)
 
 cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
     if ctx == NULL: return 1
@@ -112,7 +112,7 @@ cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
             decref_ok = (<object>ctx).delref(<object>p_obj, lineno, False)
     except Exception, e:
         report_unraisable(e)
-    PyErr_Restore(<object>type, <object>value, <object>tb)
+    PyErr_Restore(type, value, tb)
     return decref_ok
 
 cdef void GIVEREF(PyObject* ctx, PyObject* p_obj, int lineno):
@@ -141,7 +141,7 @@ cdef void FinishContext(PyObject** ctx):
         report_unraisable(e)
     Py_DECREF(<object>ctx[0])
     ctx[0] = NULL
-    PyErr_Restore(<object>type, <object>value, <object>tb)
+    PyErr_Restore(type, value, tb)
 
 cdef extern from "Python.h":
     object PyCObject_FromVoidPtr(void*, void (*)(void*))

@@ -243,6 +243,7 @@ class Scope(object):
         self.pystring_entries = []
         self.buffer_entries = []
         self.control_flow = ControlFlow.LinearControlFlow()
+        self.return_type = None
         
     def start_branching(self, pos):
         self.control_flow = self.control_flow.start_branch(pos)
@@ -837,6 +838,17 @@ class ModuleScope(Scope):
         module_name = None, base_type = None, objstruct_cname = None,
         typeobj_cname = None, visibility = 'private', typedef_flag = 0, api = 0,
         buffer_defaults = None):
+        # If this is a non-extern typedef class, expose the typedef, but use
+        # the non-typedef struct internally to avoid needing forward
+        # declarations for anonymous structs. 
+        if typedef_flag and visibility != 'extern':
+            if visibility != 'public':
+                warning(pos, "ctypedef only valid for public and extern classes", 2)
+            objtypedef_cname = objstruct_cname
+            objstruct_cname = None
+            typedef_flag = 0
+        else:
+            objtypedef_cname = None
         #
         #  Look for previous declaration as a type
         #
@@ -861,6 +873,8 @@ class ModuleScope(Scope):
             type = PyrexTypes.PyExtensionType(name, typedef_flag, base_type)
             type.pos = pos
             type.buffer_defaults = buffer_defaults
+            if objtypedef_cname is not None:
+                type.objtypedef_cname = objtypedef_cname
             if visibility == 'extern':
                 type.module_name = module_name
             else:
@@ -872,7 +886,7 @@ class ModuleScope(Scope):
             if objstruct_cname:
                 type.objstruct_cname = objstruct_cname
             elif not entry.in_cinclude:
-                type.objstruct_cname = self.mangle(Naming.objstruct_prefix, name)                
+                type.objstruct_cname = self.mangle(Naming.objstruct_prefix, name)
             else:
                 error(entry.pos, 
                     "Object name required for 'public' or 'extern' C class")
@@ -941,6 +955,22 @@ class ModuleScope(Scope):
             type.vtabstruct_cname = self.mangle(Naming.vtabstruct_prefix, entry.name)
             type.vtabptr_cname = self.mangle(Naming.vtabptr_prefix, entry.name)
 
+    def check_c_classes_pxd(self):
+        # Performs post-analysis checking and finishing up of extension types
+        # being implemented in this module. This is called only for the .pxd.
+        #
+        # Checks all extension types declared in this scope to
+        # make sure that:
+        #
+        #    * The extension type is fully declared
+        #
+        # Also allocates a name for the vtable if needed.
+        #
+        for entry in self.c_class_entries:
+            # Check defined
+            if not entry.type.scope:
+                error(entry.pos, "C class '%s' is declared but not defined" % entry.name)
+                
     def check_c_classes(self):
         # Performs post-analysis checking and finishing up of extension types
         # being implemented in this module. This is called only for the main
@@ -1204,7 +1234,8 @@ class CClassScope(ClassScope):
         # If the type or any of its base types have Python-valued
         # C attributes, then it needs to participate in GC.
         return self.has_pyobject_attrs or \
-            (self.parent_type.base_type and \
+            (self.parent_type.base_type and
+                self.parent_type.base_type.scope is not None and
                 self.parent_type.base_type.scope.needs_gc())
 
     def declare_var(self, name, type, pos, 
@@ -1214,7 +1245,7 @@ class CClassScope(ClassScope):
             if self.defined:
                 error(pos,
                     "C attributes cannot be added in implementation part of"
-                    " extension type")
+                    " extension type defined in a pxd")
             if get_special_method_signature(name):
                 error(pos, 
                     "The name '%s' is reserved for a special method."

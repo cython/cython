@@ -703,7 +703,10 @@ property NAME:
         return None
     
     def visit_CEnumDefNode(self, node):
-        return None
+        if node.visibility == 'public':
+            return node
+        else:
+            return None
 
     def visit_CStructOrUnionDefNode(self, node):
         return None
