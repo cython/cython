@@ -906,6 +906,9 @@ class CEnumDefNode(StatNode):
             for item in self.items:
                 item.analyse_declarations(env, self.entry)
 
+    def analyse_expressions(self, env):
+        pass
+
     def generate_execution_code(self, code):
         if self.visibility == 'public':
             temp = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
