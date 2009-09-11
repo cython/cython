@@ -1624,6 +1624,7 @@ class DefNode(FuncDefNode):
     is_wrapper = 0
     decorators = None
     entry = None
+    acquire_gil = 0
     
 
     def __init__(self, pos, **kwds):
@@ -1876,7 +1877,6 @@ class DefNode(FuncDefNode):
         self.analyse_default_values(env)
         if env.is_py_class_scope:
             self.synthesize_assignment_node(env)
-        self.acquire_gil = 0
     
     def synthesize_assignment_node(self, env):
         import ExprNodes
