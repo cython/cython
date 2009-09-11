@@ -811,6 +811,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "%s;" %
                     attr.type.declaration_code(attr.cname))
         code.putln(footer)
+        if type.objtypedef_cname is not None:
+            # Only for exposing public typedef name.
+            code.putln("typedef struct %s %s;" % (type.objstruct_cname, type.objtypedef_cname))
 
     def generate_global_declarations(self, env, code, definition):
         code.putln("")

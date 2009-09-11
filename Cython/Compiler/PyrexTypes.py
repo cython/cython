@@ -368,6 +368,7 @@ class PyExtensionType(PyObjectType):
     #  base_type        PyExtensionType or None
     #  module_name      string or None   Qualified name of defining module
     #  objstruct_cname  string           Name of PyObject struct
+    #  objtypedef_cname string           Name of PyObject struct typedef
     #  typeobj_cname    string or None   C code fragment referring to type object
     #  typeptr_cname    string or None   Name of pointer to external type object
     #  vtabslot_cname   string           Name of C method table member
@@ -377,6 +378,8 @@ class PyExtensionType(PyObjectType):
     
     is_extension_type = 1
     has_attributes = 1
+    
+    objtypedef_cname = None
     
     def __init__(self, name, typedef_flag, base_type):
         self.name = name
