@@ -1537,6 +1537,18 @@ class CCharPtrType(CStringType, CPtrType):
         CPtrType.__init__(self, c_char_type)
 
 
+class CUCharPtrType(CStringType, CPtrType):
+    # C 'unsigned char *' type.
+    
+    pymemberdef_typecode = "T_STRING"
+    
+    to_py_function = "__Pyx_PyBytes_FromUString"
+    from_py_function = "__Pyx_PyBytes_AsUString"
+
+    def __init__(self):
+        CPtrType.__init__(self, c_uchar_type)
+
+
 class UnspecifiedType(PyrexType):
     # Used as a placeholder until the type can be determined.
         
@@ -1624,6 +1636,7 @@ c_double_complex_type = CComplexType(c_double_type)
 c_null_ptr_type =     CNullPtrType(c_void_type)
 c_char_array_type =   CCharArrayType(None)
 c_char_ptr_type =     CCharPtrType()
+c_uchar_ptr_type =    CUCharPtrType()
 c_utf8_char_array_type = CUTF8CharArrayType(None)
 c_char_ptr_ptr_type = CPtrType(c_char_ptr_type)
 c_int_ptr_type =      CPtrType(c_int_type)
@@ -1768,6 +1781,8 @@ def c_ptr_type(base_type):
     # Construct a C pointer type.
     if base_type is c_char_type:
         return c_char_ptr_type
+    elif base_type is c_uchar_type:
+        return c_uchar_ptr_type
     elif base_type is error_type:
         return error_type
     else:
@@ -1816,6 +1831,9 @@ type_conversion_predeclarations = """
 #define __Pyx_PyBytes_FromStringAndSize   PyBytes_FromStringAndSize
 #define __Pyx_PyBytes_AsString            PyBytes_AsString
 #endif
+
+#define __Pyx_PyBytes_FromUString(s)      __Pyx_PyBytes_FromString((char*)s)
+#define __Pyx_PyBytes_AsUString(s)        ((unsigned char*) __Pyx_PyBytes_AsString(s))
 
 #define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
 static INLINE int __Pyx_PyObject_IsTrue(PyObject*);
