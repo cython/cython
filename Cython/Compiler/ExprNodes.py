@@ -767,6 +767,9 @@ class StringNode(ConstNode):
         if dst_type == PyrexTypes.c_char_ptr_type:
             self.type = PyrexTypes.c_char_ptr_type
             return self
+        elif dst_type == PyrexTypes.c_uchar_ptr_type:
+            self.type = PyrexTypes.c_char_ptr_type
+            return CastNode(self, PyrexTypes.c_uchar_ptr_type)
 
         if dst_type.is_int:
             if not self.type.is_pyobject and len(self.value) == 1:
