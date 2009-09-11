@@ -1010,6 +1010,15 @@ class ModuleScope(Scope):
         module_name = None, base_type = None, objstruct_cname = None,
         typeobj_cname = None, visibility = 'private', typedef_flag = 0, api = 0,
         buffer_defaults = None):
+        # If this is a non-extern typedef class, expose the typedef, but use
+        # the non-typedef struct internally to avoid needing forward
+        # declarations for anonymous structs. 
+        if typedef_flag and visibility != 'extern':
+            objtypedef_cname = objstruct_cname
+            objstruct_cname = None
+            typedef_flag = 0
+        else:
+            objtypedef_cname = None
         #
         #  Look for previous declaration as a type
         #
@@ -1034,6 +1043,8 @@ class ModuleScope(Scope):
             type = PyrexTypes.PyExtensionType(name, typedef_flag, base_type)
             type.pos = pos
             type.buffer_defaults = buffer_defaults
+            if objtypedef_cname is not None:
+                type.objtypedef_cname = objtypedef_cname
             if visibility == 'extern':
                 type.module_name = module_name
             else:
@@ -1045,7 +1056,7 @@ class ModuleScope(Scope):
             if objstruct_cname:
                 type.objstruct_cname = objstruct_cname
             elif not entry.in_cinclude:
-                type.objstruct_cname = self.mangle(Naming.objstruct_prefix, name)                
+                type.objstruct_cname = self.mangle(Naming.objstruct_prefix, name)
             else:
                 error(entry.pos, 
                     "Object name required for 'public' or 'extern' C class")
