@@ -87,7 +87,7 @@ cdef extern from "Python.h":
     # needs to handle exceptions or by code that needs to save and
     # restore the error indicator temporarily.
 
-    void PyErr_Restore(object type, object value, object traceback)
+    void PyErr_Restore(PyObject* type, PyObject* value, PyObject* traceback)
     # Set the error indicator from the three objects. If the error
     # indicator is already set, it is cleared first. If the objects
     # are NULL, the error indicator is cleared. Do not pass a NULL

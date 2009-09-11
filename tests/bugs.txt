@@ -3,7 +3,6 @@
 
 methodmangling_T5
 class_attribute_init_values_T18
-return_outside_function_T135
 builtin_types_none_T166
 numpy_ValueError_T172
 unsignedbehaviour_T184

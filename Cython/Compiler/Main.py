@@ -35,6 +35,12 @@ def dumptree(t):
     print t.dump()
     return t
 
+def abort_on_errors(node):
+    # Stop the pipeline if there are any errors.
+    if Errors.num_errors != 0:
+        raise InternalError, "abort"
+    return node
+
 class CompilationData(object):
     #  Bundles the information that is passed from transform to transform.
     #  (For now, this is only)
@@ -86,7 +92,7 @@ class Context(object):
         from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
         from Optimize import OptimizeBuiltinCalls, ConstantFolding, FinalOptimizePhase
         from Buffer import IntroduceBufferAuxiliaryVars
-        from ModuleNode import check_c_declarations
+        from ModuleNode import check_c_declarations, check_c_declarations_pxd
 
         # Temporary hack that can be used to ensure that all result_code's
         # are generated at code generation time.
@@ -98,7 +104,7 @@ class Context(object):
                 return node
 
         if pxd:
-            _check_c_declarations = None
+            _check_c_declarations = check_c_declarations_pxd
             _specific_post_parse = PxdPostParse(self)
         else:
             _check_c_declarations = check_c_declarations
@@ -160,6 +166,7 @@ class Context(object):
                 create_parse(self),
             ] + self.create_pipeline(pxd=False, py=py) + [
                 inject_pxd_code,
+                abort_on_errors,
                 generate_pyx_code,
             ])
 
