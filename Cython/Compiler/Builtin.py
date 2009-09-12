@@ -163,6 +163,11 @@ proto = """
 static PyObject* __Pyx_PyRun(PyObject*, PyObject*, PyObject*);
 """,
 impl = '''
+#if PY_VERSION_HEX < 0x02040000
+#ifndef Py_EVAL_H
+#include "eval.h"
+#endif
+#endif
 static PyObject* __Pyx_PyRun(PyObject* o, PyObject* globals, PyObject* locals) {
     PyObject* result;
     PyObject* s = 0;
