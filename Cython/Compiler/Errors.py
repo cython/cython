@@ -21,28 +21,29 @@ def context(position):
         F = list(source.get_lines())
     except UnicodeDecodeError:
         # file has an encoding problem
-        s = "[unprintable code]\n"
+        s = u"[unprintable code]\n"
     else:
-        s =''.join(F[max(0, position[1]-6):position[1]])
-        s = '...\n' + s + ' '*(position[2]-1) + '^\n'
-    s = '-'*60 + '\n' + s + '-'*60 + '\n'
+        s = u''.join(F[max(0, position[1]-6):position[1]])
+        s = u'...\n%s%s^\n' % (s, u' '*(position[2]-1))
+    s = u'%s\n%s%s\n' % (u'-'*60, s, u'-'*60)
     return s
-    
+
 class CompileError(PyrexError):
     
-    def __init__(self, position = None, message = ""):
+    def __init__(self, position = None, message = u""):
         self.position = position
         self.message_only = message
         self.reported = False
     # Deprecated and withdrawn in 2.6:
     #   self.message = message
         if position:
-            pos_str = "%s:%d:%d: " % (position[0].get_description(), position[1], position[2])
+            pos_str = u"%s:%d:%d: " % (position[0].get_description(), position[1], position[2])
             cont = context(position)
         else:
-            pos_str = ""
-            cont = ''
-        Exception.__init__(self, '\nError converting Pyrex file to C:\n' + cont + '\n' + pos_str + message )
+            pos_str = u""
+            cont = u''
+        Exception.__init__(self, u'\nError converting Pyrex file to C:\n%s\n%s%s' % (
+            cont, pos_str, message))
 
 class CompileWarning(PyrexWarning):
     
@@ -51,9 +52,9 @@ class CompileWarning(PyrexWarning):
     # Deprecated and withdrawn in 2.6:
     #   self.message = message
         if position:
-            pos_str = "%s:%d:%d: " % (position[0].get_description(), position[1], position[2])
+            pos_str = u"%s:%d:%d: " % (position[0].get_description(), position[1], position[2])
         else:
-            pos_str = ""
+            pos_str = u""
         Exception.__init__(self, pos_str + message)
 
 
@@ -61,7 +62,7 @@ class InternalError(Exception):
     # If this is ever raised, there is a bug in the compiler.
     
     def __init__(self, message):
-        Exception.__init__(self, "Internal compiler error: %s"
+        Exception.__init__(self, u"Internal compiler error: %s"
             % message)
 
 
@@ -73,7 +74,7 @@ class CompilerCrash(CompileError):
         else:
             message = u'\n'
         if context:
-            message = "Compiler crash in " + context + message
+            message = u"Compiler crash in %s%s" % (context, message)
         if stacktrace:
             import traceback
             message += (
@@ -118,11 +119,15 @@ def report_error(err):
         # See Main.py for why dual reporting occurs. Quick fix for now.
         if err.reported: return
         err.reported = True
-        line = "%s\n" % err
+        line = u"%s\n" % err
         if listing_file:
-            listing_file.write(line)
+            try: listing_file.write(line)
+            except UnicodeEncodeError:
+                listing_file.write(line.encode('ASCII', 'replace'))
         if echo_file:
-            echo_file.write(line)
+            try: echo_file.write(line)
+            except UnicodeEncodeError:
+                echo_file.write(line.encode('ASCII', 'replace'))
         num_errors = num_errors + 1
 
 def error(position, message):
