@@ -748,12 +748,13 @@ class PyConstNode(AtomicNewTempExprNode):
     #  Abstract base class for constant Python values.
     
     is_literal = 1
+    type = py_object_type
     
     def is_simple(self):
         return 1
     
     def analyse_types(self, env):
-        self.type = py_object_type
+        pass
     
     def calculate_result_code(self):
         return self.value
