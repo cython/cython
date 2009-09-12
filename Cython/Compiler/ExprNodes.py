@@ -579,12 +579,13 @@ class PyConstNode(AtomicExprNode):
     #  Abstract base class for constant Python values.
     
     is_literal = 1
+    type = py_object_type
     
     def is_simple(self):
         return 1
     
     def analyse_types(self, env):
-        self.type = py_object_type
+        pass
     
     def calculate_result_code(self):
         return self.value
@@ -791,7 +792,11 @@ class StringNode(ConstNode):
     def as_py_string_node(self, env):
         # Return a new StringNode with the same value as this node
         # but whose type is a Python type instead of a C type.
-        return StringNode(self.pos, value = self.value, type = py_object_type)
+        if self.value.encoding is None:
+            py_type = Builtin.unicode_type
+        else:
+            py_type = Builtin.bytes_type
+        return StringNode(self.pos, value = self.value, type = py_type)
 
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
