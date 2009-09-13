@@ -57,10 +57,36 @@ class ControlFlow(object):
             try:
                 return self.tip[item]
             except KeyError:
-                self.tip[item] = pos_state = self._get_pos_state(item, pos)
-                return pos_state
-        else:
-            return self._get_pos_state(item, pos)
+                pass
+        pos_state = self._get_pos_state(item, pos)
+        if pos > self.end_pos:
+            self.tip[item] = pos_state
+        return pos_state
+
+    def _get_pos_state(self, item, pos):
+        current = self
+        while current is not None and pos <= current.start_pos:
+            current = current.incoming
+        if current is None:
+            return (None, None)
+        state = current._get_pos_state_local(item, pos)
+        while state is None and current.incoming is not None:
+            current = current.incoming
+            state = current._get_pos_state_local(item, pos)
+        if state is None:
+            return (None, None)
+        return state
+
+    def set_state(self, pos, item, state):
+        if item in self.tip:
+            del self.tip[item]
+        current = self
+        while pos < current.start_pos and current.incoming is not None:
+            current = current.incoming
+            if item in current.tip:
+                del current.tip[item]
+        current._set_state_local(pos, item, state)
+        
         
 class LinearControlFlow(ControlFlow):
 
@@ -68,35 +94,22 @@ class LinearControlFlow(ControlFlow):
         ControlFlow.__init__(self, start_pos, incoming, parent)
         self.events = {}
             
-    def set_state(self, pos, item, state):
-        if item in self.tip:
-            del self.tip[item]
-        if pos < self.start_pos:
-            if self.incoming is not None:
-                self.incoming.set_state(pos, item, state)
+    def _set_state_local(self, pos, item, state):
+        if item in self.events:
+            event_list = self.events[item]
         else:
-            if item in self.events:
-                event_list = self.events[item]
-            else:
-                event_list = []
-                self.events[item] = event_list
-            bisect.insort(event_list, (pos, state))
-            
-        
-    def _get_pos_state(self, item, pos):
-        if pos > self.start_pos:
-            if item in self.events:
-                event_list = self.events[item]
-                for event in event_list[::-1]:
-                    if event[0] < pos:
-                        return event
-                        
-        if self.incoming is not None:
-            return self.incoming.get_pos_state(item, pos)
-        
-        else:
-            return None, None
-            
+            event_list = []
+            self.events[item] = event_list
+        bisect.insort(event_list, (pos, state))
+
+    def _get_pos_state_local(self, item, pos):
+        if item in self.events:
+            event_list = self.events[item]
+            for event in event_list[::-1]:
+                if event[0] < pos:
+                    return event
+        return None
+
     def to_string(self, indent='', limit=None):
     
         if len(self.events) == 0:
@@ -122,37 +135,35 @@ class BranchingControlFlow(ControlFlow):
         self.branches = [LinearControlFlow(start_pos, incoming, parent=self)]
         self.branch_starts = [start_pos]
         
-    def set_state(self, pos, item, state):
+    def _set_state_local(self, pos, item, state):
+        for branch_pos, branch in zip(self.branch_starts[::-1], self.branches[::-1]):
+            if pos >= branch_pos:
+                branch._set_state_local(pos, item, state)
+                return
     
-        if item in self.tip:
-            del self.tip[item]
-        
-        if pos < self.start_pos:
-            self.incoming.set_state(pos, item, state)
-        else:
+    def _get_pos_state_local(self, item, pos, stop_at=None):
+        if pos < self.end_pos:
             for branch_pos, branch in zip(self.branch_starts[::-1], self.branches[::-1]):
                 if pos >= branch_pos:
-                    branch.set_state(pos, item, state)
-                    return
-    
-    def _get_pos_state(self, item, pos):
-        if pos <= self.start_pos:
-            return self.incoming.get_pos_state(item, pos)
-        elif pos < self.end_pos:
-            for branch_pos, branch in zip(self.branch_starts[::-1], self.branches[::-1]):
-                if pos >= branch_pos:
-                    return branch.get_pos_state(item, pos)
+                    return branch._get_pos_state_local(item, pos)
         else:
-            last_pos, last_state = self.branches[0].get_pos_state(item, pos)
+            state = self.branches[0]._get_pos_state_local(item, pos)
+            if state is None:
+                return None, None
+            last_pos, last_state = state
             if last_state is None:
                 return None, None
             for branch in self.branches[1:]:
-                other_pos, other_state = branch.get_pos_state(item, pos)
-                if other_state is None or other_state != last_state:
+                state = branch._get_pos_state_local(item, pos)
+                if state is None:
+                    return None, None
+                other_pos, other_state = state
+                if other_state != last_state:
                     return None, None
                 elif last_pos is not other_pos:
                     last_pos = max(last_pos, other_pos)
             return last_pos, last_state
+        return None
 
     def new_branch(self, pos):
         self.branches.append(LinearControlFlow(pos, self.incoming, parent=self))
