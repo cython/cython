@@ -485,8 +485,9 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             options.reverse() # Decorators coming first take precedence
             for option in options:
                 name, value = option
-                if name in optdict:
-                    # assuming it's a dict ...
+                if name in optdict and isinstance(optdict[name], dict):
+                    # only keywords can be merged, everything else
+                    # overrides completely
                     optdict[name].update(value)
                 else:
                     optdict[name] = value
