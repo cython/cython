@@ -163,16 +163,21 @@ bad:
 
 pyexec_utility_code = UtilityCode(
 proto = """
+#if PY_VERSION_HEX < 0x02040000
+#ifndef Py_EVAL_H
+#include "eval.h"
+#endif
+#endif
 static PyObject* __Pyx_PyRun(PyObject*, PyObject*, PyObject*);
 """,
-impl = '''
+impl = """
 static PyObject* __Pyx_PyRun(PyObject* o, PyObject* globals, PyObject* locals) {
     PyObject* result;
     PyObject* s = 0;
     char *code = 0;
 
     if (!globals || globals == Py_None) {
-        globals = PyModule_GetDict(%s);''' % Naming.module_cname + '''
+        globals = PyModule_GetDict(%s);""" % Naming.module_cname + """
         if (!globals)
             goto bad;
     } else if (!PyDict_Check(globals)) {
@@ -231,7 +236,7 @@ bad:
     Py_XDECREF(s);
     return 0;
 }
-''')
+""")
 
 intern_utility_code = UtilityCode(
 proto = """
