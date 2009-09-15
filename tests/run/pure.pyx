@@ -67,7 +67,8 @@ def test_address(x):
     y = cython.address(x)
     return y[0]
 
-@cython.locals(x=cython.int, y=cython.bint)
+@cython.locals(x=cython.int)
+@cython.locals(y=cython.bint)
 def test_locals(x):
     y = x
     return y

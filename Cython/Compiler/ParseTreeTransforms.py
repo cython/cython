@@ -485,7 +485,11 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             options.reverse() # Decorators coming first take precedence
             for option in options:
                 name, value = option
-                optdict[name] = value
+                if name in optdict:
+                    # assuming it's a dict ...
+                    optdict[name].update(value)
+                else:
+                    optdict[name] = value
             body = StatListNode(node.pos, stats=[node])
             return self.visit_with_options(body, optdict)
         else:
