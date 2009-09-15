@@ -1008,7 +1008,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             # constant node to prevent any loss of precision.
             return node
         if not isinstance(node.operand1, ExprNodes.ConstNode) or \
-               not isinstance(node.operand1, ExprNodes.ConstNode):
+               not isinstance(node.operand2, ExprNodes.ConstNode):
             # We calculate other constants to make them available to
             # the compiler, but we only aggregate constant nodes
             # recursively, so non-const nodes are straight out.
