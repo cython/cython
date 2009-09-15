@@ -667,8 +667,9 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
             return node
         if not isinstance(list_arg, (ExprNodes.ComprehensionNode,
                                      ExprNodes.ListNode)):
-            # everything else may be None => take the safe path
-            return node
+            pos_args.args[0] = ExprNodes.NoneCheckNode(
+                list_arg, "PyExc_TypeError",
+                "'NoneType' object is not iterable")
 
         return ExprNodes.PythonCapiCallNode(
             node.pos, "PyList_AsTuple", self.PyList_AsTuple_func_type,
