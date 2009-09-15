@@ -788,7 +788,7 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
 
     PyUnicode_AsEncodedString_func_type = PyrexTypes.CFuncType(
         Builtin.bytes_type, [
-            PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("obj", Builtin.unicode_type, None),
             PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_char_ptr_type, None),
             PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
             ],
@@ -796,7 +796,7 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
 
     PyUnicode_AsXyzString_func_type = PyrexTypes.CFuncType(
         Builtin.bytes_type, [
-            PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("obj", Builtin.unicode_type, None),
             ],
         exception_value = "NULL")
 
@@ -880,11 +880,11 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
                         self.PyUnicode_AsXyzString_func_type,
                         'encode', is_unbound_method, [string_node])
 
-        if len(args) == 2:
             return self._substitute_method_call(
                 node, "PyUnicode_AsEncodedString",
                 self.PyUnicode_AsEncodedString_func_type,
-                'encode', is_unbound_method, [string_node, encoding_node])
+                'encode', is_unbound_method,
+                [string_node, encoding_node, null_node])
 
         return self._substitute_method_call(
             node, "PyUnicode_AsEncodedString",
