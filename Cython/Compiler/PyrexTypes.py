@@ -1691,6 +1691,9 @@ c_anon_enum_type =    CAnonEnumType(-1, 1)
 c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer")
 c_py_buffer_ptr_type = CPtrType(c_py_buffer_type)
 
+c_py_type_object_type = CStructOrUnionType("PyTypeObject", "struct", None, 1, "PyTypeObject")
+c_py_type_object_ptr_type = CPtrType(c_py_type_object_type)
+
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()
 
