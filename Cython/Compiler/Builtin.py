@@ -21,7 +21,7 @@ builtin_function_table = [
     #('eval',      "",     "",      ""),
     #('execfile',  "",     "",      ""),
     #('filter',    "",     "",      ""),
-    #('getattr',    "OO",   "O",     "PyObject_GetAttr"),   #  optimised later on
+    #('getattr',    "OO",   "O",     "PyObject_GetAttr"),   # optimised later on
     ('getattr3',   "OOO",  "O",     "__Pyx_GetAttr3",       "getattr"),
     ('hasattr',    "OO",   "b",     "PyObject_HasAttr"),
     ('hash',       "O",    "l",     "PyObject_Hash"),
@@ -29,7 +29,7 @@ builtin_function_table = [
     #('id',        "",     "",      ""),
     #('input',     "",     "",      ""),
     ('intern',     "s",    "O",     "__Pyx_InternFromString"),
-    #('isinstance', "OO",   "b",     "PyObject_IsInstance"),    # optimised later on
+    ('isinstance', "OO",   "b",     "PyObject_IsInstance"),
     ('issubclass', "OO",   "b",     "PyObject_IsSubclass"),
     ('iter',       "O",    "O",     "PyObject_GetIter"),
     ('len',        "O",    "Z",     "PyObject_Length"),

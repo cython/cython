@@ -712,41 +712,6 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
                   "expected 2 or 3, found %d" % len(args))
         return node
 
-    PyObject_TypeCheck_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_bint_type, [
-            PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("type", PyrexTypes.c_py_type_object_ptr_type, None),
-            ])
-
-    PyObject_IsInstance_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_bint_type, [
-            PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("type", PyrexTypes.py_object_type, None),
-            ])
-
-    def _handle_simple_function_isinstance(self, node, pos_args):
-        """Replace generic calls to isinstance(x, type) by a more
-        efficient type check.
-        """
-        args = pos_args.args
-        if len(args) != 2:
-            error(node.pos, "isinstance(x, type) called with wrong number of args, found %d" %
-                  len(args))
-            return node
-
-        type_arg = args[1]
-        if type_arg.type is Builtin.type_type:
-            function_name = "PyObject_TypeCheck"
-            function_type = self.PyObject_TypeCheck_func_type
-            args[1] = ExprNodes.CastNode(type_arg, PyrexTypes.c_py_type_object_ptr_type)
-        else:
-            function_name = "PyObject_IsInstance"
-            function_type = self.PyObject_IsInstance_func_type
-
-        return ExprNodes.PythonCapiCallNode(
-            node.pos, function_name, function_type,
-            args = args, is_temp = node.is_temp)
-
     Pyx_Type_func_type = PyrexTypes.CFuncType(
         Builtin.type_type, [
             PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None)
@@ -1093,8 +1058,8 @@ class FinalOptimizePhase(Visitor.CythonTransform):
     just before the C code generation phase. 
     
     The optimizations currently implemented in this class are: 
-        - Eliminate None assignment and refcounting for first assignment.
-        - Eliminate dead coercion nodes.
+        - Eliminate None assignment and refcounting for first assignment. 
+        - isinstance -> typecheck for cdef types
     """
     def visit_SingleAssignmentNode(self, node):
         """Avoid redundant initialisation of local variables before their
@@ -1110,23 +1075,18 @@ class FinalOptimizePhase(Visitor.CythonTransform):
                 lhs.entry.init = 0
         return node
 
-    def visit_NoneCheckNode(self, node):
-        """Remove NoneCheckNode nodes wrapping nodes that cannot
-        possibly be None.
-
-        FIXME: the list below might be better maintained as a node
-        class attribute...
+    def visit_SimpleCallNode(self, node):
+        """Replace generic calls to isinstance(x, type) by a more efficient
+        type check.
         """
-        target = node.arg
-        if isinstance(target, ExprNodes.NoneNode):
-            return node
-        if not target.type.is_pyobject:
-            return target
-        if isinstance(target, (ExprNodes.ConstNode,
-                               ExprNodes.NumBinopNode)):
-            return target
-        if isinstance(target, (ExprNodes.SequenceNode,
-                               ExprNodes.ComprehensionNode,
-                               ExprNodes.SetNode, ExprNodes.DictNode)):
-            return target
+        self.visitchildren(node)
+        if node.function.type.is_cfunction and isinstance(node.function, ExprNodes.NameNode):
+            if node.function.name == 'isinstance':
+                type_arg = node.args[1]
+                if type_arg.type.is_builtin_type and type_arg.type.name == 'type':
+                    from CythonScope import utility_scope
+                    node.function.entry = utility_scope.lookup('PyObject_TypeCheck')
+                    node.function.type = node.function.entry.type
+                    PyTypeObjectPtr = PyrexTypes.CPtrType(utility_scope.lookup('PyTypeObject').type)
+                    node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
         return node
