@@ -49,7 +49,7 @@ def parse_func(next, token):
     token = next()
     if token[0] != '(':
         raise ValueError("Expected '(' after function name '%s'" % name)
-    predicate = handle_predicate(next, token, end_marker=')')
+    predicate = handle_predicate(next, token)
     return name, predicate
 
 def handle_func_not(next, token):
@@ -60,7 +60,7 @@ def handle_func_not(next, token):
 
     def select(result):
         for node in result:
-            if _get_first_or_none(predicate(node)) is not None:
+            if _get_first_or_none(predicate([node])) is None:
                 yield node
     return select
 
@@ -176,10 +176,10 @@ def parse_path_value(next):
             raise ValueError("Invalid attribute predicate: '%s'" % value)
     return value
 
-def handle_predicate(next, token, end_marker=']'):
+def handle_predicate(next, token):
     token = next()
     selector = []
-    while token[0] != end_marker:
+    while token[0] != ']':
         selector.append( operations[token[0]](next, token) )
         try:
             token = next()

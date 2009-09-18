@@ -38,6 +38,11 @@ class TestTreePath(TransformTest):
         t = self._build_tree()
         self.assertEquals(2, len(find_all(t, "//NameNode[@name]")))
 
+    def test_node_path_attribute_exists_not(self):
+        t = self._build_tree()
+        self.assertEquals(0, len(find_all(t, "//NameNode[not(@name)]")))
+        self.assertEquals(2, len(find_all(t, "//NameNode[not(@honking)]")))
+
     def test_node_path_attribute_string_predicate(self):
         t = self._build_tree()
         self.assertEquals(1, len(find_all(t, "//NameNode[@name = 'decorator']")))
