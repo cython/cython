@@ -8,6 +8,7 @@ unsignedbehaviour_T184
 funcexc_iter_T228
 bad_c_struct_T252
 missing_baseclass_in_predecl_T262
+compile_time_unraisable_T370
 
 # Not yet enabled
 profile_test
