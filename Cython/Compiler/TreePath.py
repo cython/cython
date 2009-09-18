@@ -136,10 +136,14 @@ def handle_attribute(next, token):
     if token[0]:
         raise ValueError("Expected attribute name")
     name = token[1]
-    token = next()
     value = None
-    if token[0] == '=':
-        value = parse_path_value(next)
+    try:
+        token = next()
+    except StopIteration:
+        pass
+    else:
+        if token[0] == '=':
+            value = parse_path_value(next)
     if value is None:
         def select(result):
             for node in result:

@@ -24,6 +24,11 @@ class TestTreePath(TransformTest):
         self.assertEquals(1, len(find_all(t, "//ReturnStatNode")))
         self.assertEquals(1, len(find_all(t, "//DefNode//ReturnStatNode")))
 
+    def test_node_path_attribute(self):
+        t = self._build_tree()
+        self.assertEquals(2, len(find_all(t, "//NameNode/@name")))
+        self.assertEquals(['fun', 'decorator'], find_all(t, "//NameNode/@name"))
+
     def test_node_path_child(self):
         t = self._build_tree()
         self.assertEquals(1, len(find_all(t, "//DefNode/ReturnStatNode/NameNode")))
