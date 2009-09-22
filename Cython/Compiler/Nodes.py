@@ -5818,12 +5818,12 @@ trace_utility_code = UtilityCode(proto="""
 static PyCodeObject *%(FRAME_CODE)s = NULL;                                        \\
 CYTHON_FRAME_MODIFIER PyFrameObject *%(FRAME)s = NULL;                             \\
 int __Pyx_use_tracing = 0;                                                         \\
-if (PyThreadState_GET()->use_tracing && PyThreadState_GET()->c_profilefunc) {      \\
+if (unlikely(PyThreadState_GET()->use_tracing && PyThreadState_GET()->c_profilefunc)) {      \\
     __Pyx_use_tracing = __Pyx_TraceSetupAndCall(&%(FRAME_CODE)s, &%(FRAME)s, funcname, srcfile, firstlineno);  \\
 }
 
 #define __Pyx_TraceException()                                                           \\
-if (__Pyx_use_tracing && PyThreadState_GET()->use_tracing && PyThreadState_GET()->c_profilefunc) {  \\
+if (unlikely(__Pyx_use_tracing( && PyThreadState_GET()->use_tracing && PyThreadState_GET()->c_profilefunc) {  \\
     PyObject *exc_info = __Pyx_GetExceptionTuple();                                      \\
     if (exc_info) {                                                                      \\
         PyThreadState_GET()->c_profilefunc(                                              \\
@@ -5833,7 +5833,7 @@ if (__Pyx_use_tracing && PyThreadState_GET()->use_tracing && PyThreadState_GET()
 }
 
 #define __Pyx_TraceReturn(result)                                                  \\
-if (__Pyx_use_tracing && PyThreadState_GET()->use_tracing && PyThreadState_GET()->c_profilefunc) {  \\
+if (unlikely(__Pyx_use_tracing) && PyThreadState_GET()->use_tracing && PyThreadState_GET()->c_profilefunc) {  \\
     PyThreadState_GET()->c_profilefunc(                                            \\
         PyThreadState_GET()->c_profileobj, %(FRAME)s, PyTrace_RETURN, (PyObject*)result);     \\
     CYTHON_FRAME_DEL;                                                               \\
