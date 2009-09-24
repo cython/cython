@@ -199,6 +199,10 @@ try:
     1,1
     1,1
     8,16
+
+    >>> test_point_record()
+    array([(0.0, 0.0), (1.0, -1.0), (2.0, -2.0)], 
+          dtype=[('x', '!f8'), ('y', '!f8')])
     
 """
 except:
@@ -392,4 +396,15 @@ def test_complextypes():
     print "%d,%d" % (sizeof(x64), sizeof(x128))
 
 
-    
+cdef struct Point:
+    np.float64_t x, y
+
+def test_point_record():
+    cdef np.ndarray[Point] test
+    Point_dtype = np.dtype([('x', np.float64), ('y', np.float64)])
+    test = np.zeros(3, Point_dtype)
+    cdef int i
+    for i in range(3):
+        test[i].x = i
+        test[i].y = -i
+    print repr(test).replace('<', '!').replace('>', '!')
