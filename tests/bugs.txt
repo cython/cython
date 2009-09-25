@@ -11,6 +11,3 @@ ext_instance_type_T232
 large_consts_T237
 bad_c_struct_T252
 missing_baseclass_in_predecl_T262
-
-# Not yet enabled
-# profile_test
