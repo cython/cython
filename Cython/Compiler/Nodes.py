@@ -1062,14 +1062,11 @@ class FuncDefNode(StatNode, BlockNode):
         is_getbuffer_slot = (self.entry.name == "__getbuffer__" and
                              self.entry.scope.is_c_class_scope)
         
-        if code.globalstate.directives['profile'] is None:
-            profile = 'inline' not in self.modifiers and not lenv.nogil
-        else:
-            profile = code.globalstate.directives['profile']
-            if profile and lenv.nogil:
-                error(self.pos, "Cannot profile nogil function.")
+        profile = code.globalstate.directives['profile']
         if profile:
-            code.globalstate.use_utility_code(trace_utility_code)
+            if lenv.nogil:
+                error(self.pos, "Cannot profile nogil function.")
+            code.globalstate.use_utility_code(profile_utility_code)
 
         # Generate C code for header and body of function
         code.enter_cfunc_scope()
@@ -5791,22 +5788,22 @@ proto="""
 # Note that cPython ignores PyTrace_EXCEPTION, 
 # but maybe some other profilers don't. 
 
-trace_utility_code = UtilityCode(proto="""
-#ifndef CYTHON_TRACING
-#define CYTHON_TRACING 1
+profile_utility_code = UtilityCode(proto="""
+#ifndef CYTHON_PROFILE
+#define CYTHON_PROFILE 1
 #endif
 
-#ifndef CYTHON_TRACING_REUSE_FRAME
-#define CYTHON_TRACING_REUSE_FRAME 0
+#ifndef CYTHON_PROFILE_REUSE_FRAME
+#define CYTHON_PROFILE_REUSE_FRAME 0
 #endif
 
-#if CYTHON_TRACING
+#if CYTHON_PROFILE
 
 #include "compile.h"
 #include "frameobject.h"
 #include "traceback.h"
 
-#if CYTHON_TRACING_REUSE_FRAME
+#if CYTHON_PROFILE_REUSE_FRAME
 #define CYTHON_FRAME_MODIFIER static
 #define CYTHON_FRAME_DEL
 #else
@@ -5846,7 +5843,7 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code, PyFrameObject** frame, c
 #define __Pyx_TraceCall(funcname, srcfile, firstlineno) 
 #define __Pyx_TraceException() 
 #define __Pyx_TraceReturn(result) 
-#endif /* CYTHON_TRACING */
+#endif /* CYTHON_PROFILE */
 """ 
 % {
     "FRAME": Naming.frame_cname,
@@ -5854,14 +5851,14 @@ static int __Pyx_TraceSetupAndCall(PyCodeObject** code, PyFrameObject** frame, c
 },
 impl = """
 
-#if CYTHON_TRACING
+#if CYTHON_PROFILE
 
 static int __Pyx_TraceSetupAndCall(PyCodeObject** code,
                                    PyFrameObject** frame,
                                    const char *funcname,
                                    const char *srcfile,
                                    int firstlineno) {
-    if (*frame == NULL || !CYTHON_TRACING_REUSE_FRAME) {
+    if (*frame == NULL || !CYTHON_PROFILE_REUSE_FRAME) {
         if (*code == NULL) {
             *code = __Pyx_createFrameCodeObject(funcname, srcfile, firstlineno);
             if (*code == NULL) return 0;
@@ -5921,7 +5918,7 @@ bad:
     return py_code;
 }
 
-#endif /* CYTHON_TRACING */
+#endif /* CYTHON_PROFILE */
 """ % {
     'EMPTY_TUPLE' : Naming.empty_tuple,
     'EMPTY_BYTES' : Naming.empty_bytes,
