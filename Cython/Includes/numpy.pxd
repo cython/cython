@@ -124,7 +124,7 @@ cdef extern from "numpy/arrayobject.h":
         cdef int itemsize "elsize"
         cdef char byteorder
         cdef object fields
-        cdef object names
+        cdef tuple names
 
     ctypedef extern class numpy.flatiter [object PyArrayIterObject]:
         # Use through macros
@@ -696,10 +696,11 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset
     cdef tuple i
     cdef int endian_detector = 1
     cdef bint little_endian = ((<char*>&endian_detector)[0] != 0)
+    cdef tuple fields
     
-    for i in descr.fields.itervalues():
-        child = i[0]
-        new_offset = i[1]
+    for childname in descr.names:
+        fields = descr.fields[childname]
+        child, new_offset = fields
 
         if (end - f) - (new_offset - offset[0]) < 15:
             raise RuntimeError("Format string allocated too short, see comment in numpy.pxd")
