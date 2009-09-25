@@ -61,7 +61,7 @@ class Context(object):
 
 cdef void report_unraisable(object e):
     try:
-        print "refnanny raised an exception: %s" % e
+        print u"refnanny raised an exception: %s" % e
     except:
         pass # We absolutely cannot exit with an exception
 
