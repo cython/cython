@@ -67,11 +67,11 @@ option_defaults = {
     'wraparound' : True,
     'c99_complex' : False, # Don't use macro wrappers for complex arith, not sure what to name this...
     'callspec' : "",
-    'profile': None,
+    'profile': False,
 }
 
 # Override types possibilities above, if needed
-option_types = { 'profile': bool }
+option_types = {}
 
 for key, val in option_defaults.items():
     if key not in option_types:

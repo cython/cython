@@ -1,3 +1,5 @@
+# cython: profile = True
+
 __doc__ = u"""
     >>> import os, tempfile, cProfile as profile, pstats
     >>> statsfile = tempfile.mkstemp()[1]
@@ -9,9 +11,7 @@ __doc__ = u"""
     >>> short_stats['f_cdef']
     100
     >>> short_stats['f_inline']
-    Traceback (most recent call last):
-    ...
-    KeyError: 'f_inline'
+    100
     >>> short_stats['f_inline_prof']
     100
     >>> short_stats['f_noprof']
