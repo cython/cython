@@ -150,6 +150,20 @@ def warning(position, message, level=0):
         echo_file.write(line)
     return warn
 
+_warn_once_seen = {}
+def warn_once(position, message, level=0):
+    if level < LEVEL or message in _warn_once_seen:
+        return
+    warn = CompileWarning(position, message)
+    line = "warning: %s\n" % warn
+    if listing_file:
+        listing_file.write(line)
+    if echo_file:
+        echo_file.write(line)
+    _warn_once_seen[message] = True
+    return warn
+
+
 # These functions can be used to momentarily suppress errors. 
 
 error_stack = []
