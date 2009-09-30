@@ -17,6 +17,7 @@
 DEF _buffer_format_string_len = 255
 
 cimport python_buffer as pybuf
+from python_object cimport PyObject
 cimport stdlib
 cimport stdio
 
@@ -134,6 +135,11 @@ cdef extern from "numpy/arrayobject.h":
         # Use through macros
         pass
 
+    ctypedef struct PyArrayObject:
+        # For use in situations where ndarray can't replace PyArrayObject*,
+        # like PyArrayObject**.
+        pass
+    
     ctypedef class numpy.ndarray [object PyArrayObject]:
         cdef __cythonbufferdefaults__ = {"mode": "strided"}
         
@@ -167,11 +173,11 @@ cdef extern from "numpy/arrayobject.h":
 
             if ((flags & pybuf.PyBUF_C_CONTIGUOUS == pybuf.PyBUF_C_CONTIGUOUS)
                 and not PyArray_CHKFLAGS(self, NPY_C_CONTIGUOUS)):
-                raise ValueError("ndarray is not C contiguous")
+                raise ValueError(u"ndarray is not C contiguous")
                 
             if ((flags & pybuf.PyBUF_F_CONTIGUOUS == pybuf.PyBUF_F_CONTIGUOUS)
                 and not PyArray_CHKFLAGS(self, NPY_F_CONTIGUOUS)):
-                raise ValueError("ndarray is not Fortran contiguous")
+                raise ValueError(u"ndarray is not Fortran contiguous")
 
             info.buf = PyArray_DATA(self)
             info.ndim = ndim
@@ -209,7 +215,7 @@ cdef extern from "numpy/arrayobject.h":
                 t = descr.type_num
                 if ((descr.byteorder == '>' and little_endian) or
                     (descr.byteorder == '<' and not little_endian)):
-                    raise ValueError("Non-native byte order not supported")
+                    raise ValueError(u"Non-native byte order not supported")
                 if   t == NPY_BYTE:        f = "b"
                 elif t == NPY_UBYTE:       f = "B"
                 elif t == NPY_SHORT:       f = "h"
@@ -228,7 +234,7 @@ cdef extern from "numpy/arrayobject.h":
                 elif t == NPY_CLONGDOUBLE: f = "Zg"
                 elif t == NPY_OBJECT:      f = "O"
                 else:
-                    raise ValueError("unknown dtype code in numpy.pxd (%d)" % t)
+                    raise ValueError(u"unknown dtype code in numpy.pxd (%d)" % t)
                 info.format = f
                 return
             else:
@@ -463,6 +469,14 @@ cdef extern from "numpy/arrayobject.h":
     object PyArray_Take(ndarray ap, object items, int axis)
     object PyArray_Put(ndarray ap, object items, object values)
 
+    void PyArray_MultiIter_RESET(broadcast multi)
+    void PyArray_MultiIter_NEXT(broadcast multi)
+    void PyArray_MultiIter_GOTO(broadcast multi, npy_intp dest)
+    void PyArray_MultiIter_GOTO1D(broadcast multi, npy_intp ind)
+    void* PyArray_MultiIter_DATA(broadcast multi, npy_intp i)
+    void PyArray_MultiIter_NEXTi(broadcast multi, npy_intp i)
+    bint PyArray_MultiIter_NOTDONE(broadcast multi)
+
     # Functions from __multiarray_api.h
 
     # Functions taking dtype and returning object/ndarray are disabled
@@ -528,6 +542,7 @@ cdef extern from "numpy/arrayobject.h":
     double PyArray_GetPriority (object, double)
     object PyArray_IterNew (object)
     object PyArray_MultiIterNew (int, ...)
+
     int PyArray_PyIntAsInt (object)
     npy_intp PyArray_PyIntAsIntp (object)
     int PyArray_Broadcast (broadcast)
@@ -638,8 +653,7 @@ cdef extern from "numpy/arrayobject.h":
     npy_intp PyArray_OverflowMultiplyList (npy_intp *, int)
     int PyArray_CompareString (char *, char *, size_t)
     
-    
-        
+
 # Typedefs that matches the runtime dtype objects in
 # the numpy module.
 
@@ -687,6 +701,21 @@ ctypedef npy_clongdouble clongdouble_t
 
 ctypedef npy_cdouble     complex_t
 
+cdef inline object PyArray_MultiIterNew1(a):
+    return PyArray_MultiIterNew(1, <void*>a)
+
+cdef inline object PyArray_MultiIterNew2(a, b):
+    return PyArray_MultiIterNew(2, <void*>a, <void*>b)
+
+cdef inline object PyArray_MultiIterNew3(a, b, c):
+    return PyArray_MultiIterNew(3, <void*>a, <void*>b, <void*> c)
+
+cdef inline object PyArray_MultiIterNew4(a, b, c, d):
+    return PyArray_MultiIterNew(4, <void*>a, <void*>b, <void*>c, <void*> d)
+
+cdef inline object PyArray_MultiIterNew5(a, b, c, d, e):
+    return PyArray_MultiIterNew(5, <void*>a, <void*>b, <void*>c, <void*> d, <void*> e)
+
 cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset) except NULL:
     # Recursive utility function used in __getbuffer__ to get format
     # string. The new location in the format string is returned.
@@ -703,11 +732,11 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset
         child, new_offset = fields
 
         if (end - f) - (new_offset - offset[0]) < 15:
-            raise RuntimeError("Format string allocated too short, see comment in numpy.pxd")
+            raise RuntimeError(u"Format string allocated too short, see comment in numpy.pxd")
 
         if ((child.byteorder == '>' and little_endian) or
             (child.byteorder == '<' and not little_endian)):
-            raise ValueError("Non-native byte order not supported")
+            raise ValueError(u"Non-native byte order not supported")
             # One could encode it in the format string and have Cython
             # complain instead, BUT: < and > in format strings also imply
             # standardized sizes for datatypes, and we rely on native in
@@ -727,7 +756,7 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset
         if not PyDataType_HASFIELDS(child):
             t = child.type_num
             if end - f < 5:
-                raise RuntimeError("Format string allocated too short.")
+                raise RuntimeError(u"Format string allocated too short.")
 
             # Until ticket #99 is fixed, use integers to avoid warnings
             if   t == NPY_BYTE:        f[0] =  98 #"b"
@@ -748,11 +777,124 @@ cdef inline char* _util_dtypestring(dtype descr, char* f, char* end, int* offset
             elif t == NPY_CLONGDOUBLE: f[0] = 90; f[1] = 103; f += 1 # Zg
             elif t == NPY_OBJECT:      f[0] = 79 #"O"
             else:
-                raise ValueError("unknown dtype code in numpy.pxd (%d)" % t)
+                raise ValueError(u"unknown dtype code in numpy.pxd (%d)" % t)
             f += 1
         else:
             # Cython ignores struct boundary information ("T{...}"),
             # so don't output it
             f = _util_dtypestring(child, f, end, offset)
     return f
-                
+
+
+#
+# ufunc API
+#
+
+cdef extern from "numpy/ufuncobject.h":
+
+    ctypedef void (*PyUFuncGenericFunction) (char **, npy_intp *, npy_intp *, void *)
+    
+    ctypedef extern class numpy.ufunc [object PyUFuncObject]:
+        cdef:
+            int nin, nout, nargs
+            int identity
+            PyUFuncGenericFunction *functions
+            void **data
+            int ntypes
+            int check_return
+            char *name, *types
+            char *doc
+            void *ptr
+            PyObject *obj
+            PyObject *userloops
+
+    cdef enum:
+        PyUFunc_Zero
+        PyUFunc_One
+        PyUFunc_None
+        UFUNC_ERR_IGNORE
+        UFUNC_ERR_WARN
+        UFUNC_ERR_RAISE
+        UFUNC_ERR_CALL
+        UFUNC_ERR_PRINT
+        UFUNC_ERR_LOG
+        UFUNC_MASK_DIVIDEBYZERO
+        UFUNC_MASK_OVERFLOW
+        UFUNC_MASK_UNDERFLOW
+        UFUNC_MASK_INVALID
+        UFUNC_SHIFT_DIVIDEBYZERO
+        UFUNC_SHIFT_OVERFLOW
+        UFUNC_SHIFT_UNDERFLOW
+        UFUNC_SHIFT_INVALID
+        UFUNC_FPE_DIVIDEBYZERO
+        UFUNC_FPE_OVERFLOW
+        UFUNC_FPE_UNDERFLOW
+        UFUNC_FPE_INVALID
+        UFUNC_ERR_DEFAULT
+        UFUNC_ERR_DEFAULT2
+
+    object PyUFunc_FromFuncAndData(PyUFuncGenericFunction *,
+          void **, char *, int, int, int, int, char *, char *, int)
+    int PyUFunc_RegisterLoopForType(ufunc, int,
+                                    PyUFuncGenericFunction, int *, void *)
+    int PyUFunc_GenericFunction \
+        (ufunc, PyObject *, PyObject *, PyArrayObject **)
+    void PyUFunc_f_f_As_d_d \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_d_d \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_f_f \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_g_g \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_F_F_As_D_D \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_F_F \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_D_D \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_G_G \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_O_O \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_ff_f_As_dd_d \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_ff_f \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_dd_d \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_gg_g \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_FF_F_As_DD_D \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_DD_D \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_FF_F \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_GG_G \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_OO_O \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_O_O_method \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_OO_O_method \
+         (char **, npy_intp *, npy_intp *, void *)
+    void PyUFunc_On_Om \
+         (char **, npy_intp *, npy_intp *, void *)
+    int PyUFunc_GetPyValues \
+        (char *, int *, int *, PyObject **)
+    int PyUFunc_checkfperr \
+           (int, PyObject *, int *)
+    void PyUFunc_clearfperr()
+    int PyUFunc_getfperr()
+    int PyUFunc_handlefperr \
+        (int, PyObject *, int, int *)
+    int PyUFunc_ReplaceLoopBySignature \
+        (ufunc, PyUFuncGenericFunction, int *, PyUFuncGenericFunction *)
+    object PyUFunc_FromFuncAndDataAndSignature \
+             (PyUFuncGenericFunction *, void **, char *, int, int, int,
+              int, char *, char *, int, char *)
+
+
+
+    void import_ufunc()
