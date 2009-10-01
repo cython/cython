@@ -1,6 +1,21 @@
-This is a collection of all the assorted pyrex/cython documentation assembled into
-a unified Python style Sphinx project. It is hoped that this will become the default
-documentation for the Cython tool set.
+Cython's entire documentation suite is currently being overhauled.
 
-Curently the files are hosted at:
-http://hg.cython.org/cython-docs
+For the time being, I will use this page to post notes to both myself and to any interested parties that come to view my progress.
+
+The prvious Cython documentation files are hosted at http://hg.cython.org/cython-docs
+
+For my vistors
+===============
+
+1) This is creative process not necessarily a predetermined blueprint of what I may have in mind.
+2) It's also an iterative process.
+3) All constructive thoughts, visions, and criticisms most welcome.. :)
+
+
+For me :)
+=========
+
+1) Some css work should definately be done.
+2) Use local 'top-of-page' contents rather than the sidebar, imo.
+3) Provide a link from each (sub)section to the TOC of the page.
+4) Temporarily using bold emphisis everywhere to signify special markup to be addressed later.
