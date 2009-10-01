@@ -250,6 +250,9 @@ class VisitorTransform(TreeVisitor):
 class CythonTransform(VisitorTransform):
     """
     Certain common conventions and utilitues for Cython transforms.
+
+     - Sets up the context of the pipeline in self.context
+     - Tracks directives in effect in self.current_directives
     """
     def __init__(self, context):
         super(CythonTransform, self).__init__()
