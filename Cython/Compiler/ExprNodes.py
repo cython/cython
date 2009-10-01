@@ -3501,6 +3501,8 @@ class DictNode(ExprNode):
     # obj_conversion_errors    [PyrexError]   used internally
     
     subexprs = ['key_value_pairs']
+    is_temp = 1
+    type = dict_type
 
     def calculate_constant_result(self):
         self.constant_result = dict([
@@ -3516,12 +3518,10 @@ class DictNode(ExprNode):
     
     def analyse_types(self, env):
         hold_errors()
-        self.type = dict_type
         for item in self.key_value_pairs:
             item.analyse_types(env)
         self.obj_conversion_errors = held_errors()
         release_errors(ignore=True)
-        self.is_temp = 1
         
     def coerce_to(self, dst_type, env):
         if dst_type.is_pyobject:
