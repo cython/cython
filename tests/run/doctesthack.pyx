@@ -12,18 +12,20 @@ all_tests_run() is executed which does final validation.
 >>> items.sort()
 >>> for key, value in items:
 ...     print key, ';', value
-mycpdeffunc (line 40) ; >>> add_log("cpdef")
-myfunc (line 34) ; >>> add_log("def")
+MyCdefClass.method (line 67) ; >>> add_log("cdef class method")
+MyClass.method (line 57) ; >>> add_log("class method")
+doc_without_test (line 39) ; Some docs
+mycpdeffunc (line 45) ; >>> add_log("cpdef")
+myfunc (line 36) ; >>> add_log("def")
 
 """
 
 log = []
 
-#__test__ = {'a':'445', 'b':'3'}
 
 def all_tests_run():
     log.sort()
-    assert log == [u'cpdef', u'def'], log
+    assert log == [u'cdef class method', u'class method', u'cpdef', u'def'], log
 
 def add_log(s):
     log.append(unicode(s))
@@ -33,6 +35,9 @@ def add_log(s):
 
 def myfunc():
     """>>> add_log("def")"""
+
+def doc_without_test():
+    """Some docs"""
 
 def nodocstring():
     pass
@@ -50,17 +55,15 @@ class MyClass:
     """
     
     def method(self):
-        """
-        >>> True
-        False
-        """
+        """>>> add_log("class method")"""
 
-## cdef class MyCdefClass:
-##     """
-##     >>> add_log("cdef class")
-##     """
-##     def method(self):
-##         """
-##         >>> add_log("cdef class method")
-##         """
+cdef class MyCdefClass:
+    """
+    Needs no hack
+    
+    >>> True
+    True
+    """
+    def method(self):
+        """>>> add_log("cdef class method")"""
 
