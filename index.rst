@@ -4,6 +4,7 @@ Welcome to Cython's Users Guide
 
 Contents:
 
+
 .. toctree::
    :maxdepth: 2
 
@@ -11,11 +12,8 @@ Contents:
    src/language_basics
    src/compilation
    src/extension_types
-   src/sharing_between_cython_modules
-   src/cython_for_c
-   src/cython_for_c++
-   src/cython_for_fortran
-   src/cython_for_numpy
+   src/interfacing_with_other_code
+   src/special_mention
    src/limitations
 
 Indices and tables

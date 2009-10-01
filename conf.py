@@ -50,7 +50,7 @@ copyright = '2009, Stefan Behnel, Robert Bradshaw, Grew Ewing, Gabriel Gellner, 
 # The short X.Y version.
 version = '0.11'
 # The full version, including alpha/beta/rc tags.
-release = '0.11.2'
+release = '0.11.3'
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -117,7 +117,7 @@ html_favicon = '_static/favicon.ico'
 #html_additional_pages = {}
 
 # If false, no module index is generated.
-html_use_modindex = False 
+html_use_modindex = False
 
 # Don't generate and index
 html_use_index = False
@@ -143,7 +143,7 @@ htmlhelp_basename = 'Cythondoc'
 #_stdauthor = r'Greg Ewig\\ Gabriel Gellner, editor'
 _stdauthor = r'Stefan Behnel, Robert Bradshaw, William Stein\\ Gary Furnish, Dag Seljebotn, Greg Ewing\\ Gabriel Gellner, editor'
 latex_documents = [
-    ('index', 'cython.tex', 
+    ('index', 'cython.tex',
      'Cython Manual', _stdauthor, 'manual')
 ]
 
