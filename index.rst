@@ -7,19 +7,16 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   docs/overview
-   docs/tutorial
-   docs/language_basics
-   docs/extension_types
-   docs/special_methods
-   docs/sharing_declarations
-   docs/external_C_code
-   docs/source_files_and_compilation
-   docs/wrapping_CPlusPlus
-   docs/numpy_tutorial
-   docs/limitations
-   docs/pyrex_differences
-   docs/early_binding_for_speed
+   src/overview
+   src/language_basics
+   src/compilation
+   src/extension_types
+   src/sharing_between_cython_modules
+   src/cython_for_c
+   src/cython_for_c++
+   src/cython_for_fortran
+   src/cython_for_numpy
+   src/limitations
 
 Indices and tables
 ==================
