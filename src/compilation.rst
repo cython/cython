@@ -11,7 +11,6 @@ Compilation
 There are several ways to compile cython code.
 
 .. contents::
-    :depth: 2
     :local:
 
 

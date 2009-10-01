@@ -17,35 +17,37 @@ Cython File Types
 =================
 
 There are three file types in cython:
-* Definition files carry the `.pxd` suffix
-* Implementation files carry the `'.pyx suffix
-* Include files which carry the `.pxi` suffix
 
+* Definition files carry a `.pxd` suffix
+* Implementation files carry a `.pyx` suffix
+* Include files which carry a `.pxi` suffix
 
+.. contents::
+    :local:
 
-Definition
-==========
+Definition File
+===============
 
 What can it contain?
 --------------------
 
- * Any kind of C type declaration.
- * `extern` C function or variable decarations.
- * Module implementation declarations as well as definition parts of extension types.
- * This also is a convenient place to put all declarations of functions, etc., for an
-   **external library**
+* Any kind of C type declaration.
+* `extern` C function or variable decarations.
+* Declarations for module implementations.
+* The definition parts of **extension types**.
+* All declarations of functions, etc., for an **external library**
 
 What can't it contain?
 ----------------------
 
- * Any non-extern C variable declaration.
- * Implementations of C or Python functions.
- * Python class definitions
- * Python executable statements.
- * Any declaration that is defined as **public** to make it accessible to other Cython modules.
+* Any non-extern C variable declaration.
+* Implementations of C or Python functions.
+* Python class definitions
+* Python executable statements.
+* Any declaration that is defined as **public** to make it accessible to other Cython modules.
 
-  * This is not necessary, as it is automatic.
-  * a **public** declaration is only needed to make it accessible to **external C code**.
+ * This is not necessary, as it is automatic.
+ * a **public** declaration is only needed to make it accessible to **external C code**.
 
 What else?
 ----------
@@ -68,8 +70,8 @@ compilation order
 
 
 
-Implementation
-===============
+Implementation File
+===================
 
 What can it contain?
 --------------------
@@ -83,8 +85,8 @@ What can't it contain?
   already defined else where... **more on this later**
 
 
-Include
-=======
+Include File
+============
 
 What can it contain?
 --------------------
@@ -104,6 +106,9 @@ How do I use it?
 ===========
 Data Typing
 ===========
+
+.. contents::
+    :local:
 
 Grouping
 ========
@@ -128,6 +133,9 @@ Statements and Expressions
 =========
 Functions
 =========
+
+.. contents::
+    :local:
 
 Callable from Python
 =====================

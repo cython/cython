@@ -7,7 +7,6 @@ Interfacing with Other Code
 ***************************
 
 .. contents::
-    :depth: 2
     :local:
 
 ==

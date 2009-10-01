@@ -7,7 +7,6 @@ Overview
 ********
 
 .. contents::
-    :depth: 2
     :local:
 
 ===============

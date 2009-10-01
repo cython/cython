@@ -7,7 +7,6 @@ Extention Types
 ***************
 
 .. contents::
-    :depth: 2
     :local:
 
 ==========

@@ -8,5 +8,4 @@ Special Mention
 ***************
 
 .. contents::
-    :depth: 2
     :local:
