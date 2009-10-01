@@ -1,6 +1,6 @@
 
-Welcome to Cython's Users Guide
-=================================
+Welcome to Cython's Reference Guide
+===================================
 
 Contents:
 

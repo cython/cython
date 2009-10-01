@@ -1,21 +1,14 @@
 Cython's entire documentation suite is currently being overhauled.
 
-For the time being, I will use this page to post notes to both myself and to any interested parties that come to view my progress.
+For the time being, I'll use this page to post notes.
 
-The prvious Cython documentation files are hosted at http://hg.cython.org/cython-docs
-
-For my vistors
-===============
-
-1) This is creative process not necessarily a predetermined blueprint of what I may have in mind.
-2) It's also an iterative process.
-3) All constructive thoughts, visions, and criticisms most welcome.. :)
+The previous Cython documentation files are hosted at http://hg.cython.org/cython-docs
 
 
-For me :)
-=========
+Notes
+=======
 
 1) Some css work should definately be done.
 2) Use local 'top-of-page' contents rather than the sidebar, imo.
 3) Provide a link from each (sub)section to the TOC of the page.
-4) Temporarily using bold emphisis everywhere to signify special markup to be addressed later.
+4) Fix cython highlighter for cdef blocks

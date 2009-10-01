@@ -16,14 +16,15 @@ Languange Basics
 Cython File Types
 =================
 
-There are three file types in cython:
-
-* Definition files carry a `.pxd` suffix
-* Implementation files carry a `.pyx` suffix
-* Include files which carry a `.pxi` suffix
-
 .. contents::
     :local:
+
+There are three file types in cython:
+
+* Definition files carry a ``.pxd`` suffix
+* Implementation files carry a ``.pyx`` suffix
+* Include files which carry a ``.pxi`` suffix
+
 
 Definition File
 ===============
@@ -32,7 +33,7 @@ What can it contain?
 --------------------
 
 * Any kind of C type declaration.
-* `extern` C function or variable decarations.
+* ``extern`` C function or variable decarations.
 * Declarations for module implementations.
 * The definition parts of **extension types**.
 * All declarations of functions, etc., for an **external library**
@@ -57,15 +58,15 @@ cimport
 
 * Use the **cimport** statement, as you would Python's import statement, to access these files
   from other definition or implementation files.
-* **cimport** does not need to be called in `.pyx` file for for `.pxd` file that has the
+* **cimport** does not need to be called in ``.pyx`` file for for ``.pxd`` file that has the
   same name. This is automatic.
 * For cimport to find the stated definition file, the path to the file must be appended to the
-  `-I` option of the **cython compile command**.
+  ``-I`` option of the **cython compile command**.
 
 compilation order
 `````````````````
 
-* When a `.pyx` file is to be compiled, cython first checks to see if a corresponding `.pxd` file
+* When a ``.pyx`` file is to be compiled, cython first checks to see if a corresponding ``.pxd`` file
   exits and processes it first.
 
 
@@ -92,15 +93,15 @@ What can it contain?
 --------------------
 
 * Any Cythonic code really, because the entire file is textually embedded at the location
-  you prescribe. Think.. "C pre-processor".
+  you prescribe.
 
 How do I use it?
 ----------------
 
-* Include the `.pxi` file with an `include` statement like: `include "spamstuff.pxi`
-* The `include` statement can appear anywhere in your cython file and at any indentation level
-* The code in the `.pxi` file needs to be rooted at the "zero" indentation level.
-* The included code can itself contain other `include` statements.
+* Include the ``.pxi`` file with an ``include`` statement like: ``include "spamstuff.pxi``
+* The ``include`` statement can appear anywhere in your cython file and at any indentation level
+* The code in the ``.pxi`` file needs to be rooted at the "zero" indentation level.
+* The included code can itself contain other ``include`` statements.
 
 
 ===========
@@ -110,11 +111,108 @@ Data Typing
 .. contents::
     :local:
 
+..
+    I think having paragraphs like this should only be in the tutorial which
+    we can link to from here
+
+As a dynamic language, Python encourages a programming style of considering classes and objects in terms of their methods and attributes, more than where they fit into the class hierarchy.
+
+This can make Python a very relaxed and comfortable language for rapid development, but with a price - the ‘red tape’ of managing data types is dumped onto the interpreter. At run time, the interpreter does a lot of work searching namespaces, fetching attributes and parsing argument and keyword tuples. This run-time ‘late binding’ is a major cause of Python’s relative slowness compared to ‘early binding’ languages such as C++.
+
+However with Cython it is possible to gain significant speed-ups through the use of ‘early binding’ programming techniques.
+
+The cdef Statement
+==================
+
+The ``cdef`` statement is used to make C level declarations for:
+
+:Variables:
+
+::
+
+    cdef int i, j, k
+    cdef float f, g[42], *h
+
+:Structs:
+
+::
+
+    cdef struct Grail:
+        int age
+        float volume
+
+:Unions:
+
+::
+
+    cdef union Food:
+        char *spam
+        float *eggs
+
+
+:Enums:
+
+::
+
+    cdef enum CheeseType:
+        cheddar, edam,
+        camembert
+
+    cdef enum CheeseState:
+        hard = 1
+        soft = 2
+        runny = 3
+
+:Funtions:
+
+::
+
+    cdef int eggs(unsigned long l, float f):
+        ...
+
+:Extenstion Types:
+
+::
+
+    cdef class Spam:
+        ...
+
+
+.. note::
+    Constants can be defined by using an anonymous enum::
+
+        cdef enum:
+            tons_of_spam = 3
+
+
 Grouping
 ========
 
+A series of declarations can grouped into a ``cdef`` block::
+
+        cdef:
+            struct Spam:
+                int tons
+
+            int i
+            float f
+            Spam *p
+
+            void f(Spam *s):
+            print s.tons, "Tons of spam"
+
+
 Parameters
 ==========
+
+* All the different **function** types can be declared to have C data types.
+* Use normal C declaration syntax.
+* **Python callable functions** can also be declared with C data types.
+
+ * As these parameters are passed into the Python function, they magically **convert** to
+   the specified C typed value.
+ * See also... **link the various areas that detail this**
+
 
 Conversion
 ==========
@@ -154,6 +252,7 @@ Error and Exception Handling
 =======================
 Conditional Compilation
 =======================
+
 
 Compile-Time Definitions
 =========================
