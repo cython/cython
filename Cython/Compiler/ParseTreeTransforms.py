@@ -338,14 +338,26 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         self.cython_module_names = set()
         self.option_names = {}
 
+    def check_directive_scope(self, pos, directive, scope):
+        legal_scopes = Options.option_scopes.get(directive, None)
+        if legal_scopes and scope not in legal_scopes:
+            self.context.nonfatal_error(PostParseError(pos, 'The %s compiler directive '
+                                        'is not allowed in %s scope' % (directive, scope)))
+            return False
+        else:
+            return True
+        
     # Set up processing and handle the cython: comments.
     def visit_ModuleNode(self, node):
         options = copy.copy(Options.option_defaults)
         for key, value in self.compilation_option_overrides.iteritems():
+            if not self.check_directive_scope(node.pos, key, 'module'):
+                self.wrong_scope_error(node.pos, key, 'module')
+                del self.compilation_option_overrides[key]
+                continue
             if key in node.option_comments and node.option_comments[key] != value:
                 warning(node.pos, "Compiler directive differs between environment and file header; this will change "
                         "in Cython 0.12. See http://article.gmane.org/gmane.comp.python.cython.devel/5233", 2)
-                break
         options.update(node.option_comments)
         options.update(self.compilation_option_overrides)
         self.options = options
@@ -465,7 +477,6 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     # Handle decorators
     def visit_FuncDefNode(self, node):
         options = []
-        
         if node.decorators:
             # Split the decorators into two lists -- real decorators and options
             realdecs = []
@@ -485,6 +496,9 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             options.reverse() # Decorators coming first take precedence
             for option in options:
                 name, value = option
+                legal_scopes = Options.option_scopes.get(name, None)
+                if not self.check_directive_scope(node.pos, name, 'function'):
+                    continue
                 if name in optdict and isinstance(optdict[name], dict):
                     # only keywords can be merged, everything else
                     # overrides completely
@@ -503,7 +517,9 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                 if option is not None and option[0] == u'locals':
                     node.directive_locals = option[1]
                 else:
-                    raise PostParseError(dec.pos, "Cdef functions can only take cython.locals() decorator.")
+                    self.context.nonfatal_error(PostParseError(dec.pos,
+                        "Cdef functions can only take cython.locals() decorator."))
+                    continue
         return node
                                    
     # Handle with statements
@@ -511,11 +527,13 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         option = self.try_to_parse_option(node.manager)
         if option is not None:
             if node.target is not None:
-                raise PostParseError(node.pos, "Compiler option with statements cannot contain 'as'")
-            name, value = option
-            return self.visit_with_options(node.body, {name:value})
-        else:
-            return self.visit_Node(node)
+                self.context.nonfatal_error(
+                    PostParseError(node.pos, "Compiler option with statements cannot contain 'as'"))
+            else:
+                name, value = option
+                if self.check_directive_scope(node.pos, name, 'with statement'):
+                    return self.visit_with_options(node.body, {name:value})
+        return self.visit_Node(node)
 
 class WithTransform(CythonTransform, SkipDeclarations):
 
