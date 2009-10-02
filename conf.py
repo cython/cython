@@ -143,8 +143,10 @@ htmlhelp_basename = 'Cythondoc'
 #_stdauthor = r'Greg Ewig\\ Gabriel Gellner, editor'
 _stdauthor = r'Stefan Behnel, Robert Bradshaw, William Stein\\ Gary Furnish, Dag Seljebotn, Greg Ewing\\ Gabriel Gellner, editor'
 latex_documents = [
-    ('index', 'cython.tex',
-     'Cython Manual', _stdauthor, 'manual')
+    ('src/reference/index', 'reference.tex',
+     'Cython Reference Guide', _stdauthor, 'manual'),
+    ('src/tutorial/index', 'tutorial.tex',
+     'Cython Tutorial', _stdauthor, 'manual')
 ]
 
 # Additional stuff for the LaTeX preamble.

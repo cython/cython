@@ -20,7 +20,7 @@ with extra syntax to provide static type declarations.
 What Does It Do?
 ================
 
-It takes advantage of the beneﬁts of Python while allowing one to achieve the speed of C.
+It takes advantage of the benefits of Python while allowing one to achieve the speed of C.
 
 ============================
 How Exactly Does It Do That?
@@ -47,7 +47,7 @@ itself (PyPy [#PyPy]_).
 
 Written in C, CPython has been
 conducive to wrapping many external libraries that interface through the C language. It has, however, remained non trivial to write the necessary glue code in
-C, especially for programmers who are more ﬂuent in a
+C, especially for programmers who are more fluent in a
 high-level language like Python than in a do-it-yourself
 language like C.
 
@@ -69,14 +69,13 @@ While Cython can compile (most) regular Python
 code, the generated C code usually gains major (and
 sometime impressive) speed improvements from optional static type declarations for both Python and
 C types. These allow Cython to assign C semantics to
-parts of the code, and to translate them into very eﬃ-
-cient C code.
+parts of the code, and to translate them into very efficient C code.
 
 Type declarations can therefore be used
 for two purposes:
 
 #. For moving code sections from dynamic Python semantics into static-and-fast C semantics, but also for..
-#. Directly manipulating types deﬁned in external libraries. Cython thus merges the two worlds into a very broadly applicable programming language.
+#. Directly manipulating types defined in external libraries. Cython thus merges the two worlds into a very broadly applicable programming language.
 
 ==================
 Where Do I Get It?

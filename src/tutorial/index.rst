@@ -22,7 +22,6 @@ Contents:
    readings
    related_work
    appendix
-   references
 
 
 Indices and tables
