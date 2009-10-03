@@ -26,7 +26,7 @@ cdef extern from "Python.h":
 
 cdef extern from "numpy/arrayobject.h":
     ctypedef Py_intptr_t npy_intp
-        
+
     cdef enum NPY_TYPES:
         NPY_BOOL
         NPY_BYTE
@@ -469,13 +469,13 @@ cdef extern from "numpy/arrayobject.h":
     object PyArray_Take(ndarray ap, object items, int axis)
     object PyArray_Put(ndarray ap, object items, object values)
 
-    void PyArray_MultiIter_RESET(broadcast multi)
-    void PyArray_MultiIter_NEXT(broadcast multi)
-    void PyArray_MultiIter_GOTO(broadcast multi, npy_intp dest)
-    void PyArray_MultiIter_GOTO1D(broadcast multi, npy_intp ind)
-    void* PyArray_MultiIter_DATA(broadcast multi, npy_intp i)
-    void PyArray_MultiIter_NEXTi(broadcast multi, npy_intp i)
-    bint PyArray_MultiIter_NOTDONE(broadcast multi)
+    void PyArray_MultiIter_RESET(broadcast multi) nogil
+    void PyArray_MultiIter_NEXT(broadcast multi) nogil
+    void PyArray_MultiIter_GOTO(broadcast multi, npy_intp dest) nogil
+    void PyArray_MultiIter_GOTO1D(broadcast multi, npy_intp ind) nogil
+    void* PyArray_MultiIter_DATA(broadcast multi, npy_intp i) nogil
+    void PyArray_MultiIter_NEXTi(broadcast multi, npy_intp i) nogil
+    bint PyArray_MultiIter_NOTDONE(broadcast multi) nogil
 
     # Functions from __multiarray_api.h
 
