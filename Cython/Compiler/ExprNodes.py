@@ -5484,6 +5484,44 @@ class CloneNode(CoercionNode):
         pass
 
 
+class ModuleRefNode(ExprNode):
+    # Simple returns the module object
+    
+    type = py_object_type
+    is_temp = False
+    subexprs = []
+    
+    def analyse_types(self, env):
+        pass
+
+    def calculate_result_code(self):
+        return Naming.module_cname
+
+    def generate_result_code(self, code):
+        pass
+
+class DocstringRefNode(ExprNode):
+    # Extracts the docstring of the body element
+    
+    subexprs = ['body']
+    type = py_object_type
+    is_temp = True
+    
+    def __init__(self, pos, body):
+        ExprNode.__init__(self, pos)
+        assert body.type.is_pyobject
+        self.body = body
+
+    def analyse_types(self, env):
+        pass
+
+    def generate_result_code(self, code):
+        code.putln('%s = __Pyx_GetAttrString(%s, "__doc__");' %
+                   (self.result(), self.body.result()))
+        code.put_gotref(self.result())
+
+
+
 #------------------------------------------------------------------------------------
 #
 #  Runtime support code
