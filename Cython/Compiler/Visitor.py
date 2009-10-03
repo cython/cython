@@ -250,6 +250,9 @@ class VisitorTransform(TreeVisitor):
 class CythonTransform(VisitorTransform):
     """
     Certain common conventions and utilitues for Cython transforms.
+
+     - Sets up the context of the pipeline in self.context
+     - Tracks directives in effect in self.current_directives
     """
     def __init__(self, context):
         super(CythonTransform, self).__init__()
@@ -271,6 +274,37 @@ class CythonTransform(VisitorTransform):
     def visit_Node(self, node):
         self.visitchildren(node)
         return node
+
+class ScopeTrackingTransform(CythonTransform):
+    # Keeps track of type of scopes
+    scope_type = None # can be either of 'module', 'function', 'cclass', 'pyclass'
+    scope_node = None
+    
+    def visit_ModuleNode(self, node):
+        self.scope_type = 'module'
+        self.scope_node = node
+        self.visitchildren(node)
+        return node
+
+    def visit_scope(self, node, scope_type):
+        prev = self.scope_type, self.scope_node
+        self.scope_type = scope_type
+        self.scope_node = node
+        self.visitchildren(node)
+        self.scope_type, self.scope_node = prev
+        return node
+    
+    def visit_CClassDefNode(self, node):
+        return self.visit_scope(node, 'cclass')
+
+    def visit_PyClassDefNode(self, node):
+        return self.visit_scope(node, 'pyclass')
+
+    def visit_FuncDefNode(self, node):
+        return self.visit_scope(node, 'function')
+
+    def visit_CStructOrUnionDefNode(self, node):
+        return self.visit_scope(node, 'struct')
 
 
 
