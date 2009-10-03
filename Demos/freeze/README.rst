@@ -1,19 +1,19 @@
 NAME
 ====
 
-cython_freeze.py - create a C file for embedding Cython modules
+cython_freeze - create a C file for embedding Cython modules
 
 
 SYNOPSIS
 ========
 
-cython_freeze.py module [...]
+cython_freeze module [...]
 
 
 DESCRIPTION
 ===========
 
-**cython_freeze.py** generates a C source file to embed a Python interpreter
+**cython_freeze** generates a C source file to embed a Python interpreter
 with one or more Cython modules built in.  This allows one to create a single
 executable from Cython code, without having to have separate shared objects
 for each Cython module.
@@ -47,7 +47,7 @@ The provided Makefile creates an executable, *nCr*, using combinatorics as the
 "main" module.  It basically performs the following (ignoring the compiler
 flags)::
 
-    $ cython_freeze.py combintorics cmath > nCr.c
+    $ cython_freeze combintorics cmath > nCr.c
     $ cython combinatorics.pyx
     $ cython cmath.pyx
     $ gcc nCr.c -o nCr.o
