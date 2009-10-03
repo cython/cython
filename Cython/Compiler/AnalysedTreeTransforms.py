@@ -1,7 +1,7 @@
 from Cython.Compiler.Visitor import VisitorTransform, ScopeTrackingTransform, TreeVisitor
 from Nodes import StatListNode, SingleAssignmentNode
 from ExprNodes import (DictNode, DictItemNode, NameNode, UnicodeNode, NoneNode,
-                      ExprNode, AttributeNode)
+                      ExprNode, AttributeNode, ModuleRefNode, DocstringRefNode)
 from PyrexTypes import py_object_type
 from Builtin import dict_type
 from StringEncoding import EncodedString
@@ -77,37 +77,3 @@ class DoctestHackTransform(ScopeTrackingTransform):
             self.add_test(node.pos, name, getfunc)
         return node
 
-
-class ModuleRefNode(ExprNode):
-    type = py_object_type
-    is_temp = False
-    subexprs = []
-    
-    def analyse_types(self, env):
-        pass
-
-    def calculate_result_code(self):
-        return Naming.module_cname
-
-    def generate_result_code(self, code):
-        pass
-
-class DocstringRefNode(ExprNode):
-    # Extracts the docstring of the body element
-    
-    subexprs = ['body']
-    type = py_object_type
-    is_temp = True
-    
-    def __init__(self, pos, body):
-        ExprNode.__init__(self, pos)
-        assert body.type.is_pyobject
-        self.body = body
-
-    def analyse_types(self, env):
-        pass
-
-    def generate_result_code(self, code):
-        code.putln('%s = __Pyx_GetAttrString(%s, "__doc__");' %
-                   (self.result(), self.body.result()))
-        code.put_gotref(self.result())
