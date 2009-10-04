@@ -17,6 +17,8 @@ True
 [1, 2, 3]
 """
 
+cimport cython
+
 # Py2.3 doesn't have the set type, but Cython does :)
 _set = set
 
@@ -25,6 +27,9 @@ def smoketest_set():
              for x in range(5)
              if x % 2 == 0 }
 
+@cython.testFailIfPathExists("//SimpleCallNode//ComprehensionNode")
+@cython.testAssertPathExists("//ComprehensionNode",
+                             "//ComprehensionNode//ComprehensionAppendNode")
 def smoketest_list():
     return set([ x*2
                  for x in range(5)
