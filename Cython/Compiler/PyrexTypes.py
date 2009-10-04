@@ -850,9 +850,17 @@ class CComplexType(CNumericType):
     def __hash__(self):
         return ~hash(self.real_type)
     
+    def declaration_code(self, entity_code, 
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        if for_display:
+            base = public_decl(self.real_type.sign_and_name() + " complex", dll_linkage)
+        else:
+            base = public_decl(self.sign_and_name(), dll_linkage)
+        return self.base_declaration_code(base,  entity_code)
+
     def sign_and_name(self):
         return Naming.type_prefix + self.real_type.specalization_name() + "_complex"
-
+    
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_complex and self.real_type.assignable_from_resolved_type(src_type.real_type)
                     or src_type.is_numeric and self.real_type.assignable_from_resolved_type(src_type) 
