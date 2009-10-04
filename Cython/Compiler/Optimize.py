@@ -635,7 +635,7 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
                 arg, "PyExc_TypeError", "'NoneType' is not iterable")
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "PyDict_Copy", self.PyDict_Copy_func_type,
-                args = [dict_arg],
+                args = [arg],
                 is_temp = node.is_temp
                 )
         elif isinstance(arg, ExprNodes.ComprehensionNode) and \
