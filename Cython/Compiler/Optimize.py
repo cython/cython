@@ -34,7 +34,6 @@ def is_common_value(a, b):
         return not a.is_py_attr and is_common_value(a.obj, b.obj) and a.attribute == b.attribute
     return False
 
-
 class IterationTransform(Visitor.VisitorTransform):
     """Transform some common for-in loop patterns into efficient C loops:
 
@@ -613,24 +612,41 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
             ])
 
     def _handle_simple_function_dict(self, node, pos_args):
-        """Replace dict(some_dict) by PyDict_Copy(some_dict).
+        """Replace dict(some_dict) by PyDict_Copy(some_dict) and
+        dict([ (a,b) for ... ]) by a literal { a:b for ... }.
         """
         if len(pos_args.args) != 1:
             return node
-        dict_arg = pos_args.args[0]
-        if dict_arg.type is not Builtin.dict_type:
-            return node
-
-        dict_arg = ExprNodes.NoneCheckNode(
-            dict_arg, "PyExc_TypeError", "'NoneType' is not iterable")
-        return ExprNodes.PythonCapiCallNode(
-            node.pos, "PyDict_Copy", self.PyDict_Copy_func_type,
-            args = [dict_arg],
-            is_temp = node.is_temp
-            )
+        arg = pos_args.args[0]
+        if arg.type is Builtin.dict_type:
+            arg = ExprNodes.NoneCheckNode(
+                arg, "PyExc_TypeError", "'NoneType' is not iterable")
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "PyDict_Copy", self.PyDict_Copy_func_type,
+                args = [dict_arg],
+                is_temp = node.is_temp
+                )
+        elif isinstance(arg, ExprNodes.ComprehensionNode) and \
+                 arg.type is Builtin.list_type:
+            append_node = arg.append
+            if isinstance(append_node.expr, (ExprNodes.TupleNode, ExprNodes.ListNode)) and \
+                   len(append_node.expr.args) == 2:
+                key_node, value_node = append_node.expr.args
+                target_node = ExprNodes.DictNode(
+                    pos=arg.target.pos, key_value_pairs=[], is_temp=1)
+                new_append_node = ExprNodes.DictComprehensionAppendNode(
+                    append_node.pos, target=target_node,
+                    key_expr=key_node, value_expr=value_node,
+                    is_temp=1)
+                arg.target = target_node
+                arg.type = target_node.type
+                replace_in = Visitor.RecursiveNodeReplacer(append_node, new_append_node)
+                return replace_in(arg)
+        return node
 
     def _handle_simple_function_set(self, node, pos_args):
-        """Replace set([a,b,...]) by a literal set {a,b,...}.
+        """Replace set([a,b,...]) by a literal set {a,b,...} and
+        set([ x for ... ]) by a literal { x for ... }.
         """
         arg_count = len(pos_args.args)
         if arg_count == 0:

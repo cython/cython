@@ -1,17 +1,29 @@
 __doc__ = u"""
->>> type(smoketest()) is dict
+>>> type(smoketest_dict()) is dict
+True
+>>> type(smoketest_list()) is dict
 True
 
->>> sorted(smoketest().items())
+>>> sorted(smoketest_dict().items())
 [(2, 0), (4, 4), (6, 8)]
+>>> sorted(smoketest_list().items())
+[(2, 0), (4, 4), (6, 8)]
+
 >>> list(typed().items())
 [(A, 1), (A, 1), (A, 1)]
 >>> sorted(iterdict().items())
 [(1, 'a'), (2, 'b'), (3, 'c')]
 """
 
-def smoketest():
-    return {x+2:x*2 for x in range(5) if x % 2 == 0}
+def smoketest_dict():
+    return { x+2:x*2
+             for x in range(5)
+             if x % 2 == 0 }
+
+def smoketest_list():
+    return dict([ (x+2,x*2)
+                  for x in range(5)
+                  if x % 2 == 0 ])
 
 cdef class A:
     def __repr__(self): return u"A"
