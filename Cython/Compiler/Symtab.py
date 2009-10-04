@@ -8,7 +8,7 @@ from Errors import warning, error, InternalError
 from StringEncoding import EncodedString
 import Options, Naming
 import PyrexTypes
-from PyrexTypes import py_object_type
+from PyrexTypes import py_object_type, unspecified_type
 import TypeSlots
 from TypeSlots import \
     pyfunction_signature, pymethod_signature, \
@@ -544,6 +544,12 @@ class Scope(object):
             if name in self.entries:    
                 return 1
         return 0
+    
+    def infer_types(self):
+        for name, entry in self.entries.items():
+            if entry.type is unspecified_type:
+                entry.type = py_object_type
+                entry.init_to_none = Options.init_local_none # TODO: is there a better place for this?
 
 class PreImportScope(Scope):
 
@@ -816,6 +822,8 @@ class ModuleScope(Scope):
         if not visibility in ('private', 'public', 'extern'):
             error(pos, "Module-level variable cannot be declared %s" % visibility)
         if not is_cdef:
+            if type is unspecified_type:
+                type = py_object_type
             if not (type.is_pyobject and not type.is_extension_type):
                 raise InternalError(
                     "Non-cdef global variable is not a generic Python object")
@@ -1191,6 +1199,8 @@ class PyClassScope(ClassScope):
     
     def declare_var(self, name, type, pos, 
             cname = None, visibility = 'private', is_cdef = 0):
+        if type is unspecified_type:
+            type = py_object_type
         # Add an entry for a class attribute.
         entry = Scope.declare_var(self, name, type, pos, 
             cname, visibility, is_cdef)
@@ -1277,6 +1287,8 @@ class CClassScope(ClassScope):
                     "Non-generic Python attribute cannot be exposed for writing from Python")
             return entry
         else:
+            if type is unspecified_type:
+                type = py_object_type
             # Add an entry for a class attribute.
             entry = Scope.declare_var(self, name, type, pos, 
                 cname, visibility, is_cdef)
