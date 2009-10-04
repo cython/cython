@@ -897,12 +897,6 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
                         self.PyUnicode_AsXyzString_func_type,
                         'encode', is_unbound_method, [string_node])
 
-            return self._substitute_method_call(
-                node, "PyUnicode_AsEncodedString",
-                self.PyUnicode_AsEncodedString_func_type,
-                'encode', is_unbound_method,
-                [string_node, encoding_node, null_node])
-
         return self._substitute_method_call(
             node, "PyUnicode_AsEncodedString",
             self.PyUnicode_AsEncodedString_func_type,
