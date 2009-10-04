@@ -4882,11 +4882,7 @@ utility_function_predeclarations = \
 
 typedef struct {PyObject **p; char *s; long n; char is_unicode; char intern; char is_identifier;} __Pyx_StringTabEntry; /*proto*/
 
-""" + """
-
-static int %(skip_dispatch_cname)s = 0;
-
-""" % { 'skip_dispatch_cname': Naming.skip_dispatch_cname }
+"""
 
 if Options.gcc_branch_hints:
     branch_prediction_macros = \

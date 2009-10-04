@@ -2471,9 +2471,6 @@ class SimpleCallNode(CallNode):
             arg_list_code.append(actual_arg.result())
         result = "%s(%s)" % (self.function.result(),
             ', '.join(arg_list_code))
-#        if self.wrapper_call or \
-#                self.function.entry.is_unbound_cmethod and self.function.entry.type.is_overridable:
-#            result = "(%s = 1, %s)" % (Naming.skip_dispatch_cname, result)
         return result
     
     def generate_result_code(self, code):
