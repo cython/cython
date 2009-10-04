@@ -279,7 +279,9 @@ class CythonCompileTestCase(unittest.TestCase):
             annotate = annotate,
             use_listing_file = False,
             cplus = self.language == 'cpp',
-            generate_pxi = False)
+            generate_pxi = False,
+            evaluate_tree_assertions = True,
+            )
         cython_compile(source, options=options,
                        full_module_name=module)
 

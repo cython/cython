@@ -457,6 +457,11 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                         raise PostParseError(dec.function.pos,
                             'The %s option takes no prepositional arguments' % optname)
                     return optname, dict([(key.value, value) for key, value in kwds.key_value_pairs])
+                elif optiontype is list:
+                    if kwds and len(kwds) != 0:
+                        raise PostParseError(dec.function.pos,
+                            'The %s option takes no keyword arguments' % optname)
+                    return optname, [ str(arg.value) for arg in args ]
                 else:
                     assert False
 
@@ -499,10 +504,16 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                 legal_scopes = Options.option_scopes.get(name, None)
                 if not self.check_directive_scope(node.pos, name, 'function'):
                     continue
-                if name in optdict and isinstance(optdict[name], dict):
-                    # only keywords can be merged, everything else
-                    # overrides completely
-                    optdict[name].update(value)
+                if name in optdict:
+                    old_value = optdict[name]
+                    # keywords and arg lists can be merged, everything
+                    # else overrides completely
+                    if isinstance(old_value, dict):
+                        old_value.update(value)
+                    elif isinstance(old_value, list):
+                        old_value.extend(value)
+                    else:
+                        optdict[name] = value
                 else:
                     optdict[name] = value
             body = StatListNode(node.pos, stats=[node])

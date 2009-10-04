@@ -163,9 +163,14 @@ class Context(object):
                  module_node.scope.utility_code_list.extend(scope.utility_code_list)
             return module_node
 
+        test_support = []
+        if options.evaluate_tree_assertions:
+            from Cython.TestUtils import TreeAssertVisitor
+            test_support.append(TreeAssertVisitor())
+
         return ([
                 create_parse(self),
-            ] + self.create_pipeline(pxd=False, py=py) + [
+            ] + self.create_pipeline(pxd=False, py=py) + test_support + [
                 inject_pxd_code,
                 abort_on_errors,
                 generate_pyx_code,
@@ -592,6 +597,7 @@ class CompilationOptions(object):
     verbose           boolean   Always print source names being compiled
     quiet             boolean   Don't print source names in recursive mode
     compiler_directives  dict      Overrides for pragma options (see Options.py)
+    evaluate_tree_assertions boolean  Test support: evaluate parse tree assertions
     
     Following options are experimental and only used on MacOSX:
     
@@ -780,6 +786,7 @@ default_options = dict(
     verbose = 0,
     quiet = 0,
     compiler_directives = {},
+    evaluate_tree_assertions = False,
     emit_linenums = False,
 )
 if sys.platform == "mac":
