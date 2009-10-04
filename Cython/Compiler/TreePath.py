@@ -54,7 +54,7 @@ def parse_func(next, token):
 
 def handle_func_not(next, token):
     """
-    func(...)
+    not(...)
     """
     name, predicate = parse_func(next, token)
 
@@ -196,7 +196,7 @@ def handle_predicate(next, token):
                 subresult = select(subresult)
             predicate_result = _get_first_or_none(subresult)
             if predicate_result is not None:
-                yield predicate_result
+                yield node
     return select
 
 operations = {
