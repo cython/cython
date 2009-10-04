@@ -1,12 +1,16 @@
 CC = gcc
 CYTHON = ../../bin/cython
 CYTHON_FREEZE = ../../bin/cython_freeze
+PYTHON = python
+
+PY_LDFLAGS = $(shell $(PYTHON) -c 'from distutils.sysconfig import get_config_var as g; print " ".join([g("LINKFORSHARED"), "-L"+g("LIBPL")])')
+PY_CPPFLAGS = $(shell $(PYTHON) -c 'from distutils.sysconfig import *; print "-I"+get_python_inc()')
+PY_LDLIBS = $(shell $(PYTHON) -c 'from distutils.sysconfig import get_config_var as g; print " ".join(["-lpython"+g("VERSION"), g("SYSLIBS"), g("LIBS"), g("LOCALMODLIBS")])')
 
 CFLAGS = -fPIC -g -O2 -Wall -Wextra
-CPPFLAGS = -I /usr/include/python2.6
-LDFLAGS = -Xlinker -export-dynamic -Wl,-O1 -Wl,-Bsymbolic-functions
-LDLIBS = /usr/lib/python2.6/config/libpython2.6.a \
-	-lm -ldl -pthread -lutil -lz
+CPPFLAGS = $(PY_CPPFLAGS)
+LDFLAGS = $(PY_LDFLAGS)
+LDLIBS = $(PY_LDLIBS)
 
 
 # Name of executable
