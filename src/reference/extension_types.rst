@@ -6,9 +6,6 @@
 Extention Types
 ***************
 
-.. contents::
-    :local:
-
 ==========
 Attributes
 ==========

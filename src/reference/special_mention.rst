@@ -6,6 +6,3 @@
 ***************
 Special Mention
 ***************
-
-.. contents::
-    :local:

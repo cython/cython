@@ -6,5 +6,3 @@
 Limitations
 ***********
 
-.. contents::
-    :local:

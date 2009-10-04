@@ -10,10 +10,6 @@ Compilation
 
 There are several ways to compile cython code.
 
-.. contents::
-    :local:
-
-
 =====================
 From the Command Line
 =====================

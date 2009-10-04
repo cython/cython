@@ -29,7 +29,7 @@ import cython_highlighting
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['ipython_console_highlighting', 'cython_highlighting']
+extensions = ['ipython_console_highlighting', 'cython_highlighting', 'sphinx.ext.todo']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -157,3 +157,6 @@ latex_documents = [
 
 # If false, no module index is generated.
 #latex_use_modindex = True
+
+# todo
+todo_include_todos = True

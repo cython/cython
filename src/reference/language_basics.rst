@@ -4,20 +4,13 @@
 
 .. _language_basics:
 
-****************
-Languange Basics
-****************
-
-.. contents::
-    :depth: 2
-    :local:
+***************
+Language Basics
+***************
 
 =================
 Cython File Types
 =================
-
-.. contents::
-    :local:
 
 There are three file types in cython:
 
@@ -104,16 +97,13 @@ How do I use it?
 * The included code can itself contain other ``include`` statements.
 
 
-===========
-Data Typing
-===========
+====================
+Declaring Data Types
+====================
 
-.. contents::
-    :local:
-
-..
-    I think having paragraphs like this should only be in the tutorial which
-    we can link to from here
+.. note::
+    .. todo::
+        I think having paragraphs like this should be somewhere else which we can link to from here
 
 As a dynamic language, Python encourages a programming style of considering classes and objects in terms of their methods and attributes, more than where they fit into the class hierarchy.
 
@@ -185,8 +175,8 @@ The ``cdef`` statement is used to make C level declarations for:
             tons_of_spam = 3
 
 
-Grouping
-========
+Grouping cdef Declarations
+==========================
 
 A series of declarations can grouped into a ``cdef`` block::
 
@@ -201,21 +191,124 @@ A series of declarations can grouped into a ``cdef`` block::
             void f(Spam *s):
             print s.tons, "Tons of spam"
 
-
 Parameters
 ==========
 
-* All the different **function** types can be declared to have C data types.
-* Use normal C declaration syntax.
-* **Python callable functions** can also be declared with C data types.
+* Both C and Python **function** types can be declared to have parameters C data types.
+* Use normal C declaration syntax::
 
- * As these parameters are passed into the Python function, they magically **convert** to
-   the specified C typed value.
- * See also... **link the various areas that detail this**
+    def spam(int i, char *s):
+        ...
+
+        cdef int eggs(unsigned long l, float f):
+            ...
+
+* As these parameters are passed into a Python declared function, they are magically **converted** to the specified C type value.
+
+ * This holds true for only numeric and string types
+
+.. todo::
+    The previous statement is still true ..??
+
+* If no type is specified for a parameter or a return value, it is assumed to be a Python object
+
+ * The following takes two Python objects as parameters and returns a Python object::
+
+        cdef spamobjs(x, y):
+            ...
+
+ * .. note::
+    This is different then C language behavior, where  it is an int by default.
 
 
-Conversion
-==========
+
+* Python object types have reference counting performed according to the standard Python C-API rules:
+
+ * Borrowed references are taken as parameters
+ * New references are returned
+
+.. todo::
+    link or label here the one ref count caveat for numpy.
+
+* The name ``object`` can be used to explicitly declare something as a Python Object.
+
+ * For sake of code clarity, it recomened to always use ``object`` explicitly in your code.
+
+ * This is also useful for cases where the name being declared would otherwise be taken for a type::
+
+     cdef foo(object int):
+         ...
+
+ * As a return type::
+
+     cdef object foo(object int):
+         ...
+
+.. todo::
+    Do a see also here ..??
+
+
+Automatic Type Conversion
+=========================
+
+* For basic numeric and string types, in most situations, when a Python object is used in the context of a C value and vice versa.
+
+* The following table summarises the conversion possibilities:
+
+    +----------------------------+--------------------+------------------+
+    | C types                    | From Python types  | To Python types  |
+    +============================+====================+==================+
+    | [unsigned] char            | int, long          | int              |
+    +----------------------------+                    |                  |
+    | [unsigned] short           |                    |                  |
+    +----------------------------+                    |                  |
+    | int, long                  |                    |                  |
+    +----------------------------+--------------------+------------------+
+    | unsigned int               | int, long          | long             |
+    +----------------------------+                    |                  |
+    | unsigned long              |                    |                  |
+    +----------------------------+                    |                  |
+    | [unsigned] long long       |                    |                  |
+    +----------------------------+--------------------+------------------+
+    | float, double, long double | int, long, float   | float            |
+    +----------------------------+--------------------+------------------+
+    | char *                     | str/bytes          | str/bytes [#]_   |
+    +----------------------------+--------------------+------------------+
+    | struct                     |                    | dict             |
+    +----------------------------+--------------------+------------------+
+
+
+.. [#] The conversion is to/from str for Python 2.x, and bytes for Python 3.x.
+
+
+.. note::
+    **Python String in a C Context**
+
+    * A Python string, passed to C context expecting a ``char*``, is only valid as long as the Python string exists.
+    * A reference to the Python string must be kept around for as long as the C string is needed.
+    * If this can't be guarenteed, then make a copy of the C string.
+    * Cython may produce an error message: ``Obtaining char* from a temporary Python value`` and will not resume compiling in situations like this::
+
+        cdef char *s
+        s = pystring1 + pystring2
+
+    * The reason is that concatenating to strings in Python produces a temporary variable.
+
+     * The variable is decrefed, and the Python string deallocated as soon as the statement has finished,
+
+     * Therefore the lvalue **``s``** is left dangling.
+
+    * The solution is to assign the result of the concatenation to a Python variable, and then obtain the ``char*`` from that::
+
+        cdef char *s
+        p = pystring1 + pystring2
+        s = p
+
+    .. note::
+        **It is up to you to be aware of this, and not to depend on Cython's error message, as it is not guarenteed to be generated for every situation.**
+
+
+
 
 Casting
 =======
@@ -231,9 +324,6 @@ Statements and Expressions
 =========
 Functions
 =========
-
-.. contents::
-    :local:
 
 Callable from Python
 =====================

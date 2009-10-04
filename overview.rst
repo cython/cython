@@ -6,9 +6,6 @@
 Overview
 ********
 
-.. contents::
-    :local:
-
 ===============
 What is Cython?
 ===============
@@ -41,9 +38,11 @@ Tell Me More!
 The Python language is well known.
 
 The primary Python execution environment is commonly referred to as CPython, as it is written in
-C. Other major implementations use Java (Jython
-[#Jython]_), C# (IronPython [#IronPython]_) and Python
-itself (PyPy [#PyPy]_).
+C. Other major implementations use:
+
+:Java: Jython [#Jython]_
+:C#: IronPython [#IronPython]_)
+:Python itself: PyPy [#PyPy]_
 
 Written in C, CPython has been
 conducive to wrapping many external libraries that interface through the C language. It has, however, remained non trivial to write the necessary glue code in
@@ -83,6 +82,18 @@ Where Do I Get It?
 
 Well.. at `cython.org <http://cython.org>`_.. of course!
 
+
+How Do I Report a Bug?
+======================
+
+I Want To Make A Feature Request!
+=================================
+
+How Can I Contact You?
+=======================
+
+
+
 .. rubric:: Footnotes
 
 .. [#Jython] **Jython:** \J. Huginin, B. Warsaw, F. Bock, et al., Jython: Python for the Java platform, http://www.jython.org/
@@ -93,6 +104,16 @@ Well.. at `cython.org <http://cython.org>`_.. of course!
 .. [#PyPy] **PyPy:** The PyPy Group, PyPy: a Python implementation written in Python, http://codespeak.net/pypy.
 
 .. [#Pyrex] **Pyrex:** G. Ewing, Pyrex: C-Extensions for Python, http://www.cosc.canterbury.ac.nz/greg.ewing/python/Pyrex/
+
+
+
+
+
+
+
+
+
+
 
 
 

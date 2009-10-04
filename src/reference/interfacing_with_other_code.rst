@@ -6,9 +6,6 @@
 Interfacing with Other Code
 ***************************
 
-.. contents::
-    :local:
-
 ==
 C
 ==
