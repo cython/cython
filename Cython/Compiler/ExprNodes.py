@@ -4245,24 +4245,29 @@ class SizeofVarNode(SizeofNode):
     def generate_result_code(self, code):
         pass
 
-class TypeofNode(StringNode):
+class TypeofNode(ExprNode):
     #  Compile-time type of an expression, as a string.
     #
     #  operand   ExprNode
+    #  literal   StringNode # internal
     
-    subexprs = ['operand']
+    literal = None
+    type = py_object_type
+    
+    subexprs = ['operand', 'literal']
     
     def analyse_types(self, env):
         self.operand.analyse_types(env)
         from StringEncoding import EncodedString
-        self.value = EncodedString(str(self.operand.type))
-        StringNode.analyse_types(self, env)
-
-    def analyse_as_type(self, env):
-        return None
+        self.literal = StringNode(self.pos, value=EncodedString(str(self.operand.type)))
+        self.literal.analyse_types(env)
+        self.literal = self.literal.coerce_to_pyobject(env)
     
     def generate_evaluation_code(self, code):
-        self.generate_result_code(code)
+        self.literal.generate_evaluation_code(code)
+    
+    def calculate_result_code(self):
+        return self.literal.calculate_result_code()
 
 #-------------------------------------------------------------------
 #

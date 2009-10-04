@@ -4,6 +4,12 @@
 
 import sys, os, time, copy
 
+try:
+    set
+except NameError:
+    # Python 2.3
+    from sets import Set as set
+
 import Code
 import Builtin
 from Errors import error, warning, InternalError

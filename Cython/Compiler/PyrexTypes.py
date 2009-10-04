@@ -1801,10 +1801,14 @@ def widest_numeric_type(type1, type2):
 
 def spanning_type(type1, type2):
     # Return a type assignable from both type1 and type2.
-    if type1 == type2:
+    if type1 is py_object_type or type2 is py_object_type:
+        return py_object_type
+    elif type1 == type2:
         return type1
     elif type1.is_numeric and type2.is_numeric:
         return widest_numeric_type(type1, type2)
+    elif type1.is_pyobject ^ type2.is_pyobject:
+        return py_object_type
     elif type1.assignable_from(type2):
         return type1
     elif type2.assignable_from(type1):
@@ -1812,7 +1816,6 @@ def spanning_type(type1, type2):
     else:
         return py_object_type
     
-
 def simple_c_type(signed, longness, name):
     # Find type descriptor for simple type given name and modifiers.
     # Returns None if arguments don't make sense.
