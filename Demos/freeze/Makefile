@@ -1,5 +1,5 @@
 CC = gcc
-CYTHON = ./../bin/cython
+CYTHON = ../../bin/cython
 CYTHON_FREEZE = ../../bin/cython_freeze
 
 CFLAGS = -fPIC -g -O2 -Wall -Wextra
