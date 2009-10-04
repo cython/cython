@@ -31,7 +31,7 @@ modules, but it requires another C source file to be created.
 EXAMPLE
 =======
 
-In the example directory, there exist two Cython modules:
+In the Demos/freeze directory, there exist two Cython modules:
 
 cmath.pyx
     A module that interfaces with the -lm library.
