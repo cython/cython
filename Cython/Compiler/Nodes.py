@@ -3197,6 +3197,10 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.lhs.annotate(code)
         self.rhs.annotate(code)
         self.dup.annotate(code)
+    
+    def create_binop_node(self):
+        import ExprNodes
+        return ExprNodes.binop_node(self.pos, self.op, self.lhs, self.rhs)
 
 
 class PrintStatNode(StatNode):

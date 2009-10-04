@@ -114,9 +114,10 @@ class Entry(object):
     # api              boolean    Generate C API for C class or function
     # utility_code     string     Utility code needed when this entry is used
     #
-    # buffer_aux      BufferAux or None  Extra information needed for buffer variables
+    # buffer_aux       BufferAux or None  Extra information needed for buffer variables
     # inline_func_in_pxd boolean  Hacky special case for inline function in pxd file.
     #                             Ideally this should not be necesarry.
+    # assignments      [ExprNode] List of expressions that get assigned to this entry.
 
     inline_func_in_pxd = False
     borrowed = 0
@@ -171,6 +172,7 @@ class Entry(object):
         self.type = type
         self.pos = pos
         self.init = init
+        self.assignments = []
         
     def redeclared(self, pos):
         error(pos, "'%s' does not match previous declaration" % self.name)
