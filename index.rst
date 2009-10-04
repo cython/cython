@@ -7,9 +7,10 @@ Contents:
 .. toctree::
    :maxdepth: 1
 
-   overview
-   src/reference/index
+   welcome
    src/tutorial/index
+   src/reference/index
+
 
 .. note::
     .. todo::

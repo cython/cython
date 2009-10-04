@@ -1,5 +1,5 @@
-Tutorial
-========
+Tutorials
+=========
 
 Contents:
 

@@ -247,6 +247,58 @@ Parameters
 .. todo::
     Do a see also here ..??
 
+Optional Arguments
+------------------
+
+* Are supported for ``cdef`` and ``cpdef`` functions
+* There differences though whether you declare them in a ``.pyx`` file or a ``.pxd`` file
+
+ * When in a ``.pyx`` file, the signature is the same as it is in Python itself::
+
+    cdef class A:
+        cdef foo(self):
+            print "A"
+    cdef class B(A)
+        cdef foo(self, x=None)
+            print "B", x
+    cdef class C(B):
+        cpdef foo(self, x=True, int k=3)
+            print "C", x, k
+
+
+ * When in a ``.pxd`` file, the signature is different like this example: ``cdef foo(x=*)``::
+
+    cdef class A:
+        cdef foo(self)
+    cdef class B(A)
+        cdef foo(self, x=*)
+    cdef class C(B):
+        cpdef foo(self, x=*, int k=*)
+
+
+  * The number of arguments may increase when subclassing, buty the arg types and order must be the same.
+
+* There may be a slight performance penalty when the optional arg is overridden with one that does not have default values.
+
+Keyword-only Arguments
+=======================
+
+* ``def`` functions can have keyword-only argurments listed after a ``"*"`` parameter and before a ``"**"`` parameter if any::
+
+    def f(a, b, *args, c, d = 42, e, **kwds):
+        ...
+
+ * Shown above, the ``c``, ``d`` and ``e`` arguments can not be passed as positional arguments and must be passed as keyword arguments.
+ * Furthermore, ``c`` and ``e`` are required keyword arguments since they do not have a default value.
+
+* If the parameter name after the ``"*"`` is omitted, the function will not accept any extra positional argumrents::
+
+    def g(a, b, *, c, d):
+        ...
+
+ * Shown above, the signature takes exactly two positional parameters and has two required keyword parameters
+
+
 
 Automatic Type Conversion
 =========================
@@ -310,8 +362,35 @@ Automatic Type Conversion
 
 
 
-Casting
-=======
+Type Casting
+=============
+
+* The syntax used in type casting are ``"<"`` and ``">"``, for example::
+
+    cdef char *p, float *q
+    p = <char*>q
+
+
+ * .. note:: that this is different from C convention.
+
+* If exactly one of the types is a python object for ``<type>x``, Cython will try and do a coersion.
+
+ * .. note:: Cython will not stop a casting where there is no conversion, but it will emit a warning.
+
+ * If the address is what is wanted, cast to a ``void*`` first.
+
+
+Type Checking
+-------------
+
+* A cast like ``<MyExtensionType>x`` will cast x to type ``MyExtensionType`` without type checking at all.
+
+* To have a cast type checked, use the syntax like: ``<MyExtenstionType?>x``.
+
+ * In this case, Cython will throw an error if ``"x"`` is not a (subclass) of ``MyExtenstionClass``
+
+* Automatic type checking for extension types can be obtained by whenever ``isinstance()`` is used as the second parameter
+
 
 Python Objects
 ==============
@@ -320,10 +399,66 @@ Python Objects
 Statements and Expressions
 ==========================
 
+* For the most part, control structures and expressions follow Python syntax.
+* When applied to Python objects, the semantics are the same unless otherwise noted.
+* Most Python operators can be applied to C values with the obvious semantics.
+* An expression with mixed Python and C values will have **conversions** performed automatically.
+* Python operations are automatically checked for errors, with the appropriate action taken.
 
-=========
-Functions
-=========
+Differences Between Cython and C
+================================
+
+* Most notable are C constructs which have no direct equivalent in Python.
+
+ * An integer literal is treated as a C constant
+
+  * It will be truncated to whatever size your C compiler thinks appropriate.
+  * Cast to a Python object like this::
+
+      <object>10000000000000000000
+
+  * The ``"L"``, ``"LL"`` and the ``"U"`` suffixes have the same meaning as in C
+
+* There is no ``->`` operator in Cython.. instead of ``p->x``, use ``p.x``.
+* There is no ``*`` operator in Cython.. instead of ``*p``, use ``p[0]``.
+* ``&`` is permissible and has the same semantics as in C.
+* ``NULL`` is the null C pointer.
+
+ * Do NOT use 0.
+ * ``NULL`` is a reserved word in Cython
+
+* Syntax for **Type casts** are ``<type>value``.
+
+Scope Rules
+===========
+
+* All determination of scoping (local, module, built-in) in Cython is determined statically.
+* As with Python, a variable assignment which is not declared explicitly is implicitly declared to be a Python variable residing in the scope where it was assigned.
+
+.. note::
+    * Module-level scope behaves the same way as a Python local scope if you refer to the variable before assigning to it.
+
+     * Tricks, like the following will NOT work in Cython::
+
+            try:
+                x = True
+            except NameError:
+                True = 1
+
+     * The above example will not work because ``True`` will always be looked up in the module-level scope. Do the following instead::
+
+            import __builtin__
+            try:
+                True = __builtin__.True
+            except AttributeError:
+                True = 1
+
+
+
+
+=====================
+Functions and Methods
+=====================
 
 Callable from Python
 =====================
@@ -333,6 +468,28 @@ Callable from C
 
 Callable from both Python and C
 ================================
+
+Overriding
+==========
+
+``cpdef`` functions can override ``cdef`` functions::
+
+    cdef class A:
+        cdef foo(self):
+            print "A"
+    cdef class B(A)
+        cdef foo(self, x=None)
+            print "B", x
+    cdef class C(B):
+        cpdef foo(self, x=True, int k=3)
+            print "C", x, k
+
+
+Function Pointers
+=================
+
+Functions declared in a ``struct`` are automatically converted to function pointers.
+
 
 ============================
 Error and Exception Handling

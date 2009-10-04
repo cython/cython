@@ -3,7 +3,7 @@
 .. _overview:
 
 ********
-Overview
+Welcome!
 ********
 
 ===============
@@ -82,7 +82,7 @@ Where Do I Get It?
 
 Well.. at `cython.org <http://cython.org>`_.. of course!
 
-=====================
+======================
 How Do I Report a Bug?
 ======================
 
@@ -90,9 +90,9 @@ How Do I Report a Bug?
 I Want To Make A Feature Request!
 =================================
 
-======================
-How Can I Contact You?
-=======================
+============================================
+Is There a Mail List? How Do I Contact You?
+============================================
 
 
 
