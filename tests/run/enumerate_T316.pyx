@@ -65,24 +65,24 @@ __doc__ = u"""
 
 cimport cython
 
-@cython.testFailIfPathExists("//SimpleCallNode//NameNode[@name = 'enumerate']")
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
 def go_py_enumerate():
     for i,k in enumerate(range(1,5)):
         print i, k
 
-@cython.testFailIfPathExists("//SimpleCallNode//NameNode[@name = 'enumerate']")
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
 def go_c_enumerate():
     cdef int i,k
     for i,k in enumerate(range(1,5)):
         print i, k
 
-@cython.testFailIfPathExists("//SimpleCallNode//NameNode[@name = 'enumerate']")
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
 def go_c_enumerate_step():
     cdef int i,k
     for i,k in enumerate(range(1,7,2)):
         print i, k
 
-@cython.testFailIfPathExists("//SimpleCallNode//NameNode[@name = 'enumerate']")
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
 def py_enumerate_dict(dict d):
     cdef int i = 55
     k = 99
@@ -90,7 +90,7 @@ def py_enumerate_dict(dict d):
         print i, k
     print u"::", i, k
 
-@cython.testFailIfPathExists("//SimpleCallNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode")
 def py_enumerate_break(*t):
     i,k = 55,99
     for i,k in enumerate(t):
@@ -98,7 +98,7 @@ def py_enumerate_break(*t):
         break
     print u"::", i, k
 
-@cython.testFailIfPathExists("//SimpleCallNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode")
 def py_enumerate_return(*t):
     i,k = 55,99
     for i,k in enumerate(t):
@@ -106,7 +106,7 @@ def py_enumerate_return(*t):
         return
     print u"::", i, k
 
-@cython.testFailIfPathExists("//SimpleCallNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode")
 def py_enumerate_continue(*t):
     i,k = 55,99
     for i,k in enumerate(t):
@@ -114,7 +114,7 @@ def py_enumerate_continue(*t):
         continue
     print u"::", i, k
 
-@cython.testFailIfPathExists("//SimpleCallNode//NameNode[@name = 'enumerate']")
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
 def empty_c_enumerate():
     cdef int i = 55, k = 99
     for i,k in enumerate(range(0)):
@@ -126,12 +126,12 @@ def single_target_enumerate():
     for t in enumerate(range(1,5)):
         print t[0], t[1]
 
-@cython.testFailIfPathExists("//SimpleCallNode//NameNode[@name = 'enumerate']")
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
 def multi_enumerate():
     for a,(b,(c,d)) in enumerate(enumerate(enumerate(range(1,5)))):
         print a,b,c,d
 
-@cython.testFailIfPathExists("//SimpleCallNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode")
 def multi_c_enumerate():
     cdef int a,b,c,d
     for a,(b,(c,d)) in enumerate(enumerate(enumerate(range(1,5)))):

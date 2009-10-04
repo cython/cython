@@ -27,9 +27,9 @@ def smoketest_set():
              for x in range(5)
              if x % 2 == 0 }
 
-@cython.testFailIfPathExists("//SimpleCallNode//ComprehensionNode")
-@cython.testAssertPathExists("//ComprehensionNode",
-                             "//ComprehensionNode//ComprehensionAppendNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode//ComprehensionNode")
+@cython.test_assert_path_exists("//ComprehensionNode",
+                                "//ComprehensionNode//ComprehensionAppendNode")
 def smoketest_list():
     return set([ x*2
                  for x in range(5)

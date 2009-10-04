@@ -22,10 +22,12 @@ def smoketest_dict():
              for x in range(5)
              if x % 2 == 0 }
 
-@cython.testFailIfPathExists("//ComprehensionNode//ComprehensionAppendNode",
-                             "//SimpleCallNode//ComprehensionNode")
-@cython.testAssertPathExists("//ComprehensionNode",
-                             "//ComprehensionNode//DictComprehensionAppendNode")
+@cython.test_fail_if_path_exists(
+    "//ComprehensionNode//ComprehensionAppendNode",
+    "//SimpleCallNode//ComprehensionNode")
+@cython.test_assert_path_exists(
+    "//ComprehensionNode",
+    "//ComprehensionNode//DictComprehensionAppendNode")
 def smoketest_list():
     return dict([ (x+2,x*2)
                   for x in range(5)
