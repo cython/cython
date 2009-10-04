@@ -68,7 +68,7 @@ option_defaults = {
     'c99_complex' : False, # Don't use macro wrappers for complex arith, not sure what to name this...
     'callspec' : "",
     'profile': False,
-    'infer_types': True,
+    'infer_types': False,
     'autotestdict': True,
 
 # test support
