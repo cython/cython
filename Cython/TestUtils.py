@@ -4,7 +4,8 @@ import unittest
 from Cython.Compiler.ModuleNode import ModuleNode
 import Cython.Compiler.Main as Main
 from Cython.Compiler.TreeFragment import TreeFragment, strip_common_indent
-from Cython.Compiler.Visitor import TreeVisitor
+from Cython.Compiler.Visitor import TreeVisitor, VisitorTransform
+from Cython.Compiler import TreePath
 
 class NodeTypeWriter(TreeVisitor):
     def __init__(self):
@@ -74,6 +75,10 @@ class CythonTest(unittest.TestCase):
         self.assertEqual(len(result_lines), len(expected_lines),
             "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(result_lines), expected))
 
+    def assertNodeExists(self, path, result_tree):
+        self.assertNotEqual(TreePath.find_first(result_tree, path), None,
+                            "Path '%s' not found in result tree" % path)
+
     def fragment(self, code, pxds={}, pipeline=[]):
         "Simply create a tree fragment using the name of the test-case in parse errors."
         name = self.id()
@@ -136,3 +141,28 @@ class TransformTest(CythonTest):
             tree = T(tree)
         return tree    
 
+
+class TreeAssertVisitor(VisitorTransform):
+    # actually, a TreeVisitor would be enough, but this needs to run
+    # as part of the compiler pipeline
+
+    def visit_CompilerDirectivesNode(self, node):
+        directives = node.directives
+        if 'testAssertPathExists' in directives:
+            for path in directives['testAssertPathExists']:
+                if TreePath.find_first(node, path) is None:
+                    Errors.error(
+                        node.pos,
+                        "Expected path '%s' not found in result tree of node %r" % (
+                        path, node.body))
+        if 'testFailIfPathExists' in directives:
+            for path in directives['testFailIfPathExists']:
+                if TreePath.find_first(node, path) is not None:
+                    Errors.error(
+                        node.pos,
+                        "Unexpected path '%s' found in result tree of node %r" %  (
+                        path, node.body))
+        self.visitchildren(node)
+        return node
+
+    visit_Node = VisitorTransform.recurse_to_children
