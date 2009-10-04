@@ -3503,6 +3503,8 @@ class DictNode(ExprNode):
     # obj_conversion_errors    [PyrexError]   used internally
     
     subexprs = ['key_value_pairs']
+    is_temp = 1
+    type = dict_type
 
     type = dict_type
     obj_conversion_errors = []
@@ -3521,12 +3523,10 @@ class DictNode(ExprNode):
     
     def analyse_types(self, env):
         hold_errors()
-        self.type = dict_type
         for item in self.key_value_pairs:
             item.analyse_types(env)
         self.obj_conversion_errors = held_errors()
         release_errors(ignore=True)
-        self.is_temp = 1
         
     def coerce_to(self, dst_type, env):
         if dst_type.is_pyobject:
@@ -5487,6 +5487,44 @@ class CloneNode(CoercionNode):
                 
     def free_temps(self, code):
         pass
+
+
+class ModuleRefNode(ExprNode):
+    # Simple returns the module object
+    
+    type = py_object_type
+    is_temp = False
+    subexprs = []
+    
+    def analyse_types(self, env):
+        pass
+
+    def calculate_result_code(self):
+        return Naming.module_cname
+
+    def generate_result_code(self, code):
+        pass
+
+class DocstringRefNode(ExprNode):
+    # Extracts the docstring of the body element
+    
+    subexprs = ['body']
+    type = py_object_type
+    is_temp = True
+    
+    def __init__(self, pos, body):
+        ExprNode.__init__(self, pos)
+        assert body.type.is_pyobject
+        self.body = body
+
+    def analyse_types(self, env):
+        pass
+
+    def generate_result_code(self, code):
+        code.putln('%s = __Pyx_GetAttrString(%s, "__doc__");' %
+                   (self.result(), self.body.result()))
+        code.put_gotref(self.result())
+
 
 
 #------------------------------------------------------------------------------------

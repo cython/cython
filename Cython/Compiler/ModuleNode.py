@@ -2515,4 +2515,4 @@ packed_struct_utility_code = UtilityCode(proto="""
 #else
 #define __Pyx_PACKED
 #endif
-""", impl="")
+""", impl="", proto_block='utility_code_proto_before_types')
