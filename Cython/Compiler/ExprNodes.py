@@ -13,7 +13,7 @@ import Nodes
 from Nodes import Node
 import PyrexTypes
 from PyrexTypes import py_object_type, c_long_type, typecast, error_type, unspecified_type
-from Builtin import list_type, tuple_type, set_type, dict_type, unicode_type, bytes_type
+from Builtin import list_type, tuple_type, set_type, dict_type, unicode_type, bytes_type, type_type
 import Builtin
 import Symtab
 import Options
@@ -990,6 +990,11 @@ class NameNode(AtomicExprNode):
             self.entry = env.lookup(self.name)
         if self.entry is None:
             return py_object_type
+        elif (self.entry.type.is_extension_type or self.entry.type.is_builtin_type) and \
+                self.name == self.entry.type.name:
+            # Unfortunately the type attribute of type objects
+            # is used for the pointer to the type the represent.
+            return type_type
         else:
             return self.entry.type
     

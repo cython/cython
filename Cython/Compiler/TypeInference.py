@@ -152,7 +152,8 @@ class SimpleAssignmentTypeInferer:
                 if types:
                     entry.type = reduce(spanning_type, types)
                 else:
-                    print "No assignments", entry.pos, entry
+                    # List comprehension?
+                    # print "No assignments", entry.pos, entry
                     entry.type = py_object_type
                 resolve_dependancy(entry)
             # Deal with simple circular dependancies...
