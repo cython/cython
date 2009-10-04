@@ -24,7 +24,9 @@ class UtilityCode(object):
     #
     # hashes/equals by instance
     
-    def __init__(self, proto=None, impl=None, init=None, cleanup=None, requires=None):
+    def __init__(self, proto=None, impl=None, init=None, cleanup=None, requires=None,
+                 proto_block='utility_code_proto'):
+        # proto_block: Which code block to dump prototype in. See GlobalState.
         self.proto = proto
         self.impl = impl
         self.init = init
@@ -32,6 +34,7 @@ class UtilityCode(object):
         self.requires = requires
         self._cache = {}
         self.specialize_list = []
+        self.proto_block = proto_block
 
     def specialize(self, pyrex_type=None, **data):
         # Dicts aren't hashable...
@@ -51,7 +54,7 @@ class UtilityCode(object):
                                         none_or_sub(self.impl, data),
                                         none_or_sub(self.init, data),
                                         none_or_sub(self.cleanup, data),
-                                        requires)
+                                        requires, self.proto_block)
             self.specialize_list.append(s)
             return s
 
@@ -60,7 +63,7 @@ class UtilityCode(object):
             for dependency in self.requires:
                 output.use_utility_code(dependency)
         if self.proto:
-            output['utility_code_proto'].put(self.proto)
+            output[self.proto_block].put(self.proto)
         if self.impl:
             output['utility_code_def'].put(self.impl)
         if self.init:
@@ -390,8 +393,10 @@ class GlobalState(object):
 
     code_layout = [
         'h_code',
-        'utility_code_proto',
+        'complex_numbers_utility_code',
+        'utility_code_proto_before_types',
         'type_declarations',
+        'utility_code_proto',
         'module_declarations',
         'typeinfo',
         'before_global_var',

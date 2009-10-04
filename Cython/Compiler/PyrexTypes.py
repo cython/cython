@@ -612,7 +612,7 @@ static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
     }
     return (%(type)s)__Pyx_PyInt_As%(SignWord)sLong(x);
 }
-""")
+""") #fool emacs: '
 
 c_long_from_py_function = UtilityCode(
 proto="""
@@ -1013,7 +1013,7 @@ proto="""
     }
 
 #endif
-""")
+""", proto_block='complex_numbers_utility_code')
 
 
 class CArrayType(CType):
