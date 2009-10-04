@@ -15,11 +15,17 @@ True
 [(1, 'a'), (2, 'b'), (3, 'c')]
 """
 
+cimport cython
+
 def smoketest_dict():
     return { x+2:x*2
              for x in range(5)
              if x % 2 == 0 }
 
+@cython.testFailIfPathExists("//ComprehensionNode//ComprehensionAppendNode",
+                             "//SimpleCallNode//ComprehensionNode")
+@cython.testAssertPathExists("//ComprehensionNode",
+                             "//ComprehensionNode//DictComprehensionAppendNode")
 def smoketest_list():
     return dict([ (x+2,x*2)
                   for x in range(5)
