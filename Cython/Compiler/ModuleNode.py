@@ -1678,6 +1678,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("/*--- Initialize various global constants etc. ---*/")
         code.putln(code.error_goto_if_neg("__Pyx_InitGlobals()", self.pos))
 
+        code.putln("if (%s%s) {" % (Naming.module_is_main, self.full_module_name.replace('.', '__')))
+        code.putln(
+            'if (__Pyx_SetAttrString(%s, "__name__", %s) < 0) %s;' % (
+                env.module_cname,
+                self.__main__cname,
+                code.error_goto(self.pos)))
+        code.putln("}")
+
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
             code.putln(code.error_goto_if_neg("__Pyx_InitCachedBuiltins()",
@@ -1855,13 +1863,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_cname,
                 Naming.builtins_cname,
                 code.error_goto(self.pos)))
-        code.putln("if (%s%s) {" % (Naming.module_is_main, self.full_module_name.replace('.', '__')))
-        code.putln(
-            'if (__Pyx_SetAttrString(%s, "__name__", %s) < 0) %s;' % (
-                env.module_cname,
-                self.__main__cname,
-                code.error_goto(self.pos)))
-        code.putln("}")
         if Options.pre_import is not None:
             code.putln(
                 '%s = PyImport_AddModule(__Pyx_NAMESTR("%s"));' % (
