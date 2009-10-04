@@ -4245,6 +4245,24 @@ class SizeofVarNode(SizeofNode):
     def generate_result_code(self, code):
         pass
 
+class TypeofNode(StringNode):
+    #  Compile-time type of an expression, as a string.
+    #
+    #  operand   ExprNode
+    
+    subexprs = ['operand']
+    
+    def analyse_types(self, env):
+        self.operand.analyse_types(env)
+        from StringEncoding import EncodedString
+        self.value = EncodedString(str(self.operand.type))
+        StringNode.analyse_types(self, env)
+
+    def analyse_as_type(self, env):
+        return None
+    
+    def generate_evaluation_code(self, code):
+        self.generate_result_code(code)
 
 #-------------------------------------------------------------------
 #
@@ -4850,9 +4868,6 @@ class CondExprNode(ExprNode):
     def infer_type(self, env):
         return self.compute_result_type(self.true_val.infer_type(env),
                                         self.false_val.infer_type(env))
-    def infer_types(self, env):
-        return self.compute_result_type(self.true_val.infer_types(env),
-                                        self.false_val.infer_types(env))
 
     def calculate_constant_result(self):
         if self.test.constant_result:
