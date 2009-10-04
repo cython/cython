@@ -148,20 +148,18 @@ class TreeAssertVisitor(VisitorTransform):
 
     def visit_CompilerDirectivesNode(self, node):
         directives = node.directives
-        if 'testAssertPathExists' in directives:
-            for path in directives['testAssertPathExists']:
+        if 'test_assert_path_exists' in directives:
+            for path in directives['test_assert_path_exists']:
                 if TreePath.find_first(node, path) is None:
                     Errors.error(
                         node.pos,
-                        "Expected path '%s' not found in result tree of node %r" % (
-                        path, node.body))
-        if 'testFailIfPathExists' in directives:
-            for path in directives['testFailIfPathExists']:
+                        "Expected path '%s' not found in result tree" % path)
+        if 'test_fail_if_path_exists' in directives:
+            for path in directives['test_fail_if_path_exists']:
                 if TreePath.find_first(node, path) is not None:
                     Errors.error(
                         node.pos,
-                        "Unexpected path '%s' found in result tree of node %r" %  (
-                        path, node.body))
+                        "Unexpected path '%s' found in result tree" %  path)
         self.visitchildren(node)
         return node
 

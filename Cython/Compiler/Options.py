@@ -71,8 +71,8 @@ option_defaults = {
     'doctesthack': False,
 
 # test support
-    'testAssertPathExists' : [],
-    'testFailIfPathExists' : [],
+    'test_assert_path_exists' : [],
+    'test_fail_if_path_exists' : [],
 }
 
 # Override types possibilities above, if needed
@@ -85,8 +85,8 @@ for key, val in option_defaults.items():
 option_scopes = { # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'doctesthack' : ('module',),
-    'testAssertPathExists' : ('function',),
-    'testFailIfPathExists' : ('function',),
+    'test_assert_path_exists' : ('function',),
+    'test_fail_if_path_exists' : ('function',),
 }
 
 def parse_option_value(name, value):
