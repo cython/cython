@@ -3271,6 +3271,8 @@ class ListNode(SequenceNode):
     # obj_conversion_errors    [PyrexError]   used internally
     # orignial_args            [ExprNode]     used internally
 
+    obj_conversion_errors = []
+
     gil_message = "Constructing Python list"
 
     def analyse_expressions(self, env):
@@ -3403,12 +3405,13 @@ class ComprehensionAppendNode(ExprNode):
     # Need to be careful to avoid infinite recursion:
     # target must not be in child_attrs/subexprs
     subexprs = ['expr']
+
+    type = PyrexTypes.c_int_type
     
     def analyse_types(self, env):
         self.expr.analyse_types(env)
         if not self.expr.type.is_pyobject:
             self.expr = self.expr.coerce_to_pyobject(env)
-        self.type = PyrexTypes.c_int_type
         self.is_temp = 1
 
     def generate_result_code(self, code):
@@ -3429,7 +3432,7 @@ class ComprehensionAppendNode(ExprNode):
 
 class DictComprehensionAppendNode(ComprehensionAppendNode):
     subexprs = ['key_expr', 'value_expr']
-    
+
     def analyse_types(self, env):
         self.key_expr.analyse_types(env)
         if not self.key_expr.type.is_pyobject:
@@ -3437,7 +3440,6 @@ class DictComprehensionAppendNode(ComprehensionAppendNode):
         self.value_expr.analyse_types(env)
         if not self.value_expr.type.is_pyobject:
             self.value_expr = self.value_expr.coerce_to_pyobject(env)
-        self.type = PyrexTypes.c_int_type
         self.is_temp = 1
 
     def generate_result_code(self, code):
@@ -3501,6 +3503,9 @@ class DictNode(ExprNode):
     # obj_conversion_errors    [PyrexError]   used internally
     
     subexprs = ['key_value_pairs']
+
+    type = dict_type
+    obj_conversion_errors = []
 
     def calculate_constant_result(self):
         self.constant_result = dict([
