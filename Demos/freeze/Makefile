@@ -14,6 +14,7 @@ TARGET = nCr
 
 # List of Cython source files, with main module first.
 CYTHON_SOURCE = combinatorics.pyx cmath.pyx
+CYTHON_SECONDARY = $(CYTHON_SOURCE:.pyx=.c) $(TARGETS:=.c)
 
 
 all : $(TARGET)
@@ -27,7 +28,7 @@ $(TARGET).c :
 	$(CYTHON) $(CYTHONFLAGS) $^
 
 clean:
-	$(RM) *.o *.c $(TARGET)
+	$(RM) *.o $(CYTHON_SECONDARY) $(TARGET)
 
 .PHONY: clean
-.SECONDARY: $(CYTHON_SOURCE:.pyx=.c)
+.SECONDARY: $(CYTHON_SECONDARY)
