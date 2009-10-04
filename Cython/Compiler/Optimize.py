@@ -184,7 +184,7 @@ class IterationTransform(Visitor.VisitorTransform):
         node.iterator.sequence = enumerate_function.arg_tuple.args[0]
 
         # recurse into loop to check for further optimisations
-        return UtilNodes.LetNode(temp, self._optimise_for_loop(node)) 
+        return UtilNodes.LetNode(temp, self._optimise_for_loop(node))
 
     def _transform_range_iteration(self, node, range_function):
         args = range_function.arg_tuple.args
@@ -224,6 +224,13 @@ class IterationTransform(Visitor.VisitorTransform):
             bound2 = args[1].coerce_to_integer(self.current_scope)
         step = step.coerce_to_integer(self.current_scope)
 
+        if not isinstance(bound2, ExprNodes.ConstNode):
+            # stop bound must be immutable => keep it in a temp var
+            bound2_is_temp = True
+            bound2 = UtilNodes.LetRefNode(bound2)
+        else:
+            bound2_is_temp = False
+
         for_node = Nodes.ForFromStatNode(
             node.pos,
             target=node.target,
@@ -232,6 +239,10 @@ class IterationTransform(Visitor.VisitorTransform):
             step=step, body=node.body,
             else_clause=node.else_clause,
             from_range=True)
+
+        if bound2_is_temp:
+            for_node = UtilNodes.LetNode(bound2, for_node)
+
         return for_node
 
     def _transform_dict_iteration(self, node, dict_obj, keys, values):
