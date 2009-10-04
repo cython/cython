@@ -77,6 +77,7 @@ class PyrexType(BaseType):
     #
         
     is_pyobject = 0
+    is_unspecified = 0
     is_extension_type = 0
     is_builtin_type = 0
     is_numeric = 0
@@ -1591,6 +1592,8 @@ class CUCharPtrType(CStringType, CPtrType):
 
 class UnspecifiedType(PyrexType):
     # Used as a placeholder until the type can be determined.
+    
+    is_unspecified = 1
         
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -1787,6 +1790,20 @@ def widest_numeric_type(type1, type2):
     else:
         return sign_and_rank_to_type[min(type1.signed, type2.signed), max(type1.rank, type2.rank)]
     return widest_type
+
+def spanning_type(type1, type2):
+    # Return a type assignable from both type1 and type2.
+    if type1 == type2:
+        return type1
+    elif type1.is_numeric and type2.is_numeric:
+        return widest_numeric_type(type1, type2)
+    elif type1.assignable_from(type2):
+        return type1
+    elif type2.assignable_from(type1):
+        return type2
+    else:
+        return py_object_type
+    
 
 def simple_c_type(signed, longness, name):
     # Find type descriptor for simple type given name and modifiers.

@@ -173,6 +173,9 @@ class Entry(object):
         self.pos = pos
         self.init = init
         self.assignments = []
+    
+    def __repr__(self):
+        return "Entry(name=%s, type=%s)" % (self.name, self.type)
         
     def redeclared(self, pos):
         error(pos, "'%s' does not match previous declaration" % self.name)
@@ -546,10 +549,8 @@ class Scope(object):
         return 0
     
     def infer_types(self):
-        for name, entry in self.entries.items():
-            if entry.type is unspecified_type:
-                entry.type = py_object_type
-                entry.init_to_none = Options.init_local_none # TODO: is there a better place for this?
+        from TypeInference import get_type_inferer
+        get_type_inferer().infer_types(self)
 
 class PreImportScope(Scope):
 
@@ -1053,6 +1054,10 @@ class ModuleScope(Scope):
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
         entry.as_variable = var_entry
+    
+    def infer_types(self):
+        from TypeInference import PyObjectTypeInferer
+        PyObjectTypeInferer().infer_types(self)
         
 class LocalScope(Scope):    
 
@@ -1084,7 +1089,7 @@ class LocalScope(Scope):
             cname, visibility, is_cdef)
         if type.is_pyobject and not Options.init_local_none:
             entry.init = "0"
-        entry.init_to_none = type.is_pyobject and Options.init_local_none
+        entry.init_to_none = (type.is_pyobject or type.is_unspecified) and Options.init_local_none
         entry.is_local = 1
         self.var_entries.append(entry)
         return entry
