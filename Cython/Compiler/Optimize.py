@@ -38,6 +38,7 @@ class IterationTransform(Visitor.VisitorTransform):
     """Transform some common for-in loop patterns into efficient C loops:
 
     - for-in-dict loop becomes a while loop calling PyDict_Next()
+    - for-in-enumerate is replaced by an external counter variable
     - for-in-range loop becomes a plain C for loop
     """
     PyDict_Next_func_type = PyrexTypes.CFuncType(
