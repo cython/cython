@@ -50,12 +50,14 @@ class MarkAssignments(CythonTransform):
 
     def visit_ForInStatNode(self, node):
         # TODO: Remove redundancy with range optimization...
+        is_range = False
         sequence = node.iterator.sequence
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
             if sequence.self is None and \
                     isinstance(function, ExprNodes.NameNode) and \
                     function.name in ('range', 'xrange'):
+                is_range = True
                 self.mark_assignment(node.target, sequence.args[0])
                 if len(sequence.args) > 1:
                     self.mark_assignment(node.target, sequence.args[1])
@@ -65,7 +67,7 @@ class MarkAssignments(CythonTransform):
                                                       '+',
                                                       sequence.args[0],
                                                       sequence.args[2]))
-        else:
+        if not is_range:
             self.mark_assignment(node.target, object_expr)
         self.visitchildren(node)
         return node
@@ -143,7 +145,7 @@ class SimpleAssignmentTypeInferer:
                         del dependancies_by_entry[entry]
                         ready_to_infer.append(entry)
         # Try to infer things in order...
-        while ready_to_infer:
+        while True:
             while ready_to_infer:
                 entry = ready_to_infer.pop()
                 types = [expr.infer_type(scope) for expr in entry.assignments]
@@ -165,6 +167,8 @@ class SimpleAssignmentTypeInferer:
                         del dependancies_by_entry[entry]
                         if ready_to_infer:
                             break
+            if not ready_to_infer:
+                break
                     
         # We can't figure out the rest with this algorithm, let them be objects.
         for entry in dependancies_by_entry:
