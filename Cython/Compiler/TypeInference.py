@@ -12,10 +12,12 @@ object_expr = TypedExprNode(PyrexTypes.py_object_type)
 class MarkAssignments(CythonTransform):
     
     def mark_assignment(self, lhs, rhs):
-        print lhs.pos[1:]
         if isinstance(lhs, ExprNodes.NameNode):
+            if lhs.entry is None:
+                # TODO: This shouldn't happen...
+                # It looks like comprehension loop targets are not declared soon enough.
+                return
             lhs.entry.assignments.append(rhs)
-            print lhs.name, rhs
         elif isinstance(lhs, ExprNodes.SequenceNode):
             for arg in lhs.args:
                 self.mark_assignment(arg, object_expr)
@@ -48,7 +50,7 @@ class MarkAssignments(CythonTransform):
     def visit_ForFromStatNode(self, node):
         self.mark_assignment(node.target, node.bound1)
         if node.step is not None:
-            self.mark_assignment(node.target, ExprNodes.binop_node(self.pos, '+', node.bound1, node.step))
+            self.mark_assignment(node.target, ExprNodes.binop_node(node.pos, '+', node.bound1, node.step))
         self.visitchildren(node)
         return node
 
@@ -59,7 +61,7 @@ class MarkAssignments(CythonTransform):
         return node
     
     def visit_FromCImportStatNode(self, node):
-        raise NotImplementedError # Can't occur in local scopes anyways...
+        pass # Can't be assigned to...
 
     def visit_FromImportStatNode(self, node):
         for name, target in node.items:

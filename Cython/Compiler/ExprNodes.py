@@ -12,7 +12,7 @@ import Naming
 import Nodes
 from Nodes import Node
 import PyrexTypes
-from PyrexTypes import py_object_type, c_long_type, typecast, error_type
+from PyrexTypes import py_object_type, c_long_type, typecast, error_type, unspecified_type
 from Builtin import list_type, tuple_type, set_type, dict_type, unicode_type, bytes_type
 import Builtin
 import Symtab
@@ -1023,7 +1023,11 @@ class NameNode(AtomicExprNode):
         if not self.entry:
             self.entry = env.lookup_here(self.name)
         if not self.entry:
-            self.entry = env.declare_var(self.name, py_object_type, self.pos)
+            if env.directives['infer_types']:
+                type = unspecified_type
+            else:
+                type = py_object_type
+            self.entry = env.declare_var(self.name, type, self.pos)
         env.control_flow.set_state(self.pos, (self.name, 'initalized'), True)
         env.control_flow.set_state(self.pos, (self.name, 'source'), 'assignment')
         if self.entry.is_declared_generic:
@@ -3382,6 +3386,9 @@ class ComprehensionNode(ExprNode):
         self.target.analyse_expressions(env)
         self.type = self.target.type
         self.append.target = self # this is a CloneNode used in the PyList_Append in the inner loop
+        # We are analysing declarations to late.
+        self.loop.target.analyse_target_declaration(env)
+        env.infer_types()
         self.loop.analyse_declarations(env)
         self.loop.analyse_expressions(env)
 

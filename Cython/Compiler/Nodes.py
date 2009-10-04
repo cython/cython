@@ -3200,7 +3200,7 @@ class InPlaceAssignmentNode(AssignmentNode):
     
     def create_binop_node(self):
         import ExprNodes
-        return ExprNodes.binop_node(self.pos, self.op, self.lhs, self.rhs)
+        return ExprNodes.binop_node(self.pos, self.operator, self.lhs, self.rhs)
 
 
 class PrintStatNode(StatNode):

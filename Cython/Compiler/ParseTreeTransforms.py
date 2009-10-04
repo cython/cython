@@ -785,11 +785,13 @@ property NAME:
 class AnalyseExpressionsTransform(CythonTransform):
 
     def visit_ModuleNode(self, node):
+        node.scope.infer_types()
         node.body.analyse_expressions(node.scope)
         self.visitchildren(node)
         return node
         
     def visit_FuncDefNode(self, node):
+        node.local_scope.infer_types()
         node.body.analyse_expressions(node.local_scope)
         self.visitchildren(node)
         return node
