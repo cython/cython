@@ -47,12 +47,12 @@ The provided Makefile creates an executable, *nCr*, using combinatorics as the
 "main" module.  It basically performs the following (ignoring the compiler
 flags)::
 
-    $ cython_freeze combintorics cmath > nCr.c
+    $ cython_freeze combinatorics cmath > nCr.c
     $ cython combinatorics.pyx
     $ cython cmath.pyx
-    $ gcc nCr.c -o nCr.o
-    $ gcc combinatorics.c -o combinatorics.o
-    $ gcc cmath.c -o cmath.o
+    $ gcc -c nCr.c
+    $ gcc -c combinatorics.c
+    $ gcc -c cmath.c
     $ gcc nCr.o combinatorics.o cmath.o -o nCr
 
 Because the combinatorics module was listed first, its ``__name__`` is set
