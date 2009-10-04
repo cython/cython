@@ -1,5 +1,5 @@
-Cython Tutorial
-===============
+Tutorial
+========
 
 Contents:
 
