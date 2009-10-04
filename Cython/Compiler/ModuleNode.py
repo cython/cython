@@ -1691,8 +1691,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(code.error_goto_if_neg("__Pyx_InitCachedBuiltins()",
                                               self.pos))
 
-        code.putln("%s = 0;" % Naming.skip_dispatch_cname);
-
         code.putln("/*--- Global init code ---*/")
         self.generate_global_init_code(env, code)
 
