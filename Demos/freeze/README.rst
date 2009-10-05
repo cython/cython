@@ -7,7 +7,7 @@ cython_freeze - create a C file for embedding Cython modules
 SYNOPSIS
 ========
 
-cython_freeze [-o outfile] module [...]
+cython_freeze [-o outfile] [-p] module [...]
 
 
 DESCRIPTION
@@ -16,10 +16,12 @@ DESCRIPTION
 **cython_freeze** generates a C source file to embed a Python interpreter
 with one or more Cython modules built in.  This allows one to create a single
 executable from Cython code, without having to have separate shared objects
-for each Cython module.
+for each Cython module.  A major advantage of this approach is that it allows
+debuging with gprof(1), which does not work with shared objects.
 
-A major advantage of this approach is that it allows debuging with gprof(1),
-which does not work with shared objects.
+Unless ``-p`` is given, the first module's ``__name__`` is set to
+``"__main__"`` and is imported on startup; if ``-p`` is given, a normal Python
+interpreter is built, with the given modules built into the binary.
 
 Note that this method differs from ``cython --embed``.  The ``--embed`` options
 modifies the resulting C source file to include a ``main()`` function, so it
@@ -32,6 +34,7 @@ OPTIONS
 =======
 
 -o FILE, --outfile=FILE   write output to FILE instead of standard output
+-p, --pymain              do not automatically run the first module as __main__
 
 
 EXAMPLE

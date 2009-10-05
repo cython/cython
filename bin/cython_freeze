@@ -8,11 +8,13 @@ See Demos/freeze/README.rst for more details.
 
 import optparse
 
-usage= '%prog [-o outfile] module [module ...]'
+usage= '%prog [-o outfile] [-p] module [module ...]'
 description = 'Create a C file for embedding Cython modules.'
 p = optparse.OptionParser(usage=usage, description=description)
 p.add_option('-o', '--output', metavar='FILE',
         help='write output to FILE instead of standard output')
+p.add_option('-p', '--pymain', action='store_true', default=False,
+        help='do not automatically run the first module as __main__')
 
 options, args = p.parse_args()
 
@@ -57,20 +59,36 @@ for name in modules:
 
 print """    {NULL, NULL}
 };
+""",
 
-extern int __pyx_module_is_main_%(main)s;
+if not options.pymain:
+    print "\nextern int __pyx_module_is_main_%s;" % modules[0]
 
+print """
 #if PY_MAJOR_VERSION < 3 || (!defined(WIN32) && !defined(MS_WINDOWS))
 int main(int argc, char** argv) {
 #else
 int wmain(int argc, wchar_t **argv) {
 #endif
-    int r = 0;
+""",
+if not options.pymain:
+    print """\
     PyObject *m = NULL;
+    int r = 0;
+""",
+print """\
     if (PyImport_ExtendInittab(inittab)) {
         fprintf(stderr, "No memory\\n");
         exit(1);
     }
+""",
+if options.pymain:
+    print """\
+    return Py_Main(argc, argv);
+}
+"""
+else:
+    print """\
     Py_SetProgramName(argv[0]);
     Py_Initialize();
     PySys_SetArgv(argc, argv);
