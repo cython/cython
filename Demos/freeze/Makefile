@@ -2,6 +2,7 @@ CC = gcc
 CYTHON = ../../bin/cython
 CYTHON_FREEZE = ../../bin/cython_freeze
 PYTHON = python
+RST2HTML = rst2html
 
 PY_LDFLAGS = $(shell $(PYTHON) -c 'from distutils.sysconfig import get_config_var as g; print " ".join([g("LINKFORSHARED"), "-L"+g("LIBPL")])')
 PY_CPPFLAGS = $(shell $(PYTHON) -c 'from distutils.sysconfig import *; print "-I"+get_python_inc()')
@@ -22,6 +23,7 @@ CYTHON_SECONDARY = $(CYTHON_SOURCE:.pyx=.c) $(TARGETS:=.c)
 
 
 all : $(TARGETS)
+html : README.html
 
 $(TARGETS) : % : %.o $(CYTHON_SOURCE:.pyx=.o)
 
@@ -34,8 +36,11 @@ python.c :
 %.c : %.pyx
 	$(CYTHON) $(CYTHONFLAGS) $^
 
+%.html : %.txt
+	$(RST2HTML) $^ $@
+
 clean:
-	$(RM) *.o $(CYTHON_SECONDARY) $(TARGETS)
+	$(RM) *.o $(CYTHON_SECONDARY) $(TARGETS) README.html
 
 .PHONY: clean
 .SECONDARY: $(CYTHON_SECONDARY)
