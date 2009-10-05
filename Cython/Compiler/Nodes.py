@@ -1181,7 +1181,7 @@ class FuncDefNode(StatNode, BlockNode):
             for entry in lenv.var_entries:
                 if lenv.control_flow.get_state((entry.name, 'initalized')) is not True:
                     entry.xdecref_cleanup = 1
-
+        
         if self.needs_closure:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
         for entry in lenv.var_entries:
@@ -1189,11 +1189,13 @@ class FuncDefNode(StatNode, BlockNode):
                 code.put_var_decref(entry)
         # Decref any increfed args
         for entry in lenv.arg_entries:
-            if (entry.type.is_pyobject 
-                    and not entry.in_closure
-                    and lenv.control_flow.get_state((entry.name, 'source')) != 'arg'):
-                code.put_var_decref(entry)
-
+            if entry.type.is_pyobject:
+                src = lenv.control_flow.get_state((entry.name, 'source'))
+                if entry.in_closure and src == 'arg':
+                    code.put_var_incref(entry)
+                elif not entry.in_closure and src != 'arg':
+                    code.put_var_decref(entry)
+                
         # ----- Return
         # This code is duplicated in ModuleNode.generate_module_init_func
         if not lenv.nogil:
