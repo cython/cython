@@ -8,15 +8,22 @@ See Demos/freeze/README.rst for more details.
 
 import optparse
 
-usage= '%prog module [module ...]'
+usage= '%prog [-o outfile] module [module ...]'
 description = 'Create a C file for embedding Cython modules.'
 p = optparse.OptionParser(usage=usage, description=description)
+p.add_option('-o', '--output', metavar='FILE',
+        help='write output to FILE instead of standard output')
 
 options, args = p.parse_args()
 
 if len(args) < 1:
     p.print_help()
     p.exit(1)
+
+if options.output:
+    import sys
+    old_stdout = sys.stdout
+    sys.stdout = open(options.output, 'w')
 
 def format_modname(name):
     if name.endswith('.pyx'):
