@@ -34,7 +34,7 @@ def format_modname(name):
 
 modules = [format_modname(x) for x in args]
 
-print """
+print """\
 #include <Python.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -86,4 +86,4 @@ int wmain(int argc, wchar_t **argv) {
     Py_Finalize();
     return r;
 }
-""" % {'main' : modules[0]}
+""" % {'main' : modules[0]},
