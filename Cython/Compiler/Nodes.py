@@ -3971,6 +3971,8 @@ class ForFromStatNode(LoopNode, StatNode):
             # depend on whether or not the loop is a python type. 
             self.py_loopvar_node.generate_evaluation_code(code)
             self.target.generate_assignment_code(self.py_loopvar_node, code)
+        if from_range:
+            code.funcstate.release_temp(loopvar_name)
         break_label = code.break_label
         code.set_loop_labels(old_loop_labels)
         if self.else_clause:
@@ -4746,11 +4748,7 @@ utility_function_predeclarations = \
 
 typedef struct {PyObject **p; char *s; long n; char is_unicode; char intern; char is_identifier;} __Pyx_StringTabEntry; /*proto*/
 
-""" + """
-
-static int %(skip_dispatch_cname)s = 0;
-
-""" % { 'skip_dispatch_cname': Naming.skip_dispatch_cname }
+"""
 
 if Options.gcc_branch_hints:
     branch_prediction_macros = \

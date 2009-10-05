@@ -34,11 +34,11 @@ def is_common_value(a, b):
         return not a.is_py_attr and is_common_value(a.obj, b.obj) and a.attribute == b.attribute
     return False
 
-
 class IterationTransform(Visitor.VisitorTransform):
     """Transform some common for-in loop patterns into efficient C loops:
 
     - for-in-dict loop becomes a while loop calling PyDict_Next()
+    - for-in-enumerate is replaced by an external counter variable
     - for-in-range loop becomes a plain C for loop
     """
     PyDict_Next_func_type = PyrexTypes.CFuncType(
@@ -184,7 +184,7 @@ class IterationTransform(Visitor.VisitorTransform):
         node.iterator.sequence = enumerate_function.arg_tuple.args[0]
 
         # recurse into loop to check for further optimisations
-        return UtilNodes.LetNode(temp, self._optimise_for_loop(node)) 
+        return UtilNodes.LetNode(temp, self._optimise_for_loop(node))
 
     def _transform_range_iteration(self, node, range_function):
         args = range_function.arg_tuple.args
@@ -224,6 +224,13 @@ class IterationTransform(Visitor.VisitorTransform):
             bound2 = args[1].coerce_to_integer(self.current_scope)
         step = step.coerce_to_integer(self.current_scope)
 
+        if not isinstance(bound2, ExprNodes.ConstNode):
+            # stop bound must be immutable => keep it in a temp var
+            bound2_is_temp = True
+            bound2 = UtilNodes.LetRefNode(bound2)
+        else:
+            bound2_is_temp = False
+
         for_node = Nodes.ForFromStatNode(
             node.pos,
             target=node.target,
@@ -232,6 +239,10 @@ class IterationTransform(Visitor.VisitorTransform):
             step=step, body=node.body,
             else_clause=node.else_clause,
             from_range=True)
+
+        if bound2_is_temp:
+            for_node = UtilNodes.LetNode(bound2, for_node)
+
         return for_node
 
     def _transform_dict_iteration(self, node, dict_obj, keys, values):
@@ -613,24 +624,41 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
             ])
 
     def _handle_simple_function_dict(self, node, pos_args):
-        """Replace dict(some_dict) by PyDict_Copy(some_dict).
+        """Replace dict(some_dict) by PyDict_Copy(some_dict) and
+        dict([ (a,b) for ... ]) by a literal { a:b for ... }.
         """
         if len(pos_args.args) != 1:
             return node
-        dict_arg = pos_args.args[0]
-        if dict_arg.type is not Builtin.dict_type:
-            return node
-
-        dict_arg = ExprNodes.NoneCheckNode(
-            dict_arg, "PyExc_TypeError", "'NoneType' is not iterable")
-        return ExprNodes.PythonCapiCallNode(
-            node.pos, "PyDict_Copy", self.PyDict_Copy_func_type,
-            args = [dict_arg],
-            is_temp = node.is_temp
-            )
+        arg = pos_args.args[0]
+        if arg.type is Builtin.dict_type:
+            arg = ExprNodes.NoneCheckNode(
+                arg, "PyExc_TypeError", "'NoneType' is not iterable")
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "PyDict_Copy", self.PyDict_Copy_func_type,
+                args = [arg],
+                is_temp = node.is_temp
+                )
+        elif isinstance(arg, ExprNodes.ComprehensionNode) and \
+                 arg.type is Builtin.list_type:
+            append_node = arg.append
+            if isinstance(append_node.expr, (ExprNodes.TupleNode, ExprNodes.ListNode)) and \
+                   len(append_node.expr.args) == 2:
+                key_node, value_node = append_node.expr.args
+                target_node = ExprNodes.DictNode(
+                    pos=arg.target.pos, key_value_pairs=[], is_temp=1)
+                new_append_node = ExprNodes.DictComprehensionAppendNode(
+                    append_node.pos, target=target_node,
+                    key_expr=key_node, value_expr=value_node,
+                    is_temp=1)
+                arg.target = target_node
+                arg.type = target_node.type
+                replace_in = Visitor.RecursiveNodeReplacer(append_node, new_append_node)
+                return replace_in(arg)
+        return node
 
     def _handle_simple_function_set(self, node, pos_args):
-        """Replace set([a,b,...]) by a literal set {a,b,...}.
+        """Replace set([a,b,...]) by a literal set {a,b,...} and
+        set([ x for ... ]) by a literal { x for ... }.
         """
         arg_count = len(pos_args.args)
         if arg_count == 0:
@@ -880,12 +908,6 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
                         node, encode_function,
                         self.PyUnicode_AsXyzString_func_type,
                         'encode', is_unbound_method, [string_node])
-
-            return self._substitute_method_call(
-                node, "PyUnicode_AsEncodedString",
-                self.PyUnicode_AsEncodedString_func_type,
-                'encode', is_unbound_method,
-                [string_node, encoding_node, null_node])
 
         return self._substitute_method_call(
             node, "PyUnicode_AsEncodedString",

@@ -54,7 +54,7 @@ def parse_func(next, token):
 
 def handle_func_not(next, token):
     """
-    func(...)
+    not(...)
     """
     name, predicate = parse_func(next, token)
 
@@ -167,14 +167,20 @@ def handle_attribute(next, token):
 def parse_path_value(next):
     token = next()
     value = token[0]
-    if value[:1] == "'" or value[:1] == '"':
-        value = value[1:-1]
-    else:
+    if value:
+        if value[:1] == "'" or value[:1] == '"':
+            return value[1:-1]
         try:
-            value = int(value)
+            return int(value)
         except ValueError:
-            raise ValueError("Invalid attribute predicate: '%s'" % value)
-    return value
+            pass
+    else:
+        name = token[1].lower()
+        if name == 'true':
+            return True
+        elif name == 'false':
+            return False
+    raise ValueError("Invalid attribute predicate: '%s'" % value)
 
 def handle_predicate(next, token):
     token = next()
@@ -189,6 +195,9 @@ def handle_predicate(next, token):
             if token[0] == "/":
                 token = next()
 
+        if not token[0] and token[1] == 'and':
+            return logical_and(selector, handle_predicate(next, token))
+
     def select(result):
         for node in result:
             subresult = iter((node,))
@@ -196,8 +205,22 @@ def handle_predicate(next, token):
                 subresult = select(subresult)
             predicate_result = _get_first_or_none(subresult)
             if predicate_result is not None:
-                yield predicate_result
+                yield node
     return select
+
+def logical_and(lhs_selects, rhs_select):
+    def select(result):
+        for node in result:
+            subresult = iter((node,))
+            for select in lhs_selects:
+                subresult = select(subresult)
+            predicate_result = _get_first_or_none(subresult)
+            subresult = iter((node,))
+            if predicate_result is not None:
+                for result_node in rhs_select(subresult):
+                    yield node
+    return select
+    
 
 operations = {
     "@":  handle_attribute,
