@@ -7,7 +7,7 @@ cython_freeze - create a C file for embedding Cython modules
 SYNOPSIS
 ========
 
-cython_freeze module [...]
+cython_freeze [-o outfile] module [...]
 
 
 DESCRIPTION
@@ -26,6 +26,12 @@ modifies the resulting C source file to include a ``main()`` function, so it
 can only be used on a single Cython module.  The advantage ``--embed`` is
 simplicity.  This module, on the other hand, can be used with multiple
 modules, but it requires another C source file to be created.
+
+
+OPTIONS
+=======
+
+-o FILE, --outfile=FILE   write output to FILE instead of standard output
 
 
 EXAMPLE
