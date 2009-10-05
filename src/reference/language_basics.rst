@@ -207,9 +207,6 @@ Parameters
 
  * This holds true for only numeric and string types
 
-.. todo::
-    The previous statement is still true ..??
-
 * If no type is specified for a parameter or a return value, it is assumed to be a Python object
 
  * The following takes two Python objects as parameters and returns a Python object::
@@ -217,8 +214,8 @@ Parameters
         cdef spamobjs(x, y):
             ...
 
- * .. note::
-    This is different then C language behavior, where  it is an int by default.
+  .. note::
+      This is different then C language behavior, where  it is an int by default.
 
 
 
@@ -329,10 +326,6 @@ Automatic Type Conversion
     | struct                     |                    | dict             |
     +----------------------------+--------------------+------------------+
 
-
-.. [#] The conversion is to/from str for Python 2.x, and bytes for Python 3.x.
-
-
 .. note::
     **Python String in a C Context**
 
@@ -360,24 +353,24 @@ Automatic Type Conversion
         **It is up to you to be aware of this, and not to depend on Cython's error message, as it is not guarenteed to be generated for every situation.**
 
 
-
-
 Type Casting
 =============
 
-* The syntax used in type casting are ``"<"`` and ``">"``, for example::
+* The syntax used in type casting are ``"<"`` and ``">"``
 
-    cdef char *p, float *q
-    p = <char*>q
+ .. note::
+    The syntax is different from C convention
 
+ ::
 
- * .. note:: that this is different from C convention.
+        cdef char *p, float *q
+        p = <char*>q
 
-* If exactly one of the types is a python object for ``<type>x``, Cython will try and do a coersion.
+* If one of the types is a python object for ``<type>x``, Cython will try and do a coersion.
 
- * .. note:: Cython will not stop a casting where there is no conversion, but it will emit a warning.
+ .. note:: Cython will not stop a casting where there is no conversion, but it will emit a warning.
 
- * If the address is what is wanted, cast to a ``void*`` first.
+* If the address is what is wanted, cast to a ``void*`` first.
 
 
 Type Checking
@@ -454,8 +447,6 @@ Scope Rules
                 True = 1
 
 
-
-
 =====================
 Functions and Methods
 =====================
@@ -488,12 +479,97 @@ Overriding
 Function Pointers
 =================
 
-Functions declared in a ``struct`` are automatically converted to function pointers.
+* Functions declared in a ``struct`` are automatically converted to function pointers.
+* see **using exceptions with function pointers**
 
 
 ============================
 Error and Exception Handling
 ============================
+
+* A plain ``cdef`` declared function, that does not return a Python object...
+
+ * Has no way of reporting a Python exception to it's caller.
+ * Will only print a warning message and the exception is ignored.
+
+* Inorder to propagate exceptions like this to it's caller, you need to declare an exception value for it.
+* There are three forms of declaring an exception for a C compiled program.
+
+ * First::
+
+    cdef int spam() except -1:
+        ...
+
+  * In the example above, if an error occurs inside spam, it will immediately return with the value of ``-1``, causing an exception to be propagated to it's caller.
+  * Functions declared with an exception value, should explicitly prevent a return of that value.
+
+ * Second::
+
+    cdef int spam() except? -1:
+        ...
+
+  * Used when a ``-1`` may possibly be returned and is not to be considered an error.
+  * The ``"?"`` tells Cython that ``-1`` only indicates a *possible* error.
+  * Now, each time ``-1`` is returned, Cython generates a call to ``PyErr_Occurrd`` to verify it is an actual error.
+
+ * Third::
+
+     cdef int spam() except +
+
+  * A call to ``PyErr_Occurred`` happens *every* time the function gets called.
+
+    .. note:: Returning ``void``
+
+        A need to propagate errors when returning ``void`` must use this version.
+
+* Exception values can only be declared for functions returning an..
+
+ * integer
+ * enum
+ * float
+ * pointer type
+ * Must be a constant expression
+
+.. note::
+
+    .. note:: Function pointers
+
+        * Require the same exception value specification as it's user has declared.
+        * Use cases here are when used as parameters and when assigned to a variable
+        * Example::
+
+            int (*grail)(int, char *) except -1
+
+    .. note:: Python Objects
+
+        * Declared exception values are **not** need.
+        * Remember that Cython assumes that a function function without a declared return value, returns a Python object.
+        * Exceptions on such functions are implicitly propagated by returning ``NULL``
+
+    .. note:: C++
+
+        For exceptions from C++ compiled programs, see **Wrapping C++ Classes**
+
+Checking return values for non-Cython functions..
+=================================================
+
+* Do not try to raise exceptions by returning the specified value.. Example::
+
+    cdef extern FILE *fopen(char *filename, char *mode) except NULL # WRONG!
+
+ * The except clause does not work that way.
+ * It's only purpose is to propagate Python exceptions that have already been raised, either by...
+
+  * A Cython function
+  * A C function that calls Python/C API routines.
+
+* To propagate an exception for these circumstances you need to raise it yourself::
+
+     cdef FILE *p
+     p = fopen("spam.txt", "r")
+     if p == NULL:
+         raise SpamError("Couldn't open the spam file")
+
 
 
 =======================
@@ -512,7 +588,7 @@ Conditional Statements
 
 
 
-
+.. [#] The conversion is to/from str for Python 2.x, and bytes for Python 3.x.
 
 
 

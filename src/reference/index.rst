@@ -10,8 +10,8 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   language_basics
    compilation
+   language_basics
    extension_types
    interfacing_with_other_code
    special_mention
