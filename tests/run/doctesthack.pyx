@@ -1,4 +1,4 @@
-#cython: doctesthack=True
+# Directive defaults to True
 
 """
 Tests doctesthack compiler directive.
@@ -12,16 +12,24 @@ all_tests_run() is executed which does final validation.
 >>> items.sort()
 >>> for key, value in items:
 ...     print key, ';', value
-MyCdefClass.method (line 67) ; >>> add_log("cdef class method")
-MyClass.method (line 57) ; >>> add_log("class method")
-doc_without_test (line 39) ; Some docs
-mycpdeffunc (line 45) ; >>> add_log("cpdef")
-myfunc (line 36) ; >>> add_log("def")
+MyCdefClass.method (line 75) ; >>> add_log("cdef class method")
+MyClass.method (line 65) ; >>> add_log("class method")
+doc_without_test (line 47) ; Some docs
+mycpdeffunc (line 53) ; >>> add_log("cpdef")
+myfunc (line 44) ; >>> add_log("def")
 
 """
 
 log = []
 
+
+cdef cdeffunc():
+    """
+    Please don't include me!
+
+    >>> True
+    False
+    """
 
 def all_tests_run():
     log.sort()
