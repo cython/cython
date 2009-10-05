@@ -1,5 +1,5 @@
 from Cython.Compiler.Visitor import VisitorTransform, ScopeTrackingTransform, TreeVisitor
-from Nodes import StatListNode, SingleAssignmentNode
+from Nodes import StatListNode, SingleAssignmentNode, CFuncDefNode
 from ExprNodes import (DictNode, DictItemNode, NameNode, UnicodeNode, NoneNode,
                       ExprNode, AttributeNode, ModuleRefNode, DocstringRefNode)
 from PyrexTypes import py_object_type
@@ -53,6 +53,10 @@ class DoctestHackTransform(ScopeTrackingTransform):
     
     def visit_FuncDefNode(self, node):
         if node.doc:
+            if isinstance(node, CFuncDefNode) and not node.py_func:
+                # skip non-cpdef cdef functions
+                return node
+            
             pos = self.testspos
             if self.scope_type == 'module':
                 parent = ModuleRefNode(pos)
@@ -69,6 +73,8 @@ class DoctestHackTransform(ScopeTrackingTransform):
                                        is_py_attr=True,
                                        is_temp=True)
                 name = "%s.%s" % (clsname, node.entry.name)
+            else:
+                assert False
             getfunc = AttributeNode(pos, obj=parent,
                                     attribute=node.entry.name,
                                     type=py_object_type,
