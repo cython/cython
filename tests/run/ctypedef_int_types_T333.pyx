@@ -1,4 +1,4 @@
-__doc__ = u""
+#cython: autotestdict=True
 
 # -------------------------------------------------------------------
 
@@ -567,7 +567,7 @@ cimport ctypedef_int_types_defs_T333 as defs
 
 def test_DefSInt(defs.SInt x):
    u"""
-   >>> test_DeftSInt(-1)
+   >>> test_DefSInt(-1)
    -1
    >>> test_DefSInt(0)
    0
@@ -640,35 +640,5 @@ def test_LocUInt(LocUInt x):
    1
    """
    return x
-
-# -------------------------------------------------------------------
-
-__doc__ = u"".join([
-      f.__doc__ for f in (
-         #
-         test_schar, test_add_schar,
-         test_uchar, test_add_uchar,
-         #
-         test_sshort, test_add_sshort,
-         test_ushort, test_add_ushort,
-         #
-         test_sint, test_add_sint,
-         test_uint, test_add_uint,
-         #
-         test_slong, test_add_slong,
-         test_ulong, test_add_ulong,
-         #
-         test_slonglong, test_add_slonglong,
-         test_ulonglong, test_add_ulonglong,
-         #
-         MyClass,
-         #
-         test_MySInt1, test_MyUInt1,
-         test_MySInt2, test_MyUInt2,
-         #
-         test_ExtSInt, test_ExtUInt,
-         test_LocSInt, test_LocUInt,
-         )
-    ])
 
 # -------------------------------------------------------------------
