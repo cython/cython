@@ -1193,6 +1193,7 @@ class FuncDefNode(StatNode, BlockNode):
                 src = lenv.control_flow.get_state((entry.name, 'source'))
                 if entry.in_closure and src == 'arg':
                     code.put_var_incref(entry)
+                    code.put_var_giveref(entry)
                 elif not entry.in_closure and src != 'arg':
                     code.put_var_decref(entry)
                 
