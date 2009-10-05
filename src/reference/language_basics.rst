@@ -102,14 +102,17 @@ Declaring Data Types
 ====================
 
 .. note::
-    .. todo::
-        I think having paragraphs like this should be somewhere else which we can link to from here
+    .. todo:: Remove paragragh
 
 As a dynamic language, Python encourages a programming style of considering classes and objects in terms of their methods and attributes, more than where they fit into the class hierarchy.
 
 This can make Python a very relaxed and comfortable language for rapid development, but with a price - the ‘red tape’ of managing data types is dumped onto the interpreter. At run time, the interpreter does a lot of work searching namespaces, fetching attributes and parsing argument and keyword tuples. This run-time ‘late binding’ is a major cause of Python’s relative slowness compared to ‘early binding’ languages such as C++.
 
 However with Cython it is possible to gain significant speed-ups through the use of ‘early binding’ programming techniques.
+
+.. note:: Typing is not a necessity
+
+    Providing static typing to parameters and variables is convenience to speed up your code, but it is not a necessity. Optimize where and when needed.
 
 The cdef Statement
 ==================
@@ -168,7 +171,8 @@ The ``cdef`` statement is used to make C level declarations for:
         ...
 
 
-.. note::
+.. note:: Constants
+
     Constants can be defined by using an anonymous enum::
 
         cdef enum:
@@ -190,6 +194,16 @@ A series of declarations can grouped into a ``cdef`` block::
 
             void f(Spam *s):
             print s.tons, "Tons of spam"
+
+
+.. note:: ctypedef statement
+
+    The ``ctypedef`` statement is provided for naming types::
+
+        ctypedef unsigned long ULong
+
+        ctypedef int *IntPtr
+
 
 Parameters
 ==========
@@ -214,7 +228,8 @@ Parameters
         cdef spamobjs(x, y):
             ...
 
-  .. note::
+  .. note:: --
+
       This is different then C language behavior, where  it is an int by default.
 
 
@@ -447,18 +462,81 @@ Scope Rules
                 True = 1
 
 
+Built-in Constants
+==================
+
+Pre-defined Python built-in constants:
+
+* None
+* True
+* False
+
+
+Operator Precedence
+===================
+
+* Cython uses Python precedence order, not C
+
+
+For-loops
+==========
+
+* ``range()`` is C optimized when the index value has been declared by ``cdef``::
+
+    cdef i
+    for i in range(n):
+        ...
+
+* The other form available in C is the for-from style
+
+ * The target expression must be a variable name.
+ * The name between the lower and upper bounds must be the same as the target name.
+
+    for i from 0 <= i < n:
+        ...
+
+ * Or when using a step size::
+
+    for i from 0 <= i < n by s:
+        ...
+
+ * To reverse the direction, reverse the conditional operation::
+
+    for i from 0 >= i > n:
+        ...
+
+* The ``break`` and ``continue`` are permissible.
+* Can contain an if-else clause.
+
 =====================
 Functions and Methods
 =====================
 
+* There are three types of function declarations in Cython as the sub-sections show below.
+* Only "Python" functions can be called outside a Cython module from *Python interpretted code*.
+*
+
 Callable from Python
 =====================
+
+* Are decalared with the ``def`` statement
+* Are called with Python objects
+* Return Python objects
+* See **Parameters** for special consideration
 
 Callable from C
 ================
 
+* Are declared with the ``cdef`` statement.
+* Are called with either Python objects or C values.
+* Can return either Python objects or C values.
+
 Callable from both Python and C
 ================================
+
+* Are declared with the ``cpdef`` statement.
+* Can be called from anywhere, because it uses a little Cython magic.
+* Uses the faster C calling conventions when being called from other Cython code.
 
 Overriding
 ==========
@@ -481,6 +559,51 @@ Function Pointers
 
 * Functions declared in a ``struct`` are automatically converted to function pointers.
 * see **using exceptions with function pointers**
+
+Python Built-ins
+================
+
+The following are provided:
+
+.. todo:: incomplete
+
++------------------------------+-------------+----------------------------+
+| Function and arguments       | Return type | Python/C API Equivalent    |
++==============================+=============+============================+
+| abs(obj)                     | object      | PyNumber_Absolute          |
++------------------------------+-------------+----------------------------+
+| bool(obj)                    | object      | Py_True, Py_False          |
++------------------------------+-------------+----------------------------+
+| chr(obj)                     | object      | char                       |
++------------------------------+-------------+----------------------------+
+| delattr(obj, name)           | int         | PyObject_DelAttr           |
++------------------------------+-------------+----------------------------+
+| dir(obj)                     | object      | PyObject_Dir               |
+| getattr(obj, name) (Note 1)  |             |                            |
+| getattr3(obj, name, default) |             |                            |
++------------------------------+-------------+----------------------------+
+| hasattr(obj, name)           | int         | PyObject_HasAttr           |
++------------------------------+-------------+----------------------------+
+| hash(obj)                    | int         | PyObject_Hash              |
++------------------------------+-------------+----------------------------+
+| intern(obj)                  | object      | PyObject_InternFromString  |
++------------------------------+-------------+----------------------------+
+| isinstance(obj, type)        | int         | PyObject_IsInstance        |
++------------------------------+-------------+----------------------------+
+| issubclass(obj, type)        | int         | PyObject_IsSubclass        |
++------------------------------+-------------+----------------------------+
+| iter(obj)                    | object      | PyObject_GetIter           |
++------------------------------+-------------+----------------------------+
+| len(obj)                     | Py_ssize_t  | PyObject_Length            |
++------------------------------+-------------+----------------------------+
+| pow(x, y, z) (Note 2)        | object      | PyNumber_Power             |
++------------------------------+-------------+----------------------------+
+| reload(obj)                  | object      | PyImport_ReloadModule      |
++------------------------------+-------------+----------------------------+
+| repr(obj)                    | object      | PyObject_Repr              |
++------------------------------+-------------+----------------------------+
+| setattr(obj, name)           | void        | PyObject_SetAttr           |
++------------------------------+-------------+----------------------------+
 
 
 ============================
@@ -535,8 +658,7 @@ Error and Exception Handling
     .. note:: Function pointers
 
         * Require the same exception value specification as it's user has declared.
-        * Use cases here are when used as parameters and when assigned to a variable
-        * Example::
+        * Use cases here are when used as parameters and when assigned to a variable::
 
             int (*grail)(int, char *) except -1
 
@@ -548,7 +670,7 @@ Error and Exception Handling
 
     .. note:: C++
 
-        For exceptions from C++ compiled programs, see **Wrapping C++ Classes**
+        * For exceptions from C++ compiled programs, see **Wrapping C++ Classes**
 
 Checking return values for non-Cython functions..
 =================================================
@@ -558,7 +680,7 @@ Checking return values for non-Cython functions..
     cdef extern FILE *fopen(char *filename, char *mode) except NULL # WRONG!
 
  * The except clause does not work that way.
- * It's only purpose is to propagate Python exceptions that have already been raised, either by...
+ * It's only purpose is to propagate Python exceptions that have already been raised by either...
 
   * A Cython function
   * A C function that calls Python/C API routines.
@@ -570,21 +692,75 @@ Checking return values for non-Cython functions..
      if p == NULL:
          raise SpamError("Couldn't open the spam file")
 
-
-
 =======================
 Conditional Compilation
 =======================
 
+* The expressions in the following sub-sections must be valid compile-time expressions.
+* They can evaluate to any Python value.
+* The *truth* of the result is determined in the usual Python way.
 
 Compile-Time Definitions
 =========================
+
+* Defined using the ``DEF`` statement::
+
+    DEF FavouriteFood = "spam"
+    DEF ArraySize = 42
+    DEF OtherArraySize = 2 * ArraySize + 17
+
+* The right hand side must be a valid compile-time expression made up of either:
+
+ * Literal values
+ * Names defined by other ``DEF`` statements
+
+* They can be combined using any of the Python expression syntax
+* Cython provides the following pre-defined names
+
+ * Corresponding to the values returned by ``os.uname()``
+
+  * UNAME_SYSNAME
+  * UNAME_NODENAME
+  * UNAME_RELEASE
+  * UNAME_VERSION
+  * UNAME_MACHINE
+
+* A name defined by ``DEF`` can appear anywhere an identifier can appear.
+* Cython replaces the name with the literal value before compilation.
+
+ * The compile-time expression, in this case, must eveluate to a Python value of ``int``, ``long``, ``float``, or ``str``::
+
+     cdef int a1[ArraySize]
+     cdef int a2[OtherArraySize]
+     print "I like", FavouriteFood
 
 
 Conditional Statements
 =======================
 
+* Similiar semantics of the C pre-processor
+* The following statements can be used to conditinally include or exclude sections of code to compile.
 
+ * ``IF``
+ * ``ELIF``
+ * ``ELSE``
+
+::
+
+    IF UNAME_SYSNAME == "Windows":
+        include "icky_definitions.pxi"
+    ELIF UNAME_SYSNAME == "Darwin":
+        include "nice_definitions.pxi"
+    ELIF UNAME_SYSNAME == "Linux":
+        include "penguin_definitions.pxi"
+    ELSE:
+        include "other_definitions.pxi"
+
+* ``ELIF`` and  ``ELSE`` are optional.
+* ``IF`` can appear anywhere that a normal statement or declaration can appear
+* It can contain any statements or declarations that would be valid in that context.
+
+ * This includes other ``IF`` and ``DEF`` statements
 
 
 
