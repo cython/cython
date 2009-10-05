@@ -88,7 +88,7 @@ class Context(object):
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
         from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
         from ParseTreeTransforms import AlignFunctionDefinitions, GilCheck
-        from AnalysedTreeTransforms import DoctestHackTransform
+        from AnalysedTreeTransforms import AutoTestDictTransform
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
         from Optimize import OptimizeBuiltinCalls, ConstantFolding, FinalOptimizePhase
@@ -127,7 +127,7 @@ class Context(object):
             WithTransform(self),
             DecoratorTransform(self),
             AnalyseDeclarationsTransform(self),
-            DoctestHackTransform(self),
+            AutoTestDictTransform(self),
             EmbedSignature(self),
             TransformBuiltinMethods(self),
             IntroduceBufferAuxiliaryVars(self),

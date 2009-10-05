@@ -68,7 +68,7 @@ option_defaults = {
     'c99_complex' : False, # Don't use macro wrappers for complex arith, not sure what to name this...
     'callspec' : "",
     'profile': False,
-    'doctesthack': False
+    'autotestdict': True
 }
 
 # Override types possibilities above, if needed
@@ -80,7 +80,7 @@ for key, val in option_defaults.items():
 
 option_scopes = { # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
-    'doctesthack' : ('module',)
+    'autotestdict' : ('module',)
 }
 
 def parse_option_value(name, value):

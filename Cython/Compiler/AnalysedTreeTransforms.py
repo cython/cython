@@ -7,13 +7,13 @@ from Builtin import dict_type
 from StringEncoding import EncodedString
 import Naming
 
-class DoctestHackTransform(ScopeTrackingTransform):
-    # Handles doctesthack directive
+class AutoTestDictTransform(ScopeTrackingTransform):
+    # Handles autotestdict directive
 
     def visit_ModuleNode(self, node):
         self.scope_type = 'module'
         self.scope_node = node
-        if self.current_directives['doctesthack']:
+        if self.current_directives['autotestdict']:
             assert isinstance(node.body, StatListNode)
 
             # First see if __test__ is already created
