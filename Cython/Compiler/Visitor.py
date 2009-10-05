@@ -306,6 +306,22 @@ class ScopeTrackingTransform(CythonTransform):
     def visit_CStructOrUnionDefNode(self, node):
         return self.visit_scope(node, 'struct')
 
+class RecursiveNodeReplacer(VisitorTransform):
+    """
+    Recursively replace all occurrences of a node in a subtree by
+    another node.
+    """
+    def __init__(self, orig_node, new_node):
+        super(RecursiveNodeReplacer, self).__init__()
+        self.orig_node, self.new_node = orig_node, new_node
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
+        if node is self.orig_node:
+            return self.new_node
+        else:
+            return node
+
 
 
 
