@@ -14,25 +14,28 @@ LDLIBS = $(PY_LDLIBS)
 
 
 # Name of executable
-TARGET = nCr
+TARGETS = nCr python
 
 # List of Cython source files, with main module first.
 CYTHON_SOURCE = combinatorics.pyx cmath.pyx
 CYTHON_SECONDARY = $(CYTHON_SOURCE:.pyx=.c) $(TARGETS:=.c)
 
 
-all : $(TARGET)
+all : $(TARGETS)
 
-$(TARGET) : $(TARGET).o $(CYTHON_SOURCE:.pyx=.o)
+$(TARGETS) : % : %.o $(CYTHON_SOURCE:.pyx=.o)
 
-$(TARGET).c :
+nCr.c :
 	$(CYTHON_FREEZE) $(CYTHON_SOURCE:.pyx=) > $@
+
+python.c :
+	$(CYTHON_FREEZE) --pymain $(CYTHON_SOURCE:.pyx=) > $@
 
 %.c : %.pyx
 	$(CYTHON) $(CYTHONFLAGS) $^
 
 clean:
-	$(RM) *.o $(CYTHON_SECONDARY) $(TARGET)
+	$(RM) *.o $(CYTHON_SECONDARY) $(TARGETS)
 
 .PHONY: clean
 .SECONDARY: $(CYTHON_SECONDARY)
