@@ -50,6 +50,15 @@ True
 >>> inner_funcs[0](16), inner_funcs[1](32), inner_funcs[2](64)
 (19, 37, 73)
 
+>>> switch_funcs([1,2,3], [4,5,6], 0)([10])
+[1, 2, 3, 10]
+>>> switch_funcs([1,2,3], [4,5,6], 1)([10])
+[4, 5, 6, 10]
+>>> switch_funcs([1,2,3], [4,5,6], 2) is None
+True
+
+>>> call_ignore_func()
+
 """
 
 def add_n(int n):
@@ -125,6 +134,25 @@ def cy_twofuncs(x):
         return x + b
     return f
 
+def switch_funcs(a, b, int ix):
+    def f(x):
+        return a + x
+    def g(x):
+        return b + x
+    if ix == 0:
+        return f
+    elif ix == 1:
+        return g
+    else:
+        return None
+
+def ignore_func(x):
+    def f():
+        return x
+    return None
+
+def call_ignore_func():
+    ignore_func((1,2,3))
 
 def more_inner_funcs(x):
     # called with x==1

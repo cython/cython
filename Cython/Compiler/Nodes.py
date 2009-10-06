@@ -1220,8 +1220,6 @@ class FuncDefNode(StatNode, BlockNode):
                 if lenv.control_flow.get_state((entry.name, 'initalized')) is not True:
                     entry.xdecref_cleanup = 1
         
-        if self.needs_closure:
-            code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
         for entry in lenv.var_entries:
             if entry.used and not entry.in_closure:
                 code.put_var_decref(entry)
@@ -1234,6 +1232,8 @@ class FuncDefNode(StatNode, BlockNode):
                     code.put_var_giveref(entry)
                 elif not entry.in_closure and src != 'arg':
                     code.put_var_decref(entry)
+        if self.needs_closure:
+            code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
                 
         # ----- Return
         # This code is duplicated in ModuleNode.generate_module_init_func
@@ -1861,10 +1861,11 @@ class DefNode(FuncDefNode):
         for arg in self.args:
             if not arg.name:
                 error(arg.pos, "Missing argument name")
-            if arg.needs_conversion:
-                arg.entry = env.declare_var(arg.name, arg.type, arg.pos)
+            else:
                 env.control_flow.set_state((), (arg.name, 'source'), 'arg')
                 env.control_flow.set_state((), (arg.name, 'initalized'), True)
+            if arg.needs_conversion:
+                arg.entry = env.declare_var(arg.name, arg.type, arg.pos)
                 if arg.type.is_pyobject:
                     arg.entry.init = "0"
                 arg.entry.init_to_none = 0
