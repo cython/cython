@@ -264,7 +264,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code = globalstate['before_global_var']
         code.putln('#define __Pyx_MODULE_NAME "%s"' % self.full_module_name)
-        code.putln("int %s%s = %s;" % (Naming.module_is_main, self.full_module_name.replace('.', '__'), int(Options.embed)))
+        code.putln("int %s%s = 0;" % (Naming.module_is_main, self.full_module_name.replace('.', '__')))
         code.putln("")
         code.putln("/* Implementation of %s */" % env.qualified_name)
 
@@ -1782,7 +1782,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('}')
 
     def generate_main_method(self, env, code):
-        code.globalstate.use_utility_code(main_method.specialize(module_name=env.module_name))
+        module_is_main = "%s%s" % (Naming.module_is_main, self.full_module_name.replace('.', '__'))
+        code.globalstate.use_utility_code(main_method.specialize(module_name=env.module_name, module_is_main=module_is_main))
 
     def generate_filename_init_call(self, code):
         code.putln("%s();" % Naming.fileinit_cname)
@@ -2459,7 +2460,7 @@ static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
 #define __Pyx_DECREF(r) __Pyx_Refnanny->DECREF(__pyx_refchk, (PyObject *)(r), __LINE__)
 #define __Pyx_GOTREF(r) __Pyx_Refnanny->GOTREF(__pyx_refchk, (PyObject *)(r), __LINE__)
 #define __Pyx_GIVEREF(r) __Pyx_Refnanny->GIVEREF(__pyx_refchk, (PyObject *)(r), __LINE__)
-#define __Pyx_XDECREF(r) if((r) == NULL) ; else __Pyx_DECREF(r)
+#define __Pyx_XDECREF(r) do { if((r) != NULL) {__Pyx_DECREF(r);} } while(0)
 #define __Pyx_SetupRefcountContext(name) \
   void* __pyx_refchk = __Pyx_Refnanny->NewContext((name), __LINE__, __FILE__)
 #define __Pyx_FinishRefcountContext() \
@@ -2473,8 +2474,8 @@ static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
 #define __Pyx_SetupRefcountContext(name)
 #define __Pyx_FinishRefcountContext()
 #endif /* CYTHON_REFNANNY */
-#define __Pyx_XGIVEREF(r) if((r) == NULL) ; else __Pyx_GIVEREF(r)
-#define __Pyx_XGOTREF(r) if((r) == NULL) ; else __Pyx_GOTREF(r)
+#define __Pyx_XGIVEREF(r) do { if((r) != NULL) {__Pyx_GIVEREF(r);} } while(0)
+#define __Pyx_XGOTREF(r) do { if((r) != NULL) {__Pyx_GOTREF(r);} } while(0)
 """)
 
 
@@ -2490,6 +2491,7 @@ int wmain(int argc, wchar_t **argv) {
     Py_SetProgramName(argv[0]);
     Py_Initialize();
     PySys_SetArgv(argc, argv);
+    %(module_is_main)s = 1;
 #if PY_MAJOR_VERSION < 3
         init%(module_name)s();
 #else
