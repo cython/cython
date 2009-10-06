@@ -12,7 +12,7 @@ True
 True
 True
 an integer is required
-Expected tuple, got int
+Expected type, got int
 """
 
 def import1():
@@ -48,14 +48,15 @@ def import4():
 def typed_imports():
 
     import sys
+    import types
     cdef long maxunicode
-    cdef tuple t
+    cdef type t
     
     from sys import maxunicode
     print maxunicode == sys.maxunicode
-    from sys import version_info as t
-    print t is sys.version_info
-    
+    from types import ModuleType as t
+    print t is types.ModuleType
+
     try:
         from sys import version_info as maxunicode
     except TypeError, e:

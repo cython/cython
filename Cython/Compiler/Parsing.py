@@ -14,7 +14,7 @@ from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
 import ExprNodes
 import StringEncoding
-from StringEncoding import EncodedString, BytesLiteral
+from StringEncoding import EncodedString, BytesLiteral, _str, _bytes
 from ModuleNode import ModuleNode
 from Errors import error, warning, InternalError
 from Cython import Utils
@@ -65,14 +65,23 @@ def p_ident_list(s):
 #
 #------------------------------------------
 
+def p_binop_operator(s):
+    pos = s.position()
+    op = s.sy
+    s.next()
+    return op, pos
+
 def p_binop_expr(s, ops, p_sub_expr):
     n1 = p_sub_expr(s)
     while s.sy in ops:
-        op = s.sy
-        pos = s.position()
-        s.next()
+        op, pos = p_binop_operator(s)
         n2 = p_sub_expr(s)
         n1 = ExprNodes.binop_node(pos, op, n1, n2)
+        if op == '/':
+            if Future.division in s.context.future_directives:
+                n1.truedivision = True
+            else:
+                n1.truedivision = None # unknown
     return n1
 
 #expression: or_test [if or_test else test] | lambda_form
@@ -601,7 +610,7 @@ def p_name(s, name):
             return ExprNodes.IntNode(pos, value = rep, longness = "L")
         elif isinstance(value, float):
             return ExprNodes.FloatNode(pos, value = rep)
-        elif isinstance(value, (str, unicode)):
+        elif isinstance(value, (_str, _bytes)):
             return ExprNodes.StringNode(pos, value = value)
         else:
             error(pos, "Invalid type for compile-time constant: %s"
@@ -633,7 +642,7 @@ def p_cat_string_literal(s):
         if kind == 'u':
             value = EncodedString( u''.join(strings) )
         else:
-            value = BytesLiteral( ''.join(strings) )
+            value = BytesLiteral( StringEncoding.join_bytes(strings) )
             value.encoding = s.source_encoding
     return kind, value
 
@@ -1460,6 +1469,7 @@ def p_include_statement(s, ctx):
     _, include_file_name = p_string_literal(s)
     s.expect_newline("Syntax error in include statement")
     if s.compile_time_eval:
+        include_file_name = include_file_name.decode(s.source_encoding)
         include_file_path = s.context.find_include_file(include_file_name, pos)
         if include_file_path:
             s.included_files.append(include_file_name)
@@ -1612,8 +1622,8 @@ def p_statement(s, ctx, first_statement = 0):
             s.error('decorator not allowed here')
         s.level = ctx.level
         decorators = p_decorators(s)
-        if s.sy not in ('def', 'cdef', 'cpdef'):
-            s.error("Decorators can only be followed by functions ")
+        if s.sy not in ('def', 'cdef', 'cpdef', 'class'):
+            s.error("Decorators can only be followed by functions or classes")
     elif s.sy == 'pass' and cdef_flag:
         # empty cdef block
         return p_pass_statement(s, with_newline = 1)
@@ -1633,7 +1643,7 @@ def p_statement(s, ctx, first_statement = 0):
         node = p_cdef_statement(s, ctx(overridable = overridable))
         if decorators is not None:
             if not isinstance(node, (Nodes.CFuncDefNode, Nodes.CVarDefNode)):
-                s.error("Decorators can only be followed by functions ")
+                s.error("Decorators can only be followed by functions or Python classes")
             node.decorators = decorators
         return node
     else:
@@ -1647,7 +1657,7 @@ def p_statement(s, ctx, first_statement = 0):
         elif s.sy == 'class':
             if ctx.level != 'module':
                 s.error("class definition not allowed here")
-            return p_class_statement(s)
+            return p_class_statement(s, decorators)
         elif s.sy == 'include':
             if ctx.level not in ('module', 'module_pxd'):
                 s.error("include statement not allowed here")
@@ -1791,7 +1801,7 @@ def p_calling_convention(s):
     else:
         return ""
 
-calling_convention_words = ("__stdcall", "__cdecl")
+calling_convention_words = ("__stdcall", "__cdecl", "__fastcall")
 
 def p_c_complex_base_type(s):
     # s.sy == '('
@@ -1808,6 +1818,7 @@ def p_c_simple_base_type(s, self_flag, nonempty):
     is_basic = 0
     signed = 1
     longness = 0
+    complex = 0
     module_path = []
     pos = s.position()
     if not s.sy == 'IDENT':
@@ -1826,6 +1837,9 @@ def p_c_simple_base_type(s, self_flag, nonempty):
                 s.next()
             else:
                 name = 'int'
+        if s.sy == 'IDENT' and s.systring == 'complex':
+            complex = 1
+            s.next()
     elif looking_at_dotted_name(s):
         #print "p_c_simple_base_type: looking_at_type_name at", s.position()
         name = s.systring
@@ -1854,7 +1868,8 @@ def p_c_simple_base_type(s, self_flag, nonempty):
     type_node = Nodes.CSimpleBaseTypeNode(pos, 
         name = name, module_path = module_path,
         is_basic_c_type = is_basic, signed = signed,
-        longness = longness, is_self_arg = self_flag)
+        complex = complex, longness = longness, 
+        is_self_arg = self_flag)
 
 
     # Treat trailing [] on type as buffer access if it appears in a context
@@ -1975,6 +1990,8 @@ def p_opt_cname(s):
     literal = p_opt_string_literal(s)
     if literal:
         _, cname = literal
+        cname = EncodedString(cname)
+        cname.encoding = s.source_encoding
     else:
         cname = None
     return cname
@@ -2462,7 +2479,7 @@ def p_py_arg_decl(s):
     name = p_ident(s)
     return Nodes.PyArgDeclNode(pos, name = name)
 
-def p_class_statement(s):
+def p_class_statement(s, decorators):
     # s.sy == 'class'
     pos = s.position()
     s.next()
@@ -2478,7 +2495,7 @@ def p_class_statement(s):
     return Nodes.PyClassDefNode(pos,
         name = class_name,
         bases = ExprNodes.TupleNode(pos, args = base_list),
-        doc = doc, body = body)
+        doc = doc, body = body, decorators = decorators)
 
 def p_c_class_definition(s, pos,  ctx):
     # s.sy == 'class'
@@ -2602,7 +2619,7 @@ def p_code(s, level=None):
             repr(s.sy), repr(s.systring)))
     return body
 
-COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*cython:\s*([a-z_]+)\s*=(.*)$")
+COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*cython:\s*(\w+)\s*=(.*)$")
 
 def p_compiler_directive_comments(s):
     result = {}
@@ -2612,10 +2629,10 @@ def p_compiler_directive_comments(s):
             name = m.group(1)
             try:
                 value = Options.parse_option_value(str(name), str(m.group(2).strip()))
+                if value is not None: # can be False!
+                    result[name] = value
             except ValueError, e:
                 s.error(e.args[0], fatal=False)
-            if value is not None: # can be False!
-                result[name] = value
         s.next()
     return result
 
@@ -2654,7 +2671,7 @@ def print_parse_tree(f, node, level, key = None):
         if key:
             f.write("%s: " % key)
         t = type(node)
-        if t == TupleType:
+        if t is tuple:
             f.write("(%s @ %s\n" % (node[0], node[1]))
             for i in xrange(2, len(node)):
                 print_parse_tree(f, node[i], level+1)
@@ -2670,7 +2687,7 @@ def print_parse_tree(f, node, level, key = None):
                 if name != 'tag' and name != 'pos':
                     print_parse_tree(f, value, level+1, name)
             return
-        elif t == ListType:
+        elif t is list:
             f.write("[\n")
             for i in xrange(len(node)):
                 print_parse_tree(f, node[i], level+1)

@@ -1,6 +1,13 @@
 #!/usr/bin/python
 
-import os, sys, re, shutil, unittest, doctest
+import os
+import sys
+import re
+import codecs
+import shutil
+import unittest
+import doctest
+import operator
 
 WITH_CYTHON = True
 
@@ -29,7 +36,10 @@ EXT_DEP_INCLUDES = [
 
 VER_DEP_MODULES = {
 # such as:
-#    (2,4) : lambda x: x in ['run.set']
+#    (2,4) : (operator.le, lambda x: x in ['run.set']),
+    (3,): (operator.ge, lambda x: x in ['run.non_future_division',
+                                        'compile.extsetslice',
+                                        'compile.extdelslice']),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
@@ -237,9 +247,10 @@ class CythonCompileTestCase(unittest.TestCase):
 
     def split_source_and_output(self, directory, module, workdir):
         source_file = os.path.join(directory, module) + '.pyx'
-        source_and_output = open(
-            self.find_module_source_file(source_file), 'rU')
-        out = open(os.path.join(workdir, module + '.pyx'), 'w')
+        source_and_output = codecs.open(
+            self.find_module_source_file(source_file), 'rU', 'ISO-8859-1')
+        out = codecs.open(os.path.join(workdir, module + '.pyx'),
+                          'w', 'ISO-8859-1')
         for line in source_and_output:
             last_line = line
             if line.startswith("_ERRORS"):
@@ -268,7 +279,9 @@ class CythonCompileTestCase(unittest.TestCase):
             annotate = annotate,
             use_listing_file = False,
             cplus = self.language == 'cpp',
-            generate_pxi = False)
+            generate_pxi = False,
+            evaluate_tree_assertions = True,
+            )
         cython_compile(source, options=options,
                        full_module_name=module)
 
@@ -318,14 +331,22 @@ class CythonCompileTestCase(unittest.TestCase):
                 sys.stderr = old_stderr
 
         if errors or expected_errors:
-            for expected, error in zip(expected_errors, errors):
-                self.assertEquals(expected, error)
-            if len(errors) < len(expected_errors):
-                expected_error = expected_errors[len(errors)]
-                self.assertEquals(expected_error, None)
-            elif len(errors) > len(expected_errors):
-                unexpected_error = errors[len(expected_errors)]
-                self.assertEquals(None, unexpected_error)
+            try:
+                for expected, error in zip(expected_errors, errors):
+                    self.assertEquals(expected, error)
+                if len(errors) < len(expected_errors):
+                    expected_error = expected_errors[len(errors)]
+                    self.assertEquals(expected_error, None)
+                elif len(errors) > len(expected_errors):
+                    unexpected_error = errors[len(expected_errors)]
+                    self.assertEquals(None, unexpected_error)
+            except AssertionError:
+                print("\n=== Expected errors: ===")
+                print('\n'.join(expected_errors))
+                print("\n\n=== Got errors: ===")
+                print('\n'.join(errors))
+                print('\n')
+                raise
         else:
             if not self.cython_only:
                 self.run_distutils(module, workdir, incdir)
@@ -453,8 +474,8 @@ class VersionDependencyExcluder:
         # deps: { version : matcher func }
         from sys import version_info
         self.exclude_matchers = []
-        for ver, matcher in deps.items():
-            if version_info < ver:
+        for ver, (compare, matcher) in deps.items():
+            if compare(version_info, ver):
                 self.exclude_matchers.append(matcher)
         self.tests_missing_deps = []
     def __call__(self, testname):
@@ -536,10 +557,38 @@ if __name__ == '__main__':
 
     options, cmd_args = parser.parse_args()
 
-    if sys.version_info[0] >= 3:
-        # make sure we do not import (or run) Cython itself
+    DISTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]))
+    ROOTDIR = os.path.join(DISTDIR, 'tests')
+    WORKDIR = os.path.join(os.getcwd(), 'BUILD')
+
+    if sys.version_info >= (3,1):
         options.doctests    = False
+        options.unittests   = False
+        options.pyregr      = False
+        if options.with_cython:
+            # need to convert Cython sources first
+            import lib2to3.refactor
+            from distutils.util import copydir_run_2to3
+            fixers = [ fix for fix in lib2to3.refactor.get_fixers_from_package("lib2to3.fixes")
+                       if fix.split('fix_')[-1] not in ('next',)
+                       ]
+            cy3_dir = os.path.join(WORKDIR, 'Cy3')
+            if not os.path.exists(cy3_dir):
+                os.makedirs(cy3_dir)
+            import distutils.log as dlog
+            dlog.set_threshold(dlog.DEBUG)
+            copydir_run_2to3(DISTDIR, cy3_dir, fixer_names=fixers,
+                             template = '''
+                             global-exclude *
+                             graft Cython
+                             recursive-exclude Cython *
+                             recursive-include Cython *.py *.pyx *.pxd
+                             ''')
+            sys.path.insert(0, cy3_dir)
+    elif sys.version_info[0] >= 3:
+        # make sure we do not import (or run) Cython itself
         options.with_cython = False
+        options.doctests    = False
         options.unittests   = False
         options.pyregr      = False
 
@@ -559,14 +608,12 @@ if __name__ == '__main__':
         Errors.LEVEL = 0 # show all warnings
 
     # RUN ALL TESTS!
-    ROOTDIR = os.path.join(os.getcwd(), os.path.dirname(sys.argv[0]), 'tests')
-    WORKDIR = os.path.join(os.getcwd(), 'BUILD')
     UNITTEST_MODULE = "Cython"
     UNITTEST_ROOT = os.path.join(os.getcwd(), UNITTEST_MODULE)
     if WITH_CYTHON:
         if os.path.exists(WORKDIR):
             for path in os.listdir(WORKDIR):
-                if path in ("support",): continue
+                if path in ("support", "Cy3"): continue
                 shutil.rmtree(os.path.join(WORKDIR, path), ignore_errors=True)
     if not os.path.exists(WORKDIR):
         os.makedirs(WORKDIR)

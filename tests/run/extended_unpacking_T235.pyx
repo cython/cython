@@ -1,7 +1,7 @@
 __doc__ = u"""
 >>> class FakeSeq(object):
 ...     def __init__(self, length):
-...         self._values = range(1,length+1)
+...         self._values = list(range(1,length+1))
 ...     def __getitem__(self, i):
 ...         return self._values[i]
 
@@ -165,10 +165,10 @@ ValueError: need more than 1 value to unpack
 >>> unpack_middle_tuple((1,2,3))
 (1, [2], 3)
 
->>> a,b,c = unpack_middle(range(100))
+>>> a,b,c = unpack_middle(list(range(100)))
 >>> a, len(b), c
 (0, 98, 99)
->>> a,b,c = unpack_middle_list(range(100))
+>>> a,b,c = unpack_middle_list(list(range(100)))
 >>> a, len(b), c
 (0, 98, 99)
 >>> a,b,c = unpack_middle_tuple(tuple(range(100)))

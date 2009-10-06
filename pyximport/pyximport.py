@@ -117,7 +117,7 @@ def handle_dependencies(pyxfilename):
         # be tricked into rebuilding it.
         for file in files:
             if newer(file, pyxfilename):
-                print "Rebuilding because of ", file
+                print("Rebuilding because of ", file)
                 filetime = os.path.getmtime(file)
                 os.utime(pyxfilename, (filetime, filetime))
                 _test_files.append(file)
@@ -141,7 +141,7 @@ def build_module(name, pyxfilename, pyxbuild_dir=None):
             try:
                 os.remove(path)
             except IOError:
-                print "Couldn't remove ", path
+                print("Couldn't remove ", path)
 
     return so_path
 
@@ -168,7 +168,7 @@ class PyxImporter(object):
         if fullname in sys.modules:
             return None
         if DEBUG_IMPORT:
-            print "SEARCHING", fullname, package_path
+            print("SEARCHING", fullname, package_path)
         if '.' in fullname:
             mod_parts = fullname.split('.')
             package = '.'.join(mod_parts[:-1])
@@ -226,7 +226,7 @@ class PyImporter(PyxImporter):
             # prevent infinite recursion
             return None
         if DEBUG_IMPORT:
-            print "trying import of module %s" % fullname
+            print("trying import of module", fullname)
         if fullname in self.uncompilable_modules:
             path, last_modified = self.uncompilable_modules[fullname]
             try:
@@ -243,7 +243,7 @@ class PyImporter(PyxImporter):
             importer = self.super.find_module(fullname, package_path)
             if importer is not None:
                 if DEBUG_IMPORT:
-                    print "importer found"
+                    print("importer found")
                 try:
                     if importer.init_path:
                         path = importer.init_path

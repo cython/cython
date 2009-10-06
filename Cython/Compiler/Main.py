@@ -24,6 +24,7 @@ from Symtab import BuiltinScope, ModuleScope
 from Cython import Utils
 from Cython.Utils import open_new_file, replace_suffix
 import CythonScope
+import DebugFlags
 
 module_name_pattern = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$")
 
@@ -33,6 +34,12 @@ def dumptree(t):
     # For quick debugging in pipelines
     print t.dump()
     return t
+
+def abort_on_errors(node):
+    # Stop the pipeline if there are any errors.
+    if Errors.num_errors != 0:
+        raise InternalError, "abort"
+    return node
 
 class CompilationData(object):
     #  Bundles the information that is passed from transform to transform.
@@ -59,14 +66,14 @@ class Context(object):
     #  include_directories   [string]
     #  future_directives     [object]
     
-    def __init__(self, include_directories, pragma_overrides):
+    def __init__(self, include_directories, compiler_directives):
         #self.modules = {"__builtin__" : BuiltinScope()}
         import Builtin, CythonScope
         self.modules = {"__builtin__" : Builtin.builtin_scope}
         self.modules["cython"] = CythonScope.create_cython_scope(self)
         self.include_directories = include_directories
         self.future_directives = set()
-        self.pragma_overrides = pragma_overrides
+        self.compiler_directives = compiler_directives
 
         self.pxds = {} # full name -> node tree
 
@@ -81,11 +88,12 @@ class Context(object):
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
         from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
         from ParseTreeTransforms import AlignFunctionDefinitions, GilCheck
+        from AnalysedTreeTransforms import AutoTestDictTransform
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
         from Optimize import OptimizeBuiltinCalls, ConstantFolding, FinalOptimizePhase
         from Buffer import IntroduceBufferAuxiliaryVars
-        from ModuleNode import check_c_declarations
+        from ModuleNode import check_c_declarations, check_c_declarations_pxd
 
         # Temporary hack that can be used to ensure that all result_code's
         # are generated at code generation time.
@@ -97,7 +105,7 @@ class Context(object):
                 return node
 
         if pxd:
-            _check_c_declarations = None
+            _check_c_declarations = check_c_declarations_pxd
             _specific_post_parse = PxdPostParse(self)
         else:
             _check_c_declarations = check_c_declarations
@@ -112,7 +120,7 @@ class Context(object):
             NormalizeTree(self),
             PostParse(self),
             _specific_post_parse,
-            InterpretCompilerDirectives(self, self.pragma_overrides),
+            InterpretCompilerDirectives(self, self.compiler_directives),
             _align_function_definitions,
             MarkClosureVisitor(self),
             ConstantFolding(),
@@ -121,6 +129,7 @@ class Context(object):
             DecoratorTransform(self),
             AnalyseDeclarationsTransform(self),
             CreateClosureClasses(self),
+            AutoTestDictTransform(self),
             EmbedSignature(self),
             TransformBuiltinMethods(self),
             IntroduceBufferAuxiliaryVars(self),
@@ -156,10 +165,16 @@ class Context(object):
                  module_node.scope.utility_code_list.extend(scope.utility_code_list)
             return module_node
 
+        test_support = []
+        if options.evaluate_tree_assertions:
+            from Cython.TestUtils import TreeAssertVisitor
+            test_support.append(TreeAssertVisitor())
+
         return ([
                 create_parse(self),
-            ] + self.create_pipeline(pxd=False, py=py) + [
+            ] + self.create_pipeline(pxd=False, py=py) + test_support + [
                 inject_pxd_code,
+                abort_on_errors,
                 generate_pyx_code,
             ])
 
@@ -192,20 +207,24 @@ class Context(object):
         return Errors.report_error(exc)
 
     def run_pipeline(self, pipeline, source):
-        err = None
+        error = None
         data = source
         try:
             for phase in pipeline:
                 if phase is not None:
+                    if DebugFlags.debug_verbose_pipeline:
+                        print "Entering pipeline phase %r" % phase
                     data = phase(data)
         except CompileError, err:
             # err is set
             Errors.report_error(err)
+            error = err
         except InternalError, err:
             # Only raise if there was not an earlier error
             if Errors.num_errors == 0:
                 raise
-        return (err, data)
+            error = err
+        return (error, data)
 
     def find_module(self, module_name, 
             relative_to = None, pos = None, need_pxd = 1):
@@ -316,7 +335,9 @@ class Context(object):
             else:
                 dirs = [self.find_root_package_dir(file_desc.filename)] + dirs
 
-        dotted_filename = qualified_name + suffix
+        dotted_filename = qualified_name
+        if suffix:
+            dotted_filename += suffix
         if not include:
             names = qualified_name.split('.')
             package_names = names[:-1]
@@ -524,7 +545,7 @@ def create_default_resultobj(compilation_source, options):
 
 def run_pipeline(source, options, full_module_name = None):
     # Set up context
-    context = Context(options.include_path, options.pragma_overrides)
+    context = Context(options.include_path, options.compiler_directives)
 
     # Set up source object
     cwd = os.getcwd()
@@ -577,7 +598,8 @@ class CompilationOptions(object):
                                 defaults to true when recursive is true.
     verbose           boolean   Always print source names being compiled
     quiet             boolean   Don't print source names in recursive mode
-    pragma_overrides  dict      Overrides for pragma options (see Options.py)
+    compiler_directives  dict      Overrides for pragma options (see Options.py)
+    evaluate_tree_assertions boolean  Test support: evaluate parse tree assertions
     
     Following options are experimental and only used on MacOSX:
     
@@ -765,7 +787,8 @@ default_options = dict(
     timestamps = None,
     verbose = 0,
     quiet = 0,
-    pragma_overrides = {},
+    compiler_directives = {},
+    evaluate_tree_assertions = False,
     emit_linenums = False,
 )
 if sys.platform == "mac":

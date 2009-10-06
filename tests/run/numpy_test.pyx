@@ -2,9 +2,22 @@
 
 cimport numpy as np
 
+def little_endian():
+    cdef int endian_detector = 1
+    return (<char*>&endian_detector)[0] != 0
+
+if little_endian():
+    my_endian = '<'
+    other_endian = '>'
+else:
+    my_endian = '>'
+    other_endian = '<'
+
 try:
     import numpy as np
     __doc__ = u"""
+
+    >>> assert_dtype_sizes()
 
     >>> basic()
     [[0 1 2 3 4]
@@ -111,6 +124,7 @@ try:
     >>> test_dtype('I', inc1_uint)
     >>> test_dtype('l', inc1_long)
     >>> test_dtype('L', inc1_ulong)
+    
     >>> test_dtype('f', inc1_float)
     >>> test_dtype('d', inc1_double)
     >>> test_dtype('g', inc1_longdouble)
@@ -118,6 +132,9 @@ try:
     >>> test_dtype('F', inc1_cfloat) # numpy format codes differ from buffer ones here
     >>> test_dtype('D', inc1_cdouble)
     >>> test_dtype('G', inc1_clongdouble)
+    >>> test_dtype('F', inc1_cfloat_struct)
+    >>> test_dtype('D', inc1_cdouble_struct)
+    >>> test_dtype('G', inc1_clongdouble_struct)
 
     >>> test_dtype(np.int, inc1_int_t)
     >>> test_dtype(np.long, inc1_long_t)
@@ -129,33 +146,84 @@ try:
     >>> test_dtype(np.int32, inc1_int32_t)
     >>> test_dtype(np.float64, inc1_float64_t)
 
+    Endian tests:
+    >>> test_dtype('%si' % my_endian, inc1_int)
+    >>> test_dtype('%si' % other_endian, inc1_int)
+    Traceback (most recent call last):
+       ...
+    ValueError: Non-native byte order not supported
+    
+
+
     >>> test_recordarray()
     
-    >>> test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
+    >>> print(test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
             ('a', np.dtype('i,i')),\
             ('b', np.dtype('i,i'))\
-        ])))
+        ]))))
     array([((0, 0), (0, 0)), ((1, 2), (1, 4)), ((1, 2), (1, 4))], 
-          dtype=[('a', [('f0', '<i4'), ('f1', '<i4')]), ('b', [('f0', '<i4'), ('f1', '<i4')])])
+          dtype=[('a', [('f0', '!i4'), ('f1', '!i4')]), ('b', [('f0', '!i4'), ('f1', '!i4')])])
 
-    >>> test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
+    >>> print(test_nested_dtypes(np.zeros((3,), dtype=np.dtype([\
             ('a', np.dtype('i,f')),\
             ('b', np.dtype('i,i'))\
-        ])))
+        ]))))
     Traceback (most recent call last):
         ...
-    ValueError: Buffer dtype mismatch (expected int, got float)
+    ValueError: Buffer dtype mismatch, expected 'int' but got 'float' in 'DoubleInt.y'
+
+    >>> print(test_packed_align(np.zeros((1,), dtype=np.dtype('b,i', align=False))))
+    array([(22, 23)], 
+          dtype=[('f0', '|i1'), ('f1', '!i4')])
+    >>> print(test_unpacked_align(np.zeros((1,), dtype=np.dtype('b,i', align=True))))
+    array([(22, 23)], 
+          dtype=[('f0', '|i1'), ('', '|V3'), ('f1', '!i4')])
+
+    >>> print(test_packed_align(np.zeros((1,), dtype=np.dtype('b,i', align=True))))
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer dtype mismatch; next field is at offset 4 but 1 expected
+
+    >>> print(test_unpacked_align(np.zeros((1,), dtype=np.dtype('b,i', align=False))))
+    Traceback (most recent call last):
+        ...
+    ValueError: Buffer dtype mismatch; next field is at offset 1 but 4 expected
+
 
     >>> test_good_cast()
     True
     >>> test_bad_cast()
     Traceback (most recent call last):
         ...
-    ValueError: Attempted cast of buffer to datatype of different size.
+    ValueError: Item size of buffer (1 byte) does not match size of 'int' (4 bytes)
+
+    >>> test_complextypes()
+    1,1
+    1,1
+    8,16
+
+    >>> test_point_record()
+    array([(0.0, 0.0), (1.0, -1.0), (2.0, -2.0)], 
+          dtype=[('x', '!f8'), ('y', '!f8')])
     
 """
 except:
     __doc__ = u""
+
+
+def assert_dtype_sizes():
+    assert sizeof(np.int8_t) == 1
+    assert sizeof(np.int16_t) == 2
+    assert sizeof(np.int32_t) == 4
+    assert sizeof(np.int64_t) == 8
+    assert sizeof(np.uint8_t) == 1
+    assert sizeof(np.uint16_t) == 2
+    assert sizeof(np.uint32_t) == 4
+    assert sizeof(np.uint64_t) == 8
+    assert sizeof(np.float32_t) == 4
+    assert sizeof(np.float64_t) == 8
+    assert sizeof(np.complex64_t) == 8
+    assert sizeof(np.complex128_t) == 16
 
 def ndarray_str(arr):
     u"""
@@ -218,15 +286,19 @@ def inc1_float(np.ndarray[float] arr):                  arr[1] += 1
 def inc1_double(np.ndarray[double] arr):                arr[1] += 1
 def inc1_longdouble(np.ndarray[long double] arr):       arr[1] += 1
 
-def inc1_cfloat(np.ndarray[np.cfloat_t] arr):
+def inc1_cfloat(np.ndarray[float complex] arr):            arr[1] = arr[1] + 1 + 1j
+def inc1_cdouble(np.ndarray[double complex] arr):          arr[1] = (arr[1] + 1) + 1j
+def inc1_clongdouble(np.ndarray[long double complex] arr): arr[1] = arr[1] + (1 + 1j)
+
+def inc1_cfloat_struct(np.ndarray[np.cfloat_t] arr):
     arr[1].real += 1
     arr[1].imag += 1
     
-def inc1_cdouble(np.ndarray[np.cdouble_t] arr):
+def inc1_cdouble_struct(np.ndarray[np.cdouble_t] arr):
     arr[1].real += 1
     arr[1].imag += 1
 
-def inc1_clongdouble(np.ndarray[np.clongdouble_t] arr):
+def inc1_clongdouble_struct(np.ndarray[np.clongdouble_t] arr):
     cdef long double x
     x = arr[1].real + 1
     arr[1].real = x
@@ -297,7 +369,7 @@ def test_nested_dtypes(obj):
     arr[1].b.x = arr[0].a.y + 1
     arr[1].b.y = 4
     arr[2] = arr[1]
-    return arr
+    return repr(arr).replace('<', '!').replace('>', '!')
 
 def test_bad_nested_dtypes():
     cdef object[BadNestedStruct] arr
@@ -310,4 +382,45 @@ def test_good_cast():
 
 def test_bad_cast():
     # This should raise an exception
-    cdef np.ndarray[long, cast=True] arr = np.array([1], dtype=b'b')
+    cdef np.ndarray[int, cast=True] arr = np.array([1], dtype=b'b')
+
+cdef packed struct PackedStruct:
+    char a
+    int b
+
+cdef struct UnpackedStruct:
+    char a
+    int b
+
+def test_packed_align(np.ndarray[PackedStruct] arr):
+    arr[0].a = 22
+    arr[0].b = 23
+    return repr(arr).replace('<', '!').replace('>', '!')
+
+def test_unpacked_align(np.ndarray[UnpackedStruct] arr):
+    arr[0].a = 22
+    arr[0].b = 23    
+    return repr(arr).replace('<', '!').replace('>', '!')
+
+def test_complextypes():
+    cdef np.complex64_t x64 = 1, y64 = 1j
+    cdef np.complex128_t x128 = 1, y128 = 1j
+    x64 = x64 + y64
+    print "%.0f,%.0f" % (x64.real, x64.imag)
+    x128 = x128 + y128
+    print "%.0f,%.0f" % (x128.real, x128.imag)
+    print "%d,%d" % (sizeof(x64), sizeof(x128))
+
+
+cdef struct Point:
+    np.float64_t x, y
+
+def test_point_record():
+    cdef np.ndarray[Point] test
+    Point_dtype = np.dtype([('x', np.float64), ('y', np.float64)])
+    test = np.zeros(3, Point_dtype)
+    cdef int i
+    for i in range(3):
+        test[i].x = i
+        test[i].y = -i
+    print repr(test).replace('<', '!').replace('>', '!')

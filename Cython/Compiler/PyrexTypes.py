@@ -2,7 +2,7 @@
 #   Pyrex - Types
 #
 
-from Cython.Utils import UtilityCode
+from Code import UtilityCode
 import StringEncoding
 import Naming
 import copy
@@ -31,8 +31,8 @@ class PyrexType(BaseType):
     #  is_extension_type     boolean     Is a Python extension type
     #  is_numeric            boolean     Is a C numeric type
     #  is_int                boolean     Is a C integer type
-    #  is_longlong           boolean     Is a long long or unsigned long long.
     #  is_float              boolean     Is a C floating point type
+    #  is_complex            boolean     Is a C complex type
     #  is_void               boolean     Is the C void type
     #  is_array              boolean     Is a C array type
     #  is_ptr                boolean     Is a C pointer type
@@ -81,8 +81,8 @@ class PyrexType(BaseType):
     is_builtin_type = 0
     is_numeric = 0
     is_int = 0
-    is_longlong = 0
     is_float = 0
+    is_complex = 0
     is_void = 0
     is_array = 0
     is_ptr = 0
@@ -140,8 +140,14 @@ class PyrexType(BaseType):
         return 1
 
     def is_simple_buffer_dtype(self):
-        return (self.is_int or self.is_float or self.is_pyobject or
+        return (self.is_int or self.is_float or self.is_complex or self.is_pyobject or
                 self.is_extension_type or self.is_ptr)
+
+    def struct_nesting_depth(self):
+        # Returns the number levels of nested structs. This is
+        # used for constructing a stack for walking the run-time
+        # type information of the struct.
+        return 1
 
 class CTypedefType(BaseType):
     #
@@ -153,12 +159,31 @@ class CTypedefType(BaseType):
     #  qualified_name      string
     #  typedef_cname       string
     #  typedef_base_type   PyrexType
+    #  typedef_is_external bool
     
     is_typedef = 1
+    typedef_is_external = 0
+
+    to_py_utility_code = None
+    from_py_utility_code = None
     
-    def __init__(self, cname, base_type):
+    
+    def __init__(self, cname, base_type, is_external=0):
         self.typedef_cname = cname
         self.typedef_base_type = base_type
+        self.typedef_is_external = is_external
+        # Make typecodes in external typedefs use typesize-neutral macros
+        if is_external:
+            typecode = None
+            if base_type.is_int:
+                if base_type.signed == 0:
+                    typecode = "__Pyx_T_UNSIGNED_INT"
+                else:
+                    typecode = "__Pyx_T_SIGNED_INT"
+            elif base_type.is_float and not rank_to_type_name[base_type.rank] == "long double":
+                typecode = "__Pyx_T_FLOATING"
+            if typecode:
+                self.pymemberdef_typecode = "%s(%s)" % (typecode, cname)
     
     def resolve(self):
         return self.typedef_base_type.resolve()
@@ -184,13 +209,70 @@ class CTypedefType(BaseType):
             return self.typedef_base_type.cast_code(expr_code)
         else:
             return BaseType.cast_code(self, expr_code)
-    
+
     def __repr__(self):
         return "<CTypedefType %s>" % self.typedef_cname
     
     def __str__(self):
         return self.declaration_name(for_display = 1)
-    
+
+    def _create_utility_code(self, template_utility_code,
+                             template_function_name):
+        type_name = self.typedef_cname.replace(" ","_")
+        utility_code = template_utility_code.specialize(
+            type     = self.typedef_cname,
+            TypeName = type_name)
+        function_name = template_function_name % type_name
+        return utility_code, function_name
+
+    def create_to_py_utility_code(self, env):
+        if self.typedef_is_external:
+            if not self.to_py_utility_code:
+                base_type = self.typedef_base_type
+                if base_type.is_int:
+                    self.to_py_utility_code, self.to_py_function = \
+                        self._create_utility_code(c_typedef_int_to_py_function,
+                                                  '__Pyx_PyInt_to_py_%s')
+                elif base_type.is_float:
+                    pass # XXX implement!
+                elif base_type.is_complex:
+                    pass # XXX implement!
+                    pass
+            if self.to_py_utility_code:
+                env.use_utility_code(self.to_py_utility_code)
+                return True
+        # delegation
+        return self.typedef_base_type.create_to_py_utility_code(env)
+
+    def create_from_py_utility_code(self, env):
+        if self.typedef_is_external:
+            if not self.from_py_utility_code:
+                base_type = self.typedef_base_type
+                if base_type.is_int:
+                    self.from_py_utility_code, self.from_py_function = \
+                        self._create_utility_code(c_typedef_int_from_py_function,
+                                                  '__Pyx_PyInt_from_py_%s')
+                elif base_type.is_float:
+                    pass # XXX implement!
+                elif base_type.is_complex:
+                    pass # XXX implement!
+            if self.from_py_utility_code:
+                env.use_utility_code(self.from_py_utility_code)
+                return True
+        # delegation
+        return self.typedef_base_type.create_from_py_utility_code(env)
+
+    def error_condition(self, result_code):
+        if self.typedef_is_external:
+            if self.exception_value:
+                condition = "(%s == (%s)%s)" % (
+                    result_code, self.typedef_cname, self.exception_value)
+                if self.exception_check:
+                    condition += " && PyErr_Occurred()"
+                return condition
+        # delegation
+        return self.typedef_base_type.error_condition(result_code)
+
     def __getattr__(self, name):
         return getattr(self.typedef_base_type, name)
 
@@ -347,6 +429,7 @@ class PyExtensionType(PyObjectType):
     #  base_type        PyExtensionType or None
     #  module_name      string or None   Qualified name of defining module
     #  objstruct_cname  string           Name of PyObject struct
+    #  objtypedef_cname string           Name of PyObject struct typedef
     #  typeobj_cname    string or None   C code fragment referring to type object
     #  typeptr_cname    string or None   Name of pointer to external type object
     #  vtabslot_cname   string           Name of C method table member
@@ -356,6 +439,8 @@ class PyExtensionType(PyObjectType):
     
     is_extension_type = 1
     has_attributes = 1
+    
+    objtypedef_cname = None
     
     def __init__(self, name, typedef_flag, base_type):
         self.name = name
@@ -434,8 +519,11 @@ class CType(PyrexType):
     exception_value = None
     exception_check = 1
 
-    def create_convert_utility_code(self, env):
-        return True
+    def create_to_py_utility_code(self, env):
+        return self.to_py_function is not None
+        
+    def create_from_py_utility_code(self, env):
+        return self.from_py_function is not None
         
     def error_condition(self, result_code):
         conds = []
@@ -495,7 +583,7 @@ class CNumericType(CType):
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
         base = public_decl(self.sign_and_name(), dll_linkage)
-        if for_display and self.is_longlong:
+        if for_display:
             base = base.replace('PY_LONG_LONG', 'long long')
         return self.base_declaration_code(base,  entity_code)
 
@@ -512,25 +600,19 @@ static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
     if (sizeof(%(type)s) < sizeof(long)) {
         long val = __Pyx_PyInt_AsLong(x);
         if (unlikely(val != (long)(%(type)s)val)) {
-            if (unlikely(val == -1 && PyErr_Occurred()))
-                return (%(type)s)-1;""" + \
-           "%(IntValSignTest)s" + \
-"""
-            PyErr_SetString(PyExc_OverflowError,
-                           "value too large to convert to %(type)s");
+            if (!unlikely(val == -1 && PyErr_Occurred())) {
+                PyErr_SetString(PyExc_OverflowError,
+                    (((%(type)s)-1) > ((%(type)s)0) && unlikely(val < 0)) ?
+                    "can't convert negative value to %(type)s" :
+                    "value too large to convert to %(type)s");
+            }
             return (%(type)s)-1;
         }
         return (%(type)s)val;
     }
     return (%(type)s)__Pyx_PyInt_As%(SignWord)sLong(x);
 }
-""")
-intval_signtest = """
-            if (unlikely(%(var)s < 0)) {
-                PyErr_SetString(PyExc_OverflowError,
-                                "can't convert negative value to %(type)s");
-                return (%(type)s)-1;
-            }"""
+""") #fool emacs: '
 
 c_long_from_py_function = UtilityCode(
 proto="""
@@ -539,17 +621,25 @@ static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
 impl="""
 static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
 #if PY_VERSION_HEX < 0x03000000
-    if (likely(PyInt_CheckExact(x) || PyInt_Check(x))) {
-        long val = PyInt_AS_LONG(x);""" + \
-       "%(IntValSignTest)s" + \
-"""
+    if (likely(PyInt_Check(x))) {
+        long val = PyInt_AS_LONG(x);
+        if (((%(type)s)-1) > ((%(type)s)0) && unlikely(val < 0)) {
+            PyErr_SetString(PyExc_OverflowError,
+                            "can't convert negative value to %(type)s");
+            return (%(type)s)-1;
+        }
         return (%(type)s)val;
     } else
 #endif
-    if (likely(PyLong_CheckExact(x) || PyLong_Check(x))) {""" +\
-       "%(PyLongSignTest)s" + \
-"""
-        return %(PyLongConvert)s(x);
+    if (likely(PyLong_Check(x))) {
+        if (((%(type)s)-1) > ((%(type)s)0) && unlikely(Py_SIZE(x) < 0)) {
+            PyErr_SetString(PyExc_OverflowError,
+                            "can't convert negative value to %(type)s");
+            return (%(type)s)-1;
+        }
+        return (((%(type)s)-1) < ((%(type)s)0)) ?
+               PyLong_As%(TypeName)s(x) :
+               PyLong_AsUnsigned%(TypeName)s(x);
     } else {
         %(type)s val;
         PyObject *tmp = __Pyx_PyNumber_Int(x);
@@ -560,14 +650,63 @@ static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
     }
 }
 """)
-pylong_signtest = """
-        if (unlikely(Py_SIZE(%(var)s) < 0)) {
-            PyErr_SetString(PyExc_OverflowError,
-                            "can't convert negative value to %(type)s");
-            return (%(type)s)-1;
-        }"""
 
+c_typedef_int_from_py_function = UtilityCode(
+proto="""
+static INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject *);
+""",
+impl="""
+static INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject* x) {
+  /**/ if (sizeof(%(type)s) == sizeof(char))
+     return (((%(type)s)-1) < ((%(type)s)0)) ?
+            (%(type)s)__Pyx_PyInt_AsSignedChar(x) :
+            (%(type)s)__Pyx_PyInt_AsUnsignedChar(x);
+  else if (sizeof(%(type)s) == sizeof(short))
+     return (((%(type)s)-1) < ((%(type)s)0)) ?
+            (%(type)s)__Pyx_PyInt_AsSignedShort(x) :
+            (%(type)s)__Pyx_PyInt_AsUnsignedShort(x);
+  else if (sizeof(%(type)s) == sizeof(int))
+     return (((%(type)s)-1) < ((%(type)s)0)) ?
+            (%(type)s)__Pyx_PyInt_AsSignedInt(x) :
+            (%(type)s)__Pyx_PyInt_AsUnsignedInt(x);
+  else if (sizeof(%(type)s) == sizeof(long))
+     return (((%(type)s)-1) < ((%(type)s)0)) ?
+            (%(type)s)__Pyx_PyInt_AsSignedLong(x) :
+            (%(type)s)__Pyx_PyInt_AsUnsignedLong(x);
+  else if (sizeof(%(type)s) == sizeof(PY_LONG_LONG))
+     return (((%(type)s)-1) < ((%(type)s)0)) ?
+            (%(type)s)__Pyx_PyInt_AsSignedLongLong(x) :
+            (%(type)s)__Pyx_PyInt_AsUnsignedLongLong(x);
+#if 0
+  else if (sizeof(%(type)s) > sizeof(short) &&
+           sizeof(%(type)s) < sizeof(int)) /*  __int32 ILP64 ? */
+     return (((%(type)s)-1) < ((%(type)s)0)) ?
+            (%(type)s)__Pyx_PyInt_AsSignedInt(x) :
+            (%(type)s)__Pyx_PyInt_AsUnsignedInt(x);
+#endif
+  PyErr_SetString(PyExc_TypeError, "%(TypeName)s");
+  return (%(type)s)-1;
+}
+""")
 
+c_typedef_int_to_py_function = UtilityCode(
+proto="""
+static INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s);
+""",
+impl="""
+static INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s val) {
+  /**/ if (sizeof(%(type)s) <  sizeof(long))
+      return PyInt_FromLong((long)val);
+  else if (sizeof(%(type)s) == sizeof(long))
+     return (((%(type)s)-1) < ((%(type)s)0)) ? 
+            PyInt_FromLong((long)val) :
+            PyLong_FromUnsignedLong((unsigned long)val);
+  else /* (sizeof(%(type)s) >  sizeof(long)) */
+     return (((%(type)s)-1) < ((%(type)s)0)) ?
+            PyLong_FromLongLong((PY_LONG_LONG)val) :
+            PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG)val);
+}
+""")
 
 class CIntType(CNumericType):
 
@@ -593,27 +732,13 @@ class CIntType(CNumericType):
         type_name = type_name.replace("PY_LONG_LONG","long long")
         SignWord  = sign_word.title()
         TypeName  = type_name.title().replace(" ", "")
-        data = {'IntValSignTest' : "",
-                'PyLongSignTest' : "",
-                'PyLongConvert'  : "",
-                }
-        if not self.signed:
-            data['IntValSignTest'] = intval_signtest % {'var':"val", 'type':ctype}
-            data['PyLongSignTest'] = pylong_signtest % {'var':"x",   'type':ctype}
         if "Long" in TypeName:
-            data['PyLongConvert'] = \
-                "PyLong_As" + SignWord.replace("Signed", "") + TypeName
-            # the replaces below are just for generating well indented C code
-            data['IntValSignTest'] = "\n".join(
-                [ln.replace(" "*4, "", 1) for ln in data['IntValSignTest'].split('\n')]
-                )
             utility_code = c_long_from_py_function
         else:
             utility_code = c_int_from_py_function
         utility_code.specialize(self,
                                 SignWord=SignWord,
-                                TypeName=TypeName,
-                                **data)
+                                TypeName=TypeName)
         func_name = "__Pyx_PyInt_As%s%s" % (SignWord, TypeName)
         return func_name
 
@@ -654,13 +779,11 @@ class CULongType(CUIntType):
 
 class CLongLongType(CIntType):
 
-    is_longlong = 1
     to_py_function = "PyLong_FromLongLong"
 
 
 class CULongLongType(CUIntType):
 
-    is_longlong = 1
     to_py_function = "PyLong_FromUnsignedLongLong"
 
 
@@ -693,7 +816,204 @@ class CFloatType(CNumericType):
         self.math_h_modifier = math_h_modifier
     
     def assignable_from_resolved_type(self, src_type):
-        return src_type.is_numeric or src_type is error_type
+        return (src_type.is_numeric and not src_type.is_complex) or src_type is error_type
+
+
+class CComplexType(CNumericType):
+    
+    is_complex = 1
+    to_py_function = "__pyx_PyObject_from_complex"
+    has_attributes = 1
+    scope = None
+    
+    def __init__(self, real_type):
+        self.real_type = real_type
+        CNumericType.__init__(self, real_type.rank + 0.5, real_type.signed)
+        self.binops = {}
+        self.from_parts = "%s_from_parts" % self.specalization_name()
+    
+    def __eq__(self, other):
+        if isinstance(self, CComplexType) and isinstance(other, CComplexType):
+            return self.real_type == other.real_type
+        else:
+            return False
+
+    def __lt__(self, other):
+        if isinstance(self, CComplexType) and isinstance(other, CComplexType):
+            return self.real_type < other.real_type
+        else:
+            # this is arbitrary, but it makes sure we always have
+            # *some* kind of order
+            return False
+
+    def __hash__(self):
+        return ~hash(self.real_type)
+    
+    def sign_and_name(self):
+        return Naming.type_prefix + self.real_type.specalization_name() + "_complex"
+
+    def assignable_from_resolved_type(self, src_type):
+        return (src_type.is_complex and self.real_type.assignable_from_resolved_type(src_type.real_type)
+                    or src_type.is_numeric and self.real_type.assignable_from_resolved_type(src_type) 
+                    or src_type is error_type)
+                    
+    def attributes_known(self):
+        if self.scope is None:
+            import Symtab
+            self.scope = Symtab.StructOrUnionScope(self.specalization_name())
+            self.scope.declare_var("real", self.real_type, None, "real")
+            self.scope.declare_var("imag", self.real_type, None, "imag")
+        return True
+
+    def create_declaration_utility_code(self, env):
+        # This must always be run, because a single CComplexType instance can be shared
+        # across multiple compilations (the one created in the module scope)
+        env.use_utility_code(complex_generic_utility_code)
+        env.use_utility_code(
+            complex_arithmatic_utility_code.specialize(self, 
+                math_h_modifier = self.real_type.math_h_modifier,
+                real_type = self.real_type.declaration_code('')))
+        return True
+
+    def create_from_py_utility_code(self, env):
+        self.real_type.create_from_py_utility_code(env)
+        env.use_utility_code(
+            complex_conversion_utility_code.specialize(self, 
+                        math_h_modifier = self.real_type.math_h_modifier,
+                        real_type = self.real_type.declaration_code(''),
+                        type_convert = self.real_type.from_py_function))
+        self.from_py_function = "__pyx_PyObject_As_" + self.specalization_name()
+        return True
+    
+    def lookup_op(self, nargs, op):
+        try:
+            return self.binops[nargs, op]
+        except KeyError:
+            pass
+        try:
+            op_name = complex_ops[nargs, op]
+            self.binops[nargs, op] = func_name = "%s_%s" % (self.specalization_name(), op_name)
+            return func_name
+        except KeyError:
+            return None
+
+    def unary_op(self, op):
+        return self.lookup_op(1, op)
+        
+    def binary_op(self, op):
+        return self.lookup_op(2, op)
+        
+complex_ops = {
+    (1, '-'): 'neg',
+    (1, 'zero'): 'is_zero',
+    (2, '+'): 'add',
+    (2, '-') : 'sub',
+    (2, '*'): 'mul',
+    (2, '/'): 'div',
+    (2, '=='): 'eq',
+}
+
+complex_generic_utility_code = UtilityCode(
+proto="""
+#if __PYX_USE_C99_COMPLEX
+    #define __Pyx_REAL_PART(z) __real__(z)
+    #define __Pyx_IMAG_PART(z) __imag__(z)
+#else
+    #define __Pyx_REAL_PART(z) ((z).real)
+    #define __Pyx_IMAG_PART(z) ((z).imag)
+#endif
+
+#define __pyx_PyObject_from_complex(z) PyComplex_FromDoubles((double)__Pyx_REAL_PART(z), (double)__Pyx_IMAG_PART(z))
+""")
+
+complex_conversion_utility_code = UtilityCode(
+proto="""
+static %(type)s __pyx_PyObject_As_%(type_name)s(PyObject* o); /* proto */
+""", 
+impl="""
+static %(type)s __pyx_PyObject_As_%(type_name)s(PyObject* o) {
+    if (PyComplex_CheckExact(o)) {
+        return %(type_name)s_from_parts(
+            (%(real_type)s)((PyComplexObject *)o)->cval.real,
+            (%(real_type)s)((PyComplexObject *)o)->cval.imag);
+    }
+    else {
+        Py_complex cval = PyComplex_AsCComplex(o);
+        return %(type_name)s_from_parts((%(real_type)s)cval.real, (%(real_type)s)cval.imag);
+    }
+}
+""")
+
+complex_arithmatic_utility_code = UtilityCode(
+proto="""
+#if __PYX_USE_C99_COMPLEX
+
+    typedef %(real_type)s _Complex %(type_name)s;
+    static INLINE %(type)s %(type_name)s_from_parts(%(real_type)s x, %(real_type)s y) {
+      return x + y*(%(type)s)_Complex_I;
+    }
+    
+    #define %(type_name)s_is_zero(a) ((a) == 0)
+    #define %(type_name)s_eq(a, b) ((a) == (b))
+    #define %(type_name)s_add(a, b) ((a)+(b))
+    #define %(type_name)s_sub(a, b) ((a)-(b))
+    #define %(type_name)s_mul(a, b) ((a)*(b))
+    #define %(type_name)s_div(a, b) ((a)/(b))
+    #define %(type_name)s_neg(a) (-(a))
+
+#else
+
+    typedef struct { %(real_type)s real, imag; } %(type_name)s;
+    static INLINE %(type)s %(type_name)s_from_parts(%(real_type)s x, %(real_type)s y) {
+      %(type)s c; c.real = x; c.imag = y; return c;
+    }
+    
+    static INLINE int %(type_name)s_is_zero(%(type)s a) {
+       return (a.real == 0) & (a.imag == 0);
+    }
+
+    static INLINE int %(type_name)s_eq(%(type)s a, %(type)s b) {
+       return (a.real == b.real) & (a.imag == b.imag);
+    }
+
+    static INLINE %(type)s %(type_name)s_add(%(type)s a, %(type)s b) {
+        %(type)s z;
+        z.real = a.real + b.real;
+        z.imag = a.imag + b.imag;
+        return z;
+    }
+
+    static INLINE %(type)s %(type_name)s_sub(%(type)s a, %(type)s b) {
+        %(type)s z;
+        z.real = a.real - b.real;
+        z.imag = a.imag - b.imag;
+        return z;
+    }
+
+    static INLINE %(type)s %(type_name)s_mul(%(type)s a, %(type)s b) {
+        %(type)s z;
+        z.real = a.real * b.real - a.imag * b.imag;
+        z.imag = a.real * b.imag + a.imag * b.real;
+        return z;
+    }
+
+    static INLINE %(type)s %(type_name)s_div(%(type)s a, %(type)s b) {
+        %(type)s z;
+        %(real_type)s denom = b.real*b.real + b.imag*b.imag;
+        z.real = (a.real * b.real + a.imag * b.imag) / denom;
+        z.imag = (a.imag * b.real - a.real * b.imag) / denom;
+        return z;
+    }
+
+    static INLINE %(type)s %(type_name)s_neg(%(type)s a) {
+        %(type)s z;
+        z.real = -a.real;
+        z.imag = -a.imag;
+        return z;
+    }
+
+#endif
+""", proto_block='complex_numbers_utility_code')
 
 
 class CArrayType(CType):
@@ -928,6 +1248,15 @@ class CFuncType(CType):
         return 1
 
     def same_calling_convention_as(self, other):
+        ## XXX Under discussion ...
+        ## callspec_words = ("__stdcall", "__cdecl", "__fastcall")
+        ## cs1 = self.calling_convention
+        ## cs2 = other.calling_convention
+        ## if (cs1 in callspec_words or
+        ##     cs2 in callspec_words):
+        ##     return cs1 == cs2
+        ## else:
+        ##     return True
         sc1 = self.calling_convention == '__stdcall'
         sc2 = other.calling_convention == '__stdcall'
         return sc1 == sc2
@@ -1025,6 +1354,44 @@ class CFuncTypeArg(object):
     def declaration_code(self, for_display = 0):
         return self.type.declaration_code(self.cname, for_display)
 
+class StructUtilityCode(object):
+    def __init__(self, type, forward_decl):
+        self.type = type
+        self.header = "static PyObject* %s(%s)" % (type.to_py_function, type.declaration_code('s'))
+        self.forward_decl = forward_decl
+
+    def __eq__(self, other):
+        return isinstance(other, StructUtilityCode) and self.header == other.header
+    def __hash__(self):
+        return hash(self.header)
+    
+    def put_code(self, output):
+        code = output['utility_code_def']
+        proto = output['utility_code_proto']
+        
+        code.putln("%s {" % self.header)
+        code.putln("PyObject* res;")
+        code.putln("PyObject* member;")
+        code.putln("res = PyDict_New(); if (res == NULL) return NULL;")
+        for member in self.type.scope.var_entries:
+            nameconst_cname = code.get_py_string_const(member.name, identifier=True)
+            code.putln("member = %s(s.%s); if (member == NULL) goto bad;" % (
+                member.type.to_py_function, member.cname))
+            code.putln("if (PyDict_SetItem(res, %s, member) < 0) goto bad;" % nameconst_cname)
+            code.putln("Py_DECREF(member);")
+        code.putln("return res;")
+        code.putln("bad:")
+        code.putln("Py_XDECREF(member);")
+        code.putln("Py_DECREF(res);")
+        code.putln("return NULL;")
+        code.putln("}")
+
+        # This is a bit of a hack, we need a forward declaration
+        # due to the way things are ordered in the module...
+        if self.forward_decl:
+            proto.putln(self.type.declaration_code('') + ';')
+        proto.putln(self.header + ";")
+        
 
 class CStructOrUnionType(CType):
     #  name          string
@@ -1050,41 +1417,21 @@ class CStructOrUnionType(CType):
         self._convert_code = None
         self.packed = packed
         
-    def create_convert_utility_code(self, env):
+    def create_to_py_utility_code(self, env):
         if env.outer_scope is None:
             return False
+
+        if self._convert_code is False: return # tri-state-ish
+
         if self._convert_code is None:
-            import Code
-            code = Code.CCodeWriter()
-            header = "static PyObject* %s(%s)" % (self.to_py_function, self.declaration_code('s'))
-            code.putln("%s {" % header)
-            code.putln("PyObject* res;")
-            code.putln("PyObject* member;")
-            code.putln("res = PyDict_New(); if (res == NULL) return NULL;")
             for member in self.scope.var_entries:
-                if member.type.to_py_function and member.type.create_convert_utility_code(env):
-                    interned_name = env.get_string_const(member.name, identifier=True)
-                    env.add_py_string(interned_name)
-                    code.putln("member = %s(s.%s); if (member == NULL) goto bad;" % (
-                                                member.type.to_py_function, member.cname))
-                    code.putln("if (PyDict_SetItem(res, %s, member) < 0) goto bad;" % interned_name.pystring_cname)
-                    code.putln("Py_DECREF(member);")
-                else:
+                if not member.type.to_py_function or not member.type.create_to_py_utility_code(env):
                     self.to_py_function = None
+                    self._convert_code = False
                     return False
-            code.putln("return res;")
-            code.putln("bad:")
-            code.putln("Py_XDECREF(member);")
-            code.putln("Py_DECREF(res);")
-            code.putln("return NULL;")
-            code.putln("}")
-            proto = header + ";"
-            # This is a bit of a hack, we need a forward declaration
-            # due to the way things are ordered in the module...
             entry = env.lookup(self.name)
-            if entry.visibility != 'extern':
-                proto = self.declaration_code('') + ';\n' + proto
-            self._convert_code = UtilityCode(proto=proto, impl=code.buffer.getvalue())
+            forward_decl = (entry.visibility != 'extern')
+            self._convert_code = StructUtilityCode(self, forward_decl)
         
         env.use_utility_code(self._convert_code)
         return True
@@ -1106,14 +1453,28 @@ class CStructOrUnionType(CType):
                 base = "%s %s" % (self.kind, self.cname)
             return self.base_declaration_code(public_decl(base, dll_linkage), entity_code)
 
-    def __cmp__(self, other):
+    def __eq__(self, other):
         try:
-            if self.name == other.name:
-                return 0
-            else:
-                return 1
+            return (isinstance(other, CStructOrUnionType) and
+                    self.name == other.name)
         except AttributeError:
-            return 1
+            return False
+
+    def __lt__(self, other):
+        try:
+            return self.name < other.name
+        except AttributeError:
+            # this is arbitrary, but it makes sure we always have
+            # *some* kind of order
+            return False
+
+    def __hash__(self):
+        try:
+            return self.__hashval
+        except AttributeError:
+            hashval = self.__hashval = hash(self.cname) ^ (sum([
+                hash(field.name) for field in self.scope.var_entries]) % 0xffff)
+            return hashval
 
     def is_complete(self):
         return self.scope is not None
@@ -1122,10 +1483,18 @@ class CStructOrUnionType(CType):
         return self.is_complete()
 
     def can_be_complex(self):
-        # Does the struct consist of exactly two floats?
+        # Does the struct consist of exactly two identical floats?
         fields = self.scope.var_entries
-        return len(fields) == 2 and fields[0].type.is_float and fields[1].type.is_float
+        if len(fields) != 2: return False
+        a, b = fields
+        return (a.type.is_float and b.type.is_float and
+                a.type.declaration_code("") ==
+                b.type.declaration_code(""))
 
+    def struct_nesting_depth(self):
+        child_depths = [x.type.struct_nesting_depth()
+                        for x in self.scope.var_entries]
+        return max(child_depths) + 1
 
 class CEnumType(CType):
     #  name           string
@@ -1208,6 +1577,18 @@ class CCharPtrType(CStringType, CPtrType):
         CPtrType.__init__(self, c_char_type)
 
 
+class CUCharPtrType(CStringType, CPtrType):
+    # C 'unsigned char *' type.
+    
+    pymemberdef_typecode = "T_STRING"
+    
+    to_py_function = "__Pyx_PyBytes_FromUString"
+    from_py_function = "__Pyx_PyBytes_AsUString"
+
+    def __init__(self):
+        CPtrType.__init__(self, c_uchar_type)
+
+
 class UnspecifiedType(PyrexType):
     # Used as a placeholder until the type can be determined.
         
@@ -1228,7 +1609,10 @@ class ErrorType(PyrexType):
     to_py_function = "dummy"
     from_py_function = "dummy"
     
-    def create_convert_utility_code(self, env):
+    def create_to_py_utility_code(self, env):
+        return True
+    
+    def create_from_py_utility_code(self, env):
         return True
     
     def declaration_code(self, entity_code, 
@@ -1287,9 +1671,12 @@ c_float_type =       CFloatType(7, "T_FLOAT", math_h_modifier='f')
 c_double_type =      CFloatType(8, "T_DOUBLE")
 c_longdouble_type =  CFloatType(9, math_h_modifier='l')
 
+c_double_complex_type = CComplexType(c_double_type)
+
 c_null_ptr_type =     CNullPtrType(c_void_type)
 c_char_array_type =   CCharArrayType(None)
 c_char_ptr_type =     CCharPtrType()
+c_uchar_ptr_type =    CUCharPtrType()
 c_utf8_char_array_type = CUTF8CharArrayType(None)
 c_char_ptr_ptr_type = CPtrType(c_char_ptr_type)
 c_int_ptr_type =      CPtrType(c_int_type)
@@ -1379,6 +1766,15 @@ modifiers_and_name_to_type = {
 def widest_numeric_type(type1, type2):
     # Given two numeric types, return the narrowest type
     # encompassing both of them.
+    if type1 == type2:
+        return type1
+    if type1.is_complex:
+        if type2.is_complex:
+            return CComplexType(widest_numeric_type(type1.real_type, type2.real_type))
+        else:
+            return CComplexType(widest_numeric_type(type1.real_type, type2))
+    elif type2.is_complex:
+        return CComplexType(widest_numeric_type(type1, type2.real_type))
     if type1.is_enum and type2.is_enum:
         return c_int_type
     elif type1 is type2:
@@ -1425,6 +1821,8 @@ def c_ptr_type(base_type):
     # Construct a C pointer type.
     if base_type is c_char_type:
         return c_char_ptr_type
+    elif base_type is c_uchar_type:
+        return c_uchar_ptr_type
     elif base_type is error_type:
         return error_type
     else:
@@ -1474,6 +1872,9 @@ type_conversion_predeclarations = """
 #define __Pyx_PyBytes_AsString            PyBytes_AsString
 #endif
 
+#define __Pyx_PyBytes_FromUString(s)      __Pyx_PyBytes_FromString((char*)s)
+#define __Pyx_PyBytes_AsUString(s)        ((unsigned char*) __Pyx_PyBytes_AsString(s))
+
 #define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
 static INLINE int __Pyx_PyObject_IsTrue(PyObject*);
 static INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x);
@@ -1492,6 +1893,40 @@ static INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x);
         ((sizeof(Py_ssize_t) == sizeof(PY_LONG_LONG)) ? T_LONGLONG : -1)))
 #endif
 #endif
+
+
+#if !defined(T_ULONGLONG)
+#define __Pyx_T_UNSIGNED_INT(x) \\
+        ((sizeof(x) == sizeof(unsigned char))  ? T_UBYTE : \\
+        ((sizeof(x) == sizeof(unsigned short)) ? T_USHORT : \\
+        ((sizeof(x) == sizeof(unsigned int))   ? T_UINT : \\
+        ((sizeof(x) == sizeof(unsigned long))  ? T_ULONG : -1))))
+#else
+#define __Pyx_T_UNSIGNED_INT(x) \\
+        ((sizeof(x) == sizeof(unsigned char))  ? T_UBYTE : \\
+        ((sizeof(x) == sizeof(unsigned short)) ? T_USHORT : \\
+        ((sizeof(x) == sizeof(unsigned int))   ? T_UINT : \\
+        ((sizeof(x) == sizeof(unsigned long))  ? T_ULONG : \\
+        ((sizeof(x) == sizeof(unsigned PY_LONG_LONG)) ? T_ULONGLONG : -1)))))
+#endif
+#if !defined(T_LONGLONG)
+#define __Pyx_T_SIGNED_INT(x) \\
+        ((sizeof(x) == sizeof(char))  ? T_BYTE : \\
+        ((sizeof(x) == sizeof(short)) ? T_SHORT : \\
+        ((sizeof(x) == sizeof(int))   ? T_INT : \\
+        ((sizeof(x) == sizeof(long))  ? T_LONG : -1))))
+#else
+#define __Pyx_T_SIGNED_INT(x) \\
+        ((sizeof(x) == sizeof(char))  ? T_BYTE : \\
+        ((sizeof(x) == sizeof(short)) ? T_SHORT : \\
+        ((sizeof(x) == sizeof(int))   ? T_INT : \\
+        ((sizeof(x) == sizeof(long))  ? T_LONG : \\
+        ((sizeof(x) == sizeof(PY_LONG_LONG))   ? T_LONGLONG : -1)))))
+#endif
+
+#define __Pyx_T_FLOATING(x) \\
+        ((sizeof(x) == sizeof(float)) ? T_FLOAT : \\
+        ((sizeof(x) == sizeof(double)) ? T_DOUBLE : -1))
 
 #if !defined(T_SIZET)
 #if !defined(T_ULONGLONG)
@@ -1535,13 +1970,13 @@ static INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
     return Py_INCREF(x), x;
   m = Py_TYPE(x)->tp_as_number;
 #if PY_VERSION_HEX < 0x03000000
-  if (m && m->nb_long) {
-    name = "long";
-    res = PyNumber_Long(x);
-  }
-  else if (m && m->nb_int) {
+  if (m && m->nb_int) {
     name = "int";
     res = PyNumber_Int(x);
+  }
+  else if (m && m->nb_long) {
+    name = "long";
+    res = PyNumber_Long(x);
   }
 #else
   if (m && m->nb_int) {
@@ -1605,3 +2040,5 @@ static INLINE size_t __Pyx_PyInt_AsSize_t(PyObject* x) {
 }
 
 """ + type_conversion_functions
+
+

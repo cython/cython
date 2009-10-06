@@ -666,6 +666,17 @@ class MyBadInt(MyInt):
    def __int__(self):
       return u"%s" % self.value
 
+class MyInt2:
+   def __init__(self, value):
+      self.value = value
+   def __int__(self):
+      print(u"MyInt.__int__()")
+      return self.value
+
+class MyBadInt2(MyInt2):
+   def __int__(self):
+      return u"%s" % self.value
+
 def test_convert_pyint(x):
    u"""
    >>> test_convert_pyint(None)

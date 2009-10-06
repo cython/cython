@@ -14,7 +14,12 @@ def open_new_file(path):
         # Make sure to create a new file here so we can 
         # safely hard link the output files. 
         os.unlink(path)
-    return open(path, "w")
+
+    # we use the ISO-8859-1 encoding here because we only write pure
+    # ASCII strings or (e.g. for file names) byte encoded strings as
+    # Unicode, so we need a direct mapping from the first 256 Unicode
+    # characters to a byte sequence, which ISO-8859-1 provides
+    return codecs.open(path, "w", encoding="ISO-8859-1")
 
 def castrate_file(path, st):
     #  Remove junk contents from an output file after a
@@ -95,52 +100,3 @@ def none_or_sub(s, data):
     else:
         return s % data
 
-# a simple class that simplifies the usage of utility code
-
-class UtilityCode(object):
-    def __init__(self, proto=None, impl=None, init=None, cleanup=None, requires=None):
-        self.proto = proto
-        self.impl = impl
-        self.init = init
-        self.cleanup = cleanup
-        self.requires = requires
-        self._cache = {}
-        self.specialize_list = []
-
-    def write_init_code(self, writer, pos):
-        if not self.init:
-            return
-        if isinstance(self.init, basestring):
-            writer.put(self.init)
-        else:
-            self.init(writer, pos)
-
-    def write_cleanup_code(self, writer, pos):
-        if not self.cleanup:
-            return
-        if isinstance(self.cleanup, basestring):
-            writer.put(self.cleanup)
-        else:
-            self.cleanup(writer, pos)
-    
-    def specialize(self, pyrex_type=None, **data):
-        # Dicts aren't hashable...
-        if pyrex_type is not None:
-            data['type'] = pyrex_type.declaration_code('')
-            data['type_name'] = pyrex_type.specalization_name()
-        key = data.items(); key.sort(); key = tuple(key)
-        try:
-            return self._cache[key]
-        except KeyError:
-            if self.requires is None:
-                requires = None
-            else:
-                requires = [r.specialize(data) for r in self.requires]
-            s = self._cache[key] = UtilityCode(
-                                        none_or_sub(self.proto, data),
-                                        none_or_sub(self.impl, data),
-                                        none_or_sub(self.init, data),
-                                        none_or_sub(self.cleanup, data),
-                                        requires)
-            self.specialize_list.append(s)
-            return s

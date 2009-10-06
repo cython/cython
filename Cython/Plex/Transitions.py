@@ -6,8 +6,7 @@
 #
 
 from copy import copy
-from sys import maxint
-from types import TupleType
+from sys import maxint as maxint
 
 class TransitionMap(object):
   """
@@ -50,11 +49,11 @@ class TransitionMap(object):
     #self.check() ###
   
   def add(self, event, new_state,
-    TupleType = TupleType):
+    TupleType = tuple):
     """
     Add transition to |new_state| on |event|.
     """
-    if type(event) == TupleType:
+    if type(event) is TupleType:
       code0, code1 = event
       i = self.split(code0)
       j = self.split(code1)
@@ -66,11 +65,11 @@ class TransitionMap(object):
       self.get_special(event)[new_state] = 1
 
   def add_set(self, event, new_set,
-    TupleType = TupleType):
+    TupleType = tuple):
     """
     Add transitions to the states in |new_set| on |event|.
     """
-    if type(event) == TupleType:
+    if type(event) is TupleType:
       code0, code1 = event
       i = self.split(code0)
       j = self.split(code1)
@@ -111,6 +110,7 @@ class TransitionMap(object):
       if set:
         result.append((event, set))
     return iter(result)
+  items = iteritems
   
   # ------------------- Private methods --------------------
 
@@ -132,7 +132,7 @@ class TransitionMap(object):
     # loop invariant: map[lo] <= code < map[hi] and hi - lo >= 2
     while hi - lo >= 4:
       # Find midpoint truncated to even index
-      mid = ((lo + hi) / 2) & ~1
+      mid = ((lo + hi) // 2) & ~1
       if code < map[mid]:
         hi = mid
       else:

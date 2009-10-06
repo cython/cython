@@ -22,10 +22,10 @@ __doc__ = u"""
     >>> slice_list_assign(l2, dict(zip(l,l)))
     [1, 1, 2, 3, 4, 4]
 
-    >>> slice_charp('abcdefg')
-    'bc'
-    >>> slice_charp_repeat('abcdefg')
-    'cd'
+    >>> print("%s" % slice_charp('abcdefg'))
+    bc
+    >>> print("%s" % slice_charp_repeat('abcdefg'))
+    cd
 """
 
 def slice_list(list l):
@@ -51,12 +51,14 @@ def slice_list_assign(list l, value):
     return l
 
 
-def slice_charp(str py_string):
+def slice_charp(py_string_arg):
+    cdef str py_string = py_string_arg.encode(u'ASCII')
     cdef char* s = py_string
-    return s[1:3]
+    return s[1:3].decode(u'ASCII')
 
-def slice_charp_repeat(str py_string):
+def slice_charp_repeat(py_string_arg):
+    cdef str py_string = py_string_arg.encode(u'ASCII')
     cdef char* s = py_string
     cdef str slice_val = s[1:6]
     s = slice_val
-    return s[1:3]
+    return s[1:3].decode(u'ASCII')

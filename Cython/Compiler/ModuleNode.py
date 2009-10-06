@@ -23,9 +23,14 @@ import DebugFlags
 
 from Errors import error, warning
 from PyrexTypes import py_object_type
-from Cython.Utils import open_new_file, replace_suffix, UtilityCode
+from Cython.Utils import open_new_file, replace_suffix
+from Code import UtilityCode
 from StringEncoding import escape_byte_string, EncodedString
 
+
+def check_c_declarations_pxd(module_node):
+    module_node.scope.check_c_classes_pxd()
+    return module_node
 
 def check_c_declarations(module_node):
     module_node.scope.check_c_classes()
@@ -100,6 +105,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if h_types or h_vars or h_funcs or h_extension_types:
             result.h_file = replace_suffix(result.c_file, ".h")
             h_code = Code.CCodeWriter()
+            Code.GlobalState(h_code)
             if options.generate_pxi:
                 result.i_file = replace_suffix(result.c_file, ".pxi")
                 i_code = Code.PyrexCodeWriter(result.i_file)
@@ -161,6 +167,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if api_funcs or has_api_extension_types:
             result.api_file = replace_suffix(result.c_file, "_api.h")
             h_code = Code.CCodeWriter()
+            Code.GlobalState(h_code)
             name = self.api_name(env)
             guard = Naming.api_guard_prefix + name
             h_code.put_h_guard(guard)
@@ -237,23 +244,31 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     
     def generate_c_code(self, env, options, result):
         modules = self.referenced_modules
+
         if Options.annotate or options.annotate:
-            code = Annotate.AnnotationCCodeWriter()
+            emit_linenums = False
+            rootwriter = Annotate.AnnotationCCodeWriter()
         else:
-            code = Code.CCodeWriter(emit_linenums=options.emit_linenums)
-        h_code = code.insertion_point()
+            emit_linenums = options.emit_linenums
+            rootwriter = Code.CCodeWriter(emit_linenums=emit_linenums)
+        globalstate = Code.GlobalState(rootwriter, emit_linenums)
+        globalstate.initialize_main_c_code()
+        h_code = globalstate['h_code']
+        
         self.generate_module_preamble(env, modules, h_code)
 
-        code.globalstate.module_pos = self.pos
-        code.globalstate.directives = self.directives
+        globalstate.module_pos = self.pos
+        globalstate.directives = self.directives
 
-        code.globalstate.use_utility_code(refcount_utility_code)
+        globalstate.use_utility_code(refcount_utility_code)
 
+        code = globalstate['before_global_var']
         code.putln('#define __Pyx_MODULE_NAME "%s"' % self.full_module_name)
+        code.putln("int %s%s = %s;" % (Naming.module_is_main, self.full_module_name.replace('.', '__'), int(Options.embed)))
         code.putln("")
         code.putln("/* Implementation of %s */" % env.qualified_name)
 
-        code.globalstate.insert_global_var_declarations_into(code)
+        code = globalstate['all_the_rest']
 
         self.generate_cached_builtins_decls(env, code)
         # generate lambda function definitions
@@ -268,26 +283,28 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if env.has_import_star:
             self.generate_import_star(env, code)
         self.generate_pymoduledef_struct(env, code)
-        self.generate_module_init_func(modules[:-1], env, code)
-        code.mark_pos(None)
-        self.generate_module_cleanup_func(env, code)
-        if Options.embed:
-            self.generate_main_method(env, code)
-        self.generate_filename_table(code)
-        self.generate_utility_functions(env, code, h_code)
 
-        self.generate_declarations_for_modules(env, modules, h_code)
+        # init_globals is inserted before this
+        self.generate_module_init_func(modules[:-1], env, globalstate['init_module'])
+        self.generate_module_cleanup_func(env, globalstate['cleanup_module'])
+        if Options.embed:
+            self.generate_main_method(env, globalstate['main_method'])
+        self.generate_filename_table(globalstate['filename_table'])
+        
+        self.generate_declarations_for_modules(env, modules, globalstate)
         h_code.write('\n')
 
-        code.globalstate.close_global_decls()
+        for utilcode in env.utility_code_list:
+            globalstate.use_utility_code(utilcode)
+        globalstate.finalize_main_c_code()
         
         f = open_new_file(result.c_file)
-        code.copyto(f)
+        rootwriter.copyto(f)
         f.close()
         result.c_file_generated = 1
         if Options.annotate or options.annotate:
-            self.annotate(code)
-            code.save_annotation(result.main_source_file, result.c_file)
+            self.annotate(rootwriter)
+            rootwriter.save_annotation(result.main_source_file, result.c_file)
     
     def find_referenced_modules(self, env, module_list, modules_seen):
         if env not in modules_seen:
@@ -385,18 +402,20 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             self.generate_exttype_vtable_struct(entry, code)
             self.generate_exttype_vtabptr_declaration(entry, code)
 
-    def generate_declarations_for_modules(self, env, modules, code):
-        code.putln("")
-        code.putln("/* Type declarations */")
+    def generate_declarations_for_modules(self, env, modules, globalstate):
+        typecode = globalstate['type_declarations']
+        typecode.putln("")
+        typecode.putln("/* Type declarations */")
         vtab_list, vtabslot_list = self.sort_type_hierarchy(modules, env)
         self.generate_type_definitions(
-            env, modules, vtab_list, vtabslot_list, code)
+            env, modules, vtab_list, vtabslot_list, typecode)
+        modulecode = globalstate['module_declarations']
         for module in modules:
             defined_here = module is env
-            code.putln("/* Module declarations from %s */" %
+            modulecode.putln("/* Module declarations from %s */" %
                        module.qualified_name.encode("ASCII", "ignore"))
-            self.generate_global_declarations(module, code, defined_here)
-            self.generate_cfunction_predeclarations(module, code, defined_here)
+            self.generate_global_declarations(module, modulecode, defined_here)
+            self.generate_cfunction_predeclarations(module, modulecode, defined_here)
 
     def generate_module_preamble(self, env, cimported_modules, code):
         code.putln('/* Generated by Cython %s on %s */' % (
@@ -407,7 +426,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln('#include "%s"' % filename)
         code.putln("#ifndef Py_PYTHON_H")
         code.putln("    #error Python headers needed to compile C extensions, please install development version of Python.")
-        code.putln("#endif")
+        code.putln("#else")
+        code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
         code.putln("#ifndef PY_LONG_LONG")
         code.putln("  #define PY_LONG_LONG LONG_LONG")
         code.putln("#endif")
@@ -512,6 +532,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #ifndef __cdecl")
         code.putln("    #define __cdecl")
         code.putln("  #endif")
+        code.putln("  #ifndef __fastcall")
+        code.putln("    #define __fastcall")
+        code.putln("  #endif")
         code.putln("#else")
         code.putln("  #define _USE_MATH_DEFINES")
         code.putln("#endif")
@@ -538,6 +561,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#include <math.h>")
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
         self.generate_includes(env, cimported_modules, code)
+        if env.directives['c99_complex']:
+            code.putln("#ifndef _Complex_I")
+            code.putln("#include <complex.h>")
+            code.putln("#endif")
+        code.putln("#define __PYX_USE_C99_COMPLEX defined(_Complex_I)")
         code.putln('')
         code.put(Nodes.utility_function_predeclarations)
         code.put(PyrexTypes.type_conversion_predeclarations)
@@ -546,6 +574,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static PyObject *%s;' % env.module_cname)
         code.putln('static PyObject *%s;' % Naming.builtins_cname)
         code.putln('static PyObject *%s;' % Naming.empty_tuple)
+        code.putln('static PyObject *%s;' % Naming.empty_bytes)
         if Options.pre_import is not None:
             code.putln('static PyObject *%s;' % Naming.preimport_cname)
         code.putln('static int %s;' % Naming.lineno_cname)
@@ -553,8 +582,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static const char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
         code.putln('static const char *%s;' % Naming.filename_cname)
         code.putln('static const char **%s;' % Naming.filetable_cname)
-
-        env.use_utility_code(streq_utility_code)
 
         # XXX this is a mess
         for utility_code in PyrexTypes.c_int_from_py_function.specialize_list:
@@ -573,6 +600,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_includes(self, env, cimported_modules, code):
         includes = []
         for filename in env.include_files:
+            # fake decoding of filenames to their original byte sequence
             code.putln('#include "%s"' % filename)
     
     def generate_filename_table(self, code):
@@ -779,6 +807,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "%s;" %
                     attr.type.declaration_code(attr.cname))
         code.putln(footer)
+        if type.objtypedef_cname is not None:
+            # Only for exposing public typedef name.
+            code.putln("typedef struct %s %s;" % (type.objstruct_cname, type.objtypedef_cname))
 
     def generate_global_declarations(self, env, code, definition):
         code.putln("")
@@ -1529,6 +1560,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("static void %s(void); /*proto*/" % Naming.fileinit_cname)
         
     def generate_import_star(self, env, code):
+        env.use_utility_code(streq_utility_code)
         code.putln()
         code.putln("char* %s_type_names[] = {" % Naming.import_star)
         for name, entry in env.entries.items():
@@ -1591,9 +1623,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.exit_cfunc_scope() # done with labels
 
     def generate_module_init_func(self, imported_modules, env, code):
-        # Insert code stream of __Pyx_InitGlobals()
-        code.globalstate.insert_initcode_into(code)
-        
         code.enter_cfunc_scope()
         code.putln("")
         header2 = "PyMODINIT_FUNC init%s(void)" % env.module_name
@@ -1608,6 +1637,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("{")
         tempdecl_code = code.insertion_point()
 
+        self.generate_filename_init_call(code)
         code.putln("#ifdef CYTHON_REFNANNY")
         code.putln("void* __pyx_refchk = NULL;")
         code.putln("__Pyx_Refnanny = __Pyx_ImportRefcountAPI(\"refnanny\");")
@@ -1621,10 +1651,14 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
+        code.putln("#if PY_MAJOR_VERSION < 3");
+        code.putln("%s = PyString_FromStringAndSize(\"\", 0); %s" % (Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)));
+        code.putln("#else");
+        code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)));
+        code.putln("#endif");
 
         code.putln("/*--- Library function declarations ---*/")
         env.generate_library_function_declarations(code)
-        self.generate_filename_init_call(code)
 
         code.putln("/*--- Threads initialization code ---*/")
         code.putln("#if defined(__PYX_FORCE_INIT_THREADS) && __PYX_FORCE_INIT_THREADS")
@@ -1633,18 +1667,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
         code.putln("#endif")
 
+        code.putln("/*--- Module creation code ---*/")
+        self.generate_module_creation_code(env, code)
+
         code.putln("/*--- Initialize various global constants etc. ---*/")
         code.putln(code.error_goto_if_neg("__Pyx_InitGlobals()", self.pos))
 
-        code.putln("/*--- Module creation code ---*/")
-        self.generate_module_creation_code(env, code)
+        __main__name = code.globalstate.get_py_string_const(
+            EncodedString("__main__"), identifier=True)
+        code.putln("if (%s%s) {" % (Naming.module_is_main, self.full_module_name.replace('.', '__')))
+        code.putln(
+            'if (__Pyx_SetAttrString(%s, "__name__", %s) < 0) %s;' % (
+                env.module_cname,
+                __main__name.cname,
+                code.error_goto(self.pos)))
+        code.putln("}")
 
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
             code.putln(code.error_goto_if_neg("__Pyx_InitCachedBuiltins()",
                                               self.pos))
-
-        code.putln("%s = 0;" % Naming.skip_dispatch_cname);
 
         code.putln("/*--- Global init code ---*/")
         self.generate_global_init_code(env, code)
@@ -1677,9 +1719,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.put_label(code.error_label)
         for cname, type in code.funcstate.all_managed_temps():
             code.put_xdecref(cname, type)
-        code.putln('__Pyx_AddTraceback("%s");' % env.qualified_name)
+        code.putln('if (%s) {' % env.module_cname)
+        code.putln('__Pyx_AddTraceback("init %s");' % env.qualified_name)
         env.use_utility_code(Nodes.traceback_utility_code)
         code.put_decref_clear(env.module_cname, py_object_type, nanny=False)
+        code.putln('} else if (!PyErr_Occurred()) {')
+        code.putln('PyErr_SetString(PyExc_ImportError, "init %s");' % env.qualified_name)
+        code.putln('}')
         code.put_label(code.return_label)
 
         code.put_finish_refcount_context()
@@ -1698,10 +1744,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_module_cleanup_func(self, env, code):
         if not Options.generate_cleanup_code:
             return
-        env.use_utility_code(register_cleanup_utility_code)
-        # Insert code stream of __Pyx_CleanupGlobals()
-        code.globalstate.insert_cleanupcode_into(code)
-        code.putln()
+        code.globalstate.use_utility_code(register_cleanup_utility_code)
         code.putln('static PyObject* %s(PyObject *self, PyObject *unused) {' % Naming.cleanup_cname)
         if Options.generate_cleanup_code >= 2:
             code.putln("/*--- Global cleanup code ---*/")
@@ -1810,14 +1853,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 env.module_cname,
                 Naming.builtins_cname,
                 code.error_goto(self.pos)))
-        if Options.embed:
-            __main__name = code.globalstate.get_py_string_const(
-                EncodedString("__main__"), identifier=True)
-            code.putln(
-                'if (__Pyx_SetAttrString(%s, "__name__", %s) < 0) %s;' % (
-                    env.module_cname,
-                    __main__name.cname,
-                    code.error_goto(self.pos)))
         if Options.pre_import is not None:
             code.putln(
                 '%s = PyImport_AddModule(__Pyx_NAMESTR("%s"));' % (
@@ -2045,22 +2080,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "%s = &%s;" % (
                     type.typeptr_cname, type.typeobj_cname))
     
-    def generate_utility_functions(self, env, code, h_code):
-        for codetup, name in env.utility_code_list:
-            code.globalstate.use_utility_code(codetup, name)
-       
-        code.globalstate.put_utility_code_protos(h_code)
-        code.putln("")
-        code.putln("/* Runtime support code */")
-        code.putln("")
-        code.putln("static void %s(void) {" % Naming.fileinit_cname)
-        code.putln("%s = %s;" % 
-            (Naming.filetable_cname, Naming.filenames_cname))
-        code.putln("}")
-        code.globalstate.put_utility_code_defs(code)
-        code.put(PyrexTypes.type_conversion_functions)
-        code.putln("")
-
 #------------------------------------------------------------------------------------
 #
 #  Runtime support code
@@ -2463,9 +2482,14 @@ static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
 #define __Pyx_XGOTREF(r) if((r) == NULL) ; else __Pyx_GOTREF(r)
 """)
 
+
 main_method = UtilityCode(
 impl = """
+#if PY_MAJOR_VERSION < 3 || (!defined(WIN32) && !defined(MS_WINDOWS))
 int main(int argc, char** argv) {
+#else
+int wmain(int argc, wchar_t **argv) {
+#endif
     int r = 0;
     PyObject* m = NULL;
     Py_SetProgramName(argv[0]);
@@ -2493,4 +2517,4 @@ packed_struct_utility_code = UtilityCode(proto="""
 #else
 #define __Pyx_PACKED
 #endif
-""", impl="")
+""", impl="", proto_block='utility_code_proto_before_types')

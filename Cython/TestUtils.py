@@ -4,7 +4,8 @@ import unittest
 from Cython.Compiler.ModuleNode import ModuleNode
 import Cython.Compiler.Main as Main
 from Cython.Compiler.TreeFragment import TreeFragment, strip_common_indent
-from Cython.Compiler.Visitor import TreeVisitor
+from Cython.Compiler.Visitor import TreeVisitor, VisitorTransform
+from Cython.Compiler import TreePath
 
 class NodeTypeWriter(TreeVisitor):
     def __init__(self):
@@ -38,6 +39,15 @@ def treetypes(root):
 
 class CythonTest(unittest.TestCase):
 
+    def setUp(self):
+        self.listing_file = Errors.listing_file
+        self.echo_file = Errors.echo_file
+        Errors.listing_file = Errors.echo_file = None
+ 
+    def tearDown(self):
+        Errors.listing_file = self.listing_file
+        Errors.echo_file = self.echo_file
+ 
     def assertLines(self, expected, result):
         "Checks that the given strings or lists of strings are equal line by line"
         if not isinstance(expected, list): expected = expected.split(u"\n")
@@ -64,6 +74,10 @@ class CythonTest(unittest.TestCase):
             self.assertEqual(expected_line, line, "Line %d:\nGot: %s\nExp: %s" % (idx, line, expected_line))
         self.assertEqual(len(result_lines), len(expected_lines),
             "Unmatched lines. Got:\n%s\nExpected:\n%s" % ("\n".join(result_lines), expected))
+
+    def assertNodeExists(self, path, result_tree):
+        self.assertNotEqual(TreePath.find_first(result_tree, path), None,
+                            "Path '%s' not found in result tree" % path)
 
     def fragment(self, code, pxds={}, pipeline=[]):
         "Simply create a tree fragment using the name of the test-case in parse errors."
@@ -127,3 +141,26 @@ class TransformTest(CythonTest):
             tree = T(tree)
         return tree    
 
+
+class TreeAssertVisitor(VisitorTransform):
+    # actually, a TreeVisitor would be enough, but this needs to run
+    # as part of the compiler pipeline
+
+    def visit_CompilerDirectivesNode(self, node):
+        directives = node.directives
+        if 'test_assert_path_exists' in directives:
+            for path in directives['test_assert_path_exists']:
+                if TreePath.find_first(node, path) is None:
+                    Errors.error(
+                        node.pos,
+                        "Expected path '%s' not found in result tree" % path)
+        if 'test_fail_if_path_exists' in directives:
+            for path in directives['test_fail_if_path_exists']:
+                if TreePath.find_first(node, path) is not None:
+                    Errors.error(
+                        node.pos,
+                        "Unexpected path '%s' found in result tree" %  path)
+        self.visitchildren(node)
+        return node
+
+    visit_Node = VisitorTransform.recurse_to_children

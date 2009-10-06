@@ -14,11 +14,11 @@ cdef char* s = 'abcdef'
 def global_c_and_s():
     pys = s
     print c
-    print pys.decode('ASCII')
+    print (pys.decode(u'ASCII'))
 
 def local_c_and_s():
     cdef char c = 'b'
     cdef char* s = 'bcdefg'
     pys = s
     print c
-    print pys.decode('ASCII')
+    print (pys.decode(u'ASCII'))
