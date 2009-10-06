@@ -2472,7 +2472,7 @@ static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
 #define __Pyx_DECREF(r) __Pyx_Refnanny->DECREF(__pyx_refchk, (PyObject *)(r), __LINE__)
 #define __Pyx_GOTREF(r) __Pyx_Refnanny->GOTREF(__pyx_refchk, (PyObject *)(r), __LINE__)
 #define __Pyx_GIVEREF(r) __Pyx_Refnanny->GIVEREF(__pyx_refchk, (PyObject *)(r), __LINE__)
-#define __Pyx_XDECREF(r) if((r) == NULL) ; else __Pyx_DECREF(r)
+#define __Pyx_XDECREF(r) do { if((r) != NULL) {__Pyx_DECREF(r);} } while(0)
 #define __Pyx_SetupRefcountContext(name) \
   void* __pyx_refchk = __Pyx_Refnanny->NewContext((name), __LINE__, __FILE__)
 #define __Pyx_FinishRefcountContext() \
@@ -2486,8 +2486,8 @@ static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
 #define __Pyx_SetupRefcountContext(name)
 #define __Pyx_FinishRefcountContext()
 #endif /* CYTHON_REFNANNY */
-#define __Pyx_XGIVEREF(r) if((r) == NULL) ; else __Pyx_GIVEREF(r)
-#define __Pyx_XGOTREF(r) if((r) == NULL) ; else __Pyx_GOTREF(r)
+#define __Pyx_XGIVEREF(r) do { if((r) != NULL) {__Pyx_GIVEREF(r);} } while(0)
+#define __Pyx_XGOTREF(r) do { if((r) != NULL) {__Pyx_GOTREF(r);} } while(0)
 """)
 
 
