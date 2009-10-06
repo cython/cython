@@ -37,6 +37,15 @@ __doc__ = u"""
     0
     >>> n('xxx')
     1
+
+    >>> p('a')
+    0
+    >>> p(1)
+    1
+
+    >>> q(1)
+    Traceback (most recent call last):
+    TypeError: 'NoneType' object is not iterable
 """
 
 def f(a,b):
@@ -67,4 +76,14 @@ def m(int a):
 
 def n(a):
     cdef int result = a.lower() not in [u'a *',u'b *',u'c *',u'd *']
+    return result
+
+def p(a):
+    cdef dict d = {u'a': 1, u'b': 2}
+    cdef int result = a not in d
+    return result
+
+def q(a):
+    cdef dict d = None
+    cdef int result = a not in d # should fail with a TypeError
     return result

@@ -5,7 +5,14 @@ True
 True
 >>> add_large() == 2147483647 + 2147483647
 True
+
+#>>> add_large_c() == 2147483647 + 2147483647
+#True
 """
+
+#def add_large_c():
+#    cdef unsigned long long val = 2**30 + 2**30
+#    return val
 
 def add_large():
     return 2147483647 + 2147483647

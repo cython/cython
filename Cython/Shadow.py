@@ -162,7 +162,7 @@ except NameError: # Py3
 
 int_types = ['char', 'short', 'int', 'long', 'longlong', 'Py_ssize_t'] 
 float_types = ['double', 'float']
-other_types = ['bint', 'Py_ssize_t', 'void']
+other_types = ['bint', 'void']
 gs = globals()
 
 for name in int_types:

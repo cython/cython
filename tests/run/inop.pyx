@@ -37,6 +37,15 @@ __doc__ = u"""
     1
     >>> n('xxx')
     0
+
+    >>> p(1)
+    0
+    >>> p('a')
+    1
+
+    >>> q(1)
+    Traceback (most recent call last):
+    TypeError: 'NoneType' object is not iterable
 """
 
 def f(a,b):
@@ -67,4 +76,14 @@ def m(int a):
 
 def n(a):
     cdef int result = a.lower() in [u'a *',u'b *',u'c *',u'd *']
+    return result
+
+def p(a):
+    cdef dict d = {u'a': 1, u'b': 2}
+    cdef int result = a in d
+    return result
+
+def q(a):
+    cdef dict d = None
+    cdef int result = a in d # should fail with a TypeError
     return result

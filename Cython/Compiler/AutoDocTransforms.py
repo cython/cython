@@ -82,7 +82,7 @@ class EmbedSignature(CythonTransform):
 
     def _embed_signature(self, signature, node_doc):
         if node_doc:
-            return signature + '\n' + node_doc
+            return "%s\n%s" % (signature, node_doc)
         else:
             return signature
 

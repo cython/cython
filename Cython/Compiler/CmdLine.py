@@ -126,7 +126,7 @@ def parse_command_line(args):
                 options.emit_linenums = True
             elif option in ("-X", "--directive"):
                 try:
-                    options.pragma_overrides = Options.parse_option_list(pop_arg())
+                    options.compiler_directives = Options.parse_option_list(pop_arg())
                 except ValueError, e:
                     sys.stderr.write("Error in compiler directive: %s\n" % e.message)
                     sys.exit(1)
@@ -153,5 +153,9 @@ def parse_command_line(args):
         sys.exit(1)
     if len(sources) == 0 and not options.show_version:
         bad_usage()
+    if Options.embed and len(sources) > 1:
+        sys.stderr.write(
+            "cython: Only one source file allowed when using -embed\n")
+        sys.exit(1)
     return options, sources
 

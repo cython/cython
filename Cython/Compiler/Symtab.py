@@ -14,7 +14,8 @@ from TypeSlots import \
     pyfunction_signature, pymethod_signature, \
     get_special_method_signature, get_property_accessor_signature
 import ControlFlow
-import __builtin__
+import Code
+import __builtin__ as builtins
 try:
     set
 except NameError:
@@ -249,6 +250,7 @@ class Scope(object):
         self.buffer_entries = []
         self.lambda_defs = []
         self.control_flow = ControlFlow.LinearControlFlow()
+        self.return_type = None
         
     def start_branching(self, pos):
         self.control_flow = self.control_flow.start_branch(pos)
@@ -342,7 +344,7 @@ class Scope(object):
                 cname = name
             else:
                 cname = self.mangle(Naming.type_prefix, name)
-        type = PyrexTypes.CTypedefType(cname, base_type)
+        type = PyrexTypes.CTypedefType(cname, base_type, (visibility == 'extern'))
         entry = self.declare_type(name, type, pos, cname, visibility)
         type.qualified_name = entry.qualified_name
         return entry
@@ -539,8 +541,8 @@ class Scope(object):
         if entry and entry.is_type:
             return entry.type
 
-    def use_utility_code(self, new_code, name=None):
-        self.global_scope().use_utility_code(new_code, name)
+    def use_utility_code(self, new_code):
+        self.global_scope().use_utility_code(new_code)
 
     def generate_library_function_declarations(self, code):
         # Generate extern decls for C library funcs used.
@@ -583,7 +585,7 @@ class BuiltinScope(Scope):
             self.declare_var(name, type, None, cname)
         
     def declare_builtin(self, name, pos):
-        if not hasattr(__builtin__, name):
+        if not hasattr(builtins, name):
             if self.outer_scope is not None:
                 return self.outer_scope.declare_builtin(name, pos)
             else:
@@ -666,7 +668,7 @@ class ModuleScope(Scope):
     # method_table_cname   string             C name of method table
     # doc                  string             Module doc string
     # doc_cname            string             C name of module doc string
-    # utility_code_list    [(UtilityCode, string)] Queuing utility codes for forwarding to Code.py
+    # utility_code_list    [UtilityCode]      Queuing utility codes for forwarding to Code.py
     # python_include_files [string]           Standard  Python headers to be included
     # include_files        [string]           Other C headers to be included
     # string_to_entry      {string : Entry}   Map string const to entry
@@ -723,7 +725,7 @@ class ModuleScope(Scope):
         return self
     
     def declare_builtin(self, name, pos):
-        if not hasattr(__builtin__, name):
+        if not hasattr(builtins, name):
             if self.has_import_star:
                 entry = self.declare_var(name, py_object_type, pos)
                 return entry
@@ -841,14 +843,25 @@ class ModuleScope(Scope):
         if not entry:
             self.declare_var(name, py_object_type, pos)
     
-    def use_utility_code(self, new_code, name=None):
+    def use_utility_code(self, new_code):
         if new_code is not None:
-            self.utility_code_list.append((new_code, name))
+            self.utility_code_list.append(new_code)
 
     def declare_c_class(self, name, pos, defining = 0, implementing = 0,
         module_name = None, base_type = None, objstruct_cname = None,
         typeobj_cname = None, visibility = 'private', typedef_flag = 0, api = 0,
         buffer_defaults = None):
+        # If this is a non-extern typedef class, expose the typedef, but use
+        # the non-typedef struct internally to avoid needing forward
+        # declarations for anonymous structs. 
+        if typedef_flag and visibility != 'extern':
+            if visibility != 'public':
+                warning(pos, "ctypedef only valid for public and extern classes", 2)
+            objtypedef_cname = objstruct_cname
+            objstruct_cname = None
+            typedef_flag = 0
+        else:
+            objtypedef_cname = None
         #
         #  Look for previous declaration as a type
         #
@@ -873,6 +886,8 @@ class ModuleScope(Scope):
             type = PyrexTypes.PyExtensionType(name, typedef_flag, base_type)
             type.pos = pos
             type.buffer_defaults = buffer_defaults
+            if objtypedef_cname is not None:
+                type.objtypedef_cname = objtypedef_cname
             if visibility == 'extern':
                 type.module_name = module_name
             else:
@@ -884,7 +899,7 @@ class ModuleScope(Scope):
             if objstruct_cname:
                 type.objstruct_cname = objstruct_cname
             elif not entry.in_cinclude:
-                type.objstruct_cname = self.mangle(Naming.objstruct_prefix, name)                
+                type.objstruct_cname = self.mangle(Naming.objstruct_prefix, name)
             else:
                 error(entry.pos, 
                     "Object name required for 'public' or 'extern' C class")
@@ -953,6 +968,22 @@ class ModuleScope(Scope):
             type.vtabstruct_cname = self.mangle(Naming.vtabstruct_prefix, entry.name)
             type.vtabptr_cname = self.mangle(Naming.vtabptr_prefix, entry.name)
 
+    def check_c_classes_pxd(self):
+        # Performs post-analysis checking and finishing up of extension types
+        # being implemented in this module. This is called only for the .pxd.
+        #
+        # Checks all extension types declared in this scope to
+        # make sure that:
+        #
+        #    * The extension type is fully declared
+        #
+        # Also allocates a name for the vtable if needed.
+        #
+        for entry in self.c_class_entries:
+            # Check defined
+            if not entry.type.scope:
+                error(entry.pos, "C class '%s' is declared but not defined" % entry.name)
+                
     def check_c_classes(self):
         # Performs post-analysis checking and finishing up of extension types
         # being implemented in this module. This is called only for the main
@@ -1249,7 +1280,8 @@ class CClassScope(ClassScope):
         # If the type or any of its base types have Python-valued
         # C attributes, then it needs to participate in GC.
         return self.has_pyobject_attrs or \
-            (self.parent_type.base_type and \
+            (self.parent_type.base_type and
+                self.parent_type.base_type.scope is not None and
                 self.parent_type.base_type.scope.needs_gc())
 
     def declare_var(self, name, type, pos, 
@@ -1259,7 +1291,7 @@ class CClassScope(ClassScope):
             if self.defined:
                 error(pos,
                     "C attributes cannot be added in implementation part of"
-                    " extension type")
+                    " extension type defined in a pxd")
             if get_special_method_signature(name):
                 error(pos, 
                     "The name '%s' is reserved for a special method."
@@ -1428,7 +1460,7 @@ class PropertyScope(Scope):
 # Should this go elsewhere (and then get imported)?
 #------------------------------------------------------------------------------------
 
-classmethod_utility_code = Utils.UtilityCode(
+classmethod_utility_code = Code.UtilityCode(
 proto = """
 #include "descrobject.h"
 static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
@@ -1436,8 +1468,14 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method); /*proto*/
 impl = """
 static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     /* It appears that PyMethodDescr_Type is not anywhere exposed in the Python/C API */
-    /* if (!PyObject_TypeCheck(method, &PyMethodDescr_Type)) { */ 
-    if (__Pyx_StrEq(Py_TYPE(method)->tp_name, "method_descriptor")) { /* cdef classes */
+    static PyTypeObject *methoddescr_type = NULL;
+    if (methoddescr_type == NULL) {
+       PyObject *meth = __Pyx_GetAttrString((PyObject*)&PyList_Type, "append");
+       if (!meth) return NULL;
+       methoddescr_type = Py_TYPE(meth);
+       Py_DECREF(meth);
+    }
+    if (PyObject_TypeCheck(method, methoddescr_type)) { /* cdef classes */
         PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
         return PyDescr_NewClassMethod(descr->d_type, descr->d_method);
     }
