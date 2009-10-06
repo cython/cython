@@ -20,6 +20,11 @@ Contents:
 Indices and tables
 ------------------
 
+.. toctree::
+    :maxdepth: 2
+
+    special_methods_table
+
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
