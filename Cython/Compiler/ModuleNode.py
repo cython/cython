@@ -268,7 +268,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code = globalstate['before_global_var']
         code.putln('#define __Pyx_MODULE_NAME "%s"' % self.full_module_name)
-        code.putln("int %s%s = %s;" % (Naming.module_is_main, self.full_module_name.replace('.', '__'), int(Options.embed)))
+        code.putln("int %s%s = 0;" % (Naming.module_is_main, self.full_module_name.replace('.', '__')))
         code.putln("")
         code.putln("/* Implementation of %s */" % env.qualified_name)
         self.generate_const_definitions(env, code)
@@ -1795,7 +1795,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('}')
 
     def generate_main_method(self, env, code):
-        code.globalstate.use_utility_code(main_method.specialize(module_name=env.module_name))
+        module_is_main = "%s%s" % (Naming.module_is_main, self.full_module_name.replace('.', '__'))
+        code.globalstate.use_utility_code(main_method.specialize(module_name=env.module_name, module_is_main=module_is_main))
 
     def generate_filename_init_call(self, code):
         code.putln("%s();" % Naming.fileinit_cname)
@@ -2503,6 +2504,7 @@ int wmain(int argc, wchar_t **argv) {
     Py_SetProgramName(argv[0]);
     Py_Initialize();
     PySys_SetArgv(argc, argv);
+    %(module_is_main)s = 1;
 #if PY_MAJOR_VERSION < 3
         init%(module_name)s();
 #else
