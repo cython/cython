@@ -514,7 +514,7 @@ Functions and Methods
 
 * There are three types of function declarations in Cython as the sub-sections show below.
 * Only "Python" functions can be called outside a Cython module from *Python interpretted code*.
-*
+
 
 Callable from Python
 =====================
