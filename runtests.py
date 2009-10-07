@@ -8,6 +8,13 @@ import shutil
 import unittest
 import doctest
 import operator
+from StringIO import StringIO
+
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+
 
 WITH_CYTHON = True
 
@@ -363,7 +370,7 @@ class CythonRunTestCase(CythonCompileTestCase):
             self.setUp()
             self.runCompileTest()
             if not self.cython_only:
-                doctest.DocTestSuite(self.module).run(result)
+                self.run_doctests(self.module, result)
         except Exception:
             result.addError(self, sys.exc_info())
             result.stopTest(self)
@@ -371,6 +378,66 @@ class CythonRunTestCase(CythonCompileTestCase):
             self.tearDown()
         except Exception:
             pass
+
+    def run_doctests(self, module_name, result):
+        if not hasattr(os, 'fork'):
+            doctest.DocTestSuite(module_name).run(result)
+            return
+
+        # fork to make sure we do not keep the tested module loaded
+        input, output = os.pipe()
+        child_id = os.fork()
+        if not child_id:
+            result_code = 0
+            try:
+                output = os.fdopen(output, 'wb')
+                try:
+                    partial_result = PartialTestResult(result)
+                    doctest.DocTestSuite(module_name).run(partial_result)
+                except Exception, e:
+                    partial_result.addError(module_name, sys.exc_info())
+                    result_code = 1
+                pickle.dump(partial_result.data(), output)
+            finally:
+                try: output.close()
+                except: pass
+                os._exit(result_code)
+
+        input = os.fdopen(input, 'rb')
+        PartialTestResult.join_results(result, pickle.load(input))
+        cid, result_code = os.waitpid(child_id, 0)
+        if result_code:
+            raise Exception("Tests in module '%s' exited with status %d" %
+                            (module_name, result_code >> 8))
+
+
+class PartialTestResult(unittest._TextTestResult):
+    def __init__(self, base_result):
+        unittest._TextTestResult.__init__(
+            self, self._StringIO(), True,
+            base_result.dots + base_result.showAll*2)
+
+    def data(self):
+        return (self.failures, self.errors, self.testsRun,
+                self.stream.getvalue())
+
+    def join_results(result, data):
+        """Static method for merging the result back into the main
+        result object.
+        """
+        errors, failures, tests_run, output = data
+        if output:
+            result.stream.write(output)
+        result.errors.extend(errors)
+        result.failures.extend(failures)
+        result.testsRun += tests_run
+
+    join_results = staticmethod(join_results)
+
+    class _StringIO(StringIO):
+        def writeln(self, line):
+            self.write("%s\n" % line)
+
 
 class CythonUnitTestCase(CythonCompileTestCase):
     def shortDescription(self):
@@ -621,6 +688,8 @@ if __name__ == '__main__':
     if WITH_CYTHON:
         from Cython.Compiler.Version import version
         sys.stderr.write("Running tests against Cython %s\n" % version)
+        from Cython.Compiler import Options
+        #Options.generate_cleanup_code = 3   # complete cleanup code
         from Cython.Compiler import DebugFlags
         DebugFlags.debug_temp_code_comments = 1
     else:
