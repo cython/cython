@@ -30,14 +30,14 @@ cdef struct X:
     double complex b
 
 def simple():
-    cdef int i
-    cdef long l
-    cdef long long ll
-    cdef int* iptr
-    cdef int** iptrptr
-    cdef A a
-    cdef B b
-    cdef X x
+    cdef int i = 0
+    cdef long l = 0
+    cdef long long ll = 0
+    cdef int* iptr = &i
+    cdef int** iptrptr = &iptr
+    cdef A a = None
+    cdef B b = None
+    cdef X x = X(a=1, b=2)
     print typeof(i)
     print typeof(l)
     print typeof(ll)
@@ -47,14 +47,16 @@ def simple():
     print typeof(b)
     print typeof(x)
     print typeof(None)
+    used = i, l, ll, <long>iptr, <long>iptrptr, a, b, x
     
 def expression():
-    cdef X x
-    cdef X *xptr
-    cdef short s
-    cdef int i
-    cdef unsigned int ui
+    cdef X x = X(a=1, b=2)
+    cdef X *xptr = &x
+    cdef short s = 0
+    cdef int i = 0
+    cdef unsigned int ui = 0
     print typeof(x.a)
     print typeof(xptr.b)
     print typeof(s + i)
     print typeof(i + ui)
+    used = x, <long>xptr, s, i, ui
