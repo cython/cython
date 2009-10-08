@@ -802,7 +802,6 @@ class StringNode(ConstNode):
         # Arrange for a Python version of the string to be pre-allocated
         # when coercing to a Python type.
         if dst_type.is_pyobject and not self.type.is_pyobject:
-            warn_once(self.pos, "String literals will no longer be Py3 bytes in Cython 0.12.", 1)
             node = self.as_py_string_node(env)
         else:
             node = self
