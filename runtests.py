@@ -8,7 +8,10 @@ import shutil
 import unittest
 import doctest
 import operator
-from StringIO import StringIO
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
 
 try:
     import cPickle as pickle
@@ -394,7 +397,7 @@ class CythonRunTestCase(CythonCompileTestCase):
                 try:
                     partial_result = PartialTestResult(result)
                     doctest.DocTestSuite(module_name).run(partial_result)
-                except Exception, e:
+                except Exception:
                     partial_result.addError(module_name, sys.exc_info())
                     result_code = 1
                 pickle.dump(partial_result.data(), output)
