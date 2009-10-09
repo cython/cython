@@ -676,6 +676,10 @@ if __name__ == '__main__':
             compile as cython_compile
         from Cython.Compiler import Errors
         Errors.LEVEL = 0 # show all warnings
+        from Cython.Compiler import Options
+        #Options.generate_cleanup_code = 3   # complete cleanup code
+        from Cython.Compiler import DebugFlags
+        DebugFlags.debug_temp_code_comments = 1
 
     # RUN ALL TESTS!
     UNITTEST_MODULE = "Cython"
@@ -691,10 +695,6 @@ if __name__ == '__main__':
     if WITH_CYTHON:
         from Cython.Compiler.Version import version
         sys.stderr.write("Running tests against Cython %s\n" % version)
-        from Cython.Compiler import Options
-        #Options.generate_cleanup_code = 3   # complete cleanup code
-        from Cython.Compiler import DebugFlags
-        DebugFlags.debug_temp_code_comments = 1
     else:
         sys.stderr.write("Running tests without Cython.\n")
     sys.stderr.write("Python %s\n" % sys.version)
