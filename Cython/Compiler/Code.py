@@ -512,6 +512,11 @@ class GlobalState(object):
         w.exit_cfunc_scope()
 
         if Options.generate_cleanup_code:
+            w = self.parts['cleanup_globals']
+            w.putln("}")
+            w.exit_cfunc_scope()
+
+        if Options.generate_cleanup_code:
             w = self.parts['cleanup_module']
             w.putln("}")
             w.exit_cfunc_scope()

@@ -1779,7 +1779,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 #                code.putln("Py_DECREF(%s); %s = 0;" % (
 #                    code.entry_as_pyobject(entry), entry.cname))
         code.putln("Py_INCREF(Py_None); return Py_None;")
-        code.putln('}')
 
     def generate_main_method(self, env, code):
         module_is_main = "%s%s" % (Naming.module_is_main, self.full_module_name.replace('.', '__'))
