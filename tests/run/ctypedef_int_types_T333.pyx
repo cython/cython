@@ -576,15 +576,15 @@ def test_DefSInt(defs.SInt x):
    """
    return x
 
-def test_DefUInt(defs.UInt x):
+def test_DefUChar(defs.UChar x):
    u"""
-   >>> test_DefUInt(-1) #doctest: +ELLIPSIS
+   >>> test_DefUChar(-1) #doctest: +ELLIPSIS
    Traceback (most recent call last):
        ...
    OverflowError: ...
-   >>> test_DefUInt(0)
+   >>> test_DefUChar(0)
    0
-   >>> test_DefUInt(1)
+   >>> test_DefUChar(1)
    1
    """
    return x

@@ -4,6 +4,12 @@
 
 import sys, os, time, copy
 
+try:
+    set
+except NameError:
+    # Python 2.3
+    from sets import Set as set
+
 import Code
 import Builtin
 from Errors import error, warning, InternalError
@@ -3197,6 +3203,10 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.lhs.annotate(code)
         self.rhs.annotate(code)
         self.dup.annotate(code)
+    
+    def create_binop_node(self):
+        import ExprNodes
+        return ExprNodes.binop_node(self.pos, self.operator, self.lhs, self.rhs)
 
 
 class PrintStatNode(StatNode):

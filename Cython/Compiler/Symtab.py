@@ -8,7 +8,7 @@ from Errors import warning, error, InternalError
 from StringEncoding import EncodedString
 import Options, Naming
 import PyrexTypes
-from PyrexTypes import py_object_type
+from PyrexTypes import py_object_type, unspecified_type
 import TypeSlots
 from TypeSlots import \
     pyfunction_signature, pymethod_signature, \
@@ -114,9 +114,10 @@ class Entry(object):
     # api              boolean    Generate C API for C class or function
     # utility_code     string     Utility code needed when this entry is used
     #
-    # buffer_aux      BufferAux or None  Extra information needed for buffer variables
+    # buffer_aux       BufferAux or None  Extra information needed for buffer variables
     # inline_func_in_pxd boolean  Hacky special case for inline function in pxd file.
     #                             Ideally this should not be necesarry.
+    # assignments      [ExprNode] List of expressions that get assigned to this entry.
 
     inline_func_in_pxd = False
     borrowed = 0
@@ -171,6 +172,10 @@ class Entry(object):
         self.type = type
         self.pos = pos
         self.init = init
+        self.assignments = []
+    
+    def __repr__(self):
+        return "Entry(name=%s, type=%s)" % (self.name, self.type)
         
     def redeclared(self, pos):
         error(pos, "'%s' does not match previous declaration" % self.name)
@@ -542,6 +547,10 @@ class Scope(object):
             if name in self.entries:    
                 return 1
         return 0
+    
+    def infer_types(self):
+        from TypeInference import get_type_inferer
+        get_type_inferer().infer_types(self)
 
 class PreImportScope(Scope):
 
@@ -814,6 +823,8 @@ class ModuleScope(Scope):
         if not visibility in ('private', 'public', 'extern'):
             error(pos, "Module-level variable cannot be declared %s" % visibility)
         if not is_cdef:
+            if type is unspecified_type:
+                type = py_object_type
             if not (type.is_pyobject and not type.is_extension_type):
                 raise InternalError(
                     "Non-cdef global variable is not a generic Python object")
@@ -1043,6 +1054,10 @@ class ModuleScope(Scope):
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
         entry.as_variable = var_entry
+    
+    def infer_types(self):
+        from TypeInference import PyObjectTypeInferer
+        PyObjectTypeInferer().infer_types(self)
         
 class LocalScope(Scope):    
 
@@ -1074,7 +1089,7 @@ class LocalScope(Scope):
             cname, visibility, is_cdef)
         if type.is_pyobject and not Options.init_local_none:
             entry.init = "0"
-        entry.init_to_none = type.is_pyobject and Options.init_local_none
+        entry.init_to_none = (type.is_pyobject or type.is_unspecified) and Options.init_local_none
         entry.is_local = 1
         self.var_entries.append(entry)
         return entry
@@ -1189,6 +1204,8 @@ class PyClassScope(ClassScope):
     
     def declare_var(self, name, type, pos, 
             cname = None, visibility = 'private', is_cdef = 0):
+        if type is unspecified_type:
+            type = py_object_type
         # Add an entry for a class attribute.
         entry = Scope.declare_var(self, name, type, pos, 
             cname, visibility, is_cdef)
@@ -1275,6 +1292,8 @@ class CClassScope(ClassScope):
                     "Non-generic Python attribute cannot be exposed for writing from Python")
             return entry
         else:
+            if type is unspecified_type:
+                type = py_object_type
             # Add an entry for a class attribute.
             entry = Scope.declare_var(self, name, type, pos, 
                 cname, visibility, is_cdef)

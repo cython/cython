@@ -35,7 +35,7 @@ def test_all():
     assert not isinstance(u"foo", int)
     
     # Non-optimized
-    foo = A
+    cdef object foo = A
     assert isinstance(A(), foo)
     assert isinstance(0, (int, long))
     assert not isinstance(u"xyz", (int, long))

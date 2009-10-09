@@ -328,7 +328,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     duplication of functionality has to occur: We manually track cimports
     and which names the "cython" module may have been imported to.
     """
-    special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof', 'cast', 'address', 'pointer', 'compiled', 'NULL'])
+    special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof', 'typeof', 'cast', 'address', 'pointer', 'compiled', 'NULL'])
 
     def __init__(self, context, compilation_option_overrides):
         super(InterpretCompilerDirectives, self).__init__(context)
@@ -785,11 +785,13 @@ property NAME:
 class AnalyseExpressionsTransform(CythonTransform):
 
     def visit_ModuleNode(self, node):
+        node.scope.infer_types()
         node.body.analyse_expressions(node.scope)
         self.visitchildren(node)
         return node
         
     def visit_FuncDefNode(self, node):
+        node.local_scope.infer_types()
         node.body.analyse_expressions(node.local_scope)
         self.visitchildren(node)
         return node
@@ -1007,6 +1009,11 @@ class TransformBuiltinMethods(EnvTransform):
                         node = SizeofTypeNode(node.function.pos, arg_type=type)
                     else:
                         node = SizeofVarNode(node.function.pos, operand=node.args[0])
+            elif function == 'typeof':
+                if len(node.args) != 1:
+                    error(node.function.pos, u"sizeof takes exactly one argument" % function)
+                else:
+                    node = TypeofNode(node.function.pos, operand=node.args[0])
             elif function == 'address':
                 if len(node.args) != 1:
                     error(node.function.pos, u"sizeof takes exactly one argument" % function)
