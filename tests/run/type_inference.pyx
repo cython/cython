@@ -62,6 +62,15 @@ def cascade():
     e = a + b + c + d
     assert typeof(e) == "double"
 
+def cascaded_assignment():
+    a = b = c = d = 1.0
+    assert typeof(a) == "double"
+    assert typeof(b) == "double"
+    assert typeof(c) == "double"
+    assert typeof(d) == "double"
+    e = a + b + c + d
+    assert typeof(e) == "double"
+
 def increment():
     a = 5
     a += 1
@@ -71,10 +80,16 @@ def loop():
     for a in range(10):
         pass
     assert typeof(a) == "long"
+
     b = 1.0
     for b in range(5):
         pass
     assert typeof(b) == "double"
+
     for c from 0 <= c < 10 by .5:
         pass
     assert typeof(c) == "double"
+
+    for d in range(0, 10L, 2):
+        pass
+    assert typeof(a) == "long"
