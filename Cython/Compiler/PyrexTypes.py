@@ -77,6 +77,7 @@ class PyrexType(BaseType):
     #
         
     is_pyobject = 0
+    is_unspecified = 0
     is_extension_type = 0
     is_builtin_type = 0
     is_numeric = 0
@@ -849,9 +850,17 @@ class CComplexType(CNumericType):
     def __hash__(self):
         return ~hash(self.real_type)
     
+    def declaration_code(self, entity_code, 
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        if for_display:
+            base = public_decl(self.real_type.sign_and_name() + " complex", dll_linkage)
+        else:
+            base = public_decl(self.sign_and_name(), dll_linkage)
+        return self.base_declaration_code(base,  entity_code)
+
     def sign_and_name(self):
         return Naming.type_prefix + self.real_type.specalization_name() + "_complex"
-
+    
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_complex and self.real_type.assignable_from_resolved_type(src_type.real_type)
                     or src_type.is_numeric and self.real_type.assignable_from_resolved_type(src_type) 
@@ -1591,6 +1600,8 @@ class CUCharPtrType(CStringType, CPtrType):
 
 class UnspecifiedType(PyrexType):
     # Used as a placeholder until the type can be determined.
+    
+    is_unspecified = 1
         
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -1788,6 +1799,23 @@ def widest_numeric_type(type1, type2):
         return sign_and_rank_to_type[min(type1.signed, type2.signed), max(type1.rank, type2.rank)]
     return widest_type
 
+def spanning_type(type1, type2):
+    # Return a type assignable from both type1 and type2.
+    if type1 is py_object_type or type2 is py_object_type:
+        return py_object_type
+    elif type1 == type2:
+        return type1
+    elif type1.is_numeric and type2.is_numeric:
+        return widest_numeric_type(type1, type2)
+    elif type1.is_pyobject ^ type2.is_pyobject:
+        return py_object_type
+    elif type1.assignable_from(type2):
+        return type1
+    elif type2.assignable_from(type1):
+        return type2
+    else:
+        return py_object_type
+    
 def simple_c_type(signed, longness, name):
     # Find type descriptor for simple type given name and modifiers.
     # Returns None if arguments don't make sense.
