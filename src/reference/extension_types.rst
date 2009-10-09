@@ -9,8 +9,8 @@ Extention Types
 * Normal Python as well as extension type classes can be defined.
 * Extension types:
 
- * Are considered by Python to be "built-in" types.
- * Can be used to wrap arbitrary C data structures, and provide a Python-like interface to them from Python.
+ * Are considered by Python as "built-in" types.
+ * Can be used to wrap arbitrary C-data structures, and provide a Python-like interface to them from Python.
  * Attributes and methods can be called from Python or Cython code
  * Are defined by the ``cdef class`` statement.
 
@@ -159,13 +159,14 @@ Properties
 Special Methods
 ===============
 
-.. note:: Attention
+.. note::
 
-    The semantics of special methods are similar in principle to Python, but there are substantial differences in some behavior.
+    #. The semantics of Cython's special methods are similar in principle to that of Python's.
+    #. There are substantial differences in some behavior.
+    #. Some Cython special methods have no Python counter-part.
 
-* See :doc:`special_methods_table` for available methods.
-* Cython provides many "special method" method types.
-* Be aware that some Cython special methods have no Python counter-part.
+* See the :doc:`special_methods_table` for the many that are available.
+
 
 Declaration
 ===========
@@ -337,6 +338,52 @@ Forward Declarations
 Extension Types and None
 ========================
 
+* Parameters and C-variables declared as an Extention type, may take the value of ``None``.
+* This is analogous to the way a C-pointer can take the value of ``NULL``.
+
+.. note::
+    #. Exercise caution when using ``None``
+    #. Read this section carefully.
+
+* There is no problem as long as you are performing Python operations on it.
+
+ * This is because full dynamic type checking is applied
+
+* When accessing an extension type's C-attributes, **make sure** it is not ``None``.
+
+ * Cython does not check this for reasons of efficency.
+
+* Be very aware of exposing Python functions that take extension types as arguments::
+
+    def widen_shrubbery(Shrubbery sh, extra_width): # This is
+    sh.width = sh.width + extra_width
+
+    * Users could **crash** the program by passing ``None`` for the ``sh`` parameter.
+    * This could be avoided by::
+
+        def widen_shrubbery(Shrubbery sh, extra_width):
+            if sh is None:
+                raise TypeError
+            sh.width = sh.width + extra_width
+
+    * Cython provides a more convenient way with a ``not None`` clause::
+
+        def widen_shrubbery(Shrubbery sh not None, extra_width):
+            sh.width = sh.width + extra_width
+
+    * Now this function automatically checks that ``sh`` is not ``None``, as well as that is the right type.
+
+* ``not None`` can only be used in Python functions (declared with ``def`` **not** ``cdef``).
+* For ``cdef`` functions, you will have to provide the check yourself.
+* The ``self`` parameter of an extension type is guaranteed to **never** be ``None``.
+* When comparing a value ``x`` with ``None``, and ``x`` is a Python object, note the following:
+
+ * ``x is None`` and ``x is not None`` are very efficient.
+
+  * They translate directly to C-pointer comparisons.
+
+ * ``x == None`` and ``x != None`` or ``if x: ...`` (a boolean condition), will invoke Python operations and will therefore be much slower.
+
 ================
 Weak Referencing
 ================
@@ -350,20 +397,106 @@ Weak Referencing
 
         cdef object __weakref__
 
+=========================
+External and Public Types
+=========================
 
-======
+
 Public
 ======
 
-========
+* When an extention type is declared ``public``, Cython will generate a C-header (".h") file.
+* The header file will contain the declarations for it's **object-struct** and it's **type-object**.
+* External C-code can now access the attributes of the extension type.
+
+
 External
 ========
 
+* An ``extern`` extension type allows you to gain access to the internals of:
+
+ * Python objects defined in the Python core.
+ * Non-Cython extension modules
+
+* The following example lets you get at the C-level members of Python's built-in "complex" object::
+
+    cdef extern from "complexobject.h":
+
+        struct Py_complex:
+            double real
+            double imag
+
+        ctypedef class __builtin__.complex [object PyComplexObject]:
+            cdef Py_complex cval
+
+    # A function which uses the above type
+    def spam(complex c):
+        print "Real:", c.cval.real
+        print "Imag:", c.cval.imag
+
+.. note:: Some important things in the example:
+    #. ``ctypedef`` has been used because because Python's header file has the struct decalared with::
+
+        ctypedef struct {
+        ...
+        } PyComplexObject;
+
+    #. The module of where this type object can be found is specified along side the name of the extension type. See **Implicit Importing**.
+
+    #. When declaring an external extension type...
+
+     * Don't declare any methods, because they are Python method class the are not needed.
+     * Similiar to **structs** and **unions**, extension classes declared inside a ``cdef extern from`` block only need to declare the C members which you will actually need to access in your module.
 
 
+Name Specification Clause
+=========================
 
+.. note:: Only available to **public** and **extern** extension types.
 
+* Example::
 
+    [object object_struct_name, type type_object_name ]
+
+* ``object_struct_name`` is the name to assume for the type's C-struct.
+* ``type_object_name`` is the name to assume for the type's statically declared type-object.
+* The object and type clauses can be written in any order.
+* For ``cdef extern from`` declarations, This clause **is required**.
+
+ * The object clause is required because Cython must generate code that is compatible with the declarations in the header file.
+ * Otherwise the object clause is optional.
+
+* For public extension types, both the object and type clauses **are required** for Cython to generate code that is compatible with external C-code.
+
+================================
+Type Names vs. Constructor Names
+================================
+
+* In a Cython module, the name of an extension type serves two distinct purposes:
+
+ #. When used in an expression, it refers to a "module-level" global variable holding the type's constructor (i.e. it's type-object)
+ #. It can also be used as a C-type name to declare a "type" for variables, arguments, and return values.
+
+* Example::
+
+    cdef extern class MyModule.Spam:
+        ...
+
+ * The name "Spam" serves both of these roles.
+ * Only "Spam" can be used as the type-name.
+ * The constructor can be referred to by other names.
+ * Upon an explicit import of "MyModule"...
+
+  * ``MyModule.Spam()`` could be used as the constructor call.
+  * ``MyModule.Spam`` could not be used as a type-name
+
+* When an "as" clause is used, the name specified takes over both roles::
+
+    cdef extern class MyModule.Spam as Yummy:
+        ...
+
+ * ``Yummy`` becomes both type-name and a name for the constructor.
+ * There other ways of course, to get hold of the constructor, but ``Yummy`` is the only usable type-name.
 
 
 
