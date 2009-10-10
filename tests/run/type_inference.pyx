@@ -13,21 +13,23 @@ from cython cimport typeof
 
 def simple():
     i = 3
-    assert typeof(i) == "long"
+    assert typeof(i) == "long", typeof(i)
     x = 1.41
-    assert typeof(x) == "double"
+    assert typeof(x) == "double", typeof(x)
     xptr = &x
-    assert typeof(xptr) == "double *"
+    assert typeof(xptr) == "double *", typeof(xptr)
     xptrptr = &xptr
-    assert typeof(xptrptr) == "double **"
+    assert typeof(xptrptr) == "double **", typeof(xptrptr)
+    b = b"abc"
+    assert typeof(b) == "char *", typeof(b)
     s = "abc"
-    assert typeof(s) == "char *"
+    assert typeof(s) == "Python object", typeof(s)
     u = u"xyz"
-    assert typeof(u) == "unicode object"
+    assert typeof(u) == "unicode object", typeof(u)
     L = [1,2,3]
-    assert typeof(L) == "list object"
+    assert typeof(L) == "list object", typeof(L)
     t = (4,5,6)
-    assert typeof(t) == "tuple object"
+    assert typeof(t) == "tuple object", typeof(t)
 
 def multiple_assignments():
     a = 3
