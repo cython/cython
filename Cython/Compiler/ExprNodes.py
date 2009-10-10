@@ -32,6 +32,22 @@ class NotConstant(object): pass # just for the name
 not_a_constant = NotConstant()
 constant_value_not_set = object()
 
+# error messages when coercing from key[0] to key[1]
+find_coercion_error = {
+    # string related errors
+    (Builtin.unicode_type, Builtin.bytes_type) : "Cannot convert Unicode string to 'bytes' implicitly, encoding required.",
+    (Builtin.unicode_type, Builtin.str_type)   : "Cannot convert Unicode string to 'str' implicitly. This is not portable and requires explicit encoding.",
+    (Builtin.unicode_type, PyrexTypes.c_char_ptr_type) : "Unicode objects do not support coercion to C types.",
+    (Builtin.bytes_type, Builtin.unicode_type) : "Cannot convert 'bytes' object to unicode implicitly, decoding required",
+    (Builtin.bytes_type, Builtin.str_type) : "Cannot convert 'bytes' object to str implicitly. This is not portable to Py3.",
+    (Builtin.str_type, Builtin.unicode_type) : "str objects do not support coercion to unicode, use a unicode string literal instead (u'')",
+    (Builtin.str_type, Builtin.bytes_type) : "Cannot convert 'str' to 'bytes' implicitly. This is not portable.",
+    (Builtin.str_type, PyrexTypes.c_char_ptr_type) : "'str' objects do not support coercion to C types.",
+    (PyrexTypes.c_char_ptr_type, Builtin.unicode_type) : "Cannot convert 'char*' to unicode implicitly, decoding required",
+    (PyrexTypes.c_uchar_ptr_type, Builtin.unicode_type) : "Cannot convert 'char*' to unicode implicitly, decoding required",
+    }.get
+
+
 class ExprNode(Node):
     #  subexprs     [string]     Class var holding names of subexpr node attrs
     #  type         PyrexType    Type of the result
@@ -516,6 +532,9 @@ class ExprNode(Node):
         src_is_py_type = src_type.is_pyobject
         dst_is_py_type = dst_type.is_pyobject
 
+        if self.check_for_coercion_error(dst_type):
+            return self
+
         if dst_type.is_pyobject:
             if not src.type.is_pyobject:
                 src = CoerceToPyTypeNode(src, env)
@@ -534,9 +553,23 @@ class ExprNode(Node):
             # is enough, but Cython gets confused when the types are
             # in different pxi files.
             if not (str(src.type) == str(dst_type) or dst_type.assignable_from(src_type)):
-                error(self.pos, "Cannot assign type '%s' to '%s'" %
-                    (src.type, dst_type))
+                self.fail_assignment(dst_type)
         return src
+
+    def fail_assignment(self, dst_type):
+        error(self.pos, "Cannot assign type '%s' to '%s'" % (self.type, dst_type))
+
+    def check_for_coercion_error(self, dst_type, fail=False, default=None):
+        if fail and not default:
+            default = "Cannot assign type '%(FROM)s' to '%(TO)s'"
+        message = find_coercion_error((self.type, dst_type), default)
+        if message is not None:
+            error(self.pos, message % {'FROM': self.type, 'TO': dst_type})
+            return True
+        if fail:
+            self.fail_assignment(dst_type)
+            return True
+        return False
 
     def coerce_to_pyobject(self, env):
         return self.coerce_to(PyrexTypes.py_object_type, env)
@@ -799,10 +832,17 @@ class BytesNode(ConstNode):
                 return self
             return CharNode(self.pos, value=self.value)
 
-        if dst_type.is_pyobject and not self.type.is_pyobject:
-            node = self.as_py_string_node(env)
-        else:
-            node = self
+        node = self
+        if not self.type.is_pyobject:
+            if dst_type in (py_object_type, Builtin.bytes_type):
+                node = self.as_py_string_node(env)
+            else:
+                self.fail_assignment(dst_type)
+                return self
+        elif dst_type.is_pyobject and dst_type is not py_object_type:
+            self.check_for_coercion_error(dst_type, fail=True)
+            return self
+
         # We still need to perform normal coerce_to processing on the
         # result, because we might be coercing to an extension type,
         # in which case a type test node will be needed.
@@ -832,13 +872,16 @@ class UnicodeNode(PyConstNode):
     # value    EncodedString
 
     type = unicode_type
-    
+
     def coerce_to(self, dst_type, env):
-        if dst_type.is_pyobject:
-            return self
-        else:
+        if dst_type is self.type:
+            pass
+        elif not dst_type.is_pyobject:
             error(self.pos, "Unicode objects do not support coercion to C types.")
-            return self
+        elif dst_type is not py_object_type:
+            if not self.check_for_coercion_error(dst_type):
+                self.fail_assignment(dst_type)
+        return self
 
     def generate_evaluation_code(self, code):
         self.result_code = code.get_py_string_const(self.value)
@@ -859,18 +902,18 @@ class StringNode(PyConstNode):
     #
     # value    BytesLiteral
 
-    type = PyrexTypes.py_object_type
+    type = Builtin.str_type
 
     def coerce_to(self, dst_type, env):
-        if dst_type is Builtin.unicode_type:
-            error(self.pos, "str objects do not support coercion to unicode, use a unicode string literal instead (u'')")
+        if dst_type is Builtin.str_type:
             return self
         if dst_type is Builtin.bytes_type:
+            # special case: bytes = 'str literal'
             return BytesNode(self.pos, value=self.value)
-        elif dst_type.is_pyobject:
-            return self
-        else:
+        elif not dst_type.is_pyobject:
             return BytesNode(self.pos, value=self.value).coerce_to(dst_type, env)
+        self.check_for_coercion_error(dst_type)
+        return self
 
     def generate_evaluation_code(self, code):
         self.result_code = code.get_py_string_const(self.value, True)
