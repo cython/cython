@@ -909,12 +909,13 @@ class StringNode(PyConstNode):
     def coerce_to(self, dst_type, env):
         if dst_type is Builtin.str_type:
             return self
-        if dst_type is Builtin.bytes_type:
-            # special case: bytes = 'str literal'
-            return BytesNode(self.pos, value=self.value)
-        elif not dst_type.is_pyobject:
+#        if dst_type is Builtin.bytes_type:
+#            # special case: bytes = 'str literal'
+#            return BytesNode(self.pos, value=self.value)
+        if not dst_type.is_pyobject:
             return BytesNode(self.pos, value=self.value).coerce_to(dst_type, env)
-        self.check_for_coercion_error(dst_type)
+        if dst_type is not py_object_type:
+            self.check_for_coercion_error(dst_type, fail=True)
         return self
 
     def generate_evaluation_code(self, code):
