@@ -1855,19 +1855,6 @@ def c_ptr_type(base_type):
         return error_type
     else:
         return CPtrType(base_type)
-        
-def Node_to_type(node, env):
-    from ExprNodes import NameNode, AttributeNode, StringNode, error
-    if isinstance(node, StringNode):
-        node = NameNode(node.pos, name=node.value)
-    if isinstance(node, NameNode) and node.name in rank_to_type_name:
-        return simple_c_type(1, 0, node.name)
-    elif isinstance(node, (AttributeNode, NameNode)):
-        node.analyze_types(env)
-        if not node.entry.is_type:
-            pass
-    else:
-        error(node.pos, "Bad type")
 
 def same_type(type1, type2):
     return type1.same_as(type2)
