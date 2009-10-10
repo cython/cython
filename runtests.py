@@ -383,7 +383,7 @@ class CythonRunTestCase(CythonCompileTestCase):
             pass
 
     def run_doctests(self, module_name, result):
-        if not hasattr(os, 'fork'):
+        if sys.version_info[0] >= 3 or not hasattr(os, 'fork'):
             doctest.DocTestSuite(module_name).run(result)
             return
 
@@ -394,11 +394,18 @@ class CythonRunTestCase(CythonCompileTestCase):
             result_code = 0
             try:
                 output = os.fdopen(output, 'wb')
+                tests = None
                 try:
                     partial_result = PartialTestResult(result)
-                    doctest.DocTestSuite(module_name).run(partial_result)
+                    tests = doctest.DocTestSuite(module_name)
+                    tests.run(partial_result)
                 except Exception:
-                    partial_result.addError(module_name, sys.exc_info())
+                    if tests is None:
+                        # importing failed, try to fake a test class
+                        tests = _FakeClass(
+                            failureException=None,
+                            **{module_name: None})
+                    partial_result.addError(tests, sys.exc_info())
                     result_code = 1
                 pickle.dump(partial_result.data(), output)
             finally:
@@ -414,13 +421,30 @@ class CythonRunTestCase(CythonCompileTestCase):
                             (module_name, result_code >> 8))
 
 
+is_private_field = re.compile('^_[^_]').match
+
+class _FakeClass(object):
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
 class PartialTestResult(unittest._TextTestResult):
     def __init__(self, base_result):
         unittest._TextTestResult.__init__(
             self, self._StringIO(), True,
             base_result.dots + base_result.showAll*2)
 
+    def strip_error_results(self, results):
+        for test_case, error in results:
+            for attr_name in filter(is_private_field, dir(test_case)):
+                if attr_name == '_dt_test':
+                    test_case._dt_test = _FakeClass(
+                        name=test_case._dt_test.name)
+                else:
+                    setattr(test_case, attr_name, None)
+
     def data(self):
+        self.strip_error_results(self.failures)
+        self.strip_error_results(self.errors)
         return (self.failures, self.errors, self.testsRun,
                 self.stream.getvalue())
 
