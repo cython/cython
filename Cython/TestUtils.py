@@ -1,11 +1,13 @@
 import Cython.Compiler.Errors as Errors
 from Cython.CodeWriter import CodeWriter
-import unittest
 from Cython.Compiler.ModuleNode import ModuleNode
 import Cython.Compiler.Main as Main
 from Cython.Compiler.TreeFragment import TreeFragment, strip_common_indent
 from Cython.Compiler.Visitor import TreeVisitor, VisitorTransform
 from Cython.Compiler import TreePath
+
+import unittest
+import sys
 
 class NodeTypeWriter(TreeVisitor):
     def __init__(self):
@@ -107,7 +109,7 @@ class CythonTest(unittest.TestCase):
         try:
             return func()
         except:
-            self.fail()
+            self.fail(str(sys.exc_info()[1]))
 
 class TransformTest(CythonTest):
     """
