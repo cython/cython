@@ -444,22 +444,22 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                 args, kwds = node.explicit_args_kwds()
                 if optiontype is bool:
                     if kwds is not None or len(args) != 1 or not isinstance(args[0], BoolNode):
-                        raise PostParseError(dec.function.pos,
+                        raise PostParseError(node.function.pos,
                             'The %s option takes one compile-time boolean argument' % optname)
                     return (optname, args[0].value)
                 elif optiontype is str:
-                    if kwds is not None or len(args) != 1 or not isinstance(args[0], StringNode):
-                        raise PostParseError(dec.function.pos,
+                    if kwds is not None or len(args) != 1 or not isinstance(args[0], (StringNode, UnicodeNode)):
+                        raise PostParseError(node.function.pos,
                             'The %s option takes one compile-time string argument' % optname)
                     return (optname, str(args[0].value))
                 elif optiontype is dict:
                     if len(args) != 0:
-                        raise PostParseError(dec.function.pos,
+                        raise PostParseError(node.function.pos,
                             'The %s option takes no prepositional arguments' % optname)
                     return optname, dict([(key.value, value) for key, value in kwds.key_value_pairs])
                 elif optiontype is list:
                     if kwds and len(kwds) != 0:
-                        raise PostParseError(dec.function.pos,
+                        raise PostParseError(node.function.pos,
                             'The %s option takes no keyword arguments' % optname)
                     return optname, [ str(arg.value) for arg in args ]
                 else:
@@ -984,7 +984,7 @@ class TransformBuiltinMethods(EnvTransform):
                 pos = node.pos
                 lenv = self.env_stack[-1]
                 items = [ExprNodes.DictItemNode(pos, 
-                                                key=ExprNodes.IdentifierStringNode(pos, value=var),
+                                                key=ExprNodes.StringNode(pos, value=var),
                                                 value=ExprNodes.NameNode(pos, name=var)) for var in lenv.entries]
                 return ExprNodes.DictNode(pos, key_value_pairs=items)
 

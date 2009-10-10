@@ -14,7 +14,7 @@ from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
 import ExprNodes
 import StringEncoding
-from StringEncoding import EncodedString, BytesLiteral, _str, _bytes
+from StringEncoding import EncodedString, BytesLiteral, _unicode, _bytes
 from ModuleNode import ModuleNode
 from Errors import error, warning, InternalError
 from Cython import Utils
@@ -348,8 +348,7 @@ def p_call(s, function):
                     s.error("Expected an identifier before '='",
                         pos = arg.pos)
                 encoded_name = EncodedString(arg.name)
-                keyword = ExprNodes.IdentifierStringNode(arg.pos, 
-                    value = encoded_name)
+                keyword = ExprNodes.StringNode(arg.pos, value = encoded_name)
                 arg = p_simple_expr(s)
                 keyword_args.append((keyword, arg))
             else:
@@ -540,6 +539,8 @@ def p_atom(s):
             return ExprNodes.CharNode(pos, value = value)
         elif kind == 'u':
             return ExprNodes.UnicodeNode(pos, value = value)
+        elif kind == 'b':
+            return ExprNodes.BytesNode(pos, value = value)
         else:
             return ExprNodes.StringNode(pos, value = value)
     elif sy == 'IDENT':
@@ -571,8 +572,10 @@ def p_name(s, name):
             return ExprNodes.IntNode(pos, value = rep, longness = "L")
         elif isinstance(value, float):
             return ExprNodes.FloatNode(pos, value = rep)
-        elif isinstance(value, (_str, _bytes)):
-            return ExprNodes.StringNode(pos, value = value)
+        elif isinstance(value, _unicode):
+            return ExprNodes.UnicodeNode(pos, value = value)
+        elif isinstance(value, _bytes):
+            return ExprNodes.BytesNode(pos, value = value)
         else:
             error(pos, "Invalid type for compile-time constant: %s"
                 % value.__class__.__name__)
@@ -580,24 +583,20 @@ def p_name(s, name):
 
 def p_cat_string_literal(s):
     # A sequence of one or more adjacent string literals.
-    # Returns (kind, value) where kind in ('b', 'c', 'u')
+    # Returns (kind, value) where kind in ('b', 'c', 'u', '')
     kind, value = p_string_literal(s)
+    if s.sy != 'BEGIN_STRING':
+        return kind, value
     if kind != 'c':
         strings = [value]
         while s.sy == 'BEGIN_STRING':
+            pos = s.position()
             next_kind, next_value = p_string_literal(s)
             if next_kind == 'c':
-                error(s.position(),
-                      "Cannot concatenate char literal with another string or char literal")
+                error(pos, "Cannot concatenate char literal with another string or char literal")
             elif next_kind != kind:
-                # we have to switch to unicode now
-                if kind == 'b':
-                    # concatenating a unicode string to byte strings
-                    strings = [u''.join([s.decode(s.encoding) for s in strings])]
-                elif kind == 'u':
-                    # concatenating a byte string to unicode strings
-                    strings.append(next_value.decode(next_value.encoding))
-                kind = 'u'
+                error(pos, "Cannot mix string literals of different types, expected %s'', got %s''" %
+                      (kind, next_kind))
             else:
                 strings.append(next_value)
         if kind == 'u':
@@ -630,8 +629,6 @@ def p_string_literal(s):
     if Future.unicode_literals in s.context.future_directives:
         if kind == '':
             kind = 'u'
-    elif kind == '':
-        kind = 'b'
     if kind == 'u':
         chars = StringEncoding.UnicodeLiteralBuilder()
     else:
@@ -896,7 +893,7 @@ def p_expression_or_assignment(s):
             rhs = p_expr(s)
             return Nodes.InPlaceAssignmentNode(lhs.pos, operator = operator, lhs = lhs, rhs = rhs)
         expr = expr_list[0]
-        if isinstance(expr, ExprNodes.StringNode):
+        if isinstance(expr, (ExprNodes.UnicodeNode, ExprNodes.StringNode, ExprNodes.BytesNode)):
             return Nodes.PassStatNode(expr.pos)
         else:
             return Nodes.ExprStatNode(expr.pos, expr = expr)
@@ -1131,15 +1128,14 @@ def p_import_statement(s):
         else:
             if as_name and "." in dotted_name:
                 name_list = ExprNodes.ListNode(pos, args = [
-                        ExprNodes.IdentifierStringNode(
-                            pos, value = EncodedString("*"))])
+                        ExprNodes.StringNode(pos, value = EncodedString("*"))])
             else:
                 name_list = None
             stat = Nodes.SingleAssignmentNode(pos,
                 lhs = ExprNodes.NameNode(pos, 
                     name = as_name or target_name),
                 rhs = ExprNodes.ImportNode(pos, 
-                    module_name = ExprNodes.IdentifierStringNode(
+                    module_name = ExprNodes.StringNode(
                         pos, value = dotted_name),
                     name_list = name_list))
         stats.append(stat)
@@ -1197,7 +1193,7 @@ def p_from_import_statement(s, first_statement = 0):
         for (name_pos, name, as_name, kind) in imported_names:
             encoded_name = EncodedString(name)
             imported_name_strings.append(
-                ExprNodes.IdentifierStringNode(name_pos, value = encoded_name))
+                ExprNodes.StringNode(name_pos, value = encoded_name))
             items.append(
                 (name,
                  ExprNodes.NameNode(name_pos, 
@@ -1207,7 +1203,7 @@ def p_from_import_statement(s, first_statement = 0):
         dotted_name = EncodedString(dotted_name)
         return Nodes.FromImportStatNode(pos,
             module = ExprNodes.ImportNode(dotted_name_pos,
-                module_name = ExprNodes.IdentifierStringNode(pos, value = dotted_name),
+                module_name = ExprNodes.StringNode(pos, value = dotted_name),
                 name_list = import_list),
             items = items)
 
@@ -1717,8 +1713,8 @@ def p_positional_and_keyword_args(s, end_sy_set, type_positions=(), type_keyword
                     parsed_type = True
                 else:
                     arg = p_simple_expr(s)
-                keyword_node = ExprNodes.IdentifierStringNode(arg.pos,
-                                value = EncodedString(ident))
+                keyword_node = ExprNodes.StringNode(
+                    arg.pos, value = EncodedString(ident))
                 keyword_args.append((keyword_node, arg))
                 was_keyword = True
             else:

@@ -50,7 +50,8 @@ with ' and " quotes"""
     q = "NameLikeString2"
     r = "99_percent_un_namelike"
     s = "Not an \escape"
-
+    t = b'this' b'parrot' b'is' b'resting'
+    u = u'this' u'parrot' u'is' u'resting'
 
 
 def test_float(x):

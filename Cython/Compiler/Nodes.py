@@ -2528,6 +2528,7 @@ class PyClassDefNode(ClassDefNode):
         self.dict = ExprNodes.DictNode(pos, key_value_pairs = [])
         if self.doc and Options.docstrings:
             doc = embed_position(self.pos, self.doc)
+            # FIXME: correct string node?
             doc_node = ExprNodes.StringNode(pos, value = doc)
         else:
             doc_node = None

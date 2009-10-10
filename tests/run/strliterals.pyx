@@ -1,21 +1,21 @@
 __doc__ = ur"""
     >>> s1
-    b'abc\x11'
-    >>> s1 == b'abc\x11'
+    'abc\x11'
+    >>> s1 == 'abc\x11'
     True
     >>> len(s1)
     4
 
     >>> s2
-    b'abc\\x11'
-    >>> s2 == br'abc\x11'
+    'abc\\x11'
+    >>> s2 == r'abc\x11'
     True
     >>> len(s2)
     7
 
     >>> s3
-    b'abc\\x11'
-    >>> s3 == bR'abc\x11'
+    'abc\\x11'
+    >>> s3 == R'abc\x11'
     True
     >>> len(s3)
     7

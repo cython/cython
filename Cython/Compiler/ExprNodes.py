@@ -767,7 +767,7 @@ class FloatNode(ConstNode):
             return strval
 
 
-class StringNode(ConstNode):
+class BytesNode(ConstNode):
     type = PyrexTypes.c_char_ptr_type
 
     def compile_time_value(self, denv):
@@ -794,13 +794,11 @@ class StringNode(ConstNode):
             return CastNode(self, PyrexTypes.c_uchar_ptr_type)
 
         if dst_type.is_int:
-            if not self.type.is_pyobject and len(self.value) == 1:
-                return CharNode(self.pos, value=self.value)
-            else:
-                error(self.pos, "Only single-character byte strings can be coerced into ints.")
+            if len(self.value) > 1:
+                error(self.pos, "Only single-character strings can be coerced into ints.")
                 return self
-        # Arrange for a Python version of the string to be pre-allocated
-        # when coercing to a Python type.
+            return CharNode(self.pos, value=self.value)
+
         if dst_type.is_pyobject and not self.type.is_pyobject:
             node = self.as_py_string_node(env)
         else:
@@ -811,13 +809,9 @@ class StringNode(ConstNode):
         return ConstNode.coerce_to(node, dst_type, env)
 
     def as_py_string_node(self, env):
-        # Return a new StringNode with the same value as this node
+        # Return a new BytesNode with the same value as this node
         # but whose type is a Python type instead of a C type.
-        if self.value.encoding is None:
-            py_type = Builtin.unicode_type
-        else:
-            py_type = Builtin.bytes_type
-        return StringNode(self.pos, value = self.value, type = py_type)
+        return BytesNode(self.pos, value = self.value, type = Builtin.bytes_type)
 
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
@@ -831,8 +825,11 @@ class StringNode(ConstNode):
     def calculate_result_code(self):
         return self.result_code
 
+
 class UnicodeNode(PyConstNode):
-    #  entry   Symtab.Entry
+    # A Python unicode object
+    #
+    # value    EncodedString
 
     type = unicode_type
     
@@ -844,10 +841,7 @@ class UnicodeNode(PyConstNode):
             return self
 
     def generate_evaluation_code(self, code):
-        if self.type.is_pyobject:
-            self.result_code = code.get_py_string_const(self.value)
-        else:
-            self.result_code = code.get_string_const(self.value)
+        self.result_code = code.get_py_string_const(self.value)
 
     def calculate_result_code(self):
         return self.result_code
@@ -856,16 +850,30 @@ class UnicodeNode(PyConstNode):
         return self.value
 
 
-class IdentifierStringNode(ConstNode):
-    # A Python string that behaves like an identifier, e.g. for
-    # keyword arguments in a call, or for imported names
+class StringNode(PyConstNode):
+    # A Python str object, i.e. a byte string in Python 2.x and a
+    # unicode string in Python 3.x
+    #
+    # Can be coerced to a BytesNode (and thus to C types), but not to
+    # a UnicodeNode.
+    #
+    # value    BytesLiteral
+
     type = PyrexTypes.py_object_type
 
-    def generate_evaluation_code(self, code):
-        if self.type.is_pyobject:
-            self.result_code = code.get_py_string_const(self.value, True)
+    def coerce_to(self, dst_type, env):
+        if dst_type is Builtin.unicode_type:
+            error(self.pos, "str objects do not support coercion to unicode, use a unicode string literal instead (u'')")
+            return self
+        if dst_type is Builtin.bytes_type:
+            return BytesNode(self.pos, value=self.value)
+        elif dst_type.is_pyobject:
+            return self
         else:
-            self.result_code = code.get_string_const(self.value)
+            return BytesNode(self.pos, value=self.value).coerce_to(dst_type, env)
+
+    def generate_evaluation_code(self, code):
+        self.result_code = code.get_py_string_const(self.value, True)
 
     def get_constant_c_result_code(self):
         return None
@@ -1370,8 +1378,8 @@ class ImportNode(ExprNode):
     #  Implements result = 
     #    __import__(module_name, globals(), None, name_list)
     #
-    #  module_name   IdentifierStringNode     dotted name of module
-    #  name_list     ListNode or None         list of names to be imported
+    #  module_name   StringNode            dotted name of module
+    #  name_list     ListNode or None      list of names to be imported
     
     type = py_object_type
     
@@ -1650,7 +1658,7 @@ class IndexNode(ExprNode):
         return self.base.type_dependencies(env)
     
     def infer_type(self, env):
-        if isinstance(self.base, StringNode):
+        if isinstance(self.base, (StringNode, UnicodeNode)): # FIXME: BytesNode?
             return py_object_type
         base_type = self.base.infer_type(env)
         if base_type.is_ptr or base_type.is_array:
@@ -1677,7 +1685,7 @@ class IndexNode(ExprNode):
 
         self.base.analyse_types(env)
         # Handle the case where base is a literal char* (and we expect a string, not an int)
-        if isinstance(self.base, StringNode):
+        if isinstance(self.base, BytesNode):
             self.base = self.base.coerce_to_pyobject(env)
 
         skip_child_analysis = False
@@ -2223,7 +2231,7 @@ class CallNode(ExprNode):
             args, kwds = self.explicit_args_kwds()
             items = []
             for arg, member in zip(args, type.scope.var_entries):
-                items.append(DictItemNode(pos=arg.pos, key=IdentifierStringNode(pos=arg.pos, value=member.name), value=arg))
+                items.append(DictItemNode(pos=arg.pos, key=StringNode(pos=arg.pos, value=member.name), value=arg))
             if kwds:
                 items += kwds.key_value_pairs
             self.key_value_pairs = items
@@ -3663,9 +3671,9 @@ class DictNode(ExprNode):
             for item in self.key_value_pairs:
                 if isinstance(item.key, CoerceToPyTypeNode):
                     item.key = item.key.arg
-                if not isinstance(item.key, (StringNode, IdentifierStringNode)):
+                if not isinstance(item.key, (UnicodeNode, StringNode, BytesNode)):
                     error(item.key.pos, "Invalid struct field identifier")
-                    item.key = IdentifierStringNode(item.key.pos, value="<error>")
+                    item.key = StringNode(item.key.pos, value="<error>")
                 else:
                     key = str(item.key.value) # converts string literals to unicode in Py3
                     member = dst_type.scope.lookup_here(key)
@@ -4262,8 +4270,8 @@ class TypeofNode(ExprNode):
     
     def analyse_types(self, env):
         self.operand.analyse_types(env)
-        from StringEncoding import EncodedString
-        self.literal = StringNode(self.pos, value=EncodedString(str(self.operand.type)))
+        self.literal = StringNode(
+            self.pos, value=StringEncoding.EncodedString(str(self.operand.type)))
         self.literal.analyse_types(env)
         self.literal = self.literal.coerce_to_pyobject(env)
     
@@ -5190,9 +5198,9 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     
     def coerce_chars_to_ints(self, env):
         # coerce literal single-char strings to c chars
-        if self.operand1.type.is_string and isinstance(self.operand1, StringNode):
+        if self.operand1.type.is_string and isinstance(self.operand1, BytesNode):
             self.operand1 = self.operand1.coerce_to(PyrexTypes.c_uchar_type, env)
-        if self.operand2.type.is_string and isinstance(self.operand2, StringNode):
+        if self.operand2.type.is_string and isinstance(self.operand2, BytesNode):
             self.operand2 = self.operand2.coerce_to(PyrexTypes.c_uchar_type, env)
         if self.cascade:
             self.cascade.coerce_chars_to_ints(env)
@@ -5299,7 +5307,7 @@ class CascadedCmpNode(Node, CmpNode):
         return self.operand2.type.is_int
         
     def coerce_chars_to_ints(self, env):
-        if self.operand2.type.is_string and isinstance(self.operand2, StringNode):
+        if self.operand2.type.is_string and isinstance(self.operand2, BytesNode):
             self.operand2 = self.operand2.coerce_to(PyrexTypes.c_uchar_type, env)
 
     def coerce_cascaded_operands_to_temp(self, env):
