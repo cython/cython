@@ -8,10 +8,10 @@ which makes the test flow a bit untraditional. Both
 module test and individual tests are run; finally,
 all_tests_run() is executed which does final validation.
 
->>> items = __test__.items()
+>>> items = list(__test__.items())
 >>> items.sort()
 >>> for key, value in items:
-...     print key, ';', value
+...     print('%s ; %s' % (key, value))
 MyCdefClass.method (line 75) ; >>> add_log("cdef class method")
 MyClass.method (line 65) ; >>> add_log("class method")
 doc_without_test (line 47) ; Some docs
