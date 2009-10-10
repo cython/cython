@@ -701,7 +701,7 @@ if __name__ == '__main__':
         from Cython.Compiler import Errors
         Errors.LEVEL = 0 # show all warnings
         from Cython.Compiler import Options
-        #Options.generate_cleanup_code = 3   # complete cleanup code
+        Options.generate_cleanup_code = 3   # complete cleanup code
         from Cython.Compiler import DebugFlags
         DebugFlags.debug_temp_code_comments = 1
 
