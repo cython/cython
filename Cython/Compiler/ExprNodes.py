@@ -836,9 +836,11 @@ class BytesNode(ConstNode):
         if not self.type.is_pyobject:
             if dst_type in (py_object_type, Builtin.bytes_type):
                 node = self.as_py_string_node(env)
-            else:
+            elif dst_type.is_pyobject:
                 self.fail_assignment(dst_type)
                 return self
+            else:
+                node = self
         elif dst_type.is_pyobject and dst_type is not py_object_type:
             self.check_for_coercion_error(dst_type, fail=True)
             return self
