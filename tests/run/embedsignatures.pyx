@@ -68,10 +68,10 @@ __doc__ = ur"""
     'with_doc_4(int a, str b, list c) -> str\n\n    Existing string\n    '
 
     >>> f_sd.__doc__
-    "f_sd(str s=u'spam')"
+    "f_sd(str s='spam')"
 
     >>> cf_sd.__doc__
-    "cf_sd(str s=u'spam') -> str"
+    "cf_sd(str s='spam') -> str"
 
     >>> types.__doc__
     'types(Ext a, int b, unsigned short c, float d, e)'
@@ -219,10 +219,10 @@ cpdef str with_doc_4(int a, str b, list c):
     """
     return b
 
-def f_sd(str s=u'spam'):
+def f_sd(str s='spam'):
     return s
 
-cpdef str cf_sd(str s=u'spam'):
+cpdef str cf_sd(str s='spam'):
     return s
 
 cpdef char f_c(char c):
