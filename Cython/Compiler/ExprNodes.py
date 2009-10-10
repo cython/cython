@@ -880,6 +880,9 @@ class StringNode(PyConstNode):
 
     def calculate_result_code(self):
         return self.result_code
+        
+    def compile_time_value(self, env):
+        return self.value
 
 
 class LongNode(AtomicExprNode):
