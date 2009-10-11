@@ -801,6 +801,10 @@ class FloatNode(ConstNode):
 
 
 class BytesNode(ConstNode):
+    # A char* or bytes literal
+    #
+    # value      BytesLiteral
+
     type = PyrexTypes.c_char_ptr_type
 
     def compile_time_value(self, denv):
@@ -899,27 +903,32 @@ class StringNode(PyConstNode):
     # A Python str object, i.e. a byte string in Python 2.x and a
     # unicode string in Python 3.x
     #
-    # Can be coerced to a BytesNode (and thus to C types), but not to
-    # a UnicodeNode.
-    #
-    # value    BytesLiteral
+    # value          BytesLiteral
+    # is_identifier  boolean
 
     type = Builtin.str_type
+    is_identifier = False
 
     def coerce_to(self, dst_type, env):
-        if dst_type is Builtin.str_type:
-            return self
-#        if dst_type is Builtin.bytes_type:
-#            # special case: bytes = 'str literal'
-#            return BytesNode(self.pos, value=self.value)
-        if not dst_type.is_pyobject:
-            return BytesNode(self.pos, value=self.value).coerce_to(dst_type, env)
-        if dst_type is not py_object_type:
+        if dst_type is not py_object_type and dst_type is not Builtin.str_type:
+#            if dst_type is Builtin.bytes_type:
+#                # special case: bytes = 'str literal'
+#                return BytesNode(self.pos, value=self.value)
+            if not dst_type.is_pyobject:
+                return BytesNode(self.pos, value=self.value).coerce_to(dst_type, env)
             self.check_for_coercion_error(dst_type, fail=True)
+
+        # this will be a unicode string in Py3, so make sure we can decode it
+        try:
+            self.value.decode(self.value.encoding)
+        except UnicodeDecodeError:
+            error(self.pos, "String decoding as '%s' failed. Consider using a byte string or unicode string explicitly, or adjust the source code encoding." % self.value.encoding)
+
         return self
 
     def generate_evaluation_code(self, code):
-        self.result_code = code.get_py_string_const(self.value, True)
+        self.result_code = code.get_py_string_const(
+            self.value, identifier=self.is_identifier, is_str=True)
 
     def get_constant_c_result_code(self):
         return None
@@ -929,6 +938,12 @@ class StringNode(PyConstNode):
         
     def compile_time_value(self, env):
         return self.value
+
+
+class IdentifierStringNode(StringNode):
+    # A special str value that represents an identifier (bytes in Py2,
+    # unicode in Py3).
+    is_identifier = True
 
 
 class LongNode(AtomicExprNode):

@@ -4757,7 +4757,7 @@ utility_function_predeclarations = \
 #define INLINE 
 #endif
 
-typedef struct {PyObject **p; char *s; long n; char is_unicode; char intern; char is_identifier;} __Pyx_StringTabEntry; /*proto*/
+typedef struct {PyObject **p; char *s; const long n; const char* encoding; const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
 
 """
 
@@ -5518,7 +5518,7 @@ impl = """
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         #if PY_MAJOR_VERSION < 3
-        if (t->is_unicode && (!t->is_identifier)) {
+        if (t->is_unicode) {
             *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
         } else if (t->intern) {
             *t->p = PyString_InternFromString(t->s);
@@ -5526,10 +5526,14 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
             *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
         }
         #else  /* Python 3+ has unicode identifiers */
-        if (t->is_identifier || (t->is_unicode && t->intern)) {
-            *t->p = PyUnicode_InternFromString(t->s);
-        } else if (t->is_unicode) {
-            *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+        if (t->is_unicode | t->is_str) {
+            if (t->intern) {
+                *t->p = PyUnicode_InternFromString(t->s);
+            } else if (t->encoding) {
+                *t->p = PyUnicode_Decode(t->s, t->n - 1, t->encoding, NULL);
+            } else {
+                *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+            }
         } else {
             *t->p = PyBytes_FromStringAndSize(t->s, t->n - 1);
         }
