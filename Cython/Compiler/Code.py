@@ -559,6 +559,9 @@ class GlobalState(object):
         py_string = c_string.get_py_string_const(text.encoding, identifier, is_str)
         return py_string
 
+    def get_interned_identifier(self, text):
+        return self.get_py_string_const(text, identifier=True)
+
     def new_string_const(self, text, byte_string):
         cname = self.new_string_const_cname(byte_string)
         c = StringConst(cname, text, byte_string)
@@ -604,7 +607,7 @@ class GlobalState(object):
     def add_cached_builtin_decl(self, entry):
         if Options.cache_builtins:
             if self.should_declare(entry.cname, entry):
-                interned_cname = self.intern_identifier(entry.name).cname
+                interned_cname = self.get_interned_identifier(entry.name).cname
                 self.put_pyobject_decl(entry)
                 w = self.parts['cached_builtins']
                 w.putln('%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
