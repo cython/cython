@@ -903,7 +903,7 @@ class StringNode(PyConstNode):
     # A Python str object, i.e. a byte string in Python 2.x and a
     # unicode string in Python 3.x
     #
-    # value          BytesLiteral
+    # value          BytesLiteral or EncodedString
     # is_identifier  boolean
 
     type = Builtin.str_type
@@ -919,11 +919,12 @@ class StringNode(PyConstNode):
             self.check_for_coercion_error(dst_type, fail=True)
 
         # this will be a unicode string in Py3, so make sure we can decode it
-        encoding = self.value.encoding or 'UTF-8'
-        try:
-            self.value.decode(encoding)
-        except UnicodeDecodeError:
-            error(self.pos, "String decoding as '%s' failed. Consider using a byte string or unicode string explicitly, or adjust the source code encoding." % encoding)
+        if not self.is_identifier:
+            encoding = self.value.encoding or 'UTF-8'
+            try:
+                self.value.decode(encoding)
+            except UnicodeDecodeError:
+                error(self.pos, "String decoding as '%s' failed. Consider using a byte string or unicode string explicitly, or adjust the source code encoding." % encoding)
 
         return self
 
