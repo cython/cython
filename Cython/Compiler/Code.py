@@ -318,7 +318,7 @@ class StringConst(object):
         else:
             if py_strings is None:
                 self.py_strings = {}
-            is_unicode = encoding is None
+            is_unicode = encoding is None and not is_str
             if identifier:
                 intern = True
             elif identifier is None:
@@ -332,10 +332,9 @@ class StringConst(object):
                 prefix = Naming.interned_str_prefix
             else:
                 prefix = Naming.py_const_prefix
-            pystring_cname = "%s%s%s_%s" % (
+            pystring_cname = "%s%s_%s" % (
                 prefix,
-                is_unicode and 'u' or 'b',
-                is_str and 's' or '',
+                (is_str and 's') or (is_unicode and 'u') or 'b',
                 self.cname[len(Naming.const_prefix):])
 
             py_string = PyStringConst(
