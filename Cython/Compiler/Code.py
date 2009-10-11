@@ -310,7 +310,7 @@ class StringConst(object):
         if encoding is not None:
             encoding = encoding.upper()
 
-        is_str = identifier or bool(is_str)
+        is_str = bool(identifier or is_str)
 
         key = (is_str, encoding)
         if py_strings is not None and key in py_strings:
