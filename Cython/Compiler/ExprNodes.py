@@ -919,10 +919,11 @@ class StringNode(PyConstNode):
             self.check_for_coercion_error(dst_type, fail=True)
 
         # this will be a unicode string in Py3, so make sure we can decode it
+        encoding = self.value.encoding or 'UTF-8'
         try:
-            self.value.decode(self.value.encoding)
+            self.value.decode(encoding)
         except UnicodeDecodeError:
-            error(self.pos, "String decoding as '%s' failed. Consider using a byte string or unicode string explicitly, or adjust the source code encoding." % self.value.encoding)
+            error(self.pos, "String decoding as '%s' failed. Consider using a byte string or unicode string explicitly, or adjust the source code encoding." % encoding)
 
         return self
 
