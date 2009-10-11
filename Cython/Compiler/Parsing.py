@@ -348,7 +348,7 @@ def p_call(s, function):
                     s.error("Expected an identifier before '='",
                         pos = arg.pos)
                 encoded_name = EncodedString(arg.name)
-                keyword = ExprNodes.StringNode(arg.pos, value = encoded_name)
+                keyword = ExprNodes.IdentifierStringNode(arg.pos, value = encoded_name)
                 arg = p_simple_expr(s)
                 keyword_args.append((keyword, arg))
             else:
@@ -1128,14 +1128,14 @@ def p_import_statement(s):
         else:
             if as_name and "." in dotted_name:
                 name_list = ExprNodes.ListNode(pos, args = [
-                        ExprNodes.StringNode(pos, value = EncodedString("*"))])
+                        ExprNodes.IdentifierStringNode(pos, value = EncodedString("*"))])
             else:
                 name_list = None
             stat = Nodes.SingleAssignmentNode(pos,
                 lhs = ExprNodes.NameNode(pos, 
                     name = as_name or target_name),
                 rhs = ExprNodes.ImportNode(pos, 
-                    module_name = ExprNodes.StringNode(
+                    module_name = ExprNodes.IdentifierStringNode(
                         pos, value = dotted_name),
                     name_list = name_list))
         stats.append(stat)
@@ -1193,7 +1193,7 @@ def p_from_import_statement(s, first_statement = 0):
         for (name_pos, name, as_name, kind) in imported_names:
             encoded_name = EncodedString(name)
             imported_name_strings.append(
-                ExprNodes.StringNode(name_pos, value = encoded_name))
+                ExprNodes.IdentifierStringNode(name_pos, value = encoded_name))
             items.append(
                 (name,
                  ExprNodes.NameNode(name_pos, 
@@ -1203,7 +1203,7 @@ def p_from_import_statement(s, first_statement = 0):
         dotted_name = EncodedString(dotted_name)
         return Nodes.FromImportStatNode(pos,
             module = ExprNodes.ImportNode(dotted_name_pos,
-                module_name = ExprNodes.StringNode(pos, value = dotted_name),
+                module_name = ExprNodes.IdentifierStringNode(pos, value = dotted_name),
                 name_list = import_list),
             items = items)
 
@@ -1713,7 +1713,7 @@ def p_positional_and_keyword_args(s, end_sy_set, type_positions=(), type_keyword
                     parsed_type = True
                 else:
                     arg = p_simple_expr(s)
-                keyword_node = ExprNodes.StringNode(
+                keyword_node = ExprNodes.IdentifierStringNode(
                     arg.pos, value = EncodedString(ident))
                 keyword_args.append((keyword_node, arg))
                 was_keyword = True
