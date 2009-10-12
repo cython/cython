@@ -3479,15 +3479,11 @@ class RaiseStatNode(StatNode):
             tb_code = self.exc_tb.py_result()
         else:
             tb_code = "0"
-        if self.exc_type or self.exc_value or self.exc_tb:
-            code.putln(
-                "__Pyx_Raise(%s, %s, %s);" % (
-                    type_code,
-                    value_code,
-                    tb_code))
-        else:
-            code.putln(
-                "__Pyx_ReRaise();")
+        code.putln(
+            "__Pyx_Raise(%s, %s, %s);" % (
+                type_code,
+                value_code,
+                tb_code))
         for obj in (self.exc_type, self.exc_value, self.exc_tb):
             if obj:
                 obj.generate_disposal_code(code)
@@ -4144,27 +4140,17 @@ class TryExceptStatNode(StatNode):
             for var in Naming.exc_save_vars:
                 code.put_xdecref(var, py_object_type)
             code.put_goto(old_error_label)
-            
-        if code.label_used(try_break_label):
-            code.put_label(try_break_label)
-            for var in Naming.exc_save_vars: code.put_xgiveref(var)
-            code.putln("__Pyx_ExceptionReset(%s);" %
-                       ', '.join(Naming.exc_save_vars))
-            code.put_goto(old_break_label)
-            
-        if code.label_used(try_continue_label):
-            code.put_label(try_continue_label)
-            for var in Naming.exc_save_vars: code.put_xgiveref(var)
-            code.putln("__Pyx_ExceptionReset(%s);" %
-                       ', '.join(Naming.exc_save_vars))
-            code.put_goto(old_continue_label)
 
-        if code.label_used(except_return_label):
-            code.put_label(except_return_label)
-            for var in Naming.exc_save_vars: code.put_xgiveref(var)
-            code.putln("__Pyx_ExceptionReset(%s);" %
-                       ', '.join(Naming.exc_save_vars))
-            code.put_goto(old_return_label)
+        for exit_label, old_label in zip(
+            [try_break_label, try_continue_label, except_return_label],
+            [old_break_label, old_continue_label, old_return_label]):
+
+            if code.label_used(exit_label):
+                code.put_label(exit_label)
+                for var in Naming.exc_save_vars: code.put_xgiveref(var)
+                code.putln("__Pyx_ExceptionReset(%s);" %
+                           ', '.join(Naming.exc_save_vars))
+                code.put_goto(old_label)
 
         if code.label_used(except_end_label):
             code.put_label(except_end_label)
@@ -5001,30 +4987,6 @@ raise_error:
     Py_XDECREF(type);
     Py_XDECREF(tb);
     return;
-}
-""")
-
-#------------------------------------------------------------------------------------
-
-reraise_utility_code = UtilityCode(
-proto = """
-static void __Pyx_ReRaise(void); /*proto*/
-""",
-impl = """
-static void __Pyx_ReRaise(void) {
-    PyThreadState *tstate = PyThreadState_GET();
-    PyObject* tmp_type = tstate->curexc_type;
-    PyObject* tmp_value = tstate->curexc_value;
-    PyObject* tmp_tb = tstate->curexc_traceback;
-    tstate->curexc_type = tstate->exc_type;
-    tstate->curexc_value = tstate->exc_value;
-    tstate->curexc_traceback = tstate->exc_traceback;
-    tstate->exc_type = 0;
-    tstate->exc_value = 0;
-    tstate->exc_traceback = 0;
-    Py_XDECREF(tmp_type);
-    Py_XDECREF(tmp_value);
-    Py_XDECREF(tmp_tb);
 }
 """)
 
