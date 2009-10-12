@@ -621,12 +621,14 @@ static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
 """,
 impl="""
 static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
+    const %(type)s neg_one = (%(type)s)-1, zero = 0;
+    const int is_unsigned = neg_one > zero;
     if (sizeof(%(type)s) < sizeof(long)) {
         long val = __Pyx_PyInt_AsLong(x);
         if (unlikely(val != (long)(%(type)s)val)) {
             if (!unlikely(val == -1 && PyErr_Occurred())) {
                 PyErr_SetString(PyExc_OverflowError,
-                    (((%(type)s)-1) > ((%(type)s)0) && unlikely(val < 0)) ?
+                    (is_unsigned && unlikely(val < 0)) ?
                     "can't convert negative value to %(type)s" :
                     "value too large to convert to %(type)s");
             }
@@ -644,10 +646,12 @@ static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
 """,
 impl="""
 static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
+    const %(type)s neg_one = (%(type)s)-1, zero = 0;
+    const int is_unsigned = neg_one > zero;
 #if PY_VERSION_HEX < 0x03000000
     if (likely(PyInt_Check(x))) {
         long val = PyInt_AS_LONG(x);
-        if (((%(type)s)-1) > ((%(type)s)0) && unlikely(val < 0)) {
+        if (is_unsigned && unlikely(val < 0)) {
             PyErr_SetString(PyExc_OverflowError,
                             "can't convert negative value to %(type)s");
             return (%(type)s)-1;
@@ -656,14 +660,16 @@ static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
     } else
 #endif
     if (likely(PyLong_Check(x))) {
-        if (((%(type)s)-1) > ((%(type)s)0) && unlikely(Py_SIZE(x) < 0)) {
-            PyErr_SetString(PyExc_OverflowError,
-                            "can't convert negative value to %(type)s");
-            return (%(type)s)-1;
+        if (is_unsigned) {
+            if (unlikely(Py_SIZE(x) < 0)) {
+                PyErr_SetString(PyExc_OverflowError,
+                                "can't convert negative value to %(type)s");
+                return (%(type)s)-1;
+            }
+            return PyLong_AsUnsigned%(TypeName)s(x);
+        } else {
+            return PyLong_As%(TypeName)s(x);
         }
-        return (((%(type)s)-1) < ((%(type)s)0)) ?
-               PyLong_As%(TypeName)s(x) :
-               PyLong_AsUnsigned%(TypeName)s(x);
     } else {
         %(type)s val;
         PyObject *tmp = __Pyx_PyNumber_Int(x);
@@ -681,35 +687,44 @@ static INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject *);
 """,
 impl="""
 static INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject* x) {
-  /**/ if (sizeof(%(type)s) == sizeof(char))
-     return (((%(type)s)-1) < ((%(type)s)0)) ?
-            (%(type)s)__Pyx_PyInt_AsSignedChar(x) :
-            (%(type)s)__Pyx_PyInt_AsUnsignedChar(x);
-  else if (sizeof(%(type)s) == sizeof(short))
-     return (((%(type)s)-1) < ((%(type)s)0)) ?
-            (%(type)s)__Pyx_PyInt_AsSignedShort(x) :
-            (%(type)s)__Pyx_PyInt_AsUnsignedShort(x);
-  else if (sizeof(%(type)s) == sizeof(int))
-     return (((%(type)s)-1) < ((%(type)s)0)) ?
-            (%(type)s)__Pyx_PyInt_AsSignedInt(x) :
-            (%(type)s)__Pyx_PyInt_AsUnsignedInt(x);
-  else if (sizeof(%(type)s) == sizeof(long))
-     return (((%(type)s)-1) < ((%(type)s)0)) ?
-            (%(type)s)__Pyx_PyInt_AsSignedLong(x) :
-            (%(type)s)__Pyx_PyInt_AsUnsignedLong(x);
-  else if (sizeof(%(type)s) == sizeof(PY_LONG_LONG))
-     return (((%(type)s)-1) < ((%(type)s)0)) ?
-            (%(type)s)__Pyx_PyInt_AsSignedLongLong(x) :
-            (%(type)s)__Pyx_PyInt_AsUnsignedLongLong(x);
+    const %(type)s neg_one = (%(type)s)-1, zero = 0;
+    const int is_unsigned = neg_one > zero;
+    if (sizeof(%(type)s) == sizeof(char)) {
+        if (is_unsigned)
+            return (%(type)s)__Pyx_PyInt_AsUnsignedChar(x);
+        else
+            return (%(type)s)__Pyx_PyInt_AsSignedChar(x);
+    } else if (sizeof(%(type)s) == sizeof(short)) {
+        if (is_unsigned)
+            return (%(type)s)__Pyx_PyInt_AsUnsignedShort(x);
+        else
+            return (%(type)s)__Pyx_PyInt_AsSignedShort(x);
+    } else if (sizeof(%(type)s) == sizeof(int)) {
+        if (is_unsigned)
+            return (%(type)s)__Pyx_PyInt_AsUnsignedInt(x);
+        else
+            return (%(type)s)__Pyx_PyInt_AsSignedInt(x);
+    } else if (sizeof(%(type)s) == sizeof(long)) {
+        if (is_unsigned)
+            return (%(type)s)__Pyx_PyInt_AsUnsignedLong(x);
+        else
+            return (%(type)s)__Pyx_PyInt_AsSignedLong(x);
+    } else if (sizeof(%(type)s) == sizeof(PY_LONG_LONG)) {
+        if (is_unsigned)
+            return (%(type)s)__Pyx_PyInt_AsUnsignedLongLong(x);
+        else
+            return (%(type)s)__Pyx_PyInt_AsSignedLongLong(x);
 #if 0
-  else if (sizeof(%(type)s) > sizeof(short) &&
-           sizeof(%(type)s) < sizeof(int)) /*  __int32 ILP64 ? */
-     return (((%(type)s)-1) < ((%(type)s)0)) ?
-            (%(type)s)__Pyx_PyInt_AsSignedInt(x) :
-            (%(type)s)__Pyx_PyInt_AsUnsignedInt(x);
+    } else if (sizeof(%(type)s) > sizeof(short) &&
+               sizeof(%(type)s) < sizeof(int)) { /*  __int32 ILP64 ? */
+        if (is_unsigned)
+            return (%(type)s)__Pyx_PyInt_AsUnsignedInt(x);
+        else
+            return (%(type)s)__Pyx_PyInt_AsSignedInt(x);
 #endif
-  PyErr_SetString(PyExc_TypeError, "%(TypeName)s");
-  return (%(type)s)-1;
+    }
+    PyErr_SetString(PyExc_TypeError, "%(TypeName)s");
+    return (%(type)s)-1;
 }
 """)
 
@@ -719,16 +734,21 @@ static INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s);
 """,
 impl="""
 static INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s val) {
-  /**/ if (sizeof(%(type)s) <  sizeof(long))
-      return PyInt_FromLong((long)val);
-  else if (sizeof(%(type)s) == sizeof(long))
-     return (((%(type)s)-1) < ((%(type)s)0)) ? 
-            PyInt_FromLong((long)val) :
-            PyLong_FromUnsignedLong((unsigned long)val);
-  else /* (sizeof(%(type)s) >  sizeof(long)) */
-     return (((%(type)s)-1) < ((%(type)s)0)) ?
-            PyLong_FromLongLong((PY_LONG_LONG)val) :
-            PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG)val);
+    const %(type)s neg_one = (%(type)s)-1, zero = 0;
+    const int is_unsigned = neg_one > zero;
+    if (sizeof(%(type)s) <  sizeof(long)) {
+        return PyInt_FromLong((long)val);
+    } else if (sizeof(%(type)s) == sizeof(long)) {
+        if (is_unsigned)
+            return PyLong_FromUnsignedLong((unsigned long)val);
+        else
+            return PyInt_FromLong((long)val);
+    } else { /* (sizeof(%(type)s) > sizeof(long)) */
+        if (is_unsigned)
+            return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG)val);
+        else
+            return PyLong_FromLongLong((PY_LONG_LONG)val);
+    }
 }
 """)
 
