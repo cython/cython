@@ -8,7 +8,7 @@ PY_LDFLAGS = $(shell $(PYTHON) -c 'from distutils.sysconfig import get_config_va
 PY_CPPFLAGS = $(shell $(PYTHON) -c 'from distutils.sysconfig import *; print "-I"+get_python_inc()')
 PY_LDLIBS = $(shell $(PYTHON) -c 'from distutils.sysconfig import get_config_var as g; print " ".join(["-lpython"+g("VERSION"), g("SYSLIBS"), g("LIBS"), g("LOCALMODLIBS")])')
 
-CFLAGS = -fPIC -g -O2 -Wall -Wextra
+CFLAGS = -fPIC -fno-strict-aliasing -g -O2 -Wall -Wextra
 CPPFLAGS = $(PY_CPPFLAGS)
 LDFLAGS = $(PY_LDFLAGS)
 LDLIBS = $(PY_LDLIBS)
