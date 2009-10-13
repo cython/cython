@@ -559,12 +559,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#include <math.h>")
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
         self.generate_includes(env, cimported_modules, code)
-        if env.directives['c99_complex']:
-            code.putln("#ifndef _Complex_I")
-            code.putln("#include <complex.h>")
+        if env.directives['ccomplex']:
+            code.putln("")
+            code.putln("#if !defined(CYTHON_CCOMPLEX)")
+            code.putln("#define CYTHON_CCOMPLEX 1")
             code.putln("#endif")
-        code.putln("#define __PYX_USE_C99_COMPLEX defined(_Complex_I)")
-        code.putln('')
+            code.putln("")
         code.put(Nodes.utility_function_predeclarations)
         code.put(PyrexTypes.type_conversion_predeclarations)
         code.put(Nodes.branch_prediction_macros)

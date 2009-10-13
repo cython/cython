@@ -396,7 +396,6 @@ class GlobalState(object):
 
     code_layout = [
         'h_code',
-        'complex_numbers_utility_code',
         'utility_code_proto_before_types',
         'type_declarations',
         'utility_code_proto',
