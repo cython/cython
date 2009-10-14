@@ -2198,11 +2198,6 @@ static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *s
 """,
 impl = r"""
 static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *sig) {
-#if PY_VERSION_HEX < 0x02050000
-    char *api = (char *)"%(API)s";
-#else
-    const char *api = "%(API)s";
-#endif
     PyObject *d = 0;
     PyObject *cobj = 0;
     union {
@@ -2210,19 +2205,22 @@ static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *s
         void *p;
     } tmp;
 
-
-    d = PyObject_GetAttrString(%(MODULE)s, api);
+    d = PyObject_GetAttrString(%(MODULE)s, (char *)"%(API)s");
     if (!d) {
         PyErr_Clear();
         d = PyDict_New();
         if (!d)
             goto bad;
         Py_INCREF(d);
-        if (PyModule_AddObject(%(MODULE)s, api, d) < 0)
+        if (PyModule_AddObject(%(MODULE)s, (char *)"%(API)s", d) < 0)
             goto bad;
     }
     tmp.fp = f;
+#if PY_VERSION_HEX < 0x03010000
     cobj = PyCObject_FromVoidPtrAndDesc(tmp.p, (void *)sig, 0);
+#else
+    cobj = PyCapsule_New(tmp.p, sig, 0);
+#endif
     if (!cobj)
         goto bad;
     if (PyDict_SetItemString(d, name, cobj) < 0)
@@ -2238,8 +2236,6 @@ bad:
 """ % {'MODULE': Naming.module_cname, 'API': Naming.api_name}
 )
 
-#------------------------------------------------------------------------------------
-
 function_import_utility_code = UtilityCode(
 proto = """
 static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**f)(void), const char *sig); /*proto*/
@@ -2248,21 +2244,17 @@ impl = """
 #ifndef __PYX_HAVE_RT_ImportFunction
 #define __PYX_HAVE_RT_ImportFunction
 static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**f)(void), const char *sig) {
-#if PY_VERSION_HEX < 0x02050000
-    char *api = (char *)"%(API)s";
-#else
-    const char *api = "%(API)s";
-#endif
     PyObject *d = 0;
     PyObject *cobj = 0;
-    const char *desc;
-    const char *s1, *s2;
     union {
         void (*fp)(void);
         void *p;
     } tmp;
+#if PY_VERSION_HEX < 0x03010000
+    const char *desc, *s1, *s2;
+#endif
 
-    d = PyObject_GetAttrString(module, api);
+    d = PyObject_GetAttrString(module, (char *)"%(API)s");
     if (!d)
         goto bad;
     cobj = PyDict_GetItemString(d, funcname);
@@ -2272,6 +2264,7 @@ static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**
                 PyModule_GetName(module), funcname);
         goto bad;
     }
+#if PY_VERSION_HEX < 0x03010000
     desc = (const char *)PyCObject_GetDesc(cobj);
     if (!desc)
         goto bad;
@@ -2284,7 +2277,18 @@ static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**
         goto bad;
     }
     tmp.p = PyCObject_AsVoidPtr(cobj);
+#else
+    if (!PyCapsule_IsValid(cobj, sig)) {
+        PyErr_Format(PyExc_TypeError,
+            "C function %%s.%%s has wrong signature (expected %%s, got %%s)",
+             PyModule_GetName(module), funcname, sig, PyCapsule_GetName(cobj));
+        goto bad;
+    }
+    tmp.p = PyCapsule_GetPointer(cobj, sig);
+#endif
     *f = tmp.fp;
+    if (!(*f))
+        goto bad;
     Py_DECREF(d);
     return 0;
 bad:
@@ -2294,6 +2298,8 @@ bad:
 #endif
 """ % dict(API = Naming.api_name)
 )
+
+#------------------------------------------------------------------------------------
 
 register_cleanup_utility_code = UtilityCode(
 proto = """

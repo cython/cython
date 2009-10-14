@@ -5425,22 +5425,20 @@ static int __Pyx_SetVtable(PyObject *dict, void *vtable); /*proto*/
 """,
 impl = """
 static int __Pyx_SetVtable(PyObject *dict, void *vtable) {
-    PyObject *pycobj = 0;
-    int result;
-    
-    pycobj = PyCObject_FromVoidPtr(vtable, 0);
-    if (!pycobj)
+#if PY_VERSION_HEX < 0x03010000
+    PyObject *ob = PyCObject_FromVoidPtr(vtable, 0);
+#else
+    PyObject *ob = PyCapsule_New(vtable, 0, 0);
+#endif
+    if (!ob)
         goto bad;
-    if (PyDict_SetItemString(dict, "__pyx_vtable__", pycobj) < 0)
+    if (PyDict_SetItemString(dict, "__pyx_vtable__", ob) < 0)
         goto bad;
-    result = 0;
-    goto done;
-
+    Py_DECREF(ob);
+    return 0;
 bad:
-    result = -1;
-done:
-    Py_XDECREF(pycobj);
-    return result;
+    Py_XDECREF(ob);
+    return -1;
 }
 """)
 
@@ -5452,23 +5450,21 @@ static int __Pyx_GetVtable(PyObject *dict, void *vtabptr); /*proto*/
 """,
 impl = r"""
 static int __Pyx_GetVtable(PyObject *dict, void *vtabptr) {
-    int result;
-    PyObject *pycobj;
-
-    pycobj = PyMapping_GetItemString(dict, (char *)"__pyx_vtable__");
-    if (!pycobj)
+    PyObject *ob = PyMapping_GetItemString(dict, (char *)"__pyx_vtable__");
+    if (!ob)
         goto bad;
-    *(void **)vtabptr = PyCObject_AsVoidPtr(pycobj);
+#if PY_VERSION_HEX < 0x03010000
+    *(void **)vtabptr = PyCObject_AsVoidPtr(ob);
+#else
+    *(void **)vtabptr = PyCapsule_GetPointer(ob, 0);
+#endif
     if (!*(void **)vtabptr)
         goto bad;
-    result = 0;
-    goto done;
-
+    Py_DECREF(ob);
+    return 0;
 bad:
-    result = -1;
-done:
-    Py_XDECREF(pycobj);
-    return result;
+    Py_XDECREF(ob);
+    return -1;
 }
 """)
 
