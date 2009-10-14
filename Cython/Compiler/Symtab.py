@@ -1450,15 +1450,22 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     }
     if (PyObject_TypeCheck(method, methoddescr_type)) { /* cdef classes */
         PyMethodDescrObject *descr = (PyMethodDescrObject *)method;
-        return PyDescr_NewClassMethod(descr->d_type, descr->d_method);
+        #if PY_VERSION_HEX < 0x03020000
+        PyTypeObject *d_type = descr->d_type;
+        #else
+        PyTypeObject *d_type = descr->d_common.d_type;
+        #endif
+        return PyDescr_NewClassMethod(d_type, descr->d_method);
     }
-    else if (PyMethod_Check(method)) {                                /* python classes */
+    else if (PyMethod_Check(method)) { /* python classes */
         return PyClassMethod_New(PyMethod_GET_FUNCTION(method));
     }
     else if (PyCFunction_Check(method)) {
         return PyClassMethod_New(method);
     }
-    PyErr_Format(PyExc_TypeError, "Class-level classmethod() can only be called on a method_descriptor or instance method.");
+    PyErr_Format(PyExc_TypeError,
+                 "Class-level classmethod() can only be called on"
+                 "a method_descriptor or instance method.");
     return NULL;
 }
 """)
