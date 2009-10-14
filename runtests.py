@@ -735,7 +735,7 @@ if __name__ == '__main__':
                              build_in_temp=True,
                              pyxbuild_dir=os.path.join(WORKDIR, "support"))
         sys.path.insert(0, os.path.split(libpath)[0])
-        CFLAGS.append("-DCYTHON_REFNANNY")
+        CFLAGS.append("-DCYTHON_REFNANNY=1")
 
     test_bugs = False
     if options.tickets:

@@ -1273,10 +1273,10 @@ class CCodeWriter(object):
         return self.globalstate.lookup_filename(filename)
 
     def put_setup_refcount_context(self, name):
-        self.putln('__Pyx_SetupRefcountContext("%s");' % name)
+        self.putln('__Pyx_RefNannySetupContext("%s");' % name)
 
     def put_finish_refcount_context(self):
-        self.putln("__Pyx_FinishRefcountContext();")
+        self.putln("__Pyx_RefNannyFinishContext();")
 
     def put_trace_call(self, name, pos):
         self.putln('__Pyx_TraceCall("%s", %s[%s], %s);' % (name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1]));
