@@ -290,6 +290,7 @@ class PyObjectConst(object):
 possible_unicode_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 possible_bytes_identifier = re.compile(r"(?![0-9])\w+$".encode('ASCII')).match
 nice_identifier = re.compile('^[a-zA-Z0-9_]+$').match
+find_alphanums = re.compile('([a-zA-Z0-9]+)').findall
 
 class StringConst(object):
     """Global info about a C string constant held by GlobalState.
@@ -307,18 +308,28 @@ class StringConst(object):
     def get_py_string_const(self, encoding, identifier=None, is_str=False):
         py_strings = self.py_strings
         text = self.text
-        if encoding is not None:
-            encoding = encoding.upper()
 
         is_str = bool(identifier or is_str)
+        is_unicode = encoding is None and not is_str
 
-        key = (is_str, encoding)
+        if encoding is None:
+            # unicode string
+            encoding_key = None
+        else:
+            # bytes or str
+            encoding = encoding.lower()
+            if encoding in ('utf8', 'utf-8', 'ascii', 'usascii', 'us-ascii'):
+                encoding = None
+                encoding_key = None
+            else:
+                encoding_key = ''.join(find_alphanums(encoding))
+
+        key = (is_str, is_unicode, encoding_key)
         if py_strings is not None and key in py_strings:
             py_string = py_strings[key]
         else:
             if py_strings is None:
                 self.py_strings = {}
-            is_unicode = encoding is None and not is_str
             if identifier:
                 intern = True
             elif identifier is None:
@@ -588,7 +599,7 @@ class GlobalState(object):
             return self.new_const_cname()
 
         if len(value) < 20 and nice_identifier(value):
-            return "%s%s" % (Naming.const_prefix, value)
+            return "%s_%s" % (Naming.const_prefix, value)
         else:
             return self.new_const_cname()
 
