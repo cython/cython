@@ -59,7 +59,11 @@ class build_ext(_build_ext):
     def build_extension(self, ext):
         if ext.language == 'c++':
             try:
-                self.compiler.compiler_so.remove('-Wstrict-prototypes')
+                try: # Py2.7+ & Py3.2+ 
+                    compiler_obj = self.compiler_obj
+                except AttributeError:
+                    compiler_obj = self.compiler
+                compiler_obj.compiler_so.remove('-Wstrict-prototypes')
             except Exception:
                 pass
         _build_ext.build_extension(self, ext)
