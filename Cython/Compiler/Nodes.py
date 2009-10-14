@@ -3134,7 +3134,7 @@ class InPlaceAssignmentNode(AssignmentNode):
                 c_op = "/"
             elif c_op == "**":
                 error(self.pos, "No C inplace power operator")
-            elif self.lhs.type.is_complex and not code.globalstate.directives['c99_complex']:
+            elif self.lhs.type.is_complex:
                 error(self.pos, "Inplace operators not implemented for complex types.")
                 
             # have to do assignment directly to avoid side-effects

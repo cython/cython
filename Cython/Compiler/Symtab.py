@@ -1157,7 +1157,7 @@ class StructOrUnionScope(Scope):
     def declare_cfunction(self, name, type, pos, 
                           cname = None, visibility = 'private', defining = 0,
                           api = 0, in_pxd = 0, modifiers = ()):
-        self.declare_var(name, type, pos, cname, visibility)
+        return self.declare_var(name, type, pos, cname, visibility)
 
 class ClassScope(Scope):
     #  Abstract base class for namespace of
