@@ -12,6 +12,9 @@ cdef double spam "c_spam" (int i, float f):
     cdef foo *p
     global b
     d = spam(a, f)
+    cdef foo q
+    q.i = 7
+    p = &q
     b = p.i
     p.i = x
     p.i = y
