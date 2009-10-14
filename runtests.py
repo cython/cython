@@ -427,9 +427,14 @@ class _FakeClass(object):
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
-class PartialTestResult(unittest._TextTestResult):
+try: # Py2.7+ and Py3.2+
+    from unittest.runner import _TextTestResult
+except ImportError:
+    from unittest import _TextTestResult
+
+class PartialTestResult(_TextTestResult):
     def __init__(self, base_result):
-        unittest._TextTestResult.__init__(
+        _TextTestResult.__init__(
             self, self._StringIO(), True,
             base_result.dots + base_result.showAll*2)
 
