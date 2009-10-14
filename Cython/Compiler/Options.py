@@ -65,7 +65,7 @@ option_defaults = {
     'cdivision_warnings': False,
     'always_allow_keywords': False,
     'wraparound' : True,
-    'c99_complex' : False, # Don't use macro wrappers for complex arith, not sure what to name this...
+    'ccomplex' : False, # use C99/C++ for complex types and arith
     'callspec' : "",
     'profile': False,
     'infer_types': False,

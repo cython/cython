@@ -544,9 +544,8 @@ class ExprNode(Node):
         elif src.type.is_pyobject:
             src = CoerceFromPyTypeNode(dst_type, src, env)
         elif (dst_type.is_complex 
-                and src_type != dst_type
-                and dst_type.assignable_from(src_type) 
-                and not env.directives['c99_complex']):
+              and src_type != dst_type
+              and dst_type.assignable_from(src_type)):
             src = CoerceToComplexNode(src, dst_type, env)
         else: # neither src nor dst are py types
             # Added the string comparison, since for c types that
@@ -1007,8 +1006,6 @@ class ImagNode(AtomicExprNode):
     def calculate_result_code(self):
         if self.type.is_pyobject:
             return self.result()
-        elif self.c99_complex:
-            return "%rj" % float(self.value)
         else:
             return "%s(0, %r)" % (self.type.from_parts, float(self.value))
 
@@ -1020,8 +1017,6 @@ class ImagNode(AtomicExprNode):
                     float(self.value),
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
-        else:
-            self.c99_complex = code.globalstate.directives['c99_complex']
         
 
 
@@ -3014,7 +3009,7 @@ class AttributeNode(ExprNode):
             else:
                 return self.member
         elif obj.type.is_complex:
-            return "__Pyx_%s_PART(%s)" % (self.member.upper(), obj_code)
+            return "__Pyx_C%s(%s)" % (self.member.upper(), obj_code)
         else:
             return "%s%s%s" % (obj_code, self.op, self.member)
     
@@ -4071,7 +4066,7 @@ class UnaryMinusNode(UnopNode):
         else:
             self.type_error()
         if self.type.is_complex:
-            self.infix = env.directives['c99_complex']
+            self.infix = False
     
     def py_operation_function(self):
         return "PyNumber_Negative"
@@ -4498,7 +4493,7 @@ class NumBinopNode(BinopNode):
         if not self.type:
             self.type_error()
             return
-        if self.type.is_complex and not env.directives['c99_complex']:
+        if self.type.is_complex:
             self.infix = False
         if not self.infix:
             self.operand1 = self.operand1.coerce_to(self.type, env)
@@ -5146,9 +5141,11 @@ class CmpNode(object):
                         richcmp_constants[op],
                         code.error_goto_if_null(result_code, self.pos)))
                 code.put_gotref(result_code)
-        elif operand1.type.is_complex and not code.globalstate.directives['c99_complex']:
-            if op == "!=": negation = "!"
-            else: negation = ""
+        elif operand1.type.is_complex:
+            if op == "!=": 
+                negation = "!"
+            else: 
+                negation = ""
             code.putln("%s = %s(%s%s(%s, %s));" % (
                 result_code, 
                 coerce_result,
@@ -5684,8 +5681,8 @@ class CoerceToComplexNode(CoercionNode):
 
     def calculate_result_code(self):
         if self.arg.type.is_complex:
-            real_part = "__Pyx_REAL_PART(%s)" % self.arg.result()
-            imag_part = "__Pyx_IMAG_PART(%s)" % self.arg.result()
+            real_part = "__Pyx_CREAL(%s)" % self.arg.result()
+            imag_part = "__Pyx_CIMAG(%s)" % self.arg.result()
         else:
             real_part = self.arg.result()
             imag_part = "0"
