@@ -4677,7 +4677,7 @@ class FromImportStatNode(StatNode):
     def analyse_expressions(self, env):
         import ExprNodes
         self.module.analyse_expressions(env)
-        self.item = ExprNodes.PyTempNode(self.pos, env)
+        self.item = ExprNodes.RawCNameExprNode(self.pos, py_object_type)
         self.interned_items = []
         for name, target in self.items:
             if name == '*':
@@ -4705,25 +4705,25 @@ class FromImportStatNode(StatNode):
                     Naming.import_star,
                     self.module.py_result(),
                     code.error_goto(self.pos)))
-        self.item.allocate(code)
+        item_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        self.item.set_cname(item_temp)
         for name, target, coerced_item in self.interned_items:
             cname = code.intern_identifier(name)
             code.putln(
                 '%s = PyObject_GetAttr(%s, %s); %s' % (
-                    self.item.result(), 
+                    item_temp,
                     self.module.py_result(),
                     cname,
-                    code.error_goto_if_null(self.item.result(), self.pos)))
-            code.put_gotref(self.item.py_result())
+                    code.error_goto_if_null(item_temp, self.pos)))
+            code.put_gotref(item_temp)
             if coerced_item is None:
                 target.generate_assignment_code(self.item, code)
             else:
                 coerced_item.allocate_temp_result(code)
                 coerced_item.generate_result_code(code)
                 target.generate_assignment_code(coerced_item, code)
-                if self.item.result() != coerced_item.result():
-                    code.put_decref_clear(self.item.result(), self.item.type)
-        self.item.release(code)
+            code.put_decref_clear(item_temp, py_object_type)
+        code.funcstate.release_temp(item_temp)
         self.module.generate_disposal_code(code)
         self.module.free_temps(code)
 
