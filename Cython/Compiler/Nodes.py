@@ -2486,15 +2486,15 @@ class OverrideCheckNode(StatNode):
         code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (
             self.func_node.result(), self_arg, interned_attr_cname, err))
         code.put_gotref(self.func_node.py_result())
-        is_builtin_function_or_method = 'PyCFunction_Check(%s)' % self.func_node.result()
-        is_overridden = '(PyCFunction_GET_FUNCTION(%s) != (void *)&%s)' % (
+        is_builtin_function_or_method = "PyCFunction_Check(%s)" % self.func_node.result()
+        is_overridden = "(PyCFunction_GET_FUNCTION(%s) != (void *)&%s)" % (
             self.func_node.result(), self.py_func.entry.func_cname)
-        code.putln('if (!%s || %s) {' % (is_builtin_function_or_method, is_overridden))
+        code.putln("if (!%s || %s) {" % (is_builtin_function_or_method, is_overridden))
         self.body.generate_execution_code(code)
-        code.putln('}')
-        code.put_decref_clear(self.func_node.result(), PyrexTypes.py_object_type)
         code.putln("}")
+        code.put_decref_clear(self.func_node.result(), PyrexTypes.py_object_type)
         self.func_node.release(code)
+        code.putln("}")
 
 class ClassDefNode(StatNode, BlockNode):
     pass
