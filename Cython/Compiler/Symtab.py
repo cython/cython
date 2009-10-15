@@ -363,6 +363,7 @@ class Scope(object):
             entry = self.declare_type(name, type, pos, cname,
                 visibility = visibility, defining = scope is not None)
             self.sue_entries.append(entry)
+            type.entry = entry
         else:
             if not (entry.is_type and entry.type.is_struct_or_union
                     and entry.type.kind == kind):
