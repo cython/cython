@@ -1665,6 +1665,25 @@ class PyTempNode(TempNode):
     def __init__(self, pos, env):
         TempNode.__init__(self, pos, PyrexTypes.py_object_type, env)
 
+class RawCNameExprNode(ExprNode):
+    subexprs = []
+    
+    def __init__(self, pos, type=None):
+        self.pos = pos
+        self.type = type
+
+    def analyse_types(self, env):
+        return self.type
+
+    def set_cname(self, cname):
+        self.cname = cname
+
+    def result(self):
+        return self.cname
+
+    def generate_result_code(self, code):
+        pass
+
 
 #-------------------------------------------------------------------
 #
