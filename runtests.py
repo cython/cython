@@ -387,7 +387,7 @@ class CythonRunTestCase(CythonCompileTestCase):
             pass
 
     def run_doctests(self, module_name, result):
-        if sys.version_info[0] >= 3 or not hasattr(os, 'forkx'):
+        if sys.version_info[0] >= 3 or not hasattr(os, 'fork'):
             doctest.DocTestSuite(module_name).run(result)
             return
 
