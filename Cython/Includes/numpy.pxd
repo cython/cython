@@ -17,7 +17,7 @@
 DEF _buffer_format_string_len = 255
 
 cimport python_buffer as pybuf
-from python_object cimport PyObject
+from python_ref cimport PyObject
 cimport stdlib
 cimport stdio
 
@@ -151,6 +151,7 @@ cdef extern from "numpy/arrayobject.h":
             npy_intp *shape "dimensions" 
             npy_intp *strides
             dtype descr
+            PyObject* base
 
         # Note: This syntax (function definition in pxd files) is an
         # experimental exception made for __getbuffer__ and __releasebuffer__
