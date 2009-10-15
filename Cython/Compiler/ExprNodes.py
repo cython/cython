@@ -4187,14 +4187,19 @@ class TypecastNode(ExprNode):
                 self.result_ctype = py_object_type
                 self.operand = self.operand.coerce_to_pyobject(env)
             else:
-                if not (self.operand.type.is_ptr and self.operand.type.base_type.is_void):
+                if self.operand.type.is_ptr:
+                    if not (self.operand.type.base_type.is_void or self.operand.type.base_type.is_struct):
+                        error(self.pos, "Python objects cannot be cast from pointers of primitive types")
+                else:
+                    # Should this be an error? 
                     warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.operand.type, self.type))
                 self.operand = self.operand.coerce_to_simple(env)
         elif from_py and not to_py:
             if self.type.create_from_py_utility_code(env):
                 self.operand = self.operand.coerce_to(self.type, env)
-            elif self.type.is_ptr and not (self.type.base_type.is_void or self.type.base_type.is_struct):
-                error(self.pos, "Python objects cannot be casted to pointers of primitive types")
+            elif self.type.is_ptr:
+                if not (self.type.base_type.is_void or self.type.base_type.is_struct):
+                    error(self.pos, "Python objects cannot be cast to pointers of primitive types")
             else:
                 warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.type, self.operand.type))
         elif from_py and to_py:
