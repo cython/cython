@@ -469,6 +469,13 @@ cdef extern from "numpy/arrayobject.h":
     object PyArray_Take(ndarray ap, object items, int axis)
     object PyArray_Put(ndarray ap, object items, object values)
 
+    void PyArray_ITER_RESET(flatiter it) nogil
+    void PyArray_ITER_NEXT(flatiter it) nogil
+    void PyArray_ITER_GOTO(flatiter it, npy_intp* destination) nogil
+    void PyArray_ITER_GOTO1D(flatiter it, npy_intp ind) nogil
+    void* PyArray_ITER_DATA(flatiter it) nogil
+    bint PyArray_ITER_NOTDONE(flatiter it) nogil
+
     void PyArray_MultiIter_RESET(broadcast multi) nogil
     void PyArray_MultiIter_NEXT(broadcast multi) nogil
     void PyArray_MultiIter_GOTO(broadcast multi, npy_intp dest) nogil
