@@ -10,7 +10,7 @@ import Naming
 class AutoTestDictTransform(ScopeTrackingTransform):
     # Handles autotestdict directive
 
-    blacklist = ['__cinit__', '__dealloc__']
+    blacklist = ['__cinit__', '__dealloc__', '__richcmp__']
 
     def visit_ModuleNode(self, node):
         self.scope_type = 'module'
