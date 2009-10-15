@@ -1535,6 +1535,8 @@ class CStructOrUnionType(CType):
     #  typedef_flag  boolean
     #  packed        boolean
     
+    # entry          Entry
+    
     is_struct_or_union = 1
     has_attributes = 1
     
@@ -1563,8 +1565,7 @@ class CStructOrUnionType(CType):
                     self.to_py_function = None
                     self._convert_code = False
                     return False
-            entry = env.lookup(self.name)
-            forward_decl = (entry.visibility != 'extern')
+            forward_decl = (self.entry.visibility != 'extern')
             self._convert_code = StructUtilityCode(self, forward_decl)
         
         env.use_utility_code(self._convert_code)
