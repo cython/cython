@@ -116,7 +116,9 @@ _ERRORS = u"""
 39: 9: Constructing Python tuple not allowed without gil
 40: 8: Constructing Python list not allowed without gil
 41: 8: Constructing Python dict not allowed without gil
+42:12: Creating temporary Python reference not allowed without gil
 42:12: Truth-testing Python object not allowed without gil
+42:17: Creating temporary Python reference not allowed without gil
 43:13: Python type test not allowed without gil
 45:10: Operation not allowed without gil
 46:8: Operation not allowed without gil
