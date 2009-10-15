@@ -2582,7 +2582,7 @@ def p_compiler_directive_comments(s):
         if m:
             name = m.group(1)
             try:
-                value = Options.parse_option_value(str(name), str(m.group(2).strip()))
+                value = Options.parse_directive_value(str(name), str(m.group(2).strip()))
                 if value is not None: # can be False!
                     result[name] = value
             except ValueError, e:
@@ -2593,7 +2593,7 @@ def p_compiler_directive_comments(s):
 def p_module(s, pxd, full_module_name):
     pos = s.position()
 
-    option_comments = p_compiler_directive_comments(s)
+    directive_comments = p_compiler_directive_comments(s)
     s.parse_comments = False
 
     doc = p_doc_string(s)
@@ -2608,7 +2608,7 @@ def p_module(s, pxd, full_module_name):
             repr(s.sy), repr(s.systring)))
     return ModuleNode(pos, doc = doc, body = body,
                       full_module_name = full_module_name,
-                      option_comments = option_comments)
+                      directive_comments = directive_comments)
 
 #----------------------------------------------
 #

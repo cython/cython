@@ -55,7 +55,7 @@ embed = False
 
 
 # Declare compiler directives
-option_defaults = {
+directive_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
     'embedsignature' : False,
@@ -77,35 +77,35 @@ option_defaults = {
 }
 
 # Override types possibilities above, if needed
-option_types = {}
+directive_types = {}
 
-for key, val in option_defaults.items():
-    if key not in option_types:
-        option_types[key] = type(val)
+for key, val in directive_defaults.items():
+    if key not in directive_types:
+        directive_types[key] = type(val)
 
-option_scopes = { # defaults to available everywhere
+directive_scopes = { # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'autotestdict' : ('module',),
     'test_assert_path_exists' : ('function',),
     'test_fail_if_path_exists' : ('function',),
 }
 
-def parse_option_value(name, value):
+def parse_directive_value(name, value):
     """
     Parses value as an option value for the given name and returns
     the interpreted value. None is returned if the option does not exist.    
 
-    >>> print parse_option_value('nonexisting', 'asdf asdfd')
+    >>> print parse_directive_value('nonexisting', 'asdf asdfd')
     None
-    >>> parse_option_value('boundscheck', 'True')
+    >>> parse_directive_value('boundscheck', 'True')
     True
-    >>> parse_option_value('boundscheck', 'true')
+    >>> parse_directive_value('boundscheck', 'true')
     Traceback (most recent call last):
        ...
     ValueError: boundscheck directive must be set to True or False
     
     """
-    type = option_types.get(name)
+    type = directive_types.get(name)
     if not type: return None
     if type is bool:
         if value == "True": return True
@@ -119,25 +119,25 @@ def parse_option_value(name, value):
     else:
         assert False
 
-def parse_option_list(s):
+def parse_directive_list(s):
     """
     Parses a comma-seperated list of pragma options. Whitespace
     is not considered.
 
-    >>> parse_option_list('      ')
+    >>> parse_directive_list('      ')
     {}
-    >>> (parse_option_list('boundscheck=True') ==
+    >>> (parse_directive_list('boundscheck=True') ==
     ... {'boundscheck': True})
     True
-    >>> parse_option_list('  asdf')
+    >>> parse_directive_list('  asdf')
     Traceback (most recent call last):
        ...
     ValueError: Expected "=" in option "asdf"
-    >>> parse_option_list('boundscheck=hey')
+    >>> parse_directive_list('boundscheck=hey')
     Traceback (most recent call last):
        ...
     ValueError: Must pass a boolean value for option "boundscheck"
-    >>> parse_option_list('unknown=True')
+    >>> parse_directive_list('unknown=True')
     Traceback (most recent call last):
        ...
     ValueError: Unknown option: "unknown"
@@ -149,7 +149,7 @@ def parse_option_list(s):
         if not '=' in item: raise ValueError('Expected "=" in option "%s"' % item)
         name, value = item.strip().split('=')
         try:
-            type = option_types[name]
+            type = directive_types[name]
         except KeyError:
             raise ValueError('Unknown option: "%s"' % name)
         if type is bool:

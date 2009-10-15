@@ -126,7 +126,7 @@ def parse_command_line(args):
                 options.emit_linenums = True
             elif option in ("-X", "--directive"):
                 try:
-                    options.compiler_directives = Options.parse_option_list(pop_arg())
+                    options.compiler_directives = Options.parse_directive_list(pop_arg())
                 except ValueError, e:
                     sys.stderr.write("Error in compiler directive: %s\n" % e.message)
                     sys.exit(1)
