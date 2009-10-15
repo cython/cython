@@ -1,8 +1,8 @@
 # Please see the Python header files (object.h) for docs
 
+from python_ref cimport PyObject
+
 cdef extern from "Python.h":
-    ctypedef void PyObject
-    
     ctypedef struct bufferinfo:
         void *buf     
         Py_ssize_t len
