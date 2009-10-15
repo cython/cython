@@ -153,10 +153,10 @@ class PostParse(CythonTransform):
     - For __cythonbufferdefaults__ the arguments are checked for
     validity.
 
-    CBufferAccessTypeNode has its options interpreted:
+    CBufferAccessTypeNode has its directives interpreted:
     Any first positional argument goes into the "dtype" attribute,
     any "ndim" keyword argument goes into the "ndim" attribute and
-    so on. Also it is checked that the option combination is valid.
+    so on. Also it is checked that the directive combination is valid.
     - __cythonbufferdefaults__ attributes are parsed and put into the
     type information.
 
@@ -304,14 +304,14 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
     
 class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     """
-    After parsing, options can be stored in a number of places:
+    After parsing, directives can be stored in a number of places:
     - #cython-comments at the top of the file (stored in ModuleNode)
     - Command-line arguments overriding these
-    - @cython.optionname decorators
-    - with cython.optionname: statements
+    - @cython.directivename decorators
+    - with cython.directivename: statements
 
     This transform is responsible for interpreting these various sources
-    and store the option in two ways:
+    and store the directive in two ways:
     - Set the directives attribute of the ModuleNode for global directives.
     - Use a CompilerDirectivesNode to override directives for a subtree.
 
@@ -330,16 +330,16 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     """
     special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof', 'typeof', 'cast', 'address', 'pointer', 'compiled', 'NULL'])
 
-    def __init__(self, context, compilation_option_overrides):
+    def __init__(self, context, compilation_directive_overrides):
         super(InterpretCompilerDirectives, self).__init__(context)
-        self.compilation_option_overrides = {}
-        for key, value in compilation_option_overrides.iteritems():
-            self.compilation_option_overrides[unicode(key)] = value
+        self.compilation_directive_overrides = {}
+        for key, value in compilation_directive_overrides.iteritems():
+            self.compilation_directive_overrides[unicode(key)] = value
         self.cython_module_names = set()
-        self.option_names = {}
+        self.directive_names = {}
 
     def check_directive_scope(self, pos, directive, scope):
-        legal_scopes = Options.option_scopes.get(directive, None)
+        legal_scopes = Options.directive_scopes.get(directive, None)
         if legal_scopes and scope not in legal_scopes:
             self.context.nonfatal_error(PostParseError(pos, 'The %s compiler directive '
                                         'is not allowed in %s scope' % (directive, scope)))
@@ -349,19 +349,19 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         
     # Set up processing and handle the cython: comments.
     def visit_ModuleNode(self, node):
-        options = copy.copy(Options.option_defaults)
-        for key, value in self.compilation_option_overrides.iteritems():
+        directives = copy.copy(Options.directive_defaults)
+        for key, value in self.compilation_directive_overrides.iteritems():
             if not self.check_directive_scope(node.pos, key, 'module'):
                 self.wrong_scope_error(node.pos, key, 'module')
-                del self.compilation_option_overrides[key]
+                del self.compilation_directive_overrides[key]
                 continue
-            if key in node.option_comments and node.option_comments[key] != value:
+            if key in node.directive_comments and node.directive_comments[key] != value:
                 warning(node.pos, "Compiler directive differs between environment and file header; this will change "
                         "in Cython 0.12. See http://article.gmane.org/gmane.comp.python.cython.devel/5233", 2)
-        options.update(node.option_comments)
-        options.update(self.compilation_option_overrides)
-        self.options = options
-        node.directives = options
+        directives.update(node.directive_comments)
+        directives.update(self.compilation_directive_overrides)
+        self.directives = directives
+        node.directives = directives
         self.visitchildren(node)
         node.cython_module_names = self.cython_module_names
         return node
@@ -380,15 +380,15 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         if node.module_name == u"cython":
             newimp = []
             for pos, name, as_name, kind in node.imported_names:
-                if (name in Options.option_types or 
+                if (name in Options.directive_types or 
                         name in self.special_methods or
                         PyrexTypes.parse_basic_type(name)):
                     if as_name is None:
                         as_name = name
-                    self.option_names[as_name] = name
+                    self.directive_names[as_name] = name
                     if kind is not None:
                         self.context.nonfatal_error(PostParseError(pos,
-                            "Compiler option imports must be plain imports"))
+                            "Compiler directive imports must be plain imports"))
                 else:
                     newimp.append((pos, name, as_name, kind))
             if not newimp:
@@ -400,10 +400,10 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         if node.module.module_name.value == u"cython":
             newimp = []
             for name, name_node in node.items:
-                if (name in Options.option_types or 
+                if (name in Options.directive_types or 
                         name in self.special_methods or
                         PyrexTypes.parse_basic_type(name)):
-                    self.option_names[name_node.name] = name
+                    self.directive_names[name_node.name] = name
                 else:
                     newimp.append((name, name_node))
             if not newimp:
@@ -426,12 +426,12 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         if node.name in self.cython_module_names:
             node.is_cython_module = True
         else:
-            node.cython_attribute = self.option_names.get(node.name)
+            node.cython_attribute = self.directive_names.get(node.name)
         return node
 
-    def try_to_parse_option(self, node):
-        # If node is the contents of an option (in a with statement or
-        # decorator), returns (optionname, value).
+    def try_to_parse_directive(self, node):
+        # If node is the contents of an directive (in a with statement or
+        # decorator), returns (directivename, value).
         # Otherwise, returns None
         optname = None
         if isinstance(node, CallNode):
@@ -439,56 +439,56 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             optname = node.function.as_cython_attribute()
 
         if optname:
-            optiontype = Options.option_types.get(optname)
-            if optiontype:
+            directivetype = Options.directive_types.get(optname)
+            if directivetype:
                 args, kwds = node.explicit_args_kwds()
-                if optiontype is bool:
+                if directivetype is bool:
                     if kwds is not None or len(args) != 1 or not isinstance(args[0], BoolNode):
                         raise PostParseError(node.function.pos,
-                            'The %s option takes one compile-time boolean argument' % optname)
+                            'The %s directive takes one compile-time boolean argument' % optname)
                     return (optname, args[0].value)
-                elif optiontype is str:
+                elif directivetype is str:
                     if kwds is not None or len(args) != 1 or not isinstance(args[0], (StringNode, UnicodeNode)):
                         raise PostParseError(node.function.pos,
-                            'The %s option takes one compile-time string argument' % optname)
+                            'The %s directive takes one compile-time string argument' % optname)
                     return (optname, str(args[0].value))
-                elif optiontype is dict:
+                elif directivetype is dict:
                     if len(args) != 0:
                         raise PostParseError(node.function.pos,
-                            'The %s option takes no prepositional arguments' % optname)
+                            'The %s directive takes no prepositional arguments' % optname)
                     return optname, dict([(key.value, value) for key, value in kwds.key_value_pairs])
-                elif optiontype is list:
+                elif directivetype is list:
                     if kwds and len(kwds) != 0:
                         raise PostParseError(node.function.pos,
-                            'The %s option takes no keyword arguments' % optname)
+                            'The %s directive takes no keyword arguments' % optname)
                     return optname, [ str(arg.value) for arg in args ]
                 else:
                     assert False
 
         return None
 
-    def visit_with_options(self, body, options):
-        oldoptions = self.options
-        newoptions = copy.copy(oldoptions)
-        newoptions.update(options)
-        self.options = newoptions
+    def visit_with_directives(self, body, directives):
+        olddirectives = self.directives
+        newdirectives = copy.copy(olddirectives)
+        newdirectives.update(directives)
+        self.directives = newdirectives
         assert isinstance(body, StatListNode), body
         retbody = self.visit_Node(body)
         directive = CompilerDirectivesNode(pos=retbody.pos, body=retbody,
-                                           directives=newoptions)
-        self.options = oldoptions
+                                           directives=newdirectives)
+        self.directives = olddirectives
         return directive
  
     # Handle decorators
     def visit_FuncDefNode(self, node):
-        options = []
+        directives = []
         if node.decorators:
-            # Split the decorators into two lists -- real decorators and options
+            # Split the decorators into two lists -- real decorators and directives
             realdecs = []
             for dec in node.decorators:
-                option = self.try_to_parse_option(dec.decorator)
-                if option is not None:
-                    options.append(option)
+                directive = self.try_to_parse_directive(dec.decorator)
+                if directive is not None:
+                    directives.append(directive)
                 else:
                     realdecs.append(dec)
             if realdecs and isinstance(node, CFuncDefNode):
@@ -496,12 +496,12 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             else:
                 node.decorators = realdecs
         
-        if options:
+        if directives:
             optdict = {}
-            options.reverse() # Decorators coming first take precedence
-            for option in options:
-                name, value = option
-                legal_scopes = Options.option_scopes.get(name, None)
+            directives.reverse() # Decorators coming first take precedence
+            for directive in directives:
+                name, value = directive
+                legal_scopes = Options.directive_scopes.get(name, None)
                 if not self.check_directive_scope(node.pos, name, 'function'):
                     continue
                 if name in optdict:
@@ -517,16 +517,16 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                 else:
                     optdict[name] = value
             body = StatListNode(node.pos, stats=[node])
-            return self.visit_with_options(body, optdict)
+            return self.visit_with_directives(body, optdict)
         else:
             return self.visit_Node(node)
     
     def visit_CVarDefNode(self, node):
         if node.decorators:
             for dec in node.decorators:
-                option = self.try_to_parse_option(dec.decorator)
-                if option is not None and option[0] == u'locals':
-                    node.directive_locals = option[1]
+                directive = self.try_to_parse_directive(dec.decorator)
+                if directive is not None and directive[0] == u'locals':
+                    node.directive_locals = directive[1]
                 else:
                     self.context.nonfatal_error(PostParseError(dec.pos,
                         "Cdef functions can only take cython.locals() decorator."))
@@ -535,15 +535,15 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                                    
     # Handle with statements
     def visit_WithStatNode(self, node):
-        option = self.try_to_parse_option(node.manager)
-        if option is not None:
+        directive = self.try_to_parse_directive(node.manager)
+        if directive is not None:
             if node.target is not None:
                 self.context.nonfatal_error(
-                    PostParseError(node.pos, "Compiler option with statements cannot contain 'as'"))
+                    PostParseError(node.pos, "Compiler directive with statements cannot contain 'as'"))
             else:
-                name, value = option
+                name, value = directive
                 if self.check_directive_scope(node.pos, name, 'with statement'):
-                    return self.visit_with_options(node.body, {name:value})
+                    return self.visit_with_directives(node.body, {name:value})
         return self.visit_Node(node)
 
 class WithTransform(CythonTransform, SkipDeclarations):
