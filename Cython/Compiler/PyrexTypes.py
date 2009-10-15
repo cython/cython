@@ -871,9 +871,22 @@ class CComplexType(CNumericType):
     def attributes_known(self):
         if self.scope is None:
             import Symtab
-            self.scope = Symtab.StructOrUnionScope(self.specalization_name())
-            self.scope.declare_var("real", self.real_type, None, "real")
-            self.scope.declare_var("imag", self.real_type, None, "imag")
+            self.scope = scope = Symtab.CClassScope(
+                    '',
+                    None,
+                    visibility="extern")
+            scope.parent_type = self
+
+            
+            scope.declare_var("real", self.real_type, None, "real", is_cdef=True)
+            scope.declare_var("imag", self.real_type, None, "imag", is_cdef=True)
+            entry = scope.declare_cfunction(
+                    "conjugate",
+                    CFuncType(self, [CFuncTypeArg("self", self, None)]),
+                    pos=None,
+                    defining=1,
+                    cname="__Pyx_c_conj%s" % self.real_type.math_h_modifier)
+
         return True
 
     def create_declaration_utility_code(self, env):

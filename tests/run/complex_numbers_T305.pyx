@@ -58,9 +58,11 @@ __doc__ = u"""
     >>> test_real_imag_assignment(1.5, -3.5)
     (1.5-3.5j)
 
-## XXX not implemented yet!
-## >>> test_conjugate(1+2j)
-## (1-2j)
+    >>> test_conjugate(2+3j)
+    (2-3j)
+
+    >>> test_conjugate_double(2+3j)
+    (2-3j)
 """
 
 #cdef extern from "complex.h":
@@ -109,6 +111,8 @@ def test_real_imag_assignment(object a, double b):
     z.imag = b
     return z
 
-## XXX not implemented yet!
-## def test_conjugate(float complex z):
-##     return z.conjugate()
+def test_conjugate(float complex z):
+    return z.conjugate()
+
+def test_conjugate_double(double complex z):
+    return z.conjugate()
