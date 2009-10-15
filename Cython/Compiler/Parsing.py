@@ -924,7 +924,7 @@ def flatten_parallel_assignments(input, output):
     #  individual elements.  This transformation is applied
     #  recursively, so that nested structures get matched as well.
     rhs = input[-1]
-    if not rhs.is_sequence_constructor:
+    if not rhs.is_sequence_constructor or not sum(lhs.is_sequence_constructor for lhs in input[:-1]):
         output.append(input)
         return
 

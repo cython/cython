@@ -412,7 +412,7 @@ class ExprNode(Node):
 
     def allocate_temp_result(self, code):
         if self.temp_code:
-            raise RuntimeError("Temp allocated multiple times")
+            raise RuntimeError("Temp allocated multiple times in %r: %r" % (self.__class__.__name__, self.pos))
         type = self.type
         if not type.is_void:
             if type.is_pyobject:
