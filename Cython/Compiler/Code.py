@@ -289,7 +289,8 @@ class PyObjectConst(object):
 
 possible_unicode_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 possible_bytes_identifier = re.compile(r"(?![0-9])\w+$".encode('ASCII')).match
-nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
+nice_identifier = re.compile('^[a-zA-Z0-9_]+$').match
+find_alphanums = re.compile('([a-zA-Z0-9]+)').findall
 
 class StringConst(object):
     """Global info about a C string constant held by GlobalState.
@@ -304,19 +305,31 @@ class StringConst(object):
         self.escaped_value = StringEncoding.escape_byte_string(byte_string)
         self.py_strings = None
 
-    def get_py_string_const(self, encoding, identifier=None):
+    def get_py_string_const(self, encoding, identifier=None, is_str=False):
         py_strings = self.py_strings
         text = self.text
-        if encoding is not None:
-            encoding = encoding.upper()
 
-        key = (bool(identifier), encoding)
+        is_str = bool(identifier or is_str)
+        is_unicode = encoding is None and not is_str
+
+        if encoding is None:
+            # unicode string
+            encoding_key = None
+        else:
+            # bytes or str
+            encoding = encoding.lower()
+            if encoding in ('utf8', 'utf-8', 'ascii', 'usascii', 'us-ascii'):
+                encoding = None
+                encoding_key = None
+            else:
+                encoding_key = ''.join(find_alphanums(encoding))
+
+        key = (is_str, is_unicode, encoding_key)
         if py_strings is not None and key in py_strings:
             py_string = py_strings[key]
         else:
             if py_strings is None:
                 self.py_strings = {}
-            is_unicode = encoding is None
             if identifier:
                 intern = True
             elif identifier is None:
@@ -330,14 +343,13 @@ class StringConst(object):
                 prefix = Naming.interned_str_prefix
             else:
                 prefix = Naming.py_const_prefix
-            pystring_cname = "%s%s%s_%s" % (
+            pystring_cname = "%s%s_%s" % (
                 prefix,
-                is_unicode and 'u' or 'b',
-                identifier and 'i' or '',
+                (is_str and 's') or (is_unicode and 'u') or 'b',
                 self.cname[len(Naming.const_prefix):])
 
             py_string = PyStringConst(
-                pystring_cname, is_unicode, bool(identifier), intern)
+                pystring_cname, encoding, is_unicode, is_str, intern)
             self.py_strings[key] = py_string
 
         return py_string
@@ -346,14 +358,16 @@ class PyStringConst(object):
     """Global info about a Python string constant held by GlobalState.
     """
     # cname       string
-    # unicode     boolean
+    # encoding    string
     # intern      boolean
-    # identifier  boolean
+    # is_unicode  boolean
+    # is_str      boolean
 
-    def __init__(self, cname, is_unicode, identifier=False, intern=False):
+    def __init__(self, cname, encoding, is_unicode, is_str=False, intern=False):
         self.cname = cname
-        self.identifier = identifier
-        self.unicode = is_unicode
+        self.encoding = encoding
+        self.is_str = is_str
+        self.is_unicode = is_unicode
         self.intern = intern
 
     def __lt__(self, other):
@@ -393,7 +407,6 @@ class GlobalState(object):
 
     code_layout = [
         'h_code',
-        'complex_numbers_utility_code',
         'utility_code_proto_before_types',
         'type_declarations',
         'utility_code_proto',
@@ -550,11 +563,14 @@ class GlobalState(object):
             c = self.new_string_const(text, byte_string)
         return c
 
-    def get_py_string_const(self, text, identifier=None):
+    def get_py_string_const(self, text, identifier=None, is_str=False):
         # return a Python string constant, creating a new one if necessary
         c_string = self.get_string_const(text)
-        py_string = c_string.get_py_string_const(text.encoding, identifier)
+        py_string = c_string.get_py_string_const(text.encoding, identifier, is_str)
         return py_string
+
+    def get_interned_identifier(self, text):
+        return self.get_py_string_const(text, identifier=True)
 
     def new_string_const(self, text, byte_string):
         cname = self.new_string_const_cname(byte_string)
@@ -582,7 +598,7 @@ class GlobalState(object):
             return self.new_const_cname()
 
         if len(value) < 20 and nice_identifier(value):
-            return "%s%s" % (Naming.const_prefix, value)
+            return "%s_%s" % (Naming.const_prefix, value)
         else:
             return self.new_const_cname()
 
@@ -601,7 +617,7 @@ class GlobalState(object):
     def add_cached_builtin_decl(self, entry):
         if Options.cache_builtins:
             if self.should_declare(entry.cname, entry):
-                interned_cname = self.get_py_string_const(entry.name, True).cname
+                interned_cname = self.get_interned_identifier(entry.name).cname
                 self.put_pyobject_decl(entry)
                 w = self.parts['cached_builtins']
                 w.putln('%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
@@ -649,18 +665,26 @@ class GlobalState(object):
             w.putln("static __Pyx_StringTabEntry %s[] = {" %
                                       Naming.stringtab_cname)
             for c_cname, _, py_string in py_strings:
+                if not py_string.is_str or not py_string.encoding or \
+                       py_string.encoding in ('ASCII', 'USASCII', 'US-ASCII',
+                                              'UTF8', 'UTF-8'):
+                    encoding = '0'
+                else:
+                    encoding = '"%s"' % py_string.encoding.lower()
+
                 decls_writer.putln(
                     "static PyObject *%s;" % py_string.cname)
                 w.putln(
-                    "{&%s, %s, sizeof(%s), %d, %d, %d}," % (
+                    "{&%s, %s, sizeof(%s), %s, %d, %d, %d}," % (
                     py_string.cname,
                     c_cname,
                     c_cname,
-                    py_string.unicode,
-                    py_string.intern,
-                    py_string.identifier
+                    encoding,
+                    py_string.is_unicode,
+                    py_string.is_str,
+                    py_string.intern
                     ))
-            w.putln("{0, 0, 0, 0, 0, 0}")
+            w.putln("{0, 0, 0, 0, 0, 0, 0}")
             w.putln("};")
 
             init_globals = self.parts['init_globals']
@@ -894,8 +918,8 @@ class CCodeWriter(object):
     def get_string_const(self, text):
         return self.globalstate.get_string_const(text).cname
 
-    def get_py_string_const(self, text, identifier=None):
-        return self.globalstate.get_py_string_const(text, identifier).cname
+    def get_py_string_const(self, text, identifier=None, is_str=False):
+        return self.globalstate.get_py_string_const(text, identifier, is_str).cname
 
     def get_argument_default_const(self, type):
         return self.globalstate.get_py_const(type).cname
@@ -904,7 +928,7 @@ class CCodeWriter(object):
         return self.get_py_string_const(text)
 
     def intern_identifier(self, text):
-        return self.get_py_string_const(text, True)
+        return self.get_py_string_const(text, identifier=True)
 
     # code generation
 
@@ -1249,10 +1273,10 @@ class CCodeWriter(object):
         return self.globalstate.lookup_filename(filename)
 
     def put_setup_refcount_context(self, name):
-        self.putln('__Pyx_SetupRefcountContext("%s");' % name)
+        self.putln('__Pyx_RefNannySetupContext("%s");' % name)
 
     def put_finish_refcount_context(self):
-        self.putln("__Pyx_FinishRefcountContext();")
+        self.putln("__Pyx_RefNannyFinishContext();")
 
     def put_trace_call(self, name, pos):
         self.putln('__Pyx_TraceCall("%s", %s[%s], %s);' % (name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1]));

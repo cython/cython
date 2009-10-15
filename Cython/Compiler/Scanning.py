@@ -454,7 +454,6 @@ class PyrexScanner(Scanner):
                 sy = systring
             else:
                 systring = EncodedString(systring)
-                systring.encoding = self.source_encoding
         self.sy = sy
         self.systring = systring
         if False: # debug_scanner:

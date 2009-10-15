@@ -46,8 +46,6 @@ True
 
 import sys
 
-IS_PY3 = sys.version_info[0] >= 3
-
 cdef class cy_iterator(object):
     def __iter__(self):
         return self

@@ -125,6 +125,7 @@ from python_mem cimport *
 from python_tuple cimport *
 from python_list cimport *
 from python_object cimport *
+from python_cobject cimport *
 from python_sequence cimport *
 from python_mapping cimport *
 from python_iterator cimport *

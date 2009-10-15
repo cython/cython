@@ -23,7 +23,7 @@ def simple():
     b = b"abc"
     assert typeof(b) == "char *", typeof(b)
     s = "abc"
-    assert typeof(s) == "Python object", typeof(s)
+    assert typeof(s) == "str object", typeof(s)
     u = u"xyz"
     assert typeof(u) == "unicode object", typeof(u)
     L = [1,2,3]

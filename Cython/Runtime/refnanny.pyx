@@ -69,7 +69,7 @@ cdef void report_unraisable(object e):
 # exception has been fetched, in case we are called from
 # exception-handling code.
 
-cdef PyObject* NewContext(char* funcname, int lineno, char* filename) except NULL:
+cdef PyObject* SetupContext(char* funcname, int lineno, char* filename) except NULL:
     if Context is None:
         # Context may be None during finalize phase.
         # In that case, we don't want to be doing anything fancy
@@ -143,23 +143,23 @@ cdef void FinishContext(PyObject** ctx):
     ctx[0] = NULL
     PyErr_Restore(type, value, tb)
 
-cdef extern from "Python.h":
-    object PyCObject_FromVoidPtr(void*, void (*)(void*))
-
-ctypedef struct RefnannyAPIStruct:
+ctypedef struct RefNannyAPIStruct:
   void (*INCREF)(PyObject*, PyObject*, int)
   void (*DECREF)(PyObject*, PyObject*, int)
   void (*GOTREF)(PyObject*, PyObject*, int)
   void (*GIVEREF)(PyObject*, PyObject*, int)
-  PyObject* (*NewContext)(char*, int, char*) except NULL
+  PyObject* (*SetupContext)(char*, int, char*) except NULL
   void (*FinishContext)(PyObject**)
 
-cdef RefnannyAPIStruct api
+cdef RefNannyAPIStruct api
 api.INCREF = INCREF
 api.DECREF =  DECREF
 api.GOTREF =  GOTREF
 api.GIVEREF = GIVEREF
-api.NewContext = NewContext
+api.SetupContext = SetupContext
 api.FinishContext = FinishContext
 
-RefnannyAPI = PyCObject_FromVoidPtr(<void*>&api, NULL)
+cdef extern from "Python.h":
+    object PyLong_FromVoidPtr(void*)
+
+RefNannyAPI = PyLong_FromVoidPtr(<void*>&api)
