@@ -4862,8 +4862,8 @@ class BoolBinopNode(ExprNode):
         
         # For what we're about to do, it's vital that
         # both operands be temp nodes.
-        self.operand1 = self.operand1.coerce_to_temp(env)
-        self.operand2 = self.operand2.coerce_to_temp(env)
+        self.operand1 = self.operand1.coerce_to_simple(env)
+        self.operand2 = self.operand2.coerce_to_simple(env)
         self.is_temp = 1
 
     gil_message = "Truth-testing Python object"
