@@ -17,7 +17,7 @@
 DEF _buffer_format_string_len = 255
 
 cimport python_buffer as pybuf
-from python_ref cimport PyObject
+from python_ref cimport PyObject, Py_XINCREF, Py_XDECREF
 cimport stdlib
 cimport stdio
 
@@ -904,5 +904,22 @@ cdef extern from "numpy/ufuncobject.h":
               int, char *, char *, int, char *)
 
 
-
     void import_ufunc()
+
+cdef inline void set_array_base(ndarray arr, object base):
+     cdef PyObject* baseptr
+     cdef ndarray raw = arr
+     if base is None:
+         baseptr = NULL
+     else:
+         baseptr = <PyObject*>base
+         Py_XINCREF(baseptr) # important to do this before decref below!
+     Py_XDECREF(raw.base)
+     raw.base = baseptr
+
+cdef inline object get_array_base(ndarray arr):
+    cdef ndarray raw = arr
+    if raw.base == NULL:
+        return None
+    else:
+        return <object>raw.base
