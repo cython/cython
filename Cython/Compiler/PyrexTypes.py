@@ -1590,12 +1590,7 @@ class CStructOrUnionType(CType):
             return False
 
     def __hash__(self):
-        try:
-            return self.__hashval
-        except AttributeError:
-            hashval = self.__hashval = hash(self.cname) ^ (sum([
-                hash(field.name) for field in self.scope.var_entries]) % 0xffff)
-            return hashval
+        return hash(self.cname) ^ hash(self.kind)
 
     def is_complete(self):
         return self.scope is not None
