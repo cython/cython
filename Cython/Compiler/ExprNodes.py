@@ -4206,14 +4206,19 @@ class TypecastNode(ExprNode):
                 self.result_ctype = py_object_type
                 self.operand = self.operand.coerce_to_pyobject(env)
             else:
-                if not (self.operand.type.is_ptr and self.operand.type.base_type.is_void):
+                if self.operand.type.is_ptr:
+                    if not (self.operand.type.base_type.is_void or self.operand.type.base_type.is_struct):
+                        error(self.pos, "Python objects cannot be cast from pointers of primitive types")
+                else:
+                    # Should this be an error? 
                     warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.operand.type, self.type))
                 self.operand = self.operand.coerce_to_simple(env)
         elif from_py and not to_py:
             if self.type.create_from_py_utility_code(env):
                 self.operand = self.operand.coerce_to(self.type, env)
-            elif self.type.is_ptr and not (self.type.base_type.is_void or self.type.base_type.is_struct):
-                error(self.pos, "Python objects cannot be casted to pointers of primitive types")
+            elif self.type.is_ptr:
+                if not (self.type.base_type.is_void or self.type.base_type.is_struct):
+                    error(self.pos, "Python objects cannot be cast to pointers of primitive types")
             else:
                 warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.type, self.operand.type))
         elif from_py and to_py:
@@ -4839,11 +4844,9 @@ class BoolBinopNode(ExprNode):
     subexprs = ['operand1', 'operand2']
     
     def infer_type(self, env):
-        if (self.operand1.infer_type(env).is_pyobject or
-            self.operand2.infer_type(env).is_pyobject):
-            return py_object_type
-        else:
-            return PyrexTypes.c_bint_type
+        type1 = self.operand1.infer_type(env)
+        type2 = self.operand2.infer_type(env)
+        return PyrexTypes.spanning_type(type1, type2)
 
     def calculate_constant_result(self):
         if self.operator == 'and':
@@ -4872,22 +4875,14 @@ class BoolBinopNode(ExprNode):
     def analyse_types(self, env):
         self.operand1.analyse_types(env)
         self.operand2.analyse_types(env)
-        if self.operand1.type.is_pyobject or \
-                self.operand2.type.is_pyobject:
-            self.operand1 = self.operand1.coerce_to_pyobject(env)
-            self.operand2 = self.operand2.coerce_to_pyobject(env)
-            self.type = py_object_type
-        else:
-            self.operand1 = self.operand1.coerce_to_boolean(env)
-            self.operand2 = self.operand2.coerce_to_boolean(env)
-            self.type = PyrexTypes.c_bint_type
-
-        # Below disabled for 
+        self.type = PyrexTypes.spanning_type(self.operand1.type, self.operand2.type)
+        self.operand1 = self.operand1.coerce_to(self.type, env)
+        self.operand2 = self.operand2.coerce_to(self.type, env)
         
         # For what we're about to do, it's vital that
         # both operands be temp nodes.
-#        self.operand1 = self.operand1.coerce_to_temp(env) #CTT
-#        self.operand2 = self.operand2.coerce_to_temp(env)
+        self.operand1 = self.operand1.coerce_to_simple(env)
+        self.operand2 = self.operand2.coerce_to_simple(env)
         self.is_temp = 1
 
     gil_message = "Truth-testing Python object"
@@ -4896,14 +4891,6 @@ class BoolBinopNode(ExprNode):
         self.operand1.check_const()
         self.operand2.check_const()
     
-    def calculate_result_code(self):
-        return "(%s %s %s)" % (
-            self.operand1.result(),
-            self.py_to_c_op[self.operator],
-            self.operand2.result())
-    
-    py_to_c_op = {'and': "&&", 'or': "||"}
-
     def generate_evaluation_code(self, code):
         code.mark_pos(self.pos)
         self.operand1.generate_evaluation_code(code)
