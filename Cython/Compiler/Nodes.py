@@ -3134,7 +3134,7 @@ class InPlaceAssignmentNode(AssignmentNode):
                 c_op = "/"
             elif c_op == "**":
                 error(self.pos, "No C inplace power operator")
-            elif self.lhs.type.is_complex and not code.globalstate.directives['c99_complex']:
+            elif self.lhs.type.is_complex:
                 error(self.pos, "Inplace operators not implemented for complex types.")
                 
             # have to do assignment directly to avoid side-effects
@@ -3479,15 +3479,11 @@ class RaiseStatNode(StatNode):
             tb_code = self.exc_tb.py_result()
         else:
             tb_code = "0"
-        if self.exc_type or self.exc_value or self.exc_tb:
-            code.putln(
-                "__Pyx_Raise(%s, %s, %s);" % (
-                    type_code,
-                    value_code,
-                    tb_code))
-        else:
-            code.putln(
-                "__Pyx_ReRaise();")
+        code.putln(
+            "__Pyx_Raise(%s, %s, %s);" % (
+                type_code,
+                value_code,
+                tb_code))
         for obj in (self.exc_type, self.exc_value, self.exc_tb):
             if obj:
                 obj.generate_disposal_code(code)
@@ -4141,30 +4137,21 @@ class TryExceptStatNode(StatNode):
         if error_label_used or not self.has_default_clause:
             if error_label_used:
                 code.put_label(except_error_label)
-            for var in Naming.exc_save_vars:
-                code.put_xdecref(var, py_object_type)
+            for var in Naming.exc_save_vars: code.put_xgiveref(var)
+            code.putln("__Pyx_ExceptionReset(%s);" %
+                       ', '.join(Naming.exc_save_vars))
             code.put_goto(old_error_label)
-            
-        if code.label_used(try_break_label):
-            code.put_label(try_break_label)
-            for var in Naming.exc_save_vars: code.put_xgiveref(var)
-            code.putln("__Pyx_ExceptionReset(%s);" %
-                       ', '.join(Naming.exc_save_vars))
-            code.put_goto(old_break_label)
-            
-        if code.label_used(try_continue_label):
-            code.put_label(try_continue_label)
-            for var in Naming.exc_save_vars: code.put_xgiveref(var)
-            code.putln("__Pyx_ExceptionReset(%s);" %
-                       ', '.join(Naming.exc_save_vars))
-            code.put_goto(old_continue_label)
 
-        if code.label_used(except_return_label):
-            code.put_label(except_return_label)
-            for var in Naming.exc_save_vars: code.put_xgiveref(var)
-            code.putln("__Pyx_ExceptionReset(%s);" %
-                       ', '.join(Naming.exc_save_vars))
-            code.put_goto(old_return_label)
+        for exit_label, old_label in zip(
+            [try_break_label, try_continue_label, except_return_label],
+            [old_break_label, old_continue_label, old_return_label]):
+
+            if code.label_used(exit_label):
+                code.put_label(exit_label)
+                for var in Naming.exc_save_vars: code.put_xgiveref(var)
+                code.putln("__Pyx_ExceptionReset(%s);" %
+                           ', '.join(Naming.exc_save_vars))
+                code.put_goto(old_label)
 
         if code.label_used(except_end_label):
             code.put_label(except_end_label)
@@ -4757,7 +4744,7 @@ utility_function_predeclarations = \
 #define INLINE 
 #endif
 
-typedef struct {PyObject **p; char *s; long n; char is_unicode; char intern; char is_identifier;} __Pyx_StringTabEntry; /*proto*/
+typedef struct {PyObject **p; char *s; const long n; const char* encoding; const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
 
 """
 
@@ -5001,30 +4988,6 @@ raise_error:
     Py_XDECREF(type);
     Py_XDECREF(tb);
     return;
-}
-""")
-
-#------------------------------------------------------------------------------------
-
-reraise_utility_code = UtilityCode(
-proto = """
-static void __Pyx_ReRaise(void); /*proto*/
-""",
-impl = """
-static void __Pyx_ReRaise(void) {
-    PyThreadState *tstate = PyThreadState_GET();
-    PyObject* tmp_type = tstate->curexc_type;
-    PyObject* tmp_value = tstate->curexc_value;
-    PyObject* tmp_tb = tstate->curexc_traceback;
-    tstate->curexc_type = tstate->exc_type;
-    tstate->curexc_value = tstate->exc_value;
-    tstate->curexc_traceback = tstate->exc_traceback;
-    tstate->exc_type = 0;
-    tstate->exc_value = 0;
-    tstate->exc_traceback = 0;
-    Py_XDECREF(tmp_type);
-    Py_XDECREF(tmp_value);
-    Py_XDECREF(tmp_tb);
 }
 """)
 
@@ -5518,7 +5481,7 @@ impl = """
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         #if PY_MAJOR_VERSION < 3
-        if (t->is_unicode && (!t->is_identifier)) {
+        if (t->is_unicode) {
             *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
         } else if (t->intern) {
             *t->p = PyString_InternFromString(t->s);
@@ -5526,10 +5489,14 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
             *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
         }
         #else  /* Python 3+ has unicode identifiers */
-        if (t->is_identifier || (t->is_unicode && t->intern)) {
-            *t->p = PyUnicode_InternFromString(t->s);
-        } else if (t->is_unicode) {
-            *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+        if (t->is_unicode | t->is_str) {
+            if (t->intern) {
+                *t->p = PyUnicode_InternFromString(t->s);
+            } else if (t->encoding) {
+                *t->p = PyUnicode_Decode(t->s, t->n - 1, t->encoding, NULL);
+            } else {
+                *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+            }
         } else {
             *t->p = PyBytes_FromStringAndSize(t->s, t->n - 1);
         }

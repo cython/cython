@@ -59,7 +59,11 @@ class build_ext(_build_ext):
     def build_extension(self, ext):
         if ext.language == 'c++':
             try:
-                self.compiler.compiler_so.remove('-Wstrict-prototypes')
+                try: # Py2.7+ & Py3.2+ 
+                    compiler_obj = self.compiler_obj
+                except AttributeError:
+                    compiler_obj = self.compiler
+                compiler_obj.compiler_so.remove('-Wstrict-prototypes')
             except Exception:
                 pass
         _build_ext.build_extension(self, ext)
@@ -427,9 +431,14 @@ class _FakeClass(object):
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
-class PartialTestResult(unittest._TextTestResult):
+try: # Py2.7+ and Py3.2+
+    from unittest.runner import _TextTestResult
+except ImportError:
+    from unittest import _TextTestResult
+
+class PartialTestResult(_TextTestResult):
     def __init__(self, base_result):
-        unittest._TextTestResult.__init__(
+        _TextTestResult.__init__(
             self, self._StringIO(), True,
             base_result.dots + base_result.showAll*2)
 
@@ -730,7 +739,7 @@ if __name__ == '__main__':
                              build_in_temp=True,
                              pyxbuild_dir=os.path.join(WORKDIR, "support"))
         sys.path.insert(0, os.path.split(libpath)[0])
-        CFLAGS.append("-DCYTHON_REFNANNY")
+        CFLAGS.append("-DCYTHON_REFNANNY=1")
 
     test_bugs = False
     if options.tickets:

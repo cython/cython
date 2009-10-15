@@ -32,6 +32,22 @@ class NotConstant(object): pass # just for the name
 not_a_constant = NotConstant()
 constant_value_not_set = object()
 
+# error messages when coercing from key[0] to key[1]
+find_coercion_error = {
+    # string related errors
+    (Builtin.unicode_type, Builtin.bytes_type) : "Cannot convert Unicode string to 'bytes' implicitly, encoding required.",
+    (Builtin.unicode_type, Builtin.str_type)   : "Cannot convert Unicode string to 'str' implicitly. This is not portable and requires explicit encoding.",
+    (Builtin.unicode_type, PyrexTypes.c_char_ptr_type) : "Unicode objects do not support coercion to C types.",
+    (Builtin.bytes_type, Builtin.unicode_type) : "Cannot convert 'bytes' object to unicode implicitly, decoding required",
+    (Builtin.bytes_type, Builtin.str_type) : "Cannot convert 'bytes' object to str implicitly. This is not portable to Py3.",
+    (Builtin.str_type, Builtin.unicode_type) : "str objects do not support coercion to unicode, use a unicode string literal instead (u'')",
+    (Builtin.str_type, Builtin.bytes_type) : "Cannot convert 'str' to 'bytes' implicitly. This is not portable.",
+    (Builtin.str_type, PyrexTypes.c_char_ptr_type) : "'str' objects do not support coercion to C types.",
+    (PyrexTypes.c_char_ptr_type, Builtin.unicode_type) : "Cannot convert 'char*' to unicode implicitly, decoding required",
+    (PyrexTypes.c_uchar_ptr_type, Builtin.unicode_type) : "Cannot convert 'char*' to unicode implicitly, decoding required",
+    }.get
+
+
 class ExprNode(Node):
     #  subexprs     [string]     Class var holding names of subexpr node attrs
     #  type         PyrexType    Type of the result
@@ -516,6 +532,9 @@ class ExprNode(Node):
         src_is_py_type = src_type.is_pyobject
         dst_is_py_type = dst_type.is_pyobject
 
+        if self.check_for_coercion_error(dst_type):
+            return self
+
         if dst_type.is_pyobject:
             if not src.type.is_pyobject:
                 src = CoerceToPyTypeNode(src, env)
@@ -525,18 +544,31 @@ class ExprNode(Node):
         elif src.type.is_pyobject:
             src = CoerceFromPyTypeNode(dst_type, src, env)
         elif (dst_type.is_complex 
-                and src_type != dst_type
-                and dst_type.assignable_from(src_type) 
-                and not env.directives['c99_complex']):
+              and src_type != dst_type
+              and dst_type.assignable_from(src_type)):
             src = CoerceToComplexNode(src, dst_type, env)
         else: # neither src nor dst are py types
             # Added the string comparison, since for c types that
             # is enough, but Cython gets confused when the types are
             # in different pxi files.
             if not (str(src.type) == str(dst_type) or dst_type.assignable_from(src_type)):
-                error(self.pos, "Cannot assign type '%s' to '%s'" %
-                    (src.type, dst_type))
+                self.fail_assignment(dst_type)
         return src
+
+    def fail_assignment(self, dst_type):
+        error(self.pos, "Cannot assign type '%s' to '%s'" % (self.type, dst_type))
+
+    def check_for_coercion_error(self, dst_type, fail=False, default=None):
+        if fail and not default:
+            default = "Cannot assign type '%(FROM)s' to '%(TO)s'"
+        message = find_coercion_error((self.type, dst_type), default)
+        if message is not None:
+            error(self.pos, message % {'FROM': self.type, 'TO': dst_type})
+            return True
+        if fail:
+            self.fail_assignment(dst_type)
+            return True
+        return False
 
     def coerce_to_pyobject(self, env):
         return self.coerce_to(PyrexTypes.py_object_type, env)
@@ -768,6 +800,10 @@ class FloatNode(ConstNode):
 
 
 class BytesNode(ConstNode):
+    # A char* or bytes literal
+    #
+    # value      BytesLiteral
+
     type = PyrexTypes.c_char_ptr_type
 
     def compile_time_value(self, denv):
@@ -799,10 +835,19 @@ class BytesNode(ConstNode):
                 return self
             return CharNode(self.pos, value=self.value)
 
-        if dst_type.is_pyobject and not self.type.is_pyobject:
-            node = self.as_py_string_node(env)
-        else:
-            node = self
+        node = self
+        if not self.type.is_pyobject:
+            if dst_type in (py_object_type, Builtin.bytes_type):
+                node = self.as_py_string_node(env)
+            elif dst_type.is_pyobject:
+                self.fail_assignment(dst_type)
+                return self
+            else:
+                node = self
+        elif dst_type.is_pyobject and dst_type is not py_object_type:
+            self.check_for_coercion_error(dst_type, fail=True)
+            return self
+
         # We still need to perform normal coerce_to processing on the
         # result, because we might be coercing to an extension type,
         # in which case a type test node will be needed.
@@ -832,13 +877,16 @@ class UnicodeNode(PyConstNode):
     # value    EncodedString
 
     type = unicode_type
-    
+
     def coerce_to(self, dst_type, env):
-        if dst_type.is_pyobject:
-            return self
-        else:
+        if dst_type is self.type:
+            pass
+        elif not dst_type.is_pyobject:
             error(self.pos, "Unicode objects do not support coercion to C types.")
-            return self
+        elif dst_type is not py_object_type:
+            if not self.check_for_coercion_error(dst_type):
+                self.fail_assignment(dst_type)
+        return self
 
     def generate_evaluation_code(self, code):
         self.result_code = code.get_py_string_const(self.value)
@@ -854,26 +902,34 @@ class StringNode(PyConstNode):
     # A Python str object, i.e. a byte string in Python 2.x and a
     # unicode string in Python 3.x
     #
-    # Can be coerced to a BytesNode (and thus to C types), but not to
-    # a UnicodeNode.
-    #
-    # value    BytesLiteral
+    # value          BytesLiteral or EncodedString
+    # is_identifier  boolean
 
-    type = PyrexTypes.py_object_type
+    type = Builtin.str_type
+    is_identifier = False
 
     def coerce_to(self, dst_type, env):
-        if dst_type is Builtin.unicode_type:
-            error(self.pos, "str objects do not support coercion to unicode, use a unicode string literal instead (u'')")
-            return self
-        if dst_type is Builtin.bytes_type:
-            return BytesNode(self.pos, value=self.value)
-        elif dst_type.is_pyobject:
-            return self
-        else:
-            return BytesNode(self.pos, value=self.value).coerce_to(dst_type, env)
+        if dst_type is not py_object_type and dst_type is not Builtin.str_type:
+#            if dst_type is Builtin.bytes_type:
+#                # special case: bytes = 'str literal'
+#                return BytesNode(self.pos, value=self.value)
+            if not dst_type.is_pyobject:
+                return BytesNode(self.pos, value=self.value).coerce_to(dst_type, env)
+            self.check_for_coercion_error(dst_type, fail=True)
+
+        # this will be a unicode string in Py3, so make sure we can decode it
+        if not self.is_identifier:
+            encoding = self.value.encoding or 'UTF-8'
+            try:
+                self.value.decode(encoding)
+            except UnicodeDecodeError:
+                error(self.pos, "String decoding as '%s' failed. Consider using a byte string or unicode string explicitly, or adjust the source code encoding." % encoding)
+
+        return self
 
     def generate_evaluation_code(self, code):
-        self.result_code = code.get_py_string_const(self.value, True)
+        self.result_code = code.get_py_string_const(
+            self.value, identifier=self.is_identifier, is_str=True)
 
     def get_constant_c_result_code(self):
         return None
@@ -883,6 +939,12 @@ class StringNode(PyConstNode):
         
     def compile_time_value(self, env):
         return self.value
+
+
+class IdentifierStringNode(StringNode):
+    # A special str value that represents an identifier (bytes in Py2,
+    # unicode in Py3).
+    is_identifier = True
 
 
 class LongNode(AtomicExprNode):
@@ -944,8 +1006,6 @@ class ImagNode(AtomicExprNode):
     def calculate_result_code(self):
         if self.type.is_pyobject:
             return self.result()
-        elif self.c99_complex:
-            return "%rj" % float(self.value)
         else:
             return "%s(0, %r)" % (self.type.from_parts, float(self.value))
 
@@ -957,8 +1017,6 @@ class ImagNode(AtomicExprNode):
                     float(self.value),
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
-        else:
-            self.c99_complex = code.globalstate.directives['c99_complex']
         
 
 
@@ -2951,7 +3009,7 @@ class AttributeNode(ExprNode):
             else:
                 return self.member
         elif obj.type.is_complex:
-            return "__Pyx_%s_PART(%s)" % (self.member.upper(), obj_code)
+            return "__Pyx_C%s(%s)" % (self.member.upper(), obj_code)
         else:
             return "%s%s%s" % (obj_code, self.op, self.member)
     
@@ -4008,7 +4066,7 @@ class UnaryMinusNode(UnopNode):
         else:
             self.type_error()
         if self.type.is_complex:
-            self.infix = env.directives['c99_complex']
+            self.infix = False
     
     def py_operation_function(self):
         return "PyNumber_Negative"
@@ -4435,7 +4493,7 @@ class NumBinopNode(BinopNode):
         if not self.type:
             self.type_error()
             return
-        if self.type.is_complex and not env.directives['c99_complex']:
+        if self.type.is_complex:
             self.infix = False
         if not self.infix:
             self.operand1 = self.operand1.coerce_to(self.type, env)
@@ -5083,9 +5141,11 @@ class CmpNode(object):
                         richcmp_constants[op],
                         code.error_goto_if_null(result_code, self.pos)))
                 code.put_gotref(result_code)
-        elif operand1.type.is_complex and not code.globalstate.directives['c99_complex']:
-            if op == "!=": negation = "!"
-            else: negation = ""
+        elif operand1.type.is_complex:
+            if op == "!=": 
+                negation = "!"
+            else: 
+                negation = ""
             code.putln("%s = %s(%s%s(%s, %s));" % (
                 result_code, 
                 coerce_result,
@@ -5621,8 +5681,8 @@ class CoerceToComplexNode(CoercionNode):
 
     def calculate_result_code(self):
         if self.arg.type.is_complex:
-            real_part = "__Pyx_REAL_PART(%s)" % self.arg.result()
-            imag_part = "__Pyx_IMAG_PART(%s)" % self.arg.result()
+            real_part = "__Pyx_CREAL(%s)" % self.arg.result()
+            imag_part = "__Pyx_CIMAG(%s)" % self.arg.result()
         else:
             real_part = self.arg.result()
             imag_part = "0"

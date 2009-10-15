@@ -52,13 +52,13 @@ def slice_list_assign(list l, value):
 
 
 def slice_charp(py_string_arg):
-    cdef str py_string = py_string_arg.encode(u'ASCII')
+    cdef bytes py_string = py_string_arg.encode(u'ASCII')
     cdef char* s = py_string
     return s[1:3].decode(u'ASCII')
 
 def slice_charp_repeat(py_string_arg):
-    cdef str py_string = py_string_arg.encode(u'ASCII')
+    cdef bytes py_string = py_string_arg.encode(u'ASCII')
     cdef char* s = py_string
-    cdef str slice_val = s[1:6]
+    cdef bytes slice_val = s[1:6]
     s = slice_val
     return s[1:3].decode(u'ASCII')

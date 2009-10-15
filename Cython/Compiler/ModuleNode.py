@@ -260,7 +260,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         globalstate.module_pos = self.pos
         globalstate.directives = self.directives
 
-        globalstate.use_utility_code(refcount_utility_code)
+        globalstate.use_utility_code(refnanny_utility_code)
 
         code = globalstate['before_global_var']
         code.putln('#define __Pyx_MODULE_NAME "%s"' % self.full_module_name)
@@ -454,6 +454,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyVarObject_HEAD_INIT(type, size) \\")
         code.putln("          PyObject_HEAD_INIT(type) size,")
         code.putln("  #define PyType_Modified(t)")
+        code.putln("  #define PyBytes_CheckExact PyString_CheckExact")
         code.putln("")
         code.putln("  typedef struct {")
         code.putln("     void *buf;")
@@ -495,7 +496,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("  #define PyBaseString_Type            PyUnicode_Type")
         code.putln("  #define PyString_Type                PyUnicode_Type")
-        code.putln("  #define PyString_CheckExact          PyBytes_CheckExact")
+        code.putln("  #define PyString_CheckExact          PyUnicode_CheckExact")
         code.putln("  #define PyInt_Type                   PyLong_Type")
         code.putln("  #define PyInt_Check(op)              PyLong_Check(op)")
         code.putln("  #define PyInt_CheckExact(op)         PyLong_CheckExact(op)")
@@ -558,12 +559,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#include <math.h>")
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
         self.generate_includes(env, cimported_modules, code)
-        if env.directives['c99_complex']:
-            code.putln("#ifndef _Complex_I")
-            code.putln("#include <complex.h>")
+        if env.directives['ccomplex']:
+            code.putln("")
+            code.putln("#if !defined(CYTHON_CCOMPLEX)")
+            code.putln("#define CYTHON_CCOMPLEX 1")
             code.putln("#endif")
-        code.putln("#define __PYX_USE_C99_COMPLEX defined(_Complex_I)")
-        code.putln('')
+            code.putln("")
         code.put(Nodes.utility_function_predeclarations)
         code.put(PyrexTypes.type_conversion_predeclarations)
         code.put(Nodes.branch_prediction_macros)
@@ -1633,18 +1634,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("{")
         tempdecl_code = code.insertion_point()
 
-        self.generate_filename_init_call(code)
-        code.putln("#ifdef CYTHON_REFNANNY")
-        code.putln("void* __pyx_refchk = NULL;")
-        code.putln("__Pyx_Refnanny = __Pyx_ImportRefcountAPI(\"refnanny\");")
-        code.putln("if (!__Pyx_Refnanny) {")
+        code.putln("#if CYTHON_REFNANNY")
+        code.putln("void* __pyx_refnanny = NULL;")
+        code.putln("__Pyx_RefNanny = __Pyx_RefNannyImportAPI(\"refnanny\");")
+        code.putln("if (!__Pyx_RefNanny) {")
         code.putln("  PyErr_Clear();")
-        code.putln("  __Pyx_Refnanny = __Pyx_ImportRefcountAPI(\"Cython.Runtime.refnanny\");")
-        code.putln("  if (!__Pyx_Refnanny)")
-        code.putln("      Py_FatalError(\"failed to import refnanny module\");")
+        code.putln("  __Pyx_RefNanny = __Pyx_RefNannyImportAPI(\"Cython.Runtime.refnanny\");")
+        code.putln("  if (!__Pyx_RefNanny)")
+        code.putln("      Py_FatalError(\"failed to import 'refnanny' module\");")
         code.putln("}")
-        code.putln("__pyx_refchk = __Pyx_Refnanny->NewContext(\"%s\", __LINE__, __FILE__);"% header3)
+        code.putln("__pyx_refnanny = __Pyx_RefNanny->SetupContext(\"%s\", __LINE__, __FILE__);"% header3)
         code.putln("#endif")
+
+        self.generate_filename_init_call(code)
 
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
         code.putln("#if PY_MAJOR_VERSION < 3");
@@ -2443,36 +2445,51 @@ bad:
 """ % {'IMPORT_STAR'     : Naming.import_star,
        'IMPORT_STAR_SET' : Naming.import_star_set }
         
-refcount_utility_code = UtilityCode(proto="""
-#ifdef CYTHON_REFNANNY
-typedef struct {
-  void (*INCREF)(void*, PyObject*, int);
-  void (*DECREF)(void*, PyObject*, int);
-  void (*GOTREF)(void*, PyObject*, int);
-  void (*GIVEREF)(void*, PyObject*, int);
-  void* (*NewContext)(const char*, int, const char*);
-  void (*FinishContext)(void**);
-} __Pyx_RefnannyAPIStruct;
-static __Pyx_RefnannyAPIStruct *__Pyx_Refnanny = NULL;
-#define __Pyx_ImportRefcountAPI(name) \
-  (__Pyx_RefnannyAPIStruct *) PyCObject_Import((char *)name, (char *)\"RefnannyAPI\")
-#define __Pyx_INCREF(r) __Pyx_Refnanny->INCREF(__pyx_refchk, (PyObject *)(r), __LINE__)
-#define __Pyx_DECREF(r) __Pyx_Refnanny->DECREF(__pyx_refchk, (PyObject *)(r), __LINE__)
-#define __Pyx_GOTREF(r) __Pyx_Refnanny->GOTREF(__pyx_refchk, (PyObject *)(r), __LINE__)
-#define __Pyx_GIVEREF(r) __Pyx_Refnanny->GIVEREF(__pyx_refchk, (PyObject *)(r), __LINE__)
-#define __Pyx_XDECREF(r) do { if((r) != NULL) {__Pyx_DECREF(r);} } while(0)
-#define __Pyx_SetupRefcountContext(name) \
-  void* __pyx_refchk = __Pyx_Refnanny->NewContext((name), __LINE__, __FILE__)
-#define __Pyx_FinishRefcountContext() \
-  __Pyx_Refnanny->FinishContext(&__pyx_refchk)
+refnanny_utility_code = UtilityCode(proto="""
+#ifndef CYTHON_REFNANNY
+  #define CYTHON_REFNANNY 0
+#endif
+
+#if CYTHON_REFNANNY
+  typedef struct {
+    void (*INCREF)(void*, PyObject*, int);
+    void (*DECREF)(void*, PyObject*, int);
+    void (*GOTREF)(void*, PyObject*, int);
+    void (*GIVEREF)(void*, PyObject*, int);
+    void* (*SetupContext)(const char*, int, const char*);
+    void (*FinishContext)(void**);
+  } __Pyx_RefNannyAPIStruct;
+  static __Pyx_RefNannyAPIStruct *__Pyx_RefNanny = NULL;
+  static __Pyx_RefNannyAPIStruct * __Pyx_RefNannyImportAPI(const char *modname) {
+    PyObject *m = NULL, *p = NULL;
+    void *r = NULL;
+    m = PyImport_ImportModule((char *)modname);
+    if (!m) goto end;
+    p = PyObject_GetAttrString(m, (char *)\"RefNannyAPI\");
+    if (!p) goto end;
+    r = PyLong_AsVoidPtr(p);
+  end:
+    Py_XDECREF(p);
+    Py_XDECREF(m);
+    return (__Pyx_RefNannyAPIStruct *)r;
+  }
+  #define __Pyx_RefNannySetupContext(name) \
+          void *__pyx_refnanny = __Pyx_RefNanny->SetupContext((name), __LINE__, __FILE__)
+  #define __Pyx_RefNannyFinishContext() \
+          __Pyx_RefNanny->FinishContext(&__pyx_refnanny)
+  #define __Pyx_INCREF(r) __Pyx_RefNanny->INCREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
+  #define __Pyx_DECREF(r) __Pyx_RefNanny->DECREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
+  #define __Pyx_GOTREF(r) __Pyx_RefNanny->GOTREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
+  #define __Pyx_GIVEREF(r) __Pyx_RefNanny->GIVEREF(__pyx_refnanny, (PyObject *)(r), __LINE__)
+  #define __Pyx_XDECREF(r) do { if((r) != NULL) {__Pyx_DECREF(r);} } while(0)
 #else
-#define __Pyx_INCREF(r) Py_INCREF(r)
-#define __Pyx_DECREF(r) Py_DECREF(r)
-#define __Pyx_GOTREF(r)
-#define __Pyx_GIVEREF(r)
-#define __Pyx_XDECREF(r) Py_XDECREF(r)
-#define __Pyx_SetupRefcountContext(name)
-#define __Pyx_FinishRefcountContext()
+  #define __Pyx_RefNannySetupContext(name)
+  #define __Pyx_RefNannyFinishContext()
+  #define __Pyx_INCREF(r) Py_INCREF(r)
+  #define __Pyx_DECREF(r) Py_DECREF(r)
+  #define __Pyx_GOTREF(r)
+  #define __Pyx_GIVEREF(r)
+  #define __Pyx_XDECREF(r) Py_XDECREF(r)
 #endif /* CYTHON_REFNANNY */
 #define __Pyx_XGIVEREF(r) do { if((r) != NULL) {__Pyx_GIVEREF(r);} } while(0)
 #define __Pyx_XGOTREF(r) do { if((r) != NULL) {__Pyx_GOTREF(r);} } while(0)
