@@ -2458,7 +2458,7 @@ class OverrideCheckNode(StatNode):
         else:
             first_arg = 1
         import ExprNodes
-        self.func_node = ExprNodes.PyTempNode(self.pos, env)
+        self.func_node = ExprNodes.RawCNameExprNode(self.pos, py_object_type)
         call_tuple = ExprNodes.TupleNode(self.pos, args=[ExprNodes.NameNode(self.pos, name=arg.name) for arg in self.args[first_arg:]])
         call_node = ExprNodes.SimpleCallNode(self.pos,
                                              function=self.func_node, 
@@ -2480,20 +2480,21 @@ class OverrideCheckNode(StatNode):
             code.putln("else {")
         else:
             code.putln("else if (unlikely(Py_TYPE(%s)->tp_dictoffset != 0)) {" % self_arg)
-        self.func_node.allocate(code)
-        err = code.error_goto_if_null(self.func_node.result(), self.pos)
+        func_node_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        self.func_node.set_cname(func_node_temp)
         # need to get attribute manually--scope would return cdef method
+        err = code.error_goto_if_null(func_node_temp, self.pos)
         code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (
-            self.func_node.result(), self_arg, interned_attr_cname, err))
-        code.put_gotref(self.func_node.py_result())
-        is_builtin_function_or_method = "PyCFunction_Check(%s)" % self.func_node.result()
+            func_node_temp, self_arg, interned_attr_cname, err))
+        code.put_gotref(func_node_temp)
+        is_builtin_function_or_method = "PyCFunction_Check(%s)" % func_node_temp
         is_overridden = "(PyCFunction_GET_FUNCTION(%s) != (void *)&%s)" % (
-            self.func_node.result(), self.py_func.entry.func_cname)
+            func_node_temp, self.py_func.entry.func_cname)
         code.putln("if (!%s || %s) {" % (is_builtin_function_or_method, is_overridden))
         self.body.generate_execution_code(code)
         code.putln("}")
-        code.put_decref_clear(self.func_node.result(), PyrexTypes.py_object_type)
-        self.func_node.release(code)
+        code.put_decref_clear(func_node_temp, PyrexTypes.py_object_type)
+        code.funcstate.release_temp(func_node_temp)
         code.putln("}")
 
 class ClassDefNode(StatNode, BlockNode):
