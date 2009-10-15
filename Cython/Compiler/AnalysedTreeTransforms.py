@@ -10,6 +10,8 @@ import Naming
 class AutoTestDictTransform(ScopeTrackingTransform):
     # Handles autotestdict directive
 
+    blacklist = ['__cinit__', '__dealloc__']
+
     def visit_ModuleNode(self, node):
         self.scope_type = 'module'
         self.scope_node = node
@@ -62,6 +64,8 @@ class AutoTestDictTransform(ScopeTrackingTransform):
                 parent = ModuleRefNode(pos)
                 name = node.entry.name
             elif self.scope_type in ('pyclass', 'cclass'):
+                if self.scope_type == 'cclass' and node.name in self.blacklist:
+                    return node
                 mod = ModuleRefNode(pos)
                 if self.scope_type == 'pyclass':
                     clsname = self.scope_node.name

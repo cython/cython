@@ -61,7 +61,7 @@ class MyClass:
     >>> True
     True
     """
-    
+
     def method(self):
         """>>> add_log("class method")"""
 
@@ -74,4 +74,22 @@ cdef class MyCdefClass:
     """
     def method(self):
         """>>> add_log("cdef class method")"""
+
+    def __cinit__(self):
+        """
+        Should not be included, as it can't be looked up with getattr
+
+        >>> True
+        False
+        """
+
+    def __dealloc__(self):
+        """
+        Should not be included, as it can't be looked up with getattr
+
+        >>> True
+        False
+        """
+
+
 
