@@ -1,8 +1,6 @@
+from python_ref cimport PyObject
+
 cdef extern from "Python.h":
-    ctypedef void PyObject
-    ctypedef void PyTypeObject
-    ctypedef struct FILE    
-        
 
     #####################################################################
     # 6.2 Number Protocol
@@ -203,7 +201,7 @@ cdef extern from "Python.h":
     # failure. The operation is done in-place when o1 supports
     # it. This is the equivalent of the Python statement "o1 |= o2".
 
-    int PyNumber_Coerce(PyObject **p1, PyObject **p2)
+    int PyNumber_Coerce(PyObject **p1, PyObject **p2) except -1
     # This function takes the addresses of two variables of type
     # PyObject*. If the objects pointed to by *p1 and *p2 have the
     # same type, increment their reference count and return 0
@@ -249,4 +247,5 @@ cdef extern from "Python.h":
     # integer or PY_SSIZE_T_MAX for a positive integer. 
 
     bint PyIndex_Check(object o)
-    # Returns True if o is an index integer (has the nb_index slot of the tp_as_number structure filled in).     
+    # Returns True if o is an index integer (has the nb_index slot of
+    # the tp_as_number structure filled in).

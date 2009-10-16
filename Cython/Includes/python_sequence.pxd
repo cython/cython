@@ -1,21 +1,21 @@
+from python_ref cimport PyObject
+
+cdef extern from "Python.h":
+
     ############################################################################
     # 6.3 Sequence Protocol
     ############################################################################
-
-cdef extern from "Python.h":
-    ctypedef void PyObject
-
 
     bint PySequence_Check(object o)
     # Return 1 if the object provides sequence protocol, and 0
     # otherwise. This function always succeeds.
 
-    Py_ssize_t PySequence_Size(object o)
+    Py_ssize_t PySequence_Size(object o) except -1
     # Returns the number of objects in sequence o on success, and -1
     # on failure. For objects that do not provide sequence protocol,
     # this is equivalent to the Python expression "len(o)".
 
-    Py_ssize_t PySequence_Length(object o)
+    Py_ssize_t PySequence_Length(object o) except -1
     # Alternate name for PySequence_Size(). 
 
     object PySequence_Concat(object o1, object o2)
@@ -54,37 +54,37 @@ cdef extern from "Python.h":
     # on failure. This is the equivalent of the Python expression
     # "o[i1:i2]".
 
-    int PySequence_SetItem(object o, Py_ssize_t i, object v)
+    int PySequence_SetItem(object o, Py_ssize_t i, object v) except -1
     # Assign object v to the ith element of o. Returns -1 on
     # failure. This is the equivalent of the Python statement "o[i] =
     # v". This function does not steal a reference to v.
 
-    int PySequence_DelItem(object o, Py_ssize_t i)
+    int PySequence_DelItem(object o, Py_ssize_t i) except -1
     # Delete the ith element of object o. Returns -1 on failure. This
     # is the equivalent of the Python statement "del o[i]".
 
-    int PySequence_SetSlice(object o, Py_ssize_t i1, Py_ssize_t i2, object v)
+    int PySequence_SetSlice(object o, Py_ssize_t i1, Py_ssize_t i2, object v) except -1
     # Assign the sequence object v to the slice in sequence object o
     # from i1 to i2. This is the equivalent of the Python statement
     # "o[i1:i2] = v".
 
-    int PySequence_DelSlice(object o, Py_ssize_t i1, Py_ssize_t i2)
+    int PySequence_DelSlice(object o, Py_ssize_t i1, Py_ssize_t i2) except -1
     # Delete the slice in sequence object o from i1 to i2. Returns -1
     # on failure. This is the equivalent of the Python statement "del
     # o[i1:i2]".
 
-    int PySequence_Count(object o, object value)
+    int PySequence_Count(object o, object value) except -1
     # Return the number of occurrences of value in o, that is, return
     # the number of keys for which o[key] == value. On failure, return
     # -1. This is equivalent to the Python expression
     # "o.count(value)".
 
-    int PySequence_Contains(object o, object value)
+    int PySequence_Contains(object o, object value) except -1
     # Determine if o contains value. If an item in o is equal to
     # value, return 1, otherwise return 0. On error, return -1. This
     # is equivalent to the Python expression "value in o".
 
-    int PySequence_Index(object o, object value)
+    int PySequence_Index(object o, object value) except -1
     # Return the first index i for which o[i] == value. On error,
     # return -1. This is equivalent to the Python expression
     # "o.index(value)".

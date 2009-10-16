@@ -1,5 +1,5 @@
 cdef extern from "Python.h":
-    ctypedef void PyObject
+    ctypedef unsigned long long PY_LONG_LONG
 
     ############################################################################
     # Integer Objects
@@ -48,7 +48,7 @@ cdef extern from "Python.h":
     # Create a new integer object with a value of ival. If the value
     # exceeds LONG_MAX, a long integer object is returned.
 
-    long PyInt_AsLong(object io)
+    long PyInt_AsLong(object io) except? -1
     # Will first attempt to cast the object to a PyIntObject, if it is
     # not already one, and then return its value. If there is an
     # error, -1 is returned, and the caller should check
@@ -64,7 +64,6 @@ cdef extern from "Python.h":
     # value as unsigned long. This function does not check for
     # overflow. 
 
-    ctypedef unsigned long long PY_LONG_LONG
     PY_LONG_LONG PyInt_AsUnsignedLongLongMask(object io)
     # Will first attempt to cast the object to a PyIntObject or
     # PyLongObject, if it is not already one, and then return its
