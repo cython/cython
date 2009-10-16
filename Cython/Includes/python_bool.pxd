@@ -1,5 +1,5 @@
+
 cdef extern from "Python.h":
-    ctypedef void PyObject
 
     ############################################################################
     # 7.2.2 Boolean Objects

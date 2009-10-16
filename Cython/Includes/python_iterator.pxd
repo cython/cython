@@ -3,7 +3,7 @@ cdef extern from "Python.h":
     ############################################################################
     # 6.5 Iterator Protocol
     ############################################################################
-    int PyIter_Check(object o)
+    bint PyIter_Check(object o)
     # Return true if the object o supports the iterator protocol. 
 
     object PyIter_Next(object o)
