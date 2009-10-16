@@ -1004,7 +1004,7 @@ proto="""
 """)
 
 complex_from_parts_utility_code = UtilityCode(
-proto_block='utility_code_proto_before_types',
+proto_block='utility_code_proto',
 proto="""
 #if CYTHON_CCOMPLEX
   #ifdef __cplusplus
