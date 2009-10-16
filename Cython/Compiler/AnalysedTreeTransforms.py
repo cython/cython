@@ -64,7 +64,11 @@ class AutoTestDictTransform(ScopeTrackingTransform):
                 parent = ModuleRefNode(pos)
                 name = node.entry.name
             elif self.scope_type in ('pyclass', 'cclass'):
-                if self.scope_type == 'cclass' and node.name in self.blacklist:
+                if isinstance(node, CFuncDefNode):
+                    name = node.py_func.name
+                else:
+                    name = node.name
+                if self.scope_type == 'cclass' and name in self.blacklist:
                     return node
                 mod = ModuleRefNode(pos)
                 if self.scope_type == 'pyclass':

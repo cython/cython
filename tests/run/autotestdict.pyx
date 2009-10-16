@@ -12,6 +12,7 @@ all_tests_run() is executed which does final validation.
 >>> items.sort()
 >>> for key, value in items:
 ...     print('%s ; %s' % (key, value))
+MyCdefClass.cpdef_method (line 78) ; >>> add_log("cpdef class method")
 MyCdefClass.method (line 75) ; >>> add_log("cdef class method")
 MyClass.method (line 65) ; >>> add_log("class method")
 doc_without_test (line 47) ; Some docs
@@ -21,7 +22,6 @@ myfunc (line 44) ; >>> add_log("def")
 """
 
 log = []
-
 
 cdef cdeffunc():
     """
@@ -74,6 +74,9 @@ cdef class MyCdefClass:
     """
     def method(self):
         """>>> add_log("cdef class method")"""
+
+    cpdef cpdef_method(self):
+        """>>> add_log("cpdef class method")"""
 
     def __cinit__(self):
         """
