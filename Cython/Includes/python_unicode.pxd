@@ -1,5 +1,5 @@
 cdef extern from *:
-    ctypedef int Py_UNICODE
+    ctypedef unsigned int Py_UNICODE
 
     # Return true if the object o is a Unicode object or an instance
     # of a Unicode subtype. Changed in version 2.2: Allowed subtypes

@@ -1,5 +1,5 @@
+
 cdef extern from "Python.h":
-    ctypedef void PyObject
     ctypedef struct Py_complex
 
     ############################################################################
