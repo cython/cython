@@ -499,7 +499,7 @@ class Scope(object):
             if entry.as_module:
                 scope = entry.as_module
             else:
-                error(pos, "'%s' is not a cimported module" % scope.qualified_name)
+                error(pos, "'%s' is not a cimported module" % '.'.join(path))
                 return None
         return scope
         
