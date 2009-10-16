@@ -1,12 +1,18 @@
+from python_ref cimport PyObject
+
 cdef extern from "Python.h":
-    ctypedef void PyObject
+
     ############################################################################
     # 7.5.3 Function Objects
     ############################################################################
     # There are a few functions specific to Python functions.
+
     # PyFunctionObject
-    # The C structure used for functions. 
+    #
+    # The C structure used for functions.
+
     # PyTypeObject PyFunction_Type
+    #
     # This is an instance of PyTypeObject and represents the Python
     # function type. It is exposed to Python programmers as
     # types.FunctionType.
@@ -43,7 +49,7 @@ cdef extern from "Python.h":
     # Return the argument default values of the function object
     # op. This can be a tuple of arguments or NULL.
 
-    int PyFunction_SetDefaults(object op, object defaults)
+    int PyFunction_SetDefaults(object op, object defaults) except -1
     # Set the argument default values for the function object
     # op. defaults must be Py_None or a tuple.
     # Raises SystemError and returns -1 on failure. 
@@ -53,7 +59,7 @@ cdef extern from "Python.h":
     # Return the closure associated with the function object op. This
     # can be NULL or a tuple of cell objects.
 
-    int PyFunction_SetClosure(object op, object closure)
+    int PyFunction_SetClosure(object op, object closure) except -1
     # Set the closure associated with the function object op. closure
     # must be Py_None or a tuple of cell objects.
     # Raises SystemError and returns -1 on failure. 

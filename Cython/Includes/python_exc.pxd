@@ -1,5 +1,6 @@
+from python_ref cimport PyObject
+
 cdef extern from "Python.h":
-    ctypedef void PyObject
     
     #####################################################################
     # 3. Exception Handling
