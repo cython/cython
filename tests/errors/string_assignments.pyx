@@ -52,7 +52,7 @@ cdef list  l_f3 = u1
 _ERRORS = u"""
 25:20: Unicode objects do not support coercion to C types.
 26:22: Unicode objects do not support coercion to C types.
-27:22: 'str' objects do not support coercion to C types.
+27:22: 'str' objects do not support coercion to C types (use 'bytes'?).
 
 29:20: Cannot convert Unicode string to 'bytes' implicitly, encoding required.
 30:22: Cannot convert Unicode string to 'bytes' implicitly, encoding required.
