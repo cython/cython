@@ -330,11 +330,11 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     """
     special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof', 'typeof', 'cast', 'address', 'pointer', 'compiled', 'NULL'])
 
-    def __init__(self, context, compilation_directive_overrides):
+    def __init__(self, context, compilation_directive_defaults):
         super(InterpretCompilerDirectives, self).__init__(context)
-        self.compilation_directive_overrides = {}
-        for key, value in compilation_directive_overrides.iteritems():
-            self.compilation_directive_overrides[unicode(key)] = value
+        self.compilation_directive_defaults = {}
+        for key, value in compilation_directive_defaults.iteritems():
+            self.compilation_directive_defaults[unicode(key)] = value
         self.cython_module_names = set()
         self.directive_names = {}
 
@@ -349,17 +349,14 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         
     # Set up processing and handle the cython: comments.
     def visit_ModuleNode(self, node):
-        directives = copy.copy(Options.directive_defaults)
-        for key, value in self.compilation_directive_overrides.iteritems():
+        for key, value in node.directive_comments.iteritems():
             if not self.check_directive_scope(node.pos, key, 'module'):
                 self.wrong_scope_error(node.pos, key, 'module')
-                del self.compilation_directive_overrides[key]
-                continue
-            if key in node.directive_comments and node.directive_comments[key] != value:
-                warning(node.pos, "Compiler directive differs between environment and file header; this will change "
-                        "in Cython 0.12. See http://article.gmane.org/gmane.comp.python.cython.devel/5233", 2)
+                del node.directive_comments[key]
+
+        directives = copy.copy(Options.directive_defaults)
+        directives.update(self.compilation_directive_defaults)
         directives.update(node.directive_comments)
-        directives.update(self.compilation_directive_overrides)
         self.directives = directives
         node.directives = directives
         self.visitchildren(node)
