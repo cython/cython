@@ -39,12 +39,12 @@ Options:
   --line-directives              Produce #line directives pointing to the .pyx source
   --cplus                        Output a c++ rather than c file.
   --embed                        Embed the Python interpreter in a main() method.
-  --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
+  -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
 """
 
 #The following experimental options are supported only on MacOSX:
 #  -C, --compile    Compile generated .c file to .o file
-#  -X, --link       Link .o file to produce extension module (implies -C)
+#  --link           Link .o file to produce extension module (implies -C)
 #  -+, --cplus      Use C++ compiler for compiling and linking
 #  Additional .o files to link may be supplied when using -X."""
 
@@ -81,11 +81,7 @@ def parse_command_line(args):
                 options.use_listing_file = 1
             elif option in ("-C", "--compile"):
                 options.c_only = 0
-            elif option in ("-X", "--link"):
-                if option == "-X":
-                    print >>sys.stderr, "Deprecation warning: The -X command line switch will be changed to a"
-                    print >>sys.stderr, "shorthand for --directive in Cython 0.12. Please use --link instead."
-                    print >>sys.stderr
+            elif option in ("--link"):
                 options.c_only = 0
                 options.obj_only = 0
             elif option in ("-+", "--cplus"):
