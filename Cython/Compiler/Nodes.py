@@ -475,7 +475,19 @@ class CPtrDeclaratorNode(CDeclaratorNode):
                 "Pointer base type cannot be a Python object")
         ptr_type = PyrexTypes.c_ptr_type(base_type)
         return self.base.analyse(ptr_type, env, nonempty = nonempty)
-        
+
+class CReferenceDeclaratorNode(CDeclaratorNode):
+    # base     CDeclaratorNode
+
+    child_attrs = ["base"]
+
+    def analyse(self, base_type, env, nonempty = 0):
+        if base_type.is_pyobject:
+            error(self.pos,
+                  "Reference base type cannot be a Python object")
+        ref_type = Pyrextypes.c_ref_type(base_type)
+        return self.base.analyse(ref_type, env, nonempty = nonempty)
+
 class CArrayDeclaratorNode(CDeclaratorNode):
     # base        CDeclaratorNode
     # dimension   ExprNode

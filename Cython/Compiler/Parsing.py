@@ -1749,6 +1749,9 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
             if s.sy == 'IDENT' and s.systring in basic_c_type_names:
                 name = s.systring
                 s.next()
+                if s.sy == '&':
+                    s.next()
+                    #TODO (Danilo)
             else:
                 name = 'int'
         if s.sy == 'IDENT' and s.systring == 'complex':
@@ -1778,7 +1781,7 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
             elif s.sy not in ('*', '**', '['):
                 s.put_back('IDENT', name)
                 name = None
-    
+
     type_node = Nodes.CSimpleBaseTypeNode(pos, 
         name = name, module_path = module_path,
         is_basic_c_type = is_basic, signed = signed,
