@@ -311,7 +311,8 @@ class Scope(object):
             if visibility == 'extern':
                 warning(pos, "'%s' redeclared " % name, 0)
             elif visibility != 'ignore':
-                error(pos, "'%s' redeclared " % name)
+                pass
+                #error(pos, "'%s' redeclared " % name)
         entry = Entry(name, cname, type, pos = pos)
         entry.in_cinclude = self.in_cinclude
         if name:
@@ -463,13 +464,14 @@ class Scope(object):
             if visibility != 'private' and visibility != entry.visibility:
                 warning(pos, "Function '%s' previously declared as '%s'" % (name, entry.visibility), 1)
             if not entry.type.same_as(type):
-                if visibility == 'extern' and entry.visibility == 'extern':
-                    warning(pos, "Function signature does not match previous declaration", 1)
+                #if visibility == 'extern' and entry.visibility == 'extern':
+                    #warning(pos, "Function signature does not match previous declaration", 1)
                     #entry.type = type
-                    entry.overloaded_alternatives.append(
-                        self.add_cfunction(name, type, pos, cname, visibility, modifiers))
-                else:
-                    error(pos, "Function signature does not match previous declaration")
+                temp = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
+                entry.overloaded_alternatives.append(temp)
+                entry = temp
+                #else:
+                    #error(pos, "Function signature does not match previous declaration")
         else:
             entry = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
             entry.func_cname = cname

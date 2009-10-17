@@ -39,6 +39,7 @@ class PyrexType(BaseType):
     #  is_array              boolean     Is a C array type
     #  is_ptr                boolean     Is a C pointer type
     #  is_null_ptr           boolean     Is the type of NULL
+    #  is_reference          boolean     Is a C reference type
     #  is_cfunction          boolean     Is a C function type
     #  is_struct_or_union    boolean     Is a C struct or union type
     #  is_struct             boolean     Is a C struct type
@@ -1018,6 +1019,37 @@ class CNullPtrType(CPtrType):
     is_null_ptr = 1
     
 
+
+class CReferenceType(CType):
+
+    is_reference = 1
+
+    def __init__(self, base_type):
+        self.base_type = base_type
+
+    def __repr__(self):
+        return "<CReferenceType %s>" % repr(self.base_type)
+
+    def same_as_resolved_type(self, other_type):
+        return self.base_type.same_as(other_type.base_type)
+    
+    def declaration_code(self, entity_code, 
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        #print "CPtrType.declaration_code: pointer to", self.base_type ###
+        return self.base_type.declaration_code(
+            "&%s" % entity_code,
+            for_display, dll_linkage, pyrex)
+    
+    def assignable_from_resolved_type(self, other_type):
+        return 0 #TODO (Danilo) implement this
+    
+    def specialize(self, values):
+        base_type = self.base_type.specialize(values)
+        if base_type == self.base_type:
+            return self
+        else:
+            return CReferenceType(base_type)
+
 class CFuncType(CType):
     #  return_type      CType
     #  args             [CFuncTypeArg]
@@ -1890,6 +1922,15 @@ def c_ptr_type(base_type):
         return error_type
     else:
         return CPtrType(base_type)
+
+def c_ref_type(base_type):
+    # Construct a C reference type
+    if base_type is c_char_type:
+        return None #TODO (Danilo) create c_char_ref_type
+    elif base_type is error_type:
+        return error_type
+    else:
+        return CReferenceType(base_type)
         
 def Node_to_type(node, env):
     from ExprNodes import NameNode, AttributeNode, StringNode, error
