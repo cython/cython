@@ -38,8 +38,8 @@ def test_ptr():
         return False
 
 def test_ptr2():
-    cdef void* p1 = NULL
-    cdef void* p2 = NULL
+    cdef char* p1 = NULL
+    cdef char* p2 = NULL
     p1 += 1
 
     if p1 and p2:
