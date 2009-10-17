@@ -45,6 +45,8 @@ True
 """
 
 import sys
+if sys.version_info[0] < 3:
+    sys.exc_clear()
 
 cdef class cy_iterator(object):
     def __iter__(self):
