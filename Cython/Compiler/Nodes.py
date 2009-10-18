@@ -5061,7 +5061,6 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
         }
         value = type;
         type = (PyObject*) Py_TYPE(value);
-        Py_INCREF(type);
     } else if (!PyExceptionClass_Check(type)) {
         PyErr_SetString(PyExc_TypeError,
             "raise: exception class must be a subclass of BaseException");
@@ -5072,19 +5071,18 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
 
     if (tb) {
         PyThreadState *tstate = PyThreadState_GET();
-        value = tstate->curexc_value;
-        type = tstate->curexc_type;
-        Py_INCREF(type);
-        Py_XINCREF(value);
-        Py_INCREF(tb);
-        if (!value || value == Py_None) {
-            PyErr_NormalizeException(&type, &value, &tb);
-        }
-        if (value) {
-            PyException_SetTraceback(value, tb);
-            __Pyx_ErrRestore(type, value, tb);
+        PyObject* tmp_tb = tstate->curexc_traceback;
+        if (tb != tmp_tb) {
+            Py_INCREF(tb);
+            tstate->curexc_traceback = tb;
+            value = tstate->curexc_value;
+            if (value && value != Py_None) {
+                PyException_SetTraceback(value, tb);
+            }
+            Py_XDECREF(tmp_tb);
         }
     }
+
 bad:
     return;
 }
