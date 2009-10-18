@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-__doc__ = r"""
+__doc__ = br"""
     >>> sa
-    b'abc'
+    'abc'
     >>> ua
     u'abc'
     >>> b
@@ -19,7 +19,7 @@ __doc__ = r"""
     u'S\xf8k ik\xfc\xd6\xe4abc'
     >>> null
     u'\x00'
-""".decode(u"ASCII") + """
+""".decode("ASCII") + b"""
     >>> len(sa)
     3
     >>> len(ua)
@@ -38,7 +38,7 @@ __doc__ = r"""
     12
     >>> len(null)
     1
-""".decode(u"ASCII") + u"""
+""".decode("ASCII") + u"""
     >>> ua == u'abc'
     True
     >>> b == u'123'
