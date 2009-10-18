@@ -1925,9 +1925,7 @@ def c_ptr_type(base_type):
 
 def c_ref_type(base_type):
     # Construct a C reference type
-    if base_type is c_char_type:
-        return None #TODO (Danilo) create c_char_ref_type
-    elif base_type is error_type:
+    if base_type is error_type:
         return error_type
     else:
         return CReferenceType(base_type)
