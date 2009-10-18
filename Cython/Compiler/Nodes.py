@@ -5075,10 +5075,6 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
         if (tb != tmp_tb) {
             Py_INCREF(tb);
             tstate->curexc_traceback = tb;
-            value = tstate->curexc_value;
-            if (value && value != Py_None) {
-                PyException_SetTraceback(value, tb);
-            }
             Py_XDECREF(tmp_tb);
         }
     }
@@ -5108,8 +5104,12 @@ static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) 
     tstate->curexc_value = 0;
     tstate->curexc_traceback = 0;
     PyErr_NormalizeException(&local_type, &local_value, &local_tb);
-    if (tstate->curexc_type)
+    if (unlikely(tstate->curexc_type))
         goto bad;
+    #if PY_MAJOR_VERSION >= 3
+    if (unlikely(PyException_SetTraceback(local_value, local_tb) < 0))
+        goto bad;
+    #endif
     *type = local_type;
     *value = local_value;
     *tb = local_tb;
@@ -5145,6 +5145,9 @@ bad:
 get_exception_tuple_utility_code = UtilityCode(proto="""
 static PyObject *__Pyx_GetExceptionTuple(void); /*proto*/
 """,
+# I doubt that calling __Pyx_GetException() here is correct as it moves
+# the exception from tstate->curexc_* to tstate->exc_*, which prevents
+# exception handlers later on from receiving it.
 impl = """
 static PyObject *__Pyx_GetExceptionTuple(void) {
     PyObject *type = NULL, *value = NULL, *tb = NULL;
