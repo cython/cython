@@ -749,7 +749,7 @@ class GlobalState(object):
                     u'/*', u'/[inserted by cython to avoid comment start]*'
                     )
                  for line in source_desc.get_lines(encoding='ASCII',
-                                                   error_handling='replace')]
+                                                   error_handling='ignore')]
             if len(F) == 0: F.append(u'')
             self.input_file_contents[source_desc] = F
             return F
