@@ -137,10 +137,6 @@ __doc__ = ur"""
 
 """
 
-import sys
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u"u'spam'", u"'spam'")
-
 cdef class Ext:
 
     def __init__(self, a, b, c=None):
