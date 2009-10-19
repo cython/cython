@@ -6,6 +6,7 @@ cache_builtins = 1  #  Perform lookups on builtin names only once
 
 embed_pos_in_docstring = 0
 gcc_branch_hints = 1
+cplus = 0
 
 pre_import = None
 docstrings = True
