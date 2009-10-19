@@ -89,7 +89,7 @@ def parse_command_line(args):
                 options.c_only = 0
                 options.obj_only = 0
             elif option in ("-+", "--cplus"):
-                options.cplus = 1
+                Options.cplus = options.cplus = 1
             elif option == "--embed":
                 Options.embed = True
             elif option.startswith("-I"):
