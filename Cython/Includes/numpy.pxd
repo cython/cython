@@ -293,12 +293,6 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef long double  npy_float96
     ctypedef long double  npy_float128
 
-    ctypedef float complex        npy_complex64
-    ctypedef double complex       npy_complex128
-    ctypedef long double complex  npy_complex120
-    ctypedef long double complex  npy_complex192
-    ctypedef long double complex  npy_complex256
-
     ctypedef struct npy_cfloat:
         double real
         double imag
@@ -308,6 +302,26 @@ cdef extern from "numpy/arrayobject.h":
         double imag
 
     ctypedef struct npy_clongdouble:
+        double real
+        double imag
+
+    ctypedef struct npy_complex64:
+        double real
+        double imag
+
+    ctypedef struct npy_complex128:
+        double real
+        double imag
+
+    ctypedef struct npy_complex160:
+        double real
+        double imag
+
+    ctypedef struct npy_complex192:
+        double real
+        double imag
+        
+    ctypedef struct npy_complex256:
         double real
         double imag
 
