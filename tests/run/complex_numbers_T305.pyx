@@ -116,3 +116,8 @@ def test_conjugate(float complex z):
 
 def test_conjugate_double(double complex z):
     return z.conjugate()
+
+ctypedef double complex cdouble
+def test_conjugate_typedef(cdouble z):
+    return z.conjugate()
+
