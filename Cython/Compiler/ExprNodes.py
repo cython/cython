@@ -5105,10 +5105,13 @@ class CmpNode(object):
 
         new_common_type = None
 
+        # catch general errors
         if type1 == str_type and (type2.is_string or type2 in (bytes_type, unicode_type)) or \
                type2 == str_type and (type1.is_string or type1 in (bytes_type, unicode_type)):
             error(self.pos, "Comparisons between bytes/unicode and str are not portable to Python 3")
             new_common_type = error_type
+
+        # try to use numeric comparisons where possible
         elif type1.is_complex or type2.is_complex:
             if op not in ('==', '!='):
                 error(self.pos, "complex types are unordered")
@@ -5125,6 +5128,7 @@ class CmpNode(object):
             new_common_type = self.find_common_int_type(env, op, operand1, operand2)
 
         if new_common_type is None:
+            # fall back to generic type compatibility tests
             if type1 == type2 or type1.assignable_from(type2):
                 new_common_type = type1
             elif type2.assignable_from(type1):
@@ -5151,6 +5155,7 @@ class CmpNode(object):
                 self.invalid_types_error(operand1, op, operand2)
                 new_common_type = error_type
 
+        # recursively merge types
         if common_type is None or new_common_type.is_error:
             common_type = new_common_type
         else:
