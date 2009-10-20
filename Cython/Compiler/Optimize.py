@@ -20,6 +20,11 @@ try:
 except NameError:
     from functools import reduce
 
+try:
+    set
+except NameError:
+    from sets import Set as set
+
 def unwrap_node(node):
     while isinstance(node, UtilNodes.ResultRefNode):
         node = node.expression
@@ -515,6 +520,46 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         return UtilNodes.EvalWithTempExprNode(lhs, condition)
 
     visit_Node = Visitor.VisitorTransform.recurse_to_children
+
+
+class DropRefcountingTransform(Visitor.VisitorTransform):
+    """Drop ref-counting in safe places.
+    """
+    visit_Node = Visitor.VisitorTransform.recurse_to_children
+
+    def visit_ParallelAssignmentNode(self, node):
+        left, right, temps = [], [], []
+        for stat in node.stats:
+            if isinstance(stat, Nodes.SingleAssignmentNode):
+                lhs = unwrap_node(stat.lhs)
+                if not isinstance(lhs, ExprNodes.NameNode):
+                    return node
+                left.append(lhs)
+                rhs = unwrap_node(stat.rhs)
+                if isinstance(rhs, ExprNodes.CoerceToTempNode):
+                    temps.append(rhs)
+                    rhs = rhs.arg
+                if not isinstance(rhs, ExprNodes.NameNode):
+                    return node
+                right.append(rhs)
+            else:
+                return node
+
+        for name_node in left + right:
+            if name_node.entry.is_builtin or name_node.entry.is_pyglobal:
+                return node
+
+        left_names = [n.name for n in left]
+        right_names = [n.name for n in right]
+        if set(left_names) != set(right_names):
+            return node
+        if len(set(left_names)) != len(right):
+            return node
+
+        for name_node in left + right + temps:
+            name_node.use_managed_ref = False
+
+        return node
 
 
 class OptimizeBuiltinCalls(Visitor.VisitorTransform):
