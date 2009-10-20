@@ -336,7 +336,8 @@ class PyObjectType(PyrexType):
         return "<PyObjectType>"
     
     def assignable_from(self, src_type):
-        return 1 # Conversion will be attempted
+        # except for pointers, conversion will be attempted
+        return not src_type.is_ptr or src_type.is_string
         
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
