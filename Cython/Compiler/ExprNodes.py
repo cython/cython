@@ -61,11 +61,13 @@ class ExprNode(Node):
     #  saved_subexpr_nodes
     #               [ExprNode or [ExprNode or None] or None]
     #                            Cached result of subexpr_nodes()
+    #  use_managed_ref boolean   use ref-counted temps/assignments/etc.
     
     result_ctype = None
     type = None
     temp_code = None
     old_temp = None # error checker for multiple frees etc.
+    use_managed_ref = True # can be set by optimisation transforms
 
     #  The Analyse Expressions phase for expressions is split
     #  into two sub-phases:
@@ -419,7 +421,7 @@ class ExprNode(Node):
             if type.is_pyobject:
                 type = PyrexTypes.py_object_type
             self.temp_code = code.funcstate.allocate_temp(
-                type, manage_ref=True)
+                type, manage_ref=self.use_managed_ref)
         else:
             self.temp_code = None
 
@@ -1346,14 +1348,15 @@ class NameNode(AtomicExprNode):
                 self.generate_acquire_buffer(rhs, code)
 
             if self.type.is_pyobject:
-                rhs.make_owned_reference(code)
                 #print "NameNode.generate_assignment_code: to", self.name ###
                 #print "...from", rhs ###
                 #print "...LHS type", self.type, "ctype", self.ctype() ###
                 #print "...RHS type", rhs.type, "ctype", rhs.ctype() ###
-                if entry.is_cglobal:
-                    code.put_gotref(self.py_result())
-                if not self.lhs_of_first_assignment:
+                if self.use_managed_ref:
+                    rhs.make_owned_reference(code)
+                    if entry.is_cglobal:
+                        code.put_gotref(self.py_result())
+                if self.use_managed_ref and not self.lhs_of_first_assignment:
                     if entry.is_local and not Options.init_local_none:
                         initalized = entry.scope.control_flow.get_state((entry.name, 'initalized'), self.pos)
                         if initalized is True:
@@ -1362,8 +1365,9 @@ class NameNode(AtomicExprNode):
                             code.put_xdecref(self.result(), self.ctype())
                     else:
                         code.put_decref(self.result(), self.ctype())
-                if entry.is_cglobal:
-                    code.put_giveref(rhs.py_result())
+                if self.use_managed_ref:
+                    if entry.is_cglobal:
+                        code.put_giveref(rhs.py_result())
             code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
@@ -5784,7 +5788,7 @@ class CoerceToTempNode(CoercionNode):
         # by generic generate_subexpr_evaluation_code!
         code.putln("%s = %s;" % (
             self.result(), self.arg.result_as(self.ctype())))
-        if self.type.is_pyobject:
+        if self.type.is_pyobject and self.use_managed_ref:
             code.put_incref(self.result(), self.ctype())
 
 
