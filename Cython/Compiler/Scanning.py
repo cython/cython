@@ -9,6 +9,7 @@ import os
 import platform
 import stat
 import sys
+import codecs
 from time import time
 
 import cython
@@ -279,8 +280,12 @@ class FileSourceDescriptor(SourceDescriptor):
         self.filename = filename
         self._cmp_name = filename
     
-    def get_lines(self):
-        return Utils.open_source_file(self.filename)
+    def get_lines(self, encoding=None, error_handling=None):
+        if not encoding:
+            return Utils.open_source_file(self.filename)
+        else:
+            return codecs.open(self.filename, "rU", encoding=encoding,
+                               errors=error_handling)
     
     def get_description(self):
         return self.filename
@@ -307,9 +312,13 @@ class StringSourceDescriptor(SourceDescriptor):
         self.codelines = [x + "\n" for x in code.split("\n")]
         self._cmp_name = name
     
-    def get_lines(self):
-        return self.codelines
-    
+    def get_lines(self, encoding=None, error_handling=None):
+        if not encoding:
+            return self.codelines
+        else:
+            return [ line.encode(encoding, error_handling).decode(encoding)
+                     for line in self.codelines ]
+
     def get_description(self):
         return self.name
 
