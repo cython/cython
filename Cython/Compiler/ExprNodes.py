@@ -5168,6 +5168,11 @@ class CmpNode(object):
         error(self.pos, "Invalid types for '%s' (%s, %s)" %
               (op, operand1.type, operand2.type))
 
+    def is_python_comparison(self):
+        return (self.has_python_operands()
+                or (self.cascade and self.cascade.is_python_comparison())
+                or self.operator in ('in', 'not_in'))
+
     def coerce_operands_to(self, dst_type, env):
         operand2 = self.operand2
         if operand2.type != dst_type:
