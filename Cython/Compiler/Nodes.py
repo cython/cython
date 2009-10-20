@@ -3459,7 +3459,6 @@ class RaiseStatNode(StatNode):
             self.exc_tb.analyse_types(env)
             self.exc_tb = self.exc_tb.coerce_to_pyobject(env)
         env.use_utility_code(raise_utility_code)
-        env.use_utility_code(restore_exception_utility_code)
 
     nogil_check = Node.gil_error
     gil_message = "Raising exception"
@@ -3506,7 +3505,6 @@ class ReraiseStatNode(StatNode):
     child_attrs = []
 
     def analyse_expressions(self, env):
-        env.use_utility_code(raise_utility_code)
         env.use_utility_code(restore_exception_utility_code)
 
     nogil_check = Node.gil_error
@@ -3515,7 +3513,12 @@ class ReraiseStatNode(StatNode):
     def generate_execution_code(self, code):
         vars = code.funcstate.exc_vars
         if vars:
-            code.putln("__Pyx_Raise(%s, %s, %s);" % tuple(vars))
+            for varname in vars:
+                code.put_giveref(varname)
+            code.putln("__Pyx_ErrRestore(%s, %s, %s);" % tuple(vars))
+            for varname in vars:
+                code.put("%s = 0; " % varname)
+            code.putln()
             code.putln(code.error_goto(self.pos))
         else:
             error(self.pos, "Reraise not inside except clause")
@@ -4125,8 +4128,9 @@ class TryExceptStatNode(StatNode):
         code.put_goto(try_end_label)
         if code.label_used(try_return_label):
             code.put_label(try_return_label)
-            for var in Naming.exc_save_vars:
-                code.put_xdecref_clear(var, py_object_type)
+            for var in Naming.exc_save_vars: code.put_xgiveref(var)
+            code.putln("__Pyx_ExceptionReset(%s);" %
+                       ', '.join(Naming.exc_save_vars))
             code.put_goto(old_return_label)
         code.put_label(our_error_label)
         for temp_name, type in temps_to_clean_up:
@@ -4920,13 +4924,57 @@ requires=[printing_utility_code])
 
 #------------------------------------------------------------------------------------
 
-# The following function is based on do_raise() from ceval.c.
+# Exception raising code
+#
+# Exceptions are raised by __Pyx_Raise() and stored as plain
+# type/value/tb in PyThreadState->curexc_*.  When being caught by an
+# 'except' statement, curexc_* is moved over to exc_* by
+# __Pyx_GetException()
+
+restore_exception_utility_code = UtilityCode(
+proto = """
+static INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
+static INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
+""",
+impl = """
+static INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb) {
+    PyObject *tmp_type, *tmp_value, *tmp_tb;
+    PyThreadState *tstate = PyThreadState_GET();
+
+    tmp_type = tstate->curexc_type;
+    tmp_value = tstate->curexc_value;
+    tmp_tb = tstate->curexc_traceback;
+    tstate->curexc_type = type;
+    tstate->curexc_value = value;
+    tstate->curexc_traceback = tb;
+    Py_XDECREF(tmp_type);
+    Py_XDECREF(tmp_value);
+    Py_XDECREF(tmp_tb);
+}
+
+static INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb) {
+    PyThreadState *tstate = PyThreadState_GET();
+    *type = tstate->curexc_type;
+    *value = tstate->curexc_value;
+    *tb = tstate->curexc_traceback;
+
+    tstate->curexc_type = 0;
+    tstate->curexc_value = 0;
+    tstate->curexc_traceback = 0;
+}
+
+""")
+
+# The following function is based on do_raise() from ceval.c. There
+# are separate versions for Python2 and Python3 as exception handling
+# has changed quite a lot between the two versions.
 
 raise_utility_code = UtilityCode(
 proto = """
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
 """,
 impl = """
+#if PY_MAJOR_VERSION < 3
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
     Py_XINCREF(type);
     Py_XINCREF(value);
@@ -4982,6 +5030,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
             }
         #endif
     }
+
     __Pyx_ErrRestore(type, value, tb);
     return;
 raise_error:
@@ -4989,6 +5038,166 @@ raise_error:
     Py_XDECREF(type);
     Py_XDECREF(tb);
     return;
+}
+
+#else // Python 3+
+
+static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
+    if (tb == Py_None) {
+        tb = 0;
+    } else if (tb && !PyTraceBack_Check(tb)) {
+        PyErr_SetString(PyExc_TypeError,
+            "raise: arg 3 must be a traceback or None");
+        goto bad;
+    }
+    if (value == Py_None)
+        value = 0;
+
+    if (PyExceptionInstance_Check(type)) {
+        if (value) {
+            PyErr_SetString(PyExc_TypeError,
+                "instance exception may not have a separate value");
+            goto bad;
+        }
+        value = type;
+        type = (PyObject*) Py_TYPE(value);
+    } else if (!PyExceptionClass_Check(type)) {
+        PyErr_SetString(PyExc_TypeError,
+            "raise: exception class must be a subclass of BaseException");
+        goto bad;
+    }
+
+    PyErr_SetObject(type, value);
+
+    if (tb) {
+        PyThreadState *tstate = PyThreadState_GET();
+        PyObject* tmp_tb = tstate->curexc_traceback;
+        if (tb != tmp_tb) {
+            Py_INCREF(tb);
+            tstate->curexc_traceback = tb;
+            Py_XDECREF(tmp_tb);
+        }
+    }
+
+bad:
+    return;
+}
+#endif
+""",
+requires=[restore_exception_utility_code])
+
+#------------------------------------------------------------------------------------
+
+get_exception_utility_code = UtilityCode(
+proto = """
+static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
+""",
+impl = """
+static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) {
+    PyObject *local_type, *local_value, *local_tb;
+    PyObject *tmp_type, *tmp_value, *tmp_tb;
+    PyThreadState *tstate = PyThreadState_GET();
+    local_type = tstate->curexc_type;
+    local_value = tstate->curexc_value;
+    local_tb = tstate->curexc_traceback;
+    tstate->curexc_type = 0;
+    tstate->curexc_value = 0;
+    tstate->curexc_traceback = 0;
+    PyErr_NormalizeException(&local_type, &local_value, &local_tb);
+    if (unlikely(tstate->curexc_type))
+        goto bad;
+    #if PY_MAJOR_VERSION >= 3
+    if (unlikely(PyException_SetTraceback(local_value, local_tb) < 0))
+        goto bad;
+    #endif
+    *type = local_type;
+    *value = local_value;
+    *tb = local_tb;
+    Py_INCREF(local_type);
+    Py_INCREF(local_value);
+    Py_INCREF(local_tb);
+    tmp_type = tstate->exc_type;
+    tmp_value = tstate->exc_value;
+    tmp_tb = tstate->exc_traceback;
+    tstate->exc_type = local_type;
+    tstate->exc_value = local_value;
+    tstate->exc_traceback = local_tb;
+    /* Make sure tstate is in a consistent state when we XDECREF
+       these objects (XDECREF may run arbitrary code). */
+    Py_XDECREF(tmp_type);
+    Py_XDECREF(tmp_value);
+    Py_XDECREF(tmp_tb);
+    return 0;
+bad:
+    *type = 0;
+    *value = 0;
+    *tb = 0;
+    Py_XDECREF(local_type);
+    Py_XDECREF(local_value);
+    Py_XDECREF(local_tb);
+    return -1;
+}
+
+""")
+
+#------------------------------------------------------------------------------------
+
+get_exception_tuple_utility_code = UtilityCode(proto="""
+static PyObject *__Pyx_GetExceptionTuple(void); /*proto*/
+""",
+# I doubt that calling __Pyx_GetException() here is correct as it moves
+# the exception from tstate->curexc_* to tstate->exc_*, which prevents
+# exception handlers later on from receiving it.
+impl = """
+static PyObject *__Pyx_GetExceptionTuple(void) {
+    PyObject *type = NULL, *value = NULL, *tb = NULL;
+    if (__Pyx_GetException(&type, &value, &tb) == 0) {
+        PyObject* exc_info = PyTuple_New(3);
+        if (exc_info) {
+            Py_INCREF(type);
+            Py_INCREF(value);
+            Py_INCREF(tb);
+            PyTuple_SET_ITEM(exc_info, 0, type);
+            PyTuple_SET_ITEM(exc_info, 1, value);
+            PyTuple_SET_ITEM(exc_info, 2, tb);
+            return exc_info;
+        }
+    }
+    return NULL;
+}
+""",
+requires=[get_exception_utility_code])
+
+#------------------------------------------------------------------------------------
+
+reset_exception_utility_code = UtilityCode(
+proto = """
+static INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
+static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
+""",
+impl = """
+static INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb) {
+    PyThreadState *tstate = PyThreadState_GET();
+    *type = tstate->exc_type;
+    *value = tstate->exc_value;
+    *tb = tstate->exc_traceback;
+    Py_XINCREF(*type);
+    Py_XINCREF(*value);
+    Py_XINCREF(*tb);
+}
+
+static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb) {
+    PyObject *tmp_type, *tmp_value, *tmp_tb;
+    PyThreadState *tstate = PyThreadState_GET();
+    tmp_type = tstate->exc_type;
+    tmp_value = tstate->exc_value;
+    tmp_tb = tstate->exc_traceback;
+    tstate->exc_type = type;
+    tstate->exc_value = value;
+    tstate->exc_traceback = tb;
+    Py_XDECREF(tmp_type);
+    Py_XDECREF(tmp_value);
+    Py_XDECREF(tmp_tb);
 }
 """)
 
@@ -5339,57 +5548,6 @@ bad:
     'EMPTY_BYTES' : Naming.empty_bytes,
 })
 
-restore_exception_utility_code = UtilityCode(
-proto = """
-static INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
-static INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
-""",
-impl = """
-static INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb) {
-    PyObject *tmp_type, *tmp_value, *tmp_tb;
-    PyThreadState *tstate = PyThreadState_GET();
-
-#if PY_MAJOR_VERSION >= 3
-    /* Note: this is a temporary work-around to prevent crashes in Python 3.0 */
-    if ((tstate->exc_type != NULL) & (tstate->exc_type != Py_None)) {
-        tmp_type = tstate->exc_type;
-        tmp_value = tstate->exc_value;
-        tmp_tb = tstate->exc_traceback;
-        PyErr_NormalizeException(&type, &value, &tb);
-        PyErr_NormalizeException(&tmp_type, &tmp_value, &tmp_tb);
-        tstate->exc_type = 0;
-        tstate->exc_value = 0;
-        tstate->exc_traceback = 0;
-        PyException_SetContext(value, tmp_value);
-        Py_DECREF(tmp_type);
-        Py_XDECREF(tmp_tb);
-    }
-#endif
-
-    tmp_type = tstate->curexc_type;
-    tmp_value = tstate->curexc_value;
-    tmp_tb = tstate->curexc_traceback;
-    tstate->curexc_type = type;
-    tstate->curexc_value = value;
-    tstate->curexc_traceback = tb;
-    Py_XDECREF(tmp_type);
-    Py_XDECREF(tmp_value);
-    Py_XDECREF(tmp_tb);
-}
-
-static INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb) {
-    PyThreadState *tstate = PyThreadState_GET();
-    *type = tstate->curexc_type;
-    *value = tstate->curexc_value;
-    *tb = tstate->curexc_traceback;
-
-    tstate->curexc_type = 0;
-    tstate->curexc_value = 0;
-    tstate->curexc_traceback = 0;
-}
-
-""")
-
 #------------------------------------------------------------------------------------
 
 unraisable_exception_utility_code = UtilityCode(
@@ -5503,107 +5661,6 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
         ++t;
     }
     return 0;
-}
-""")
-
-#------------------------------------------------------------------------------------
-
-get_exception_utility_code = UtilityCode(
-proto = """
-static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
-""",
-impl = """
-static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) {
-    PyObject *tmp_type, *tmp_value, *tmp_tb;
-    PyThreadState *tstate = PyThreadState_GET();
-    *type = tstate->curexc_type;
-    *value = tstate->curexc_value;
-    *tb = tstate->curexc_traceback;
-    tstate->curexc_type = 0;
-    tstate->curexc_value = 0;
-    tstate->curexc_traceback = 0;
-    PyErr_NormalizeException(type, value, tb);
-    if (PyErr_Occurred())
-        goto bad;
-    Py_INCREF(*type);
-    Py_INCREF(*value);
-    Py_INCREF(*tb);
-    tmp_type = tstate->exc_type;
-    tmp_value = tstate->exc_value;
-    tmp_tb = tstate->exc_traceback;
-    tstate->exc_type = *type;
-    tstate->exc_value = *value;
-    tstate->exc_traceback = *tb;
-    /* Make sure tstate is in a consistent state when we XDECREF
-    these objects (XDECREF may run arbitrary code). */
-    Py_XDECREF(tmp_type);
-    Py_XDECREF(tmp_value);
-    Py_XDECREF(tmp_tb);
-    return 0;
-bad:
-    Py_XDECREF(*type);
-    Py_XDECREF(*value);
-    Py_XDECREF(*tb);
-    return -1;
-}
-
-""")
-
-#------------------------------------------------------------------------------------
-
-get_exception_tuple_utility_code = UtilityCode(proto="""
-static PyObject *__Pyx_GetExceptionTuple(void); /*proto*/
-""",
-impl = """
-static PyObject *__Pyx_GetExceptionTuple(void) {
-    PyObject *type = NULL, *value = NULL, *tb = NULL;
-    if (__Pyx_GetException(&type, &value, &tb) == 0) {
-        PyObject* exc_info = PyTuple_New(3);
-        if (exc_info) {
-            Py_INCREF(type);
-            Py_INCREF(value);
-            Py_INCREF(tb);
-            PyTuple_SET_ITEM(exc_info, 0, type);
-            PyTuple_SET_ITEM(exc_info, 1, value);
-            PyTuple_SET_ITEM(exc_info, 2, tb);
-            return exc_info;
-        }
-    }
-    return NULL;
-}
-""",
-requires=[get_exception_utility_code])
-
-#------------------------------------------------------------------------------------
-
-reset_exception_utility_code = UtilityCode(
-proto = """
-static INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
-static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
-""",
-impl = """
-static INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb) {
-    PyThreadState *tstate = PyThreadState_GET();
-    *type = tstate->exc_type;
-    *value = tstate->exc_value;
-    *tb = tstate->exc_traceback;
-    Py_XINCREF(*type);
-    Py_XINCREF(*value);
-    Py_XINCREF(*tb);
-}
-
-static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb) {
-    PyObject *tmp_type, *tmp_value, *tmp_tb;
-    PyThreadState *tstate = PyThreadState_GET();
-    tmp_type = tstate->exc_type;
-    tmp_value = tstate->exc_value;
-    tmp_tb = tstate->exc_traceback;
-    tstate->exc_type = type;
-    tstate->exc_value = value;
-    tstate->exc_traceback = tb;
-    Py_XDECREF(tmp_type);
-    Py_XDECREF(tmp_value);
-    Py_XDECREF(tmp_tb);
 }
 """)
 

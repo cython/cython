@@ -13,7 +13,8 @@ import Nodes
 from Nodes import Node
 import PyrexTypes
 from PyrexTypes import py_object_type, c_long_type, typecast, error_type, unspecified_type
-from Builtin import list_type, tuple_type, set_type, dict_type, unicode_type, bytes_type, type_type
+from Builtin import list_type, tuple_type, set_type, dict_type, \
+     unicode_type, str_type, bytes_type, type_type
 import Builtin
 import Symtab
 import Options
@@ -821,6 +822,9 @@ class BytesNode(ConstNode):
         if isinstance(sizeof_node, SizeofTypeNode):
             return sizeof_node.arg_type
 
+    def can_coerce_to_char_literal(self):
+        return len(self.value) == 1
+
     def coerce_to(self, dst_type, env):
         if dst_type == PyrexTypes.c_char_ptr_type:
             self.type = PyrexTypes.c_char_ptr_type
@@ -830,7 +834,7 @@ class BytesNode(ConstNode):
             return CastNode(self, PyrexTypes.c_uchar_ptr_type)
 
         if dst_type.is_int:
-            if len(self.value) > 1:
+            if not self.can_coerce_to_char_literal():
                 error(self.pos, "Only single-character strings can be coerced into ints.")
                 return self
             return CharNode(self.pos, value=self.value)
@@ -905,11 +909,11 @@ class StringNode(PyConstNode):
     # value          BytesLiteral or EncodedString
     # is_identifier  boolean
 
-    type = Builtin.str_type
+    type = str_type
     is_identifier = False
 
     def coerce_to(self, dst_type, env):
-        if dst_type is not py_object_type and dst_type is not Builtin.str_type:
+        if dst_type is not py_object_type and dst_type is not str_type:
 #            if dst_type is Builtin.bytes_type:
 #                # special case: bytes = 'str literal'
 #                return BytesNode(self.pos, value=self.value)
@@ -926,6 +930,9 @@ class StringNode(PyConstNode):
                 error(self.pos, "String decoding as '%s' failed. Consider using a byte string or unicode string explicitly, or adjust the source code encoding." % encoding)
 
         return self
+
+    def can_coerce_to_char_literal(self):
+        return not self.is_identifier and len(self.value) == 1
 
     def generate_evaluation_code(self, code):
         self.result_code = code.get_py_string_const(
@@ -2668,7 +2675,7 @@ class GeneralCallNode(CallNode):
                 self.type = error_type
                 return error_type
             if hasattr(self.function, 'entry') and not self.function.entry.as_variable:
-                error(self.pos, "Keyword arguments not allowed in cdef functions.")
+                error(self.pos, "Keyword and starred arguments not allowed in cdef functions.")
             else:
                 self.function = self.function.coerce_to_pyobject(env)
         self.positional_args = \
@@ -5065,6 +5072,80 @@ class CmpNode(object):
                 result = result and cascade.compile_time_value(operand2, denv)
         return result
 
+    def find_common_int_type(self, env, op, operand1, operand2):
+        # type1 != type2 and at least one of the types is not a C int
+        type1 = operand1.type
+        type2 = operand2.type
+        type1_can_be_int = False
+        type2_can_be_int = False
+
+        if isinstance(operand1, (StringNode, BytesNode)) \
+               and operand1.can_coerce_to_char_literal():
+            type1_can_be_int = True
+        if isinstance(operand2, (StringNode, BytesNode)) \
+                 and operand2.can_coerce_to_char_literal():
+            type2_can_be_int = True
+
+        if type1.is_int:
+            if type2_can_be_int:
+                return type1
+        elif type2.is_int:
+            if type1_can_be_int:
+                return type2
+        elif type1_can_be_int:
+            if type2_can_be_int:
+                return PyrexTypes.c_uchar_type
+
+        return None
+
+    def find_common_type(self, env, op, operand1, common_type=None):
+        operand2 = self.operand2
+        type1 = operand1.type
+        type2 = operand2.type
+
+        new_common_type = None
+
+        if type1 == str_type and (type2.is_string or type2 in (bytes_type, unicode_type)) or \
+               type2 == str_type and (type1.is_string or type1 in (bytes_type, unicode_type)):
+            error(self.pos, "Comparisons between bytes/unicode and str are not portable to Python 3")
+
+        elif operand1.type.is_complex or operand2.type.is_complex:
+            if op not in ('==', '!='):
+                error(self.pos, "complex types unordered")
+            if operand1.type.is_pyobject:
+                new_common_type = operand1.type
+            elif operand2.type.is_pyobject:
+                new_common_type = operand2.type
+            else:
+                new_common_type = PyrexTypes.widest_numeric_type(type1, type2)
+
+        elif common_type is None or not common_type.is_pyobject:
+            if not type1.is_int or not type2.is_int:
+                new_common_type = self.find_common_int_type(env, op, operand1, operand2)
+
+        if new_common_type is None:
+            new_common_type = PyrexTypes.spanning_type(operand1.type, operand2.type)
+
+        if common_type is None:
+            common_type = new_common_type
+        else:
+            # we could do a lot better by splitting the comparison
+            # into a non-Python part and a Python part, but this is
+            # safer for now
+            common_type = PyrexTypes.spanning_type(common_type, new_common_type)
+
+        if self.cascade:
+            common_type = self.cascade.find_common_type(env, self.operator, operand2, common_type)
+
+        return common_type
+
+    def coerce_operands_to(self, dst_type, env):
+        operand2 = self.operand2
+        if operand2.type != dst_type:
+            self.operand2 = operand2.coerce_to(dst_type, env)
+        if self.cascade:
+            self.cascade.coerce_operands_to(dst_type, env)
+
     def is_python_comparison(self):
         return (self.has_python_operands()
             or (self.cascade and self.cascade.is_python_comparison())
@@ -5075,13 +5156,7 @@ class CmpNode(object):
             or (self.cascade and self.cascade.is_python_result()))
 
     def check_types(self, env, operand1, op, operand2):
-        if operand1.type.is_complex or operand2.type.is_complex:
-            if op not in ('==', '!='):
-                error(self.pos, "complex types unordered")
-            common_type = PyrexTypes.widest_numeric_type(operand1.type, operand2.type)
-            self.operand1 = operand1.coerce_to(common_type, env)
-            self.operand2 = operand2.coerce_to(common_type, env)
-        elif not self.types_okay(operand1, op, operand2):
+        if not self.types_okay(operand1, op, operand2):
             error(self.pos, "Invalid types for '%s' (%s, %s)" %
                 (self.operator, operand1.type, operand2.type))
     
@@ -5224,12 +5299,14 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         self.operand1.analyse_types(env)
         self.operand2.analyse_types(env)
         if self.cascade:
-            self.cascade.analyse_types(env, self.operand2)
-        self.is_pycmp = self.is_python_comparison()
-        if self.is_pycmp:
-            self.coerce_operands_to_pyobjects(env)
-        if self.has_int_operands():
-            self.coerce_chars_to_ints(env)
+            self.cascade.analyse_types(env)
+
+        common_type = self.find_common_type(env, self.operator, self.operand1)
+        self.is_pycmp = common_type.is_pyobject
+        if self.operand1.type != common_type:
+            self.operand1 = self.operand1.coerce_to(common_type, env)
+        self.coerce_operands_to(common_type, env)
+
         if self.cascade:
             self.operand2 = self.operand2.coerce_to_simple(env)
             self.cascade.coerce_cascaded_operands_to_temp(env)
@@ -5260,19 +5337,6 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         self.operand2 = self.operand2.coerce_to_pyobject(env)
         if self.cascade:
             self.cascade.coerce_operands_to_pyobjects(env)
-        
-    def has_int_operands(self):
-        return (self.operand1.type.is_int or self.operand2.type.is_int) \
-           or (self.cascade and self.cascade.has_int_operands())
-    
-    def coerce_chars_to_ints(self, env):
-        # coerce literal single-char strings to c chars
-        if self.operand1.type.is_string and isinstance(self.operand1, BytesNode):
-            self.operand1 = self.operand1.coerce_to(PyrexTypes.c_uchar_type, env)
-        if self.operand2.type.is_string and isinstance(self.operand2, BytesNode):
-            self.operand2 = self.operand2.coerce_to(PyrexTypes.c_uchar_type, env)
-        if self.cascade:
-            self.cascade.coerce_chars_to_ints(env)
     
     def check_const(self):
         self.operand1.check_const()
@@ -5353,10 +5417,10 @@ class CascadedCmpNode(Node, CmpNode):
     def type_dependencies(self, env):
         return ()
 
-    def analyse_types(self, env, operand1):
+    def analyse_types(self, env):
         self.operand2.analyse_types(env)
         if self.cascade:
-            self.cascade.analyse_types(env, self.operand2)
+            self.cascade.analyse_types(env)
     
     def check_operand_types(self, env, operand1):
         self.check_types(env, 
@@ -5371,13 +5435,6 @@ class CascadedCmpNode(Node, CmpNode):
         self.operand2 = self.operand2.coerce_to_pyobject(env)
         if self.cascade:
             self.cascade.coerce_operands_to_pyobjects(env)
-
-    def has_int_operands(self):
-        return self.operand2.type.is_int
-        
-    def coerce_chars_to_ints(self, env):
-        if self.operand2.type.is_string and isinstance(self.operand2, BytesNode):
-            self.operand2 = self.operand2.coerce_to(PyrexTypes.c_uchar_type, env)
 
     def coerce_cascaded_operands_to_temp(self, env):
         if self.cascade:
