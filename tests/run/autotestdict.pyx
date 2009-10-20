@@ -102,5 +102,12 @@ cdef class MyCdefClass:
         False
         """
 
+    def __nonzero__(self):
+        """
+        Should not be included, as it can't be looked up with getattr in Py 3.1
+
+        >>> True
+        False
+        """
 
 
