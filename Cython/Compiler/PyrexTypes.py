@@ -150,6 +150,15 @@ class PyrexType(BaseType):
         # type information of the struct.
         return 1
 
+
+def create_typedef_type(cname, base_type, is_external=0):
+    if base_type.is_complex:
+        if is_external:
+            raise ValueError("Complex external typedefs not supported")
+        return base_type
+    else:
+        return CTypedefType(cname, base_type, is_external)
+
 class CTypedefType(BaseType):
     #
     #  Pseudo-type defined with a ctypedef statement in a
@@ -170,6 +179,7 @@ class CTypedefType(BaseType):
     
     
     def __init__(self, cname, base_type, is_external=0):
+        assert not base_type.is_complex
         self.typedef_cname = cname
         self.typedef_base_type = base_type
         self.typedef_is_external = is_external
@@ -877,8 +887,6 @@ class CComplexType(CNumericType):
                     None,
                     visibility="extern")
             scope.parent_type = self
-
-            
             scope.declare_var("real", self.real_type, None, "real", is_cdef=True)
             scope.declare_var("imag", self.real_type, None, "imag", is_cdef=True)
             entry = scope.declare_cfunction(
