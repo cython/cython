@@ -9,6 +9,8 @@ cdef void foo():
 	bool = int1 == ptr2 # error
 	bool = ptr2 == ptr3 # error
 
+	bool = 1 in 2 in 3
+
 _ERRORS = u"""
  8:13: Invalid types for '==' (int *, Python object)
  9:13: Invalid types for '==' (int, char *)
