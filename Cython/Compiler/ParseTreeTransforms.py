@@ -957,6 +957,7 @@ class TransformBuiltinMethods(EnvTransform):
             return node
     
     def visit_AttributeNode(self, node):
+        self.visitchildren(node)
         return self.visit_cython_attribute(node)
 
     def visit_NameNode(self, node):
@@ -982,6 +983,9 @@ class TransformBuiltinMethods(EnvTransform):
                 entry = lenv.lookup_here('locals')
                 if entry:
                     # not the builtin 'locals'
+                    return node
+                if len(node.args) > 0:
+                    error(self.pos, "Builtin 'locals()' called with wrong number of args, expected 0, got %d" % len(node.args))
                     return node
                 pos = node.pos
                 items = [ExprNodes.DictItemNode(pos, 
