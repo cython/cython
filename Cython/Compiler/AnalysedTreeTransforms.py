@@ -1,7 +1,7 @@
 from Cython.Compiler.Visitor import VisitorTransform, ScopeTrackingTransform, TreeVisitor
 from Nodes import StatListNode, SingleAssignmentNode, CFuncDefNode
-from ExprNodes import (DictNode, DictItemNode, NameNode, UnicodeNode, NoneNode,
-                      ExprNode, AttributeNode, ModuleRefNode, DocstringRefNode)
+from ExprNodes import DictNode, DictItemNode, NameNode, UnicodeNode, NoneNode, \
+                      ExprNode, AttributeNode, ModuleRefNode, DocstringRefNode
 from PyrexTypes import py_object_type
 from Builtin import dict_type
 from StringEncoding import EncodedString
@@ -9,6 +9,8 @@ import Naming
 
 class AutoTestDictTransform(ScopeTrackingTransform):
     # Handles autotestdict directive
+
+    blacklist = ['__cinit__', '__dealloc__', '__richcmp__', '__nonzero__']
 
     def visit_ModuleNode(self, node):
         self.scope_type = 'module'
@@ -62,6 +64,12 @@ class AutoTestDictTransform(ScopeTrackingTransform):
                 parent = ModuleRefNode(pos)
                 name = node.entry.name
             elif self.scope_type in ('pyclass', 'cclass'):
+                if isinstance(node, CFuncDefNode):
+                    name = node.py_func.name
+                else:
+                    name = node.name
+                if self.scope_type == 'cclass' and name in self.blacklist:
+                    return node
                 mod = ModuleRefNode(pos)
                 if self.scope_type == 'pyclass':
                     clsname = self.scope_node.name

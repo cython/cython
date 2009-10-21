@@ -87,6 +87,7 @@ class Context(object):
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
         from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
+        from TypeInference import MarkAssignments
         from ParseTreeTransforms import AlignFunctionDefinitions, GilCheck
         from AnalysedTreeTransforms import AutoTestDictTransform
         from AutoDocTransforms import EmbedSignature
@@ -131,6 +132,7 @@ class Context(object):
             CreateClosureClasses(self),
             AutoTestDictTransform(self),
             EmbedSignature(self),
+            MarkAssignments(self),
             TransformBuiltinMethods(self),
             IntroduceBufferAuxiliaryVars(self),
             _check_c_declarations,

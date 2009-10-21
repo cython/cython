@@ -4,6 +4,12 @@
 
 import sys, os, time, copy
 
+try:
+    set
+except NameError:
+    # Python 2.3
+    from sets import Set as set
+
 import Code
 import Builtin
 from Errors import error, warning, InternalError
@@ -11,7 +17,7 @@ import Naming
 import PyrexTypes
 import TypeSlots
 from PyrexTypes import py_object_type, error_type, CTypedefType, CFuncType
-from Symtab import ModuleScope, LocalScope, ClosureScope, \
+from Symtab import ModuleScope, LocalScope, GeneratorLocalScope, ClosureScope, \
     StructOrUnionScope, PyClassScope, CClassScope
 from Cython.Utils import open_new_file, replace_suffix
 from Code import UtilityCode
@@ -2525,7 +2531,7 @@ class OverrideCheckNode(StatNode):
         else:
             first_arg = 1
         import ExprNodes
-        self.func_node = ExprNodes.PyTempNode(self.pos, env)
+        self.func_node = ExprNodes.RawCNameExprNode(self.pos, py_object_type)
         call_tuple = ExprNodes.TupleNode(self.pos, args=[ExprNodes.NameNode(self.pos, name=arg.name) for arg in self.args[first_arg:]])
         call_node = ExprNodes.SimpleCallNode(self.pos,
                                              function=self.func_node, 
@@ -2547,21 +2553,22 @@ class OverrideCheckNode(StatNode):
             code.putln("else {")
         else:
             code.putln("else if (unlikely(Py_TYPE(%s)->tp_dictoffset != 0)) {" % self_arg)
-        self.func_node.allocate(code)
-        err = code.error_goto_if_null(self.func_node.result(), self.pos)
+        func_node_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        self.func_node.set_cname(func_node_temp)
         # need to get attribute manually--scope would return cdef method
+        err = code.error_goto_if_null(func_node_temp, self.pos)
         code.putln("%s = PyObject_GetAttr(%s, %s); %s" % (
-            self.func_node.result(), self_arg, interned_attr_cname, err))
-        code.put_gotref(self.func_node.py_result())
-        is_builtin_function_or_method = 'PyCFunction_Check(%s)' % self.func_node.result()
-        is_overridden = '(PyCFunction_GET_FUNCTION(%s) != (void *)&%s)' % (
-            self.func_node.result(), self.py_func.entry.func_cname)
-        code.putln('if (!%s || %s) {' % (is_builtin_function_or_method, is_overridden))
+            func_node_temp, self_arg, interned_attr_cname, err))
+        code.put_gotref(func_node_temp)
+        is_builtin_function_or_method = "PyCFunction_Check(%s)" % func_node_temp
+        is_overridden = "(PyCFunction_GET_FUNCTION(%s) != (void *)&%s)" % (
+            func_node_temp, self.py_func.entry.func_cname)
+        code.putln("if (!%s || %s) {" % (is_builtin_function_or_method, is_overridden))
         self.body.generate_execution_code(code)
-        code.putln('}')
-        code.put_decref_clear(self.func_node.result(), PyrexTypes.py_object_type)
         code.putln("}")
-        self.func_node.release(code)
+        code.put_decref_clear(func_node_temp, PyrexTypes.py_object_type)
+        code.funcstate.release_temp(func_node_temp)
+        code.putln("}")
 
 class ClassDefNode(StatNode, BlockNode):
     pass
@@ -2595,6 +2602,7 @@ class PyClassDefNode(ClassDefNode):
         self.dict = ExprNodes.DictNode(pos, key_value_pairs = [])
         if self.doc and Options.docstrings:
             doc = embed_position(self.pos, self.doc)
+            # FIXME: correct string node?
             doc_node = ExprNodes.StringNode(pos, value = doc)
         else:
             doc_node = None
@@ -3200,7 +3208,7 @@ class InPlaceAssignmentNode(AssignmentNode):
                 c_op = "/"
             elif c_op == "**":
                 error(self.pos, "No C inplace power operator")
-            elif self.lhs.type.is_complex and not code.globalstate.directives['c99_complex']:
+            elif self.lhs.type.is_complex:
                 error(self.pos, "Inplace operators not implemented for complex types.")
                 
             # have to do assignment directly to avoid side-effects
@@ -3270,6 +3278,10 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.lhs.annotate(code)
         self.rhs.annotate(code)
         self.dup.annotate(code)
+    
+    def create_binop_node(self):
+        import ExprNodes
+        return ExprNodes.binop_node(self.pos, self.operator, self.lhs, self.rhs)
 
 
 class PrintStatNode(StatNode):
@@ -3520,7 +3532,6 @@ class RaiseStatNode(StatNode):
             self.exc_tb.analyse_types(env)
             self.exc_tb = self.exc_tb.coerce_to_pyobject(env)
         env.use_utility_code(raise_utility_code)
-        env.use_utility_code(restore_exception_utility_code)
 
     nogil_check = Node.gil_error
     gil_message = "Raising exception"
@@ -3541,15 +3552,11 @@ class RaiseStatNode(StatNode):
             tb_code = self.exc_tb.py_result()
         else:
             tb_code = "0"
-        if self.exc_type or self.exc_value or self.exc_tb:
-            code.putln(
-                "__Pyx_Raise(%s, %s, %s);" % (
-                    type_code,
-                    value_code,
-                    tb_code))
-        else:
-            code.putln(
-                "__Pyx_ReRaise();")
+        code.putln(
+            "__Pyx_Raise(%s, %s, %s);" % (
+                type_code,
+                value_code,
+                tb_code))
         for obj in (self.exc_type, self.exc_value, self.exc_tb):
             if obj:
                 obj.generate_disposal_code(code)
@@ -3571,7 +3578,6 @@ class ReraiseStatNode(StatNode):
     child_attrs = []
 
     def analyse_expressions(self, env):
-        env.use_utility_code(raise_utility_code)
         env.use_utility_code(restore_exception_utility_code)
 
     nogil_check = Node.gil_error
@@ -3580,7 +3586,12 @@ class ReraiseStatNode(StatNode):
     def generate_execution_code(self, code):
         vars = code.funcstate.exc_vars
         if vars:
-            code.putln("__Pyx_Raise(%s, %s, %s);" % tuple(vars))
+            for varname in vars:
+                code.put_giveref(varname)
+            code.putln("__Pyx_ErrRestore(%s, %s, %s);" % tuple(vars))
+            for varname in vars:
+                code.put("%s = 0; " % varname)
+            code.putln()
             code.putln(code.error_goto(self.pos))
         else:
             error(self.pos, "Reraise not inside except clause")
@@ -4190,8 +4201,9 @@ class TryExceptStatNode(StatNode):
         code.put_goto(try_end_label)
         if code.label_used(try_return_label):
             code.put_label(try_return_label)
-            for var in Naming.exc_save_vars:
-                code.put_xdecref_clear(var, py_object_type)
+            for var in Naming.exc_save_vars: code.put_xgiveref(var)
+            code.putln("__Pyx_ExceptionReset(%s);" %
+                       ', '.join(Naming.exc_save_vars))
             code.put_goto(old_return_label)
         code.put_label(our_error_label)
         for temp_name, type in temps_to_clean_up:
@@ -4203,30 +4215,21 @@ class TryExceptStatNode(StatNode):
         if error_label_used or not self.has_default_clause:
             if error_label_used:
                 code.put_label(except_error_label)
-            for var in Naming.exc_save_vars:
-                code.put_xdecref(var, py_object_type)
+            for var in Naming.exc_save_vars: code.put_xgiveref(var)
+            code.putln("__Pyx_ExceptionReset(%s);" %
+                       ', '.join(Naming.exc_save_vars))
             code.put_goto(old_error_label)
-            
-        if code.label_used(try_break_label):
-            code.put_label(try_break_label)
-            for var in Naming.exc_save_vars: code.put_xgiveref(var)
-            code.putln("__Pyx_ExceptionReset(%s);" %
-                       ', '.join(Naming.exc_save_vars))
-            code.put_goto(old_break_label)
-            
-        if code.label_used(try_continue_label):
-            code.put_label(try_continue_label)
-            for var in Naming.exc_save_vars: code.put_xgiveref(var)
-            code.putln("__Pyx_ExceptionReset(%s);" %
-                       ', '.join(Naming.exc_save_vars))
-            code.put_goto(old_continue_label)
 
-        if code.label_used(except_return_label):
-            code.put_label(except_return_label)
-            for var in Naming.exc_save_vars: code.put_xgiveref(var)
-            code.putln("__Pyx_ExceptionReset(%s);" %
-                       ', '.join(Naming.exc_save_vars))
-            code.put_goto(old_return_label)
+        for exit_label, old_label in zip(
+            [try_break_label, try_continue_label, except_return_label],
+            [old_break_label, old_continue_label, old_return_label]):
+
+            if code.label_used(exit_label):
+                code.put_label(exit_label)
+                for var in Naming.exc_save_vars: code.put_xgiveref(var)
+                code.putln("__Pyx_ExceptionReset(%s);" %
+                           ', '.join(Naming.exc_save_vars))
+                code.put_goto(old_label)
 
         if code.label_used(except_end_label):
             code.put_label(except_end_label)
@@ -4751,7 +4754,7 @@ class FromImportStatNode(StatNode):
     def analyse_expressions(self, env):
         import ExprNodes
         self.module.analyse_expressions(env)
-        self.item = ExprNodes.PyTempNode(self.pos, env)
+        self.item = ExprNodes.RawCNameExprNode(self.pos, py_object_type)
         self.interned_items = []
         for name, target in self.items:
             if name == '*':
@@ -4779,25 +4782,25 @@ class FromImportStatNode(StatNode):
                     Naming.import_star,
                     self.module.py_result(),
                     code.error_goto(self.pos)))
-        self.item.allocate(code)
+        item_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+        self.item.set_cname(item_temp)
         for name, target, coerced_item in self.interned_items:
             cname = code.intern_identifier(name)
             code.putln(
                 '%s = PyObject_GetAttr(%s, %s); %s' % (
-                    self.item.result(), 
+                    item_temp,
                     self.module.py_result(),
                     cname,
-                    code.error_goto_if_null(self.item.result(), self.pos)))
-            code.put_gotref(self.item.py_result())
+                    code.error_goto_if_null(item_temp, self.pos)))
+            code.put_gotref(item_temp)
             if coerced_item is None:
                 target.generate_assignment_code(self.item, code)
             else:
                 coerced_item.allocate_temp_result(code)
                 coerced_item.generate_result_code(code)
                 target.generate_assignment_code(coerced_item, code)
-                if self.item.result() != coerced_item.result():
-                    code.put_decref_clear(self.item.result(), self.item.type)
-        self.item.release(code)
+            code.put_decref_clear(item_temp, py_object_type)
+        code.funcstate.release_temp(item_temp)
         self.module.generate_disposal_code(code)
         self.module.free_temps(code)
 
@@ -4819,7 +4822,7 @@ utility_function_predeclarations = \
 #define INLINE 
 #endif
 
-typedef struct {PyObject **p; char *s; long n; char is_unicode; char intern; char is_identifier;} __Pyx_StringTabEntry; /*proto*/
+typedef struct {PyObject **p; char *s; const long n; const char* encoding; const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
 
 """
 
@@ -4994,13 +4997,57 @@ requires=[printing_utility_code])
 
 #------------------------------------------------------------------------------------
 
-# The following function is based on do_raise() from ceval.c.
+# Exception raising code
+#
+# Exceptions are raised by __Pyx_Raise() and stored as plain
+# type/value/tb in PyThreadState->curexc_*.  When being caught by an
+# 'except' statement, curexc_* is moved over to exc_* by
+# __Pyx_GetException()
+
+restore_exception_utility_code = UtilityCode(
+proto = """
+static INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
+static INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
+""",
+impl = """
+static INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb) {
+    PyObject *tmp_type, *tmp_value, *tmp_tb;
+    PyThreadState *tstate = PyThreadState_GET();
+
+    tmp_type = tstate->curexc_type;
+    tmp_value = tstate->curexc_value;
+    tmp_tb = tstate->curexc_traceback;
+    tstate->curexc_type = type;
+    tstate->curexc_value = value;
+    tstate->curexc_traceback = tb;
+    Py_XDECREF(tmp_type);
+    Py_XDECREF(tmp_value);
+    Py_XDECREF(tmp_tb);
+}
+
+static INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb) {
+    PyThreadState *tstate = PyThreadState_GET();
+    *type = tstate->curexc_type;
+    *value = tstate->curexc_value;
+    *tb = tstate->curexc_traceback;
+
+    tstate->curexc_type = 0;
+    tstate->curexc_value = 0;
+    tstate->curexc_traceback = 0;
+}
+
+""")
+
+# The following function is based on do_raise() from ceval.c. There
+# are separate versions for Python2 and Python3 as exception handling
+# has changed quite a lot between the two versions.
 
 raise_utility_code = UtilityCode(
 proto = """
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
 """,
 impl = """
+#if PY_MAJOR_VERSION < 3
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
     Py_XINCREF(type);
     Py_XINCREF(value);
@@ -5056,6 +5103,7 @@ static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
             }
         #endif
     }
+
     __Pyx_ErrRestore(type, value, tb);
     return;
 raise_error:
@@ -5064,26 +5112,162 @@ raise_error:
     Py_XDECREF(tb);
     return;
 }
+
+#else // Python 3+
+
+static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
+    if (tb == Py_None) {
+        tb = 0;
+    } else if (tb && !PyTraceBack_Check(tb)) {
+        PyErr_SetString(PyExc_TypeError,
+            "raise: arg 3 must be a traceback or None");
+        goto bad;
+    }
+    if (value == Py_None)
+        value = 0;
+
+    if (PyExceptionInstance_Check(type)) {
+        if (value) {
+            PyErr_SetString(PyExc_TypeError,
+                "instance exception may not have a separate value");
+            goto bad;
+        }
+        value = type;
+        type = (PyObject*) Py_TYPE(value);
+    } else if (!PyExceptionClass_Check(type)) {
+        PyErr_SetString(PyExc_TypeError,
+            "raise: exception class must be a subclass of BaseException");
+        goto bad;
+    }
+
+    PyErr_SetObject(type, value);
+
+    if (tb) {
+        PyThreadState *tstate = PyThreadState_GET();
+        PyObject* tmp_tb = tstate->curexc_traceback;
+        if (tb != tmp_tb) {
+            Py_INCREF(tb);
+            tstate->curexc_traceback = tb;
+            Py_XDECREF(tmp_tb);
+        }
+    }
+
+bad:
+    return;
+}
+#endif
+""",
+requires=[restore_exception_utility_code])
+
+#------------------------------------------------------------------------------------
+
+get_exception_utility_code = UtilityCode(
+proto = """
+static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
+""",
+impl = """
+static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) {
+    PyObject *local_type, *local_value, *local_tb;
+    PyObject *tmp_type, *tmp_value, *tmp_tb;
+    PyThreadState *tstate = PyThreadState_GET();
+    local_type = tstate->curexc_type;
+    local_value = tstate->curexc_value;
+    local_tb = tstate->curexc_traceback;
+    tstate->curexc_type = 0;
+    tstate->curexc_value = 0;
+    tstate->curexc_traceback = 0;
+    PyErr_NormalizeException(&local_type, &local_value, &local_tb);
+    if (unlikely(tstate->curexc_type))
+        goto bad;
+    #if PY_MAJOR_VERSION >= 3
+    if (unlikely(PyException_SetTraceback(local_value, local_tb) < 0))
+        goto bad;
+    #endif
+    *type = local_type;
+    *value = local_value;
+    *tb = local_tb;
+    Py_INCREF(local_type);
+    Py_INCREF(local_value);
+    Py_INCREF(local_tb);
+    tmp_type = tstate->exc_type;
+    tmp_value = tstate->exc_value;
+    tmp_tb = tstate->exc_traceback;
+    tstate->exc_type = local_type;
+    tstate->exc_value = local_value;
+    tstate->exc_traceback = local_tb;
+    /* Make sure tstate is in a consistent state when we XDECREF
+       these objects (XDECREF may run arbitrary code). */
+    Py_XDECREF(tmp_type);
+    Py_XDECREF(tmp_value);
+    Py_XDECREF(tmp_tb);
+    return 0;
+bad:
+    *type = 0;
+    *value = 0;
+    *tb = 0;
+    Py_XDECREF(local_type);
+    Py_XDECREF(local_value);
+    Py_XDECREF(local_tb);
+    return -1;
+}
+
 """)
 
 #------------------------------------------------------------------------------------
 
-reraise_utility_code = UtilityCode(
+get_exception_tuple_utility_code = UtilityCode(proto="""
+static PyObject *__Pyx_GetExceptionTuple(void); /*proto*/
+""",
+# I doubt that calling __Pyx_GetException() here is correct as it moves
+# the exception from tstate->curexc_* to tstate->exc_*, which prevents
+# exception handlers later on from receiving it.
+impl = """
+static PyObject *__Pyx_GetExceptionTuple(void) {
+    PyObject *type = NULL, *value = NULL, *tb = NULL;
+    if (__Pyx_GetException(&type, &value, &tb) == 0) {
+        PyObject* exc_info = PyTuple_New(3);
+        if (exc_info) {
+            Py_INCREF(type);
+            Py_INCREF(value);
+            Py_INCREF(tb);
+            PyTuple_SET_ITEM(exc_info, 0, type);
+            PyTuple_SET_ITEM(exc_info, 1, value);
+            PyTuple_SET_ITEM(exc_info, 2, tb);
+            return exc_info;
+        }
+    }
+    return NULL;
+}
+""",
+requires=[get_exception_utility_code])
+
+#------------------------------------------------------------------------------------
+
+reset_exception_utility_code = UtilityCode(
 proto = """
-static void __Pyx_ReRaise(void); /*proto*/
+static INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
+static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
 """,
 impl = """
-static void __Pyx_ReRaise(void) {
+static INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb) {
     PyThreadState *tstate = PyThreadState_GET();
-    PyObject* tmp_type = tstate->curexc_type;
-    PyObject* tmp_value = tstate->curexc_value;
-    PyObject* tmp_tb = tstate->curexc_traceback;
-    tstate->curexc_type = tstate->exc_type;
-    tstate->curexc_value = tstate->exc_value;
-    tstate->curexc_traceback = tstate->exc_traceback;
-    tstate->exc_type = 0;
-    tstate->exc_value = 0;
-    tstate->exc_traceback = 0;
+    *type = tstate->exc_type;
+    *value = tstate->exc_value;
+    *tb = tstate->exc_traceback;
+    Py_XINCREF(*type);
+    Py_XINCREF(*value);
+    Py_XINCREF(*tb);
+}
+
+static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb) {
+    PyObject *tmp_type, *tmp_value, *tmp_tb;
+    PyThreadState *tstate = PyThreadState_GET();
+    tmp_type = tstate->exc_type;
+    tmp_value = tstate->exc_value;
+    tmp_tb = tstate->exc_traceback;
+    tstate->exc_type = type;
+    tstate->exc_value = value;
+    tstate->exc_traceback = tb;
     Py_XDECREF(tmp_type);
     Py_XDECREF(tmp_value);
     Py_XDECREF(tmp_tb);
@@ -5437,57 +5621,6 @@ bad:
     'EMPTY_BYTES' : Naming.empty_bytes,
 })
 
-restore_exception_utility_code = UtilityCode(
-proto = """
-static INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
-static INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
-""",
-impl = """
-static INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb) {
-    PyObject *tmp_type, *tmp_value, *tmp_tb;
-    PyThreadState *tstate = PyThreadState_GET();
-
-#if PY_MAJOR_VERSION >= 3
-    /* Note: this is a temporary work-around to prevent crashes in Python 3.0 */
-    if ((tstate->exc_type != NULL) & (tstate->exc_type != Py_None)) {
-        tmp_type = tstate->exc_type;
-        tmp_value = tstate->exc_value;
-        tmp_tb = tstate->exc_traceback;
-        PyErr_NormalizeException(&type, &value, &tb);
-        PyErr_NormalizeException(&tmp_type, &tmp_value, &tmp_tb);
-        tstate->exc_type = 0;
-        tstate->exc_value = 0;
-        tstate->exc_traceback = 0;
-        PyException_SetContext(value, tmp_value);
-        Py_DECREF(tmp_type);
-        Py_XDECREF(tmp_tb);
-    }
-#endif
-
-    tmp_type = tstate->curexc_type;
-    tmp_value = tstate->curexc_value;
-    tmp_tb = tstate->curexc_traceback;
-    tstate->curexc_type = type;
-    tstate->curexc_value = value;
-    tstate->curexc_traceback = tb;
-    Py_XDECREF(tmp_type);
-    Py_XDECREF(tmp_value);
-    Py_XDECREF(tmp_tb);
-}
-
-static INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb) {
-    PyThreadState *tstate = PyThreadState_GET();
-    *type = tstate->curexc_type;
-    *value = tstate->curexc_value;
-    *tb = tstate->curexc_traceback;
-
-    tstate->curexc_type = 0;
-    tstate->curexc_value = 0;
-    tstate->curexc_traceback = 0;
-}
-
-""")
-
 #------------------------------------------------------------------------------------
 
 unraisable_exception_utility_code = UtilityCode(
@@ -5523,22 +5656,20 @@ static int __Pyx_SetVtable(PyObject *dict, void *vtable); /*proto*/
 """,
 impl = """
 static int __Pyx_SetVtable(PyObject *dict, void *vtable) {
-    PyObject *pycobj = 0;
-    int result;
-    
-    pycobj = PyCObject_FromVoidPtr(vtable, 0);
-    if (!pycobj)
+#if PY_VERSION_HEX < 0x03010000
+    PyObject *ob = PyCObject_FromVoidPtr(vtable, 0);
+#else
+    PyObject *ob = PyCapsule_New(vtable, 0, 0);
+#endif
+    if (!ob)
         goto bad;
-    if (PyDict_SetItemString(dict, "__pyx_vtable__", pycobj) < 0)
+    if (PyDict_SetItemString(dict, "__pyx_vtable__", ob) < 0)
         goto bad;
-    result = 0;
-    goto done;
-
+    Py_DECREF(ob);
+    return 0;
 bad:
-    result = -1;
-done:
-    Py_XDECREF(pycobj);
-    return result;
+    Py_XDECREF(ob);
+    return -1;
 }
 """)
 
@@ -5550,23 +5681,21 @@ static int __Pyx_GetVtable(PyObject *dict, void *vtabptr); /*proto*/
 """,
 impl = r"""
 static int __Pyx_GetVtable(PyObject *dict, void *vtabptr) {
-    int result;
-    PyObject *pycobj;
-
-    pycobj = PyMapping_GetItemString(dict, (char *)"__pyx_vtable__");
-    if (!pycobj)
+    PyObject *ob = PyMapping_GetItemString(dict, (char *)"__pyx_vtable__");
+    if (!ob)
         goto bad;
-    *(void **)vtabptr = PyCObject_AsVoidPtr(pycobj);
+#if PY_VERSION_HEX < 0x03010000
+    *(void **)vtabptr = PyCObject_AsVoidPtr(ob);
+#else
+    *(void **)vtabptr = PyCapsule_GetPointer(ob, 0);
+#endif
     if (!*(void **)vtabptr)
         goto bad;
-    result = 0;
-    goto done;
-
+    Py_DECREF(ob);
+    return 0;
 bad:
-    result = -1;
-done:
-    Py_XDECREF(pycobj);
-    return result;
+    Py_XDECREF(ob);
+    return -1;
 }
 """)
 
@@ -5580,7 +5709,7 @@ impl = """
 static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
     while (t->p) {
         #if PY_MAJOR_VERSION < 3
-        if (t->is_unicode && (!t->is_identifier)) {
+        if (t->is_unicode) {
             *t->p = PyUnicode_DecodeUTF8(t->s, t->n - 1, NULL);
         } else if (t->intern) {
             *t->p = PyString_InternFromString(t->s);
@@ -5588,10 +5717,14 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
             *t->p = PyString_FromStringAndSize(t->s, t->n - 1);
         }
         #else  /* Python 3+ has unicode identifiers */
-        if (t->is_identifier || (t->is_unicode && t->intern)) {
-            *t->p = PyUnicode_InternFromString(t->s);
-        } else if (t->is_unicode) {
-            *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+        if (t->is_unicode | t->is_str) {
+            if (t->intern) {
+                *t->p = PyUnicode_InternFromString(t->s);
+            } else if (t->encoding) {
+                *t->p = PyUnicode_Decode(t->s, t->n - 1, t->encoding, NULL);
+            } else {
+                *t->p = PyUnicode_FromStringAndSize(t->s, t->n - 1);
+            }
         } else {
             *t->p = PyBytes_FromStringAndSize(t->s, t->n - 1);
         }
@@ -5601,107 +5734,6 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
         ++t;
     }
     return 0;
-}
-""")
-
-#------------------------------------------------------------------------------------
-
-get_exception_utility_code = UtilityCode(
-proto = """
-static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
-""",
-impl = """
-static int __Pyx_GetException(PyObject **type, PyObject **value, PyObject **tb) {
-    PyObject *tmp_type, *tmp_value, *tmp_tb;
-    PyThreadState *tstate = PyThreadState_GET();
-    *type = tstate->curexc_type;
-    *value = tstate->curexc_value;
-    *tb = tstate->curexc_traceback;
-    tstate->curexc_type = 0;
-    tstate->curexc_value = 0;
-    tstate->curexc_traceback = 0;
-    PyErr_NormalizeException(type, value, tb);
-    if (PyErr_Occurred())
-        goto bad;
-    Py_INCREF(*type);
-    Py_INCREF(*value);
-    Py_INCREF(*tb);
-    tmp_type = tstate->exc_type;
-    tmp_value = tstate->exc_value;
-    tmp_tb = tstate->exc_traceback;
-    tstate->exc_type = *type;
-    tstate->exc_value = *value;
-    tstate->exc_traceback = *tb;
-    /* Make sure tstate is in a consistent state when we XDECREF
-    these objects (XDECREF may run arbitrary code). */
-    Py_XDECREF(tmp_type);
-    Py_XDECREF(tmp_value);
-    Py_XDECREF(tmp_tb);
-    return 0;
-bad:
-    Py_XDECREF(*type);
-    Py_XDECREF(*value);
-    Py_XDECREF(*tb);
-    return -1;
-}
-
-""")
-
-#------------------------------------------------------------------------------------
-
-get_exception_tuple_utility_code = UtilityCode(proto="""
-static PyObject *__Pyx_GetExceptionTuple(void); /*proto*/
-""",
-impl = """
-static PyObject *__Pyx_GetExceptionTuple(void) {
-    PyObject *type = NULL, *value = NULL, *tb = NULL;
-    if (__Pyx_GetException(&type, &value, &tb) == 0) {
-        PyObject* exc_info = PyTuple_New(3);
-        if (exc_info) {
-            Py_INCREF(type);
-            Py_INCREF(value);
-            Py_INCREF(tb);
-            PyTuple_SET_ITEM(exc_info, 0, type);
-            PyTuple_SET_ITEM(exc_info, 1, value);
-            PyTuple_SET_ITEM(exc_info, 2, tb);
-            return exc_info;
-        }
-    }
-    return NULL;
-}
-""",
-requires=[get_exception_utility_code])
-
-#------------------------------------------------------------------------------------
-
-reset_exception_utility_code = UtilityCode(
-proto = """
-static INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
-static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
-""",
-impl = """
-static INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb) {
-    PyThreadState *tstate = PyThreadState_GET();
-    *type = tstate->exc_type;
-    *value = tstate->exc_value;
-    *tb = tstate->exc_traceback;
-    Py_XINCREF(*type);
-    Py_XINCREF(*value);
-    Py_XINCREF(*tb);
-}
-
-static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb) {
-    PyObject *tmp_type, *tmp_value, *tmp_tb;
-    PyThreadState *tstate = PyThreadState_GET();
-    tmp_type = tstate->exc_type;
-    tmp_value = tstate->exc_value;
-    tmp_tb = tstate->exc_traceback;
-    tstate->exc_type = type;
-    tstate->exc_value = value;
-    tstate->exc_traceback = tb;
-    Py_XDECREF(tmp_type);
-    Py_XDECREF(tmp_value);
-    Py_XDECREF(tmp_tb);
 }
 """)
 

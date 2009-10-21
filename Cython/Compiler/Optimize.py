@@ -20,6 +20,11 @@ try:
 except NameError:
     from functools import reduce
 
+try:
+    set
+except NameError:
+    from sets import Set as set
+
 def unwrap_node(node):
     while isinstance(node, UtilNodes.ResultRefNode):
         node = node.expression
@@ -224,7 +229,7 @@ class IterationTransform(Visitor.VisitorTransform):
             bound2 = args[1].coerce_to_integer(self.current_scope)
         step = step.coerce_to_integer(self.current_scope)
 
-        if not isinstance(bound2, ExprNodes.ConstNode):
+        if not bound2.is_literal:
             # stop bound must be immutable => keep it in a temp var
             bound2_is_temp = True
             bound2 = UtilNodes.LetRefNode(bound2)
@@ -416,12 +421,12 @@ class SwitchTransform(Visitor.VisitorTransform):
                 and cond.operator == '=='
                 and not cond.is_python_comparison()):
             if is_common_value(cond.operand1, cond.operand1):
-                if isinstance(cond.operand2, ExprNodes.ConstNode):
+                if cond.operand2.is_literal:
                     return cond.operand1, [cond.operand2]
                 elif hasattr(cond.operand2, 'entry') and cond.operand2.entry and cond.operand2.entry.is_const:
                     return cond.operand1, [cond.operand2]
             if is_common_value(cond.operand2, cond.operand2):
-                if isinstance(cond.operand1, ExprNodes.ConstNode):
+                if cond.operand1.is_literal:
                     return cond.operand2, [cond.operand1]
                 elif hasattr(cond.operand1, 'entry') and cond.operand1.entry and cond.operand1.entry.is_const:
                     return cond.operand2, [cond.operand1]
@@ -515,6 +520,46 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         return UtilNodes.EvalWithTempExprNode(lhs, condition)
 
     visit_Node = Visitor.VisitorTransform.recurse_to_children
+
+
+class DropRefcountingTransform(Visitor.VisitorTransform):
+    """Drop ref-counting in safe places.
+    """
+    visit_Node = Visitor.VisitorTransform.recurse_to_children
+
+    def visit_ParallelAssignmentNode(self, node):
+        left, right, temps = [], [], []
+        for stat in node.stats:
+            if isinstance(stat, Nodes.SingleAssignmentNode):
+                lhs = unwrap_node(stat.lhs)
+                if not isinstance(lhs, ExprNodes.NameNode):
+                    return node
+                left.append(lhs)
+                rhs = unwrap_node(stat.rhs)
+                if isinstance(rhs, ExprNodes.CoerceToTempNode):
+                    temps.append(rhs)
+                    rhs = rhs.arg
+                if not isinstance(rhs, ExprNodes.NameNode):
+                    return node
+                right.append(rhs)
+            else:
+                return node
+
+        for name_node in left + right:
+            if name_node.entry.is_builtin or name_node.entry.is_pyglobal:
+                return node
+
+        left_names = [n.name for n in left]
+        right_names = [n.name for n in right]
+        if set(left_names) != set(right_names):
+            return node
+        if len(set(left_names)) != len(right):
+            return node
+
+        for name_node in left + right + temps:
+            name_node.use_managed_ref = False
+
+        return node
 
 
 class OptimizeBuiltinCalls(Visitor.VisitorTransform):
@@ -853,10 +898,11 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
         encoding_node = args[1]
         if isinstance(encoding_node, ExprNodes.CoerceToPyTypeNode):
             encoding_node = encoding_node.arg
-        if not isinstance(encoding_node, (ExprNodes.UnicodeNode, ExprNodes.StringNode)):
+        if not isinstance(encoding_node, (ExprNodes.UnicodeNode, ExprNodes.StringNode,
+                                          ExprNodes.BytesNode)):
             return node
         encoding = encoding_node.value
-        encoding_node = ExprNodes.StringNode(encoding_node.pos, value=encoding,
+        encoding_node = ExprNodes.BytesNode(encoding_node.pos, value=encoding,
                                              type=PyrexTypes.c_char_ptr_type)
 
         if len(args) == 3:
@@ -864,13 +910,14 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
             if isinstance(error_handling_node, ExprNodes.CoerceToPyTypeNode):
                 error_handling_node = error_handling_node.arg
             if not isinstance(error_handling_node,
-                              (ExprNodes.UnicodeNode, ExprNodes.StringNode)):
+                              (ExprNodes.UnicodeNode, ExprNodes.StringNode,
+                               ExprNodes.BytesNode)):
                 return node
             error_handling = error_handling_node.value
             if error_handling == 'strict':
                 error_handling_node = null_node
             else:
-                error_handling_node = ExprNodes.StringNode(
+                error_handling_node = ExprNodes.BytesNode(
                     error_handling_node.pos, value=error_handling,
                     type=PyrexTypes.c_char_ptr_type)
         else:
@@ -887,7 +934,7 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
             else:
                 value = BytesLiteral(value)
                 value.encoding = encoding
-                return ExprNodes.StringNode(
+                return ExprNodes.BytesNode(
                     string_node.pos, value=value, type=Builtin.bytes_type)
 
         if error_handling == 'strict':
@@ -1030,8 +1077,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             # the compiler, but we do not aggregate them into a
             # constant node to prevent any loss of precision.
             return node
-        if not isinstance(node.operand1, ExprNodes.ConstNode) or \
-               not isinstance(node.operand2, ExprNodes.ConstNode):
+        if not node.operand1.is_literal or not node.operand2.is_literal:
             # We calculate other constants to make them available to
             # the compiler, but we only aggregate constant nodes
             # recursively, so non-const nodes are straight out.

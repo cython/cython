@@ -1,6 +1,5 @@
+
 cdef extern from "Python.h":
-    ctypedef void PyObject
-    ctypedef void PyTypeObject
     # The C structure of the objects used to describe built-in types. 
 
     ############################################################################
@@ -38,7 +37,7 @@ cdef extern from "Python.h":
     object PyType_GenericNew(object type, object args, object kwds)
     # Return value: New reference.
 
-    bint PyType_Ready(object type)
+    bint PyType_Ready(object type) except -1
     # Finalize a type object. This should be called on all type
     # objects to finish their initialization. This function is
     # responsible for adding inherited slots from a type's base

@@ -5,6 +5,7 @@ __doc__ = u"""
 
 def f():
     cdef int bool, int1, int2
+    cdef object obj1, obj2
     int1 = 0
     int2 = 0
     obj1 = 1

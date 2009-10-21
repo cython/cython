@@ -15,6 +15,8 @@ if len(sys.argv) < 2:
 def format_modname(name):
     if name.endswith('.pyx'):
         name = name[:-4]
+    elif name.endswith('.py'):
+        name = name[:-3]
     return name.replace('.','_')
 
 modules = [format_modname(x) for x in sys.argv[1:]]

@@ -46,6 +46,15 @@ __doc__ = u"""
     >>> q(1)
     Traceback (most recent call last):
     TypeError: 'NoneType' object is not iterable
+
+    >>> l = [1,2,3,4]
+    >>> l2 = [l[1:],l[:-1],l]
+    >>> 2 in l in l2
+    True
+    >>> r(2)
+    1
+    >>> s(2)
+    1
 """
 
 def f(a,b):
@@ -86,4 +95,14 @@ def p(a):
 def q(a):
     cdef dict d = None
     cdef int result = a in d # should fail with a TypeError
+    return result
+
+def r(a):
+    l = [1,2,3,4]
+    l2 = [l[1:],l[:-1],l]
+    cdef int result = a in l in l2
+    return result
+
+def s(a):
+    cdef int result = a in [1,2,3,4] in [[1,2,3],[2,3,4],[1,2,3,4]]
     return result

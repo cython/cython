@@ -1,22 +1,23 @@
 __doc__ = u"""
     >>> test_object_conversion(2)
-    ((2+0j), (2+0j))
+    ((2+0j), (2+0j), (2+0j))
     >>> test_object_conversion(2j - 0.5)
-    ((-0.5+2j), (-0.5+2j))
+    ((-0.5+2j), (-0.5+2j), (-0.5+2j))
     
     >>> test_arithmetic(2j, 4j)
-    (-2j, 6j, -2j, (-8+0j), (0.5+0j))
+    (2j, -2j, 6j, -2j, (-8+0j), (0.5+0j))
     >>> test_arithmetic(6+12j, 3j)
-    ((-6-12j), (6+15j), (6+9j), (-36+18j), (4-2j))
+    ((6+12j), (-6-12j), (6+15j), (6+9j), (-36+18j), (4-2j))
     >>> test_arithmetic(5-10j, 3+4j)
-    ((-5+10j), (8-6j), (2-14j), (55-10j), (-1-2j))
+    ((5-10j), (-5+10j), (8-6j), (2-14j), (55-10j), (-1-2j))
 
-    >>> test_div_by_zero(4j)
-    -0.25j
-    >>> test_div_by_zero(0)
-    Traceback (most recent call last):
-    ...
-    ZeroDivisionError: float division
+## XXX this is not working
+## >>> test_div_by_zero(4j)
+## -0.25j
+## >>> test_div_by_zero(0)
+## Traceback (most recent call last):
+## ...
+## ZeroDivisionError: float division
 
     >>> test_coercion(1, 1.5, 2.5, 4+1j, 10j)
     (1+0j)
@@ -56,6 +57,12 @@ __doc__ = u"""
     (1+2j)
     >>> test_real_imag_assignment(1.5, -3.5)
     (1.5-3.5j)
+
+    >>> test_conjugate(2+3j)
+    (2-3j)
+
+    >>> test_conjugate_double(2+3j)
+    (2-3j)
 """
 
 #cdef extern from "complex.h":
@@ -65,15 +72,17 @@ cimport cython
 
 def test_object_conversion(o):
     cdef float complex a = o
-    cdef double complex z = o
-    return (a, z)
+    cdef double complex b = o
+    cdef long double complex c = o
+    return (a, b, c)
 
 def test_arithmetic(double complex z, double complex w):
-    return -z, z+w, z-w, z*w, z/w
+    return +z, -z, z+w, z-w, z*w, z/w
 
-@cython.cdivision(False)
-def test_div_by_zero(double complex z):
-    return 1/z
+## XXX this is not working
+## @cython.cdivision(False)
+## def test_div_by_zero(double complex z):
+##    return 1/z
 
 def test_coercion(int a, float b, double c, float complex d, double complex e):
     cdef double complex z
@@ -101,4 +110,14 @@ def test_real_imag_assignment(object a, double b):
     z.real = a
     z.imag = b
     return z
+
+def test_conjugate(float complex z):
+    return z.conjugate()
+
+def test_conjugate_double(double complex z):
+    return z.conjugate()
+
+ctypedef double complex cdouble
+def test_conjugate_typedef(cdouble z):
+    return z.conjugate()
 

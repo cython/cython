@@ -6,14 +6,14 @@ import re
 import sys
 
 if sys.version_info[0] >= 3:
-    _str, _bytes = str, bytes
+    _unicode, _str, _bytes = str, str, bytes
     IS_PYTHON3 = True
 else:
-    _str, _bytes = unicode, str
+    _unicode, _str, _bytes = unicode, str, str
     IS_PYTHON3 = False
 
 empty_bytes = _bytes()
-empty_str = _str()
+empty_unicode = _unicode()
 
 join_bytes = empty_bytes.join
 
@@ -27,7 +27,7 @@ class UnicodeLiteralBuilder(object):
         if isinstance(characters, _bytes):
             # this came from a Py2 string literal in the parser code
             characters = characters.decode("ASCII")
-        assert isinstance(characters, _str), str(type(characters))
+        assert isinstance(characters, _unicode), str(type(characters))
         self.chars.append(characters)
 
     def append_charval(self, char_number):
@@ -45,7 +45,7 @@ class BytesLiteralBuilder(object):
         self.target_encoding = target_encoding
 
     def append(self, characters):
-        if isinstance(characters, _str):
+        if isinstance(characters, _unicode):
             characters = characters.encode(self.target_encoding)
         assert isinstance(characters, _bytes), str(type(characters))
         self.chars.append(characters)
@@ -63,7 +63,7 @@ class BytesLiteralBuilder(object):
         # this *must* return a byte string!
         return self.getstring()
 
-class EncodedString(_str):
+class EncodedString(_unicode):
     # unicode string subclass to keep track of the original encoding.
     # 'encoding' is None for unicode strings and the source encoding
     # otherwise
@@ -82,7 +82,7 @@ class EncodedString(_str):
     is_unicode = property(is_unicode)
 
 class BytesLiteral(_bytes):
-    # str subclass that is compatible with EncodedString
+    # bytes subclass that is compatible with EncodedString
     encoding = None
 
     def byteencode(self):

@@ -3,9 +3,7 @@ from Cython.Compiler.Nodes import DefNode, CFuncDefNode
 from Cython.Compiler.Errors import CompileError
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler import Options
-from Cython.Compiler import PyrexTypes
-
-
+from Cython.Compiler import PyrexTypes, ExprNodes
 
 class EmbedSignature(CythonTransform):
 
@@ -16,15 +14,26 @@ class EmbedSignature(CythonTransform):
         self.class_node = None
 
     def _fmt_arg_defv(self, arg):
-        if not arg.default:
+        default_val = arg.default
+        if not default_val:
             return None
         try:
             denv = self.denv  # XXX
-            ctval = arg.default.compile_time_value(self.denv)
-            return '%r' % ctval
+            ctval = default_val.compile_time_value(self.denv)
+            repr_val = '%r' % ctval
+            if isinstance(default_val, ExprNodes.UnicodeNode):
+                if repr_val[:1] != 'u':
+                    return u'u%s' % repr_val
+            elif isinstance(default_val, ExprNodes.BytesNode):
+                if repr_val[:1] != 'b':
+                    return u'b%s' % repr_val
+            elif isinstance(default_val, ExprNodes.StringNode):
+                if repr_val[:1] in ('u', 'b'):
+                    repr_val[1:]
+            return repr_val
         except Exception:
             try:
-                return arg.default.name # XXX
+                return default_val.name # XXX
             except AttributeError:
                 return '<???>'
 

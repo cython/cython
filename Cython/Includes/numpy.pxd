@@ -17,7 +17,7 @@
 DEF _buffer_format_string_len = 255
 
 cimport python_buffer as pybuf
-from python_object cimport PyObject
+from python_ref cimport PyObject, Py_INCREF, Py_XDECREF
 cimport stdlib
 cimport stdio
 
@@ -151,6 +151,7 @@ cdef extern from "numpy/arrayobject.h":
             npy_intp *shape "dimensions" 
             npy_intp *strides
             dtype descr
+            PyObject* base
 
         # Note: This syntax (function definition in pxd files) is an
         # experimental exception made for __getbuffer__ and __releasebuffer__
@@ -292,12 +293,6 @@ cdef extern from "numpy/arrayobject.h":
     ctypedef long double  npy_float96
     ctypedef long double  npy_float128
 
-    ctypedef float complex        npy_complex64
-    ctypedef double complex       npy_complex128
-    ctypedef long double complex  npy_complex120
-    ctypedef long double complex  npy_complex192
-    ctypedef long double complex  npy_complex256
-
     ctypedef struct npy_cfloat:
         double real
         double imag
@@ -307,6 +302,26 @@ cdef extern from "numpy/arrayobject.h":
         double imag
 
     ctypedef struct npy_clongdouble:
+        double real
+        double imag
+
+    ctypedef struct npy_complex64:
+        double real
+        double imag
+
+    ctypedef struct npy_complex128:
+        double real
+        double imag
+
+    ctypedef struct npy_complex160:
+        double real
+        double imag
+
+    ctypedef struct npy_complex192:
+        double real
+        double imag
+        
+    ctypedef struct npy_complex256:
         double real
         double imag
 
@@ -468,6 +483,13 @@ cdef extern from "numpy/arrayobject.h":
     object PyArray_Cast(ndarray mp, int type_num)
     object PyArray_Take(ndarray ap, object items, int axis)
     object PyArray_Put(ndarray ap, object items, object values)
+
+    void PyArray_ITER_RESET(flatiter it) nogil
+    void PyArray_ITER_NEXT(flatiter it) nogil
+    void PyArray_ITER_GOTO(flatiter it, npy_intp* destination) nogil
+    void PyArray_ITER_GOTO1D(flatiter it, npy_intp ind) nogil
+    void* PyArray_ITER_DATA(flatiter it) nogil
+    bint PyArray_ITER_NOTDONE(flatiter it) nogil
 
     void PyArray_MultiIter_RESET(broadcast multi) nogil
     void PyArray_MultiIter_NEXT(broadcast multi) nogil
@@ -895,6 +917,21 @@ cdef extern from "numpy/ufuncobject.h":
              (PyUFuncGenericFunction *, void **, char *, int, int, int,
               int, char *, char *, int, char *)
 
-
-
     void import_ufunc()
+
+
+cdef inline void set_array_base(ndarray arr, object base):
+     cdef PyObject* baseptr
+     if base is None:
+         baseptr = NULL
+     else:
+         Py_INCREF(base) # important to do this before decref below!
+         baseptr = <PyObject*>base
+     Py_XDECREF(arr.base)
+     arr.base = baseptr
+
+cdef inline object get_array_base(ndarray arr):
+    if arr.base is NULL:
+        return None
+    else:
+        return <object>arr.base
