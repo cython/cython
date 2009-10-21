@@ -978,8 +978,12 @@ class TransformBuiltinMethods(EnvTransform):
         # locals builtin
         if isinstance(node.function, ExprNodes.NameNode):
             if node.function.name == 'locals':
-                pos = node.pos
                 lenv = self.env_stack[-1]
+                entry = lenv.lookup_here('locals')
+                if entry:
+                    # not the builtin 'locals'
+                    return node
+                pos = node.pos
                 items = [ExprNodes.DictItemNode(pos, 
                                                 key=ExprNodes.StringNode(pos, value=var),
                                                 value=ExprNodes.NameNode(pos, name=var)) for var in lenv.entries]
