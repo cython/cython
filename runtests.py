@@ -8,6 +8,16 @@ import shutil
 import unittest
 import doctest
 import operator
+try:
+    from StringIO import StringIO
+except ImportError:
+    from io import StringIO
+
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
+
 
 WITH_CYTHON = True
 
@@ -49,7 +59,11 @@ class build_ext(_build_ext):
     def build_extension(self, ext):
         if ext.language == 'c++':
             try:
-                self.compiler.compiler_so.remove('-Wstrict-prototypes')
+                try: # Py2.7+ & Py3.2+ 
+                    compiler_obj = self.compiler_obj
+                except AttributeError:
+                    compiler_obj = self.compiler
+                compiler_obj.compiler_so.remove('-Wstrict-prototypes')
             except Exception:
                 pass
         _build_ext.build_extension(self, ext)
@@ -363,7 +377,7 @@ class CythonRunTestCase(CythonCompileTestCase):
             self.setUp()
             self.runCompileTest()
             if not self.cython_only:
-                doctest.DocTestSuite(self.module).run(result)
+                self.run_doctests(self.module, result)
         except Exception:
             result.addError(self, sys.exc_info())
             result.stopTest(self)
@@ -371,6 +385,95 @@ class CythonRunTestCase(CythonCompileTestCase):
             self.tearDown()
         except Exception:
             pass
+
+    def run_doctests(self, module_name, result):
+        if sys.version_info[0] >= 3 or not hasattr(os, 'fork'):
+            doctest.DocTestSuite(module_name).run(result)
+            return
+
+        # fork to make sure we do not keep the tested module loaded
+        input, output = os.pipe()
+        child_id = os.fork()
+        if not child_id:
+            result_code = 0
+            try:
+                output = os.fdopen(output, 'wb')
+                tests = None
+                try:
+                    partial_result = PartialTestResult(result)
+                    tests = doctest.DocTestSuite(module_name)
+                    tests.run(partial_result)
+                except Exception:
+                    if tests is None:
+                        # importing failed, try to fake a test class
+                        tests = _FakeClass(
+                            failureException=None,
+                            **{module_name: None})
+                    partial_result.addError(tests, sys.exc_info())
+                    result_code = 1
+                pickle.dump(partial_result.data(), output)
+            finally:
+                try: output.close()
+                except: pass
+                os._exit(result_code)
+
+        input = os.fdopen(input, 'rb')
+        PartialTestResult.join_results(result, pickle.load(input))
+        cid, result_code = os.waitpid(child_id, 0)
+        if result_code:
+            raise Exception("Tests in module '%s' exited with status %d" %
+                            (module_name, result_code >> 8))
+
+
+is_private_field = re.compile('^_[^_]').match
+
+class _FakeClass(object):
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+try: # Py2.7+ and Py3.2+
+    from unittest.runner import _TextTestResult
+except ImportError:
+    from unittest import _TextTestResult
+
+class PartialTestResult(_TextTestResult):
+    def __init__(self, base_result):
+        _TextTestResult.__init__(
+            self, self._StringIO(), True,
+            base_result.dots + base_result.showAll*2)
+
+    def strip_error_results(self, results):
+        for test_case, error in results:
+            for attr_name in filter(is_private_field, dir(test_case)):
+                if attr_name == '_dt_test':
+                    test_case._dt_test = _FakeClass(
+                        name=test_case._dt_test.name)
+                else:
+                    setattr(test_case, attr_name, None)
+
+    def data(self):
+        self.strip_error_results(self.failures)
+        self.strip_error_results(self.errors)
+        return (self.failures, self.errors, self.testsRun,
+                self.stream.getvalue())
+
+    def join_results(result, data):
+        """Static method for merging the result back into the main
+        result object.
+        """
+        errors, failures, tests_run, output = data
+        if output:
+            result.stream.write(output)
+        result.errors.extend(errors)
+        result.failures.extend(failures)
+        result.testsRun += tests_run
+
+    join_results = staticmethod(join_results)
+
+    class _StringIO(StringIO):
+        def writeln(self, line):
+            self.write("%s\n" % line)
+
 
 class CythonUnitTestCase(CythonCompileTestCase):
     def shortDescription(self):
@@ -606,6 +709,10 @@ if __name__ == '__main__':
             compile as cython_compile
         from Cython.Compiler import Errors
         Errors.LEVEL = 0 # show all warnings
+        from Cython.Compiler import Options
+        Options.generate_cleanup_code = 3   # complete cleanup code
+        from Cython.Compiler import DebugFlags
+        DebugFlags.debug_temp_code_comments = 1
 
     # RUN ALL TESTS!
     UNITTEST_MODULE = "Cython"
@@ -621,8 +728,6 @@ if __name__ == '__main__':
     if WITH_CYTHON:
         from Cython.Compiler.Version import version
         sys.stderr.write("Running tests against Cython %s\n" % version)
-        from Cython.Compiler import DebugFlags
-        DebugFlags.debug_temp_code_comments = 1
     else:
         sys.stderr.write("Running tests without Cython.\n")
     sys.stderr.write("Python %s\n" % sys.version)
@@ -634,7 +739,7 @@ if __name__ == '__main__':
                              build_in_temp=True,
                              pyxbuild_dir=os.path.join(WORKDIR, "support"))
         sys.path.insert(0, os.path.split(libpath)[0])
-        CFLAGS.append("-DCYTHON_REFNANNY")
+        CFLAGS.append("-DCYTHON_REFNANNY=1")
 
     test_bugs = False
     if options.tickets:

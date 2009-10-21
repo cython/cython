@@ -1,12 +1,22 @@
 __doc__ = u"""
->>> f()
+>>> uf()
+It works!
+>>> bf()
 It works!
 """
 
-DEF STUFF = "Spam"
+DEF USTUFF = u"Spam"
 
-def f():
-    IF STUFF == "Spam":
-        print u"It works!"
+def uf():
+    IF USTUFF == u"Spam":
+        print "It works!"
     ELSE:
-        print u"Doesn't work"
+        print "Doesn't work"
+
+DEF BSTUFF = b"Spam"
+
+def bf():
+    IF BSTUFF == b"Spam":
+        print "It works!"
+    ELSE:
+        print "Doesn't work"

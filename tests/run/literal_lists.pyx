@@ -23,7 +23,7 @@ def test_ints(int x):
     return L[3], Li[3], Lii[1][0]
 
 def test_chars(foo):
-    cdef char** ss = ["a", "bc", foo]
+    cdef char** ss = [b"a", b"bc", foo]
     return ss[0], ss[1], ss[2]
 
 cdef struct MyStruct:

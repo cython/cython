@@ -10,6 +10,7 @@ from Nodes import Node
 from ExprNodes import AtomicExprNode
 
 class TempHandle(object):
+    # THIS IS DEPRECATED, USE LetRefNode instead
     temp = None
     needs_xdecref = False
     def __init__(self, type):
@@ -23,6 +24,7 @@ class TempHandle(object):
         return CleanupTempRefNode(pos, handle=self, type=self.type)
 
 class TempRefNode(AtomicExprNode):
+    # THIS IS DEPRECATED, USE LetRefNode instead
     # handle   TempHandle
 
     def analyse_types(self, env):
@@ -52,6 +54,7 @@ class TempRefNode(AtomicExprNode):
         rhs.free_temps(code)
 
 class CleanupTempRefNode(TempRefNode):
+    # THIS IS DEPRECATED, USE LetRefNode instead
     # handle   TempHandle
 
     def generate_assignment_code(self, rhs, code):
@@ -63,6 +66,8 @@ class CleanupTempRefNode(TempRefNode):
             self.handle.needs_cleanup = False
 
 class TempsBlockNode(Node):
+    # THIS IS DEPRECATED, USE LetNode instead
+    
     """
     Creates a block which allocates temporary variables.
     This is used by transforms to output constructs that need

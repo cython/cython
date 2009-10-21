@@ -11,11 +11,15 @@ if sys.version_info[0] >= 3:
 b'abcdefg'
 
 >>> m1 = memoryview(b1)
+__getbuffer__ called
 >>> m1.tobytes()
+__getbuffer__ called
 b'abcdefg'
 
 >>> m2 = memoryview(b2)
+__getbuffer__ called
 >>> m2.tobytes()
+__getbuffer__ called
 releasing!
 b'abcdefg'
 
@@ -24,10 +28,11 @@ b'abcdefg'
 releasing!
 """
 
-s = "abcdefg"
+s = b"abcdefg"
 
 cdef class TestBuffer:
     def __getbuffer__(self, Py_buffer* buffer, int flags):
+        print u"__getbuffer__ called"
         buffer.buf = <char*>s
         buffer.obj = self
         buffer.len = len(s)

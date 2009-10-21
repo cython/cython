@@ -37,7 +37,7 @@ double quoted string."""
     i = 'This string\
  has an ignored newline.'
     j = 'One-char escapes: \'\"\\\a\b\f\n\r\t\v'
-    k = 'Oct and hex escapes: \1 \12 \123 \x45 \xaf \xAF'
+    k = b'Oct and hex escapes: \1 \12 \123 \x45 \xaf \xAF'
     l = r'''This is\
 a \three \line
 raw string with some backslashes.'''
@@ -50,7 +50,8 @@ with ' and " quotes"""
     q = "NameLikeString2"
     r = "99_percent_un_namelike"
     s = "Not an \escape"
-
+    t = b'this' b'parrot' b'is' b'resting'
+    u = u'this' u'parrot' u'is' u'resting'
 
 
 def test_float(x):

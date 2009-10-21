@@ -6,5 +6,5 @@ cdef grail(char *blarg, ...):
     pass
 
 def test():
-    grail("test")
-    grail("test", "toast")
+    grail(b"test")
+    grail(b"test", b"toast")

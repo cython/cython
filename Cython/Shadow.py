@@ -30,6 +30,9 @@ def cast(type, arg):
 
 def sizeof(arg):
     return 1
+
+def typeof(arg):
+    return type(arg)
     
 def address(arg):
     return pointer(type(arg))([arg])

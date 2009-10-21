@@ -96,10 +96,14 @@ _ERRORS = u"""
 28:16: Constructing complex number not allowed without gil
 29:12: Accessing Python global or builtin not allowed without gil
 30:8: Backquote expression not allowed without gil
+30:9: Operation not allowed without gil
 31:15: Assignment of Python object not allowed without gil
+31:15: Operation not allowed without gil
 31:15: Python import not allowed without gil
+32:8: Operation not allowed without gil
 32:13: Python import not allowed without gil
 32:25: Constructing Python list not allowed without gil
+32:25: Operation not allowed without gil
 33:17: Iterating over Python object not allowed without gil
 35:11: Indexing Python object not allowed without gil
 36:11: Slicing Python object not allowed without gil

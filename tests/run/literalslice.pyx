@@ -1,6 +1,6 @@
 __doc__ = u"""
   >>> test_str(1)
-  b'b'
+  'b'
 
   >>> test_unicode_ascii(2)
   u'c'
@@ -10,14 +10,14 @@ __doc__ = u"""
   >>> test_int_list(2)
   3
   >>> test_str_list(1)
-  b'bcd'
+  'bcd'
 
   >>> test_int_tuple(2)
   3
   >>> test_str_tuple(0)
-  b'a'
+  'a'
   >>> test_mix_tuple(1)
-  b'abc'
+  'abc'
   >>> test_mix_tuple(0)
   1
 """
@@ -30,10 +30,7 @@ else:
     __doc__ = __doc__.replace(u" b'", u" '")
 
 def test_str(n):
-    if IS_PY3:
-        return bytes(["abcd"[n]])
-    else:
-        return "abcd"[n]
+    return "abcd"[n]
 
 def test_unicode_ascii(n):
     return u"abcd"[n]
