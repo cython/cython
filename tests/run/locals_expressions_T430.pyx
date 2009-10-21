@@ -2,10 +2,10 @@ __doc__ = u"""
 >>> sorted( get_locals(1,2,3, k=5) .items())
 [('args', (2, 3)), ('kwds', {'k': 5}), ('x', 1), ('y', 'hi'), ('z', 5)]
 
->>> sorted(get_locals_items())
+>>> sorted(get_locals_items(1,2,3, k=5))
 [('args', (2, 3)), ('kwds', {'k': 5}), ('x', 1), ('y', 'hi'), ('z', 5)]
 
->>> sorted(get_locals_items_listcomp())
+>>> sorted(get_locals_items_listcomp(1,2,3, k=5))
 [('args', (2, 3)), ('kwds', {'k': 5}), ('x', 1), ('y', 'hi'), ('z', 5)]
 """
 
