@@ -3199,7 +3199,7 @@ class InPlaceAssignmentNode(AssignmentNode):
         "+":        "PyNumber_InPlaceAdd",
         "-":        "PyNumber_InPlaceSubtract",
         "*":        "PyNumber_InPlaceMultiply",
-        "/":        "PyNumber_InPlaceDivide",
+        "/":        "__Pyx_PyNumber_InPlaceDivide",
         "%":        "PyNumber_InPlaceRemainder",
         "<<":        "PyNumber_InPlaceLshift",
         ">>":        "PyNumber_InPlaceRshift",
