@@ -685,7 +685,7 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
                 return function_handler(node, arg_tuple, kwargs)
             else:
                 return function_handler(node, arg_tuple)
-        elif isinstance(function, ExprNodes.AttributeNode):
+        elif function.is_attribute:
             arg_list = arg_tuple.args
             self_arg = function.obj
             obj_type = self_arg.type
