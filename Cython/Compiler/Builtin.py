@@ -28,7 +28,7 @@ builtin_function_table = [
     #('hex',       "",     "",      ""),
     #('id',        "",     "",      ""),
     #('input',     "",     "",      ""),
-    ('intern',     "s",    "O",     "__Pyx_InternFromString"),
+    #('intern',     "s",    "O",     "__Pyx_InternFromString"), # Doesn't work for Python str objects with null characters.
     ('isinstance', "OO",   "b",     "PyObject_IsInstance"),
     ('issubclass', "OO",   "b",     "PyObject_IsSubclass"),
     ('iter',       "O",    "O",     "PyObject_GetIter"),
