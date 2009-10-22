@@ -33,3 +33,10 @@ def single_c(int a, int b):
 
 def cascaded_c(double a, double b, double c):
     return a < b < c
+
+def typed_cmp(list L):
+    """
+    >>> typed_cmp([1,2,3])
+    (False, False)
+    """
+    return L is Ellipsis, Ellipsis is L
