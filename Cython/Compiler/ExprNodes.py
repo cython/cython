@@ -5132,27 +5132,29 @@ class CmpNode(object):
 
         if new_common_type is None:
             # fall back to generic type compatibility tests
-            if type1 == type2 or type1.assignable_from(type2):
+            if type1 == type2:
                 new_common_type = type1
-            elif type2.assignable_from(type1):
-                new_common_type = type2
-            elif type1.is_pyobject and type2.is_pyobject:
-                new_common_type = py_object_type
             elif type1.is_pyobject or type2.is_pyobject:
                 if type2.is_numeric or type2.is_string:
                     if operand2.check_for_coercion_error(type1):
                         new_common_type = error_type
                     else:
-                        new_common_type = type1
+                        new_common_type = py_object_type
                 elif type1.is_numeric or type1.is_string:
                     if operand1.check_for_coercion_error(type2):
                         new_common_type = error_type
                     else:
-                        new_common_type = type2
+                        new_common_type = py_object_type
+                elif py_object_type.assignable_from(type1) and py_object_type.assignable_from(type2):
+                    new_common_type = py_object_type
                 else:
                     # one Python type and one non-Python type, not assignable
                     self.invalid_types_error(operand1, op, operand2)
                     new_common_type = error_type
+            elif type1.assignable_from(type2):
+                new_common_type = type1
+            elif type2.assignable_from(type1):
+                new_common_type = type2
             else:
                 # C types that we couldn't handle up to here are an error
                 self.invalid_types_error(operand1, op, operand2)
