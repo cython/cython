@@ -28,7 +28,7 @@ builtin_function_table = [
     #('hex',       "",     "",      ""),
     #('id',        "",     "",      ""),
     #('input',     "",     "",      ""),
-    #('intern',     "s",    "O",     "__Pyx_InternFromString"), # Doesn't work for Python str objects with null characters.
+    ('intern',     "O",    "O",     "__Pyx_Intern"),
     ('isinstance', "OO",   "b",     "PyObject_IsInstance"),
     ('issubclass', "OO",   "b",     "PyObject_IsSubclass"),
     ('iter',       "O",    "O",     "PyObject_GetIter"),
@@ -237,12 +237,23 @@ bad:
 
 intern_utility_code = UtilityCode(
 proto = """
-#if PY_MAJOR_VERSION >= 3
-#  define __Pyx_InternFromString(s) PyUnicode_InternFromString(s)
-#else
-#  define __Pyx_InternFromString(s) PyString_InternFromString(s)
-#endif
-""")
+static PyObject* __Pyx_Intern(PyObject* s); /* proto */
+""",
+impl = '''
+static PyObject* __Pyx_Intern(PyObject* s) {
+    if (!(likely(PyString_CheckExact(s)))) {
+        PyErr_Format(PyExc_TypeError, "Expected str, got %s", Py_TYPE(s)->tp_name);
+        return 0;
+    }
+    Py_INCREF(s);
+    #if PY_MAJOR_VERSION >= 3
+    PyUnicode_InternInPlace(&s);
+    #else
+    PyString_InternInPlace(&s);
+    #endif
+    return s;
+}
+''')
 
 def put_py23_set_init_utility_code(code, pos):
     code.putln("#if PY_VERSION_HEX < 0x02040000")
