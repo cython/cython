@@ -3719,7 +3719,6 @@ class DictNode(ExprNode):
     is_temp = 1
     type = dict_type
 
-    type = dict_type
     obj_conversion_errors = []
 
     def calculate_constant_result(self):

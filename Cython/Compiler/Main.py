@@ -93,6 +93,7 @@ class Context(object):
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
         from Optimize import OptimizeBuiltinCalls, ConstantFolding, FinalOptimizePhase
+        from Optimize import DropRefcountingTransform
         from Buffer import IntroduceBufferAuxiliaryVars
         from ModuleNode import check_c_declarations, check_c_declarations_pxd
 
@@ -138,6 +139,7 @@ class Context(object):
             OptimizeBuiltinCalls(),
             IterationTransform(),
             SwitchTransform(),
+            DropRefcountingTransform(),
             FinalOptimizePhase(self),
             GilCheck(),
 #            ClearResultCodes(self),
