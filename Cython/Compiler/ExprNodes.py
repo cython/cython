@@ -4106,6 +4106,11 @@ class UnaryMinusNode(UnopNode):
         else:
             return "%s(%s)" % (self.operand.type.unary_op('-'), self.operand.result())
 
+    def get_constant_c_result_code(self):
+        value = self.operand.get_constant_c_result_code()
+        if value:
+            return "(-%s)" % (value)
+
 class TildeNode(UnopNode):
     #  unary '~' operator
 
@@ -4250,6 +4255,11 @@ class TypecastNode(ExprNode):
     def calculate_result_code(self):
         opnd = self.operand
         return self.type.cast_code(opnd.result())
+    
+    def get_constant_c_result_code(self):
+        operand_result = self.operand.get_constant_c_result_code()
+        if operand_result:
+            return self.type.cast_code(operand_result)
     
     def result_as(self, type):
         if self.type.is_pyobject and not self.is_temp:

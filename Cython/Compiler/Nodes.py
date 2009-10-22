@@ -546,7 +546,6 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         else:
             if self.exception_value:
                 self.exception_value.analyse_const_expression(env)
-                exc_val = self.exception_value.get_constant_c_result_code()
                 if self.exception_check == '+':
                     exc_val_type = self.exception_value.type
                     if not exc_val_type.is_error and \
@@ -555,6 +554,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                         error(self.exception_value.pos,
                             "Exception value must be a Python exception or cdef function with no arguments.")
                 else:
+                    exc_val = self.exception_value.get_constant_c_result_code()
                     if not return_type.assignable_from(self.exception_value.type):
                         error(self.exception_value.pos,
                               "Exception value incompatible with function return type")
