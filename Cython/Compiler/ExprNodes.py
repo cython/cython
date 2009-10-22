@@ -5132,9 +5132,11 @@ class CmpNode(object):
 
         if new_common_type is None:
             # fall back to generic type compatibility tests
-            if type1 == type2 or type1.assignable_from(type2):
+            if type1 == type2:
                 new_common_type = type1
-            elif type2.assignable_from(type1):
+            elif not type2 is py_object_type and type1.assignable_from(type2):
+                new_common_type = type1
+            elif not type1 is py_object_type and type2.assignable_from(type1):
                 new_common_type = type2
             elif type1.is_pyobject and type2.is_pyobject:
                 new_common_type = py_object_type
