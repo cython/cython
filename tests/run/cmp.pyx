@@ -37,6 +37,12 @@ def cascaded_c(double a, double b, double c):
 def typed_cmp(list L):
     """
     >>> typed_cmp([1,2,3])
-    (False, False)
+    False
+    False
+    False
+    False
     """
-    return L is Ellipsis, Ellipsis is L
+    print L is Ellipsis
+    print Ellipsis is L
+    print 1 == L
+    print L == 1.5
