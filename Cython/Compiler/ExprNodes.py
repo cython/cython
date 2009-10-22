@@ -4245,7 +4245,7 @@ class TypecastNode(ExprNode):
                 warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.type, self.operand.type))
         elif from_py and to_py:
             if self.typecheck and self.type.is_extension_type:
-                self.operand = PyTypeTestNode(self.operand, self.type, env)
+                self.operand = PyTypeTestNode(self.operand, self.type, env, notnone=True)
 
     def nogil_check(self, env):
         if self.type and self.type.is_pyobject and self.is_temp:
@@ -5563,13 +5563,14 @@ class PyTypeTestNode(CoercionNode):
     #  object is an instance of a particular extension type.
     #  This node borrows the result of its argument node.
 
-    def __init__(self, arg, dst_type, env):
+    def __init__(self, arg, dst_type, env, notnone=False):
         #  The arg is know to be a Python object, and
         #  the dst_type is known to be an extension type.
         assert dst_type.is_extension_type or dst_type.is_builtin_type, "PyTypeTest on non extension type"
         CoercionNode.__init__(self, arg)
         self.type = dst_type
         self.result_ctype = arg.ctype()
+        self.notnone = notnone
 
     nogil_check = Node.gil_error
     gil_message = "Python type test"
@@ -5596,7 +5597,7 @@ class PyTypeTestNode(CoercionNode):
                 code.globalstate.use_utility_code(type_test_utility_code)
             code.putln(
                 "if (!(%s)) %s" % (
-                    self.type.type_test_code(self.arg.py_result()),
+                    self.type.type_test_code(self.arg.py_result(), self.notnone),
                     code.error_goto(self.pos)))
         else:
             error(self.pos, "Cannot test type of extern C class "
@@ -6008,18 +6009,18 @@ bad:
 
 type_test_utility_code = UtilityCode(
 proto = """
-static int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type); /*proto*/
+static INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type); /*proto*/
 """,
 impl = """
-static int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
-    if (!type) {
+static INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
+    if (unlikely(!type)) {
         PyErr_Format(PyExc_SystemError, "Missing type object");
         return 0;
     }
-    if (obj == Py_None || PyObject_TypeCheck(obj, type))
+    if (likely(PyObject_TypeCheck(obj, type)))
         return 1;
-    PyErr_Format(PyExc_TypeError, "Cannot convert %s to %s",
-        Py_TYPE(obj)->tp_name, type->tp_name);
+    PyErr_Format(PyExc_TypeError, "Cannot convert %.200s to %.200s",
+                 Py_TYPE(obj)->tp_name, type->tp_name);
     return 0;
 }
 """)

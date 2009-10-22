@@ -408,19 +408,24 @@ class BuiltinObjectType(PyObjectType):
     def subtype_of(self, type):
         return type.is_pyobject and self.assignable_from(type)
         
-    def type_test_code(self, arg):
+    def type_test_code(self, arg, notnone=False):
         type_name = self.name
         if type_name == 'str':
-            check = 'PyString_CheckExact'
+            type_check = 'PyString_CheckExact'
         elif type_name == 'set':
-            check = 'PyAnySet_CheckExact'
+            type_check = 'PyAnySet_CheckExact'
         elif type_name == 'frozenset':
-            check = 'PyFrozenSet_CheckExact'
+            type_check = 'PyFrozenSet_CheckExact'
         elif type_name == 'bool':
-            check = 'PyBool_Check'
+            type_check = 'PyBool_Check'
         else:
-            check = 'Py%s_CheckExact' % type_name.capitalize()
-        return 'likely(%s(%s)) || (%s) == Py_None || (PyErr_Format(PyExc_TypeError, "Expected %s, got %%s", Py_TYPE(%s)->tp_name), 0)' % (check, arg, arg, self.name, arg)
+            type_check = 'Py%s_CheckExact' % type_name.capitalize()
+
+        check = 'likely(%s(%s))' % (type_check, arg)
+        if not notnone:
+            check = check + ('||((%s) == Py_None)' % arg)
+        error = '(PyErr_Format(PyExc_TypeError, "Expected %s, got %%.200s", Py_TYPE(%s)->tp_name), 0)' % (self.name, arg)
+        return check + '||' + error
 
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
@@ -504,9 +509,16 @@ class PyExtensionType(PyObjectType):
             else:
                 return "%s *%s" % (base,  entity_code)
 
-    def type_test_code(self, py_arg):
-        return "__Pyx_TypeTest(%s, %s)" % (py_arg, self.typeptr_cname)
-    
+    def type_test_code(self, py_arg, notnone=False):
+
+        none_check = "((%s) == Py_None)" % py_arg
+        type_check = "likely(__Pyx_TypeTest(%s, %s))" % (
+            py_arg, self.typeptr_cname)
+        if notnone:
+            return type_check
+        else:
+            return "likely(%s || %s)" % (none_check, type_check)
+
     def attributes_known(self):
         return self.scope is not None
     
