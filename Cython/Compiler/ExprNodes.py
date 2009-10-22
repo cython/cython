@@ -5151,6 +5151,10 @@ class CmpNode(object):
                     # one Python type and one non-Python type, not assignable
                     self.invalid_types_error(operand1, op, operand2)
                     new_common_type = error_type
+            elif type1.assignable_from(type2):
+                new_common_type = type1
+            elif type2.assignable_from(type1):
+                new_common_type = type2
             else:
                 # C types that we couldn't handle up to here are an error
                 self.invalid_types_error(operand1, op, operand2)
