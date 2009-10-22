@@ -293,7 +293,7 @@ class ExprNode(Node):
         #  checks whether it is a legal const expression,
         #  and determines its value.
         self.analyse_types(env)
-        self.check_const()
+        return self.check_const()
     
     def analyse_expressions(self, env):
         #  Convenience routine performing both the Type
@@ -383,12 +383,14 @@ class ExprNode(Node):
 
     def check_const(self):
         self.not_const()
+        return False
     
     def not_const(self):
         error(self.pos, "Not allowed in a constant expression")
     
     def check_const_addr(self):
         self.addr_not_const()
+        return False
     
     def addr_not_const(self):
         error(self.pos, "Address is not constant")
@@ -688,7 +690,7 @@ class ConstNode(AtomicExprNode):
         pass # Types are held in class variables
     
     def check_const(self):
-        pass
+        return True
     
     def get_constant_c_result_code(self):
         return self.calculate_result_code()
@@ -1242,11 +1244,15 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is not None and not (entry.is_const or entry.is_cfunction or entry.is_builtin):
             self.not_const()
+            return False
+        return True
     
     def check_const_addr(self):
         entry = self.entry
         if not (entry.is_cglobal or entry.is_cfunction or entry.is_builtin):
             self.addr_not_const()
+            return False
+        return True
 
     def is_lvalue(self):
         return self.entry.is_variable and \
@@ -1857,8 +1863,7 @@ class IndexNode(ExprNode):
 
 
     def check_const_addr(self):
-        self.base.check_const_addr()
-        self.index.check_const()
+        return self.base.check_const_addr() and self.index.check_const()
     
     def is_lvalue(self):
         return 1
@@ -2582,7 +2587,9 @@ class SimpleCallNode(CallNode):
                     if func_type.exception_value is None:
                         raise_py_exception = "__Pyx_CppExn2PyErr()"
                     elif func_type.exception_value.type.is_pyobject:
-                        raise_py_exception = 'PyErr_SetString(%s, "")' % func_type.exception_value.entry.cname
+                        raise_py_exception = ' try { throw; } catch(const std::exception& exn) { PyErr_SetString(%s, exn.what()); } catch(...) { PyErr_SetNone(%s); }' % (
+                            func_type.exception_value.entry.cname,
+                            func_type.exception_value.entry.cname)
                     else:
                         raise_py_exception = '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.")' % func_type.exception_value.entry.cname
                     code.putln(
@@ -4003,7 +4010,7 @@ class UnopNode(ExprNode):
             self.analyse_c_operation(env)
     
     def check_const(self):
-        self.operand.check_const()
+        return self.operand.check_const()
     
     def is_py_operation(self):
         return self.operand.type.is_pyobject
@@ -4149,7 +4156,7 @@ class AmpersandNode(ExprNode):
         self.type = PyrexTypes.c_ptr_type(argtype)
     
     def check_const(self):
-        self.operand.check_const_addr()
+        return self.operand.check_const_addr()
     
     def error(self, mess):
         error(self.pos, mess)
@@ -4245,7 +4252,7 @@ class TypecastNode(ExprNode):
             self.gil_error()
 
     def check_const(self):
-        self.operand.check_const()
+        return self.operand.check_const()
 
     def calculate_constant_result(self):
         # we usually do not know the result of a type cast at code
@@ -4283,7 +4290,7 @@ class SizeofNode(ExprNode):
     type = PyrexTypes.c_size_t_type
 
     def check_const(self):
-        pass
+        return True
 
     def generate_result_code(self, code):
         pass
@@ -4495,8 +4502,7 @@ class BinopNode(ExprNode):
         self.operand2 = self.operand2.coerce_to_pyobject(env)
     
     def check_const(self):
-        self.operand1.check_const()
-        self.operand2.check_const()
+        return self.operand1.check_const() and self.operand2.check_const()
     
     def generate_result_code(self, code):
         #print "BinopNode.generate_result_code:", self.operand1, self.operand2 ###
@@ -4908,8 +4914,7 @@ class BoolBinopNode(ExprNode):
     gil_message = "Truth-testing Python object"
 
     def check_const(self):
-        self.operand1.check_const()
-        self.operand2.check_const()
+        return self.operand1.check_const() and self.operand2.check_const()
     
     def generate_evaluation_code(self, code):
         code.mark_pos(self.pos)
@@ -5017,9 +5022,9 @@ class CondExprNode(ExprNode):
         self.type = PyrexTypes.error_type
     
     def check_const(self):
-        self.test.check_const()
-        self.true_val.check_const()
-        self.false_val.check_const()
+        return (self.test.check_const() 
+            and self.true_val.check_const()
+            and self.false_val.check_const())
     
     def generate_evaluation_code(self, code):
         # Because subexprs may not be evaluated we can use a more optimal
@@ -5358,10 +5363,11 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             or self.operand2.type.is_pyobject)
     
     def check_const(self):
-        self.operand1.check_const()
-        self.operand2.check_const()
         if self.cascade:
             self.not_const()
+            return False
+        else:
+            return self.operand1.check_const() and self.operand2.check_const()
 
     def calculate_result_code(self):
         if self.operand1.type.is_complex:
@@ -5733,7 +5739,8 @@ class CoerceToBooleanNode(CoercionNode):
     def check_const(self):
         if self.is_temp:
             self.not_const()
-        self.arg.check_const()
+            return False
+        return self.arg.check_const()
     
     def calculate_result_code(self):
         return "(%s != 0)" % self.arg.result()
