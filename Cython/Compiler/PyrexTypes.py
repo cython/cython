@@ -1282,10 +1282,17 @@ class CFuncType(CType):
         arg_reprs = map(repr, self.args)
         if self.has_varargs:
             arg_reprs.append("...")
-        return "<CFuncType %s %s[%s]>" % (
+        if self.exception_value:
+            except_clause = " %r" % self.exception_value
+        else:
+            except_clause = ""
+        if self.exception_check:
+            except_clause += "?"
+        return "<CFuncType %s %s[%s]%s>" % (
             repr(self.return_type),
             self.calling_convention_prefix(),
-            ",".join(arg_reprs))
+            ",".join(arg_reprs),
+            except_clause)
     
     def calling_convention_prefix(self):
         cc = self.calling_convention
