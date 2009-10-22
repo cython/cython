@@ -914,7 +914,7 @@ class StringNode(PyConstNode):
     # is_identifier  boolean
 
     type = str_type
-    is_identifier = False
+    is_identifier = None
 
     def coerce_to(self, dst_type, env):
         if dst_type is not py_object_type and dst_type is not str_type:
