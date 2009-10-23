@@ -24,7 +24,7 @@ cdef extern from "Python.h":
     # pointing to Python objects. "PyTuple_Pack(2, a, b)" is
     # equivalent to "Py_BuildValue("(OO)", a, b)".
 
-    int PyTuple_Size(object  p)
+    int PyTuple_Size(object  p) except -1
     # Take a pointer to a tuple object, and return the size of that tuple. 
 
     int PyTuple_GET_SIZE(object  p)

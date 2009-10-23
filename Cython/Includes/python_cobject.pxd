@@ -25,13 +25,13 @@ cdef extern from "Python.h":
     #     be called when the object is reclaimed. The desc argument can be
     #     used to pass extra callback data for the destructor function.
 
-    void* PyCObject_AsVoidPtr(object self)
+    void* PyCObject_AsVoidPtr(object self) except? NULL
     #     Return the object void * that the PyCObject self was created with.
 
-    void* PyCObject_GetDesc(object self)
+    void* PyCObject_GetDesc(object self) except? NULL
     #     Return the description void * that the PyCObject self was created with.
 
-    int PyCObject_SetVoidPtr(object self, void* cobj)
+    int PyCObject_SetVoidPtr(object self, void* cobj) except 0
     #     Set the void pointer inside self to cobj. The PyCObject must not
     #     have an associated destructor. Return true on success, false on
     #     failure.

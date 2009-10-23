@@ -21,7 +21,7 @@ cdef extern from "Python.h":
     # otherwise self should be NULL and class should be the class
     # which provides the unbound method..
 
-    PyObject* PyMethod_Class(object meth)
+    PyObject* PyMethod_Class(object meth) except NULL
     # Return value: Borrowed reference.
     # Return the class object from which the method meth was created;
     # if this was created from an instance, it will be the class of
@@ -31,7 +31,7 @@ cdef extern from "Python.h":
     # Return value: Borrowed reference.
     # Macro version of PyMethod_Class() which avoids error checking. 
 
-    PyObject* PyMethod_Function(object meth)
+    PyObject* PyMethod_Function(object meth) except NULL
     # Return value: Borrowed reference.
     # Return the function object associated with the method meth. 
 
@@ -39,7 +39,7 @@ cdef extern from "Python.h":
     # Return value: Borrowed reference.
     # Macro version of PyMethod_Function() which avoids error checking. 
 
-    PyObject* PyMethod_Self(object meth)
+    PyObject* PyMethod_Self(object meth) except? NULL
     # Return value: Borrowed reference.
     # Return the instance associated with the method meth if it is bound, otherwise return NULL. 
 

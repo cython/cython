@@ -47,7 +47,7 @@ cdef extern from "Python.h":
     bint PyFrozenSet_CheckExact(object p)
     # Return true if p is a frozenset object but not an instance of a subtype. 
 
-    PySet_New(object iterable)
+    object PySet_New(object iterable)
     # Return value: New reference.
     # Return a new set containing objects returned by the
     # iterable. The iterable may be NULL to create a new empty
@@ -55,7 +55,7 @@ cdef extern from "Python.h":
     # TypeError if iterable is not actually iterable. The constructor
     # is also useful for copying a set (c=set(s)).
 
-    PyFrozenSet_New(object iterable)
+    object PyFrozenSet_New(object iterable)
     # Return value: New reference.
     # Return a new frozenset containing objects returned by the
     # iterable. The iterable may be NULL to create a new empty

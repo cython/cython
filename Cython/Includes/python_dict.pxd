@@ -95,7 +95,7 @@ cdef extern from "Python.h":
     # dictionary p, as in the dictionary method values() (see the
     # Python Library Reference).
 
-    Py_ssize_t PyDict_Size(object p)
+    Py_ssize_t PyDict_Size(object p) except -1
     # Return the number of items in the dictionary. This is equivalent
     # to "len(p)" on a dictionary.
 
