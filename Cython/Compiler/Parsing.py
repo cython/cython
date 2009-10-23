@@ -928,7 +928,7 @@ def flatten_parallel_assignments(input, output):
         output.append(input)
         return
 
-    complete_assignments = [rhs]
+    complete_assignments = []
 
     rhs_size = len(rhs.args)
     lhs_targets = [ [] for _ in range(rhs_size) ]
@@ -968,8 +968,9 @@ def flatten_parallel_assignments(input, output):
                 for targets, expr in zip(lhs_targets, lhs.args):
                     targets.append(expr)
 
-    if len(complete_assignments) > 1:
-        output.append(complete_assignments[::-1])
+    if complete_assignments:
+        complete_assignments.append(rhs)
+        output.append(complete_assignments)
 
     # recursively flatten partial assignments
     for cascade, rhs in zip(lhs_targets, rhs.args):
