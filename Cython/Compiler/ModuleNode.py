@@ -870,7 +870,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     if scope.defines_any(["__setitem__", "__delitem__"]):
                         self.generate_ass_subscript_function(scope, code)
                     if scope.defines_any(["__setslice__", "__delslice__"]):
-                        warning(self.pos, "__setslice__ and __delslice__ are not supported by Python 3", 1)
+                        warning(self.pos, "__setslice__ and __delslice__ are not supported by Python 3, use __setitem__ and __getitem__ instead", 1)
                         self.generate_ass_slice_function(scope, code)
                     if scope.defines_any(["__getattr__","__getattribute__"]):
                         self.generate_getattro_function(scope, code)
@@ -1197,6 +1197,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Setting and deleting a slice are both done through
         # the ass_slice method, so we dispatch to user's __setslice__
         # or __delslice__, or raise an exception.
+        code.putln("#if PY_MAJOR_VERSION >= 3")
+        code.putln("#error __setslice__ and __delslice__ not supported in Python 3.")
+        code.putln("#endif")
         base_type = scope.parent_type.base_type
         set_entry = scope.lookup_here("__setslice__")
         del_entry = scope.lookup_here("__delslice__")
