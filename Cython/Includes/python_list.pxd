@@ -22,14 +22,14 @@ cdef extern from "Python.h":
     # Return true if p is a list object, but not an instance of a
     # subtype of the list type.
 
-    Py_ssize_t PyList_Size(object list)
+    Py_ssize_t PyList_Size(object list) except -1
     # Return the length of the list object in list; this is equivalent
     # to "len(list)" on a list object.
 
     Py_ssize_t PyList_GET_SIZE(object list)
     # Macro form of PyList_Size() without error checking. 
 
-    PyObject* PyList_GetItem(object list, Py_ssize_t index)
+    PyObject* PyList_GetItem(object list, Py_ssize_t index) except NULL
     # Return value: Borrowed reference.  
     # Return the object at position pos in the list pointed to by
     # p. The position must be positive, indexing from the end of the

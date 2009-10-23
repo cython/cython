@@ -90,7 +90,7 @@ cdef extern from "Python.h":
     # and .pyo files). The magic number should be present in the first
     # four bytes of the bytecode file, in little-endian byte order.
 
-    PyObject* PyImport_GetModuleDict()
+    PyObject* PyImport_GetModuleDict() except NULL
     # Return value: Borrowed reference.
     # Return the dictionary used for the module administration
     # (a.k.a. sys.modules). Note that this is a per-interpreter
@@ -139,7 +139,7 @@ cdef extern from "Python.h":
     # filled in; the caller is responsible for providing a __file__
     # attribute.
 
-    PyObject* PyModule_GetDict(object module)
+    PyObject* PyModule_GetDict(object module) except NULL
     # Return value: Borrowed reference.
     # Return the dictionary object that implements module's namespace;
     # this object is the same as the __dict__ attribute of the module
