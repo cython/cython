@@ -1019,12 +1019,12 @@ class FuncDefNode(StatNode, BlockNode):
         
     def create_local_scope(self, env):
         genv = env
-        while env.is_py_class_scope or env.is_c_class_scope:
-            env = env.outer_scope
+        while genv.is_py_class_scope or genv.is_c_class_scope:
+            genv = env.outer_scope
         if self.needs_closure:
-            lenv = GeneratorLocalScope(name = self.entry.name, outer_scope = genv)
+            lenv = GeneratorLocalScope(name = self.entry.name, outer_scope = genv, parent_scope = env)
         else:
-            lenv = LocalScope(name = self.entry.name, outer_scope = genv)
+            lenv = LocalScope(name = self.entry.name, outer_scope = genv, parent_scope = env)
         lenv.return_type = self.return_type
         type = self.entry.type
         if type.is_cfunction:
@@ -2730,7 +2730,7 @@ class CClassDefNode(ClassDefNode):
             buffer_defaults = buffer_defaults)
         if home_scope is not env and self.visibility == 'extern':
             env.add_imported_entry(self.class_name, self.entry, pos)
-        scope = self.entry.type.scope
+        self.scope = scope = self.entry.type.scope
         if scope is not None:
             scope.directives = env.directives
 

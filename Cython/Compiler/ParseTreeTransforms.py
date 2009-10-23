@@ -698,6 +698,12 @@ property NAME:
         self.visitchildren(node)
         self.seen_vars_stack.pop()
         return node
+    
+    def visit_ClassDefNode(self, node):
+        self.env_stack.append(node.scope)
+        self.visitchildren(node)
+        self.env_stack.pop()
+        return node
         
     def visit_FuncDefNode(self, node):
         self.seen_vars_stack.append(set())
