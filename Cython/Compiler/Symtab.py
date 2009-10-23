@@ -1066,8 +1066,10 @@ class ModuleScope(Scope):
         
 class LocalScope(Scope):    
 
-    def __init__(self, name, outer_scope):
-        Scope.__init__(self, name, outer_scope, outer_scope)
+    def __init__(self, name, outer_scope, parent_scope = None):
+        if parent_scope is None:
+            parent_scope = outer_scope
+        Scope.__init__(self, name, outer_scope, parent_scope)
     
     def mangle(self, prefix, name):
         return prefix + name
