@@ -1,10 +1,13 @@
 cimport python_bool
 cimport python_buffer
+cimport python_bytes
+cimport python_cobject
 cimport python_complex
 cimport python_dict
 cimport python_exc
 cimport python_float
 cimport python_function
+cimport python_getargs
 cimport python_instance
 cimport python_int
 cimport python_iterator
@@ -16,8 +19,8 @@ cimport python_method
 cimport python_module
 cimport python_number
 cimport python_object
-cimport python_parse
 cimport python
+cimport python_pycapsule
 cimport python_ref
 cimport python_sequence
 cimport python_set
@@ -26,5 +29,6 @@ cimport python_tuple
 cimport python_type
 cimport python_unicode
 cimport python_version
+cimport python_weakref
 cimport stdio
 cimport stdlib
