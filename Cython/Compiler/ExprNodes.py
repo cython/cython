@@ -293,7 +293,7 @@ class ExprNode(Node):
         #  checks whether it is a legal const expression,
         #  and determines its value.
         self.analyse_types(env)
-        self.check_const()
+        return self.check_const()
     
     def analyse_expressions(self, env):
         #  Convenience routine performing both the Type
@@ -383,12 +383,14 @@ class ExprNode(Node):
 
     def check_const(self):
         self.not_const()
+        return False
     
     def not_const(self):
         error(self.pos, "Not allowed in a constant expression")
     
     def check_const_addr(self):
         self.addr_not_const()
+        return False
     
     def addr_not_const(self):
         error(self.pos, "Address is not constant")
@@ -688,7 +690,7 @@ class ConstNode(AtomicExprNode):
         pass # Types are held in class variables
     
     def check_const(self):
-        pass
+        return True
     
     def get_constant_c_result_code(self):
         return self.calculate_result_code()
@@ -912,7 +914,7 @@ class StringNode(PyConstNode):
     # is_identifier  boolean
 
     type = str_type
-    is_identifier = False
+    is_identifier = None
 
     def coerce_to(self, dst_type, env):
         if dst_type is not py_object_type and dst_type is not str_type:
@@ -924,8 +926,8 @@ class StringNode(PyConstNode):
             self.check_for_coercion_error(dst_type, fail=True)
 
         # this will be a unicode string in Py3, so make sure we can decode it
-        if not self.is_identifier:
-            encoding = self.value.encoding or 'UTF-8'
+        if self.value.encoding:
+            encoding = self.value.encoding
             try:
                 self.value.decode(encoding)
             except UnicodeDecodeError:
@@ -1242,11 +1244,15 @@ class NameNode(AtomicExprNode):
         entry = self.entry
         if entry is not None and not (entry.is_const or entry.is_cfunction or entry.is_builtin):
             self.not_const()
+            return False
+        return True
     
     def check_const_addr(self):
         entry = self.entry
         if not (entry.is_cglobal or entry.is_cfunction or entry.is_builtin):
             self.addr_not_const()
+            return False
+        return True
 
     def is_lvalue(self):
         return self.entry.is_variable and \
@@ -1857,8 +1863,7 @@ class IndexNode(ExprNode):
 
 
     def check_const_addr(self):
-        self.base.check_const_addr()
-        self.index.check_const()
+        return self.base.check_const_addr() and self.index.check_const()
     
     def is_lvalue(self):
         return 1
@@ -2582,7 +2587,9 @@ class SimpleCallNode(CallNode):
                     if func_type.exception_value is None:
                         raise_py_exception = "__Pyx_CppExn2PyErr()"
                     elif func_type.exception_value.type.is_pyobject:
-                        raise_py_exception = 'PyErr_SetString(%s, "")' % func_type.exception_value.entry.cname
+                        raise_py_exception = ' try { throw; } catch(const std::exception& exn) { PyErr_SetString(%s, exn.what()); } catch(...) { PyErr_SetNone(%s); }' % (
+                            func_type.exception_value.entry.cname,
+                            func_type.exception_value.entry.cname)
                     else:
                         raise_py_exception = '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.")' % func_type.exception_value.entry.cname
                     code.putln(
@@ -3719,7 +3726,6 @@ class DictNode(ExprNode):
     is_temp = 1
     type = dict_type
 
-    type = dict_type
     obj_conversion_errors = []
 
     def calculate_constant_result(self):
@@ -4069,7 +4075,7 @@ class UnopNode(ExprNode):
             self.analyse_c_operation(env)
     
     def check_const(self):
-        self.operand.check_const()
+        return self.operand.check_const()
     
     def is_py_operation(self):
         return self.operand.type.is_pyobject
@@ -4172,6 +4178,11 @@ class UnaryMinusNode(UnopNode):
         else:
             return "%s(%s)" % (self.operand.type.unary_op('-'), self.operand.result())
 
+    def get_constant_c_result_code(self):
+        value = self.operand.get_constant_c_result_code()
+        if value:
+            return "(-%s)" % (value)
+
 class TildeNode(UnopNode):
     #  unary '~' operator
 
@@ -4210,7 +4221,7 @@ class AmpersandNode(ExprNode):
         self.type = PyrexTypes.c_ptr_type(argtype)
     
     def check_const(self):
-        self.operand.check_const_addr()
+        return self.operand.check_const_addr()
     
     def error(self, mess):
         error(self.pos, mess)
@@ -4299,14 +4310,14 @@ class TypecastNode(ExprNode):
                 warning(self.pos, "No conversion from %s to %s, python object pointer used." % (self.type, self.operand.type))
         elif from_py and to_py:
             if self.typecheck and self.type.is_extension_type:
-                self.operand = PyTypeTestNode(self.operand, self.type, env)
+                self.operand = PyTypeTestNode(self.operand, self.type, env, notnone=True)
 
     def nogil_check(self, env):
         if self.type and self.type.is_pyobject and self.is_temp:
             self.gil_error()
 
     def check_const(self):
-        self.operand.check_const()
+        return self.operand.check_const()
 
     def calculate_constant_result(self):
         # we usually do not know the result of a type cast at code
@@ -4316,6 +4327,11 @@ class TypecastNode(ExprNode):
     def calculate_result_code(self):
         opnd = self.operand
         return self.type.cast_code(opnd.result())
+    
+    def get_constant_c_result_code(self):
+        operand_result = self.operand.get_constant_c_result_code()
+        if operand_result:
+            return self.type.cast_code(operand_result)
     
     def result_as(self, type):
         if self.type.is_pyobject and not self.is_temp:
@@ -4339,7 +4355,7 @@ class SizeofNode(ExprNode):
     type = PyrexTypes.c_size_t_type
 
     def check_const(self):
-        pass
+        return True
 
     def generate_result_code(self, code):
         pass
@@ -4551,8 +4567,7 @@ class BinopNode(ExprNode):
         self.operand2 = self.operand2.coerce_to_pyobject(env)
     
     def check_const(self):
-        self.operand1.check_const()
-        self.operand2.check_const()
+        return self.operand1.check_const() and self.operand2.check_const()
     
     def generate_result_code(self, code):
         #print "BinopNode.generate_result_code:", self.operand1, self.operand2 ###
@@ -4964,8 +4979,7 @@ class BoolBinopNode(ExprNode):
     gil_message = "Truth-testing Python object"
 
     def check_const(self):
-        self.operand1.check_const()
-        self.operand2.check_const()
+        return self.operand1.check_const() and self.operand2.check_const()
     
     def generate_evaluation_code(self, code):
         code.mark_pos(self.pos)
@@ -5073,9 +5087,9 @@ class CondExprNode(ExprNode):
         self.type = PyrexTypes.error_type
     
     def check_const(self):
-        self.test.check_const()
-        self.true_val.check_const()
-        self.false_val.check_const()
+        return (self.test.check_const() 
+            and self.true_val.check_const()
+            and self.false_val.check_const())
     
     def generate_evaluation_code(self, code):
         # Because subexprs may not be evaluated we can use a more optimal
@@ -5198,27 +5212,29 @@ class CmpNode(object):
 
         if new_common_type is None:
             # fall back to generic type compatibility tests
-            if type1 == type2 or type1.assignable_from(type2):
+            if type1 == type2:
                 new_common_type = type1
-            elif type2.assignable_from(type1):
-                new_common_type = type2
-            elif type1.is_pyobject and type2.is_pyobject:
-                new_common_type = py_object_type
             elif type1.is_pyobject or type2.is_pyobject:
                 if type2.is_numeric or type2.is_string:
                     if operand2.check_for_coercion_error(type1):
                         new_common_type = error_type
                     else:
-                        new_common_type = type1
+                        new_common_type = py_object_type
                 elif type1.is_numeric or type1.is_string:
                     if operand1.check_for_coercion_error(type2):
                         new_common_type = error_type
                     else:
-                        new_common_type = type2
+                        new_common_type = py_object_type
+                elif py_object_type.assignable_from(type1) and py_object_type.assignable_from(type2):
+                    new_common_type = py_object_type
                 else:
                     # one Python type and one non-Python type, not assignable
                     self.invalid_types_error(operand1, op, operand2)
                     new_common_type = error_type
+            elif type1.assignable_from(type2):
+                new_common_type = type1
+            elif type2.assignable_from(type1):
+                new_common_type = type2
             else:
                 # C types that we couldn't handle up to here are an error
                 self.invalid_types_error(operand1, op, operand2)
@@ -5412,10 +5428,11 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             or self.operand2.type.is_pyobject)
     
     def check_const(self):
-        self.operand1.check_const()
-        self.operand2.check_const()
         if self.cascade:
             self.not_const()
+            return False
+        else:
+            return self.operand1.check_const() and self.operand2.check_const()
 
     def calculate_result_code(self):
         if self.operand1.type.is_complex:
@@ -5611,13 +5628,14 @@ class PyTypeTestNode(CoercionNode):
     #  object is an instance of a particular extension type.
     #  This node borrows the result of its argument node.
 
-    def __init__(self, arg, dst_type, env):
+    def __init__(self, arg, dst_type, env, notnone=False):
         #  The arg is know to be a Python object, and
         #  the dst_type is known to be an extension type.
         assert dst_type.is_extension_type or dst_type.is_builtin_type, "PyTypeTest on non extension type"
         CoercionNode.__init__(self, arg)
         self.type = dst_type
         self.result_ctype = arg.ctype()
+        self.notnone = notnone
 
     nogil_check = Node.gil_error
     gil_message = "Python type test"
@@ -5644,7 +5662,7 @@ class PyTypeTestNode(CoercionNode):
                 code.globalstate.use_utility_code(type_test_utility_code)
             code.putln(
                 "if (!(%s)) %s" % (
-                    self.type.type_test_code(self.arg.py_result()),
+                    self.type.type_test_code(self.arg.py_result(), self.notnone),
                     code.error_goto(self.pos)))
         else:
             error(self.pos, "Cannot test type of extern C class "
@@ -5787,7 +5805,8 @@ class CoerceToBooleanNode(CoercionNode):
     def check_const(self):
         if self.is_temp:
             self.not_const()
-        self.arg.check_const()
+            return False
+        return self.arg.check_const()
     
     def calculate_result_code(self):
         return "(%s != 0)" % self.arg.result()
@@ -6055,18 +6074,18 @@ bad:
 
 type_test_utility_code = UtilityCode(
 proto = """
-static int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type); /*proto*/
+static INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type); /*proto*/
 """,
 impl = """
-static int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
-    if (!type) {
+static INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
+    if (unlikely(!type)) {
         PyErr_Format(PyExc_SystemError, "Missing type object");
         return 0;
     }
-    if (obj == Py_None || PyObject_TypeCheck(obj, type))
+    if (likely(PyObject_TypeCheck(obj, type)))
         return 1;
-    PyErr_Format(PyExc_TypeError, "Cannot convert %s to %s",
-        Py_TYPE(obj)->tp_name, type->tp_name);
+    PyErr_Format(PyExc_TypeError, "Cannot convert %.200s to %.200s",
+                 Py_TYPE(obj)->tp_name, type->tp_name);
     return 0;
 }
 """)

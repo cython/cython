@@ -52,6 +52,33 @@ cdef extern from "numpy/arrayobject.h":
         NPY_NTYPES
         NPY_NOTYPE
 
+        NPY_INT8
+        NPY_INT16
+        NPY_INT32
+        NPY_INT64
+        NPY_INT128
+        NPY_INT256
+        NPY_UINT8
+        NPY_UINT16
+        NPY_UINT32
+        NPY_UINT64
+        NPY_UINT128
+        NPY_UINT256
+        NPY_FLOAT16
+        NPY_FLOAT32
+        NPY_FLOAT64
+        NPY_FLOAT80
+        NPY_FLOAT96
+        NPY_FLOAT128
+        NPY_FLOAT256
+        NPY_COMPLEX32
+        NPY_COMPLEX64
+        NPY_COMPLEX128
+        NPY_COMPLEX160
+        NPY_COMPLEX192
+        NPY_COMPLEX256
+        NPY_COMPLEX512
+
     enum NPY_ORDER:
         NPY_ANYORDER
         NPY_CORDER
@@ -335,7 +362,7 @@ cdef extern from "numpy/arrayobject.h":
     # Macros from ndarrayobject.h
     #
     bint PyArray_CHKFLAGS(ndarray m, int flags)
-    bint PyArray_ISISCONTIGUOUS(ndarray m)
+    bint PyArray_ISCONTIGUOUS(ndarray m)
     bint PyArray_ISWRITEABLE(ndarray m)
     bint PyArray_ISALIGNED(ndarray m)
 

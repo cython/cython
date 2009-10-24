@@ -79,7 +79,7 @@ cdef extern from "Python.h":
     # fastest). If fortran is 'A', then it does not matter and the
     # copy will be made in whatever way is more efficient.
 
-    int PyObject_CopyData(object dest, object src)
+    int PyObject_CopyData(object dest, object src) except -1
     # Copy the data from the src buffer to the buffer of destination
 
     bint PyBuffer_IsContiguous(Py_buffer *view, char fort)

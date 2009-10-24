@@ -30,21 +30,21 @@ cdef extern from "Python.h":
     # the code object, the argument defaults and closure are set to
     # NULL.
 
-    PyObject* PyFunction_GetCode(object op)
+    PyObject* PyFunction_GetCode(object op) except? NULL
     # Return value: Borrowed reference.
     # Return the code object associated with the function object op. 
 
-    PyObject* PyFunction_GetGlobals(object op)
+    PyObject* PyFunction_GetGlobals(object op) except? NULL
     # Return value: Borrowed reference.
     # Return the globals dictionary associated with the function object op. 
 
-    PyObject* PyFunction_GetModule(object op)
+    PyObject* PyFunction_GetModule(object op) except? NULL
     # Return value: Borrowed reference.
     # Return the __module__ attribute of the function object op. This
     # is normally a string containing the module name, but can be set
     # to any other object by Python code.
 
-    PyObject* PyFunction_GetDefaults(object op)
+    PyObject* PyFunction_GetDefaults(object op) except? NULL
     # Return value: Borrowed reference.
     # Return the argument default values of the function object
     # op. This can be a tuple of arguments or NULL.
@@ -54,7 +54,7 @@ cdef extern from "Python.h":
     # op. defaults must be Py_None or a tuple.
     # Raises SystemError and returns -1 on failure. 
 
-    PyObject* PyFunction_GetClosure(object op)
+    PyObject* PyFunction_GetClosure(object op) except? NULL
     # Return value: Borrowed reference.
     # Return the closure associated with the function object op. This
     # can be NULL or a tuple of cell objects.

@@ -236,7 +236,7 @@ cdef extern from "Python.h":
     # Returns the o converted to a Python int or long on success or
     # NULL with a TypeError exception raised on failure.
 
-    Py_ssize_t PyNumber_AsSsize_t(object o, object exc)
+    Py_ssize_t PyNumber_AsSsize_t(object o, object exc) except? -1
     # Returns o converted to a Py_ssize_t value if o can be
     # interpreted as an integer. If o can be converted to a Python int
     # or long but the attempt to convert to a Py_ssize_t value would

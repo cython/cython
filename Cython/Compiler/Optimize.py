@@ -25,6 +25,10 @@ try:
 except NameError:
     from sets import Set as set
 
+class FakePythonEnv(object):
+    "A fake environment for creating type test nodes etc."
+    nogil = False
+
 def unwrap_node(node):
     while isinstance(node, UtilNodes.ResultRefNode):
         node = node.expression
@@ -297,11 +301,11 @@ class IterationTransform(Visitor.VisitorTransform):
                 tuple_target = node.target
 
         def coerce_object_to(obj_node, dest_type):
-            class FakeEnv(object):
-                nogil = False
             if dest_type.is_pyobject:
-                if dest_type.is_extension_type or dest_type.is_builtin_type:
-                    obj_node = ExprNodes.PyTypeTestNode(obj_node, dest_type, FakeEnv())
+                if dest_type != obj_node.type:
+                    if dest_type.is_extension_type or dest_type.is_builtin_type:
+                        obj_node = ExprNodes.PyTypeTestNode(
+                            obj_node, dest_type, FakePythonEnv(), notnone=True)
                 result = ExprNodes.TypecastNode(
                     obj_node.pos,
                     operand = obj_node,
@@ -316,7 +320,7 @@ class IterationTransform(Visitor.VisitorTransform):
                         return temp_result.result()
                     def generate_execution_code(self, code):
                         self.generate_result_code(code)
-                return (temp_result, CoercedTempNode(dest_type, obj_node, FakeEnv()))
+                return (temp_result, CoercedTempNode(dest_type, obj_node, FakePythonEnv()))
 
         if isinstance(node.body, Nodes.StatListNode):
             body = node.body
@@ -528,38 +532,105 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
     def visit_ParallelAssignmentNode(self, node):
-        left, right, temps = [], [], []
+        left_names, right_names = [], []
+        left_indices, right_indices = [], []
+        temps = []
+
         for stat in node.stats:
             if isinstance(stat, Nodes.SingleAssignmentNode):
-                lhs = unwrap_node(stat.lhs)
-                if not isinstance(lhs, ExprNodes.NameNode):
+                if not self._extract_operand(stat.lhs, left_names,
+                                             left_indices, temps):
                     return node
-                left.append(lhs)
-                rhs = unwrap_node(stat.rhs)
-                if isinstance(rhs, ExprNodes.CoerceToTempNode):
-                    temps.append(rhs)
-                    rhs = rhs.arg
-                if not isinstance(rhs, ExprNodes.NameNode):
+                if not self._extract_operand(stat.rhs, right_names,
+                                             right_indices, temps):
                     return node
-                right.append(rhs)
+            elif isinstance(stat, Nodes.CascadedAssignmentNode):
+                # FIXME
+                return node
             else:
                 return node
 
-        for name_node in left + right:
-            if name_node.entry.is_builtin or name_node.entry.is_pyglobal:
+        if left_names or right_names:
+            # lhs/rhs names must be a non-redundant permutation
+            lnames = [n.name for n in left_names]
+            rnames = [n.name for n in right_names]
+            if set(lnames) != set(rnames):
+                return node
+            if len(set(lnames)) != len(right_names):
                 return node
 
-        left_names = [n.name for n in left]
-        right_names = [n.name for n in right]
-        if set(left_names) != set(right_names):
-            return node
-        if len(set(left_names)) != len(right):
+        if left_indices or right_indices:
+            # base name and index of index nodes must be a
+            # non-redundant permutation
+            lindices = []
+            for lhs_node in left_indices:
+                index_id = self._extract_index_id(lhs_node)
+                if not index_id:
+                    return node
+                lindices.append(index_id)
+            rindices = []
+            for rhs_node in right_indices:
+                index_id = self._extract_index_id(rhs_node)
+                if not index_id:
+                    return node
+                rindices.append(index_id)
+            
+            if set(lindices) != set(rindices):
+                return node
+            if len(set(lindices)) != len(right_indices):
+                return node
+
+            # really supporting IndexNode requires support in
+            # __Pyx_GetItemInt(), so let's stop short for now
             return node
 
-        for name_node in left + right + temps:
-            name_node.use_managed_ref = False
+        temp_args = [t.arg for t in temps]
+        for temp in temps:
+            temp.use_managed_ref = False
+
+        for name_node in left_names + right_names:
+            if name_node not in temp_args:
+                name_node.use_managed_ref = False
+
+        for index_node in left_indices + right_indices:
+            index_node.use_managed_ref = False
 
         return node
+
+    def _extract_operand(self, node, names, indices, temps):
+        node = unwrap_node(node)
+        if not node.type.is_pyobject:
+            return False
+        if isinstance(node, ExprNodes.CoerceToTempNode):
+            temps.append(node)
+            node = node.arg
+        if isinstance(node, ExprNodes.NameNode):
+            if node.entry.is_builtin or node.entry.is_pyglobal:
+                return False
+            names.append(node)
+        elif isinstance(node, ExprNodes.IndexNode):
+            if node.base.type != Builtin.list_type:
+                return False
+            if not node.index.type.is_int:
+                return False
+            if not isinstance(node.base, ExprNodes.NameNode):
+                return False
+            indices.append(node)
+        else:
+            return False
+        return True
+
+    def _extract_index_id(self, index_node):
+        base = index_node.base
+        index = index_node.index
+        if isinstance(index, ExprNodes.NameNode):
+            index_val = index.name
+        elif isinstance(index, ExprNodes.ConstNode):
+            # FIXME:
+            return None
+        else:
+            return None
+        return (base.name, index_val)
 
 
 class OptimizeBuiltinCalls(Visitor.VisitorTransform):
@@ -618,7 +689,7 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
                 return function_handler(node, arg_tuple, kwargs)
             else:
                 return function_handler(node, arg_tuple)
-        elif isinstance(function, ExprNodes.AttributeNode):
+        elif function.is_attribute:
             arg_list = arg_tuple.args
             self_arg = function.obj
             obj_type = self_arg.type
@@ -647,6 +718,22 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
                 return method_handler(node, arg_list, is_unbound_method)
         else:
             return node
+
+    def _error_wrong_arg_count(self, function_name, node, args, expected=None):
+        if not expected: # None or 0
+            arg_str = ''
+        elif isinstance(expected, basestring) or expected > 1:
+            arg_str = '...'
+        elif expected == 1:
+            arg_str = 'x'
+        else:
+            arg_str = ''
+        if expected is not None:
+            expected_str = 'expected %s, ' % expected
+        else:
+            expected_str = ''
+        error(node.pos, "%s(%s) called with wrong number of args, %sfound %d" % (
+            function_name, arg_str, expected_str, len(args)))
 
     ### builtin types
 
@@ -781,8 +868,7 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
                 is_temp = node.is_temp
                 )
         else:
-            error(node.pos, "getattr() called with wrong number of args, "
-                  "expected 2 or 3, found %d" % len(args))
+            self._error_wrong_arg_count('getattr', node, args, '2 or 3')
         return node
 
     Pyx_Type_func_type = PyrexTypes.CFuncType(
@@ -831,8 +917,7 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
 
     def _handle_simple_method_list_append(self, node, args, is_unbound_method):
         if len(args) != 2:
-            error(node.pos, "list.append(x) called with wrong number of args, found %d" %
-                  len(args))
+            self._error_wrong_arg_count('list.append', node, args, 2)
             return node
         return self._substitute_method_call(
             node, "PyList_Append", self.PyList_Append_func_type,
@@ -853,8 +938,7 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
 
     def _handle_simple_method_list_reverse(self, node, args, is_unbound_method):
         if len(args) != 1:
-            error(node.pos, "list.reverse(x) called with wrong number of args, found %d" %
-                  len(args))
+            self._error_wrong_arg_count('list.reverse', node, args, 1)
             return node
         return self._substitute_method_call(
             node, "PyList_Reverse", self.single_param_func_type,
@@ -882,8 +966,7 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
 
     def _handle_simple_method_unicode_encode(self, node, args, is_unbound_method):
         if len(args) < 1 or len(args) > 3:
-            error(node.pos, "unicode.encode(...) called with wrong number of args, found %d" %
-                  len(args))
+            self._error_wrong_arg_count('unicode.encode', node, args, '1-3')
             return node
 
         null_node = ExprNodes.NullNode(node.pos)
@@ -977,7 +1060,6 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
                     self_arg, "PyExc_AttributeError",
                     "'NoneType' object has no attribute '%s'" % attr_name)
             args[0] = self_arg
-        # FIXME: args[0] may need a runtime None check (ticket #166)
         return ExprNodes.PythonCapiCallNode(
             node.pos, name, func_type,
             args = args,

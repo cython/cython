@@ -53,7 +53,7 @@ cdef extern from "Python.h":
     # of a class, in the case of a class exception, or it may the a
     # subclass of the expected exception.)
 
-    int PyErr_ExceptionMatches(object exc)
+    bint PyErr_ExceptionMatches(object exc)
     # Equivalent to "PyErr_GivenExceptionMatches(PyErr_Occurred(),
     # exc)". This should only be called when an exception is actually
     # set; a memory access violation will occur if no exception has
@@ -126,7 +126,7 @@ cdef extern from "Python.h":
     void PyErr_SetNone(object type)
     # This is a shorthand for "PyErr_SetObject(type, Py_None)". 
 
-    int PyErr_BadArgument()
+    int PyErr_BadArgument() except 0
 
     # This is a shorthand for "PyErr_SetString(PyExc_TypeError,
     # message)", where message indicates that a built-in operation was
@@ -196,7 +196,7 @@ cdef extern from "Python.h":
     # (e.g. a Python/C API function) was invoked with an illegal
     # argument. It is mostly for internal use.
 
-    int PyErr_WarnEx(object category, char *message, int stacklevel)
+    int PyErr_WarnEx(object category, char *message, int stacklevel) except -1
     # Issue a warning message. The category argument is a warning
     # category (see below) or NULL; the message argument is a message
     # string. stacklevel is a positive number giving a number of stack
@@ -205,14 +205,14 @@ cdef extern from "Python.h":
     # function calling PyErr_WarnEx(), 2 is the function above that,
     # and so forth.
 
-    int PyErr_WarnExplicit(object category, char *message, char *filename, int lineno, char *module, object registry)
+    int PyErr_WarnExplicit(object category, char *message, char *filename, int lineno, char *module, object registry) except -1
     # Issue a warning message with explicit control over all warning
     # attributes. This is a straightforward wrapper around the Python
     # function warnings.warn_explicit(), see there for more
     # information. The module and registry arguments may be set to
     # NULL to get the default effect described there.
 
-    int PyErr_CheckSignals()
+    int PyErr_CheckSignals() except -1
     # This function interacts with Python's signal handling. It checks
     # whether a signal has been sent to the processes and if so,
     # invokes the corresponding signal handler. If the signal module

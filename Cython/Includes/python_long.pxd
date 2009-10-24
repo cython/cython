@@ -72,32 +72,32 @@ cdef extern from "Python.h":
     # PyLong_AsVoidPtr().  If the integer is larger than LONG_MAX, a
     # positive long integer is returned.
 
-    long PyLong_AsLong(object pylong)
+    long PyLong_AsLong(object pylong) except? -1
     # Return a C long representation of the contents of pylong. If
     # pylong is greater than LONG_MAX, an OverflowError is raised.
 
-    unsigned long PyLong_AsUnsignedLong(object pylong)
+    unsigned long PyLong_AsUnsignedLong(object pylong) except? -1
     # Return a C unsigned long representation of the contents of
     # pylong. If pylong is greater than ULONG_MAX, an OverflowError is
     # raised.
 
-    PY_LONG_LONG PyLong_AsLongLong(object pylong)
+    PY_LONG_LONG PyLong_AsLongLong(object pylong) except? -1
     # Return a C long long from a Python long integer. If pylong
     # cannot be represented as a long long, an OverflowError will be
     # raised.
 
-    uPY_LONG_LONG PyLong_AsUnsignedLongLong(object pylong)
+    uPY_LONG_LONG PyLong_AsUnsignedLongLong(object pylong) except? -1
     #unsigned PY_LONG_LONG PyLong_AsUnsignedLongLong(object pylong)
     # Return a C unsigned long long from a Python long integer. If
     # pylong cannot be represented as an unsigned long long, an
     # OverflowError will be raised if the value is positive, or a
     # TypeError will be raised if the value is negative. 
 
-    unsigned long PyLong_AsUnsignedLongMask(object io)
+    unsigned long PyLong_AsUnsignedLongMask(object io) except? -1
     # Return a C unsigned long from a Python long integer, without
     # checking for overflow. 
 
-    uPY_LONG_LONG PyLong_AsUnsignedLongLongMask(object io)
+    uPY_LONG_LONG PyLong_AsUnsignedLongLongMask(object io) except? -1
     #unsigned PY_LONG_LONG PyLong_AsUnsignedLongLongMask(object io)
     # Return a C unsigned long long from a Python long integer,
     # without checking for overflow.
@@ -107,7 +107,7 @@ cdef extern from "Python.h":
     # pylong cannot be approximately represented as a double, an
     # OverflowError exception is raised and -1.0 will be returned.
 
-    void* PyLong_AsVoidPtr(object pylong)
+    void* PyLong_AsVoidPtr(object pylong) except? NULL
     # Convert a Python integer or long integer pylong to a C void
     # pointer. If pylong cannot be converted, an OverflowError will be
     # raised. This is only assured to produce a usable void pointer
