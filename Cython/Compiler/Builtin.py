@@ -161,6 +161,9 @@ bad:
 pyexec_utility_code = UtilityCode(
 proto = """
 #if PY_VERSION_HEX < 0x02040000
+#ifndef Py_COMPILE_H
+#include "compile.h"
+#endif
 #ifndef Py_EVAL_H
 #include "eval.h"
 #endif
