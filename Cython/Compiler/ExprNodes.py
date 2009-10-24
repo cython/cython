@@ -926,8 +926,8 @@ class StringNode(PyConstNode):
             self.check_for_coercion_error(dst_type, fail=True)
 
         # this will be a unicode string in Py3, so make sure we can decode it
-        if not self.is_identifier:
-            encoding = self.value.encoding or 'UTF-8'
+        if self.value.encoding:
+            encoding = self.value.encoding
             try:
                 self.value.decode(encoding)
             except UnicodeDecodeError:
