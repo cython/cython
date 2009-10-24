@@ -9,13 +9,13 @@ clean:
 	@echo Cleaning Source
 	@rm -fr build
 	@rm -f *.pyc */*.pyc */*/*.pyc 
+	@rm -f *.so */*.so */*/*.so 
+	@rm -f *.pyd */*.pyd */*/*.pyd 
 	@rm -f *~ */*~ */*/*~
 	@rm -f core */core
-	@rm -f Cython/Compiler/Parsing.{c,so,pyd}
-	@rm -f Cython/Compiler/Scanning.{c,so,pyd}
-	@rm -f Cython/Compiler/Visitor.{c,so,pyd}
-	@rm -f Cython/Runtime/refnanny.{c,so,pyd}
-	@rm -f Cython/Plex/Scanners.{c,so,pyd}
+	@rm -f Cython/Compiler/*.c
+	@rm -f Cython/Plex/*.c
+	@rm -f Cython/Runtime/refnanny.c
 	@(cd Demos; $(MAKE) clean)
 
 testclean:
