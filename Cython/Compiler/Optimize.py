@@ -1060,7 +1060,6 @@ class OptimizeBuiltinCalls(Visitor.VisitorTransform):
                     self_arg, "PyExc_AttributeError",
                     "'NoneType' object has no attribute '%s'" % attr_name)
             args[0] = self_arg
-        # FIXME: args[0] may need a runtime None check (ticket #166)
         return ExprNodes.PythonCapiCallNode(
             node.pos, name, func_type,
             args = args,
