@@ -31,9 +31,9 @@ cdef extern from "Python.h":
     # Return value: New reference.
     # Create a PyFloatObject object from v, or NULL on failure. 
 
-    double PyFloat_AsDouble(object pyfloat)
+    double PyFloat_AsDouble(object pyfloat) except? -1
     # Return a C double representation of the contents of pyfloat.
 
-    double PyFloat_AS_DOUBLE(object pyfloat)
+    double PyFloat_AS_DOUBLE(object pyfloat) except? -1
     # Return a C double representation of the contents of pyfloat, but
     # without error checking.

@@ -15,3 +15,17 @@ cdef int obj2int(object ob) except *:
 def foo(a):
     cdef int i = obj2int(a)
     CHKERR(i)
+
+cdef int* except_expr(bint fire) except <int*>-1:
+    if fire:
+        raise RuntimeError
+
+def test_except_expr(bint fire):
+    """
+    >>> test_except_expr(False)
+    >>> test_except_expr(True)
+    Traceback (most recent call last):
+    ...
+    RuntimeError
+    """
+    except_expr(fire)

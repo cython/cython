@@ -93,10 +93,13 @@ class AnnotationCCodeWriter(CCodeWriter):
 body { font-family: courier; font-size: 12; }
 
 .code  { font-size: 9; color: #444444; display: none; margin-left: 20px; }
-.py_api  { color: red; }
-.pyx_api  { color: #FF3000; }
-.py_macro_api  { color: #FF8000; }
-.error_goto  { color: #FF8000; }
+.py_c_api  { color: red; }
+.py_macro_api  { color: #FF7000; }
+.pyx_c_api  { color: #FF3000; }
+.pyx_macro_api  { color: #FF7000; }
+.refnanny  { color: #FFA000; }
+
+.error_goto  { color: #FFA000; }
 
 .tag  {  }
 
@@ -126,10 +129,12 @@ function toggleDiv(id) {
         f.write(u'<p>Raw output: <a href="%s">%s</a>\n' % (c_file, c_file))
         k = 0
         
-        py_c_api = re.compile(u'(Py[A-Z][a-z]+_[A-Z][a-z][A-Za-z_]+)')
-        pyx_api = re.compile(u'(__Pyx[A-Za-z_]+)\(')
-        py_marco_api = re.compile(u'(Py[A-Za-z]*_[A-Z][A-Z_]+)')
+        py_c_api = re.compile(u'(Py[A-Z][a-z]+_[A-Z][a-z][A-Za-z_]+)\(')
+        py_marco_api = re.compile(u'(Py[A-Z][a-z]+_[A-Z][A-Z_]+)\(')
+        pyx_c_api = re.compile(u'(__Pyx_[A-Z][a-z_][A-Za-z_]+)\(')
+        pyx_macro_api = re.compile(u'(__Pyx_[A-Z][A-Z_]+)\(')
         error_goto = re.compile(ur'((; *if .*)? \{__pyx_filename = .*goto __pyx_L\w+;\})')
+        refnanny = re.compile(u'(__Pyx_X?(GOT|GIVE)REF|__Pyx_RefNanny[A-Za-z]+)')
         
         for line in lines:
 
@@ -139,14 +144,17 @@ function toggleDiv(id) {
             except KeyError:
                 code = ''
                 
-            code, c_api_calls = py_c_api.subn(ur"<span class='py_api'>\1</span>", code)
-            code, pyx_api_calls = pyx_api.subn(ur"<span class='pyx_api'>\1</span>(", code)
-            code, macro_api_calls = py_marco_api.subn(ur"<span class='py_macro_api'>\1</span>", code)
+            code, py_c_api_calls = py_c_api.subn(ur"<span class='py_c_api'>\1</span>(", code)
+            code, pyx_c_api_calls = pyx_c_api.subn(ur"<span class='pyx_c_api'>\1</span>(", code)
+            code, py_macro_api_calls = py_marco_api.subn(ur"<span class='py_macro_api'>\1</span>(", code)
+            code, pyx_macro_api_calls = pyx_macro_api.subn(ur"<span class='pyx_macro_api'>\1</span>(", code)
+            code, refnanny_calls = refnanny.subn(ur"<span class='refnanny'>\1</span>", code)
             code, error_goto_calls = error_goto.subn(ur"<span class='error_goto'>\1</span>", code)
             
             code = code.replace(u"<span class='error_goto'>;", u";<span class='error_goto'>")
             
-            color = u"FFFF%02x" % int(255/(1+(5*c_api_calls+2*pyx_api_calls+macro_api_calls)/10.0))
+            score = 5*py_c_api_calls + 2*pyx_c_api_calls + py_macro_api_calls + pyx_macro_api_calls - refnanny_calls
+            color = u"FFFF%02x" % int(255/(1+score/10.0))
             f.write(u"<pre class='line' style='background-color: #%s' onclick='toggleDiv(\"line%s\")'>" % (color, k))
 
             f.write(u" %d: " % k)

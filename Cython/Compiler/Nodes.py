@@ -546,18 +546,24 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         else:
             if self.exception_value:
                 self.exception_value.analyse_const_expression(env)
-                exc_val = self.exception_value.get_constant_c_result_code()
                 if self.exception_check == '+':
+                    self.exception_value.analyse_types(env)
                     exc_val_type = self.exception_value.type
                     if not exc_val_type.is_error and \
                           not exc_val_type.is_pyobject and \
                           not (exc_val_type.is_cfunction and not exc_val_type.return_type.is_pyobject and len(exc_val_type.args)==0):
                         error(self.exception_value.pos,
                             "Exception value must be a Python exception or cdef function with no arguments.")
+                    exc_val = self.exception_value
                 else:
-                    if not return_type.assignable_from(self.exception_value.type):
-                        error(self.exception_value.pos,
-                              "Exception value incompatible with function return type")
+                    if self.exception_value.analyse_const_expression(env):
+                        exc_val = self.exception_value.get_constant_c_result_code()
+                        if exc_val is None:
+                            raise InternalError("get_constant_c_result_code not implemented for %s" %
+                                self.exception_value.__class__.__name__)
+                        if not return_type.assignable_from(self.exception_value.type):
+                            error(self.exception_value.pos,
+                                  "Exception value incompatible with function return type")
             exc_check = self.exception_check
         if return_type.is_array:
             error(self.pos,
@@ -1013,12 +1019,12 @@ class FuncDefNode(StatNode, BlockNode):
         
     def create_local_scope(self, env):
         genv = env
-        while env.is_py_class_scope or env.is_c_class_scope:
-            env = env.outer_scope
+        while genv.is_py_class_scope or genv.is_c_class_scope:
+            genv = env.outer_scope
         if self.needs_closure:
             lenv = ClosureScope(name = self.entry.name, scope_name = self.entry.cname, outer_scope = genv)
         else:
-            lenv = LocalScope(name = self.entry.name, outer_scope = genv)
+            lenv = LocalScope(name = self.entry.name, outer_scope = genv, parent_scope = env)
         lenv.return_type = self.return_type
         type = self.entry.type
         if type.is_cfunction:
@@ -2797,7 +2803,7 @@ class CClassDefNode(ClassDefNode):
             buffer_defaults = buffer_defaults)
         if home_scope is not env and self.visibility == 'extern':
             env.add_imported_entry(self.class_name, self.entry, pos)
-        scope = self.entry.type.scope
+        self.scope = scope = self.entry.type.scope
         if scope is not None:
             scope.directives = env.directives
 
@@ -3266,7 +3272,7 @@ class InPlaceAssignmentNode(AssignmentNode):
         "+":        "PyNumber_InPlaceAdd",
         "-":        "PyNumber_InPlaceSubtract",
         "*":        "PyNumber_InPlaceMultiply",
-        "/":        "PyNumber_InPlaceDivide",
+        "/":        "__Pyx_PyNumber_InPlaceDivide",
         "%":        "PyNumber_InPlaceRemainder",
         "<<":        "PyNumber_InPlaceLshift",
         ">>":        "PyNumber_InPlaceRshift",

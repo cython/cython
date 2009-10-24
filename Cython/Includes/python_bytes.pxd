@@ -10,32 +10,32 @@ cdef extern from "Python.h":
     # These functions raise TypeError when expecting a string
     # parameter and are called with a non-string parameter.
     # PyStringObject
-    # This subtype of PyObject represents a Python string object. 
-    # PyTypeObject PyString_Type
-    # This instance of PyTypeObject represents the Python string type;
-    # it is the same object as str and types.StringType in the Python
+    # This subtype of PyObject represents a Python bytes object. 
+    # PyTypeObject PyBytes_Type
+    # This instance of PyTypeObject represents the Python bytes type;
+    # it is the same object as bytes and types.BytesType in the Python
     # layer. 
 
-    bint PyString_Check(object o)
+    bint PyBytes_Check(object o)
     # Return true if the object o is a string object or an instance of
     # a subtype of the string type. 
 
-    bint PyString_CheckExact(object o)
+    bint PyBytes_CheckExact(object o)
     # Return true if the object o is a string object, but not an instance of a subtype of the string type. 
 
-    object PyString_FromString(char *v)
+    object PyBytes_FromString(char *v)
     # Return value: New reference.
     # Return a new string object with the value v on success, and NULL
     # on failure. The parameter v must not be NULL; it will not be
     # checked.
 
-    object PyString_FromStringAndSize(char *v, Py_ssize_t len)
+    object PyBytes_FromStringAndSize(char *v, Py_ssize_t len)
     # Return value: New reference.
     # Return a new string object with the value v and length len on
     # success, and NULL on failure. If v is NULL, the contents of the
     # string are uninitialized.
 
-    object PyString_FromFormat(char *format, ...)
+    object PyBytes_FromFormat(char *format, ...)
     # Return value: New reference.
     # Take a C printf()-style format string and a variable number of
     # arguments, calculate the size of the resulting Python string and
@@ -64,32 +64,32 @@ cdef extern from "Python.h":
     # format string to be copied as-is to the result string, and any
     # extra arguments discarded.
 
-    object PyString_FromFormatV(char *format, va_list vargs)
+    object PyBytes_FromFormatV(char *format, va_list vargs)
     # Return value: New reference.
-    # Identical to PyString_FromFormat() except that it takes exactly two arguments. 
+    # Identical to PyBytes_FromFormat() except that it takes exactly two arguments. 
 
-    Py_ssize_t PyString_Size(object string) except -1
+    Py_ssize_t PyBytes_Size(object string) except -1
     # Return the length of the string in string object string. 
 
-    Py_ssize_t PyString_GET_SIZE(object string)
-    # Macro form of PyString_Size() but without error checking. 
+    Py_ssize_t PyBytes_GET_SIZE(object string)
+    # Macro form of PyBytes_Size() but without error checking. 
 
-    char* PyString_AsString(object string) except NULL
+    char* PyBytes_AsString(object string) except NULL
     # Return a NUL-terminated representation of the contents of
     # string. The pointer refers to the internal buffer of string, not
     # a copy. The data must not be modified in any way, unless the
-    # string was just created using PyString_FromStringAndSize(NULL,
+    # string was just created using PyBytes_FromStringAndSize(NULL,
     # size). It must not be deallocated. If string is a Unicode
     # object, this function computes the default encoding of string
     # and operates on that. If string is not a string object at all,
-    # PyString_AsString() returns NULL and raises TypeError.
+    # PyBytes_AsString() returns NULL and raises TypeError.
 
-    char* PyString_AS_STRING(object string)
-    # Macro form of PyString_AsString() but without error
+    char* PyBytes_AS_STRING(object string)
+    # Macro form of PyBytes_AsString() but without error
     # checking. Only string objects are supported; no Unicode objects
     # should be passed.
 
-    int PyString_AsStringAndSize(object obj, char **buffer, Py_ssize_t *length) except -1
+    int PyBytes_AsStringAndSize(object obj, char **buffer, Py_ssize_t *length) except -1
     # Return a NULL-terminated representation of the contents of the
     # object obj through the output variables buffer and length.
     #
@@ -101,13 +101,13 @@ cdef extern from "Python.h":
     
     # The buffer refers to an internal string buffer of obj, not a
     # copy. The data must not be modified in any way, unless the
-    # string was just created using PyString_FromStringAndSize(NULL,
+    # string was just created using PyBytes_FromStringAndSize(NULL,
     # size). It must not be deallocated. If string is a Unicode
     # object, this function computes the default encoding of string
     # and operates on that. If string is not a string object at all,
-    # PyString_AsStringAndSize() returns -1 and raises TypeError.
+    # PyBytes_AsStringAndSize() returns -1 and raises TypeError.
 
-    void PyString_Concat(PyObject **string, object newpart)
+    void PyBytes_Concat(PyObject **string, object newpart)
     # Create a new string object in *string containing the contents of
     # newpart appended to string; the caller will own the new
     # reference. The reference to the old value of string will be
@@ -115,12 +115,12 @@ cdef extern from "Python.h":
     # to string will still be discarded and the value of *string will
     # be set to NULL; the appropriate exception will be set.
 
-    void PyString_ConcatAndDel(PyObject **string, object newpart)
+    void PyBytes_ConcatAndDel(PyObject **string, object newpart)
     # Create a new string object in *string containing the contents of
     # newpart appended to string. This version decrements the
     # reference count of newpart.
 
-    int _PyString_Resize(PyObject **string, Py_ssize_t newsize) except -1
+    int _PyBytes_Resize(PyObject **string, Py_ssize_t newsize) except -1
     # A way to resize a string object even though it is
     # ``immutable''. Only use this to build up a brand new string
     # object; don't use this if the string may already be known in
@@ -134,12 +134,12 @@ cdef extern from "Python.h":
     # *string is set to NULL, a memory exception is set, and -1 is
     # returned.
 
-    object PyString_Format(object format, object args)
+    object PyBytes_Format(object format, object args)
     # Return value: New reference.  Return a new string object from
     # format and args. Analogous to format % args. The args argument
     # must be a tuple.
 
-    void PyString_InternInPlace(PyObject **string)
+    void PyBytes_InternInPlace(PyObject **string)
     # Intern the argument *string in place. The argument must be the
     # address of a pointer variable pointing to a Python string
     # object. If there is an existing interned string that is the same
@@ -152,14 +152,14 @@ cdef extern from "Python.h":
     # reference-count-neutral; you own the object after the call if
     # and only if you owned it before the call.)
 
-    object PyString_InternFromString(char *v)
+    object PyBytes_InternFromString(char *v)
     # Return value: New reference.
-    # A combination of PyString_FromString() and
-    # PyString_InternInPlace(), returning either a new string object
+    # A combination of PyBytes_FromString() and
+    # PyBytes_InternInPlace(), returning either a new string object
     # that has been interned, or a new (``owned'') reference to an
     # earlier interned string object with the same value.
 
-    object PyString_Decode(char *s, Py_ssize_t size, char *encoding, char *errors)
+    object PyBytes_Decode(char *s, Py_ssize_t size, char *encoding, char *errors)
     #  Return value: New reference.
     # Create an object by decoding size bytes of the encoded buffer s
     # using the codec registered for encoding. encoding and errors
@@ -168,7 +168,7 @@ cdef extern from "Python.h":
     # using the Python codec registry. Return NULL if an exception was
     # raised by the codec.
 
-    object PyString_AsDecodedObject(object str, char *encoding, char *errors)
+    object PyBytes_AsDecodedObject(object str, char *encoding, char *errors)
     # Return value: New reference.
     # Decode a string object by passing it to the codec registered for
     # encoding and return the result as Python object. encoding and
@@ -177,7 +177,7 @@ cdef extern from "Python.h":
     # using the Python codec registry. Return NULL if an exception was
     # raised by the codec.
 
-    object PyString_Encode(char *s, Py_ssize_t size, char *encoding, char *errors)
+    object PyBytes_Encode(char *s, Py_ssize_t size, char *encoding, char *errors)
     # Return value: New reference.
     # Encode the char buffer of the given size by passing it to the
     # codec registered for encoding and return a Python
@@ -186,7 +186,7 @@ cdef extern from "Python.h":
     # codec to be used is looked up using the Python codec
     # registry. Return NULL if an exception was raised by the codec.
 
-    object PyString_AsEncodedObject(object str, char *encoding, char *errors)
+    object PyBytes_AsEncodedObject(object str, char *encoding, char *errors)
     # Return value: New reference.
     # Encode a string object using the codec registered for encoding
     # and return the result as Python object. encoding and errors have
