@@ -187,8 +187,8 @@ class FixedSlot(SlotDescriptor):
     #
     #  value        string
     
-    def __init__(self, slot_name, value, py3k=True):
-        SlotDescriptor.__init__(self, slot_name, py3k=py3k)
+    def __init__(self, slot_name, value, py3k=True, py2=True, ifdef=None):
+        SlotDescriptor.__init__(self, slot_name, py3k=py3k, py2=py2, ifdef=ifdef)
         self.value = value
     
     def slot_code(self, scope):
@@ -198,8 +198,8 @@ class FixedSlot(SlotDescriptor):
 class EmptySlot(FixedSlot):
     #  Descriptor for a type slot whose value is always 0.
     
-    def __init__(self, slot_name, py3k=True):
-        FixedSlot.__init__(self, slot_name, "0", py3k=py3k)
+    def __init__(self, slot_name, py3k=True, py2=True, ifdef=None):
+        FixedSlot.__init__(self, slot_name, "0", py3k=py3k, py2=py2, ifdef=ifdef)
 
 
 class MethodSlot(SlotDescriptor):
@@ -692,6 +692,8 @@ slot_table = (
     EmptySlot("tp_cache"),
     EmptySlot("tp_subclasses"),
     EmptySlot("tp_weaklist"),
+    EmptySlot("tp_del"),
+    EmptySlot("tp_version_tag", ifdef="PY_VERSION_HEX >= 0x02060000"),
 )
 
 #------------------------------------------------------------------------------------------
