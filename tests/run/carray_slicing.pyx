@@ -1,4 +1,6 @@
 
+cimport cython
+
 cdef char* cstring = "abcABCqtp"
 
 def slice_charptr_end():
@@ -8,6 +10,8 @@ def slice_charptr_end():
     """
     return cstring[:1], cstring[:3], cstring[:9]
 
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
 def slice_charptr_decode():
     """
     >>> print str(slice_charptr_decode()).replace("u'", "'")
@@ -17,6 +21,8 @@ def slice_charptr_decode():
             cstring[:3].decode('UTF-8'),
             cstring[:9].decode('UTF-8'))
 
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
 def slice_charptr_decode_unbound():
     """
     >>> print str(slice_charptr_decode_unbound()).replace("u'", "'")
@@ -26,6 +32,8 @@ def slice_charptr_decode_unbound():
             bytes.decode(cstring[:3], 'UTF-8', 'replace'),
             bytes.decode(cstring[:9], 'UTF-8'))
 
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
 def slice_charptr_decode_errormode():
     """
     >>> print str(slice_charptr_decode_errormode()).replace("u'", "'")
