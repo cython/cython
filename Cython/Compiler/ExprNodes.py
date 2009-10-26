@@ -1787,6 +1787,12 @@ class IndexNode(ExprNode):
         self.is_buffer_access = False
 
         self.base.analyse_types(env)
+        if self.base.type.is_error:
+            # Do not visit child tree if base is undeclared to avoid confusing
+            # error messages
+            self.type = PyrexTypes.error_type
+            return
+        
         # Handle the case where base is a literal char* (and we expect a string, not an int)
         if isinstance(self.base, BytesNode):
             self.base = self.base.coerce_to_pyobject(env)
