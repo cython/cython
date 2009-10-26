@@ -1518,22 +1518,24 @@ class IteratorNode(ExprNode):
 
     def generate_result_code(self, code):
         is_builtin_sequence = self.sequence.type is list_type or \
-            self.sequence.type is tuple_type
+                              self.sequence.type is tuple_type
+        may_be_a_sequence = is_builtin_sequence or not self.sequence.type.is_builtin_type
         if is_builtin_sequence:
             code.putln(
                 "if (likely(%s != Py_None)) {" % self.sequence.py_result())
-        else:
+        elif may_be_a_sequence:
             code.putln(
                 "if (PyList_CheckExact(%s) || PyTuple_CheckExact(%s)) {" % (
                     self.sequence.py_result(),
                     self.sequence.py_result()))
-        code.putln(
-            "%s = 0; %s = %s; __Pyx_INCREF(%s);" % (
-                self.counter_cname,
-                self.result(),
-                self.sequence.py_result(),
-                self.result()))
-        code.putln("} else {")
+        if may_be_a_sequence:
+            code.putln(
+                "%s = 0; %s = %s; __Pyx_INCREF(%s);" % (
+                    self.counter_cname,
+                    self.result(),
+                    self.sequence.py_result(),
+                    self.result()))
+            code.putln("} else {")
         if is_builtin_sequence:
             code.putln(
                 'PyErr_SetString(PyExc_TypeError, "\'NoneType\' object is not iterable"); %s' %
@@ -1545,7 +1547,8 @@ class IteratorNode(ExprNode):
                     self.sequence.py_result(),
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
-        code.putln("}")
+        if may_be_a_sequence:
+            code.putln("}")
 
 
 class NextNode(AtomicExprNode):
@@ -1564,12 +1567,15 @@ class NextNode(AtomicExprNode):
         self.is_temp = 1
     
     def generate_result_code(self, code):
-        if self.iterator.sequence.type is list_type:
+        sequence_type = self.iterator.sequence.type
+        if sequence_type is list_type:
             type_checks = [(list_type, "List")]
-        elif self.iterator.sequence.type is tuple_type:
+        elif sequence_type is tuple_type:
             type_checks = [(tuple_type, "Tuple")]
-        else:
+        elif not sequence_type.is_builtin_type:
             type_checks = [(list_type, "List"), (tuple_type, "Tuple")]
+        else:
+            type_checks = []
 
         for py_type, prefix in type_checks:
             if len(type_checks) > 1:
