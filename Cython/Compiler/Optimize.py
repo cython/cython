@@ -1033,8 +1033,6 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if len(args) < 1 or len(args) > 3:
             self._error_wrong_arg_count('bytes.decode', node, args, '1-3')
             return node
-        if is_unbound_method:
-            return node
         if not isinstance(args[0], ExprNodes.SliceIndexNode):
             # we need the string length as a slice end index
             return node
@@ -1069,24 +1067,12 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 is_temp = node.is_temp,
                 )
 
-            return self._substitute_method_call(
-                node, decode_function,
-                self.PyUnicode_DecodeXyz_func_type,
-                'decode', is_unbound_method,
-                [string_node, stop, error_handling_node])
-
         return ExprNodes.PythonCapiCallNode(
             node.pos, "PyUnicode_Decode",
             self.PyUnicode_Decode_func_type,
             args = [string_node, stop, encoding_node, error_handling_node],
             is_temp = node.is_temp,
             )
-
-        return self._substitute_method_call(
-            node, "PyUnicode_Decode",
-            self.PyUnicode_Decode_func_type,
-            'decode', is_unbound_method,
-            [string_node, stop, encoding_node, error_handling_node])
 
     def _find_special_codec_name(self, encoding):
         try:
