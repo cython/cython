@@ -26,6 +26,7 @@ cdef extern from "Python.h":
 
 cdef extern from "numpy/arrayobject.h":
     ctypedef Py_intptr_t npy_intp
+    ctypedef size_t npy_uintp
 
     cdef enum NPY_TYPES:
         NPY_BOOL
@@ -193,7 +194,7 @@ cdef extern from "numpy/arrayobject.h":
             cdef bint little_endian = ((<char*>&endian_detector)[0] != 0)
             
             ndim = PyArray_NDIM(self)
-            
+
             if sizeof(npy_intp) != sizeof(Py_ssize_t):
                 copy_shape = 1
             else:
@@ -735,7 +736,8 @@ ctypedef double complex complex128_t
 # numpy.int corresponds to 'l' and numpy.long to 'q'
 ctypedef npy_long       int_t
 ctypedef npy_longlong   long_t
-
+ctypedef npy_intp       intp_t
+ctypedef npy_uintp      uintp_t
 
 ctypedef npy_ulong      uint_t
 ctypedef npy_ulonglong  ulong_t
