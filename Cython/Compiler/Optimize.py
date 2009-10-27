@@ -87,7 +87,12 @@ class IterationTransform(Visitor.VisitorTransform):
             # like iterating over dict.keys()
             return self._transform_dict_iteration(
                 node, dict_obj=iterator, keys=True, values=False)
-        if not isinstance(iterator, ExprNodes.SimpleCallNode):
+
+        # C array slice iteration?
+        if isinstance(iterator, ExprNodes.SliceIndexNode) and \
+               (iterator.base.type.is_array or iterator.base.type.is_ptr):
+            return self._transform_carray_iteration(node, iterator)
+        elif not isinstance(iterator, ExprNodes.SimpleCallNode):
             return node
 
         function = iterator.function
@@ -125,6 +130,83 @@ class IterationTransform(Visitor.VisitorTransform):
                 return self._transform_range_iteration(node, iterator)
 
         return node
+
+    def _transform_carray_iteration(self, node, slice_node):
+        start = slice_node.start
+        stop = slice_node.stop
+        step = None
+        if not stop:
+            return node
+
+        if start and start.constant_result != 0:
+            counter_type = PyrexTypes.spanning_type(start.type, stop.type)
+        else:
+            counter_type = stop.type
+            start = ExprNodes.IntNode(slice_node.pos, value=0, type=counter_type)
+
+        if not counter_type.is_int:
+            # a Py_ssize_t should be enough for a pointer offset ...
+            counter_type = PyrexTypes.c_py_ssize_t_type
+
+        if counter_type != start.type:
+            start = start.coerce_to(counter_type, self.current_scope)
+        if counter_type != stop.type:
+            stop = stop.coerce_to(counter_type, self.current_scope)
+
+        start = start.coerce_to_simple(self.current_scope)
+        stop = stop.coerce_to_simple(self.current_scope)
+
+        counter = UtilNodes.TempHandle(counter_type)
+        counter_temp = counter.ref(node.target.pos)
+
+        # special case: char* -> bytes
+        if slice_node.base.type.is_string and node.target.type.is_pyobject:
+            target_value = ExprNodes.SliceIndexNode(
+                node.target.pos,
+                start=counter_temp,
+                stop=ExprNodes.AddNode(
+                    node.target.pos,
+                    operand1=counter_temp,
+                    operator='+',
+                    operand2=ExprNodes.IntNode(node.target.pos, value=1,
+                                               type=counter_temp.type),
+                    type=counter_temp.type),
+                base=slice_node.base,
+                type=Builtin.bytes_type,
+                is_temp=1)
+        else:
+            target_value = ExprNodes.IndexNode(
+                node.target.pos,
+                index=counter_temp,
+                base=slice_node.base,
+                is_buffer_access=False,
+                type=slice_node.base.type.base_type)
+
+        if target_value.type != node.target.type:
+            target_value = target_value.coerce_to(node.target.type,
+                                                  self.current_scope)
+
+        target_assign = Nodes.SingleAssignmentNode(
+            pos = node.target.pos,
+            lhs = node.target,
+            rhs = target_value)
+
+        body = Nodes.StatListNode(
+            node.pos,
+            stats = [target_assign, node.body])
+
+        for_node = Nodes.ForFromStatNode(
+            node.pos,
+            bound1=start, relation1='<=',
+            target=counter_temp,
+            relation2='<', bound2=stop,
+            step=step, body=body,
+            else_clause=node.else_clause,
+            from_range=True)
+
+        return UtilNodes.TempsBlockNode(
+            node.pos, temps=[counter],
+            body=for_node)
 
     def _transform_enumerate_iteration(self, node, enumerate_function):
         args = enumerate_function.arg_tuple.args
