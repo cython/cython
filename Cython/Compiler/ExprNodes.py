@@ -3098,7 +3098,7 @@ class AttributeNode(ExprNode):
                 self.put_nonecheck(code)
 
             select_code = self.result()
-            if self.type.is_pyobject:
+            if self.type.is_pyobject and self.use_managed_ref:
                 rhs.make_owned_reference(code)
                 code.put_giveref(rhs.py_result())
                 code.put_gotref(select_code)
