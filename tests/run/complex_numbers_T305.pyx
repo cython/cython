@@ -63,6 +63,10 @@ __doc__ = u"""
 
     >>> test_conjugate_double(2+3j)
     (2-3j)
+
+    >>> test_coerce_typedef_multiply(3, 1j)
+    (3j)
+    
 """
 
 #cdef extern from "complex.h":
@@ -121,3 +125,6 @@ ctypedef double complex cdouble
 def test_conjugate_typedef(cdouble z):
     return z.conjugate()
 
+ctypedef double mydouble
+def test_coerce_typedef_multiply(mydouble x, double complex z):
+    return x * z
