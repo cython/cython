@@ -66,6 +66,9 @@ __doc__ = u"""
 
     >>> test_coerce_typedef_multiply(3, 1j)
     (3j)
+
+    >>> complex_retval()
+    1j
     
 """
 
@@ -128,3 +131,6 @@ def test_conjugate_typedef(cdouble z):
 ctypedef double mydouble
 def test_coerce_typedef_multiply(mydouble x, double complex z):
     return x * z
+
+cpdef double complex complex_retval():
+    return 1j

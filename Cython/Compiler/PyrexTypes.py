@@ -875,6 +875,7 @@ class CComplexType(CNumericType):
         CNumericType.__init__(self, real_type.rank + 0.5, real_type.signed)
         self.binops = {}
         self.from_parts = "%s_from_parts" % self.specalization_name()
+        self.default_value = "%s(0, 0)" % self.from_parts
     
     def __eq__(self, other):
         if isinstance(self, CComplexType) and isinstance(other, CComplexType):
