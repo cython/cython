@@ -634,8 +634,8 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
 
         if left_names or right_names:
             # lhs/rhs names must be a non-redundant permutation
-            lnames = [n.name for n in left_names]
-            rnames = [n.name for n in right_names]
+            lnames = [ path for path, n in left_names ]
+            rnames = [ path for path, n in right_names ]
             if set(lnames) != set(rnames):
                 return node
             if len(set(lnames)) != len(right_names):
@@ -670,7 +670,7 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
         for temp in temps:
             temp.use_managed_ref = False
 
-        for name_node in left_names + right_names:
+        for _, name_node in left_names + right_names:
             if name_node not in temp_args:
                 name_node.use_managed_ref = False
 
@@ -686,10 +686,16 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
         if isinstance(node, ExprNodes.CoerceToTempNode):
             temps.append(node)
             node = node.arg
-        if isinstance(node, ExprNodes.NameNode):
-            if node.entry.is_builtin or node.entry.is_pyglobal:
+        name_path = []
+        obj_node = node
+        while isinstance(obj_node, ExprNodes.AttributeNode):
+            if obj_node.is_py_attr:
                 return False
-            names.append(node)
+            name_path.append(obj_node.member)
+            obj_node = obj_node.obj
+        if isinstance(obj_node, ExprNodes.NameNode):
+            name_path.append(obj_node.name)
+            names.append( ('.'.join(name_path[::-1]), node) )
         elif isinstance(node, ExprNodes.IndexNode):
             if node.base.type != Builtin.list_type:
                 return False
