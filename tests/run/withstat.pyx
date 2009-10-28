@@ -38,6 +38,11 @@ enter
 exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
 """
 
+import sys
+if sys.version_info < (2,5):
+    __doc__ = __doc__.replace(u"exit <type 'type'> <type 'MyException'>",
+                              u"exit <type 'classobj'> <type 'instance'>")
+
 def typename(t):
     return u"<type '%s'>" % type(t).__name__
 

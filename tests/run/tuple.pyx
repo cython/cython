@@ -19,6 +19,12 @@ __doc__ = u"""
     TypeError: 'NoneType' object is not iterable
 """
 
+import sys
+if sys.version_info < (2,5):
+    __doc__ = __doc__.replace(
+        u"'NoneType' object is not iterable\n    >>> tuple_none_list()",
+        u'iteration over non-sequence\n    >>> tuple_none_list()')
+
 def f(obj1, obj2, obj3, obj4, obj5):
     obj1 = ()
     return obj1

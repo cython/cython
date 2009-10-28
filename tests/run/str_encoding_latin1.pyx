@@ -36,8 +36,7 @@ True
 
 """
 # recoding/escaping is required to properly pass the literals to doctest
-).encode('unicode_escape').decode('ASCII')
-
+).encode('unicode_escape').decode('ASCII').replace(u'\\n', u'\n')
 
 a = 'abc'
 s = 'aäÄÖöo'
