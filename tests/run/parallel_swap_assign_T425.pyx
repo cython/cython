@@ -85,11 +85,14 @@ cdef class A:
 @cython.test_assert_path_exists(
     "//ParallelAssignmentNode",
     "//ParallelAssignmentNode/SingleAssignmentNode",
+    "//ParallelAssignmentNode/SingleAssignmentNode/CoerceToTempNode",
+    "//ParallelAssignmentNode/SingleAssignmentNode/CoerceToTempNode[@use_managed_ref=False]",
     "//ParallelAssignmentNode/SingleAssignmentNode//AttributeNode/NameNode",
     "//ParallelAssignmentNode/SingleAssignmentNode//AttributeNode[@use_managed_ref=False]/NameNode",
     )
 @cython.test_fail_if_path_exists(
-#    "//ParallelAssignmentNode/SingleAssignmentNode//AttributeNode[@use_managed_ref=True]",
+    "//ParallelAssignmentNode/SingleAssignmentNode/CoerceToTempNode[@use_managed_ref=True]",
+    "//ParallelAssignmentNode/SingleAssignmentNode/AttributeNode[@use_managed_ref=True]",
     )
 def swap_attr_values(A a, A b):
     """
