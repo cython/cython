@@ -8,7 +8,7 @@ cdef char* cstring = "abcABCqtp"
 
 def slice_charptr_end():
     """
-    >>> print str(slice_charptr_end()).replace("b'", "'")
+    >>> print(str(slice_charptr_end()).replace("b'", "'"))
     ('a', 'abc', 'abcABCqtp')
     """
     return cstring[:1], cstring[:3], cstring[:9]
@@ -17,7 +17,7 @@ def slice_charptr_end():
 @cython.test_fail_if_path_exists("//AttributeNode")
 def slice_charptr_decode():
     """
-    >>> print str(slice_charptr_decode()).replace("u'", "'")
+    >>> print(str(slice_charptr_decode()).replace("u'", "'"))
     ('a', 'abc', 'abcABCqtp')
     """
     return (cstring[:1].decode('UTF-8'),
@@ -28,7 +28,7 @@ def slice_charptr_decode():
 @cython.test_fail_if_path_exists("//AttributeNode")
 def slice_charptr_decode_unbound():
     """
-    >>> print str(slice_charptr_decode_unbound()).replace("u'", "'")
+    >>> print(str(slice_charptr_decode_unbound()).replace("u'", "'"))
     ('a', 'abc', 'abcABCqtp')
     """
     return (bytes.decode(cstring[:1], 'UTF-8'),
@@ -39,7 +39,7 @@ def slice_charptr_decode_unbound():
 @cython.test_fail_if_path_exists("//AttributeNode")
 def slice_charptr_decode_errormode():
     """
-    >>> print str(slice_charptr_decode_errormode()).replace("u'", "'")
+    >>> print(str(slice_charptr_decode_errormode()).replace("u'", "'"))
     ('a', 'abc', 'abcABCqtp')
     """
     return (cstring[:1].decode('UTF-8', 'strict'),
@@ -56,9 +56,9 @@ def slice_charptr_for_loop_py():
     ['b', 'c', 'A', 'B']
     ['B', 'C', 'q', 't', 'p']
     """
-    print str([ c for c in cstring[:3] ]).replace(" b'", "'").replace("[b'", "'")
-    print str([ c for c in cstring[1:5] ]).replace(" b'", "'").replace("[b'", "'")
-    print str([ c for c in cstring[4:9] ]).replace(" b'", "'")
+    print str([ c for c in cstring[:3] ]).replace(" b'", " '").replace("[b'", "['")
+    print str([ c for c in cstring[1:5] ]).replace(" b'", " '").replace("[b'", "['")
+    print str([ c for c in cstring[4:9] ]).replace(" b'", " '").replace("[b'", "['")
 
 @cython.test_assert_path_exists("//ForFromStatNode",
                                 "//ForFromStatNode//IndexNode")
@@ -71,9 +71,9 @@ def slice_charptr_for_loop_c():
     ['B', 'C', 'q', 't', 'p']
     """
     cdef char c
-    print map(chr, [ c for c in cstring[:3] ])
-    print map(chr, [ c for c in cstring[1:5] ])
-    print map(chr, [ c for c in cstring[4:9] ])
+    print [ chr(c) for c in cstring[:3] ]
+    print [ chr(c) for c in cstring[1:5] ]
+    print [ chr(c) for c in cstring[4:9] ]
 
 @cython.test_assert_path_exists("//ForFromStatNode",
                                 "//ForFromStatNode//SliceIndexNode")
@@ -85,9 +85,9 @@ def slice_charptr_for_loop_py_enumerate():
     [(0, 'b'), (1, 'c'), (2, 'A'), (3, 'B')]
     [(0, 'B'), (1, 'C'), (2, 'q'), (3, 't'), (4, 'p')]
     """
-    print [ (i,c) for i,c in enumerate(cstring[:3]) ]
-    print [ (i,c) for i,c in enumerate(cstring[1:5]) ]
-    print [ (i,c) for i,c in enumerate(cstring[4:9]) ]
+    print str([ (i,c) for i,c in enumerate(cstring[:3]) ]).replace(" b'", " '")
+    print str([ (i,c) for i,c in enumerate(cstring[1:5]) ]).replace(" b'", " '")
+    print str([ (i,c) for i,c in enumerate(cstring[4:9]) ]).replace(" b'", " '")
 
 @cython.test_assert_path_exists("//ForFromStatNode",
                                 "//ForFromStatNode//IndexNode")

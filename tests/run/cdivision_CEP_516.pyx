@@ -76,6 +76,18 @@ Traceback (most recent call last):
 OverflowError: value too large to perform division
 """
 
+def _all(seq):
+    for x in seq:
+        if not x:
+            return False
+    return True
+
+try:
+    all
+except NameError:
+    all = _all
+
+
 cimport cython
 
 @cython.cdivision(False)
