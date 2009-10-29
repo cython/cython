@@ -12,7 +12,7 @@ def go_py_enumerate():
     for i,k in enumerate(range(1,5)):
         print i, k
 
-#T442 @cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
 def go_c_enumerate():
     """
     >>> go_c_enumerate()
@@ -25,7 +25,7 @@ def go_c_enumerate():
     for i,k in enumerate(range(1,5)):
         print i, k
 
-#T442 @cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
 def go_c_enumerate_step():
     """
     >>> go_c_enumerate_step()
@@ -97,7 +97,7 @@ def py_enumerate_continue(*t):
         continue
     print u"::", i, k
 
-# T442 @cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
+@cython.test_fail_if_path_exists("//SimpleCallNode//NameNode[@name = 'enumerate']")
 def empty_c_enumerate():
     """
     >>> empty_c_enumerate()
@@ -132,7 +132,7 @@ def multi_enumerate():
     for a,(b,(c,d)) in enumerate(enumerate(enumerate(range(1,5)))):
         print a,b,c,d
 
-# T442 @cython.test_fail_if_path_exists("//SimpleCallNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode")
 def multi_c_enumerate():
     """
     >>> multi_c_enumerate()
@@ -145,7 +145,7 @@ def multi_c_enumerate():
     for a,(b,(c,d)) in enumerate(enumerate(enumerate(range(1,5)))):
         print a,b,c,d
 
-# T442 @cython.test_fail_if_path_exists("//SimpleCallNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode")
 def convert_target_enumerate(L):
     """
     >>> convert_target_enumerate([2,3,5])
