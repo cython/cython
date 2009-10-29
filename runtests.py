@@ -127,7 +127,8 @@ class TestBuilder(object):
                     continue
                 suite.addTest(
                     self.handle_directory(path, filename))
-        if sys.platform not in ['win32']:
+        if sys.platform not in ['win32'] and sys.version_info[0] < 3:
+            # Non-Windows makefile, can't run Cython under Py3.
             if [1 for selector in self.selectors if selector("embedded")]:
                 suite.addTest(unittest.makeSuite(EmbedTest))
         return suite
