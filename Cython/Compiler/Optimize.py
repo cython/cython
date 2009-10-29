@@ -236,10 +236,6 @@ class IterationTransform(Visitor.VisitorTransform):
         if not counter_type.is_pyobject and not counter_type.is_int:
             # nothing we can do here, I guess
             return node
-        
-        if iterable_target.type is not PyrexTypes.py_object_type:
-            # this may need conversion, could be made to work
-            return node
 
         temp = UtilNodes.LetRefNode(ExprNodes.IntNode(enumerate_function.pos,
                                                       value='0',
@@ -276,6 +272,7 @@ class IterationTransform(Visitor.VisitorTransform):
                 stats = loop_body)
 
         node.target = iterable_target
+        node.item = node.item.coerce_to(iterable_target.type, self.current_scope)
         node.iterator.sequence = enumerate_function.arg_tuple.args[0]
 
         # recurse into loop to check for further optimisations
