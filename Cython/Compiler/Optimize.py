@@ -138,49 +138,51 @@ class IterationTransform(Visitor.VisitorTransform):
         if not stop:
             return node
 
+        carray_ptr = slice_node.base.coerce_to_simple(self.current_scope)
+
         if start and start.constant_result != 0:
-            counter_type = PyrexTypes.spanning_type(start.type, stop.type)
+            start_ptr_node = ExprNodes.AddNode(
+                start.pos,
+                operand1=carray_ptr,
+                operator='+',
+                operand2=start,
+                type=carray_ptr.type)
         else:
-            counter_type = stop.type
-            start = ExprNodes.IntNode(slice_node.pos, value=0, type=counter_type)
+            start_ptr_node = carray_ptr
 
-        if not counter_type.is_int:
-            # a Py_ssize_t should be enough for a pointer offset ...
-            counter_type = PyrexTypes.c_py_ssize_t_type
+        stop_ptr_node = ExprNodes.AddNode(
+            stop.pos,
+            operand1=carray_ptr,
+            operator='+',
+            operand2=stop,
+            type=carray_ptr.type
+            ).coerce_to_simple(self.current_scope)
 
-        if counter_type != start.type:
-            start = start.coerce_to(counter_type, self.current_scope)
-        if counter_type != stop.type:
-            stop = stop.coerce_to(counter_type, self.current_scope)
-
-        start = start.coerce_to_simple(self.current_scope)
-        stop = stop.coerce_to_simple(self.current_scope)
-
-        counter = UtilNodes.TempHandle(counter_type)
+        counter = UtilNodes.TempHandle(carray_ptr.type)
         counter_temp = counter.ref(node.target.pos)
 
-        # special case: char* -> bytes
         if slice_node.base.type.is_string and node.target.type.is_pyobject:
+            # special case: char* -> bytes
             target_value = ExprNodes.SliceIndexNode(
                 node.target.pos,
-                start=counter_temp,
-                stop=ExprNodes.AddNode(
-                    node.target.pos,
-                    operand1=counter_temp,
-                    operator='+',
-                    operand2=ExprNodes.IntNode(node.target.pos, value=1,
-                                               type=counter_temp.type),
-                    type=counter_temp.type),
-                base=slice_node.base,
+                start=ExprNodes.IntNode(node.target.pos, value='0',
+                                        constant_result=0,
+                                        type=PyrexTypes.c_int_type),
+                stop=ExprNodes.IntNode(node.target.pos, value='1',
+                                       constant_result=1,
+                                       type=PyrexTypes.c_int_type),
+                base=counter_temp,
                 type=Builtin.bytes_type,
                 is_temp=1)
         else:
             target_value = ExprNodes.IndexNode(
                 node.target.pos,
-                index=counter_temp,
-                base=slice_node.base,
+                index=ExprNodes.IntNode(node.target.pos, value='0',
+                                        constant_result=0,
+                                        type=PyrexTypes.c_int_type),
+                base=counter_temp,
                 is_buffer_access=False,
-                type=slice_node.base.type.base_type)
+                type=carray_ptr.type.base_type)
 
         if target_value.type != node.target.type:
             target_value = target_value.coerce_to(node.target.type,
@@ -197,9 +199,9 @@ class IterationTransform(Visitor.VisitorTransform):
 
         for_node = Nodes.ForFromStatNode(
             node.pos,
-            bound1=start, relation1='<=',
+            bound1=start_ptr_node, relation1='<=',
             target=counter_temp,
-            relation2='<', bound2=stop,
+            relation2='<', bound2=stop_ptr_node,
             step=step, body=body,
             else_clause=node.else_clause,
             from_range=True)
@@ -300,7 +302,7 @@ class IterationTransform(Visitor.VisitorTransform):
                                          constant_result=step_value)
 
         if step_value < 0:
-            step.value = -step_value
+            step.value = str(-step_value)
             relation1 = '>='
             relation2 = '>'
         else:
