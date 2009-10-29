@@ -1,9 +1,8 @@
-__doc__ = u"""
+def primes(int kmax):
+    """
     >>> primes(20)
     [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71]
-"""
-
-def primes(int kmax):
+    """
     cdef int n, k, i
     cdef int p[1000]
     result = []

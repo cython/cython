@@ -11,8 +11,6 @@ __doc__ = u"""
     ...
     TypeError: That's kind of a round number...
     
-    >>> __hash__(-1)
-    -1
 """
 
 cdef class A:
@@ -26,4 +24,8 @@ cdef class A:
             return self.a
 
 cpdef long __hash__(long x):
+    """
+    >>> __hash__(-1)
+    -1
+    """
     return x

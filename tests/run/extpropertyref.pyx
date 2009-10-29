@@ -1,8 +1,3 @@
-__doc__ = u"""
->>> tomato()
-42
-"""
-
 cdef class Spam:
 
     property eggs:
@@ -11,6 +6,10 @@ cdef class Spam:
             return 42
 
 def tomato():
+    """
+    >>> tomato()
+    42
+    """
     cdef Spam spam
     cdef object lettuce
     spam = Spam()

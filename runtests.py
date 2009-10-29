@@ -433,6 +433,7 @@ is_private_field = re.compile('^_[^_]').match
 
 class _FakeClass(object):
     def __init__(self, **kwargs):
+        self.shortDescription = lambda x: kwargs.get('module_name')
         self.__dict__.update(kwargs)
 
 try: # Py2.7+ and Py3.2+

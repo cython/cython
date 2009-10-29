@@ -1,4 +1,10 @@
-__doc__ = u"""
+cdef sorteditems(d):
+    l = list(d.items())
+    l.sort()
+    return tuple(l)
+
+def spam(x, y, z):
+    """
     >>> spam(1,2,3)
     (1, 2, 3)
     >>> spam(1,2)
@@ -10,7 +16,11 @@ __doc__ = u"""
     >>> spam(1,2,3, a=1)
     Traceback (most recent call last):
     TypeError: spam() got an unexpected keyword argument 'a'
+    """
+    return (x, y, z)
 
+def grail(x, y, z, *a):
+    """
     >>> grail(1,2,3)
     (1, 2, 3, ())
     >>> grail(1,2,3,4)
@@ -23,7 +33,11 @@ __doc__ = u"""
     >>> grail(1,2,3, a=1)
     Traceback (most recent call last):
     TypeError: grail() got an unexpected keyword argument 'a'
+    """
+    return (x, y, z, a)
 
+def swallow(x, y, z, **k):
+    """
     >>> swallow(1,2,3)
     (1, 2, 3, ())
     >>> swallow(1,2,3,4)
@@ -34,7 +48,11 @@ __doc__ = u"""
     >>> swallow(1,2,3, x=1)
     Traceback (most recent call last):
     TypeError: swallow() got multiple values for keyword argument 'x'
+    """
+    return (x, y, z, sorteditems(k))
 
+def creosote(x, y, z, *a, **k):
+    """
     >>> creosote(1,2,3)
     (1, 2, 3, (), ())
     >>> creosote(1,2,3,4)
@@ -46,7 +64,11 @@ __doc__ = u"""
     >>> creosote(1,2,3,4, x=1)
     Traceback (most recent call last):
     TypeError: creosote() got multiple values for keyword argument 'x'
+    """
+    return (x, y, z, a, sorteditems(k))
 
+def onlyt(*a):
+    """
     >>> onlyt(1)
     (1,)
     >>> onlyt(1,2)
@@ -57,7 +79,11 @@ __doc__ = u"""
     >>> onlyt(1, a=2)
     Traceback (most recent call last):
     TypeError: onlyt() got an unexpected keyword argument 'a'
+    """
+    return a
 
+def onlyk(**k):
+    """
     >>> onlyk(a=1)
     (('a', 1),)
     >>> onlyk(a=1, b=2)
@@ -71,7 +97,11 @@ __doc__ = u"""
     >>> onlyk(1, a=1, b=2)
     Traceback (most recent call last):
     TypeError: onlyk() takes exactly 0 positional arguments (1 given)
+    """
+    return sorteditems(k)
 
+def tk(*a, **k):
+    """
     >>> tk(a=1)
     (('a', 1),)
     >>> tk(a=1, b=2)
@@ -82,30 +112,5 @@ __doc__ = u"""
     (1, 2)
     >>> tk(1, a=1, b=2)
     (1, ('a', 1), ('b', 2))
-"""
-
-cdef sorteditems(d):
-    l = list(d.items())
-    l.sort()
-    return tuple(l)
-
-def spam(x, y, z):
-    return (x, y, z)
-
-def grail(x, y, z, *a):
-    return (x, y, z, a)
-
-def swallow(x, y, z, **k):
-    return (x, y, z, sorteditems(k))
-
-def creosote(x, y, z, *a, **k):
-    return (x, y, z, a, sorteditems(k))
-
-def onlyt(*a):
-    return a
-
-def onlyk(**k):
-    return sorteditems(k)
-
-def tk(*a, **k):
+    """
     return a + sorteditems(k)

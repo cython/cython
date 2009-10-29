@@ -1,9 +1,7 @@
-__doc__ = u"""
-    >>> f()
-    >>> g()
-"""
-
 def f():
+    """
+    >>> f()
+    """
     cdef int bool, int1, int2
     cdef object obj1, obj2
     int1 = 0
@@ -22,6 +20,9 @@ def f():
     assert bool
 
 def g():
+    """
+    >>> g()
+    """
     cdef int bool
     obj1 = 1
     obj2 = []
@@ -29,4 +30,3 @@ def g():
     assert not bool
     bool = obj1 not in obj2
     assert bool
-    

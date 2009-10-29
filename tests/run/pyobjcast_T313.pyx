@@ -18,4 +18,3 @@ def f():
     p1 = <void*>a
     p2 = <PyObject*>a
     return (<object>p1, <object>p2)
-    
