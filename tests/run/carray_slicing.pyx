@@ -75,6 +75,42 @@ def slice_charptr_for_loop_c():
     print [ chr(c) for c in cstring[1:5] ]
     print [ chr(c) for c in cstring[4:9] ]
 
+## @cython.test_assert_path_exists("//ForFromStatNode",
+##                                 "//ForFromStatNode//IndexNode")
+## @cython.test_fail_if_path_exists("//ForInStatNode")
+## def slice_charptr_for_loop_c_step():
+##     """
+##     >>> slice_charptr_for_loop_c()
+##     ['c', 'b', 'a']
+##     ['b', 'c', 'A', 'B']
+##     ['p', 't', 'q', 'C', 'B']
+##     """
+##     cdef char c
+##     print [ chr(c) for c in cstring[:3:-1] ]
+##     print [ chr(c) for c in cstring[1:5:2] ]
+##     print [ chr(c) for c in cstring[4:9:-1] ]
+
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def slice_charptr_for_loop_c_dynamic_bounds():
+    """
+    >>> slice_charptr_for_loop_c()
+    ['a', 'b', 'c']
+    ['b', 'c', 'A', 'B']
+    ['B', 'C', 'q', 't', 'p']
+    """
+    cdef char c
+    print [ chr(c) for c in cstring[0:return3()] ]
+    print [ chr(c) for c in cstring[return1():return5()] ]
+    print [ chr(c) for c in cstring[return4():return9()] ]
+
+cdef return1(): return 1
+cdef return3(): return 3
+cdef return4(): return 4
+cdef return5(): return 5
+cdef return9(): return 9
+
 @cython.test_assert_path_exists("//ForFromStatNode",
                                 "//ForFromStatNode//SliceIndexNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
