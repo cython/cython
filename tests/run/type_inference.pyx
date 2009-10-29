@@ -1,17 +1,12 @@
 # cython: infer_types = True
 
-__doc__ = u"""
-    >>> simple()
-    >>> multiple_assignments()
-    >>> arithmatic()
-    >>> cascade()
-    >>> increment()
-    >>> loop()
-"""
 
 from cython cimport typeof
 
 def simple():
+    """
+    >>> simple()
+    """
     i = 3
     assert typeof(i) == "long", typeof(i)
     x = 1.41
@@ -32,6 +27,9 @@ def simple():
     assert typeof(t) == "tuple object", typeof(t)
 
 def multiple_assignments():
+    """
+    >>> multiple_assignments()
+    """
     a = 3
     a = 4
     a = 5
@@ -46,6 +44,9 @@ def multiple_assignments():
     assert typeof(c) == "Python object"
 
 def arithmatic():
+    """
+    >>> arithmatic()
+    """
     a = 1 + 2
     assert typeof(a) == "long"
     b = 1 + 1.5
@@ -56,6 +57,9 @@ def arithmatic():
     assert typeof(d) == "Python object"
     
 def cascade():
+    """
+    >>> cascade()
+    """
     a = 1.0
     b = a + 2
     c = b + 3
@@ -74,11 +78,17 @@ def cascaded_assignment():
     assert typeof(e) == "double"
 
 def increment():
+    """
+    >>> increment()
+    """
     a = 5
     a += 1
     assert typeof(a) == "long"
 
 def loop():
+    """
+    >>> loop()
+    """
     for a in range(10):
         pass
     assert typeof(a) == "long"

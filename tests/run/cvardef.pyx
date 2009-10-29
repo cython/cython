@@ -1,8 +1,7 @@
-__doc__ = u"""
-    >>> f()
-"""
-
 def f():
+    """
+    >>> f()
+    """
     cdef char a_char
     cdef short a_short
     cdef int i1, i2

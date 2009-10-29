@@ -3,29 +3,35 @@ __doc__ = u"""
    'test'
    >>> z
    'test'
-   >>> c('testing')
-   'testing'
-   >>> sub('testing a subtype')
-   'testing a subtype'
-   >>> subs('testing a subtype')
-   'testing a subtype'
-
-#   >>> csub('testing a subtype')
-#   'testing a subtype'
-#   >>> csubs('testing a subtype')
-#   'testing a subtype'
 """
 
 s = str
 z = str('test')
 
 def c(string):
+    """
+    >>> c('testing')
+    'testing'
+    """
     return str(string)
 
 class subs(str):
+    """
+    >>> subs('testing a subtype')
+    'testing a subtype'
+    
+    #   >>> csub('testing a subtype')
+    #   'testing a subtype'
+    #   >>> csubs('testing a subtype')
+    #   'testing a subtype'
+    """
     pass
 
 def sub(string):
+    """
+    >>> sub('testing a subtype')
+    'testing a subtype'
+    """
     return subs(string)
 
 #cdef class subs(str):

@@ -1,9 +1,8 @@
-__doc__ = u"""
->>> loops()
-5
-"""
-
 def loops():
+    """
+    >>> loops()
+    5
+    """
     cdef int k
     for i from 0 <= i < 5:
         for j from 0 <= j < 2:

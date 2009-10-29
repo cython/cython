@@ -1,7 +1,6 @@
-__doc__ = u"""
+def fmod(double a, double b):
+    """
     >>> fmod(7, 1.25)
     0.75
-"""
-
-def fmod(double a, double b):
+    """
     return a % b

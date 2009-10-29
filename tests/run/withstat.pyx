@@ -1,42 +1,5 @@
 from __future__ import with_statement
 
-__doc__ = u"""
->>> no_as()
-enter
-hello
-exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
->>> basic()
-enter
-value
-exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
->>> with_return()
-enter
-exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
->>> with_pass()
-enter
-exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
->>> with_exception(None)
-enter
-value
-exit <type 'type'> <type 'MyException'> <type 'traceback'>
-outer except
->>> with_exception(True)
-enter
-value
-exit <type 'type'> <type 'MyException'> <type 'traceback'>
->>> multitarget()
-enter
-1 2 3 4 5
-exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
->>> tupletarget()
-enter
-(1, 2, (3, (4, 5)))
-exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
->>> typed()
-enter
-10
-exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
-"""
 
 import sys
 if sys.version_info < (2,5):
@@ -63,24 +26,57 @@ class ContextManager(object):
         return self.value
 
 def no_as():
+    """
+    >>> no_as()
+    enter
+    hello
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    """
     with ContextManager(u"value"):
         print u"hello"
         
 def basic():
+    """
+    >>> basic()
+    enter
+    value
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    """
     with ContextManager(u"value") as x:
         print x
         
 def with_pass():
+    """
+    >>> with_pass()
+    enter
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    """
     with ContextManager(u"value") as x:
         pass
         
 def with_return():
+    """
+    >>> with_return()
+    enter
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    """
     with ContextManager(u"value") as x:
         # FIXME: DISABLED - currently crashes!!
         # return x
         pass
 
 def with_exception(exit_ret):
+    """
+    >>> with_exception(None)
+    enter
+    value
+    exit <type 'type'> <type 'MyException'> <type 'traceback'>
+    outer except
+    >>> with_exception(True)
+    enter
+    value
+    exit <type 'type'> <type 'MyException'> <type 'traceback'>
+    """
     try:
         with ContextManager(u"value", exit_ret=exit_ret) as value:
             print value
@@ -89,14 +85,32 @@ def with_exception(exit_ret):
         print u"outer except"
 
 def multitarget():
+    """
+    >>> multitarget()
+    enter
+    1 2 3 4 5
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    """
     with ContextManager((1, 2, (3, (4, 5)))) as (a, b, (c, (d, e))):
         print a, b, c, d, e
 
 def tupletarget():
+    """
+    >>> tupletarget()
+    enter
+    (1, 2, (3, (4, 5)))
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    """
     with ContextManager((1, 2, (3, (4, 5)))) as t:
         print t
 
 def typed():
+    """
+    >>> typed()
+    enter
+    10
+    exit <type 'NoneType'> <type 'NoneType'> <type 'NoneType'>
+    """
     cdef unsigned char i
     c = ContextManager(255)
     with c as i:

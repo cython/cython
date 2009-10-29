@@ -1,9 +1,3 @@
-__doc__ = u"""
-    >>> test_i()
-    >>> test_c()
-    >>> test_p()
-"""
-
 cdef union Spam:
     int i
     char c
@@ -29,14 +23,23 @@ cdef void eggs_p(Spam s):
 spam = ham
 
 def test_i():
+    """
+    >>> test_i()
+    """
     spam.i = 1
     eggs_i(spam)
 
 def test_c():
+    """
+    >>> test_c()
+    """
     spam.c = c'a'
     eggs_c(spam)
 
 def test_p():
+    """
+    >>> test_p()
+    """
     cdef float f
     spam.p[0] = &f
     eggs_p(spam)

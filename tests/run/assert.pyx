@@ -1,4 +1,5 @@
-__doc__ = u"""
+def f(a, b, int i):
+    """
     >>> f(1, 2, 1)
     >>> f(0, 2, 1)
     Traceback (most recent call last):
@@ -9,17 +10,16 @@ __doc__ = u"""
     >>> f(1, 2, 0)
     Traceback (most recent call last):
     AssertionError
-
-    >>> g(1, "works")
-    >>> g(0, "fails")
-    Traceback (most recent call last):
-    AssertionError: fails
-"""
-
-def f(a, b, int i):
+    """
     assert a
     assert a+b
     assert i
 
 def g(a, b):
+    """
+    >>> g(1, "works")
+    >>> g(0, "fails")
+    Traceback (most recent call last):
+    AssertionError: fails
+    """
     assert a, b

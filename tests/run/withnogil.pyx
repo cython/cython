@@ -1,11 +1,8 @@
-__doc__ = u"""
+def f(x):
+    """
     >>> f(1)
     (1, 17)
-    >>> g()
-    1
-"""
-
-def f(x):
+    """
     cdef int y
     z = 42
     with nogil:
@@ -14,6 +11,10 @@ def f(x):
     return z,y
 
 def g():
+    """
+    >>> g()
+    1
+    """
     with nogil:
         h()
     return 1

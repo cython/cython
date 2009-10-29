@@ -1,23 +1,21 @@
-__doc__ = u"""
-    >>> call2()
-    >>> call3()
-    >>> call4()
-    >>> test_foo()
-    2
-    3
-    7
-    26
-"""
-
 # the calls:
 
 def call2():
+    """
+    >>> call2()
+    """
     b(1,2)
 
 def call3():
+    """
+    >>> call3()
+    """
     b(1,2,3)
 
 def call4():
+    """
+    >>> call4()
+    """
     b(1,2,3,4)
 
 # the called function:
@@ -30,6 +28,13 @@ cdef int foo(int a, int b=1, int c=1):
     return a+b*c
     
 def test_foo():
+    """
+    >>> test_foo()
+    2
+    3
+    7
+    26
+    """
     print foo(1)
     print foo(1, 2)
     print foo(1, 2, 3)
