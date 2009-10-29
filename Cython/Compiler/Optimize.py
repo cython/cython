@@ -754,6 +754,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         return self._dispatch_to_handler(
             node, node.function, arg_tuple)
 
+    ### cleanup to avoid redundant coercions to/from Python types
+
     def visit_PyTypeTestNode(self, node):
         """Flatten redundant type checks after tree changes.
         """
@@ -762,6 +764,55 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if old_arg is node.arg or node.arg.type != node.type:
             return node
         return node.arg
+
+    def visit_CoerceFromPyTypeNode(self, node):
+        """Drop redundant conversion nodes after tree changes.
+
+        Also, optimise away calls to Python's builtin int() and
+        float() if the result is going to be coerced back into a C
+        type anyway.
+        """
+        self.visitchildren(node)
+        arg = node.arg
+        if not arg.type.is_pyobject:
+            # no Python conversion left at all, just do a C coercion instead
+            if node.type == arg.type:
+                return arg
+            else:
+                return arg.coerce_to(node.type, self.env_stack[-1])
+        if not isinstance(arg, ExprNodes.SimpleCallNode):
+            return node
+        if not (node.type.is_int or node.type.is_float):
+            return node
+        function = arg.function
+        if not isinstance(function, ExprNodes.NameNode) \
+               or not function.type.is_builtin_type \
+               or not isinstance(arg.arg_tuple, ExprNodes.TupleNode):
+            return node
+        args = arg.arg_tuple.args
+        if len(args) != 1:
+            return node
+        func_arg = args[0]
+        if isinstance(func_arg, ExprNodes.CoerceToPyTypeNode):
+            func_arg = func_arg.arg
+        elif func_arg.type.is_pyobject:
+            # play safe: Python conversion might work on all sorts of things
+            return node
+        if function.name == 'int':
+            if func_arg.type.is_int or node.type.is_int:
+                if func_arg.type == node.type:
+                    return func_arg
+                elif node.type.assignable_from(func_arg.type) or func_arg.type.is_float:
+                    return ExprNodes.CastNode(func_arg, node.type)
+        elif function.name == 'float':
+            if func_arg.type.is_float or node.type.is_float:
+                if func_arg.type == node.type:
+                    return func_arg
+                elif node.type.assignable_from(func_arg.type) or func_arg.type.is_float:
+                    return ExprNodes.CastNode(func_arg, node.type)
+        return node
+
+    ### dispatch to specific optimisers
 
     def _find_handler(self, match_name, has_kwargs):
         call_type = has_kwargs and 'general' or 'simple'
