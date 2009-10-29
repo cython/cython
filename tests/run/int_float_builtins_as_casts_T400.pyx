@@ -27,11 +27,23 @@ def double_to_pyssizet_int(double x):
 
 @cython.test_assert_path_exists("//SingleAssignmentNode/CastNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
+def int_to_pyssizet_int(int x):
+    """
+    >>> int_to_pyssizet_int(4.1)
+    4
+    >>> int_to_pyssizet_int(4)
+    4
+    """
+    cdef Py_ssize_t r = int(x)
+    return r
+
+@cython.test_assert_path_exists("//SingleAssignmentNode/CastNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode")
 def double_to_pyssizet_float(double x):
     """
-    >>> double_to_pyssizet_int(4.1)
+    >>> double_to_pyssizet_float(4.1)
     4
-    >>> double_to_pyssizet_int(4)
+    >>> double_to_pyssizet_float(4)
     4
     """
     cdef Py_ssize_t r = float(x)
