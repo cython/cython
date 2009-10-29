@@ -16,7 +16,7 @@ all: embedded
 
 clean:
 	@echo Cleaning Demos/embed
-	@rm -f *~ *.o *.so core core.* *.c embedded
+	@rm -f *~ *.o *.so core core.* *.c embedded test.output
 
 test: clean all
 	./embedded > test.output
