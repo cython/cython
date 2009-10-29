@@ -236,6 +236,10 @@ class IterationTransform(Visitor.VisitorTransform):
         if not counter_type.is_pyobject and not counter_type.is_int:
             # nothing we can do here, I guess
             return node
+        
+        if iterable_target.type is not PyrexTypes.py_object_type:
+            # this may need conversion, could be made to work
+            return node
 
         temp = UtilNodes.LetRefNode(ExprNodes.IntNode(enumerate_function.pos,
                                                       value='0',
