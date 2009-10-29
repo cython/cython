@@ -127,6 +127,9 @@ class TestBuilder(object):
                     continue
                 suite.addTest(
                     self.handle_directory(path, filename))
+        if sys.platform not in ['win32']:
+            if [1 for selector in self.selectors if selector("embedded")]:
+                suite.addTest(unittest.makeSuite(EmbedTest))
         return suite
 
     def handle_directory(self, path, context):
@@ -554,6 +557,28 @@ def collect_doctests(path, module_prefix, suite, selectors):
                             suite.addTest(doctest.DocTestSuite(module))
                         except ValueError: # no tests
                             pass
+
+# TODO: Support cython_freeze needed here as well.
+# TODO: Windows support.
+
+class EmbedTest(unittest.TestCase):
+    
+    working_dir = "Demos/embed"
+    
+    def setUp(self):
+        self.old_dir = os.getcwd()
+        os.chdir(self.working_dir)
+        os.system("make clean > /dev/null")
+    
+    def tearDown(self):
+        try:
+            os.system("make clean > /dev/null")
+        except:
+            pass
+        os.chdir(self.old_dir)
+        
+    def test_embed(self):
+        self.assert_(os.system("make test > make.output") == 0)
 
 class MissingDependencyExcluder:
     def __init__(self, deps):
