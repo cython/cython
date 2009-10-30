@@ -138,7 +138,7 @@ class Context(object):
             IntroduceBufferAuxiliaryVars(self),
             _check_c_declarations,
             AnalyseExpressionsTransform(self),
-            OptimizeBuiltinCalls(),
+            OptimizeBuiltinCalls(self),
             IterationTransform(),
             SwitchTransform(),
             DropRefcountingTransform(),

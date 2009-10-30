@@ -1,40 +1,41 @@
-__doc__ = u"""
-    >>> f(1,2,3,4,5)
-    ()
-    >>> g(1,2,3,4,5)
-    (2,)
-    >>> h(1,2,3,4,5)
-    (2, 3)
-    >>> j(1,2,3,4,5)
-    (2, 3, 4)
-    >>> k(1,2,3,4,5)
-    (2, 3, 4)
-    >>> l(1,2,3,4,5)
-    (17, 42, 88)
-    >>> tuple_none()
-    Traceback (most recent call last):
-    TypeError: 'NoneType' object is not iterable
-    >>> tuple_none_list()
-    Traceback (most recent call last):
-    TypeError: 'NoneType' object is not iterable
-"""
+import sys
+if sys.version_info < (2,5):
+    __doc__ = __doc__.replace(
+        u"'NoneType' object is not iterable\n    >>> tuple_none_list()",
+        u'iteration over non-sequence\n    >>> tuple_none_list()')
 
 def f(obj1, obj2, obj3, obj4, obj5):
+    """
+    >>> f(1,2,3,4,5)
+    ()
+    """
     obj1 = ()
     return obj1
 
 def g(obj1, obj2, obj3, obj4, obj5):
+    """
+    >>> g(1,2,3,4,5)
+    (2,)
+    """
     obj1 = ()
     obj1 = (obj2,)
     return obj1
 
 def h(obj1, obj2, obj3, obj4, obj5):
+    """
+    >>> h(1,2,3,4,5)
+    (2, 3)
+    """
     obj1 = ()
     obj1 = (obj2,)
     obj1 = obj2, obj3
     return obj1
 
 def j(obj1, obj2, obj3, obj4, obj5):
+    """
+    >>> j(1,2,3,4,5)
+    (2, 3, 4)
+    """
     obj1 = ()
     obj1 = (obj2,)
     obj1 = obj2, obj3
@@ -42,6 +43,10 @@ def j(obj1, obj2, obj3, obj4, obj5):
     return obj1
 
 def k(obj1, obj2, obj3, obj4, obj5):
+    """
+    >>> k(1,2,3,4,5)
+    (2, 3, 4)
+    """
     obj1 = ()
     obj1 = (obj2,)
     obj1 = obj2, obj3
@@ -50,6 +55,10 @@ def k(obj1, obj2, obj3, obj4, obj5):
     return obj1
 
 def l(obj1, obj2, obj3, obj4, obj5):
+    """
+    >>> l(1,2,3,4,5)
+    (17, 42, 88)
+    """
     obj1 = ()
     obj1 = (obj2,)
     obj1 = obj2, obj3
@@ -59,8 +68,18 @@ def l(obj1, obj2, obj3, obj4, obj5):
     return obj1
 
 def tuple_none():
+    """
+    >>> tuple_none()
+    Traceback (most recent call last):
+    TypeError: 'NoneType' object is not iterable
+    """
     return tuple(None)
 
 def tuple_none_list():
+    """
+    >>> tuple_none_list()
+    Traceback (most recent call last):
+    TypeError: 'NoneType' object is not iterable
+    """
     cdef list none = None
     return tuple(none)

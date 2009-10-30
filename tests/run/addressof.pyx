@@ -1,9 +1,8 @@
-__doc__ = u"""
+def f(int a):
+    """
     >>> f(5)
     5
-"""
-
-def f(int a):
+    """
     cdef int i,j
     cdef int *p
     i = a

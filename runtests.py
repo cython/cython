@@ -127,6 +127,10 @@ class TestBuilder(object):
                     continue
                 suite.addTest(
                     self.handle_directory(path, filename))
+        if sys.platform not in ['win32'] and sys.version_info[0] < 3:
+            # Non-Windows makefile, can't run Cython under Py3.
+            if [1 for selector in self.selectors if selector("embedded")]:
+                suite.addTest(unittest.makeSuite(EmbedTest))
         return suite
 
     def handle_directory(self, path, context):
@@ -429,6 +433,7 @@ is_private_field = re.compile('^_[^_]').match
 
 class _FakeClass(object):
     def __init__(self, **kwargs):
+        self.shortDescription = lambda x: kwargs.get('module_name')
         self.__dict__.update(kwargs)
 
 try: # Py2.7+ and Py3.2+
@@ -554,6 +559,28 @@ def collect_doctests(path, module_prefix, suite, selectors):
                             suite.addTest(doctest.DocTestSuite(module))
                         except ValueError: # no tests
                             pass
+
+# TODO: Support cython_freeze needed here as well.
+# TODO: Windows support.
+
+class EmbedTest(unittest.TestCase):
+    
+    working_dir = "Demos/embed"
+    
+    def setUp(self):
+        self.old_dir = os.getcwd()
+        os.chdir(self.working_dir)
+        os.system("make clean > /dev/null")
+    
+    def tearDown(self):
+        try:
+            os.system("make clean > /dev/null")
+        except:
+            pass
+        os.chdir(self.old_dir)
+        
+    def test_embed(self):
+        self.assert_(os.system("make test > make.output") == 0)
 
 class MissingDependencyExcluder:
     def __init__(self, deps):

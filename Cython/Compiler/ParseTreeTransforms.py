@@ -1,4 +1,5 @@
-from Cython.Compiler.Visitor import VisitorTransform, CythonTransform, TreeVisitor
+from Cython.Compiler.Visitor import VisitorTransform, TreeVisitor
+from Cython.Compiler.Visitor import CythonTransform, EnvTransform
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import *
 from Cython.Compiler.ExprNodes import *
@@ -980,21 +981,6 @@ class GilCheck(VisitorTransform):
         if self.env_stack and self.nogil and node.nogil_check:
             node.nogil_check(self.env_stack[-1])
         self.visitchildren(node)
-        return node
-
-
-class EnvTransform(CythonTransform):
-    """
-    This transformation keeps a stack of the environments. 
-    """
-    def __call__(self, root):
-        self.env_stack = [root.scope]
-        return super(EnvTransform, self).__call__(root)        
-    
-    def visit_FuncDefNode(self, node):
-        self.env_stack.append(node.local_scope)
-        self.visitchildren(node)
-        self.env_stack.pop()
         return node
 
 

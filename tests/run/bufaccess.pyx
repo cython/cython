@@ -1392,4 +1392,3 @@ def buffer_nogil():
     with nogil:
         buf[1] = 10
     return buf[1]
-    

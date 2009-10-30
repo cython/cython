@@ -27,8 +27,6 @@ Options:
   -z, --pre-import <module>      If specified, assume undeclared names in this 
                                  module. Emulates the behavior of putting 
                                  "from <module> import *" at the top of the file. 
-  --incref-local-binop           Force local an extra incref on local variables before
-                                 performing any binary operations.
   --cleanup <level>              Release interned objects on python exit, for memory debugging. 
                                  Level indicates aggressiveness, default 0 releases nothing. 
   -w, --working <directory>      Sets the working directory for Cython (the directory modules 
@@ -108,8 +106,6 @@ def parse_command_line(args):
                 Options.embed_pos_in_docstring = 1
             elif option in ("-z", "--pre-import"):
                 Options.pre_import = pop_arg()
-            elif option == "--incref-local-binop":
-                Options.incref_local_binop = 1
             elif option == "--cleanup":
                 Options.generate_cleanup_code = int(pop_arg())
             elif option in ("-D", "--no-docstrings"):

@@ -1,8 +1,3 @@
-__doc__ = u"""
-    >>> order()
-    42 tons of spam!
-"""
-
 class Spam:
 
     def __init__(self, w):
@@ -12,5 +7,9 @@ class Spam:
         print self.weight, u"tons of spam!"
 
 def order():
+    """
+    >>> order()
+    42 tons of spam!
+    """
     s = Spam(42)
     s.serve()

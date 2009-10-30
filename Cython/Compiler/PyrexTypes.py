@@ -621,8 +621,8 @@ static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
 """,
 impl="""
 static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
-    const %(type)s neg_one = (%(type)s)-1, zero = 0;
-    const int is_unsigned = neg_one > zero;
+    const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
+    const int is_unsigned = neg_one > const_zero;
     if (sizeof(%(type)s) < sizeof(long)) {
         long val = __Pyx_PyInt_AsLong(x);
         if (unlikely(val != (long)(%(type)s)val)) {
@@ -646,8 +646,8 @@ static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
 """,
 impl="""
 static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
-    const %(type)s neg_one = (%(type)s)-1, zero = 0;
-    const int is_unsigned = neg_one > zero;
+    const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
+    const int is_unsigned = neg_one > const_zero;
 #if PY_VERSION_HEX < 0x03000000
     if (likely(PyInt_Check(x))) {
         long val = PyInt_AS_LONG(x);
@@ -687,8 +687,8 @@ static INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject *);
 """,
 impl="""
 static INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject* x) {
-    const %(type)s neg_one = (%(type)s)-1, zero = 0;
-    const int is_unsigned = neg_one > zero;
+    const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
+    const int is_unsigned = neg_one > const_zero;
     if (sizeof(%(type)s) == sizeof(char)) {
         if (is_unsigned)
             return (%(type)s)__Pyx_PyInt_AsUnsignedChar(x);
@@ -734,8 +734,8 @@ static INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s);
 """,
 impl="""
 static INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s val) {
-    const %(type)s neg_one = (%(type)s)-1, zero = 0;
-    const int is_unsigned = neg_one > zero;
+    const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
+    const int is_unsigned = neg_one > const_zero;
     if (sizeof(%(type)s) <  sizeof(long)) {
         return PyInt_FromLong((long)val);
     } else if (sizeof(%(type)s) == sizeof(long)) {
@@ -875,6 +875,7 @@ class CComplexType(CNumericType):
         CNumericType.__init__(self, real_type.rank + 0.5, real_type.signed)
         self.binops = {}
         self.from_parts = "%s_from_parts" % self.specalization_name()
+        self.default_value = "%s(0, 0)" % self.from_parts
     
     def __eq__(self, other):
         if isinstance(self, CComplexType) and isinstance(other, CComplexType):

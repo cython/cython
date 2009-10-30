@@ -1,43 +1,14 @@
-__doc__ = u"""
->>> test_sizeof()
-True
-True
-True
-True
-True
-
->>> test_declare(100)
-(100, 100)
->>> test_declare(100.5)
-(100, 100)
->>> test_declare(None)
-Traceback (most recent call last):
-...
-TypeError: an integer is required
-
->>> test_cast(1.5)
-1
->>> test_cast(None)
-Traceback (most recent call last):
-...
-TypeError: a float is required
-
->>> test_address(39)
-39
-
->>> test_locals(5)
-True
-
->>> test_struct(389, 1.64493)
-(389, 1.64493)
-
->>> test_imports()
-True
-"""
-
 import cython
 
 def test_sizeof():
+    """
+    >>> test_sizeof()
+    True
+    True
+    True
+    True
+    True
+    """
     x = cython.declare(cython.bint)
     print sizeof(x) == sizeof(cython.bint)
     print sizeof(cython.char) <= sizeof(cython.short) <= sizeof(cython.int) <= sizeof(cython.long) <= sizeof(cython.longlong)
@@ -49,6 +20,16 @@ def test_sizeof():
         print sizeof(cython.char) == 1
 
 def test_declare(n):
+    """
+    >>> test_declare(100)
+    (100, 100)
+    >>> test_declare(100.5)
+    (100, 100)
+    >>> test_declare(None)
+    Traceback (most recent call last):
+    ...
+    TypeError: an integer is required
+    """
     x = cython.declare(cython.int)
     y = cython.declare(cython.int, n)
     if cython.compiled:
@@ -59,17 +40,33 @@ def test_declare(n):
     
 @cython.locals(x=cython.double, n=cython.int)
 def test_cast(x):
+    """
+    >>> test_cast(1.5)
+    1
+    >>> test_cast(None)
+    Traceback (most recent call last):
+    ...
+    TypeError: a float is required
+    """
     n = cython.cast(cython.int, x)
     return n
     
 @cython.locals(x=cython.int, y=cython.p_int)
 def test_address(x):
+    """
+    >>> test_address(39)
+    39
+    """
     y = cython.address(x)
     return y[0]
 
 @cython.locals(x=cython.int)
 @cython.locals(y=cython.bint)
 def test_locals(x):
+    """
+    >>> test_locals(5)
+    True
+    """
     y = x
     return y
     
@@ -79,6 +76,10 @@ MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)
 MyStruct2 = cython.typedef(MyStruct[2])
 
 def test_struct(n, x):
+    """
+    >>> test_struct(389, 1.64493)
+    (389, 1.64493)
+    """
     a = cython.declare(MyStruct2)
     a[0] = MyStruct(True, data=MyUnion(n=n))
     a[1] = MyStruct(is_integral=False, data={'x': x})
@@ -90,6 +91,10 @@ from cython import declare as my_declare, locals as my_locals, p_void as my_void
 
 @my_locals(a=cython.p_void)
 def test_imports():
+    """
+    >>> test_imports()
+    True
+    """
     a = cython.NULL
     b = declare(p_void, cython.NULL)
     c = my_declare(my_void_star, cython.NULL)

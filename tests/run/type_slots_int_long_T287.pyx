@@ -10,34 +10,37 @@ __doc__ = u"""
 >>> print( "%d" % IntLongC() )
 3
 
->>> getint( Int() )
-2
->>> getint( Long() )
-3
->>> getint( IntLongA() )
-2
->>> getint( IntLongB() )
-2
->>> getint( IntLongC() )
-3
-
->>> getlong( Int() )
-2
->>> getlong( Long() )
-3
->>> getlong( IntLongA() )
-2
->>> getlong( IntLongB() )
-2
->>> getlong( IntLongC() )
-3
 """
 
 
 def getint(int i):
+    """
+    >>> getint( Int() )
+    2
+    >>> getint( Long() )
+    3
+    >>> getint( IntLongA() )
+    2
+    >>> getint( IntLongB() )
+    2
+    >>> getint( IntLongC() )
+    3
+    """
     return i
 
 def getlong(long long i):
+    """
+    >>> getlong( Int() )
+    2
+    >>> getlong( Long() )
+    3
+    >>> getlong( IntLongA() )
+    2
+    >>> getlong( IntLongB() )
+    2
+    >>> getlong( IntLongC() )
+    3
+    """
     return <int>i
 
 
