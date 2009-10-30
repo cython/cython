@@ -31,12 +31,16 @@ True
 True
 >>> all([div_int_py(a,b) == a // b for a in range(-10, 10) for b in range(-10, 10) if b != 0])
 True
-
->>> def simple_warn(msg, *args): print(msg)
->>> import warnings
->>> warnings.showwarning = simple_warn
-
 """
+
+import warnings
+orig_showwarning = warnings.showwarning
+
+true_py_functions = {}
+exec "def simple_warn(msg, *args): print(msg)" in true_py_functions
+simple_warn = true_py_functions['simple_warn']
+del true_py_functions
+
 
 def _all(seq):
     for x in seq:
@@ -100,9 +104,11 @@ def test_cdiv_cmod(short a, short b):
 @cython.cdivision_warnings(True)
 def mod_int_c_warn(int a, int b):
     """
+    >>> warnings.showwarning = simple_warn
     >>> mod_int_c_warn(-17, 10)
     division with oppositely signed operands, C and Python semantics differ
     -7
+    >>> warnings.showwarning = orig_showwarning
     """
     return a % b
 
@@ -110,9 +116,11 @@ def mod_int_c_warn(int a, int b):
 @cython.cdivision_warnings(True)
 def div_int_c_warn(int a, int b):
     """
+    >>> warnings.showwarning = simple_warn
     >>> div_int_c_warn(-17, 10)
     division with oppositely signed operands, C and Python semantics differ
     -1
+    >>> warnings.showwarning = orig_showwarning
     """
     return a // b
 
@@ -120,12 +128,14 @@ def div_int_c_warn(int a, int b):
 @cython.cdivision_warnings(True)
 def complex_expression(int a, int b, int c, int d):
     """
+    >>> warnings.showwarning = simple_warn
     >>> complex_expression(-150, 20, 19, -7)
     verbose_call(20)
     division with oppositely signed operands, C and Python semantics differ
     verbose_call(19)
     division with oppositely signed operands, C and Python semantics differ
     -2
+    >>> warnings.showwarning = orig_showwarning
     """
     return (a // verbose_call(b)) % (verbose_call(c) // d)
 
@@ -173,7 +183,7 @@ def py_div_long(long a, long b):
     """
     >>> py_div_long(-5, -1)
     5
-        >>> import sys
+    >>> import sys
     >>> maxint = getattr(sys, ((sys.version_info[0] >= 3) and 'maxsize' or 'maxint'))
     >>> py_div_long(-maxint-1, -1)
     Traceback (most recent call last):
