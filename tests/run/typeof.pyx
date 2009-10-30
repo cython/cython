@@ -1,22 +1,3 @@
-__doc__ = u"""
-    >>> simple()
-    int
-    long
-    long long
-    int *
-    int **
-    A
-    B
-    X
-    Python object
-    
-    >>> expression()
-    double
-    double complex
-    int
-    unsigned int
-"""
-
 from cython cimport typeof
 
 cdef class A:
@@ -30,6 +11,18 @@ cdef struct X:
     double complex b
 
 def simple():
+    """
+    >>> simple()
+    int
+    long
+    long long
+    int *
+    int **
+    A
+    B
+    X
+    Python object
+    """
     cdef int i = 0
     cdef long l = 0
     cdef long long ll = 0
@@ -50,6 +43,13 @@ def simple():
     used = i, l, ll, <long>iptr, <long>iptrptr, a, b, x
     
 def expression():
+    """
+    >>> expression()
+    double
+    double complex
+    int
+    unsigned int
+    """
     cdef X x = X(a=1, b=2)
     cdef X *xptr = &x
     cdef short s = 0

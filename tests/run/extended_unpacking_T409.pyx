@@ -1,4 +1,3 @@
-
 def simple():
     """
     >>> simple()

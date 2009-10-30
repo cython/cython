@@ -1,11 +1,8 @@
-__doc__ = u"""
+def f():
+    """
     >>> f()
     (-1, -1)
-    >>> p()
-    0
-"""
-
-def f():
+    """
     cdef int int1, int2, int3
     obj1 = 1
     obj2 = 2
@@ -18,6 +15,10 @@ def f():
     return int1, obj1
     
 def p():
+    """
+    >>> p()
+    0
+    """
     cdef int int1, int2, int3
     cdef char *ptr1, *ptr2, *ptr3
     int2 = 2

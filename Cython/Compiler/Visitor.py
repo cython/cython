@@ -306,6 +306,22 @@ class ScopeTrackingTransform(CythonTransform):
     def visit_CStructOrUnionDefNode(self, node):
         return self.visit_scope(node, 'struct')
 
+
+class EnvTransform(CythonTransform):
+    """
+    This transformation keeps a stack of the environments. 
+    """
+    def __call__(self, root):
+        self.env_stack = [root.scope]
+        return super(EnvTransform, self).__call__(root)        
+    
+    def visit_FuncDefNode(self, node):
+        self.env_stack.append(node.local_scope)
+        self.visitchildren(node)
+        self.env_stack.pop()
+        return node
+
+
 class RecursiveNodeReplacer(VisitorTransform):
     """
     Recursively replace all occurrences of a node in a subtree by

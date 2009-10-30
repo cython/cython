@@ -1,71 +1,71 @@
-__doc__ = u"""
->>> index_tuple((1,1,2,3,5), 0)
-1
->>> index_tuple((1,1,2,3,5), 3)
-3
->>> index_tuple((1,1,2,3,5), -1)
-5
->>> index_tuple((1,1,2,3,5), 100)
-Traceback (most recent call last):
-...
-IndexError: tuple index out of range
-
->>> index_list([2,3,5,7,11,13,17,19], 0)
-2
->>> index_list([2,3,5,7,11,13,17,19], 5)
-13
->>> index_list([2,3,5,7,11,13,17,19], -1)
-19
->>> index_list([2,3,5,7,11,13,17,19], 100)
-Traceback (most recent call last):
-...
-IndexError: list index out of range
-
->>> index_object([2,3,5,7,11,13,17,19], 1)
-3
->>> index_object([2,3,5,7,11,13,17,19], -1)
-19
->>> index_object((1,1,2,3,5), 2)
-2
->>> index_object((1,1,2,3,5), -2)
-3
->>> index_object("abcdef...z", 0)
-'a'
->>> index_object("abcdef...z", -1)
-'z'
->>> index_object("abcdef...z", 100)
-Traceback (most recent call last):
-...
-IndexError: string index out of range
-
->>> index_object(100, 100)
-Traceback (most recent call last):
-...
-TypeError: 'int' object is unsubscriptable
-
->>> test_unsigned_long()
->>> test_unsigned_short()
->>> test_long_long()
-"""
-
 import sys
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u'is unsubscriptable', u'is not subscriptable')
-
+elif sys.version_info < (2,5):
+    __doc__ = __doc__.replace(u"'int' object is unsubscriptable", u'unsubscriptable object')
 
 def index_tuple(tuple t, int i):
+    """
+    >>> index_tuple((1,1,2,3,5), 0)
+    1
+    >>> index_tuple((1,1,2,3,5), 3)
+    3
+    >>> index_tuple((1,1,2,3,5), -1)
+    5
+    >>> index_tuple((1,1,2,3,5), 100)
+    Traceback (most recent call last):
+    ...
+    IndexError: tuple index out of range
+    """
     return t[i]
 
 def index_list(list L, int i):
+    """
+    >>> index_list([2,3,5,7,11,13,17,19], 0)
+    2
+    >>> index_list([2,3,5,7,11,13,17,19], 5)
+    13
+    >>> index_list([2,3,5,7,11,13,17,19], -1)
+    19
+    >>> index_list([2,3,5,7,11,13,17,19], 100)
+    Traceback (most recent call last):
+    ...
+    IndexError: list index out of range
+    """
     return L[i]
 
 def index_object(object o, int i):
+    """
+    >>> index_object([2,3,5,7,11,13,17,19], 1)
+    3
+    >>> index_object([2,3,5,7,11,13,17,19], -1)
+    19
+    >>> index_object((1,1,2,3,5), 2)
+    2
+    >>> index_object((1,1,2,3,5), -2)
+    3
+    >>> index_object("abcdef...z", 0)
+    'a'
+    >>> index_object("abcdef...z", -1)
+    'z'
+    >>> index_object("abcdef...z", 100)
+    Traceback (most recent call last):
+    ...
+    IndexError: string index out of range
+    >>> index_object(100, 100)
+    Traceback (most recent call last):
+    ...
+    TypeError: 'int' object is unsubscriptable
+    """
     return o[i]
 
 
 # These make sure that our fast indexing works with large and unsigned types. 
 
 def test_unsigned_long():
+    """
+    >>> test_unsigned_long()
+    """
     cdef int i
     cdef unsigned long ix
     cdef D = {}
@@ -79,6 +79,9 @@ def test_unsigned_long():
     assert len(D) == 0
 
 def test_unsigned_short():
+    """
+    >>> test_unsigned_short()
+    """
     cdef int i
     cdef unsigned short ix
     cdef D = {}
@@ -92,6 +95,9 @@ def test_unsigned_short():
     assert len(D) == 0
 
 def test_long_long():
+    """
+    >>> test_long_long()
+    """
     cdef int i
     cdef long long ix
     cdef D = {}

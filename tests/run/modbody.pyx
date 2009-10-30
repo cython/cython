@@ -1,4 +1,9 @@
-__doc__ = u"""
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u" u'", u" '")
+
+def f():
+    """
     >>> f()
     >>> g
     42
@@ -8,13 +13,7 @@ __doc__ = u"""
     u'eggs'
     >>> z
     u'spameggs'
-"""
-
-import sys
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u" u'", u" '")
-
-def f():
+    """
     pass
     
 g = 42

@@ -1,47 +1,6 @@
 __doc__ = u"""
 Tests accessing attributes of extension type variables
 set to None
-
->>> obj = MyClass(2, 3)
->>> getattr_(obj)
-2
->>> getattr_(None)
-Traceback (most recent call last):
-   ...
-AttributeError: 'NoneType' object has no attribute 'a'
-
->>> setattr_(obj)
->>> getattr_(obj)
-10
->>> setattr_(None)
-Traceback (most recent call last):
-   ...
-AttributeError: 'NoneType' object has no attribute 'a'
-
-
-
->>> obj = MyClass(2, 3)
->>> checking(obj)
-2
-2
->>> checking(None)
-var is None
-
->>> check_and_assign(obj)
-Traceback (most recent call last):
-   ...
-AttributeError: 'NoneType' object has no attribute 'a'
-
->>> check_buffer_get(None)
-Traceback (most recent call last):
-   ...
-TypeError: 'NoneType' object is unsubscriptable
-
->>> check_buffer_set(None)
-Traceback (most recent call last):
-   ...
-TypeError: 'NoneType' object is unsubscriptable
-
 """
 
 cimport cython
@@ -54,10 +13,30 @@ cdef class MyClass:
 
 @cython.nonecheck(True)
 def getattr_(MyClass var):
+    """
+    >>> obj = MyClass(2, 3)
+    >>> getattr_(obj)
+    2
+    >>> getattr_(None)
+    Traceback (most recent call last):
+    ...
+    AttributeError: 'NoneType' object has no attribute 'a'
+    >>> setattr_(obj)
+    >>> getattr_(obj)
+    10
+    """
     print var.a
 
 @cython.nonecheck(True)
 def setattr_(MyClass var):
+    """
+    >>> obj = MyClass(2, 3)
+    >>> setattr_(obj)
+    >>> setattr_(None)
+    Traceback (most recent call last):
+    ...
+    AttributeError: 'NoneType' object has no attribute 'a'
+    """
     var.a = 10
 
 def some():
@@ -65,6 +44,14 @@ def some():
 
 @cython.nonecheck(True)
 def checking(MyClass var):
+    """
+    >>> obj = MyClass(2, 3)
+    >>> checking(obj)
+    2
+    2
+    >>> checking(None)
+    var is None
+    """
     state = (var is None)
     if not state:
         print var.a
@@ -75,6 +62,13 @@ def checking(MyClass var):
 
 @cython.nonecheck(True)
 def check_and_assign(MyClass var):
+    """
+    >>> obj = MyClass(2, 3)
+    >>> check_and_assign(obj)
+    Traceback (most recent call last):
+    ...
+    AttributeError: 'NoneType' object has no attribute 'a'
+    """
     if var is not None:
         print var.a
         var = None
@@ -82,9 +76,20 @@ def check_and_assign(MyClass var):
 
 @cython.nonecheck(True)
 def check_buffer_get(object[int] buf):
+    """
+    >>> check_buffer_get(None)
+    Traceback (most recent call last):
+    ...
+    TypeError: 'NoneType' object is unsubscriptable
+    """
     return buf[0]
 
 @cython.nonecheck(True)
 def check_buffer_set(object[int] buf):
+    """
+    >>> check_buffer_set(None)
+    Traceback (most recent call last):
+    ...
+    TypeError: 'NoneType' object is unsubscriptable
+    """
     buf[0] = 1
-

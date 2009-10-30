@@ -6,4 +6,3 @@ __doc__ = u"""
 
 class C:
     x = "foo"
-

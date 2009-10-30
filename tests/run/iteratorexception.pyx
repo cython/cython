@@ -1,7 +1,3 @@
-__doc__ = u"""
-    >>> f()
-"""
-
 class IteratorAndIterateable:
     def next(self):
         raise ValueError
@@ -11,6 +7,9 @@ class IteratorAndIterateable:
         return self
 
 def f():
+    """
+    >>> f()
+    """
     try:
         for x in IteratorAndIterateable():
             pass

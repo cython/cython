@@ -1,4 +1,3 @@
-
 cimport cython
 
 @cython.test_assert_path_exists(
@@ -68,8 +67,44 @@ def swap_cmp5(a,b,c,d,e):
     "//ParallelAssignmentNode/SingleAssignmentNode//CoerceToTempNode[@use_managed_ref=False]",
     )
 def swap_py(a,b):
+    """
+    >>> swap_py(1,2)
+    (1, 2)
+    """
     a,a = b,a
     return a,b
+
+
+cdef class A:
+    cdef readonly object x
+    cdef readonly object y
+    def __init__(self, x, y):
+        self.x, self.y = x, y
+
+@cython.test_assert_path_exists(
+    "//ParallelAssignmentNode",
+    "//ParallelAssignmentNode/SingleAssignmentNode",
+    "//ParallelAssignmentNode/SingleAssignmentNode/CoerceToTempNode",
+    "//ParallelAssignmentNode/SingleAssignmentNode/CoerceToTempNode[@use_managed_ref=False]",
+    "//ParallelAssignmentNode/SingleAssignmentNode//AttributeNode/NameNode",
+    "//ParallelAssignmentNode/SingleAssignmentNode//AttributeNode[@use_managed_ref=False]/NameNode",
+    )
+@cython.test_fail_if_path_exists(
+    "//ParallelAssignmentNode/SingleAssignmentNode/CoerceToTempNode[@use_managed_ref=True]",
+    "//ParallelAssignmentNode/SingleAssignmentNode/AttributeNode[@use_managed_ref=True]",
+    )
+def swap_attr_values(A a, A b):
+    """
+    >>> a, b = A(1,2), A(3,4)
+    >>> a.x, a.y, b.x, b.y
+    (1, 2, 3, 4)
+    >>> swap_attr_values(a,b)
+    >>> a.x, a.y, b.x, b.y
+    (3, 2, 1, 4)
+    """
+    a.x, a.y, b.x, b.y = a.y, b.x, b.y, a.x # shift by one
+    a.x, a.y, b.x, b.y = b.x, b.y, a.x, a.y # shift by two
+    a.x, a.y, b.x, b.y = b.y, b.x, a.y, a.x # reverse
 
 
 @cython.test_assert_path_exists(

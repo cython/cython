@@ -1,38 +1,18 @@
-__doc__ = u"""
->>> test_modify()
-0
-1
-2
-3
-4
-<BLANKLINE>
-(4, 0)
->>> test_fix()
-0
-1
-2
-3
-4
-<BLANKLINE>
-4
->>> test_break()
-0
-1
-2
-<BLANKLINE>
-(2, 0)
->>> test_return()
-0
-1
-2
-(2, 0)
-"""
-
 cimport cython
 
 @cython.test_assert_path_exists("//ForFromStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
 def test_modify():
+    """
+    >>> test_modify()
+    0
+    1
+    2
+    3
+    4
+    <BLANKLINE>
+    (4, 0)
+    """
     cdef int i, n = 5
     for i in range(n):
         print i
@@ -43,6 +23,16 @@ def test_modify():
 @cython.test_assert_path_exists("//ForFromStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
 def test_fix():
+    """
+    >>> test_fix()
+    0
+    1
+    2
+    3
+    4
+    <BLANKLINE>
+    4
+    """
     cdef int i
     for i in range(5):
         print i
@@ -52,6 +42,14 @@ def test_fix():
 @cython.test_assert_path_exists("//ForFromStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
 def test_break():
+    """
+    >>> test_break()
+    0
+    1
+    2
+    <BLANKLINE>
+    (2, 0)
+    """
     cdef int i, n = 5
     for i in range(n):
         print i
@@ -66,6 +64,13 @@ def test_break():
 @cython.test_assert_path_exists("//ForFromStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
 def test_return():
+    """
+    >>> test_return()
+    0
+    1
+    2
+    (2, 0)
+    """
     cdef int i, n = 5
     for i in range(n):
         print i
