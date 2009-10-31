@@ -31,6 +31,17 @@ def make_new():
 
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists('//SimpleCallNode/AttributeNode')
+def make_new_typed_target():
+    """
+    >>> isinstance(make_new_typed_target(), MyType)
+    True
+    """
+    cdef MyType m
+    m = MyType.__new__(MyType)
+    return m
+
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_fail_if_path_exists('//SimpleCallNode/AttributeNode')
 def make_new_builtin():
     """
     >>> isinstance(make_new_builtin(), tuple)

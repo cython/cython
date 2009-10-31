@@ -756,7 +756,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
     ### cleanup to avoid redundant coercions to/from Python types
 
-    def visit_PyTypeTestNode(self, node):
+    def _visit_PyTypeTestNode(self, node):
+        # disabled - appears to break assignments in some cases, and
+        # also drops a None check, which might still be required
         """Flatten redundant type checks after tree changes.
         """
         old_arg = node.arg
@@ -1073,7 +1075,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         # of the extension type and call that instead of the generic slot
         func_type = PyrexTypes.CFuncType(
             return_type, [
-                PyrexTypes.CFuncTypeArg("type", PyrexTypes.py_object_type, None)
+                PyrexTypes.CFuncTypeArg("type", Builtin.type_type, None)
                 ])
 
         if not type_arg.type_entry:
