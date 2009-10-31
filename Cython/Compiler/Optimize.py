@@ -7,6 +7,7 @@ import UtilNodes
 import TypeSlots
 import Symtab
 import Options
+import Naming
 
 from Code import UtilityCode
 from StringEncoding import EncodedString, BytesLiteral
@@ -851,7 +852,10 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             method_handler = self._find_handler(
                 "method_%s_%s" % (type_name, function.attribute), kwargs)
             if method_handler is None:
-                return node
+                method_handler = self._find_handler(
+                    "methodany_%s" % function.attribute, kwargs)
+                if method_handler is None:
+                    return node
             if self_arg is not None:
                 arg_list = [self_arg] + list(arg_list)
             if kwargs:
@@ -1029,6 +1033,55 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 utility_code = pytype_utility_code,
                 )
         return node
+
+    ### special methods
+
+    def _handle_simple_methodany___new__(self, node, args, is_unbound_method):
+        """Replace 'exttype.__new__(exttype)' by a call to exttype->tp_new()
+        """
+        obj = node.function.obj
+        if not is_unbound_method or len(args) != 1:
+            return node
+        type_arg = args[0]
+        if not obj.is_name or not type_arg.is_name:
+            # play safe
+            return node
+        if obj.type != Builtin.type_type or type_arg.type != Builtin.type_type:
+            # not a known type, play safe
+            return node
+        if not type_arg.type_entry or not obj.type_entry:
+            if obj.name != type_arg.name:
+                return node
+            # otherwise, we know it's a type and we know it's the same
+            # type for both - that should do
+        elif type_arg.type_entry != obj.type_entry:
+            # different types - do what CPython does at runtime
+            error(type_arg.pos, "%s.__new__(%s) is not safe, use %s.__new__()" %
+                  (obj.type_entry.name, type_arg.type_entry.name,
+                   type_arg.type_entry.name))
+            return node
+
+        return_type = None
+        if obj.type_entry:
+            return_type = obj.type_entry.type
+        if return_type is None and type_arg.type_entry:
+            return_type = type_arg.type_entry.type
+        if return_type is None:
+            return_type = PyrexTypes.py_object_type
+
+        # FIXME: we could potentially look up the actual tp_new C method
+        # of the extension type and call that instead of the generic slot
+        func_type = PyrexTypes.CFuncType(
+            return_type, [
+                PyrexTypes.CFuncTypeArg("type", PyrexTypes.py_object_type, None)
+                ])
+
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "__Pyx_tp_new", func_type,
+            args = args,
+            utility_code = tpnew_utility_code,
+            is_temp = node.is_temp
+            )
 
     ### methods of builtin types
 
@@ -1314,6 +1367,16 @@ static INLINE PyObject* __Pyx_Type(PyObject* o) {
     return type;
 }
 """
+)
+
+
+tpnew_utility_code = UtilityCode(
+proto = """
+static INLINE PyObject* __Pyx_tp_new(PyObject* type_obj) {
+    return (PyObject*) (((PyTypeObject*)(type_obj))->tp_new(
+        (PyTypeObject*)(type_obj), %(TUPLE)s, NULL));
+}
+""" % {'TUPLE' : Naming.empty_tuple}
 )
 
 
