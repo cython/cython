@@ -1038,6 +1038,11 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
     ### special methods
 
+    Pyx_tp_new_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("type", Builtin.type_type, None)
+            ])
+
     def _handle_simple_methodany___new__(self, node, args, is_unbound_method):
         """Replace 'exttype.__new__(exttype)' by a call to exttype->tp_new()
         """
@@ -1063,20 +1068,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                    type_arg.type_entry.name))
             return node
 
-        return_type = None
-        if obj.type_entry:
-            return_type = obj.type_entry.type
-        if return_type is None and type_arg.type_entry:
-            return_type = type_arg.type_entry.type
-        if return_type is None:
-            return_type = PyrexTypes.py_object_type
-
         # FIXME: we could potentially look up the actual tp_new C method
         # of the extension type and call that instead of the generic slot
-        func_type = PyrexTypes.CFuncType(
-            return_type, [
-                PyrexTypes.CFuncTypeArg("type", Builtin.type_type, None)
-                ])
 
         if not type_arg.type_entry:
             # arbitrary variable, needs a None check for safety
@@ -1085,7 +1078,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 "object.__new__(X): X is not a type object (NoneType)")
 
         return ExprNodes.PythonCapiCallNode(
-            node.pos, "__Pyx_tp_new", func_type,
+            node.pos, "__Pyx_tp_new", self.Pyx_tp_new_func_type,
             args = [type_arg],
             utility_code = tpnew_utility_code,
             is_temp = node.is_temp
