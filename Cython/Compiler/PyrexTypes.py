@@ -882,6 +882,12 @@ class CComplexType(CNumericType):
             return self.real_type == other.real_type
         else:
             return False
+    
+    def __ne__(self, other):
+        if isinstance(self, CComplexType) and isinstance(other, CComplexType):
+            return self.real_type != other.real_type
+        else:
+            return True
 
     def __lt__(self, other):
         if isinstance(self, CComplexType) and isinstance(other, CComplexType):
