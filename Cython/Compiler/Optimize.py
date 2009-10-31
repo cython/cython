@@ -1076,9 +1076,15 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 PyrexTypes.CFuncTypeArg("type", PyrexTypes.py_object_type, None)
                 ])
 
+        if not type_arg.type_entry:
+            # arbitrary variable, needs a None check for safety
+            type_arg = ExprNodes.NoneCheckNode(
+                type_arg, "PyExc_TypeError",
+                "object.__new__(X): X is not a type object (NoneType)")
+
         return ExprNodes.PythonCapiCallNode(
             node.pos, "__Pyx_tp_new", func_type,
-            args = args,
+            args = [type_arg],
             utility_code = tpnew_utility_code,
             is_temp = node.is_temp
             )

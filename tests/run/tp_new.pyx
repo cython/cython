@@ -41,6 +41,17 @@ def make_new_builtin():
     m = tuple.__new__(tuple)
     return m
 
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_fail_if_path_exists('//SimpleCallNode/AttributeNode')
+def make_new_none(type t=None):
+    """
+    >>> isinstance(make_new_none(), MyType)
+    Traceback (most recent call last):
+    TypeError: object.__new__(X): X is not a type object (NoneType)
+    """
+    m = t.__new__(t)
+    return m
+
 # these cannot:
 
 @cython.test_assert_path_exists('//SimpleCallNode/AttributeNode')
@@ -81,24 +92,13 @@ def make_new_args(type t1=None, type t2=None):
 
 @cython.test_assert_path_exists('//SimpleCallNode/AttributeNode')
 @cython.test_fail_if_path_exists('//PythonCapiCallNode')
-def make_new_none(type t1=None, type t2=None):
+def make_new_none_typed(tuple t=None):
     """
     >>> isinstance(make_new_none(), MyType)
     Traceback (most recent call last):
     TypeError: object.__new__(X): X is not a type object (NoneType)
     """
-    m = t1.__new__(t2)
-    return m
-
-@cython.test_assert_path_exists('//SimpleCallNode/AttributeNode')
-@cython.test_fail_if_path_exists('//PythonCapiCallNode')
-def make_new_none_typed(tuple t1=None, tuple t2=None):
-    """
-    >>> isinstance(make_new_none(), MyType)
-    Traceback (most recent call last):
-    TypeError: object.__new__(X): X is not a type object (NoneType)
-    """
-    m = t1.__new__(t2)
+    m = t.__new__(t)
     return m
 
 @cython.test_assert_path_exists('//SimpleCallNode/AttributeNode')
