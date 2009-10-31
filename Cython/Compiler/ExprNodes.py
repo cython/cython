@@ -5536,6 +5536,7 @@ class CoercionNode(ExprNode):
     #  arg       ExprNode       node being coerced
     
     subexprs = ['arg']
+    constant_result = not_a_constant
     
     def __init__(self, arg):
         self.pos = arg.pos
