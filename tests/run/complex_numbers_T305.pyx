@@ -1,6 +1,3 @@
-#cdef extern from "complex.h":
-#    pass
-
 cimport cython
 
 def test_object_conversion(o):
@@ -23,21 +20,20 @@ def test_arithmetic(double complex z, double complex w):
     ((6+12j), (-6-12j), (6+15j), (6+9j), (-36+18j), (4-2j))
     >>> test_arithmetic(5-10j, 3+4j)
     ((5-10j), (-5+10j), (8-6j), (2-14j), (55-10j), (-1-2j))
-    
-    ## XXX this is not working
-    ## >>> test_div_by_zero(4j)
-    ## -0.25j
-    ## >>> test_div_by_zero(0)
-    ## Traceback (most recent call last):
-    ## ...
-    ## ZeroDivisionError: float division
     """
     return +z, -z, z+w, z-w, z*w, z/w
 
-## XXX this is not working
-## @cython.cdivision(False)
-## def test_div_by_zero(double complex z):
-##    return 1/z
+@cython.cdivision(False)
+def test_div_by_zero(double complex z):
+    """
+    >>> test_div_by_zero(4j)
+    -0.25j
+    >>> test_div_by_zero(0)
+    Traceback (most recent call last):
+    ...
+    ZeroDivisionError: float division
+    """
+    return 1/z
 
 def test_coercion(int a, float b, double c, float complex d, double complex e):
     """
