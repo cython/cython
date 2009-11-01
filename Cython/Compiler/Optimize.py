@@ -1062,10 +1062,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             # otherwise, we know it's a type and we know it's the same
             # type for both - that should do
         elif type_arg.type_entry != obj.type_entry:
-            # different types - do what CPython does at runtime
-            error(type_arg.pos, "%s.__new__(%s) is not safe, use %s.__new__()" %
-                  (obj.type_entry.name, type_arg.type_entry.name,
-                   type_arg.type_entry.name))
+            # different types - may or may not lead to an error at runtime
             return node
 
         # FIXME: we could potentially look up the actual tp_new C method
