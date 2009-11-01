@@ -835,6 +835,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             else:
                 return function_handler(node, arg_tuple)
         elif function.is_attribute:
+            attr_name = function.attribute
             arg_list = arg_tuple.args
             self_arg = function.obj
             obj_type = self_arg.type
@@ -852,10 +853,12 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             else:
                 type_name = "object" # safety measure
             method_handler = self._find_handler(
-                "method_%s_%s" % (type_name, function.attribute), kwargs)
+                "method_%s_%s" % (type_name, attr_name), kwargs)
             if method_handler is None:
-                method_handler = self._find_handler(
-                    "methodany_%s" % function.attribute, kwargs)
+                if attr_name in TypeSlots.method_name_to_slot \
+                       or attr_name == '__new__':
+                    method_handler = self._find_handler(
+                        "slot%s" % attr_name, kwargs)
                 if method_handler is None:
                     return node
             if self_arg is not None:
@@ -1043,7 +1046,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             PyrexTypes.CFuncTypeArg("type", Builtin.type_type, None)
             ])
 
-    def _handle_simple_methodany___new__(self, node, args, is_unbound_method):
+    def _handle_simple_slot__new__(self, node, args, is_unbound_method):
         """Replace 'exttype.__new__(exttype)' by a call to exttype->tp_new()
         """
         obj = node.function.obj
