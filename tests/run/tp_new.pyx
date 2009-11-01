@@ -2,18 +2,27 @@
 cimport cython
 
 cdef class MyType:
+    def __cinit__(self):
+        print "CINIT"
     def __init__(self):
         print "INIT"
 
 cdef class MySubType(MyType):
+    def __cinit__(self):
+        print "CINIT(SUB)"
     def __init__(self):
         print "INIT"
 
 class MyClass(object):
+    def __cinit__(self):
+        print "CINIT"
     def __init__(self):
         print "INIT"
 
 class MyTypeSubClass(MyType):
+    def __cinit__(self):
+        # not called: Python class!
+        print "CINIT(PYSUB)"
     def __init__(self):
         print "INIT"
 
@@ -24,6 +33,7 @@ class MyTypeSubClass(MyType):
 def make_new():
     """
     >>> isinstance(make_new(), MyType)
+    CINIT
     True
     """
     m = MyType.__new__(MyType)
@@ -34,6 +44,7 @@ def make_new():
 def make_new_typed_target():
     """
     >>> isinstance(make_new_typed_target(), MyType)
+    CINIT
     True
     """
     cdef MyType m
@@ -70,6 +81,7 @@ def make_new_none(type t=None):
 def make_new_pyclass():
     """
     >>> isinstance(make_new_pyclass(), MyTypeSubClass)
+    CINIT
     True
     """
     m = MyClass.__new__(MyClass)
@@ -81,10 +93,13 @@ def make_new_pyclass():
 def make_new_args(type t1=None, type t2=None):
     """
     >>> isinstance(make_new_args(), MyType)
+    CINIT
     True
     >>> isinstance(make_new_args(MyType), MyType)
+    CINIT
     True
     >>> isinstance(make_new_args(MyType, MyType), MyType)
+    CINIT
     True
 
     >>> isinstance(make_new_args(MyType, MySubType), MySubType)
