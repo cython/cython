@@ -1,11 +1,10 @@
-__doc__ = u"""
->>> test(5)
-47
->>> test(11)
-53
-"""
-
 def test(int x):
+    """
+    >>> test(5)
+    47
+    >>> test(11)
+    53
+    """
     with nogil:
         f(x)
         x = g(x)
@@ -20,5 +19,3 @@ cdef int g(int x) nogil:
         cdef int y
         y = x + 42
         return y
-
-        

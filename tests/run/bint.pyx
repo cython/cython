@@ -1,18 +1,17 @@
-__doc__ = u"""
->>> call_test()
-False
-True
-False
-True
-True
-True
-True
-"""
-
 cdef test(bint value):
     print value
 
 def call_test():
+    """
+    >>> call_test()
+    False
+    True
+    False
+    True
+    True
+    True
+    True
+    """
     test(False)
     test(True)
     test(0)

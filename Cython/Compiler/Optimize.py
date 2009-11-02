@@ -7,6 +7,7 @@ import UtilNodes
 import TypeSlots
 import Symtab
 import Options
+import Naming
 
 from Code import UtilityCode
 from StringEncoding import EncodedString, BytesLiteral
@@ -138,49 +139,51 @@ class IterationTransform(Visitor.VisitorTransform):
         if not stop:
             return node
 
+        carray_ptr = slice_node.base.coerce_to_simple(self.current_scope)
+
         if start and start.constant_result != 0:
-            counter_type = PyrexTypes.spanning_type(start.type, stop.type)
+            start_ptr_node = ExprNodes.AddNode(
+                start.pos,
+                operand1=carray_ptr,
+                operator='+',
+                operand2=start,
+                type=carray_ptr.type)
         else:
-            counter_type = stop.type
-            start = ExprNodes.IntNode(slice_node.pos, value=0, type=counter_type)
+            start_ptr_node = carray_ptr
 
-        if not counter_type.is_int:
-            # a Py_ssize_t should be enough for a pointer offset ...
-            counter_type = PyrexTypes.c_py_ssize_t_type
+        stop_ptr_node = ExprNodes.AddNode(
+            stop.pos,
+            operand1=carray_ptr,
+            operator='+',
+            operand2=stop,
+            type=carray_ptr.type
+            ).coerce_to_simple(self.current_scope)
 
-        if counter_type != start.type:
-            start = start.coerce_to(counter_type, self.current_scope)
-        if counter_type != stop.type:
-            stop = stop.coerce_to(counter_type, self.current_scope)
-
-        start = start.coerce_to_simple(self.current_scope)
-        stop = stop.coerce_to_simple(self.current_scope)
-
-        counter = UtilNodes.TempHandle(counter_type)
+        counter = UtilNodes.TempHandle(carray_ptr.type)
         counter_temp = counter.ref(node.target.pos)
 
-        # special case: char* -> bytes
         if slice_node.base.type.is_string and node.target.type.is_pyobject:
+            # special case: char* -> bytes
             target_value = ExprNodes.SliceIndexNode(
                 node.target.pos,
-                start=counter_temp,
-                stop=ExprNodes.AddNode(
-                    node.target.pos,
-                    operand1=counter_temp,
-                    operator='+',
-                    operand2=ExprNodes.IntNode(node.target.pos, value=1,
-                                               type=counter_temp.type),
-                    type=counter_temp.type),
-                base=slice_node.base,
+                start=ExprNodes.IntNode(node.target.pos, value='0',
+                                        constant_result=0,
+                                        type=PyrexTypes.c_int_type),
+                stop=ExprNodes.IntNode(node.target.pos, value='1',
+                                       constant_result=1,
+                                       type=PyrexTypes.c_int_type),
+                base=counter_temp,
                 type=Builtin.bytes_type,
                 is_temp=1)
         else:
             target_value = ExprNodes.IndexNode(
                 node.target.pos,
-                index=counter_temp,
-                base=slice_node.base,
+                index=ExprNodes.IntNode(node.target.pos, value='0',
+                                        constant_result=0,
+                                        type=PyrexTypes.c_int_type),
+                base=counter_temp,
                 is_buffer_access=False,
-                type=slice_node.base.type.base_type)
+                type=carray_ptr.type.base_type)
 
         if target_value.type != node.target.type:
             target_value = target_value.coerce_to(node.target.type,
@@ -197,9 +200,9 @@ class IterationTransform(Visitor.VisitorTransform):
 
         for_node = Nodes.ForFromStatNode(
             node.pos,
-            bound1=start, relation1='<=',
+            bound1=start_ptr_node, relation1='<=',
             target=counter_temp,
-            relation2='<', bound2=stop,
+            relation2='<', bound2=stop_ptr_node,
             step=step, body=body,
             else_clause=node.else_clause,
             from_range=True)
@@ -272,6 +275,7 @@ class IterationTransform(Visitor.VisitorTransform):
                 stats = loop_body)
 
         node.target = iterable_target
+        node.item = node.item.coerce_to(iterable_target.type, self.current_scope)
         node.iterator.sequence = enumerate_function.arg_tuple.args[0]
 
         # recurse into loop to check for further optimisations
@@ -299,7 +303,7 @@ class IterationTransform(Visitor.VisitorTransform):
                                          constant_result=step_value)
 
         if step_value < 0:
-            step.value = -step_value
+            step.value = str(-step_value)
             relation1 = '>='
             relation2 = '>'
         else:
@@ -750,7 +754,11 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         return self._dispatch_to_handler(
             node, node.function, arg_tuple)
 
-    def visit_PyTypeTestNode(self, node):
+    ### cleanup to avoid redundant coercions to/from Python types
+
+    def _visit_PyTypeTestNode(self, node):
+        # disabled - appears to break assignments in some cases, and
+        # also drops a None check, which might still be required
         """Flatten redundant type checks after tree changes.
         """
         old_arg = node.arg
@@ -758,6 +766,55 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if old_arg is node.arg or node.arg.type != node.type:
             return node
         return node.arg
+
+    def visit_CoerceFromPyTypeNode(self, node):
+        """Drop redundant conversion nodes after tree changes.
+
+        Also, optimise away calls to Python's builtin int() and
+        float() if the result is going to be coerced back into a C
+        type anyway.
+        """
+        self.visitchildren(node)
+        arg = node.arg
+        if not arg.type.is_pyobject:
+            # no Python conversion left at all, just do a C coercion instead
+            if node.type == arg.type:
+                return arg
+            else:
+                return arg.coerce_to(node.type, self.env_stack[-1])
+        if not isinstance(arg, ExprNodes.SimpleCallNode):
+            return node
+        if not (node.type.is_int or node.type.is_float):
+            return node
+        function = arg.function
+        if not isinstance(function, ExprNodes.NameNode) \
+               or not function.type.is_builtin_type \
+               or not isinstance(arg.arg_tuple, ExprNodes.TupleNode):
+            return node
+        args = arg.arg_tuple.args
+        if len(args) != 1:
+            return node
+        func_arg = args[0]
+        if isinstance(func_arg, ExprNodes.CoerceToPyTypeNode):
+            func_arg = func_arg.arg
+        elif func_arg.type.is_pyobject:
+            # play safe: Python conversion might work on all sorts of things
+            return node
+        if function.name == 'int':
+            if func_arg.type.is_int or node.type.is_int:
+                if func_arg.type == node.type:
+                    return func_arg
+                elif node.type.assignable_from(func_arg.type) or func_arg.type.is_float:
+                    return ExprNodes.CastNode(func_arg, node.type)
+        elif function.name == 'float':
+            if func_arg.type.is_float or node.type.is_float:
+                if func_arg.type == node.type:
+                    return func_arg
+                elif node.type.assignable_from(func_arg.type) or func_arg.type.is_float:
+                    return ExprNodes.CastNode(func_arg, node.type)
+        return node
+
+    ### dispatch to specific optimisers
 
     def _find_handler(self, match_name, has_kwargs):
         call_type = has_kwargs and 'general' or 'simple'
@@ -778,6 +835,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             else:
                 return function_handler(node, arg_tuple)
         elif function.is_attribute:
+            attr_name = function.attribute
             arg_list = arg_tuple.args
             self_arg = function.obj
             obj_type = self_arg.type
@@ -795,9 +853,14 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             else:
                 type_name = "object" # safety measure
             method_handler = self._find_handler(
-                "method_%s_%s" % (type_name, function.attribute), kwargs)
+                "method_%s_%s" % (type_name, attr_name), kwargs)
             if method_handler is None:
-                return node
+                if attr_name in TypeSlots.method_name_to_slot \
+                       or attr_name == '__new__':
+                    method_handler = self._find_handler(
+                        "slot%s" % attr_name, kwargs)
+                if method_handler is None:
+                    return node
             if self_arg is not None:
                 arg_list = [self_arg] + list(arg_list)
             if kwargs:
@@ -975,6 +1038,51 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 utility_code = pytype_utility_code,
                 )
         return node
+
+    ### special methods
+
+    Pyx_tp_new_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("type", Builtin.type_type, None)
+            ])
+
+    def _handle_simple_slot__new__(self, node, args, is_unbound_method):
+        """Replace 'exttype.__new__(exttype)' by a call to exttype->tp_new()
+        """
+        obj = node.function.obj
+        if not is_unbound_method or len(args) != 1:
+            return node
+        type_arg = args[0]
+        if not obj.is_name or not type_arg.is_name:
+            # play safe
+            return node
+        if obj.type != Builtin.type_type or type_arg.type != Builtin.type_type:
+            # not a known type, play safe
+            return node
+        if not type_arg.type_entry or not obj.type_entry:
+            if obj.name != type_arg.name:
+                return node
+            # otherwise, we know it's a type and we know it's the same
+            # type for both - that should do
+        elif type_arg.type_entry != obj.type_entry:
+            # different types - may or may not lead to an error at runtime
+            return node
+
+        # FIXME: we could potentially look up the actual tp_new C method
+        # of the extension type and call that instead of the generic slot
+
+        if not type_arg.type_entry:
+            # arbitrary variable, needs a None check for safety
+            type_arg = ExprNodes.NoneCheckNode(
+                type_arg, "PyExc_TypeError",
+                "object.__new__(X): X is not a type object (NoneType)")
+
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "__Pyx_tp_new", self.Pyx_tp_new_func_type,
+            args = [type_arg],
+            utility_code = tpnew_utility_code,
+            is_temp = node.is_temp
+            )
 
     ### methods of builtin types
 
@@ -1260,6 +1368,16 @@ static INLINE PyObject* __Pyx_Type(PyObject* o) {
     return type;
 }
 """
+)
+
+
+tpnew_utility_code = UtilityCode(
+proto = """
+static INLINE PyObject* __Pyx_tp_new(PyObject* type_obj) {
+    return (PyObject*) (((PyTypeObject*)(type_obj))->tp_new(
+        (PyTypeObject*)(type_obj), %(TUPLE)s, NULL));
+}
+""" % {'TUPLE' : Naming.empty_tuple}
 )
 
 

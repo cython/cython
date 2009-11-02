@@ -1,4 +1,5 @@
-__doc__ = u"""
+def test():
+    """
     >>> test()
     neg False
     pos True
@@ -6,9 +7,7 @@ __doc__ = u"""
     pos
     neg
     pos
-"""
-
-def test():
+    """
     cdef long neg = -1
     cdef unsigned long pos = -2 # will be a large positive number
 
@@ -22,4 +21,3 @@ def test():
 
     print D[neg]
     print D[pos]
-    

@@ -1,4 +1,3 @@
-
 cimport cython
 
 @cython.test_assert_path_exists(

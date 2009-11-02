@@ -1,9 +1,8 @@
-__doc__ = u"""
+def foo(obj1, obj2, obj3, obj4, obj5):
+    """
     >>> foo(True, False, 23, 'test', 1)
     (0.0, 1.0, False, False)
-"""
-
-def foo(obj1, obj2, obj3, obj4, obj5):
+    """
     cdef int bool1, bool2
     cdef float bool3, bool4
     cdef char *ptr1, *ptr2, *ptr0

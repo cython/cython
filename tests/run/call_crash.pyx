@@ -1,9 +1,8 @@
-__doc__ = u"""
+cdef class A:
+    """
     >>> A().test(3)
     9
-"""
-
-cdef class A:
+    """
 
     cdef int (*func_ptr)(int)
     

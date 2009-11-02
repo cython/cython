@@ -148,7 +148,7 @@ char2wchar(char* arg)
 	mbstate_t mbs;
 #endif
 	if (argsize != (size_t)-1) {
-		res = (wchar_t *)PyMem_Malloc((argsize+1)*sizeof(wchar_t));
+		res = (wchar_t *)malloc((argsize+1)*sizeof(wchar_t));
 		if (!res)
 			goto oom;
 		count = mbstowcs(res, arg, argsize+1);
@@ -162,7 +162,7 @@ char2wchar(char* arg)
 			if (*tmp == 0)
 				return res;
 		}
-		PyMem_Free(res);
+		free(res);
 	}
 	/* Conversion failed. Fall back to escaping with surrogateescape. */
 #ifdef HAVE_MBRTOWC
@@ -171,7 +171,7 @@ char2wchar(char* arg)
 	/* Overallocate; as multi-byte characters are in the argument, the
 	   actual output could use less memory. */
 	argsize = strlen(arg) + 1;
-	res = PyMem_Malloc(argsize*sizeof(wchar_t));
+	res = malloc(argsize*sizeof(wchar_t));
 	if (!res) goto oom;
 	in = (unsigned char*)arg;
 	out = res;
@@ -214,7 +214,7 @@ char2wchar(char* arg)
 	/* Cannot use C locale for escaping; manually escape as if charset
 	   is ASCII (i.e. escape all bytes > 128. This will still roundtrip
 	   correctly in the locale's charset, which must be an ASCII superset. */
-	res = PyMem_Malloc((strlen(arg)+1)*sizeof(wchar_t));
+	res = malloc((strlen(arg)+1)*sizeof(wchar_t));
 	if (!res) goto oom;
 	in = (unsigned char*)arg;
 	out = res;
@@ -234,9 +234,9 @@ oom:
 int
 main(int argc, char **argv)
 {
-	wchar_t **argv_copy = (wchar_t **)PyMem_Malloc(sizeof(wchar_t*)*argc);
+	wchar_t **argv_copy = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
 	/* We need a second copies, as Python might modify the first one. */
-	wchar_t **argv_copy2 = (wchar_t **)PyMem_Malloc(sizeof(wchar_t*)*argc);
+	wchar_t **argv_copy2 = (wchar_t **)malloc(sizeof(wchar_t*)*argc);
 	int i, res;
 	char *oldloc;
 	if (!argv_copy || !argv_copy2) {
@@ -254,10 +254,10 @@ main(int argc, char **argv)
 	free(oldloc);
 	res = python_main(argc, argv_copy);
 	for (i = 0; i < argc; i++) {
-		PyMem_Free(argv_copy2[i]);
+		free(argv_copy2[i]);
 	}
-	PyMem_Free(argv_copy);
-	PyMem_Free(argv_copy2);
+	free(argv_copy);
+	free(argv_copy2);
 	return res;
 }
 #endif"""

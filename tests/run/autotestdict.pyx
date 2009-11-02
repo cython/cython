@@ -109,5 +109,3 @@ cdef class MyCdefClass:
         >>> True
         False
         """
-
-

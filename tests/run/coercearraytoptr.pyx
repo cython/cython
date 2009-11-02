@@ -1,4 +1,3 @@
-
 cdef char* cstring = "abcdefg"
 
 cdef void spam(char *target):

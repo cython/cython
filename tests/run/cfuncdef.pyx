@@ -1,7 +1,3 @@
-__doc__ = u"""
-    >>> test()
-"""
-
 cdef void ftang():
     cdef int x
     x = 0
@@ -16,6 +12,9 @@ cdef spam(int i, obj, object object):
     c = 0
 
 def test():
+    """
+    >>> test()
+    """
     ftang()
     foo(0, c'f')
     spam(25, None, None)
