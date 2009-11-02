@@ -245,8 +245,9 @@ def put_acquire_arg_buffer(entry, code, pos):
     # need to care about the buffer then.
     put_unpack_buffer_aux_into_scope(buffer_aux, entry.type.mode, code)
 
-def get_release_buffer_code(entry):
-    return "__Pyx_SafeReleaseBuffer(&%s)" % entry.buffer_aux.buffer_info_var.cname
+def put_release_buffer_code(code, entry):
+    code.globalstate.use_utility_code(acquire_utility_code)
+    code.putln("__Pyx_SafeReleaseBuffer(&%s);" % entry.buffer_aux.buffer_info_var.cname)
 
 def get_getbuffer_call(code, obj_cname, buffer_aux, buffer_type):
     ndim = buffer_type.ndim
