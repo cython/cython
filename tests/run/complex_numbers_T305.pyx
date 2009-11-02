@@ -125,13 +125,13 @@ ctypedef double complex cdouble
 def test_conjugate_typedef(cdouble z):
     return z.conjugate()
 
-ctypedef double mydouble
-def test_coerce_typedef_multiply(mydouble x, double complex z):
-    """
-    >>> test_coerce_typedef_multiply(3, 1j)
-    (3j)
-    """
-    return x * z
+#ctypedef double mydouble
+#def test_coerce_typedef_multiply(mydouble x, double complex z):
+#    """
+#    >>> test_coerce_typedef_multiply(3, 1j)
+#    (3j)
+#    """
+#    return x * z
 
 cpdef double complex complex_retval():
     """

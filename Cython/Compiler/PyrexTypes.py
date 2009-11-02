@@ -913,6 +913,13 @@ class CComplexType(CNumericType):
         real_type_name = real_type_name.replace('long__double','long_double')
         return Naming.type_prefix + real_type_name + "_complex"
     
+    def assignable_from(self, src_type):
+        # Temporary hack/feature disabling, see #441
+        if not src_type.is_complex and src_type.is_numeric and src_type.is_typedef:
+            return False
+        else:
+            return super(CComplexType, self).assignable_from(src_type)
+        
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_complex and self.real_type.assignable_from_resolved_type(src_type.real_type)
                     or src_type.is_numeric and self.real_type.assignable_from_resolved_type(src_type) 
