@@ -1,16 +1,12 @@
-__doc__ = u"""
-    >>> test(Exception(u'hi'))
-    Raising: Exception(u'hi',)
-    Caught: Exception(u'hi',)
-"""
-
-import sys
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u"u'", u"'")
 
 import sys, types
 
 def test(obj):
+    """
+    >>> test(Exception('hi'))
+    Raising: Exception('hi',)
+    Caught: Exception('hi',)
+    """
     print u"Raising: %s%r" % (obj.__class__.__name__, obj.args)
     try:
         raise obj

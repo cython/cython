@@ -1,8 +1,3 @@
-__doc__ = u"""
-   >>> B().coeffs_bitsize()
-   [2]
-"""
-
 cdef class A:
     def numerator(self):
         return self
@@ -13,6 +8,10 @@ cdef int  bitsize(A a):
 coeffs = [A()]
 
 class B:
+    """
+    >>> B().coeffs_bitsize()
+    [2]
+    """
     def coeffs_bitsize(self):
         r = [bitsize(c.numerator())+1 for c in coeffs]
         return r

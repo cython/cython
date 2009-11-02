@@ -31,50 +31,16 @@ True
 True
 >>> all([div_int_py(a,b) == a // b for a in range(-10, 10) for b in range(-10, 10) if b != 0])
 True
-
->>> def simple_warn(msg, *args): print(msg)
->>> import warnings
->>> warnings.showwarning = simple_warn
-
->>> mod_int_c_warn(-17, 10)
-division with oppositely signed operands, C and Python semantics differ
--7
->>> div_int_c_warn(-17, 10)
-division with oppositely signed operands, C and Python semantics differ
--1
->>> complex_expression(-150, 20, 19, -7)
-verbose_call(20)
-division with oppositely signed operands, C and Python semantics differ
-verbose_call(19)
-division with oppositely signed operands, C and Python semantics differ
--2
-
->>> mod_div_zero_int(25, 10, 2)
-verbose_call(5)
-2
->>> print(mod_div_zero_int(25, 10, 0))
-verbose_call(5)
-integer division or modulo by zero
->>> print(mod_div_zero_int(25, 0, 0))
-integer division or modulo by zero
-
->>> mod_div_zero_float(25, 10, 2)
-2.5
->>> print(mod_div_zero_float(25, 10, 0))
-float division
->>> print(mod_div_zero_float(25, 0, 0))
-float divmod()
-
->>> py_div_long(-5, -1)
-5
-
->>> import sys
->>> maxint = getattr(sys, ((sys.version_info[0] >= 3) and 'maxsize' or 'maxint'))
->>> py_div_long(-maxint-1, -1)
-Traceback (most recent call last):
-...
-OverflowError: value too large to perform division
 """
+
+import warnings
+orig_showwarning = warnings.showwarning
+
+true_py_functions = {}
+exec "def simple_warn(msg, *args): print(msg)" in true_py_functions
+simple_warn = true_py_functions['simple_warn']
+del true_py_functions
+
 
 def _all(seq):
     for x in seq:
@@ -137,16 +103,40 @@ def test_cdiv_cmod(short a, short b):
 @cython.cdivision(True)
 @cython.cdivision_warnings(True)
 def mod_int_c_warn(int a, int b):
+    """
+    >>> warnings.showwarning = simple_warn
+    >>> mod_int_c_warn(-17, 10)
+    division with oppositely signed operands, C and Python semantics differ
+    -7
+    >>> warnings.showwarning = orig_showwarning
+    """
     return a % b
 
 @cython.cdivision(True)
 @cython.cdivision_warnings(True)
 def div_int_c_warn(int a, int b):
+    """
+    >>> warnings.showwarning = simple_warn
+    >>> div_int_c_warn(-17, 10)
+    division with oppositely signed operands, C and Python semantics differ
+    -1
+    >>> warnings.showwarning = orig_showwarning
+    """
     return a // b
 
 @cython.cdivision(False)
 @cython.cdivision_warnings(True)
 def complex_expression(int a, int b, int c, int d):
+    """
+    >>> warnings.showwarning = simple_warn
+    >>> complex_expression(-150, 20, 19, -7)
+    verbose_call(20)
+    division with oppositely signed operands, C and Python semantics differ
+    verbose_call(19)
+    division with oppositely signed operands, C and Python semantics differ
+    -2
+    >>> warnings.showwarning = orig_showwarning
+    """
     return (a // verbose_call(b)) % (verbose_call(c) // d)
 
 cdef int verbose_call(int x):
@@ -158,6 +148,16 @@ cdef int verbose_call(int x):
 
 @cython.cdivision(False)
 def mod_div_zero_int(int a, int b, int c):
+    """
+    >>> mod_div_zero_int(25, 10, 2)
+    verbose_call(5)
+    2
+    >>> print(mod_div_zero_int(25, 10, 0))
+    verbose_call(5)
+    integer division or modulo by zero
+    >>> print(mod_div_zero_int(25, 0, 0))
+    integer division or modulo by zero
+    """
     try:
         return verbose_call(a % b) / c
     except ZeroDivisionError, ex:
@@ -165,6 +165,14 @@ def mod_div_zero_int(int a, int b, int c):
 
 @cython.cdivision(False)
 def mod_div_zero_float(float a, float b, float c):
+    """
+    >>> mod_div_zero_float(25, 10, 2)
+    2.5
+    >>> print(mod_div_zero_float(25, 10, 0))
+    float division
+    >>> print(mod_div_zero_float(25, 0, 0))
+    float divmod()
+    """
     try:
         return (a % b) / c
     except ZeroDivisionError, ex:
@@ -172,4 +180,14 @@ def mod_div_zero_float(float a, float b, float c):
 
 @cython.cdivision(False)
 def py_div_long(long a, long b):
+    """
+    >>> py_div_long(-5, -1)
+    5
+    >>> import sys
+    >>> maxint = getattr(sys, ((sys.version_info[0] >= 3) and 'maxsize' or 'maxint'))
+    >>> py_div_long(-maxint-1, -1)
+    Traceback (most recent call last):
+    ...
+    OverflowError: value too large to perform division
+    """
     return a / b

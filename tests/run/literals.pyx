@@ -1,12 +1,7 @@
-__doc__ = u"""
-    >>> foo()
-    >>> test_float(1./3)
-    True
-    >>> test_complex(1j/3)
-    True
-"""
-
 def foo():
+    """
+    >>> foo()
+    """
     a = 42
     a1 = 0123
     a2 = 0xabc
@@ -55,7 +50,15 @@ with ' and " quotes"""
 
 
 def test_float(x):
+    """
+    >>> test_float(1./3)
+    True
+    """
     return x == 1./3
 
 def test_complex(x):
+    """
+    >>> test_complex(1j/3)
+    True
+    """
     return x == 0.3333333333333333j

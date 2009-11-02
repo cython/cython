@@ -1,16 +1,5 @@
-__doc__ = u"""
+__doc__ = """
     >>> z(1,9.2, b'test')
-    >>> failtype()
-    Traceback (most recent call last):
-    TypeError: an integer is required
-
-    >>> fail0(1,2)
-    Traceback (most recent call last):
-    TypeError: f() takes exactly 2 positional arguments (0 given)
-
-    >>> fail1(1,2)
-    Traceback (most recent call last):
-    TypeError: f() takes exactly 2 positional arguments (1 given)
 """
 
 import sys
@@ -33,10 +22,25 @@ def z(a, b, c):
     g(a, b, c)
     
 def fail0(a, b):
+    """
+    >>> fail0(1,2)
+    Traceback (most recent call last):
+    TypeError: f() takes exactly 2 positional arguments (0 given)
+    """
     f()
     
 def fail1(a, b):
+    """
+    >>> fail1(1,2)
+    Traceback (most recent call last):
+    TypeError: f() takes exactly 2 positional arguments (1 given)
+    """
     f(a)
 
 def failtype():
+    """
+    >>> failtype()
+    Traceback (most recent call last):
+    TypeError: an integer is required
+    """
     h(42, "eggs")

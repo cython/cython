@@ -1,4 +1,3 @@
-
 cdef cf(default=None):
     return default
 

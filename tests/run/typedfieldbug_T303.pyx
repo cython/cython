@@ -1,17 +1,8 @@
-__doc__ = u"""
->>> f()
-42.0
-42.0
->>> global_vars(12.0)
-12.0 12.0
+__doc__ = """
 >>> readonly()
 Traceback (most recent call last):
-    ...
+...
 TypeError: readonly attribute
->>> longdouble_access()
-Traceback (most recent call last):
-    ...
-SystemError: bad memberdescr type
 """
 
 import sys
@@ -38,17 +29,32 @@ cdef class MyClass:
         self.float_isreally_longdouble = 42.0
 
 def global_vars(x):
+    """
+    >>> global_vars(12.0)
+    12.0 12.0
+    """
     global global_tdef, global_double
     global_tdef = x
     global_double = x
     print global_tdef, global_double
 
 def f():
+    """
+    >>> f()
+    42.0
+    42.0
+    """
     c = MyClass()
     print c.actual_double
     print c.float_isreally_double
 
 def longdouble_access():
+    """
+    >>> longdouble_access()
+    Traceback (most recent call last):
+    ...
+    SystemError: bad memberdescr type
+    """
     c = MyClass()
     print c.float_isreally_longdouble
 
@@ -56,4 +62,3 @@ def longdouble_access():
 def readonly():
     c = MyClass()
     c.actual_double = 3
-

@@ -13,4 +13,3 @@ ctypedef packed struct MyCTypeDefStruct:
 
 def f():
     return (sizeof(MyCdefStruct), sizeof(MyCTypeDefStruct))
-

@@ -1,9 +1,8 @@
-__doc__ = u"""
+def boolExpressionsFail():
+    """
     >>> boolExpressionsFail()
     'Not 2b'
-"""
-
-def boolExpressionsFail():
+    """
     dict = {1: 1}
     if not "2b" in dict:
         return "Not 2b"

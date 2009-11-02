@@ -15,4 +15,3 @@ cdef class eggs:
 
   def eat(self):
     raise RuntimeError(u"I don't like that")
-

@@ -1,6 +1,6 @@
 # Makefile for creating our standalone Cython program
-PYVERSION=2.3
-PYPREFIX=/usr
+PYVERSION=$(shell python -c "import sys; print sys.version[:3]")
+PYPREFIX=$(shell python -c "import sys; print sys.prefix")
 INCLUDES=-I$(PYPREFIX)/include/python$(PYVERSION)
 
 embedded: embedded.o
@@ -16,4 +16,8 @@ all: embedded
 
 clean:
 	@echo Cleaning Demos/embed
-	@rm -f *~ *.o *.so core core.* *.c embedded
+	@rm -f *~ *.o *.so core core.* *.c embedded test.output
+
+test: clean all
+	./embedded > test.output
+	python assert_equal.py embedded.output test.output
