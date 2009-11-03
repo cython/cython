@@ -3,6 +3,7 @@
 import os
 import sys
 import re
+import gc
 import codecs
 import shutil
 import unittest
@@ -396,6 +397,7 @@ class CythonRunTestCase(CythonCompileTestCase):
     def run_doctests(self, module_name, result):
         if sys.version_info[0] >= 3 or not hasattr(os, 'fork') or not self.fork:
             doctest.DocTestSuite(module_name).run(result)
+            gc.collect()
             return
 
         # fork to make sure we do not keep the tested module loaded
@@ -410,11 +412,13 @@ class CythonRunTestCase(CythonCompileTestCase):
                     partial_result = PartialTestResult(result)
                     tests = doctest.DocTestSuite(module_name)
                     tests.run(partial_result)
+                    gc.collect()
                 except Exception:
                     if tests is None:
                         # importing failed, try to fake a test class
                         tests = _FakeClass(
                             failureException=None,
+                            shortDescription = self.shortDescription,
                             **{module_name: None})
                     partial_result.addError(tests, sys.exc_info())
                     result_code = 1
@@ -424,9 +428,13 @@ class CythonRunTestCase(CythonCompileTestCase):
                 except: pass
                 os._exit(result_code)
 
-        input = os.fdopen(input, 'rb')
-        PartialTestResult.join_results(result, pickle.load(input))
         cid, result_code = os.waitpid(child_id, 0)
+        if result_code in (0,1):
+            input = os.fdopen(input, 'rb')
+            try:
+                PartialTestResult.join_results(result, pickle.load(input))
+            finally:
+                input.close()
         if result_code:
             raise Exception("Tests in module '%s' exited with status %d" %
                             (module_name, result_code >> 8))
