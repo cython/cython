@@ -123,15 +123,45 @@ def test_conjugate_double(double complex z):
 
 ctypedef double complex cdouble
 def test_conjugate_typedef(cdouble z):
+    """
+    >>> test_conjugate_typedef(2+3j)
+    (2-3j)
+    """
     return z.conjugate()
 
-#ctypedef double mydouble
-#def test_coerce_typedef_multiply(mydouble x, double complex z):
-#    """
-#    >>> test_coerce_typedef_multiply(3, 1j)
-#    (3j)
-#    """
-#    return x * z
+## cdef extern from "complex_numbers_T305.h":
+##     ctypedef double double_really_float "myfloat"
+##     ctypedef float float_really_double "mydouble"
+##     ctypedef float real_float "myfloat"
+##     ctypedef double real_double "mydouble"
+
+## def test_conjugate_nosizeassumptions(double_really_float x,
+##                                      float_really_double y,
+##                                      real_float z, real_double w):
+##     """
+##     >>> test_conjugate_nosizeassumptions(1, 1, 1, 1)
+##     (-1j, -1j, -1j, -1j)
+##     >>> ["%.2f" % x.imag for x in test_conjugate_nosizeassumptions(2e300, 2e300, 2e300, 2e300)]
+##     ['-inf', '-2e+300', '-inf', '-2e+300']
+##     """
+##     cdef double complex I = 1j
+##     return ((x*I).conjugate(), (y*I).conjugate(), (z*I).conjugate(), (w*I).conjugate())
+
+ctypedef double mydouble
+def test_coerce_typedef_multiply(mydouble x, double complex z):
+    """
+    >>> test_coerce_typedef_multiply(3, 1+1j)
+    (3+3j)
+    """
+    return x * z
+
+ctypedef int myint
+def test_coerce_typedef_multiply_int(myint x, double complex z):
+    """
+    >>> test_coerce_typedef_multiply_int(3, 1+1j)
+    (3+3j)
+    """
+    return x * z
 
 cpdef double complex complex_retval():
     """
