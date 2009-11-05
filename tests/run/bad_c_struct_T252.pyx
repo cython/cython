@@ -1,10 +1,10 @@
 cdef cf(default=None):
     return default
 
-cpdef cpf(default=None):
+cpdef cpf(default=100):
     """
     >>> cpf()
-    None
+    100
     >>> cpf(1)
     1
     >>> cpf(default=2)
@@ -13,10 +13,10 @@ cpdef cpf(default=None):
     default = cf(default)
     return default
 
-def pf(default=None):
+def pf(default=100):
     """
     >>> pf()
-    None
+    100
     >>> pf(1)
     1
     >>> pf(default=2)

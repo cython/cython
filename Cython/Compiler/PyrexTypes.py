@@ -1535,6 +1535,9 @@ class CFuncType(CType):
     def signature_cast_string(self):
         s = self.declaration_code("(*)", with_calling_convention=False)
         return '(%s)' % s
+    
+    def opt_arg_cname(self, arg_name):
+        return self.op_arg_struct.base_type.scope.lookup(arg_name).cname
 
 
 class CFuncTypeArg(object):
