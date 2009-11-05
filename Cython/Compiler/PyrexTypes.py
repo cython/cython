@@ -877,8 +877,10 @@ class CComplexType(CNumericType):
             # The below is not actually used: Coercions are currently disabled
             # so that complex types of external types can not be created
             self.funcsuffix = "_%s" % real_type.specalization_name()
-        else:
+        elif hasattr(real_type, 'math_h_modifier'):
             self.funcsuffix = real_type.math_h_modifier
+        else:
+            self.funcsuffix = "_%s" % real_type.specalization_name()
     
         self.real_type = real_type
         CNumericType.__init__(self, real_type.rank + 0.5, real_type.signed)
@@ -1135,7 +1137,7 @@ proto="""
     #define __Pyx_c_quot%(m)s(a, b) ((a)/(b))
     #define __Pyx_c_neg%(m)s(a)     (-(a))
   #ifdef __cplusplus
-    #define __Pyx_c_is_zero%(m)s(z) ((z)==0.0)
+    #define __Pyx_c_is_zero%(m)s(z) ((z)==(%(real_type)s)0)
     #define __Pyx_c_conj%(m)s(z)    (::std::conj(z))
     /*#define __Pyx_c_abs%(m)s(z)     (::std::abs(z))*/
   #else
