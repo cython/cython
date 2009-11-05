@@ -17,7 +17,6 @@ Options:
   -I, --include-dir <directory>  Search for include files in named directory
                                  (multiply include directories are allowed).
   -o, --output-file <filename>   Specify name of generated C file
-  -r, --recursive                Recursively find and compile dependencies
   -t, --timestamps               Only compile newer source files (implied with -r)
   -f, --force                    Compile all source files (overrides implied -t)
   -q, --quiet                    Don't print module names in recursive mode
@@ -39,6 +38,10 @@ Options:
   --embed                        Embed the Python interpreter in a main() method.
   -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
 """
+
+# The following is broken http://trac.cython.org/cython_trac/ticket/379
+#  -r, --recursive                Recursively find and compile dependencies
+
 
 #The following experimental options are supported only on MacOSX:
 #  -C, --compile    Compile generated .c file to .o file
