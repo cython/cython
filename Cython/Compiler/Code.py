@@ -408,8 +408,10 @@ class GlobalState(object):
     code_layout = [
         'h_code',
         'utility_code_proto_before_types',
-        'type_declarations',
-        'utility_code_proto',
+        'numeric_typedefs',          # Let these detailed individual parts stay!,
+        'complex_type_declarations', # as the proper solution is to make a full DAG...
+        'type_declarations',         # More coarse-grained blocks would simply hide
+        'utility_code_proto',        # the ugliness, not fix it
         'module_declarations',
         'typeinfo',
         'before_global_var',

@@ -2572,7 +2572,7 @@ class SimpleCallNode(CallNode):
                 for formal_arg, actual_arg in args[expected_nargs:actual_nargs]:
                     code.putln("%s.%s = %s;" % (
                             self.opt_arg_struct,
-                            formal_arg.name,
+                            func_type.opt_arg_cname(formal_arg.name),
                             actual_arg.result_as(formal_arg.type)))
             exc_checks = []
             if self.type.is_pyobject:
@@ -5601,6 +5601,7 @@ class CoercionNode(ExprNode):
     #  arg       ExprNode       node being coerced
     
     subexprs = ['arg']
+    constant_result = not_a_constant
     
     def __init__(self, arg):
         self.pos = arg.pos

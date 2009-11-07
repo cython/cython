@@ -1,18 +1,15 @@
-import sys
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u" u'", u" '")
 
 def f():
     """
     >>> f()
     >>> g
     42
-    >>> x
-    u'spam'
-    >>> y
-    u'eggs'
-    >>> z
-    u'spameggs'
+    >>> x == 'spam'
+    True
+    >>> y == 'eggs'
+    True
+    >>> z == 'spameggs'
+    True
     """
     pass
     

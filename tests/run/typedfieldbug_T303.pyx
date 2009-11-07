@@ -1,3 +1,10 @@
+__doc__ = """
+>>> readonly()
+Traceback (most recent call last):
+...
+TypeError: readonly attribute
+"""
+
 import sys
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u'TypeError:', u'AttributeError:')
@@ -53,11 +60,5 @@ def longdouble_access():
 
 
 def readonly():
-    """
-    >>> readonly()
-    Traceback (most recent call last):
-    ...
-    TypeError: readonly attribute
-    """
     c = MyClass()
     c.actual_double = 3

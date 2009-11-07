@@ -658,8 +658,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     
     def generate_typedef(self, entry, code):
         base_type = entry.type.typedef_base_type
-        code.putln("")
-        code.putln("typedef %s;" % base_type.declaration_code(entry.cname))
+        if base_type.is_numeric:
+            writer = code.globalstate['numeric_typedefs']
+        else:
+            writer = code
+        writer.putln("")
+        writer.putln("typedef %s;" % base_type.declaration_code(entry.cname))
 
     def sue_header_footer(self, type, kind, name):
         if type.typedef_flag:

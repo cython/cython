@@ -1,8 +1,16 @@
+__doc__ = u"""
+    >>> index_object(100, 100)
+    Traceback (most recent call last):
+    ...
+    TypeError: 'int' object is unsubscriptable
+"""
+
 import sys
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u'is unsubscriptable', u'is not subscriptable')
 elif sys.version_info < (2,5):
     __doc__ = __doc__.replace(u"'int' object is unsubscriptable", u'unsubscriptable object')
+
 
 def index_tuple(tuple t, int i):
     """
@@ -52,10 +60,6 @@ def index_object(object o, int i):
     Traceback (most recent call last):
     ...
     IndexError: string index out of range
-    >>> index_object(100, 100)
-    Traceback (most recent call last):
-    ...
-    TypeError: 'int' object is unsubscriptable
     """
     return o[i]
 
