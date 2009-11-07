@@ -17,6 +17,7 @@ Contents:
    docs/source_files_and_compilation
    docs/wrapping_CPlusPlus
    docs/numpy_tutorial
+   docs/profiling_tutorial
    docs/limitations
    docs/pyrex_differences
    docs/early_binding_for_speed
