@@ -1,6 +1,3 @@
-#cdef extern from "complex.h":
-#    pass
-
 cimport cython
 
 def test_object_conversion(o):
@@ -23,21 +20,20 @@ def test_arithmetic(double complex z, double complex w):
     ((6+12j), (-6-12j), (6+15j), (6+9j), (-36+18j), (4-2j))
     >>> test_arithmetic(5-10j, 3+4j)
     ((5-10j), (-5+10j), (8-6j), (2-14j), (55-10j), (-1-2j))
-    
-    ## XXX this is not working
-    ## >>> test_div_by_zero(4j)
-    ## -0.25j
-    ## >>> test_div_by_zero(0)
-    ## Traceback (most recent call last):
-    ## ...
-    ## ZeroDivisionError: float division
     """
     return +z, -z, z+w, z-w, z*w, z/w
 
-## XXX this is not working
-## @cython.cdivision(False)
-## def test_div_by_zero(double complex z):
-##    return 1/z
+@cython.cdivision(False)
+def test_div_by_zero(double complex z):
+    """
+    >>> test_div_by_zero(4j)
+    -0.25j
+    >>> test_div_by_zero(0)
+    Traceback (most recent call last):
+    ...
+    ZeroDivisionError: float division
+    """
+    return 1/z
 
 def test_coercion(int a, float b, double c, float complex d, double complex e):
     """
@@ -127,13 +123,43 @@ def test_conjugate_double(double complex z):
 
 ctypedef double complex cdouble
 def test_conjugate_typedef(cdouble z):
+    """
+    >>> test_conjugate_typedef(2+3j)
+    (2-3j)
+    """
     return z.conjugate()
+
+## cdef extern from "complex_numbers_T305.h":
+##     ctypedef double double_really_float "myfloat"
+##     ctypedef float float_really_double "mydouble"
+##     ctypedef float real_float "myfloat"
+##     ctypedef double real_double "mydouble"
+
+## def test_conjugate_nosizeassumptions(double_really_float x,
+##                                      float_really_double y,
+##                                      real_float z, real_double w):
+##     """
+##     >>> test_conjugate_nosizeassumptions(1, 1, 1, 1)
+##     (-1j, -1j, -1j, -1j)
+##     >>> ["%.2f" % x.imag for x in test_conjugate_nosizeassumptions(2e300, 2e300, 2e300, 2e300)]
+##     ['-inf', '-2e+300', '-inf', '-2e+300']
+##     """
+##     cdef double complex I = 1j
+##     return ((x*I).conjugate(), (y*I).conjugate(), (z*I).conjugate(), (w*I).conjugate())
 
 ctypedef double mydouble
 def test_coerce_typedef_multiply(mydouble x, double complex z):
     """
-    >>> test_coerce_typedef_multiply(3, 1j)
-    (3j)
+    >>> test_coerce_typedef_multiply(3, 1+1j)
+    (3+3j)
+    """
+    return x * z
+
+ctypedef int myint
+def test_coerce_typedef_multiply_int(myint x, double complex z):
+    """
+    >>> test_coerce_typedef_multiply_int(3, 1+1j)
+    (3+3j)
     """
     return x * z
 

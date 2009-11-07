@@ -1179,8 +1179,8 @@ class FuncDefNode(StatNode, BlockNode):
                 code.globalstate.use_utility_code(restore_exception_utility_code)
                 code.putln("{ PyObject *__pyx_type, *__pyx_value, *__pyx_tb;")
                 code.putln("__Pyx_ErrFetch(&__pyx_type, &__pyx_value, &__pyx_tb);")
-                for entry in lenv.buffer_entries:
-                    code.putln("%s;" % Buffer.get_release_buffer_code(entry))
+                for entry in lenv.buffer_entries:                    
+                    Buffer.put_release_buffer_code(code, entry)
                     #code.putln("%s = 0;" % entry.cname)
                 code.putln("__Pyx_ErrRestore(__pyx_type, __pyx_value, __pyx_tb);}")
 
@@ -1222,7 +1222,7 @@ class FuncDefNode(StatNode, BlockNode):
         code.put_label(code.return_label)
         for entry in lenv.buffer_entries:
             if entry.used:
-                code.putln("%s;" % Buffer.get_release_buffer_code(entry))
+                Buffer.put_release_buffer_code(code, entry)
         if is_getbuffer_slot:
             self.getbuffer_normal_cleanup(code)
         # ----- Return cleanup for both error and no-error return
@@ -1519,13 +1519,11 @@ class CFuncDefNode(FuncDefNode):
             code.putln('if (%s) {' % Naming.optional_args_cname)
             for arg in self.args:
                 if arg.default:
-                    # FIXME: simple name prefixing doesn't work when
-                    # argument name mangling is in place
                     code.putln('if (%s->%sn > %s) {' % (Naming.optional_args_cname, Naming.pyrex_prefix, i))
                     declarator = arg.declarator
                     while not hasattr(declarator, 'name'):
                         declarator = declarator.base
-                    code.putln('%s = %s->%s;' % (arg.cname, Naming.optional_args_cname, declarator.name))
+                    code.putln('%s = %s->%s;' % (arg.cname, Naming.optional_args_cname, self.type.opt_arg_cname(declarator.name)))
                     i += 1
             for _ in range(self.type.optional_arg_count):
                 code.putln('}')

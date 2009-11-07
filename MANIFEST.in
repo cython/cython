@@ -16,7 +16,7 @@ include Demos/embed/*
 include Demos/freeze/*
 include Demos/Setup.py
 include Demos/Makefile*
-include Tools/*
+recursive-include Tools *
 recursive-include tests *.pyx *.pxd *.pxi *.py *.h *.BROKEN bugs.txt
 include runtests.py
 

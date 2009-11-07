@@ -871,17 +871,34 @@ class CComplexType(CNumericType):
     scope = None
     
     def __init__(self, real_type):
+        while real_type.is_typedef and not real_type.typedef_is_external:
+            real_type = real_type.typedef_base_type
+        if real_type.is_typedef and real_type.typedef_is_external:
+            # The below is not actually used: Coercions are currently disabled
+            # so that complex types of external types can not be created
+            self.funcsuffix = "_%s" % real_type.specalization_name()
+        elif hasattr(real_type, 'math_h_modifier'):
+            self.funcsuffix = real_type.math_h_modifier
+        else:
+            self.funcsuffix = "_%s" % real_type.specalization_name()
+    
         self.real_type = real_type
         CNumericType.__init__(self, real_type.rank + 0.5, real_type.signed)
         self.binops = {}
         self.from_parts = "%s_from_parts" % self.specalization_name()
         self.default_value = "%s(0, 0)" % self.from_parts
-    
+
     def __eq__(self, other):
         if isinstance(self, CComplexType) and isinstance(other, CComplexType):
             return self.real_type == other.real_type
         else:
             return False
+    
+    def __ne__(self, other):
+        if isinstance(self, CComplexType) and isinstance(other, CComplexType):
+            return self.real_type != other.real_type
+        else:
+            return True
 
     def __lt__(self, other):
         if isinstance(self, CComplexType) and isinstance(other, CComplexType):
@@ -893,7 +910,7 @@ class CComplexType(CNumericType):
 
     def __hash__(self):
         return ~hash(self.real_type)
-    
+
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
         if for_display:
@@ -907,6 +924,14 @@ class CComplexType(CNumericType):
         real_type_name = real_type_name.replace('long__double','long_double')
         return Naming.type_prefix + real_type_name + "_complex"
     
+    def assignable_from(self, src_type):
+        # Temporary hack/feature disabling, see #441
+        if (not src_type.is_complex and src_type.is_numeric and src_type.is_typedef
+            and src_type.typedef_is_external):
+             return False
+        else:
+            return super(CComplexType, self).assignable_from(src_type)
+        
     def assignable_from_resolved_type(self, src_type):
         return (src_type.is_complex and self.real_type.assignable_from_resolved_type(src_type.real_type)
                     or src_type.is_numeric and self.real_type.assignable_from_resolved_type(src_type) 
@@ -927,7 +952,7 @@ class CComplexType(CNumericType):
                     CFuncType(self, [CFuncTypeArg("self", self, None)]),
                     pos=None,
                     defining=1,
-                    cname="__Pyx_c_conj%s" % self.real_type.math_h_modifier)
+                    cname="__Pyx_c_conj%s" % self.funcsuffix)
 
         return True
 
@@ -943,7 +968,7 @@ class CComplexType(CNumericType):
                 utility_code.specialize(
                     self, 
                     real_type = self.real_type.declaration_code(''),
-                    m = self.real_type.math_h_modifier))
+                    m = self.funcsuffix))
         return True
 
     def create_to_py_utility_code(self, env):
@@ -960,7 +985,7 @@ class CComplexType(CNumericType):
                 utility_code.specialize(
                     self, 
                     real_type = self.real_type.declaration_code(''),
-                    m = self.real_type.math_h_modifier))
+                    m = self.funcsuffix))
         self.from_py_function = "__Pyx_PyComplex_As_" + self.specalization_name()
         return True
     
@@ -971,8 +996,7 @@ class CComplexType(CNumericType):
             pass
         try:
             op_name = complex_ops[nargs, op]
-            modifier = self.real_type.math_h_modifier
-            self.binops[nargs, op] = func_name = "__Pyx_c_%s%s" % (op_name, modifier)
+            self.binops[nargs, op] = func_name = "__Pyx_c_%s%s" % (op_name, self.funcsuffix)
             return func_name
         except KeyError:
             return None
@@ -1032,7 +1056,7 @@ proto="""
 """)
 
 complex_type_utility_code = UtilityCode(
-proto_block='utility_code_proto_before_types',
+proto_block='complex_type_declarations',
 proto="""
 #if CYTHON_CCOMPLEX
   #ifdef __cplusplus
@@ -1113,7 +1137,7 @@ proto="""
     #define __Pyx_c_quot%(m)s(a, b) ((a)/(b))
     #define __Pyx_c_neg%(m)s(a)     (-(a))
   #ifdef __cplusplus
-    #define __Pyx_c_is_zero%(m)s(z) ((z)==0.0)
+    #define __Pyx_c_is_zero%(m)s(z) ((z)==(%(real_type)s)0)
     #define __Pyx_c_conj%(m)s(z)    (::std::conj(z))
     /*#define __Pyx_c_abs%(m)s(z)     (::std::abs(z))*/
   #else
@@ -1190,7 +1214,6 @@ impl="""
 */
 #endif
 """)
-
 
 class CArrayType(CType):
     #  base_type     CType              Element type
@@ -1512,6 +1535,9 @@ class CFuncType(CType):
     def signature_cast_string(self):
         s = self.declaration_code("(*)", with_calling_convention=False)
         return '(%s)' % s
+    
+    def opt_arg_cname(self, arg_name):
+        return self.op_arg_struct.base_type.scope.lookup(arg_name).cname
 
 
 class CFuncTypeArg(object):

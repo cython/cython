@@ -20,7 +20,10 @@ __doc__ = u"""
     KeyError: 'f_noprof'
     >>> short_stats['f_raise']
     100
-    >>> os.unlink(statsfile)
+    >>> try:
+    ...    os.unlink(statsfile)
+    ... except:
+    ...    pass
 """
 
 import sys

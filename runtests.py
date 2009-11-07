@@ -3,6 +3,7 @@
 import os
 import sys
 import re
+import gc
 import codecs
 import shutil
 import unittest
@@ -99,7 +100,7 @@ class ErrorWriter(object):
 class TestBuilder(object):
     def __init__(self, rootdir, workdir, selectors, exclude_selectors, annotate,
                  cleanup_workdir, cleanup_sharedlibs, with_pyregr, cython_only,
-                 languages, test_bugs):
+                 languages, test_bugs, fork):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
@@ -111,6 +112,7 @@ class TestBuilder(object):
         self.cython_only = cython_only
         self.languages = languages
         self.test_bugs = test_bugs
+        self.fork = fork
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -192,12 +194,13 @@ class TestBuilder(object):
                           annotate=self.annotate,
                           cleanup_workdir=self.cleanup_workdir,
                           cleanup_sharedlibs=self.cleanup_sharedlibs,
-                          cython_only=self.cython_only)
+                          cython_only=self.cython_only,
+                          fork=self.fork)
 
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, directory, workdir, module, language='c',
                  expect_errors=False, annotate=False, cleanup_workdir=True,
-                 cleanup_sharedlibs=True, cython_only=False):
+                 cleanup_sharedlibs=True, cython_only=False, fork=True):
         self.directory = directory
         self.workdir = workdir
         self.module = module
@@ -207,6 +210,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.cleanup_workdir = cleanup_workdir
         self.cleanup_sharedlibs = cleanup_sharedlibs
         self.cython_only = cython_only
+        self.fork = fork
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -391,8 +395,9 @@ class CythonRunTestCase(CythonCompileTestCase):
             pass
 
     def run_doctests(self, module_name, result):
-        if sys.version_info[0] >= 3 or not hasattr(os, 'fork'):
+        if sys.version_info[0] >= 3 or not hasattr(os, 'fork') or not self.fork:
             doctest.DocTestSuite(module_name).run(result)
+            gc.collect()
             return
 
         # fork to make sure we do not keep the tested module loaded
@@ -407,11 +412,13 @@ class CythonRunTestCase(CythonCompileTestCase):
                     partial_result = PartialTestResult(result)
                     tests = doctest.DocTestSuite(module_name)
                     tests.run(partial_result)
+                    gc.collect()
                 except Exception:
                     if tests is None:
                         # importing failed, try to fake a test class
                         tests = _FakeClass(
                             failureException=None,
+                            shortDescription = self.shortDescription,
                             **{module_name: None})
                     partial_result.addError(tests, sys.exc_info())
                     result_code = 1
@@ -421,9 +428,13 @@ class CythonRunTestCase(CythonCompileTestCase):
                 except: pass
                 os._exit(result_code)
 
-        input = os.fdopen(input, 'rb')
-        PartialTestResult.join_results(result, pickle.load(input))
         cid, result_code = os.waitpid(child_id, 0)
+        if result_code in (0,1):
+            input = os.fdopen(input, 'rb')
+            try:
+                PartialTestResult.join_results(result, pickle.load(input))
+            finally:
+                input.close()
         if result_code:
             raise Exception("Tests in module '%s' exited with status %d" %
                             (module_name, result_code >> 8))
@@ -663,6 +674,9 @@ if __name__ == '__main__':
     parser.add_option("--no-refnanny", dest="with_refnanny",
                       action="store_false", default=True,
                       help="do not regression test reference counting")
+    parser.add_option("--no-fork", dest="fork",
+                      action="store_false", default=True,
+                      help="do not fork to run tests")
     parser.add_option("--sys-pyregr", dest="system_pyregr",
                       action="store_true", default=False,
                       help="run the regression tests of the CPython installation")
@@ -814,14 +828,16 @@ if __name__ == '__main__':
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                 options.annotate_source, options.cleanup_workdir,
                                 options.cleanup_sharedlibs, options.pyregr,
-                                options.cython_only, languages, test_bugs)
+                                options.cython_only, languages, test_bugs,
+                                options.fork)
         test_suite.addTest(filetests.build_suite())
 
     if options.system_pyregr and languages:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                 options.annotate_source, options.cleanup_workdir,
                                 options.cleanup_sharedlibs, True,
-                                options.cython_only, languages, test_bugs)
+                                options.cython_only, languages, test_bugs,
+                                options.fork)
         test_suite.addTest(
             filetests.handle_directory(
                 os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test'),

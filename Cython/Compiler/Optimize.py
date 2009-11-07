@@ -7,6 +7,7 @@ import UtilNodes
 import TypeSlots
 import Symtab
 import Options
+import Naming
 
 from Code import UtilityCode
 from StringEncoding import EncodedString, BytesLiteral
@@ -755,7 +756,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
     ### cleanup to avoid redundant coercions to/from Python types
 
-    def visit_PyTypeTestNode(self, node):
+    def _visit_PyTypeTestNode(self, node):
+        # disabled - appears to break assignments in some cases, and
+        # also drops a None check, which might still be required
         """Flatten redundant type checks after tree changes.
         """
         old_arg = node.arg
@@ -832,6 +835,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             else:
                 return function_handler(node, arg_tuple)
         elif function.is_attribute:
+            attr_name = function.attribute
             arg_list = arg_tuple.args
             self_arg = function.obj
             obj_type = self_arg.type
@@ -849,9 +853,14 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             else:
                 type_name = "object" # safety measure
             method_handler = self._find_handler(
-                "method_%s_%s" % (type_name, function.attribute), kwargs)
+                "method_%s_%s" % (type_name, attr_name), kwargs)
             if method_handler is None:
-                return node
+                if attr_name in TypeSlots.method_name_to_slot \
+                       or attr_name == '__new__':
+                    method_handler = self._find_handler(
+                        "slot%s" % attr_name, kwargs)
+                if method_handler is None:
+                    return node
             if self_arg is not None:
                 arg_list = [self_arg] + list(arg_list)
             if kwargs:
@@ -1030,6 +1039,51 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 )
         return node
 
+    ### special methods
+
+    Pyx_tp_new_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("type", Builtin.type_type, None)
+            ])
+
+    def _handle_simple_slot__new__(self, node, args, is_unbound_method):
+        """Replace 'exttype.__new__(exttype)' by a call to exttype->tp_new()
+        """
+        obj = node.function.obj
+        if not is_unbound_method or len(args) != 1:
+            return node
+        type_arg = args[0]
+        if not obj.is_name or not type_arg.is_name:
+            # play safe
+            return node
+        if obj.type != Builtin.type_type or type_arg.type != Builtin.type_type:
+            # not a known type, play safe
+            return node
+        if not type_arg.type_entry or not obj.type_entry:
+            if obj.name != type_arg.name:
+                return node
+            # otherwise, we know it's a type and we know it's the same
+            # type for both - that should do
+        elif type_arg.type_entry != obj.type_entry:
+            # different types - may or may not lead to an error at runtime
+            return node
+
+        # FIXME: we could potentially look up the actual tp_new C method
+        # of the extension type and call that instead of the generic slot
+
+        if not type_arg.type_entry:
+            # arbitrary variable, needs a None check for safety
+            type_arg = ExprNodes.NoneCheckNode(
+                type_arg, "PyExc_TypeError",
+                "object.__new__(X): X is not a type object (NoneType)")
+
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "__Pyx_tp_new", self.Pyx_tp_new_func_type,
+            args = [type_arg],
+            utility_code = tpnew_utility_code,
+            is_temp = node.is_temp
+            )
+
     ### methods of builtin types
 
     PyObject_Append_func_type = PyrexTypes.CFuncType(
@@ -1049,6 +1103,40 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             is_temp = node.is_temp,
             utility_code = append_utility_code
             )
+
+    PyObject_Pop_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),
+            ])
+
+    PyObject_PopIndex_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("index", PyrexTypes.c_long_type, None),
+            ])
+
+    def _handle_simple_method_object_pop(self, node, args, is_unbound_method):
+        # X.pop([n]) is almost always referring to a list
+        if len(args) == 1:
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "__Pyx_PyObject_Pop", self.PyObject_Pop_func_type,
+                args = args,
+                is_temp = node.is_temp,
+                utility_code = pop_utility_code
+                )
+        elif len(args) == 2:
+            if isinstance(args[1], ExprNodes.CoerceToPyTypeNode) and args[1].arg.type.is_int:
+                original_type = args[1].arg.type
+                if PyrexTypes.widest_numeric_type(original_type, PyrexTypes.c_py_ssize_t_type) == PyrexTypes.c_py_ssize_t_type:
+                    args[1] = args[1].arg
+                    return ExprNodes.PythonCapiCallNode(
+                        node.pos, "__Pyx_PyObject_PopIndex", self.PyObject_PopIndex_func_type,
+                        args = args,
+                        is_temp = node.is_temp,
+                        utility_code = pop_index_utility_code
+                        )
+                
+        return node
 
     PyList_Append_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_int_type, [
@@ -1306,6 +1394,76 @@ impl = ""
 )
 
 
+pop_utility_code = UtilityCode(
+proto = """
+static INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
+    if (likely(PyList_CheckExact(L))
+            /* Check that both the size is positive and no reallocation shrinking needs to be done. */
+            && likely(PyList_GET_SIZE(L) > (((PyListObject*)L)->allocated >> 1))) {
+        Py_SIZE(L) -= 1;
+        return PyList_GET_ITEM(L, PyList_GET_SIZE(L));
+    }
+    else {
+        PyObject *r, *m;
+        m = __Pyx_GetAttrString(L, "pop");
+        if (!m) return NULL;
+        r = PyObject_CallObject(m, NULL);
+        Py_DECREF(m);
+        return r;
+    }
+}
+""",
+impl = ""
+)
+
+pop_index_utility_code = UtilityCode(
+proto = """
+static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix);
+""",
+impl = """
+static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
+    PyObject *r, *m, *t, *py_ix;
+    if (likely(PyList_CheckExact(L))) {
+        Py_ssize_t size = PyList_GET_SIZE(L);
+        if (likely(size > (((PyListObject*)L)->allocated >> 1))) {
+            if (ix < 0) {
+                ix += size;
+            }
+            if (likely(0 <= ix && ix < size)) {
+                Py_ssize_t i;
+                PyObject* v = PyList_GET_ITEM(L, ix);
+                Py_SIZE(L) -= 1;
+                size -= 1;
+                for(i=ix; i<size; i++) {
+                    PyList_SET_ITEM(L, i, PyList_GET_ITEM(L, i+1));
+                }
+                return v;
+            }
+        }
+    }
+    py_ix = t = NULL;
+    m = __Pyx_GetAttrString(L, "pop");
+    if (!m) goto bad;
+    py_ix = PyInt_FromSsize_t(ix);
+    if (!py_ix) goto bad;
+    t = PyTuple_New(1);
+    if (!t) goto bad;
+    PyTuple_SET_ITEM(t, 0, py_ix);
+    py_ix = NULL;
+    r = PyObject_CallObject(m, t);
+    Py_DECREF(m);
+    Py_DECREF(t);
+    return r;
+bad:
+    Py_XDECREF(m);
+    Py_XDECREF(t);
+    Py_XDECREF(py_ix);
+    return NULL;
+}
+"""
+)
+
+
 pytype_utility_code = UtilityCode(
 proto = """
 static INLINE PyObject* __Pyx_Type(PyObject* o) {
@@ -1314,6 +1472,16 @@ static INLINE PyObject* __Pyx_Type(PyObject* o) {
     return type;
 }
 """
+)
+
+
+tpnew_utility_code = UtilityCode(
+proto = """
+static INLINE PyObject* __Pyx_tp_new(PyObject* type_obj) {
+    return (PyObject*) (((PyTypeObject*)(type_obj))->tp_new(
+        (PyTypeObject*)(type_obj), %(TUPLE)s, NULL));
+}
+""" % {'TUPLE' : Naming.empty_tuple}
 )
 
 
