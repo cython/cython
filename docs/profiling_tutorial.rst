@@ -1,16 +1,16 @@
 .. highlight:: cython
 
-.. _profiling_tutorial:
+.. _profiling:
 
-******************
-Profiling Tutorial
-******************
+*********
+Profiling
+*********
 
 This part describes the profiling abilities of cython. If you are familiar of
 pure Python code, you can only read the first section
 (:ref:`profiling_basics`). If you are not familiar with python profiling you
-should also read the tutorial TODO:reference which takes you through a complete
-example step by step.
+should also read the tutorial (:ref:`profiling_tutorial`) which takes you
+through a complete example step by step.
 
 .. _profiling_basics:
 
@@ -53,6 +53,8 @@ function only::
    def my_often_called_function():
       pass
 
+
+.. _profiling_tutorial:
 
 Profiling Tutorial
 ==================
