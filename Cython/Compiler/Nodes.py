@@ -1087,10 +1087,10 @@ class FuncDefNode(StatNode, BlockNode):
             env.use_utility_code(force_init_threads_utility_code)
             code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
         # ----- Automatic lead-ins for certain special functions
-        if profile:
-            code.put_trace_call(self.entry.name, self.pos)
         if not lenv.nogil:
             code.put_setup_refcount_context(self.entry.name)
+        if profile:
+            code.put_trace_call(self.entry.name, self.pos)
         if is_getbuffer_slot:
             self.getbuffer_init(code)
         # ----- Fetch arguments
@@ -1211,18 +1211,19 @@ class FuncDefNode(StatNode, BlockNode):
             if self.return_type.is_pyobject:
                 code.put_xgiveref(self.return_type.as_pyobject(Naming.retval_cname))
 
-            code.put_finish_refcount_context()
-
         if self.entry.is_special and self.entry.name == "__hash__":
             # Returning -1 for __hash__ is supposed to signal an error
             # We do as Python instances and coerce -1 into -2. 
-            code.putln("if (unlikely(%s == -1) && !PyErr_Occurred()) %s = -2;" % (Naming.retval_cname, Naming.retval_cname))
+            code.putln("if (unlikely(%s == -1) && !PyErr_Occurred()) %s = -2;" % (
+                    Naming.retval_cname, Naming.retval_cname))
 
         if profile:
             if self.return_type.is_pyobject:
                 code.put_trace_return(Naming.retval_cname)
             else:
                 code.put_trace_return("Py_None")
+        if not lenv.nogil:
+            code.put_finish_refcount_context()
         
         if acquire_gil:
             code.putln("PyGILState_Release(_save);")
@@ -5042,7 +5043,7 @@ raise_error:
     return;
 }
 
-#else // Python 3+
+#else /* Python 3+ */
 
 static void __Pyx_Raise(PyObject *type, PyObject *value, PyObject *tb) {
     if (tb == Py_None) {
