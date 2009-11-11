@@ -26,7 +26,7 @@ class MyTypeSubClass(MyType):
     def __init__(self):
         print "INIT"
 
-# only this can be safely optimised:
+# only these can be safely optimised:
 
 @cython.test_assert_path_exists('//PythonCapiCallNode')
 @cython.test_fail_if_path_exists('//SimpleCallNode/AttributeNode')
