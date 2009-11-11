@@ -40,10 +40,24 @@ else:
                                               'Compiler/*.pxd',
                                               'Runtime/*.pyx']}
 
-if os.name == "posix":
-    scripts = ["bin/cython"]
+# This dict is used for passing extra arguments that are setuptools 
+# specific to setup
+setuptools_extra_args = {}
+
+if 'setuptools' in sys.modules:
+    setuptools_extra_args['zip_safe'] = False
+    setuptools_extra_args['entry_points'] = {
+        'console_scripts': [
+            'cython = Cython.Compiler.Main:setuptools_main',
+        ]
+    }
+    scripts = []
 else:
-    scripts = ["cython.py"]
+    if os.name == "posix":
+        scripts = ["bin/cython"]
+    else:
+        scripts = ["cython.py"]
+
 
 try:
     if sys.version_info[0] >= 3:
@@ -93,6 +107,7 @@ except ValueError:
         print("ERROR: %s" % sys.exc_info()[1])
         print("Extension module compilation failed, using plain Python implementation")
 
+setup_args.update(setuptools_extra_args)
 
 from Cython.Compiler.Version import version
 
