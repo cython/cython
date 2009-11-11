@@ -5226,9 +5226,14 @@ class CmpNode(object):
             coerce_result = "__Pyx_PyBool_FromLong"
         else:
             coerce_result = ""
-        if 'not' in op: negation = "!"
-        else: negation = ""
+        if 'not' in op: 
+            negation = "!"
+        else: 
+            negation = ""
         if op == 'in' or op == 'not_in':
+            assert not coerce_result
+            if op == 'not_in':
+                negation = "if (likely(%s != -1)) %s = !%s; " % ((result_code,)*3)
             if operand2.type is dict_type:
                 code.globalstate.use_utility_code(
                     raise_none_iter_error_utility_code)
@@ -5237,23 +5242,22 @@ class CmpNode(object):
                            code.error_goto(self.pos))
                 code.putln("} else {")
                 code.putln(
-                    "%s = %s(%sPyDict_Contains(%s, %s)); %s" % (
+                    "%s = PyDict_Contains(%s, %s); %s%s" % (
                         result_code, 
-                        coerce_result,
-                        negation,
                         operand2.py_result(), 
                         operand1.py_result(), 
+                        negation,
                         code.error_goto_if_neg(result_code, self.pos)))
                 code.putln("}")
             else:
                 code.putln(
-                    "%s = %s(%sPySequence_Contains(%s, %s)); %s" % (
+                    "%s = PySequence_Contains(%s, %s); %s%s" % (
                         result_code, 
-                        coerce_result,
-                        negation,
                         operand2.py_result(), 
                         operand1.py_result(), 
+                        negation,
                         code.error_goto_if_neg(result_code, self.pos)))
+                    
         elif (operand1.type.is_pyobject
             and op not in ('is', 'is_not')):
                 code.putln("%s = PyObject_RichCompare(%s, %s, %s); %s" % (
