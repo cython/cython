@@ -809,6 +809,9 @@ if __name__ == '__main__':
     
     if not test_bugs:
         exclude_selectors += [ FileListExcluder("tests/bugs.txt") ]
+    
+    if sys.platform in ['win32', 'cygwin'] and sys.version_info < (2,6):
+        exclude_selectors += [ lambda x: x == "run.specialfloat" ]
 
     languages = []
     if options.use_c:
