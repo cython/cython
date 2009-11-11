@@ -80,3 +80,18 @@ def not_in_dict(k, dict dct):
     TypeError: 'NoneType' object is not iterable
     """
     return k not in dct
+
+def cascaded(a, b, c):
+    """
+    >>> cascaded(1, 2, 3)
+    Traceback (most recent call last):
+    ...
+    TypeError: argument of type 'int' is not iterable
+    >>> cascaded(-1, (1,2), (1,3))
+    True
+    >>> cascaded(1, (1,2), (1,3))
+    False
+    >>> cascaded(-1, (1,2), (1,0))
+    False
+    """
+    return a not in b < c
