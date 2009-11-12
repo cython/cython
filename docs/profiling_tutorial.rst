@@ -6,8 +6,8 @@
 Profiling
 *********
 
-This part describes the profiling abilities of cython. If you are familiar of
-pure Python code, you can only read the first section
+This part describes the profiling abilities of Cython. If you are familiar 
+with profiling pure Python code, you can only read the first section
 (:ref:`profiling_basics`). If you are not familiar with python profiling you
 should also read the tutorial (:ref:`profiling_tutorial`) which takes you
 through a complete example step by step.
@@ -17,25 +17,24 @@ through a complete example step by step.
 Cython Profiling Basics
 =======================
 
-There are essential two ways to active Profiling in Cython. The first is by a
-directive to the compiler which is by convention one of the earliest lines in
-the source code. The second is to enable or disable profiling per function
-(TODO: also per class?) via a cython decorator.
+Profiling in Cython is controlled by a compiler directive. 
+It can either be set either for an entire file or on a per function
+via a Cython decorator.
 
 Enable profiling for a complete source file
 -------------------------------------------
 
-Profiling is enable for a complete source file via a directive to the cython
-compiler::
+Profiling is enable for a complete source file via a global directive to the
+Cython compiler at the top of a file::
    
    # cython: profile=True
 
-Note that profiling gives an overhead to each function call therefore making
+Note that profiling gives a slight overhead to each function call therefore making
 your program a little slower (or a lot, if you call some small functions very
 often).
 
-Once enabled, your cython code will behave just like python code when called
-from the cProfile module. This means you can just profile your cython code
+Once enabled, your Cython code will behave just like Python code when called
+from the cProfile module. This means you can just profile your Cython code
 together with your Python code using the same tools as for Python code alone. 
 
 Disabling profiling function wise
@@ -44,7 +43,7 @@ Disabling profiling function wise
 If your profiling is messed up because of the call overhead to some small
 functions that you rather do not want to see in your profile - either because
 you plan to inline them anyway or because you are sure that you can't make them
-any faster you can use a special decorator to disable profiling for one
+any faster - you can use a special decorator to disable profiling for one
 function only::
 
    cimport cython
@@ -60,7 +59,7 @@ Profiling Tutorial
 ==================
 
 This will be a complete tutorial, start to finish, of profiling python code,
-turning it into cython code and keep profiling until it is fast enough. 
+turning it into Cython code and keep profiling until it is fast enough. 
 
 As a toy example, we would like to evaluate the summation of the reciprocals of
 squares up to a certain integer :math:`n` for evaluating :math:`\pi`. The
@@ -90,7 +89,7 @@ A simple python code for evaluating the truncated sum looks like this::
        return (6 * val)**.5
       
 On my box, this needs approximately 4 seconds to run the function with the
-given n. The higher we choose n, the better will be the approximation for
+default n. The higher we choose n, the better will be the approximation for
 :math:`\pi`. An experienced python programmer will already see plenty of
 places to optimize this code. But remember the golden rule of optimization:
 Never optimize without having profiled. Let me repeat this: **Never** optimize
@@ -142,29 +141,29 @@ have used xrange for such a big iteration. And in fact, just changing range to
 xrange makes the code run in 5.8 seconds.
 
 We could optimize a lot in the pure python version, but since we are interested
-in cython, let's move forward and bring this module to cython. We would do this
-anyway at some time to get the loop run faster. Here is our first cython version::
+in Cython, let's move forward and bring this module to Cython. We would do this
+anyway at some time to get the loop run faster. Here is our first Cython version::
 
    # encoding: utf-8
    # cython: profile=True
    # filename: calc_pi.pyx
 
-   def recip_square(unsigned int i):
+   def recip_square(int i):
        return 1./i**2
 
-   def approx_pi(unsigned int n=10000000):
+   def approx_pi(int n=10000000):
        cdef double val = 0.
-       cdef unsigned int k
+       cdef int k
        for k in xrange(1,n+1):
            val += recip_square(k)
        return (6 * val)**.5
 
-Note the second line: We have to tell cython that profiling should be enabled.
-This makes the cython code slightly slower, but without this we would not get
+Note the second line: We have to tell Cython that profiling should be enabled.
+This makes the Cython code slightly slower, but without this we would not get
 meaningful output from the cProfile module. The rest of the code is mostly
 unchanged, I only typed some variables which will likely speed things up a bit. 
 
-We also need to modify our profiling script to import the cython module directly.
+We also need to modify our profiling script to import the Cython module directly.
 Here is the complete version adding the import of the pyximport module::
 
    #!/usr/bin/env python
@@ -206,7 +205,7 @@ changed a lot. Let's concentrate on the approx_pi function a bit more. First
 note, that this function is not to be called from code outside of our module;
 so it would be wise to turn it into a cdef to reduce call overhead. We should
 also get rid of the power operator: it is turned into a pow(i,2) function call by
-cython, but we could instead just write i*i which will be much faster. The
+Cython, but we could instead just write i*i which could be faster. The
 whole function is also a good candidate for inlining.  Let's look at the
 necessary changes for these ideas::
 
@@ -214,12 +213,12 @@ necessary changes for these ideas::
    # cython: profile=True
    # filename: calc_pi.pyx
 
-   cdef inline double recip_square(unsigned int i):
+   cdef inline double recip_square(int i):
        return 1./(i*i)
 
-   def approx_pi(unsigned int n=10000000):
+   def approx_pi(int n=10000000):
        cdef double val = 0.
-       cdef unsigned int k
+       cdef int k
        for k in xrange(1,n+1):
            val += recip_square(k)
        return (6 * val)**.5
@@ -241,8 +240,8 @@ Now running the profile script yields::
 
 That bought us another 1.8 seconds. Not the dramatic change we could have
 expected. And why is recip_square still in this table; it is supposed to be
-inlined, isn't it?  The reason for this is that cython can't inline a function
-if it is supposed to gather profiling information for it. Let's tell it to not
+inlined, isn't it?  The reason for this is that Cython still generates profiling code
+even if the function call is eliminated. Let's tell it to not
 profile recip_square any more; we couldn't get the function to be much faster anyway::
 
    # encoding: utf-8
@@ -252,12 +251,12 @@ profile recip_square any more; we couldn't get the function to be much faster an
    cimport cython
 
    @cython.profile(False)
-   cdef inline double recip_square(unsigned int i):
+   cdef inline double recip_square(int i):
        return 1./(i*i)
 
-   def approx_pi(unsigned int n=10000000):
+   def approx_pi(int n=10000000):
        cdef double val = 0.
-       cdef unsigned int k
+       cdef int k
        for k in xrange(1,n+1):
            val += recip_square(k)
        return (6 * val)**.5
@@ -277,7 +276,7 @@ Running this shows an interesting result::
            1    0.000    0.000    0.000    0.000 {method 'disable' of '_lsprof.Profiler' objects}
 
 First note the tremendous speed gain: this version only takes 1/50 of the time
-of our first cython version. Also note that recip_square has vanished from the
+of our first Cython version. Also note that recip_square has vanished from the
 table like we wanted. But the most peculiar and import change is that
 approx_pi also got much faster. This is a problem with all profiling: calling a
 function in a profile run adds a certain overhead to the function call. This
