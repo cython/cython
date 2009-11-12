@@ -7,6 +7,4 @@ Getting Started
    overview
    install
    build
-   datatypes
    cythonize
-   cdef_functions

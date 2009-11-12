@@ -18,10 +18,3 @@ Contents:
    related_work
    appendix
 
-
-Indices and tables
-------------------
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`

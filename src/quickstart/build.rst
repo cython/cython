@@ -20,7 +20,7 @@ There are several ways to build Cython code:
    (This is mostly for debugging and experimentation.)
  - Use the [Sage]_ notebook which allows Cython code inline.
 
-Currently, distutils is the most common way Cython files are built and distributed. 
+Currently, distutils is the most common way Cython files are built and distributed. The other methods are described in more detail in the :doc:`../reference/compilation` section of the reference manual.
 
 Building a Cython module using distutils
 ----------------------------------------
@@ -47,6 +47,8 @@ The following could be a corresponding ``setup.py`` script::
 To build, run ``python setup.py build_ext --inplace``.  Then simply
 start a Python session and do ``from hello import say_hello_to`` and
 use the imported function as you see fit.
+
+
 
 .. figure:: sage.png
 

@@ -14,9 +14,24 @@ Cython File Types
 
 There are three file types in cython:
 
-* Definition files carry a ``.pxd`` suffix
 * Implementation files carry a ``.pyx`` suffix
+* Definition files carry a ``.pxd`` suffix
 * Include files which carry a ``.pxi`` suffix
+
+
+Implementation File
+===================
+
+What can it contain?
+--------------------
+
+* Basically anything Cythonic, but see below.
+
+What can't it contain?
+----------------------
+
+* There are some restrictions when it comes to **extension types**, if the extension type is
+  already defined else where... **more on this later**
 
 
 Definition File
@@ -52,7 +67,7 @@ cimport
 * Use the **cimport** statement, as you would Python's import statement, to access these files
   from other definition or implementation files.
 * **cimport** does not need to be called in ``.pyx`` file for for ``.pxd`` file that has the
-  same name. This is automatic.
+  same name, as they are already in the same namespace.
 * For cimport to find the stated definition file, the path to the file must be appended to the
   ``-I`` option of the **cython compile command**.
 
@@ -62,21 +77,6 @@ compilation order
 * When a ``.pyx`` file is to be compiled, cython first checks to see if a corresponding ``.pxd`` file
   exits and processes it first.
 
-
-
-Implementation File
-===================
-
-What can it contain?
---------------------
-
-* Basically anything Cythonic, but see below.
-
-What can't it contain?
-----------------------
-
-* There are some restrictions when it comes to **extension types**, if the extension type is
-  already defined else where... **more on this later**
 
 
 Include File
@@ -101,12 +101,10 @@ How do I use it?
 Declaring Data Types
 ====================
 
-.. note::
-    .. todo:: Remove paragragh
 
 As a dynamic language, Python encourages a programming style of considering classes and objects in terms of their methods and attributes, more than where they fit into the class hierarchy.
 
-This can make Python a very relaxed and comfortable language for rapid development, but with a price - the ‘red tape’ of managing data types is dumped onto the interpreter. At run time, the interpreter does a lot of work searching namespaces, fetching attributes and parsing argument and keyword tuples. This run-time ‘late binding’ is a major cause of Python’s relative slowness compared to ‘early binding’ languages such as C++.
+This can make Python a very relaxed and comfortable language for rapid development, but with a price - the 'red tape' of managing data types is dumped onto the interpreter. At run time, the interpreter does a lot of work searching namespaces, fetching attributes and parsing argument and keyword tuples. This run-time ‘late binding’ is a major cause of Python’s relative slowness compared to ‘early binding’ languages such as C++.
 
 However with Cython it is possible to gain significant speed-ups through the use of ‘early binding’ programming techniques.
 
@@ -288,14 +286,14 @@ Optional Arguments
         cpdef foo(self, x=*, int k=*)
 
 
-  * The number of arguments may increase when subclassing, buty the arg types and order must be the same.
+  * The number of arguments may increase when subclassing, but the arg types and order must be the same.
 
 * There may be a slight performance penalty when the optional arg is overridden with one that does not have default values.
 
 Keyword-only Arguments
 =======================
 
-* ``def`` functions can have keyword-only argurments listed after a ``"*"`` parameter and before a ``"**"`` parameter if any::
+* As in Python 3, ``def`` functions can have keyword-only argurments listed after a ``"*"`` parameter and before a ``"**"`` parameter if any::
 
     def f(a, b, *args, c, d = 42, e, **kwds):
         ...
@@ -317,7 +315,7 @@ Automatic Type Conversion
 
 * For basic numeric and string types, in most situations, when a Python object is used in the context of a C value and vice versa.
 
-* The following table summarises the conversion possibilities:
+* The following table summarises the conversion possibilities, assuming ``sizeof(int) == sizeof(long)``:
 
     +----------------------------+--------------------+------------------+
     | C types                    | From Python types  | To Python types  |
@@ -506,7 +504,7 @@ For-loops
         ...
 
 * The ``break`` and ``continue`` are permissible.
-* Can contain an if-else clause.
+* Can contain an else clause.
 
 =====================
 Functions and Methods
