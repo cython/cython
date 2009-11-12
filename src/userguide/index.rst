@@ -1,5 +1,5 @@
-Cython Users Guide
-==================
+Old Cython Users Guide
+======================
 
 Contents:
 
