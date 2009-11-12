@@ -454,7 +454,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyVarObject_HEAD_INIT(type, size) \\")
         code.putln("          PyObject_HEAD_INIT(type) size,")
         code.putln("  #define PyType_Modified(t)")
-        code.putln("  #define PyBytes_CheckExact PyString_CheckExact")
         code.putln("")
         code.putln("  typedef struct {")
         code.putln("     void *buf;")
@@ -497,6 +496,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyBaseString_Type            PyUnicode_Type")
         code.putln("  #define PyString_Type                PyUnicode_Type")
         code.putln("  #define PyString_CheckExact          PyUnicode_CheckExact")
+        code.putln("#else")
+        code.putln("  #define PyBytes_Type                 PyString_Type")
+        code.putln("  #define PyBytes_CheckExact           PyString_CheckExact")
+        code.putln("#endif")
+
+        code.putln("#if PY_MAJOR_VERSION >= 3")
         code.putln("  #define PyInt_Type                   PyLong_Type")
         code.putln("  #define PyInt_Check(op)              PyLong_Check(op)")
         code.putln("  #define PyInt_CheckExact(op)         PyLong_CheckExact(op)")
@@ -519,7 +524,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             code.putln("  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_Divide(x,y)")
             code.putln("  #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceDivide(x,y)")
-        code.putln("  #define PyBytes_Type                 PyString_Type")
         code.putln("#endif")
 
         code.putln("#if PY_MAJOR_VERSION >= 3")
