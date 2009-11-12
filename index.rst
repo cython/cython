@@ -7,4 +7,5 @@ Welcome to Cython's Documentation
 
    src/quickstart/index
    src/tutorial/index
+   src/userguide/index
    src/reference/index
