@@ -6,19 +6,14 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
-   overview
-   install
-   build
-   datatypes
-   cythonize
-   cdef_functions
    external
+   clibraries
    cdef_classes
    pxd_files
    caveats
+   profiling_tutorial
    numpy
    strings
-   clibraries
    readings
    related_work
    appendix

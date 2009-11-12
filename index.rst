@@ -2,11 +2,9 @@
 Welcome to Cython's Documentation
 =================================
 
-Contents:
-
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
-   welcome
+   src/quickstart/index
    src/tutorial/index
    src/reference/index
