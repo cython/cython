@@ -1,8 +1,6 @@
 Tutorials
 =========
 
-Contents:
-
 .. toctree::
    :maxdepth: 2
 
@@ -14,6 +12,7 @@ Contents:
    profiling_tutorial
    numpy
    strings
+   pure
    readings
    related_work
    appendix

@@ -16,6 +16,7 @@ Contents:
    interfacing_with_other_code
    special_mention
    limitations
+   directives
 
 Indices and tables
 ------------------
