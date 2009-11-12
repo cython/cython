@@ -20,7 +20,8 @@ point types, complex numbers, structs, unions and pointer types.
 Cython can automatically and correctly convert between the types on
 assignment.  This also includes Python's arbitrary size integer types,
 where value overflows on conversion to a C type will raise a Python
-``OverflowError`` at runtime.  The generated C code will handle the
+``OverflowError`` at runtime.  (It does not, however, check for overflow
+when doing arithmetic.) The generated C code will handle the
 platform dependent sizes of C types correctly and safely in this case.
 
 Types are declared via the cdef keyword. 
@@ -31,10 +32,8 @@ Typing Variables
 
 Consider the following pure Python code::
 
-  from math import sin
-
   def f(x):
-      return sin(x**2)
+      return x**2-x
 
   def integrate_f(a, b, N):
       s = 0
@@ -43,16 +42,14 @@ Consider the following pure Python code::
           s += f(a+i*dx)
       return s * dx
 
-Simply compiling this in Cython merely gives a 5% speedup.  This is
+Simply compiling this in Cython merely gives a 35% speedup.  This is
 better than nothing, but adding some static types can make a much larger
 difference.
 
 With additional type declarations, this might look like::
 
-  from math import sin
-
   def f(double x):
-      return sin(x**2)
+      return x**2-x
 
   def integrate_f(double a, double b, int N):
       cdef int i
@@ -69,7 +66,7 @@ in arithmetic withing the for-loop; typing ``b`` and ``N`` makes less of a
 difference, but in this case it is not much extra work to be
 consistent and type the entire function.
 
-This results in a 24 times speedup over the pure Python version.
+This results in a 4 times speedup over the pure Python version.
 
 Typing Functions
 ----------------
@@ -83,12 +80,15 @@ argument in order to pass it.
 Therefore Cython provides a syntax for declaring a C-style function,
 the cdef keyword::
 
-  cdef double f(double) except *:
-      return sin(x**2)
+  cdef double f(double) except? -2:
+      return x**2-x
 
 Some form of except-modifier should usually be added, otherwise Cython
 will not be able to propagate exceptions raised in the function (or a
-function it calls). Above ``except *`` is used which is always
+function it calls). The ``except? -2`` means that an error will be checked
+for if ``-2`` is returned (though the ``?`` indicates that ``-2`` may also
+be used as a valid return value).
+Alternatively, the slower ``except *`` is always
 safe. An except clause can be left out if the function returns a Python
 object or if it is guaranteed that an exception will not be raised
 within the function call.
@@ -102,13 +102,25 @@ objects).
 
 Note also that it is no longer possible to change ``f`` at runtime.
 
-Speedup: 45 times over pure Python.
+Speedup: 150 times over pure Python.
+
+Determining where to add types
+------------------------------
+
+Because static typing is often the key to large speed gains, beginners
+often have a tendency to type everything in site. This cuts down on both
+readability and flexibility. On the other hand, it is easy to kill 
+performance by forgetting to type a critical loop variable. Two essential 
+tools to help with this task are profiling and annotation. 
+Profiling should be the first step of any optimization effort, and can 
+tell you where you are spending your time. Cython's annotation can then
+tell you why your code is taking time. 
+
+Using the ``-a`` switch to the ``cython`` command line program (or
+following a link from the Sage notebook) results in an HTML report
+of Cython code interleaved with the generated C code.  Lines are
+colored according to the level of "typedness" -- white lines
+translates to pure C without any Python API calls. This report
+is invaluable when optimizing a function for speed.
 
 .. figure:: htmlreport.png
-
-  Using the ``-a`` switch to the ``cython`` command line program (or
-  following a link from the Sage notebook) results in an HTML report
-  of Cython code interleaved with the generated C code.  Lines are
-  colored according to the level of "typedness" -- white lines
-  translates to pure C without any Python API calls. This report
-  is invaluable when optimizing a function for speed.
