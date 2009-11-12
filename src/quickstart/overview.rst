@@ -17,7 +17,7 @@ CPython, as it is written in C.  Other major implementations use Java
 many external libraries that interface through the C language.  It
 has, however, remained non trivial to write the necessary glue code in
 C, especially for programmers who are more fluent in a high-level
-language like Python than in a do-it-yourself language like C.
+language like Python than in a close-to-the-metal language like C.
 
 Originally based on the well-known Pyrex [Pyrex]_, the Cython project has
 approached this problem by means of a source code compiler that
