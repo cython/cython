@@ -329,10 +329,16 @@ def p_yield_expression(s):
     # s.sy == "yield"
     pos = s.position()
     s.next()
-    if s.sy not in ('EOF', 'NEWLINE', ')'):
-        expr = p_expr(s)
-    s.error("generators ('yield') are not currently supported")
-    return Nodes.PassStatNode(pos)
+    if s.sy != ')' and s.sy not in statement_terminators:
+        arg = p_expr(s)
+    else:
+        arg = None
+    return ExprNodes.YieldExprNode(pos, arg=arg)
+
+def p_yield_statement(s):
+    # s.sy == "yield"
+    yield_expr = p_yield_expression(s)
+    return Nodes.ExprStatNode(yield_expr.pos, expr=yield_expr)
 
 #power: atom trailer* ('**' factor)*
 
@@ -1533,7 +1539,7 @@ def p_simple_statement(s, first_statement = 0):
     elif s.sy == 'from':
         node = p_from_import_statement(s, first_statement = first_statement)
     elif s.sy == 'yield':
-        node = p_yield_expression(s)
+        node = p_yield_statement(s)
     elif s.sy == 'assert':
         node = p_assert_statement(s)
     elif s.sy == 'pass':

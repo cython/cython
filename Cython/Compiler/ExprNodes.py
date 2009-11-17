@@ -4030,6 +4030,32 @@ class LambdaNode(InnerFunctionNode):
         self.pymethdef_cname = self.def_node.entry.pymethdef_cname
         env.add_lambda_def(self.def_node)
 
+class YieldExprNode(ExprNode):
+    # Yield expression node
+    #
+    # arg         ExprNode   the value to return from the generator
+    # label_name  string     name of the C label used for this yield
+
+    subexprs = []
+    type = py_object_type
+
+    def analyse_types(self, env):
+        self.is_temp = 1
+        if self.arg is not None:
+            self.arg.analyse_types(env)
+            if not self.arg.type.is_pyobject:
+                self.arg = self.arg.coerce_to_pyobject(env)
+
+    def generate_result_code(self, code):
+        self.label_name = code.new_label('resume_from_yield')
+        code.use_label(self.label_name)
+        code.putln("/* FIXME: save temporary variables */")
+        code.putln("/* FIXME: return from function, yielding value */")
+        code.put_label(self.label_name)
+        code.putln("/* FIXME: restore temporary variables and  */")
+        code.putln("/* FIXME: extract sent value from closure */")
+
+
 #-------------------------------------------------------------------
 #
 #  Unary operator nodes
