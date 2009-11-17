@@ -9,6 +9,7 @@ import shutil
 import unittest
 import doctest
 import operator
+import tempfile
 try:
     from StringIO import StringIO
 except ImportError:
@@ -401,12 +402,12 @@ class CythonRunTestCase(CythonCompileTestCase):
             return
 
         # fork to make sure we do not keep the tested module loaded
-        input, output = os.pipe()
+        result_handle, result_file = tempfile.mkstemp()
         child_id = os.fork()
         if not child_id:
             result_code = 0
             try:
-                output = os.fdopen(output, 'wb')
+                output = os.fdopen(result_handle, 'wb')
                 tests = None
                 try:
                     partial_result = PartialTestResult(result)
@@ -423,29 +424,37 @@ class CythonRunTestCase(CythonCompileTestCase):
                     partial_result.addError(tests, sys.exc_info())
                     result_code = 1
                 pickle.dump(partial_result.data(), output)
+            except:
+                import traceback
+                traceback.print_exc()
             finally:
                 try: output.close()
                 except: pass
                 os._exit(result_code)
 
-        cid, result_code = os.waitpid(child_id, 0)
-        if result_code in (0,1):
-            input = os.fdopen(input, 'rb')
-            try:
-                PartialTestResult.join_results(result, pickle.load(input))
-            finally:
-                input.close()
-        if result_code:
-            raise Exception("Tests in module '%s' exited with status %d" %
-                            (module_name, result_code >> 8))
+        try:
+            cid, result_code = os.waitpid(child_id, 0)
+            if result_code in (0,1):
+                input = open(result_file, 'rb')
+                try:
+                    PartialTestResult.join_results(result, pickle.load(input))
+                finally:
+                    input.close()
+            if result_code:
+                raise Exception("Tests in module '%s' exited with status %d" %
+                                (module_name, result_code >> 8))
+        finally:
+            os.unlink(result_file)
 
 
 is_private_field = re.compile('^_[^_]').match
 
 class _FakeClass(object):
     def __init__(self, **kwargs):
-        self.shortDescription = lambda x: kwargs.get('module_name')
+        self._shortDescription = kwargs.get('module_name')
         self.__dict__.update(kwargs)
+    def shortDescription(self):
+        return self._shortDescription
 
 try: # Py2.7+ and Py3.2+
     from unittest.runner import _TextTestResult
