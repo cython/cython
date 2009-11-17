@@ -28,7 +28,7 @@ Building a Cython module using distutils
 Imagine a simple "hello world" script in a file ``hello.pyx``::
 
   def say_hello_to(name):
-      print(Hello %s!" % name)
+      print("Hello %s!" % name)
 
 The following could be a corresponding ``setup.py`` script::
 
