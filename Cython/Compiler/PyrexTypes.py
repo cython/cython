@@ -1057,6 +1057,14 @@ proto="""
     #define __Pyx_CREAL(z) ((z).real)
     #define __Pyx_CIMAG(z) ((z).imag)
 #endif
+
+#if defined(_WIN32) && defined(__cplusplus) && CYTHON_CCOMPLEX
+    #define __Pyx_SET_CREAL(z,x) ((z).real(x))
+    #define __Pyx_SET_CIMAG(z,y) ((z).imag(y))
+#else
+    #define __Pyx_SET_CREAL(z,x) __Pyx_CREAL(z) = (x)
+    #define __Pyx_SET_CIMAG(z,y) __Pyx_CIMAG(z) = (y)
+#endif
 """)
 
 complex_type_utility_code = UtilityCode(
