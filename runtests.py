@@ -444,7 +444,8 @@ class CythonRunTestCase(CythonCompileTestCase):
                 raise Exception("Tests in module '%s' exited with status %d" %
                                 (module_name, result_code >> 8))
         finally:
-            os.unlink(result_file)
+            try: os.unlink(result_file)
+            except: pass
 
 
 is_private_field = re.compile('^_[^_]').match
