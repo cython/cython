@@ -3091,6 +3091,11 @@ class AttributeNode(ExprNode):
                     rhs.py_result()))
             rhs.generate_disposal_code(code)
             rhs.free_temps(code)
+        elif self.obj.type.is_complex:
+            code.putln("__Pyx_SET_C%s(%s, %s);" % (
+                self.member.upper(),
+                self.obj.result_as(self.obj.type),
+                rhs.result_as(self.ctype())))
         else:
             if (self.obj.type.is_extension_type
                   and self.needs_none_check
