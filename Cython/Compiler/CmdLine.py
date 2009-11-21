@@ -126,6 +126,7 @@ def parse_command_line(args):
                     sys.stderr.write("Error in compiler directive: %s\n" % e.message)
                     sys.exit(1)
             else:
+                sys.stderr.write("Unknown compiler flag: %s\n" % option)
                 bad_usage()
         else:
             arg = pop_arg()
