@@ -7,6 +7,11 @@ compiler_dir = os.path.join(get_python_lib(prefix=''), 'Cython/Compiler')
 if sys.platform == "win32":
     compiler_dir = compiler_dir[len(sys.prefix)+1:]
 
+if sys.platform == "darwin":
+    # Don't create resource files on OS X tar.
+    os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
+    os.environ['COPYFILE_DISABLE'] = 'true'
+
 setup_args = {}
 
 if sys.version_info[0] >= 3:
