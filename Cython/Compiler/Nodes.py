@@ -1379,6 +1379,7 @@ class CFuncDefNode(FuncDefNode):
             if not env.is_module_scope or Options.lookup_module_cpdef:
                 self.override = OverrideCheckNode(self.pos, py_func = self.py_func)
                 self.body = StatListNode(self.pos, stats=[self.override, self.body])
+        self.create_local_scope(env)
     
     def call_self_node(self, omit_optional_args=0, is_module_scope=0):
         import ExprNodes
@@ -1706,6 +1707,7 @@ class DefNode(FuncDefNode):
         self.declare_pyfunction(env)
         self.analyse_signature(env)
         self.return_type = self.entry.signature.return_type()
+        self.create_local_scope(env)
 
     def analyse_signature(self, env):
         any_type_tests_needed = 0

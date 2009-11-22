@@ -708,7 +708,7 @@ property NAME:
         
     def visit_FuncDefNode(self, node):
         self.seen_vars_stack.append(set())
-        lenv = node.create_local_scope(self.env_stack[-1])
+        lenv = node.local_scope
         node.body.analyse_control_flow(lenv) # this will be totally refactored
         node.declare_arguments(lenv)
         for var, type_node in node.directive_locals.items():
