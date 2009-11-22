@@ -1,7 +1,6 @@
 include MANIFEST.in README.txt INSTALL.txt ToDo.txt USAGE.txt
 include COPYING.txt LICENSE.txt Makefile
-recursive-include .hg *
-include .hgignore .hgtags
+include .hgrev
 include setup.py
 include bin/*
 include cython.py
