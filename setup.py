@@ -3,6 +3,17 @@ from distutils.sysconfig import get_python_lib
 import os, os.path
 import sys
 
+if 'sdist' in sys.argv:
+    # Record the current revision in .hgrev
+    import subprocess # os.popen is cleaner but depricated
+    changset = subprocess.Popen("hg log --rev tip | grep changeset", 
+                                shell=True,
+                                stdout=subprocess.PIPE).stdout.read()
+    rev = changset.split(':')[-1].strip()
+    hgrev = open('.hgrev', 'w')
+    hgrev.write(rev)
+    hgrev.close()
+
 compiler_dir = os.path.join(get_python_lib(prefix=''), 'Cython/Compiler')
 if sys.platform == "win32":
     compiler_dir = compiler_dir[len(sys.prefix)+1:]
