@@ -12,6 +12,7 @@ local:
 	hg clone --rev $(REV) $(REPO) $(TMPDIR)
 	hg -R $(TMPDIR) update
 	mv $(TMPDIR)/.hg .
+	mv $(TMPDIR)/.hgignore .
 	mv $(TMPDIR)/.hgtags .
 	rm -rf $(TMPDIR)
 
