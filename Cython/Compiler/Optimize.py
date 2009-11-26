@@ -1045,6 +1045,28 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 )
         return node
 
+    Pyx_strlen_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_size_t_type, [
+            PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_char_ptr_type, None)
+            ])
+
+    def _handle_simple_function_len(self, node, pos_args):
+        if len(pos_args) != 1:
+            self._error_wrong_arg_count('len', node, pos_args, 1)
+            return node
+        arg = pos_args[0]
+        if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
+            arg = arg.arg
+        if not arg.type.is_string:
+            return node
+        node = ExprNodes.PythonCapiCallNode(
+            node.pos, "strlen", self.Pyx_strlen_func_type,
+                args = [arg],
+                is_temp = node.is_temp,
+                utility_code = include_string_h_utility_code,
+                )
+        return node
+
     ### special methods
 
     Pyx_tp_new_func_type = PyrexTypes.CFuncType(
@@ -1479,6 +1501,13 @@ static INLINE PyObject* __Pyx_Type(PyObject* o) {
     Py_INCREF(type);
     return type;
 }
+"""
+)
+
+
+include_string_h_utility_code = UtilityCode(
+proto = """
+#include <string.h>
 """
 )
 
