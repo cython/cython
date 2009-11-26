@@ -1184,6 +1184,9 @@ class ClassScope(Scope):
         return self.outer_scope.add_string_const(value, identifier)
 
     def lookup(self, name):
+        entry = Scope.lookup(self, name)
+        if entry:
+            return entry
         if name == "classmethod":
             # We don't want to use the builtin classmethod here 'cause it won't do the 
             # right thing in this scope (as the class memebers aren't still functions). 
@@ -1197,9 +1200,7 @@ class ClassScope(Scope):
                     py_object_type,
                     [PyrexTypes.CFuncTypeArg("", py_object_type, None)], 0, 0))
             entry.is_cfunction = 1
-            return entry
-        else:
-            return Scope.lookup(self, name)
+        return entry
     
 
 class PyClassScope(ClassScope):
