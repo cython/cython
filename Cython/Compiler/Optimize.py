@@ -1051,6 +1051,10 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             ])
 
     def _handle_simple_function_len(self, node, pos_args):
+        # note: this only works because we already replaced len() by
+        # PyObject_Length() which returns a Py_ssize_t instead of a
+        # Python object, so we can return a plain size_t instead
+        # without caring about Python object conversion etc.
         if len(pos_args) != 1:
             self._error_wrong_arg_count('len', node, pos_args, 1)
             return node
