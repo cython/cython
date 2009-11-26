@@ -624,6 +624,7 @@ class BuiltinScope(Scope):
         var_entry.is_variable = 1
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
+        var_entry.is_builtin = 1
         var_entry.utility_code = utility_code
         entry.as_variable = var_entry
 
