@@ -9,6 +9,9 @@ TypeError
 Traceback (most recent call last):
 TypeError
 
+>>> call_try_return_with_exception()
+1
+
 >>> def try_return_py():
 ...    try:
 ...        return 1
@@ -17,6 +20,8 @@ TypeError
 >>> try_return_py()
 2
 >>> try_return_cy()
+2
+>>> call_try_return_c()
 2
 
 >>> i=1
@@ -45,6 +50,24 @@ def try_return_cy():
         return 1
     finally:
         return 2
+
+cdef int try_return_c():
+    try:
+        return 1
+    finally:
+        return 2
+
+def call_try_return_c():
+    return try_return_c()
+
+cdef int try_return_with_exception():
+    try:
+        raise TypeError
+    finally:
+        return 1
+
+def call_try_return_with_exception():
+    return try_return_with_exception()
 
 def try_return_temp(a):
     b = a+2
