@@ -1,3 +1,5 @@
+cimport cython
+
 def test_file_py(file):
     assert isinstance(file, (str, unicode)), \
         u"not a string, found '%s' instead" % file.__class__.__name__
@@ -12,19 +14,35 @@ cdef test_file_c(file):
 def range(arg):
     return u'range' + arg
 
+def len(arg):
+    return u'len' + arg
+
 cdef type(arg):
     return u'type' + arg
 
 
+@cython.test_fail_if_path_exists(
+    '//SimpleCallNode/NameNode[@name="type" and @entry.is_cfunction]',
+    '//SimpleCallNode/NameNode[@name="len" and @entry.is_cfunction]',
+    )
+@cython.test_assert_path_exists(
+    '//SimpleCallNode/NameNode[@name="type"]',
+    '//SimpleCallNode/NameNode[@name="type" and not(@entry.is_cfunction)]',
+    '//SimpleCallNode/NameNode[@name="len"]',
+    )
 def test_c(arg):
     """
     >>> test_c('abc')
     fileabc
+    lenabc
     typeabc
     >>> print(test_file_py('abc'))
     abc
     >>> print(range('abc'))
     rangeabc
+    >>> print(len('abc'))
+    lenabc
     """
     print test_file_c(arg)
+    print len(arg)
     print type(arg)
