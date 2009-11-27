@@ -71,7 +71,7 @@ This results in a 4 times speedup over the pure Python version.
 Typing Functions
 ----------------
 
-Python function calls can be expensive--in Cython doubly so because
+Python function calls can be expensive -- in Cython doubly so because
 one might need to convert to and from Python objects to do the call.
 In our example above, the argument is assumed to be a C double both inside f()
 and in the call to it, yet a Python ``float`` object must be constructed around the
