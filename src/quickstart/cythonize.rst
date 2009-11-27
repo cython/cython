@@ -108,7 +108,7 @@ Determining where to add types
 ------------------------------
 
 Because static typing is often the key to large speed gains, beginners
-often have a tendency to type everything in site. This cuts down on both
+often have a tendency to type everything in sight. This cuts down on both
 readability and flexibility. On the other hand, it is easy to kill 
 performance by forgetting to type a critical loop variable. Two essential 
 tools to help with this task are profiling and annotation. 

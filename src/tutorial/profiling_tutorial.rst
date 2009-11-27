@@ -132,11 +132,11 @@ the code got slower by 2 seconds because it ran inside the cProfile module. The
 table contains the real valuable information.  You might want to check the
 python `profiling documentation <http://docs.python.org/library/profile.html>`_
 for the nitty gritty details. The most important columns here are totime (total
-time spend in this function **not** counting functions that were called by this
-function) and cumtime (total time spend in this function **also** counting the
+time spent in this function **not** counting functions that were called by this
+function) and cumtime (total time spent in this function **also** counting the
 functions called by this function). Looking at the tottime column, we see that 
-approximately half the time is spend in approx_pi and the other half is spend
-in recip_square. Also half a second is spend in range ... of course we should
+approximately half the time is spent in approx_pi and the other half is spent
+in recip_square. Also half a second is spent in range ... of course we should
 have used xrange for such a big iteration. And in fact, just changing range to
 xrange makes the code run in 5.8 seconds.
 
@@ -280,11 +280,11 @@ of our first Cython version. Also note that recip_square has vanished from the
 table like we wanted. But the most peculiar and import change is that
 approx_pi also got much faster. This is a problem with all profiling: calling a
 function in a profile run adds a certain overhead to the function call. This
-overhead is **not** added to the time spend in the called function, but to the
-time spend in the **calling** function. In this example, approx_pi didn't need 2.622
+overhead is **not** added to the time spent in the called function, but to the
+time spent in the **calling** function. In this example, approx_pi didn't need 2.622
 seconds in the last run; but it called recip_square 10000000 times, each time taking a
 little to set up profiling for it. This adds up to the massive time loss of
-around 2.6 seconds. Having disable profiling for the often called function now
+around 2.6 seconds. Having disabled profiling for the often called function now
 reveals realistic timings for approx_pi; we could continue optimizing it now if
 needed.
 
