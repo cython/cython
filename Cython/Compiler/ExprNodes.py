@@ -2696,7 +2696,7 @@ class GeneralCallNode(CallNode):
         if not self.function.type.is_pyobject:
             if self.function.type.is_error:
                 self.type = error_type
-                return error_type
+                return
             if hasattr(self.function, 'entry') and not self.function.entry.as_variable:
                 error(self.pos, "Keyword and starred arguments not allowed in cdef functions.")
             else:
