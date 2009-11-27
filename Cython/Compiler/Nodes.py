@@ -598,11 +598,13 @@ class CArgDeclNode(Node):
     # default        ExprNode or None
     # default_value  PyObjectConst      constant for default value
     # is_self_arg    boolean            Is the "self" arg of an extension type method
+    # is_type_arg    boolean            Is the "class" arg of an extension type classmethod
     # is_kw_only     boolean            Is a keyword-only argument
 
     child_attrs = ["base_type", "declarator", "default"]
 
     is_self_arg = 0
+    is_type_arg = 0
     is_generic = 1
     type = None
     name_declarator = None
@@ -669,6 +671,7 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
     # longness         integer
     # complex          boolean
     # is_self_arg      boolean      Is self argument of C method
+    # is_type_arg      boolean      Is type argument of class method
 
     child_attrs = []
     arg_name = None   # in case the argument name was interpreted as a type
@@ -1710,6 +1713,21 @@ class DefNode(FuncDefNode):
         self.create_local_scope(env)
 
     def analyse_signature(self, env):
+        self.is_classmethod = self.is_staticmethod = False
+        if self.decorators:
+            for decorator in self.decorators:
+                func = decorator.decorator
+                if func.is_name:
+                    self.is_classmethod |= func.name == 'classmethod'
+                    self.is_staticmethod |= func.name == 'staticmethod'
+
+        if self.is_classmethod and env.lookup_here('classmethod'):
+            # classmethod() was overridden - not much we can do here ...
+            self.is_classmethod = False
+        if self.is_staticmethod and env.lookup_here('staticmethod'):
+            # staticmethod() was overridden - not much we can do here ...
+            self.is_staticmethod = False
+
         any_type_tests_needed = 0
         if self.entry.is_special:
             self.entry.trivial_signature = len(self.args) == 1 and not (self.star_arg or self.starstar_arg)
@@ -1733,9 +1751,13 @@ class DefNode(FuncDefNode):
             if i < len(self.args):
                 arg = self.args[i]
                 arg.is_generic = 0
-                if sig.is_self_arg(i):
-                    arg.is_self_arg = 1
-                    arg.hdr_type = arg.type = env.parent_type
+                if sig.is_self_arg(i) and not self.is_staticmethod:
+                    if self.is_classmethod:
+                        arg.is_type_arg = 1
+                        arg.hdr_type = arg.type = Builtin.type_type
+                    else:
+                        arg.is_self_arg = 1
+                        arg.hdr_type = arg.type = env.parent_type
                     arg.needs_conversion = 0
                 else:
                     arg.hdr_type = sig.fixed_arg_type(i)
@@ -1762,7 +1784,7 @@ class DefNode(FuncDefNode):
                     any_type_tests_needed = 1
         if any_type_tests_needed:
             env.use_utility_code(arg_type_test_utility_code)
-    
+
     def bad_signature(self):
         sig = self.entry.signature
         expected_str = "%d" % sig.num_fixed_args()
