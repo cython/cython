@@ -856,7 +856,7 @@ if __name__ == '__main__':
                 os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test'),
                 'pyregr'))
 
-    unittest.TextTestRunner(verbosity=options.verbosity).run(test_suite)
+    result = unittest.TextTestRunner(verbosity=options.verbosity).run(test_suite)
 
     if options.coverage:
         coverage.stop()
@@ -875,3 +875,5 @@ if __name__ == '__main__':
     if options.with_refnanny:
         import refnanny
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
+
+    sys.exit(not result.wasSuccessful())

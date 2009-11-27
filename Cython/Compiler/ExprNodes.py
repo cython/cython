@@ -917,7 +917,7 @@ class StringNode(PyConstNode):
     is_identifier = None
 
     def coerce_to(self, dst_type, env):
-        if dst_type is not py_object_type and dst_type is not str_type:
+        if dst_type is not py_object_type and not str_type.subtype_of(dst_type):
 #            if dst_type is Builtin.bytes_type:
 #                # special case: bytes = 'str literal'
 #                return BytesNode(self.pos, value=self.value)
