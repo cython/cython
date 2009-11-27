@@ -876,4 +876,4 @@ if __name__ == '__main__':
         import refnanny
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
-    sys.exit(not result.wasSuccessful()
+    sys.exit(not result.wasSuccessful())
