@@ -400,8 +400,11 @@ class BuiltinObjectType(PyObjectType):
             return src_type.name == self.name or (
                 src_type.name == self.alternative_name and
                 src_type.name is not None)
+        elif src_type.is_extension_type:
+            return (src_type.module_name == '__builtin__' and
+                    src_type.name == self.name)
         else:
-            return not src_type.is_extension_type
+            return True
             
     def typeobj_is_available(self):
         return True
