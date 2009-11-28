@@ -164,9 +164,9 @@ class LetNodeMixin:
 
     def setup_temp_expr(self, code):
         self.temp_expression.generate_evaluation_code(code)
-        self.result_in_temp = self.temp_expression.result_in_temp()
+        self._result_in_temp = self.temp_expression.result_in_temp()
         self.temp_type = self.temp_expression.type
-        if self.result_in_temp:
+        if self._result_in_temp:
             self.temp = self.temp_expression.result()
         else:
             self.temp_expression.make_owned_reference(code)
@@ -176,7 +176,7 @@ class LetNodeMixin:
         self.lazy_temp.result_code = self.temp
 
     def teardown_temp_expr(self, code):
-       if not self.result_in_temp:
+       if not self._result_in_temp:
             if self.temp_type.is_pyobject:
                 code.put_decref_clear(self.temp, self.temp_type)
             code.funcstate.release_temp(self.temp)
