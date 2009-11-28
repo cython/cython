@@ -26,6 +26,28 @@ def slice_charptr_decode():
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
+def slice_charptr_decode_slice2():
+    """
+    >>> print(str(slice_charptr_decode_slice2()).replace("u'", "'"))
+    ('a', 'bc', 'tp')
+    """
+    return (cstring[0:1].decode('UTF-8'),
+            cstring[1:3].decode('UTF-8'),
+            cstring[7:9].decode('UTF-8'))
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
+def slice_charptr_decode_strlen():
+    """
+    >>> print(str(slice_charptr_decode_strlen()).replace("u'", "'"))
+    ('abcABCqtp', 'bcABCqtp', '')
+    """
+    return (cstring.decode('UTF-8'),
+            cstring[1:].decode('UTF-8'),
+            cstring[9:].decode('UTF-8'))
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
 def slice_charptr_decode_unbound():
     """
     >>> print(str(slice_charptr_decode_unbound()).replace("u'", "'"))
