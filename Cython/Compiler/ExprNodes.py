@@ -5690,11 +5690,15 @@ class CoerceToPyTypeNode(CoercionNode):
     type = py_object_type
     is_temp = 1
 
-    def __init__(self, arg, env):
+    def __init__(self, arg, env, type=py_object_type):
         CoercionNode.__init__(self, arg)
         if not arg.type.create_to_py_utility_code(env):
             error(arg.pos,
                 "Cannot convert '%s' to Python object" % arg.type)
+        if type is not py_object_type:
+            self.type = py_object_type
+        elif arg.type.is_string:
+            self.type = Builtin.bytes_type
 
     gil_message = "Converting to Python object"
 
