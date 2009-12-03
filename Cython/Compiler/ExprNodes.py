@@ -3010,14 +3010,14 @@ class AttributeNode(ExprNode):
         if obj_type is None:
             obj_type = self.obj.type
         self.member = self.attribute
-        if obj_type.is_pyobject:
-            self.type = py_object_type
-            self.is_py_attr = 1
-        else:
-            if not obj_type.is_error:
-                error(self.pos, 
-                    "Object of type '%s' has no attribute '%s'" %
-                    (obj_type, self.attribute))
+        self.type = py_object_type
+        self.is_py_attr = 1
+        if not obj_type.is_pyobject:
+            self.obj = self.obj.coerce_to_pyobject(env)
+            ## if not obj_type.is_error:
+            ##     error(self.pos, 
+            ##         "Object of type '%s' has no attribute '%s'" %
+            ##         (obj_type, self.attribute))
 
     def nogil_check(self, env):
         if self.is_py_attr:
