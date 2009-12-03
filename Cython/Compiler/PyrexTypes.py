@@ -11,6 +11,9 @@ class BaseType(object):
     #
     #  Base class for all Pyrex types including pseudo-types.
 
+    def can_coerce_to_pyobject(self, env):
+        return False
+
     def cast_code(self, expr_code):
         return "((%s)%s)" % (self.declaration_code(""), expr_code)
     
@@ -348,7 +351,10 @@ class PyObjectType(PyrexType):
     
     def __repr__(self):
         return "<PyObjectType>"
-    
+
+    def can_coerce_to_pyobject(self, env):
+        return True
+
     def assignable_from(self, src_type):
         # except for pointers, conversion will be attempted
         return not src_type.is_ptr or src_type.is_string
@@ -555,7 +561,10 @@ class CType(PyrexType):
         
     def create_from_py_utility_code(self, env):
         return self.from_py_function is not None
-        
+
+    def can_coerce_to_pyobject(self, env):
+        return self.create_to_py_utility_code(env)
+
     def error_condition(self, result_code):
         conds = []
         if self.is_string:

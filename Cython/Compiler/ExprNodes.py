@@ -3013,7 +3013,7 @@ class AttributeNode(ExprNode):
         self.type = py_object_type
         self.is_py_attr = 1
         if not obj_type.is_pyobject and not obj_type.is_error:
-            if obj_type.create_to_py_utility_code(env):
+            if obj_type.can_coerce_to_pyobject(env):
                 self.obj = self.obj.coerce_to_pyobject(env)
             else:
                 error(self.pos,
@@ -4242,7 +4242,7 @@ class TypecastNode(ExprNode):
         if from_py and not to_py and self.operand.is_ephemeral() and not self.type.is_numeric:
             error(self.pos, "Casting temporary Python object to non-numeric non-Python type")
         if to_py and not from_py:
-            if self.operand.type.create_to_py_utility_code(env):
+            if self.operand.type.can_coerce_to_pyobject(env):
                 self.result_ctype = py_object_type
                 self.operand = self.operand.coerce_to_pyobject(env)
             else:
