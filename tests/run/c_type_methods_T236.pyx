@@ -3,14 +3,14 @@ __doc__ = ''
 
 import sys
 if sys.version_info >= (2,6):
-    __doc__ = '''
+    __doc__ += '''
 >>> float_is_integer(1.0)
 True
 >>> float_is_integer(1.1)
 False
 '''
 if sys.version_info >= (3,1):
-    __doc__ = '''
+    __doc__ += '''
 >>> int_bit_length(1) == (1).bit_length()
 True
 >>> int_bit_length(1234) == (1234).bit_length()
