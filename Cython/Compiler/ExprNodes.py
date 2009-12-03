@@ -3005,7 +3005,7 @@ class AttributeNode(ExprNode):
         # declared or is declared as a Python method. Treat it as a Python
         # attribute reference.
         self.analyse_as_python_attribute(env, obj_type)
-                    
+
     def analyse_as_python_attribute(self, env, obj_type = None):
         if obj_type is None:
             obj_type = self.obj.type
@@ -3014,10 +3014,6 @@ class AttributeNode(ExprNode):
         self.is_py_attr = 1
         if not obj_type.is_pyobject:
             self.obj = self.obj.coerce_to_pyobject(env)
-            ## if not obj_type.is_error:
-            ##     error(self.pos, 
-            ##         "Object of type '%s' has no attribute '%s'" %
-            ##         (obj_type, self.attribute))
 
     def nogil_check(self, env):
         if self.is_py_attr:
