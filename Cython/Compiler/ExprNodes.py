@@ -2073,6 +2073,15 @@ class SliceIndexNode(ExprNode):
     
     subexprs = ['base', 'start', 'stop']
 
+    def infer_type(self, env):
+        base_type = self.base.infer_type(env)
+        if base_type.is_string:
+            return bytes_type
+        elif base_type in (bytes_type, str_type, unicode_type,
+                           list_type, tuple_type):
+            return base_type
+        return py_object_type
+
     def calculate_constant_result(self):
         self.constant_result = self.base.constant_result[
             self.start.constant_result : self.stop.constant_result]

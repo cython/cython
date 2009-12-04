@@ -46,6 +46,27 @@ def builtin_types():
     B = bool()
     assert typeof(B) == "bool object", typeof(B)
 
+def slicing():
+    """
+    >>> slicing()
+    """
+    b = b"abc"
+    assert typeof(b) == "char *", typeof(b)
+    b1 = b[1:2]
+    assert typeof(b1) == "bytes object", typeof(b1)
+    u = u"xyz"
+    assert typeof(u) == "unicode object", typeof(u)
+    u1 = u[1:2]
+    assert typeof(u1) == "unicode object", typeof(u1)
+    L = [1,2,3]
+    assert typeof(L) == "list object", typeof(L)
+    L1 = L[1:2]
+    assert typeof(L1) == "list object", typeof(L1)
+    t = (4,5,6)
+    assert typeof(t) == "tuple object", typeof(t)
+    t1 = t[1:2]
+    assert typeof(t1) == "tuple object", typeof(t1)
+
 def multiple_assignments():
     """
     >>> multiple_assignments()
