@@ -1072,8 +1072,8 @@ class NameNode(AtomicExprNode):
         elif (self.entry.type.is_extension_type or self.entry.type.is_builtin_type) and \
                 self.name == self.entry.type.name:
             # Unfortunately the type attribute of type objects
-            # is used for the pointer to the type the represent.
-            return type_type
+            # is used for the pointer to the type they represent.
+            return self.entry.type # type_type
         else:
             return self.entry.type
     
@@ -2396,6 +2396,11 @@ class SimpleCallNode(CallNode):
             func_type = func_type.base_type
         if func_type.is_cfunction:
             return func_type.return_type
+        elif func_type.is_extension_type:
+            return func_type
+        elif func_type.is_builtin_type and \
+                 func_type.name in Builtin.types_that_construct_their_instance:
+            return func_type
         else:
             return py_object_type            
     
