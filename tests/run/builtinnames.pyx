@@ -22,12 +22,12 @@ cdef type(arg):
 
 
 @cython.test_fail_if_path_exists(
-    '//SimpleCallNode/NameNode[@name="type" and @entry.is_cfunction]',
-    '//SimpleCallNode/NameNode[@name="len" and @entry.is_cfunction]',
+    '//SimpleCallNode/NameNode[@name="type" and @entry.is_cfunction=False]',
+    '//SimpleCallNode/NameNode[@name="len" and @entry.is_cfunction=True]',
     )
 @cython.test_assert_path_exists(
     '//SimpleCallNode/NameNode[@name="type"]',
-    '//SimpleCallNode/NameNode[@name="type" and not(@entry.is_cfunction)]',
+    '//SimpleCallNode/NameNode[@name="type" and @entry.is_cfunction=True]',
     '//SimpleCallNode/NameNode[@name="len"]',
     )
 def test_c(arg):
