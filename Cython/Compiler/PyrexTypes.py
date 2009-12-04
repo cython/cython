@@ -2030,8 +2030,15 @@ def spanning_type(type1, type2):
     elif type1.is_pyobject ^ type2.is_pyobject:
         return py_object_type
     elif type1.assignable_from(type2):
+        if type1.is_extension_type and type1.typeobj_is_imported():
+            # external types are unsafe, so we use PyObject instead
+            return py_object_type
         return type1
-    elif type2.assignable_from(type1):
+    elif type2.assignable_from(type1) and \
+             not (type2.is_typedef and type2.typedef_is_external):
+        if type2.is_extension_type and type2.typeobj_is_imported():
+            # external types are unsafe, so we use PyObject instead
+            return py_object_type
         return type2
     else:
         return py_object_type
