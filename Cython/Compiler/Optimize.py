@@ -118,7 +118,7 @@ class IterationTransform(Visitor.VisitorTransform):
         # enumerate() ?
         if iterator.self is None and \
                isinstance(function, ExprNodes.NameNode) and \
-               function.entry.is_builtin and \
+               function.entry and function.entry.is_builtin and \
                function.name == 'enumerate':
             return self._transform_enumerate_iteration(node, iterator)
 
@@ -126,7 +126,7 @@ class IterationTransform(Visitor.VisitorTransform):
         if Options.convert_range and node.target.type.is_int:
             if iterator.self is None and \
                     isinstance(function, ExprNodes.NameNode) and \
-                    function.entry.is_builtin and \
+                    function.entry and function.entry.is_builtin and \
                     function.name in ('range', 'xrange'):
                 return self._transform_range_iteration(node, iterator)
 
@@ -831,6 +831,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             # we only consider functions that are either builtin
             # Python functions or builtins that were already replaced
             # into a C function call (defined in the builtin scope)
+            if not function.entry:
+                return node
             is_builtin = function.entry.is_builtin \
                          or getattr(function.entry, 'scope', None) is Builtin.builtin_scope
             if not is_builtin:
