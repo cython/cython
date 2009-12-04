@@ -1146,7 +1146,7 @@ class NameNode(AtomicExprNode):
         if not self.entry:
             self.entry = env.lookup_here(self.name)
         if not self.entry:
-            if env.directives['infer_types']:
+            if env.directives['infer_types'] != 'none':
                 type = unspecified_type
             else:
                 type = py_object_type
