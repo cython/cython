@@ -1,4 +1,5 @@
 import ExprNodes
+import PyrexTypes
 from PyrexTypes import py_object_type, unspecified_type, spanning_type
 from Visitor import CythonTransform
 
@@ -119,6 +120,7 @@ class SimpleAssignmentTypeInferer:
     # TODO: Implement a real type inference algorithm.
     # (Something more powerful than just extending this one...)
     def infer_types(self, scope):
+        which_types_to_infer = scope.directives['infer_types']
         dependancies_by_entry = {} # entry -> dependancies
         entries_by_dependancy = {} # dependancy -> entries
         ready_to_infer = []
@@ -150,11 +152,12 @@ class SimpleAssignmentTypeInferer:
                 entry = ready_to_infer.pop()
                 types = [expr.infer_type(scope) for expr in entry.assignments]
                 if types:
-                    entry.type = reduce(spanning_type, types)
+                    result_type = reduce(spanning_type, types)
                 else:
                     # List comprehension?
                     # print "No assignments", entry.pos, entry
-                    entry.type = py_object_type
+                    result_type = py_object_type
+                entry.type = find_safe_type(result_type, which_types_to_infer)
                 resolve_dependancy(entry)
             # Deal with simple circular dependancies...
             for entry, deps in dependancies_by_entry.items():
@@ -164,6 +167,7 @@ class SimpleAssignmentTypeInferer:
                         entry.type = reduce(spanning_type, types)
                         types = [expr.infer_type(scope) for expr in entry.assignments]
                         entry.type = reduce(spanning_type, types) # might be wider...
+                        entry.type = find_safe_type(entry.type, which_types_to_infer)
                         resolve_dependancy(entry)
                         del dependancies_by_entry[entry]
                         if ready_to_infer:
@@ -174,6 +178,19 @@ class SimpleAssignmentTypeInferer:
         # We can't figure out the rest with this algorithm, let them be objects.
         for entry in dependancies_by_entry:
             entry.type = py_object_type
+
+def find_safe_type(result_type, which_types_to_infer):
+    if which_types_to_infer == 'all':
+        return result_type
+    elif which_types_to_infer == 'safe':
+        if result_type.is_pyobject:
+            # any specific Python type is always safe to infer
+            return result_type
+        elif result_type in (PyrexTypes.c_double_type, PyrexTypes.c_float_type):
+            # Python's float type is just a C double, so it's safe to
+            # use the C type instead
+            return PyrexTypes.c_double_type
+    return py_object_type
 
 def get_type_inferer():
     return SimpleAssignmentTypeInferer()

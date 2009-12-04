@@ -1,7 +1,10 @@
-# cython: infer_types = True
+# cython: infer_types = all
 
 
-from cython cimport typeof
+from cython cimport typeof, infer_types
+
+cdef class MyType:
+    pass
 
 def simple():
     """
@@ -26,6 +29,23 @@ def simple():
     t = (4,5,6)
     assert typeof(t) == "tuple object", typeof(t)
 
+def builtin_types():
+    """
+    >>> builtin_types()
+    """
+    b = bytes()
+    assert typeof(b) == "bytes object", typeof(b)
+    u = unicode()
+    assert typeof(u) == "unicode object", typeof(u)
+    L = list()
+    assert typeof(L) == "list object", typeof(L)
+    t = tuple()
+    assert typeof(t) == "tuple object", typeof(t)
+    d = dict()
+    assert typeof(d) == "dict object", typeof(d)
+    B = bool()
+    assert typeof(B) == "bool object", typeof(B)
+
 def multiple_assignments():
     """
     >>> multiple_assignments()
@@ -43,9 +63,9 @@ def multiple_assignments():
     c = [1,2,3]
     assert typeof(c) == "Python object"
 
-def arithmatic():
+def arithmetic():
     """
-    >>> arithmatic()
+    >>> arithmetic()
     """
     a = 1 + 2
     assert typeof(a) == "long"
@@ -105,3 +125,15 @@ def loop():
     for d in range(0, 10L, 2):
         pass
     assert typeof(a) == "long"
+
+@infer_types('safe')
+def safe_only():
+    """
+    >>> safe_only()
+    """
+    a = 1.0
+    assert typeof(a) == "double", typeof(c)
+    b = 1
+    assert typeof(b) == "Python object", typeof(c)
+    c = MyType()
+    assert typeof(c) == "MyType", typeof(c)
