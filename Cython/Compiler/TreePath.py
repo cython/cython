@@ -144,11 +144,14 @@ def handle_attribute(next, token):
     else:
         if token[0] == '=':
             value = parse_path_value(next)
+    name_path = name.split('.')
     if value is None:
         def select(result):
             for node in result:
                 try:
-                    attr_value = getattr(node, name)
+                    attr_value = node
+                    for attr in name_path:
+                        attr_value = getattr(attr_value, attr)
                 except AttributeError:
                     continue
                 if attr_value is not None:
@@ -157,11 +160,13 @@ def handle_attribute(next, token):
         def select(result):
             for node in result:
                 try:
-                    attr_value = getattr(node, name)
+                    attr_value = node
+                    for attr in name_path:
+                        attr_value = getattr(attr_value, attr)
                 except AttributeError:
                     continue
                 if attr_value == value:
-                    yield value
+                    yield attr_value
     return select
 
 def parse_path_value(next):
