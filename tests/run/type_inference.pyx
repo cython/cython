@@ -1,6 +1,7 @@
 # cython: infer_types = all
 
 
+cimport cython
 from cython cimport typeof, infer_types
 
 cdef class MyType:
@@ -146,6 +147,23 @@ def loop():
     for d in range(0, 10L, 2):
         pass
     assert typeof(a) == "long"
+
+
+@cython.test_fail_if_path_exists('//NameNode[@type.is_pyobject = True]')
+@cython.test_assert_path_exists('//InPlaceAssignmentNode/NameNode',
+                                '//NameNode[@type.is_pyobject]',
+                                '//NameNode[@type.is_pyobject = False]')
+@infer_types('safe')
+def double_loop():
+    """
+    >>> double_loop() == 1.0 * 10
+    True
+    """
+    cdef int i
+    d = 1.0
+    for i in range(9):
+        d += 1.0
+    return d
 
 cdef unicode retu():
     return u"12345"
