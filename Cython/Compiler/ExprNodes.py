@@ -1073,7 +1073,7 @@ class NameNode(AtomicExprNode):
                 self.name == self.entry.type.name:
             # Unfortunately the type attribute of type objects
             # is used for the pointer to the type they represent.
-            return self.entry.type # type_type
+            return type_type
         else:
             return self.entry.type
     
@@ -2400,19 +2400,22 @@ class SimpleCallNode(CallNode):
         return self.function.type_dependencies(env)
     
     def infer_type(self, env):
-        func_type = self.function.infer_type(env)
+        function = self.function
+        func_type = function.infer_type(env)
         if func_type.is_ptr:
             func_type = func_type.base_type
         if func_type.is_cfunction:
             return func_type.return_type
-        elif func_type.is_extension_type:
-            return func_type
-        elif func_type.is_builtin_type and \
-                 func_type.name in Builtin.types_that_construct_their_instance:
-            return func_type
-        else:
-            return py_object_type            
-    
+        elif func_type is type_type:
+            if function.is_name and function.entry and function.entry.type:
+                result_type = function.entry.type
+                if result_type.is_extension_type:
+                    return result_type
+                elif result_type.is_builtin_type:
+                    if function.entry.name in Builtin.types_that_construct_their_instance:
+                        return result_type
+        return py_object_type
+
     def analyse_as_type(self, env):
         attr = self.function.as_cython_attribute()
         if attr == 'pointer':
