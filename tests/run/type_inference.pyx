@@ -147,6 +147,25 @@ def loop():
         pass
     assert typeof(a) == "long"
 
+cdef unicode retu():
+    return u"12345"
+
+cdef bytes retb():
+    return b"12345"
+
+def conditional(x):
+    """
+    >>> conditional(True)
+    (True, 'Python object')
+    >>> conditional(False)
+    (False, 'Python object')
+    """
+    if x:
+        a = retu()
+    else:
+        a = retb()
+    return type(a) is unicode, typeof(a)
+
 @infer_types('safe')
 def safe_only():
     """
