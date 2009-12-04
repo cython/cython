@@ -62,7 +62,7 @@ directive_defaults = {
     'ccomplex' : False, # use C99/C++ for complex types and arith
     'callspec' : "",
     'profile': False,
-    'infer_types': False,
+    'infer_types': 'none', # 'none', 'safe', 'all'
     'autotestdict': True,
 
 # test support
@@ -87,7 +87,7 @@ directive_scopes = { # defaults to available everywhere
 def parse_directive_value(name, value):
     """
     Parses value as an option value for the given name and returns
-    the interpreted value. None is returned if the option does not exist.    
+    the interpreted value. None is returned if the option does not exist.
 
     >>> print parse_directive_value('nonexisting', 'asdf asdfd')
     None
@@ -110,6 +110,8 @@ def parse_directive_value(name, value):
             return int(value)
         except ValueError:
             raise ValueError("%s directive must be set to an integer" % name)
+    elif type is str:
+        return str(value)
     else:
         assert False
 
