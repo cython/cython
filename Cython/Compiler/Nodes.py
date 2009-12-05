@@ -671,7 +671,7 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
     # longness         integer
     # complex          boolean
     # is_self_arg      boolean      Is self argument of C method
-    # is_type_arg      boolean      Is type argument of class method
+    # ##is_type_arg      boolean      Is type argument of class method
 
     child_attrs = []
     arg_name = None   # in case the argument name was interpreted as a type
@@ -690,6 +690,8 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
             if self.is_self_arg and env.is_c_class_scope:
                 #print "CSimpleBaseTypeNode.analyse: defaulting to parent type" ###
                 type = env.parent_type
+            ## elif self.is_type_arg and env.is_c_class_scope:
+            ##     type = Builtin.type_type
             else:
                 type = py_object_type
         else:
@@ -706,6 +708,8 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                 elif could_be_name:
                     if self.is_self_arg and env.is_c_class_scope:
                         type = env.parent_type
+                    ## elif self.is_type_arg and env.is_c_class_scope:
+                    ##     type = Builtin.type_type
                     else:
                         type = py_object_type
                     self.arg_name = self.name
@@ -1599,7 +1603,7 @@ class DefNode(FuncDefNode):
     decorators = None
     entry = None
     acquire_gil = 0
-    
+    self_in_stararg = 0
 
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
@@ -1675,6 +1679,28 @@ class DefNode(FuncDefNode):
                             directive_locals = getattr(cfunc, 'directive_locals', {}))
     
     def analyse_declarations(self, env):
+        self.is_classmethod = self.is_staticmethod = False
+        if self.decorators:
+            for decorator in self.decorators:
+                func = decorator.decorator
+                if func.is_name:
+                    self.is_classmethod |= func.name == 'classmethod'
+                    self.is_staticmethod |= func.name == 'staticmethod'
+
+        if self.is_classmethod and env.lookup_here('classmethod'):
+            # classmethod() was overridden - not much we can do here ...
+            self.is_classmethod = False
+        if self.is_staticmethod and env.lookup_here('staticmethod'):
+            # staticmethod() was overridden - not much we can do here ...
+            self.is_staticmethod = False
+
+        self.analyse_argument_types(env)
+        self.declare_pyfunction(env)
+        self.analyse_signature(env)
+        self.return_type = self.entry.signature.return_type()
+        self.create_local_scope(env)
+
+    def analyse_argument_types(self, env):
         directive_locals = self.directive_locals = env.directives['locals']
         for arg in self.args:
             if hasattr(arg, 'name'):
@@ -1707,27 +1733,8 @@ class DefNode(FuncDefNode):
             if arg.not_none and not arg.type.is_extension_type:
                 error(self.pos,
                     "Only extension type arguments can have 'not None'")
-        self.declare_pyfunction(env)
-        self.analyse_signature(env)
-        self.return_type = self.entry.signature.return_type()
-        self.create_local_scope(env)
 
     def analyse_signature(self, env):
-        self.is_classmethod = self.is_staticmethod = False
-        if self.decorators:
-            for decorator in self.decorators:
-                func = decorator.decorator
-                if func.is_name:
-                    self.is_classmethod |= func.name == 'classmethod'
-                    self.is_staticmethod |= func.name == 'staticmethod'
-
-        if self.is_classmethod and env.lookup_here('classmethod'):
-            # classmethod() was overridden - not much we can do here ...
-            self.is_classmethod = False
-        if self.is_staticmethod and env.lookup_here('staticmethod'):
-            # staticmethod() was overridden - not much we can do here ...
-            self.is_staticmethod = False
-
         any_type_tests_needed = 0
         if self.entry.is_special:
             self.entry.trivial_signature = len(self.args) == 1 and not (self.star_arg or self.starstar_arg)
@@ -1745,36 +1752,46 @@ class DefNode(FuncDefNode):
                 elif len(self.args) == 2:
                     if self.args[1].default is None and not self.args[1].kw_only:
                         self.entry.signature = TypeSlots.ibinaryfunc
+
         sig = self.entry.signature
         nfixed = sig.num_fixed_args()
-        for i in range(nfixed):
-            if i < len(self.args):
-                arg = self.args[i]
-                arg.is_generic = 0
-                if sig.is_self_arg(i) and not self.is_staticmethod:
-                    if self.is_classmethod:
-                        arg.is_type_arg = 1
-                        arg.hdr_type = arg.type = Builtin.type_type
-                    else:
-                        arg.is_self_arg = 1
-                        arg.hdr_type = arg.type = env.parent_type
-                    arg.needs_conversion = 0
+        if sig is TypeSlots.pymethod_signature and nfixed == 1 \
+               and len(self.args) == 0 and self.star_arg:
+            # this is the only case where a diverging number of
+            # arguments is not an error - when we have no explicit
+            # 'self' parameter as in method(*args)
+            sig = self.entry.signature = TypeSlots.pyfunction_signature # self is not 'really' used
+            self.self_in_stararg = 1
+            nfixed = 0
+
+        for i in range(min(nfixed, len(self.args))):
+            arg = self.args[i]
+            arg.is_generic = 0
+            if sig.is_self_arg(i) and not self.is_staticmethod:
+                if self.is_classmethod:
+                    arg.is_type_arg = 1
+                    arg.hdr_type = arg.type = Builtin.type_type
                 else:
-                    arg.hdr_type = sig.fixed_arg_type(i)
-                    if not arg.type.same_as(arg.hdr_type):
-                        if arg.hdr_type.is_pyobject and arg.type.is_pyobject:
-                            arg.needs_type_test = 1
-                            any_type_tests_needed = 1
-                        else:
-                            arg.needs_conversion = 1
-                if arg.needs_conversion:
-                    arg.hdr_cname = Naming.arg_prefix + arg.name
-                else:
-                    arg.hdr_cname = Naming.var_prefix + arg.name
+                    arg.is_self_arg = 1
+                    arg.hdr_type = arg.type = env.parent_type
+                arg.needs_conversion = 0
             else:
-                self.bad_signature()
-                return
-        if nfixed < len(self.args):
+                arg.hdr_type = sig.fixed_arg_type(i)
+                if not arg.type.same_as(arg.hdr_type):
+                    if arg.hdr_type.is_pyobject and arg.type.is_pyobject:
+                        arg.needs_type_test = 1
+                        any_type_tests_needed = 1
+                    else:
+                        arg.needs_conversion = 1
+            if arg.needs_conversion:
+                arg.hdr_cname = Naming.arg_prefix + arg.name
+            else:
+                arg.hdr_cname = Naming.var_prefix + arg.name
+
+        if nfixed > len(self.args):
+            self.bad_signature()
+            return
+        elif nfixed < len(self.args):
             if not sig.has_generic_args:
                 self.bad_signature()
             for arg in self.args:
@@ -1802,7 +1819,9 @@ class DefNode(FuncDefNode):
 
     def signature_has_nongeneric_args(self):
         argcount = len(self.args)
-        if argcount == 0 or (argcount == 1 and self.args[0].is_self_arg):
+        if argcount == 0 or (
+                argcount == 1 and (self.args[0].is_self_arg or
+                                   self.args[0].is_type_arg)):
             return 0
         return 1
 
@@ -1845,7 +1864,7 @@ class DefNode(FuncDefNode):
             arg.entry.used = 1
             arg.entry.is_self_arg = arg.is_self_arg
             if arg.hdr_type:
-                if arg.is_self_arg or \
+                if arg.is_self_arg or arg.is_type_arg or \
                     (arg.type.is_extension_type and not arg.hdr_type.is_extension_type):
                         arg.entry.is_declared_generic = 1
         self.declare_python_arg(env, self.star_arg)
@@ -1881,12 +1900,12 @@ class DefNode(FuncDefNode):
     def generate_function_header(self, code, with_pymethdef, proto_only=0):
         arg_code_list = []
         sig = self.entry.signature
-        if sig.has_dummy_arg:
+        if sig.has_dummy_arg or self.self_in_stararg:
             arg_code_list.append(
                 "PyObject *%s" % Naming.self_cname)
         for arg in self.args:
             if not arg.is_generic:
-                if arg.is_self_arg:
+                if arg.is_self_arg or arg.is_type_arg:
                     arg_code_list.append("PyObject *%s" % arg.hdr_cname)
                 else:
                     arg_code_list.append(
@@ -1941,7 +1960,7 @@ class DefNode(FuncDefNode):
     def generate_argument_parsing_code(self, env, code):
         # Generate PyArg_ParseTuple call for generic
         # arguments, if any.
-        if self.entry.signature.has_dummy_arg:
+        if self.entry.signature.has_dummy_arg and not self.self_in_stararg:
             # get rid of unused argument warning
             code.putln("%s = %s;" % (Naming.self_cname, Naming.self_cname))
 
@@ -1974,14 +1993,14 @@ class DefNode(FuncDefNode):
                 arg_entry = arg.entry
                 if arg.is_generic:
                     if arg.default:
-                        if not arg.is_self_arg:
+                        if not arg.is_self_arg and not arg.is_type_arg:
                             if arg.kw_only:
                                 kw_only_args.append(arg)
                             else:
                                 positional_args.append(arg)
                     elif arg.kw_only:
                         kw_only_args.append(arg)
-                    elif not arg.is_self_arg:
+                    elif not arg.is_self_arg and not arg.is_type_arg:
                         positional_args.append(arg)
 
             self.generate_tuple_and_keyword_parsing_code(
@@ -2061,9 +2080,38 @@ class DefNode(FuncDefNode):
                     self.starstar_arg.entry.cname, self.error_value()))
             self.starstar_arg.entry.xdecref_cleanup = 0
             code.put_gotref(self.starstar_arg.entry.cname)
-            
 
-        if self.star_arg:
+        if self.self_in_stararg:
+            # need to create a new tuple with 'self' inserted as first item
+            code.put("%s = PyTuple_New(PyTuple_GET_SIZE(%s)+1); if (unlikely(!%s)) " % (
+                    self.star_arg.entry.cname,
+                    Naming.args_cname,
+                    self.star_arg.entry.cname))
+            if self.starstar_arg:
+                code.putln("{")
+                code.put_decref(self.starstar_arg.entry.cname, py_object_type)
+                code.putln("return %s;" % self.error_value())
+                code.putln("}")
+            else:
+                code.putln("return %s;" % self.error_value())
+            code.put_gotref(self.star_arg.entry.cname)
+            code.put_incref(Naming.self_cname, py_object_type)
+            code.put_giveref(Naming.self_cname)
+            code.putln("PyTuple_SET_ITEM(%s, 0, %s);" % (
+                self.star_arg.entry.cname, Naming.self_cname))
+            temp = code.funcstate.allocate_temp(PyrexTypes.c_py_ssize_t_type, manage_ref=False)
+            code.putln("for (%s=0; %s < PyTuple_GET_SIZE(%s); %s++) {" % (
+                temp, temp, Naming.args_cname, temp))
+            code.putln("PyObject* item = PyTuple_GET_ITEM(%s, %s);" % (
+                Naming.args_cname, temp))
+            code.put_incref("item", py_object_type)
+            code.put_giveref("item")
+            code.putln("PyTuple_SET_ITEM(%s, %s+1, item);" % (
+                self.star_arg.entry.cname, temp))
+            code.putln("}")
+            code.funcstate.release_temp(temp)
+            self.star_arg.entry.xdecref_cleanup = 0
+        elif self.star_arg:
             code.put_incref(Naming.args_cname, py_object_type)
             code.putln("%s = %s;" % (
                     self.star_arg.entry.cname,
