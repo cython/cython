@@ -127,6 +127,9 @@ class ResultRefNode(AtomicExprNode):
     def analyse_types(self, env):
         self.type = self.expression.type
 
+    def infer_type(self, env):
+        return self.expression.infer_type(env)
+
     def result(self):
         return self.result_code
 
@@ -191,6 +194,9 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
         self.set_temp_expr(lazy_temp)
         self.pos = subexpression.pos
         self.subexpression = subexpression
+
+    def infer_type(self, env):
+        return self.subexpression.infer_type(env)
 
     def result(self):
         return self.subexpression.result()
