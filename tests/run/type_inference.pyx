@@ -203,3 +203,25 @@ def args_tuple_keywords(*args, **kwargs):
     """
     assert typeof(args) == "tuple object", typeof(args)
     assert typeof(kwargs) == "dict object", typeof(kwargs)
+
+@infer_types('safe')
+def args_tuple_keywords_reassign_same(*args, **kwargs):
+    """
+    >>> args_tuple_keywords_reassign_same(1,2,3, a=1, b=2)
+    """
+    assert typeof(args) == "tuple object", typeof(args)
+    assert typeof(kwargs) == "dict object", typeof(kwargs)
+
+    args = ()
+    kwargs = {}
+
+@infer_types('safe')
+def args_tuple_keywords_reassign_pyobjects(*args, **kwargs):
+    """
+    >>> args_tuple_keywords_reassign_pyobjects(1,2,3, a=1, b=2)
+    """
+    assert typeof(args) == "Python object", typeof(args)
+    assert typeof(kwargs) == "Python object", typeof(kwargs)
+
+    args = []
+    kwargs = "test"
