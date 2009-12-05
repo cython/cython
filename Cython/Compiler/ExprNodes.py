@@ -4413,7 +4413,7 @@ class TypeofNode(ExprNode):
     literal = None
     type = py_object_type
     
-    subexprs = ['operand', 'literal']
+    subexprs = ['literal']
     
     def analyse_types(self, env):
         self.operand.analyse_types(env)
