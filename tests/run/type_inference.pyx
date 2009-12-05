@@ -195,3 +195,11 @@ def safe_only():
     assert typeof(b) == "Python object", typeof(c)
     c = MyType()
     assert typeof(c) == "MyType", typeof(c)
+
+@infer_types('safe')
+def args_tuple_keywords(*args, **kwargs):
+    """
+    >>> args_tuple_keywords(1,2,3, a=1, b=2)
+    """
+    assert typeof(args) == "tuple object", typeof(args)
+    assert typeof(kwargs) == "dict object", typeof(kwargs)

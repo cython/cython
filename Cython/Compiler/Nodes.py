@@ -1872,8 +1872,11 @@ class DefNode(FuncDefNode):
 
     def declare_python_arg(self, env, arg):
         if arg:
-            entry = env.declare_var(arg.name, 
-                PyrexTypes.py_object_type, arg.pos)
+            if env.directives['infer_types'] != 'none':
+                type = PyrexTypes.unspecified_type
+            else:
+                type = py_object_type
+            entry = env.declare_var(arg.name, type, arg.pos)
             entry.used = 1
             entry.init = "0"
             entry.init_to_none = 0
