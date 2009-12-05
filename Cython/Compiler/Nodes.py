@@ -2075,7 +2075,7 @@ class DefNode(FuncDefNode):
         argtuple_error_label = code.new_label("argtuple_error")
 
         min_positional_args = self.num_required_args - self.num_required_kw_args
-        if len(self.args) > 0 and self.args[0].is_self_arg:
+        if len(self.args) > 0 and (self.args[0].is_self_arg or self.args[0].is_type_arg):
             min_positional_args -= 1
         max_positional_args = len(positional_args)
         has_fixed_positional_count = not self.star_arg and \
