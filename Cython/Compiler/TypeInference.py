@@ -1,4 +1,6 @@
 import ExprNodes
+import Nodes
+import Builtin
 import PyrexTypes
 from PyrexTypes import py_object_type, unspecified_type, spanning_type
 from Visitor import CythonTransform
@@ -20,7 +22,7 @@ object_expr = TypedExprNode(py_object_type)
 class MarkAssignments(CythonTransform):
     
     def mark_assignment(self, lhs, rhs):
-        if isinstance(lhs, ExprNodes.NameNode):
+        if isinstance(lhs, (ExprNodes.NameNode, Nodes.PyArgDeclNode)):
             if lhs.entry is None:
                 # TODO: This shouldn't happen...
                 # It looks like comprehension loop targets are not declared soon enough.
@@ -97,6 +99,17 @@ class MarkAssignments(CythonTransform):
         for name, target in node.items:
             if name != "*":
                 self.mark_assignment(target, object_expr)
+        self.visitchildren(node)
+        return node
+
+    def visit_DefNode(self, node):
+        # use fake expressions with the right result type
+        if node.star_arg:
+            self.mark_assignment(
+                node.star_arg, TypedExprNode(Builtin.tuple_type))
+        if node.starstar_arg:
+            self.mark_assignment(
+                node.starstar_arg, TypedExprNode(Builtin.dict_type))
         self.visitchildren(node)
         return node
 
