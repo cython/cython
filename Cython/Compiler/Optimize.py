@@ -1312,7 +1312,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             else:
                 if start.type.is_pyobject:
                     start = start.coerce_to(PyrexTypes.c_py_ssize_t_type, self.env_stack[-1])
-                if not start.is_simple:
+                if stop:
                     start = UtilNodes.LetRefNode(start)
                     temps.append(start)
                 string_node = ExprNodes.AddNode(pos=start.pos,
@@ -1334,7 +1334,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node
 
         if not stop:
-            if start or not string_node.is_simple:
+            if start or not string_node.is_name:
                 string_node = UtilNodes.LetRefNode(string_node)
                 temps.append(string_node)
             stop = ExprNodes.PythonCapiCallNode(
@@ -1359,7 +1359,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         encoding, encoding_node, error_handling, error_handling_node = parameters
 
         # try to find a specific encoder function
-        codec_name = self._find_special_codec_name(encoding)
+        codec_name = None
+        if encoding is not None:
+            codec_name = self._find_special_codec_name(encoding)
         if codec_name is not None:
             decode_function = "PyUnicode_Decode%s" % codec_name
             node = ExprNodes.PythonCapiCallNode(
@@ -1397,29 +1399,35 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         encoding_node = args[1]
         if isinstance(encoding_node, ExprNodes.CoerceToPyTypeNode):
             encoding_node = encoding_node.arg
-        if not isinstance(encoding_node, (ExprNodes.UnicodeNode, ExprNodes.StringNode,
-                                          ExprNodes.BytesNode)):
+        if isinstance(encoding_node, (ExprNodes.UnicodeNode, ExprNodes.StringNode,
+                                      ExprNodes.BytesNode)):
+            encoding = encoding_node.value
+            encoding_node = ExprNodes.BytesNode(encoding_node.pos, value=encoding,
+                                                 type=PyrexTypes.c_char_ptr_type)
+        elif encoding_node.type.is_string:
+            encoding = None
+        else:
             return None
-        encoding = encoding_node.value
-        encoding_node = ExprNodes.BytesNode(encoding_node.pos, value=encoding,
-                                             type=PyrexTypes.c_char_ptr_type)
 
         null_node = ExprNodes.NullNode(pos)
         if len(args) == 3:
             error_handling_node = args[2]
             if isinstance(error_handling_node, ExprNodes.CoerceToPyTypeNode):
                 error_handling_node = error_handling_node.arg
-            if not isinstance(error_handling_node,
-                              (ExprNodes.UnicodeNode, ExprNodes.StringNode,
-                               ExprNodes.BytesNode)):
-                return None
-            error_handling = error_handling_node.value
-            if error_handling == 'strict':
-                error_handling_node = null_node
+            if isinstance(error_handling_node,
+                          (ExprNodes.UnicodeNode, ExprNodes.StringNode,
+                           ExprNodes.BytesNode)):
+                error_handling = error_handling_node.value
+                if error_handling == 'strict':
+                    error_handling_node = null_node
+                else:
+                    error_handling_node = ExprNodes.BytesNode(
+                        error_handling_node.pos, value=error_handling,
+                        type=PyrexTypes.c_char_ptr_type)
+            elif error_handling_node.type.is_string:
+                error_handling = None
             else:
-                error_handling_node = ExprNodes.BytesNode(
-                    error_handling_node.pos, value=error_handling,
-                    type=PyrexTypes.c_char_ptr_type)
+                return None
         else:
             error_handling = 'strict'
             error_handling_node = null_node
