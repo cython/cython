@@ -107,7 +107,7 @@ def test_side_effects():
     c side effect 4
     ([0, 11, 102, 3, 4], [0, 1, 2, 13, 104])
     """
-    a = list(range(5))
+    cdef object a = list(range(5))
     a[side_effect(1)] += 10
     a[c_side_effect(2)] += 100
     cdef int i

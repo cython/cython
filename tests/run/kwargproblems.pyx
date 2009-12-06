@@ -1,4 +1,3 @@
-import sys
 
 def test(**kw):
     """
@@ -19,8 +18,5 @@ def test(**kw):
     >>> d
     {'arg': 2}
     """
-    if sys.version_info[0] >= 3:
-        kw[u'arg'] = 3
-    else:
-        kw['arg'] = 3
+    kw['arg'] = 3
     return kw

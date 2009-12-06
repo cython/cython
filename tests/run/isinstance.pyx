@@ -1,18 +1,12 @@
 cdef class A:
     pass
 
-import sys
-IS_PY3 = sys.version_info[0] >= 3
-
 def test_all():
     """
     >>> test_all()
     True
     """
-    if IS_PY3:
-        new_type = type(u'a',(),{})
-    else:
-        new_type = type('a',(),{})
+    new_type = type('a',(),{})
 
     # Optimized tests.
     assert isinstance(new_type, type)

@@ -7,7 +7,7 @@ def f(a,b):
     >>> f(2,(1,2,3))
     True
     """
-    result = a in b
+    cdef object result = a in b
     return result
 
 def g(a,b):
@@ -19,8 +19,7 @@ def g(a,b):
     >>> g(2,(1,2,3))
     1
     """
-    cdef int result
-    result = a in b
+    cdef int result = a in b
     return result
 
 def h(b):
@@ -30,7 +29,7 @@ def h(b):
     >>> h([1,3,4])
     False
     """
-    result = 2 in b
+    cdef object result = 2 in b
     return result
 
 def j(b):
@@ -40,8 +39,7 @@ def j(b):
     >>> j([1,3,4])
     0
     """
-    cdef int result
-    result = 2 in b
+    cdef int result = 2 in b
     return result
 
 def k(a):
@@ -104,8 +102,8 @@ def r(a):
     >>> r(2)
     1
     """
-    l = [1,2,3,4]
-    l2 = [l[1:],l[:-1],l]
+    cdef object l = [1,2,3,4]
+    cdef object l2 = [l[1:],l[:-1],l]
     cdef int result = a in l in l2
     return result
 
