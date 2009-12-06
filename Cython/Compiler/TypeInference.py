@@ -52,24 +52,23 @@ class MarkAssignments(CythonTransform):
 
     def visit_ForInStatNode(self, node):
         # TODO: Remove redundancy with range optimization...
-        is_range = False
+        is_special = False
         sequence = node.iterator.sequence
         if isinstance(sequence, ExprNodes.SimpleCallNode):
             function = sequence.function
-            if sequence.self is None and \
-                    isinstance(function, ExprNodes.NameNode) and \
-                    function.name in ('range', 'xrange'):
-                is_range = True
-                self.mark_assignment(node.target, sequence.args[0])
-                if len(sequence.args) > 1:
-                    self.mark_assignment(node.target, sequence.args[1])
+            if sequence.self is None and function.is_name:
+                if function.name in ('range', 'xrange'):
+                    is_special = True
+                    for arg in sequence.args[:2]:
+                        self.mark_assignment(node.target, arg)
                     if len(sequence.args) > 2:
-                        self.mark_assignment(node.target, 
-                                 ExprNodes.binop_node(node.pos,
-                                                      '+',
-                                                      sequence.args[0],
-                                                      sequence.args[2]))
-        if not is_range:
+                        self.mark_assignment(
+                            node.target, 
+                            ExprNodes.binop_node(node.pos,
+                                                 '+',
+                                                 sequence.args[0],
+                                                 sequence.args[2]))
+        if not is_special:
             self.mark_assignment(node.target, object_expr)
         self.visitchildren(node)
         return node
@@ -166,7 +165,7 @@ class SimpleAssignmentTypeInferer:
                 if types:
                     result_type = reduce(spanning_type, types)
                 else:
-                    # List comprehension?
+                    # FIXME: raise a warning?
                     # print "No assignments", entry.pos, entry
                     result_type = py_object_type
                 entry.type = find_safe_type(result_type, which_types_to_infer)
