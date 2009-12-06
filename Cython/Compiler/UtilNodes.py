@@ -194,6 +194,8 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
         self.set_temp_expr(lazy_temp)
         self.pos = subexpression.pos
         self.subexpression = subexpression
+        # if called after type analysis, we already know the type here
+        self.type = self.subexpression.type
 
     def infer_type(self, env):
         return self.subexpression.infer_type(env)
