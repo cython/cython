@@ -2588,7 +2588,8 @@ def p_compiler_directive_comments(s):
         if m:
             directives = m.group(1).strip()
             try:
-                result.update( Options.parse_directive_list(directives) )
+                result.update( Options.parse_directive_list(
+                    directives, ignore_unknown=True) )
             except ValueError, e:
                 s.error(e.args[0], fatal=False)
         s.next()
