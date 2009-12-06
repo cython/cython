@@ -116,18 +116,16 @@ class IterationTransform(Visitor.VisitorTransform):
                 node, dict_obj, keys, values)
 
         # enumerate() ?
-        if iterator.self is None and \
-               isinstance(function, ExprNodes.NameNode) and \
+        if iterator.self is None and function.is_name and \
                function.entry and function.entry.is_builtin and \
                function.name == 'enumerate':
             return self._transform_enumerate_iteration(node, iterator)
 
         # range() iteration?
         if Options.convert_range and node.target.type.is_int:
-            if iterator.self is None and \
-                    isinstance(function, ExprNodes.NameNode) and \
-                    function.entry and function.entry.is_builtin and \
-                    function.name in ('range', 'xrange'):
+            if iterator.self is None and function.is_name and \
+                   function.entry and function.entry.is_builtin and \
+                   function.name in ('range', 'xrange'):
                 return self._transform_range_iteration(node, iterator)
 
         return node
