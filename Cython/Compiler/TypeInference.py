@@ -25,7 +25,6 @@ class MarkAssignments(CythonTransform):
         if isinstance(lhs, (ExprNodes.NameNode, Nodes.PyArgDeclNode)):
             if lhs.entry is None:
                 # TODO: This shouldn't happen...
-                # It looks like comprehension loop targets are not declared soon enough.
                 return
             lhs.entry.assignments.append(rhs)
         elif isinstance(lhs, ExprNodes.SequenceNode):

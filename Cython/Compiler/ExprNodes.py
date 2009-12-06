@@ -3630,15 +3630,14 @@ class ComprehensionNode(ExprNode):
 
     def infer_type(self, env):
         return self.target.infer_type(env)
-    
+
+    def analyse_declarations(self, env):
+        self.append.target = self # this is used in the PyList_Append of the inner loop
+        self.loop.analyse_declarations(env)
+
     def analyse_types(self, env):
         self.target.analyse_expressions(env)
         self.type = self.target.type
-        self.append.target = self # this is a CloneNode used in the PyList_Append in the inner loop
-        # We are analysing declarations to late.
-        self.loop.target.analyse_target_declaration(env)
-        env.infer_types()
-        self.loop.analyse_declarations(env)
         self.loop.analyse_expressions(env)
 
     def calculate_result_code(self):
