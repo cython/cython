@@ -812,6 +812,9 @@ class CBIntType(CIntType):
     from_py_function = "__Pyx_PyObject_IsTrue"
     exception_check = 0
 
+    def __repr__(self):
+        return "<CNumericType bint>"
+
 
 class CAnonEnumType(CIntType):
 
