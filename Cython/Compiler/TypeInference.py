@@ -201,6 +201,9 @@ def find_safe_type(result_type, which_types_to_infer):
             # Python's float type is just a C double, so it's safe to
             # use the C type instead
             return PyrexTypes.c_double_type
+        elif result_type is PyrexTypes.c_bint_type:
+            # 'bint' should behave exactly like Python's bool type ...
+            return PyrexTypes.c_bint_type
     return py_object_type
 
 def get_type_inferer():
