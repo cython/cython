@@ -2,10 +2,10 @@ def no_cdef():
     """
     >>> no_cdef()
     """
-    lst = list(range(11))
+    cdef object lst = list(range(11))
     ob = 10L
     lst[ob] = -10
-    dd = {}
+    cdef object dd = {}
     dd[ob] = -10
 
 def with_cdef():

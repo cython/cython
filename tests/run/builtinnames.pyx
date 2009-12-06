@@ -46,3 +46,13 @@ def test_c(arg):
     print test_file_c(arg)
     print len(arg)
     print type(arg)
+
+def test_for_in_range(arg):
+    """
+    >>> print(str(test_for_in_range('abc')).replace("u'", "'"))
+    ['r', 'a', 'n', 'g', 'e', 'a', 'b', 'c']
+    """
+    l = []
+    for c in range(arg):
+        l.append(c)
+    return l
