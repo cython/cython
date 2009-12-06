@@ -53,7 +53,6 @@ def slice_list_assign(list l, value):
 
 def slice_charp(py_string_arg):
     """
-    >>> l = [1,2,3,4]
     >>> print("%s" % slice_charp('abcdefg'))
     bc
     """
@@ -63,7 +62,6 @@ def slice_charp(py_string_arg):
 
 def slice_charp_repeat(py_string_arg):
     """
-    >>> l = [1,2,3,4]
     >>> print("%s" % slice_charp_repeat('abcdefg'))
     cd
     """
