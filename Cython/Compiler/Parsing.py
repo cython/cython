@@ -1,4 +1,4 @@
-# cython: auto_cpdef=True
+# cython: auto_cpdef=True, infer_types=all
 #
 #   Pyrex Parser
 #
