@@ -873,6 +873,8 @@ class CFloatType(CNumericType):
     is_float = 1
     to_py_function = "PyFloat_FromDouble"
     from_py_function = "__pyx_PyFloat_AsDouble"
+
+    exception_value = -1
     
     def __init__(self, rank, pymemberdef_typecode = None, math_h_modifier = ''):
         CNumericType.__init__(self, rank, 1, pymemberdef_typecode)
@@ -2020,7 +2022,6 @@ def widest_numeric_type(type1, type2):
             return type1
     else:
         return sign_and_rank_to_type[min(type1.signed, type2.signed), max(type1.rank, type2.rank)]
-    return widest_type
 
 def spanning_type(type1, type2):
     # Return a type assignable from both type1 and type2.
