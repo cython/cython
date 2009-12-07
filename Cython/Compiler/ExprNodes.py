@@ -2641,28 +2641,32 @@ class SimpleCallNode(CallNode):
 
 class PythonCapiFunctionNode(ExprNode):
     subexprs = []
-    def __init__(self, pos, name, func_type, utility_code = None):
+    def __init__(self, pos, py_name, cname, func_type, utility_code = None):
         self.pos = pos
-        self.name = name
+        self.name = py_name
+        self.cname = cname
         self.type = func_type
         self.utility_code = utility_code
+
+    def analyse_types(self, env):
+        pass
 
     def generate_result_code(self, code):
         if self.utility_code:
             code.globalstate.use_utility_code(self.utility_code)
 
     def calculate_result_code(self):
-        return self.name
+        return self.cname
 
 class PythonCapiCallNode(SimpleCallNode):
     # Python C-API Function call (only created in transforms)
 
     def __init__(self, pos, function_name, func_type,
-                 utility_code = None, **kwargs):
+                 utility_code = None, py_name=None, **kwargs):
         self.type = func_type.return_type
         self.result_ctype = self.type
         self.function = PythonCapiFunctionNode(
-            pos, function_name, func_type,
+            pos, py_name, function_name, func_type,
             utility_code = utility_code)
         # call this last so that we can override the constructed
         # attributes above with explicit keyword arguments if required

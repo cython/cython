@@ -92,7 +92,8 @@ class Context(object):
         from AnalysedTreeTransforms import AutoTestDictTransform
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
-        from Optimize import OptimizeBuiltinCalls, ConstantFolding, FinalOptimizePhase
+        from Optimize import EarlyReplaceBuiltinCalls, OptimizeBuiltinCalls
+        from Optimize import ConstantFolding, FinalOptimizePhase
         from Optimize import DropRefcountingTransform
         from Buffer import IntroduceBufferAuxiliaryVars
         from ModuleNode import check_c_declarations, check_c_declarations_pxd
@@ -131,6 +132,7 @@ class Context(object):
             AnalyseDeclarationsTransform(self),
             AutoTestDictTransform(self),
             EmbedSignature(self),
+            EarlyReplaceBuiltinCalls(self),
             MarkAssignments(self),
             TransformBuiltinMethods(self),
             IntroduceBufferAuxiliaryVars(self),
