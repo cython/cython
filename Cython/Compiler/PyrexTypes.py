@@ -2031,6 +2031,10 @@ def spanning_type(type1, type2):
         return type1
     elif type1.is_numeric and type2.is_numeric:
         return widest_numeric_type(type1, type2)
+    elif type1.is_builtin_type and type1.name == 'float' and type2.is_numeric:
+        return widest_numeric_type(c_double_type, type2)
+    elif type2.is_builtin_type and type2.name == 'float' and type1.is_numeric:
+        return widest_numeric_type(type1, c_double_type)
     elif type1.is_pyobject ^ type2.is_pyobject:
         return py_object_type
     elif type1.assignable_from(type2):

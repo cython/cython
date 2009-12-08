@@ -37,17 +37,17 @@ def int_to_pyssizet_int(int x):
     cdef Py_ssize_t r = int(x)
     return r
 
-@cython.test_assert_path_exists("//SingleAssignmentNode/CastNode")
-@cython.test_fail_if_path_exists("//SimpleCallNode")
-def double_to_pyssizet_float(double x):
-    """
-    >>> double_to_pyssizet_float(4.1)
-    4
-    >>> double_to_pyssizet_float(4)
-    4
-    """
-    cdef Py_ssize_t r = float(x)
-    return r
+## @cython.test_assert_path_exists("//SingleAssignmentNode/CastNode")
+## @cython.test_fail_if_path_exists("//SimpleCallNode")
+## def double_to_pyssizet_float(double x):
+##     """
+##     >>> double_to_pyssizet_float(4.1)
+##     4
+##     >>> double_to_pyssizet_float(4)
+##     4
+##     """
+##     cdef Py_ssize_t r = float(x)
+##     return r
 
 @cython.test_assert_path_exists("//SingleAssignmentNode/CastNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
@@ -89,8 +89,7 @@ def short_to_double_int(short x):
     cdef double r = int(x)
     return r
 
-@cython.test_fail_if_path_exists("//SimpleCallNode",
-                                 "//SingleAssignmentNode/CastNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode")
 def float_to_float_float(float x):
     """
     >>> 4.05 < float_to_float_float(4.1) < 4.15
