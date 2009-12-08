@@ -211,7 +211,7 @@ def safe_only():
     a = 1.0
     assert typeof(a) == "double", typeof(c)
     b = 1
-    assert typeof(b) == "Python object", typeof(c)
+    assert typeof(b) == "Python object", typeof(b)
     c = MyType()
     assert typeof(c) == "MyType", typeof(c)
 
