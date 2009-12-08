@@ -1674,7 +1674,7 @@ static double __Pyx__PyObject_AsDouble(PyObject* obj) {
     PyObject* float_value;
     if (Py_TYPE(obj)->tp_as_number && Py_TYPE(obj)->tp_as_number->nb_float) {
         return PyFloat_AsDouble(obj);
-    } else if (PyUnicode_CheckExact(obj) || PyString_CheckExact(obj)) {
+    } else if (PyUnicode_CheckExact(obj) || PyBytes_CheckExact(obj)) {
 #if PY_MAJOR_VERSION >= 3
         float_value = PyFloat_FromString(obj);
 #else
