@@ -62,7 +62,7 @@ directive_defaults = {
     'ccomplex' : False, # use C99/C++ for complex types and arith
     'callspec' : "",
     'profile': False,
-    'infer_types': 'none', # 'none', 'safe', 'all'
+    'infer_types': False,
     'autotestdict': True,
 
 # test support
@@ -71,7 +71,9 @@ directive_defaults = {
 }
 
 # Override types possibilities above, if needed
-directive_types = {}
+directive_types = {
+    'infer_types' : bool, # values can be True/None/False
+    }
 
 for key, val in directive_defaults.items():
     if key not in directive_types:

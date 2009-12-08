@@ -440,7 +440,18 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             directivetype = Options.directive_types.get(optname)
             if directivetype:
                 args, kwds = node.explicit_args_kwds()
-                if directivetype is bool:
+                if optname == 'infer_types':
+                    if kwds is not None or len(args) != 1:
+                        raise PostParseError(node.function.pos,
+                            'The %s directive takes one compile-time boolean argument' % optname)
+                    elif isinstance(args[0], BoolNode):
+                        return (optname, args[0].value)
+                    elif isinstance(args[0], NoneNode):
+                        return (optname, None)
+                    else:
+                        raise PostParseError(node.function.pos,
+                            'The %s directive takes one compile-time boolean argument' % optname)
+                elif directivetype is bool:
                     if kwds is not None or len(args) != 1 or not isinstance(args[0], BoolNode):
                         raise PostParseError(node.function.pos,
                             'The %s directive takes one compile-time boolean argument' % optname)

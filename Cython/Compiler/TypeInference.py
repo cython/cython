@@ -2,7 +2,7 @@ import ExprNodes
 import Nodes
 import Builtin
 import PyrexTypes
-from PyrexTypes import py_object_type, unspecified_type, spanning_type
+from PyrexTypes import py_object_type, unspecified_type
 from Visitor import CythonTransform
 
 try:
@@ -131,7 +131,17 @@ class SimpleAssignmentTypeInferer:
     # TODO: Implement a real type inference algorithm.
     # (Something more powerful than just extending this one...)
     def infer_types(self, scope):
-        which_types_to_infer = scope.directives['infer_types']
+        enabled = scope.directives['infer_types']
+        if enabled == True:
+            spanning_type = aggressive_spanning_type
+        elif enabled is None: # safe mode
+            spanning_type = safe_spanning_type
+        else:
+            for entry in scope.entries.values():
+                if entry.type is unspecified_type:
+                    entry.type = py_object_type
+            return
+
         dependancies_by_entry = {} # entry -> dependancies
         entries_by_dependancy = {} # dependancy -> entries
         ready_to_infer = []
@@ -163,22 +173,20 @@ class SimpleAssignmentTypeInferer:
                 entry = ready_to_infer.pop()
                 types = [expr.infer_type(scope) for expr in entry.assignments]
                 if types:
-                    result_type = reduce(spanning_type, types)
+                    entry.type = spanning_type(types)
                 else:
                     # FIXME: raise a warning?
                     # print "No assignments", entry.pos, entry
-                    result_type = py_object_type
-                entry.type = find_safe_type(result_type, which_types_to_infer)
+                    entry.type = py_object_type
                 resolve_dependancy(entry)
             # Deal with simple circular dependancies...
             for entry, deps in dependancies_by_entry.items():
                 if len(deps) == 1 and deps == set([entry]):
                     types = [expr.infer_type(scope) for expr in entry.assignments if expr.type_dependencies(scope) == ()]
                     if types:
-                        entry.type = reduce(spanning_type, types)
+                        entry.type = spanning_type(types)
                         types = [expr.infer_type(scope) for expr in entry.assignments]
-                        entry.type = reduce(spanning_type, types) # might be wider...
-                        entry.type = find_safe_type(entry.type, which_types_to_infer)
+                        entry.type = spanning_type(types) # might be wider...
                         resolve_dependancy(entry)
                         del dependancies_by_entry[entry]
                         if ready_to_infer:
@@ -190,25 +198,39 @@ class SimpleAssignmentTypeInferer:
         for entry in dependancies_by_entry:
             entry.type = py_object_type
 
-def find_safe_type(result_type, which_types_to_infer):
-    if which_types_to_infer == 'none':
+def find_spanning_type(type1, type2):
+    if type1 is type2:
+        return type1
+    elif type1 is PyrexTypes.c_bint_type or type2 is PyrexTypes.c_bint_type:
+        # type inference can break the coercion back to a Python bool
+        # if it returns an arbitrary int type here
         return py_object_type
-
+    result_type = PyrexTypes.spanning_type(type1, type2)
     if result_type in (PyrexTypes.c_double_type, PyrexTypes.c_float_type, Builtin.float_type):
         # Python's float type is just a C double, so it's safe to
         # use the C type instead
         return PyrexTypes.c_double_type
+    return result_type
 
-    if which_types_to_infer == 'all':
+def aggressive_spanning_type(types):
+    result_type = reduce(find_spanning_type, types)
+    return result_type
+
+def safe_spanning_type(types):
+    result_type = reduce(find_spanning_type, types)
+    if result_type.is_pyobject:
+        # any specific Python type is always safe to infer
         return result_type
-    elif which_types_to_infer == 'safe':
-        if result_type.is_pyobject:
-            # any specific Python type is always safe to infer
-            return result_type
-        elif result_type is PyrexTypes.c_bint_type:
-            # 'bint' should behave exactly like Python's bool type ...
-            return PyrexTypes.c_bint_type
+    elif result_type is PyrexTypes.c_double_type:
+        # Python's float type is just a C double, so it's safe to use
+        # the C type instead
+        return result_type
+    elif result_type is PyrexTypes.c_bint_type:
+        # find_spanning_type() only returns 'bint' for clean boolean
+        # operations without other int types, so this is safe, too
+        return result_type
     return py_object_type
+
 
 def get_type_inferer():
     return SimpleAssignmentTypeInferer()
