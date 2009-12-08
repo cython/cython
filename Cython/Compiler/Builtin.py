@@ -414,7 +414,7 @@ def init_builtins():
     init_builtin_types()
     init_builtin_structs()
     global list_type, tuple_type, dict_type, set_type, type_type
-    global bytes_type, str_type, unicode_type
+    global bytes_type, str_type, unicode_type, float_type
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
@@ -423,5 +423,6 @@ def init_builtins():
     bytes_type = builtin_scope.lookup('bytes').type
     str_type   = builtin_scope.lookup('str').type
     unicode_type = builtin_scope.lookup('unicode').type
+    float_type = builtin_scope.lookup('float').type
 
 init_builtins()

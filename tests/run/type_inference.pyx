@@ -149,6 +149,25 @@ def loop():
     assert typeof(a) == "long"
 
 
+@infer_types('safe')
+def double_inference():
+    """
+    >>> values, types = double_inference()
+    >>> values == (1.0, 1.0*2, 1.0*2.0+2.0*2.0, 1.0*2.0)
+    True
+    >>> types
+    ('double', 'double', 'double', 'Python object')
+    """
+    d_a = 1.0
+    d_b = d_a * float(2)
+    d_c = d_a * float(some_float_value()) + d_b * float(some_float_value())
+    o_d = d_a * some_float_value()
+    return (d_a,d_b,d_c,o_d), (typeof(d_a), typeof(d_b), typeof(d_c), typeof(o_d))
+
+cdef object some_float_value():
+    return 2.0
+
+
 @cython.test_fail_if_path_exists('//NameNode[@type.is_pyobject = True]')
 @cython.test_assert_path_exists('//InPlaceAssignmentNode/NameNode',
                                 '//NameNode[@type.is_pyobject]',
