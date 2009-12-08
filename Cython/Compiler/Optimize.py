@@ -884,6 +884,13 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             pytype_utility_code)
         return node
 
+    def _handle_simple_function_float(self, node, pos_args):
+        if len(pos_args) == 0:
+            return ExprNodes.FloatNode(node.pos, value='0.0')
+        if len(pos_args) > 1:
+            self._error_wrong_arg_count('float', node, pos_args, 1)
+        return node
+
     # specific handlers for general call nodes
 
     def _handle_general_function_dict(self, node, pos_args, kwargs):
@@ -1122,6 +1129,34 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             args = pos_args,
             is_temp = node.is_temp
             )
+
+    PyObject_AsDouble_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_double_type, [
+            PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None),
+            ],
+        exception_value = "((double)-1)",
+        exception_check = True)
+
+    def _handle_simple_function_float(self, node, pos_args):
+        # Note: this requires the float() function to be typed as
+        # returning a C 'double'
+        if len(pos_args) != 1:
+            self._error_wrong_arg_count('float', node, pos_args, 1)
+            return node
+        func_arg = pos_args[0]
+        if isinstance(func_arg, ExprNodes.CoerceToPyTypeNode):
+            func_arg = func_arg.arg
+        if func_arg.type is PyrexTypes.c_double_type:
+            return func_arg
+        elif node.type.assignable_from(func_arg.type) or func_arg.type.is_numeric:
+            return ExprNodes.CastNode(func_arg, node.type)
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "__Pyx_PyObject_AsDouble",
+            self.PyObject_AsDouble_func_type,
+            args = pos_args,
+            is_temp = node.is_temp,
+            utility_code = pyobject_as_double_utility_code,
+            py_name = "float")
 
     ### builtin functions
 
@@ -1623,6 +1658,45 @@ bad:
     return NULL;
 }
 """
+)
+
+
+pyobject_as_double_utility_code = UtilityCode(
+proto = '''
+static double __Pyx__PyObject_AsDouble(PyObject* obj); /* proto */
+
+#define __Pyx_PyObject_AsDouble(obj) \\
+    ((likely(PyFloat_CheckExact(obj))) ? \\
+     PyFloat_AS_DOUBLE(obj) : __Pyx__PyObject_AsDouble(obj))
+''',
+impl='''
+static double __Pyx__PyObject_AsDouble(PyObject* obj) {
+    PyObject* float_value;
+    if (Py_TYPE(obj)->tp_as_number && Py_TYPE(obj)->tp_as_number->nb_float) {
+        return PyFloat_AsDouble(obj);
+    } else if (PyUnicode_CheckExact(obj) || PyString_CheckExact(obj)) {
+#if PY_MAJOR_VERSION >= 3
+        float_value = PyFloat_FromString(obj);
+#else
+        float_value = PyFloat_FromString(obj, 0);
+#endif
+    } else {
+        PyObject* args = PyTuple_New(1);
+        if (unlikely(!args)) goto bad;
+        PyTuple_SET_ITEM(args, 0, obj);
+        float_value = PyObject_Call((PyObject*)&PyFloat_Type, args, 0);
+        PyTuple_SET_ITEM(args, 0, 0);
+        Py_DECREF(args);
+    }
+    if (likely(float_value)) {
+        double value = PyFloat_AS_DOUBLE(float_value);
+        Py_DECREF(float_value);
+        return value;
+    }
+bad:
+    return (double)-1;
+}
+'''
 )
 
 
