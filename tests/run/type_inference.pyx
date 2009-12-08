@@ -1,8 +1,11 @@
-# cython: infer_types = all
+# cython: infer_types = True
 
 
 cimport cython
 from cython cimport typeof, infer_types
+
+##################################################
+# type inference tests in 'full' mode
 
 cdef class MyType:
     pass
@@ -148,8 +151,29 @@ def loop():
         pass
     assert typeof(a) == "long"
 
+cdef unicode retu():
+    return u"12345"
 
-@infer_types('safe')
+cdef bytes retb():
+    return b"12345"
+
+def conditional(x):
+    """
+    >>> conditional(True)
+    (True, 'Python object')
+    >>> conditional(False)
+    (False, 'Python object')
+    """
+    if x:
+        a = retu()
+    else:
+        a = retb()
+    return type(a) is unicode, typeof(a)
+
+##################################################
+# type inference tests that work in 'safe' mode
+
+@infer_types(None)
 def double_inference():
     """
     >>> values, types = double_inference()
@@ -172,7 +196,7 @@ cdef object some_float_value():
 @cython.test_assert_path_exists('//InPlaceAssignmentNode/NameNode',
                                 '//NameNode[@type.is_pyobject]',
                                 '//NameNode[@type.is_pyobject = False]')
-@infer_types('safe')
+@infer_types(None)
 def double_loop():
     """
     >>> double_loop() == 1.0 * 10
@@ -184,26 +208,7 @@ def double_loop():
         d += 1.0
     return d
 
-cdef unicode retu():
-    return u"12345"
-
-cdef bytes retb():
-    return b"12345"
-
-def conditional(x):
-    """
-    >>> conditional(True)
-    (True, 'Python object')
-    >>> conditional(False)
-    (False, 'Python object')
-    """
-    if x:
-        a = retu()
-    else:
-        a = retb()
-    return type(a) is unicode, typeof(a)
-
-@infer_types('safe')
+@infer_types(None)
 def safe_only():
     """
     >>> safe_only()
@@ -215,7 +220,7 @@ def safe_only():
     c = MyType()
     assert typeof(c) == "MyType", typeof(c)
 
-@infer_types('safe')
+@infer_types(None)
 def args_tuple_keywords(*args, **kwargs):
     """
     >>> args_tuple_keywords(1,2,3, a=1, b=2)
@@ -223,7 +228,7 @@ def args_tuple_keywords(*args, **kwargs):
     assert typeof(args) == "tuple object", typeof(args)
     assert typeof(kwargs) == "dict object", typeof(kwargs)
 
-@infer_types('safe')
+@infer_types(None)
 def args_tuple_keywords_reassign_same(*args, **kwargs):
     """
     >>> args_tuple_keywords_reassign_same(1,2,3, a=1, b=2)
@@ -234,7 +239,7 @@ def args_tuple_keywords_reassign_same(*args, **kwargs):
     args = ()
     kwargs = {}
 
-@infer_types('safe')
+@infer_types(None)
 def args_tuple_keywords_reassign_pyobjects(*args, **kwargs):
     """
     >>> args_tuple_keywords_reassign_pyobjects(1,2,3, a=1, b=2)
