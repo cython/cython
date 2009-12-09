@@ -1986,18 +1986,19 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             module_name = '__Pyx_BUILTIN_MODULE_NAME'
         if type.name in self.py3_type_name_map:
             code.putln("#if PY_MAJOR_VERSION >= 3")
-            code.putln('%s = __Pyx_ImportType(%s, "%s", sizeof(%s)); %s' % (
+            code.putln('%s = __Pyx_ImportType(%s, "%s", sizeof(%s), 1); %s' % (
                     type.typeptr_cname,
                     module_name,
                     self.py3_type_name_map[type.name],
                     objstruct,
                     error_code))
             code.putln("#else")
-        code.putln('%s = __Pyx_ImportType(%s, "%s", sizeof(%s)); %s' % (
+        code.putln('%s = __Pyx_ImportType(%s, "%s", sizeof(%s), %i); %s' % (
                 type.typeptr_cname,
                 module_name,
                 type.name,
                 objstruct,
+                not type.is_external or type.is_subclassed,
                 error_code))
         if type.name in self.py3_type_name_map:
             code.putln("#endif")
@@ -2154,17 +2155,18 @@ bad:
 
 type_import_utility_code = UtilityCode(
 proto = """
-static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name, long size);  /*proto*/
+static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name, long size, int strict);  /*proto*/
 """,
 impl = """
 #ifndef __PYX_HAVE_RT_ImportType
 #define __PYX_HAVE_RT_ImportType
 static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class_name,
-    long size)
+    long size, int strict)
 {
     PyObject *py_module = 0;
     PyObject *result = 0;
     PyObject *py_name = 0;
+    int size_ok;
 
     py_module = __Pyx_ImportModule(module_name);
     if (!py_module)
@@ -2189,7 +2191,13 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
             module_name, class_name);
         goto bad;
     }
-    if (((PyTypeObject *)result)->tp_basicsize != size) {
+    if (strict) {
+        size_ok = ((PyTypeObject *)result)->tp_basicsize == size;
+    }
+    else {
+        size_ok = ((PyTypeObject *)result)->tp_basicsize >= size;
+    }
+    if (!size_ok) {
         PyErr_Format(PyExc_ValueError, 
             "%s.%s does not appear to be the correct type object",
             module_name, class_name);

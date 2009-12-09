@@ -887,7 +887,7 @@ class ModuleScope(Scope):
         #  Make a new entry if needed
         #
         if not entry:
-            type = PyrexTypes.PyExtensionType(name, typedef_flag, base_type)
+            type = PyrexTypes.PyExtensionType(name, typedef_flag, base_type, visibility == 'extern')
             type.pos = pos
             type.buffer_defaults = buffer_defaults
             if objtypedef_cname is not None:
