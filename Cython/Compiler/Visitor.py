@@ -10,7 +10,6 @@ import ExprNodes
 import Naming
 import Errors
 import DebugFlags
-from StringEncoding import EncodedString
 
 class BasicVisitor(object):
     """A generic visitor base class which can be used for visiting any kind of object."""
