@@ -843,20 +843,6 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                 return replace_in(arg)
         return node
 
-    Pyx_Type_func_type = PyrexTypes.CFuncType(
-        Builtin.type_type, [
-            PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None)
-            ])
-
-    def _handle_simple_function_type(self, node, pos_args):
-        if len(pos_args) != 1:
-            return node
-        self._inject_capi_function(
-            node, "__Pyx_Type",
-            self.Pyx_Type_func_type,
-            pytype_utility_code)
-        return node
-
     def _handle_simple_function_float(self, node, pos_args):
         if len(pos_args) == 0:
             return ExprNodes.FloatNode(node.pos, value='0.0')
@@ -1187,6 +1173,20 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             utility_code = include_string_h_utility_code
             )
         return node
+
+    Pyx_Type_func_type = PyrexTypes.CFuncType(
+        Builtin.type_type, [
+            PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None)
+            ])
+
+    def _handle_simple_function_type(self, node, pos_args):
+        if len(pos_args) != 1:
+            return node
+        node = ExprNodes.PythonCapiCallNode(
+            node.pos, "Py_TYPE", self.Pyx_Type_func_type,
+            args = pos_args,
+            is_temp = False)
+        return ExprNodes.CastNode(node, PyrexTypes.py_object_type)
 
     ### special methods
 
@@ -1699,17 +1699,6 @@ bad:
     return (double)-1;
 }
 '''
-)
-
-
-pytype_utility_code = UtilityCode(
-proto = """
-static INLINE PyObject* __Pyx_Type(PyObject* o) {
-    PyObject* type = (PyObject*) Py_TYPE(o);
-    Py_INCREF(type);
-    return type;
-}
-"""
 )
 
 
