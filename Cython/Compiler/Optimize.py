@@ -616,6 +616,9 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
     def visit_ParallelAssignmentNode(self, node):
+        """
+        Parallel swap assignments like 'a,b = b,a' are safe.
+        """
         left_names, right_names = [], []
         left_indices, right_indices = [], []
         temps = []
