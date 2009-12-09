@@ -345,6 +345,8 @@ class PyObjectType(PyrexType):
     default_value = "0"
     pymemberdef_typecode = "T_OBJECT"
     buffer_defaults = None
+    is_extern = False
+    is_subclassed = False
     
     def __str__(self):
         return "Python object"
@@ -472,10 +474,12 @@ class PyExtensionType(PyObjectType):
     
     objtypedef_cname = None
     
-    def __init__(self, name, typedef_flag, base_type):
+    def __init__(self, name, typedef_flag, base_type, is_external=0):
         self.name = name
         self.scope = None
         self.typedef_flag = typedef_flag
+        if base_type is not None:
+            base_type.is_subclassed = True
         self.base_type = base_type
         self.module_name = None
         self.objstruct_cname = None
@@ -485,6 +489,7 @@ class PyExtensionType(PyObjectType):
         self.vtabstruct_cname = None
         self.vtabptr_cname = None
         self.vtable_cname = None
+        self.is_external = is_external
     
     def set_scope(self, scope):
         self.scope = scope
