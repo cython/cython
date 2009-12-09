@@ -2199,7 +2199,7 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
     }
     if (!size_ok) {
         PyErr_Format(PyExc_ValueError, 
-            "%s.%s is the wrong size, try recompiling",
+            "%s.%s has the wrong size, try recompiling",
             module_name, class_name);
         goto bad;
     }
