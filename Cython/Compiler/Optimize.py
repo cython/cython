@@ -843,33 +843,6 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                 return replace_in(arg)
         return node
 
-    PyObject_GetAttr2_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.py_object_type, [
-            PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("attr_name", PyrexTypes.py_object_type, None),
-            ])
-
-    PyObject_GetAttr3_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.py_object_type, [
-            PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("attr_name", PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
-            ])
-
-    def _handle_simple_function_getattr(self, node, pos_args):
-        if len(pos_args) == 2:
-            self._inject_capi_function(
-                node, "PyObject_GetAttr",
-                self.PyObject_GetAttr2_func_type)
-        elif len(pos_args) == 3:
-            self._inject_capi_function(
-                node, "__Pyx_GetAttr3",
-                self.PyObject_GetAttr3_func_type,
-                Builtin.getattr3_utility_code)
-        else:
-            self._error_wrong_arg_count('getattr', node, pos_args, '2 or 3')
-        return node
-
     Pyx_Type_func_type = PyrexTypes.CFuncType(
         Builtin.type_type, [
             PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None)
@@ -1159,6 +1132,35 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             py_name = "float")
 
     ### builtin functions
+
+    PyObject_GetAttr2_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("attr_name", PyrexTypes.py_object_type, None),
+            ])
+
+    PyObject_GetAttr3_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("attr_name", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
+            ])
+
+    def _handle_simple_function_getattr(self, node, pos_args):
+        if len(pos_args) == 2:
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "PyObject_GetAttr", self.PyObject_GetAttr2_func_type,
+                args = pos_args,
+                is_temp = node.is_temp)
+        elif len(pos_args) == 3:
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "__Pyx_GetAttr3", self.PyObject_GetAttr3_func_type,
+                args = pos_args,
+                is_temp = node.is_temp,
+                utility_code = Builtin.getattr3_utility_code)
+        else:
+            self._error_wrong_arg_count('getattr', node, pos_args, '2 or 3')
+        return node
 
     Pyx_strlen_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_size_t_type, [
