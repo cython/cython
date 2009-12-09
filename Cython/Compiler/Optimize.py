@@ -733,6 +733,10 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
     This transform cannot make use of any argument types, but it can
     restructure the tree in a way that the type analysis phase can
     respond to.
+
+    Introducing C function calls here may not be a good idea.  Move
+    them to the OptimizeBuiltinCalls transform instead, which runs
+    after type analyis.
     """
     # only intercept on call nodes
     visit_Node = Visitor.VisitorTransform.recurse_to_children
