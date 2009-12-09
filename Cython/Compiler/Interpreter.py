@@ -8,7 +8,6 @@ compile-time values.
 
 from Nodes import *
 from ExprNodes import *
-from Visitor import BasicVisitor
 from Errors import CompileError
 
 
