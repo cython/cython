@@ -1841,11 +1841,18 @@ class IndexNode(ExprNode):
             self.original_index_type = self.index.type
             if self.base.type.is_pyobject:
                 if self.index.type.is_int:
+                    if (not setting
+                        and (self.base.type is list_type or self.base.type is tuple_type)
+                        and (not self.index.type.signed or isinstance(self.index, IntNode) and int(self.index.value) >= 0)
+                        and not env.directives['boundscheck']):
+                        self.is_temp = 0
+                    else:
+                        self.is_temp = 1
                     self.index = self.index.coerce_to(PyrexTypes.c_py_ssize_t_type, env).coerce_to_simple(env)
                 else:
                     self.index = self.index.coerce_to_pyobject(env)
+                    self.is_temp = 1
                 self.type = py_object_type
-                self.is_temp = 1
             else:
                 if self.base.type.is_ptr or self.base.type.is_array:
                     self.type = self.base.type.base_type
@@ -1883,6 +1890,10 @@ class IndexNode(ExprNode):
     def calculate_result_code(self):
         if self.is_buffer_access:
             return "(*%s)" % self.buffer_ptr_code
+        elif self.base.type is list_type:
+            return "PyList_GET_ITEM(%s, %s)" % (self.base.result(), self.index.result())
+        elif self.base.type is tuple_type:
+            return "PyTuple_GET_ITEM(%s, %s)" % (self.base.result(), self.index.result())
         else:
             return "(%s[%s])" % (
                 self.base.result(), self.index.result())
@@ -1930,7 +1941,7 @@ class IndexNode(ExprNode):
                 # is_temp is True, so must pull out value and incref it.
                 code.putln("%s = *%s;" % (self.result(), self.buffer_ptr_code))
                 code.putln("__Pyx_INCREF((PyObject*)%s);" % self.result())
-        elif self.type.is_pyobject:
+        elif self.type.is_pyobject and self.is_temp:
             if self.index.type.is_int:
                 index_code = self.index.result()
                 if self.base.type is list_type:
