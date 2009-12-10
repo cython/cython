@@ -201,7 +201,7 @@ profile script then at all. The script now outputs the following::
 
 We gained 1.8 seconds. Not too shabby. Comparing the output to the previous, we
 see that recip_square function got faster while the approx_pi function has not
-changed a lot. Let's concentrate on the approx_pi function a bit more. First
+changed a lot. Let's concentrate on the recip_square function a bit more. First
 note, that this function is not to be called from code outside of our module;
 so it would be wise to turn it into a cdef to reduce call overhead. We should
 also get rid of the power operator: it is turned into a pow(i,2) function call by
