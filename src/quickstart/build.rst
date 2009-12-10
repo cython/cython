@@ -20,7 +20,7 @@ There are several ways to build Cython code:
    (This is mostly for debugging and experimentation.)
  - Use the [Sage]_ notebook which allows Cython code inline.
 
-Currently, distutils is the most common way Cython files are built and distributed. The other methods are described in more detail in the :ref:`../reference/compilation` section of the reference manual.
+Currently, distutils is the most common way Cython files are built and distributed. The other methods are described in more detail in the :ref:`compilation` section of the reference manual.
 
 Building a Cython module using distutils
 ----------------------------------------
