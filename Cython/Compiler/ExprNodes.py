@@ -532,6 +532,14 @@ class ExprNode(Node):
         #
         #   This method is called during the analyse_expressions
         #   phase of the src_node's processing.
+        #
+        #   Note that subclasses that override this (especially
+        #   ConstNodes) must not (re-)set their own .type attribute
+        #   here.  Since expression nodes may turn up in different
+        #   places in the tree (e.g. inside of CloneNodes in cascaded
+        #   assignments), this method must return a new node instance
+        #   if it changes the type.
+        #
         src = self
         src_type = self.type
         src_is_py_type = src_type.is_pyobject
@@ -748,24 +756,28 @@ class IntNode(ConstNode):
     type = PyrexTypes.c_long_type
 
     def coerce_to(self, dst_type, env):
-        if dst_type.is_numeric and not dst_type.is_complex:
-            self.type = PyrexTypes.c_long_type
+        if self.type is dst_type:
             return self
-        # Arrange for a Python version of the number to be pre-allocated
-        # when coercing to a Python type.
+        node = IntNode(self.pos, value=self.value,
+                       unsigned=self.unsigned, longness=self.longness)
+        if dst_type.is_numeric and not dst_type.is_complex:
+            return node
         if dst_type.is_pyobject:
-            self.type = PyrexTypes.py_object_type
+            node.type = PyrexTypes.py_object_type
         # We still need to perform normal coerce_to processing on the
         # result, because we might be coercing to an extension type,
         # in which case a type test node will be needed.
-        return ConstNode.coerce_to(self, dst_type, env)
-        
+        return ConstNode.coerce_to(node, dst_type, env)
+
     def coerce_to_boolean(self, env):
-        self.type = PyrexTypes.c_bint_type
-        return self
+        return IntNode(
+            self.pos, value=self.value,
+            type = PyrexTypes.c_bint_type,
+            unsigned=self.unsigned, longness=self.longness)
 
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
+            # pre-allocate a Python version of the number
             self.result_code = code.get_py_num(self.value, self.longness)
         else:
             self.result_code = self.get_constant_c_result_code()
@@ -830,31 +842,29 @@ class BytesNode(ConstNode):
         return len(self.value) == 1
 
     def coerce_to(self, dst_type, env):
-        if dst_type == PyrexTypes.c_char_ptr_type:
-            self.type = PyrexTypes.c_char_ptr_type
-            return self
-        elif dst_type == PyrexTypes.c_uchar_ptr_type:
-            self.type = PyrexTypes.c_char_ptr_type
-            return CastNode(self, PyrexTypes.c_uchar_ptr_type)
-
         if dst_type.is_int:
             if not self.can_coerce_to_char_literal():
                 error(self.pos, "Only single-character strings can be coerced into ints.")
                 return self
             return CharNode(self.pos, value=self.value)
 
-        node = self
+        node = BytesNode(self.pos, value=self.value)
+        if dst_type == PyrexTypes.c_char_ptr_type:
+            node.type = PyrexTypes.c_char_ptr_type
+            return node
+        elif dst_type == PyrexTypes.c_uchar_ptr_type:
+            node.type = PyrexTypes.c_char_ptr_type
+            return CastNode(node, PyrexTypes.c_uchar_ptr_type)
+
         if not self.type.is_pyobject:
             if dst_type in (py_object_type, Builtin.bytes_type):
-                node = self.as_py_string_node(env)
+                node.type = Builtin.bytes_type
             elif dst_type.is_pyobject:
                 self.fail_assignment(dst_type)
                 return self
-            else:
-                node = self
         elif dst_type.is_pyobject and dst_type is not py_object_type:
             self.check_for_coercion_error(dst_type, fail=True)
-            return self
+            return node
 
         # We still need to perform normal coerce_to processing on the
         # result, because we might be coercing to an extension type,
@@ -1002,15 +1012,16 @@ class ImagNode(AtomicExprNode):
         self.type.create_declaration_utility_code(env)
 
     def coerce_to(self, dst_type, env):
-        # Arrange for a Python version of the number to be pre-allocated
-        # when coercing to a Python type.
+        if self.type is dst_type:
+            return self
+        node = ImagNode(self.pos, value=self.value)
         if dst_type.is_pyobject:
-            self.is_temp = 1
-            self.type = PyrexTypes.py_object_type
+            node.is_temp = 1
+            node.type = PyrexTypes.py_object_type
         # We still need to perform normal coerce_to processing on the
         # result, because we might be coercing to an extension type,
         # in which case a type test node will be needed.
-        return AtomicExprNode.coerce_to(self, dst_type, env)
+        return AtomicExprNode.coerce_to(node, dst_type, env)
 
     gil_message = "Constructing complex number"
 
