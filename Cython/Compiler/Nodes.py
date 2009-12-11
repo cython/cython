@@ -3063,7 +3063,7 @@ class CascadedAssignmentNode(AssignmentNode):
     
     def analyse_types(self, env, use_temp = 0):
         self.rhs.analyse_types(env)
-        if use_temp:
+        if use_temp and not self.rhs.is_simple():
             self.rhs = self.rhs.coerce_to_temp(env)
         else:
             self.rhs = self.rhs.coerce_to_simple(env)
