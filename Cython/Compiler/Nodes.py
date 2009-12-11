@@ -3063,10 +3063,11 @@ class CascadedAssignmentNode(AssignmentNode):
     
     def analyse_types(self, env, use_temp = 0):
         self.rhs.analyse_types(env)
-        if use_temp and not self.rhs.is_simple():
-            self.rhs = self.rhs.coerce_to_temp(env)
-        else:
-            self.rhs = self.rhs.coerce_to_simple(env)
+        if not self.rhs.is_simple():
+            if use_temp:
+                self.rhs = self.rhs.coerce_to_temp(env)
+            else:
+                self.rhs = self.rhs.coerce_to_simple(env)
         from ExprNodes import CloneNode
         self.coerced_rhs_list = []
         for lhs in self.lhs_list:
