@@ -2471,7 +2471,9 @@ class SimpleCallNode(CallNode):
             self.arg_tuple = TupleNode(self.pos, args = self.args)
             self.arg_tuple.analyse_types(env)
             self.args = None
-            if func_type is Builtin.type_type and function.entry.is_builtin and \
+            if func_type is Builtin.type_type and function.is_name and \
+                   function.entry and \
+                   function.entry.is_builtin and \
                    function.entry.name in Builtin.types_that_construct_their_instance:
                 # calling a builtin type that returns a specific object type
                 if function.entry.name == 'float':
