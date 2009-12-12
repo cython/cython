@@ -445,6 +445,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("  #define PyInt_AsSsize_t(o)   PyInt_AsLong(o)")
         code.putln("  #define PyNumber_Index(o)    PyNumber_Int(o)")
         code.putln("  #define PyIndex_Check(o)     PyNumber_Check(o)")
+        code.putln("  #define PyErr_WarnEx(category, message, stacklevel) PyErr_Warn(category, message)")
         code.putln("#endif")
 
         code.putln("#if PY_VERSION_HEX < 0x02060000")
@@ -2166,7 +2167,7 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
     PyObject *py_module = 0;
     PyObject *result = 0;
     PyObject *py_name = 0;
-    int size_ok;
+    char warning[200];
 
     py_module = __Pyx_ImportModule(module_name);
     if (!py_module)
@@ -2191,13 +2192,13 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
             module_name, class_name);
         goto bad;
     }
-    if (strict) {
-        size_ok = ((PyTypeObject *)result)->tp_basicsize == size;
+    if (!strict && ((PyTypeObject *)result)->tp_basicsize > size) {
+        PyOS_snprintf(warning, sizeof(warning), 
+            "%s.%s size changed, may indicate binary incompatibility",
+            module_name, class_name);
+        PyErr_WarnEx(NULL, warning, 0);
     }
-    else {
-        size_ok = ((PyTypeObject *)result)->tp_basicsize >= size;
-    }
-    if (!size_ok) {
+    else if (((PyTypeObject *)result)->tp_basicsize != size) {
         PyErr_Format(PyExc_ValueError, 
             "%s.%s has the wrong size, try recompiling",
             module_name, class_name);
