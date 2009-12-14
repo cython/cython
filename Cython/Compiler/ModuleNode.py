@@ -50,7 +50,26 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
     child_attrs = ["body"]
     directives = None
-    
+
+    def merge_in(self, tree, scope, merge_scope=False):
+        # Merges in the contents of another tree, and possibly scope. With the
+        # current implementation below, this must be done right prior
+        # to code generation.
+        #
+        # Note: This way of doing it seems strange -- I believe the
+        # right concept is to split ModuleNode into a ModuleNode and a
+        # CodeGenerator, and tell that CodeGenerator to generate code
+        # from multiple sources.
+        assert isinstance(self.body, Nodes.StatListNode)
+        if isinstance(tree, Nodes.StatListNode):
+            self.body.stats.extend(tree.stats)
+        else:
+            self.body.stats.append(tree)
+        selfscope = self.scope
+        selfscope.utility_code_list.extend(scope.utility_code_list)
+        if merge_scope:
+            selfscope.merge_in(scope)
+
     def analyse_declarations(self, env):
         if Options.embed_pos_in_docstring:
             env.doc = EncodedString(u'File: %s (starting at line %s)' % Nodes.relative_position(self.pos))
@@ -105,7 +124,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if h_types or h_vars or h_funcs or h_extension_types:
             result.h_file = replace_suffix(result.c_file, ".h")
             h_code = Code.CCodeWriter()
-            Code.GlobalState(h_code)
+            Code.GlobalState(h_code, self)
             if options.generate_pxi:
                 result.i_file = replace_suffix(result.c_file, ".pxi")
                 i_code = Code.PyrexCodeWriter(result.i_file)
@@ -167,7 +186,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if api_funcs or has_api_extension_types:
             result.api_file = replace_suffix(result.c_file, "_api.h")
             h_code = Code.CCodeWriter()
-            Code.GlobalState(h_code)
+            Code.GlobalState(h_code, self)
             name = self.api_name(env)
             guard = Naming.api_guard_prefix + name
             h_code.put_h_guard(guard)
@@ -251,7 +270,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             emit_linenums = options.emit_linenums
             rootwriter = Code.CCodeWriter(emit_linenums=emit_linenums)
-        globalstate = Code.GlobalState(rootwriter, emit_linenums)
+        globalstate = Code.GlobalState(rootwriter, self, emit_linenums)
         globalstate.initialize_main_c_code()
         h_code = globalstate['h_code']
         
@@ -925,10 +944,13 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         type = scope.parent_type
         base_type = type.base_type
         py_attrs = []
+        memviewslice_attrs = []
         for entry in scope.var_entries:
             if entry.type.is_pyobject:
                 py_attrs.append(entry)
-        need_self_cast = type.vtabslot_cname or py_attrs
+            elif entry.type.is_memoryviewslice:
+                memviewslice_attrs.append(entry)
+        need_self_cast = type.vtabslot_cname or py_attrs or memviewslice_attrs
         code.putln("")
         code.putln(
             "static PyObject *%s(PyTypeObject *t, PyObject *a, PyObject *k) {"
@@ -970,6 +992,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("p->%s = 0;" % entry.cname)
             else:
                 code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
+        for entry in memviewslice_attrs:
+            code.putln("p->%s.data = NULL;" % entry.cname)
+            code.put_init_to_py_none("p->%s.memview" % entry.cname,
+                    PyrexTypes.cython_memoryview_ptr_type, nanny=False)
         entry = scope.lookup_here("__new__")
         if entry and entry.is_special:
             if entry.trivial_signature:
@@ -1890,8 +1916,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # variables to None.
         for entry in env.var_entries:
             if entry.visibility != 'extern':
-                if entry.type.is_pyobject and entry.used:
-                    code.put_init_var_to_py_none(entry, nanny=False)
+                if entry.used:
+                    entry.type.global_init_code(entry, code)
 
     def generate_c_function_export_code(self, env, code):
         # Generate code to create PyCFunction wrappers for exported C functions.

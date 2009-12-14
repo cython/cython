@@ -13,3 +13,5 @@ build/
 *.dep
 
 tags
+Tools/fwrap/fparser
+Tools/fwrap/Cython

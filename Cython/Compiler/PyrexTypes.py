@@ -26,6 +26,7 @@ class BaseType(object):
         else:
             return base_code
 
+
 class PyrexType(BaseType):
     #
     #  Base class for all Pyrex types.
@@ -101,6 +102,7 @@ class PyrexType(BaseType):
     is_returncode = 0
     is_error = 0
     is_buffer = 0
+    is_memoryviewslice = 0
     has_attributes = 0
     default_value = ""
     pymemberdef_typecode = None
@@ -152,6 +154,13 @@ class PyrexType(BaseType):
         # used for constructing a stack for walking the run-time
         # type information of the struct.
         return 1
+
+    def global_init_code(self, entry, code):
+        # abstract
+        pass
+
+    def needs_nonecheck(self):
+        return 0
 
 
 def create_typedef_type(cname, base_type, is_external=0):
@@ -294,6 +303,171 @@ class CTypedefType(BaseType):
     def __getattr__(self, name):
         return getattr(self.typedef_base_type, name)
 
+class MemoryViewSliceType(PyrexType):
+
+    is_memoryviewslice = 1
+
+    has_attributes = 1
+    scope = None
+
+    def __init__(self, base_dtype, axes):
+        '''
+        MemoryViewSliceType(base, axes)
+
+        Base is the C base type; axes is a list of (access, packing) strings,
+        where access is one of 'full', 'direct' or 'ptr' and packing is one of
+        'contig', 'strided' or 'follow'.  There is one (access, packing) tuple
+        for each dimension.
+
+        the access specifiers determine whether the array data contains
+        pointers that need to be dereferenced along that axis when
+        retrieving/setting:
+
+        'direct' -- No pointers stored in this dimension.
+        'ptr' -- Pointer stored in this dimension.
+        'full' -- Check along this dimension, don't assume either.
+
+        the packing specifiers specify how the array elements are layed-out
+        in memory.
+
+        'contig' -- The data are contiguous in memory along this dimension.
+                At most one dimension may be specified as 'contig'.
+        'strided' -- The data aren't contiguous along this dimenison.
+        'follow' -- Used for C/Fortran contiguous arrays, a 'follow' dimension
+            has its stride automatically computed from extents of the other
+            dimensions to ensure C or Fortran memory layout.
+
+        C-contiguous memory has 'direct' as the access spec, 'contig' as the
+        *last* axis' packing spec and 'follow' for all other packing specs.
+
+        Fortran-contiguous memory has 'direct' as the access spec, 'contig' as
+        the *first* axis' packing spec and 'follow' for all other packing
+        specs.
+        '''
+
+        self.dtype = base_dtype
+        self.axes = axes
+
+        import MemoryView
+        self.is_c_contig, self.is_f_contig = MemoryView.is_cf_contig(self.axes)
+        assert not (self.is_c_contig and self.is_f_contig)
+
+    def same_as_resolved_type(self, other_type):
+        return ((other_type.is_memoryviewslice and
+            self.dtype.same_as(other_type.dtype) and
+            self.axes == other_type.axes) or
+            other_type is error_type)
+
+    def needs_nonecheck(self):
+        return True
+
+    def is_complete(self):
+        # incomplete since the underlying struct doesn't have a cython.memoryview object.
+        return 0
+
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        # XXX: we put these guards in for now...
+        assert not pyrex
+        assert not dll_linkage
+        import MemoryView
+        return self.base_declaration_code(
+                MemoryView.memviewslice_cname,
+                entity_code)
+
+    def attributes_known(self):
+        if self.scope is None:
+
+            import Symtab, MemoryView, Options
+            from MemoryView import axes_to_str
+
+            self.scope = scope = Symtab.CClassScope(
+                    'mvs_class_'+self.specialization_suffix(),
+                    None,
+                    visibility='extern')
+
+            scope.parent_type = self
+
+            scope.declare_var('_data', c_char_ptr_type, None, cname='data', is_cdef=1)
+
+            scope.declare_var('shape',
+                    c_array_type(c_py_ssize_t_type,
+                        Options.buffer_max_dims),
+                    None,
+                    cname='shape',
+                    is_cdef=1)
+
+            scope.declare_var('strides',
+                    c_array_type(c_py_ssize_t_type,
+                        Options.buffer_max_dims),
+                    None,
+                    cname='strides',
+                    is_cdef=1)
+
+            scope.declare_var('suboffsets',
+                    c_array_type(c_py_ssize_t_type,
+                        Options.buffer_max_dims),
+                    None,
+                    cname='suboffsets',
+                    is_cdef=1)
+
+            mangle_dtype = MemoryView.mangle_dtype_name(self.dtype)
+            ndim = len(self.axes)
+
+            to_axes_c = [('direct', 'contig')]
+            to_axes_f = [('direct', 'contig')]
+            if ndim-1:
+                to_axes_c = [('direct', 'follow')]*(ndim-1) + to_axes_c
+                to_axes_f = to_axes_f + [('direct', 'follow')]*(ndim-1)
+
+            to_memview_c = MemoryViewSliceType(self.dtype, to_axes_c)
+            to_memview_f = MemoryViewSliceType(self.dtype, to_axes_f)
+
+            cython_name_c, cython_name_f = "copy", "copy_fortran"
+            copy_name_c, copy_name_f = (
+                    MemoryView.get_copy_func_name(to_memview_c),
+                    MemoryView.get_copy_func_name(to_memview_f))
+
+
+            for (to_memview, cython_name, copy_name) in ((to_memview_c, cython_name_c, copy_name_c),
+                                                         (to_memview_f, cython_name_f, copy_name_f)):
+
+                entry = scope.declare_cfunction(cython_name,
+                            CFuncType(self,
+                                [CFuncTypeArg("memviewslice", self, None)]),
+                            pos = None,
+                            defining = 1,
+                            cname = copy_name)
+
+                entry.utility_code_definition = \
+                        MemoryView.CopyFuncUtilCode(self, to_memview)
+
+            # is_c_contig and is_f_contig functions
+            for (c_or_f, cython_name) in (('c', 'is_c_contig'), ('fortran', 'is_f_contig')):
+
+                is_contig_name = \
+                        MemoryView.get_is_contig_func_name(c_or_f)
+
+                entry = scope.declare_cfunction(cython_name,
+                            CFuncType(c_int_type,
+                                [CFuncTypeArg("memviewslice", self, None)]),
+                            pos = None,
+                            defining = 1,
+                            cname = is_contig_name)
+
+                entry.utility_code_definition = \
+                        MemoryView.IsContigFuncUtilCode(c_or_f)
+
+        return True
+
+    def specialization_suffix(self):
+        import MemoryView
+        return MemoryView.axes_to_str(self.axes) + '_' + MemoryView.mangle_dtype_name(self.dtype)
+
+    def global_init_code(self, entry, code):
+        code.putln("%s.data = NULL;" % entry.cname)
+        code.put_init_to_py_none("%s.memview" % entry.cname, cython_memoryview_ptr_type, nanny=False)
+
 class BufferType(BaseType):
     #
     #  Delegates most attribute
@@ -373,6 +547,9 @@ class PyObjectType(PyrexType):
             return "(PyObject *)" + cname
         else:
             return cname
+
+    def global_init_code(self, entry, code):
+        code.put_init_var_to_py_none(entry, nanny=False)
 
 class BuiltinObjectType(PyObjectType):
 
@@ -471,8 +648,11 @@ class PyExtensionType(PyObjectType):
     
     is_extension_type = 1
     has_attributes = 1
-    
+
     objtypedef_cname = None
+    
+    def needs_nonecheck(self):
+        return True
     
     def __init__(self, name, typedef_flag, base_type, is_external=0):
         self.name = name
@@ -1598,6 +1778,9 @@ class CFuncTypeArg(object):
         return self.type.declaration_code(self.cname, for_display)
 
 class StructUtilityCode(object):
+
+    requires = None
+
     def __init__(self, type, forward_decl):
         self.type = type
         self.header = "static PyObject* %s(%s)" % (type.to_py_function, type.declaration_code('s'))
@@ -1607,6 +1790,9 @@ class StructUtilityCode(object):
         return isinstance(other, StructUtilityCode) and self.header == other.header
     def __hash__(self):
         return hash(self.header)
+
+    def get_tree(self):
+        pass
     
     def put_code(self, output):
         code = output['utility_code_def']
@@ -1931,6 +2117,22 @@ c_anon_enum_type =    CAnonEnumType(-1, 1)
 # the Py_buffer type is defined in Builtin.py
 c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer")
 c_py_buffer_ptr_type = CPtrType(c_py_buffer_type)
+
+# buffer-related structs
+c_buf_diminfo_type =  CStructOrUnionType("__Pyx_Buf_DimInfo", "struct",
+                                      None, 1, "__Pyx_Buf_DimInfo")
+c_pyx_buffer_type = CStructOrUnionType("__Pyx_Buffer", "struct", None, 1, "__Pyx_Buffer")
+c_pyx_buffer_ptr_type = CPtrType(c_pyx_buffer_type)
+c_pyx_buffer_nd_type = CStructOrUnionType("__Pyx_LocalBuf_ND", "struct",
+                                      None, 1, "__Pyx_LocalBuf_ND")
+
+cython_memoryview_type = CStructOrUnionType("__pyx_obj_memoryview", "struct",
+                                      None, 0, "__pyx_obj_memoryview")
+
+cython_memoryview_ptr_type = CPtrType(cython_memoryview_type)
+
+memoryviewslice_type = CStructOrUnionType("__Pyx_memviewslice", "struct",
+                                    None, 1, "__Pyx_memviewslice")
 
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()

@@ -12,7 +12,7 @@ import Naming
 import Nodes
 from Nodes import Node
 import PyrexTypes
-from PyrexTypes import py_object_type, c_long_type, typecast, error_type, unspecified_type
+from PyrexTypes import py_object_type, c_long_type, typecast, error_type, unspecified_type, cython_memoryview_ptr_type
 from Builtin import list_type, tuple_type, set_type, dict_type, \
      unicode_type, str_type, bytes_type, type_type
 import Builtin
@@ -374,7 +374,7 @@ class ExprNode(Node):
         # By default, any expression based on Python objects is
         # prevented in nogil environments.  Subtypes must override
         # this if they can work without the GIL.
-        if self.type.is_pyobject:
+        if self.type and self.type.is_pyobject:
             self.gil_error()
 
     def gil_assignment_check(self, env):
@@ -548,7 +548,14 @@ class ExprNode(Node):
         if self.check_for_coercion_error(dst_type):
             return self
 
-        if dst_type.is_pyobject:
+        if dst_type.is_memoryviewslice:
+            import MemoryView
+            if not src.type.is_memoryviewslice:
+                src = CoerceToMemViewSliceNode(src, dst_type, env)
+            elif not MemoryView.src_conforms_to_dst(src.type, dst_type):
+                error(self.pos, "Memoryview '%s' not conformable to memoryview '%s'." %
+                        (src.type, dst_type))
+        elif dst_type.is_pyobject:
             if not src.type.is_pyobject:
                 src = CoerceToPyTypeNode(src, env)
             if not src.type.subtype_of(dst_type):
@@ -1354,7 +1361,13 @@ class NameNode(AtomicExprNode):
                 rhs.generate_disposal_code(code)
                 rhs.free_temps(code)
         else:
-            if self.type.is_buffer:
+            if self.type.is_memoryviewslice:
+                import MemoryView
+                MemoryView.gen_acquire_memoryviewslice(rhs, self.type,
+                        self.entry.is_cglobal, self.result(), self.pos, code)
+                # self.generate_acquire_memoryviewslice(rhs, code)
+
+            elif self.type.is_buffer:
                 # Generate code for doing the buffer release/acquisition.
                 # This might raise an exception in which case the assignment (done
                 # below) will not happen.
@@ -1385,11 +1398,12 @@ class NameNode(AtomicExprNode):
                 if self.use_managed_ref:
                     if entry.is_cglobal:
                         code.put_giveref(rhs.py_result())
-            code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
-            if debug_disposal_code:
-                print("NameNode.generate_assignment_code:")
-                print("...generating post-assignment code for %s" % rhs)
-            rhs.generate_post_assignment_code(code)
+            if not self.type.is_memoryviewslice:
+                code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
+                if debug_disposal_code:
+                    print("NameNode.generate_assignment_code:")
+                    print("...generating post-assignment code for %s" % rhs)
+                rhs.generate_post_assignment_code(code)
             rhs.free_temps(code)
 
     def generate_acquire_buffer(self, rhs, code):
@@ -1403,10 +1417,8 @@ class NameNode(AtomicExprNode):
             rhstmp = code.funcstate.allocate_temp(self.entry.type, manage_ref=False)
             code.putln('%s = %s;' % (rhstmp, rhs.result_as(self.ctype())))
 
-        buffer_aux = self.entry.buffer_aux
-        bufstruct = buffer_aux.buffer_info_var.cname
         import Buffer
-        Buffer.put_assign_to_buffer(self.result(), rhstmp, buffer_aux, self.entry.type,
+        Buffer.put_assign_to_buffer(self.result(), rhstmp, self.entry,
                                     is_initialized=not self.lhs_of_first_assignment,
                                     pos=self.pos, code=code)
         
@@ -1796,6 +1808,7 @@ class IndexNode(ExprNode):
         # For buffers, self.index is packed out on the initial analysis, and
         # when cloning self.indices is copied.
         self.is_buffer_access = False
+        self.is_memoryviewslice_access = False
 
         self.base.analyse_types(env)
         if self.base.type.is_error:
@@ -1810,6 +1823,7 @@ class IndexNode(ExprNode):
 
         skip_child_analysis = False
         buffer_access = False
+        memoryviewslice_access = False
         if self.base.type.is_buffer:
             assert hasattr(self.base, "entry") # Must be a NameNode-like node
             if self.indices:
@@ -1826,6 +1840,12 @@ class IndexNode(ExprNode):
                     x.analyse_types(env)
                     if not x.type.is_int:
                         buffer_access = False
+        
+        if self.base.type.is_memoryviewslice:
+            assert hasattr(self.base, "entry")
+            if self.indices or not isinstance(self.index, EllipsisNode):
+                error(self.pos, "Memoryviews currently support ellipsis indexing only.")
+            else: memoryviewslice_access = True
 
         # On cloning, indices is cloned. Otherwise, unpack index into indices
         assert not (buffer_access and isinstance(self.index, CloneNode))
@@ -1844,6 +1864,13 @@ class IndexNode(ExprNode):
                     error(self.pos, "Writing to readonly buffer")
                 else:
                     self.base.entry.buffer_aux.writable_needed = True
+
+        elif memoryviewslice_access:
+            self.type = self.base.type
+            self.is_memoryviewslice_access = True
+            if getting:
+                error(self.pos, "memoryviews currently support setting only.")
+
         else:
             if isinstance(self.index, TupleNode):
                 self.index.analyse_types(env, skip_children=skip_child_analysis)
@@ -2004,6 +2031,14 @@ class IndexNode(ExprNode):
                 self.extra_index_params(),
                 code.error_goto(self.pos)))
 
+    def generate_memoryviewslice_setitem_code(self, rhs, code, op=""):
+        assert isinstance(self.index, EllipsisNode)
+        import MemoryView
+        util_code = MemoryView.CopyContentsFuncUtilCode(rhs.type, self.type)
+        func_name = util_code.copy_contents_name
+        code.putln(code.error_goto_if_neg("%s(&%s, &%s)" % (func_name, rhs.result(), self.base.result()), self.pos))
+        code.globalstate.use_utility_code(util_code)
+
     def generate_buffer_setitem_code(self, rhs, code, op=""):
         # Used from generate_assignment_code and InPlaceAssignmentNode
         if code.globalstate.directives['nonecheck']:
@@ -2030,6 +2065,8 @@ class IndexNode(ExprNode):
         self.generate_subexpr_evaluation_code(code)
         if self.is_buffer_access:
             self.generate_buffer_setitem_code(rhs, code)
+        elif self.is_memoryviewslice_access:
+            self.generate_memoryviewslice_setitem_code(rhs, code)
         elif self.type.is_pyobject:
             self.generate_setitem_code(rhs.py_result(), code)
         else:
@@ -2935,6 +2972,7 @@ class AttributeNode(ExprNode):
                 entry.is_cglobal or entry.is_cfunction
                 or entry.is_type or entry.is_const):
                     self.mutate_into_name_node(env, entry, target)
+                    entry.used = 1
                     return 1
         return 0
     
@@ -3133,7 +3171,7 @@ class AttributeNode(ExprNode):
         else:
             # result_code contains what is needed, but we may need to insert
             # a check and raise an exception
-            if (self.obj.type.is_extension_type
+            if (self.obj.type.needs_nonecheck()
                   and self.needs_none_check
                   and code.globalstate.directives['nonecheck']):
                 self.put_nonecheck(code)
@@ -3155,7 +3193,7 @@ class AttributeNode(ExprNode):
                 self.obj.result_as(self.obj.type),
                 rhs.result_as(self.ctype())))
         else:
-            if (self.obj.type.is_extension_type
+            if (self.obj.type.needs_nonecheck()
                   and self.needs_none_check
                   and code.globalstate.directives['nonecheck']):
                 self.put_nonecheck(code)
@@ -3166,11 +3204,18 @@ class AttributeNode(ExprNode):
                 code.put_giveref(rhs.py_result())
                 code.put_gotref(select_code)
                 code.put_decref(select_code, self.ctype())
-            code.putln(
-                "%s = %s;" % (
-                    select_code,
-                    rhs.result_as(self.ctype())))
-                    #rhs.result()))
+            elif self.type.is_memoryviewslice:
+                import MemoryView
+                MemoryView.put_assign_to_memviewslice(select_code, rhs.result(), self.type,
+                        pos=self.pos, code=code)
+                if rhs.is_temp:
+                    code.put_xdecref_clear("%s.memview" % rhs.result(), cython_memoryview_ptr_type)
+            if not self.type.is_memoryviewslice:
+                code.putln(
+                    "%s = %s;" % (
+                        select_code,
+                        rhs.result_as(self.ctype())))
+                        #rhs.result()))
             rhs.generate_post_assignment_code(code)
             rhs.free_temps(code)
         self.obj.generate_disposal_code(code)
@@ -3197,7 +3242,13 @@ class AttributeNode(ExprNode):
 
     def put_nonecheck(self, code):
         code.globalstate.use_utility_code(raise_noneattr_error_utility_code)
-        code.putln("if (%s) {" % code.unlikely("%s == Py_None") % self.obj.result_as(PyrexTypes.py_object_type))
+        if self.obj.type.is_extension_type:
+            test = "%s == Py_None" % self.obj.result_as(PyrexTypes.py_object_type)
+        elif self.obj.type.is_memoryviewslice:
+            test = "!%s.memview" % self.obj.result()
+        else:
+            assert False
+        code.putln("if (%s) {" % code.unlikely(test))
         code.putln("__Pyx_RaiseNoneAttributeError(\"%s\");" % self.attribute)
         code.putln(code.error_goto(self.pos))
         code.putln("}")
@@ -5635,6 +5686,56 @@ class CoercionNode(ExprNode):
             file, line, col = self.pos
             code.annotate((file, line, col-1), AnnotationItem(style='coerce', tag='coerce', text='[%s] to [%s]' % (self.arg.type, self.type)))
 
+class CoerceToMemViewSliceNode(CoercionNode):
+
+    def __init__(self, arg, dst_type, env):
+        assert dst_type.is_memoryviewslice
+        assert not arg.type.is_memoryviewslice
+        CoercionNode.__init__(self, arg)
+        self.type = dst_type
+        self.env = env
+        self.is_temp = 1
+
+    def generate_result_code(self, code):
+        import MemoryView, Buffer
+        memviewobj = code.funcstate.allocate_temp(PyrexTypes.py_object_type, manage_ref=True)
+        buf_flag = MemoryView.get_buf_flag(self.type.axes)
+        code.putln("%s = (PyObject *)"
+                "__pyx_viewaxis_memoryview_cwrapper(%s, %s);" %\
+                        (memviewobj, self.arg.py_result(), buf_flag))
+        code.putln(code.error_goto_if_PyErr(self.pos))
+        ndim = len(self.type.axes)
+        spec_int_arr = code.funcstate.allocate_temp(
+                PyrexTypes.c_array_type(PyrexTypes.c_int_type, ndim),
+                manage_ref=False)
+        specs_code = MemoryView.specs_to_code(self.type.axes)
+        for idx, cspec in enumerate(specs_code):
+            code.putln("%s[%d] = %s;" % (spec_int_arr, idx, cspec))
+
+        code.globalstate.use_utility_code(Buffer.acquire_utility_code)
+        code.globalstate.use_utility_code(MemoryView.memviewslice_init_code)
+        dtype_typeinfo = Buffer.get_type_information_cname(code, self.type.dtype)
+
+        MemoryView.put_init_entry(self.result(), code)
+        code.putln("{")
+        code.putln("__Pyx_BufFmt_StackElem __pyx_stack[%d];" %
+                self.type.dtype.struct_nesting_depth())
+        result = self.result()
+        if self.type.is_c_contig:
+            c_or_f_flag = "__Pyx_IS_C_CONTIG"
+        elif self.type.is_f_contig:
+            c_or_f_flag = "__Pyx_IS_F_CONTIG"
+        else:
+            c_or_f_flag = "0"
+        code.putln(code.error_goto_if("-1 == __Pyx_ValidateAndInit_memviewslice("
+                        "(struct __pyx_obj_memoryview *) %(memviewobj)s,"
+                        " %(spec_int_arr)s, %(c_or_f_flag)s, %(ndim)d,"
+                        " &%(dtype_typeinfo)s, __pyx_stack, &%(result)s)" % locals(), self.pos))
+        code.putln("}")
+        code.put_gotref(
+                code.as_pyobject("%s.memview" % self.result(), cython_memoryview_ptr_type))
+        code.funcstate.release_temp(memviewobj)
+        code.funcstate.release_temp(spec_int_arr)
 
 class CastNode(CoercionNode):
     #  Wrap a node in a C type cast.

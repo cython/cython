@@ -12,11 +12,11 @@ except NameError:
 
 import Code
 import Builtin
-from Errors import error, warning, InternalError
+from Errors import error, warning, InternalError, CompileError
 import Naming
 import PyrexTypes
 import TypeSlots
-from PyrexTypes import py_object_type, error_type, CFuncType
+from PyrexTypes import py_object_type, error_type, CTypedefType, CFuncType, cython_memoryview_ptr_type
 from Symtab import ModuleScope, LocalScope, GeneratorLocalScope, \
     StructOrUnionScope, PyClassScope, CClassScope
 from Cython.Utils import open_new_file, replace_suffix
@@ -725,6 +725,31 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
         else:
             return PyrexTypes.error_type
 
+class MemoryViewSliceTypeNode(CBaseTypeNode):
+
+    child_attrs = ['base_type_node', 'axes']
+
+    def analyse(self, env, could_be_name = False):
+
+        base_type = self.base_type_node.analyse(env)
+        if base_type.is_error: return base_type
+
+        import MemoryView
+
+        try:
+            axes_specs = MemoryView.get_axes_specs(env, self.axes)
+        except CompileError, e:
+            error(e.position, e.message_only)
+            self.type = PyrexTypes.ErrorType()
+            return self.type
+
+        self.type = PyrexTypes.MemoryViewSliceType(base_type, axes_specs)
+        MemoryView.use_memview_util_code(env)
+        MemoryView.use_cython_array(env)
+        MemoryView.use_memview_util_code(env)
+        env.use_utility_code(MemoryView.memviewslice_declare_code)
+        return self.type
+
 class CBufferAccessTypeNode(CBaseTypeNode):
     #  After parsing:
     #  positional_args  [ExprNode]        List of positional arguments
@@ -816,7 +841,7 @@ class CVarDefNode(StatNode):
         for declarator in self.declarators:
             name_declarator, type = declarator.analyse(base_type, env)
             if not type.is_complete():
-                if not (self.visibility == 'extern' and type.is_array):
+                if not (self.visibility == 'extern' and type.is_array or type.is_memoryviewslice):
                     error(declarator.pos,
                         "Variable type '%s' is incomplete" % type)
             if self.visibility == 'extern' and type.is_pyobject:
@@ -1041,7 +1066,7 @@ class FuncDefNode(StatNode, BlockNode):
         return lenv
                 
     def generate_function_definitions(self, env, code):
-        import Buffer
+        import Buffer, MemoryView
 
         lenv = self.local_scope
 
@@ -1084,6 +1109,9 @@ class FuncDefNode(StatNode, BlockNode):
                     (self.return_type.declaration_code(
                         Naming.retval_cname),
                     init))
+            if self.return_type.is_memoryviewslice:
+                import MemoryView
+                MemoryView.put_init_entry(Naming.retval_cname, code)
         tempvardecl_code = code.insertion_point()
         self.generate_keyword_list(code)
         # ----- Extern library function declarations
@@ -1107,20 +1135,26 @@ class FuncDefNode(StatNode, BlockNode):
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject and lenv.control_flow.get_state((entry.name, 'source')) != 'arg':
                 code.put_var_incref(entry)
+            if entry.type.is_memoryviewslice:
+                code.put_incref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
         # ----- Initialise local variables 
         for entry in lenv.var_entries:
             if entry.type.is_pyobject and entry.init_to_none and entry.used:
                 code.put_init_var_to_py_none(entry)
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
-            if entry.type.is_buffer and entry.buffer_aux.buffer_info_var.used:
-                code.putln("%s.buf = NULL;" % entry.buffer_aux.buffer_info_var.cname)
+            if entry.type.is_buffer and entry.buffer_aux.buflocal_nd_var.used:
+                Buffer.put_init_vars(entry, code)
+        # ----- Initialise local memoryviewslices
+        for entry in lenv.var_entries:
+            if entry.type.is_memoryviewslice:
+                MemoryView.put_init_entry(entry.cname, code)
         # ----- Check and convert arguments
         self.generate_argument_type_tests(code)
         # ----- Acquire buffer arguments
         for entry in lenv.arg_entries:
             if entry.type.is_buffer:
-                Buffer.put_acquire_arg_buffer(entry, code, self.pos)        
+                Buffer.put_acquire_arg_buffer(entry, code, self.pos)
         # ----- Function body
         self.body.generate_execution_code(code)
         # ----- Default return value
@@ -1201,11 +1235,16 @@ class FuncDefNode(StatNode, BlockNode):
             for entry in lenv.var_entries:
                 if lenv.control_flow.get_state((entry.name, 'initalized')) is not True:
                     entry.xdecref_cleanup = 1
+        for entry in lenv.var_entries:
+            if entry.type.is_memoryviewslice and entry.used:
+                code.put_xdecref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
         code.put_var_decrefs(lenv.var_entries, used_only = 1)
         # Decref any increfed args
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject and lenv.control_flow.get_state((entry.name, 'source')) != 'arg':
                 code.put_var_decref(entry)
+            if entry.type.is_memoryviewslice:
+                code.put_decref("%s.memview" % entry.cname, cython_memoryview_ptr_type)
 
         # code.putln("/* TODO: decref scope object */")
         # ----- Return
@@ -1217,6 +1256,8 @@ class FuncDefNode(StatNode, BlockNode):
                 err_val = default_retval
             if self.return_type.is_pyobject:
                 code.put_xgiveref(self.return_type.as_pyobject(Naming.retval_cname))
+            elif self.return_type.is_memoryviewslice:
+                code.put_xgiveref(code.as_pyobject("%s.memview" % Naming.retval_cname,cython_memoryview_ptr_type))
 
         if self.entry.is_special and self.entry.name == "__hash__":
             # Returning -1 for __hash__ is supposed to signal an error
@@ -1250,7 +1291,7 @@ class FuncDefNode(StatNode, BlockNode):
     def declare_argument(self, env, arg):
         if arg.type.is_void:
             error(arg.pos, "Invalid use of 'void'")
-        elif not arg.type.is_complete() and not arg.type.is_array:
+        elif not arg.type.is_complete() and not (arg.type.is_array or arg.type.is_memoryviewslice):
             error(arg.pos,
                 "Argument type '%s' is incomplete" % arg.type)
         return env.declare_arg(arg.name, arg.type, arg.pos)
@@ -1838,13 +1879,16 @@ class DefNode(FuncDefNode):
         self.entry = entry
         prefix = env.scope_prefix
         entry.func_cname = \
-            Naming.pyfunc_prefix + prefix + name
+            env.mangle(Naming.pyfunc_prefix, name)
+            # Naming.pyfunc_prefix + prefix + name
         entry.pymethdef_cname = \
-            Naming.pymethdef_prefix + prefix + name
+            env.mangle(Naming.pymethdef_prefix, name)
+            # Naming.pymethdef_prefix + prefix + name
         if Options.docstrings:
             entry.doc = embed_position(self.pos, self.doc)
             entry.doc_cname = \
-                Naming.funcdoc_prefix + prefix + name
+                env.mangle(Naming.funcdoc_prefix, name)
+                # Naming.funcdoc_prefix + prefix + name
         else:
             entry.doc = None
 
@@ -3492,14 +3536,23 @@ class ReturnStatNode(StatNode):
         if self.return_type.is_pyobject:
             code.put_xdecref(Naming.retval_cname,
                              self.return_type)
+        elif self.return_type.is_memoryviewslice:
+            code.put_xdecref("%s.memview" % Naming.retval_cname,
+                    self.return_type)
+
         if self.value:
             self.value.generate_evaluation_code(code)
-            self.value.make_owned_reference(code)
-            code.putln(
-                "%s = %s;" % (
-                    Naming.retval_cname,
-                    self.value.result_as(self.return_type)))
-            self.value.generate_post_assignment_code(code)
+            if self.return_type.is_memoryviewslice:
+                import MemoryView
+                MemoryView.gen_acquire_memoryviewslice(self.value, self.return_type,
+                        False, Naming.retval_cname, None, code)
+            else:
+                self.value.make_owned_reference(code)
+                code.putln(
+                    "%s = %s;" % (
+                        Naming.retval_cname,
+                        self.value.result_as(self.return_type)))
+                self.value.generate_post_assignment_code(code)
             self.value.free_temps(code)
         else:
             if self.return_type.is_pyobject:
@@ -4694,6 +4747,7 @@ class FromCImportStatNode(StatNode):
                 if entry:
                     if kind and not self.declaration_matches(entry, kind):
                         entry.redeclared(pos)
+                    entry.used = 1
                 else:
                     if kind == 'struct' or kind == 'union':
                         entry = module_scope.declare_struct_or_union(name,
