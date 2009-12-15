@@ -3811,20 +3811,13 @@ class UnopNode(ExprNode):
         if type.is_ptr:
             type = type.base_type
         entry = env.lookup(type.name)
-        function = entry.type.scope.lookup(self.operators[self.operator])
+        function = entry.type.scope.lookup("operator%s" % self.operator)
         if not function:
             error(self.pos, "'%s' operator not defined for %s"
                 % (self.operator, type))
             self.type_error()
             return
         self.type = function.type.return_type
-
-    operators = {
-        "++":       u"__inc__",
-        "--":       u"__dec__",
-        "*":        u"__deref__",
-        "not":      u"__not__" # TODO(danilo): Also handle in NotNode.
-    }
         
 
 
@@ -4347,21 +4340,6 @@ class NumBinopNode(BinopNode):
         "**":       "PyNumber_Power"
     }
     
-    operators = {
-        "+":        u"__add__",
-        "-":        u"__sub__",
-        "*":        u"__mul__",
-        "/":        u"__div__",
-        "%":        u"__mod__",
-
-        "<<":       u"__lshift__",
-        ">>":       u"__rshift__",
-
-        "&":        u"__and__",
-        "|":        u"__or__",
-        "^":        u"__xor__", 
-    }
-
 
 class IntBinopNode(NumBinopNode):
     #  Binary operation taking integer arguments.
@@ -5001,7 +4979,7 @@ class PrimaryCmpNode(NewTempExprNode, CmpNode):
         if type2.is_ptr:
             type2 = type2.base_type
         entry = env.lookup(type1.name)
-        function = entry.type.scope.lookup(self.operators[self.operator])
+        function = entry.type.scope.lookup("operator%s" % self.operator)
         if not function:
             error(self.pos, "'%s' operator not defined for '%s %s %s'"
                 % (self.operator, type1, self.operator, type2))
@@ -5113,16 +5091,6 @@ class PrimaryCmpNode(NewTempExprNode, CmpNode):
         if self.cascade:
             self.cascade.annotate(code)
     
-    operators = {
-        "<":        u"__le__",
-        ">":        u"__gt__",
-        "==":       u"__eq__",
-        "<=":       u"__le__",
-        ">=":       u"__ge__",
-        "!=":       u"__ne__",
-        "<>":       u"__ne__"
-    }
-
 
 class CascadedCmpNode(Node, CmpNode):
     #  A CascadedCmpNode is not a complete expression node. It 

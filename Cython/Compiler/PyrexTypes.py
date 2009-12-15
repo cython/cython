@@ -1825,6 +1825,9 @@ def best_match(args, functions, pos):
                 error_str = "Call with wrong number of arguments (expected %s, got %s)" \
                                 % (expectation, actual_nargs)
                 continue
+        if len(functions) == 1:
+            # Optimize the most common case of no overloading...
+            return func
         score = [0,0,0]
         for i in range(min(len(args), len(func_type.args))):
             src_type = args[i].type
