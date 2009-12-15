@@ -10,6 +10,7 @@ from Nodes import Node
 from ExprNodes import AtomicExprNode
 
 class TempHandle(object):
+    # THIS IS DEPRECATED, USE LetRefNode instead
     temp = None
     needs_xdecref = False
     def __init__(self, type):
@@ -23,6 +24,7 @@ class TempHandle(object):
         return CleanupTempRefNode(pos, handle=self, type=self.type)
 
 class TempRefNode(AtomicExprNode):
+    # THIS IS DEPRECATED, USE LetRefNode instead
     # handle   TempHandle
 
     def analyse_types(self, env):
@@ -52,6 +54,7 @@ class TempRefNode(AtomicExprNode):
         rhs.free_temps(code)
 
 class CleanupTempRefNode(TempRefNode):
+    # THIS IS DEPRECATED, USE LetRefNode instead
     # handle   TempHandle
 
     def generate_assignment_code(self, rhs, code):
@@ -63,6 +66,8 @@ class CleanupTempRefNode(TempRefNode):
             self.handle.needs_cleanup = False
 
 class TempsBlockNode(Node):
+    # THIS IS DEPRECATED, USE LetNode instead
+    
     """
     Creates a block which allocates temporary variables.
     This is used by transforms to output constructs that need
@@ -116,9 +121,14 @@ class ResultRefNode(AtomicExprNode):
     def __init__(self, expression):
         self.pos = expression.pos
         self.expression = expression
+        if hasattr(expression, "type"):
+            self.type = expression.type
 
     def analyse_types(self, env):
         self.type = self.expression.type
+
+    def infer_type(self, env):
+        return self.expression.infer_type(env)
 
     def result(self):
         return self.result_code
@@ -132,6 +142,14 @@ class ResultRefNode(AtomicExprNode):
     def generate_disposal_code(self, code):
         pass
                 
+    def generate_assignment_code(self, rhs, code):
+        if self.type.is_pyobject:
+            rhs.make_owned_reference(code)
+            code.put_decref(self.result(), self.ctype())
+        code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
+        rhs.generate_post_assignment_code(code)
+        rhs.free_temps(code)
+
     def allocate_temps(self, env):
         pass
         
@@ -142,17 +160,45 @@ class ResultRefNode(AtomicExprNode):
         pass
 
 
-class EvalWithTempExprNode(ExprNodes.NewTempExprNode):
+class LetNodeMixin:
+    def set_temp_expr(self, lazy_temp):
+        self.lazy_temp = lazy_temp
+        self.temp_expression = lazy_temp.expression
+
+    def setup_temp_expr(self, code):
+        self.temp_expression.generate_evaluation_code(code)
+        self._result_in_temp = self.temp_expression.result_in_temp()
+        self.temp_type = self.temp_expression.type
+        if self._result_in_temp:
+            self.temp = self.temp_expression.result()
+        else:
+            self.temp_expression.make_owned_reference(code)
+            self.temp = code.funcstate.allocate_temp(
+                self.temp_type, manage_ref=True)
+            code.putln("%s = %s;" % (self.temp, self.temp_expression.result()))
+        self.lazy_temp.result_code = self.temp
+
+    def teardown_temp_expr(self, code):
+       if not self._result_in_temp:
+            if self.temp_type.is_pyobject:
+                code.put_decref_clear(self.temp, self.temp_type)
+            code.funcstate.release_temp(self.temp)
+
+class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
     # A wrapper around a subexpression that moves an expression into a
     # temp variable and provides it to the subexpression.
 
     subexprs = ['temp_expression', 'subexpression']
 
     def __init__(self, lazy_temp, subexpression):
+        self.set_temp_expr(lazy_temp)
         self.pos = subexpression.pos
-        self.lazy_temp = lazy_temp
-        self.temp_expression = lazy_temp.expression
         self.subexpression = subexpression
+        # if called after type analysis, we already know the type here
+        self.type = self.subexpression.type
+
+    def infer_type(self, env):
+        return self.subexpression.infer_type(env)
 
     def result(self):
         return self.subexpression.result()
@@ -163,19 +209,29 @@ class EvalWithTempExprNode(ExprNodes.NewTempExprNode):
         self.type = self.subexpression.type
 
     def generate_evaluation_code(self, code):
-        self.temp_expression.generate_evaluation_code(code)
-        result_in_temp = self.temp_expression.result_in_temp()
-        temp_type = self.temp_expression.type
-        if result_in_temp:
-            temp = self.temp_expression.result()
-        else:
-            self.temp_expression.make_owned_reference(code)
-            temp = code.funcstate.allocate_temp(
-                temp_type, manage_ref=True)
-            code.putln("%s = %s;" % (temp, self.temp_expression.result()))
-        self.lazy_temp.result_code = temp
+        self.setup_temp_expr(code)
         self.subexpression.generate_evaluation_code(code)
-        if not result_in_temp:
-            if temp_type.is_pyobject:
-                code.put_decref_clear(temp, temp_type)
-            code.funcstate.release_temp(temp)
+        self.teardown_temp_expr(code)
+ 
+LetRefNode = ResultRefNode
+
+class LetNode(Nodes.StatNode, LetNodeMixin):
+    # Implements a local temporary variable scope. Imagine this
+    # syntax being present:
+    # let temp = VALUE:
+    #     BLOCK (can modify temp)
+    #     if temp is an object, decref
+    #
+    # To be used after analysis phase, does no analysis.
+
+    child_attrs = ['temp_expression', 'body']
+
+    def __init__(self, lazy_temp, body):
+        self.set_temp_expr(lazy_temp)
+        self.pos = body.pos
+        self.body = body
+
+    def generate_execution_code(self, code):
+        self.setup_temp_expr(code)
+        self.body.generate_execution_code(code)
+        self.teardown_temp_expr(code)

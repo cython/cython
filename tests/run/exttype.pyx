@@ -1,28 +1,13 @@
-__doc__ = u"""
-    >>> s = Spam(12)
-    >>> s.eat()
-    12 42
-    >>> f(s)
-    Traceback (most recent call last):
-    AttributeError: 'exttype.Spam' object has no attribute 'foo'
-    >>> s.eat()
-    12 42
-
-    >>> class Spam2(Spam):
-    ...     foo = 1
-    >>> s = Spam2(12)
-    >>> s.eat()
-    12 42
-    >>> f(s)
-    >>> s.eat()
-    12 42
-"""
 
 cdef gobble(a, b):
     print a, b
 
 cdef class Spam:
-
+    """
+    >>> s = Spam(12)
+    >>> s.eat()
+    12 42
+    """
     cdef eggs
     cdef int ham
 
@@ -37,6 +22,22 @@ cdef class Spam:
         gobble(self.eggs, self.ham)
 
 def f(Spam spam):
+    """
+    >>> s = Spam(12)
+    >>> f(s)
+    Traceback (most recent call last):
+    AttributeError: 'exttype.Spam' object has no attribute 'foo'
+    >>> s.eat()
+    12 42
+    >>> class Spam2(Spam):
+    ...     foo = 1
+    >>> s = Spam2(12)
+    >>> s.eat()
+    12 42
+    >>> f(s)
+    >>> s.eat()
+    12 42
+    """
     x = spam.eggs
     y = spam.ham
     z = spam.foo

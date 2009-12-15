@@ -1,5 +1,6 @@
+from python_ref cimport PyObject
+
 cdef extern from "Python.h":
-    ctypedef void PyObject
 
     ############################################################################
     # Tuples
@@ -23,14 +24,14 @@ cdef extern from "Python.h":
     # pointing to Python objects. "PyTuple_Pack(2, a, b)" is
     # equivalent to "Py_BuildValue("(OO)", a, b)".
 
-    int PyTuple_Size(object  p)
+    int PyTuple_Size(object  p) except -1
     # Take a pointer to a tuple object, and return the size of that tuple. 
 
     int PyTuple_GET_SIZE(object  p)
     # Return the size of the tuple p, which must be non-NULL and point
     # to a tuple; no error checking is performed.
 
-    PyObject* PyTuple_GetItem(object  p, Py_ssize_t pos)
+    PyObject* PyTuple_GetItem(object  p, Py_ssize_t pos) except NULL
     # Return value: Borrowed reference.
     # Return the object at position pos in the tuple pointed to by
     # p. If pos is out of bounds, return NULL and sets an IndexError
@@ -54,7 +55,7 @@ cdef extern from "Python.h":
     # only be used to fill in brand new tuples. Note: This function
     # ``steals'' a reference to o.
 
-    int _PyTuple_Resize(PyObject **p, Py_ssize_t newsize)
+    int _PyTuple_Resize(PyObject **p, Py_ssize_t newsize) except -1
     # Can be used to resize a tuple. newsize will be the new length of
     # the tuple. Because tuples are supposed to be immutable, this
     # should only be used if there is only one reference to the

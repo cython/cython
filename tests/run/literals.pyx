@@ -1,12 +1,7 @@
-__doc__ = u"""
-    >>> foo()
-    >>> test_float(1./3)
-    True
-    >>> test_complex(1j/3)
-    True
-"""
-
 def foo():
+    """
+    >>> foo()
+    """
     a = 42
     a1 = 0123
     a2 = 0xabc
@@ -37,7 +32,7 @@ double quoted string."""
     i = 'This string\
  has an ignored newline.'
     j = 'One-char escapes: \'\"\\\a\b\f\n\r\t\v'
-    k = 'Oct and hex escapes: \1 \12 \123 \x45 \xaf \xAF'
+    k = b'Oct and hex escapes: \1 \12 \123 \x45 \xaf \xAF'
     l = r'''This is\
 a \three \line
 raw string with some backslashes.'''
@@ -50,11 +45,20 @@ with ' and " quotes"""
     q = "NameLikeString2"
     r = "99_percent_un_namelike"
     s = "Not an \escape"
-
+    t = b'this' b'parrot' b'is' b'resting'
+    u = u'this' u'parrot' u'is' u'resting'
 
 
 def test_float(x):
+    """
+    >>> test_float(1./3)
+    True
+    """
     return x == 1./3
 
 def test_complex(x):
+    """
+    >>> test_complex(1j/3)
+    True
+    """
     return x == 0.3333333333333333j

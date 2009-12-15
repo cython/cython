@@ -1,5 +1,5 @@
+
 cdef extern from "Python.h":
-    ctypedef void PyObject
     ctypedef struct Py_complex
 
     ############################################################################
@@ -29,11 +29,13 @@ cdef extern from "Python.h":
     # Return value: New reference.
     # Return a new PyComplexObject object from real and imag. 
 
-    double PyComplex_RealAsDouble(object op)
+    double PyComplex_RealAsDouble(object op) except? -1
     # Return the real part of op as a C double. 
 
-    double PyComplex_ImagAsDouble(object op)
+    double PyComplex_ImagAsDouble(object op) except? -1
     # Return the imaginary part of op as a C double. 
 
     Py_complex PyComplex_AsCComplex(object op)
-    # Return the Py_complex value of the complex number op. 
+    # Return the Py_complex value of the complex number op.
+    #
+    # Returns (-1+0i) in case of an error

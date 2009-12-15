@@ -1,9 +1,8 @@
-__doc__ = u"""
+def blowup(p):
+    """
     >>> blowup([2, 3, 5])
     1
-"""
-
-def blowup(p):
+    """
     cdef int n, i
     n = 10
     i = 1

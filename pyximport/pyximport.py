@@ -14,6 +14,22 @@ For instance on the Mac with a non-system Python 2.3, you could create
 sitecustomize.py with only those two lines at
 /usr/local/lib/python2.3/site-packages/sitecustomize.py .
 
+A custom distutils.core.Extension instance and setup() args
+(Distribution) for for the build can be defined by a <modulename>.pyxbld
+file like:
+
+# examplemod.pyxbdl
+def make_ext(modname, pyxfilename):
+    from distutils.extension import Extension
+    return Extension(name = modname,
+                     sources=[pyxfilename, 'hello.c'],
+                     include_dirs=['/myinclude'] )
+def make_setup_args():
+    return dict(script_args=["--compiler=mingw32"])
+
+Extra dependencies can be defined by a <modulename>.pyxdep .
+See README.
+
 Since Cython 0.11, the :mod:`pyximport` module also has experimental
 compilation support for normal Python modules.  This allows you to
 automatically run Cython on every .pyx and .py module that Python
@@ -30,18 +46,11 @@ the documentation.
 
 This code is based on the Py2.3+ import protocol as described in PEP 302.
 """
+
 import sys
 import os
 import glob
 import imp
-import pyxbuild
-from distutils.dep_util import newer
-from distutils.extension import Extension
-
-try:
-    import hashlib
-except ImportError:
-    import md5 as hashlib
 
 mod_name = "pyximport"
 
@@ -64,30 +73,43 @@ def _load_pyrex(name, filename):
     "Load a pyrex file given a name and filename."
 
 def get_distutils_extension(modname, pyxfilename):
-    extra = "_" + hashlib.md5(open(pyxfilename).read()).hexdigest()  
+#    try:
+#        import hashlib
+#    except ImportError:
+#        import md5 as hashlib
+#    extra = "_" + hashlib.md5(open(pyxfilename).read()).hexdigest()  
 #    modname = modname + extra
-    extension_mod = handle_special_build(modname, pyxfilename)
+    extension_mod,setup_args = handle_special_build(modname, pyxfilename)
     if not extension_mod:
+        from distutils.extension import Extension
         extension_mod = Extension(name = modname, sources=[pyxfilename])
-    return extension_mod
+    return extension_mod,setup_args
 
 def handle_special_build(modname, pyxfilename):
     special_build = os.path.splitext(pyxfilename)[0] + PYXBLD_EXT
-
-    if not os.path.exists(special_build): 
-        ext = None
-    else:
-        globls = {}
-        locs = {}
+    ext = None
+    setup_args={}
+    if os.path.exists(special_build): 
+        # globls = {}
+        # locs = {}
         # execfile(special_build, globls, locs)
         # ext = locs["make_ext"](modname, pyxfilename)
         mod = imp.load_source("XXXX", special_build, open(special_build))
-        ext = mod.make_ext(modname, pyxfilename)
-        assert ext and ext.sources, ("make_ext in %s did not return Extension" 
-                                     % special_build)
+        make_ext = getattr(mod,'make_ext',None)
+        if make_ext:
+            ext = make_ext(modname, pyxfilename)
+            assert ext and ext.sources, ("make_ext in %s did not return Extension" 
+                                         % special_build)
+        make_setup_args = getattr(mod,'make_setup_args',None)
+        if make_setup_args:
+            setup_args = make_setup_args()
+            assert isinstance(setup_args,dict), ("make_setup_args in %s did not return a dict" 
+                                         % special_build)
+        assert set or setup_args, ("neither make_ext nor make_setup_args %s" 
+                                         % special_build)
         ext.sources = [os.path.join(os.path.dirname(special_build), source) 
                        for source in ext.sources]
-    return ext
+    return ext, setup_args
 
 def handle_dependencies(pyxfilename):
     dependfile = os.path.splitext(pyxfilename)[0] + PYXDEP_EXT
@@ -110,14 +132,15 @@ def handle_dependencies(pyxfilename):
             files.extend(glob.glob(fullpath))
 
         # only for unit testing to see we did the right thing
-        _test_files[:] = []
+        _test_files[:] = []  #$pycheck_no
 
         # if any file that the pyxfile depends upon is newer than
         # the pyx file, 'touch' the pyx file so that distutils will
         # be tricked into rebuilding it.
         for file in files:
+            from distutils.dep_util import newer
             if newer(file, pyxfilename):
-                print "Rebuilding because of ", file
+                print("Rebuilding because of ", file)
                 filetime = os.path.getmtime(file)
                 os.utime(pyxfilename, (filetime, filetime))
                 _test_files.append(file)
@@ -127,21 +150,28 @@ def build_module(name, pyxfilename, pyxbuild_dir=None):
         "Path does not exist: %s" % pyxfilename)
     handle_dependencies(pyxfilename)
 
-    extension_mod = get_distutils_extension(name, pyxfilename)
+    extension_mod,setup_args = get_distutils_extension(name, pyxfilename)
+    build_in_temp=pyxargs.build_in_temp
+    sargs=pyxargs.setup_args.copy()
+    sargs.update(setup_args)
+    build_in_temp=sargs.pop('build_in_temp',build_in_temp)
 
+    import pyxbuild
     so_path = pyxbuild.pyx_to_dll(pyxfilename, extension_mod,
-                                  build_in_temp=True,
-                                  pyxbuild_dir=pyxbuild_dir)
+                                  build_in_temp=build_in_temp,
+                                  pyxbuild_dir=pyxbuild_dir,
+                                  setup_args=sargs,
+                                  reload_support=pyxargs.reload_support)
     assert os.path.exists(so_path), "Cannot find: %s" % so_path
-
-    junkpath = os.path.join(os.path.dirname(so_path), name+"_*")
+    
+    junkpath = os.path.join(os.path.dirname(so_path), name+"_*") #very dangerous with --inplace ?
     junkstuff = glob.glob(junkpath)
     for path in junkstuff:
         if path!=so_path:
             try:
                 os.remove(path)
             except IOError:
-                print "Couldn't remove ", path
+                print("Couldn't remove ", path)
 
     return so_path
 
@@ -151,7 +181,9 @@ def load_module(name, pyxfilename, pyxbuild_dir=None):
         mod = imp.load_dynamic(name, so_path)
         assert mod.__file__ == so_path, (mod.__file__, so_path)
     except Exception, e:
-        raise ImportError("Building module failed: %s" % e)
+        import traceback
+        raise ImportError("Building module failed: %s" %
+                          traceback.format_exception_only(*sys.exc_info()[:2])),None,sys.exc_info()[2]
     return mod
 
 
@@ -165,16 +197,33 @@ class PyxImporter(object):
         self.pyxbuild_dir = pyxbuild_dir
 
     def find_module(self, fullname, package_path=None):
-        if fullname in sys.modules:
-            return None
-        if DEBUG_IMPORT:
-            print "SEARCHING", fullname, package_path
-        if '.' in fullname:
+        if fullname in sys.modules  and  not pyxargs.reload_support:
+            return None  # only here when reload() 
+        try:
+            fp, pathname, (ext,mode,ty) = imp.find_module(fullname,package_path)
+            if fp: fp.close()  # Python should offer a Default-Loader to avoid this double find/open!
+            if ty!=imp.C_EXTENSION: # only when an extension, check if we have a .pyx next!
+                return None
+
+            # find .pyx fast, when .so/.pyd exist --inplace
+            pyxpath = os.path.splitext(pathname)[0]+self.extension
+            if os.path.isfile(pyxpath):
+                return PyxLoader(fullname, pyxpath,
+                                 pyxbuild_dir=self.pyxbuild_dir)
+            
+            # .so/.pyd's on PATH should not be remote from .pyx's
+            # think no need to implement PyxArgs.importer_search_remote here?
+                
+        except ImportError:
+            pass
+
+        # searching sys.path ...
+                
+        #if DEBUG_IMPORT:  print "SEARCHING", fullname, package_path
+        if '.' in fullname: # only when package_path anyway?
             mod_parts = fullname.split('.')
-            package = '.'.join(mod_parts[:-1])
             module_name = mod_parts[-1]
         else:
-            package = None
             module_name = fullname
         pyx_module_name = module_name + self.extension
         # this may work, but it returns the file content, not its path
@@ -187,24 +236,15 @@ class PyxImporter(object):
             paths = sys.path
         join_path = os.path.join
         is_file = os.path.isfile
-        is_dir = os.path.isdir
+        #is_dir = os.path.isdir
+        sep = os.path.sep
         for path in paths:
-            if not is_dir(path):
-                if not path:
-                    path = os.getcwd()
-                else:
-                    continue
-            for filename in os.listdir(path):
-                if filename == pyx_module_name:
-                    return PyxLoader(fullname, join_path(path, filename),
-                                     pyxbuild_dir=self.pyxbuild_dir)
-                elif filename == module_name:
-                    package_path = join_path(path, filename)
-                    init_path = join_path(package_path,
-                                          '__init__' + self.extension)
-                    if is_file(init_path):
-                        return PyxLoader(fullname, package_path, init_path,
-                                         pyxbuild_dir=self.pyxbuild_dir)
+            if not path:
+                path = os.getcwd()
+            if is_file(path+sep+pyx_module_name):
+                return PyxLoader(fullname, join_path(path, pyx_module_name),
+                                 pyxbuild_dir=self.pyxbuild_dir)
+                
         # not found, normal package, not a .pyx file, none of our business
         return None
 
@@ -226,7 +266,7 @@ class PyImporter(PyxImporter):
             # prevent infinite recursion
             return None
         if DEBUG_IMPORT:
-            print "trying import of module %s" % fullname
+            print("trying import of module", fullname)
         if fullname in self.uncompilable_modules:
             path, last_modified = self.uncompilable_modules[fullname]
             try:
@@ -243,7 +283,7 @@ class PyImporter(PyxImporter):
             importer = self.super.find_module(fullname, package_path)
             if importer is not None:
                 if DEBUG_IMPORT:
-                    print "importer found"
+                    print("importer found")
                 try:
                     if importer.init_path:
                         path = importer.init_path
@@ -289,7 +329,16 @@ class PyxLoader(object):
         return module
 
 
-def install(pyximport=True, pyimport=False, build_dir=None):
+#install args
+class PyxArgs(object):
+    build_dir=True
+    build_in_temp=True
+    setup_args={}   #None
+
+##pyxargs=None   
+    
+def install(pyximport=True, pyimport=False, build_dir=None, build_in_temp=True,
+            setup_args={}, reload_support=False ):
     """Main entry point. Call this to install the .pyx import hook in
     your meta-path for a single Python process.  If you want it to be
     installed whenever you use Python, add it to your sitecustomize
@@ -303,9 +352,31 @@ def install(pyximport=True, pyimport=False, build_dir=None):
     By default, compiled modules will end up in a ``.pyxbld``
     directory in the user's home directory.  Passing a different path
     as ``build_dir`` will override this.
+
+    ``build_in_temp=False`` will produce the C files locally. Working
+    with complex dependencies and debugging becomes more easy. This
+    can principally interfere with existing files of the same name.
+    build_in_temp can be overriden by <modulename>.pyxbld/make_setup_args()
+    by a dict item of 'build_in_temp'
+
+    ``setup_args``: dict of arguments for Distribution - see
+    distutils.core.setup() . They are extended/overriden by those of
+    <modulename>.pyxbld/make_setup_args()
+
+    ``reload_support``:  Enables support for dynamic
+    reload(<pyxmodulename>), e.g. after a change in the Cython code.
+    Additional files <so_path>.reloadNN may arise on that account, when
+    the previously loaded module file cannot be overwritten.
     """
     if not build_dir:
         build_dir = os.path.expanduser('~/.pyxbld')
+        
+    global pyxargs
+    pyxargs = PyxArgs()  #$pycheck_no
+    pyxargs.build_dir = build_dir
+    pyxargs.build_in_temp = build_in_temp
+    pyxargs.setup_args = (setup_args or {}).copy()
+    pyxargs.reload_support = reload_support
 
     has_py_importer = False
     has_pyx_importer = False

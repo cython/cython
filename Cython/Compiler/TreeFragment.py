@@ -3,7 +3,7 @@
 #
 
 import re
-from cStringIO import StringIO
+from StringIO import StringIO
 from Scanning import PyrexScanner, StringSourceDescriptor
 from Symtab import BuiltinScope, ModuleScope
 import Symtab
@@ -54,7 +54,7 @@ def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None):
     context = StringParseContext([], name)
     scope = context.find_module(module_name, pos = initial_pos, need_pxd = 0)
 
-    buf = StringIO(code.encode(encoding))
+    buf = StringIO(code)
 
     scanner = PyrexScanner(buf, code_source, source_encoding = encoding,
                      scope = scope, context = context, initial_pos = initial_pos)

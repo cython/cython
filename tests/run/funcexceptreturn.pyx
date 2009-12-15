@@ -5,7 +5,7 @@ __doc__ = u"""
 >>> print(sys.exc_info()[0]) # 0
 None
 >>> exc = test_c()
->>> type(exc) is TestException
+>>> isinstance(exc, TestException) or exc
 True
 >>> print(sys.exc_info()[0]) # test_c()
 None

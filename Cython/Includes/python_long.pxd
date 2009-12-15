@@ -1,13 +1,19 @@
+from python_unicode cimport Py_UNICODE
+
 cdef extern from "Python.h":
-    ctypedef void PyObject
-    ctypedef long PY_LONG_LONG
+    ctypedef long long PY_LONG_LONG
+    ctypedef unsigned long long uPY_LONG_LONG
 
     ############################################################################
     # 7.2.3 Long Integer Objects
     ############################################################################
+
     # PyLongObject
-    # This subtype of PyObject represents a Python long integer object. 
+    #
+    # This subtype of PyObject represents a Python long integer object.
+
     # PyTypeObject PyLong_Type
+    #
     # This instance of PyTypeObject represents the Python long integer
     # type. This is the same object as long and types.LongType.
 
@@ -29,8 +35,7 @@ cdef extern from "Python.h":
     # Return value: New reference.
     # Return a new PyLongObject object from a C long long, or NULL on failure. 
 
-    object PyLong_FromUnsignedLongLong(PY_LONG_LONG v)
-    #PyObject* PyLong_FromUnsignedLongLong(unsigned PY_LONG_LONG v)
+    object PyLong_FromUnsignedLongLong(uPY_LONG_LONG v)
     # Return value: New reference.
     # Return a new PyLongObject object from a C unsigned long long, or NULL on failure. 
 
@@ -51,8 +56,7 @@ cdef extern from "Python.h":
     # inclusive. Leading spaces are ignored. If there are no digits,
     # ValueError will be raised.
 
-    
-    # object PyLong_FromUnicode(Py_UNICODE *u, Py_ssize_t length, int base)
+    object PyLong_FromUnicode(Py_UNICODE *u, Py_ssize_t length, int base)
     # Return value: New reference.
     # Convert a sequence of Unicode digits to a Python long integer
     # value. The first parameter, u, points to the first character of
@@ -68,43 +72,42 @@ cdef extern from "Python.h":
     # PyLong_AsVoidPtr().  If the integer is larger than LONG_MAX, a
     # positive long integer is returned.
 
-    long PyLong_AsLong(object pylong)
+    long PyLong_AsLong(object pylong) except? -1
     # Return a C long representation of the contents of pylong. If
     # pylong is greater than LONG_MAX, an OverflowError is raised.
 
-    unsigned long PyLong_AsUnsignedLong(object pylong)
+    unsigned long PyLong_AsUnsignedLong(object pylong) except? -1
     # Return a C unsigned long representation of the contents of
     # pylong. If pylong is greater than ULONG_MAX, an OverflowError is
     # raised.
 
-    PY_LONG_LONG PyLong_AsLongLong(object pylong)
+    PY_LONG_LONG PyLong_AsLongLong(object pylong) except? -1
     # Return a C long long from a Python long integer. If pylong
     # cannot be represented as a long long, an OverflowError will be
     # raised.
 
-    PY_LONG_LONG PyLong_AsUnsignedLongLong(object pylong)
+    uPY_LONG_LONG PyLong_AsUnsignedLongLong(object pylong) except? -1
     #unsigned PY_LONG_LONG PyLong_AsUnsignedLongLong(object pylong)
     # Return a C unsigned long long from a Python long integer. If
     # pylong cannot be represented as an unsigned long long, an
     # OverflowError will be raised if the value is positive, or a
     # TypeError will be raised if the value is negative. 
 
-    unsigned long PyLong_AsUnsignedLongMask(object io)
+    unsigned long PyLong_AsUnsignedLongMask(object io) except? -1
     # Return a C unsigned long from a Python long integer, without
     # checking for overflow. 
 
-    PY_LONG_LONG PyLong_AsUnsignedLongLongMask(object io)
+    uPY_LONG_LONG PyLong_AsUnsignedLongLongMask(object io) except? -1
     #unsigned PY_LONG_LONG PyLong_AsUnsignedLongLongMask(object io)
     # Return a C unsigned long long from a Python long integer,
     # without checking for overflow.
 
-
-    double PyLong_AsDouble(object pylong)
+    double PyLong_AsDouble(object pylong) except? -1.0
     # Return a C double representation of the contents of pylong. If
     # pylong cannot be approximately represented as a double, an
     # OverflowError exception is raised and -1.0 will be returned.
 
-    void* PyLong_AsVoidPtr(object pylong)
+    void* PyLong_AsVoidPtr(object pylong) except? NULL
     # Convert a Python integer or long integer pylong to a C void
     # pointer. If pylong cannot be converted, an OverflowError will be
     # raised. This is only assured to produce a usable void pointer

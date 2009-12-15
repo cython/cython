@@ -1,11 +1,3 @@
-__doc__ = u"""
->>> test()
-5
-0
-20
-5
-"""
-
 cdef class Spam:
 
     cdef int tons
@@ -25,6 +17,13 @@ cdef class SuperSpam(Spam):
         self.tons = self.tons + 2 * x
 
 def test():
+    """
+    >>> test()
+    5
+    0
+    20
+    5
+    """
     cdef Spam s
     cdef SuperSpam ss
     s = Spam()

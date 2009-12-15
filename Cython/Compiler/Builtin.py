@@ -3,7 +3,7 @@
 #
 
 from Symtab import BuiltinScope, StructOrUnionScope
-from Cython.Utils import UtilityCode
+from Code import UtilityCode
 from TypeSlots import Signature
 import PyrexTypes
 import Naming
@@ -21,14 +21,14 @@ builtin_function_table = [
     #('eval',      "",     "",      ""),
     #('execfile',  "",     "",      ""),
     #('filter',    "",     "",      ""),
-    ('getattr',    "OO",   "O",     "PyObject_GetAttr"),
+    #('getattr',    "OO",   "O",     "PyObject_GetAttr"),   # optimised later on
     ('getattr3',   "OOO",  "O",     "__Pyx_GetAttr3",       "getattr"),
     ('hasattr',    "OO",   "b",     "PyObject_HasAttr"),
     ('hash',       "O",    "l",     "PyObject_Hash"),
     #('hex',       "",     "",      ""),
     #('id',        "",     "",      ""),
     #('input',     "",     "",      ""),
-    ('intern',     "s",    "O",     "__Pyx_InternFromString"),
+    ('intern',     "O",    "O",     "__Pyx_Intern"),
     ('isinstance', "OO",   "b",     "PyObject_IsInstance"),
     ('issubclass', "OO",   "b",     "PyObject_IsSubclass"),
     ('iter',       "O",    "O",     "PyObject_GetIter"),
@@ -50,7 +50,7 @@ builtin_function_table = [
     #('round',     "",     "",      ""),
     ('setattr',    "OOO",  "r",     "PyObject_SetAttr"),
     #('sum',       "",     "",      ""),
-    ('type',       "O",    "O",     "PyObject_Type"),
+    #('type',       "O",    "O",     "PyObject_Type"),
     #('unichr',    "",     "",      ""),
     #('unicode',   "",     "",      ""),
     #('vars',      "",     "",      ""),
@@ -103,10 +103,7 @@ builtin_types_table = [
 
     ("tuple",   "PyTuple_Type",    []),
 
-    ("list",    "PyList_Type",     [("append", "OO",   "i", "PyList_Append"),
-                                    ("insert", "OZO",  "i", "PyList_Insert"),
-#                                    ("sort",   "O",    "i", "PyList_Sort"), # has optional arguments
-                                    ("reverse","O",    "i", "PyList_Reverse")]),
+    ("list",    "PyList_Type",     [("insert", "OZO",  "i", "PyList_Insert")]),
 
     ("dict",    "PyDict_Type",     [("items", "O",   "O", "PyDict_Items"),
                                     ("keys",  "O",   "O", "PyDict_Keys"),
@@ -123,6 +120,13 @@ builtin_types_table = [
     ("frozenset", "PyFrozenSet_Type", []),
 ]
 
+types_that_construct_their_instance = (
+    # some builtin types do not always return an instance of
+    # themselves - these do:
+    'type', 'bool', 'long', 'float', 'bytes', 'unicode', 'tuple', 'list',
+    'dict', 'file', 'set', 'frozenset'
+    # 'str',             # only in Py3.x
+    )
 
         
 builtin_structs_table = [
@@ -163,6 +167,14 @@ bad:
 
 pyexec_utility_code = UtilityCode(
 proto = """
+#if PY_VERSION_HEX < 0x02040000
+#ifndef Py_COMPILE_H
+#include "compile.h"
+#endif
+#ifndef Py_EVAL_H
+#include "eval.h"
+#endif
+#endif
 static PyObject* __Pyx_PyRun(PyObject*, PyObject*, PyObject*);
 """,
 impl = """
@@ -171,40 +183,61 @@ static PyObject* __Pyx_PyRun(PyObject* o, PyObject* globals, PyObject* locals) {
     PyObject* s = 0;
     char *code = 0;
 
-    if (!locals && !globals) {
+    if (!globals || globals == Py_None) {
         globals = PyModule_GetDict(%s);""" % Naming.module_cname + """
         if (!globals)
             goto bad;
-        locals = globals;
-    } else if (!locals) {
-        locals = globals;
-    } else if (!globals) {
-        globals = locals;
-    }
-
-    if (PyUnicode_Check(o)) {
-        s = PyUnicode_AsUTF8String(o);
-        if (!s) goto bad;
-        o = s;
-    #if PY_MAJOR_VERSION >= 3
-    } else if (!PyBytes_Check(o)) {
-    #else
-    } else if (!PyString_Check(o)) {
-    #endif
-        /* FIXME: support file objects and code objects */
-        PyErr_SetString(PyExc_TypeError,
-            "exec currently requires a string as code input.");
+    } else if (!PyDict_Check(globals)) {
+        PyErr_Format(PyExc_TypeError, "exec() arg 2 must be a dict, not %.100s",
+                     globals->ob_type->tp_name);
         goto bad;
     }
+    if (!locals || locals == Py_None) {
+        locals = globals;
+    }
 
-    #if PY_MAJOR_VERSION >= 3
-    code = PyBytes_AS_STRING(o);
-    #else
-    code = PyString_AS_STRING(o);
-    #endif
-    result = PyRun_String(code, Py_file_input, globals, locals);
 
-    Py_XDECREF(s);
+    if (PyDict_GetItemString(globals, "__builtins__") == NULL) {
+	PyDict_SetItemString(globals, "__builtins__", PyEval_GetBuiltins());
+    }
+
+    if (PyCode_Check(o)) {
+        if (PyCode_GetNumFree((PyCodeObject *)o) > 0) {
+            PyErr_SetString(PyExc_TypeError,
+                "code object passed to exec() may not contain free variables");
+            goto bad;
+        }
+	result = PyEval_EvalCode((PyCodeObject *)o, globals, locals);
+    } else {
+        PyCompilerFlags cf;
+        cf.cf_flags = 0;
+	if (PyUnicode_Check(o)) {
+            cf.cf_flags = PyCF_SOURCE_IS_UTF8;
+    	    s = PyUnicode_AsUTF8String(o);
+    	    if (!s) goto bad;
+    	    o = s;
+	#if PY_MAJOR_VERSION >= 3
+	} else if (!PyBytes_Check(o)) {
+	#else
+	} else if (!PyString_Check(o)) {
+	#endif
+    	    PyErr_SetString(PyExc_TypeError,
+        	"exec: arg 1 must be string, bytes or code object");
+    	    goto bad;
+	}
+	#if PY_MAJOR_VERSION >= 3
+	code = PyBytes_AS_STRING(o);
+	#else
+	code = PyString_AS_STRING(o);
+	#endif
+	if (PyEval_MergeCompilerFlags(&cf)) {
+	    result = PyRun_StringFlags(code, Py_file_input, globals, locals, &cf);
+        } else {
+	    result = PyRun_String(code, Py_file_input, globals, locals);
+        }
+        Py_XDECREF(s);
+    }
+
     return result;
 bad:
     Py_XDECREF(s);
@@ -214,12 +247,23 @@ bad:
 
 intern_utility_code = UtilityCode(
 proto = """
-#if PY_MAJOR_VERSION >= 3
-#  define __Pyx_InternFromString(s) PyUnicode_InternFromString(s)
-#else
-#  define __Pyx_InternFromString(s) PyString_InternFromString(s)
-#endif
-""")
+static PyObject* __Pyx_Intern(PyObject* s); /* proto */
+""",
+impl = '''
+static PyObject* __Pyx_Intern(PyObject* s) {
+    if (!(likely(PyString_CheckExact(s)))) {
+        PyErr_Format(PyExc_TypeError, "Expected str, got %s", Py_TYPE(s)->tp_name);
+        return 0;
+    }
+    Py_INCREF(s);
+    #if PY_MAJOR_VERSION >= 3
+    PyUnicode_InternInPlace(&s);
+    #else
+    PyString_InternInPlace(&s);
+    #endif
+    return s;
+}
+''')
 
 def put_py23_set_init_utility_code(code, pos):
     code.putln("#if PY_VERSION_HEX < 0x02040000")
@@ -369,13 +413,16 @@ def init_builtins():
     init_builtin_funcs()
     init_builtin_types()
     init_builtin_structs()
-    global list_type, tuple_type, dict_type, set_type, bytes_type, unicode_type, type_type
+    global list_type, tuple_type, dict_type, set_type, type_type
+    global bytes_type, str_type, unicode_type, float_type
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
     dict_type  = builtin_scope.lookup('dict').type
     set_type   = builtin_scope.lookup('set').type
     bytes_type = builtin_scope.lookup('bytes').type
+    str_type   = builtin_scope.lookup('str').type
     unicode_type = builtin_scope.lookup('unicode').type
+    float_type = builtin_scope.lookup('float').type
 
 init_builtins()

@@ -1,11 +1,10 @@
-__doc__ = u"""
-   >>> test(1, 2)
-   4 1 2 2 0 7 8
-"""
-
 cdef int g = 7
 
 def test(x, int y):
+    """
+    >>> test(1, 2)
+    4 1 2 2 0 7 8
+    """
     if True:
         before = 0
     cdef int a = 4, b = x, c = y, *p = &y

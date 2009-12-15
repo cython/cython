@@ -13,11 +13,13 @@ __doc__ = u"""
     >>> (int1, long1) == f()
     True
 
-    >>> f()
-    (45, 111)
 """
 
 def f():
+    """
+    >>> f()
+    (45, 111)
+    """
     cdef int int1, int2, int3
     cdef char char1
     cdef long long1, long2

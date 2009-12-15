@@ -132,6 +132,7 @@ class CodeWriter(TreeVisitor):
     def visit_IntNode(self, node):
         self.put(node.value)
 
+    # FIXME: represent string nodes correctly
     def visit_StringNode(self, node):
         value = node.value
         if value.encoding is not None:

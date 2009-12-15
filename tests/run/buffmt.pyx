@@ -177,7 +177,7 @@ def char3int(fmt):
        ...
     ValueError: Buffer dtype mismatch, expected 'int' but got end in 'Char3Int.d'
     """
-    obj = MockBuffer(fmt, sizeof(Char3Int))
+    cdef object obj = MockBuffer(fmt, sizeof(Char3Int))
     cdef object[Char3Int, ndim=1] buf = obj
 
 @testcase
@@ -195,7 +195,7 @@ def unpacked_struct(fmt):
 
     assert (sizeof(UnpackedStruct1) == sizeof(UnpackedStruct2)
             == sizeof(UnpackedStruct3) == sizeof(UnpackedStruct4))
-    obj = MockBuffer(fmt, sizeof(UnpackedStruct1))
+    cdef object obj = MockBuffer(fmt, sizeof(UnpackedStruct1))
     cdef object[UnpackedStruct1, ndim=1] buf1 = obj
     cdef object[UnpackedStruct2, ndim=1] buf2 = obj
     cdef object[UnpackedStruct3, ndim=1] buf3 = obj
@@ -218,7 +218,7 @@ def complex_test(fmt):
     ValueError: Buffer dtype mismatch, expected 'float' but got 'complex float' in 'ComplexFloat.imag'
     
     """
-    obj = MockBuffer(fmt, sizeof(ComplexTest))
+    cdef object obj = MockBuffer(fmt, sizeof(ComplexTest))
     cdef object[ComplexTest] buf1 = obj
     
 

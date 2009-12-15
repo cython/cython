@@ -17,7 +17,6 @@ Options:
   -I, --include-dir <directory>  Search for include files in named directory
                                  (multiply include directories are allowed).
   -o, --output-file <filename>   Specify name of generated C file
-  -r, --recursive                Recursively find and compile dependencies
   -t, --timestamps               Only compile newer source files (implied with -r)
   -f, --force                    Compile all source files (overrides implied -t)
   -q, --quiet                    Don't print module names in recursive mode
@@ -27,8 +26,6 @@ Options:
   -z, --pre-import <module>      If specified, assume undeclared names in this 
                                  module. Emulates the behavior of putting 
                                  "from <module> import *" at the top of the file. 
-  --incref-local-binop           Force local an extra incref on local variables before
-                                 performing any binary operations.
   --cleanup <level>              Release interned objects on python exit, for memory debugging. 
                                  Level indicates aggressiveness, default 0 releases nothing. 
   -w, --working <directory>      Sets the working directory for Cython (the directory modules 
@@ -39,12 +36,16 @@ Options:
   --line-directives              Produce #line directives pointing to the .pyx source
   --cplus                        Output a c++ rather than c file.
   --embed                        Embed the Python interpreter in a main() method.
-  --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
+  -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
 """
+
+# The following is broken http://trac.cython.org/cython_trac/ticket/379
+#  -r, --recursive                Recursively find and compile dependencies
+
 
 #The following experimental options are supported only on MacOSX:
 #  -C, --compile    Compile generated .c file to .o file
-#  -X, --link       Link .o file to produce extension module (implies -C)
+#  --link           Link .o file to produce extension module (implies -C)
 #  -+, --cplus      Use C++ compiler for compiling and linking
 #  Additional .o files to link may be supplied when using -X."""
 
@@ -81,11 +82,7 @@ def parse_command_line(args):
                 options.use_listing_file = 1
             elif option in ("-C", "--compile"):
                 options.c_only = 0
-            elif option in ("-X", "--link"):
-                if option == "-X":
-                    print >>sys.stderr, "Deprecation warning: The -X command line switch will be changed to a"
-                    print >>sys.stderr, "shorthand for --directive in Cython 0.12. Please use --link instead."
-                    print >>sys.stderr
+            elif option in ("--link"):
                 options.c_only = 0
                 options.obj_only = 0
             elif option in ("-+", "--cplus"):
@@ -112,8 +109,6 @@ def parse_command_line(args):
                 Options.embed_pos_in_docstring = 1
             elif option in ("-z", "--pre-import"):
                 Options.pre_import = pop_arg()
-            elif option == "--incref-local-binop":
-                Options.incref_local_binop = 1
             elif option == "--cleanup":
                 Options.generate_cleanup_code = int(pop_arg())
             elif option in ("-D", "--no-docstrings"):
@@ -126,11 +121,12 @@ def parse_command_line(args):
                 options.emit_linenums = True
             elif option in ("-X", "--directive"):
                 try:
-                    options.pragma_overrides = Options.parse_option_list(pop_arg())
+                    options.compiler_directives = Options.parse_directive_list(pop_arg(), relaxed_bool=True)
                 except ValueError, e:
                     sys.stderr.write("Error in compiler directive: %s\n" % e.message)
                     sys.exit(1)
             else:
+                sys.stderr.write("Unknown compiler flag: %s\n" % option)
                 bad_usage()
         else:
             arg = pop_arg()

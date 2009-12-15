@@ -14,8 +14,7 @@ cdef extern from *:
 def f():
     cdef void* p1
     cdef PyObject* p2
-    a = u"teststring"
+    cdef object a = u"teststring"
     p1 = <void*>a
     p2 = <PyObject*>a
     return (<object>p1, <object>p2)
-    

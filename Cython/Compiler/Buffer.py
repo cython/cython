@@ -1,10 +1,10 @@
-from Cython.Compiler.Visitor import VisitorTransform, CythonTransform
-from Cython.Compiler.ModuleNode import ModuleNode
-from Cython.Compiler.Nodes import *
-from Cython.Compiler.ExprNodes import *
-from Cython.Compiler.StringEncoding import EncodedString
-from Cython.Compiler.Errors import CompileError
-from Cython.Utils import UtilityCode
+from Visitor import VisitorTransform, CythonTransform
+from ModuleNode import ModuleNode
+from Nodes import *
+from ExprNodes import *
+from StringEncoding import EncodedString
+from Errors import CompileError
+from Code import UtilityCode
 import Interpreter
 import PyrexTypes
 
@@ -146,8 +146,8 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
     for name, (value, pos) in dictargs.iteritems():
         if not name in buffer_options:
             raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
-        options[name.encode("ASCII")] = value
-    
+        options[name] = value
+
     for name, (value, pos) in zip(buffer_options, posargs):
         if not name in buffer_options:
             raise CompileError(pos, ERR_BUF_OPTION_UNKNOWN % name)
@@ -245,8 +245,9 @@ def put_acquire_arg_buffer(entry, code, pos):
     # need to care about the buffer then.
     put_unpack_buffer_aux_into_scope(buffer_aux, entry.type.mode, code)
 
-def get_release_buffer_code(entry):
-    return "__Pyx_SafeReleaseBuffer(&%s)" % entry.buffer_aux.buffer_info_var.cname
+def put_release_buffer_code(code, entry):
+    code.globalstate.use_utility_code(acquire_utility_code)
+    code.putln("__Pyx_SafeReleaseBuffer(&%s);" % entry.buffer_aux.buffer_info_var.cname)
 
 def get_getbuffer_call(code, obj_cname, buffer_aux, buffer_type):
     ndim = buffer_type.ndim
@@ -432,7 +433,7 @@ def use_empty_bufstruct_code(env, max_ndim):
         Py_ssize_t __Pyx_zeros[] = {%s};
         Py_ssize_t __Pyx_minusones[] = {%s};
     """) % (", ".join(["0"] * max_ndim), ", ".join(["-1"] * max_ndim))
-    env.use_utility_code(UtilityCode(proto=code), "empty_bufstruct_code")
+    env.use_utility_code(UtilityCode(proto=code))
 
 
 def buf_lookup_full_code(proto, defin, name, nd):
@@ -494,7 +495,6 @@ def use_py2_buffer_functions(env):
     # Emulation of PyObject_GetBuffer and PyBuffer_Release for Python 2.
     # For >= 2.6 we do double mode -- use the new buffer interface on objects
     # which has the right tp_flags set, but emulation otherwise.
-    codename = "PyObject_GetBuffer" # just a representative unique key
 
     # Search all types for __getbuffer__ overloads
     types = []
@@ -567,7 +567,7 @@ def use_py2_buffer_functions(env):
         #define __Pyx_GetBuffer PyObject_GetBuffer
         #define __Pyx_ReleaseBuffer PyBuffer_Release
         #endif
-    """), impl = code), codename)
+    """), impl = code))
 
 
 def mangle_dtype_name(dtype):

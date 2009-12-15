@@ -11,12 +11,6 @@ cplus = 0
 pre_import = None
 docstrings = True
 
-# This is a SAGE-specific option that will 
-# cause Cython to incref local variables before
-# performing a binary operation on them, for 
-# safe detection of inplace operators. 
-incref_local_binop = 0
-
 # Decref global variables in this module on exit for garbage collection. 
 # 0: None, 1+: interned objects, 2+: cdef globals, 3+: types objects
 # Mostly for reducing noise for Valgrind, only executes at process exit
@@ -56,75 +50,98 @@ embed = False
 
 
 # Declare compiler directives
-option_defaults = {
+directive_defaults = {
     'boundscheck' : True,
     'nonecheck' : False,
     'embedsignature' : False,
     'locals' : {},
     'auto_cpdef': False,
-    'cdivision': True,  # Will be False in 0.12
+    'cdivision': False, # was True before 0.12
     'cdivision_warnings': False,
     'always_allow_keywords': False,
     'wraparound' : True,
-    'c99_complex' : False, # Don't use macro wrappers for complex arith, not sure what to name this...
+    'ccomplex' : False, # use C99/C++ for complex types and arith
     'callspec' : "",
+    'profile': False,
+    'infer_types': False,
+    'autotestdict': True,
+
+# test support
+    'test_assert_path_exists' : [],
+    'test_fail_if_path_exists' : [],
 }
 
 # Override types possibilities above, if needed
-option_types = { }
+directive_types = {
+    'infer_types' : bool, # values can be True/None/False
+    }
 
-for key, val in option_defaults.items():
-    if key not in option_types:
-        option_types[key] = type(val)
+for key, val in directive_defaults.items():
+    if key not in directive_types:
+        directive_types[key] = type(val)
 
-def parse_option_value(name, value):
+directive_scopes = { # defaults to available everywhere
+    # 'module', 'function', 'class', 'with statement'
+    'autotestdict' : ('module',),
+    'test_assert_path_exists' : ('function',),
+    'test_fail_if_path_exists' : ('function',),
+}
+
+def parse_directive_value(name, value, relaxed_bool=False):
     """
     Parses value as an option value for the given name and returns
-    the interpreted value. None is returned if the option does not exist.    
+    the interpreted value. None is returned if the option does not exist.
 
-    >>> print parse_option_value('nonexisting', 'asdf asdfd')
+    >>> print parse_directive_value('nonexisting', 'asdf asdfd')
     None
-    >>> parse_option_value('boundscheck', 'True')
+    >>> parse_directive_value('boundscheck', 'True')
     True
-    >>> parse_option_value('boundscheck', 'true')
+    >>> parse_directive_value('boundscheck', 'true')
     Traceback (most recent call last):
        ...
     ValueError: boundscheck directive must be set to True or False
     
     """
-    type = option_types.get(name)
+    type = directive_types.get(name)
     if not type: return None
     if type is bool:
-        if value == "True": return True
-        elif value == "False": return False
-        else: raise ValueError("%s directive must be set to True or False" % name)
+        value = str(value)
+        if value == 'True': return True
+        if value == 'False': return False
+        if relaxed_bool:
+            value = value.lower()
+            if value in ("true", "yes"): return True
+            elif value in ("false", "no"): return False
+        raise ValueError("%s directive must be set to True or False" % name)
     elif type is int:
         try:
             return int(value)
         except ValueError:
             raise ValueError("%s directive must be set to an integer" % name)
+    elif type is str:
+        return str(value)
     else:
         assert False
 
-def parse_option_list(s):
+def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False):
     """
     Parses a comma-seperated list of pragma options. Whitespace
     is not considered.
 
-    >>> parse_option_list('      ')
+    >>> parse_directive_list('      ')
     {}
-    >>> (parse_option_list('boundscheck=True') ==
+    >>> (parse_directive_list('boundscheck=True') ==
     ... {'boundscheck': True})
     True
-    >>> parse_option_list('  asdf')
+    >>> parse_directive_list('  asdf')
     Traceback (most recent call last):
        ...
     ValueError: Expected "=" in option "asdf"
-    >>> parse_option_list('boundscheck=hey')
+    >>> parse_directive_list('boundscheck=hey')
     Traceback (most recent call last):
        ...
-    ValueError: Must pass a boolean value for option "boundscheck"
-    >>> parse_option_list('unknown=True')
+    ValueError: boundscheck directive must be set to True or False
+    >>> parse_directive_list('unknown=True')
     Traceback (most recent call last):
        ...
     ValueError: Unknown option: "unknown"
@@ -134,19 +151,11 @@ def parse_option_list(s):
         item = item.strip()
         if not item: continue
         if not '=' in item: raise ValueError('Expected "=" in option "%s"' % item)
-        name, value = item.strip().split('=')
-        try:
-            type = option_types[name]
-        except KeyError:
-            raise ValueError('Unknown option: "%s"' % name)
-        if type is bool:
-            value = value.lower()
-            if value in ('true', 'yes'):
-                value = True
-            elif value in ('false', 'no'):
-                value = False
-            else: raise ValueError('Must pass a boolean value for option "%s"' % name)
-            result[name] = value
+        name, value = [ s.strip() for s in item.strip().split('=', 1) ]
+        parsed_value = parse_directive_value(name, value, relaxed_bool=relaxed_bool)
+        if parsed_value is None:
+            if not ignore_unknown:
+                raise ValueError('Unknown option: "%s"' % name)
         else:
-            assert False
+            result[name] = parsed_value
     return result

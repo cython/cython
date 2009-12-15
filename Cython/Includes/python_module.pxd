@@ -1,5 +1,6 @@
+from python_ref cimport PyObject
+
 cdef extern from "Python.h":
-    ctypedef void PyObject
     ctypedef struct _inittab
 
     #####################################################################
@@ -50,7 +51,7 @@ cdef extern from "Python.h":
     # the reloaded module, or NULL with an exception set on failure
     # (the module still exists in this case).
 
-    PyObject* PyImport_AddModule(char *name)
+    PyObject* PyImport_AddModule(char *name) except NULL
     # Return value: Borrowed reference.
     # Return the module object corresponding to a module name. The
     # name argument may be of the form package.module. First check the
@@ -89,14 +90,14 @@ cdef extern from "Python.h":
     # and .pyo files). The magic number should be present in the first
     # four bytes of the bytecode file, in little-endian byte order.
 
-    PyObject* PyImport_GetModuleDict()
+    PyObject* PyImport_GetModuleDict() except NULL
     # Return value: Borrowed reference.
     # Return the dictionary used for the module administration
     # (a.k.a. sys.modules). Note that this is a per-interpreter
     # variable.
 
 
-    int PyImport_ImportFrozenModule(char *name)
+    int PyImport_ImportFrozenModule(char *name) except -1
     # Load a frozen module named name. Return 1 for success, 0 if the
     # module is not found, and -1 with an exception set if the
     # initialization failed. To access the imported module on a
@@ -105,7 +106,7 @@ cdef extern from "Python.h":
     # imported.)
 
 
-    int PyImport_ExtendInittab(_inittab *newtab)
+    int PyImport_ExtendInittab(_inittab *newtab) except -1
     # Add a collection of modules to the table of built-in
     # modules. The newtab array must end with a sentinel entry which
     # contains NULL for the name field; failure to provide the
@@ -118,7 +119,9 @@ cdef extern from "Python.h":
     #####################################################################
     # 7.5.5 Module Objects
     #####################################################################
+
     # PyTypeObject PyModule_Type
+    #
     # This instance of PyTypeObject represents the Python module
     # type. This is exposed to Python programs as types.ModuleType.
 
@@ -129,14 +132,14 @@ cdef extern from "Python.h":
     bint PyModule_CheckExact(object p)
     # Return true if p is a module object, but not a subtype of PyModule_Type. 
 
-    object PyModule_New( char *name)
+    object PyModule_New(char *name)
     # Return value: New reference.
     # Return a new module object with the __name__ attribute set to
     # name. Only the module's __doc__ and __name__ attributes are
     # filled in; the caller is responsible for providing a __file__
     # attribute.
 
-    PyObject* PyModule_GetDict(object module)
+    PyObject* PyModule_GetDict(object module) except NULL
     # Return value: Borrowed reference.
     # Return the dictionary object that implements module's namespace;
     # this object is the same as the __dict__ attribute of the module
@@ -144,28 +147,28 @@ cdef extern from "Python.h":
     # use other PyModule_*() and PyObject_*() functions rather than
     # directly manipulate a module's __dict__.
 
-    char* PyModule_GetName(object module)
+    char* PyModule_GetName(object module) except NULL
     # Return module's __name__ value. If the module does not provide
     # one, or if it is not a string, SystemError is raised and NULL is
     # returned.
 
-    char* PyModule_GetFilename(object module)
+    char* PyModule_GetFilename(object module) except NULL
     # Return the name of the file from which module was loaded using
     # module's __file__ attribute. If this is not defined, or if it is
     # not a string, raise SystemError and return NULL.
 
-    int PyModule_AddObject(object module,  char *name, object value)
+    int PyModule_AddObject(object module,  char *name, object value) except -1
     # Add an object to module as name. This is a convenience function
     # which can be used from the module's initialization
     # function. This steals a reference to value. Return -1 on error,
     # 0 on success. 
 
-    int PyModule_AddIntant(object module,  char *name, long value)
+    int PyModule_AddIntant(object module,  char *name, long value) except -1
     # Add an integer ant to module as name. This convenience
     # function can be used from the module's initialization
     # function. Return -1 on error, 0 on success. 
 
-    int PyModule_AddStringant(object module,  char *name,  char *value)
+    int PyModule_AddStringant(object module,  char *name,  char *value) except -1
     # Add a string constant to module as name. This convenience
     # function can be used from the module's initialization
     # function. The string value must be null-terminated. Return -1 on

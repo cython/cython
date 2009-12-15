@@ -1,5 +1,6 @@
+from python_ref cimport PyObject
+
 cdef extern from "Python.h":
-    ctypedef void PyObject
     
     #####################################################################
     # 3. Exception Handling
@@ -52,7 +53,7 @@ cdef extern from "Python.h":
     # of a class, in the case of a class exception, or it may the a
     # subclass of the expected exception.)
 
-    int PyErr_ExceptionMatches(object exc)
+    bint PyErr_ExceptionMatches(object exc)
     # Equivalent to "PyErr_GivenExceptionMatches(PyErr_Occurred(),
     # exc)". This should only be called when an exception is actually
     # set; a memory access violation will occur if no exception has
@@ -87,7 +88,7 @@ cdef extern from "Python.h":
     # needs to handle exceptions or by code that needs to save and
     # restore the error indicator temporarily.
 
-    void PyErr_Restore(object type, object value, object traceback)
+    void PyErr_Restore(PyObject* type, PyObject* value, PyObject* traceback)
     # Set the error indicator from the three objects. If the error
     # indicator is already set, it is cleared first. If the objects
     # are NULL, the error indicator is cleared. Do not pass a NULL
@@ -114,7 +115,7 @@ cdef extern from "Python.h":
     # specify an arbitrary Python object for the ``value'' of the
     # exception.
 
-    PyObject* PyErr_Format(object exception, char *format, ...)
+    PyObject* PyErr_Format(object exception, char *format, ...) except NULL
     # Return value: Always NULL.
     # This function sets the error indicator and returns
     # NULL. exception should be a Python exception (class, not an
@@ -125,19 +126,19 @@ cdef extern from "Python.h":
     void PyErr_SetNone(object type)
     # This is a shorthand for "PyErr_SetObject(type, Py_None)". 
 
-    int PyErr_BadArgument()
+    int PyErr_BadArgument() except 0
 
     # This is a shorthand for "PyErr_SetString(PyExc_TypeError,
     # message)", where message indicates that a built-in operation was
     # invoked with an illegal argument. It is mostly for internal use.
 
-    PyObject* PyErr_NoMemory()
+    PyObject* PyErr_NoMemory() except NULL
     # Return value: Always NULL.
     # This is a shorthand for "PyErr_SetNone(PyExc_MemoryError)"; it
     # returns NULL so an object allocation function can write "return
     # PyErr_NoMemory();" when it runs out of memory.
 
-    PyObject* PyErr_SetFromErrno(object type)
+    PyObject* PyErr_SetFromErrno(object type) except NULL
     # Return value: Always NULL.
     # This is a convenience function to raise an exception when a C
     # library function has returned an error and set the C variable
@@ -152,14 +153,14 @@ cdef extern from "Python.h":
     # PyErr_SetFromErrno(type);" when the system call returns an
     # error.
 
-    PyObject* PyErr_SetFromErrnoWithFilename(object type, char *filename)
+    PyObject* PyErr_SetFromErrnoWithFilename(object type, char *filename) except NULL
     # Return value: Always NULL.  Similar to PyErr_SetFromErrno(),
     # with the additional behavior that if filename is not NULL, it is
     # passed to the constructor of type as a third parameter. In the
     # case of exceptions such as IOError and OSError, this is used to
     # define the filename attribute of the exception instance.
 
-    PyObject* PyErr_SetFromWindowsErr(int ierr)
+    PyObject* PyErr_SetFromWindowsErr(int ierr) except NULL
     # Return value: Always NULL.  This is a convenience function to
     # raise WindowsError. If called with ierr of 0, the error code
     # returned by a call to GetLastError() is used instead. It calls
@@ -171,19 +172,19 @@ cdef extern from "Python.h":
     # "PyErr_SetObject(PyExc_WindowsError, object)". This function
     # always returns NULL. Availability: Windows.
 
-    PyObject* PyErr_SetExcFromWindowsErr(object type, int ierr)
+    PyObject* PyErr_SetExcFromWindowsErr(object type, int ierr) except NULL
     # Return value: Always NULL.  Similar to
     # PyErr_SetFromWindowsErr(), with an additional parameter
     # specifying the exception type to be raised. Availability:
     # Windows. New in version 2.3.
 
-    PyObject* PyErr_SetFromWindowsErrWithFilename(int ierr, char *filename)
+    PyObject* PyErr_SetFromWindowsErrWithFilename(int ierr, char *filename) except NULL
     # Return value: Always NULL.  Similar to
     # PyErr_SetFromWindowsErr(), with the additional behavior that if
     # filename is not NULL, it is passed to the constructor of
     # WindowsError as a third parameter. Availability: Windows.
 
-    PyObject* PyErr_SetExcFromWindowsErrWithFilename(object type, int ierr, char *filename)
+    PyObject* PyErr_SetExcFromWindowsErrWithFilename(object type, int ierr, char *filename) except NULL
     # Return value: Always NULL.
     # Similar to PyErr_SetFromWindowsErrWithFilename(), with an
     # additional parameter specifying the exception type to be
@@ -195,7 +196,7 @@ cdef extern from "Python.h":
     # (e.g. a Python/C API function) was invoked with an illegal
     # argument. It is mostly for internal use.
 
-    int PyErr_WarnEx(object category, char *message, int stacklevel)
+    int PyErr_WarnEx(object category, char *message, int stacklevel) except -1
     # Issue a warning message. The category argument is a warning
     # category (see below) or NULL; the message argument is a message
     # string. stacklevel is a positive number giving a number of stack
@@ -204,14 +205,14 @@ cdef extern from "Python.h":
     # function calling PyErr_WarnEx(), 2 is the function above that,
     # and so forth.
 
-    int PyErr_WarnExplicit(object category, char *message, char *filename, int lineno, char *module, object registry)
+    int PyErr_WarnExplicit(object category, char *message, char *filename, int lineno, char *module, object registry) except -1
     # Issue a warning message with explicit control over all warning
     # attributes. This is a straightforward wrapper around the Python
     # function warnings.warn_explicit(), see there for more
     # information. The module and registry arguments may be set to
     # NULL to get the default effect described there.
 
-    int PyErr_CheckSignals()
+    int PyErr_CheckSignals() except -1
     # This function interacts with Python's signal handling. It checks
     # whether a signal has been sent to the processes and if so,
     # invokes the corresponding signal handler. If the signal module
@@ -228,7 +229,7 @@ cdef extern from "Python.h":
     # KeyboardInterrupt will be raised. It may be called without
     # holding the interpreter lock.
 
-    PyObject* PyErr_NewException(char *name, object base, object dict)
+    object PyErr_NewException(char *name, object base, object dict)
     # Return value: New reference.
     # This utility function creates and returns a new exception
     # object. The name argument must be the name of the new exception,

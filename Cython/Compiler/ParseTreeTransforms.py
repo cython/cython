@@ -1,11 +1,12 @@
-from Cython.Compiler.Visitor import VisitorTransform, CythonTransform, TreeVisitor
+from Cython.Compiler.Visitor import VisitorTransform, TreeVisitor
+from Cython.Compiler.Visitor import CythonTransform, EnvTransform
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import *
 from Cython.Compiler.ExprNodes import *
 from Cython.Compiler.UtilNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment, TemplateTransform
 from Cython.Compiler.StringEncoding import EncodedString
-from Cython.Compiler.Errors import CompileError
+from Cython.Compiler.Errors import error, CompileError
 try:
     set
 except NameError:
@@ -152,10 +153,10 @@ class PostParse(CythonTransform):
     - For __cythonbufferdefaults__ the arguments are checked for
     validity.
 
-    TemplatedTypeNode has its options interpreted:
+    TemplatedTypeNode has its directives interpreted:
     Any first positional argument goes into the "dtype" attribute,
     any "ndim" keyword argument goes into the "ndim" attribute and
-    so on. Also it is checked that the option combination is valid.
+    so on. Also it is checked that the directive combination is valid.
     - __cythonbufferdefaults__ attributes are parsed and put into the
     type information.
 
@@ -298,14 +299,14 @@ class PxdPostParse(CythonTransform, SkipDeclarations):
     
 class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     """
-    After parsing, options can be stored in a number of places:
+    After parsing, directives can be stored in a number of places:
     - #cython-comments at the top of the file (stored in ModuleNode)
     - Command-line arguments overriding these
-    - @cython.optionname decorators
-    - with cython.optionname: statements
+    - @cython.directivename decorators
+    - with cython.directivename: statements
 
     This transform is responsible for interpreting these various sources
-    and store the option in two ways:
+    and store the directive in two ways:
     - Set the directives attribute of the ModuleNode for global directives.
     - Use a CompilerDirectivesNode to override directives for a subtree.
 
@@ -322,28 +323,37 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     duplication of functionality has to occur: We manually track cimports
     and which names the "cython" module may have been imported to.
     """
-    special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof', 'cast', 'address', 'pointer', 'compiled', 'NULL'])
+    special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof', 'typeof', 'cast', 'address', 'pointer', 'compiled', 'NULL'])
 
-    def __init__(self, context, compilation_option_overrides):
+    def __init__(self, context, compilation_directive_defaults):
         super(InterpretCompilerDirectives, self).__init__(context)
-        self.compilation_option_overrides = {}
-        for key, value in compilation_option_overrides.iteritems():
-            self.compilation_option_overrides[unicode(key)] = value
+        self.compilation_directive_defaults = {}
+        for key, value in compilation_directive_defaults.iteritems():
+            self.compilation_directive_defaults[unicode(key)] = value
         self.cython_module_names = set()
-        self.option_names = {}
+        self.directive_names = {}
 
+    def check_directive_scope(self, pos, directive, scope):
+        legal_scopes = Options.directive_scopes.get(directive, None)
+        if legal_scopes and scope not in legal_scopes:
+            self.context.nonfatal_error(PostParseError(pos, 'The %s compiler directive '
+                                        'is not allowed in %s scope' % (directive, scope)))
+            return False
+        else:
+            return True
+        
     # Set up processing and handle the cython: comments.
     def visit_ModuleNode(self, node):
-        options = copy.copy(Options.option_defaults)
-        for key, value in self.compilation_option_overrides.iteritems():
-            if key in node.option_comments and node.option_comments[key] != value:
-                warning(node.pos, "Compiler directive differs between environment and file header; this will change "
-                        "in Cython 0.12. See http://article.gmane.org/gmane.comp.python.cython.devel/5233", 2)
-                break
-        options.update(node.option_comments)
-        options.update(self.compilation_option_overrides)
-        self.options = options
-        node.directives = options
+        for key, value in node.directive_comments.iteritems():
+            if not self.check_directive_scope(node.pos, key, 'module'):
+                self.wrong_scope_error(node.pos, key, 'module')
+                del node.directive_comments[key]
+
+        directives = copy.copy(Options.directive_defaults)
+        directives.update(self.compilation_directive_defaults)
+        directives.update(node.directive_comments)
+        self.directives = directives
+        node.directives = directives
         self.visitchildren(node)
         node.cython_module_names = self.cython_module_names
         return node
@@ -362,15 +372,15 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         if node.module_name == u"cython":
             newimp = []
             for pos, name, as_name, kind in node.imported_names:
-                if (name in Options.option_types or 
+                if (name in Options.directive_types or 
                         name in self.special_methods or
                         PyrexTypes.parse_basic_type(name)):
                     if as_name is None:
                         as_name = name
-                    self.option_names[as_name] = name
+                    self.directive_names[as_name] = name
                     if kind is not None:
                         self.context.nonfatal_error(PostParseError(pos,
-                            "Compiler option imports must be plain imports"))
+                            "Compiler directive imports must be plain imports"))
                 else:
                     newimp.append((pos, name, as_name, kind))
             if not newimp:
@@ -382,10 +392,10 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         if node.module.module_name.value == u"cython":
             newimp = []
             for name, name_node in node.items:
-                if (name in Options.option_types or 
+                if (name in Options.directive_types or 
                         name in self.special_methods or
                         PyrexTypes.parse_basic_type(name)):
-                    self.option_names[name_node.name] = name
+                    self.directive_names[name_node.name] = name
                 else:
                     newimp.append((name, name_node))
             if not newimp:
@@ -408,12 +418,12 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         if node.name in self.cython_module_names:
             node.is_cython_module = True
         else:
-            node.cython_attribute = self.option_names.get(node.name)
+            node.cython_attribute = self.directive_names.get(node.name)
         return node
 
-    def try_to_parse_option(self, node):
-        # If node is the contents of an option (in a with statement or
-        # decorator), returns (optionname, value).
+    def try_to_parse_directive(self, node):
+        # If node is the contents of an directive (in a with statement or
+        # decorator), returns (directivename, value).
         # Otherwise, returns None
         optname = None
         if isinstance(node, CallNode):
@@ -421,52 +431,67 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             optname = node.function.as_cython_attribute()
 
         if optname:
-            optiontype = Options.option_types.get(optname)
-            if optiontype:
+            directivetype = Options.directive_types.get(optname)
+            if directivetype:
                 args, kwds = node.explicit_args_kwds()
-                if optiontype is bool:
+                if optname == 'infer_types':
+                    if kwds is not None or len(args) != 1:
+                        raise PostParseError(node.function.pos,
+                            'The %s directive takes one compile-time boolean argument' % optname)
+                    elif isinstance(args[0], BoolNode):
+                        return (optname, args[0].value)
+                    elif isinstance(args[0], NoneNode):
+                        return (optname, None)
+                    else:
+                        raise PostParseError(node.function.pos,
+                            'The %s directive takes one compile-time boolean argument' % optname)
+                elif directivetype is bool:
                     if kwds is not None or len(args) != 1 or not isinstance(args[0], BoolNode):
-                        raise PostParseError(dec.function.pos,
-                            'The %s option takes one compile-time boolean argument' % optname)
+                        raise PostParseError(node.function.pos,
+                            'The %s directive takes one compile-time boolean argument' % optname)
                     return (optname, args[0].value)
-                elif optiontype is str:
-                    if kwds is not None or len(args) != 1 or not isinstance(args[0], StringNode):
-                        raise PostParseError(dec.function.pos,
-                            'The %s option takes one compile-time string argument' % optname)
-                    return (optname, args[0].value)
-                elif optiontype is dict:
+                elif directivetype is str:
+                    if kwds is not None or len(args) != 1 or not isinstance(args[0], (StringNode, UnicodeNode)):
+                        raise PostParseError(node.function.pos,
+                            'The %s directive takes one compile-time string argument' % optname)
+                    return (optname, str(args[0].value))
+                elif directivetype is dict:
                     if len(args) != 0:
-                        raise PostParseError(dec.function.pos,
-                            'The %s option takes no prepositional arguments' % optname)
+                        raise PostParseError(node.function.pos,
+                            'The %s directive takes no prepositional arguments' % optname)
                     return optname, dict([(key.value, value) for key, value in kwds.key_value_pairs])
+                elif directivetype is list:
+                    if kwds and len(kwds) != 0:
+                        raise PostParseError(node.function.pos,
+                            'The %s directive takes no keyword arguments' % optname)
+                    return optname, [ str(arg.value) for arg in args ]
                 else:
                     assert False
 
         return None
 
-    def visit_with_options(self, body, options):
-        oldoptions = self.options
-        newoptions = copy.copy(oldoptions)
-        newoptions.update(options)
-        self.options = newoptions
+    def visit_with_directives(self, body, directives):
+        olddirectives = self.directives
+        newdirectives = copy.copy(olddirectives)
+        newdirectives.update(directives)
+        self.directives = newdirectives
         assert isinstance(body, StatListNode), body
         retbody = self.visit_Node(body)
         directive = CompilerDirectivesNode(pos=retbody.pos, body=retbody,
-                                           directives=newoptions)
-        self.options = oldoptions
+                                           directives=newdirectives)
+        self.directives = olddirectives
         return directive
  
     # Handle decorators
     def visit_FuncDefNode(self, node):
-        options = []
-        
+        directives = []
         if node.decorators:
-            # Split the decorators into two lists -- real decorators and options
+            # Split the decorators into two lists -- real decorators and directives
             realdecs = []
             for dec in node.decorators:
-                option = self.try_to_parse_option(dec.decorator)
-                if option is not None:
-                    options.append(option)
+                directive = self.try_to_parse_directive(dec.decorator)
+                if directive is not None:
+                    directives.append(directive)
                 else:
                     realdecs.append(dec)
             if realdecs and isinstance(node, CFuncDefNode):
@@ -474,37 +499,55 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             else:
                 node.decorators = realdecs
         
-        if options:
+        if directives:
             optdict = {}
-            options.reverse() # Decorators coming first take precedence
-            for option in options:
-                name, value = option
-                optdict[name] = value
+            directives.reverse() # Decorators coming first take precedence
+            for directive in directives:
+                name, value = directive
+                legal_scopes = Options.directive_scopes.get(name, None)
+                if not self.check_directive_scope(node.pos, name, 'function'):
+                    continue
+                if name in optdict:
+                    old_value = optdict[name]
+                    # keywords and arg lists can be merged, everything
+                    # else overrides completely
+                    if isinstance(old_value, dict):
+                        old_value.update(value)
+                    elif isinstance(old_value, list):
+                        old_value.extend(value)
+                    else:
+                        optdict[name] = value
+                else:
+                    optdict[name] = value
             body = StatListNode(node.pos, stats=[node])
-            return self.visit_with_options(body, optdict)
+            return self.visit_with_directives(body, optdict)
         else:
             return self.visit_Node(node)
     
     def visit_CVarDefNode(self, node):
         if node.decorators:
             for dec in node.decorators:
-                option = self.try_to_parse_option(dec.decorator)
-                if option is not None and option[0] == u'locals':
-                    node.directive_locals = option[1]
+                directive = self.try_to_parse_directive(dec.decorator)
+                if directive is not None and directive[0] == u'locals':
+                    node.directive_locals = directive[1]
                 else:
-                    raise PostParseError(dec.pos, "Cdef functions can only take cython.locals() decorator.")
+                    self.context.nonfatal_error(PostParseError(dec.pos,
+                        "Cdef functions can only take cython.locals() decorator."))
+                    continue
         return node
                                    
     # Handle with statements
     def visit_WithStatNode(self, node):
-        option = self.try_to_parse_option(node.manager)
-        if option is not None:
+        directive = self.try_to_parse_directive(node.manager)
+        if directive is not None:
             if node.target is not None:
-                raise PostParseError(node.pos, "Compiler option with statements cannot contain 'as'")
-            name, value = option
-            return self.visit_with_options(node.body, {name:value})
-        else:
-            return self.visit_Node(node)
+                self.context.nonfatal_error(
+                    PostParseError(node.pos, "Compiler directive with statements cannot contain 'as'"))
+            else:
+                name, value = directive
+                if self.check_directive_scope(node.pos, name, 'with statement'):
+                    return self.visit_with_directives(node.body, {name:value})
+        return self.visit_Node(node)
 
 class WithTransform(CythonTransform, SkipDeclarations):
 
@@ -591,22 +634,48 @@ class WithTransform(CythonTransform, SkipDeclarations):
 class DecoratorTransform(CythonTransform, SkipDeclarations):
 
     def visit_DefNode(self, func_node):
+        self.visitchildren(func_node)
         if not func_node.decorators:
             return func_node
+        return self._handle_decorators(
+            func_node, func_node.name)
 
-        decorator_result = NameNode(func_node.pos, name = func_node.name)
-        for decorator in func_node.decorators[::-1]:
+    def _visit_CClassDefNode(self, class_node):
+        # This doesn't currently work, so it's disabled (also in the
+        # parser).
+        #
+        # Problem: assignments to cdef class names do not work.  They
+        # would require an additional check anyway, as the extension
+        # type must not change its C type, so decorators cannot
+        # replace an extension type, just alter it and return it.
+
+        self.visitchildren(class_node)
+        if not class_node.decorators:
+            return class_node
+        return self._handle_decorators(
+            class_node, class_node.class_name)
+
+    def visit_ClassDefNode(self, class_node):
+        self.visitchildren(class_node)
+        if not class_node.decorators:
+            return class_node
+        return self._handle_decorators(
+            class_node, class_node.name)
+
+    def _handle_decorators(self, node, name):
+        decorator_result = NameNode(node.pos, name = name)
+        for decorator in node.decorators[::-1]:
             decorator_result = SimpleCallNode(
                 decorator.pos,
                 function = decorator.decorator,
                 args = [decorator_result])
 
-        func_name_node = NameNode(func_node.pos, name = func_node.name)
+        name_node = NameNode(node.pos, name = name)
         reassignment = SingleAssignmentNode(
-            func_node.pos,
-            lhs = func_name_node,
+            node.pos,
+            lhs = name_node,
             rhs = decorator_result)
-        return [func_node, reassignment]
+        return [node, reassignment]
 
 
 class AnalyseDeclarationsTransform(CythonTransform):
@@ -635,10 +704,16 @@ property NAME:
         self.visitchildren(node)
         self.seen_vars_stack.pop()
         return node
+    
+    def visit_ClassDefNode(self, node):
+        self.env_stack.append(node.scope)
+        self.visitchildren(node)
+        self.env_stack.pop()
+        return node
         
     def visit_FuncDefNode(self, node):
         self.seen_vars_stack.append(set())
-        lenv = node.create_local_scope(self.env_stack[-1])
+        lenv = node.local_scope
         node.body.analyse_control_flow(lenv) # this will be totally refactored
         node.declare_arguments(lenv)
         for var, type_node in node.directive_locals.items():
@@ -654,7 +729,12 @@ property NAME:
         self.env_stack.pop()
         self.seen_vars_stack.pop()
         return node
-    
+
+    def visit_ComprehensionNode(self, node):
+        self.visitchildren(node)
+        node.analyse_declarations(self.env_stack[-1])
+        return node
+
     # Some nodes are no longer needed after declaration
     # analysis and can be dropped. The analysis was performed
     # on these nodes in a seperate recursive process from the
@@ -671,7 +751,10 @@ property NAME:
         return None
     
     def visit_CEnumDefNode(self, node):
-        return None
+        if node.visibility == 'public':
+            return node
+        else:
+            return None
 
     def visit_CStructOrUnionDefNode(self, node):
         return None
@@ -716,11 +799,13 @@ property NAME:
 class AnalyseExpressionsTransform(CythonTransform):
 
     def visit_ModuleNode(self, node):
+        node.scope.infer_types()
         node.body.analyse_expressions(node.scope)
         self.visitchildren(node)
         return node
         
     def visit_FuncDefNode(self, node):
+        node.local_scope.infer_types()
         node.body.analyse_expressions(node.local_scope)
         self.visitchildren(node)
         return node
@@ -824,20 +909,43 @@ class CreateClosureClasses(CythonTransform):
     def visit_FuncDefNode(self, node):
         self.create_class_from_scope(node, self.module_scope)
         return node
-        
 
-class EnvTransform(CythonTransform):
+
+class GilCheck(VisitorTransform):
     """
-    This transformation keeps a stack of the environments. 
+    Call `node.gil_check(env)` on each node to make sure we hold the
+    GIL when we need it.  Raise an error when on Python operations
+    inside a `nogil` environment.
     """
     def __call__(self, root):
         self.env_stack = [root.scope]
-        return super(EnvTransform, self).__call__(root)        
-    
+        self.nogil = False
+        return super(GilCheck, self).__call__(root)
+
     def visit_FuncDefNode(self, node):
         self.env_stack.append(node.local_scope)
+        was_nogil = self.nogil
+        self.nogil = node.local_scope.nogil
+        if self.nogil and node.nogil_check:
+            node.nogil_check(node.local_scope)
         self.visitchildren(node)
         self.env_stack.pop()
+        self.nogil = was_nogil
+        return node
+
+    def visit_GILStatNode(self, node):
+        env = self.env_stack[-1]
+        if self.nogil and node.nogil_check: node.nogil_check()
+        was_nogil = self.nogil
+        self.nogil = (node.state == 'nogil')
+        self.visitchildren(node)
+        self.nogil = was_nogil
+        return node
+
+    def visit_Node(self, node):
+        if self.env_stack and self.nogil and node.nogil_check:
+            node.nogil_check(self.env_stack[-1])
+        self.visitchildren(node)
         return node
 
 
@@ -851,6 +959,7 @@ class TransformBuiltinMethods(EnvTransform):
             return node
     
     def visit_AttributeNode(self, node):
+        self.visitchildren(node)
         return self.visit_cython_attribute(node)
 
     def visit_NameNode(self, node):
@@ -872,10 +981,17 @@ class TransformBuiltinMethods(EnvTransform):
         # locals builtin
         if isinstance(node.function, ExprNodes.NameNode):
             if node.function.name == 'locals':
-                pos = node.pos
                 lenv = self.env_stack[-1]
+                entry = lenv.lookup_here('locals')
+                if entry:
+                    # not the builtin 'locals'
+                    return node
+                if len(node.args) > 0:
+                    error(self.pos, "Builtin 'locals()' called with wrong number of args, expected 0, got %d" % len(node.args))
+                    return node
+                pos = node.pos
                 items = [ExprNodes.DictItemNode(pos, 
-                                                key=ExprNodes.IdentifierStringNode(pos, value=var),
+                                                key=ExprNodes.StringNode(pos, value=var),
                                                 value=ExprNodes.NameNode(pos, name=var)) for var in lenv.entries]
                 return ExprNodes.DictNode(pos, key_value_pairs=items)
 
@@ -884,7 +1000,7 @@ class TransformBuiltinMethods(EnvTransform):
         if function:
             if function == u'cast':
                 if len(node.args) != 2:
-                    error(node.function.pos, u"cast takes exactly two arguments")
+                    error(node.function.pos, u"cast() takes exactly two arguments")
                 else:
                     type = node.args[0].analyse_as_type(self.env_stack[-1])
                     if type:
@@ -893,27 +1009,32 @@ class TransformBuiltinMethods(EnvTransform):
                         error(node.args[0].pos, "Not a type")
             elif function == u'sizeof':
                 if len(node.args) != 1:
-                    error(node.function.pos, u"sizeof takes exactly one argument" % function)
+                    error(node.function.pos, u"sizeof() takes exactly one argument" % function)
                 else:
                     type = node.args[0].analyse_as_type(self.env_stack[-1])
                     if type:
                         node = SizeofTypeNode(node.function.pos, arg_type=type)
                     else:
                         node = SizeofVarNode(node.function.pos, operand=node.args[0])
+            elif function == 'typeof':
+                if len(node.args) != 1:
+                    error(node.function.pos, u"typeof() takes exactly one argument" % function)
+                else:
+                    node = TypeofNode(node.function.pos, operand=node.args[0])
             elif function == 'address':
                 if len(node.args) != 1:
-                    error(node.function.pos, u"sizeof takes exactly one argument" % function)
+                    error(node.function.pos, u"address() takes exactly one argument" % function)
                 else:
                     node = AmpersandNode(node.function.pos, operand=node.args[0])
             elif function == 'cmod':
                 if len(node.args) != 2:
-                    error(node.function.pos, u"cmod takes exactly one argument" % function)
+                    error(node.function.pos, u"cmod() takes exactly one argument" % function)
                 else:
                     node = binop_node(node.function.pos, '%', node.args[0], node.args[1])
                     node.cdivision = True
             elif function == 'cdiv':
                 if len(node.args) != 2:
-                    error(node.function.pos, u"cmod takes exactly one argument" % function)
+                    error(node.function.pos, u"cdiv() takes exactly one argument" % function)
                 else:
                     node = binop_node(node.function.pos, '/', node.args[0], node.args[1])
                     node.cdivision = True

@@ -23,19 +23,22 @@ def cmod(a, b):
 # Emulated language constructs
 
 def cast(type, arg):
-    if callable(type):
+    if hasattr(type, '__call__'):
         return type(arg)
     else:
         return arg
 
 def sizeof(arg):
     return 1
+
+def typeof(arg):
+    return type(arg)
     
 def address(arg):
     return pointer(type(arg))([arg])
     
 def declare(type=None, value=None, **kwds):
-    if type and callable(type):
+    if type is not None and hasattr(type, '__call__'):
         if value:
             return type(value)
         else:
@@ -150,16 +153,19 @@ class typedef(CythonType):
         
 
 
-py_int = int
-py_long = long
 py_float = float
+py_int = int
+try:
+    py_long = long
+except NameError: # Py3
+    py_long = int
 
 
 # Predefined types
 
 int_types = ['char', 'short', 'int', 'long', 'longlong', 'Py_ssize_t'] 
 float_types = ['double', 'float']
-other_types = ['bint', 'Py_ssize_t', 'void']
+other_types = ['bint', 'void']
 gs = globals()
 
 for name in int_types:

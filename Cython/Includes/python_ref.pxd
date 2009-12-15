@@ -1,10 +1,8 @@
 cdef extern from "Python.h":
-    ctypedef void PyTypeObject
+    ctypedef struct PyTypeObject
     ctypedef struct PyObject:
         Py_ssize_t ob_refcnt
         PyTypeObject *ob_type
-    ctypedef struct FILE:
-        pass
 
 
     #####################################################################
@@ -16,7 +14,7 @@ cdef extern from "Python.h":
     # be NULL; if you aren't sure that it isn't NULL, use
     # Py_XINCREF().
 
-    void Py_XINCREF(object o)
+    void Py_XINCREF(PyObject* o)
     # Increment the reference count for object o. The object may be NULL, in which case the macro has no effect. 
 
     void Py_DECREF(object o)
@@ -37,13 +35,13 @@ cdef extern from "Python.h":
     # temporary variable, update the list data structure, and then
     # call Py_DECREF() for the temporary variable.
 
-    void Py_XDECREF(object o)
+    void Py_XDECREF(PyObject* o)
     # Decrement the reference count for object o. The object may be
     # NULL, in which case the macro has no effect; otherwise the
     # effect is the same as for Py_DECREF(), and the same warning
     # applies.
 
-    void Py_CLEAR(object o)
+    void Py_CLEAR(PyObject* o)
     # Decrement the reference count for object o. The object may be
     # NULL, in which case the macro has no effect; otherwise the
     # effect is the same as for Py_DECREF(), except that the argument

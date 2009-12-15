@@ -37,7 +37,7 @@ __doc__ = ur"""
     Existing string
 
     >>> print (Ext.m.__doc__)
-    Ext.m(self, a='spam')
+    Ext.m(self, a=u'spam')
 
     >>> print (Ext.get_int.__doc__)
     Ext.get_int(self) -> int
@@ -173,7 +173,7 @@ cdef class Ext:
         """Existing string"""
         pass
 
-    def m(self, a='spam'):
+    def m(self, a=u'spam'):
         pass
 
     cpdef int get_int(self):

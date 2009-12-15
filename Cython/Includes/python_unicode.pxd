@@ -1,5 +1,5 @@
 cdef extern from *:
-    ctypedef int Py_UNICODE
+    ctypedef unsigned int Py_UNICODE
 
     # Return true if the object o is a Unicode object or an instance
     # of a Unicode subtype. Changed in version 2.2: Allowed subtypes
@@ -93,10 +93,10 @@ cdef extern from *:
 
     # Return a read-only pointer to the Unicode object's internal
     # Py_UNICODE buffer, NULL if unicode is not a Unicode object.
-    Py_UNICODE* PyUnicode_AsUnicode(object o)
+    Py_UNICODE* PyUnicode_AsUnicode(object o) except NULL
 
     # Return the length of the Unicode object. 
-    Py_ssize_t PyUnicode_GetSize(object o)
+    Py_ssize_t PyUnicode_GetSize(object o) except -1
 
     # Coerce an encoded object obj to an Unicode object and return a
     # reference with incremented refcount.

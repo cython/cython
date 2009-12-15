@@ -1,12 +1,12 @@
+from python_ref cimport PyObject, PyTypeObject
+from stdio cimport FILE
+
 cdef extern from "Python.h":
-    ctypedef void PyObject
-    ctypedef void PyTypeObject
-    ctypedef struct FILE
     
     #####################################################################
     # 6.1 Object Protocol
     #####################################################################
-    int PyObject_Print(object o, FILE *fp, int flags)
+    int PyObject_Print(object o, FILE *fp, int flags) except -1
     # Print an object o, on file fp. Returns -1 on error. The flags
     # argument is used to enable certain printing options. The only
     # option currently supported is Py_PRINT_RAW; if given, the str()
@@ -34,22 +34,22 @@ cdef extern from "Python.h":
     # or NULL on failure. This is the equivalent of the Python
     # expression "o.attr_name".
 
-    int PyObject_SetAttrString(object o, char *attr_name, object v)
+    int PyObject_SetAttrString(object o, char *attr_name, object v) except -1
     # Set the value of the attribute named attr_name, for object o, to
     # the value v. Returns -1 on failure. This is the equivalent of
     # the Python statement "o.attr_name = v".
 
-    int PyObject_SetAttr(object o, object attr_name, object v)
+    int PyObject_SetAttr(object o, object attr_name, object v) except -1
     # Set the value of the attribute named attr_name, for object o, to
     # the value v. Returns -1 on failure. This is the equivalent of
     # the Python statement "o.attr_name = v".
 
-    int PyObject_DelAttrString(object o, char *attr_name)
+    int PyObject_DelAttrString(object o, char *attr_name) except -1
     # Delete attribute named attr_name, for object o. Returns -1 on
     # failure. This is the equivalent of the Python statement: "del
     # o.attr_name".
 
-    int PyObject_DelAttr(object o, object attr_name)
+    int PyObject_DelAttr(object o, object attr_name) except -1
     # Delete attribute named attr_name, for object o. Returns -1 on
     # failure. This is the equivalent of the Python statement "del
     # o.attr_name".
@@ -64,7 +64,7 @@ cdef extern from "Python.h":
     # opid. Returns the value of the comparison on success, or NULL on
     # failure.
 
-    int PyObject_RichCompareBool(object o1, object o2, int opid)
+    bint PyObject_RichCompareBool(object o1, object o2, int opid) except -1
     # Compare the values of o1 and o2 using the operation specified by
     # opid, which must be one of Py_LT, Py_LE, Py_EQ, Py_NE, Py_GT, or
     # Py_GE, corresponding to <, <=, ==, !=, >, or >=
@@ -72,14 +72,14 @@ cdef extern from "Python.h":
     # otherwise. This is the equivalent of the Python expression "o1
     # op o2", where op is the operator corresponding to opid.
 
-    int PyObject_Cmp(object o1, object o2, int *result)
+    int PyObject_Cmp(object o1, object o2, int *result) except -1
     # Compare the values of o1 and o2 using a routine provided by o1,
     # if one exists, otherwise with a routine provided by o2. The
     # result of the comparison is returned in result. Returns -1 on
     # failure. This is the equivalent of the Python statement "result
     # = cmp(o1, o2)".
 
-    int PyObject_Compare(object o1, object o2)
+    int PyObject_Compare(object o1, object o2) except *
     # Compare the values of o1 and o2 using a routine provided by o1,
     # if one exists, otherwise with a routine provided by o2. Returns
     # the result of the comparison on success. On error, the value
@@ -108,7 +108,7 @@ cdef extern from "Python.h":
     # is the equivalent of the Python expression "unicode(o)". Called
     # by the unicode() built-in function.
 
-    bint PyObject_IsInstance(object inst, object cls)
+    bint PyObject_IsInstance(object inst, object cls) except -1
     # Returns 1 if inst is an instance of the class cls or a subclass
     # of cls, or 0 if not. On error, returns -1 and sets an
     # exception. If cls is a type object rather than a class object,
@@ -133,7 +133,7 @@ cdef extern from "Python.h":
     # fashion for A -- the presence of the __bases__ attribute is
     # considered sufficient for this determination.
 
-    bint PyObject_IsSubclass(object derived, object cls)
+    bint PyObject_IsSubclass(object derived, object cls) except -1
     # Returns 1 if the class derived is identical to or derived from
     # the class cls, otherwise returns 0. In case of an error, returns
     # -1. If cls is a tuple, the check will be done against every
@@ -207,17 +207,17 @@ cdef extern from "Python.h":
     # NULL. Returns the result of the call on success, or NULL on
     # failure.
 
-    long PyObject_Hash(object o)
+    long PyObject_Hash(object o) except? -1
     # Compute and return the hash value of an object o. On failure,
     # return -1. This is the equivalent of the Python expression
     # "hash(o)".
 
-    bint PyObject_IsTrue(object o)
+    bint PyObject_IsTrue(object o) except -1
     # Returns 1 if the object o is considered to be true, and 0
     # otherwise. This is equivalent to the Python expression "not not
     # o". On failure, return -1.
 
-    bint PyObject_Not(object o)
+    bint PyObject_Not(object o) except -1
     # Returns 0 if the object o is considered to be true, and 1
     # otherwise. This is equivalent to the Python expression "not
     # o". On failure, return -1.
@@ -237,8 +237,8 @@ cdef extern from "Python.h":
     # Return true if the object o is of type type or a subtype of
     # type. Both parameters must be non-NULL.
 
-    Py_ssize_t PyObject_Length(object o)
-    Py_ssize_t PyObject_Size(object o)
+    Py_ssize_t PyObject_Length(object o) except -1
+    Py_ssize_t PyObject_Size(object o) except -1
     # Return the length of object o. If the object o provides either
     # the sequence and mapping protocols, the sequence length is
     # returned. On error, -1 is returned. This is the equivalent to
@@ -250,15 +250,15 @@ cdef extern from "Python.h":
     # failure. This is the equivalent of the Python expression
     # "o[key]".
 
-    int PyObject_SetItem(object o, object key, object v)
+    int PyObject_SetItem(object o, object key, object v) except -1
     # Map the object key to the value v. Returns -1 on failure. This
     # is the equivalent of the Python statement "o[key] = v".
 
-    int PyObject_DelItem(object o, object key)
+    int PyObject_DelItem(object o, object key) except -1
     # Delete the mapping for key from o. Returns -1 on failure. This
     # is the equivalent of the Python statement "del o[key]".
 
-    int PyObject_AsFileDescriptor(object o)
+    int PyObject_AsFileDescriptor(object o) except -1
     # Derives a file-descriptor from a Python object. If the object is
     # an integer or long integer, its value is returned. If not, the
     # object's fileno() method is called if it exists; the method must

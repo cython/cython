@@ -164,10 +164,13 @@ class Lexicon(object):
       #    token_number, "Pattern can match 0 input symbols")
       if isinstance(action_spec, Actions.Action):
         action = action_spec
-      elif callable(action_spec):
-        action = Actions.Call(action_spec)
       else:
-        action = Actions.Return(action_spec)
+        try:
+          action_spec.__call__
+        except AttributeError:
+          action = Actions.Return(action_spec)
+        else:
+          action = Actions.Call(action_spec)
       final_state = machine.new_state()
       re.build_machine(machine, initial_state, final_state, 
                        match_bol = 1, nocase = 0)

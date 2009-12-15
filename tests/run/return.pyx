@@ -1,11 +1,7 @@
-__doc__ = u"""
-    >>> f('test')
-    >>> test_g()
-    >>> test_h(5)
-    5
-"""
-
 def f(a):
+    """
+    >>> f('test')
+    """
     return
     return a
     return 42
@@ -19,7 +15,14 @@ cdef int h(a):
     return i
 
 def test_g():
+    """
+    >>> test_g()
+    """
     g()
 
 def test_h(i):
+    """
+    >>> test_h(5)
+    5
+    """
     return h(i)

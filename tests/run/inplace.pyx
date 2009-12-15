@@ -2,27 +2,6 @@ __doc__ = u"""
     >>> str(f(5, 7))
     '29509034655744'
 
-    >>> g(13, 4)
-    32
-
-    >>> h(56, 7)
-    105.0
-
-    >>> arrays()
-    19
-
-    >>> attributes()
-    26 26 26
-
-    >>> smoketest()
-    10
-
-    >>> test_side_effects()
-    side effect 1
-    c side effect 2
-    side effect 3
-    c side effect 4
-    ([0, 11, 102, 3, 4], [0, 1, 2, 13, 104])
 """
 
 def f(a,b):
@@ -32,12 +11,20 @@ def f(a,b):
     return a
 
 def g(int a, int b):
+    """
+    >>> g(13, 4)
+    32
+    """
     a -= b
     a /= b
     a <<= b
     return a
 
 def h(double a, double b):
+    """
+    >>> h(56, 7)
+    105.0
+    """
     a /= b
     a += b
     a *= b
@@ -46,6 +33,10 @@ def h(double a, double b):
 cimport stdlib
 
 def arrays():
+    """
+    >>> arrays()
+    19
+    """
     cdef char* buf = <char*>stdlib.malloc(10)
     cdef int i = 2
     cdef object j = 2
@@ -68,6 +59,10 @@ class B:
     attr = 3
 
 def attributes():
+    """
+    >>> attributes()
+    26 26 26
+    """
     cdef A a = A()
     b = B()
     a.attr += 10
@@ -82,6 +77,10 @@ def get_2(): return 2
 cdef int identity(int value): return value
 
 def smoketest():
+    """
+    >>> smoketest()
+    10
+    """
     cdef char* buf = <char*>stdlib.malloc(10)
     cdef A a = A()
     a.buf = buf
@@ -100,7 +99,15 @@ cdef int c_side_effect(int x):
     return x
     
 def test_side_effects():
-    a = list(range(5))
+    """
+    >>> test_side_effects()
+    side effect 1
+    c side effect 2
+    side effect 3
+    c side effect 4
+    ([0, 11, 102, 3, 4], [0, 1, 2, 13, 104])
+    """
+    cdef object a = list(range(5))
     a[side_effect(1)] += 10
     a[c_side_effect(2)] += 100
     cdef int i
