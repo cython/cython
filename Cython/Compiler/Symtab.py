@@ -316,7 +316,10 @@ class Scope(object):
         entry.in_cinclude = self.in_cinclude
         if name:
             entry.qualified_name = self.qualify_name(name)
-            entries[name] = entry
+            if name in entries and self.is_cpp():
+                entries[name].overloaded_alternatives.append(entry)
+            else:
+                entries[name] = entry
         entry.scope = self
         entry.visibility = visibility
         return entry
@@ -697,7 +700,11 @@ class Scope(object):
         return 0
     
     def is_cpp(self):
-        return self.outer_scope.is_cpp()
+        outer = self.outer_scope
+        if outer is None:
+            return False
+        else:
+            return outer.is_cpp()
 
 class PreImportScope(Scope):
 
