@@ -3473,7 +3473,7 @@ class DelStatNode(StatNode):
         for arg in self.args:
             arg.analyse_target_expression(env, None)
             if arg.type.is_pyobject:
-                self.gil_check(env)
+                pass
             elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
                 self.cpp_check(env)
             elif arg.type.is_cpp_class:
