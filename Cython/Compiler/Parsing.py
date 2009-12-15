@@ -1906,7 +1906,6 @@ def p_buffer_or_template(s, base_type_node):
         keyword_args = keyword_dict,
         base_type_node = base_type_node)
     return result
-
     
 
 def looking_at_name(s):

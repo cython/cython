@@ -1483,7 +1483,6 @@ class CClassScope(ClassScope):
             entry.is_inherited = 1
             
         
-
 class CppClassScope(Scope):
     #  Namespace of a C++ class.
     inherited_var_entries = []

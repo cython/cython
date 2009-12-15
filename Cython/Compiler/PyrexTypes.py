@@ -1359,7 +1359,6 @@ class CNullPtrType(CPtrType):
     is_null_ptr = 1
     
 
-
 class CReferenceType(CType):
 
     is_reference = 1
@@ -2269,7 +2268,6 @@ def best_match(args, functions, pos):
     else:
         error(pos, error_str)
     return None
-
 
 
 def widest_numeric_type(type1, type2):

@@ -4036,6 +4036,7 @@ class UnboundMethodNode(ExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
+
 class PyCFunctionNode(AtomicExprNode):
     #  Helper class used in the implementation of Python
     #  class definitions. Constructs a PyCFunction object
@@ -4127,7 +4128,6 @@ class UnopNode(ExprNode):
         if self.is_py_operation():
             self.gil_error()
 
-
     def is_cpp_operation(self):
         return self.operand.type.is_cpp_class
     
@@ -4166,7 +4166,6 @@ class UnopNode(ExprNode):
             self.type_error()
             return
         self.type = function.type.return_type
-        
 
 
 class NotNode(ExprNode):
@@ -4748,7 +4747,6 @@ class NumBinopNode(BinopNode):
     
     def py_operation_function(self):
         return self.py_functions[self.operator]
-    
 
     py_functions = {
         "|":        "PyNumber_Or",
@@ -4764,7 +4762,7 @@ class NumBinopNode(BinopNode):
         "%":        "PyNumber_Remainder",
         "**":       "PyNumber_Power"
     }
-    
+
 
 class IntBinopNode(NumBinopNode):
     #  Binary operation taking integer arguments.
@@ -5523,7 +5521,6 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         self.operand2.analyse_types(env)
         if self.is_cpp_comparison():
             self.analyse_cpp_comparison(env)
-            return
         if self.cascade:
             self.cascade.analyse_types(env)
 
@@ -5636,7 +5633,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         self.operand2.annotate(code)
         if self.cascade:
             self.cascade.annotate(code)
-    
+
 
 class CascadedCmpNode(Node, CmpNode):
     #  A CascadedCmpNode is not a complete expression node. It 
