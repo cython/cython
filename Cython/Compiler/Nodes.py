@@ -1,3 +1,4 @@
+
 #
 #   Pyrex - Parse tree nodes
 #
@@ -485,7 +486,7 @@ class CReferenceDeclaratorNode(CDeclaratorNode):
         if base_type.is_pyobject:
             error(self.pos,
                   "Reference base type cannot be a Python object")
-        ref_type = Pyrextypes.c_ref_type(base_type)
+        ref_type = PyrexTypes.c_ref_type(base_type)
         return self.base.analyse(ref_type, env, nonempty = nonempty)
 
 class CArrayDeclaratorNode(CDeclaratorNode):
