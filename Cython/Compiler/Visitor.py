@@ -94,7 +94,8 @@ class TreeVisitor(BasicVisitor):
 
     def dump_node(self, node, indent=0):
         ignored = list(node.child_attrs) + [u'child_attrs', u'pos',
-                                            u'gil_message', u'subexprs']
+                                            u'gil_message', u'cpp_message', 
+                                            u'subexprs']
         values = []
         pos = node.pos
         if pos:
