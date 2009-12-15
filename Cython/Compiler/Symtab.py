@@ -1634,6 +1634,8 @@ class CppClassScope(Scope):
     def declare_cfunction(self, name, type, pos,
             cname = None, visibility = 'extern', defining = 0,
             api = 0, in_pxd = 0, modifiers = ()):
+        if name == self.name.split('::')[-1] and cname is None:
+            name = '<init>'
         entry = self.declare_var(name, type, pos, cname, visibility)
 
     def declare_inherited_cpp_attributes(self, base_scope):

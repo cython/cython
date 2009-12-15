@@ -1095,12 +1095,12 @@ class NewExprNode(AtomicExprNode):
             type = entry.type.specialize_here(self.pos, template_types)
         else:
             type = entry.type
-        constructor = type.scope.lookup(u'__init__')
+        constructor = type.scope.lookup(u'<init>')
         if constructor is None:
             return_type = PyrexTypes.CFuncType(type, [])
             return_type = PyrexTypes.CPtrType(return_type)
-            type.scope.declare_cfunction(u'__init__', return_type, self.pos)
-            constructor = type.scope.lookup(u'__init__')
+            type.scope.declare_cfunction(u'<init>', return_type, self.pos)
+            constructor = type.scope.lookup(u'<init>')
         self.class_type = type
         self.entry = constructor
         self.type = constructor.type
@@ -4282,8 +4282,7 @@ class NumBinopNode(BinopNode):
         entry = env.lookup(type1.name)
         function = entry.type.scope.lookup("operator%s" % self.operator)
         if not function:
-            error(self.pos, "'%s' operator not defined for '%s %s %s'"
-                % (self.operator, type1, self.operator, type2))
+            self.type_error()
             return
         entry = PyrexTypes.best_match([self.operand1, self.operand2], function.all_alternatives(), self.pos)
         if entry is None:
@@ -4981,8 +4980,8 @@ class PrimaryCmpNode(NewTempExprNode, CmpNode):
         entry = env.lookup(type1.name)
         function = entry.type.scope.lookup("operator%s" % self.operator)
         if not function:
-            error(self.pos, "'%s' operator not defined for '%s %s %s'"
-                % (self.operator, type1, self.operator, type2))
+            error(self.pos, "Invalid types for '%s' (%s, %s)" %
+                (self.operator, type1, type2))
             return
         entry = PyrexTypes.best_match([self.operand1, self.operand2], function.all_alternatives(), self.pos)
         if entry is None:

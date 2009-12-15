@@ -14,16 +14,16 @@ cdef extern from "shapes.h" namespace shapes:
     
     cdef cppclass Circle(Shape):
         int radius
-        __init__(int)
+        Circle(int)
     
     cdef cppclass Rectangle(Shape):
         int width
         int height
-        __init__(int, int)
+        Rectangle(int, int)
     
     cdef cppclass Square(Rectangle):
         int side
-        __init__(int)
+        Square(int)
         
     int constructor_count, destructor_count
 
