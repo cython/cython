@@ -4281,10 +4281,15 @@ class NumBinopNode(BinopNode):
             type2 = type2.base_type
         entry = env.lookup(type1.name)
         function = entry.type.scope.lookup("operator%s" % self.operator)
+        if function is not None:
+            operands = [self.operand2]
+        else:
+            function = env.lookup("operator%s" % self.operator)
+            operands = [self.operand1, self.operand2]
         if not function:
             self.type_error()
             return
-        entry = PyrexTypes.best_match([self.operand1, self.operand2], function.all_alternatives(), self.pos)
+        entry = PyrexTypes.best_match(operands, function.all_alternatives(), self.pos)
         if entry is None:
             self.type = PyrexTypes.error_type
             self.result_code = "<error>"
