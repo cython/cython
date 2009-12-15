@@ -311,8 +311,7 @@ class Scope(object):
             if visibility == 'extern':
                 warning(pos, "'%s' redeclared " % name, 0)
             elif visibility != 'ignore':
-                pass
-                #error(pos, "'%s' redeclared " % name)
+                error(pos, "'%s' redeclared " % name)
         entry = Entry(name, cname, type, pos = pos)
         entry.in_cinclude = self.in_cinclude
         if name:
@@ -464,14 +463,16 @@ class Scope(object):
             if visibility != 'private' and visibility != entry.visibility:
                 warning(pos, "Function '%s' previously declared as '%s'" % (name, entry.visibility), 1)
             if not entry.type.same_as(type):
-                #if visibility == 'extern' and entry.visibility == 'extern':
-                    #warning(pos, "Function signature does not match previous declaration", 1)
-                    #entry.type = type
-                temp = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
-                entry.overloaded_alternatives.append(temp)
-                entry = temp
-                #else:
-                    #error(pos, "Function signature does not match previous declaration")
+                if visibility == 'extern' and entry.visibility == 'extern':
+                    if self.is_cpp():
+                        temp = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
+                        entry.overloaded_alternatives.append(temp)
+                        entry = temp
+                    else:
+                        warning(pos, "Function signature does not match previous declaration", 1)
+                        entry.type = type
+                else:
+                    error(pos, "Function signature does not match previous declaration")
         else:
             entry = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
             entry.func_cname = cname
@@ -485,12 +486,6 @@ class Scope(object):
             entry.is_implemented = True
         if modifiers:
             entry.func_modifiers = modifiers
-        #try:
-        #    print entry.name, entry.type, entry.overloaded_alternatives
-        #except:
-        #    pass
-        #if len(entry.overloaded_alternatives) > 0:
-        #    print entry.name, entry.type, entry.overloaded_alternatives[0].type
         return entry
     
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers):

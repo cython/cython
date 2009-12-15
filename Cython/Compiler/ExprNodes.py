@@ -4280,7 +4280,7 @@ class NumBinopNode(BinopNode):
         if type2.is_ptr:
             type2 = type2.base_type
         entry = env.lookup(type1.name)
-        function = entry.type.scope.lookup(self.operators[self.operator])
+        function = entry.type.scope.lookup("operator%s" % self.operator)
         if not function:
             error(self.pos, "'%s' operator not defined for '%s %s %s'"
                 % (self.operator, type1, self.operator, type2))

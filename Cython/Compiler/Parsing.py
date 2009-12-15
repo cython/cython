@@ -2593,33 +2593,24 @@ def p_cpp_class_definition(s, pos,  ctx):
         cname = ctx.namespace + "::" + class_name
     if s.sy == '.':
         error(pos, "Qualified class name not allowed C++ class")
-    templates = None
     if s.sy == '[':
         s.next()
-        templates = []
-        templates.append(s.systring)
-        s.next()
+        templates = [p_ident(s)]
         while s.sy == ',':
             s.next()
-            templates.append(s.systring)
-            s.next()
+            templates.append(p_ident(s))
         s.expect(']')
-    base_classes = []
+    else:
+        templates = None
     if s.sy == '(':
-        base_class = True
-        while (base_class):
+        s.next()
+        base_classes = [p_dotted_name(s, False)[2]]
+        while s.sy == ',':
             s.next()
-            base_class_path = [p_ident(s)]
-            base_class = False
-            while s.sy == '.':
-                s.next()
-                base_class_path.append(p_ident(s))
-            base_classes.append(base_class_path)
-            if s.sy == ',':
-                base_class = True
-                base_class_path = []
+            base_classes.append(p_dotted_name(s, False)[2])
         s.expect(')')
-        base_classes = [".".join(path) for path in base_classes]
+    else:
+        base_classes = []
     if s.sy == '[':
         error(s.position(), "Name options not allowed for C++ class")
     if s.sy == ':':
