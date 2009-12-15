@@ -138,6 +138,15 @@ class Node(object):
 
     def gil_error(self):
         error(self.pos, "%s not allowed without gil" % self.gil_message)
+    
+    cpp_message = "Operation"
+    
+    def cpp_check(self, env):
+        if not env.is_cpp():
+            self.cpp_error()
+
+    def cpp_error(self):
+        error(self.pos, "%s only allowed in c++" % self.cpp_message)
 
     def clone_node(self):
         """Clone the node. This is defined as a shallow copy, except for member lists
@@ -3430,7 +3439,7 @@ class DelStatNode(StatNode):
             if arg.type.is_pyobject:
                 self.gil_check(env)
             elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
-                pass
+                self.cpp_check(env)
             elif arg.type.is_cpp_class:
                 error(arg.pos, "Deletion of non-heap C++ object")
             else:

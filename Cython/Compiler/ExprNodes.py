@@ -1089,6 +1089,7 @@ class NewExprNode(AtomicExprNode):
         if entry is None or not entry.is_cpp_class:
             error(self.pos, "new operator can only be applied to a C++ class")
             return
+        self.cpp_check(env)
         if self.template_parameters is not None:
             template_types = [v.analyse_as_type(env) for v in self.template_parameters]
             type = entry.type.specialize_here(self.pos, template_types)
