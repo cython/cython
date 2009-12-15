@@ -1,12 +1,12 @@
 cdef extern from "templates.h":
     cdef cppclass TemplateTest1[T]:
-        __init__()
+        TemplateTest1()
         T value
         int t
         T getValue()
 
     cdef cppclass TemplateTest2[T, U]:
-        __init__()
+        TemplateTest2()
         T value1
         U value2
         T getValue1()
