@@ -76,7 +76,6 @@ class Context(object):
         self.compiler_directives = compiler_directives
         self.cpp = cpp
 
-
         self.pxds = {} # full name -> node tree
 
         standard_include_path = os.path.abspath(

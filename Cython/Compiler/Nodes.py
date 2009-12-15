@@ -342,7 +342,6 @@ class StatListNode(Node):
     
     def analyse_expressions(self, env):
         #print "StatListNode.analyse_expressions" ###
-        entry = env.entries.get("cpp_sum", None)
         for stat in self.stats:
             stat.analyse_expressions(env)
     

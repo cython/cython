@@ -151,4 +151,3 @@ cpdef p_code(PyrexScanner s, level= *)
 cpdef p_compiler_directive_comments(PyrexScanner s)
 cpdef p_module(PyrexScanner s, pxd, full_module_name)
 cpdef p_cpp_class_definition(PyrexScanner s, ctx)
-
