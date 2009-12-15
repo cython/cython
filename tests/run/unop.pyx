@@ -1,9 +1,8 @@
-__doc__ = u"""
+def f(obj1, obj2, obj3):
+    """
     >>> f(1, 2, 3)
     (-3, -4, 1)
-"""
-
-def f(obj1, obj2, obj3):
+    """
     cdef int bool1, bool2
     cdef int int1, int2
     cdef char *str1

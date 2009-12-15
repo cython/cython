@@ -1,9 +1,3 @@
-__doc__ = u"""
-    >>> p = create()
-    >>> rest(p)
-    0
-"""
-
 cdef class Parrot:
     cdef object name
     cdef int alive
@@ -18,6 +12,11 @@ def create():
     return p
 
 def rest(Norwegian polly):
+    """
+    >>> p = create()
+    >>> rest(p)
+    0
+    """
     cdef Parrot fred
     cdef object spam
     spam = None

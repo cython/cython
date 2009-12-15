@@ -8,7 +8,7 @@
 
 import array
 import types
-from sys import maxint
+from sys import maxint as maxint
 
 import Errors
 

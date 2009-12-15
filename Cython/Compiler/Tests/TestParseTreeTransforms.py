@@ -15,7 +15,7 @@ class TestNormalizeTree(TransformTest):
 """, self.treetypes(t))
         
     def test_wrap_singlestat(self):
-    	t = self.run_pipeline([NormalizeTree(None)], u"if x: y")
+        t = self.run_pipeline([NormalizeTree(None)], u"if x: y")
         self.assertLines(u"""
 (root): StatListNode
   stats[0]: IfStatNode

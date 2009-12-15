@@ -141,4 +141,18 @@ from python_dict cimport *
 from python_instance cimport *
 from python_function cimport *
 from python_method cimport *
+from python_weakref cimport *
+from python_getargs cimport *
+
+# Python <= 2.x
+from python_cobject cimport *
+
+# Python >= 2.4
 from python_set cimport *
+
+# Python >= 2.6
+from python_buffer cimport *
+from python_bytes cimport *
+
+# Python >= 3.0
+from python_pycapsule cimport *

@@ -1,8 +1,3 @@
-__doc__ = u"""
-    >>> test()
-    1
-"""
-
 cdef class Tri:
     def test(self):
         return 1
@@ -16,6 +11,10 @@ cdef produire_fiches(Tri tri):
     return tri.test()
 
 def test():
+    """
+    >>> test()
+    1
+    """
     cdef Curseur c
     c = Curseur()
     c.tri = Tri()

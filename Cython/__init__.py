@@ -1,2 +1,2 @@
 # Void cython.* directives (for case insensitive operating systems). 
-from Shadow import *
+from Cython.Shadow import *

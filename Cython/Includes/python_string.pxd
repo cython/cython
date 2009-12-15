@@ -1,10 +1,12 @@
+from python_ref cimport PyObject
+
 cdef extern from "Python.h":
-    ctypedef void PyObject
     ctypedef struct va_list
 
     ############################################################################
     # 7.3.1 String Objects
     ############################################################################
+
     # These functions raise TypeError when expecting a string
     # parameter and are called with a non-string parameter.
     # PyStringObject
@@ -66,13 +68,13 @@ cdef extern from "Python.h":
     # Return value: New reference.
     # Identical to PyString_FromFormat() except that it takes exactly two arguments. 
 
-    Py_ssize_t PyString_Size(object string)
+    Py_ssize_t PyString_Size(object string) except -1
     # Return the length of the string in string object string. 
 
     Py_ssize_t PyString_GET_SIZE(object string)
     # Macro form of PyString_Size() but without error checking. 
 
-    char* PyString_AsString(object string)
+    char* PyString_AsString(object string) except NULL
     # Return a NUL-terminated representation of the contents of
     # string. The pointer refers to the internal buffer of string, not
     # a copy. The data must not be modified in any way, unless the
@@ -87,7 +89,7 @@ cdef extern from "Python.h":
     # checking. Only string objects are supported; no Unicode objects
     # should be passed.
 
-    int PyString_AsStringAndSize(object obj, char **buffer, Py_ssize_t *length)
+    int PyString_AsStringAndSize(object obj, char **buffer, Py_ssize_t *length) except -1
     # Return a NULL-terminated representation of the contents of the
     # object obj through the output variables buffer and length.
     #
@@ -118,7 +120,7 @@ cdef extern from "Python.h":
     # newpart appended to string. This version decrements the
     # reference count of newpart.
 
-    int _PyString_Resize(PyObject **string, Py_ssize_t newsize)
+    int _PyString_Resize(PyObject **string, Py_ssize_t newsize) except -1
     # A way to resize a string object even though it is
     # ``immutable''. Only use this to build up a brand new string
     # object; don't use this if the string may already be known in

@@ -4,11 +4,13 @@ __doc__ = u"""
 Traceback (most recent call last):
 AttributeError: 'NoneType' object has no attribute 'append'
 
->>> append_to_none()
-Traceback (most recent call last):
-AttributeError: 'NoneType' object has no attribute 'append'
 """
 
 def append_to_none():
+    """
+    >>> append_to_none()
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'append'
+    """
     cdef list l = None
     l.append(2)

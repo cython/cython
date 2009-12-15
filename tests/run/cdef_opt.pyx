@@ -7,12 +7,6 @@ __doc__ = u"""
     >>> a.foo(10, u'yes')
     (True, u'yes')
 
-    >>> call0()
-    (True, u'yo')
-    >>> call1()
-    (False, u'yo')
-    >>> call2()
-    (False, u'go')
 """
 
 import sys
@@ -25,13 +19,25 @@ cdef class A:
         return a, b
 
 def call0():
-    a = A()
+    """
+    >>> call0()
+    (True, u'yo')
+    """
+    cdef A a = A()
     return a.foo()
 
 def call1():
-    a = A()
+    """
+    >>> call1()
+    (False, u'yo')
+    """
+    cdef A a = A()
     return a.foo(False)
 
 def call2():
-    a = A()
+    """
+    >>> call2()
+    (False, u'go')
+    """
+    cdef A a = A()
     return a.foo(False, u"go")

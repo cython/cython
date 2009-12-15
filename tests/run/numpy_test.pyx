@@ -17,6 +17,8 @@ try:
     import numpy as np
     __doc__ = u"""
 
+    >>> assert_dtype_sizes()
+
     >>> basic()
     [[0 1 2 3 4]
      [5 6 7 8 9]]
@@ -138,6 +140,8 @@ try:
     >>> test_dtype(np.long, inc1_long_t)
     >>> test_dtype(np.float, inc1_float_t)
     >>> test_dtype(np.double, inc1_double_t)
+    >>> test_dtype(np.intp, inc1_intp_t)
+    >>> test_dtype(np.uintp, inc1_uintp_t)
 
     >>> test_dtype(np.longdouble, inc1_longdouble_t)
 
@@ -194,11 +198,34 @@ try:
     Traceback (most recent call last):
         ...
     ValueError: Item size of buffer (1 byte) does not match size of 'int' (4 bytes)
+
+    >>> test_complextypes()
+    1,1
+    1,1
+    8,16
+
+    >>> test_point_record()
+    array([(0.0, 0.0), (1.0, -1.0), (2.0, -2.0)], 
+          dtype=[('x', '!f8'), ('y', '!f8')])
     
 """
 except:
     __doc__ = u""
 
+
+def assert_dtype_sizes():
+    assert sizeof(np.int8_t) == 1
+    assert sizeof(np.int16_t) == 2
+    assert sizeof(np.int32_t) == 4
+    assert sizeof(np.int64_t) == 8
+    assert sizeof(np.uint8_t) == 1
+    assert sizeof(np.uint16_t) == 2
+    assert sizeof(np.uint32_t) == 4
+    assert sizeof(np.uint64_t) == 8
+    assert sizeof(np.float32_t) == 4
+    assert sizeof(np.float64_t) == 8
+    assert sizeof(np.complex64_t) == 8
+    assert sizeof(np.complex128_t) == 16
 
 def ndarray_str(arr):
     u"""
@@ -290,6 +317,8 @@ def inc1_long_t(np.ndarray[np.long_t] arr):             arr[1] += 1
 def inc1_float_t(np.ndarray[np.float_t] arr):           arr[1] += 1
 def inc1_double_t(np.ndarray[np.double_t] arr):         arr[1] += 1
 def inc1_longdouble_t(np.ndarray[np.longdouble_t] arr): arr[1] += 1
+def inc1_intp_t(np.ndarray[np.intp_t] arr):             arr[1] += 1
+def inc1_uintp_t(np.ndarray[np.uintp_t] arr):           arr[1] += 1
 
 # The tests below only work on platforms that has the given types
 def inc1_int32_t(np.ndarray[np.int32_t] arr):           arr[1] += 1
@@ -376,3 +405,26 @@ def test_unpacked_align(np.ndarray[UnpackedStruct] arr):
     arr[0].a = 22
     arr[0].b = 23    
     return repr(arr).replace('<', '!').replace('>', '!')
+
+def test_complextypes():
+    cdef np.complex64_t x64 = 1, y64 = 1j
+    cdef np.complex128_t x128 = 1, y128 = 1j
+    x64 = x64 + y64
+    print "%.0f,%.0f" % (x64.real, x64.imag)
+    x128 = x128 + y128
+    print "%.0f,%.0f" % (x128.real, x128.imag)
+    print "%d,%d" % (sizeof(x64), sizeof(x128))
+
+
+cdef struct Point:
+    np.float64_t x, y
+
+def test_point_record():
+    cdef np.ndarray[Point] test
+    Point_dtype = np.dtype([('x', np.float64), ('y', np.float64)])
+    test = np.zeros(3, Point_dtype)
+    cdef int i
+    for i in range(3):
+        test[i].x = i
+        test[i].y = -i
+    print repr(test).replace('<', '!').replace('>', '!')

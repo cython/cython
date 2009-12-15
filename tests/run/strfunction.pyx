@@ -1,42 +1,41 @@
 __doc__ = u"""
-   >>> s('test', **encoding)
-   b'test'
+   >>> str('test')
+   'test'
    >>> z
-   b'test'
-   >>> c('testing')
-   b'testing'
-   >>> sub('testing a subtype')
-   b'testing a subtype'
-   >>> subs('testing a subtype', **encoding)
-   b'testing a subtype'
-
-#   >>> csub('testing a subtype')
-#   'testing a subtype'
-#   >>> csubs('testing a subtype')
-#   'testing a subtype'
+   'test'
 """
-
-import sys
-if sys.version_info[0] >= 3:
-    encoding = {u'encoding' : u'ASCII'}
-else:
-    encoding = {}
-    __doc__ = __doc__.replace(u" b'", u" '")
 
 s = str
 z = str('test')
 
 def c(string):
-    return str(string, **encoding)
+    """
+    >>> c('testing')
+    'testing'
+    """
+    return str(string)
 
 class subs(str):
+    """
+    >>> subs('testing a subtype')
+    'testing a subtype'
+    
+    #   >>> csub('testing a subtype')
+    #   'testing a subtype'
+    #   >>> csubs('testing a subtype')
+    #   'testing a subtype'
+    """
     pass
 
 def sub(string):
-    return subs(string, **encoding)
+    """
+    >>> sub('testing a subtype')
+    'testing a subtype'
+    """
+    return subs(string)
 
 #cdef class subs(str):
 #    pass
 
 #def csub(string):
-#    return csubs(string, **encoding)
+#    return csubs(string)

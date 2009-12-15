@@ -59,9 +59,9 @@ class Context(object):
         else:
             return None
 
-cpdef report_unraisable(e):
+cdef void report_unraisable(object e):
     try:
-        print "refnanny raised an exception: %s" % e
+        print u"refnanny raised an exception: %s" % e
     except:
         pass # We absolutely cannot exit with an exception
 
@@ -69,7 +69,7 @@ cpdef report_unraisable(e):
 # exception has been fetched, in case we are called from
 # exception-handling code.
 
-cdef PyObject* NewContext(char* funcname, int lineno, char* filename) except NULL:
+cdef PyObject* SetupContext(char* funcname, int lineno, char* filename) except NULL:
     if Context is None:
         # Context may be None during finalize phase.
         # In that case, we don't want to be doing anything fancy
@@ -84,7 +84,7 @@ cdef PyObject* NewContext(char* funcname, int lineno, char* filename) except NUL
         result = <PyObject*>ctx
     except Exception, e:
         report_unraisable(e)
-    PyErr_Restore(<object>type, <object>value, <object>tb)
+    PyErr_Restore(type, value, tb)
     return result
 
 cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
@@ -98,7 +98,7 @@ cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
             (<object>ctx).regref(<object>p_obj, lineno, False)
     except Exception, e:
         report_unraisable(e)
-    PyErr_Restore(<object>type, <object>value, <object>tb)
+    PyErr_Restore(type, value, tb)
 
 cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
     if ctx == NULL: return 1
@@ -112,7 +112,7 @@ cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
             decref_ok = (<object>ctx).delref(<object>p_obj, lineno, False)
     except Exception, e:
         report_unraisable(e)
-    PyErr_Restore(<object>type, <object>value, <object>tb)
+    PyErr_Restore(type, value, tb)
     return decref_ok
 
 cdef void GIVEREF(PyObject* ctx, PyObject* p_obj, int lineno):
@@ -141,25 +141,25 @@ cdef void FinishContext(PyObject** ctx):
         report_unraisable(e)
     Py_DECREF(<object>ctx[0])
     ctx[0] = NULL
-    PyErr_Restore(<object>type, <object>value, <object>tb)
+    PyErr_Restore(type, value, tb)
 
-cdef extern from "Python.h":
-    object PyCObject_FromVoidPtr(void*, void (*)(void*))
-
-ctypedef struct RefnannyAPIStruct:
+ctypedef struct RefNannyAPIStruct:
   void (*INCREF)(PyObject*, PyObject*, int)
   void (*DECREF)(PyObject*, PyObject*, int)
   void (*GOTREF)(PyObject*, PyObject*, int)
   void (*GIVEREF)(PyObject*, PyObject*, int)
-  PyObject* (*NewContext)(char*, int, char*) except NULL
+  PyObject* (*SetupContext)(char*, int, char*) except NULL
   void (*FinishContext)(PyObject**)
 
-cdef RefnannyAPIStruct api
+cdef RefNannyAPIStruct api
 api.INCREF = INCREF
 api.DECREF =  DECREF
 api.GOTREF =  GOTREF
 api.GIVEREF = GIVEREF
-api.NewContext = NewContext
+api.SetupContext = SetupContext
 api.FinishContext = FinishContext
 
-RefnannyAPI = PyCObject_FromVoidPtr(<void*>&api, NULL)
+cdef extern from "Python.h":
+    object PyLong_FromVoidPtr(void*)
+
+RefNannyAPI = PyLong_FromVoidPtr(<void*>&api)

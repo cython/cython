@@ -1,19 +1,14 @@
-"""
->>> f()
-42.0
-42.0
->>> global_vars(12.0)
-12.0 12.0
+__doc__ = """
 >>> readonly()
 Traceback (most recent call last):
-    ...
+...
 TypeError: readonly attribute
->>> longdouble_access()
-Traceback (most recent call last):
-    ...
-SystemError: bad memberdescr type
-
 """
+
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(u'TypeError:', u'AttributeError:')
+
 
 cdef extern from "external_defs.h":
     ctypedef float DoubleTypedef
@@ -34,22 +29,36 @@ cdef class MyClass:
         self.float_isreally_longdouble = 42.0
 
 def global_vars(x):
+    """
+    >>> global_vars(12.0)
+    12.0 12.0
+    """
     global global_tdef, global_double
     global_tdef = x
     global_double = x
     print global_tdef, global_double
 
 def f():
-    c = MyClass()
+    """
+    >>> f()
+    42.0
+    42.0
+    """
+    cdef object c = MyClass()
     print c.actual_double
     print c.float_isreally_double
 
 def longdouble_access():
-    c = MyClass()
+    """
+    >>> longdouble_access()
+    Traceback (most recent call last):
+    ...
+    SystemError: bad memberdescr type
+    """
+    cdef object c = MyClass()
     print c.float_isreally_longdouble
 
 
 def readonly():
-    c = MyClass()
+    cdef object c = MyClass()
     c.actual_double = 3
-

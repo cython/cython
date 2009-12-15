@@ -6,7 +6,6 @@ out_fname = pyx_to_dll("foo.pyx")
 import os
 import sys
 
-import distutils
 from distutils.dist import Distribution
 from distutils.errors import DistutilsArgError, DistutilsError, CCompilerError
 from distutils.extension import Extension
@@ -16,11 +15,13 @@ try:
     HAS_CYTHON = True
 except ImportError:
     HAS_CYTHON = False
-import shutil
 
 DEBUG = 0
+
+_reloads={}
+
 def pyx_to_dll(filename, ext = None, force_rebuild = 0,
-               build_in_temp=False, pyxbuild_dir=None):
+               build_in_temp=False, pyxbuild_dir=None, setup_args={}, reload_support=False):
     """Compile a PYX file to a DLL and return the name of the generated .so 
        or .dll ."""
     assert os.path.exists(filename), "Could not find %s" % os.path.abspath(filename)
@@ -37,7 +38,8 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
     if not pyxbuild_dir:
         pyxbuild_dir = os.path.join(path, "_pyxbld")
 
-    if DEBUG:
+    script_args=setup_args.get("script_args",[])
+    if DEBUG or "--verbose" in script_args:
         quiet = "--verbose"
     else:
         quiet = "--quiet"
@@ -46,7 +48,11 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
         args.append("--force")
     if HAS_CYTHON and build_in_temp:
         args.append("--pyrex-c-in-temp")
-    dist = Distribution({"script_name": None, "script_args": args})
+    sargs = setup_args.copy()
+    sargs.update(
+        {"script_name": None,
+         "script_args": args + script_args} )
+    dist = Distribution(sargs)
     if not dist.ext_modules:
         dist.ext_modules = []
     dist.ext_modules.append(ext)
@@ -55,6 +61,15 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
     build = dist.get_command_obj('build')
     build.build_base = pyxbuild_dir
 
+    config_files = dist.find_config_files()
+    try: config_files.remove('setup.cfg')
+    except ValueError: pass
+    dist.parse_config_files(config_files)
+
+    cfgfiles = dist.find_config_files()
+    try: cfgfiles.remove('setup.cfg')
+    except ValueError: pass
+    dist.parse_config_files(cfgfiles)
     try:
         ok = dist.parse_command_line()
     except DistutilsArgError:
@@ -68,7 +83,39 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
 
     try:
         dist.run_commands()
-        return dist.get_command_obj("build_ext").get_outputs()[0]
+        obj_build_ext = dist.get_command_obj("build_ext")
+        so_path = obj_build_ext.get_outputs()[0]
+        if obj_build_ext.inplace:
+            # Python distutils get_outputs()[ returns a wrong so_path 
+            # when --inplace ; see http://bugs.python.org/issue5977
+            # workaround:
+            so_path = os.path.join(os.path.dirname(filename),
+                                   os.path.basename(so_path))
+        if reload_support:
+            org_path = so_path
+            timestamp = os.path.getmtime(org_path)
+            global _reloads
+            last_timestamp, last_path, count = _reloads.get(org_path, (None,None,0) )
+            if last_timestamp == timestamp:
+                so_path = last_path
+            else:
+                basename = os.path.basename(org_path)
+                while count < 100:
+                    count += 1
+                    r_path = os.path.join(obj_build_ext.build_lib,
+                                          basename + '.reload%s'%count)
+                    try:
+                        import shutil # late import / reload_support is: debugging
+                        shutil.copy2(org_path, r_path)
+                        so_path = r_path
+                    except IOError:
+                        continue
+                    break
+                else:
+                    # used up all 100 slots 
+                    raise ImportError("reload count for %s reached maximum"%org_path)
+                _reloads[org_path]=(timestamp, so_path, count)
+        return so_path
     except KeyboardInterrupt:
         sys.exit(1)
     except (IOError, os.error):
@@ -77,16 +124,7 @@ def pyx_to_dll(filename, ext = None, force_rebuild = 0,
 
         if DEBUG:
             sys.stderr.write(error + "\n")
-            raise
-        else:
-            raise RuntimeError(error)
-
-    except (DistutilsError, CCompilerError):
-        if DEBUG:
-            raise
-        else:
-            exc = sys.exc_info()[1]
-            raise RuntimeError(repr(exc))
+        raise
 
 if __name__=="__main__":
     pyx_to_dll("dummy.pyx")

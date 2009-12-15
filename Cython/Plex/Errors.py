@@ -6,9 +6,7 @@
 #
 #=======================================================================
 
-import exceptions
-
-class PlexError(exceptions.Exception):
+class PlexError(Exception):
   message = ""
 
 class PlexTypeError(PlexError, TypeError):

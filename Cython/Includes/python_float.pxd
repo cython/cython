@@ -1,13 +1,17 @@
 cdef extern from "Python.h":
-    ctypedef void PyObject
 
     ############################################################################
     # 7.2.3 
     ############################################################################
     # PyFloatObject
-    # This subtype of PyObject represents a Python floating point object. 
+    #
+    # This subtype of PyObject represents a Python floating point object.
+    
     # PyTypeObject PyFloat_Type
-    # This instance of PyTypeObject represents the Python floating point type. This is the same object as float and types.FloatType. 
+    #
+    # This instance of PyTypeObject represents the Python floating
+    # point type. This is the same object as float and
+    # types.FloatType.
 
     bint PyFloat_Check(object p)
     # Return true if its argument is a PyFloatObject or a subtype of
@@ -27,8 +31,9 @@ cdef extern from "Python.h":
     # Return value: New reference.
     # Create a PyFloatObject object from v, or NULL on failure. 
 
-    double PyFloat_AsDouble(object pyfloat)
-    # Return a C double representation of the contents of pyfloat. 
+    double PyFloat_AsDouble(object pyfloat) except? -1
+    # Return a C double representation of the contents of pyfloat.
 
-    double PyFloat_AS_DOUBLE(object pyfloat)
-    # Return a C double representation of the contents of pyfloat, but without error checking.
+    double PyFloat_AS_DOUBLE(object pyfloat) except? -1
+    # Return a C double representation of the contents of pyfloat, but
+    # without error checking.

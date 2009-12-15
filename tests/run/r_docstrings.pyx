@@ -13,9 +13,9 @@ doctest = u"""# Python 3 gets all of these right ...
     'This is a function docstring.'
 
     >>> C.__doc__
-    u'This is a class docstring.'
+    'This is a class docstring.'
     >>> CS.__doc__
-    u'This is a subclass docstring.'
+    'This is a subclass docstring.'
     >>> print(CSS.__doc__)
     None
 
