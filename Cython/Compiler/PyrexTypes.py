@@ -91,6 +91,7 @@ class PyrexType(BaseType):
     is_array = 0
     is_ptr = 0
     is_null_ptr = 0
+    is_reference = 0
     is_cfunction = 0
     is_struct_or_union = 0
     is_cpp_class = 0
@@ -1031,18 +1032,29 @@ class CReferenceType(CType):
         return "<CReferenceType %s>" % repr(self.base_type)
 
     def same_as_resolved_type(self, other_type):
-        return self.base_type.same_as(other_type.base_type)
+        return other_type.is_reference and self.base_type.same_as(other_type.base_type)
     
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
-        #print "CPtrType.declaration_code: pointer to", self.base_type ###
+        #print "CReferenceType.declaration_code: pointer to", self.base_type ###
         return self.base_type.declaration_code(
             "&%s" % entity_code,
             for_display, dll_linkage, pyrex)
     
     def assignable_from_resolved_type(self, other_type):
-        return 0 #TODO (Danilo) implement this
-    
+        if other_type is error_type:
+            return 1
+        if other_type.is_ptr:
+            if other_type.base_type == self.base_type:
+                return 1
+            else:
+                pass
+                #TODO: should send a warning message: initialization from incompatible pointer type (in C/C++)
+        if other_type == self.base_type:
+            return 1
+        else: #for now
+            return 0
+        
     def specialize(self, values):
         base_type = self.base_type.specialize(values)
         if base_type == self.base_type:
@@ -1797,6 +1809,10 @@ def is_promotion(type, other_type):
         return False
 
 def best_match(args, functions, pos):
+    """
+    Finds the best function to be called
+    Error if no function fits the call or an ambiguity is find (two or more possible functions)
+    """
     actual_nargs = len(args)
     possibilities = []
     bad_types = 0
@@ -1833,7 +1849,8 @@ def best_match(args, functions, pos):
             src_type = args[i].type
             dst_type = func_type.args[i].type
             if dst_type.assignable_from(src_type):
-                if src_type == dst_type:
+                #print src_type, src_type.is_pyobject, dst_type, dst_type.is_pyobject
+                if src_type == dst_type or (dst_type.is_reference and src_type == dst_type.base_type):
                     pass # score 0
                 elif is_promotion(src_type, dst_type):
                     score[2] += 1

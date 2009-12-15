@@ -1,3 +1,4 @@
+
 # cython: auto_cpdef=True
 #
 #   Pyrex Parser
@@ -1749,9 +1750,6 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
             if s.sy == 'IDENT' and s.systring in basic_c_type_names:
                 name = s.systring
                 s.next()
-                if s.sy == '&':
-                    s.next()
-                    #TODO (Danilo)
             else:
                 name = 'int'
         if s.sy == 'IDENT' and s.systring == 'complex':
@@ -1990,6 +1988,12 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
         result = Nodes.CPtrDeclaratorNode(pos,
             base = Nodes.CPtrDeclaratorNode(pos,
                 base = base))
+    elif s.sy == '&':
+        s.next()
+        base = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
+                              cmethod_flag = cmethod_flag,
+                              assignable = assignable, nonempty = nonempty)
+        result = Nodes.CReferenceDeclaratorNode(pos, base = base)
     else:
         rhs = None
         if s.sy == 'IDENT':
