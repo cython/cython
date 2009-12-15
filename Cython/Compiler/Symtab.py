@@ -311,10 +311,11 @@ class Scope(object):
         entry.in_cinclude = self.in_cinclude
         if name:
             entry.qualified_name = self.qualify_name(name)
-            if name in entries and self.is_cpp():
-                entries[name].overloaded_alternatives.append(entry)
-            else:
-                entries[name] = entry
+#            if name in entries and self.is_cpp():
+#                entries[name].overloaded_alternatives.append(entry)
+#            else:
+#                entries[name] = entry
+            entries[name] = entry
         entry.scope = self
         entry.visibility = visibility
         return entry
