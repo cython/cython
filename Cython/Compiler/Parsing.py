@@ -2008,6 +2008,10 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
             cname = None
         if cname is None and ctx.namespace is not None:
             cname = ctx.namespace + "::" + name
+        if name == 'operator' and ctx.visibility == 'extern':
+            # TODO: This needs to be more strict...
+            name += s.sy
+            s.next()
         result = Nodes.CNameDeclaratorNode(pos,
             name = name, cname = cname, default = rhs)
     result.calling_convention = calling_convention

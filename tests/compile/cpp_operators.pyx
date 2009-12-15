@@ -1,6 +1,7 @@
 cdef extern from "operators.h":
     cdef cppclass Operators:
-        __init__(int)
+        Operators(int)
+        Operators operator+(Operators)
         Operators __add__(Operators, Operators)
         Operators __sub__(Operators, Operators)
         Operators __mul__(Operators, Operators)
