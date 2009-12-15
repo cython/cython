@@ -700,6 +700,9 @@ class Scope(object):
             if name in self.entries:    
                 return 1
         return 0
+    
+    def is_cpp(self):
+        return self.outer_scope.is_cpp()
 
 class PreImportScope(Scope):
 
@@ -832,6 +835,7 @@ class ModuleScope(Scope):
     # all_pystring_entries [Entry]            Python string consts from all scopes
     # types_imported       {PyrexType : 1}    Set of types for which import code generated
     # has_import_star      boolean            Module contains import *
+    # cpp                  boolean            Compiling a C++ file
     
     is_module_scope = 1
     has_import_star = 0
@@ -1240,6 +1244,9 @@ class ModuleScope(Scope):
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
         entry.as_variable = var_entry
+    
+    def is_cpp(self):
+        return self.cpp
         
 class LocalScope(Scope):
 
