@@ -915,7 +915,6 @@ class CreateClosureClasses(CythonTransform):
         return node
 
     def create_class_from_scope(self, node, target_module_scope):
-    
         as_name = "%s%s" % (Naming.closure_class_prefix, node.entry.cname)
         func_scope = node.local_scope
 
@@ -931,7 +930,8 @@ class CreateClosureClasses(CythonTransform):
                                     type=node.entry.scope.scope_class.type,
                                     is_cdef=True)
         for entry in func_scope.entries.values():
-            # This is wasteful--we should do this later when we know which vars are actually being used inside...
+            # This is wasteful--we should do this later when we know
+            # which vars are actually being used inside...
             cname = entry.cname
             class_scope.declare_var(pos=entry.pos,
                                     name=entry.name,

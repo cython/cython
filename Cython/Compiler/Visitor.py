@@ -249,7 +249,7 @@ class VisitorTransform(TreeVisitor):
 
 class CythonTransform(VisitorTransform):
     """
-    Certain common conventions and utilitues for Cython transforms.
+    Certain common conventions and utilities for Cython transforms.
 
      - Sets up the context of the pipeline in self.context
      - Tracks directives in effect in self.current_directives
