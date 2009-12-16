@@ -516,6 +516,9 @@ class ExprNode(Node):
         for sub in self.subexpr_nodes():
             sub.free_temps(code)
 
+    def generate_function_definitions(self, env, code):
+        pass
+
     # ---------------- Annotation ---------------------
     
     def annotate(self, code):
