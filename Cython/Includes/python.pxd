@@ -146,6 +146,7 @@ from python_getargs cimport *
 
 # Python <= 2.x
 from python_cobject cimport *
+from python_oldbuffer cimport *
 
 # Python >= 2.4
 from python_set cimport *
