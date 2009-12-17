@@ -80,11 +80,6 @@ def parse_command_line(args):
                 options.show_version = 1
             elif option in ("-l", "--create-listing"):
                 options.use_listing_file = 1
-            elif option in ("-C", "--compile"):
-                options.c_only = 0
-            elif option in ("--link"):
-                options.c_only = 0
-                options.obj_only = 0
             elif option in ("-+", "--cplus"):
                 options.cplus = 1
             elif option == "--embed":
@@ -135,14 +130,9 @@ def parse_command_line(args):
             elif arg.endswith(".py"):
                 # maybe do some other stuff, but this should work for now
                 sources.append(arg)
-            elif arg.endswith(".o"):
-                options.objects.append(arg)
             else:
                 sys.stderr.write(
                     "cython: %s: Unknown filename suffix\n" % arg)
-    if options.objects and len(sources) > 1:
-        sys.stderr.write(
-            "cython: Only one source file allowed together with .o files\n")
     if options.use_listing_file and len(sources) > 1:
         sys.stderr.write(
             "cython: Only one source file allowed when using -o\n")
