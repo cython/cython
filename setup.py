@@ -172,8 +172,6 @@ setup(
     'Cython.Compiler',
     'Cython.Runtime',
     'Cython.Distutils',
-    'Cython.Mac',
-    'Cython.Unix',
     'Cython.Plex',
 
     'Cython.Tests',
