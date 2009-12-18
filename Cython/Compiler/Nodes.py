@@ -4820,12 +4820,14 @@ class FromImportStatNode(StatNode):
 
 utility_function_predeclarations = \
 """
-#ifdef __GNUC__
-#define INLINE __inline__
-#elif _WIN32
-#define INLINE __inline
-#else
-#define INLINE 
+#ifndef INLINE
+  #if defined(__GNUC__)
+    #define INLINE __inline__
+  #elif defined(_MSC_VER)
+    #define INLINE __inline
+  #else
+    #define INLINE 
+  #endif
 #endif
 
 typedef struct {PyObject **p; char *s; const long n; const char* encoding; const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/
