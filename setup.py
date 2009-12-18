@@ -42,7 +42,6 @@ if sys.version_info < (2,4):
     cython_dir = os.path.join(get_python_lib(prefix=''), 'Cython')
     compiler_dir = os.path.join(cython_dir, 'Compiler')
     setup_args['data_files'] = [
-        (compiler_dir, ['Cython/Compiler/Lexicon.pickle']),
         (cython_dir, [ f for pattern in
                        ['Cython/Includes/*.pxd',
                         'Cython/Plex/*.pxd',
@@ -50,8 +49,7 @@ if sys.version_info < (2,4):
                         'Cython/Runtime/*.pyx']
                        for f in glob.glob(pattern) ])]
 else:
-    setup_args['package_data'] = {'Cython.Compiler' : ['Lexicon.pickle'],
-                                  'Cython' : ['Includes/*.pxd',
+    setup_args['package_data'] = {'Cython' : ['Includes/*.pxd',
                                               'Plex/*.pxd',
                                               'Compiler/*.pxd',
                                               'Runtime/*.pyx']}
