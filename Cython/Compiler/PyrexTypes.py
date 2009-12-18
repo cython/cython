@@ -1,3 +1,4 @@
+
 #
 #   Pyrex - Types
 #
@@ -1383,10 +1384,12 @@ class CReferenceType(CType):
         if other_type is error_type:
             return 1
         if other_type.is_ptr:
-            if other_type.base_type == self.base_type:
-                return 1
-            else:
-                pass
+            return 0
+            #print self, other_type
+            #if other_type.base_type == self.base_type:
+            #    return 1
+            #else:
+            #    pass
                 #TODO: should send a warning message: initialization from incompatible pointer type (in C/C++)
         if other_type == self.base_type:
             return 1
@@ -2240,8 +2243,9 @@ def best_match(args, functions, pos):
             src_type = args[i].type
             dst_type = func_type.args[i].type
             if dst_type.assignable_from(src_type):
-                #print src_type, src_type.is_pyobject, dst_type, dst_type.is_pyobject
-                if src_type == dst_type or (dst_type.is_reference and src_type == dst_type.base_type):
+                if src_type == dst_type or (dst_type.is_reference and \
+                                            src_type == dst_type.base_type) or \
+                                            dst_type.same_as(src_type):
                     pass # score 0
                 elif is_promotion(src_type, dst_type):
                     score[2] += 1
