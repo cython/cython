@@ -1,5 +1,5 @@
 #
-#   Pyrex Scanner
+#   Cython Scanner
 #
 
 import os
@@ -19,12 +19,6 @@ from Errors import CompileError, error
 from Lexicon import string_prefixes, raw_prefixes, make_lexicon, IDENT
 
 from StringEncoding import EncodedString
-
-try:
-    plex_version = Plex._version
-except AttributeError:
-    plex_version = None
-#print "Plex version:", plex_version ###
 
 debug_scanner = 0
 trace_scanner = 0

@@ -1,8 +1,5 @@
 #
-#   Pyrex Scanner - Lexical Definitions
-#
-#   Changing anything in this file will cause Lexicon.pickle
-#   to be rebuilt next time pyrexc is run.
+#   Cython Scanner - Lexical Definitions
 #
 
 raw_prefixes = "rR"
