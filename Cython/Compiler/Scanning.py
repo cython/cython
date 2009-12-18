@@ -2,9 +2,6 @@
 #   Pyrex Scanner
 #
 
-#import pickle
-import cPickle as pickle
-
 import os
 import platform
 import stat
@@ -33,122 +30,13 @@ debug_scanner = 0
 trace_scanner = 0
 scanner_debug_flags = 0
 scanner_dump_file = None
-binary_lexicon_pickle = 1
-notify_lexicon_unpickling = 0
-notify_lexicon_pickling = 1
 
 lexicon = None
 
-#-----------------------------------------------------------------
-
-def hash_source_file(path):
-    # Try to calculate a hash code for the given source file.
-    # Returns an empty string if the file cannot be accessed.
-    #print "Hashing", path ###
-    try:
-        from hashlib import md5 as new_md5
-    except ImportError:
-        from md5 import new as new_md5
-    f = None
-    try:
-        try:
-            f = open(path, "rU")
-            text = f.read()
-        except IOError, e:
-            print("Unable to hash scanner source file (%s)" % e)
-            return ""
-    finally:
-        if f:
-            f.close()
-    # Normalise spaces/tabs. We don't know what sort of
-    # space-tab substitution the file may have been
-    # through, so we replace all spans of spaces and
-    # tabs by a single space.
-    import re
-    text = re.sub("[ \t]+", " ", text)
-    hash = new_md5(text.encode("ASCII")).hexdigest()
-    return hash
-
-def open_pickled_lexicon(expected_hash):
-    # Try to open pickled lexicon file and verify that
-    # it matches the source file. Returns the opened
-    # file if successful, otherwise None. ???
-    global lexicon_pickle
-    f = None
-    result = None
-    if os.path.exists(lexicon_pickle):
-        try:
-            f = open(lexicon_pickle, "rb")
-            actual_hash = pickle.load(f)
-            if actual_hash == expected_hash:
-                result = f
-                f = None
-            else:
-                print("Lexicon hash mismatch:")       ###
-                print("   expected " + expected_hash) ###
-                print("   got     " + actual_hash)    ###
-        except (IOError, pickle.UnpicklingError), e:
-            print("Warning: Unable to read pickled lexicon " + lexicon_pickle)
-            print(e)
-    if f:
-        f.close()
-    return result
-
-def try_to_unpickle_lexicon():
-    global lexicon, lexicon_pickle, lexicon_hash
-    dir = os.path.dirname(__file__)
-    source_file = os.path.join(dir, "Lexicon.py")
-    lexicon_hash = hash_source_file(source_file)
-    lexicon_pickle = os.path.join(dir, "Lexicon.pickle")
-    f = open_pickled_lexicon(lexicon_hash)
-    if f:
-        if notify_lexicon_unpickling:
-            t0 = time()
-            print("Unpickling lexicon...")
-        try:
-            lexicon = pickle.load(f)
-        except Exception, e:
-            print "WARNING: Exception while loading lexicon pickle, regenerating"
-            print e
-            lexicon = None
-        f.close()
-        if notify_lexicon_unpickling:
-            t1 = time()
-            print("Done (%.2f seconds)" % (t1 - t0))
-
-def create_new_lexicon():
-    global lexicon
-    t0 = time()
-    print("Creating lexicon...")
-    lexicon = make_lexicon()
-    t1 = time()
-    print("Done (%.2f seconds)" % (t1 - t0))
-
-def pickle_lexicon():
-    f = None
-    try:
-        f = open(lexicon_pickle, "wb")
-    except IOError:
-        print("Warning: Unable to save pickled lexicon in " + lexicon_pickle)
-    if f:
-        if notify_lexicon_pickling:
-            t0 = time()
-            print("Pickling lexicon...")
-        pickle.dump(lexicon_hash, f, binary_lexicon_pickle)
-        pickle.dump(lexicon, f, binary_lexicon_pickle)
-        f.close()
-        if notify_lexicon_pickling:
-            t1 = time()
-            print("Done (%.2f seconds)" % (t1 - t0))
-
 def get_lexicon():
     global lexicon
-    if not lexicon and plex_version is None:
-        try_to_unpickle_lexicon()
     if not lexicon:
-        create_new_lexicon()
-        if plex_version is None:
-            pickle_lexicon()
+        lexicon = make_lexicon()
     return lexicon
     
 #------------------------------------------------------------------
