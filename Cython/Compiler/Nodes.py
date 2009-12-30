@@ -3343,8 +3343,7 @@ class PrintStatNode(StatNode):
             self.arg_tuple.free_temps(code)
 
     def generate_function_definitions(self, env, code):
-        for item in self.arg_tuple:
-            item.generate_function_definitions(env, code)
+        self.arg_tuple.generate_function_definitions(env, code)
 
     def annotate(self, code):
         self.arg_tuple.annotate(code)
