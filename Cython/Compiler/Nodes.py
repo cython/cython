@@ -3725,9 +3725,6 @@ class IfClauseNode(Node):
         self.condition.generate_disposal_code(code)
         self.condition.free_temps(code)
         self.body.generate_execution_code(code)
-        #code.putln(
-        #    "goto %s;" %
-        #        end_label)
         code.put_goto(end_label)
         code.putln("}")
 
@@ -4550,10 +4547,6 @@ class TryFinallyStatNode(StatNode):
                     Naming.exc_vars)
         code.putln(
                 "%s = %s;" % (
-                    Naming.exc_lineno_name, Naming.lineno_cname))
-        #code.putln(
-        #        "goto %s;" %
-        #            catch_label)
         code.put_goto(catch_label)
         code.putln(
             "}")
