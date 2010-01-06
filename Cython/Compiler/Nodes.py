@@ -4547,9 +4547,9 @@ class TryFinallyStatNode(StatNode):
                     Naming.exc_vars)
         code.putln(
                 "%s = %s;" % (
+                    Naming.exc_lineno_name, Naming.lineno_cname))
         code.put_goto(catch_label)
-        code.putln(
-            "}")
+        code.putln("}")
             
     def put_error_uncatcher(self, code, i, error_label):
         code.globalstate.use_utility_code(restore_exception_utility_code)
