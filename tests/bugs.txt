@@ -1,4 +1,4 @@
-# This file contains tests corresponding to of unresolved bugs, 
+# This file contains tests corresponding to unresolved bugs, 
 # which will be skipped in the normal testing run. 
 
 methodmangling_T5
@@ -6,3 +6,4 @@ class_attribute_init_values_T18
 numpy_ValueError_T172
 unsignedbehaviour_T184
 missing_baseclass_in_predecl_T262
+tp_new_T454

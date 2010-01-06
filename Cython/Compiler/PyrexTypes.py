@@ -202,7 +202,11 @@ class CTypedefType(BaseType):
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
         name = self.declaration_name(for_display, pyrex)
-        return self.base_declaration_code(name, entity_code)
+        if pyrex or for_display:
+            base_code = name
+        else:
+            base_code = public_decl(name, dll_linkage)
+        return self.base_declaration_code(base_code, entity_code)
     
     def declaration_name(self, for_display = 0, pyrex = 0):
         if pyrex or for_display:
@@ -1052,6 +1056,14 @@ proto="""
 #else
     #define __Pyx_CREAL(z) ((z).real)
     #define __Pyx_CIMAG(z) ((z).imag)
+#endif
+
+#if defined(_WIN32) && defined(__cplusplus) && CYTHON_CCOMPLEX
+    #define __Pyx_SET_CREAL(z,x) ((z).real(x))
+    #define __Pyx_SET_CIMAG(z,y) ((z).imag(y))
+#else
+    #define __Pyx_SET_CREAL(z,x) __Pyx_CREAL(z) = (x)
+    #define __Pyx_SET_CIMAG(z,y) __Pyx_CIMAG(z) = (y)
 #endif
 """)
 
