@@ -1135,7 +1135,7 @@ class FuncDefNode(StatNode, BlockNode):
         # If an argument is assigned to in the body, we must 
         # incref it to properly keep track of refcounts.
         for entry in lenv.arg_entries:
-            if entry.type.is_pyobject and lenv.control_flow.get_state((entry.name, 'source')) != 'arg':
+            if entry.type.is_pyobject and entry.assignments:
                 code.put_var_incref(entry)
         # ----- Initialise local variables 
         for entry in lenv.var_entries:
@@ -1238,11 +1238,10 @@ class FuncDefNode(StatNode, BlockNode):
         # Decref any increfed args
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
-                src = lenv.control_flow.get_state((entry.name, 'source'))
-                if entry.in_closure and src == 'arg':
+                if entry.in_closure and not entry.assignments:
                     code.put_var_incref(entry)
                     code.put_var_giveref(entry)
-                elif not entry.in_closure and src != 'arg':
+                elif not entry.in_closure and entry.assignments:
                     code.put_var_decref(entry)
         if self.needs_closure:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
