@@ -743,6 +743,8 @@ def compile(source, options = None, c_compile = 0, c_link = 0,
 #  Main command-line entry point
 #
 #------------------------------------------------------------------------
+def setuptools_main():
+    return main(command_line = 1)
 
 def main(command_line = 0):
     args = sys.argv[1:]

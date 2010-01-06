@@ -3091,6 +3091,11 @@ class AttributeNode(ExprNode):
                     rhs.py_result()))
             rhs.generate_disposal_code(code)
             rhs.free_temps(code)
+        elif self.obj.type.is_complex:
+            code.putln("__Pyx_SET_C%s(%s, %s);" % (
+                self.member.upper(),
+                self.obj.result_as(self.obj.type),
+                rhs.result_as(self.ctype())))
         else:
             if (self.obj.type.is_extension_type
                   and self.needs_none_check
@@ -5317,9 +5322,16 @@ class CmpNode(object):
             coerce_result = "__Pyx_PyBool_FromLong"
         else:
             coerce_result = ""
-        if 'not' in op: negation = "!"
-        else: negation = ""
+        if 'not' in op: 
+            negation = "!"
+        else: 
+            negation = ""
         if op == 'in' or op == 'not_in':
+            code.globalstate.use_utility_code(contians_utility_code)
+            if self.type is PyrexTypes.py_object_type:
+                coerce_result = "__Pyx_PyBoolOrNull_FromLong"
+            if op == 'not_in':
+                negation = "__Pyx_NegateNonNeg"
             if operand2.type is dict_type:
                 code.globalstate.use_utility_code(
                     raise_none_iter_error_utility_code)
@@ -5327,24 +5339,28 @@ class CmpNode(object):
                 code.putln("__Pyx_RaiseNoneNotIterableError(); %s" %
                            code.error_goto(self.pos))
                 code.putln("} else {")
-                code.putln(
-                    "%s = %s(%sPyDict_Contains(%s, %s)); %s" % (
-                        result_code, 
-                        coerce_result,
-                        negation,
-                        operand2.py_result(), 
-                        operand1.py_result(), 
-                        code.error_goto_if_neg(result_code, self.pos)))
-                code.putln("}")
+                method = "PyDict_Contains"
             else:
-                code.putln(
-                    "%s = %s(%sPySequence_Contains(%s, %s)); %s" % (
-                        result_code, 
-                        coerce_result,
-                        negation,
-                        operand2.py_result(), 
-                        operand1.py_result(), 
-                        code.error_goto_if_neg(result_code, self.pos)))
+                method = "PySequence_Contains"
+            if self.type is PyrexTypes.py_object_type:
+                error_clause = code.error_goto_if_null
+                got_ref = "__Pyx_XGOTREF(%s); " % result_code
+            else:
+                error_clause = code.error_goto_if_neg
+                got_ref = ""
+            code.putln(
+                "%s = %s(%s(%s(%s, %s))); %s%s" % (
+                    result_code,
+                    coerce_result,
+                    negation,
+                    method,
+                    operand2.py_result(), 
+                    operand1.py_result(), 
+                    got_ref,
+                    error_clause(result_code, self.pos)))
+            if operand2.type is dict_type:
+                code.putln("}")
+                    
         elif (operand1.type.is_pyobject
             and op not in ('is', 'is_not')):
                 code.putln("%s = PyObject_RichCompare(%s, %s, %s); %s" % (
@@ -5393,6 +5409,14 @@ class CmpNode(object):
         else:
             return op
     
+contians_utility_code = UtilityCode(
+proto="""
+static INLINE long __Pyx_NegateNonNeg(long b) { return unlikely(b < 0) ? b : !b; }
+static INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
+    return unlikely(b < 0) ? NULL : __Pyx_PyBool_FromLong(b);
+}
+""")
+
 
 class PrimaryCmpNode(ExprNode, CmpNode):
     #  Non-cascaded comparison or first comparison of

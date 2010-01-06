@@ -1068,8 +1068,10 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             # different types - may or may not lead to an error at runtime
             return node
 
-        # FIXME: we could potentially look up the actual tp_new C method
-        # of the extension type and call that instead of the generic slot
+        # FIXME: we could potentially look up the actual tp_new C
+        # method of the extension type and call that instead of the
+        # generic slot. That would also allow us to pass parameters
+        # efficiently.
 
         if not type_arg.type_entry:
             # arbitrary variable, needs a None check for safety
