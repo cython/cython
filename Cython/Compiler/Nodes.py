@@ -1229,7 +1229,7 @@ class FuncDefNode(StatNode, BlockNode):
         code.put_label(code.return_from_error_cleanup_label)
         if not Options.init_local_none:
             for entry in lenv.var_entries:
-                if lenv.control_flow.get_state((entry.name, 'initalized')) is not True:
+                if lenv.control_flow.get_state((entry.name, 'initialized')) is not True:
                     entry.xdecref_cleanup = 1
         
         for entry in lenv.var_entries:
@@ -1875,7 +1875,7 @@ class DefNode(FuncDefNode):
                 error(arg.pos, "Missing argument name")
             else:
                 env.control_flow.set_state((), (arg.name, 'source'), 'arg')
-                env.control_flow.set_state((), (arg.name, 'initalized'), True)
+                env.control_flow.set_state((), (arg.name, 'initialized'), True)
             if arg.needs_conversion:
                 arg.entry = env.declare_var(arg.name, arg.type, arg.pos)
                 if arg.type.is_pyobject:
@@ -1901,7 +1901,7 @@ class DefNode(FuncDefNode):
             entry.init_to_none = 0
             entry.xdecref_cleanup = 1
             arg.entry = entry
-            env.control_flow.set_state((), (arg.name, 'initalized'), True)
+            env.control_flow.set_state((), (arg.name, 'initialized'), True)
             
     def analyse_expressions(self, env):
         self.local_scope.directives = env.directives
