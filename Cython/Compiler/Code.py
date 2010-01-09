@@ -1281,6 +1281,9 @@ class CCodeWriter(object):
     def put_finish_refcount_context(self):
         self.putln("__Pyx_RefNannyFinishContext();")
 
+    def put_trace_declarations(self):
+        self.putln('__Pyx_TraceDeclarations');
+    
     def put_trace_call(self, name, pos):
         self.putln('__Pyx_TraceCall("%s", %s[%s], %s);' % (name, Naming.filetable_cname, self.lookup_filename(pos[0]), pos[1]));
     
