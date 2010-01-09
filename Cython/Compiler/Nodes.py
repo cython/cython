@@ -1086,6 +1086,8 @@ class FuncDefNode(StatNode, BlockNode):
                     init))
         tempvardecl_code = code.insertion_point()
         self.generate_keyword_list(code)
+        if profile:
+            code.put_trace_declarations()
         # ----- Extern library function declarations
         lenv.generate_library_function_declarations(code)
         # ----- GIL acquisition
@@ -5779,10 +5781,12 @@ profile_utility_code = UtilityCode(proto="""
 #define CYTHON_FRAME_DEL Py_DECREF(%(FRAME)s)
 #endif
 
+#define __Pyx_TraceDeclarations                                  \\
+static PyCodeObject *%(FRAME_CODE)s = NULL;                      \\
+CYTHON_FRAME_MODIFIER PyFrameObject *%(FRAME)s = NULL;           \\
+int __Pyx_use_tracing = 0;                                                         
+
 #define __Pyx_TraceCall(funcname, srcfile, firstlineno)                            \\
-static PyCodeObject *%(FRAME_CODE)s = NULL;                                        \\
-CYTHON_FRAME_MODIFIER PyFrameObject *%(FRAME)s = NULL;                             \\
-int __Pyx_use_tracing = 0;                                                         \\
 if (unlikely(PyThreadState_GET()->use_tracing && PyThreadState_GET()->c_profilefunc)) {      \\
     __Pyx_use_tracing = __Pyx_TraceSetupAndCall(&%(FRAME_CODE)s, &%(FRAME)s, funcname, srcfile, firstlineno);  \\
 }
@@ -5808,6 +5812,7 @@ static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const cha
 static int __Pyx_TraceSetupAndCall(PyCodeObject** code, PyFrameObject** frame, const char *funcname, const char *srcfile, int firstlineno); /*proto*/
 
 #else
+#define __Pyx_TraceDeclarations
 #define __Pyx_TraceCall(funcname, srcfile, firstlineno) 
 #define __Pyx_TraceException() 
 #define __Pyx_TraceReturn(result) 
