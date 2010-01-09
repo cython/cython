@@ -5745,11 +5745,11 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t) {
 force_init_threads_utility_code = UtilityCode(
 proto="""
 #ifndef __PYX_FORCE_INIT_THREADS
-#if PY_VERSION_HEX < 0x02040200
-#define __PYX_FORCE_INIT_THREADS 1
-#else
-#define __PYX_FORCE_INIT_THREADS 0
-#endif
+  #if PY_VERSION_HEX < 0x02040200
+    #define __PYX_FORCE_INIT_THREADS 1
+  #else
+    #define __PYX_FORCE_INIT_THREADS 0
+  #endif
 #endif
 """)
 
@@ -5760,62 +5760,64 @@ proto="""
 
 profile_utility_code = UtilityCode(proto="""
 #ifndef CYTHON_PROFILE
-#define CYTHON_PROFILE 1
+  #define CYTHON_PROFILE 1
 #endif
 
 #ifndef CYTHON_PROFILE_REUSE_FRAME
-#define CYTHON_PROFILE_REUSE_FRAME 0
+  #define CYTHON_PROFILE_REUSE_FRAME 0
 #endif
 
 #if CYTHON_PROFILE
 
-#include "compile.h"
-#include "frameobject.h"
-#include "traceback.h"
+  #include "compile.h"
+  #include "frameobject.h"
+  #include "traceback.h"
 
-#if CYTHON_PROFILE_REUSE_FRAME
-#define CYTHON_FRAME_MODIFIER static
-#define CYTHON_FRAME_DEL
+  #if CYTHON_PROFILE_REUSE_FRAME
+    #define CYTHON_FRAME_MODIFIER static
+    #define CYTHON_FRAME_DEL
+  #else
+    #define CYTHON_FRAME_MODIFIER
+    #define CYTHON_FRAME_DEL Py_DECREF(%(FRAME)s)
+  #endif
+
+  #define __Pyx_TraceDeclarations                                  \\
+  static PyCodeObject *%(FRAME_CODE)s = NULL;                      \\
+  CYTHON_FRAME_MODIFIER PyFrameObject *%(FRAME)s = NULL;           \\
+  int __Pyx_use_tracing = 0;                                                         
+
+  #define __Pyx_TraceCall(funcname, srcfile, firstlineno)                            \\
+  if (unlikely(PyThreadState_GET()->use_tracing && PyThreadState_GET()->c_profilefunc)) {      \\
+      __Pyx_use_tracing = __Pyx_TraceSetupAndCall(&%(FRAME_CODE)s, &%(FRAME)s, funcname, srcfile, firstlineno);  \\
+  }
+
+  #define __Pyx_TraceException()                                                           \\
+  if (unlikely(__Pyx_use_tracing( && PyThreadState_GET()->use_tracing && PyThreadState_GET()->c_profilefunc) {  \\
+      PyObject *exc_info = __Pyx_GetExceptionTuple();                                      \\
+      if (exc_info) {                                                                      \\
+          PyThreadState_GET()->c_profilefunc(                                              \\
+              PyThreadState_GET()->c_profileobj, %(FRAME)s, PyTrace_EXCEPTION, exc_info);  \\
+          Py_DECREF(exc_info);                                                             \\
+      }                                                                                    \\
+  }
+
+  #define __Pyx_TraceReturn(result)                                                  \\
+  if (unlikely(__Pyx_use_tracing) && PyThreadState_GET()->use_tracing && PyThreadState_GET()->c_profilefunc) {  \\
+      PyThreadState_GET()->c_profilefunc(                                            \\
+          PyThreadState_GET()->c_profileobj, %(FRAME)s, PyTrace_RETURN, (PyObject*)result);     \\
+      CYTHON_FRAME_DEL;                                                               \\
+  }
+
+  static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno); /*proto*/
+  static int __Pyx_TraceSetupAndCall(PyCodeObject** code, PyFrameObject** frame, const char *funcname, const char *srcfile, int firstlineno); /*proto*/
+
 #else
-#define CYTHON_FRAME_MODIFIER
-#define CYTHON_FRAME_DEL Py_DECREF(%(FRAME)s)
-#endif
 
-#define __Pyx_TraceDeclarations                                  \\
-static PyCodeObject *%(FRAME_CODE)s = NULL;                      \\
-CYTHON_FRAME_MODIFIER PyFrameObject *%(FRAME)s = NULL;           \\
-int __Pyx_use_tracing = 0;                                                         
+  #define __Pyx_TraceDeclarations
+  #define __Pyx_TraceCall(funcname, srcfile, firstlineno) 
+  #define __Pyx_TraceException() 
+  #define __Pyx_TraceReturn(result) 
 
-#define __Pyx_TraceCall(funcname, srcfile, firstlineno)                            \\
-if (unlikely(PyThreadState_GET()->use_tracing && PyThreadState_GET()->c_profilefunc)) {      \\
-    __Pyx_use_tracing = __Pyx_TraceSetupAndCall(&%(FRAME_CODE)s, &%(FRAME)s, funcname, srcfile, firstlineno);  \\
-}
-
-#define __Pyx_TraceException()                                                           \\
-if (unlikely(__Pyx_use_tracing( && PyThreadState_GET()->use_tracing && PyThreadState_GET()->c_profilefunc) {  \\
-    PyObject *exc_info = __Pyx_GetExceptionTuple();                                      \\
-    if (exc_info) {                                                                      \\
-        PyThreadState_GET()->c_profilefunc(                                              \\
-            PyThreadState_GET()->c_profileobj, %(FRAME)s, PyTrace_EXCEPTION, exc_info);  \\
-        Py_DECREF(exc_info);                                                             \\
-    }                                                                                    \\
-}
-
-#define __Pyx_TraceReturn(result)                                                  \\
-if (unlikely(__Pyx_use_tracing) && PyThreadState_GET()->use_tracing && PyThreadState_GET()->c_profilefunc) {  \\
-    PyThreadState_GET()->c_profilefunc(                                            \\
-        PyThreadState_GET()->c_profileobj, %(FRAME)s, PyTrace_RETURN, (PyObject*)result);     \\
-    CYTHON_FRAME_DEL;                                                               \\
-}
-
-static PyCodeObject *__Pyx_createFrameCodeObject(const char *funcname, const char *srcfile, int firstlineno); /*proto*/
-static int __Pyx_TraceSetupAndCall(PyCodeObject** code, PyFrameObject** frame, const char *funcname, const char *srcfile, int firstlineno); /*proto*/
-
-#else
-#define __Pyx_TraceDeclarations
-#define __Pyx_TraceCall(funcname, srcfile, firstlineno) 
-#define __Pyx_TraceException() 
-#define __Pyx_TraceReturn(result) 
 #endif /* CYTHON_PROFILE */
 """ 
 % {
