@@ -619,15 +619,30 @@ class GlobalState(object):
     def add_cached_builtin_decl(self, entry):
         if Options.cache_builtins:
             if self.should_declare(entry.cname, entry):
-                interned_cname = self.get_interned_identifier(entry.name).cname
                 self.put_pyobject_decl(entry)
                 w = self.parts['cached_builtins']
-                w.putln('%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
-                    entry.cname,
-                    Naming.builtins_cname,
-                    interned_cname,
-                    entry.cname,
-                    w.error_goto(entry.pos)))
+                if entry.name == 'xrange':
+                    # replaced by range() in Py3
+                    w.putln('#if PY_MAJOR_VERSION >= 3')
+                    self.put_cached_builtin_init(
+                        entry.pos, StringEncoding.EncodedString('range'),
+                        entry.cname)
+                    w.putln('#else')
+                self.put_cached_builtin_init(
+                    entry.pos, StringEncoding.EncodedString(entry.name),
+                    entry.cname)
+                if entry.name == 'xrange':
+                    w.putln('#endif')
+
+    def put_cached_builtin_init(self, pos, name, cname):
+        w = self.parts['cached_builtins']
+        interned_cname = self.get_interned_identifier(name).cname
+        w.putln('%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
+            cname,
+            Naming.builtins_cname,
+            interned_cname,
+            cname,
+            w.error_goto(pos)))
 
     def generate_const_declarations(self):
         self.generate_string_constants()
