@@ -1015,7 +1015,7 @@ class TransformBuiltinMethods(EnvTransform):
                         error(node.args[0].pos, "Not a type")
             elif function == u'sizeof':
                 if len(node.args) != 1:
-                    error(node.function.pos, u"sizeof() takes exactly one argument" % function)
+                    error(node.function.pos, u"sizeof() takes exactly one argument")
                 else:
                     type = node.args[0].analyse_as_type(self.env_stack[-1])
                     if type:
@@ -1024,23 +1024,23 @@ class TransformBuiltinMethods(EnvTransform):
                         node = SizeofVarNode(node.function.pos, operand=node.args[0])
             elif function == 'typeof':
                 if len(node.args) != 1:
-                    error(node.function.pos, u"typeof() takes exactly one argument" % function)
+                    error(node.function.pos, u"typeof() takes exactly one argument")
                 else:
                     node = TypeofNode(node.function.pos, operand=node.args[0])
             elif function == 'address':
                 if len(node.args) != 1:
-                    error(node.function.pos, u"address() takes exactly one argument" % function)
+                    error(node.function.pos, u"address() takes exactly one argument")
                 else:
                     node = AmpersandNode(node.function.pos, operand=node.args[0])
             elif function == 'cmod':
                 if len(node.args) != 2:
-                    error(node.function.pos, u"cmod() takes exactly two arguments" % function)
+                    error(node.function.pos, u"cmod() takes exactly two arguments")
                 else:
                     node = binop_node(node.function.pos, '%', node.args[0], node.args[1])
                     node.cdivision = True
             elif function == 'cdiv':
                 if len(node.args) != 2:
-                    error(node.function.pos, u"cdiv() takes exactly two arguments" % function)
+                    error(node.function.pos, u"cdiv() takes exactly two arguments")
                 else:
                     node = binop_node(node.function.pos, '/', node.args[0], node.args[1])
                     node.cdivision = True
