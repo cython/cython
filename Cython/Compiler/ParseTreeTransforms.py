@@ -326,6 +326,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     unop_method_nodes = {
         'typeof': TypeofNode,
         'address': AmpersandNode,
+        'dereference': DereferenceNode,
     }
     
     special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof', 'cast', 'pointer', 'compiled', 'NULL']
