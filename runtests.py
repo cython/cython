@@ -408,26 +408,27 @@ class CythonRunTestCase(CythonCompileTestCase):
         if not child_id:
             result_code = 0
             try:
-                output = os.fdopen(result_handle, 'wb')
-                tests = None
                 try:
-                    partial_result = PartialTestResult(result)
-                    tests = doctest.DocTestSuite(module_name)
-                    tests.run(partial_result)
-                    gc.collect()
-                except Exception:
-                    if tests is None:
-                        # importing failed, try to fake a test class
-                        tests = _FakeClass(
-                            failureException=None,
-                            shortDescription = self.shortDescription,
-                            **{module_name: None})
-                    partial_result.addError(tests, sys.exc_info())
-                    result_code = 1
-                pickle.dump(partial_result.data(), output)
-            except:
-                import traceback
-                traceback.print_exc()
+                    output = os.fdopen(result_handle, 'wb')
+                    tests = None
+                    try:
+                        partial_result = PartialTestResult(result)
+                        tests = doctest.DocTestSuite(module_name)
+                        tests.run(partial_result)
+                        gc.collect()
+                    except Exception:
+                        if tests is None:
+                            # importing failed, try to fake a test class
+                            tests = _FakeClass(
+                                failureException=None,
+                                shortDescription = self.shortDescription,
+                                **{module_name: None})
+                        partial_result.addError(tests, sys.exc_info())
+                        result_code = 1
+                    pickle.dump(partial_result.data(), output)
+                except:
+                    import traceback
+                    traceback.print_exc()
             finally:
                 try: output.close()
                 except: pass
@@ -741,8 +742,13 @@ if __name__ == '__main__':
                              ''')
             sys.path.insert(0, cy3_dir)
     elif sys.version_info[0] >= 3:
-        # make sure we do not import (or run) Cython itself
-        options.with_cython = False
+        # make sure we do not import (or run) Cython itself (unless
+        # 2to3 was already run)
+        cy3_dir = os.path.join(WORKDIR, 'Cy3')
+        if os.path.isdir(cy3_dir):
+            sys.path.insert(0, cy3_dir)
+        else:
+            options.with_cython = False
         options.doctests    = False
         options.unittests   = False
         options.pyregr      = False
