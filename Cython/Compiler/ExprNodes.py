@@ -4129,7 +4129,9 @@ class UnopNode(ExprNode):
             self.gil_error()
 
     def is_cpp_operation(self):
-        return self.operand.type.is_cpp_class
+        type = self.operand.type
+        return (type.is_cpp_class or 
+            (type.is_ptr or type.is_reference) and type.base_type.is_cpp_class)
     
     def coerce_operand_to_pyobject(self, env):
         self.operand = self.operand.coerce_to_pyobject(env)
@@ -4156,7 +4158,7 @@ class UnopNode(ExprNode):
 
     def analyse_cpp_operation(self, env):
         type = operand.type
-        if type.is_ptr:
+        if type.is_ptr or type.is_reference:
             type = type.base_type
         entry = env.lookup(type.name)
         function = entry.type.scope.lookup("operator%s" % self.operator)
@@ -4257,6 +4259,22 @@ class TildeNode(UnopNode):
     
     def calculate_result_code(self):
         return "(~%s)" % self.operand.result()
+
+
+class DereferenceNode(UnopNode):
+    #  unary '*' operator
+    
+    def is_py_operation(self):
+        return False
+
+    def analyse_c_operation(self, env):
+        if self.operand.type.is_ptr:
+            self.type = self.operand.type.base_type
+        else:
+            self.type_error()
+
+    def calculate_result_code(self):
+        return "(*%s)" % self.operand.result()
 
 
 class AmpersandNode(ExprNode):
