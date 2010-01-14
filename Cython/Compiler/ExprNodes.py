@@ -6442,7 +6442,7 @@ static PyObject* __Pyx_PyEval_CallObjectWithKeywords(PyObject*, PyObject*, PyObj
 impl = """
 static PyObject* __Pyx_PyEval_CallObjectWithKeywords(PyObject *callable, PyObject *args, PyObject *kwargs) {
     PyObject* result;
-    if (likely(PyDict_CheckExact(kwargs))) {
+    if (likely(PyDict_Check(kwargs))) {
         return PyEval_CallObjectWithKeywords(callable, args, kwargs);
     } else {
         PyObject* real_dict;
