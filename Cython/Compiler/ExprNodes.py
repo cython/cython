@@ -2775,7 +2775,7 @@ class GeneralCallNode(CallNode):
         
     def generate_result_code(self, code):
         if self.type.is_error: return
-        dict_temp = dict_ref = None
+        kwargs_call_function = "PyEval_CallObjectWithKeywords"
         if self.keyword_args and self.starstar_arg:
             code.put_error_if_neg(self.pos, 
                 "PyDict_Update(%s, %s)" % (
@@ -2788,21 +2788,8 @@ class GeneralCallNode(CallNode):
             keyword_code = self.starstar_arg.py_result()
             if self.starstar_arg.type is not Builtin.dict_type:
                 # CPython supports calling functions with non-dicts, so do we
-                dict_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
-                dict_ref = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
-                code.putln("if (unlikely(!PyDict_Check(%s))) {" % keyword_code)
-                code.putln(
-                    "%s = PyObject_CallFunctionObjArgs((PyObject*)&PyDict_Type, %s, NULL); %s" % (
-                        dict_ref,
-                        keyword_code,
-                        code.error_goto_if_null(dict_ref, self.pos)))
-                code.put_gotref(dict_ref)
-                code.putln("%s = %s;" % (dict_temp, dict_ref))
-                code.putln("} else {")
-                code.putln("%s = 0;" % dict_ref)
-                code.putln("%s = %s;" % (dict_temp, keyword_code))
-                code.putln("}")
-                keyword_code = dict_temp
+                code.globalstate.use_utility_code(kwargs_call_utility_code)
+                kwargs_call_function = "__Pyx_PyEval_CallObjectWithKeywords"
         else:
             keyword_code = None
         if not keyword_code:
@@ -2810,7 +2797,8 @@ class GeneralCallNode(CallNode):
                 self.function.py_result(),
                 self.positional_args.py_result())
         else:
-            call_code = "PyEval_CallObjectWithKeywords(%s, %s, %s)" % (
+            call_code = "%s(%s, %s, %s)" % (
+                kwargs_call_function,
                 self.function.py_result(),
                 self.positional_args.py_result(),
                 keyword_code)
@@ -2820,10 +2808,6 @@ class GeneralCallNode(CallNode):
                 call_code,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
-        if dict_ref is not None:
-            code.funcstate.release_temp(dict_temp)
-            code.put_xdecref_clear(dict_ref, py_object_type)
-            code.funcstate.release_temp(dict_ref)
 
 
 class AsTupleNode(ExprNode):
@@ -6444,6 +6428,33 @@ static int __Pyx_EndUnpack(PyObject *iter) {
 """,
 requires = [raise_need_more_values_to_unpack,
             raise_too_many_values_to_unpack]
+)
+
+#------------------------------------------------------------------------------------
+
+# CPython supports calling functions with non-dict kwargs by
+# converting them to a dict first
+
+kwargs_call_utility_code = UtilityCode(
+proto = """
+static PyObject* __Pyx_PyEval_CallObjectWithKeywords(PyObject*, PyObject*, PyObject*); /*proto*/
+""",
+impl = """
+static PyObject* __Pyx_PyEval_CallObjectWithKeywords(PyObject *callable, PyObject *args, PyObject *kwargs) {
+    PyObject* result;
+    if (likely(PyDict_CheckExact(kwargs))) {
+        return PyEval_CallObjectWithKeywords(callable, args, kwargs);
+    } else {
+        PyObject* real_dict;
+        real_dict = PyObject_CallFunctionObjArgs((PyObject*)&PyDict_Type, kwargs, NULL);
+        if (unlikely(!real_dict))
+            return NULL;
+        result = PyEval_CallObjectWithKeywords(callable, args, real_dict);
+        Py_DECREF(real_dict);
+        return result; /* may be NULL */
+    }
+}
+""", 
 )
 
 
