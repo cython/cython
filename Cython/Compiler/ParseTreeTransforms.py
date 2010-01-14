@@ -323,7 +323,13 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     duplication of functionality has to occur: We manually track cimports
     and which names the "cython" module may have been imported to.
     """
-    special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof', 'typeof', 'cast', 'address', 'pointer', 'compiled', 'NULL'])
+    unop_method_nodes = {
+        'typeof': TypeofNode,
+        'address': AmpersandNode,
+    }
+    
+    special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof', 'cast', 'pointer', 'compiled', 'NULL']
+                            + unop_method_nodes.keys())
 
     def __init__(self, context, compilation_directive_defaults):
         super(InterpretCompilerDirectives, self).__init__(context)
@@ -998,7 +1004,12 @@ class TransformBuiltinMethods(EnvTransform):
         # cython.foo
         function = node.function.as_cython_attribute()
         if function:
-            if function == u'cast':
+            if function in InterpretCompilerDirectives.unop_method_nodes:
+                if len(node.args) != 1:
+                    error(node.function.pos, u"%s() takes exactly one argument" % function)
+                else:
+                    node = InterpretCompilerDirectives.unop_method_nodes[function](node.function.pos, operand=node.args[0])
+            elif function == u'cast':
                 if len(node.args) != 2:
                     error(node.function.pos, u"cast() takes exactly two arguments")
                 else:
@@ -1016,16 +1027,6 @@ class TransformBuiltinMethods(EnvTransform):
                         node = SizeofTypeNode(node.function.pos, arg_type=type)
                     else:
                         node = SizeofVarNode(node.function.pos, operand=node.args[0])
-            elif function == 'typeof':
-                if len(node.args) != 1:
-                    error(node.function.pos, u"typeof() takes exactly one argument" % function)
-                else:
-                    node = TypeofNode(node.function.pos, operand=node.args[0])
-            elif function == 'address':
-                if len(node.args) != 1:
-                    error(node.function.pos, u"address() takes exactly one argument" % function)
-                else:
-                    node = AmpersandNode(node.function.pos, operand=node.args[0])
             elif function == 'cmod':
                 if len(node.args) != 2:
                     error(node.function.pos, u"cmod() takes exactly one argument" % function)
