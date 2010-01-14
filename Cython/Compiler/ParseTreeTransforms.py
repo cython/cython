@@ -1034,13 +1034,13 @@ class TransformBuiltinMethods(EnvTransform):
                     node = AmpersandNode(node.function.pos, operand=node.args[0])
             elif function == 'cmod':
                 if len(node.args) != 2:
-                    error(node.function.pos, u"cmod() takes exactly one argument" % function)
+                    error(node.function.pos, u"cmod() takes exactly two arguments" % function)
                 else:
                     node = binop_node(node.function.pos, '%', node.args[0], node.args[1])
                     node.cdivision = True
             elif function == 'cdiv':
                 if len(node.args) != 2:
-                    error(node.function.pos, u"cdiv() takes exactly one argument" % function)
+                    error(node.function.pos, u"cdiv() takes exactly two arguments" % function)
                 else:
                     node = binop_node(node.function.pos, '/', node.args[0], node.args[1])
                     node.cdivision = True
