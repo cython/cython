@@ -4261,12 +4261,14 @@ class TildeNode(UnopNode):
         return "(~%s)" % self.operand.result()
 
 
-class DereferenceNode(UnopNode):
-    #  unary '*' operator
-    
+class CUnopNode(UnopNode):
+
     def is_py_operation(self):
         return False
 
+class DereferenceNode(CUnopNode):
+    #  unary * operator
+    
     def analyse_c_operation(self, env):
         if self.operand.type.is_ptr:
             self.type = self.operand.type.base_type
@@ -4275,6 +4277,25 @@ class DereferenceNode(UnopNode):
 
     def calculate_result_code(self):
         return "(*%s)" % self.operand.result()
+
+
+class DecrementIncrementNode(CUnopNode):
+    #  unary ++/-- operator
+    
+    def analyse_c_operation(self, env):
+        if self.operand.type.is_ptr or self.operand.type.is_numeric:
+            self.type = self.operand.type
+        else:
+            self.type_error()
+
+    def calculate_result_code(self):
+        if self.is_prefix:
+            return "(%s%s)" % (self.operator, self.operand.result())
+        else:
+            return "(%s%s)" % (self.operand.result(), self.operator)
+
+def inc_dec_constructor(is_prefix, operator):
+    return lambda pos, **kwds: DecrementIncrementNode(pos, is_prefix=is_prefix, operator=operator, **kwds)
 
 
 class AmpersandNode(ExprNode):

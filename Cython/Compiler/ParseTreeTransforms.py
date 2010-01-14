@@ -327,6 +327,10 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         'typeof': TypeofNode,
         'address': AmpersandNode,
         'dereference': DereferenceNode,
+        'preincrement' : inc_dec_constructor(True, '++'),
+        'predecrement' : inc_dec_constructor(True, '--'),
+        'postincrement': inc_dec_constructor(False, '++'),
+        'postdecrement': inc_dec_constructor(False, '--'),
     }
     
     special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof', 'cast', 'pointer', 'compiled', 'NULL']
