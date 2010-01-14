@@ -2775,6 +2775,7 @@ class GeneralCallNode(CallNode):
         
     def generate_result_code(self, code):
         if self.type.is_error: return
+        dict_temp = dict_ref = None
         if self.keyword_args and self.starstar_arg:
             code.put_error_if_neg(self.pos, 
                 "PyDict_Update(%s, %s)" % (
@@ -2785,6 +2786,23 @@ class GeneralCallNode(CallNode):
             keyword_code = self.keyword_args.py_result()
         elif self.starstar_arg:
             keyword_code = self.starstar_arg.py_result()
+            if self.starstar_arg.type is not Builtin.dict_type:
+                # CPython supports calling functions with non-dicts, so do we
+                dict_temp = code.funcstate.allocate_temp(py_object_type, manage_ref=False)
+                dict_ref = code.funcstate.allocate_temp(py_object_type, manage_ref=True)
+                code.putln("if (unlikely(!PyDict_Check(%s))) {" % keyword_code)
+                code.putln(
+                    "%s = PyObject_CallFunctionObjArgs((PyObject*)&PyDict_Type, %s, NULL); %s" % (
+                        dict_ref,
+                        keyword_code,
+                        code.error_goto_if_null(dict_ref, self.pos)))
+                code.put_gotref(dict_ref)
+                code.putln("%s = %s;" % (dict_temp, dict_ref))
+                code.putln("} else {")
+                code.putln("%s = 0;" % dict_ref)
+                code.putln("%s = %s;" % (dict_temp, keyword_code))
+                code.putln("}")
+                keyword_code = dict_temp
         else:
             keyword_code = None
         if not keyword_code:
@@ -2802,6 +2820,10 @@ class GeneralCallNode(CallNode):
                 call_code,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
+        if dict_ref is not None:
+            code.funcstate.release_temp(dict_temp)
+            code.put_xdecref_clear(dict_ref, py_object_type)
+            code.funcstate.release_temp(dict_ref)
 
 
 class AsTupleNode(ExprNode):
