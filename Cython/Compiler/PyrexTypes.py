@@ -1383,15 +1383,9 @@ class CReferenceType(CType):
     def assignable_from_resolved_type(self, other_type):
         if other_type is error_type:
             return 1
-        if other_type.is_ptr:
-            return 0
-            #print self, other_type
-            #if other_type.base_type == self.base_type:
-            #    return 1
-            #else:
-            #    pass
-                #TODO: should send a warning message: initialization from incompatible pointer type (in C/C++)
-        if other_type == self.base_type:
+        elif other_type.is_reference and self.base_type == other_type.base_type:
+            return 1
+        elif other_type == self.base_type:
             return 1
         else: #for now
             return 0
