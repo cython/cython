@@ -646,7 +646,7 @@ class FileListExcluder:
                 self.excludes[line.split()[0]] = True
                 
     def __call__(self, testname):
-        return testname.split('.')[-1] in self.excludes
+        return testname in self.excludes or testname.split('.')[-1] in self.excludes
 
 if __name__ == '__main__':
     from optparse import OptionParser
