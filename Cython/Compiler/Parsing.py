@@ -2058,6 +2058,8 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
         exception_value = exc_val, exception_check = exc_check,
         nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil)
 
+supported_overloaded_operators = set(['+', '-', '*', '/', '%', '++', '--', '~', '<<', '>>' ])
+
 def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                           assignable, nonempty):
     pos = s.position()
@@ -2102,13 +2104,21 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
         if cname is None and ctx.namespace is not None:
             cname = ctx.namespace + "::" + name
         if name == 'operator' and ctx.visibility == 'extern':
-            # TODO: This needs to be more strict...
-            name += s.sy
+            op = s.sy
+            # Handle diphthong operators.
+            if op == '(':
+                s.expect(')')
+                op = '()'
+            elif op == '[':
+                s.expect(']')
+                op = '[]'
             s.next()
-            if name[-1] == s.sy:
-                # ++ and -- are parsed as two tokens
-                name += s.sy
+            if op in ['-', '+'] and s.sy == op:
+                op = op*2
                 s.next()
+            if op not in supported_overloaded_operators:
+                s.error("Overloading operator '%s' not yet supported." % op)
+            name = name+op
         result = Nodes.CNameDeclaratorNode(pos,
             name = name, cname = cname, default = rhs)
     result.calling_convention = calling_convention
