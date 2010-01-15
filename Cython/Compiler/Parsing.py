@@ -1900,7 +1900,6 @@ def p_buffer_or_template(s, base_type_node):
             ExprNodes.DictItemNode(pos=key.pos, key=key, value=value)
             for key, value in keyword_args
         ])
-
     result = Nodes.TemplatedTypeNode(pos,
         positional_args = positional_args,
         keyword_args = keyword_dict,
