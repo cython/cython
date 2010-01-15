@@ -2058,7 +2058,7 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
         exception_value = exc_val, exception_check = exc_check,
         nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil)
 
-supported_overloaded_operators = set(['+', '-', '*', '/', '%', '++', '--', '~', '<<', '>>' ])
+supported_overloaded_operators = set(['+', '-', '*', '/', '%', '++', '--', '~', '|', '&', '^', '<<', '>>' ])
 
 def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                           assignable, nonempty):
@@ -2113,8 +2113,11 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                 s.expect(']')
                 op = '[]'
             s.next()
-            if op in ['-', '+'] and s.sy == op:
+            if op in ['-', '+', '|', '&'] and s.sy == op:
                 op = op*2
+                s.next()
+            if s.sy == '=':
+                op += s.sy
                 s.next()
             if op not in supported_overloaded_operators:
                 s.error("Overloading operator '%s' not yet supported." % op)

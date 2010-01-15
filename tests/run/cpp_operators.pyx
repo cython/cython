@@ -20,13 +20,20 @@ cdef extern from "cpp_operators_helper.h":
         char* operator/(int)
         char* operator%(int)
 
+        char* operator|(int)
+        char* operator&(int)
+        char* operator^(int)
+
+        char* operator<<(int)
+        char* operator>>(int)
+
 def test_unops():
     """
     >>> test_unops()
-    unary+
-    unary-
-    unary~
-    unary*
+    unary +
+    unary -
+    unary ~
+    unary *
     """
     cdef TestOps* t = new TestOps()
     print +t[0]
@@ -38,10 +45,10 @@ def test_unops():
 def test_incdec():
     """
     >>> test_incdec()
-    unary++
-    unary--
-    post++
-    post--
+    unary ++
+    unary --
+    post ++
+    post --
     """
     cdef TestOps* t = new TestOps()
     print cython.preincrement(t[0])
@@ -53,11 +60,16 @@ def test_incdec():
 def test_binop():
     """
     >>> test_binop()
-    binary+
-    binary-
-    binary*
-    binary/
-    binary%
+    binary +
+    binary -
+    binary *
+    binary /
+    binary %
+    binary &
+    binary |
+    binary ^
+    binary <<
+    binary >>
     """
     cdef TestOps* t = new TestOps()
     print t[0] + 1
@@ -65,4 +77,11 @@ def test_binop():
     print t[0] * 1
     print t[0] / 1
     print t[0] % 1
+    
+    print t[0] & 1
+    print t[0] | 1
+    print t[0] ^ 1
+    
+    print t[0] << 1
+    print t[0] >> 1
     del t
