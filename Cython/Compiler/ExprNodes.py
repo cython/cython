@@ -4130,8 +4130,7 @@ class UnopNode(ExprNode):
 
     def is_cpp_operation(self):
         type = self.operand.type
-        return (type.is_cpp_class or 
-            (type.is_ptr or type.is_reference) and type.base_type.is_cpp_class)
+        return type.is_cpp_class or type.is_reference and type.base_type.is_cpp_class
     
     def coerce_operand_to_pyobject(self, env):
         self.operand = self.operand.coerce_to_pyobject(env)
@@ -4157,7 +4156,7 @@ class UnopNode(ExprNode):
         self.type = PyrexTypes.error_type
 
     def analyse_cpp_operation(self, env):
-        type = operand.type
+        type = self.operand.type
         if type.is_ptr or type.is_reference:
             type = type.base_type
         entry = env.lookup(type.name)
@@ -4167,7 +4166,10 @@ class UnopNode(ExprNode):
                 % (self.operator, type))
             self.type_error()
             return
-        self.type = function.type.return_type
+        func_type = function.type
+        if func_type.is_ptr:
+            func_type = func_type.base_type
+        self.type = func_type.return_type
 
 
 class NotNode(ExprNode):
@@ -4215,7 +4217,10 @@ class UnaryPlusNode(UnopNode):
         return "PyNumber_Positive"
     
     def calculate_result_code(self):
-        return self.operand.result()
+        if self.is_cpp_operation():
+            return "(+%s)" % self.operand.result()
+        else:
+            return self.operand.result()
 
 
 class UnaryMinusNode(UnopNode):
@@ -4268,6 +4273,8 @@ class CUnopNode(UnopNode):
 
 class DereferenceNode(CUnopNode):
     #  unary * operator
+
+    operator = '*'
     
     def analyse_c_operation(self, env):
         if self.operand.type.is_ptr:
@@ -4651,9 +4658,9 @@ class BinopNode(ExprNode):
     def is_cpp_operation(self):
         type1 = self.operand1.type
         type2 = self.operand2.type
-        if type1.is_ptr:
+        if type1.is_reference:
             type1 = type1.base_type
-        if type2.is_ptr:
+        if type2.is_reference:
             type2 = type2.base_type
         return (type1.is_cpp_class
             or type2.is_cpp_class)
@@ -4897,6 +4904,8 @@ class DivNode(NumBinopNode):
         else:
             self.ctruedivision = self.truedivision
         NumBinopNode.analyse_types(self, env)
+        if self.is_cpp_operation():
+            self.cdivision = True
         if not self.type.is_pyobject:
             self.zerodivision_check = (
                 self.cdivision is None and not env.directives['cdivision']

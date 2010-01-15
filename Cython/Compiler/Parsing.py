@@ -2105,6 +2105,10 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
             # TODO: This needs to be more strict...
             name += s.sy
             s.next()
+            if name[-1] == s.sy:
+                # ++ and -- are parsed as two tokens
+                name += s.sy
+                s.next()
         result = Nodes.CNameDeclaratorNode(pos,
             name = name, cname = cname, default = rhs)
     result.calling_convention = calling_convention
