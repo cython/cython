@@ -1106,15 +1106,7 @@ proto="""
 complex_from_parts_utility_code = UtilityCode(
 proto_block='utility_code_proto',
 proto="""
-#if CYTHON_CCOMPLEX
-  #ifdef __cplusplus
-    static INLINE %(type)s %(type_name)s_from_parts(%(real_type)s, %(real_type)s);
-  #else
-    static INLINE %(type)s %(type_name)s_from_parts(%(real_type)s, %(real_type)s);
-  #endif
-#else
-    static INLINE %(type)s %(type_name)s_from_parts(%(real_type)s, %(real_type)s);
-#endif
+static INLINE %(type)s %(type_name)s_from_parts(%(real_type)s, %(real_type)s);
 """,
 impl="""
 #if CYTHON_CCOMPLEX
