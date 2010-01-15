@@ -1832,6 +1832,7 @@ class CppClassType(CType):
         self.operators = []
         self.templates = templates
         self.template_type = template_type
+        self.specializations = {}
 
     def specialize_here(self, pos, template_values = None):
         if self.templates is None:
@@ -1844,10 +1845,14 @@ class CppClassType(CType):
         return self.specialize(dict(zip(self.templates, template_values)))
     
     def specialize(self, values):
-        # TODO(danilo): Cache for efficiency.
+        key = tuple(values.items())
+        if key in self.specializations:
+            return self.specializations[key]
         template_values = [t.specialize(values) for t in self.templates]
-        return CppClassType(self.name, self.scope.specialize(values), self.cname, self.base_classes, 
-                            template_values, template_type=self)
+        specialized = self.specializations[key] = \
+            CppClassType(self.name, None, self.cname, self.base_classes, template_values, template_type=self)
+        specialized.scope = self.scope.specialize(values)
+        return specialized
 
     def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
         if self.templates:
