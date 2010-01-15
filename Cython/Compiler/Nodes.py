@@ -477,6 +477,19 @@ class CArrayDeclaratorNode(CDeclaratorNode):
     child_attrs = ["base", "dimension"]
     
     def analyse(self, base_type, env, nonempty = 0):
+        if base_type.is_cpp_class:
+            from ExprNodes import TupleNode
+            if isinstance(self.dimension, TupleNode):
+                args = self.dimension.args
+            else:
+                args = self.dimension,
+            values = [v.analyse_as_type(env) for v in args]
+            if None in values:
+                ix = values.index(None)
+                error(args[ix].pos, "Template parameter not a type.")
+                return error_type
+            base_type = base_type.specialize_here(self.pos, values)
+            return self.base.analyse(base_type, env, nonempty = nonempty)
         if self.dimension:
             self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
