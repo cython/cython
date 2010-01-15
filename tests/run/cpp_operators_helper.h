@@ -30,5 +30,12 @@ public:
     BIN_OP(|);
     BIN_OP(&);
     BIN_OP(^);
-    
+
+    BIN_OP(==);
+    BIN_OP(!=);
+    BIN_OP(<=);
+    BIN_OP(<);
+    BIN_OP(>=);
+    BIN_OP(>);
+
 };

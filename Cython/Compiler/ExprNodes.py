@@ -5303,9 +5303,9 @@ class CmpNode(object):
     def is_cpp_comparison(self):
         type1 = self.operand1.type
         type2 = self.operand2.type
-        if type1.is_ptr:
+        if type1.is_reference:
             type1 = type1.base_type
-        if type2.is_ptr:
+        if type2.is_reference:
             type2 = type2.base_type
         return type1.is_cpp_class or type2.is_cpp_class
 
@@ -5569,6 +5569,9 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         self.operand2.analyse_types(env)
         if self.is_cpp_comparison():
             self.analyse_cpp_comparison(env)
+            if self.cascade:
+                error(self.pos, "Cascading comparison not yet supported for cpp types.")
+            return
         if self.cascade:
             self.cascade.analyse_types(env)
 
@@ -5601,9 +5604,9 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     def analyse_cpp_comparison(self, env):
         type1 = self.operand1.type
         type2 = self.operand2.type
-        if type1.is_ptr:
+        if type1.is_reference:
             type1 = type1.base_type
-        if type2.is_ptr:
+        if type2.is_reference:
             type2 = type2.base_type
         entry = env.lookup(type1.name)
         function = entry.type.scope.lookup("operator%s" % self.operator)
@@ -5611,12 +5614,12 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             error(self.pos, "Invalid types for '%s' (%s, %s)" %
                 (self.operator, type1, type2))
             return
-        entry = PyrexTypes.best_match([self.operand1, self.operand2], function.all_alternatives(), self.pos)
+        entry = PyrexTypes.best_match([self.operand2], function.all_alternatives(), self.pos)
         if entry is None:
             self.type = PyrexTypes.error_type
             self.result_code = "<error>"
             return
-        if (entry.type.is_ptr):
+        if entry.type.is_ptr:
             self.type = entry.type.base_type.return_type
         else:
             self.type = entry.type.return_type

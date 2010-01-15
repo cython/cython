@@ -27,6 +27,13 @@ cdef extern from "cpp_operators_helper.h":
         char* operator<<(int)
         char* operator>>(int)
 
+        char* operator==(int)
+        char* operator!=(int)
+        char* operator>=(int)
+        char* operator<=(int)
+        char* operator>(int)
+        char* operator<(int)
+
 def test_unops():
     """
     >>> test_unops()
@@ -84,4 +91,23 @@ def test_binop():
     
     print t[0] << 1
     print t[0] >> 1
+    del t
+
+def test_cmp():
+    """
+    >>> test_cmp()
+    binary ==
+    binary !=
+    binary >=
+    binary >
+    binary <=
+    binary <
+    """
+    cdef TestOps* t = new TestOps()
+    print t[0] == 1
+    print t[0] != 1
+    print t[0] >= 1
+    print t[0] > 1
+    print t[0] <= 1
+    print t[0] < 1
     del t
