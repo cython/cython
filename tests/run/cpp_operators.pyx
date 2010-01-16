@@ -34,6 +34,9 @@ cdef extern from "cpp_operators_helper.h":
         char* operator>(int)
         char* operator<(int)
 
+        char* operator[](int)
+        char* operator()(int)
+
 def test_unops():
     """
     >>> test_unops()
@@ -110,4 +113,15 @@ def test_cmp():
     print t[0] > 1
     print t[0] <= 1
     print t[0] < 1
+    del t
+
+def test_index_call():
+    """
+    >>> test_index_call()
+    binary []
+    binary ()
+    """
+    cdef TestOps* t = new TestOps()
+    print t[0][100]
+    print t[0](100)
     del t
