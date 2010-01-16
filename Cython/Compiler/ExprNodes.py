@@ -2579,7 +2579,15 @@ class SimpleCallNode(CallNode):
         return func_type
     
     def analyse_c_function_call(self, env):
-        entry = PyrexTypes.best_match(self.args, self.function.entry.all_alternatives(), self.pos)
+        if self.function.type.is_cpp_class:
+            function = self.function.type.scope.lookup("operator()")
+            if function is None:
+                self.type = PyrexTypes.error_type
+                self.result_code = "<error>"
+                return
+        else:
+            function = self.function.entry
+        entry = PyrexTypes.best_match(self.args, function.all_alternatives(), self.pos)
         if not entry:
             self.type = PyrexTypes.error_type
             self.result_code = "<error>"
