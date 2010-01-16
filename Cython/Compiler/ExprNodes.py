@@ -1914,18 +1914,37 @@ class IndexNode(ExprNode):
             else:
                 if self.base.type.is_ptr or self.base.type.is_array:
                     self.type = self.base.type.base_type
+                    if self.index.type.is_pyobject:
+                        self.index = self.index.coerce_to(
+                            PyrexTypes.c_py_ssize_t_type, env)
+                    if not self.index.type.is_int:
+                        error(self.pos,
+                            "Invalid index type '%s'" %
+                                self.index.type)
+                elif self.base.type.is_cpp_class:
+                    function = self.base.type.scope.lookup("operator[]")
+                    if function is None:
+                        error(self.pos, "Indexing '%s' not supported" % self.base.type)
+                    else:
+                        function = PyrexTypes.best_match([self.index], function.all_alternatives(), self.pos)
+                        if function is None:
+                            error(self.pos, "Invalid index type '%s'" % self.index.type)
+                    if function is None:
+                        self.type = PyrexTypes.error_type
+                        self.result_code = "<error>"
+                        return
+                    func_type = function.type
+                    if func_type.is_ptr:
+                        func_type = func_type.base_type
+                    self.index = self.index.coerce_to(func_type.args[0].type, env)
+                    self.type = func_type.return_type
+                    if setting and not func_type.return_type.is_reference:
+                        error(self.pos, "Can't set non-reference '%s'" % self.type)
                 else:
                     error(self.pos,
                         "Attempting to index non-array type '%s'" %
                             self.base.type)
                     self.type = PyrexTypes.error_type
-                if self.index.type.is_pyobject:
-                    self.index = self.index.coerce_to(
-                        PyrexTypes.c_py_ssize_t_type, env)
-                if not self.index.type.is_int:
-                    error(self.pos,
-                        "Invalid index type '%s'" %
-                            self.index.type)
     gil_message = "Indexing Python object"
 
     def nogil_check(self, env):
@@ -4738,6 +4757,7 @@ class NumBinopNode(BinopNode):
         if type2.is_ptr:
             type2 = type2.base_type
         entry = env.lookup(type1.name)
+        # Shouldn't this be type1.scope?
         function = entry.type.scope.lookup("operator%s" % self.operator)
         if function is not None:
             operands = [self.operand2]
