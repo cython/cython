@@ -2061,6 +2061,7 @@ supported_overloaded_operators = set([
     '+', '-', '*', '/', '%', 
     '++', '--', '~', '|', '&', '^', '<<', '>>',
     '==', '!=', '>=', '>', '<=', '<',
+    '[]',
 ])
 
 def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
@@ -2108,6 +2109,7 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
             cname = ctx.namespace + "::" + name
         if name == 'operator' and ctx.visibility == 'extern':
             op = s.sy
+            s.next()
             # Handle diphthong operators.
             if op == '(':
                 s.expect(')')
@@ -2115,7 +2117,6 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
             elif op == '[':
                 s.expect(']')
                 op = '[]'
-            s.next()
             if op in ['-', '+', '|', '&'] and s.sy == op:
                 op = op*2
                 s.next()
