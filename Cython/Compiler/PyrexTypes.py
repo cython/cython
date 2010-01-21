@@ -1063,6 +1063,11 @@ proto="""
     #include <complex.h>
   #endif
 #endif
+
+#if CYTHON_CCOMPLEX && !defined(__cplusplus) && defined(__sun__) && defined(__GNUC__)
+  #undef _Complex_I
+  #define _Complex_I 1.0fj
+#endif
 """)
 
 complex_real_imag_utility_code = UtilityCode(
@@ -1122,9 +1127,9 @@ impl="""
 #else
     static INLINE %(type)s %(type_name)s_from_parts(%(real_type)s x, %(real_type)s y) {
       %(type)s z;
-       z.real = x;
-       z.imag = y;
-       return z;
+      z.real = x;
+      z.imag = y;
+      return z;
     }
 #endif
 """)
