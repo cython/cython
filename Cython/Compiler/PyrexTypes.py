@@ -2201,7 +2201,7 @@ def is_promotion(type, other_type):
     else:
         return False
 
-def best_match(args, functions, pos):
+def best_match(args, functions, pos=None):
     """
     Finds the best function to be called
     Error if no function fits the call or an ambiguity is find (two or more possible functions)
@@ -2217,7 +2217,7 @@ def best_match(args, functions, pos):
             func_type = func_type.base_type
         # Check function type
         if not func_type.is_cfunction:
-            if not func_type.is_error:
+            if not func_type.is_error and pos is not None:
                 error(pos, "Calling non-function type '%s'" % func_type)
             return None
         # Check no. of args
@@ -2262,14 +2262,15 @@ def best_match(args, functions, pos):
     if len(possibilities):
         possibilities.sort()
         if len(possibilities) > 1 and possibilities[0][0] == possibilities[1][0]:
-            error(pos, "ambiguous overloaded method")
+            if pos is not None:
+                error(pos, "ambiguous overloaded method")
             return None
         return possibilities[0][1]
-    if bad_types:
-        error(pos, "Invalid conversion from '%s' to '%s'" % (from_type, target_type))
-        return None
-    else:
-        error(pos, error_str)
+    if pos is not None:
+        if bad_types:
+            error(pos, "Invalid conversion from '%s' to '%s'" % (from_type, target_type))
+        else:
+            error(pos, error_str)
     return None
 
 
