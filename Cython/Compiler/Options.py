@@ -63,6 +63,7 @@ directive_defaults = {
     'callspec' : "",
     'profile': False,
     'infer_types': False,
+    'infer_types.verbose': False,
     'autotestdict': True,
     
     'warn': None,
