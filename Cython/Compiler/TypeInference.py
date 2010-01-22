@@ -1,3 +1,4 @@
+from Errors import error, warning, warn_once, InternalError
 import ExprNodes
 import Nodes
 import Builtin
@@ -132,6 +133,7 @@ class SimpleAssignmentTypeInferer:
     # (Something more powerful than just extending this one...)
     def infer_types(self, scope):
         enabled = scope.directives['infer_types']
+        verbose = scope.directives['infer_types.verbose']
         if enabled == True:
             spanning_type = aggressive_spanning_type
         elif enabled is None: # safe mode
@@ -178,6 +180,8 @@ class SimpleAssignmentTypeInferer:
                     # FIXME: raise a warning?
                     # print "No assignments", entry.pos, entry
                     entry.type = py_object_type
+                if verbose:
+                    warning(entry.pos, "inferred '%s' to be of type '%s'" % (entry.name, entry.type), 1)
                 resolve_dependancy(entry)
             # Deal with simple circular dependancies...
             for entry, deps in dependancies_by_entry.items():
@@ -197,6 +201,8 @@ class SimpleAssignmentTypeInferer:
         # We can't figure out the rest with this algorithm, let them be objects.
         for entry in dependancies_by_entry:
             entry.type = py_object_type
+            if verbose:
+                warning(entry.pos, "inferred '%s' to be of type '%s' (default)" % (entry.name, entry.type), 1)
 
 def find_spanning_type(type1, type2):
     if type1 is type2:
