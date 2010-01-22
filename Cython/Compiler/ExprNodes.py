@@ -1157,6 +1157,8 @@ class NameNode(AtomicExprNode):
         if not self.entry:
             self.entry = env.lookup_here(self.name)
         if not self.entry:
+            if env.directives['warn.undeclared']:
+                warning(self.pos, "implicit declaration of '%s'" % self.name, 1)
             if env.directives['infer_types'] != False:
                 type = unspecified_type
             else:
