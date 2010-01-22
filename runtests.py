@@ -404,12 +404,12 @@ class CythonRunTestCase(CythonCompileTestCase):
 
         # fork to make sure we do not keep the tested module loaded
         result_handle, result_file = tempfile.mkstemp()
+        os.close(result_handle)
         child_id = os.fork()
         if not child_id:
             result_code = 0
             try:
                 try:
-                    output = os.fdopen(result_handle, 'wb')
                     tests = None
                     try:
                         partial_result = PartialTestResult(result)
@@ -425,6 +425,7 @@ class CythonRunTestCase(CythonCompileTestCase):
                                 **{module_name: None})
                         partial_result.addError(tests, sys.exc_info())
                         result_code = 1
+                    output = open(result_file, 'wb')
                     pickle.dump(partial_result.data(), output)
                 except:
                     import traceback
