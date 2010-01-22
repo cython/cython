@@ -2579,7 +2579,7 @@ def p_code(s, level=None):
             repr(s.sy), repr(s.systring)))
     return body
 
-COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*cython:\s*(\w+\s*=.*)$")
+COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*cython:\s*((\w|[.])+\s*=.*)$")
 
 def p_compiler_directive_comments(s):
     result = {}
