@@ -64,6 +64,9 @@ directive_defaults = {
     'profile': False,
     'infer_types': False,
     'autotestdict': True,
+    
+    'warn': None,
+    'warn.undeclared': False,
 
 # test support
     'test_assert_path_exists' : [],
