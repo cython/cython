@@ -960,13 +960,15 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 if func_arg.type == node.type:
                     return func_arg
                 elif node.type.assignable_from(func_arg.type) or func_arg.type.is_float:
-                    return ExprNodes.CastNode(func_arg, node.type)
+                    return ExprNodes.TypecastNode(
+                        node.pos, operand=func_arg, type=node.type)
         elif function.name == 'float':
             if func_arg.type.is_float or node.type.is_float:
                 if func_arg.type == node.type:
                     return func_arg
                 elif node.type.assignable_from(func_arg.type) or func_arg.type.is_float:
-                    return ExprNodes.CastNode(func_arg, node.type)
+                    return ExprNodes.TypecastNode(
+                        node.pos, operand=func_arg, type=node.type)
         return node
 
     ### dispatch to specific optimisers
@@ -1115,7 +1117,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if func_arg.type is PyrexTypes.c_double_type:
             return func_arg
         elif node.type.assignable_from(func_arg.type) or func_arg.type.is_numeric:
-            return ExprNodes.CastNode(func_arg, node.type)
+            return ExprNodes.TypecastNode(
+                node.pos, operand=func_arg, type=node.type)
         return ExprNodes.PythonCapiCallNode(
             node.pos, "__Pyx_PyObject_AsDouble",
             self.PyObject_AsDouble_func_type,
