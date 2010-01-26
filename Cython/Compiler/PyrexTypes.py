@@ -638,10 +638,10 @@ type_conversion_functions = ""
 
 c_int_from_py_function = UtilityCode(
 proto="""
-static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
+static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
 """,
 impl="""
-static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
+static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
     const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
     const int is_unsigned = neg_one > const_zero;
     if (sizeof(%(type)s) < sizeof(long)) {
@@ -663,10 +663,10 @@ static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
 
 c_long_from_py_function = UtilityCode(
 proto="""
-static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
+static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject *);
 """,
 impl="""
-static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
+static CYTHON_INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
     const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
     const int is_unsigned = neg_one > const_zero;
 #if PY_VERSION_HEX < 0x03000000
@@ -704,10 +704,10 @@ static INLINE %(type)s __Pyx_PyInt_As%(SignWord)s%(TypeName)s(PyObject* x) {
 
 c_typedef_int_from_py_function = UtilityCode(
 proto="""
-static INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject *);
+static CYTHON_INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject *);
 """,
 impl="""
-static INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject* x) {
+static CYTHON_INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject* x) {
     const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
     const int is_unsigned = neg_one > const_zero;
     if (sizeof(%(type)s) == sizeof(char)) {
@@ -751,10 +751,10 @@ static INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject* x) {
 
 c_typedef_int_to_py_function = UtilityCode(
 proto="""
-static INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s);
+static CYTHON_INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s);
 """,
 impl="""
-static INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s val) {
+static CYTHON_INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s val) {
     const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
     const int is_unsigned = neg_one > const_zero;
     if (sizeof(%(type)s) <  sizeof(long)) {
@@ -1111,21 +1111,21 @@ proto="""
 complex_from_parts_utility_code = UtilityCode(
 proto_block='utility_code_proto',
 proto="""
-static INLINE %(type)s %(type_name)s_from_parts(%(real_type)s, %(real_type)s);
+static CYTHON_INLINE %(type)s %(type_name)s_from_parts(%(real_type)s, %(real_type)s);
 """,
 impl="""
 #if CYTHON_CCOMPLEX
   #ifdef __cplusplus
-    static INLINE %(type)s %(type_name)s_from_parts(%(real_type)s x, %(real_type)s y) {
+    static CYTHON_INLINE %(type)s %(type_name)s_from_parts(%(real_type)s x, %(real_type)s y) {
       return ::std::complex< %(real_type)s >(x, y);
     }
   #else
-    static INLINE %(type)s %(type_name)s_from_parts(%(real_type)s x, %(real_type)s y) {
+    static CYTHON_INLINE %(type)s %(type_name)s_from_parts(%(real_type)s x, %(real_type)s y) {
       return x + y*(%(type)s)_Complex_I;
     }
   #endif
 #else
-    static INLINE %(type)s %(type_name)s_from_parts(%(real_type)s x, %(real_type)s y) {
+    static CYTHON_INLINE %(type)s %(type_name)s_from_parts(%(real_type)s x, %(real_type)s y) {
       %(type)s z;
       z.real = x;
       z.imag = y;
@@ -1177,65 +1177,65 @@ proto="""
     /*#define __Pyx_c_abs%(m)s(z)     (cabs%(m)s(z))*/
  #endif
 #else
-    static INLINE int __Pyx_c_eq%(m)s(%(type)s, %(type)s);
-    static INLINE %(type)s __Pyx_c_sum%(m)s(%(type)s, %(type)s);
-    static INLINE %(type)s __Pyx_c_diff%(m)s(%(type)s, %(type)s);
-    static INLINE %(type)s __Pyx_c_prod%(m)s(%(type)s, %(type)s);
-    static INLINE %(type)s __Pyx_c_quot%(m)s(%(type)s, %(type)s);
-    static INLINE %(type)s __Pyx_c_neg%(m)s(%(type)s);
-    static INLINE int __Pyx_c_is_zero%(m)s(%(type)s);
-    static INLINE %(type)s __Pyx_c_conj%(m)s(%(type)s);
-    /*static INLINE %(real_type)s __Pyx_c_abs%(m)s(%(type)s);*/
+    static CYTHON_INLINE int __Pyx_c_eq%(m)s(%(type)s, %(type)s);
+    static CYTHON_INLINE %(type)s __Pyx_c_sum%(m)s(%(type)s, %(type)s);
+    static CYTHON_INLINE %(type)s __Pyx_c_diff%(m)s(%(type)s, %(type)s);
+    static CYTHON_INLINE %(type)s __Pyx_c_prod%(m)s(%(type)s, %(type)s);
+    static CYTHON_INLINE %(type)s __Pyx_c_quot%(m)s(%(type)s, %(type)s);
+    static CYTHON_INLINE %(type)s __Pyx_c_neg%(m)s(%(type)s);
+    static CYTHON_INLINE int __Pyx_c_is_zero%(m)s(%(type)s);
+    static CYTHON_INLINE %(type)s __Pyx_c_conj%(m)s(%(type)s);
+    /*static CYTHON_INLINE %(real_type)s __Pyx_c_abs%(m)s(%(type)s);*/
 #endif
 """,
 impl="""
 #if CYTHON_CCOMPLEX
 #else
-    static INLINE int __Pyx_c_eq%(m)s(%(type)s a, %(type)s b) {
+    static CYTHON_INLINE int __Pyx_c_eq%(m)s(%(type)s a, %(type)s b) {
        return (a.real == b.real) && (a.imag == b.imag);
     }
-    static INLINE %(type)s __Pyx_c_sum%(m)s(%(type)s a, %(type)s b) {
+    static CYTHON_INLINE %(type)s __Pyx_c_sum%(m)s(%(type)s a, %(type)s b) {
         %(type)s z;
         z.real = a.real + b.real;
         z.imag = a.imag + b.imag;
         return z;
     }
-    static INLINE %(type)s __Pyx_c_diff%(m)s(%(type)s a, %(type)s b) {
+    static CYTHON_INLINE %(type)s __Pyx_c_diff%(m)s(%(type)s a, %(type)s b) {
         %(type)s z;
         z.real = a.real - b.real;
         z.imag = a.imag - b.imag;
         return z;
     }
-    static INLINE %(type)s __Pyx_c_prod%(m)s(%(type)s a, %(type)s b) {
+    static CYTHON_INLINE %(type)s __Pyx_c_prod%(m)s(%(type)s a, %(type)s b) {
         %(type)s z;
         z.real = a.real * b.real - a.imag * b.imag;
         z.imag = a.real * b.imag + a.imag * b.real;
         return z;
     }
-    static INLINE %(type)s __Pyx_c_quot%(m)s(%(type)s a, %(type)s b) {
+    static CYTHON_INLINE %(type)s __Pyx_c_quot%(m)s(%(type)s a, %(type)s b) {
         %(type)s z;
         %(real_type)s denom = b.real * b.real + b.imag * b.imag;
         z.real = (a.real * b.real + a.imag * b.imag) / denom;
         z.imag = (a.imag * b.real - a.real * b.imag) / denom;
         return z;
     }
-    static INLINE %(type)s __Pyx_c_neg%(m)s(%(type)s a) {
+    static CYTHON_INLINE %(type)s __Pyx_c_neg%(m)s(%(type)s a) {
         %(type)s z;
         z.real = -a.real;
         z.imag = -a.imag;
         return z;
     }
-    static INLINE int __Pyx_c_is_zero%(m)s(%(type)s a) {
+    static CYTHON_INLINE int __Pyx_c_is_zero%(m)s(%(type)s a) {
        return (a.real == 0) && (a.imag == 0);
     }
-    static INLINE %(type)s __Pyx_c_conj%(m)s(%(type)s a) {
+    static CYTHON_INLINE %(type)s __Pyx_c_conj%(m)s(%(type)s a) {
         %(type)s z;
         z.real =  a.real;
         z.imag = -a.imag;
         return z;
     }
 /*
-    static INLINE %(real_type)s __Pyx_c_abs%(m)s(%(type)s z) {
+    static CYTHON_INLINE %(real_type)s __Pyx_c_abs%(m)s(%(type)s z) {
 #if HAVE_HYPOT
         return hypot%(m)s(z.real, z.imag);
 #else
@@ -2127,8 +2127,8 @@ type_conversion_predeclarations = """
 #define __Pyx_PyBytes_AsUString(s)        ((unsigned char*) __Pyx_PyBytes_AsString(s))
 
 #define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
-static INLINE int __Pyx_PyObject_IsTrue(PyObject*);
-static INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x);
+static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
+static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x);
 
 #if !defined(T_PYSSIZET)
 #if PY_VERSION_HEX < 0x02050000
@@ -2192,9 +2192,9 @@ static INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x);
 #endif
 #endif
 
-static INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject*);
-static INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
-static INLINE size_t __Pyx_PyInt_AsSize_t(PyObject*);
+static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject*);
+static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
+static CYTHON_INLINE size_t __Pyx_PyInt_AsSize_t(PyObject*);
 
 #define __pyx_PyFloat_AsDouble(x) (PyFloat_CheckExact(x) ? PyFloat_AS_DOUBLE(x) : PyFloat_AsDouble(x))
 
@@ -2203,13 +2203,13 @@ static INLINE size_t __Pyx_PyInt_AsSize_t(PyObject*);
 type_conversion_functions = """
 /* Type Conversion Functions */
 
-static INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
+static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
    if (x == Py_True) return 1;
    else if ((x == Py_False) | (x == Py_None)) return 0;
    else return PyObject_IsTrue(x);
 }
 
-static INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
+static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
   PyNumberMethods *m;
   const char *name = NULL;
   PyObject *res = NULL;
@@ -2255,7 +2255,7 @@ static INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
   return res;
 }
 
-static INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
+static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
   Py_ssize_t ival;
   PyObject* x = PyNumber_Index(b);
   if (!x) return -1;
@@ -2264,7 +2264,7 @@ static INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
   return ival;
 }
 
-static INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
+static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
 #if PY_VERSION_HEX < 0x02050000
    if (ival <= LONG_MAX)
        return PyInt_FromLong((long)ival);
@@ -2278,7 +2278,7 @@ static INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t ival) {
 #endif
 }
 
-static INLINE size_t __Pyx_PyInt_AsSize_t(PyObject* x) {
+static CYTHON_INLINE size_t __Pyx_PyInt_AsSize_t(PyObject* x) {
    unsigned PY_LONG_LONG val = __Pyx_PyInt_AsUnsignedLongLong(x);
    if (unlikely(val == (unsigned PY_LONG_LONG)-1 && PyErr_Occurred())) {
        return (size_t)-1;

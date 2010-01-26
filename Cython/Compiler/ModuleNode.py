@@ -2111,10 +2111,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
 streq_utility_code = UtilityCode(
 proto = """
-static INLINE int __Pyx_StrEq(const char *, const char *); /*proto*/
+static CYTHON_INLINE int __Pyx_StrEq(const char *, const char *); /*proto*/
 """,
 impl = """
-static INLINE int __Pyx_StrEq(const char *s1, const char *s2) {
+static CYTHON_INLINE int __Pyx_StrEq(const char *s1, const char *s2) {
      while (*s1 != '\\0' && *s1 == *s2) { s1++; s2++; }
      return *s1 == *s2;
 }

@@ -5385,8 +5385,8 @@ class CmpNode(object):
     
 contians_utility_code = UtilityCode(
 proto="""
-static INLINE long __Pyx_NegateNonNeg(long b) { return unlikely(b < 0) ? b : !b; }
-static INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
+static CYTHON_INLINE long __Pyx_NegateNonNeg(long b) { return unlikely(b < 0) ? b : !b; }
+static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
     return unlikely(b < 0) ? NULL : __Pyx_PyBool_FromLong(b);
 }
 """)
@@ -6113,10 +6113,10 @@ bad:
 
 type_test_utility_code = UtilityCode(
 proto = """
-static INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type); /*proto*/
+static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type); /*proto*/
 """,
 impl = """
-static INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
+static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
     if (unlikely(!type)) {
         PyErr_Format(PyExc_SystemError, "Missing type object");
         return 0;
@@ -6197,7 +6197,7 @@ impl = ""
 getitem_int_utility_code = UtilityCode(
 proto = """
 
-static INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
     PyObject *r;
     if (!j) return NULL;
     r = PyObject_GetItem(o, j);
@@ -6211,7 +6211,7 @@ static INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j) {
                                                     __Pyx_GetItemInt_%(type)s_Fast(o, i, size <= sizeof(long)) : \\
                                                     __Pyx_GetItemInt_Generic(o, to_py_func(i)))
 
-static INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ssize_t i, int fits_long) {
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ssize_t i, int fits_long) {
     if (likely(o != Py_None)) {
         if (likely((0 <= i) & (i < Py%(type)s_GET_SIZE(o)))) {
             PyObject *r = Py%(type)s_GET_ITEM(o, i);
@@ -6233,7 +6233,7 @@ static INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ssize_t i
                                                     __Pyx_GetItemInt_Fast(o, i, size <= sizeof(long)) : \\
                                                     __Pyx_GetItemInt_Generic(o, to_py_func(i)))
 
-static INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, int fits_long) {
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, int fits_long) {
     PyObject *r;
     if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
         r = PyList_GET_ITEM(o, i);
@@ -6265,7 +6265,7 @@ proto = """
                                                     __Pyx_SetItemInt_Fast(o, i, v, size <= sizeof(long)) : \\
                                                     __Pyx_SetItemInt_Generic(o, to_py_func(i), v))
 
-static INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
+static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
     int r;
     if (!j) return -1;
     r = PyObject_SetItem(o, j, v);
@@ -6273,7 +6273,7 @@ static INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v
     return r;
 }
 
-static INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v, int fits_long) {
+static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v, int fits_long) {
     if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
         Py_INCREF(v);
         Py_DECREF(PyList_GET_ITEM(o, i));
@@ -6299,7 +6299,7 @@ proto = """
                                                     __Pyx_DelItemInt_Fast(o, i, size <= sizeof(long)) : \\
                                                     __Pyx_DelItem_Generic(o, to_py_func(i)))
 
-static INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
+static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
     int r;
     if (!j) return -1;
     r = PyObject_DelItem(o, j);
@@ -6307,7 +6307,7 @@ static INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
     return r;
 }
 
-static INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i, int fits_long) {
+static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i, int fits_long) {
     if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item && likely(i >= 0))
         return PySequence_DelItem(o, i);
     else {
@@ -6323,50 +6323,50 @@ impl = """
 
 raise_noneattr_error_utility_code = UtilityCode(
 proto = """
-static INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname);
+static CYTHON_INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname);
 """,
 impl = '''
-static INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname) {
+static CYTHON_INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname) {
     PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%s'", attrname);
 }
 ''')
 
 raise_noneindex_error_utility_code = UtilityCode(
 proto = """
-static INLINE void __Pyx_RaiseNoneIndexingError(void);
+static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void);
 """,
 impl = '''
-static INLINE void __Pyx_RaiseNoneIndexingError(void) {
+static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is unsubscriptable");
 }
 ''')
 
 raise_none_iter_error_utility_code = UtilityCode(
 proto = """
-static INLINE void __Pyx_RaiseNoneNotIterableError(void);
+static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void);
 """,
 impl = '''
-static INLINE void __Pyx_RaiseNoneNotIterableError(void) {
+static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is not iterable");
 }
 ''')
 
 raise_too_many_values_to_unpack = UtilityCode(
 proto = """
-static INLINE void __Pyx_RaiseTooManyValuesError(void);
+static CYTHON_INLINE void __Pyx_RaiseTooManyValuesError(void);
 """,
 impl = '''
-static INLINE void __Pyx_RaiseTooManyValuesError(void) {
+static CYTHON_INLINE void __Pyx_RaiseTooManyValuesError(void) {
     PyErr_SetString(PyExc_ValueError, "too many values to unpack");
 }
 ''')
 
 raise_need_more_values_to_unpack = UtilityCode(
 proto = """
-static INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index);
+static CYTHON_INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index);
 """,
 impl = '''
-static INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index) {
+static CYTHON_INLINE void __Pyx_RaiseNeedMoreValuesError(Py_ssize_t index) {
     PyErr_Format(PyExc_ValueError,
         #if PY_VERSION_HEX < 0x02050000
                  "need more than %d value%s to unpack", (int)index,
@@ -6464,10 +6464,10 @@ static PyObject* __Pyx_PyEval_CallObjectWithKeywords(PyObject *callable, PyObjec
 
 int_pow_utility_code = UtilityCode(
 proto="""
-static INLINE %(type)s %(func_name)s(%(type)s, %(type)s); /* proto */
+static CYTHON_INLINE %(type)s %(func_name)s(%(type)s, %(type)s); /* proto */
 """,
 impl="""
-static INLINE %(type)s %(func_name)s(%(type)s b, %(type)s e) {
+static CYTHON_INLINE %(type)s %(func_name)s(%(type)s b, %(type)s e) {
     %(type)s t = b;
     switch (e) {
         case 3:
@@ -6494,10 +6494,10 @@ static INLINE %(type)s %(func_name)s(%(type)s b, %(type)s e) {
 
 div_int_utility_code = UtilityCode(
 proto="""
-static INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s, %(type)s); /* proto */
+static CYTHON_INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s, %(type)s); /* proto */
 """,
 impl="""
-static INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s a, %(type)s b) {
+static CYTHON_INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s a, %(type)s b) {
     %(type)s q = a / b;
     %(type)s r = a - q*b;
     q -= ((r != 0) & ((r ^ b) < 0));
@@ -6507,10 +6507,10 @@ static INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s a, %(type)s b) {
 
 mod_int_utility_code = UtilityCode(
 proto="""
-static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
+static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
 """,
 impl="""
-static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
+static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
     %(type)s r = a %% b;
     r += ((r != 0) & ((r ^ b) < 0)) * b;
     return r;
@@ -6519,10 +6519,10 @@ static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
 
 mod_float_utility_code = UtilityCode(
 proto="""
-static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
+static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* proto */
 """,
 impl="""
-static INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
+static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
     %(type)s r = fmod%(math_h_modifier)s(a, b);
     r += ((r != 0) & ((r < 0) ^ (b < 0))) * b;
     return r;

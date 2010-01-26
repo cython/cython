@@ -294,19 +294,19 @@ proto = """
 #define PySet_Pop(set) \\
     PyObject_CallMethod(set, (char *)"pop", NULL)
 
-static INLINE int PySet_Clear(PyObject *set) {
+static CYTHON_INLINE int PySet_Clear(PyObject *set) {
     PyObject *ret = PyObject_CallMethod(set, (char *)"clear", NULL);
     if (!ret) return -1;
     Py_DECREF(ret); return 0;
 }
 
-static INLINE int PySet_Discard(PyObject *set, PyObject *key) {
+static CYTHON_INLINE int PySet_Discard(PyObject *set, PyObject *key) {
     PyObject *ret = PyObject_CallMethod(set, (char *)"discard", (char *)"O", key);
     if (!ret) return -1;
     Py_DECREF(ret); return 0;
 }
 
-static INLINE int PySet_Add(PyObject *set, PyObject *key) {
+static CYTHON_INLINE int PySet_Add(PyObject *set, PyObject *key) {
     PyObject *ret = PyObject_CallMethod(set, (char *)"add", (char *)"O", key);
     if (!ret) return -1;
     Py_DECREF(ret); return 0;
