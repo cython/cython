@@ -1583,7 +1583,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
 append_utility_code = UtilityCode(
 proto = """
-static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     if (likely(PyList_CheckExact(L))) {
         if (PyList_Append(L, x) < 0) return NULL;
         Py_INCREF(Py_None);
@@ -1605,7 +1605,7 @@ impl = ""
 
 pop_utility_code = UtilityCode(
 proto = """
-static INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
     if (likely(PyList_CheckExact(L))
             /* Check that both the size is positive and no reallocation shrinking needs to be done. */
             && likely(PyList_GET_SIZE(L) > (((PyListObject*)L)->allocated >> 1))) {
@@ -1721,7 +1721,7 @@ proto = """
 
 tpnew_utility_code = UtilityCode(
 proto = """
-static INLINE PyObject* __Pyx_tp_new(PyObject* type_obj) {
+static CYTHON_INLINE PyObject* __Pyx_tp_new(PyObject* type_obj) {
     return (PyObject*) (((PyTypeObject*)(type_obj))->tp_new(
         (PyTypeObject*)(type_obj), %(TUPLE)s, NULL));
 }

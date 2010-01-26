@@ -1463,6 +1463,8 @@ class CFuncDefNode(FuncDefNode):
             storage_class = ""
         else:
             storage_class = "static "
+        if 'inline' in self.modifiers:
+            self.modifiers[self.modifiers.index('inline')] = 'cython_inline'
         code.putln("%s%s %s {" % (
             storage_class,
             ' '.join(self.modifiers).upper(), # macro forms 
@@ -4815,13 +4817,13 @@ class FromImportStatNode(StatNode):
 
 utility_function_predeclarations = \
 """
-#ifndef INLINE
+#ifndef CYTHON_INLINE
   #if defined(__GNUC__)
-    #define INLINE __inline__
+    #define CYTHON_INLINE __inline__
   #elif defined(_MSC_VER)
-    #define INLINE __inline
+    #define CYTHON_INLINE __inline
   #else
-    #define INLINE 
+    #define CYTHON_INLINE 
   #endif
 #endif
 
@@ -5009,11 +5011,11 @@ requires=[printing_utility_code])
 
 restore_exception_utility_code = UtilityCode(
 proto = """
-static INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
-static INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
+static CYTHON_INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
+static CYTHON_INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
 """,
 impl = """
-static INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb) {
+static CYTHON_INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *tb) {
     PyObject *tmp_type, *tmp_value, *tmp_tb;
     PyThreadState *tstate = PyThreadState_GET();
 
@@ -5028,7 +5030,7 @@ static INLINE void __Pyx_ErrRestore(PyObject *type, PyObject *value, PyObject *t
     Py_XDECREF(tmp_tb);
 }
 
-static INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb) {
+static CYTHON_INLINE void __Pyx_ErrFetch(PyObject **type, PyObject **value, PyObject **tb) {
     PyThreadState *tstate = PyThreadState_GET();
     *type = tstate->curexc_type;
     *value = tstate->curexc_value;
@@ -5248,11 +5250,11 @@ requires=[get_exception_utility_code])
 
 reset_exception_utility_code = UtilityCode(
 proto = """
-static INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
+static CYTHON_INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb); /*proto*/
 static void __Pyx_ExceptionReset(PyObject *type, PyObject *value, PyObject *tb); /*proto*/
 """,
 impl = """
-static INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb) {
+static CYTHON_INLINE void __Pyx_ExceptionSave(PyObject **type, PyObject **value, PyObject **tb) {
     PyThreadState *tstate = PyThreadState_GET();
     *type = tstate->exc_type;
     *value = tstate->exc_value;
@@ -5351,10 +5353,10 @@ static void __Pyx_RaiseArgtupleInvalid(
 
 raise_keyword_required_utility_code = UtilityCode(
 proto = """
-static INLINE void __Pyx_RaiseKeywordRequired(const char* func_name, PyObject* kw_name); /*proto*/
+static CYTHON_INLINE void __Pyx_RaiseKeywordRequired(const char* func_name, PyObject* kw_name); /*proto*/
 """,
 impl = """
-static INLINE void __Pyx_RaiseKeywordRequired(
+static CYTHON_INLINE void __Pyx_RaiseKeywordRequired(
     const char* func_name,
     PyObject* kw_name)
 {
@@ -5396,11 +5398,11 @@ static void __Pyx_RaiseDoubleKeywordsError(
 
 keyword_string_check_utility_code = UtilityCode(
 proto = """
-static INLINE int __Pyx_CheckKeywordStrings(PyObject *kwdict,
+static CYTHON_INLINE int __Pyx_CheckKeywordStrings(PyObject *kwdict,
     const char* function_name, int kw_allowed); /*proto*/
 """,
 impl = """
-static INLINE int __Pyx_CheckKeywordStrings(
+static CYTHON_INLINE int __Pyx_CheckKeywordStrings(
     PyObject *kwdict,
     const char* function_name,
     int kw_allowed)
