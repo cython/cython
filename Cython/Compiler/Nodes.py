@@ -1649,7 +1649,7 @@ class DefNode(FuncDefNode):
             cfunc_type = cfunc.type
             if len(self.args) != len(cfunc_type.args) or cfunc_type.has_varargs:
                 error(self.pos, "wrong number of arguments")
-                error(declarator.pos, "previous declaration here")
+                error(cfunc.pos, "previous declaration here")
             for formal_arg, type_arg in zip(self.args, cfunc_type.args):
                 name_declarator, type = formal_arg.analyse(cfunc.scope, nonempty=1)
                 if type is None or type is PyrexTypes.py_object_type or formal_arg.is_self:
