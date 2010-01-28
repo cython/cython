@@ -7,6 +7,7 @@ specific descendant or a node that holds an attribute.
 """
 
 import re
+import sys
 
 path_tokenizer = re.compile(
     "("
@@ -144,11 +145,21 @@ def handle_attribute(next, token):
     else:
         if token[0] == '=':
             value = parse_path_value(next)
+    if sys.version_info >= (2,6) or (sys.version_info >= (2,4) and '.' not in name):
+        import operator
+        readattr = operator.attrgetter(name)
+    else:
+        name_path = name.split('.')
+        def readattr(node):
+            attr_value = node
+            for attr in name_path:
+                attr_value = getattr(attr_value, attr)
+            return attr_value
     if value is None:
         def select(result):
             for node in result:
                 try:
-                    attr_value = getattr(node, name)
+                    attr_value = readattr(node)
                 except AttributeError:
                     continue
                 if attr_value is not None:
@@ -157,11 +168,11 @@ def handle_attribute(next, token):
         def select(result):
             for node in result:
                 try:
-                    attr_value = getattr(node, name)
+                    attr_value = readattr(node)
                 except AttributeError:
                     continue
                 if attr_value == value:
-                    yield value
+                    yield attr_value
     return select
 
 def parse_path_value(next):

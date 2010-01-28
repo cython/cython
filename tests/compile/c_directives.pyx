@@ -1,5 +1,6 @@
 # cython: boundscheck  =  False
 # cython: ignoreme = OK
+# cython: warn.undeclared = False
 
 # This testcase is most useful if you inspect the generated C file
 
@@ -32,3 +33,8 @@ def i(object[int] buf):
     with bc(True):
         print buf[3] # bs
     
+from cython cimport warn as my_warn
+
+@my_warn(undeclared=True)
+def j():
+    pass

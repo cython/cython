@@ -44,7 +44,7 @@ def f():
     42.0
     42.0
     """
-    c = MyClass()
+    cdef object c = MyClass()
     print c.actual_double
     print c.float_isreally_double
 
@@ -55,10 +55,10 @@ def longdouble_access():
     ...
     SystemError: bad memberdescr type
     """
-    c = MyClass()
+    cdef object c = MyClass()
     print c.float_isreally_longdouble
 
 
 def readonly():
-    c = MyClass()
+    cdef object c = MyClass()
     c.actual_double = 3

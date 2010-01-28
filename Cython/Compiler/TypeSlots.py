@@ -83,6 +83,7 @@ class Signature(object):
         return len(self.fixed_arg_format)
     
     def is_self_arg(self, i):
+        # argument is 'self' for methods or 'class' for classmethods
         return self.fixed_arg_format[i] == 'T'
     
     def fixed_arg_type(self, i):

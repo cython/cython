@@ -446,9 +446,9 @@ def buf_lookup_full_code(proto, defin, name, nd):
     proto.putln("#define %s(type, buf, %s) (type)(%s_imp(buf, %s))" % (name, macroargs, name, macroargs))
 
     funcargs = ", ".join(["Py_ssize_t i%d, Py_ssize_t s%d, Py_ssize_t o%d" % (i, i, i) for i in range(nd)])
-    proto.putln("static INLINE void* %s_imp(void* buf, %s);" % (name, funcargs))
+    proto.putln("static CYTHON_INLINE void* %s_imp(void* buf, %s);" % (name, funcargs))
     defin.putln(dedent("""
-        static INLINE void* %s_imp(void* buf, %s) {
+        static CYTHON_INLINE void* %s_imp(void* buf, %s) {
           char* ptr = (char*)buf;
         """) % (name, funcargs) + "".join([dedent("""\
           ptr += s%d * i%d;
@@ -723,10 +723,10 @@ typedef struct {
 } __Pyx_BufFmt_StackElem;
 
 
-static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
+static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
 static int __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj, __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack);
 """, impl="""
-static INLINE int __Pyx_IsLittleEndian(void) {
+static CYTHON_INLINE int __Pyx_IsLittleEndian(void) {
   unsigned int n = 1;
   return *(unsigned char*)(&n) != 0;
 }
@@ -1123,7 +1123,7 @@ static const char* __Pyx_BufFmt_CheckString(__Pyx_BufFmt_Context* ctx, const cha
   }
 }
 
-static INLINE void __Pyx_ZeroBuffer(Py_buffer* buf) {
+static CYTHON_INLINE void __Pyx_ZeroBuffer(Py_buffer* buf) {
   buf->buf = NULL;
   buf->obj = NULL;
   buf->strides = __Pyx_zeros;
@@ -1164,7 +1164,7 @@ fail:;
   return -1;
 }
 
-static INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
+static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info) {
   if (info->buf == NULL) return;
   if (info->suboffsets == __Pyx_minusones) info->suboffsets = NULL;
   __Pyx_ReleaseBuffer(info);

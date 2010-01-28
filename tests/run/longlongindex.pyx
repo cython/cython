@@ -11,7 +11,7 @@ __doc__ = u"""
 ctypedef long long foo
 
 def set_longlong(long long ob, foo x, long y, val):
-    tank = {}
+    cdef object tank = {}
     tank[ob] = val
     tank[x] = val
     tank[y] = val

@@ -637,6 +637,7 @@ class BuiltinScope(Scope):
         var_entry.is_variable = 1
         var_entry.is_cglobal = 1
         var_entry.is_readonly = 1
+        var_entry.is_builtin = 1
         var_entry.utility_code = utility_code
         entry.as_variable = var_entry
 
@@ -739,7 +740,8 @@ class ModuleScope(Scope):
         return self
     
     def declare_builtin(self, name, pos):
-        if not hasattr(builtins, name):
+        if not hasattr(builtins, name) and name != 'xrange':
+            # 'xrange' is special cased in Code.py
             if self.has_import_star:
                 entry = self.declare_var(name, py_object_type, pos)
                 return entry
@@ -899,7 +901,7 @@ class ModuleScope(Scope):
         #  Make a new entry if needed
         #
         if not entry:
-            type = PyrexTypes.PyExtensionType(name, typedef_flag, base_type)
+            type = PyrexTypes.PyExtensionType(name, typedef_flag, base_type, visibility == 'extern')
             type.pos = pos
             type.buffer_defaults = buffer_defaults
             if objtypedef_cname is not None:
@@ -1230,6 +1232,9 @@ class ClassScope(Scope):
         return self.outer_scope.add_string_const(value, identifier)
 
     def lookup(self, name):
+        entry = Scope.lookup(self, name)
+        if entry:
+            return entry
         if name == "classmethod":
             # We don't want to use the builtin classmethod here 'cause it won't do the 
             # right thing in this scope (as the class memebers aren't still functions). 
@@ -1243,9 +1248,7 @@ class ClassScope(Scope):
                     py_object_type,
                     [PyrexTypes.CFuncTypeArg("", py_object_type, None)], 0, 0))
             entry.is_cfunction = 1
-            return entry
-        else:
-            return Scope.lookup(self, name)
+        return entry
     
 
 class PyClassScope(ClassScope):

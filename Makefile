@@ -1,9 +1,23 @@
 PYTHON?=python
+REPO = http://hg.cython.org/cython-devel
 
 all:    local 
 
 local:
 	${PYTHON} setup.py build_ext --inplace
+
+.hg: REV := $(shell cat .hgrev)
+.hg: TMPDIR := $(shell mktemp -d tmprepo.XXXXXX)
+.hg: 
+	hg clone --rev $(REV) $(REPO) $(TMPDIR)
+	hg -R $(TMPDIR) update
+	mv $(TMPDIR)/.hg .
+	mv $(TMPDIR)/.hgignore .
+	mv $(TMPDIR)/.hgtags .
+	rm -rf $(TMPDIR)
+
+repo: .hg
+
 
 clean:
 	@echo Cleaning Source

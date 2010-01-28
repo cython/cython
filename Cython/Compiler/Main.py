@@ -92,7 +92,8 @@ class Context(object):
         from AnalysedTreeTransforms import AutoTestDictTransform
         from AutoDocTransforms import EmbedSignature
         from Optimize import FlattenInListTransform, SwitchTransform, IterationTransform
-        from Optimize import OptimizeBuiltinCalls, ConstantFolding, FinalOptimizePhase
+        from Optimize import EarlyReplaceBuiltinCalls, OptimizeBuiltinCalls
+        from Optimize import ConstantFolding, FinalOptimizePhase
         from Optimize import DropRefcountingTransform
         from Buffer import IntroduceBufferAuxiliaryVars
         from ModuleNode import check_c_declarations, check_c_declarations_pxd
@@ -133,6 +134,7 @@ class Context(object):
             CreateClosureClasses(self),
             AutoTestDictTransform(self),
             EmbedSignature(self),
+            EarlyReplaceBuiltinCalls(self),
             MarkAssignments(self),
             TransformBuiltinMethods(self),
             IntroduceBufferAuxiliaryVars(self),
@@ -509,15 +511,6 @@ class Context(object):
             except EnvironmentError:
                 pass
             result.c_file = None
-        if result.c_file and not options.c_only and c_compile:
-            result.object_file = c_compile(result.c_file,
-                verbose_flag = options.show_version,
-                cplus = options.cplus)
-            if not options.obj_only and c_link:
-                result.extension_file = c_link(result.object_file,
-                    extra_objects = options.objects,
-                    verbose_flag = options.show_version,
-                    cplus = options.cplus)
 
 def create_parse(context):
     def parse(compsrc):
@@ -605,17 +598,11 @@ class CompilationOptions(object):
     compiler_directives  dict      Overrides for pragma options (see Options.py)
     evaluate_tree_assertions boolean  Test support: evaluate parse tree assertions
     
-    Following options are experimental and only used on MacOSX:
-    
-    c_only            boolean   Stop after generating C file (default)
-    obj_only          boolean   Stop after compiling to .o file
-    objects           [string]  Extra .o files to link with
     cplus             boolean   Compile as c++ code
     """
     
-    def __init__(self, defaults = None, c_compile = 0, c_link = 0, **kw):
+    def __init__(self, defaults = None, **kw):
         self.include_path = []
-        self.objects = []
         if defaults:
             if isinstance(defaults, CompilationOptions):
                 defaults = defaults.__dict__
@@ -623,10 +610,6 @@ class CompilationOptions(object):
             defaults = default_options
         self.__dict__.update(defaults)
         self.__dict__.update(kw)
-        if c_compile:
-            self.c_only = 0
-        if c_link:
-            self.obj_only = 0
 
 
 class CompilationResult(object):
@@ -719,8 +702,7 @@ def compile_multiple(sources, options):
                             "Cannot find .pyx file for cimported module '%s'\n" % module_name)
     return results
 
-def compile(source, options = None, c_compile = 0, c_link = 0,
-            full_module_name = None, **kwds):
+def compile(source, options = None, full_module_name = None, **kwds):
     """
     compile(source [, options], [, <option> = <value>]...)
     
@@ -730,8 +712,7 @@ def compile(source, options = None, c_compile = 0, c_link = 0,
     checking is requested, a CompilationResult is returned, otherwise a
     CompilationResultSet is returned.
     """
-    options = CompilationOptions(defaults = options, c_compile = c_compile,
-        c_link = c_link, **kwds)
+    options = CompilationOptions(defaults = options, **kwds)
     if isinstance(source, basestring) and not options.timestamps \
             and not options.recursive:
         return compile_single(source, options, full_module_name)
@@ -782,8 +763,6 @@ default_options = dict(
     show_version = 0,
     use_listing_file = 0,
     errors_to_stderr = 1,
-    c_only = 1,
-    obj_only = 1,
     cplus = 0,
     output_file = None,
     annotate = False,
@@ -797,13 +776,3 @@ default_options = dict(
     evaluate_tree_assertions = False,
     emit_linenums = False,
 )
-if sys.platform == "mac":
-    from Cython.Mac.MacSystem import c_compile, c_link, CCompilerError
-    default_options['use_listing_file'] = 1
-elif sys.platform == "darwin":
-    from Cython.Mac.DarwinSystem import c_compile, c_link, CCompilerError
-else:
-    c_compile = None
-    c_link = None
-
-

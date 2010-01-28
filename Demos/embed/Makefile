@@ -1,10 +1,11 @@
 # Makefile for creating our standalone Cython program
-PYVERSION=$(shell python -c "import sys; print sys.version[:3]")
-PYPREFIX=$(shell python -c "import sys; print sys.prefix")
+PYVERSION=$(shell python -c "import sys; print(sys.version[:3])")
+PYPREFIX=$(shell python -c "import sys; print(sys.prefix)")
+LINKFORSHARED=$(shell python -c "import distutils.sysconfig; print(distutils.sysconfig.get_config_var('LINKFORSHARED'))")
 INCLUDES=-I$(PYPREFIX)/include/python$(PYVERSION)
 
 embedded: embedded.o
-	gcc -o $@ $^ -lpython$(PYVERSION)
+	gcc -o $@ $^ $(LINKFORSHARED) -lpython$(PYVERSION) -lm -lpthread -ldl -lutil -L$(PYPREFIX)/lib
 
 embedded.o: embedded.c
 	gcc -c $^ $(INCLUDES)

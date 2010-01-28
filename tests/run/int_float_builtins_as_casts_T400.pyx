@@ -1,7 +1,7 @@
 
 cimport cython
 
-@cython.test_assert_path_exists("//SingleAssignmentNode/CastNode")
+@cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
 def double_to_short_int(double x):
     """
@@ -13,7 +13,7 @@ def double_to_short_int(double x):
     cdef short r = int(x)
     return r
 
-@cython.test_assert_path_exists("//SingleAssignmentNode/CastNode")
+@cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
 def double_to_pyssizet_int(double x):
     """
@@ -25,7 +25,7 @@ def double_to_pyssizet_int(double x):
     cdef Py_ssize_t r = int(x)
     return r
 
-@cython.test_assert_path_exists("//SingleAssignmentNode/CastNode")
+@cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
 def int_to_pyssizet_int(int x):
     """
@@ -37,19 +37,19 @@ def int_to_pyssizet_int(int x):
     cdef Py_ssize_t r = int(x)
     return r
 
-@cython.test_assert_path_exists("//SingleAssignmentNode/CastNode")
-@cython.test_fail_if_path_exists("//SimpleCallNode")
-def double_to_pyssizet_float(double x):
-    """
-    >>> double_to_pyssizet_float(4.1)
-    4
-    >>> double_to_pyssizet_float(4)
-    4
-    """
-    cdef Py_ssize_t r = float(x)
-    return r
+## @cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
+## @cython.test_fail_if_path_exists("//SimpleCallNode")
+## def double_to_pyssizet_float(double x):
+##     """
+##     >>> double_to_pyssizet_float(4.1)
+##     4
+##     >>> double_to_pyssizet_float(4)
+##     4
+##     """
+##     cdef Py_ssize_t r = float(x)
+##     return r
 
-@cython.test_assert_path_exists("//SingleAssignmentNode/CastNode")
+@cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
 def int_to_short_int(int x):
     """
@@ -59,7 +59,7 @@ def int_to_short_int(int x):
     cdef short r = int(x)
     return r
 
-@cython.test_assert_path_exists("//SingleAssignmentNode/CastNode")
+@cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
 def short_to_float_float(short x):
     """
@@ -69,7 +69,7 @@ def short_to_float_float(short x):
     cdef float r = float(x)
     return r
 
-@cython.test_assert_path_exists("//SingleAssignmentNode/CastNode")
+@cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
 def short_to_double_float(short x):
     """
@@ -79,7 +79,7 @@ def short_to_double_float(short x):
     cdef double r = float(x)
     return r
 
-@cython.test_assert_path_exists("//SingleAssignmentNode/CastNode")
+@cython.test_assert_path_exists("//SingleAssignmentNode/TypecastNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
 def short_to_double_int(short x):
     """
@@ -89,8 +89,7 @@ def short_to_double_int(short x):
     cdef double r = int(x)
     return r
 
-@cython.test_fail_if_path_exists("//SimpleCallNode",
-                                 "//SingleAssignmentNode/CastNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode")
 def float_to_float_float(float x):
     """
     >>> 4.05 < float_to_float_float(4.1) < 4.15
@@ -102,7 +101,7 @@ def float_to_float_float(float x):
     return r
 
 @cython.test_fail_if_path_exists("//SimpleCallNode",
-                                 "//SingleAssignmentNode/CastNode")
+                                 "//SingleAssignmentNode/TypecastNode")
 def double_to_double_float(double x):
     """
     >>> 4.05 < double_to_double_float(4.1) < 4.15
@@ -115,7 +114,7 @@ def double_to_double_float(double x):
 
 # tests that cannot be optimised
 
-@cython.test_fail_if_path_exists("//SingleAssignmentNode/CastNode")
+@cython.test_fail_if_path_exists("//SingleAssignmentNode/TypecastNode")
 @cython.test_assert_path_exists("//SimpleCallNode")
 def double_to_py_int(double x):
     """
@@ -126,7 +125,7 @@ def double_to_py_int(double x):
     """
     return int(x)
 
-@cython.test_fail_if_path_exists("//SingleAssignmentNode/CastNode")
+@cython.test_fail_if_path_exists("//SingleAssignmentNode/TypecastNode")
 @cython.test_assert_path_exists("//SimpleCallNode")
 def double_to_double_int(double x):
     """

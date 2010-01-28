@@ -116,18 +116,16 @@ class IterationTransform(Visitor.VisitorTransform):
                 node, dict_obj, keys, values)
 
         # enumerate() ?
-        if iterator.self is None and \
-               isinstance(function, ExprNodes.NameNode) and \
-               function.entry.is_builtin and \
+        if iterator.self is None and function.is_name and \
+               function.entry and function.entry.is_builtin and \
                function.name == 'enumerate':
             return self._transform_enumerate_iteration(node, iterator)
 
         # range() iteration?
         if Options.convert_range and node.target.type.is_int:
-            if iterator.self is None and \
-                    isinstance(function, ExprNodes.NameNode) and \
-                    function.entry.is_builtin and \
-                    function.name in ('range', 'xrange'):
+            if iterator.self is None and function.is_name and \
+                   function.entry and function.entry.is_builtin and \
+                   function.name in ('range', 'xrange'):
                 return self._transform_range_iteration(node, iterator)
 
         return node
@@ -618,6 +616,9 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
     def visit_ParallelAssignmentNode(self, node):
+        """
+        Parallel swap assignments like 'a,b = b,a' are safe.
+        """
         left_names, right_names = [], []
         left_indices, right_indices = [], []
         temps = []
@@ -725,9 +726,160 @@ class DropRefcountingTransform(Visitor.VisitorTransform):
         return (base.name, index_val)
 
 
+class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
+    """Optimize some common calls to builtin types *before* the type
+    analysis phase and *after* the declarations analysis phase.
+
+    This transform cannot make use of any argument types, but it can
+    restructure the tree in a way that the type analysis phase can
+    respond to.
+
+    Introducing C function calls here may not be a good idea.  Move
+    them to the OptimizeBuiltinCalls transform instead, which runs
+    after type analyis.
+    """
+    # only intercept on call nodes
+    visit_Node = Visitor.VisitorTransform.recurse_to_children
+
+    def visit_SimpleCallNode(self, node):
+        self.visitchildren(node)
+        function = node.function
+        if not self._function_is_builtin_name(function):
+            return node
+        return self._dispatch_to_handler(node, function, node.args)
+
+    def visit_GeneralCallNode(self, node):
+        self.visitchildren(node)
+        function = node.function
+        if not self._function_is_builtin_name(function):
+            return node
+        arg_tuple = node.positional_args
+        if not isinstance(arg_tuple, ExprNodes.TupleNode):
+            return node
+        args = arg_tuple.args
+        return self._dispatch_to_handler(
+            node, function, args, node.keyword_args)
+
+    def _function_is_builtin_name(self, function):
+        if not function.is_name:
+            return False
+        entry = self.env_stack[-1].lookup(function.name)
+        if not entry or getattr(entry, 'scope', None) is not Builtin.builtin_scope:
+            return False
+        return True
+
+    def _dispatch_to_handler(self, node, function, args, kwargs=None):
+        if kwargs is None:
+            handler_name = '_handle_simple_function_%s' % function.name
+        else:
+            handler_name = '_handle_general_function_%s' % function.name
+        handle_call = getattr(self, handler_name, None)
+        if handle_call is not None:
+            if kwargs is None:
+                return handle_call(node, args)
+            else:
+                return handle_call(node, args, kwargs)
+        return node
+
+    def _inject_capi_function(self, node, cname, func_type, utility_code=None):
+        node.function = ExprNodes.PythonCapiFunctionNode(
+            node.function.pos, node.function.name, cname, func_type,
+            utility_code = utility_code)
+
+    def _error_wrong_arg_count(self, function_name, node, args, expected=None):
+        if not expected: # None or 0
+            arg_str = ''
+        elif isinstance(expected, basestring) or expected > 1:
+            arg_str = '...'
+        elif expected == 1:
+            arg_str = 'x'
+        else:
+            arg_str = ''
+        if expected is not None:
+            expected_str = 'expected %s, ' % expected
+        else:
+            expected_str = ''
+        error(node.pos, "%s(%s) called with wrong number of args, %sfound %d" % (
+            function_name, arg_str, expected_str, len(args)))
+
+    # specific handlers for simple call nodes
+
+    def _handle_simple_function_set(self, node, pos_args):
+        """Replace set([a,b,...]) by a literal set {a,b,...} and
+        set([ x for ... ]) by a literal { x for ... }.
+        """
+        arg_count = len(pos_args)
+        if arg_count == 0:
+            return ExprNodes.SetNode(node.pos, args=[],
+                                     type=Builtin.set_type)
+        if arg_count > 1:
+            return node
+        iterable = pos_args[0]
+        if isinstance(iterable, (ExprNodes.ListNode, ExprNodes.TupleNode)):
+            return ExprNodes.SetNode(node.pos, args=iterable.args)
+        elif isinstance(iterable, ExprNodes.ComprehensionNode) and \
+                 isinstance(iterable.target, (ExprNodes.ListNode,
+                                              ExprNodes.SetNode)):
+            iterable.target = ExprNodes.SetNode(node.pos, args=[])
+            iterable.pos = node.pos
+            return iterable
+        else:
+            return node
+
+    def _handle_simple_function_dict(self, node, pos_args):
+        """Replace dict([ (a,b) for ... ]) by a literal { a:b for ... }.
+        """
+        if len(pos_args) != 1:
+            return node
+        arg = pos_args[0]
+        if isinstance(arg, ExprNodes.ComprehensionNode) and \
+               isinstance(arg.target, (ExprNodes.ListNode,
+                                       ExprNodes.SetNode)):
+            append_node = arg.append
+            if isinstance(append_node.expr, (ExprNodes.TupleNode, ExprNodes.ListNode)) and \
+                   len(append_node.expr.args) == 2:
+                key_node, value_node = append_node.expr.args
+                target_node = ExprNodes.DictNode(
+                    pos=arg.target.pos, key_value_pairs=[])
+                new_append_node = ExprNodes.DictComprehensionAppendNode(
+                    append_node.pos, target=target_node,
+                    key_expr=key_node, value_expr=value_node)
+                arg.target = target_node
+                arg.type = target_node.type
+                replace_in = Visitor.RecursiveNodeReplacer(append_node, new_append_node)
+                return replace_in(arg)
+        return node
+
+    def _handle_simple_function_float(self, node, pos_args):
+        if len(pos_args) == 0:
+            return ExprNodes.FloatNode(node.pos, value='0.0')
+        if len(pos_args) > 1:
+            self._error_wrong_arg_count('float', node, pos_args, 1)
+        return node
+
+    # specific handlers for general call nodes
+
+    def _handle_general_function_dict(self, node, pos_args, kwargs):
+        """Replace dict(a=b,c=d,...) by the underlying keyword dict
+        construction which is done anyway.
+        """
+        if len(pos_args) > 0:
+            return node
+        if not isinstance(kwargs, ExprNodes.DictNode):
+            return node
+        if node.starstar_arg:
+            # we could optimize this by updating the kw dict instead
+            return node
+        return kwargs
+
+
 class OptimizeBuiltinCalls(Visitor.EnvTransform):
     """Optimize some common methods calls and instantiation patterns
-    for builtin types.
+    for builtin types *after* the type analysis phase.
+
+    Running after type analysis, this transform can only perform
+    function replacements that do not alter the function return type
+    in a way that was not anticipated by the type analysis.
     """
     # only intercept on call nodes
     visit_Node = Visitor.VisitorTransform.recurse_to_children
@@ -740,19 +892,22 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         arg_tuple = node.positional_args
         if not isinstance(arg_tuple, ExprNodes.TupleNode):
             return node
+        args = arg_tuple.args
         return self._dispatch_to_handler(
-            node, function, arg_tuple, node.keyword_args)
+            node, function, args, node.keyword_args)
 
     def visit_SimpleCallNode(self, node):
         self.visitchildren(node)
         function = node.function
-        if not function.type.is_pyobject:
-            return node
-        arg_tuple = node.arg_tuple
-        if not isinstance(arg_tuple, ExprNodes.TupleNode):
-            return node
+        if function.type.is_pyobject:
+            arg_tuple = node.arg_tuple
+            if not isinstance(arg_tuple, ExprNodes.TupleNode):
+                return node
+            args = arg_tuple.args
+        else:
+            args = node.args
         return self._dispatch_to_handler(
-            node, node.function, arg_tuple)
+            node, function, args)
 
     ### cleanup to avoid redundant coercions to/from Python types
 
@@ -805,13 +960,15 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 if func_arg.type == node.type:
                     return func_arg
                 elif node.type.assignable_from(func_arg.type) or func_arg.type.is_float:
-                    return ExprNodes.CastNode(func_arg, node.type)
+                    return ExprNodes.TypecastNode(
+                        node.pos, operand=func_arg, type=node.type)
         elif function.name == 'float':
             if func_arg.type.is_float or node.type.is_float:
                 if func_arg.type == node.type:
                     return func_arg
                 elif node.type.assignable_from(func_arg.type) or func_arg.type.is_float:
-                    return ExprNodes.CastNode(func_arg, node.type)
+                    return ExprNodes.TypecastNode(
+                        node.pos, operand=func_arg, type=node.type)
         return node
 
     ### dispatch to specific optimisers
@@ -823,20 +980,27 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             handler = getattr(self, '_handle_any_%s' % match_name, None)
         return handler
 
-    def _dispatch_to_handler(self, node, function, arg_tuple, kwargs=None):
+    def _dispatch_to_handler(self, node, function, arg_list, kwargs=None):
         if function.is_name:
-            match_name = "_function_%s" % function.name
+            # we only consider functions that are either builtin
+            # Python functions or builtins that were already replaced
+            # into a C function call (defined in the builtin scope)
+            if not function.entry:
+                return node
+            is_builtin = function.entry.is_builtin \
+                         or getattr(function.entry, 'scope', None) is Builtin.builtin_scope
+            if not is_builtin:
+                return node
             function_handler = self._find_handler(
                 "function_%s" % function.name, kwargs)
             if function_handler is None:
                 return node
             if kwargs:
-                return function_handler(node, arg_tuple, kwargs)
+                return function_handler(node, arg_list, kwargs)
             else:
-                return function_handler(node, arg_tuple)
-        elif function.is_attribute:
+                return function_handler(node, arg_list)
+        elif function.is_attribute and function.type.is_pyobject:
             attr_name = function.attribute
-            arg_list = arg_tuple.args
             self_arg = function.obj
             obj_type = self_arg.type
             is_unbound_method = False
@@ -888,31 +1052,17 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
     ### builtin types
 
-    def _handle_general_function_dict(self, node, pos_args, kwargs):
-        """Replace dict(a=b,c=d,...) by the underlying keyword dict
-        construction which is done anyway.
-        """
-        if len(pos_args.args) > 0:
-            return node
-        if not isinstance(kwargs, ExprNodes.DictNode):
-            return node
-        if node.starstar_arg:
-            # we could optimize this by updating the kw dict instead
-            return node
-        return kwargs
-
     PyDict_Copy_func_type = PyrexTypes.CFuncType(
         Builtin.dict_type, [
             PyrexTypes.CFuncTypeArg("dict", Builtin.dict_type, None)
             ])
 
     def _handle_simple_function_dict(self, node, pos_args):
-        """Replace dict(some_dict) by PyDict_Copy(some_dict) and
-        dict([ (a,b) for ... ]) by a literal { a:b for ... }.
+        """Replace dict(some_dict) by PyDict_Copy(some_dict).
         """
-        if len(pos_args.args) != 1:
+        if len(pos_args) != 1:
             return node
-        arg = pos_args.args[0]
+        arg = pos_args[0]
         if arg.type is Builtin.dict_type:
             arg = ExprNodes.NoneCheckNode(
                 arg, "PyExc_TypeError", "'NoneType' is not iterable")
@@ -921,47 +1071,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 args = [arg],
                 is_temp = node.is_temp
                 )
-        elif isinstance(arg, ExprNodes.ComprehensionNode) and \
-                 arg.type is Builtin.list_type:
-            append_node = arg.append
-            if isinstance(append_node.expr, (ExprNodes.TupleNode, ExprNodes.ListNode)) and \
-                   len(append_node.expr.args) == 2:
-                key_node, value_node = append_node.expr.args
-                target_node = ExprNodes.DictNode(
-                    pos=arg.target.pos, key_value_pairs=[], is_temp=1)
-                new_append_node = ExprNodes.DictComprehensionAppendNode(
-                    append_node.pos, target=target_node,
-                    key_expr=key_node, value_expr=value_node,
-                    is_temp=1)
-                arg.target = target_node
-                arg.type = target_node.type
-                replace_in = Visitor.RecursiveNodeReplacer(append_node, new_append_node)
-                return replace_in(arg)
         return node
-
-    def _handle_simple_function_set(self, node, pos_args):
-        """Replace set([a,b,...]) by a literal set {a,b,...} and
-        set([ x for ... ]) by a literal { x for ... }.
-        """
-        arg_count = len(pos_args.args)
-        if arg_count == 0:
-            return ExprNodes.SetNode(node.pos, args=[],
-                                     type=Builtin.set_type, is_temp=1)
-        if arg_count > 1:
-            return node
-        iterable = pos_args.args[0]
-        if isinstance(iterable, (ExprNodes.ListNode, ExprNodes.TupleNode)):
-            return ExprNodes.SetNode(node.pos, args=iterable.args,
-                                     type=Builtin.set_type, is_temp=1)
-        elif isinstance(iterable, ExprNodes.ComprehensionNode) and \
-                iterable.type is Builtin.list_type:
-            iterable.target = ExprNodes.SetNode(
-                node.pos, args=[], type=Builtin.set_type, is_temp=1)
-            iterable.type = Builtin.set_type
-            iterable.pos = node.pos
-            return iterable
-        else:
-            return node
 
     PyList_AsTuple_func_type = PyrexTypes.CFuncType(
         Builtin.tuple_type, [
@@ -971,22 +1081,51 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
     def _handle_simple_function_tuple(self, node, pos_args):
         """Replace tuple([...]) by a call to PyList_AsTuple.
         """
-        if len(pos_args.args) != 1:
+        if len(pos_args) != 1:
             return node
-        list_arg = pos_args.args[0]
+        list_arg = pos_args[0]
         if list_arg.type is not Builtin.list_type:
             return node
         if not isinstance(list_arg, (ExprNodes.ComprehensionNode,
                                      ExprNodes.ListNode)):
-            pos_args.args[0] = ExprNodes.NoneCheckNode(
+            pos_args[0] = ExprNodes.NoneCheckNode(
                 list_arg, "PyExc_TypeError",
                 "'NoneType' object is not iterable")
 
         return ExprNodes.PythonCapiCallNode(
             node.pos, "PyList_AsTuple", self.PyList_AsTuple_func_type,
-            args = pos_args.args,
+            args = pos_args,
             is_temp = node.is_temp
             )
+
+    PyObject_AsDouble_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_double_type, [
+            PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None),
+            ],
+        exception_value = "((double)-1)",
+        exception_check = True)
+
+    def _handle_simple_function_float(self, node, pos_args):
+        # Note: this requires the float() function to be typed as
+        # returning a C 'double'
+        if len(pos_args) != 1:
+            self._error_wrong_arg_count('float', node, pos_args, 1)
+            return node
+        func_arg = pos_args[0]
+        if isinstance(func_arg, ExprNodes.CoerceToPyTypeNode):
+            func_arg = func_arg.arg
+        if func_arg.type is PyrexTypes.c_double_type:
+            return func_arg
+        elif node.type.assignable_from(func_arg.type) or func_arg.type.is_numeric:
+            return ExprNodes.TypecastNode(
+                node.pos, operand=func_arg, type=node.type)
+        return ExprNodes.PythonCapiCallNode(
+            node.pos, "__Pyx_PyObject_AsDouble",
+            self.PyObject_AsDouble_func_type,
+            args = pos_args,
+            is_temp = node.is_temp,
+            utility_code = pyobject_as_double_utility_code,
+            py_name = "float")
 
     ### builtin functions
 
@@ -1004,22 +1143,45 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             ])
 
     def _handle_simple_function_getattr(self, node, pos_args):
-        args = pos_args.args
-        if len(args) == 2:
-            node = ExprNodes.PythonCapiCallNode(
+        if len(pos_args) == 2:
+            return ExprNodes.PythonCapiCallNode(
                 node.pos, "PyObject_GetAttr", self.PyObject_GetAttr2_func_type,
-                args = args,
-                is_temp = node.is_temp
-                )
-        elif len(args) == 3:
-            node = ExprNodes.PythonCapiCallNode(
+                args = pos_args,
+                is_temp = node.is_temp)
+        elif len(pos_args) == 3:
+            return ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_GetAttr3", self.PyObject_GetAttr3_func_type,
-                utility_code = Builtin.getattr3_utility_code,
-                args = args,
-                is_temp = node.is_temp
-                )
+                args = pos_args,
+                is_temp = node.is_temp,
+                utility_code = Builtin.getattr3_utility_code)
         else:
-            self._error_wrong_arg_count('getattr', node, args, '2 or 3')
+            self._error_wrong_arg_count('getattr', node, pos_args, '2 or 3')
+        return node
+
+    Pyx_strlen_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_size_t_type, [
+            PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_char_ptr_type, None)
+            ])
+
+    def _handle_simple_function_len(self, node, pos_args):
+        # note: this only works because we already replaced len() by
+        # PyObject_Length() which returns a Py_ssize_t instead of a
+        # Python object, so we can return a plain size_t instead
+        # without caring about Python object conversion etc.
+        if len(pos_args) != 1:
+            self._error_wrong_arg_count('len', node, pos_args, 1)
+            return node
+        arg = pos_args[0]
+        if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
+            arg = arg.arg
+        if not arg.type.is_string:
+            return node
+        node = ExprNodes.PythonCapiCallNode(
+            node.pos, "strlen", self.Pyx_strlen_func_type,
+            args = [arg],
+            is_temp = node.is_temp,
+            utility_code = include_string_h_utility_code
+            )
         return node
 
     Pyx_Type_func_type = PyrexTypes.CFuncType(
@@ -1028,16 +1190,13 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             ])
 
     def _handle_simple_function_type(self, node, pos_args):
-        args = pos_args.args
-        if len(args) != 1:
+        if len(pos_args) != 1:
             return node
         node = ExprNodes.PythonCapiCallNode(
-            node.pos, "__Pyx_Type", self.Pyx_Type_func_type,
-                args = args,
-                is_temp = node.is_temp,
-                utility_code = pytype_utility_code,
-                )
-        return node
+            node.pos, "Py_TYPE", self.Pyx_Type_func_type,
+            args = pos_args,
+            is_temp = False)
+        return ExprNodes.CastNode(node, PyrexTypes.py_object_type)
 
     ### special methods
 
@@ -1265,23 +1424,59 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if len(args) < 1 or len(args) > 3:
             self._error_wrong_arg_count('bytes.decode', node, args, '1-3')
             return node
-        if not isinstance(args[0], ExprNodes.SliceIndexNode):
-            # we need the string length as a slice end index
+        temps = []
+        if isinstance(args[0], ExprNodes.SliceIndexNode):
+            index_node = args[0]
+            string_node = index_node.base
+            if not string_node.type.is_string:
+                # nothing to optimise here
+                return node
+            start, stop = index_node.start, index_node.stop
+            if not start or start.constant_result == 0:
+                start = None
+            else:
+                if start.type.is_pyobject:
+                    start = start.coerce_to(PyrexTypes.c_py_ssize_t_type, self.env_stack[-1])
+                if stop:
+                    start = UtilNodes.LetRefNode(start)
+                    temps.append(start)
+                string_node = ExprNodes.AddNode(pos=start.pos,
+                                                operand1=string_node,
+                                                operator='+',
+                                                operand2=start,
+                                                is_temp=False,
+                                                type=string_node.type
+                                                )
+            if stop and stop.type.is_pyobject:
+                stop = stop.coerce_to(PyrexTypes.c_py_ssize_t_type, self.env_stack[-1])
+        elif isinstance(args[0], ExprNodes.CoerceToPyTypeNode) \
+                 and args[0].arg.type.is_string:
+            # use strlen() to find the string length, just as CPython would
+            start = stop = None
+            string_node = args[0].arg
+        else:
+            # let Python do its job
             return node
-        index_node = args[0]
-        string_node = index_node.base
-        if not string_node.type.is_string:
-            # nothing to optimise here
-            return node
-        start, stop = index_node.start, index_node.stop
+
         if not stop:
-            # FIXME: could use strlen() - although Python will do that anyway ...
-            return node
-        if stop.type.is_pyobject:
-            stop = stop.coerce_to(PyrexTypes.c_py_ssize_t_type, self.env_stack[-1])
-        if start and start.constant_result != 0:
-            # FIXME: put start into a temp and do the math
-            return node
+            if start or not string_node.is_name:
+                string_node = UtilNodes.LetRefNode(string_node)
+                temps.append(string_node)
+            stop = ExprNodes.PythonCapiCallNode(
+                string_node.pos, "strlen", self.Pyx_strlen_func_type,
+                    args = [string_node],
+                    is_temp = False,
+                    utility_code = include_string_h_utility_code,
+                    ).coerce_to(PyrexTypes.c_py_ssize_t_type, self.env_stack[-1])
+        elif start:
+            stop = ExprNodes.SubNode(
+                pos = stop.pos,
+                operand1 = stop,
+                operator = '-',
+                operand2 = start,
+                is_temp = False,
+                type = PyrexTypes.c_py_ssize_t_type
+                )
 
         parameters = self._unpack_encoding_and_error_mode(node.pos, args)
         if parameters is None:
@@ -1289,22 +1484,28 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         encoding, encoding_node, error_handling, error_handling_node = parameters
 
         # try to find a specific encoder function
-        codec_name = self._find_special_codec_name(encoding)
+        codec_name = None
+        if encoding is not None:
+            codec_name = self._find_special_codec_name(encoding)
         if codec_name is not None:
             decode_function = "PyUnicode_Decode%s" % codec_name
-            return ExprNodes.PythonCapiCallNode(
+            node = ExprNodes.PythonCapiCallNode(
                 node.pos, decode_function,
                 self.PyUnicode_DecodeXyz_func_type,
                 args = [string_node, stop, error_handling_node],
                 is_temp = node.is_temp,
                 )
+        else:
+            node = ExprNodes.PythonCapiCallNode(
+                node.pos, "PyUnicode_Decode",
+                self.PyUnicode_Decode_func_type,
+                args = [string_node, stop, encoding_node, error_handling_node],
+                is_temp = node.is_temp,
+                )
 
-        return ExprNodes.PythonCapiCallNode(
-            node.pos, "PyUnicode_Decode",
-            self.PyUnicode_Decode_func_type,
-            args = [string_node, stop, encoding_node, error_handling_node],
-            is_temp = node.is_temp,
-            )
+        for temp in temps[::-1]:
+            node = UtilNodes.EvalWithTempExprNode(temp, node)
+        return node
 
     def _find_special_codec_name(self, encoding):
         try:
@@ -1323,29 +1524,35 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         encoding_node = args[1]
         if isinstance(encoding_node, ExprNodes.CoerceToPyTypeNode):
             encoding_node = encoding_node.arg
-        if not isinstance(encoding_node, (ExprNodes.UnicodeNode, ExprNodes.StringNode,
-                                          ExprNodes.BytesNode)):
+        if isinstance(encoding_node, (ExprNodes.UnicodeNode, ExprNodes.StringNode,
+                                      ExprNodes.BytesNode)):
+            encoding = encoding_node.value
+            encoding_node = ExprNodes.BytesNode(encoding_node.pos, value=encoding,
+                                                 type=PyrexTypes.c_char_ptr_type)
+        elif encoding_node.type.is_string:
+            encoding = None
+        else:
             return None
-        encoding = encoding_node.value
-        encoding_node = ExprNodes.BytesNode(encoding_node.pos, value=encoding,
-                                             type=PyrexTypes.c_char_ptr_type)
 
         null_node = ExprNodes.NullNode(pos)
         if len(args) == 3:
             error_handling_node = args[2]
             if isinstance(error_handling_node, ExprNodes.CoerceToPyTypeNode):
                 error_handling_node = error_handling_node.arg
-            if not isinstance(error_handling_node,
-                              (ExprNodes.UnicodeNode, ExprNodes.StringNode,
-                               ExprNodes.BytesNode)):
-                return None
-            error_handling = error_handling_node.value
-            if error_handling == 'strict':
-                error_handling_node = null_node
+            if isinstance(error_handling_node,
+                          (ExprNodes.UnicodeNode, ExprNodes.StringNode,
+                           ExprNodes.BytesNode)):
+                error_handling = error_handling_node.value
+                if error_handling == 'strict':
+                    error_handling_node = null_node
+                else:
+                    error_handling_node = ExprNodes.BytesNode(
+                        error_handling_node.pos, value=error_handling,
+                        type=PyrexTypes.c_char_ptr_type)
+            elif error_handling_node.type.is_string:
+                error_handling = None
             else:
-                error_handling_node = ExprNodes.BytesNode(
-                    error_handling_node.pos, value=error_handling,
-                    type=PyrexTypes.c_char_ptr_type)
+                return None
         else:
             error_handling = 'strict'
             error_handling_node = null_node
@@ -1376,7 +1583,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
 append_utility_code = UtilityCode(
 proto = """
-static INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_Append(PyObject* L, PyObject* x) {
     if (likely(PyList_CheckExact(L))) {
         if (PyList_Append(L, x) < 0) return NULL;
         Py_INCREF(Py_None);
@@ -1398,7 +1605,7 @@ impl = ""
 
 pop_utility_code = UtilityCode(
 proto = """
-static INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
+static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
     if (likely(PyList_CheckExact(L))
             /* Check that both the size is positive and no reallocation shrinking needs to be done. */
             && likely(PyList_GET_SIZE(L) > (((PyListObject*)L)->allocated >> 1))) {
@@ -1466,20 +1673,55 @@ bad:
 )
 
 
-pytype_utility_code = UtilityCode(
-proto = """
-static INLINE PyObject* __Pyx_Type(PyObject* o) {
-    PyObject* type = (PyObject*) Py_TYPE(o);
-    Py_INCREF(type);
-    return type;
+pyobject_as_double_utility_code = UtilityCode(
+proto = '''
+static double __Pyx__PyObject_AsDouble(PyObject* obj); /* proto */
+
+#define __Pyx_PyObject_AsDouble(obj) \\
+    ((likely(PyFloat_CheckExact(obj))) ? \\
+     PyFloat_AS_DOUBLE(obj) : __Pyx__PyObject_AsDouble(obj))
+''',
+impl='''
+static double __Pyx__PyObject_AsDouble(PyObject* obj) {
+    PyObject* float_value;
+    if (Py_TYPE(obj)->tp_as_number && Py_TYPE(obj)->tp_as_number->nb_float) {
+        return PyFloat_AsDouble(obj);
+    } else if (PyUnicode_CheckExact(obj) || PyBytes_CheckExact(obj)) {
+#if PY_MAJOR_VERSION >= 3
+        float_value = PyFloat_FromString(obj);
+#else
+        float_value = PyFloat_FromString(obj, 0);
+#endif
+    } else {
+        PyObject* args = PyTuple_New(1);
+        if (unlikely(!args)) goto bad;
+        PyTuple_SET_ITEM(args, 0, obj);
+        float_value = PyObject_Call((PyObject*)&PyFloat_Type, args, 0);
+        PyTuple_SET_ITEM(args, 0, 0);
+        Py_DECREF(args);
+    }
+    if (likely(float_value)) {
+        double value = PyFloat_AS_DOUBLE(float_value);
+        Py_DECREF(float_value);
+        return value;
+    }
+bad:
+    return (double)-1;
 }
+'''
+)
+
+
+include_string_h_utility_code = UtilityCode(
+proto = """
+#include <string.h>
 """
 )
 
 
 tpnew_utility_code = UtilityCode(
 proto = """
-static INLINE PyObject* __Pyx_tp_new(PyObject* type_obj) {
+static CYTHON_INLINE PyObject* __Pyx_tp_new(PyObject* type_obj) {
     return (PyObject*) (((PyTypeObject*)(type_obj))->tp_new(
         (PyTypeObject*)(type_obj), %(TUPLE)s, NULL));
 }
@@ -1515,7 +1757,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             node.calculate_constant_result()
 #            if node.constant_result is not ExprNodes.not_a_constant:
 #                print node.__class__.__name__, node.constant_result
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError, ArithmeticError):
             # ignore all 'normal' errors here => no constant result
             pass
         except Exception:

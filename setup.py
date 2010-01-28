@@ -3,6 +3,17 @@ from distutils.sysconfig import get_python_lib
 import os, os.path
 import sys
 
+if 'sdist' in sys.argv:
+    # Record the current revision in .hgrev
+    import subprocess # os.popen is cleaner but depricated
+    changset = subprocess.Popen("hg log --rev tip | grep changeset", 
+                                shell=True,
+                                stdout=subprocess.PIPE).stdout.read()
+    rev = changset.split(':')[-1].strip()
+    hgrev = open('.hgrev', 'w')
+    hgrev.write(rev)
+    hgrev.close()
+
 compiler_dir = os.path.join(get_python_lib(prefix=''), 'Cython/Compiler')
 if sys.platform == "win32":
     compiler_dir = compiler_dir[len(sys.prefix)+1:]
@@ -31,7 +42,6 @@ if sys.version_info < (2,4):
     cython_dir = os.path.join(get_python_lib(prefix=''), 'Cython')
     compiler_dir = os.path.join(cython_dir, 'Compiler')
     setup_args['data_files'] = [
-        (compiler_dir, ['Cython/Compiler/Lexicon.pickle']),
         (cython_dir, [ f for pattern in
                        ['Cython/Includes/*.pxd',
                         'Cython/Plex/*.pxd',
@@ -39,8 +49,7 @@ if sys.version_info < (2,4):
                         'Cython/Runtime/*.pyx']
                        for f in glob.glob(pattern) ])]
 else:
-    setup_args['package_data'] = {'Cython.Compiler' : ['Lexicon.pickle'],
-                                  'Cython' : ['Includes/*.pxd',
+    setup_args['package_data'] = {'Cython' : ['Includes/*.pxd',
                                               'Plex/*.pxd',
                                               'Compiler/*.pxd',
                                               'Runtime/*.pyx']}
@@ -161,8 +170,6 @@ setup(
     'Cython.Compiler',
     'Cython.Runtime',
     'Cython.Distutils',
-    'Cython.Mac',
-    'Cython.Unix',
     'Cython.Plex',
 
     'Cython.Tests',
