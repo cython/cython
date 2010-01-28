@@ -19,6 +19,7 @@ import Builtin
 import Symtab
 import Options
 from Annotate import AnnotationItem
+from Cython import Utils
 
 from Cython.Debugging import print_call_chain
 from DebugFlags import debug_disposal_code, debug_temp_alloc, \
@@ -771,16 +772,23 @@ class IntNode(ConstNode):
             self.result_code = self.get_constant_c_result_code()
     
     def get_constant_c_result_code(self):
-        return str(self.value) + self.unsigned + self.longness
+        value = self.value
+        if isinstance(value, basestring) and len(value) > 2:
+            # must convert C-incompatible Py3 oct/bin notations
+            if value[1] in 'oO':
+                value = value[0] + value[2:] # '0o123' => '0123'
+            elif value[1] in 'bB':
+                value = int(value[2:], 2)
+        return str(value) + self.unsigned + self.longness
 
     def calculate_result_code(self):
         return self.result_code
 
     def calculate_constant_result(self):
-        self.constant_result = int(self.value, 0)
+        self.constant_result = Utils.str_to_number(self.value)
 
     def compile_time_value(self, denv):
-        return int(self.value, 0)
+        return Utils.str_to_number(self.value)
 
 
 class FloatNode(ConstNode):
@@ -966,10 +974,10 @@ class LongNode(AtomicExprNode):
     type = py_object_type
 
     def calculate_constant_result(self):
-        self.constant_result = long(self.value)
+        self.constant_result = Utils.str_to_number(self.value)
     
     def compile_time_value(self, denv):
-        return long(self.value)
+        return Utils.str_to_number(self.value)
     
     def analyse_types(self, env):
         self.is_temp = 1
