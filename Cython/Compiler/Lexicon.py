@@ -17,6 +17,7 @@ def make_lexicon():
 
     letter = Any("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_")
     digit = Any("0123456789")
+    bindigit = Any("01")
     octdigit = Any("01234567")
     hexdigit = Any("0123456789ABCDEFabcdef")
     indentation = Bol + Rep(Any(" \t"))
@@ -27,7 +28,9 @@ def make_lexicon():
     decimal_fract = (decimal + dot + Opt(decimal)) | (dot + decimal)
     
     name = letter + Rep(letter | digit)
-    intconst = decimal | (Str("0x") + Rep1(hexdigit))
+    intconst = decimal | (Str("0") + ((Any("Xx") + Rep1(hexdigit)) |
+                                      (Any("Oo") + Rep1(octdigit)) |
+                                      (Any("Bb") + Rep1(bindigit)) ))
     intsuffix = (Opt(Any("Uu")) + Opt(Any("Ll")) + Opt(Any("Ll"))) | (Opt(Any("Ll")) + Opt(Any("Ll")) + Opt(Any("Uu")))
     intliteral = intconst + intsuffix
     fltconst = (decimal_fract + Opt(exponent)) | (decimal + exponent)
@@ -75,7 +78,7 @@ def make_lexicon():
     punct = Any(":,;+-*/|&<>=.%`~^?")
     diphthong = Str("==", "<>", "!=", "<=", ">=", "<<", ">>", "**", "//",
                     "+=", "-=", "*=", "/=", "%=", "|=", "^=", "&=", 
-                    "<<=", ">>=", "**=", "//=")
+                    "<<=", ">>=", "**=", "//=", "->")
     spaces = Rep1(Any(" \t\f"))
     escaped_newline = Str("\\\n")
     lineterm = Eol + Opt(Str("\n"))

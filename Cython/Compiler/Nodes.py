@@ -597,6 +597,7 @@ class CArgDeclNode(Node):
     # not_none       boolean            Tagged with 'not None'
     # default        ExprNode or None
     # default_value  PyObjectConst      constant for default value
+    # annotation     ExprNode or None   Py3 function arg annotation
     # is_self_arg    boolean            Is the "self" arg of an extension type method
     # is_kw_only     boolean            Is a keyword-only argument
 
@@ -607,6 +608,7 @@ class CArgDeclNode(Node):
     type = None
     name_declarator = None
     default_value = None
+    annotation = None
 
     def analyse(self, env, nonempty = 0):
         #print "CArgDeclNode.analyse: is_self_arg =", self.is_self_arg ###
@@ -1603,8 +1605,9 @@ class PyArgDeclNode(Node):
     # Argument which must be a Python object (used
     # for * and ** arguments).
     #
-    # name   string
-    # entry  Symtab.Entry
+    # name        string
+    # entry       Symtab.Entry
+    # annotation  ExprNode or None   Py3 argument annotation
     child_attrs = []
     
 
@@ -1626,6 +1629,8 @@ class DefNode(FuncDefNode):
     # starstar_arg  PyArgDeclNode or None  ** argument
     # doc           EncodedString or None
     # body          StatListNode
+    # return_type_annotation
+    #               ExprNode or None       the Py3 return type annotation
     #
     #  The following subnode is constructed internally
     #  when the def statement is inside a Python class definition.
@@ -1641,6 +1646,7 @@ class DefNode(FuncDefNode):
     reqd_kw_flags_cname = "0"
     is_wrapper = 0
     decorators = None
+    return_type_annotation = None
     entry = None
     acquire_gil = 0
     
@@ -1685,7 +1691,7 @@ class DefNode(FuncDefNode):
             cfunc_type = cfunc.type
             if len(self.args) != len(cfunc_type.args) or cfunc_type.has_varargs:
                 error(self.pos, "wrong number of arguments")
-                error(declarator.pos, "previous declaration here")
+                error(cfunc.pos, "previous declaration here")
             for formal_arg, type_arg in zip(self.args, cfunc_type.args):
                 name_declarator, type = formal_arg.analyse(cfunc.scope, nonempty=1)
                 if type is None or type is PyrexTypes.py_object_type or formal_arg.is_self:

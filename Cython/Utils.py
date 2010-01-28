@@ -82,16 +82,31 @@ def open_source_file(source_filename, mode="rU"):
     encoding = detect_file_encoding(source_filename)
     return codecs.open(source_filename, mode=mode, encoding=encoding)
 
+def str_to_number(value):
+    # note: this expects a string as input that was accepted by the
+    # parser already
+    if len(value) < 2:
+        value = int(value, 0)
+    elif value[0] == '0':
+        if value[1] in 'xX':
+            # hex notation ('0x1AF')
+            value = int(value[2:], 16)
+        elif value[1] in 'oO':
+            # Py3 octal notation ('0o136')
+            value = int(value[2:], 8)
+        elif value[1] in 'bB':
+            # Py3 binary notation ('0b101')
+            value = int(value[2:], 2)
+        else:
+            # Py2 octal notation ('0136')
+            value = int(value, 8)
+    else:
+        value = int(value, 0)
+    return value
+
 def long_literal(value):
     if isinstance(value, basestring):
-        if len(value) < 2:
-            value = int(value)
-        elif value[0] == 0:
-            value = int(value, 8)
-        elif value[1] in 'xX':
-            value = int(value[2:], 16)
-        else:
-            value = int(value)
+        value = str_to_number(value)
     return not -2**31 <= value < 2**31
 
 def none_or_sub(s, data):

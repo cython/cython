@@ -113,7 +113,8 @@ def p_lambdef(s, allow_conditional=True):
         args = []
         star_arg = starstar_arg = None
     else:
-        args, star_arg, starstar_arg = p_varargslist(s, terminator=':')
+        args, star_arg, starstar_arg = p_varargslist(
+            s, terminator=':', annotated=False)
     s.expect(':')
     if allow_conditional:
         expr = p_simple_expr(s)
@@ -1215,6 +1216,8 @@ def p_from_import_statement(s, first_statement = 0):
         imported_names = [p_imported_name(s, is_cimport)]
     while s.sy == ',':
         s.next()
+        if is_parenthesized and s.sy == ')':
+            break
         imported_names.append(p_imported_name(s, is_cimport))
     if is_parenthesized:
         s.expect(')')
@@ -1464,7 +1467,7 @@ def p_except_clause(s):
     exc_value = None
     if s.sy != ':':
         exc_type = p_simple_expr(s)
-        if s.sy == ',':
+        if s.sy == ',' or (s.sy == 'IDENT' and s.systring == 'as'):
             s.next()
             exc_value = p_simple_expr(s)
     body = p_suite(s)
@@ -1625,7 +1628,7 @@ def p_statement(s, ctx, first_statement = 0):
     elif s.sy == 'IF':
         return p_IF_statement(s, ctx)
     elif s.sy == 'DECORATOR':
-        if ctx.level not in ('module', 'class', 'c_class', 'property', 'module_pxd', 'c_class_pxd'):
+        if ctx.level not in ('module', 'class', 'c_class', 'function', 'property', 'module_pxd', 'c_class_pxd'):
             print ctx.level
             s.error('decorator not allowed here')
         s.level = ctx.level
@@ -2143,14 +2146,15 @@ def p_exception_value_clause(s):
 c_arg_list_terminators = ('*', '**', '.', ')')
 
 def p_c_arg_list(s, ctx = Ctx(), in_pyfunc = 0, cmethod_flag = 0,
-                 nonempty_declarators = 0, kw_only = 0):
+                 nonempty_declarators = 0, kw_only = 0, annotated = 1):
     #  Comma-separated list of C argument declarations, possibly empty.
     #  May have a trailing comma.
     args = []
     is_self_arg = cmethod_flag
     while s.sy not in c_arg_list_terminators:
         args.append(p_c_arg_decl(s, ctx, in_pyfunc, is_self_arg,
-            nonempty = nonempty_declarators, kw_only = kw_only))
+            nonempty = nonempty_declarators, kw_only = kw_only,
+            annotated = annotated))
         if s.sy != ',':
             break
         s.next()
@@ -2164,10 +2168,12 @@ def p_optional_ellipsis(s):
     else:
         return 0
 
-def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0, kw_only = 0):
+def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
+                 kw_only = 0, annotated = 1):
     pos = s.position()
     not_none = 0
     default = None
+    annotation = None
     base_type = p_c_base_type(s, cmethod_flag, nonempty = nonempty)
     declarator = p_c_declarator(s, ctx, nonempty = nonempty)
     if s.sy == 'not':
@@ -2179,6 +2185,9 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0, kw_only = 0)
         if not in_pyfunc:
             error(pos, "'not None' only allowed in Python functions")
         not_none = 1
+    if annotated and s.sy == ':':
+        s.next()
+        annotation = p_simple_expr(s)
     if s.sy == '=':
         s.next()
         if 'pxd' in s.level:
@@ -2193,6 +2202,7 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0, kw_only = 0)
         declarator = declarator,
         not_none = not_none,
         default = default,
+        annotation = annotation,
         kw_only = kw_only)
 
 def p_api(s):
@@ -2458,13 +2468,19 @@ def p_def_statement(s, decorators=None):
     s.expect(')')
     if p_nogil(s):
         error(s.pos, "Python function cannot be declared nogil")
+    return_type_annotation = None
+    if s.sy == '->':
+        s.next()
+        return_type_annotation = p_simple_expr(s)
     doc, body = p_suite(s, Ctx(level = 'function'), with_doc = 1)
     return Nodes.DefNode(pos, name = name, args = args, 
         star_arg = star_arg, starstar_arg = starstar_arg,
-        doc = doc, body = body, decorators = decorators)
+        doc = doc, body = body, decorators = decorators,
+        return_type_annotation = return_type_annotation)
 
-def p_varargslist(s, terminator=')'):
-    args = p_c_arg_list(s, in_pyfunc = 1, nonempty_declarators = 1)
+def p_varargslist(s, terminator=')', annotated=1):
+    args = p_c_arg_list(s, in_pyfunc = 1, nonempty_declarators = 1,
+                        annotated = annotated)
     star_arg = None
     starstar_arg = None
     if s.sy == '*':
@@ -2485,7 +2501,11 @@ def p_varargslist(s, terminator=')'):
 def p_py_arg_decl(s):
     pos = s.position()
     name = p_ident(s)
-    return Nodes.PyArgDeclNode(pos, name = name)
+    annotation = None
+    if s.sy == ':':
+        s.next()
+        annotation = p_simple_expr(s)
+    return Nodes.PyArgDeclNode(pos, name = name, annotation = annotation)
 
 def p_class_statement(s, decorators):
     # s.sy == 'class'
