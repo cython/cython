@@ -1757,7 +1757,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             node.calculate_constant_result()
 #            if node.constant_result is not ExprNodes.not_a_constant:
 #                print node.__class__.__name__, node.constant_result
-        except (ValueError, TypeError, KeyError, IndexError, AttributeError):
+        except (ValueError, TypeError, KeyError, IndexError, AttributeError, ArithmeticError):
             # ignore all 'normal' errors here => no constant result
             pass
         except Exception:
