@@ -127,6 +127,9 @@ class ResultRefNode(AtomicExprNode):
     def analyse_types(self, env):
         self.type = self.expression.type
 
+    def infer_type(self, env):
+        return self.expression.infer_type(env)
+
     def result(self):
         return self.result_code
 
@@ -164,9 +167,9 @@ class LetNodeMixin:
 
     def setup_temp_expr(self, code):
         self.temp_expression.generate_evaluation_code(code)
-        self.result_in_temp = self.temp_expression.result_in_temp()
+        self._result_in_temp = self.temp_expression.result_in_temp()
         self.temp_type = self.temp_expression.type
-        if self.result_in_temp:
+        if self._result_in_temp:
             self.temp = self.temp_expression.result()
         else:
             self.temp_expression.make_owned_reference(code)
@@ -176,7 +179,7 @@ class LetNodeMixin:
         self.lazy_temp.result_code = self.temp
 
     def teardown_temp_expr(self, code):
-       if not self.result_in_temp:
+       if not self._result_in_temp:
             if self.temp_type.is_pyobject:
                 code.put_decref_clear(self.temp, self.temp_type)
             code.funcstate.release_temp(self.temp)
@@ -191,6 +194,11 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
         self.set_temp_expr(lazy_temp)
         self.pos = subexpression.pos
         self.subexpression = subexpression
+        # if called after type analysis, we already know the type here
+        self.type = self.subexpression.type
+
+    def infer_type(self, env):
+        return self.subexpression.infer_type(env)
 
     def result(self):
         return self.subexpression.result()

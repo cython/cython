@@ -10,7 +10,7 @@ class A:
 @cython.test_fail_if_path_exists('//SimpleCallNode/AttributeNode')
 def simple_pop(L):
     """
-    >>> L = range(10)
+    >>> L = list(range(10))
     >>> simple_pop(L)
     9
     >>> simple_pop(L)
@@ -36,7 +36,7 @@ def simple_pop(L):
 @cython.test_fail_if_path_exists('//SimpleCallNode/AttributeNode')
 def index_pop(L, int i):
     """
-    >>> L = range(10)
+    >>> L = list(range(10))
     >>> index_pop(L, 2)
     2
     >>> index_pop(L, -2)
@@ -71,7 +71,7 @@ def index_pop(L, int i):
 @cython.test_fail_if_path_exists('//PythonCapiCallNode')
 def crazy_pop(L):
     """
-    >>> crazy_pop(range(10))
+    >>> crazy_pop(list(range(10)))
     Traceback (most recent call last):
     ...
     TypeError: pop() takes at most 1 argument (3 given)

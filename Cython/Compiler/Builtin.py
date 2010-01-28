@@ -50,7 +50,7 @@ builtin_function_table = [
     #('round',     "",     "",      ""),
     ('setattr',    "OOO",  "r",     "PyObject_SetAttr"),
     #('sum',       "",     "",      ""),
-    ('type',       "O",    "O",     "PyObject_Type"),
+    #('type',       "O",    "O",     "PyObject_Type"),
     #('unichr',    "",     "",      ""),
     #('unicode',   "",     "",      ""),
     #('vars',      "",     "",      ""),
@@ -120,6 +120,13 @@ builtin_types_table = [
     ("frozenset", "PyFrozenSet_Type", []),
 ]
 
+types_that_construct_their_instance = (
+    # some builtin types do not always return an instance of
+    # themselves - these do:
+    'type', 'bool', 'long', 'float', 'bytes', 'unicode', 'tuple', 'list',
+    'dict', 'file', 'set', 'frozenset'
+    # 'str',             # only in Py3.x
+    )
 
         
 builtin_structs_table = [
@@ -287,19 +294,19 @@ proto = """
 #define PySet_Pop(set) \\
     PyObject_CallMethod(set, (char *)"pop", NULL)
 
-static INLINE int PySet_Clear(PyObject *set) {
+static CYTHON_INLINE int PySet_Clear(PyObject *set) {
     PyObject *ret = PyObject_CallMethod(set, (char *)"clear", NULL);
     if (!ret) return -1;
     Py_DECREF(ret); return 0;
 }
 
-static INLINE int PySet_Discard(PyObject *set, PyObject *key) {
+static CYTHON_INLINE int PySet_Discard(PyObject *set, PyObject *key) {
     PyObject *ret = PyObject_CallMethod(set, (char *)"discard", (char *)"O", key);
     if (!ret) return -1;
     Py_DECREF(ret); return 0;
 }
 
-static INLINE int PySet_Add(PyObject *set, PyObject *key) {
+static CYTHON_INLINE int PySet_Add(PyObject *set, PyObject *key) {
     PyObject *ret = PyObject_CallMethod(set, (char *)"add", (char *)"O", key);
     if (!ret) return -1;
     Py_DECREF(ret); return 0;
@@ -407,7 +414,7 @@ def init_builtins():
     init_builtin_types()
     init_builtin_structs()
     global list_type, tuple_type, dict_type, set_type, type_type
-    global bytes_type, str_type, unicode_type
+    global bytes_type, str_type, unicode_type, float_type
     type_type  = builtin_scope.lookup('type').type
     list_type  = builtin_scope.lookup('list').type
     tuple_type = builtin_scope.lookup('tuple').type
@@ -416,5 +423,6 @@ def init_builtins():
     bytes_type = builtin_scope.lookup('bytes').type
     str_type   = builtin_scope.lookup('str').type
     unicode_type = builtin_scope.lookup('unicode').type
+    float_type = builtin_scope.lookup('float').type
 
 init_builtins()

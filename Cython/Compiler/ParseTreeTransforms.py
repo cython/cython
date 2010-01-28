@@ -447,43 +447,73 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             node.cython_attribute = self.directive_names.get(node.name)
         return node
 
-    def try_to_parse_directive(self, node):
+    def try_to_parse_directives(self, node):
         # If node is the contents of an directive (in a with statement or
-        # decorator), returns (directivename, value).
+        # decorator), returns a list of (directivename, value) pairs.
         # Otherwise, returns None
-        optname = None
         if isinstance(node, CallNode):
             self.visit(node.function)
             optname = node.function.as_cython_attribute()
-
-        if optname:
-            directivetype = Options.directive_types.get(optname)
-            if directivetype:
-                args, kwds = node.explicit_args_kwds()
-                if directivetype is bool:
-                    if kwds is not None or len(args) != 1 or not isinstance(args[0], BoolNode):
-                        raise PostParseError(node.function.pos,
-                            'The %s directive takes one compile-time boolean argument' % optname)
-                    return (optname, args[0].value)
-                elif directivetype is str:
-                    if kwds is not None or len(args) != 1 or not isinstance(args[0], (StringNode, UnicodeNode)):
-                        raise PostParseError(node.function.pos,
-                            'The %s directive takes one compile-time string argument' % optname)
-                    return (optname, str(args[0].value))
-                elif directivetype is dict:
-                    if len(args) != 0:
-                        raise PostParseError(node.function.pos,
-                            'The %s directive takes no prepositional arguments' % optname)
-                    return optname, dict([(key.value, value) for key, value in kwds.key_value_pairs])
-                elif directivetype is list:
-                    if kwds and len(kwds) != 0:
-                        raise PostParseError(node.function.pos,
-                            'The %s directive takes no keyword arguments' % optname)
-                    return optname, [ str(arg.value) for arg in args ]
-                else:
-                    assert False
-
+            if optname:
+                directivetype = Options.directive_types.get(optname)
+                if directivetype:
+                    args, kwds = node.explicit_args_kwds()
+                    directives = []
+                    key_value_pairs = []
+                    if kwds is not None and directivetype is not dict:
+                        for keyvalue in kwds.key_value_pairs:
+                            key, value = keyvalue
+                            sub_optname = "%s.%s" % (optname, key.value)
+                            if Options.directive_types.get(sub_optname):
+                                directives.append(self.try_to_parse_directive(sub_optname, [value], None, keyvalue.pos))
+                            else:
+                                key_value_pairs.append(keyvalue)
+                        if not key_value_pairs:
+                            kwds = None
+                        else:
+                            kwds.key_value_pairs = key_value_pairs
+                        if directives and not kwds and not args:
+                            return directives
+                    directives.append(self.try_to_parse_directive(optname, args, kwds, node.function.pos))
+                    return directives
+                
         return None
+
+    def try_to_parse_directive(self, optname, args, kwds, pos):
+        directivetype = Options.directive_types.get(optname)
+        if optname == 'infer_types':
+            if kwds is not None or len(args) != 1:
+                raise PostParseError(pos,
+                    'The %s directive takes one compile-time boolean argument' % optname)
+            elif isinstance(args[0], BoolNode):
+                return (optname, args[0].value)
+            elif isinstance(args[0], NoneNode):
+                return (optname, None)
+            else:
+                raise PostParseError(pos,
+                    'The %s directive takes one compile-time boolean argument' % optname)
+        elif directivetype is bool:
+            if kwds is not None or len(args) != 1 or not isinstance(args[0], BoolNode):
+                raise PostParseError(pos,
+                    'The %s directive takes one compile-time boolean argument' % optname)
+            return (optname, args[0].value)
+        elif directivetype is str:
+            if kwds is not None or len(args) != 1 or not isinstance(args[0], (StringNode, UnicodeNode)):
+                raise PostParseError(pos,
+                    'The %s directive takes one compile-time string argument' % optname)
+            return (optname, str(args[0].value))
+        elif directivetype is dict:
+            if len(args) != 0:
+                raise PostParseError(pos,
+                    'The %s directive takes no prepositional arguments' % optname)
+            return optname, dict([(key.value, value) for key, value in kwds.key_value_pairs])
+        elif directivetype is list:
+            if kwds and len(kwds) != 0:
+                raise PostParseError(pos,
+                    'The %s directive takes no keyword arguments' % optname)
+            return optname, [ str(arg.value) for arg in args ]
+        else:
+            assert False
 
     def visit_with_directives(self, body, directives):
         olddirectives = self.directives
@@ -504,9 +534,9 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             # Split the decorators into two lists -- real decorators and directives
             realdecs = []
             for dec in node.decorators:
-                directive = self.try_to_parse_directive(dec.decorator)
-                if directive is not None:
-                    directives.append(directive)
+                new_directives = self.try_to_parse_directives(dec.decorator)
+                if new_directives is not None:
+                    directives.extend(new_directives)
                 else:
                     realdecs.append(dec)
             if realdecs and isinstance(node, CFuncDefNode):
@@ -542,26 +572,28 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     def visit_CVarDefNode(self, node):
         if node.decorators:
             for dec in node.decorators:
-                directive = self.try_to_parse_directive(dec.decorator)
-                if directive is not None and directive[0] == u'locals':
-                    node.directive_locals = directive[1]
-                else:
-                    self.context.nonfatal_error(PostParseError(dec.pos,
-                        "Cdef functions can only take cython.locals() decorator."))
-                    continue
+                for directive in self.try_to_parse_directives(dec.decorator) or []:
+                    if directive is not None and directive[0] == u'locals':
+                        node.directive_locals = directive[1]
+                    else:
+                        self.context.nonfatal_error(PostParseError(dec.pos,
+                            "Cdef functions can only take cython.locals() decorator."))
         return node
                                    
     # Handle with statements
     def visit_WithStatNode(self, node):
-        directive = self.try_to_parse_directive(node.manager)
-        if directive is not None:
-            if node.target is not None:
-                self.context.nonfatal_error(
-                    PostParseError(node.pos, "Compiler directive with statements cannot contain 'as'"))
-            else:
-                name, value = directive
-                if self.check_directive_scope(node.pos, name, 'with statement'):
-                    return self.visit_with_directives(node.body, {name:value})
+        directive_dict = {}
+        for directive in self.try_to_parse_directives(node.manager) or []:
+            if directive is not None:
+                if node.target is not None:
+                    self.context.nonfatal_error(
+                        PostParseError(node.pos, "Compiler directive with statements cannot contain 'as'"))
+                else:
+                    name, value = directive
+                    if self.check_directive_scope(node.pos, name, 'with statement'):
+                        directive_dict[name] = value
+        if directive_dict:
+            return self.visit_with_directives(node.body, directive_dict)
         return self.visit_Node(node)
 
 class WithTransform(CythonTransform, SkipDeclarations):
@@ -749,7 +781,12 @@ property NAME:
         self.env_stack.pop()
         self.seen_vars_stack.pop()
         return node
-    
+
+    def visit_ComprehensionNode(self, node):
+        self.visitchildren(node)
+        node.analyse_declarations(self.env_stack[-1])
+        return node
+
     # Some nodes are no longer needed after declaration
     # analysis and can be dropped. The analysis was performed
     # on these nodes in a seperate recursive process from the
@@ -1035,7 +1072,7 @@ class TransformBuiltinMethods(EnvTransform):
         if function:
             if function == u'cast':
                 if len(node.args) != 2:
-                    error(node.function.pos, u"cast takes exactly two arguments")
+                    error(node.function.pos, u"cast() takes exactly two arguments")
                 else:
                     type = node.args[0].analyse_as_type(self.env_stack[-1])
                     if type:
@@ -1044,7 +1081,7 @@ class TransformBuiltinMethods(EnvTransform):
                         error(node.args[0].pos, "Not a type")
             elif function == u'sizeof':
                 if len(node.args) != 1:
-                    error(node.function.pos, u"sizeof takes exactly one argument" % function)
+                    error(node.function.pos, u"sizeof() takes exactly one argument")
                 else:
                     type = node.args[0].analyse_as_type(self.env_stack[-1])
                     if type:
@@ -1053,23 +1090,23 @@ class TransformBuiltinMethods(EnvTransform):
                         node = SizeofVarNode(node.function.pos, operand=node.args[0])
             elif function == 'typeof':
                 if len(node.args) != 1:
-                    error(node.function.pos, u"sizeof takes exactly one argument" % function)
+                    error(node.function.pos, u"typeof() takes exactly one argument")
                 else:
                     node = TypeofNode(node.function.pos, operand=node.args[0])
             elif function == 'address':
                 if len(node.args) != 1:
-                    error(node.function.pos, u"sizeof takes exactly one argument" % function)
+                    error(node.function.pos, u"address() takes exactly one argument")
                 else:
                     node = AmpersandNode(node.function.pos, operand=node.args[0])
             elif function == 'cmod':
                 if len(node.args) != 2:
-                    error(node.function.pos, u"cmod takes exactly one argument" % function)
+                    error(node.function.pos, u"cmod() takes exactly two arguments")
                 else:
                     node = binop_node(node.function.pos, '%', node.args[0], node.args[1])
                     node.cdivision = True
             elif function == 'cdiv':
                 if len(node.args) != 2:
-                    error(node.function.pos, u"cmod takes exactly one argument" % function)
+                    error(node.function.pos, u"cdiv() takes exactly two arguments")
                 else:
                     node = binop_node(node.function.pos, '/', node.args[0], node.args[1])
                     node.cdivision = True

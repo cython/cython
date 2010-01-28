@@ -11,6 +11,7 @@ if sys.version_info[0] >= 3:
 elif sys.version_info < (2,5):
     __doc__ = __doc__.replace(u"'int' object is unsubscriptable", u'unsubscriptable object')
 
+import cython
 
 def index_tuple(tuple t, int i):
     """
@@ -113,3 +114,15 @@ def test_long_long():
         assert D[ix] is True
         del D[ix]
     assert len(D) == 0
+
+@cython.boundscheck(False)
+def test_boundscheck(list L, tuple t, object o, unsigned long ix):
+    """
+    >>> test_boundscheck([1, 2, 4], (1, 2, 4), [1, 2, 4], 2)
+    (4, 4, 4)
+    >>> test_boundscheck([1, 2, 4], (1, 2, 4), "", 2)
+    Traceback (most recent call last):
+    ...
+    IndexError: string index out of range
+    """
+    return L[ix], t[ix], o[ix]

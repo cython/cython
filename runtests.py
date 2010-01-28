@@ -34,7 +34,8 @@ TEST_RUN_DIRS = ['run', 'pyregr']
 # Lists external modules, and a matcher matching tests
 # which should be excluded if the module is not present.
 EXT_DEP_MODULES = {
-    'numpy' : re.compile('.*\.numpy_.*').match
+    'numpy' : re.compile('.*\.numpy_.*').match,
+    'pstats' : re.compile('.*\.pstats_.*').match
 }
 
 def get_numpy_include_dirs():
@@ -403,30 +404,32 @@ class CythonRunTestCase(CythonCompileTestCase):
 
         # fork to make sure we do not keep the tested module loaded
         result_handle, result_file = tempfile.mkstemp()
+        os.close(result_handle)
         child_id = os.fork()
         if not child_id:
             result_code = 0
             try:
-                output = os.fdopen(result_handle, 'wb')
-                tests = None
                 try:
-                    partial_result = PartialTestResult(result)
-                    tests = doctest.DocTestSuite(module_name)
-                    tests.run(partial_result)
-                    gc.collect()
-                except Exception:
-                    if tests is None:
-                        # importing failed, try to fake a test class
-                        tests = _FakeClass(
-                            failureException=None,
-                            shortDescription = self.shortDescription,
-                            **{module_name: None})
-                    partial_result.addError(tests, sys.exc_info())
-                    result_code = 1
-                pickle.dump(partial_result.data(), output)
-            except:
-                import traceback
-                traceback.print_exc()
+                    tests = None
+                    try:
+                        partial_result = PartialTestResult(result)
+                        tests = doctest.DocTestSuite(module_name)
+                        tests.run(partial_result)
+                        gc.collect()
+                    except Exception:
+                        if tests is None:
+                            # importing failed, try to fake a test class
+                            tests = _FakeClass(
+                                failureException=None,
+                                shortDescription = self.shortDescription,
+                                **{module_name: None})
+                        partial_result.addError(tests, sys.exc_info())
+                        result_code = 1
+                    output = open(result_file, 'wb')
+                    pickle.dump(partial_result.data(), output)
+                except:
+                    import traceback
+                    traceback.print_exc()
             finally:
                 try: output.close()
                 except: pass
@@ -740,8 +743,13 @@ if __name__ == '__main__':
                              ''')
             sys.path.insert(0, cy3_dir)
     elif sys.version_info[0] >= 3:
-        # make sure we do not import (or run) Cython itself
-        options.with_cython = False
+        # make sure we do not import (or run) Cython itself (unless
+        # 2to3 was already run)
+        cy3_dir = os.path.join(WORKDIR, 'Cy3')
+        if os.path.isdir(cy3_dir):
+            sys.path.insert(0, cy3_dir)
+        else:
+            options.with_cython = False
         options.doctests    = False
         options.unittests   = False
         options.pyregr      = False
@@ -856,7 +864,7 @@ if __name__ == '__main__':
                 os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test'),
                 'pyregr'))
 
-    unittest.TextTestRunner(verbosity=options.verbosity).run(test_suite)
+    result = unittest.TextTestRunner(verbosity=options.verbosity).run(test_suite)
 
     if options.coverage:
         coverage.stop()
@@ -875,3 +883,5 @@ if __name__ == '__main__':
     if options.with_refnanny:
         import refnanny
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
+
+    sys.exit(not result.wasSuccessful())

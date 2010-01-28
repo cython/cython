@@ -4,6 +4,6 @@ def test():
     True
     """
     cdef int a,b
-    foo=(55,66)
-    a,b=foo
+    cdef object foo = (55,66)
+    a,b = foo
     return a + b

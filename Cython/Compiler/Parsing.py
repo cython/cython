@@ -1,4 +1,4 @@
-# cython: auto_cpdef=True
+# cython: auto_cpdef=True, infer_types=True
 #
 #   Pyrex Parser
 #
@@ -2647,18 +2647,17 @@ def p_code(s, level=None):
             repr(s.sy), repr(s.systring)))
     return body
 
-COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*cython:\s*(\w+)\s*=(.*)$")
+COMPILER_DIRECTIVE_COMMENT_RE = re.compile(r"^#\s*cython:\s*((\w|[.])+\s*=.*)$")
 
 def p_compiler_directive_comments(s):
     result = {}
     while s.sy == 'commentline':
         m = COMPILER_DIRECTIVE_COMMENT_RE.match(s.systring)
         if m:
-            name = m.group(1)
+            directives = m.group(1).strip()
             try:
-                value = Options.parse_directive_value(str(name), str(m.group(2).strip()))
-                if value is not None: # can be False!
-                    result[name] = value
+                result.update( Options.parse_directive_list(
+                    directives, ignore_unknown=True) )
             except ValueError, e:
                 s.error(e.args[0], fatal=False)
         s.next()

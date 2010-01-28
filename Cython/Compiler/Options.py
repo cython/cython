@@ -63,7 +63,11 @@ directive_defaults = {
     'callspec' : "",
     'profile': False,
     'infer_types': False,
+    'infer_types.verbose': False,
     'autotestdict': True,
+    
+    'warn': None,
+    'warn.undeclared': False,
 
 # test support
     'test_assert_path_exists' : [],
@@ -71,7 +75,9 @@ directive_defaults = {
 }
 
 # Override types possibilities above, if needed
-directive_types = {}
+directive_types = {
+    'infer_types' : bool, # values can be True/None/False
+    }
 
 for key, val in directive_defaults.items():
     if key not in directive_types:
@@ -84,10 +90,10 @@ directive_scopes = { # defaults to available everywhere
     'test_fail_if_path_exists' : ('function',),
 }
 
-def parse_directive_value(name, value):
+def parse_directive_value(name, value, relaxed_bool=False):
     """
     Parses value as an option value for the given name and returns
-    the interpreted value. None is returned if the option does not exist.    
+    the interpreted value. None is returned if the option does not exist.
 
     >>> print parse_directive_value('nonexisting', 'asdf asdfd')
     None
@@ -102,18 +108,25 @@ def parse_directive_value(name, value):
     type = directive_types.get(name)
     if not type: return None
     if type is bool:
-        if value == "True": return True
-        elif value == "False": return False
-        else: raise ValueError("%s directive must be set to True or False" % name)
+        value = str(value)
+        if value == 'True': return True
+        if value == 'False': return False
+        if relaxed_bool:
+            value = value.lower()
+            if value in ("true", "yes"): return True
+            elif value in ("false", "no"): return False
+        raise ValueError("%s directive must be set to True or False" % name)
     elif type is int:
         try:
             return int(value)
         except ValueError:
             raise ValueError("%s directive must be set to an integer" % name)
+    elif type is str:
+        return str(value)
     else:
         assert False
 
-def parse_directive_list(s):
+def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False):
     """
     Parses a comma-seperated list of pragma options. Whitespace
     is not considered.
@@ -130,7 +143,7 @@ def parse_directive_list(s):
     >>> parse_directive_list('boundscheck=hey')
     Traceback (most recent call last):
        ...
-    ValueError: Must pass a boolean value for option "boundscheck"
+    ValueError: boundscheck directive must be set to True or False
     >>> parse_directive_list('unknown=True')
     Traceback (most recent call last):
        ...
@@ -141,19 +154,11 @@ def parse_directive_list(s):
         item = item.strip()
         if not item: continue
         if not '=' in item: raise ValueError('Expected "=" in option "%s"' % item)
-        name, value = item.strip().split('=')
-        try:
-            type = directive_types[name]
-        except KeyError:
-            raise ValueError('Unknown option: "%s"' % name)
-        if type is bool:
-            value = value.lower()
-            if value in ('true', 'yes'):
-                value = True
-            elif value in ('false', 'no'):
-                value = False
-            else: raise ValueError('Must pass a boolean value for option "%s"' % name)
-            result[name] = value
+        name, value = [ s.strip() for s in item.strip().split('=', 1) ]
+        parsed_value = parse_directive_value(name, value, relaxed_bool=relaxed_bool)
+        if parsed_value is None:
+            if not ignore_unknown:
+                raise ValueError('Unknown option: "%s"' % name)
         else:
-            assert False
+            result[name] = parsed_value
     return result
