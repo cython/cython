@@ -1022,9 +1022,13 @@ class FuncDefNode(StatNode, BlockNode):
         while genv.is_py_class_scope or genv.is_c_class_scope:
             genv = env.outer_scope
         if self.needs_closure:
-            lenv = ClosureScope(name = self.entry.name, scope_name = self.entry.cname, outer_scope = genv)
+            lenv = ClosureScope(name=self.entry.name,
+                                outer_scope = genv,
+                                scope_name=self.entry.cname)
         else:
-            lenv = LocalScope(name = self.entry.name, outer_scope = genv, parent_scope = env)
+            lenv = LocalScope(name=self.entry.name,
+                              outer_scope=genv,
+                              parent_scope=env)
         lenv.return_type = self.return_type
         type = self.entry.type
         if type.is_cfunction:
@@ -1078,7 +1082,7 @@ class FuncDefNode(StatNode, BlockNode):
         if lenv.is_closure_scope:
             code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname))
             code.putln(";")
-        if env.is_closure_scope and not lenv.is_closure_scope:
+        elif env.is_closure_scope:
             code.put(env.scope_class.type.declaration_code(Naming.outer_scope_cname))
             code.putln(";")
         self.generate_argument_declarations(lenv, code)
@@ -1091,9 +1095,8 @@ class FuncDefNode(StatNode, BlockNode):
                 init = " = NULL"
             code.putln(
                 "%s%s;" % 
-                    (self.return_type.declaration_code(
-                        Naming.retval_cname),
-                    init))
+                    (self.return_type.declaration_code(Naming.retval_cname),
+                     init))
         tempvardecl_code = code.insertion_point()
         self.generate_keyword_list(code)
         # ----- Extern library function declarations
@@ -1144,15 +1147,20 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
             if entry.type.is_buffer and entry.buffer_aux.buffer_info_var.used:
-                code.putln("%s.buf = NULL;" % entry.buffer_aux.buffer_info_var.cname)
+                code.putln("%s.buf = NULL;" %
+                           entry.buffer_aux.buffer_info_var.cname)
         # ----- Check and convert arguments
         self.generate_argument_type_tests(code)
         # ----- Acquire buffer arguments
         for entry in lenv.arg_entries:
             if entry.type.is_buffer:
-                Buffer.put_acquire_arg_buffer(entry, code, self.pos)        
-        # ----- Function body
+                Buffer.put_acquire_arg_buffer(entry, code, self.pos)
+
+        # -------------------------
+        # ----- Function body -----
+        # -------------------------
         self.body.generate_execution_code(code)
+
         # ----- Default return value
         code.putln("")
         if self.return_type.is_pyobject:
@@ -1203,10 +1211,7 @@ class FuncDefNode(StatNode, BlockNode):
             if err_val is None and default_retval:
                 err_val = default_retval
             if err_val is not None:
-                code.putln(
-                    "%s = %s;" % (
-                        Naming.retval_cname, 
-                        err_val))
+                code.putln("%s = %s;" % (Naming.retval_cname, err_val))
 
             if is_getbuffer_slot:
                 self.getbuffer_error_cleanup(code)
@@ -1233,15 +1238,19 @@ class FuncDefNode(StatNode, BlockNode):
                     entry.xdecref_cleanup = 1
         
         for entry in lenv.var_entries:
-            if entry.used and not entry.in_closure:
-                code.put_var_decref(entry)
+            if entry.type.is_pyobject:
+                if entry.used and not entry.in_closure:
+                    code.put_var_decref(entry)
+                elif entry.in_closure and self.needs_closure:
+                    code.put_giveref(entry.cname)
         # Decref any increfed args
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
-                if entry.in_closure and not entry.assignments:
-                    code.put_var_incref(entry)
+                if entry.in_closure:
+                    if not entry.assignments:
+                        code.put_var_incref(entry)
                     code.put_var_giveref(entry)
-                elif not entry.in_closure and entry.assignments:
+                elif entry.assignments:
                     code.put_var_decref(entry)
         if self.needs_closure:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
