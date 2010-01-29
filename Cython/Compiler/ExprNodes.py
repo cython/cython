@@ -12,7 +12,8 @@ import Naming
 import Nodes
 from Nodes import Node
 import PyrexTypes
-from PyrexTypes import py_object_type, c_long_type, typecast, error_type, unspecified_type
+from PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
+     unspecified_type
 from Builtin import list_type, tuple_type, set_type, dict_type, \
      unicode_type, str_type, bytes_type, type_type
 import Builtin
@@ -1365,19 +1366,20 @@ class NameNode(AtomicExprNode):
                     rhs.make_owned_reference(code)
                     if entry.is_cglobal:
                         code.put_gotref(self.py_result())
-                if self.use_managed_ref and not self.lhs_of_first_assignment:
-                    if entry.is_local and not Options.init_local_none:
-                        initialized = entry.scope.control_flow.get_state((entry.name, 'initialized'), self.pos)
-                        if initialized is True:
+                    if not self.lhs_of_first_assignment:
+                        if entry.is_local and not Options.init_local_none:
+                            initialized = entry.scope.control_flow.get_state((entry.name, 'initialized'), self.pos)
+                            if initialized is True:
+                                code.put_decref(self.result(), self.ctype())
+                            elif initialized is None:
+                                code.put_xdecref(self.result(), self.ctype())
+                        else:
                             code.put_decref(self.result(), self.ctype())
-                        elif initialized is None:
-                            code.put_xdecref(self.result(), self.ctype())
-                    else:
-                        code.put_decref(self.result(), self.ctype())
-                if self.use_managed_ref:
-                    if entry.is_cglobal or entry.in_closure:
+                    if entry.is_cglobal:
                         code.put_giveref(rhs.py_result())
-            code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
+
+            code.putln('%s = %s;' % (self.result(),
+                                     rhs.result_as(self.ctype())))
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
                 print("...generating post-assignment code for %s" % rhs)
