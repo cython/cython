@@ -26,3 +26,5 @@ c = e.getValue2()
 
 cdef char f = d.getValue2()
 f = e.getValue2()
+
+del b, e
