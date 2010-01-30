@@ -4328,6 +4328,8 @@ class TypecastNode(ExprNode):
         elif from_py and to_py:
             if self.typecheck and self.type.is_extension_type:
                 self.operand = PyTypeTestNode(self.operand, self.type, env, notnone=True)
+        elif self.type.is_complex and self.operand.type.is_complex:
+            self.operand = self.operand.coerce_to_simple(env)
 
     def nogil_check(self, env):
         if self.type and self.type.is_pyobject and self.is_temp:
@@ -4342,8 +4344,20 @@ class TypecastNode(ExprNode):
         pass
     
     def calculate_result_code(self):
-        opnd = self.operand
-        return self.type.cast_code(opnd.result())
+        if self.type.is_complex:
+            operand_result = self.operand.result()
+            if self.operand.type.is_complex:
+                real_part = self.type.real_type.cast_code("__Pyx_CREAL(%s)" % operand_result)
+                imag_part = self.type.real_type.cast_code("__Pyx_CIMAG(%s)" % operand_result)
+            else:
+                real_part = self.type.real_type.cast_code(operand_result)
+                imag_part = "0"
+            return "%s(%s, %s)" % (
+                    self.type.from_parts,
+                    real_part,
+                    imag_part)    
+        else:
+            return self.type.cast_code(self.operand.result())
     
     def get_constant_c_result_code(self):
         operand_result = self.operand.get_constant_c_result_code()
