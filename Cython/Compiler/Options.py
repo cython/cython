@@ -72,6 +72,9 @@ directive_defaults = {
 # test support
     'test_assert_path_exists' : [],
     'test_fail_if_path_exists' : [],
+
+# experimental, subject to change
+    'binding': False,
 }
 
 # Override types possibilities above, if needed
