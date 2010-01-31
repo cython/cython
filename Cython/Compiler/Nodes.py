@@ -1076,7 +1076,7 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_cached_builtins_decls(lenv, code)
         # ----- Function header
         code.putln("")
-        with_pymethdef = env.is_py_class_scope or env.is_closure_scope
+        with_pymethdef = self.needs_assignment_synthesis(env, code)
         if self.py_func:
             self.py_func.generate_function_header(code, 
                 with_pymethdef = with_pymethdef,
@@ -1635,7 +1635,6 @@ class DefNode(FuncDefNode):
     # name          string                 the Python name of the function
     # lambda_name   string                 the internal name of a lambda 'function'
     # decorators    [DecoratorNode]        list of decorators
-    # binding       bool                   bind like a Python function
     # args          [CArgDeclNode]         formal arguments
     # star_arg      PyArgDeclNode or None  * argument
     # starstar_arg  PyArgDeclNode or None  ** argument
@@ -1662,7 +1661,6 @@ class DefNode(FuncDefNode):
     entry = None
     acquire_gil = 0
     self_in_stararg = 0
-    binding = False
 
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
@@ -1962,9 +1960,18 @@ class DefNode(FuncDefNode):
     def analyse_expressions(self, env):
         self.local_scope.directives = env.directives
         self.analyse_default_values(env)
-        if env.is_py_class_scope or env.is_closure_scope:
+        if self.needs_assignment_synthesis(env):
             # Shouldn't we be doing this at the module level too?
             self.synthesize_assignment_node(env)
+
+    def needs_assignment_synthesis(self, env, code=None):
+        # Should enable for module level as well, that will require more testing...
+        if env.is_module_scope:
+            if code is None:
+                return env.directives['binding']
+            else:
+                return code.globalstate.directives['binding']
+        return env.is_py_class_scope or env.is_closure_scope
 
     def synthesize_assignment_node(self, env):
         import ExprNodes
@@ -1977,7 +1984,7 @@ class DefNode(FuncDefNode):
                 self.pos, pymethdef_cname = self.entry.pymethdef_cname)
         else:
             rhs = ExprNodes.PyCFunctionNode(
-                self.pos, pymethdef_cname = self.entry.pymethdef_cname, binding = self.binding)
+                self.pos, pymethdef_cname = self.entry.pymethdef_cname, binding = env.directives['binding'])
         self.assmt = SingleAssignmentNode(self.pos,
             lhs = ExprNodes.NameNode(self.pos, name = self.name),
             rhs = rhs)
