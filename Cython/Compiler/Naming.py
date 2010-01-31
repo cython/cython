@@ -89,6 +89,7 @@ cur_scope_cname  = pyrex_prefix + "cur_scope"
 enc_scope_cname  = pyrex_prefix + "enc_scope"
 frame_cname      = pyrex_prefix + "frame"
 frame_code_cname = pyrex_prefix + "frame_code"
+binding_cfunc    = pyrex_prefix + "binding_PyCFunctionType"
 
 line_c_macro = "__LINE__"
 

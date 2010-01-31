@@ -4053,15 +4053,18 @@ class PyCFunctionNode(ExprNode):
     #
     #  pymethdef_cname   string   PyMethodDef structure
     #  self_object       ExprNode or None
+    #  binding           bool
 
     subexprs = []
     self_object = None
+    binding = False
     
     type = py_object_type
     is_temp = 1
     
     def analyse_types(self, env):
-        pass
+        if self.binding:
+            env.use_utility_code(binding_cfunc_utility_code)
     
     gil_message = "Constructing Python function"
 
@@ -4073,9 +4076,14 @@ class PyCFunctionNode(ExprNode):
         return self_result
 
     def generate_result_code(self, code):
+        if self.binding:
+            constructor = "%s_New" % Naming.binding_cfunc
+        else:
+            constructor = "PyCFunction_New"
         code.putln(
-            "%s = PyCFunction_New(&%s, %s); %s" % (
+            "%s = %s(&%s, %s); %s" % (
                 self.result(),
+                constructor,
                 self.pymethdef_cname,
                 self.self_result_code(),
                 code.error_goto_if_null(self.result(), self.pos)))
@@ -4084,6 +4092,8 @@ class PyCFunctionNode(ExprNode):
 class InnerFunctionNode(PyCFunctionNode):
     # Special PyCFunctionNode that depends on a closure class
     #
+    binding = True
+    
     def self_result_code(self):
         return "((PyObject*)%s)" % Naming.cur_scope_cname
 
@@ -6652,3 +6662,62 @@ proto="""
 #define UNARY_NEG_WOULD_OVERFLOW(x)	\
 	(((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))
 """)
+
+
+binding_cfunc_utility_code = UtilityCode(
+proto="""
+#define %(binding_cfunc)s_USED 1
+
+typedef struct {
+    PyCFunctionObject func;
+} %(binding_cfunc)s_object;
+
+PyTypeObject %(binding_cfunc)s_type;
+PyTypeObject *%(binding_cfunc)s = NULL;
+
+PyObject *%(binding_cfunc)s_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module); /* proto */
+#define %(binding_cfunc)s_New(ml, self) %(binding_cfunc)s_NewEx(ml, self, NULL)
+
+int %(binding_cfunc)s_init(void); /* proto */
+""" % Naming.__dict__,
+impl="""
+
+PyObject *%(binding_cfunc)s_NewEx(PyMethodDef *ml, PyObject *self, PyObject *module) {
+	%(binding_cfunc)s_object *op = PyObject_GC_New(%(binding_cfunc)s_object, %(binding_cfunc)s);
+    if (op == NULL)
+        return NULL;
+	op->func.m_ml = ml;
+	Py_XINCREF(self);
+	op->func.m_self = self;
+	Py_XINCREF(module);
+	op->func.m_module = module;
+	_PyObject_GC_TRACK(op);
+	return (PyObject *)op;
+}
+
+static void %(binding_cfunc)s_dealloc(%(binding_cfunc)s_object *m) {
+	_PyObject_GC_UNTRACK(m);
+	Py_XDECREF(m->func.m_self);
+	Py_XDECREF(m->func.m_module);
+    PyObject_GC_Del(m);
+}
+
+static PyObject *%(binding_cfunc)s_descr_get(PyObject *func, PyObject *obj, PyObject *type) {
+	if (obj == Py_None)
+		obj = NULL;
+	return PyMethod_New(func, obj, type);
+}
+
+int %(binding_cfunc)s_init(void) {
+    %(binding_cfunc)s_type = PyCFunction_Type;
+    %(binding_cfunc)s_type.tp_name = "cython_binding_builtin_function_or_method";
+    %(binding_cfunc)s_type.tp_dealloc = (destructor)%(binding_cfunc)s_dealloc;
+    %(binding_cfunc)s_type.tp_descr_get = %(binding_cfunc)s_descr_get;
+    if (PyType_Ready(&%(binding_cfunc)s_type) < 0) {
+        return -1;
+    }
+    %(binding_cfunc)s = &%(binding_cfunc)s_type;
+    return 0;
+
+}
+""" % Naming.__dict__)
