@@ -1481,6 +1481,9 @@ class CFuncDefNode(FuncDefNode):
             self.analyse_default_values(env)
         self.acquire_gil = self.need_gil_acquisition(self.local_scope)
 
+    def needs_assignment_synthesis(self, env, code=None):
+        return False
+
     def generate_function_header(self, code, with_pymethdef, with_opt_args = 1, with_dispatch = 1, cname = None):
         arg_decls = []
         type = self.type
