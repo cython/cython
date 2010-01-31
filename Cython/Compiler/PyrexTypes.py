@@ -2194,13 +2194,33 @@ modifiers_and_name_to_type = {
     (1, 0, "bint"): c_bint_type,
 }
 
-def is_promotion(type, other_type):
-    if type.is_numeric and other_type.is_numeric:
-        return (type.is_int and type.is_int and type.signed == other_type.signed) \
-                        or (type.is_float and other_type.is_float) \
-                        or (type.is_enum and other_type.is_int)
+def is_promotion0(src_type, dst_type):
+    if src_type.is_numeric and dst_type.is_numeric:
+        if src_type.is_int and dst_type.is_int:
+            if src_type.is_enum: 
+                return True
+            elif src_type.signed:
+                return dst_type.signed and src_type.rank <= dst_type.rank
+            elif dst_type.signed: # and not src_type.signed
+                src_type.rank < dst_type.rank
+            else:
+                return src_type.rank <= dst_type.rank
+        elif src_type.is_float and dst_type.is_float:
+            return src_type.rank <= dst_type.rank
+        else:
+            return False
     else:
         return False
+
+def is_promotion(src_type, dst_type):
+    # It's hard to find a hard definition of promotion, but empirical
+    # evidence suggests that the below is all that's allowed. 
+    if src_type.is_numeric:
+        if dst_type.same_as(c_int_type):
+            return src_type.is_enum or (src_type.is_int and (not src_type.signed) + src_type.rank < dst_type.rank)
+        elif dst_type.same_as(c_double_type):
+            return src_type.is_float and src_type.rank <= dst_type.rank
+    return False
 
 def best_match(args, functions, pos=None):
     """
