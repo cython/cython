@@ -1635,6 +1635,7 @@ class DefNode(FuncDefNode):
     # name          string                 the Python name of the function
     # lambda_name   string                 the internal name of a lambda 'function'
     # decorators    [DecoratorNode]        list of decorators
+    # binding       bool                   bind like a Python function
     # args          [CArgDeclNode]         formal arguments
     # star_arg      PyArgDeclNode or None  * argument
     # starstar_arg  PyArgDeclNode or None  ** argument
@@ -1661,6 +1662,7 @@ class DefNode(FuncDefNode):
     entry = None
     acquire_gil = 0
     self_in_stararg = 0
+    binding = False
 
     def __init__(self, pos, **kwds):
         FuncDefNode.__init__(self, pos, **kwds)
@@ -1973,6 +1975,9 @@ class DefNode(FuncDefNode):
         elif env.is_closure_scope:
             rhs = ExprNodes.InnerFunctionNode(
                 self.pos, pymethdef_cname = self.entry.pymethdef_cname)
+        else:
+            rhs = ExprNodes.PyCFunctionNode(
+                self.pos, pymethdef_cname = self.entry.pymethdef_cname, binding = self.binding)
         self.assmt = SingleAssignmentNode(self.pos,
             lhs = ExprNodes.NameNode(self.pos, name = self.name),
             rhs = rhs)
