@@ -279,7 +279,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.mark_pos(None)
         self.generate_typeobj_definitions(env, code)
         self.generate_method_table(env, code)
-        self.generate_filename_init_prototype(code)
         if env.has_import_star:
             self.generate_import_star(env, code)
         self.generate_pymoduledef_struct(env, code)
@@ -600,7 +599,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln('static int %s = 0;' % Naming.clineno_cname)
         code.putln('static const char * %s= %s;' % (Naming.cfilenm_cname, Naming.file_c_macro))
         code.putln('static const char *%s;' % Naming.filename_cname)
-        code.putln('static const char **%s;' % Naming.filetable_cname)
 
         # XXX this is a mess
         for utility_code in PyrexTypes.c_int_from_py_function.specialize_list:
@@ -624,13 +622,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     
     def generate_filename_table(self, code):
         code.putln("")
-        code.putln("static const char *%s[] = {" % Naming.filenames_cname)
+        code.putln("static const char *%s[] = {" % Naming.filetable_cname)
         if code.globalstate.filename_list:
             for source_desc in code.globalstate.filename_list:
                 filename = os.path.basename(source_desc.get_filenametable_entry())
                 escaped_filename = filename.replace("\\", "\\\\").replace('"', r'\"')
-                code.putln('"%s",' % 
-                    escaped_filename)
+                code.putln('"%s",' % escaped_filename)
         else:
             # Some C compilers don't like an empty array
             code.putln("0")
@@ -1581,10 +1578,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln(
                 "};")
 
-    def generate_filename_init_prototype(self, code):
-        code.putln("");
-        code.putln("static void %s(void); /*proto*/" % Naming.fileinit_cname)
-        
     def generate_import_star(self, env, code):
         env.use_utility_code(streq_utility_code)
         code.putln()
@@ -1674,8 +1667,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("}")
         code.putln("__pyx_refnanny = __Pyx_RefNanny->SetupContext(\"%s\", __LINE__, __FILE__);"% header3)
         code.putln("#endif")
-
-        self.generate_filename_init_call(code)
 
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
         code.putln("#if PY_MAJOR_VERSION < 3");
@@ -1815,9 +1806,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_main_method(self, env, code):
         module_is_main = "%s%s" % (Naming.module_is_main, self.full_module_name.replace('.', '__'))
         code.globalstate.use_utility_code(main_method.specialize(module_name=env.module_name, module_is_main=module_is_main))
-
-    def generate_filename_init_call(self, code):
-        code.putln("%s();" % Naming.fileinit_cname)
 
     def generate_pymoduledef_struct(self, env, code):
         if env.doc:
