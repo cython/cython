@@ -470,7 +470,7 @@ class Scope(object):
                 if visibility == 'extern' and entry.visibility == 'extern':
                     if self.is_cpp():
                         temp = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
-                        entry.overloaded_alternatives.append(temp)
+                        temp.overloaded_alternatives = entry.all_alternatives()
                         entry = temp
                     else:
                         warning(pos, "Function signature does not match previous declaration", 1)

@@ -300,7 +300,7 @@ def p_yield_expression(s):
 #power: atom trailer* ('**' factor)*
 
 def p_power(s):
-    if s.systring == 'new':
+    if s.systring == 'new' and s.peek()[0] == 'IDENT':
         return p_new_expr(s)
     n1 = p_atom(s)
     while s.sy in ('(', '[', '.'):
