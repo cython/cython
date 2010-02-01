@@ -12,7 +12,8 @@ import Naming
 import Nodes
 from Nodes import Node
 import PyrexTypes
-from PyrexTypes import py_object_type, c_long_type, typecast, error_type, unspecified_type
+from PyrexTypes import py_object_type, c_long_type, typecast, error_type, \
+     unspecified_type
 from Builtin import list_type, tuple_type, set_type, dict_type, \
      unicode_type, str_type, bytes_type, type_type
 import Builtin
@@ -516,6 +517,9 @@ class ExprNode(Node):
     def free_subexpr_temps(self, code):
         for sub in self.subexpr_nodes():
             sub.free_temps(code)
+
+    def generate_function_definitions(self, env, code):
+        pass
 
     # ---------------- Annotation ---------------------
     
@@ -1172,7 +1176,7 @@ class NameNode(AtomicExprNode):
             else:
                 type = py_object_type
             self.entry = env.declare_var(self.name, type, self.pos)
-        env.control_flow.set_state(self.pos, (self.name, 'initalized'), True)
+        env.control_flow.set_state(self.pos, (self.name, 'initialized'), True)
         env.control_flow.set_state(self.pos, (self.name, 'source'), 'assignment')
         if self.entry.is_declared_generic:
             self.result_ctype = py_object_type
@@ -1315,13 +1319,13 @@ class NameNode(AtomicExprNode):
             
         elif entry.is_local and False:
             # control flow not good enough yet
-            assigned = entry.scope.control_flow.get_state((entry.name, 'initalized'), self.pos)
+            assigned = entry.scope.control_flow.get_state((entry.name, 'initialized'), self.pos)
             if assigned is False:
                 error(self.pos, "local variable '%s' referenced before assignment" % entry.name)
             elif not Options.init_local_none and assigned is None:
                 code.putln('if (%s == 0) { PyErr_SetString(PyExc_UnboundLocalError, "%s"); %s }' %
                            (entry.cname, entry.name, code.error_goto(self.pos)))
-                entry.scope.control_flow.set_state(self.pos, (entry.name, 'initalized'), True)
+                entry.scope.control_flow.set_state(self.pos, (entry.name, 'initialized'), True)
 
     def generate_assignment_code(self, rhs, code):
         #print "NameNode.generate_assignment_code:", self.name ###
@@ -1383,19 +1387,20 @@ class NameNode(AtomicExprNode):
                     rhs.make_owned_reference(code)
                     if entry.is_cglobal:
                         code.put_gotref(self.py_result())
-                if self.use_managed_ref and not self.lhs_of_first_assignment:
-                    if entry.is_local and not Options.init_local_none:
-                        initalized = entry.scope.control_flow.get_state((entry.name, 'initalized'), self.pos)
-                        if initalized is True:
+                    if not self.lhs_of_first_assignment:
+                        if entry.is_local and not Options.init_local_none:
+                            initialized = entry.scope.control_flow.get_state((entry.name, 'initialized'), self.pos)
+                            if initialized is True:
+                                code.put_decref(self.result(), self.ctype())
+                            elif initialized is None:
+                                code.put_xdecref(self.result(), self.ctype())
+                        else:
                             code.put_decref(self.result(), self.ctype())
-                        elif initalized is None:
-                            code.put_xdecref(self.result(), self.ctype())
-                    else:
-                        code.put_decref(self.result(), self.ctype())
-                if self.use_managed_ref:
-                    if entry.is_cglobal or entry.in_closure:
+                    if entry.is_cglobal:
                         code.put_giveref(rhs.py_result())
-            code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
+
+            code.putln('%s = %s;' % (self.result(),
+                                     rhs.result_as(self.ctype())))
             if debug_disposal_code:
                 print("NameNode.generate_assignment_code:")
                 print("...generating post-assignment code for %s" % rhs)
