@@ -428,7 +428,7 @@ class Scope(object):
                 cname = self.mangle(Naming.var_prefix, name)
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
-        self.control_flow.set_state((), (name, 'initalized'), False)
+        self.control_flow.set_state((), (name, 'initialized'), False)
         return entry
         
     def declare_builtin(self, name, pos):

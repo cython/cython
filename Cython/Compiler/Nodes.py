@@ -1031,9 +1031,13 @@ class FuncDefNode(StatNode, BlockNode):
         while genv.is_py_class_scope or genv.is_c_class_scope:
             genv = env.outer_scope
         if self.needs_closure:
-            lenv = ClosureScope(name = self.entry.name, scope_name = self.entry.cname, outer_scope = genv)
+            lenv = ClosureScope(name=self.entry.name,
+                                outer_scope = genv,
+                                scope_name=self.entry.cname)
         else:
-            lenv = LocalScope(name = self.entry.name, outer_scope = genv, parent_scope = env)
+            lenv = LocalScope(name=self.entry.name,
+                              outer_scope=genv,
+                              parent_scope=env)
         lenv.return_type = self.return_type
         type = self.entry.type
         if type.is_cfunction:
@@ -1087,7 +1091,7 @@ class FuncDefNode(StatNode, BlockNode):
         if lenv.is_closure_scope:
             code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname))
             code.putln(";")
-        if env.is_closure_scope and not lenv.is_closure_scope:
+        elif env.is_closure_scope:
             code.put(env.scope_class.type.declaration_code(Naming.outer_scope_cname))
             code.putln(";")
         self.generate_argument_declarations(lenv, code)
@@ -1100,9 +1104,8 @@ class FuncDefNode(StatNode, BlockNode):
                 init = " = NULL"
             code.putln(
                 "%s%s;" % 
-                    (self.return_type.declaration_code(
-                        Naming.retval_cname),
-                    init))
+                    (self.return_type.declaration_code(Naming.retval_cname),
+                     init))
         tempvardecl_code = code.insertion_point()
         self.generate_keyword_list(code)
         if profile:
@@ -1155,15 +1158,20 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Initialise local buffer auxiliary variables
         for entry in lenv.var_entries + lenv.arg_entries:
             if entry.type.is_buffer and entry.buffer_aux.buffer_info_var.used:
-                code.putln("%s.buf = NULL;" % entry.buffer_aux.buffer_info_var.cname)
+                code.putln("%s.buf = NULL;" %
+                           entry.buffer_aux.buffer_info_var.cname)
         # ----- Check and convert arguments
         self.generate_argument_type_tests(code)
         # ----- Acquire buffer arguments
         for entry in lenv.arg_entries:
             if entry.type.is_buffer:
-                Buffer.put_acquire_arg_buffer(entry, code, self.pos)        
-        # ----- Function body
+                Buffer.put_acquire_arg_buffer(entry, code, self.pos)
+
+        # -------------------------
+        # ----- Function body -----
+        # -------------------------
         self.body.generate_execution_code(code)
+
         # ----- Default return value
         code.putln("")
         if self.return_type.is_pyobject:
@@ -1214,10 +1222,7 @@ class FuncDefNode(StatNode, BlockNode):
             if err_val is None and default_retval:
                 err_val = default_retval
             if err_val is not None:
-                code.putln(
-                    "%s = %s;" % (
-                        Naming.retval_cname, 
-                        err_val))
+                code.putln("%s = %s;" % (Naming.retval_cname, err_val))
 
             if is_getbuffer_slot:
                 self.getbuffer_error_cleanup(code)
@@ -1240,19 +1245,23 @@ class FuncDefNode(StatNode, BlockNode):
         code.put_label(code.return_from_error_cleanup_label)
         if not Options.init_local_none:
             for entry in lenv.var_entries:
-                if lenv.control_flow.get_state((entry.name, 'initalized')) is not True:
+                if lenv.control_flow.get_state((entry.name, 'initialized')) is not True:
                     entry.xdecref_cleanup = 1
         
         for entry in lenv.var_entries:
-            if entry.used and not entry.in_closure:
-                code.put_var_decref(entry)
+            if entry.type.is_pyobject:
+                if entry.used and not entry.in_closure:
+                    code.put_var_decref(entry)
+                elif entry.in_closure and self.needs_closure:
+                    code.put_giveref(entry.cname)
         # Decref any increfed args
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
-                if entry.in_closure and not entry.assignments:
-                    code.put_var_incref(entry)
+                if entry.in_closure:
+                    if not entry.assignments:
+                        code.put_var_incref(entry)
                     code.put_var_giveref(entry)
-                elif not entry.in_closure and entry.assignments:
+                elif entry.assignments:
                     code.put_var_decref(entry)
         if self.needs_closure:
             code.put_decref(Naming.cur_scope_cname, lenv.scope_class.type)
@@ -1623,7 +1632,9 @@ class PyArgDeclNode(Node):
     # entry       Symtab.Entry
     # annotation  ExprNode or None   Py3 argument annotation
     child_attrs = []
-    
+
+    def generate_function_definitions(self, env, code):
+        self.entry.generate_function_definitions(env, code)
 
 class DecoratorNode(Node):
     # A decorator
@@ -1929,7 +1940,7 @@ class DefNode(FuncDefNode):
                 error(arg.pos, "Missing argument name")
             else:
                 env.control_flow.set_state((), (arg.name, 'source'), 'arg')
-                env.control_flow.set_state((), (arg.name, 'initalized'), True)
+                env.control_flow.set_state((), (arg.name, 'initialized'), True)
             if arg.needs_conversion:
                 arg.entry = env.declare_var(arg.name, arg.type, arg.pos)
                 if arg.type.is_pyobject:
@@ -1958,7 +1969,7 @@ class DefNode(FuncDefNode):
             entry.init_to_none = 0
             entry.xdecref_cleanup = 1
             arg.entry = entry
-            env.control_flow.set_state((), (arg.name, 'initalized'), True)
+            env.control_flow.set_state((), (arg.name, 'initialized'), True)
             
     def analyse_expressions(self, env):
         self.local_scope.directives = env.directives
@@ -3016,6 +3027,9 @@ class ExprStatNode(StatNode):
         self.expr.generate_disposal_code(code)
         self.expr.free_temps(code)
 
+    def generate_function_definitions(self, env, code):
+        self.expr.generate_function_definitions(env, code)
+
     def annotate(self, code):
         self.expr.annotate(code)
 
@@ -3134,6 +3148,9 @@ class SingleAssignmentNode(AssignmentNode):
     def generate_assignment_code(self, code):
         self.lhs.generate_assignment_code(self.rhs, code)
 
+    def generate_function_definitions(self, env, code):
+        self.rhs.generate_function_definitions(env, code)
+
     def annotate(self, code):
         self.lhs.annotate(code)
         self.rhs.annotate(code)
@@ -3187,6 +3204,9 @@ class CascadedAssignmentNode(AssignmentNode):
         self.rhs.generate_disposal_code(code)
         self.rhs.free_temps(code)
 
+    def generate_function_definitions(self, env, code):
+        self.rhs.generate_function_definitions(env, code)
+
     def annotate(self, code):
         for i in range(len(self.lhs_list)):
             lhs = self.lhs_list[i].annotate(code)
@@ -3230,13 +3250,17 @@ class ParallelAssignmentNode(AssignmentNode):
         for stat in self.stats:
             stat.generate_assignment_code(code)
 
+    def generate_function_definitions(self, env, code):
+        for stat in self.stats:
+            stat.generate_function_definitions(env, code)
+
     def annotate(self, code):
         for stat in self.stats:
             stat.annotate(code)
 
 
 class InPlaceAssignmentNode(AssignmentNode):
-    #  An in place arithmatic operand:
+    #  An in place arithmetic operand:
     #
     #    a += b
     #    a -= b
@@ -3426,6 +3450,9 @@ class PrintStatNode(StatNode):
             self.arg_tuple.generate_disposal_code(code)
             self.arg_tuple.free_temps(code)
 
+    def generate_function_definitions(self, env, code):
+        self.arg_tuple.generate_function_definitions(env, code)
+
     def annotate(self, code):
         self.arg_tuple.annotate(code)
 
@@ -3609,6 +3636,10 @@ class ReturnStatNode(StatNode):
         for cname, type in code.funcstate.temps_holding_reference():
             code.put_decref_clear(cname, type)
         code.put_goto(code.return_label)
+
+    def generate_function_definitions(self, env, code):
+        if self.value is not None:
+            self.value.generate_function_definitions(env, code)
         
     def annotate(self, code):
         if self.value:
@@ -3666,6 +3697,14 @@ class RaiseStatNode(StatNode):
                 obj.free_temps(code)
         code.putln(
             code.error_goto(self.pos))
+
+    def generate_function_definitions(self, env, code):
+        if self.exc_type is not None:
+            self.exc_type.generate_function_definitions(env, code)
+        if self.exc_value is not None:
+            self.exc_value.generate_function_definitions(env, code)
+        if self.exc_tb is not None:
+            self.exc_tb.generate_function_definitions(env, code)
 
     def annotate(self, code):
         if self.exc_type:
@@ -3741,6 +3780,11 @@ class AssertStatNode(StatNode):
         self.cond.free_temps(code)
         code.putln("#endif")
 
+    def generate_function_definitions(self, env, code):
+        self.cond.generate_function_definitions(env, code)
+        if self.value is not None:
+            self.value.generate_function_definitions(env, code)
+
     def annotate(self, code):
         self.cond.annotate(code)
         if self.value:
@@ -3786,6 +3830,12 @@ class IfStatNode(StatNode):
             self.else_clause.generate_execution_code(code)
             code.putln("}")
         code.put_label(end_label)
+
+    def generate_function_definitions(self, env, code):
+        for clause in self.if_clauses:
+            clause.generate_function_definitions(env, code)
+        if self.else_clause is not None:
+            self.else_clause.generate_function_definitions(env, code)
         
     def annotate(self, code):
         for if_clause in self.if_clauses:
@@ -3825,6 +3875,10 @@ class IfClauseNode(Node):
         code.put_goto(end_label)
         code.putln("}")
 
+    def generate_function_definitions(self, env, code):
+        self.condition.generate_function_definitions(env, code)
+        self.body.generate_function_definitions(env, code)
+
     def annotate(self, code):
         self.condition.annotate(code)
         self.body.annotate(code)
@@ -3845,6 +3899,11 @@ class SwitchCaseNode(StatNode):
             code.putln("case %s:" % cond.result())
         self.body.generate_execution_code(code)
         code.putln("break;")
+
+    def generate_function_definitions(self, env, code):
+        for cond in self.conditions:
+            cond.generate_function_definitions(env, code)
+        self.body.generate_function_definitions(env, code)
         
     def annotate(self, code):
         for cond in self.conditions:
@@ -3869,6 +3928,13 @@ class SwitchStatNode(StatNode):
             self.else_clause.generate_execution_code(code)
             code.putln("break;")
         code.putln("}")
+
+    def generate_function_definitions(self, env, code):
+        self.test.generate_function_definitions(env, code)
+        for case in self.cases:
+            case.generate_function_definitions(env, code)
+        if self.else_clause is not None:
+            self.else_clause.generate_function_definitions(env, code)
 
     def annotate(self, code):
         self.test.annotate(code)
@@ -3929,6 +3995,12 @@ class WhileStatNode(LoopNode, StatNode):
             self.else_clause.generate_execution_code(code)
             code.putln("}")
         code.put_label(break_label)
+
+    def generate_function_definitions(self, env, code):
+        self.condition.generate_function_definitions(env, code)
+        self.body.generate_function_definitions(env, code)
+        if self.else_clause is not None:
+            self.else_clause.generate_function_definitions(env, code)
 
     def annotate(self, code):
         self.condition.annotate(code)
@@ -3993,6 +4065,13 @@ class ForInStatNode(LoopNode, StatNode):
         self.iterator.release_counter_temp(code)
         self.iterator.generate_disposal_code(code)
         self.iterator.free_temps(code)
+
+    def generate_function_definitions(self, env, code):
+        self.target.generate_function_definitions(env, code)
+        self.iterator.generate_function_definitions(env, code)
+        self.body.generate_function_definitions(env, code)
+        if self.else_clause is not None:
+            self.else_clause.generate_function_definitions(env, code)
 
     def annotate(self, code):
         self.target.annotate(code)
@@ -4183,13 +4262,23 @@ class ForFromStatNode(LoopNode, StatNode):
         '>=': ("",   "--"),
         '>' : ("-1", "--")
     }
+
+    def generate_function_definitions(self, env, code):
+        self.target.generate_function_definitions(env, code)
+        self.bound1.generate_function_definitions(env, code)
+        self.bound2.generate_function_definitions(env, code)
+        if self.step is not None:
+            self.step.generate_function_definitions(env, code)
+        self.body.generate_function_definitions(env, code)
+        if self.else_clause is not None:
+            self.else_clause.generate_function_definitions(env, code)
     
     def annotate(self, code):
         self.target.annotate(code)
         self.bound1.annotate(code)
         self.bound2.annotate(code)
         if self.step:
-            self.bound2.annotate(code)
+            self.step.annotate(code)
         self.body.annotate(code)
         if self.else_clause:
             self.else_clause.annotate(code)
@@ -4344,6 +4433,13 @@ class TryExceptStatNode(StatNode):
         code.continue_label = old_continue_label
         code.error_label = old_error_label
 
+    def generate_function_definitions(self, env, code):
+        self.body.generate_function_definitions(env, code)
+        for except_clause in self.except_clauses:
+            except_clause.generate_function_definitions(env, code)
+        if self.else_clause is not None:
+            self.else_clause.generate_function_definitions(env, code)
+
     def annotate(self, code):
         self.body.annotate(code)
         for except_node in self.except_clauses:
@@ -4482,6 +4578,11 @@ class ExceptClauseNode(Node):
         code.putln(
             "}")
 
+    def generate_function_definitions(self, env, code):
+        if self.target is not None:
+            self.target.generate_function_definitions(env, code)
+        self.body.generate_function_definitions(env, code)
+        
     def annotate(self, code):
         if self.pattern:
             self.pattern.annotate(code)
@@ -4628,6 +4729,10 @@ class TryFinallyStatNode(StatNode):
                 "}")
         code.putln(
             "}")
+
+    def generate_function_definitions(self, env, code):
+        self.body.generate_function_definitions(env, code)
+        self.finally_clause.generate_function_definitions(env, code)
 
     def put_error_catcher(self, code, error_label, i, catch_label, temps_to_clean_up):
         code.globalstate.use_utility_code(restore_exception_utility_code)
