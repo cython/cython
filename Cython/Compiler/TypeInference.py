@@ -1,4 +1,4 @@
-from Errors import error, warning, warn_once, InternalError
+from Errors import error, warning, message, warn_once, InternalError
 import ExprNodes
 import Nodes
 import Builtin
@@ -181,7 +181,7 @@ class SimpleAssignmentTypeInferer:
                     # print "No assignments", entry.pos, entry
                     entry.type = py_object_type
                 if verbose:
-                    warning(entry.pos, "inferred '%s' to be of type '%s'" % (entry.name, entry.type), 1)
+                    message(entry.pos, "inferred '%s' to be of type '%s'" % (entry.name, entry.type))
                 resolve_dependancy(entry)
             # Deal with simple circular dependancies...
             for entry, deps in dependancies_by_entry.items():
@@ -202,7 +202,7 @@ class SimpleAssignmentTypeInferer:
         for entry in dependancies_by_entry:
             entry.type = py_object_type
             if verbose:
-                warning(entry.pos, "inferred '%s' to be of type '%s' (default)" % (entry.name, entry.type), 1)
+                message(entry.pos, "inferred '%s' to be of type '%s' (default)" % (entry.name, entry.type))
 
 def find_spanning_type(type1, type2):
     if type1 is type2:
