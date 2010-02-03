@@ -1,5 +1,5 @@
-cimport cython
-from cython cimport dereference as deref
+cimport cython.operator
+from cython.operator cimport dereference as deref
 
 cdef extern from "cpp_operators_helper.h":
     cdef cppclass TestOps:
@@ -61,10 +61,10 @@ def test_incdec():
     post --
     """
     cdef TestOps* t = new TestOps()
-    print cython.preincrement(t[0])
-    print cython.predecrement(t[0])
-    print cython.postincrement(t[0])
-    print cython.postdecrement(t[0])
+    print cython.operator.preincrement(t[0])
+    print cython.operator.predecrement(t[0])
+    print cython.operator.postincrement(t[0])
+    print cython.operator.postdecrement(t[0])
     del t
 
 def test_binop():
