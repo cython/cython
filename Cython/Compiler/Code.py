@@ -21,8 +21,6 @@ class UtilityCode(object):
     # Stores utility code to add during code generation.
     #
     # See GlobalState.put_utility_code.
-    #
-    # hashes/equals by instance
 
     def __init__(self, proto=None, impl=None, init=None, cleanup=None, requires=None,
                  proto_block='utility_code_proto'):
@@ -62,9 +60,6 @@ class UtilityCode(object):
             return s
 
     def put_code(self, output):
-        if self.requires:
-            for dependency in self.requires:
-                output.use_utility_code(dependency)
         if self.proto:
             output[self.proto_block].put(self.proto)
         if self.impl:
@@ -384,8 +379,6 @@ class GlobalState(object):
     #                                  to create this output C code.  This is
     #                                  used to annotate the comments.
     #
-    # utility_codes   set                IDs of used utility code (to avoid reinsertion)
-    #
     # declared_cnames  {string:Entry}  used in a transition phase to merge pxd-declared
     #                                  constants etc. into the pyx-declared ones (i.e,
     #                                  check if constants are already added).
@@ -394,6 +387,8 @@ class GlobalState(object):
     #
     # const_cname_counter int          global counter for constant identifiers
     #
+    # processed_objects  set()         objects which has had their C code generated
+    # process_object_stack [object]    (internal use)
 
     # parts            {string:CCodeWriter}
 
@@ -434,11 +429,13 @@ class GlobalState(object):
     ]
     
 
-    def __init__(self, writer, module_node, emit_linenums=False):
+    def __init__(self, writer, module_node, emit_linenums=False,
+                 header_mode=False):
         self.filename_table = {}
         self.filename_list = []
         self.input_file_contents = {}
-        self.utility_codes = set()
+        self.process_objects_stack = []
+        self.processed_objects = set()
         self.declared_cnames = {}
         self.in_utility_code_generation = False
         self.emit_linenums = emit_linenums
@@ -454,11 +451,14 @@ class GlobalState(object):
         assert writer.globalstate is None
         writer.globalstate = self
         self.rootwriter = writer
+        self.header_mode = header_mode
+        if header_mode:
+            self.parts = {'header' : writer }
 
     def initialize_main_c_code(self):
         rootwriter = self.rootwriter
         for part in self.code_layout:
-            self.parts[part] = rootwriter.insertion_point()
+            self.parts[part] = rootwriter.insertion_point(part)
 
         if not Options.cache_builtins:
             del self.parts['cached_builtins']
@@ -777,21 +777,38 @@ class GlobalState(object):
             return F
 
     #
-    # Utility code state
+    # Stuff about asking objects to output themselves to C
+    # Utility code handled here.
     #
+    def put_object(self, obj):
+        """
+        Write the C code associated with the given object (such as a type definition,
+        some utility code, etc.). The object:
+         - Must have a "requires" attribute (list of other objects which
+           must be output first)
+         - Must have an __eq__/__hash__, used to determine whether the same
+           object has already been output
+         - Must have a method put_code(self, output), which is called to output
+           the object to C. Output should be indexed with the required part, e.g.
+           writer = output['utility_code_proto']
+
+        There's no guarantee on when put_code will be called, but currently it
+        happens right away (but only once per object).
+        """
+        if obj in self.processed_objects:
+            return
+        if obj in self.process_objects_stack:
+            raise AssertionError("Object dependency graph is not a DAG, found a loop")
+        self.process_objects_stack.append(obj)
+        if obj.requires is not None and obj.requires:
+            for req in obj.requires:
+                self.put_object(req)
+        self.process_objects_stack.pop()
+        self.processed_objects.add(obj)
+        obj.put_code(self)
     
     def use_utility_code(self, utility_code):
-        """
-        Adds code to the C file. utility_code should
-        a) implement __eq__/__hash__ for the purpose of knowing whether the same
-           code has already been included
-        b) implement put_code, which takes a globalstate instance
-
-        See UtilityCode.
-        """
-        if utility_code not in self.utility_codes:
-            self.utility_codes.add(utility_code)
-            utility_code.put_code(self)
+        self.put_object(utility_code)
 
 
 def funccontext_property(name):
@@ -843,7 +860,11 @@ class CCodeWriter(object):
 
     globalstate = None
     
-    def __init__(self, create_from=None, buffer=None, copy_formatting=False, emit_linenums=None):
+    def __init__(self, create_from=None, buffer=None, copy_formatting=False, emit_linenums=None,
+                 description=None):
+        if description is None:
+            description = '<not specified>'
+        self.description = description
         if buffer is None: buffer = StringIOTree()
         self.buffer = buffer
         self.marker = None
@@ -869,10 +890,13 @@ class CCodeWriter(object):
         else:
             self.emit_linenums = emit_linenums
 
-    def create_new(self, create_from, buffer, copy_formatting):
+    def __repr__(self):
+        return '%s@%s' % (object.__repr__(self), self.description)
+
+    def create_new(self, create_from, buffer, copy_formatting, description='(some create_new)'):
         # polymorphic constructor -- very slightly more versatile
         # than using __class__
-        result = CCodeWriter(create_from, buffer, copy_formatting)
+        result = CCodeWriter(create_from, buffer, copy_formatting, description=description)
         return result
 
     def copyto(self, f):
@@ -884,8 +908,9 @@ class CCodeWriter(object):
     def write(self, s):
         self.buffer.write(s)
 
-    def insertion_point(self):
-        other = self.create_new(create_from=self, buffer=self.buffer.insertion_point(), copy_formatting=True)
+    def insertion_point(self, description='(some insertion point)'):
+        other = self.create_new(create_from=self, buffer=self.buffer.insertion_point(),
+                                copy_formatting=True, description=description)
         return other
 
     def new_writer(self):
@@ -1331,3 +1356,15 @@ class PyrexCodeWriter(object):
     def dedent(self):
         self.level -= 1
 
+
+#
+# C writing utility functions
+#
+def sue_header_footer(type, kind, name):
+    if type.typedef_flag:
+        header = "typedef %s {" % kind
+        footer = "} %s;" % name
+    else:
+        header = "%s %s {" % (kind, name)
+        footer = "};"
+    return header, footer        

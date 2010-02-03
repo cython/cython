@@ -106,6 +106,7 @@ class PyrexType(BaseType):
     has_attributes = 0
     default_value = ""
     pymemberdef_typecode = None
+    requires = None
     
     def resolve(self):
         # If a typedef, returns the base type.
@@ -645,6 +646,7 @@ class PyExtensionType(PyObjectType):
     #  vtabstruct_cname string           Name of C method table struct
     #  vtabptr_cname    string           Name of pointer to C method table
     #  vtable_cname     string           Name of C method table definition
+    #  in_cinclude      boolean          Corresponds to the in_cinclude of the corresponding entry
     
     is_extension_type = 1
     has_attributes = 1
@@ -670,6 +672,10 @@ class PyExtensionType(PyObjectType):
         self.vtabptr_cname = None
         self.vtable_cname = None
         self.is_external = is_external
+        if base_type:
+            self.requires = [base_type]
+        else:
+            self.requires = ()
     
     def set_scope(self, scope):
         self.scope = scope
@@ -727,6 +733,50 @@ class PyExtensionType(PyObjectType):
         return "<PyExtensionType %s%s>" % (self.scope.class_name,
             ("", " typedef")[self.typedef_flag])
     
+    
+    def generate_obj_struct_definition(self, code):
+        import Code
+        code.mark_pos(self.pos)
+        # Generate object struct definition for an
+        # extension type.
+        if not self.scope:
+            return # Forward declared but never defined
+        header, footer = \
+            Code.sue_header_footer(self, "struct", self.objstruct_cname)
+        code.putln("")
+        code.putln(header)
+        base_type = self.base_type
+        if base_type:
+            code.putln(
+                "%s%s %s;" % (
+                    ("struct ", "")[base_type.typedef_flag],
+                    base_type.objstruct_cname,
+                    Naming.obj_base_cname))
+        else:
+            code.putln(
+                "PyObject_HEAD")
+        if self.vtabslot_cname and not (self.base_type and self.base_type.vtabslot_cname):
+            code.putln(
+                "struct %s *%s;" % (
+                    self.vtabstruct_cname,
+                    self.vtabslot_cname))
+        for attr in self.scope.var_entries:
+            code.putln(
+                "%s;" %
+                    attr.type.declaration_code(attr.cname))
+        code.putln(footer)
+        if self.objtypedef_cname is not None:
+            # Only for exposing public typedef name.
+            code.putln("typedef struct %s %s;" % (self.objstruct_cname, self.objtypedef_cname))
+
+    def put_code(self, output):
+        if not self.in_cinclude:
+            if output.header_mode:
+                code = output['header']
+            else:
+                code = output['type_declarations']
+            self.generate_obj_struct_definition(code)
+
 
 class CType(PyrexType):
     #

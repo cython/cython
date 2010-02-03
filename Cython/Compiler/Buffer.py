@@ -445,8 +445,8 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives, pos, 
             params.append(s)
         
     # Make sure the utility code is available
-    if funcname not in code.globalstate.utility_codes:
-        code.globalstate.utility_codes.add(funcname)
+    if funcname not in code.globalstate.processed_objects:
+        code.globalstate.processed_objects.add(funcname)
         protocode = code.globalstate['utility_code_proto']
         defcode = code.globalstate['utility_code_def']
         funcgen(protocode, defcode, name=funcname, nd=nd)
@@ -665,8 +665,8 @@ def get_type_information_cname(code, dtype, maxdepth=None):
     if maxdepth <= 0:
         assert False
 
-    if name not in code.globalstate.utility_codes:
-        code.globalstate.utility_codes.add(name)
+    if name not in code.globalstate.processed_objects:
+        code.globalstate.processed_objects.add(name)
         typecode = code.globalstate['typeinfo']
         
         complex_possible = dtype.is_struct_or_union and dtype.can_be_complex()

@@ -19,8 +19,8 @@ line_pos_comment = re.compile(r'/\*.*?<<<<<<<<<<<<<<.*?\*/\n*', re.DOTALL)
 
 class AnnotationCCodeWriter(CCodeWriter):
 
-    def __init__(self, create_from=None, buffer=None, copy_formatting=True):
-        CCodeWriter.__init__(self, create_from, buffer, copy_formatting=True)
+    def __init__(self, create_from=None, buffer=None, copy_formatting=True, description=None):
+        CCodeWriter.__init__(self, create_from, buffer, copy_formatting=True, description=description)
         if create_from is None:
             self.annotation_buffer = StringIO()
             self.annotations = []
@@ -33,8 +33,8 @@ class AnnotationCCodeWriter(CCodeWriter):
             self.code = create_from.code
             self.last_pos = create_from.last_pos
     
-    def create_new(self, create_from, buffer, copy_formatting):
-        return AnnotationCCodeWriter(create_from, buffer, copy_formatting)
+    def create_new(self, create_from, buffer, copy_formatting, description=None):
+        return AnnotationCCodeWriter(create_from, buffer, copy_formatting, description=description)
 
     def write(self, s):
         CCodeWriter.write(self, s)

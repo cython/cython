@@ -905,6 +905,7 @@ class ModuleScope(Scope):
         #
         if not entry:
             type = PyrexTypes.PyExtensionType(name, typedef_flag, base_type, visibility == 'extern')
+            # type.in_cinclude is set further down
             type.pos = pos
             type.buffer_defaults = buffer_defaults
             if objtypedef_cname is not None:
@@ -920,6 +921,7 @@ class ModuleScope(Scope):
             entry = self.declare_type(name, type, pos, visibility = visibility,
                 defining = 0)
             entry.is_cclass = True
+            type.in_cinclude = entry.in_cinclude
             if objstruct_cname:
                 type.objstruct_cname = objstruct_cname
             elif not entry.in_cinclude:

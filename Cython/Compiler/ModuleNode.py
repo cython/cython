@@ -124,7 +124,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if h_types or h_vars or h_funcs or h_extension_types:
             result.h_file = replace_suffix(result.c_file, ".h")
             h_code = Code.CCodeWriter()
-            Code.GlobalState(h_code, self)
+            Code.GlobalState(h_code, self, header_mode=True)
             if options.generate_pxi:
                 result.i_file = replace_suffix(result.c_file, ".pxi")
                 i_code = Code.PyrexCodeWriter(result.i_file)
@@ -408,10 +408,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_struct_union_definition(entry, code)
                     elif type.is_enum:
                         self.generate_enum_definition(entry, code)
-                    elif type.is_extension_type and entry not in vtabslot_entries:
-                        self.generate_obj_struct_definition(type, code)
-        for entry in vtabslot_list:
-            self.generate_obj_struct_definition(entry.type, code)
+                    elif type.is_extension_type:# and entry not in vtabslot_entries:
+                        code.globalstate.put_object(type)
         for entry in vtab_list:
             self.generate_typeobject_predeclaration(entry, code)
             self.generate_exttype_vtable_struct(entry, code)
@@ -660,7 +658,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         #for entry in env.type_entries:
         for entry in type_entries:
             if not entry.in_cinclude:
-                #print "generate_type_header_code:", entry.name, repr(entry.type) ###
                 type = entry.type
                 if type.is_typedef: # Must test this first!
                     self.generate_typedef(entry, code)
@@ -669,7 +666,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 elif type.is_enum:
                     self.generate_enum_definition(entry, code)
                 elif type.is_extension_type:
-                    self.generate_obj_struct_definition(type, code)
+                    code.globalstate.put_object(type)
         
     def generate_gcc33_hack(self, env, code):
         # Workaround for spurious warning generation in gcc 3.3
@@ -694,15 +691,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         writer.putln("")
         writer.putln("typedef %s;" % base_type.declaration_code(entry.cname))
 
-    def sue_header_footer(self, type, kind, name):
-        if type.typedef_flag:
-            header = "typedef %s {" % kind
-            footer = "} %s;" % name
-        else:
-            header = "%s %s {" % (kind, name)
-            footer = "};"
-        return header, footer
-    
     def generate_struct_union_definition(self, entry, code):
         code.mark_pos(entry.pos)
         type = entry.type
@@ -714,7 +702,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 kind = "%s %s" % (type.kind, "__Pyx_PACKED")
                 code.globalstate.use_utility_code(packed_struct_utility_code)
             header, footer = \
-                self.sue_header_footer(type, kind, type.cname)
+                Code.sue_header_footer(type, kind, type.cname)
             code.putln("")
             if packed:
                 code.putln("#if !defined(__GNUC__)")
@@ -741,7 +729,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         type = entry.type
         name = entry.cname or entry.name or ""
         header, footer = \
-            self.sue_header_footer(type, "enum", name)
+            Code.sue_header_footer(type, "enum", name)
         code.putln("")
         code.putln(header)
         enum_values = entry.enum_values
@@ -814,40 +802,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("static struct %s *%s;" % (
                 type.vtabstruct_cname,
                 type.vtabptr_cname))
-    
-    def generate_obj_struct_definition(self, type, code):
-        code.mark_pos(type.pos)
-        # Generate object struct definition for an
-        # extension type.
-        if not type.scope:
-            return # Forward declared but never defined
-        header, footer = \
-            self.sue_header_footer(type, "struct", type.objstruct_cname)
-        code.putln("")
-        code.putln(header)
-        base_type = type.base_type
-        if base_type:
-            code.putln(
-                "%s%s %s;" % (
-                    ("struct ", "")[base_type.typedef_flag],
-                    base_type.objstruct_cname,
-                    Naming.obj_base_cname))
-        else:
-            code.putln(
-                "PyObject_HEAD")
-        if type.vtabslot_cname and not (type.base_type and type.base_type.vtabslot_cname):
-            code.putln(
-                "struct %s *%s;" % (
-                    type.vtabstruct_cname,
-                    type.vtabslot_cname))
-        for attr in type.scope.var_entries:
-            code.putln(
-                "%s;" %
-                    attr.type.declaration_code(attr.cname))
-        code.putln(footer)
-        if type.objtypedef_cname is not None:
-            # Only for exposing public typedef name.
-            code.putln("typedef struct %s %s;" % (type.objstruct_cname, type.objtypedef_cname))
 
     def generate_global_declarations(self, env, code, definition):
         code.putln("")
