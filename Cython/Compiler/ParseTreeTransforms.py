@@ -377,18 +377,32 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             else:
                 modname = u"cython"
             self.cython_module_names.add(modname)
-        return node
+        elif node.module_name.startswith(u"cython."):
+            if node.as_name:
+                modname = node.as_name
+            else:
+                modname = u"cython"
+            self.directive_names[modname] = node.module_name[7:]
+        else:
+            return node
     
     def visit_FromCImportStatNode(self, node):
-        if node.module_name == u"cython":
+        if node.module_name.startswith(u"cython."):
+            is_cython_module = True
+            submodule = node.module_name[7:] + u"."
+        elif node.module_name == u"cython":
+            is_cython_module = True
+            submodule = u""
+        if is_cython_module:
             newimp = []
             for pos, name, as_name, kind in node.imported_names:
-                if (name in Options.directive_types or 
-                        name in self.special_methods or
-                        PyrexTypes.parse_basic_type(name)):
+                full_name = submodule + name
+                if (full_name in Options.directive_types or 
+                        full_name in self.special_methods or
+                        PyrexTypes.parse_basic_type(full_name)):
                     if as_name is None:
-                        as_name = name
-                    self.directive_names[as_name] = name
+                        as_name = full_name
+                    self.directive_names[as_name] = full_name
                     if kind is not None:
                         self.context.nonfatal_error(PostParseError(pos,
                             "Compiler directive imports must be plain imports"))
@@ -400,13 +414,20 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         return node
         
     def visit_FromImportStatNode(self, node):
-        if node.module.module_name.value == u"cython":
+        if node.module.module_name.value.startswith(u"cython."):
+            is_cython_module = True
+            submodule = node.module.module_name.value[7:] + u"."
+        elif node.module.module_name.value == u"cython":
+            is_cython_module = True
+            submodule = u""
+        if is_cython_module:
             newimp = []
             for name, name_node in node.items:
-                if (name in Options.directive_types or 
-                        name in self.special_methods or
-                        PyrexTypes.parse_basic_type(name)):
-                    self.directive_names[name_node.name] = name
+                full_name = submodule + name
+                if (full_name in Options.directive_types or 
+                        full_name in self.special_methods or
+                        PyrexTypes.parse_basic_type(full_name)):
+                    self.directive_names[name_node.name] = full_name
                 else:
                     newimp.append((name, name_node))
             if not newimp:
