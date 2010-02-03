@@ -1,4 +1,4 @@
-from cython import dereference as deref
+from cython.operator import dereference as deref
 
 cdef extern from "cpp_templates_helper.h":
     cdef cppclass Wrap[T]:

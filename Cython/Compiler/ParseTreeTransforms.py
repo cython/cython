@@ -325,12 +325,16 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     """
     unop_method_nodes = {
         'typeof': TypeofNode,
+        
+        'operator.address': AmpersandNode,
+        'operator.dereference': DereferenceNode,
+        'operator.preincrement' : inc_dec_constructor(True, '++'),
+        'operator.predecrement' : inc_dec_constructor(True, '--'),
+        'operator.postincrement': inc_dec_constructor(False, '++'),
+        'operator.postdecrement': inc_dec_constructor(False, '--'),
+
+        # For backwards compatability.
         'address': AmpersandNode,
-        'dereference': DereferenceNode,
-        'preincrement' : inc_dec_constructor(True, '++'),
-        'predecrement' : inc_dec_constructor(True, '--'),
-        'postincrement': inc_dec_constructor(False, '++'),
-        'postdecrement': inc_dec_constructor(False, '--'),
     }
     
     special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof', 'cast', 'pointer', 'compiled', 'NULL']
@@ -379,10 +383,9 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
             self.cython_module_names.add(modname)
         elif node.module_name.startswith(u"cython."):
             if node.as_name:
-                modname = node.as_name
+                self.directive_names[node.as_name] = node.module_name[7:]
             else:
-                modname = u"cython"
-            self.directive_names[modname] = node.module_name[7:]
+                self.cython_module_names.add(u"cython")
         else:
             return node
     
@@ -393,6 +396,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         elif node.module_name == u"cython":
             is_cython_module = True
             submodule = u""
+        else:
+            is_cython_module = False
         if is_cython_module:
             newimp = []
             for pos, name, as_name, kind in node.imported_names:
@@ -420,6 +425,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         elif node.module.module_name.value == u"cython":
             is_cython_module = True
             submodule = u""
+        else:
+            is_cython_module = False
         if is_cython_module:
             newimp = []
             for name, name_node in node.items:
