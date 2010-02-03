@@ -250,7 +250,7 @@ def p_typecast(s):
     # s.sy == "<"
     pos = s.position()
     s.next()
-    base_type = p_c_base_type(s)
+    base_type = p_c_base_type(s, empty = 1)
     if base_type.name is None:
         s.error("Unknown type")
     declarator = p_c_declarator(s, empty = 1)
@@ -279,7 +279,7 @@ def p_sizeof(s):
         operand = p_simple_expr(s)
         node = ExprNodes.SizeofVarNode(pos, operand = operand)
     else:
-        base_type = p_c_base_type(s)
+        base_type = p_c_base_type(s, empty = 1)
         declarator = p_c_declarator(s, empty = 1)
         node = ExprNodes.SizeofTypeNode(pos, 
             base_type = base_type, declarator = declarator)
@@ -1715,7 +1715,7 @@ def p_positional_and_keyword_args(s, end_sy_set, type_positions=(), type_keyword
                 s.next()
                 # Is keyword arg
                 if ident in type_keywords:
-                    arg = p_c_base_type(s)
+                    arg = p_c_base_type(s, empty = 1)
                     parsed_type = True
                 else:
                     arg = p_simple_expr(s)
@@ -1728,7 +1728,7 @@ def p_positional_and_keyword_args(s, end_sy_set, type_positions=(), type_keyword
                 
         if not was_keyword:
             if pos_idx in type_positions:
-                arg = p_c_base_type(s)
+                arg = p_c_base_type(s, empty = 1)
                 parsed_type = True
             else:
                 arg = p_simple_expr(s)
@@ -1748,13 +1748,13 @@ def p_positional_and_keyword_args(s, end_sy_set, type_positions=(), type_keyword
         s.next()
     return positional_args, keyword_args
 
-def p_c_base_type(s, self_flag = 0, nonempty = 0):
+def p_c_base_type(s, self_flag = 0, empty = 0, nonempty = 0):
     # If self_flag is true, this is the base type for the
     # self argument of a C method of an extension type.
     if s.sy == '(':
         return p_c_complex_base_type(s)
     else:
-        return p_c_simple_base_type(s, self_flag, nonempty = nonempty)
+        return p_c_simple_base_type(s, self_flag, nonempty = nonempty, empty = empty)
 
 def p_calling_convention(s):
     if s.sy == 'IDENT' and s.systring in calling_convention_words:
@@ -1770,13 +1770,13 @@ def p_c_complex_base_type(s):
     # s.sy == '('
     pos = s.position()
     s.next()
-    base_type = p_c_base_type(s)
+    base_type = p_c_base_type(s, empty = 1)
     declarator = p_c_declarator(s, empty = 1)
     s.expect(')')
     return Nodes.CComplexBaseTypeNode(pos, 
         base_type = base_type, declarator = declarator)
 
-def p_c_simple_base_type(s, self_flag, nonempty):
+def p_c_simple_base_type(s, self_flag, nonempty, empty):
     #print "p_c_simple_base_type: self_flag =", self_flag, nonempty
     is_basic = 0
     signed = 1
@@ -1835,16 +1835,85 @@ def p_c_simple_base_type(s, self_flag, nonempty):
         is_self_arg = self_flag)
 
 
-    # Treat trailing [] on type as buffer access if it appears in a context
-    # where declarator names are required (so that it cannot mean int[] or
-    # sizeof(int[SIZE]))...
+    # Trailing [] on type could mean one of 3 things, depending on the values
+    # of empty and nonempty.
     #
-    # (This means that buffers cannot occur where there can be empty declarators,
-    # which is an ok restriction to make.)
-    if nonempty and s.sy == '[':
-        return p_buffer_access(s, type_node)
+    # empty == True and nonempty == False:
+    #    e.g., sizeof(int[SIZE]).  The only bracketed type that can appear here
+    #    is an anonymous C array.
+    # empty == False and nonempty == True:
+    #    e.g., declaration of a buffer/memoryview slice array.  no anonymous
+    #    brackted C arrays allowed, so only buffer declarations/memoryview
+    #    declarations here.
+    # empty == False and nonempty == False:
+    #    We disallow buffer declarations in this case.  Only anonymous C arrays
+    #    and memoryview slice arrays are possible here.  Memoryview arrays are
+    #    distinguished by an explicit colon in the first axis declaration.
+    # empty == True and nonempty == True:
+    #    obviously illegal.
+
+    if s.sy == '[':
+        return p_bracketed_base_type(s, type_node, nonempty, empty)
     else:
         return type_node
+
+
+def p_bracketed_base_type(s, base_type_node, nonempty, empty):
+    # s.sy == '['
+    if empty and not nonempty:
+        # sizeof-like thing.  Only anonymous C arrays allowed (int[SIZE]).
+        return base_type_node
+    elif not empty and nonempty:
+        # declaration of either memoryview slice or buffer.
+        if is_memoryviewslice_access(s):
+            return p_memoryviewslice_access(s, base_type_node)
+        else:
+            return p_buffer_access(s, base_type_node)
+    elif not empty and not nonempty:
+        # only anonymous C arrays and memoryview slice arrays here.  We
+        # disallow buffer declarations for now, due to ambiguity with anonymous
+        # C arrays.
+        if is_memoryviewslice_access(s):
+            return p_memoryviewslice_access(s, base_type_node)
+        else:
+            return base_type_node
+
+def is_memoryviewslice_access(s):
+    # s.sy == '['
+    # a memoryview slice declaration is distinguishable from a buffer access
+    # declaration by the first entry in the bracketed list.  The buffer will
+    # not have an unnested colon in the first entry; the memoryview slice will.
+    saved = [(s.sy, s.systring)]
+    s.next()
+    retval = False
+    if s.systring == ':':
+        retval = True
+    elif s.sy == 'INT':
+        saved.append((s.sy, s.systring))
+        s.next()
+        if s.sy == ':':
+            retval = True
+
+    for sv in reversed(saved):
+        s.put_back(*sv)
+
+    return retval
+
+def p_memoryviewslice_access(s, base_type_node):
+    # s.sy == '['
+    pos = s.position()
+    s.next()
+    subscripts = p_subscript_list(s)
+    # make sure each entry in subscripts is a slice
+    for subscript in subscripts:
+        if len(subscript) < 2:
+            s.error("An axis specification in memoryview declaration does not have a ':'.")
+    s.expect(']')
+    indexes = make_slice_nodes(pos, subscripts)
+    result = Nodes.MemoryViewSliceTypeNode(pos,
+            base_type_node = base_type_node,
+            axes = indexes)
+    return result
 
 def p_buffer_access(s, base_type_node):
     # s.sy == '['
@@ -2652,4 +2721,3 @@ def print_parse_tree(f, node, level, key = None):
             f.write("%s]\n" % ind)
             return
     f.write("%s%s\n" % (ind, node))
-

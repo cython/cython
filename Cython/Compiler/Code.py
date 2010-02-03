@@ -23,7 +23,7 @@ class UtilityCode(object):
     # See GlobalState.put_utility_code.
     #
     # hashes/equals by instance
-    
+
     def __init__(self, proto=None, impl=None, init=None, cleanup=None, requires=None,
                  proto_block='utility_code_proto'):
         # proto_block: Which code block to dump prototype in. See GlobalState.
@@ -36,6 +36,9 @@ class UtilityCode(object):
         self.specialize_list = []
         self.proto_block = proto_block
 
+    def get_tree(self):
+        pass
+    
     def specialize(self, pyrex_type=None, **data):
         # Dicts aren't hashable...
         if pyrex_type is not None:
@@ -431,7 +434,7 @@ class GlobalState(object):
     ]
     
 
-    def __init__(self, writer, emit_linenums=False):
+    def __init__(self, writer, module_node, emit_linenums=False):
         self.filename_table = {}
         self.filename_list = []
         self.input_file_contents = {}
@@ -440,6 +443,8 @@ class GlobalState(object):
         self.in_utility_code_generation = False
         self.emit_linenums = emit_linenums
         self.parts = {}
+        self.module_node = module_node # because some utility code generation needs it
+                                       # (generating backwards-compatible Get/ReleaseBuffer
 
         self.const_cname_counter = 1
         self.string_const_index = {}
