@@ -1,4 +1,4 @@
-cimport cython
+cimport cython.operator
 
 def test_deref(int x):
     """
@@ -8,7 +8,7 @@ def test_deref(int x):
     5
     """
     cdef int* x_ptr = &x
-    return cython.dereference(x_ptr)
+    return cython.operator.dereference(x_ptr)
 
 def increment_decrement(int x):
     """
@@ -17,6 +17,6 @@ def increment_decrement(int x):
     11 11 10
     10
     """
-    print cython.preincrement(x), cython.postincrement(x), x
-    print cython.predecrement(x), cython.postdecrement(x), x
+    print cython.operator.preincrement(x), cython.operator.postincrement(x), x
+    print cython.operator.predecrement(x), cython.operator.postdecrement(x), x
     return x
