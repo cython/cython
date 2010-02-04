@@ -2233,6 +2233,7 @@ def best_match(args, functions, pos=None):
     Finds the best function to be called
     Error if no function fits the call or an ambiguity is find (two or more possible functions)
     """
+    # TODO: args should be a list of types, not a list of Nodes. 
     actual_nargs = len(args)
     possibilities = []
     bad_types = 0
