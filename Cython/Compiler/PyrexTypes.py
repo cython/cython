@@ -1,3 +1,5 @@
+
+
 #
 #   Pyrex - Types
 #
@@ -6,6 +8,7 @@ from Code import UtilityCode
 import StringEncoding
 import Naming
 import copy
+from Errors import error
 
 class BaseType(object):
     #
@@ -40,6 +43,7 @@ class PyrexType(BaseType):
     #  is_array              boolean     Is a C array type
     #  is_ptr                boolean     Is a C pointer type
     #  is_null_ptr           boolean     Is the type of NULL
+    #  is_reference          boolean     Is a C reference type
     #  is_cfunction          boolean     Is a C function type
     #  is_struct_or_union    boolean     Is a C struct or union type
     #  is_struct             boolean     Is a C struct type
@@ -91,8 +95,10 @@ class PyrexType(BaseType):
     is_array = 0
     is_ptr = 0
     is_null_ptr = 0
+    is_reference = 0
     is_cfunction = 0
     is_struct_or_union = 0
+    is_cpp_class = 0
     is_struct = 0
     is_enum = 0
     is_typedef = 0
@@ -107,6 +113,10 @@ class PyrexType(BaseType):
     
     def resolve(self):
         # If a typedef, returns the base type.
+        return self
+    
+    def specialize(self, values):
+        # TODO(danilo): Override wherever it makes sense.
         return self
     
     def literal_code(self, value):
@@ -1328,15 +1338,62 @@ class CPtrType(CType):
                 return self.base_type.pointer_assignable_from_resolved_type(other_type)
             else:
                 return 0
+        if (self.base_type.is_cpp_class and other_type.is_ptr 
+                and other_type.base_type.is_cpp_class and other_type.base_type.is_subclass(self.base_type)):
+            return 1
         if other_type.is_array or other_type.is_ptr:
             return self.base_type.is_void or self.base_type.same_as(other_type.base_type)
         return 0
+    
+    def specialize(self, values):
+        base_type = self.base_type.specialize(values)
+        if base_type == self.base_type:
+            return self
+        else:
+            return CPtrType(base_type)
 
 
 class CNullPtrType(CPtrType):
 
     is_null_ptr = 1
     
+
+class CReferenceType(CType):
+
+    is_reference = 1
+
+    def __init__(self, base_type):
+        self.base_type = base_type
+
+    def __repr__(self):
+        return "<CReferenceType %s>" % repr(self.base_type)
+
+    def same_as_resolved_type(self, other_type):
+        return other_type.is_reference and self.base_type.same_as(other_type.base_type)
+    
+    def declaration_code(self, entity_code, 
+            for_display = 0, dll_linkage = None, pyrex = 0):
+        #print "CReferenceType.declaration_code: pointer to", self.base_type ###
+        return self.base_type.declaration_code(
+            "&%s" % entity_code,
+            for_display, dll_linkage, pyrex)
+    
+    def assignable_from_resolved_type(self, other_type):
+        if other_type is error_type:
+            return 1
+        elif other_type.is_reference and self.base_type == other_type.base_type:
+            return 1
+        elif other_type == self.base_type:
+            return 1
+        else: #for now
+            return 0
+        
+    def specialize(self, values):
+        base_type = self.base_type.specialize(values)
+        if base_type == self.base_type:
+            return self
+        else:
+            return CReferenceType(base_type)
 
 class CFuncType(CType):
     #  return_type      CType
@@ -1347,13 +1404,15 @@ class CFuncType(CType):
     #  calling_convention  string  Function calling convention
     #  nogil            boolean    Can be called without gil
     #  with_gil         boolean    Acquire gil around function body
+    #  templates        [string] or None
     
     is_cfunction = 1
     original_sig = None
     
     def __init__(self, return_type, args, has_varargs = 0,
             exception_value = None, exception_check = 0, calling_convention = "",
-            nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0):
+            nogil = 0, with_gil = 0, is_overridable = 0, optional_arg_count = 0,
+            templates = None):
         self.return_type = return_type
         self.args = args
         self.has_varargs = has_varargs
@@ -1364,6 +1423,7 @@ class CFuncType(CType):
         self.nogil = nogil
         self.with_gil = with_gil
         self.is_overridable = is_overridable
+        self.templates = templates
     
     def __repr__(self):
         arg_reprs = map(repr, self.args)
@@ -1567,6 +1627,23 @@ class CFuncType(CType):
         s = self.declaration_code("(*)", with_calling_convention=False)
         return '(%s)' % s
     
+    def specialize(self, values):
+        if self.templates is None:
+            new_templates = None
+        else:
+            new_templates = [v.specialize(values) for v in self.templates]
+        return CFuncType(self.return_type.specialize(values),
+                             [arg.specialize(values) for arg in self.args],
+                             has_varargs = 0,
+                             exception_value = self.exception_value,
+                             exception_check = self.exception_check,
+                             calling_convention = self.calling_convention,
+                             nogil = self.nogil,
+                             with_gil = self.with_gil,
+                             is_overridable = self.is_overridable,
+                             optional_arg_count = self.optional_arg_count,
+                             templates = new_templates)
+    
     def opt_arg_cname(self, arg_name):
         return self.op_arg_struct.base_type.scope.lookup(arg_name).cname
 
@@ -1593,6 +1670,9 @@ class CFuncTypeArg(object):
     
     def declaration_code(self, for_display = 0):
         return self.type.declaration_code(self.cname, for_display)
+    
+    def specialize(self, values):
+        return CFuncTypeArg(self.name, self.type.specialize(values), self.pos, self.cname)
 
 class StructUtilityCode(object):
     def __init__(self, type, forward_decl):
@@ -1731,6 +1811,122 @@ class CStructOrUnionType(CType):
         child_depths = [x.type.struct_nesting_depth()
                         for x in self.scope.var_entries]
         return max(child_depths) + 1
+
+class CppClassType(CType):
+    #  name          string
+    #  cname         string
+    #  scope         CppClassScope
+    #  templates     [string] or None
+    
+    is_cpp_class = 1
+    has_attributes = 1
+    exception_check = True
+    
+    def __init__(self, name, scope, cname, base_classes, templates = None, template_type = None):
+        self.name = name
+        self.cname = cname
+        self.scope = scope
+        self.base_classes = base_classes
+        self.operators = []
+        self.templates = templates
+        self.template_type = template_type
+        self.specializations = {}
+
+    def specialize_here(self, pos, template_values = None):
+        if self.templates is None:
+            error(pos, "'%s' type is not a template" % self);
+            return PyrexTypes.error_type
+        if len(self.templates) != len(template_values):
+            error(pos, "%s templated type receives %d arguments, got %d" % 
+                  (self.name, len(self.templates), len(template_values)))
+            return error_type
+        return self.specialize(dict(zip(self.templates, template_values)))
+    
+    def specialize(self, values):
+        if not self.templates:
+            return self
+        key = tuple(values.items())
+        if key in self.specializations:
+            return self.specializations[key]
+        template_values = [t.specialize(values) for t in self.templates]
+        specialized = self.specializations[key] = \
+            CppClassType(self.name, None, self.cname, self.base_classes, template_values, template_type=self)
+        specialized.scope = self.scope.specialize(values)
+        return specialized
+
+    def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
+        if self.templates:
+            template_strings = [param.declaration_code('', for_display, pyrex) for param in self.templates]
+            templates = "<" + ",".join(template_strings) + ">"
+        else:
+            templates = ""
+        if for_display or pyrex:
+            name = self.name
+        else:
+            name = self.cname
+        return "%s%s %s" % (name, templates, entity_code)
+
+    def is_subclass(self, other_type):
+        # TODO(danilo): Handle templates.
+        if self.same_as_resolved_type(other_type):
+            return 1
+        for base_class in self.base_classes:
+            if base_class.is_subclass(other_type):
+                return 1
+        return 0
+    
+    def same_as_resolved_type(self, other_type):
+        if other_type.is_cpp_class:
+            if self == other_type:
+                return 1
+            elif self.template_type and self.template_type == other_type.template_type:
+                if self.templates == other_type.templates:
+                    return 1
+                for t1, t2 in zip(self.templates, other_type.templates):
+                    if not t1.same_as_resolved_type(t2):
+                        return 0
+                return 1
+        return 0
+
+    def assignable_from_resolved_type(self, other_type):
+        # TODO: handle operator=(...) here?
+        return other_type.is_cpp_class and other_type.is_subclass(self)
+    
+    def attributes_known(self):
+        return self.scope is not None
+
+
+class TemplatePlaceholderType(CType):
+    
+    def __init__(self, name):
+        self.name = name
+    
+    def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
+        if entity_code:
+            return self.name + " " + entity_code
+        else:
+            return self.name
+    
+    def specialize(self, values):
+        if self in values:
+            return values[self]
+        else:
+            return self
+
+    def same_as_resolved_type(self, other_type):
+        if isinstance(other_type, TemplatePlaceholderType):
+            return self.name == other_type.name
+        else:
+            return 0
+        
+    def __hash__(self):
+        return hash(self.name)
+    
+    def __cmp__(self, other):
+        if isinstance(other, TemplatePlaceholderType):
+            return cmp(self.name, other.name)
+        else:
+            return cmp(type(self), type(other))
 
 class CEnumType(CType):
     #  name           string
@@ -2001,6 +2197,108 @@ modifiers_and_name_to_type = {
     (1, 0, "bint"): c_bint_type,
 }
 
+def is_promotion0(src_type, dst_type):
+    if src_type.is_numeric and dst_type.is_numeric:
+        if src_type.is_int and dst_type.is_int:
+            if src_type.is_enum: 
+                return True
+            elif src_type.signed:
+                return dst_type.signed and src_type.rank <= dst_type.rank
+            elif dst_type.signed: # and not src_type.signed
+                src_type.rank < dst_type.rank
+            else:
+                return src_type.rank <= dst_type.rank
+        elif src_type.is_float and dst_type.is_float:
+            return src_type.rank <= dst_type.rank
+        else:
+            return False
+    else:
+        return False
+
+def is_promotion(src_type, dst_type):
+    # It's hard to find a hard definition of promotion, but empirical
+    # evidence suggests that the below is all that's allowed. 
+    if src_type.is_numeric:
+        if dst_type.same_as(c_int_type):
+            return src_type.is_enum or (src_type.is_int and (not src_type.signed) + src_type.rank < dst_type.rank)
+        elif dst_type.same_as(c_double_type):
+            return src_type.is_float and src_type.rank <= dst_type.rank
+    return False
+
+def best_match(args, functions, pos=None):
+    """
+    Finds the best function to be called
+    Error if no function fits the call or an ambiguity is find (two or more possible functions)
+    """
+    # TODO: args should be a list of types, not a list of Nodes. 
+    actual_nargs = len(args)
+    possibilities = []
+    bad_types = 0
+    from_type = None
+    target_type = None
+    for func in functions:
+        func_type = func.type
+        if func_type.is_ptr:
+            func_type = func_type.base_type
+        # Check function type
+        if not func_type.is_cfunction:
+            if not func_type.is_error and pos is not None:
+                error(pos, "Calling non-function type '%s'" % func_type)
+            return None
+        # Check no. of args
+        max_nargs = len(func_type.args)
+        min_nargs = max_nargs - func_type.optional_arg_count
+        if actual_nargs < min_nargs \
+            or (not func_type.has_varargs and actual_nargs > max_nargs):
+                if max_nargs == min_nargs and not func_type.has_varargs:
+                    expectation = max_nargs
+                elif actual_nargs < min_nargs:
+                    expectation = "at least %s" % min_nargs
+                else:
+                    expectation = "at most %s" % max_nargs
+                error_str = "Call with wrong number of arguments (expected %s, got %s)" \
+                                % (expectation, actual_nargs)
+                continue
+        if len(functions) == 1:
+            # Optimize the most common case of no overloading...
+            return func
+        score = [0,0,0]
+        for i in range(min(len(args), len(func_type.args))):
+            src_type = args[i].type
+            dst_type = func_type.args[i].type
+            if dst_type.assignable_from(src_type):
+                if src_type == dst_type or (dst_type.is_reference and \
+                                            src_type == dst_type.base_type) or \
+                                            dst_type.same_as(src_type):
+                    pass # score 0
+                elif is_promotion(src_type, dst_type):
+                    score[2] += 1
+                elif not src_type.is_pyobject:
+                    score[1] += 1
+                else:
+                    score[0] += 1
+            else:
+                bad_types = func
+                from_type = src_type
+                target_type = dst_type
+                break
+        else:
+            possibilities.append((score, func)) # so we can sort it
+    if len(possibilities):
+        possibilities.sort()
+        if len(possibilities) > 1 and possibilities[0][0] == possibilities[1][0]:
+            if pos is not None:
+                error(pos, "ambiguous overloaded method")
+            return None
+        return possibilities[0][1]
+    if pos is not None:
+        if bad_types:
+            error(pos, "Invalid conversion from '%s' to '%s'" % (from_type, target_type))
+        else:
+            error(pos, error_str)
+    return None
+
+
 def widest_numeric_type(type1, type2):
     # Given two numeric types, return the narrowest type
     # encompassing both of them.
@@ -2091,6 +2389,26 @@ def c_ptr_type(base_type):
         return error_type
     else:
         return CPtrType(base_type)
+
+def c_ref_type(base_type):
+    # Construct a C reference type
+    if base_type is error_type:
+        return error_type
+    else:
+        return CReferenceType(base_type)
+        
+def Node_to_type(node, env):
+    from ExprNodes import NameNode, AttributeNode, StringNode, error
+    if isinstance(node, StringNode):
+        node = NameNode(node.pos, name=node.value)
+    if isinstance(node, NameNode) and node.name in rank_to_type_name:
+        return simple_c_type(1, 0, node.name)
+    elif isinstance(node, (AttributeNode, NameNode)):
+        node.analyze_types(env)
+        if not node.entry.is_type:
+            pass
+    else:
+        error(node.pos, "Bad type")
 
 def same_type(type1, type2):
     return type1.same_as(type2)
