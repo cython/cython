@@ -30,6 +30,8 @@ class Ctx(object):
     api = 0
     overridable = 0
     nogil = 0
+    namespace = None
+    templates = None
 
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
@@ -298,6 +300,8 @@ def p_yield_expression(s):
 #power: atom trailer* ('**' factor)*
 
 def p_power(s):
+    if s.systring == 'new' and s.peek()[0] == 'IDENT':
+        return p_new_expr(s)
     n1 = p_atom(s)
     while s.sy in ('(', '[', '.'):
         n1 = p_trailer(s, n1)
@@ -307,6 +311,19 @@ def p_power(s):
         n2 = p_factor(s)
         n1 = ExprNodes.binop_node(pos, '**', n1, n2)
     return n1
+
+def p_new_expr(s):
+    # s.systring == 'new'.
+    pos = s.position()
+    s.next()
+    name = p_ident(s)
+    if s.sy == '[':
+        s.next()
+        template_parameters = p_simple_expr_list(s)
+        s.expect(']')        
+    else:
+        template_parameters = None
+    return p_call(s, ExprNodes.NewExprNode(pos, cppclass = name, template_parameters = template_parameters))
 
 #trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
 
@@ -1458,6 +1475,29 @@ def p_with_statement(s):
         s.next()
         body = p_suite(s)
         return Nodes.GILStatNode(pos, state = state, body = body)
+    elif s.systring == 'template':
+        templates = []
+        s.next()
+        s.expect('[')
+        #s.next()
+        templates.append(s.systring)
+        s.next()
+        while s.systring == ',':
+            s.next()
+            templates.append(s.systring)
+            s.next()
+        s.expect(']')
+        if s.sy == ':':
+            s.next()
+            s.expect_newline("Syntax error in template function declaration")
+            s.expect_indent()
+            body_ctx = Ctx()
+            body_ctx.templates = templates
+            func_or_var = p_c_func_or_var_declaration(s, pos, body_ctx)
+            s.expect_dedent()
+            return func_or_var
+        else:
+            error(pos, "Syntax error in template function declaration")
     else:
         manager = p_expr(s)
         target = None
@@ -1748,13 +1788,13 @@ def p_positional_and_keyword_args(s, end_sy_set, type_positions=(), type_keyword
         s.next()
     return positional_args, keyword_args
 
-def p_c_base_type(s, self_flag = 0, nonempty = 0):
+def p_c_base_type(s, self_flag = 0, nonempty = 0, templates = None):
     # If self_flag is true, this is the base type for the
     # self argument of a C method of an extension type.
     if s.sy == '(':
         return p_c_complex_base_type(s)
     else:
-        return p_c_simple_base_type(s, self_flag, nonempty = nonempty)
+        return p_c_simple_base_type(s, self_flag, nonempty = nonempty, templates = templates)
 
 def p_calling_convention(s):
     if s.sy == 'IDENT' and s.systring in calling_convention_words:
@@ -1776,7 +1816,7 @@ def p_c_complex_base_type(s):
     return Nodes.CComplexBaseTypeNode(pos, 
         base_type = base_type, declarator = declarator)
 
-def p_c_simple_base_type(s, self_flag, nonempty):
+def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
     #print "p_c_simple_base_type: self_flag =", self_flag, nonempty
     is_basic = 0
     signed = 1
@@ -1827,12 +1867,12 @@ def p_c_simple_base_type(s, self_flag, nonempty):
             elif s.sy not in ('*', '**', '['):
                 s.put_back('IDENT', name)
                 name = None
-    
+
     type_node = Nodes.CSimpleBaseTypeNode(pos, 
         name = name, module_path = module_path,
         is_basic_c_type = is_basic, signed = signed,
         complex = complex, longness = longness, 
-        is_self_arg = self_flag)
+        is_self_arg = self_flag, templates = templates)
 
 
     # Treat trailing [] on type as buffer access if it appears in a context
@@ -1842,11 +1882,11 @@ def p_c_simple_base_type(s, self_flag, nonempty):
     # (This means that buffers cannot occur where there can be empty declarators,
     # which is an ok restriction to make.)
     if nonempty and s.sy == '[':
-        return p_buffer_access(s, type_node)
+        return p_buffer_or_template(s, type_node)
     else:
         return type_node
 
-def p_buffer_access(s, base_type_node):
+def p_buffer_or_template(s, base_type_node):
     # s.sy == '['
     pos = s.position()
     s.next()
@@ -1860,8 +1900,7 @@ def p_buffer_access(s, base_type_node):
             ExprNodes.DictItemNode(pos=key.pos, key=key, value=value)
             for key, value in keyword_args
         ])
-
-    result = Nodes.CBufferAccessTypeNode(pos,
+    result = Nodes.TemplatedTypeNode(pos,
         positional_args = positional_args,
         keyword_args = keyword_dict,
         base_type_node = base_type_node)
@@ -2018,6 +2057,13 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
         exception_value = exc_val, exception_check = exc_check,
         nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil)
 
+supported_overloaded_operators = set([
+    '+', '-', '*', '/', '%', 
+    '++', '--', '~', '|', '&', '^', '<<', '>>',
+    '==', '!=', '>=', '>', '<=', '<',
+    '[]', '()',
+])
+
 def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                           assignable, nonempty):
     pos = s.position()
@@ -2037,6 +2083,12 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
         result = Nodes.CPtrDeclaratorNode(pos,
             base = Nodes.CPtrDeclaratorNode(pos,
                 base = base))
+    elif s.sy == '&':
+        s.next()
+        base = p_c_declarator(s, ctx, empty = empty, is_type = is_type,
+                              cmethod_flag = cmethod_flag,
+                              assignable = assignable, nonempty = nonempty)
+        result = Nodes.CReferenceDeclaratorNode(pos, base = base)
     else:
         rhs = None
         if s.sy == 'IDENT':
@@ -2053,6 +2105,27 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                 error(s.position(), "Empty declarator")
             name = ""
             cname = None
+        if cname is None and ctx.namespace is not None:
+            cname = ctx.namespace + "::" + name
+        if name == 'operator' and ctx.visibility == 'extern':
+            op = s.sy
+            s.next()
+            # Handle diphthong operators.
+            if op == '(':
+                s.expect(')')
+                op = '()'
+            elif op == '[':
+                s.expect(']')
+                op = '[]'
+            if op in ['-', '+', '|', '&'] and s.sy == op:
+                op = op*2
+                s.next()
+            if s.sy == '=':
+                op += s.sy
+                s.next()
+            if op not in supported_overloaded_operators:
+                s.error("Overloading operator '%s' not yet supported." % op)
+            name = name+op
         result = Nodes.CNameDeclaratorNode(pos,
             name = name, cname = cname, default = rhs)
     result.calling_convention = calling_convention
@@ -2184,6 +2257,10 @@ def p_cdef_statement(s, ctx):
         if ctx.overridable:
             error(pos, "Extension types cannot be declared cpdef")
         return p_c_class_definition(s, pos, ctx)
+    elif s.sy == 'IDENT' and s.systring == 'cppclass':
+        if ctx.visibility != 'extern':
+            error(pos, "C++ classes need to be declared extern")
+        return p_cpp_class_definition(s, pos, ctx)
     elif s.sy == 'IDENT' and s.systring in ("struct", "union", "enum", "packed"):
         if ctx.level not in ('module', 'module_pxd'):
             error(pos, "C struct/union/enum definition not allowed here")
@@ -2208,13 +2285,17 @@ def p_cdef_extern_block(s, pos, ctx):
         s.next()
     else:
         _, include_file = p_string_literal(s)
+    if s.systring == "namespace":
+        s.next()
+        ctx.namespace = p_dotted_name(s, as_allowed=False)[2].replace('.', '::')
     ctx = ctx(cdef_flag = 1, visibility = 'extern')
     if p_nogil(s):
         ctx.nogil = 1
     body = p_suite(s, ctx)
     return Nodes.CDefExternNode(pos,
         include_file = include_file,
-        body = body)
+        body = body,
+        namespace = ctx.namespace)
 
 def p_c_enum_definition(s, pos, ctx):
     # s.sy == ident 'enum'
@@ -2223,6 +2304,8 @@ def p_c_enum_definition(s, pos, ctx):
         name = s.systring
         s.next()
         cname = p_opt_cname(s)
+        if cname is None and ctx.namespace is not None:
+            cname = ctx.namespace + "::" + name
     else:
         name = None
         cname = None
@@ -2277,6 +2360,8 @@ def p_c_struct_or_union_definition(s, pos, ctx):
     s.next()
     name = p_ident(s)
     cname = p_opt_cname(s)
+    if cname is None and ctx.namespace is not None:
+        cname = ctx.namespace + "::" + name
     attributes = None
     if s.sy == ':':
         s.next()
@@ -2320,12 +2405,12 @@ def p_c_modifiers(s):
 def p_c_func_or_var_declaration(s, pos, ctx):
     cmethod_flag = ctx.level in ('c_class', 'c_class_pxd')
     modifiers = p_c_modifiers(s)
-    base_type = p_c_base_type(s, nonempty = 1)
+    base_type = p_c_base_type(s, nonempty = 1, templates = ctx.templates)
     declarator = p_c_declarator(s, ctx, cmethod_flag = cmethod_flag,
                                 assignable = 1, nonempty = 1)
     declarator.overridable = ctx.overridable
     if s.sy == ':':
-        if ctx.level not in ('module', 'c_class', 'module_pxd', 'c_class_pxd'):
+        if ctx.level not in ('module', 'c_class', 'module_pxd', 'c_class_pxd') and not ctx.templates:
             s.error("C function definition not allowed here")
         doc, suite = p_suite(s, Ctx(level = 'function'), with_doc = 1)
         result = Nodes.CFuncDefNode(pos,
@@ -2614,6 +2699,64 @@ def p_module(s, pxd, full_module_name):
     return ModuleNode(pos, doc = doc, body = body,
                       full_module_name = full_module_name,
                       directive_comments = directive_comments)
+
+def p_cpp_class_definition(s, pos,  ctx):
+    # s.sy == 'cppclass'
+    s.next()
+    module_path = []
+    class_name = p_ident(s)
+    cname = p_opt_cname(s)
+    if cname is None and ctx.namespace is not None:
+        cname = ctx.namespace + "::" + class_name
+    if s.sy == '.':
+        error(pos, "Qualified class name not allowed C++ class")
+    if s.sy == '[':
+        s.next()
+        templates = [p_ident(s)]
+        while s.sy == ',':
+            s.next()
+            templates.append(p_ident(s))
+        s.expect(']')
+    else:
+        templates = None
+    if s.sy == '(':
+        s.next()
+        base_classes = [p_dotted_name(s, False)[2]]
+        while s.sy == ',':
+            s.next()
+            base_classes.append(p_dotted_name(s, False)[2])
+        s.expect(')')
+    else:
+        base_classes = []
+    if s.sy == '[':
+        error(s.position(), "Name options not allowed for C++ class")
+    if s.sy == ':':
+        s.next()
+        s.expect('NEWLINE')
+        s.expect_indent()
+        attributes = []
+        body_ctx = Ctx(visibility = ctx.visibility)
+        body_ctx.templates = templates
+        while s.sy != 'DEDENT':
+            if s.sy != 'pass':
+                attributes.append(
+                    p_c_func_or_var_declaration(s, s.position(), body_ctx))
+            else:
+                s.next()
+                s.expect_newline("Expected a newline")
+        s.expect_dedent()
+    else:
+        s.expect_newline("Syntax error in C++ class definition")
+    return Nodes.CppClassNode(pos,
+        name = class_name,
+        cname = cname,
+        base_classes = base_classes,
+        visibility = ctx.visibility,
+        in_pxd = ctx.level == 'module_pxd',
+        attributes = attributes,
+        templates = templates)
+
+
 
 #----------------------------------------------
 #

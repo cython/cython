@@ -66,7 +66,7 @@ class Context(object):
     #  include_directories   [string]
     #  future_directives     [object]
     
-    def __init__(self, include_directories, compiler_directives):
+    def __init__(self, include_directories, compiler_directives, cpp=False):
         #self.modules = {"__builtin__" : BuiltinScope()}
         import Builtin, CythonScope
         self.modules = {"__builtin__" : Builtin.builtin_scope}
@@ -74,6 +74,7 @@ class Context(object):
         self.include_directories = include_directories
         self.future_directives = set()
         self.compiler_directives = compiler_directives
+        self.cpp = cpp
 
         self.pxds = {} # full name -> node tree
 
@@ -451,6 +452,7 @@ class Context(object):
         if not isinstance(source_desc, FileSourceDescriptor):
             raise RuntimeError("Only file sources for code supported")
         source_filename = Utils.encode_filename(source_desc.filename)
+        scope.cpp = self.cpp
         # Parse the given source file and return a parse tree.
         try:
             f = Utils.open_source_file(source_filename, "rU")
@@ -540,7 +542,7 @@ def create_default_resultobj(compilation_source, options):
 
 def run_pipeline(source, options, full_module_name = None):
     # Set up context
-    context = Context(options.include_path, options.compiler_directives)
+    context = Context(options.include_path, options.compiler_directives, options.cplus)
 
     # Set up source object
     cwd = os.getcwd()

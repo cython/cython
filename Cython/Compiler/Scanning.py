@@ -355,6 +355,14 @@ class PyrexScanner(Scanner):
                 t = "%s %s" % (self.sy, self.systring)
             print("--- %3d %2d %s" % (line, col, t))
     
+    def peek(self):
+        saved = self.sy, self.systring
+        self.next()
+        next = self.sy, self.systring
+        self.unread(*next)
+        self.sy, self.systring = saved
+        return next
+    
     def put_back(self, sy, systring):
         self.unread(self.sy, self.systring)
         self.sy = sy
