@@ -431,6 +431,10 @@ class Scope(object):
                 cname = name
             else:
                 cname = self.mangle(Naming.var_prefix, name)
+        if type.is_cpp_class and visibility != 'extern':
+            constructor = type.scope.lookup(u'<init>')
+            if constructor is not None and PyrexTypes.best_match([], constructor.all_alternatives()) is None:
+                error(pos, "C++ class must have an empty constructor to be stack allocated")
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
         self.control_flow.set_state((), (name, 'initalized'), False)
@@ -1359,6 +1363,8 @@ class CClassScope(ClassScope):
                 cname = name
                 if visibility == 'private':
                     cname = c_safe_identifier(cname)
+            if type.is_cpp_class and visibility != 'extern':
+                error(pos, "C++ classes not allowed as members of an extension type, use a pointer or reference instead")
             entry = self.declare(name, cname, type, pos, visibility)
             entry.is_variable = 1
             self.var_entries.append(entry)
