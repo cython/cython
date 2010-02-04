@@ -1846,6 +1846,8 @@ class CppClassType(CType):
         return self.specialize(dict(zip(self.templates, template_values)))
     
     def specialize(self, values):
+        if not self.templates:
+            return self
         key = tuple(values.items())
         if key in self.specializations:
             return self.specializations[key]
