@@ -48,3 +48,17 @@ def test_square_area(w):
     finally:
         del sqr
 
+cdef double get_area(Rectangle s):
+    return s.area()
+
+def test_value_call(int w):
+    """
+    >>> test_value_call(5)
+    (25.0, 25.0)
+    """
+    cdef Square *sqr = new Square(w)
+    cdef Rectangle *rect = sqr
+    try:
+        return get_area(sqr[0]), get_area(rect[0])
+    finally:
+        del sqr

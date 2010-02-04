@@ -1891,6 +1891,10 @@ class CppClassType(CType):
                 return 1
         return 0
 
+    def assignable_from_resolved_type(self, other_type):
+        # TODO: handle operator=(...) here?
+        return other_type.is_cpp_class and other_type.is_subclass(self)
+    
     def attributes_known(self):
         return self.scope is not None
 
