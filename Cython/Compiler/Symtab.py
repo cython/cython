@@ -1533,7 +1533,10 @@ class CppClassScope(Scope):
             api = 0, in_pxd = 0, modifiers = ()):
         if name == self.name.split('::')[-1] and cname is None:
             name = '<init>'
+        prev_entry = self.lookup_here(name)
         entry = self.declare_var(name, type, pos, cname, visibility)
+        if prev_entry:
+            entry.overloaded_alternatives = prev_entry.all_alternatives()
 
     def declare_inherited_cpp_attributes(self, base_scope):
         # Declare entries for all the C++ attributes of an
