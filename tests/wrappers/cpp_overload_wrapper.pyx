@@ -4,20 +4,20 @@ cimport cppwrap_lib
 cdef class DoubleKeeper:
     cdef cppwrap_lib.DoubleKeeper* keeper
 
-    def __cinit__(self, factor=None):
-        if factor is None:
+    def __cinit__(self, number=None):
+        if number is None:
             self.keeper = new cppwrap_lib.DoubleKeeper()
         else:
-            self.keeper = new cppwrap_lib.DoubleKeeper(factor)
+            self.keeper = new cppwrap_lib.DoubleKeeper(number)
 
     def __dealloc__(self):
         del self.keeper
 
-    def set_number(self, factor=None):
-        if factor is None:
+    def set_number(self, number=None):
+        if number is None:
             self.keeper.set_number()
         else:
-            self.keeper.set_number(factor)
+            self.keeper.set_number(number)
 
     def get_number(self):
         return self.keeper.get_number()
