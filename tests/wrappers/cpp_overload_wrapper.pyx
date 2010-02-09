@@ -8,7 +8,7 @@ cdef class DoubleKeeper:
         if factor is None:
             self.keeper = new cppwrap_lib.DoubleKeeper()
         else:
-            self.keeper = new cppwrap_lib.DoubleKeeper(<double>factor)
+            self.keeper = new cppwrap_lib.DoubleKeeper(factor)
 
     def __dealloc__(self):
         del self.keeper
@@ -17,7 +17,7 @@ cdef class DoubleKeeper:
         if factor is None:
             self.keeper.set_number()
         else:
-            self.keeper.set_number(<double>factor)
+            self.keeper.set_number(factor)
 
     def get_number(self):
         return self.keeper.get_number()
