@@ -4873,7 +4873,9 @@ class FromImportStatNode(StatNode):
                         break
             else:
                 entry =  env.lookup(target.name)
-                if entry.is_type and entry.type.name == name and entry.type.module_name == self.module.module_name.value:
+                if (entry.is_type and 
+                    entry.type.name == name and
+                    entry.type.module_name == self.module.module_name.value):
                     continue # already cimported
                 target.analyse_target_expression(env, None)
                 if target.type is py_object_type:
