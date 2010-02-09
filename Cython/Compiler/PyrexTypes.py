@@ -2282,7 +2282,7 @@ def best_match(args, functions, pos=None):
         
     # Optimize the most common case of no overloading...
     if len(candidates) == 1:
-        return candidates[0]
+        return candidates[0][0]
     elif len(candidates) == 0:
         if len(errors) == 1 and pos is not None:
             error(pos, errors[0][1])
