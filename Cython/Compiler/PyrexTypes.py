@@ -2227,49 +2227,78 @@ def is_promotion(src_type, dst_type):
 
 def best_match(args, functions, pos=None):
     """
-    Finds the best function to be called
-    Error if no function fits the call or an ambiguity is find (two or more possible functions)
+    Given a list args of arguments and a list of functions, choose one
+    to call which seems to be the "best" fit for this list of arguments.
+    This function is used, e.g., when deciding which overloaded method
+    to dispatch for C++ classes.
+
+    We first eliminate functions based on arity, and if only one
+    function has the correct arity, we return it. Otherwise, we weight
+    functions based on how much work must be done to convert the
+    arguments, with the following priorities:
+      * identical types or pointers to identical types
+      * promotions 
+      * non-Python types
+    That is, we prefer functions where no arguments need converted,
+    and failing that, functions where only promotions are required, and
+    so on.
+
+    If no function is deemed a good fit, or if two or more functions have
+    the same weight, we return None (as there is no best match). If pos
+    is not None, we also generate an error.
     """
     # TODO: args should be a list of types, not a list of Nodes. 
     actual_nargs = len(args)
-    possibilities = []
-    bad_types = 0
-    from_type = None
-    target_type = None
+
+    candidates = []
+    errors = []
     for func in functions:
+        error_mesg = ""
         func_type = func.type
         if func_type.is_ptr:
             func_type = func_type.base_type
         # Check function type
         if not func_type.is_cfunction:
             if not func_type.is_error and pos is not None:
-                error(pos, "Calling non-function type '%s'" % func_type)
-            return None
+                error_mesg = "Calling non-function type '%s'" % func_type
+            errors.append((func, error_mesg))
+            continue
         # Check no. of args
         max_nargs = len(func_type.args)
         min_nargs = max_nargs - func_type.optional_arg_count
-        if actual_nargs < min_nargs \
-            or (not func_type.has_varargs and actual_nargs > max_nargs):
-                if max_nargs == min_nargs and not func_type.has_varargs:
-                    expectation = max_nargs
-                elif actual_nargs < min_nargs:
-                    expectation = "at least %s" % min_nargs
-                else:
-                    expectation = "at most %s" % max_nargs
-                error_str = "Call with wrong number of arguments (expected %s, got %s)" \
-                                % (expectation, actual_nargs)
-                continue
-        if len(functions) == 1:
-            # Optimize the most common case of no overloading...
-            return func
+        if actual_nargs < min_nargs or \
+            (not func_type.has_varargs and actual_nargs > max_nargs):
+            if max_nargs == min_nargs and not func_type.has_varargs:
+                expectation = max_nargs
+            elif actual_nargs < min_nargs:
+                expectation = "at least %s" % min_nargs
+            else:
+                expectation = "at most %s" % max_nargs
+            error_mesg = "Call with wrong number of arguments (expected %s, got %s)" \
+                         % (expectation, actual_nargs)
+            errors.append((func, error_mesg))
+            continue
+        candidates.append((func, func_type))
+        
+    # Optimize the most common case of no overloading...
+    if len(candidates) == 1:
+        return candidates[0]
+    elif len(candidates) == 0:
+        if len(errors) == 1 and pos is not None:
+            error(pos, errors[0][1])
+        return None
+        
+    possibilities = []
+    bad_types = []
+    for func, func_type in candidates:
         score = [0,0,0]
         for i in range(min(len(args), len(func_type.args))):
             src_type = args[i].type
             dst_type = func_type.args[i].type
             if dst_type.assignable_from(src_type):
                 if src_type == dst_type or (dst_type.is_reference and \
-                                            src_type == dst_type.base_type) or \
-                                            dst_type.same_as(src_type):
+                                            src_type == dst_type.base_type) \
+                                        or dst_type.same_as(src_type):
                     pass # score 0
                 elif is_promotion(src_type, dst_type):
                     score[2] += 1
@@ -2278,13 +2307,13 @@ def best_match(args, functions, pos=None):
                 else:
                     score[0] += 1
             else:
-                bad_types = func
-                from_type = src_type
-                target_type = dst_type
+                error_mesg = "Invalid conversion from '%s' to '%s'"%(src_type,
+                                                                     dst_type)
+                bad_types.append((func, error_mesg))
                 break
         else:
             possibilities.append((score, func)) # so we can sort it
-    if len(possibilities):
+    if possibilities:
         possibilities.sort()
         if len(possibilities) > 1 and possibilities[0][0] == possibilities[1][0]:
             if pos is not None:
@@ -2292,10 +2321,10 @@ def best_match(args, functions, pos=None):
             return None
         return possibilities[0][1]
     if pos is not None:
-        if bad_types:
-            error(pos, "Invalid conversion from '%s' to '%s'" % (from_type, target_type))
+        if len(bad_types) == 1:
+            error(pos, bad_types[0][1])
         else:
-            error(pos, error_str)
+            error(pos, "no suitable method found")
     return None
 
 
