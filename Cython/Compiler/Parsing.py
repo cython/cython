@@ -1732,6 +1732,8 @@ def p_positional_and_keyword_args(s, end_sy_set, type_positions=(), type_keyword
     type_positions and type_keywords specifies which argument
     positions and/or names which should be interpreted as
     types. Other arguments will be treated as expressions.
+    A value of None indicates all positions/keywords 
+    (respectively) will be treated as types. 
 
     Returns: (positional_args, keyword_args)
     """
@@ -1754,8 +1756,11 @@ def p_positional_and_keyword_args(s, end_sy_set, type_positions=(), type_keyword
             if s.sy == '=':
                 s.next()
                 # Is keyword arg
-                if ident in type_keywords:
-                    arg = p_c_base_type(s)
+                if type_keywords is None or ident in type_keywords:
+                    base_type = p_c_base_type(s)
+                    declarator = p_c_declarator(s, empty = 1)
+                    arg = Nodes.CComplexBaseTypeNode(base_type.pos, 
+                        base_type = base_type, declarator = declarator)
                     parsed_type = True
                 else:
                     arg = p_simple_expr(s)
@@ -1767,8 +1772,11 @@ def p_positional_and_keyword_args(s, end_sy_set, type_positions=(), type_keyword
                 s.put_back('IDENT', ident)
                 
         if not was_keyword:
-            if pos_idx in type_positions:
-                arg = p_c_base_type(s)
+            if type_positions is None or pos_idx in type_positions:
+                base_type = p_c_base_type(s)
+                declarator = p_c_declarator(s, empty = 1)
+                arg = Nodes.CComplexBaseTypeNode(base_type.pos, 
+                    base_type = base_type, declarator = declarator)
                 parsed_type = True
             else:
                 arg = p_simple_expr(s)
@@ -1890,8 +1898,10 @@ def p_buffer_or_template(s, base_type_node):
     # s.sy == '['
     pos = s.position()
     s.next()
+    # Note that buffer_positional_options_count=1, so the only positional argument is dtype. 
+    # For templated types, all parameters are types. 
     positional_args, keyword_args = (
-        p_positional_and_keyword_args(s, (']',), (0,), ('dtype',))
+        p_positional_and_keyword_args(s, (']',), None, ('dtype',))
     )
     s.expect(']')
 
