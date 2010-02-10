@@ -1723,17 +1723,11 @@ def p_suite(s, ctx = Ctx(), with_doc = 0, with_pseudo_doc = 0):
     else:
         return body
 
-def p_positional_and_keyword_args(s, end_sy_set, type_positions=(), type_keywords=()):
+def p_positional_and_keyword_args(s, end_sy_set, templates = None):
     """
     Parses positional and keyword arguments. end_sy_set
     should contain any s.sy that terminate the argument list.
     Argument expansion (* and **) are not allowed.
-
-    type_positions and type_keywords specifies which argument
-    positions and/or names which should be interpreted as
-    types. Other arguments will be treated as expressions.
-    A value of None indicates all positions/keywords 
-    (respectively) will be treated as types. 
 
     Returns: (positional_args, keyword_args)
     """
@@ -1745,34 +1739,33 @@ def p_positional_and_keyword_args(s, end_sy_set, type_positions=(), type_keyword
         if s.sy == '*' or s.sy == '**':
             s.error('Argument expansion not allowed here.')
 
-        was_keyword = False
         parsed_type = False
         if s.sy == 'IDENT' and s.peek()[0] == '=':
             ident = s.systring
             s.next() # s.sy is '='
             s.next()
-            if type_keywords is None or ident in type_keywords:
-                base_type = p_c_base_type(s)
+            if looking_at_expr(s):
+                arg = p_simple_expr(s)
+            else:
+                base_type = p_c_base_type(s, templates = templates)
                 declarator = p_c_declarator(s, empty = 1)
                 arg = Nodes.CComplexBaseTypeNode(base_type.pos, 
                     base_type = base_type, declarator = declarator)
                 parsed_type = True
-            else:
-                arg = p_simple_expr(s)
             keyword_node = ExprNodes.IdentifierStringNode(
                 arg.pos, value = EncodedString(ident))
             keyword_args.append((keyword_node, arg))
             was_keyword = True
                 
         else:
-            if type_positions is None or pos_idx in type_positions:
-                base_type = p_c_base_type(s)
+            if looking_at_expr(s):
+                arg = p_simple_expr(s)
+            else:
+                base_type = p_c_base_type(s, templates = templates)
                 declarator = p_c_declarator(s, empty = 1)
                 arg = Nodes.CComplexBaseTypeNode(base_type.pos, 
                     base_type = base_type, declarator = declarator)
                 parsed_type = True
-            else:
-                arg = p_simple_expr(s)
             positional_args.append(arg)
             pos_idx += 1
             if len(keyword_args) > 0:
@@ -1782,9 +1775,7 @@ def p_positional_and_keyword_args(s, end_sy_set, type_positions=(), type_keyword
         if s.sy != ',':
             if s.sy not in end_sy_set:
                 if parsed_type:
-                    s.error("Expected: type")
-                else:
-                    s.error("Expected: expression")
+                    s.error("Unmatched %s" % " or ".join(end_sy_set))
             break
         s.next()
     return positional_args, keyword_args
@@ -1876,25 +1867,19 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
         is_self_arg = self_flag, templates = templates)
 
 
-    # Treat trailing [] on type as buffer access if it appears in a context
-    # where declarator names are required (so that it cannot mean int[] or
-    # sizeof(int[SIZE]))...
-    #
-    # (This means that buffers cannot occur where there can be empty declarators,
-    # which is an ok restriction to make.)
-    if nonempty and s.sy == '[':
-        return p_buffer_or_template(s, type_node)
+    if s.sy == '[':
+        return p_buffer_or_template(s, type_node, templates)
     else:
         return type_node
 
-def p_buffer_or_template(s, base_type_node):
+def p_buffer_or_template(s, base_type_node, templates):
     # s.sy == '['
     pos = s.position()
     s.next()
     # Note that buffer_positional_options_count=1, so the only positional argument is dtype. 
     # For templated types, all parameters are types. 
     positional_args, keyword_args = (
-        p_positional_and_keyword_args(s, (']',), None, ('dtype',))
+        p_positional_and_keyword_args(s, (']',), templates)
     )
     s.expect(']')
 

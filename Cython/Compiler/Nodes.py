@@ -791,6 +791,7 @@ class TemplatedTypeNode(CBaseTypeNode):
         if base_type.is_error: return base_type
         
         if base_type.is_cpp_class:
+            # Templated class
             if len(self.keyword_args.key_value_pairs) != 0:
                 error(self.pos, "c++ templates cannot take keyword arguments");
                 self.type = PyrexTypes.error_type
@@ -800,8 +801,8 @@ class TemplatedTypeNode(CBaseTypeNode):
                     template_types.append(template_node.analyse_as_type(env))
                 self.type = base_type.specialize_here(self.pos, template_types)
         
-        else:
-        
+        elif base_type.is_pyobject:
+            # Buffer
             import Buffer
 
             options = Buffer.analyse_buffer_options(
@@ -817,6 +818,24 @@ class TemplatedTypeNode(CBaseTypeNode):
                                  for name, value in options.iteritems() ])
 
             self.type = PyrexTypes.BufferType(base_type, **options)
+        
+        else:
+            # Array
+            empty_declarator = CNameDeclaratorNode(self.pos, name="")
+            if len(self.positional_args) > 1 or self.keyword_args.key_value_pairs:
+                error(self.pos, "invalid array declaration")
+                self.type = PyrexTypes.error_type
+            else:
+                # It would be nice to merge this class with CArrayDeclaratorNode, 
+                # but arrays are part of the declaration, not the type...
+                if not self.positional_args:
+                    dimension = None
+                else:
+                    dimension = self.positional_args[0]
+                self.type = CArrayDeclaratorNode(self.pos, 
+                    base = empty_declarator, 
+                    dimension = dimension).analyse(base_type, env)[1]
+        
         return self.type
 
 class CComplexBaseTypeNode(CBaseTypeNode):

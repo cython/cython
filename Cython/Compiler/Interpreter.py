@@ -17,7 +17,7 @@ class EmptyScope(object):
     
 empty_scope = EmptyScope()
 
-def interpret_compiletime_options(optlist, optdict, type_env=None):
+def interpret_compiletime_options(optlist, optdict, type_env=None, type_args=()):
     """
     Tries to interpret a list of compile time option nodes.
     The result will be a tuple (optlist, optdict) but where
@@ -34,21 +34,21 @@ def interpret_compiletime_options(optlist, optdict, type_env=None):
     A CompileError will be raised if there are problems.
     """
 
-    def interpret(node):
-        if isinstance(node, CBaseTypeNode):
+    def interpret(node, ix):
+        if ix in type_args:
             if type_env:
-                return (node.analyse(type_env), node.pos)
+                return (node.analyse_as_type(type_env), node.pos)
             else:
                 raise CompileError(node.pos, "Type not allowed here.")
         else:
             return (node.compile_time_value(empty_scope), node.pos)
      
     if optlist:
-        optlist = [interpret(x) for x in optlist]
+        optlist = [interpret(x, ix) for ix, x in enumerate(optlist)]
     if optdict:
         assert isinstance(optdict, DictNode)
         new_optdict = {}
         for item in optdict.key_value_pairs:
-            new_optdict[item.key.value] = interpret(item.value)
+            new_optdict[item.key.value] = interpret(item.value, item.key.value)
         optdict = new_optdict
     return (optlist, new_optdict)

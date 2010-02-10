@@ -32,10 +32,6 @@ class TestBufferParsing(CythonTest):
     def test_type_keyword(self):
         self.parse(u"cdef object[foo=foo, dtype=short unsigned int] x")
 
-    def test_notype_as_expr1(self):
-        self.not_parseable("Expected: expression",
-                           u"cdef object[foo2=short unsigned int] x")
-
     def test_pos_after_key(self):
         self.not_parseable("Non-keyword arg following keyword arg",
                            u"cdef object[foo=1, 2] x")

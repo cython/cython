@@ -100,13 +100,13 @@ cpdef p_IF_statement(PyrexScanner s, ctx)
 cpdef p_statement(PyrexScanner s, ctx, bint first_statement = *)
 cpdef p_statement_list(PyrexScanner s, ctx, bint first_statement = *)
 cpdef p_suite(PyrexScanner s, ctx = *, bint with_doc = *, bint with_pseudo_doc = *)
-cpdef p_positional_and_keyword_args(PyrexScanner s, end_sy_set, type_positions= *, type_keywords= * )
+cpdef p_positional_and_keyword_args(PyrexScanner s, end_sy_set, templates = *)
 
 cpdef p_c_base_type(PyrexScanner s, bint self_flag = *, bint nonempty = *, templates = *)
 cpdef p_calling_convention(PyrexScanner s)
 cpdef p_c_complex_base_type(PyrexScanner s)
 cpdef p_c_simple_base_type(PyrexScanner s, bint self_flag, bint nonempty, templates = *)
-cpdef p_buffer_or_template(PyrexScanner s, base_type_node)
+cpdef p_buffer_or_template(PyrexScanner s, base_type_node, templates)
 cpdef bint looking_at_name(PyrexScanner s) except -2
 cpdef bint looking_at_expr(PyrexScanner s) except -2
 cpdef bint looking_at_base_type(PyrexScanner s) except -2
