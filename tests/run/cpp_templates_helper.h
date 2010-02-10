@@ -2,7 +2,7 @@ template <class T>
 class Wrap {
     T value;
 public:
-    Wrap(T v) { value = v; }
+    Wrap(T v) : value(v) { }
     void set(T v) { value = v; }
     T get(void) { return value; }
     bool operator==(Wrap<T> other) { return value == other.value; }
