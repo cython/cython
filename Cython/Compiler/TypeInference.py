@@ -235,6 +235,20 @@ def safe_spanning_type(types):
         # find_spanning_type() only returns 'bint' for clean boolean
         # operations without other int types, so this is safe, too
         return result_type
+    elif result_type.is_ptr and not (result_type.is_int and result_type.rank == 0):
+        # Any pointer except (signed|unsigned|) char* can't implicitly 
+        # become a PyObject.
+        return result_type
+    elif result_type.is_cpp_class:
+        # These can't implicitly become Python objects either.
+        return result_type
+    elif result_type.is_struct:
+        # Though we have struct -> object for some structs, this is uncommonly
+        # used, won't arise in pure Python, and there shouldn't be side
+        # effects, so I'm declaring this safe.
+        return result_type
+    # TODO: double complex should be OK as well, but we need 
+    # to make sure everything is supported.
     return py_object_type
 
 

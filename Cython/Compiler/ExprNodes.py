@@ -2492,6 +2492,8 @@ class SimpleCallNode(CallNode):
     def infer_type(self, env):
         function = self.function
         func_type = function.infer_type(env)
+        if isinstance(self.function, NewExprNode):
+            return PyrexTypes.CPtrType(self.function.class_type)
         if func_type.is_ptr:
             func_type = func_type.base_type
         if func_type.is_cfunction:
