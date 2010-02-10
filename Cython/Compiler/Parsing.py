@@ -1747,31 +1747,24 @@ def p_positional_and_keyword_args(s, end_sy_set, type_positions=(), type_keyword
 
         was_keyword = False
         parsed_type = False
-        if s.sy == 'IDENT':
-            # Since we can have either types or expressions as positional args,
-            # we use a strategy of looking an extra step forward for a '=' and
-            # if it is a positional arg we backtrack.
+        if s.sy == 'IDENT' and s.peek()[0] == '=':
             ident = s.systring
+            s.next() # s.sy is '='
             s.next()
-            if s.sy == '=':
-                s.next()
-                # Is keyword arg
-                if type_keywords is None or ident in type_keywords:
-                    base_type = p_c_base_type(s)
-                    declarator = p_c_declarator(s, empty = 1)
-                    arg = Nodes.CComplexBaseTypeNode(base_type.pos, 
-                        base_type = base_type, declarator = declarator)
-                    parsed_type = True
-                else:
-                    arg = p_simple_expr(s)
-                keyword_node = ExprNodes.IdentifierStringNode(
-                    arg.pos, value = EncodedString(ident))
-                keyword_args.append((keyword_node, arg))
-                was_keyword = True
+            if type_keywords is None or ident in type_keywords:
+                base_type = p_c_base_type(s)
+                declarator = p_c_declarator(s, empty = 1)
+                arg = Nodes.CComplexBaseTypeNode(base_type.pos, 
+                    base_type = base_type, declarator = declarator)
+                parsed_type = True
             else:
-                s.put_back('IDENT', ident)
+                arg = p_simple_expr(s)
+            keyword_node = ExprNodes.IdentifierStringNode(
+                arg.pos, value = EncodedString(ident))
+            keyword_args.append((keyword_node, arg))
+            was_keyword = True
                 
-        if not was_keyword:
+        else:
             if type_positions is None or pos_idx in type_positions:
                 base_type = p_c_base_type(s)
                 declarator = p_c_declarator(s, empty = 1)
