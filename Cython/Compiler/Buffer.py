@@ -137,7 +137,7 @@ def analyse_buffer_options(globalpos, env, posargs, dictargs, defaults=None, nee
     if defaults is None:
         defaults = buffer_defaults
     
-    posargs, dictargs = Interpreter.interpret_compiletime_options(posargs, dictargs, type_env=env)
+    posargs, dictargs = Interpreter.interpret_compiletime_options(posargs, dictargs, type_env=env, type_args = (0,'dtype'))
     
     if len(posargs) > buffer_positional_options_count:
         raise CompileError(posargs[-1][1], ERR_BUF_TOO_MANY)
