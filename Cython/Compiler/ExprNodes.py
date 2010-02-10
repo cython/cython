@@ -1048,7 +1048,7 @@ class NewExprNode(AtomicExprNode):
     # cppclass              string               c++ class to create
     # template_parameters   None or [ExprNode]   temlate parameters, if any
     
-    def analyse_types(self, env):
+    def infer_type(self, env):
         entry = env.lookup(self.cppclass)
         if entry is None or not entry.is_cpp_class:
             error(self.pos, "new operator can only be applied to a C++ class")
@@ -1068,6 +1068,10 @@ class NewExprNode(AtomicExprNode):
         self.class_type = type
         self.entry = constructor
         self.type = constructor.type
+        return self.type
+    
+    def analyse_types(self, env):
+        self.infer_type(env)
    
     def generate_result_code(self, code):
         pass
@@ -1803,7 +1807,7 @@ class IndexNode(ExprNode):
         base_type = self.base.analyse_as_type(env)
         if base_type and not base_type.is_pyobject:
             if base_type.is_cpp_class:
-                if isinstance(self.index, TupleExprNode):
+                if isinstance(self.index, TupleNode):
                     template_values = self.index.args
                 else:
                     template_values = [self.index]

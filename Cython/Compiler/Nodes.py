@@ -792,7 +792,7 @@ class TemplatedTypeNode(CBaseTypeNode):
         
         if base_type.is_cpp_class:
             # Templated class
-            if len(self.keyword_args.key_value_pairs) != 0:
+            if self.keyword_args and self.keyword_args.key_value_pairs:
                 error(self.pos, "c++ templates cannot take keyword arguments");
                 self.type = PyrexTypes.error_type
             else:
