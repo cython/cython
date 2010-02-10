@@ -21,8 +21,6 @@ def test_wrap_pair(int i, double x):
     >>> test_wrap_pair(2, 2.25)
     (2, 2.25, True)
     """
-    cdef Pair[int, double] *pair
-    cdef Wrap[Pair[int, double]] *wrap
     try:
         pair = new Pair[int, double](i, x)
         wrap = new Wrap[Pair[int, double]](deref(pair))
