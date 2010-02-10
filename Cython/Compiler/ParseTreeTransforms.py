@@ -395,7 +395,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         return node
     
     def visit_FromCImportStatNode(self, node):
-        if node.module_name.startswith(u"cython"):
+        if (node.module_name == u"cython") or \
+               node.module_name.startswith(u"cython."):
             submodule = (node.module_name + u".")[7:]
             newimp = []
             for pos, name, as_name, kind in node.imported_names:
@@ -415,7 +416,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         return node
         
     def visit_FromImportStatNode(self, node):
-        if node.module.module_name.value.startswith(u"cython"):
+        if (node.module.module_name.value == u"cython") or \
+               node.module.module_name.value.startswith(u"cython."):
             submodule = (node.module.module_name.value + u".")[7:]
             newimp = []
             for name, name_node in node.items:
