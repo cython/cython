@@ -1248,8 +1248,8 @@ class NameNode(AtomicExprNode):
                 self.is_temp = 0
             else:
                 self.is_temp = 1
+                env.use_utility_code(get_name_interned_utility_code)
             self.is_used_as_rvalue = 1
-            env.use_utility_code(get_name_interned_utility_code)
 
     def nogil_check(self, env):
         if self.is_used_as_rvalue:
@@ -1336,6 +1336,7 @@ class NameNode(AtomicExprNode):
                 namespace = Naming.builtins_cname
             else: # entry.is_pyglobal
                 namespace = entry.scope.namespace_cname
+            code.globalstate.use_utility_code(get_name_interned_utility_code)
             code.putln(
                 '%s = __Pyx_GetName(%s, %s); %s' % (
                 self.result(),
