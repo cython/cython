@@ -637,6 +637,8 @@ class GlobalState(object):
     def put_cached_builtin_init(self, pos, name, cname):
         w = self.parts['cached_builtins']
         interned_cname = self.get_interned_identifier(name).cname
+        from ExprNodes import get_name_interned_utility_code
+        self.use_utility_code(get_name_interned_utility_code)
         w.putln('%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
             cname,
             Naming.builtins_cname,

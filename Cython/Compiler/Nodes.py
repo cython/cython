@@ -4166,7 +4166,7 @@ class ForFromStatNode(LoopNode, StatNode):
                 target_node = ExprNodes.PyTempNode(self.target.pos, None)
                 target_node.allocate(code)
                 interned_cname = code.intern_identifier(self.target.entry.name)
-                code.putln("/*here*/")
+                code.globalstate.use_utility_code(ExprNodes.get_name_interned_utility_code)
                 code.putln("%s = __Pyx_GetName(%s, %s); %s" % (
                                 target_node.result(),
                                 Naming.module_cname, 
