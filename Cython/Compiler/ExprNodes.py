@@ -4766,10 +4766,12 @@ class BinopNode(ExprNode):
                         return type1
                     # multiplication of containers/numbers with an
                     # integer value always (?) returns the same type
-                    if type1.is_int:
-                        return type2
-                    elif type2.is_int:
+                    if type2.is_int:
                         return type1
+            elif type2.is_builtin_type and type1.is_int and self.operator == '*':
+                # multiplication of containers/numbers with an
+                # integer value always (?) returns the same type
+                return type2
             return py_object_type
         else:
             return self.compute_c_result_type(type1, type2)
