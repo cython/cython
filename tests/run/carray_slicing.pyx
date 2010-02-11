@@ -163,7 +163,7 @@ def slice_intptr_for_loop_c():
 
 cdef double cdoubles[6]
 for i in range(6):
-    cdoubles[i] = i + 0.1
+    cdoubles[i] = i + 0.5
 
 cdef double* cdoubles_ptr = cdoubles
 
@@ -173,9 +173,9 @@ cdef double* cdoubles_ptr = cdoubles
 def slice_doublptr_for_loop_c():
     """
     >>> slice_doublptr_for_loop_c()
-    [0.1, 1.1, 2.1]
-    [1.1, 2.1, 3.1, 4.1]
-    [4.1, 5.1]
+    [0.5, 1.5, 2.5]
+    [1.5, 2.5, 3.5, 4.5]
+    [4.5, 5.5]
     """
     cdef double d
     print [ d for d in cdoubles_ptr[:3] ]
@@ -188,7 +188,7 @@ def slice_doublptr_for_loop_c():
 def iter_doublearray_for_loop_c():
     """
     >>> iter_doublearray_for_loop_c()
-    [0.1, 1.1, 2.1, 3.1, 4.1, 5.1]
+    [0.5, 1.5, 2.5, 3.5, 4.5, 5.5]
     """
     cdef double d
     print [ d for d in cdoubles ]
