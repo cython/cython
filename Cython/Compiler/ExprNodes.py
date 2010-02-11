@@ -4748,6 +4748,28 @@ class BinopNode(ExprNode):
     
     def result_type(self, type1, type2):
         if self.is_py_operation_types(type1, type2):
+            if type2.is_string:
+                type2 = Builtin.bytes_type
+            if type1.is_string:
+                type1 = Builtin.bytes_type
+            elif self.operator == '%' \
+                     and type1 in (Builtin.str_type, Builtin.unicode_type):
+                # note that  b'%s' % b'abc'  doesn't work in Py3
+                return type1
+            if type1.is_builtin_type:
+                if type1 is type2:
+                    if self.operator in '**%+|&^':
+                        # FIXME: at least these operators should be safe - others?
+                        return type1
+                elif self.operator == '*':
+                    if type1 in (Builtin.bytes_type, Builtin.str_type, Builtin.unicode_type):
+                        return type1
+                    # multiplication of containers/numbers with an
+                    # integer value always (?) returns the same type
+                    if type1.is_int:
+                        return type2
+                    elif type2.is_int:
+                        return type1
             return py_object_type
         else:
             return self.compute_c_result_type(type1, type2)
