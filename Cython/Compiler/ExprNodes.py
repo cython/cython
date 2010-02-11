@@ -1557,7 +1557,13 @@ class IteratorNode(ExprNode):
     
     def analyse_types(self, env):
         self.sequence.analyse_types(env)
-        self.sequence = self.sequence.coerce_to_pyobject(env)
+        if isinstance(self.sequence, SliceIndexNode) and \
+               (self.sequence.base.type.is_array or self.sequence.base.type.is_ptr) \
+               or self.sequence.type.is_array and self.sequence.type.size is not None:
+            # C array iteration will be transformed later on
+            pass
+        else:
+            self.sequence = self.sequence.coerce_to_pyobject(env)
         self.is_temp = 1
 
     gil_message = "Iterating over Python object"
