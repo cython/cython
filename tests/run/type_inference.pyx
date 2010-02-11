@@ -104,10 +104,12 @@ def builtin_type_operations():
     >>> builtin_type_operations()
     """
     b1 = b'a' * 10
+    b1 = 10 * b'a'
     assert typeof(b1) == "bytes object", typeof(b1)
     b2 = b'a' + b'b'
     assert typeof(b2) == "bytes object", typeof(b2)
     u1 = u'a' * 10
+    u1 = 10 * u'a'
     assert typeof(u1) == "unicode object", typeof(u1)
     u2 = u'a' + u'b'
     assert typeof(u2) == "unicode object", typeof(u2)
