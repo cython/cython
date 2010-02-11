@@ -116,7 +116,11 @@ def builtin_type_operations():
     assert typeof(u1) == "unicode object", typeof(u1)
     u2 = u'a' + u'b'
     assert typeof(u2) == "unicode object", typeof(u2)
+    u3 = u'a%s' % u'b'
+    u3 = u'a%s' % 10
+    assert typeof(u3) == "unicode object", typeof(u3)
     s1 = "abc %s" % "x"
+    s1 = "abc %s" % 10
     assert typeof(s1) == "str object", typeof(s1)
     s2 = "abc %s" + "x"
     assert typeof(s2) == "str object", typeof(s2)
