@@ -98,6 +98,8 @@ def arithmetic():
     assert typeof(b) == "double", typeof(b)
     c = 1 + <object>2
     assert typeof(c) == "Python object", typeof(c)
+    d = 1 * 1.5 ** 2
+    assert typeof(d) == "double", typeof(d)
 
 def builtin_type_operations():
     """
@@ -105,6 +107,7 @@ def builtin_type_operations():
     """
     b1 = b'a' * 10
     b1 = 10 * b'a'
+    b1 = 10 * b'a' * 10
     assert typeof(b1) == "bytes object", typeof(b1)
     b2 = b'a' + b'b'
     assert typeof(b2) == "bytes object", typeof(b2)
@@ -118,6 +121,8 @@ def builtin_type_operations():
     s2 = "abc %s" + "x"
     assert typeof(s2) == "str object", typeof(s2)
     s3 = "abc %s" * 10
+    s3 = "abc %s" * 10 * 10
+    s3 = 10 * "abc %s" * 10
     assert typeof(s3) == "str object", typeof(s3)
     L1 = [] + []
     assert typeof(L1) == "list object", typeof(L1)
