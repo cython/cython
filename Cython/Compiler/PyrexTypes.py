@@ -1850,7 +1850,10 @@ class CppClassType(CType):
             return self.specializations[key]
         template_values = [t.specialize(values) for t in self.templates]
         specialized = self.specializations[key] = \
-            CppClassType(self.name, None, self.cname, self.base_classes, template_values, template_type=self)
+            CppClassType(self.name, None, self.cname, [], template_values, template_type=self)
+        # Need to do these *after* self.specializations[key] is set to 
+        # avoid infinite recursion on circular references.
+        specialized.base_classes = [b.specialize(values) for b in self.base_classes]
         specialized.scope = self.scope.specialize(values)
         return specialized
 
