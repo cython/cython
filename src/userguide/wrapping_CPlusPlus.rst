@@ -109,7 +109,7 @@ to add a keyword to your Extension construction statement, as in::
         ["rectangle.pyx", "Rectangle.cpp"],     # filename of our Cython source
         language="c++",              # this causes Cython to create C++ source
         include_dirs=[...],          # usual stuff
-        libraries=[...],             # ditto
+        libraries=["stdc++", ...],             # ditto
         extra_link_args=[...],       # if needed
         cmdclass = {'build_ext': build_ext}
         )
