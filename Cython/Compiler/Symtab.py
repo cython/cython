@@ -119,6 +119,8 @@ class Entry(object):
     # inline_func_in_pxd boolean  Hacky special case for inline function in pxd file.
     #                             Ideally this should not be necesarry.
     # assignments      [ExprNode] List of expressions that get assigned to this entry.
+    # might_overflow   boolean    In an arithmatic expression that could cause
+    #                             overflow (used for type inference).
 
     inline_func_in_pxd = False
     borrowed = 0
@@ -167,6 +169,7 @@ class Entry(object):
     is_overridable = 0
     buffer_aux = None
     prev_entry = None
+    might_overflow = 0
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
