@@ -2366,6 +2366,17 @@ def spanning_type(type1, type2):
         return widest_numeric_type(type1, c_double_type)
     elif type1.is_pyobject ^ type2.is_pyobject:
         return py_object_type
+    elif type1.is_extension_type and type2.is_extension_type:
+        if type1.typeobj_is_imported() or type2.typeobj_is_imported():
+            return py_object_type
+        while True:
+            if type1.subtype_of(type2):
+                return type2
+            elif type2.subtype_of(type1):
+                return type1
+            type1, type2 = type1.base_type, type2.base_type
+            if type1 is None or type2 is None:
+                return py_object_type
     elif type1.assignable_from(type2):
         if type1.is_extension_type and type1.typeobj_is_imported():
             # external types are unsafe, so we use PyObject instead

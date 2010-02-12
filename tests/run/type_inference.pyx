@@ -304,3 +304,36 @@ def args_tuple_keywords_reassign_pyobjects(*args, **kwargs):
 
     args = []
     kwargs = "test"
+
+#                 / A -> AA -> AAA
+# Base0 -> Base -
+#                 \ B -> BB
+# C -> CC
+
+cdef class Base0: pass
+cdef class Base(Base0): pass
+cdef class A(Base): pass
+cdef class AA(A): pass
+cdef class AAA(AA): pass
+cdef class B(Base): pass
+cdef class BB(B): pass
+cdef class C: pass
+cdef class CC(C): pass
+
+@infer_types(None)
+def common_extension_type_base():
+    """
+    >>> common_extension_type_base()
+    """
+    x = A()
+    x = AA()
+    assert typeof(x) == "A", typeof(x)
+    y = A()
+    y = B()
+    assert typeof(y) == "Base", typeof(y)
+    z = AAA()
+    z = BB()
+    assert typeof(z) == "Base", typeof(z)
+    w = A()
+    w = CC()
+    assert typeof(w) == "Python object", typeof(w)
