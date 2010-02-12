@@ -251,10 +251,29 @@ def safe_only():
     """
     a = 1.0
     assert typeof(a) == "double", typeof(c)
-    b = 1
-    assert typeof(b) == "Python object", typeof(b)
+    b = 1;
+    assert typeof(b) == "long", typeof(b)
     c = MyType()
     assert typeof(c) == "MyType", typeof(c)
+    for i in range(10): pass
+    assert typeof(i) == "long", typeof(i)
+    d = 1
+    res = ~d
+    assert typeof(d) == "long", typeof(d)
+
+    # potentially overflowing arithmatic
+    e = 1
+    e += 1
+    assert typeof(e) == "Python object", typeof(e)
+    f = 1
+    res = f * 10
+    assert typeof(f) == "Python object", typeof(f)
+    g = 1
+    res = 10*(~g)
+    assert typeof(g) == "Python object", typeof(g)
+    for j in range(10):
+        res = -j
+    assert typeof(j) == "Python object", typeof(j)
 
 @infer_types(None)
 def args_tuple_keywords(*args, **kwargs):
