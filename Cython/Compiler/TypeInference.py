@@ -164,6 +164,8 @@ class MarkOverflowingArithmatic(CythonTransform):
     
     visit_UnaryMinusNode = visit_dangerous_node
     
+    visit_InPlaceAssignmentNode = visit_dangerous_node
+    
     visit_Node = visit_safe_node
 
 
