@@ -185,9 +185,9 @@ def escape_byte_string(s):
                 append(c)
         return join_bytes(l).decode('ISO-8859-1')
 
-def split_docstring(s):
+def split_string_literal(s):
     # MSVC can't handle long string literals.
     if len(s) < 2047:
         return s
     else:
-        return '""'.join([s[i:i+2000] for i in range(0, len(s), 2000)])
+        return '""'.join([s[i:i+2000] for i in range(0, len(s), 2000)]).replace(r'\""', '""\\')
