@@ -19,6 +19,7 @@ cdef extern from "shapes.h" namespace shapes:
     cdef cppclass Rectangle(Shape):
         int width
         int height
+        Rectangle()
         Rectangle(int, int)
     
     cdef cppclass Square(Rectangle):
