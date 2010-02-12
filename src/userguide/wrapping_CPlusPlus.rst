@@ -54,6 +54,47 @@ document. Let's assume it will be in a header file called
         void move(int dx, int dy);
     };
 
+and the implementation in the file called :file:`Rectangle.cpp`:
+
+.. sourcecode:: c++
+
+    #include "Rectangle.h"
+
+    Rectangle::Rectangle(int X0, int Y0, int X1, int Y1)
+    {
+        x0 = X0;
+        y0 = Y0;
+        x1 = X1;
+        y1 = Y1;
+    }
+
+    Rectangle::~Rectangle()
+    {
+    }
+
+    int Rectangle::getLength()
+    {
+        return (x1 - x0);
+    }
+
+    int Rectangle::getHeight()
+    {
+        return (y1 - y0);
+    }
+
+    int Rectangle::getArea()
+    {
+        return (x1 - x0) * (y1 - y0);
+    }
+
+    void Rectangle::move(int dx, int dy)
+    {
+        x0 += dx;
+        y0 += dy;
+        x1 += dx;
+        y1 += dy;
+    }
+
 This is pretty dumb, but should suffice to demonstrate the steps involved.
 
 Specify C++ language in setup.py
@@ -65,13 +106,20 @@ to add a keyword to your Extension construction statement, as in::
 
     ext = Extension(
         "rectangle",                 # name of extension
-        ["rectangle.pyx"],           # filename of our Cython source
+        ["rectangle.pyx", "Rectangle.cpp"],     # filename of our Cython source
         language="c++",              # this causes Cython to create C++ source
         include_dirs=[...],          # usual stuff
         libraries=[...],             # ditto
         extra_link_args=[...],       # if needed
         cmdclass = {'build_ext': build_ext}
         )
+
+and Cython will generate and compile the :file:`rectangle.cpp` file (from the
+:file:`rectangle.pyx`), then it will compile :file:`Rectangle.cpp`
+(implementation of the ``Rectangle`` class) and link both objects files
+together into :file:`rectangle.so`, which you can then import in Python using
+``import rectangle`` (if you forget to link the :file:`Rectangle.o`, you will
+get missing symbols while importing the library in Python).
 
 With the language="c++" keyword, Cython distutils will generate a C++ file.
 
