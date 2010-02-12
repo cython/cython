@@ -22,7 +22,7 @@ from Symtab import ModuleScope, LocalScope, GeneratorLocalScope, \
     StructOrUnionScope, PyClassScope, CClassScope, CppClassScope
 from Cython.Utils import open_new_file, replace_suffix
 from Code import UtilityCode
-from StringEncoding import EncodedString, escape_byte_string, split_docstring
+from StringEncoding import EncodedString, escape_byte_string, split_string_literal
 import Options
 import ControlFlow
 import DebugFlags
@@ -2052,7 +2052,7 @@ class DefNode(FuncDefNode):
             code.putln(
                 'static char %s[] = "%s";' % (
                     self.entry.doc_cname,
-                    split_docstring(escape_byte_string(docstr))))
+                    split_string_literal(escape_byte_string(docstr))))
         if with_pymethdef:
             code.put(
                 "static PyMethodDef %s = " % 

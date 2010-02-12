@@ -669,7 +669,7 @@ class GlobalState(object):
         decls_writer = self.parts['decls']
         for _, cname, c in c_consts:
             decls_writer.putln('static char %s[] = "%s";' % (
-                cname, StringEncoding.split_docstring(c.escaped_value)))
+                cname, StringEncoding.split_string_literal(c.escaped_value)))
             if c.py_strings is not None:
                 for py_string in c.py_strings.itervalues():
                     py_strings.append((c.cname, len(py_string.cname), py_string))
