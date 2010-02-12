@@ -4706,7 +4706,9 @@ class BinopNode(ExprNode):
         self.operand2.analyse_types(env)
         if self.is_py_operation():
             self.coerce_operands_to_pyobjects(env)
-            self.type = py_object_type
+            self.type = self.result_type(self.operand1.type,
+                                         self.operand2.type)
+            assert self.type.is_pyobject
             self.is_temp = 1
         elif self.is_cpp_operation():
             self.analyse_cpp_operation(env)
