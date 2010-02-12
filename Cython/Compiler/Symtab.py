@@ -1509,6 +1509,8 @@ class CppClassScope(Scope):
     #  Namespace of a C++ class.
     inherited_var_entries = []
     
+    default_constructor = None
+    
     def __init__(self, name, outer_scope):
         Scope.__init__(self, name, outer_scope, None)
         self.directives = outer_scope.directives
@@ -1527,11 +1529,40 @@ class CppClassScope(Scope):
             error(pos,
                 "C++ class member cannot be a Python object")
         return entry
+    
+    def check_base_default_constructor(self, pos):
+        # Look for default constructors in all base classes.
+        if self.default_constructor is None:
+            entry = self.lookup(self.name)
+            if len(entry.type.base_classes) == 0:
+                self.default_constructor = True
+                return
+            for base_class in entry.type.base_classes:
+                temp_entry = base_class.scope.lookup_here("<init>")
+                found = False
+                if temp_entry is None:
+                    continue
+                for alternative in temp_entry.all_alternatives():
+                    type = alternative.type
+                    if type.is_ptr:
+                        type = type.base_type
+                    if len(type.args) == 0:
+                        found = True
+                        break
+                if not found:
+                    self.default_constructor = temp_entry.scope.name
+                    error(pos, "no matching function for call to " \
+                            "%s::%s()" % (temp_entry.scope.name, temp_entry.scope.name))
+        elif not self.default_constructor:
+            print 5
+            error(pos, "no matching function for call to %s::%s()" %
+                  (self.default_constructor, self.default_constructor))
 
     def declare_cfunction(self, name, type, pos,
             cname = None, visibility = 'extern', defining = 0,
             api = 0, in_pxd = 0, modifiers = ()):
         if name == self.name.split('::')[-1] and cname is None:
+            self.check_base_default_constructor(pos)
             name = '<init>'
         prev_entry = self.lookup_here(name)
         entry = self.declare_var(name, type, pos, cname, visibility)
@@ -1544,6 +1575,12 @@ class CppClassScope(Scope):
         # to work with this type.
         for base_entry in \
             base_scope.inherited_var_entries + base_scope.var_entries:
+                #contructor is not inherited
+                if base_entry.name == "<init>":
+                    continue
+                #print base_entry.name, self.entries
+                if base_entry.name in self.entries:
+                    base_entry.name
                 entry = self.declare(base_entry.name, base_entry.cname, 
                     base_entry.type, None, 'extern')
                 entry.is_variable = 1
