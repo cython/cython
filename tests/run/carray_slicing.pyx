@@ -111,21 +111,84 @@ def slice_charptr_for_loop_c_enumerate():
 ############################################################
 # tests for int* slicing
 
-## cdef int cints[6]
-## for i in range(6):
-##     cints[i] = i
+cdef int cints[6]
+for i in range(6):
+    cints[i] = i
 
-## @cython.test_assert_path_exists("//ForFromStatNode",
-##                                 "//ForFromStatNode//IndexNode")
-## @cython.test_fail_if_path_exists("//ForInStatNode")
-## def slice_intptr_for_loop_c():
-##     """
-##     >>> slice_intptr_for_loop_c()
-##     [0, 1, 2]
-##     [1, 2, 3, 4]
-##     [4, 5]
-##     """
-##     cdef int i
-##     print [ i for i in cints[:3] ]
-##     print [ i for i in cints[1:5] ]
-##     print [ i for i in cints[4:6] ]
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def slice_intarray_for_loop_c():
+    """
+    >>> slice_intarray_for_loop_c()
+    [0, 1, 2]
+    [1, 2, 3, 4]
+    [4, 5]
+    """
+    cdef int i
+    print [ i for i in cints[:3] ]
+    print [ i for i in cints[1:5] ]
+    print [ i for i in cints[4:6] ]
+
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def iter_intarray_for_loop_c():
+    """
+    >>> iter_intarray_for_loop_c()
+    [0, 1, 2, 3, 4, 5]
+    """
+    cdef int i
+    print [ i for i in cints ]
+
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def slice_intptr_for_loop_c():
+    """
+    >>> slice_intptr_for_loop_c()
+    [0, 1, 2]
+    [1, 2, 3, 4]
+    [4, 5]
+    """
+    cdef int* nums = cints
+    cdef int i
+    print [ i for i in nums[:3] ]
+    print [ i for i in nums[1:5] ]
+    print [ i for i in nums[4:6] ]
+
+
+############################################################
+# tests for slicing other arrays
+
+cdef double cdoubles[6]
+for i in range(6):
+    cdoubles[i] = i + 0.5
+
+cdef double* cdoubles_ptr = cdoubles
+
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def slice_doublptr_for_loop_c():
+    """
+    >>> slice_doublptr_for_loop_c()
+    [0.5, 1.5, 2.5]
+    [1.5, 2.5, 3.5, 4.5]
+    [4.5, 5.5]
+    """
+    cdef double d
+    print [ d for d in cdoubles_ptr[:3] ]
+    print [ d for d in cdoubles_ptr[1:5] ]
+    print [ d for d in cdoubles_ptr[4:6] ]
+
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//IndexNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def iter_doublearray_for_loop_c():
+    """
+    >>> iter_doublearray_for_loop_c()
+    [0.5, 1.5, 2.5, 3.5, 4.5, 5.5]
+    """
+    cdef double d
+    print [ d for d in cdoubles ]

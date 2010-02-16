@@ -62,7 +62,7 @@ directive_defaults = {
     'ccomplex' : False, # use C99/C++ for complex types and arith
     'callspec' : "",
     'profile': False,
-    'infer_types': False,
+    'infer_types': None,
     'infer_types.verbose': False,
     'autotestdict': True,
     

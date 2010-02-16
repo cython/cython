@@ -1,4 +1,4 @@
-from Errors import error, warning, warn_once, InternalError
+from Errors import error, warning, message, warn_once, InternalError
 import ExprNodes
 import Nodes
 import Builtin
@@ -112,6 +112,62 @@ class MarkAssignments(CythonTransform):
         self.visitchildren(node)
         return node
 
+class MarkOverflowingArithmatic(CythonTransform):
+
+    # It may be possible to integrate this with the above for
+    # performance improvements (though likely not worth it).
+
+    might_overflow = False
+
+    def __call__(self, root):
+        self.env_stack = []
+        self.env = root.scope
+        return super(MarkOverflowingArithmatic, self).__call__(root)        
+
+    def visit_safe_node(self, node):
+        self.might_overflow, saved = False, self.might_overflow
+        self.visitchildren(node)
+        self.might_overflow = saved
+        return node
+
+    def visit_neutral_node(self, node):
+        self.visitchildren(node)
+        return node
+
+    def visit_dangerous_node(self, node):
+        self.might_overflow, saved = True, self.might_overflow
+        self.visitchildren(node)
+        self.might_overflow = saved
+        return node
+    
+    def visit_FuncDefNode(self, node):
+        self.env_stack.append(self.env)
+        self.env = node.local_scope
+        self.visit_safe_node(node)
+        self.env = self.env_stack.pop()
+        return node
+
+    def visit_NameNode(self, node):
+        if self.might_overflow:
+            entry = node.entry or self.env.lookup(node.name)
+            if entry:
+                entry.might_overflow = True
+        return node
+    
+    def visit_BinopNode(self, node):
+        if node.operator in '&|^':
+            return self.visit_neutral_node(node)
+        else:
+            return self.visit_dangerous_node(node)
+    
+    visit_UnopNode = visit_neutral_node
+    
+    visit_UnaryMinusNode = visit_dangerous_node
+    
+    visit_InPlaceAssignmentNode = visit_dangerous_node
+    
+    visit_Node = visit_safe_node
+
 
 class PyObjectTypeInferer:
     """
@@ -175,22 +231,22 @@ class SimpleAssignmentTypeInferer:
                 entry = ready_to_infer.pop()
                 types = [expr.infer_type(scope) for expr in entry.assignments]
                 if types:
-                    entry.type = spanning_type(types)
+                    entry.type = spanning_type(types, entry.might_overflow)
                 else:
                     # FIXME: raise a warning?
                     # print "No assignments", entry.pos, entry
                     entry.type = py_object_type
                 if verbose:
-                    warning(entry.pos, "inferred '%s' to be of type '%s'" % (entry.name, entry.type), 1)
+                    message(entry.pos, "inferred '%s' to be of type '%s'" % (entry.name, entry.type))
                 resolve_dependancy(entry)
             # Deal with simple circular dependancies...
             for entry, deps in dependancies_by_entry.items():
                 if len(deps) == 1 and deps == set([entry]):
                     types = [expr.infer_type(scope) for expr in entry.assignments if expr.type_dependencies(scope) == ()]
                     if types:
-                        entry.type = spanning_type(types)
+                        entry.type = spanning_type(types, entry.might_overflow)
                         types = [expr.infer_type(scope) for expr in entry.assignments]
-                        entry.type = spanning_type(types) # might be wider...
+                        entry.type = spanning_type(types, entry.might_overflow) # might be wider...
                         resolve_dependancy(entry)
                         del dependancies_by_entry[entry]
                         if ready_to_infer:
@@ -202,7 +258,7 @@ class SimpleAssignmentTypeInferer:
         for entry in dependancies_by_entry:
             entry.type = py_object_type
             if verbose:
-                warning(entry.pos, "inferred '%s' to be of type '%s' (default)" % (entry.name, entry.type), 1)
+                message(entry.pos, "inferred '%s' to be of type '%s' (default)" % (entry.name, entry.type))
 
 def find_spanning_type(type1, type2):
     if type1 is type2:
@@ -218,11 +274,11 @@ def find_spanning_type(type1, type2):
         return PyrexTypes.c_double_type
     return result_type
 
-def aggressive_spanning_type(types):
+def aggressive_spanning_type(types, might_overflow):
     result_type = reduce(find_spanning_type, types)
     return result_type
 
-def safe_spanning_type(types):
+def safe_spanning_type(types, might_overflow):
     result_type = reduce(find_spanning_type, types)
     if result_type.is_pyobject:
         # any specific Python type is always safe to infer
@@ -234,6 +290,22 @@ def safe_spanning_type(types):
     elif result_type is PyrexTypes.c_bint_type:
         # find_spanning_type() only returns 'bint' for clean boolean
         # operations without other int types, so this is safe, too
+        return result_type
+    elif result_type.is_ptr and not (result_type.is_int and result_type.rank == 0):
+        # Any pointer except (signed|unsigned|) char* can't implicitly 
+        # become a PyObject.
+        return result_type
+    elif result_type.is_cpp_class:
+        # These can't implicitly become Python objects either.
+        return result_type
+    elif result_type.is_struct:
+        # Though we have struct -> object for some structs, this is uncommonly
+        # used, won't arise in pure Python, and there shouldn't be side
+        # effects, so I'm declaring this safe.
+        return result_type
+    # TODO: double complex should be OK as well, but we need 
+    # to make sure everything is supported.
+    elif result_type.is_int and not might_overflow:
         return result_type
     return py_object_type
 
