@@ -632,6 +632,8 @@ class GlobalState(object):
     def put_cached_builtin_init(self, pos, name, cname):
         w = self.parts['cached_builtins']
         interned_cname = self.get_interned_identifier(name).cname
+        from ExprNodes import get_name_interned_utility_code
+        self.use_utility_code(get_name_interned_utility_code)
         w.putln('%s = __Pyx_GetName(%s, %s); if (!%s) %s' % (
             cname,
             Naming.builtins_cname,
@@ -662,7 +664,7 @@ class GlobalState(object):
         decls_writer = self.parts['decls']
         for _, cname, c in c_consts:
             decls_writer.putln('static char %s[] = "%s";' % (
-                cname, c.escaped_value))
+                cname, StringEncoding.split_string_literal(c.escaped_value)))
             if c.py_strings is not None:
                 for py_string in c.py_strings.itervalues():
                     py_strings.append((c.cname, len(py_string.cname), py_string))

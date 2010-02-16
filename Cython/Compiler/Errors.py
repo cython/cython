@@ -139,6 +139,17 @@ def error(position, message):
 
 LEVEL=1 # warn about all errors level 1 or higher
 
+def message(position, message, level=1):
+    if level < LEVEL:
+        return
+    warn = CompileWarning(position, message)
+    line = "note: %s\n" % warn
+    if listing_file:
+        listing_file.write(line)
+    if echo_file:
+        echo_file.write(line)
+    return warn
+
 def warning(position, message, level=0):
     if level < LEVEL:
         return
