@@ -20,7 +20,7 @@ class EmbedSignature(CythonTransform):
         try:
             denv = self.denv  # XXX
             ctval = default_val.compile_time_value(self.denv)
-            repr_val = '%r' % ctval
+            repr_val = repr(ctval)
             if isinstance(default_val, ExprNodes.UnicodeNode):
                 if repr_val[:1] != 'u':
                     return u'u%s' % repr_val
@@ -28,8 +28,8 @@ class EmbedSignature(CythonTransform):
                 if repr_val[:1] != 'b':
                     return u'b%s' % repr_val
             elif isinstance(default_val, ExprNodes.StringNode):
-                if repr_val[:1] in ('u', 'b'):
-                    repr_val[1:]
+                if repr_val[:1] in 'ub':
+                    return repr_val[1:]
             return repr_val
         except Exception:
             try:
