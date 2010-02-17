@@ -12,10 +12,12 @@ import re
 import sys
 
 try:
-    set
-except NameError:
-    # Python 2.3
-    from sets import Set as set
+    from __builtin__ import set
+except ImportError:
+    try:
+        from builtins import set
+    except ImportError:
+        from sets import Set as set
 
 from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
