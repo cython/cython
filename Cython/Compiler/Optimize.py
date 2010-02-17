@@ -1621,20 +1621,20 @@ impl = ""
 pop_utility_code = UtilityCode(
 proto = """
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
+#if PY_VERSION_HEX >= 0x02040000
     if (likely(PyList_CheckExact(L))
             /* Check that both the size is positive and no reallocation shrinking needs to be done. */
             && likely(PyList_GET_SIZE(L) > (((PyListObject*)L)->allocated >> 1))) {
         Py_SIZE(L) -= 1;
         return PyList_GET_ITEM(L, PyList_GET_SIZE(L));
     }
-    else {
-        PyObject *r, *m;
-        m = __Pyx_GetAttrString(L, "pop");
-        if (!m) return NULL;
-        r = PyObject_CallObject(m, NULL);
-        Py_DECREF(m);
-        return r;
-    }
+#endif
+    PyObject *r, *m;
+    m = __Pyx_GetAttrString(L, "pop");
+    if (!m) return NULL;
+    r = PyObject_CallObject(m, NULL);
+    Py_DECREF(m);
+    return r;
 }
 """,
 impl = ""
@@ -1647,6 +1647,7 @@ static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix);
 impl = """
 static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
     PyObject *r, *m, *t, *py_ix;
+#if PY_VERSION_HEX >= 0x02040000
     if (likely(PyList_CheckExact(L))) {
         Py_ssize_t size = PyList_GET_SIZE(L);
         if (likely(size > (((PyListObject*)L)->allocated >> 1))) {
@@ -1665,6 +1666,7 @@ static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
             }
         }
     }
+#endif
     py_ix = t = NULL;
     m = __Pyx_GetAttrString(L, "pop");
     if (!m) goto bad;
