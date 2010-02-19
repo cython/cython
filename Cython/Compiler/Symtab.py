@@ -437,7 +437,7 @@ class Scope(object):
         if type.is_cpp_class and visibility != 'extern':
             constructor = type.scope.lookup(u'<init>')
             if constructor is not None and PyrexTypes.best_match([], constructor.all_alternatives()) is None:
-                error(pos, "C++ class must have an empty constructor to be stack allocated")
+                error(pos, "C++ class must have a default constructor to be stack allocated")
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
         self.control_flow.set_state((), (name, 'initalized'), False)
