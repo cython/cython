@@ -316,18 +316,8 @@ def p_new_expr(s):
     # s.systring == 'new'.
     pos = s.position()
     s.next()
-    node = p_atom(s)
-    if s.sy == '.':
-        name = p_trailer(s, node)
-    else:
-        name = node
-    if s.sy == '[':
-        s.next()
-        template_parameters = p_simple_expr_list(s)
-        s.expect(']')        
-    else:
-        template_parameters = None
-    return p_call(s, ExprNodes.NewExprNode(pos, cppclass = name, template_parameters = template_parameters))
+    cppclass = p_c_base_type(s)
+    return p_call(s, ExprNodes.NewExprNode(pos, cppclass = cppclass))
 
 #trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
 

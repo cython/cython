@@ -1045,21 +1045,17 @@ class NewExprNode(AtomicExprNode):
 
     # C++ new statement
     #
-    # cppclass              string               c++ class to create
-    # template_parameters   None or [ExprNode]   temlate parameters, if any
+    # cppclass              node                 c++ class to create
+    
+    type = None
     
     def infer_type(self, env):
-        cppclass = self.cppclass.analyse_as_type(env)
-        entry = env.lookup(cppclass.name)
-        if entry is None or not entry.is_cpp_class:
+        type = self.cppclass.analyse_as_type(env)
+        if type is None or not type.is_cpp_class:
             error(self.pos, "new operator can only be applied to a C++ class")
+            self.type = error_type
             return
         self.cpp_check(env)
-        if self.template_parameters is not None:
-            template_types = [v.analyse_as_type(env) for v in self.template_parameters]
-            type = entry.type.specialize_here(self.pos, template_types)
-        else:
-            type = entry.type
         constructor = type.scope.lookup(u'<init>')
         if constructor is None:
             return_type = PyrexTypes.CFuncType(type, [])
@@ -1072,7 +1068,8 @@ class NewExprNode(AtomicExprNode):
         return self.type
     
     def analyse_types(self, env):
-        self.infer_type(env)
+        if self.type is None:
+            self.infer_type(env)
    
     def generate_result_code(self, code):
         pass
@@ -2582,6 +2579,9 @@ class SimpleCallNode(CallNode):
         return func_type
     
     def analyse_c_function_call(self, env):
+        if self.function.type is error_type:
+            self.type = self.function.type
+            return
         if self.function.type.is_cpp_class:
             function = self.function.type.scope.lookup("operator()")
             if function is None:
