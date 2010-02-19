@@ -1890,6 +1890,8 @@ class CppClassType(CType):
 
     def assignable_from_resolved_type(self, other_type):
         # TODO: handle operator=(...) here?
+        if other_type is error_type:
+            return True
         return other_type.is_cpp_class and other_type.is_subclass(self)
     
     def attributes_known(self):

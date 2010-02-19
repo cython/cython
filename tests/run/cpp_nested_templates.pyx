@@ -22,8 +22,7 @@ def test_wrap_pair(int i, double x):
     (2, 2.25, True)
     """
     try:
-        pair = new Pair[int, double](i, x)
-        wrap = new Wrap[Pair[int, double]](deref(pair))
+        wrap = new Wrap[Pair[int, double]](Pair[int, double](i, x))
         return wrap.get().first(), wrap.get().second(), deref(wrap) == deref(wrap)
     finally:
-        del pair, wrap
+        del wrap
