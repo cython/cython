@@ -316,7 +316,11 @@ def p_new_expr(s):
     # s.systring == 'new'.
     pos = s.position()
     s.next()
-    name = p_ident(s)
+    node = p_atom(s)
+    if s.sy == '.':
+        name = p_trailer(s, node)
+    else:
+        name = node
     if s.sy == '[':
         s.next()
         template_parameters = p_simple_expr_list(s)
