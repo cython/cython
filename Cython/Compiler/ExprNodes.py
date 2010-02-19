@@ -2580,23 +2580,26 @@ class SimpleCallNode(CallNode):
     
     def analyse_c_function_call(self, env):
         if self.function.type is error_type:
-            self.type = self.function.type
+            self.type = error_type
             return
         if self.function.type.is_cpp_class:
-            function = self.function.type.scope.lookup("operator()")
-            if function is None:
+            overloaded_entry = self.function.type.scope.lookup("operator()")
+            if overloaded_entry is None:
                 self.type = PyrexTypes.error_type
                 self.result_code = "<error>"
                 return
+        elif hasattr(self.function, 'entry'):
+            overloaded_entry = self.function.entry
         else:
-            function = self.function.entry
-        entry = PyrexTypes.best_match(self.args, function.all_alternatives(), self.pos)
-        if not entry:
-            self.type = PyrexTypes.error_type
-            self.result_code = "<error>"
-            return
-        self.function.entry = entry
-        self.function.type = entry.type
+            overloaded_entry = None
+        if overloaded_entry:
+            entry = PyrexTypes.best_match(self.args, overloaded_entry.all_alternatives(), self.pos)
+            if not entry:
+                self.type = PyrexTypes.error_type
+                self.result_code = "<error>"
+                return
+            self.function.entry = entry
+            self.function.type = entry.type
         func_type = self.function_type()
         # Check no. of args
         max_nargs = len(func_type.args)
