@@ -2453,6 +2453,15 @@ class CallNode(ExprNode):
             self.analyse_types(env)
             self.coerce_to(type, env)
             return True
+        elif type and type.is_cpp_class:
+            for arg in self.args:
+                arg.analyse_types(env)
+            constructor = type.scope.lookup("<init>")
+            self.function = RawCNameExprNode(self.function.pos, constructor.type)
+            self.function.entry = constructor
+            self.function.set_cname(type.declaration_code(""))
+            self.analyse_c_function_call(env)
+            return True
 
     def nogil_check(self, env):
         func_type = self.function_type()

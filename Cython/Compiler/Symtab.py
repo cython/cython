@@ -1536,6 +1536,7 @@ class CppClassScope(Scope):
             api = 0, in_pxd = 0, modifiers = ()):
         if name == self.name.split('::')[-1] and cname is None:
             name = '<init>'
+            type.return_type = self.lookup(self.name).type
         prev_entry = self.lookup_here(name)
         entry = self.declare_var(name, type, pos, cname, visibility)
         if prev_entry:
