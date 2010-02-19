@@ -1049,7 +1049,8 @@ class NewExprNode(AtomicExprNode):
     # template_parameters   None or [ExprNode]   temlate parameters, if any
     
     def infer_type(self, env):
-        entry = env.lookup(self.cppclass)
+        cppclass = self.cppclass.analyse_as_type(env)
+        entry = env.lookup(cppclass.name)
         if entry is None or not entry.is_cpp_class:
             error(self.pos, "new operator can only be applied to a C++ class")
             return
