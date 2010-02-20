@@ -28,8 +28,8 @@ from distutils.core import Extension
 from distutils.command.build_ext import build_ext as _build_ext
 distutils_distro = Distribution()
 
-TEST_DIRS = ['compile', 'errors', 'run', 'pyregr']
-TEST_RUN_DIRS = ['run', 'pyregr']
+TEST_DIRS = ['compile', 'errors', 'run', 'wrappers', 'pyregr']
+TEST_RUN_DIRS = ['run', 'wrappers', 'pyregr']
 
 # Lists external modules, and a matcher matching tests
 # which should be excluded if the module is not present.
@@ -48,8 +48,8 @@ EXT_DEP_INCLUDES = [
 ]
 
 VER_DEP_MODULES = {
-# such as:
-#    (2,4) : (operator.le, lambda x: x in ['run.set']),
+    (2,4) : (operator.le, lambda x: x in ['run.extern_builtins_T258'
+                                          ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
                                         'compile.extdelslice']),
@@ -200,10 +200,10 @@ class TestBuilder(object):
                           fork=self.fork)
 
 class CythonCompileTestCase(unittest.TestCase):
-    def __init__(self, directory, workdir, module, language='c',
+    def __init__(self, test_directory, workdir, module, language='c',
                  expect_errors=False, annotate=False, cleanup_workdir=True,
                  cleanup_sharedlibs=True, cython_only=False, fork=True):
-        self.directory = directory
+        self.test_directory = test_directory
         self.workdir = workdir
         self.module = module
         self.language = language
@@ -257,8 +257,8 @@ class CythonCompileTestCase(unittest.TestCase):
         self.runCompileTest()
 
     def runCompileTest(self):
-        self.compile(self.directory, self.module, self.workdir,
-                     self.directory, self.expect_errors, self.annotate)
+        self.compile(self.test_directory, self.module, self.workdir,
+                     self.test_directory, self.expect_errors, self.annotate)
 
     def find_module_source_file(self, source_file):
         if not os.path.exists(source_file):
@@ -269,8 +269,15 @@ class CythonCompileTestCase(unittest.TestCase):
         target = '%s.%s' % (module_name, self.language)
         return target
 
-    def split_source_and_output(self, directory, module, workdir):
-        source_file = os.path.join(directory, module) + '.pyx'
+    def find_source_files(self, test_directory, module_name):
+        is_related = re.compile('%s_.*[.]%s' % (module_name, self.language)).match
+        return [self.build_target_filename(module_name)] + [
+            os.path.join(test_directory, filename)
+            for filename in os.listdir(test_directory)
+            if is_related(filename) and os.path.isfile(os.path.join(test_directory, filename)) ]
+
+    def split_source_and_output(self, test_directory, module, workdir):
+        source_file = os.path.join(test_directory, module) + '.pyx'
         source_and_output = codecs.open(
             self.find_module_source_file(source_file), 'rU', 'ISO-8859-1')
         out = codecs.open(os.path.join(workdir, module + '.pyx'),
@@ -289,12 +296,12 @@ class CythonCompileTestCase(unittest.TestCase):
         else:
             return geterrors()
 
-    def run_cython(self, directory, module, targetdir, incdir, annotate):
+    def run_cython(self, test_directory, module, targetdir, incdir, annotate):
         include_dirs = INCLUDE_DIRS[:]
         if incdir:
             include_dirs.append(incdir)
         source = self.find_module_source_file(
-            os.path.join(directory, module + '.pyx'))
+            os.path.join(test_directory, module + '.pyx'))
         target = os.path.join(targetdir, self.build_target_filename(module))
         options = CompilationOptions(
             pyrex_default_options,
@@ -309,7 +316,7 @@ class CythonCompileTestCase(unittest.TestCase):
         cython_compile(source, options=options,
                        full_module_name=module)
 
-    def run_distutils(self, module, workdir, incdir):
+    def run_distutils(self, test_directory, module, workdir, incdir):
         cwd = os.getcwd()
         os.chdir(workdir)
         try:
@@ -324,7 +331,7 @@ class CythonCompileTestCase(unittest.TestCase):
                     ext_include_dirs += get_additional_include_dirs()
             extension = Extension(
                 module,
-                sources = [self.build_target_filename(module)],
+                sources = self.find_source_files(test_directory, module),
                 include_dirs = ext_include_dirs,
                 extra_compile_args = CFLAGS,
                 )
@@ -337,19 +344,19 @@ class CythonCompileTestCase(unittest.TestCase):
         finally:
             os.chdir(cwd)
 
-    def compile(self, directory, module, workdir, incdir,
+    def compile(self, test_directory, module, workdir, incdir,
                 expect_errors, annotate):
         expected_errors = errors = ()
         if expect_errors:
             expected_errors = self.split_source_and_output(
-                directory, module, workdir)
-            directory = workdir
+                test_directory, module, workdir)
+            test_directory = workdir
 
         if WITH_CYTHON:
             old_stderr = sys.stderr
             try:
                 sys.stderr = ErrorWriter()
-                self.run_cython(directory, module, workdir, incdir, annotate)
+                self.run_cython(test_directory, module, workdir, incdir, annotate)
                 errors = sys.stderr.geterrors()
             finally:
                 sys.stderr = old_stderr
@@ -373,7 +380,7 @@ class CythonCompileTestCase(unittest.TestCase):
                 raise
         else:
             if not self.cython_only:
-                self.run_distutils(module, workdir, incdir)
+                self.run_distutils(test_directory, module, workdir, incdir)
 
 class CythonRunTestCase(CythonCompileTestCase):
     def shortDescription(self):
@@ -649,7 +656,7 @@ class FileListExcluder:
                 self.excludes[line.split()[0]] = True
                 
     def __call__(self, testname):
-        return testname.split('.')[-1] in self.excludes
+        return testname in self.excludes or testname.split('.')[-1] in self.excludes
 
 if __name__ == '__main__':
     from optparse import OptionParser
