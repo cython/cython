@@ -97,7 +97,10 @@ def initial_compile_time_env():
         'UNAME_VERSION', 'UNAME_MACHINE')
     for name, value in zip(names, platform.uname()):
         benv.declare(name, value)
-    import __builtin__ as builtins
+    try:
+        import __builtin__ as builtins
+    except ImportError:
+        import builtins
     names = ('False', 'True',
         'abs', 'bool', 'chr', 'cmp', 'complex', 'dict', 'divmod', 'enumerate',
         'float', 'hash', 'hex', 'int', 'len', 'list', 'long', 'map', 'max', 'min',

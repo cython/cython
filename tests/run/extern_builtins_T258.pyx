@@ -1,20 +1,17 @@
 cdef extern from "Python.h":
-    
-    ctypedef class __builtin__.str  [object PyStringObject]:
-        cdef long ob_shash
 
     ctypedef class __builtin__.list  [object PyListObject]:
-        cdef Py_ssize_t ob_size
         cdef Py_ssize_t allocated
 
     ctypedef class __builtin__.dict  [object PyDictObject]:
         pass
 
-cdef str s = "abc"
+    cdef Py_ssize_t Py_SIZE(object o)
+
 cdef list L = [1,2,4]
 cdef dict d = {'A': 'a'}
 
-    
+
 def test_list(list L):
     """
     >>> test_list(list(range(10)))
@@ -23,18 +20,7 @@ def test_list(list L):
     >>> test_list(list_subclass([1,2,3]))
     True
     """
-    return L.ob_size <= L.allocated
-
-def test_str(str s):
-    """
-    >>> test_str("abc")
-    True
-    >>> class str_subclass(str): pass
-    >>> test_str(str_subclass("xyz"))
-    True
-    """
-    cdef char* ss = s
-    return hash(s) == s.ob_shash
+    return Py_SIZE(L) <= L.allocated
 
 def test_tuple(tuple t):
     """

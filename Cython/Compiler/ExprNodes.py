@@ -1246,8 +1246,8 @@ class NameNode(AtomicExprNode):
                 self.is_temp = 0
             else:
                 self.is_temp = 1
+                env.use_utility_code(get_name_interned_utility_code)
             self.is_used_as_rvalue = 1
-            env.use_utility_code(get_name_interned_utility_code)
 
     def nogil_check(self, env):
         if self.is_used_as_rvalue:
@@ -1334,6 +1334,7 @@ class NameNode(AtomicExprNode):
                 namespace = Naming.builtins_cname
             else: # entry.is_pyglobal
                 namespace = entry.scope.namespace_cname
+            code.globalstate.use_utility_code(get_name_interned_utility_code)
             code.putln(
                 '%s = __Pyx_GetName(%s, %s); %s' % (
                 self.result(),
@@ -1554,7 +1555,13 @@ class IteratorNode(ExprNode):
     
     def analyse_types(self, env):
         self.sequence.analyse_types(env)
-        self.sequence = self.sequence.coerce_to_pyobject(env)
+        if isinstance(self.sequence, SliceIndexNode) and \
+               (self.sequence.base.type.is_array or self.sequence.base.type.is_ptr) \
+               or self.sequence.type.is_array and self.sequence.type.size is not None:
+            # C array iteration will be transformed later on
+            pass
+        else:
+            self.sequence = self.sequence.coerce_to_pyobject(env)
         self.is_temp = 1
 
     gil_message = "Iterating over Python object"
@@ -2444,6 +2451,15 @@ class CallNode(ExprNode):
             self.analyse_types(env)
             self.coerce_to(type, env)
             return True
+        elif type and type.is_cpp_class:
+            for arg in self.args:
+                arg.analyse_types(env)
+            constructor = type.scope.lookup("<init>")
+            self.function = RawCNameExprNode(self.function.pos, constructor.type)
+            self.function.entry = constructor
+            self.function.set_cname(type.declaration_code(""))
+            self.analyse_c_function_call(env)
+            return True
 
     def nogil_check(self, env):
         func_type = self.function_type()
@@ -2490,6 +2506,8 @@ class SimpleCallNode(CallNode):
     def infer_type(self, env):
         function = self.function
         func_type = function.infer_type(env)
+        if isinstance(self.function, NewExprNode):
+            return PyrexTypes.CPtrType(self.function.class_type)
         if func_type.is_ptr:
             func_type = func_type.base_type
         if func_type.is_cfunction:
@@ -4708,7 +4726,9 @@ class BinopNode(ExprNode):
         self.operand2.analyse_types(env)
         if self.is_py_operation():
             self.coerce_operands_to_pyobjects(env)
-            self.type = py_object_type
+            self.type = self.result_type(self.operand1.type,
+                                         self.operand2.type)
+            assert self.type.is_pyobject
             self.is_temp = 1
         elif self.is_cpp_operation():
             self.analyse_cpp_operation(env)
@@ -4750,6 +4770,30 @@ class BinopNode(ExprNode):
     
     def result_type(self, type1, type2):
         if self.is_py_operation_types(type1, type2):
+            if type2.is_string:
+                type2 = Builtin.bytes_type
+            if type1.is_string:
+                type1 = Builtin.bytes_type
+            elif self.operator == '%' \
+                     and type1 in (Builtin.str_type, Builtin.unicode_type):
+                # note that  b'%s' % b'abc'  doesn't work in Py3
+                return type1
+            if type1.is_builtin_type:
+                if type1 is type2:
+                    if self.operator in '**%+|&^':
+                        # FIXME: at least these operators should be safe - others?
+                        return type1
+                elif self.operator == '*':
+                    if type1 in (Builtin.bytes_type, Builtin.str_type, Builtin.unicode_type):
+                        return type1
+                    # multiplication of containers/numbers with an
+                    # integer value always (?) returns the same type
+                    if type2.is_int:
+                        return type1
+            elif type2.is_builtin_type and type1.is_int and self.operator == '*':
+                # multiplication of containers/numbers with an
+                # integer value always (?) returns the same type
+                return type2
             return py_object_type
         else:
             return self.compute_c_result_type(type1, type2)

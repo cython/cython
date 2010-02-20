@@ -21,7 +21,6 @@ def test_int(int x, int y):
     >>> test_int(100, 100)
     (100, 100, True)
     """
-    cdef Wrap[int] *a, *b
     try:
         a = new Wrap[int](x)
         b = new Wrap[int](0)
@@ -38,7 +37,6 @@ def test_double(double x, double y):
     >>> test_double(100, 100)
     (100.0, 100.0, True)
     """
-    cdef Wrap[double] *a, *b
     try:
         a = new Wrap[double](x)
         b = new Wrap[double](-1)
@@ -54,7 +52,6 @@ def test_pair(int i, double x):
     >>> test_pair(2, 2.25)
     (2, 2.25, True, False)
     """
-    cdef Pair[int, double] *pair
     try:
         pair = new Pair[int, double](i, x)
         return pair.first(), pair.second(), deref(pair) == deref(pair), deref(pair) != deref(pair)
@@ -68,7 +65,6 @@ def test_ptr(int i):
     >>> test_ptr(5)
     5
     """
-    cdef Wrap[int*] *w
     try:
         w = new Wrap[int*](&i)
         return deref(w.get())
@@ -85,7 +81,6 @@ def test_func_ptr(double x):
     >>> test_func_ptr(-1.5)
     2.25
     """
-    cdef Wrap[double (*)(double)] *w
     try:
         w = new Wrap[double (*)(double)](&f)
         return w.get()(x)

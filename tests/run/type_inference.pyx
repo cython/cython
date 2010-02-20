@@ -93,13 +93,49 @@ def arithmetic():
     >>> arithmetic()
     """
     a = 1 + 2
-    assert typeof(a) == "long"
+    assert typeof(a) == "long", typeof(a)
     b = 1 + 1.5
-    assert typeof(b) == "double"
+    assert typeof(b) == "double", typeof(b)
     c = 1 + <object>2
-    assert typeof(c) == "Python object"
-    d = "abc %s" % "x"
-    assert typeof(d) == "Python object"
+    assert typeof(c) == "Python object", typeof(c)
+    d = 1 * 1.5 ** 2
+    assert typeof(d) == "double", typeof(d)
+
+def builtin_type_operations():
+    """
+    >>> builtin_type_operations()
+    """
+    b1 = b'a' * 10
+    b1 = 10 * b'a'
+    b1 = 10 * b'a' * 10
+    assert typeof(b1) == "bytes object", typeof(b1)
+    b2 = b'a' + b'b'
+    assert typeof(b2) == "bytes object", typeof(b2)
+    u1 = u'a' * 10
+    u1 = 10 * u'a'
+    assert typeof(u1) == "unicode object", typeof(u1)
+    u2 = u'a' + u'b'
+    assert typeof(u2) == "unicode object", typeof(u2)
+    u3 = u'a%s' % u'b'
+    u3 = u'a%s' % 10
+    assert typeof(u3) == "unicode object", typeof(u3)
+    s1 = "abc %s" % "x"
+    s1 = "abc %s" % 10
+    assert typeof(s1) == "str object", typeof(s1)
+    s2 = "abc %s" + "x"
+    assert typeof(s2) == "str object", typeof(s2)
+    s3 = "abc %s" * 10
+    s3 = "abc %s" * 10 * 10
+    s3 = 10 * "abc %s" * 10
+    assert typeof(s3) == "str object", typeof(s3)
+    L1 = [] + []
+    assert typeof(L1) == "list object", typeof(L1)
+    L2 = [] * 2
+    assert typeof(L2) == "list object", typeof(L2)
+    T1 = () + ()
+    assert typeof(T1) == "tuple object", typeof(T1)
+    T2 = () * 2
+    assert typeof(T2) == "tuple object", typeof(T2)
     
 def cascade():
     """
@@ -215,10 +251,29 @@ def safe_only():
     """
     a = 1.0
     assert typeof(a) == "double", typeof(c)
-    b = 1
-    assert typeof(b) == "Python object", typeof(b)
+    b = 1;
+    assert typeof(b) == "long", typeof(b)
     c = MyType()
     assert typeof(c) == "MyType", typeof(c)
+    for i in range(10): pass
+    assert typeof(i) == "long", typeof(i)
+    d = 1
+    res = ~d
+    assert typeof(d) == "long", typeof(d)
+
+    # potentially overflowing arithmatic
+    e = 1
+    e += 1
+    assert typeof(e) == "Python object", typeof(e)
+    f = 1
+    res = f * 10
+    assert typeof(f) == "Python object", typeof(f)
+    g = 1
+    res = 10*(~g)
+    assert typeof(g) == "Python object", typeof(g)
+    for j in range(10):
+        res = -j
+    assert typeof(j) == "Python object", typeof(j)
 
 @infer_types(None)
 def args_tuple_keywords(*args, **kwargs):
@@ -249,3 +304,36 @@ def args_tuple_keywords_reassign_pyobjects(*args, **kwargs):
 
     args = []
     kwargs = "test"
+
+#                 / A -> AA -> AAA
+# Base0 -> Base -
+#                 \ B -> BB
+# C -> CC
+
+cdef class Base0: pass
+cdef class Base(Base0): pass
+cdef class A(Base): pass
+cdef class AA(A): pass
+cdef class AAA(AA): pass
+cdef class B(Base): pass
+cdef class BB(B): pass
+cdef class C: pass
+cdef class CC(C): pass
+
+@infer_types(None)
+def common_extension_type_base():
+    """
+    >>> common_extension_type_base()
+    """
+    x = A()
+    x = AA()
+    assert typeof(x) == "A", typeof(x)
+    y = A()
+    y = B()
+    assert typeof(y) == "Base", typeof(y)
+    z = AAA()
+    z = BB()
+    assert typeof(z) == "Base", typeof(z)
+    w = A()
+    w = CC()
+    assert typeof(w) == "Python object", typeof(w)

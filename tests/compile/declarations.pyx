@@ -11,6 +11,10 @@ cdef extern int (*iapfn())[5]
 cdef extern char *(*cpapfn())[5]
 cdef extern int fnargfn(int ())
 
+cdef extern int ia[]
+cdef extern int iaa[][3]
+cdef extern int a(int[][3], int[][3][5])
+
 cdef void f():
     cdef void *p=NULL
     global ifnp, cpa

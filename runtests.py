@@ -48,8 +48,8 @@ EXT_DEP_INCLUDES = [
 ]
 
 VER_DEP_MODULES = {
-# such as:
-#    (2,4) : (operator.le, lambda x: x in ['run.set']),
+    (2,4) : (operator.le, lambda x: x in ['run.extern_builtins_T258'
+                                          ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
                                         'compile.extdelslice']),
