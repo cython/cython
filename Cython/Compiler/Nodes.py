@@ -1,3 +1,4 @@
+
 #
 #   Pyrex - Parse tree nodes
 #
@@ -18,10 +19,10 @@ import PyrexTypes
 import TypeSlots
 from PyrexTypes import py_object_type, error_type, CFuncType
 from Symtab import ModuleScope, LocalScope, GeneratorLocalScope, \
-    StructOrUnionScope, PyClassScope, CClassScope
+    StructOrUnionScope, PyClassScope, CClassScope, CppClassScope
 from Cython.Utils import open_new_file, replace_suffix
 from Code import UtilityCode
-from StringEncoding import EncodedString, escape_byte_string, split_docstring
+from StringEncoding import EncodedString, escape_byte_string, split_string_literal
 import Options
 import ControlFlow
 import DebugFlags
@@ -143,6 +144,15 @@ class Node(object):
 
     def gil_error(self, env=None):
         error(self.pos, "%s not allowed without gil" % self.gil_message)
+    
+    cpp_message = "Operation"
+    
+    def cpp_check(self, env):
+        if not env.is_cpp():
+            self.cpp_error()
+
+    def cpp_error(self):
+        error(self.pos, "%s only allowed in c++" % self.cpp_message)
 
     def clone_node(self):
         """Clone the node. This is defined as a shallow copy, except for member lists
@@ -447,7 +457,19 @@ class CPtrDeclaratorNode(CDeclaratorNode):
                 "Pointer base type cannot be a Python object")
         ptr_type = PyrexTypes.c_ptr_type(base_type)
         return self.base.analyse(ptr_type, env, nonempty = nonempty)
-        
+
+class CReferenceDeclaratorNode(CDeclaratorNode):
+    # base     CDeclaratorNode
+
+    child_attrs = ["base"]
+
+    def analyse(self, base_type, env, nonempty = 0):
+        if base_type.is_pyobject:
+            error(self.pos,
+                  "Reference base type cannot be a Python object")
+        ref_type = PyrexTypes.c_ref_type(base_type)
+        return self.base.analyse(ref_type, env, nonempty = nonempty)
+
 class CArrayDeclaratorNode(CDeclaratorNode):
     # base        CDeclaratorNode
     # dimension   ExprNode
@@ -455,6 +477,19 @@ class CArrayDeclaratorNode(CDeclaratorNode):
     child_attrs = ["base", "dimension"]
     
     def analyse(self, base_type, env, nonempty = 0):
+        if base_type.is_cpp_class:
+            from ExprNodes import TupleNode
+            if isinstance(self.dimension, TupleNode):
+                args = self.dimension.args
+            else:
+                args = self.dimension,
+            values = [v.analyse_as_type(env) for v in args]
+            if None in values:
+                ix = values.index(None)
+                error(args[ix].pos, "Template parameter not a type.")
+                return error_type
+            base_type = base_type.specialize_here(self.pos, values)
+            return self.base.analyse(base_type, env, nonempty = nonempty)
         if self.dimension:
             self.dimension.analyse_const_expression(env)
             if not self.dimension.type.is_int:
@@ -626,6 +661,17 @@ class CArgDeclNode(Node):
             base_type = self.base_type.analyse(env, could_be_name = could_be_name)
             if hasattr(self.base_type, 'arg_name') and self.base_type.arg_name:
                 self.declarator.name = self.base_type.arg_name
+            # The parser is unable to resolve the ambiguity of [] as part of the 
+            # type (e.g. in buffers) or empty declarator (as with arrays). 
+            # This is only arises for empty multi-dimensional arrays.
+            if (base_type.is_array 
+                    and isinstance(self.base_type, TemplatedTypeNode) 
+                    and isinstance(self.declarator, CArrayDeclaratorNode)):
+                declarator = self.declarator
+                while isinstance(declarator.base, CArrayDeclaratorNode):
+                    declarator = declarator.base
+                declarator.base = self.base_type.array_declarator
+                base_type = base_type.base_type
             return self.declarator.analyse(base_type, env, nonempty = nonempty)
         else:
             return self.name_declarator, self.type
@@ -654,6 +700,9 @@ class CBaseTypeNode(Node):
     #     Returns the type.
     
     pass
+    
+    def analyse_as_type(self, env):
+        return self.analyse(env)
     
 class CAnalysedBaseTypeNode(Node):
     # type            type
@@ -714,7 +763,12 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
                         type = py_object_type
                     self.arg_name = self.name
                 else:
-                    error(self.pos, "'%s' is not a type identifier" % self.name)
+                    if self.templates:
+                        if not self.name in self.templates:
+                            error(self.pos, "'%s' is not a type identifier" % self.name)
+                        type = PyrexTypes.TemplatePlaceholderType(self.name)
+                    else:
+                        error(self.pos, "'%s' is not a type identifier" % self.name)
         if self.complex:
             if not type.is_numeric or type.is_complex:
                 error(self.pos, "can only complexify c numeric types")
@@ -725,14 +779,14 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
         else:
             return PyrexTypes.error_type
 
-class CBufferAccessTypeNode(CBaseTypeNode):
+class TemplatedTypeNode(CBaseTypeNode):
     #  After parsing:
     #  positional_args  [ExprNode]        List of positional arguments
     #  keyword_args     DictNode          Keyword arguments
     #  base_type_node   CBaseTypeNode
 
     #  After analysis:
-    #  type             PyrexType.BufferType   ...containing the right options
+    #  type             PyrexTypes.BufferType or PyrexTypes.CppClassType  ...containing the right options
 
 
     child_attrs = ["base_type_node", "positional_args",
@@ -742,24 +796,58 @@ class CBufferAccessTypeNode(CBaseTypeNode):
 
     name = None
     
-    def analyse(self, env, could_be_name = False):
-        base_type = self.base_type_node.analyse(env)
+    def analyse(self, env, could_be_name = False, base_type = None):
+        if base_type is None:
+            base_type = self.base_type_node.analyse(env)
         if base_type.is_error: return base_type
-        import Buffer
+        
+        if base_type.is_cpp_class:
+            # Templated class
+            if self.keyword_args and self.keyword_args.key_value_pairs:
+                error(self.pos, "c++ templates cannot take keyword arguments");
+                self.type = PyrexTypes.error_type
+            else:
+                template_types = []
+                for template_node in self.positional_args:
+                    template_types.append(template_node.analyse_as_type(env))
+                self.type = base_type.specialize_here(self.pos, template_types)
+        
+        elif base_type.is_pyobject:
+            # Buffer
+            import Buffer
 
-        options = Buffer.analyse_buffer_options(
-            self.pos,
-            env,
-            self.positional_args,
-            self.keyword_args,
-            base_type.buffer_defaults)
+            options = Buffer.analyse_buffer_options(
+                self.pos,
+                env,
+                self.positional_args,
+                self.keyword_args,
+                base_type.buffer_defaults)
 
-        if sys.version_info[0] < 3:
-            # Py 2.x enforces byte strings as keyword arguments ...
-            options = dict([ (name.encode('ASCII'), value)
-                             for name, value in options.iteritems() ])
+            if sys.version_info[0] < 3:
+                # Py 2.x enforces byte strings as keyword arguments ...
+                options = dict([ (name.encode('ASCII'), value)
+                                 for name, value in options.iteritems() ])
 
-        self.type = PyrexTypes.BufferType(base_type, **options)
+            self.type = PyrexTypes.BufferType(base_type, **options)
+        
+        else:
+            # Array
+            empty_declarator = CNameDeclaratorNode(self.pos, name="", cname=None)
+            if len(self.positional_args) > 1 or self.keyword_args.key_value_pairs:
+                error(self.pos, "invalid array declaration")
+                self.type = PyrexTypes.error_type
+            else:
+                # It would be nice to merge this class with CArrayDeclaratorNode, 
+                # but arrays are part of the declaration, not the type...
+                if not self.positional_args:
+                    dimension = None
+                else:
+                    dimension = self.positional_args[0]
+                self.array_declarator = CArrayDeclaratorNode(self.pos, 
+                    base = empty_declarator, 
+                    dimension = dimension)
+                self.type = self.array_declarator.analyse(base_type, env)[1]
+        
         return self.type
 
 class CComplexBaseTypeNode(CBaseTypeNode):
@@ -903,6 +991,46 @@ class CStructOrUnionDefNode(StatNode):
     def generate_execution_code(self, code):
         pass
 
+
+class CppClassNode(CStructOrUnionDefNode):
+
+    #  name          string
+    #  cname         string or None
+    #  visibility    "extern"
+    #  in_pxd        boolean
+    #  attributes    [CVarDefNode] or None
+    #  entry         Entry
+    #  base_classes  [string]
+    #  templates     [string] or None
+
+    def analyse_declarations(self, env):
+        scope = None
+        if len(self.attributes) != 0:
+            scope = CppClassScope(self.name, env)
+        else:
+            self.attributes = None
+        base_class_types = []
+        for base_class_name in self.base_classes:
+            base_class_entry = env.lookup(base_class_name)
+            if base_class_entry is None:
+                error(self.pos, "'%s' not found" % base_class_name)
+            elif not base_class_entry.is_type or not base_class_entry.type.is_cpp_class:
+                error(self.pos, "'%s' is not a cpp class type" % base_class_name)
+            else:
+                base_class_types.append(base_class_entry.type)
+        if self.templates is None:
+            template_types = None
+        else:
+            template_types = [PyrexTypes.TemplatePlaceholderType(template_name) for template_name in self.templates]
+        self.entry = env.declare_cpp_class(
+            self.name, scope, self.pos,
+            self.cname, base_class_types, visibility = self.visibility, templates = template_types)
+        self.entry.is_cpp_class = 1
+        if self.attributes is not None:
+            if self.in_pxd and not env.in_cinclude:
+                self.entry.defined_in_pxd = 1
+            for attr in self.attributes:
+                attr.analyse_declarations(scope)
 
 class CEnumDefNode(StatNode):
     #  name           string or None
@@ -1936,7 +2064,7 @@ class DefNode(FuncDefNode):
             code.putln(
                 'static char %s[] = "%s";' % (
                     self.entry.doc_cname,
-                    split_docstring(escape_byte_string(docstr))))
+                    split_string_literal(escape_byte_string(docstr))))
         if with_pymethdef:
             code.put(
                 "static PyMethodDef %s = " % 
@@ -3391,8 +3519,14 @@ class DelStatNode(StatNode):
     def analyse_expressions(self, env):
         for arg in self.args:
             arg.analyse_target_expression(env, None)
-            if not arg.type.is_pyobject:
-                error(arg.pos, "Deletion of non-Python object")
+            if arg.type.is_pyobject:
+                pass
+            elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
+                self.cpp_check(env)
+            elif arg.type.is_cpp_class:
+                error(arg.pos, "Deletion of non-heap C++ object")
+            else:
+                error(arg.pos, "Deletion of non-Python, non-C++ object")
             #arg.release_target_temp(env)
 
     def nogil_check(self, env):
@@ -3406,6 +3540,9 @@ class DelStatNode(StatNode):
         for arg in self.args:
             if arg.type.is_pyobject:
                 arg.generate_deletion_code(code)
+            elif arg.type.is_ptr and arg.type.base_type.is_cpp_class:
+                arg.generate_result_code(code)
+                code.putln("delete %s;" % arg.result())
             # else error reported earlier
 
     def annotate(self, code):
@@ -4041,7 +4178,7 @@ class ForFromStatNode(LoopNode, StatNode):
                 target_node = ExprNodes.PyTempNode(self.target.pos, None)
                 target_node.allocate(code)
                 interned_cname = code.intern_identifier(self.target.entry.name)
-                code.putln("/*here*/")
+                code.globalstate.use_utility_code(ExprNodes.get_name_interned_utility_code)
                 code.putln("%s = __Pyx_GetName(%s, %s); %s" % (
                                 target_node.result(),
                                 Naming.module_cname, 
@@ -4767,7 +4904,9 @@ class FromImportStatNode(StatNode):
                         break
             else:
                 entry =  env.lookup(target.name)
-                if entry.is_type and entry.type.name == name and entry.type.module_name == self.module.module_name.value:
+                if (entry.is_type and 
+                    entry.type.name == name and
+                    entry.type.module_name == self.module.module_name.value):
                     continue # already cimported
                 target.analyse_target_expression(env, None)
                 if target.type is py_object_type:

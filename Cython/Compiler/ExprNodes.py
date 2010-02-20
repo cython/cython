@@ -1041,6 +1041,44 @@ class ImagNode(AtomicExprNode):
             code.put_gotref(self.py_result())
         
 
+class NewExprNode(AtomicExprNode):
+
+    # C++ new statement
+    #
+    # cppclass              string               c++ class to create
+    # template_parameters   None or [ExprNode]   temlate parameters, if any
+    
+    def infer_type(self, env):
+        entry = env.lookup(self.cppclass)
+        if entry is None or not entry.is_cpp_class:
+            error(self.pos, "new operator can only be applied to a C++ class")
+            return
+        self.cpp_check(env)
+        if self.template_parameters is not None:
+            template_types = [v.analyse_as_type(env) for v in self.template_parameters]
+            type = entry.type.specialize_here(self.pos, template_types)
+        else:
+            type = entry.type
+        constructor = type.scope.lookup(u'<init>')
+        if constructor is None:
+            return_type = PyrexTypes.CFuncType(type, [])
+            return_type = PyrexTypes.CPtrType(return_type)
+            type.scope.declare_cfunction(u'<init>', return_type, self.pos)
+            constructor = type.scope.lookup(u'<init>')
+        self.class_type = type
+        self.entry = constructor
+        self.type = constructor.type
+        return self.type
+    
+    def analyse_types(self, env):
+        self.infer_type(env)
+   
+    def generate_result_code(self, code):
+        pass
+   
+    def calculate_result_code(self):
+        return "new " + self.class_type.declaration_code("")
+
 
 class NameNode(AtomicExprNode):
     #  Reference to a local or global variable name.
@@ -1210,8 +1248,8 @@ class NameNode(AtomicExprNode):
                 self.is_temp = 0
             else:
                 self.is_temp = 1
+                env.use_utility_code(get_name_interned_utility_code)
             self.is_used_as_rvalue = 1
-            env.use_utility_code(get_name_interned_utility_code)
 
     def nogil_check(self, env):
         if self.is_used_as_rvalue:
@@ -1239,7 +1277,8 @@ class NameNode(AtomicExprNode):
         if entry.is_type and entry.type.is_extension_type:
             self.type_entry = entry
         if not (entry.is_const or entry.is_variable 
-            or entry.is_builtin or entry.is_cfunction):
+            or entry.is_builtin or entry.is_cfunction
+            or entry.is_cpp_class):
                 if self.entry.as_variable:
                     self.entry = self.entry.as_variable
                 else:
@@ -1297,6 +1336,7 @@ class NameNode(AtomicExprNode):
                 namespace = Naming.builtins_cname
             else: # entry.is_pyglobal
                 namespace = entry.scope.namespace_cname
+            code.globalstate.use_utility_code(get_name_interned_utility_code)
             code.putln(
                 '%s = __Pyx_GetName(%s, %s); %s' % (
                 self.result(),
@@ -1517,7 +1557,13 @@ class IteratorNode(ExprNode):
     
     def analyse_types(self, env):
         self.sequence.analyse_types(env)
-        self.sequence = self.sequence.coerce_to_pyobject(env)
+        if isinstance(self.sequence, SliceIndexNode) and \
+               (self.sequence.base.type.is_array or self.sequence.base.type.is_ptr) \
+               or self.sequence.type.is_array and self.sequence.type.size is not None:
+            # C array iteration will be transformed later on
+            pass
+        else:
+            self.sequence = self.sequence.coerce_to_pyobject(env)
         self.is_temp = 1
 
     gil_message = "Iterating over Python object"
@@ -1767,7 +1813,19 @@ class IndexNode(ExprNode):
     def analyse_as_type(self, env):
         base_type = self.base.analyse_as_type(env)
         if base_type and not base_type.is_pyobject:
-            return PyrexTypes.CArrayType(base_type, int(self.index.compile_time_value(env)))
+            if base_type.is_cpp_class:
+                if isinstance(self.index, TupleNode):
+                    template_values = self.index.args
+                else:
+                    template_values = [self.index]
+                import Nodes
+                type_node = Nodes.TemplatedTypeNode(
+                    pos = self.pos, 
+                    positional_args = template_values, 
+                    keyword_args = None)
+                return type_node.analyse(env, base_type = base_type)
+            else:
+                return PyrexTypes.CArrayType(base_type, int(self.index.compile_time_value(env)))
         return None
     
     def type_dependencies(self, env):
@@ -1869,18 +1927,33 @@ class IndexNode(ExprNode):
             else:
                 if self.base.type.is_ptr or self.base.type.is_array:
                     self.type = self.base.type.base_type
+                    if self.index.type.is_pyobject:
+                        self.index = self.index.coerce_to(
+                            PyrexTypes.c_py_ssize_t_type, env)
+                    if not self.index.type.is_int:
+                        error(self.pos,
+                            "Invalid index type '%s'" %
+                                self.index.type)
+                elif self.base.type.is_cpp_class:
+                    function = env.lookup_operator("[]", [self.base, self.index])
+                    function = self.base.type.scope.lookup("operator[]")
+                    if function is None:
+                        error(self.pos, "Indexing '%s' not supported for index type '%s'" % (self.base.type, self.index.type))
+                        self.type = PyrexTypes.error_type
+                        self.result_code = "<error>"
+                        return
+                    func_type = function.type
+                    if func_type.is_ptr:
+                        func_type = func_type.base_type
+                    self.index = self.index.coerce_to(func_type.args[0].type, env)
+                    self.type = func_type.return_type
+                    if setting and not func_type.return_type.is_reference:
+                        error(self.pos, "Can't set non-reference '%s'" % self.type)
                 else:
                     error(self.pos,
                         "Attempting to index non-array type '%s'" %
                             self.base.type)
                     self.type = PyrexTypes.error_type
-                if self.index.type.is_pyobject:
-                    self.index = self.index.coerce_to(
-                        PyrexTypes.c_py_ssize_t_type, env)
-                if not self.index.type.is_int:
-                    error(self.pos,
-                        "Invalid index type '%s'" %
-                            self.index.type)
     gil_message = "Indexing Python object"
 
     def nogil_check(self, env):
@@ -2380,6 +2453,15 @@ class CallNode(ExprNode):
             self.analyse_types(env)
             self.coerce_to(type, env)
             return True
+        elif type and type.is_cpp_class:
+            for arg in self.args:
+                arg.analyse_types(env)
+            constructor = type.scope.lookup("<init>")
+            self.function = RawCNameExprNode(self.function.pos, constructor.type)
+            self.function.entry = constructor
+            self.function.set_cname(type.declaration_code(""))
+            self.analyse_c_function_call(env)
+            return True
 
     def nogil_check(self, env):
         func_type = self.function_type()
@@ -2426,6 +2508,8 @@ class SimpleCallNode(CallNode):
     def infer_type(self, env):
         function = self.function
         func_type = function.infer_type(env)
+        if isinstance(self.function, NewExprNode):
+            return PyrexTypes.CPtrType(self.function.class_type)
         if func_type.is_ptr:
             func_type = func_type.base_type
         if func_type.is_cfunction:
@@ -2515,36 +2599,26 @@ class SimpleCallNode(CallNode):
         return func_type
     
     def analyse_c_function_call(self, env):
-        func_type = self.function_type()
-        # Check function type
-        if not func_type.is_cfunction:
-            if not func_type.is_error:
-                error(self.pos, "Calling non-function type '%s'" %
-                    func_type)
+        if self.function.type.is_cpp_class:
+            function = self.function.type.scope.lookup("operator()")
+            if function is None:
+                self.type = PyrexTypes.error_type
+                self.result_code = "<error>"
+                return
+        else:
+            function = self.function.entry
+        entry = PyrexTypes.best_match(self.args, function.all_alternatives(), self.pos)
+        if not entry:
             self.type = PyrexTypes.error_type
             self.result_code = "<error>"
             return
+        self.function.entry = entry
+        self.function.type = entry.type
+        func_type = self.function_type()
         # Check no. of args
         max_nargs = len(func_type.args)
         expected_nargs = max_nargs - func_type.optional_arg_count
         actual_nargs = len(self.args)
-        if actual_nargs < expected_nargs \
-            or (not func_type.has_varargs and actual_nargs > max_nargs):
-                expected_str = str(expected_nargs)
-                if func_type.has_varargs:
-                    expected_str = "at least " + expected_str
-                elif func_type.optional_arg_count:
-                    if actual_nargs < max_nargs:
-                        expected_str = "at least " + expected_str
-                    else:
-                        expected_str = "at most " + str(max_nargs)
-                error(self.pos, 
-                    "Call with wrong number of arguments (expected %s, got %s)"
-                        % (expected_str, actual_nargs))
-                self.args = None
-                self.type = PyrexTypes.error_type
-                self.result_code = "<error>"
-                return
         if func_type.optional_arg_count and expected_nargs != actual_nargs:
             self.has_optional_args = 1
             self.is_temp = 1
@@ -2557,7 +2631,10 @@ class SimpleCallNode(CallNode):
                 error(self.args[i].pos, 
                     "Python object cannot be passed as a varargs parameter")
         # Calc result type and code fragment
-        self.type = func_type.return_type
+        if isinstance(self.function, NewExprNode):
+            self.type = PyrexTypes.CPtrType(self.function.class_type)
+        else:
+            self.type = func_type.return_type
         if self.type.is_pyobject:
             self.result_ctype = py_object_type
             self.is_temp = 1
@@ -2574,7 +2651,7 @@ class SimpleCallNode(CallNode):
     
     def c_call_code(self):
         func_type = self.function_type()
-        if self.args is None or not func_type.is_cfunction:
+        if self.type is PyrexTypes.error_type or not func_type.is_cfunction:
             return "<error>"
         formal_args = func_type.args
         arg_list_code = []
@@ -2874,6 +2951,9 @@ class AttributeNode(ExprNode):
     def as_cython_attribute(self):
         if isinstance(self.obj, NameNode) and self.obj.is_cython_module:
             return self.attribute
+        cy = self.obj.as_cython_attribute()
+        if cy:
+            return "%s.%s" % (cy, self.attribute)
 
     def coerce_to(self, dst_type, env):
         #  If coercing to a generic pyobject and this is a cpdef function
@@ -4012,6 +4092,7 @@ class UnboundMethodNode(ExprNode):
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
+
 class PyCFunctionNode(AtomicExprNode):
     #  Helper class used in the implementation of Python
     #  class definitions. Constructs a PyCFunction object
@@ -4088,6 +4169,8 @@ class UnopNode(ExprNode):
             self.coerce_operand_to_pyobject(env)
             self.type = py_object_type
             self.is_temp = 1
+        elif self.is_cpp_operation():
+            self.analyse_cpp_operation(env)
         else:
             self.analyse_c_operation(env)
     
@@ -4101,6 +4184,10 @@ class UnopNode(ExprNode):
         if self.is_py_operation():
             self.gil_error()
 
+    def is_cpp_operation(self):
+        type = self.operand.type
+        return type.is_cpp_class or type.is_reference and type.base_type.is_cpp_class
+    
     def coerce_operand_to_pyobject(self, env):
         self.operand = self.operand.coerce_to_pyobject(env)
     
@@ -4123,6 +4210,22 @@ class UnopNode(ExprNode):
             error(self.pos, "Invalid operand type for '%s' (%s)" %
                 (self.operator, self.operand.type))
         self.type = PyrexTypes.error_type
+
+    def analyse_cpp_operation(self, env):
+        type = self.operand.type
+        if type.is_ptr or type.is_reference:
+            type = type.base_type
+        entry = env.lookup(type.name)
+        function = entry.type.scope.lookup("operator%s" % self.operator)
+        if not function:
+            error(self.pos, "'%s' operator not defined for %s"
+                % (self.operator, type))
+            self.type_error()
+            return
+        func_type = function.type
+        if func_type.is_ptr:
+            func_type = func_type.base_type
+        self.type = func_type.return_type
 
 
 class NotNode(ExprNode):
@@ -4170,7 +4273,10 @@ class UnaryPlusNode(UnopNode):
         return "PyNumber_Positive"
     
     def calculate_result_code(self):
-        return self.operand.result()
+        if self.is_cpp_operation():
+            return "(+%s)" % self.operand.result()
+        else:
+            return self.operand.result()
 
 
 class UnaryMinusNode(UnopNode):
@@ -4214,6 +4320,45 @@ class TildeNode(UnopNode):
     
     def calculate_result_code(self):
         return "(~%s)" % self.operand.result()
+
+
+class CUnopNode(UnopNode):
+
+    def is_py_operation(self):
+        return False
+
+class DereferenceNode(CUnopNode):
+    #  unary * operator
+
+    operator = '*'
+    
+    def analyse_c_operation(self, env):
+        if self.operand.type.is_ptr:
+            self.type = self.operand.type.base_type
+        else:
+            self.type_error()
+
+    def calculate_result_code(self):
+        return "(*%s)" % self.operand.result()
+
+
+class DecrementIncrementNode(CUnopNode):
+    #  unary ++/-- operator
+    
+    def analyse_c_operation(self, env):
+        if self.operand.type.is_ptr or self.operand.type.is_numeric:
+            self.type = self.operand.type
+        else:
+            self.type_error()
+
+    def calculate_result_code(self):
+        if self.is_prefix:
+            return "(%s%s)" % (self.operator, self.operand.result())
+        else:
+            return "(%s%s)" % (self.operand.result(), self.operator)
+
+def inc_dec_constructor(is_prefix, operator):
+    return lambda pos, **kwds: DecrementIncrementNode(pos, is_prefix=is_prefix, operator=operator, **kwds)
 
 
 class AmpersandNode(ExprNode):
@@ -4570,8 +4715,12 @@ class BinopNode(ExprNode):
         self.operand2.analyse_types(env)
         if self.is_py_operation():
             self.coerce_operands_to_pyobjects(env)
-            self.type = py_object_type
+            self.type = self.result_type(self.operand1.type,
+                                         self.operand2.type)
+            assert self.type.is_pyobject
             self.is_temp = 1
+        elif self.is_cpp_operation():
+            self.analyse_cpp_operation(env)
         else:
             self.analyse_c_operation(env)
     
@@ -4581,8 +4730,59 @@ class BinopNode(ExprNode):
     def is_py_operation_types(self, type1, type2):
         return type1.is_pyobject or type2.is_pyobject
 
+    def is_cpp_operation(self):
+        type1 = self.operand1.type
+        type2 = self.operand2.type
+        if type1.is_reference:
+            type1 = type1.base_type
+        if type2.is_reference:
+            type2 = type2.base_type
+        return (type1.is_cpp_class
+            or type2.is_cpp_class)
+    
+    def analyse_cpp_operation(self, env):
+        type1 = self.operand1.type
+        type2 = self.operand2.type
+        entry = env.lookup_operator(self.operator, [self.operand1, self.operand2])
+        if not entry:
+            self.type_error()
+            return
+        func_type = entry.type
+        if func_type.is_ptr:
+            func_type = func_type.base_type
+        if len(func_type.args) == 1:
+            self.operand2 = self.operand2.coerce_to(func_type.args[0].type, env)
+        else:
+            self.operand1 = self.operand1.coerce_to(func_type.args[0].type, env)
+            self.operand2 = self.operand2.coerce_to(func_type.args[1].type, env)
+        self.type = func_type.return_type
+    
     def result_type(self, type1, type2):
         if self.is_py_operation_types(type1, type2):
+            if type2.is_string:
+                type2 = Builtin.bytes_type
+            if type1.is_string:
+                type1 = Builtin.bytes_type
+            elif self.operator == '%' \
+                     and type1 in (Builtin.str_type, Builtin.unicode_type):
+                # note that  b'%s' % b'abc'  doesn't work in Py3
+                return type1
+            if type1.is_builtin_type:
+                if type1 is type2:
+                    if self.operator in '**%+|&^':
+                        # FIXME: at least these operators should be safe - others?
+                        return type1
+                elif self.operator == '*':
+                    if type1 in (Builtin.bytes_type, Builtin.str_type, Builtin.unicode_type):
+                        return type1
+                    # multiplication of containers/numbers with an
+                    # integer value always (?) returns the same type
+                    if type2.is_int:
+                        return type1
+            elif type2.is_builtin_type and type1.is_int and self.operator == '*':
+                # multiplication of containers/numbers with an
+                # integer value always (?) returns the same type
+                return type2
             return py_object_type
         else:
             return self.compute_c_result_type(type1, type2)
@@ -4790,6 +4990,8 @@ class DivNode(NumBinopNode):
         else:
             self.ctruedivision = self.truedivision
         NumBinopNode.analyse_types(self, env)
+        if self.is_cpp_operation():
+            self.cdivision = True
         if not self.type.is_pyobject:
             self.zerodivision_check = (
                 self.cdivision is None and not env.directives['cdivision']
@@ -5184,6 +5386,15 @@ class CmpNode(object):
                 result = result and cascade.compile_time_value(operand2, denv)
         return result
 
+    def is_cpp_comparison(self):
+        type1 = self.operand1.type
+        type2 = self.operand2.type
+        if type1.is_reference:
+            type1 = type1.base_type
+        if type2.is_reference:
+            type2 = type2.base_type
+        return type1.is_cpp_class or type2.is_cpp_class
+
     def find_common_int_type(self, env, op, operand1, operand2):
         # type1 != type2 and at least one of the types is not a C int
         type1 = operand1.type
@@ -5442,6 +5653,11 @@ class PrimaryCmpNode(ExprNode, CmpNode):
     def analyse_types(self, env):
         self.operand1.analyse_types(env)
         self.operand2.analyse_types(env)
+        if self.is_cpp_comparison():
+            self.analyse_cpp_comparison(env)
+            if self.cascade:
+                error(self.pos, "Cascading comparison not yet supported for cpp types.")
+            return
         if self.cascade:
             self.cascade.analyse_types(env)
 
@@ -5470,7 +5686,27 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             cdr = cdr.cascade
         if self.is_pycmp or self.cascade:
             self.is_temp = 1
-
+    
+    def analyse_cpp_comparison(self, env):
+        type1 = self.operand1.type
+        type2 = self.operand2.type
+        entry = env.lookup_operator(self.operator, [self.operand1, self.operand2])
+        if entry is None:
+            error(self.pos, "Invalid types for '%s' (%s, %s)" %
+                (self.operator, type1, type2))
+            self.type = PyrexTypes.error_type
+            self.result_code = "<error>"
+            return
+        func_type = entry.type
+        if func_type.is_ptr:
+            func_type = func_type.base_type
+        if len(func_type.args) == 1:
+            self.operand2 = self.operand2.coerce_to(func_type.args[0].type, env)
+        else:
+            self.operand1 = self.operand1.coerce_to(func_type.args[0].type, env)
+            self.operand2 = self.operand2.coerce_to(func_type.args[1].type, env)
+        self.type = func_type.return_type
+    
     def has_python_operands(self):
         return (self.operand1.type.is_pyobject
             or self.operand2.type.is_pyobject)

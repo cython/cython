@@ -128,7 +128,6 @@ class PostParseError(CompileError): pass
 
 # error strings checked by unit tests, so define them
 ERR_CDEF_INCLASS = 'Cannot assign default value to fields in cdef classes, structs or unions'
-ERR_BUF_LOCALONLY = 'Buffer types only allowed as function local variables'
 ERR_BUF_DEFAULTS = 'Invalid buffer defaults specification (see docs)'
 ERR_INVALID_SPECIALATTR_TYPE = 'Special attributes must not have a type declared'
 class PostParse(CythonTransform):
@@ -145,7 +144,7 @@ class PostParse(CythonTransform):
     
     - Interpret some node structures into Python runtime values.
     Some nodes take compile-time arguments (currently:
-    CBufferAccessTypeNode[args] and __cythonbufferdefaults__ = {args}),
+    TemplatedTypeNode[args] and __cythonbufferdefaults__ = {args}),
     which should be interpreted. This happens in a general way
     and other steps should be taken to ensure validity.
 
@@ -154,7 +153,7 @@ class PostParse(CythonTransform):
     - For __cythonbufferdefaults__ the arguments are checked for
     validity.
 
-    CBufferAccessTypeNode has its directives interpreted:
+    TemplatedTypeNode has its directives interpreted:
     Any first positional argument goes into the "dtype" attribute,
     any "ndim" keyword argument goes into the "ndim" attribute and
     so on. Also it is checked that the directive combination is valid.
@@ -243,11 +242,6 @@ class PostParse(CythonTransform):
             self.context.nonfatal_error(e)
             return None
 
-    def visit_CBufferAccessTypeNode(self, node):
-        if not self.scope_type == 'function':
-            raise PostParseError(node.pos, ERR_BUF_LOCALONLY)
-        return node
-
 class PxdPostParse(CythonTransform, SkipDeclarations):
     """
     Basic interpretation/validity checking that should only be
@@ -329,7 +323,23 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     duplication of functionality has to occur: We manually track cimports
     and which names the "cython" module may have been imported to.
     """
-    special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof', 'typeof', 'cast', 'address', 'pointer', 'compiled', 'NULL'])
+    unop_method_nodes = {
+        'typeof': TypeofNode,
+        
+        'operator.address': AmpersandNode,
+        'operator.dereference': DereferenceNode,
+        'operator.preincrement' : inc_dec_constructor(True, '++'),
+        'operator.predecrement' : inc_dec_constructor(True, '--'),
+        'operator.postincrement': inc_dec_constructor(False, '++'),
+        'operator.postdecrement': inc_dec_constructor(False, '--'),
+
+        # For backwards compatability.
+        'address': AmpersandNode,
+    }
+    
+    special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof',
+                           'cast', 'pointer', 'compiled', 'NULL']
+                          + unop_method_nodes.keys())
 
     def __init__(self, context, compilation_directive_defaults):
         super(InterpretCompilerDirectives, self).__init__(context)
@@ -364,26 +374,37 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         node.cython_module_names = self.cython_module_names
         return node
 
-    # Track cimports of the cython module.
+    # The following four functions track imports and cimports that
+    # begin with "cython"
+    def is_cython_directive(self, name):
+        return (name in Options.directive_types or
+                name in self.special_methods or
+                PyrexTypes.parse_basic_type(name))
+
     def visit_CImportStatNode(self, node):
         if node.module_name == u"cython":
+            self.cython_module_names.add(node.as_name or u"cython")
+        elif node.module_name.startswith(u"cython."):
             if node.as_name:
-                modname = node.as_name
+                self.directive_names[node.as_name] = node.module_name[7:]
             else:
-                modname = u"cython"
-            self.cython_module_names.add(modname)
+                self.cython_module_names.add(u"cython")
+            # if this cimport was a compiler directive, we don't
+            # want to leave the cimport node sitting in the tree
+            return None
         return node
     
     def visit_FromCImportStatNode(self, node):
-        if node.module_name == u"cython":
+        if (node.module_name == u"cython") or \
+               node.module_name.startswith(u"cython."):
+            submodule = (node.module_name + u".")[7:]
             newimp = []
             for pos, name, as_name, kind in node.imported_names:
-                if (name in Options.directive_types or 
-                        name in self.special_methods or
-                        PyrexTypes.parse_basic_type(name)):
+                full_name = submodule + name
+                if self.is_cython_directive(full_name):
                     if as_name is None:
-                        as_name = name
-                    self.directive_names[as_name] = name
+                        as_name = full_name
+                    self.directive_names[as_name] = full_name
                     if kind is not None:
                         self.context.nonfatal_error(PostParseError(pos,
                             "Compiler directive imports must be plain imports"))
@@ -395,13 +416,14 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         return node
         
     def visit_FromImportStatNode(self, node):
-        if node.module.module_name.value == u"cython":
+        if (node.module.module_name.value == u"cython") or \
+               node.module.module_name.value.startswith(u"cython."):
+            submodule = (node.module.module_name.value + u".")[7:]
             newimp = []
             for name, name_node in node.items:
-                if (name in Options.directive_types or 
-                        name in self.special_methods or
-                        PyrexTypes.parse_basic_type(name)):
-                    self.directive_names[name_node.name] = name
+                full_name = submodule + name
+                if self.is_cython_directive(full_name):
+                    self.directive_names[name_node.name] = full_name
                 else:
                     newimp.append((name, name_node))
             if not newimp:
@@ -1016,7 +1038,12 @@ class TransformBuiltinMethods(EnvTransform):
         # cython.foo
         function = node.function.as_cython_attribute()
         if function:
-            if function == u'cast':
+            if function in InterpretCompilerDirectives.unop_method_nodes:
+                if len(node.args) != 1:
+                    error(node.function.pos, u"%s() takes exactly one argument" % function)
+                else:
+                    node = InterpretCompilerDirectives.unop_method_nodes[function](node.function.pos, operand=node.args[0])
+            elif function == u'cast':
                 if len(node.args) != 2:
                     error(node.function.pos, u"cast() takes exactly two arguments")
                 else:
@@ -1034,16 +1061,6 @@ class TransformBuiltinMethods(EnvTransform):
                         node = SizeofTypeNode(node.function.pos, arg_type=type)
                     else:
                         node = SizeofVarNode(node.function.pos, operand=node.args[0])
-            elif function == 'typeof':
-                if len(node.args) != 1:
-                    error(node.function.pos, u"typeof() takes exactly one argument")
-                else:
-                    node = TypeofNode(node.function.pos, operand=node.args[0])
-            elif function == 'address':
-                if len(node.args) != 1:
-                    error(node.function.pos, u"address() takes exactly one argument")
-                else:
-                    node = AmpersandNode(node.function.pos, operand=node.args[0])
             elif function == 'cmod':
                 if len(node.args) != 2:
                     error(node.function.pos, u"cmod() takes exactly two arguments")

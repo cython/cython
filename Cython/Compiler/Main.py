@@ -66,7 +66,7 @@ class Context(object):
     #  include_directories   [string]
     #  future_directives     [object]
     
-    def __init__(self, include_directories, compiler_directives):
+    def __init__(self, include_directories, compiler_directives, cpp=False):
         #self.modules = {"__builtin__" : BuiltinScope()}
         import Builtin, CythonScope
         self.modules = {"__builtin__" : Builtin.builtin_scope}
@@ -74,6 +74,7 @@ class Context(object):
         self.include_directories = include_directories
         self.future_directives = set()
         self.compiler_directives = compiler_directives
+        self.cpp = cpp
 
         self.pxds = {} # full name -> node tree
 
@@ -87,7 +88,7 @@ class Context(object):
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
         from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
-        from TypeInference import MarkAssignments
+        from TypeInference import MarkAssignments, MarkOverflowingArithmatic
         from ParseTreeTransforms import AlignFunctionDefinitions, GilCheck
         from AnalysedTreeTransforms import AutoTestDictTransform
         from AutoDocTransforms import EmbedSignature
@@ -134,6 +135,7 @@ class Context(object):
             EmbedSignature(self),
             EarlyReplaceBuiltinCalls(self),
             MarkAssignments(self),
+            MarkOverflowingArithmatic(self),
             TransformBuiltinMethods(self),
             IntroduceBufferAuxiliaryVars(self),
             _check_c_declarations,
@@ -217,8 +219,11 @@ class Context(object):
             for phase in pipeline:
                 if phase is not None:
                     if DebugFlags.debug_verbose_pipeline:
+                        t = time()
                         print "Entering pipeline phase %r" % phase
                     data = phase(data)
+                    if DebugFlags.debug_verbose_pipeline:
+                        print "    %.3f seconds" % (time() - t)
         except CompileError, err:
             # err is set
             Errors.report_error(err)
@@ -451,6 +456,7 @@ class Context(object):
         if not isinstance(source_desc, FileSourceDescriptor):
             raise RuntimeError("Only file sources for code supported")
         source_filename = Utils.encode_filename(source_desc.filename)
+        scope.cpp = self.cpp
         # Parse the given source file and return a parse tree.
         try:
             f = Utils.open_source_file(source_filename, "rU")
@@ -540,7 +546,7 @@ def create_default_resultobj(compilation_source, options):
 
 def run_pipeline(source, options, full_module_name = None):
     # Set up context
-    context = Context(options.include_path, options.compiler_directives)
+    context = Context(options.include_path, options.compiler_directives, options.cplus)
 
     # Set up source object
     cwd = os.getcwd()

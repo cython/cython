@@ -12,9 +12,9 @@ def f():
     cdef object[int, 2, well] buf6
 
 _ERRORS = u"""
-1:11: Buffer types only allowed as function local variables
-3:15: Buffer types only allowed as function local variables
-6:27: "fakeoption" is not a buffer option
+1:17: Buffer types only allowed as function local variables
+3:21: Buffer types only allowed as function local variables
+6:31: "fakeoption" is not a buffer option
 """
 #TODO:
 #7:22: "ndim" must be non-negative

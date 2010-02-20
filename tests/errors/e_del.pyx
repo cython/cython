@@ -12,7 +12,7 @@ def f(a):
 	del s.m # error: deletion of non-Python object
 _ERRORS = u"""
 8:6: Cannot assign to or delete this
-9:45: Deletion of non-Python object
-11:6: Deletion of non-Python object
-12:6: Deletion of non-Python object
+9:45: Deletion of non-Python, non-C++ object
+11:6: Deletion of non-Python, non-C++ object
+12:6: Deletion of non-Python, non-C++ object
 """
