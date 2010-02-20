@@ -2600,7 +2600,14 @@ class SimpleCallNode(CallNode):
                 return
             self.function.entry = entry
             self.function.type = entry.type
-        func_type = self.function_type()
+            func_type = self.function_type()
+        else:
+            func_type = self.function_type()
+            if not func_type.is_cfunction:
+                error(self.pos, "Calling non-function type '%s'" % func_type)
+                self.type = PyrexTypes.error_type
+                self.result_code = "<error>"
+                return
         # Check no. of args
         max_nargs = len(func_type.args)
         expected_nargs = max_nargs - func_type.optional_arg_count
