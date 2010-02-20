@@ -1,4 +1,4 @@
-cdef extern from "<vector>" namespace std:
+cdef extern from "<vector>" namespace "std":
 
     cdef cppclass vector[T]:
         void push_back(T)
