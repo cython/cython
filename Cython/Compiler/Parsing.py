@@ -10,6 +10,15 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object)
 import os
 import re
 import sys
+
+try:
+    from __builtin__ import set
+except ImportError:
+    try:
+        from builtins import set
+    except ImportError:
+        from sets import Set as set
+
 from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
 import ExprNodes

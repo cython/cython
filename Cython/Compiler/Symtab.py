@@ -119,6 +119,8 @@ class Entry(object):
     # inline_func_in_pxd boolean  Hacky special case for inline function in pxd file.
     #                             Ideally this should not be necesarry.
     # assignments      [ExprNode] List of expressions that get assigned to this entry.
+    # might_overflow   boolean    In an arithmatic expression that could cause
+    #                             overflow (used for type inference).
 
     inline_func_in_pxd = False
     borrowed = 0
@@ -167,6 +169,7 @@ class Entry(object):
     is_overridable = 0
     buffer_aux = None
     prev_entry = None
+    might_overflow = 0
 
     def __init__(self, name, cname, type, pos = None, init = None):
         self.name = name
@@ -434,7 +437,7 @@ class Scope(object):
         if type.is_cpp_class and visibility != 'extern':
             constructor = type.scope.lookup(u'<init>')
             if constructor is not None and PyrexTypes.best_match([], constructor.all_alternatives()) is None:
-                error(pos, "C++ class must have an empty constructor to be stack allocated")
+                error(pos, "C++ class must have a default constructor to be stack allocated")
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
         self.control_flow.set_state((), (name, 'initalized'), False)
@@ -1564,6 +1567,7 @@ class CppClassScope(Scope):
         if name == self.name.split('::')[-1] and cname is None:
             self.check_base_default_constructor(pos)
             name = '<init>'
+            type.return_type = self.lookup(self.name).type
         prev_entry = self.lookup_here(name)
         entry = self.declare_var(name, type, pos, cname, visibility)
         if prev_entry:

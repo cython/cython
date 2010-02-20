@@ -22,7 +22,7 @@ from Symtab import ModuleScope, LocalScope, GeneratorLocalScope, \
     StructOrUnionScope, PyClassScope, CClassScope, CppClassScope
 from Cython.Utils import open_new_file, replace_suffix
 from Code import UtilityCode
-from StringEncoding import EncodedString, escape_byte_string, split_docstring
+from StringEncoding import EncodedString, escape_byte_string, split_string_literal
 import Options
 import ControlFlow
 import DebugFlags
@@ -661,6 +661,17 @@ class CArgDeclNode(Node):
             base_type = self.base_type.analyse(env, could_be_name = could_be_name)
             if hasattr(self.base_type, 'arg_name') and self.base_type.arg_name:
                 self.declarator.name = self.base_type.arg_name
+            # The parser is unable to resolve the ambiguity of [] as part of the 
+            # type (e.g. in buffers) or empty declarator (as with arrays). 
+            # This is only arises for empty multi-dimensional arrays.
+            if (base_type.is_array 
+                    and isinstance(self.base_type, TemplatedTypeNode) 
+                    and isinstance(self.declarator, CArrayDeclaratorNode)):
+                declarator = self.declarator
+                while isinstance(declarator.base, CArrayDeclaratorNode):
+                    declarator = declarator.base
+                declarator.base = self.base_type.array_declarator
+                base_type = base_type.base_type
             return self.declarator.analyse(base_type, env, nonempty = nonempty)
         else:
             return self.name_declarator, self.type
@@ -821,7 +832,7 @@ class TemplatedTypeNode(CBaseTypeNode):
         
         else:
             # Array
-            empty_declarator = CNameDeclaratorNode(self.pos, name="")
+            empty_declarator = CNameDeclaratorNode(self.pos, name="", cname=None)
             if len(self.positional_args) > 1 or self.keyword_args.key_value_pairs:
                 error(self.pos, "invalid array declaration")
                 self.type = PyrexTypes.error_type
@@ -832,9 +843,10 @@ class TemplatedTypeNode(CBaseTypeNode):
                     dimension = None
                 else:
                     dimension = self.positional_args[0]
-                self.type = CArrayDeclaratorNode(self.pos, 
+                self.array_declarator = CArrayDeclaratorNode(self.pos, 
                     base = empty_declarator, 
-                    dimension = dimension).analyse(base_type, env)[1]
+                    dimension = dimension)
+                self.type = self.array_declarator.analyse(base_type, env)[1]
         
         return self.type
 
@@ -2052,7 +2064,7 @@ class DefNode(FuncDefNode):
             code.putln(
                 'static char %s[] = "%s";' % (
                     self.entry.doc_cname,
-                    split_docstring(escape_byte_string(docstr))))
+                    split_string_literal(escape_byte_string(docstr))))
         if with_pymethdef:
             code.put(
                 "static PyMethodDef %s = " % 
@@ -4166,7 +4178,7 @@ class ForFromStatNode(LoopNode, StatNode):
                 target_node = ExprNodes.PyTempNode(self.target.pos, None)
                 target_node.allocate(code)
                 interned_cname = code.intern_identifier(self.target.entry.name)
-                code.putln("/*here*/")
+                code.globalstate.use_utility_code(ExprNodes.get_name_interned_utility_code)
                 code.putln("%s = __Pyx_GetName(%s, %s); %s" % (
                                 target_node.result(),
                                 Naming.module_cname, 

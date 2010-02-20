@@ -89,9 +89,11 @@ class IterationTransform(Visitor.VisitorTransform):
             return self._transform_dict_iteration(
                 node, dict_obj=iterator, keys=True, values=False)
 
-        # C array slice iteration?
+        # C array (slice) iteration?
         if isinstance(iterator, ExprNodes.SliceIndexNode) and \
                (iterator.base.type.is_array or iterator.base.type.is_ptr):
+            return self._transform_carray_iteration(node, iterator)
+        elif iterator.type.is_array:
             return self._transform_carray_iteration(node, iterator)
         elif not isinstance(iterator, ExprNodes.SimpleCallNode):
             return node
@@ -131,13 +133,26 @@ class IterationTransform(Visitor.VisitorTransform):
         return node
 
     def _transform_carray_iteration(self, node, slice_node):
-        start = slice_node.start
-        stop = slice_node.stop
-        step = None
-        if not stop:
+        if isinstance(slice_node, ExprNodes.SliceIndexNode):
+            slice_base = slice_node.base
+            start = slice_node.start
+            stop = slice_node.stop
+            step = None
+            if not stop:
+                return node
+        elif slice_node.type.is_array and slice_node.type.size is not None:
+            slice_base = slice_node
+            start = None
+            stop = ExprNodes.IntNode(
+                slice_node.pos, value=str(slice_node.type.size))
+            step = None
+        else:
             return node
 
-        carray_ptr = slice_node.base.coerce_to_simple(self.current_scope)
+        ptr_type = slice_base.type
+        if ptr_type.is_array:
+            ptr_type = ptr_type.element_ptr_type()
+        carray_ptr = slice_base.coerce_to_simple(self.current_scope)
 
         if start and start.constant_result != 0:
             start_ptr_node = ExprNodes.AddNode(
@@ -145,7 +160,7 @@ class IterationTransform(Visitor.VisitorTransform):
                 operand1=carray_ptr,
                 operator='+',
                 operand2=start,
-                type=carray_ptr.type)
+                type=ptr_type)
         else:
             start_ptr_node = carray_ptr
 
@@ -154,13 +169,13 @@ class IterationTransform(Visitor.VisitorTransform):
             operand1=carray_ptr,
             operator='+',
             operand2=stop,
-            type=carray_ptr.type
+            type=ptr_type
             ).coerce_to_simple(self.current_scope)
 
-        counter = UtilNodes.TempHandle(carray_ptr.type)
+        counter = UtilNodes.TempHandle(ptr_type)
         counter_temp = counter.ref(node.target.pos)
 
-        if slice_node.base.type.is_string and node.target.type.is_pyobject:
+        if slice_base.type.is_string and node.target.type.is_pyobject:
             # special case: char* -> bytes
             target_value = ExprNodes.SliceIndexNode(
                 node.target.pos,
@@ -181,7 +196,7 @@ class IterationTransform(Visitor.VisitorTransform):
                                         type=PyrexTypes.c_int_type),
                 base=counter_temp,
                 is_buffer_access=False,
-                type=carray_ptr.type.base_type)
+                type=ptr_type.base_type)
 
         if target_value.type != node.target.type:
             target_value = target_value.coerce_to(node.target.type,
@@ -1606,20 +1621,20 @@ impl = ""
 pop_utility_code = UtilityCode(
 proto = """
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
+#if PY_VERSION_HEX >= 0x02040000
     if (likely(PyList_CheckExact(L))
             /* Check that both the size is positive and no reallocation shrinking needs to be done. */
             && likely(PyList_GET_SIZE(L) > (((PyListObject*)L)->allocated >> 1))) {
         Py_SIZE(L) -= 1;
         return PyList_GET_ITEM(L, PyList_GET_SIZE(L));
     }
-    else {
-        PyObject *r, *m;
-        m = __Pyx_GetAttrString(L, "pop");
-        if (!m) return NULL;
-        r = PyObject_CallObject(m, NULL);
-        Py_DECREF(m);
-        return r;
-    }
+#endif
+    PyObject *r, *m;
+    m = __Pyx_GetAttrString(L, "pop");
+    if (!m) return NULL;
+    r = PyObject_CallObject(m, NULL);
+    Py_DECREF(m);
+    return r;
 }
 """,
 impl = ""
@@ -1632,6 +1647,7 @@ static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix);
 impl = """
 static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
     PyObject *r, *m, *t, *py_ix;
+#if PY_VERSION_HEX >= 0x02040000
     if (likely(PyList_CheckExact(L))) {
         Py_ssize_t size = PyList_GET_SIZE(L);
         if (likely(size > (((PyListObject*)L)->allocated >> 1))) {
@@ -1650,6 +1666,7 @@ static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
             }
         }
     }
+#endif
     py_ix = t = NULL;
     m = __Pyx_GetAttrString(L, "pop");
     if (!m) goto bad;
