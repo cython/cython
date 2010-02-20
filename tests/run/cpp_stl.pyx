@@ -5,7 +5,7 @@ __doc__ = u"""
     100
 """
 
-cdef extern from "vector" namespace std:
+cdef extern from "vector" namespace "std":
 
     cdef cppclass iterator[T]:
         pass
