@@ -13,6 +13,8 @@ class AutoTestDictTransform(ScopeTrackingTransform):
     blacklist = ['__cinit__', '__dealloc__', '__richcmp__', '__nonzero__']
 
     def visit_ModuleNode(self, node):
+        if node.is_pxd:
+            return node
         self.scope_type = 'module'
         self.scope_node = node
         if self.current_directives['autotestdict']:
