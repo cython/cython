@@ -269,12 +269,18 @@ class CythonCompileTestCase(unittest.TestCase):
         target = '%s.%s' % (module_name, self.language)
         return target
 
-    def find_source_files(self, test_directory, module_name):
+    def copy_related_files(self, test_directory, target_directory, module_name):
+        is_related = re.compile('%s_.*[.].*' % module_name).match
+        for filename in os.listdir(test_directory):
+            if is_related(filename):
+                shutil.copy(os.path.join(test_directory, filename),
+                            target_directory)
+
+    def find_source_files(self, workdir, module_name):
         is_related = re.compile('%s_.*[.]%s' % (module_name, self.language)).match
         return [self.build_target_filename(module_name)] + [
-            os.path.join(test_directory, filename)
-            for filename in os.listdir(test_directory)
-            if is_related(filename) and os.path.isfile(os.path.join(test_directory, filename)) ]
+            filename for filename in os.listdir(workdir)
+            if is_related(filename) and os.path.isfile(os.path.join(workdir, filename)) ]
 
     def split_source_and_output(self, test_directory, module, workdir):
         source_file = os.path.join(test_directory, module) + '.pyx'
@@ -329,9 +335,10 @@ class CythonCompileTestCase(unittest.TestCase):
             for match, get_additional_include_dirs in EXT_DEP_INCLUDES:
                 if match(module):
                     ext_include_dirs += get_additional_include_dirs()
+            self.copy_related_files(test_directory, workdir, module)
             extension = Extension(
                 module,
-                sources = self.find_source_files(test_directory, module),
+                sources = self.find_source_files(workdir, module),
                 include_dirs = ext_include_dirs,
                 extra_compile_args = CFLAGS,
                 )
