@@ -604,8 +604,6 @@ class Scope(object):
     def lookup_operator(self, operator, operands):
         if operands[0].type.is_cpp_class:
             obj_type = operands[0].type
-            if obj_type.is_reference:
-                obj_type = obj_type.base_type
             method = obj_type.scope.lookup("operator%s" % operator)
             if method is not None:
                 res = PyrexTypes.best_match(operands[1:], method.all_alternatives())

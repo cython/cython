@@ -1367,6 +1367,9 @@ class CReferenceType(BaseType):
 
     def __repr__(self):
         return "<CReferenceType %s>" % repr(self.ref_base_type)
+    
+    def __str__(self):
+        return "%s &" % self.ref_base_type
 
     def as_argument_type(self):
         return self
@@ -2303,9 +2306,7 @@ def best_match(args, functions, pos=None):
             src_type = args[i].type
             dst_type = func_type.args[i].type
             if dst_type.assignable_from(src_type):
-                if src_type == dst_type or (dst_type.is_reference and \
-                                            src_type == dst_type.base_type) \
-                                        or dst_type.same_as(src_type):
+                if src_type == dst_type or dst_type.same_as(src_type):
                     pass # score 0
                 elif is_promotion(src_type, dst_type):
                     score[2] += 1

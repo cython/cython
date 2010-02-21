@@ -1934,7 +1934,6 @@ class IndexNode(ExprNode):
                                 self.index.type)
                 elif self.base.type.is_cpp_class:
                     function = env.lookup_operator("[]", [self.base, self.index])
-                    function = self.base.type.scope.lookup("operator[]")
                     if function is None:
                         error(self.pos, "Indexing '%s' not supported for index type '%s'" % (self.base.type, self.index.type))
                         self.type = PyrexTypes.error_type
@@ -1946,7 +1945,7 @@ class IndexNode(ExprNode):
                     self.index = self.index.coerce_to(func_type.args[0].type, env)
                     self.type = func_type.return_type
                     if setting and not func_type.return_type.is_reference:
-                        error(self.pos, "Can't set non-reference '%s'" % self.type)
+                        error(self.pos, "Can't set non-reference result '%s'" % self.type)
                 else:
                     error(self.pos,
                         "Attempting to index non-array type '%s'" %
@@ -4201,7 +4200,7 @@ class UnopNode(ExprNode):
 
     def is_cpp_operation(self):
         type = self.operand.type
-        return type.is_cpp_class or type.is_reference and type.base_type.is_cpp_class
+        return type.is_cpp_class
     
     def coerce_operand_to_pyobject(self, env):
         self.operand = self.operand.coerce_to_pyobject(env)
@@ -4228,7 +4227,7 @@ class UnopNode(ExprNode):
 
     def analyse_cpp_operation(self, env):
         type = self.operand.type
-        if type.is_ptr or type.is_reference:
+        if type.is_ptr:
             type = type.base_type
         function = type.scope.lookup("operator%s" % self.operator)
         if not function:
@@ -4745,14 +4744,8 @@ class BinopNode(ExprNode):
         return type1.is_pyobject or type2.is_pyobject
 
     def is_cpp_operation(self):
-        type1 = self.operand1.type
-        type2 = self.operand2.type
-        if type1.is_reference:
-            type1 = type1.base_type
-        if type2.is_reference:
-            type2 = type2.base_type
-        return (type1.is_cpp_class
-            or type2.is_cpp_class)
+        return (self.operand1.type.is_cpp_class
+            or self.operand2.type.is_cpp_class)
     
     def analyse_cpp_operation(self, env):
         type1 = self.operand1.type
@@ -5401,13 +5394,7 @@ class CmpNode(object):
         return result
 
     def is_cpp_comparison(self):
-        type1 = self.operand1.type
-        type2 = self.operand2.type
-        if type1.is_reference:
-            type1 = type1.base_type
-        if type2.is_reference:
-            type2 = type2.base_type
-        return type1.is_cpp_class or type2.is_cpp_class
+        return self.operand1.type.is_cpp_class or self.operand2.type.is_cpp_class
 
     def find_common_int_type(self, env, op, operand1, operand2):
         # type1 != type2 and at least one of the types is not a C int
