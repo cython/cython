@@ -1821,6 +1821,7 @@ class CppClassType(CType):
     is_cpp_class = 1
     has_attributes = 1
     exception_check = True
+    namespace = None
     
     def __init__(self, name, scope, cname, base_classes, templates = None, template_type = None):
         self.name = name
@@ -1843,18 +1844,22 @@ class CppClassType(CType):
         return self.specialize(dict(zip(self.templates, template_values)))
     
     def specialize(self, values):
-        if not self.templates:
+        if not self.templates and not self.namespace:
             return self
+        if self.templates is None:
+            self.templates = []
         key = tuple(values.items())
         if key in self.specializations:
             return self.specializations[key]
         template_values = [t.specialize(values) for t in self.templates]
         specialized = self.specializations[key] = \
             CppClassType(self.name, None, self.cname, [], template_values, template_type=self)
-        # Need to do these *after* self.specializations[key] is set to 
-        # avoid infinite recursion on circular references.
+        # Need to do these *after* self.specializations[key] is set
+        # to avoid infinite recursion on circular references.
         specialized.base_classes = [b.specialize(values) for b in self.base_classes]
         specialized.scope = self.scope.specialize(values)
+        if self.namespace is not None:
+            specialized.namespace = self.namespace.specialize(values)
         return specialized
 
     def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
@@ -1866,7 +1871,10 @@ class CppClassType(CType):
         if for_display or pyrex:
             name = self.name
         else:
-            name = self.cname
+            if self.namespace is not None:
+                name = "%s::%s" % (self.namespace.declaration_code(''), self.cname)
+            else:
+                name = self.cname
         return "%s%s %s" % (name, templates, entity_code)
 
     def is_subclass(self, other_type):

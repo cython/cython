@@ -1869,11 +1869,15 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
         complex = complex, longness = longness, 
         is_self_arg = self_flag, templates = templates)
 
-
     if s.sy == '[':
-        return p_buffer_or_template(s, type_node, templates)
-    else:
-        return type_node
+        type_node = p_buffer_or_template(s, type_node, templates)
+    
+    if s.sy == '.':
+        s.next()
+        name = p_ident(s)
+        type_node = Nodes.CNestedBaseTypeNode(pos, base_type = type_node, name = name)
+    
+    return type_node
 
 def p_buffer_or_template(s, base_type_node, templates):
     # s.sy == '['
@@ -2729,7 +2733,10 @@ def p_cpp_class_definition(s, pos,  ctx):
         body_ctx = Ctx(visibility = ctx.visibility)
         body_ctx.templates = templates
         while s.sy != 'DEDENT':
-            if s.sy != 'pass':
+            if s.systring == 'cppclass':
+                attributes.append(
+                    p_cpp_class_definition(s, s.position(), body_ctx))
+            elif s.sy != 'pass':
                 attributes.append(
                     p_c_func_or_var_declaration(s, s.position(), body_ctx))
             else:

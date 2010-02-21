@@ -3062,6 +3062,10 @@ class AttributeNode(ExprNode):
         module_scope = self.obj.analyse_as_module(env)
         if module_scope:
             return module_scope.lookup_type(self.attribute)
+        if not isinstance(self.obj, (UnicodeNode, StringNode, BytesNode)):
+            base_type = self.obj.analyse_as_type(env)
+            if base_type and hasattr(base_type, 'scope'):
+                return base_type.scope.lookup_type(self.attribute)
         return None
     
     def analyse_as_extension_type(self, env):
