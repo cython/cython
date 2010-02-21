@@ -4982,6 +4982,8 @@ utility_function_predeclarations = \
     #define CYTHON_INLINE __inline__
   #elif defined(_MSC_VER)
     #define CYTHON_INLINE __inline
+  #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    #define CYTHON_INLINE inline
   #else
     #define CYTHON_INLINE 
   #endif
