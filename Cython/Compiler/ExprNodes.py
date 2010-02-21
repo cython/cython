@@ -4230,8 +4230,7 @@ class UnopNode(ExprNode):
         type = self.operand.type
         if type.is_ptr or type.is_reference:
             type = type.base_type
-        entry = env.lookup(type.name)
-        function = entry.type.scope.lookup("operator%s" % self.operator)
+        function = type.scope.lookup("operator%s" % self.operator)
         if not function:
             error(self.pos, "'%s' operator not defined for %s"
                 % (self.operator, type))
