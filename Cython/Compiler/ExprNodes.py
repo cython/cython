@@ -2459,6 +2459,9 @@ class CallNode(ExprNode):
             self.function.set_cname(type.declaration_code(""))
             self.analyse_c_function_call(env)
             return True
+    
+    def is_lvalue(self):
+        return self.type.is_reference
 
     def nogil_check(self, env):
         func_type = self.function_type()
