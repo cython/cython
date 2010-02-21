@@ -1,5 +1,5 @@
 
-cdef extern from "testapi.h":
+cdef extern from "cppwrap_lib.h":
     void voidfunc()
     double doublefunc(double a, double b, double c)
 

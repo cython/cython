@@ -10,12 +10,6 @@ double doublefunc (double a, double b, double c)
     return a + b + c;
 }
 
-
-DoubleKeeper::DoubleKeeper ()
-    : number (1.0) 
-{
-}
-
 DoubleKeeper::DoubleKeeper (double factor)
     : number (factor)
 {
@@ -33,11 +27,6 @@ double DoubleKeeper::get_number () const
 void DoubleKeeper::set_number (double f)
 {
     number = f;
-}
-
-void DoubleKeeper::set_number ()
-{
-    number = 1.0;
 }
 
 double
