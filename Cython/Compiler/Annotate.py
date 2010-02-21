@@ -143,7 +143,9 @@ function toggleDiv(id) {
                 code = self.code[k]
             except KeyError:
                 code = ''
-                
+            
+            code = code.replace('<', '<code><</code>')
+            
             code, py_c_api_calls = py_c_api.subn(ur"<span class='py_c_api'>\1</span>(", code)
             code, pyx_c_api_calls = pyx_c_api.subn(ur"<span class='pyx_c_api'>\1</span>(", code)
             code, py_macro_api_calls = py_marco_api.subn(ur"<span class='py_macro_api'>\1</span>(", code)
