@@ -1,8 +1,12 @@
+cimport cython
+
+
 cdef extern from "cpp_references_helper.h":
     cdef int& ref_func(int&)
     
     cdef int ref_var_value
     cdef int& ref_var
+
 
 def test_ref_func(int x):
     """
@@ -42,3 +46,15 @@ def test_ref_assign(int x):
     """
     cdef double d = ref_func(x)
     return d
+
+@cython.infer_types(True)
+def test_ref_inference(int x):
+    """
+    >>> test_ref_inference(23)
+    23
+    >>> test_ref_inference(29)
+    29
+    """
+    z = ref_func(x)
+    assert cython.typeof(z) == "int", cython.typeof(z)
+    return z

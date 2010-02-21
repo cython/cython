@@ -276,10 +276,14 @@ def find_spanning_type(type1, type2):
 
 def aggressive_spanning_type(types, might_overflow):
     result_type = reduce(find_spanning_type, types)
+    if result_type.is_reference:
+        result_type = result_type.ref_base_type
     return result_type
 
 def safe_spanning_type(types, might_overflow):
     result_type = reduce(find_spanning_type, types)
+    if result_type.is_reference:
+        result_type = result_type.ref_base_type
     if result_type.is_pyobject:
         # any specific Python type is always safe to infer
         return result_type
