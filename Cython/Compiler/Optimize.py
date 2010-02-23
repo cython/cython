@@ -1620,7 +1620,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
 dict_getitem_default_utility_code = UtilityCode(
 proto = '''
-static CYTHON_INLINE PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObject* default_value) {
+static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObject* default_value) {
     PyObject* value;
 #if PY_MAJOR_VERSION >= 3
     value = PyDict_GetItemWithError(d, key);
