@@ -1350,6 +1350,26 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             node, "PyList_Reverse", self.single_param_func_type,
             'reverse', is_unbound_method, args)
 
+    Pyx_PyDict_GetItem_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("dict", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("key", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
+            ],
+        exception_value = "NULL")
+
+    def _handle_simple_method_dict_get(self, node, args, is_unbound_method):
+        if len(args) == 2:
+            args.append(ExprNodes.NoneNode(node.pos))
+        elif len(args) != 3:
+            self._error_wrong_arg_count('dict.get', node, args, "2 or 3")
+            return node
+
+        return self._substitute_method_call(
+            node, "__Pyx_PyDict_GetItemDefault", self.Pyx_PyDict_GetItem_func_type,
+            'get', is_unbound_method, args,
+            utility_code = dict_getitem_default_utility_code)
+
     PyUnicode_AsEncodedString_func_type = PyrexTypes.CFuncType(
         Builtin.bytes_type, [
             PyrexTypes.CFuncTypeArg("obj", Builtin.unicode_type, None),
@@ -1575,7 +1595,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         return (encoding, encoding_node, error_handling, error_handling_node)
 
     def _substitute_method_call(self, node, name, func_type,
-                                attr_name, is_unbound_method, args=()):
+                                attr_name, is_unbound_method, args=(),
+                                utility_code=None):
         args = list(args)
         if args:
             self_arg = args[0]
@@ -1592,9 +1613,48 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         return ExprNodes.PythonCapiCallNode(
             node.pos, name, func_type,
             args = args,
-            is_temp = node.is_temp
+            is_temp = node.is_temp,
+            utility_code = utility_code
             )
 
+
+dict_getitem_default_utility_code = UtilityCode(
+proto = '''
+static CYTHON_INLINE PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObject* default_value) {
+    PyObject* value;
+#if PY_MAJOR_VERSION >= 3
+    value = PyDict_GetItemWithError(d, key);
+    if (unlikely(!value)) {
+        if (unlikely(PyErr_Occurred()))
+            return NULL;
+        value = default_value;
+    }
+    Py_INCREF(value);
+#else
+    if (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key)) {
+        /* these presumably have safe hash functions */
+        value = PyDict_GetItem(d, key);
+        if (unlikely(!value)) {
+            value = default_value;
+        }
+        Py_INCREF(value);
+    } else {
+        PyObject *m;
+        m = __Pyx_GetAttrString(d, "get");
+        if (!m) return NULL;
+        if (default_value == Py_None) {
+            value = PyObject_CallFunctionObjArgs(m, key, default_value, NULL);
+        } else {
+            value = PyObject_CallFunctionObjArgs(m, key, NULL);
+        }
+        Py_DECREF(m);
+    }
+#endif
+    return value;
+}
+''',
+impl = ""
+)
 
 append_utility_code = UtilityCode(
 proto = """
