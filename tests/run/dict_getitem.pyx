@@ -28,3 +28,25 @@ def test(dict d, index):
     TypeError: 'NoneType' object is unsubscriptable
     """
     return d[index]
+
+def time_dict(dict d, ix, long N):
+    """
+    >>> time_dict({"abc": 1}, "abc", 1e6)
+    """
+    from time import time
+    t = time()
+    cdef int i
+    for i in range(N):
+        d[ix]
+    return time() - t
+
+def time_nondict(object d, ix, long N):
+    """
+    >>> time_nondict({"abc": 1}, "abc", 1e6)
+    """
+    from time import time
+    t = time()
+    cdef int i
+    for i in range(N):
+        d[ix]
+    return time() - t
