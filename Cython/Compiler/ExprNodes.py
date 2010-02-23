@@ -6494,30 +6494,24 @@ static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void) {
 getitem_dict_utility_code = UtilityCode(
 proto = """
 
-static PyObject *__Pyx_PyDict_GetItem(PyObject *o, PyObject* key) {
-    long hash;
-    PyDictEntry *entry;
+static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
     PyObject *value;
-    if (unlikely(o == Py_None)) {
+    if (unlikely(d == Py_None)) {
         __Pyx_RaiseNoneIndexingError();
         return NULL;
     }
-    if (!PyString_CheckExact(key) ||
-        (hash = ((PyStringObject *) key)->ob_shash) == -1) {
-        hash = PyObject_Hash(key);
-        if (hash == -1) return NULL;
-    }
-    entry = ((PyDictObject*)o)->ma_lookup((PyDictObject*)o, key, hash);
-    if (likely(entry != NULL)) {
-        value = entry->me_value;
-        if (likely(value != NULL)) {
-            Py_INCREF(value);
-            return value;
-        } else {
+#if PY_MAJOR_VERSION >= 3
+    value = PyDict_GetItemWithError(d, key);
+    if (unlikely(!value)) {
+        if (!PyErr_Occurred())
             PyErr_SetObject(PyExc_KeyError, key);
-        }
+        return NULL;
     }
-    return NULL;
+    Py_INCREF(value);
+#else
+    value = PyObject_GetItem(d, key);
+#endif
+    return value;
 }
 """, 
 requires = [raise_noneindex_error_utility_code])
