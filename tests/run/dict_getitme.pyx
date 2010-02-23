@@ -21,5 +21,10 @@ def test(dict d, index):
     Traceback (most recent call last):
     ...
     ValueError
+    
+    >>> test(None, 1)
+    Traceback (most recent call last):
+    ...
+    TypeError: 'NoneType' object is unsubscriptable
     """
     return d[index]
