@@ -52,6 +52,11 @@ def get_default(dict d, key, default):
     >>> get_default(d, 2, 2)
     2
 
+    >>> d.get((1,2), 2)
+    2
+    >>> get_default(d, (1,2), 2)
+    2
+
     >>> class Unhashable:
     ...    def __hash__(self):
     ...        raise ValueError

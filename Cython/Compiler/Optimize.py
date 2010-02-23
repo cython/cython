@@ -1642,11 +1642,8 @@ static CYTHON_INLINE PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject
         PyObject *m;
         m = __Pyx_GetAttrString(d, "get");
         if (!m) return NULL;
-        if (default_value == Py_None) {
-            value = PyObject_CallFunctionObjArgs(m, key, default_value, NULL);
-        } else {
-            value = PyObject_CallFunctionObjArgs(m, key, NULL);
-        }
+        value = PyObject_CallFunctionObjArgs(m, key,
+            (default_value == Py_None) ? NULL : default_value, NULL);
         Py_DECREF(m);
     }
 #endif
