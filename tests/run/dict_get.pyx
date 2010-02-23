@@ -51,5 +51,16 @@ def get_default(dict d, key, default):
     2
     >>> get_default(d, 2, 2)
     2
+
+    >>> class Unhashable:
+    ...    def __hash__(self):
+    ...        raise ValueError
+
+    >>> d.get(Unhashable(), 2)
+    Traceback (most recent call last):
+    ValueError
+    >>> get_default(d, Unhashable(), 2)
+    Traceback (most recent call last):
+    ValueError
     """
     return d.get(key, default)
