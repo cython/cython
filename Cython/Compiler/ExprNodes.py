@@ -6518,9 +6518,6 @@ requires = [raise_noneindex_error_utility_code])
 
 #------------------------------------------------------------------------------------
 
-# If the is_unsigned flag is set, we need to do some extra work to make 
-# sure the index doesn't become negative. 
-
 getitem_int_utility_code = UtilityCode(
 proto = """
 
