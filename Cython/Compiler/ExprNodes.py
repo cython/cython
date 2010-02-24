@@ -6494,13 +6494,13 @@ static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void) {
 getitem_dict_utility_code = UtilityCode(
 proto = """
 
+#if PY_MAJOR_VERSION >= 3
 static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
     PyObject *value;
     if (unlikely(d == Py_None)) {
         __Pyx_RaiseNoneIndexingError();
         return NULL;
     }
-#if PY_MAJOR_VERSION >= 3
     value = PyDict_GetItemWithError(d, key);
     if (unlikely(!value)) {
         if (!PyErr_Occurred())
@@ -6508,11 +6508,11 @@ static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
         return NULL;
     }
     Py_INCREF(value);
-#else
-    value = PyObject_GetItem(d, key);
-#endif
     return value;
 }
+#else
+    #define __Pyx_PyDict_GetItem(d, key) PyObject_GetItem(d, key)
+#endif
 """, 
 requires = [raise_noneindex_error_utility_code])
 
