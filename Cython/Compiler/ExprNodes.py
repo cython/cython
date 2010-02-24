@@ -2279,7 +2279,7 @@ class SliceIndexNode(ExprNode):
                     self.base.py_result(),
                     self.start_code(),
                     self.stop_code(),
-                    rhs.result()))
+                    rhs.py_result()))
         else:
             start_offset = ''
             if self.start:
