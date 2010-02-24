@@ -1173,6 +1173,32 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             self._error_wrong_arg_count('getattr', node, pos_args, '2 or 3')
         return node
 
+    PyObject_GetIter_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None),
+            ])
+
+    PyCallIter_New_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("sentinel", PyrexTypes.py_object_type, None),
+            ])
+
+    def _handle_simple_function_iter(self, node, pos_args):
+        if len(pos_args) == 1:
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "PyObject_GetIter", self.PyObject_GetIter_func_type,
+                args = pos_args,
+                is_temp = node.is_temp)
+        elif len(pos_args) == 2:
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "PyCallIter_New", self.PyCallIter_New_func_type,
+                args = pos_args,
+                is_temp = node.is_temp)
+        else:
+            self._error_wrong_arg_count('iter', node, pos_args, '1 or 2')
+        return node
+
     Pyx_strlen_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_size_t_type, [
             PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_char_ptr_type, None)
