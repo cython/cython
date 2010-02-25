@@ -1205,10 +1205,6 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             ])
 
     def _handle_simple_function_len(self, node, pos_args):
-        # note: this only works because we already replaced len() by
-        # PyObject_Length() which returns a Py_ssize_t instead of a
-        # Python object, so we can return a plain size_t instead
-        # without caring about Python object conversion etc.
         if len(pos_args) != 1:
             self._error_wrong_arg_count('len', node, pos_args, 1)
             return node
@@ -1216,6 +1212,13 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             arg = arg.arg
         if not arg.type.is_string:
+            return node
+        if not node.type.is_numeric:
+            # this optimisation only works when we already replaced
+            # len() by PyObject_Length() which returns a Py_ssize_t
+            # instead of a Python object, so we can return a plain
+            # size_t instead without caring about Python object
+            # conversion etc.
             return node
         node = ExprNodes.PythonCapiCallNode(
             node.pos, "strlen", self.Pyx_strlen_func_type,
