@@ -242,18 +242,25 @@ class PostParse(CythonTransform):
             self.context.nonfatal_error(e)
             return None
 
-    def visit_ParallelAssignmentNode(self, node):
+    # support for parallel assignments (a,b = b,a) by splitting them
+    # into separate assignments that are executed rhs-first
+
+    def visit_SingleAssignmentNode(self, node):
+        self.visitchildren(node)
+        return self._visit_assignment_node(node, [node.lhs, node.rhs])
+
+    def visit_CascadedAssignmentNode(self, node):
+        self.visitchildren(node)
+        return self._visit_assignment_node(node, node.lhs_list + [node.rhs])
+
+    def _visit_assignment_node(self, node, expr_list):
         """Flatten parallel assignments into separate single
         assignments or cascaded assignments.
         """
-        self.visitchildren(node)
-        expr_list = []
-        for assign_node in node.stats:
-            if isinstance(assign_node, Nodes.CascadedAssignmentNode):
-                expr_list.extend(assign_node.lhs_list)
-            else:
-                expr_list.append(assign_node.lhs)
-            expr_list.append(assign_node.rhs)
+        if sum([ 1 for expr in expr_list if expr.is_sequence_constructor ]) < 2:
+            # no parallel assignments => nothing to do
+            return node
+
         expr_list_list = []
         flatten_parallel_assignments(expr_list, expr_list_list)
         nodes = []
