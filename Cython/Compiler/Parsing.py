@@ -920,17 +920,11 @@ def p_expression_or_assignment(s):
 
     rhs = expr_list[-1]
     if len(expr_list) == 2:
-        node = Nodes.SingleAssignmentNode(rhs.pos, 
+        return Nodes.SingleAssignmentNode(rhs.pos, 
             lhs = expr_list[0], rhs = rhs)
     else:
-        node = Nodes.CascadedAssignmentNode(rhs.pos,
+        return Nodes.CascadedAssignmentNode(rhs.pos,
             lhs_list = expr_list[:-1], rhs = rhs)
-
-    if sum([ 1 for expr in expr_list if expr.is_sequence_constructor ]) > 1:
-        # at least one parallel assignment
-        return Nodes.ParallelAssignmentNode(node.pos, stats = [node])
-    else:
-        return node
 
 def p_print_statement(s):
     # s.sy == 'print'
