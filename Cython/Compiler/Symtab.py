@@ -1560,7 +1560,6 @@ class CppClassScope(Scope):
                     error(pos, "no matching function for call to " \
                             "%s::%s()" % (temp_entry.scope.name, temp_entry.scope.name))
         elif not self.default_constructor:
-            print 5
             error(pos, "no matching function for call to %s::%s()" %
                   (self.default_constructor, self.default_constructor))
 
@@ -1607,11 +1606,16 @@ class CppClassScope(Scope):
                                     entry.pos,
                                     entry.cname)
             else:
-                scope.declare_var(entry.name,
-                                    entry.type.specialize(values),
-                                    entry.pos,
-                                    entry.cname,
-                                    entry.visibility)
+#                scope.declare_var(entry.name,
+#                                    entry.type.specialize(values),
+#                                    entry.pos,
+#                                    entry.cname,
+#                                    entry.visibility)
+                for e in entry.all_alternatives():
+                    scope.declare_cfunction(e.name,
+                                            e.type.specialize(values),
+                                            e.pos,
+                                            e.cname)
         return scope
         
         
