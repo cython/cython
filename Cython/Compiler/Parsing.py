@@ -2092,7 +2092,7 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                 error(s.position(), "Declarator should be empty")
             s.next()
             cname = p_opt_cname(s)
-            if s.sy == '=' and assignable:
+            if name != "operator" and s.sy == '=' and assignable:
                 s.next()
                 rhs = p_simple_expr(s)
         else:
