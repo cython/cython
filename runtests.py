@@ -888,8 +888,8 @@ if __name__ == '__main__':
                 "Failed to import xmlrunner.XMLTestRunner, no XML output available\n")
             xml_output_dir = None
 
-    if xml_output_dir:
-        test_runner = XMLTestRunner(output=xml_output_dir)
+    if options.xml_output_dir:
+        test_runner = XMLTestRunner(output=options.xml_output_dir)
     else:
         test_runner = unittest.TextTestRunner(verbosity=options.verbosity)
 
