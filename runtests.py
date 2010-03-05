@@ -881,7 +881,6 @@ if __name__ == '__main__':
                 'pyregr'))
 
     if options.xml_output_dir:
-        sys.path.append('.')
         from Cython.Tests.xmlrunner import XMLTestRunner
         test_runner = XMLTestRunner(output=options.xml_output_dir,
                                     verbose=options.verbosity > 0)
