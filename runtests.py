@@ -724,7 +724,9 @@ if __name__ == '__main__':
                       help="display test progress, pass twice to print test names")
     parser.add_option("-T", "--ticket", dest="tickets",
                       action="append",
-                      help="a bug ticket number to run the respective test in 'tests/bugs'")
+                      help="a bug ticket number to run the respective test in 'tests/*'")
+    parser.add_option("--xml-output", dest="xml_output_dir", metavar="DIR",
+                      help="write test results in XML to directory DIR")
 
     options, cmd_args = parser.parse_args()
 
@@ -878,7 +880,20 @@ if __name__ == '__main__':
                 os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test'),
                 'pyregr'))
 
-    result = unittest.TextTestRunner(verbosity=options.verbosity).run(test_suite)
+    if xml_output_dir:
+        try:
+            from xmlrunner import XMLTestRunner
+        except ImportError:
+            sys.stderr.write(
+                "Failed to import xmlrunner.XMLTestRunner, no XML output available\n")
+            xml_output_dir = None
+
+    if xml_output_dir:
+        test_runner = XMLTestRunner(output=xml_output_dir)
+    else:
+        test_runner = unittest.TextTestRunner(verbosity=options.verbosity)
+
+    result = test_runner.run(test_suite)
 
     if options.coverage:
         coverage.stop()
