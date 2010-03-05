@@ -727,6 +727,9 @@ if __name__ == '__main__':
                       help="a bug ticket number to run the respective test in 'tests/*'")
     parser.add_option("--xml-output", dest="xml_output_dir", metavar="DIR",
                       help="write test results in XML to directory DIR")
+    parser.add_option("--exit-ok", dest="exit_ok", default=False,
+                      action="store_true",
+                      help="exit without error code even on test failures")
 
     options, cmd_args = parser.parse_args()
 
@@ -907,4 +910,7 @@ if __name__ == '__main__':
         import refnanny
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
-    sys.exit(not result.wasSuccessful())
+    if options.exit_ok:
+        sys.exit(0)
+    else:
+        sys.exit(not result.wasSuccessful())
