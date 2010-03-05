@@ -880,6 +880,7 @@ if __name__ == '__main__':
                 os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test'),
                 'pyregr'))
 
+    xml_output_dir = options.xml_output_dir
     if xml_output_dir:
         try:
             from xmlrunner import XMLTestRunner
@@ -888,8 +889,8 @@ if __name__ == '__main__':
                 "Failed to import xmlrunner.XMLTestRunner, no XML output available\n")
             xml_output_dir = None
 
-    if options.xml_output_dir:
-        test_runner = XMLTestRunner(output=options.xml_output_dir)
+    if xml_output_dir:
+        test_runner = XMLTestRunner(output=xml_output_dir, verbosity=options.verbosity)
     else:
         test_runner = unittest.TextTestRunner(verbosity=options.verbosity)
 
