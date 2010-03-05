@@ -890,7 +890,7 @@ if __name__ == '__main__':
             xml_output_dir = None
 
     if xml_output_dir:
-        test_runner = XMLTestRunner(output=xml_output_dir, verbosity=options.verbosity)
+        test_runner = XMLTestRunner(output=xml_output_dir, verbosity=options.verbosity > 0)
     else:
         test_runner = unittest.TextTestRunner(verbosity=options.verbosity)
 
