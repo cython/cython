@@ -242,8 +242,10 @@ class PostParse(CythonTransform):
             self.context.nonfatal_error(e)
             return None
 
-    # support for parallel assignments (a,b = b,a) by splitting them
-    # into separate assignments that are executed rhs-first
+    # Split parallel assignments (a,b = b,a) into separate partial
+    # assignments that are executed rhs-first using temps.  This
+    # optimisation is best applied before type analysis so that known
+    # types on rhs and lhs can be matched directly.
 
     def visit_SingleAssignmentNode(self, node):
         self.visitchildren(node)
@@ -295,7 +297,7 @@ def flatten_parallel_assignments(input, output):
     complete_assignments = []
 
     rhs_size = len(rhs.args)
-    lhs_targets = [ [] for _ in range(rhs_size) ]
+    lhs_targets = [ [] for _ in xrange(rhs_size) ]
     starred_assignments = []
     for lhs in input[:-1]:
         if not lhs.is_sequence_constructor:
@@ -305,32 +307,26 @@ def flatten_parallel_assignments(input, output):
             continue
         lhs_size = len(lhs.args)
         starred_targets = sum([1 for expr in lhs.args if expr.is_starred])
-        if starred_targets:
-            if starred_targets > 1:
-                error(lhs.pos, "more than 1 starred expression in assignment")
-                output.append([lhs,rhs])
-                continue
-            elif lhs_size - starred_targets > rhs_size:
-                error(lhs.pos, "need more than %d value%s to unpack"
-                      % (rhs_size, (rhs_size != 1) and 's' or ''))
-                output.append([lhs,rhs])
-                continue
+        if starred_targets > 1:
+            error(lhs.pos, "more than 1 starred expression in assignment")
+            output.append([lhs,rhs])
+            continue
+        elif lhs_size - starred_targets > rhs_size:
+            error(lhs.pos, "need more than %d value%s to unpack"
+                  % (rhs_size, (rhs_size != 1) and 's' or ''))
+            output.append([lhs,rhs])
+            continue
+        elif starred_targets == 1:
             map_starred_assignment(lhs_targets, starred_assignments,
                                    lhs.args, rhs.args)
+        elif lhs_size < rhs_size:
+            error(lhs.pos, "too many values to unpack (expected %d, got %d)"
+                  % (lhs_size, rhs_size))
+            output.append([lhs,rhs])
+            continue
         else:
-            if lhs_size > rhs_size:
-                error(lhs.pos, "need more than %d value%s to unpack"
-                      % (rhs_size, (rhs_size != 1) and 's' or ''))
-                output.append([lhs,rhs])
-                continue
-            elif lhs_size < rhs_size:
-                error(lhs.pos, "too many values to unpack (expected %d, got %d)"
-                      % (lhs_size, rhs_size))
-                output.append([lhs,rhs])
-                continue
-            else:
-                for targets, expr in zip(lhs_targets, lhs.args):
-                    targets.append(expr)
+            for targets, expr in zip(lhs_targets, lhs.args):
+                targets.append(expr)
 
     if complete_assignments:
         complete_assignments.append(rhs)
