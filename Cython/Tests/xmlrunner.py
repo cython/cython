@@ -208,7 +208,7 @@ class _XMLTestResult(_TextTestResult):
         xml_testsuite.appendChild(testcase)
         
         testcase.setAttribute('classname', suite_name)
-        testcase.setAttribute('name', test_result.test_method.shortDescription())
+        testcase.setAttribute('name', test_result.test_method.shortDescription() or test_result.test_method._testMethodName)
         testcase.setAttribute('time', '%.3f' % test_result.get_elapsed_time())
         
         if (test_result.outcome != _TestInfo.SUCCESS):
