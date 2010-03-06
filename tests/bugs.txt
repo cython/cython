@@ -11,4 +11,5 @@ cascaded_list_unpacking_T467
 compile.cpp_operators
 
 # Pyrex regression tests that don't current work:
-test_threadsignals
+pyregr.test_threadsignals
+pyregr.test_module
