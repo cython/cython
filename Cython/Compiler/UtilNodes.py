@@ -130,6 +130,9 @@ class ResultRefNode(AtomicExprNode):
     def infer_type(self, env):
         return self.expression.infer_type(env)
 
+    def is_simple(self):
+        return True
+
     def result(self):
         return self.result_code
 
@@ -222,7 +225,8 @@ class LetNode(Nodes.StatNode, LetNodeMixin):
     #     BLOCK (can modify temp)
     #     if temp is an object, decref
     #
-    # To be used after analysis phase, does no analysis.
+    # Usually used after analysis phase, but forwards analysis methods
+    # to its children
 
     child_attrs = ['temp_expression', 'body']
 
@@ -230,6 +234,17 @@ class LetNode(Nodes.StatNode, LetNodeMixin):
         self.set_temp_expr(lazy_temp)
         self.pos = body.pos
         self.body = body
+
+    def analyse_control_flow(self, env):
+        self.body.analyse_control_flow(env)
+
+    def analyse_declarations(self, env):
+        self.temp_expression.analyse_declarations(env)
+        self.body.analyse_declarations(env)
+    
+    def analyse_expressions(self, env):
+        self.temp_expression.analyse_expressions(env)
+        self.body.analyse_expressions(env)
 
     def generate_execution_code(self, code):
         self.setup_temp_expr(code)
