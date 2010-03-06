@@ -422,7 +422,7 @@ def flatten_parallel_assignments(input, output):
                   % (rhs_size, (rhs_size != 1) and 's' or ''))
             output.append([lhs,rhs])
             continue
-        elif starred_targets == 1:
+        elif starred_targets:
             map_starred_assignment(lhs_targets, starred_assignments,
                                    lhs.args, rhs.args)
         elif lhs_size < rhs_size:
