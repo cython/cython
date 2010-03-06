@@ -31,7 +31,7 @@ builtin_function_table = [
     ('intern',     "O",    "O",     "__Pyx_Intern"),
     ('isinstance', "OO",   "b",     "PyObject_IsInstance"),
     ('issubclass', "OO",   "b",     "PyObject_IsSubclass"),
-    ('iter',       "O",    "O",     "PyObject_GetIter"),
+    #('iter',       "O",    "O",     "PyObject_GetIter"),   # optimised later on
     ('len',        "O",    "Z",     "PyObject_Length"),
     ('locals',     "",     "O",     "__pyx_locals"),
     #('map',       "",     "",      ""),

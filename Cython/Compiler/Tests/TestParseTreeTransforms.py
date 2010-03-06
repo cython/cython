@@ -50,13 +50,13 @@ class TestNormalizeTree(TransformTest):
         """)
         self.assertLines(u"""
 (root): StatListNode
-  stats[0]: ParallelAssignmentNode
-    stats[0]: SingleAssignmentNode
-      lhs: NameNode
-      rhs: NameNode
-    stats[1]: SingleAssignmentNode
-      lhs: NameNode
-      rhs: NameNode
+  stats[0]: SingleAssignmentNode
+    lhs: TupleNode
+      args[0]: NameNode
+      args[1]: NameNode
+    rhs: TupleNode
+      args[0]: NameNode
+      args[1]: NameNode
 """, self.treetypes(t))
 
     def test_wrap_offagain(self):

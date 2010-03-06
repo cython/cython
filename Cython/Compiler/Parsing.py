@@ -10,6 +10,15 @@ cython.declare(Nodes=object, ExprNodes=object, EncodedString=object)
 import os
 import re
 import sys
+
+try:
+    from __builtin__ import set
+except ImportError:
+    try:
+        from builtins import set
+    except ImportError:
+        from sets import Set as set
+
 from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
 import ExprNodes
@@ -362,14 +371,8 @@ def p_new_expr(s):
     # s.systring == 'new'.
     pos = s.position()
     s.next()
-    name = p_ident(s)
-    if s.sy == '[':
-        s.next()
-        template_parameters = p_simple_expr_list(s)
-        s.expect(']')        
-    else:
-        template_parameters = None
-    return p_call(s, ExprNodes.NewExprNode(pos, cppclass = name, template_parameters = template_parameters))
+    cppclass = p_c_base_type(s)
+    return p_call(s, ExprNodes.NewExprNode(pos, cppclass = cppclass))
 
 #trailer: '(' [arglist] ')' | '[' subscriptlist ']' | '.' NAME
 
@@ -960,129 +963,14 @@ def p_expression_or_assignment(s):
             return Nodes.PassStatNode(expr.pos)
         else:
             return Nodes.ExprStatNode(expr.pos, expr = expr)
+
+    rhs = expr_list[-1]
+    if len(expr_list) == 2:
+        return Nodes.SingleAssignmentNode(rhs.pos, 
+            lhs = expr_list[0], rhs = rhs)
     else:
-        expr_list_list = []
-        flatten_parallel_assignments(expr_list, expr_list_list)
-        nodes = []
-        for expr_list in expr_list_list:
-            lhs_list = expr_list[:-1]
-            rhs = expr_list[-1]
-            if len(lhs_list) == 1:
-                node = Nodes.SingleAssignmentNode(rhs.pos, 
-                    lhs = lhs_list[0], rhs = rhs)
-            else:
-                node = Nodes.CascadedAssignmentNode(rhs.pos,
-                    lhs_list = lhs_list, rhs = rhs)
-            nodes.append(node)
-        if len(nodes) == 1:
-            return nodes[0]
-        else:
-            return Nodes.ParallelAssignmentNode(nodes[0].pos, stats = nodes)
-
-def flatten_parallel_assignments(input, output):
-    #  The input is a list of expression nodes, representing the LHSs
-    #  and RHS of one (possibly cascaded) assignment statement.  For
-    #  sequence constructors, rearranges the matching parts of both
-    #  sides into a list of equivalent assignments between the
-    #  individual elements.  This transformation is applied
-    #  recursively, so that nested structures get matched as well.
-    rhs = input[-1]
-    if not rhs.is_sequence_constructor or not sum([lhs.is_sequence_constructor for lhs in input[:-1]]):
-        output.append(input)
-        return
-
-    complete_assignments = []
-
-    rhs_size = len(rhs.args)
-    lhs_targets = [ [] for _ in range(rhs_size) ]
-    starred_assignments = []
-    for lhs in input[:-1]:
-        if not lhs.is_sequence_constructor:
-            if lhs.is_starred:
-                error(lhs.pos, "starred assignment target must be in a list or tuple")
-            complete_assignments.append(lhs)
-            continue
-        lhs_size = len(lhs.args)
-        starred_targets = sum([1 for expr in lhs.args if expr.is_starred])
-        if starred_targets:
-            if starred_targets > 1:
-                error(lhs.pos, "more than 1 starred expression in assignment")
-                output.append([lhs,rhs])
-                continue
-            elif lhs_size - starred_targets > rhs_size:
-                error(lhs.pos, "need more than %d value%s to unpack"
-                      % (rhs_size, (rhs_size != 1) and 's' or ''))
-                output.append([lhs,rhs])
-                continue
-            map_starred_assignment(lhs_targets, starred_assignments,
-                                   lhs.args, rhs.args)
-        else:
-            if lhs_size > rhs_size:
-                error(lhs.pos, "need more than %d value%s to unpack"
-                      % (rhs_size, (rhs_size != 1) and 's' or ''))
-                output.append([lhs,rhs])
-                continue
-            elif lhs_size < rhs_size:
-                error(lhs.pos, "too many values to unpack (expected %d, got %d)"
-                      % (lhs_size, rhs_size))
-                output.append([lhs,rhs])
-                continue
-            else:
-                for targets, expr in zip(lhs_targets, lhs.args):
-                    targets.append(expr)
-
-    if complete_assignments:
-        complete_assignments.append(rhs)
-        output.append(complete_assignments)
-
-    # recursively flatten partial assignments
-    for cascade, rhs in zip(lhs_targets, rhs.args):
-        if cascade:
-            cascade.append(rhs)
-            flatten_parallel_assignments(cascade, output)
-
-    # recursively flatten starred assignments
-    for cascade in starred_assignments:
-        if cascade[0].is_sequence_constructor:
-            flatten_parallel_assignments(cascade, output)
-        else:
-            output.append(cascade)
-
-def map_starred_assignment(lhs_targets, starred_assignments, lhs_args, rhs_args):
-    # Appends the fixed-position LHS targets to the target list that
-    # appear left and right of the starred argument.
-    #
-    # The starred_assignments list receives a new tuple
-    # (lhs_target, rhs_values_list) that maps the remaining arguments
-    # (those that match the starred target) to a list.
-
-    # left side of the starred target
-    for i, (targets, expr) in enumerate(zip(lhs_targets, lhs_args)):
-        if expr.is_starred:
-            starred = i
-            lhs_remaining = len(lhs_args) - i - 1
-            break
-        targets.append(expr)
-    else:
-        raise InternalError("no starred arg found when splitting starred assignment")
-
-    # right side of the starred target
-    for i, (targets, expr) in enumerate(zip(lhs_targets[-lhs_remaining:],
-                                            lhs_args[-lhs_remaining:])):
-        targets.append(expr)
-
-    # the starred target itself, must be assigned a (potentially empty) list
-    target = lhs_args[starred].target # unpack starred node
-    starred_rhs = rhs_args[starred:]
-    if lhs_remaining:
-        starred_rhs = starred_rhs[:-lhs_remaining]
-    if starred_rhs:
-        pos = starred_rhs[0].pos
-    else:
-        pos = target.pos
-    starred_assignments.append([
-        target, ExprNodes.ListNode(pos=pos, args=starred_rhs)])
-
+        return Nodes.CascadedAssignmentNode(rhs.pos,
+            lhs_list = expr_list[:-1], rhs = rhs)
 
 def p_print_statement(s):
     # s.sy == 'print'
@@ -1916,11 +1804,15 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
         complex = complex, longness = longness, 
         is_self_arg = self_flag, templates = templates)
 
-
     if s.sy == '[':
-        return p_buffer_or_template(s, type_node, templates)
-    else:
-        return type_node
+        type_node = p_buffer_or_template(s, type_node, templates)
+    
+    if s.sy == '.':
+        s.next()
+        name = p_ident(s)
+        type_node = Nodes.CNestedBaseTypeNode(pos, base_type = type_node, name = name)
+    
+    return type_node
 
 def p_buffer_or_template(s, base_type_node, templates):
     # s.sy == '['
@@ -2332,7 +2224,7 @@ def p_cdef_extern_block(s, pos, ctx):
         _, include_file = p_string_literal(s)
     if s.systring == "namespace":
         s.next()
-        ctx.namespace = p_dotted_name(s, as_allowed=False)[2].replace('.', '::')
+        ctx.namespace = p_string_literal(s)[1]
     ctx = ctx(cdef_flag = 1, visibility = 'extern')
     if p_nogil(s):
         ctx.nogil = 1
@@ -2796,7 +2688,10 @@ def p_cpp_class_definition(s, pos,  ctx):
         body_ctx = Ctx(visibility = ctx.visibility)
         body_ctx.templates = templates
         while s.sy != 'DEDENT':
-            if s.sy != 'pass':
+            if s.systring == 'cppclass':
+                attributes.append(
+                    p_cpp_class_definition(s, s.position(), body_ctx))
+            elif s.sy != 'pass':
                 attributes.append(
                     p_c_func_or_var_declaration(s, s.position(), body_ctx))
             else:

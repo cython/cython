@@ -48,8 +48,8 @@ EXT_DEP_INCLUDES = [
 ]
 
 VER_DEP_MODULES = {
-# such as:
-#    (2,4) : (operator.le, lambda x: x in ['run.set']),
+    (2,4) : (operator.le, lambda x: x in ['run.extern_builtins_T258'
+                                          ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
                                         'compile.extdelslice']),
@@ -269,12 +269,18 @@ class CythonCompileTestCase(unittest.TestCase):
         target = '%s.%s' % (module_name, self.language)
         return target
 
-    def find_source_files(self, test_directory, module_name):
+    def copy_related_files(self, test_directory, target_directory, module_name):
+        is_related = re.compile('%s_.*[.].*' % module_name).match
+        for filename in os.listdir(test_directory):
+            if is_related(filename):
+                shutil.copy(os.path.join(test_directory, filename),
+                            target_directory)
+
+    def find_source_files(self, workdir, module_name):
         is_related = re.compile('%s_.*[.]%s' % (module_name, self.language)).match
         return [self.build_target_filename(module_name)] + [
-            os.path.join(test_directory, filename)
-            for filename in os.listdir(test_directory)
-            if is_related(filename) and os.path.isfile(os.path.join(test_directory, filename)) ]
+            filename for filename in os.listdir(workdir)
+            if is_related(filename) and os.path.isfile(os.path.join(workdir, filename)) ]
 
     def split_source_and_output(self, test_directory, module, workdir):
         source_file = os.path.join(test_directory, module) + '.pyx'
@@ -329,9 +335,10 @@ class CythonCompileTestCase(unittest.TestCase):
             for match, get_additional_include_dirs in EXT_DEP_INCLUDES:
                 if match(module):
                     ext_include_dirs += get_additional_include_dirs()
+            self.copy_related_files(test_directory, workdir, module)
             extension = Extension(
                 module,
-                sources = self.find_source_files(test_directory, module),
+                sources = self.find_source_files(workdir, module),
                 include_dirs = ext_include_dirs,
                 extra_compile_args = CFLAGS,
                 )
@@ -717,7 +724,12 @@ if __name__ == '__main__':
                       help="display test progress, pass twice to print test names")
     parser.add_option("-T", "--ticket", dest="tickets",
                       action="append",
-                      help="a bug ticket number to run the respective test in 'tests/bugs'")
+                      help="a bug ticket number to run the respective test in 'tests/*'")
+    parser.add_option("--xml-output", dest="xml_output_dir", metavar="DIR",
+                      help="write test results in XML to directory DIR")
+    parser.add_option("--exit-ok", dest="exit_ok", default=False,
+                      action="store_true",
+                      help="exit without error code even on test failures")
 
     options, cmd_args = parser.parse_args()
 
@@ -871,7 +883,14 @@ if __name__ == '__main__':
                 os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test'),
                 'pyregr'))
 
-    result = unittest.TextTestRunner(verbosity=options.verbosity).run(test_suite)
+    if options.xml_output_dir:
+        from Cython.Tests.xmlrunner import XMLTestRunner
+        test_runner = XMLTestRunner(output=options.xml_output_dir,
+                                    verbose=options.verbosity > 0)
+    else:
+        test_runner = unittest.TextTestRunner(verbosity=options.verbosity)
+
+    result = test_runner.run(test_suite)
 
     if options.coverage:
         coverage.stop()
@@ -891,4 +910,7 @@ if __name__ == '__main__':
         import refnanny
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
-    sys.exit(not result.wasSuccessful())
+    if options.exit_ok:
+        sys.exit(0)
+    else:
+        sys.exit(not result.wasSuccessful())

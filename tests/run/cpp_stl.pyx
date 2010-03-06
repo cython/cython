@@ -1,34 +1,52 @@
-__doc__ = u"""
-    >>> test_vector([1,10,100])
-    1
-    10
-    100
-"""
-
-cdef extern from "vector" namespace std:
-
-    cdef cppclass iterator[T]:
-        pass
+cdef extern from "vector" namespace "std":
 
     cdef cppclass vector[T]:
-        #constructors
-        __init__()
 
         T at(int)
         void push_back(T t)
         void assign(int, T)
         void clear()
+        int size()
+        
+        cppclass iterator:
+            T operator*()
+            iterator operator++()
+            bint operator==(iterator)
+            bint operator!=(iterator)
 
         iterator end()
         iterator begin()
 
-        int size()
+from cython.operator cimport dereference as deref, preincrement as inc
 
 def test_vector(L):
-    cdef vector[int] *V = new vector[int]()
+    """
+    >>> test_vector([1,10,100])
+    1
+    10
+    100
+    """
+    v = new vector[int]()
     for a in L:
-        V.push_back(a)
+        v.push_back(a)
     cdef int i
     for i in range(len(L)):
-        print V.at(i)
-    del V
+        print v.at(i)
+    del v
+
+def test_vector_iterator(L):
+    """
+    >>> test_vector([11, 37, 389, 5077])
+    11
+    37
+    389
+    5077
+    """
+    v = new vector[int]()
+    for a in L:
+        v.push_back(a)
+    cdef vector[int].iterator iter = v.begin()
+    while iter != v.end():
+        print deref(iter)
+        inc(iter)
+    del v
