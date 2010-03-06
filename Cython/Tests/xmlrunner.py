@@ -186,7 +186,7 @@ class _XMLTestResult(_TextTestResult):
         testsuite = xml_document.createElement('testsuite')
         xml_document.appendChild(testsuite)
         
-        testsuite.setAttribute('name', suite_name)
+        testsuite.setAttribute('name', str(suite_name))
         testsuite.setAttribute('tests', str(len(tests)))
         
         testsuite.setAttribute('time', '%.3f' % \
@@ -207,8 +207,8 @@ class _XMLTestResult(_TextTestResult):
         testcase = xml_document.createElement('testcase')
         xml_testsuite.appendChild(testcase)
         
-        testcase.setAttribute('classname', suite_name)
-        testcase.setAttribute('name', test_result.test_method.shortDescription() or test_result.test_method._testMethodName)
+        testcase.setAttribute('classname', str(suite_name))
+        testcase.setAttribute('name', str(test_result.test_method.shortDescription() or test_result.test_method._testMethodName))
         testcase.setAttribute('time', '%.3f' % test_result.get_elapsed_time())
         
         if (test_result.outcome != _TestInfo.SUCCESS):
@@ -216,8 +216,8 @@ class _XMLTestResult(_TextTestResult):
             failure = xml_document.createElement(elem_name)
             testcase.appendChild(failure)
             
-            failure.setAttribute('type', test_result.err[0].__name__)
-            failure.setAttribute('message', test_result.err[1].message)
+            failure.setAttribute('type', str(test_result.err[0].__name__))
+            failure.setAttribute('message', str(test_result.err[1].message))
             
             error_info = test_result.get_error_info()
             failureText = xml_document.createCDATASection(error_info)
