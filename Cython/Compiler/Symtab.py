@@ -224,6 +224,7 @@ class Scope(object):
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_closure_scope = 0
+    is_cpp_class_scope = 0
     is_module_scope = 0
     is_internal = 0
     scope_prefix = ""
@@ -406,6 +407,44 @@ class Scope(object):
             self.check_for_illegal_incomplete_ctypedef(typedef_flag, pos)
         return entry
     
+    def declare_cpp_class(self, name, scope,
+            pos, cname = None, base_classes = [],
+            visibility = 'extern', templates = None):
+        if visibility != 'extern':
+            error(pos, "C++ classes may only be extern")
+        if cname is None:
+            cname = name
+        entry = self.lookup(name)
+        if not entry:
+            type = PyrexTypes.CppClassType(
+                name, scope, cname, base_classes, templates = templates)
+            entry = self.declare_type(name, type, pos, cname,
+                visibility = visibility, defining = scope is not None)
+        else:
+            if not (entry.is_type and entry.type.is_cpp_class):
+                warning(pos, "'%s' redeclared  " % name, 0)
+            elif scope and entry.type.scope:
+                warning(pos, "'%s' already defined  (ignoring second definition)" % name, 0)
+            else:
+                if scope:
+                    entry.type.scope = scope
+                    self.type_entries.append(entry)
+        if not scope and not entry.type.scope:
+            entry.type.scope = CppClassScope(name, self)
+        if templates is not None:
+            for T in templates:
+                template_entry = entry.type.scope.declare(T.name, T.name, T, None, 'extern')
+                template_entry.is_type = 1
+        
+        def declare_inherited_attributes(entry, base_classes):
+            for base_class in base_classes:
+                declare_inherited_attributes(entry, base_class.base_classes)
+                entry.type.scope.declare_inherited_cpp_attributes(base_class.scope)                 
+        declare_inherited_attributes(entry, base_classes)
+        if self.is_cpp_class_scope:
+            entry.type.namespace = self.outer_scope.lookup(self.name).type
+        return entry
+
     def check_previous_typedef_flag(self, entry, typedef_flag, pos):
         if typedef_flag != entry.type.typedef_flag:
             error(pos, "'%s' previously declared using '%s'" % (
@@ -444,7 +483,7 @@ class Scope(object):
         if type.is_cpp_class and visibility != 'extern':
             constructor = type.scope.lookup(u'<init>')
             if constructor is not None and PyrexTypes.best_match([], constructor.all_alternatives()) is None:
-                error(pos, "C++ class must have an empty constructor to be stack allocated")
+                error(pos, "C++ class must have a default constructor to be stack allocated")
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
         self.control_flow.set_state((), (name, 'initialized'), False)
@@ -1017,42 +1056,6 @@ class ModuleScope(Scope):
         if typedef_flag and not self.in_cinclude:
             error(pos, "Forward-referenced type must use 'cdef', not 'ctypedef'")
     
-    def declare_cpp_class(self, name, scope,
-            pos, cname = None, base_classes = [],
-            visibility = 'extern', templates = None):
-        if visibility != 'extern':
-            error(pos, "C++ classes may only be extern")
-        if cname is None:
-            cname = name
-        entry = self.lookup(name)
-        if not entry:
-            type = PyrexTypes.CppClassType(
-                name, scope, cname, base_classes, templates = templates)
-            entry = self.declare_type(name, type, pos, cname,
-                visibility = visibility, defining = scope is not None)
-        else:
-            if not (entry.is_type and entry.type.is_cpp_class):
-                warning(pos, "'%s' redeclared  " % name, 0)
-            elif scope and entry.type.scope:
-                warning(pos, "'%s' already defined  (ignoring second definition)" % name, 0)
-            else:
-                if scope:
-                    entry.type.scope = scope
-                    self.type_entries.append(entry)
-        if not scope and not entry.type.scope:
-            entry.type.scope = CppClassScope(name, self)
-        if templates is not None:
-            for T in templates:
-                template_entry = entry.type.scope.declare(T.name, T.name, T, None, 'extern')
-                template_entry.is_type = 1
-        
-        def declare_inherited_attributes(entry, base_classes):
-            for base_class in base_classes:
-                declare_inherited_attributes(entry, base_class.base_classes)
-                entry.type.scope.declare_inherited_cpp_attributes(base_class.scope)                 
-        declare_inherited_attributes(entry, base_classes)
-        return entry
-    
     def allocate_vtable_names(self, entry):
         #  If extension type has a vtable, allocate vtable struct and
         #  slot names for it.
@@ -1556,11 +1559,15 @@ class CClassScope(ClassScope):
         
 class CppClassScope(Scope):
     #  Namespace of a C++ class.
-    inherited_var_entries = []
+    
+    is_cpp_class_scope = 1
+    
+    default_constructor = None
     
     def __init__(self, name, outer_scope):
         Scope.__init__(self, name, outer_scope, None)
         self.directives = outer_scope.directives
+        self.inherited_var_entries = []
 
     def declare_var(self, name, type, pos, 
             cname = None, visibility = 'extern', is_cdef = 0, allow_pyobject = 0):
@@ -1576,12 +1583,42 @@ class CppClassScope(Scope):
             error(pos,
                 "C++ class member cannot be a Python object")
         return entry
+    
+    def check_base_default_constructor(self, pos):
+        # Look for default constructors in all base classes.
+        if self.default_constructor is None:
+            entry = self.lookup(self.name)
+            if len(entry.type.base_classes) == 0:
+                self.default_constructor = True
+                return
+            for base_class in entry.type.base_classes:
+                temp_entry = base_class.scope.lookup_here("<init>")
+                found = False
+                if temp_entry is None:
+                    continue
+                for alternative in temp_entry.all_alternatives():
+                    type = alternative.type
+                    if type.is_ptr:
+                        type = type.base_type
+                    if len(type.args) == 0:
+                        found = True
+                        break
+                if not found:
+                    self.default_constructor = temp_entry.scope.name
+                    error(pos, "no matching function for call to " \
+                            "%s::%s()" % (temp_entry.scope.name, temp_entry.scope.name))
+        elif not self.default_constructor:
+            print 5
+            error(pos, "no matching function for call to %s::%s()" %
+                  (self.default_constructor, self.default_constructor))
 
     def declare_cfunction(self, name, type, pos,
             cname = None, visibility = 'extern', defining = 0,
             api = 0, in_pxd = 0, modifiers = ()):
         if name == self.name.split('::')[-1] and cname is None:
+            self.check_base_default_constructor(pos)
             name = '<init>'
+            type.return_type = self.lookup(self.name).type
         prev_entry = self.lookup_here(name)
         entry = self.declare_var(name, type, pos, cname, visibility)
         if prev_entry:
@@ -1593,6 +1630,12 @@ class CppClassScope(Scope):
         # to work with this type.
         for base_entry in \
             base_scope.inherited_var_entries + base_scope.var_entries:
+                #contructor is not inherited
+                if base_entry.name == "<init>":
+                    continue
+                #print base_entry.name, self.entries
+                if base_entry.name in self.entries:
+                    base_entry.name
                 entry = self.declare(base_entry.name, base_entry.cname, 
                     base_entry.type, None, 'extern')
                 entry.is_variable = 1
@@ -1606,11 +1649,17 @@ class CppClassScope(Scope):
     def specialize(self, values):
         scope = CppClassScope(self.name, self.outer_scope)
         for entry in self.entries.values():
-            scope.declare_var(entry.name,
-                                entry.type.specialize(values),
-                                entry.pos,
-                                entry.cname,
-                                entry.visibility)
+            if entry.is_type:
+                scope.declare_type(entry.name,
+                                    entry.type.specialize(values),
+                                    entry.pos,
+                                    entry.cname)
+            else:
+                scope.declare_var(entry.name,
+                                    entry.type.specialize(values),
+                                    entry.pos,
+                                    entry.cname,
+                                    entry.visibility)
         return scope
         
         

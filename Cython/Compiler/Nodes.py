@@ -663,6 +663,17 @@ class CArgDeclNode(Node):
             base_type = self.base_type.analyse(env, could_be_name = could_be_name)
             if hasattr(self.base_type, 'arg_name') and self.base_type.arg_name:
                 self.declarator.name = self.base_type.arg_name
+            # The parser is unable to resolve the ambiguity of [] as part of the 
+            # type (e.g. in buffers) or empty declarator (as with arrays). 
+            # This is only arises for empty multi-dimensional arrays.
+            if (base_type.is_array 
+                    and isinstance(self.base_type, TemplatedTypeNode) 
+                    and isinstance(self.declarator, CArrayDeclaratorNode)):
+                declarator = self.declarator
+                while isinstance(declarator.base, CArrayDeclaratorNode):
+                    declarator = declarator.base
+                declarator.base = self.base_type.array_declarator
+                base_type = base_type.base_type
             return self.declarator.analyse(base_type, env, nonempty = nonempty)
         else:
             return self.name_declarator, self.type
@@ -770,6 +781,27 @@ class CSimpleBaseTypeNode(CBaseTypeNode):
         else:
             return PyrexTypes.error_type
 
+class CNestedBaseTypeNode(CBaseTypeNode):
+    # For C++ classes that live inside other C++ classes. 
+
+    # name             string
+    # base_type        CBaseTypeNode
+
+    child_attrs = ['base_type']
+
+    def analyse(self, env, could_be_name = None):
+        base_type = self.base_type.analyse(env)
+        if base_type is PyrexTypes.error_type:
+            return PyrexTypes.error_type
+        if not base_type.is_cpp_class:
+            error(self.pos, "'%s' is not a valid type scope" % base_type)
+            return PyrexTypes.error_type
+        type_entry = base_type.scope.lookup_here(self.name)
+        if not type_entry or not type_entry.is_type:
+            error(self.pos, "'%s.%s' is not a type identifier" % (base_type, self.name))
+            return PyrexTypes.error_type
+        return type_entry.type
+
 class TemplatedTypeNode(CBaseTypeNode):
     #  After parsing:
     #  positional_args  [ExprNode]        List of positional arguments
@@ -823,7 +855,7 @@ class TemplatedTypeNode(CBaseTypeNode):
         
         else:
             # Array
-            empty_declarator = CNameDeclaratorNode(self.pos, name="")
+            empty_declarator = CNameDeclaratorNode(self.pos, name="", cname=None)
             if len(self.positional_args) > 1 or self.keyword_args.key_value_pairs:
                 error(self.pos, "invalid array declaration")
                 self.type = PyrexTypes.error_type
@@ -834,9 +866,10 @@ class TemplatedTypeNode(CBaseTypeNode):
                     dimension = None
                 else:
                     dimension = self.positional_args[0]
-                self.type = CArrayDeclaratorNode(self.pos, 
+                self.array_declarator = CArrayDeclaratorNode(self.pos, 
                     base = empty_declarator, 
-                    dimension = dimension).analyse(base_type, env)[1]
+                    dimension = dimension)
+                self.type = self.array_declarator.analyse(base_type, env)[1]
         
         return self.type
 
@@ -5147,6 +5180,8 @@ utility_function_predeclarations = \
     #define CYTHON_INLINE __inline__
   #elif defined(_MSC_VER)
     #define CYTHON_INLINE __inline
+  #elif defined (__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+    #define CYTHON_INLINE inline
   #else
     #define CYTHON_INLINE 
   #endif

@@ -7,5 +7,6 @@
 # and keep the old one under the module name _build_ext,
 # so that *our* build_ext can make use of it.
 
-from build_ext import build_ext
+from Cython.Distutils.build_ext import build_ext
+    
 # from extension import Extension

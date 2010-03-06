@@ -1057,20 +1057,17 @@ class NewExprNode(AtomicExprNode):
 
     # C++ new statement
     #
-    # cppclass              string               c++ class to create
-    # template_parameters   None or [ExprNode]   temlate parameters, if any
+    # cppclass              node                 c++ class to create
+    
+    type = None
     
     def infer_type(self, env):
-        entry = env.lookup(self.cppclass)
-        if entry is None or not entry.is_cpp_class:
+        type = self.cppclass.analyse_as_type(env)
+        if type is None or not type.is_cpp_class:
             error(self.pos, "new operator can only be applied to a C++ class")
+            self.type = error_type
             return
         self.cpp_check(env)
-        if self.template_parameters is not None:
-            template_types = [v.analyse_as_type(env) for v in self.template_parameters]
-            type = entry.type.specialize_here(self.pos, template_types)
-        else:
-            type = entry.type
         constructor = type.scope.lookup(u'<init>')
         if constructor is None:
             return_type = PyrexTypes.CFuncType(type, [])
@@ -1083,7 +1080,8 @@ class NewExprNode(AtomicExprNode):
         return self.type
     
     def analyse_types(self, env):
-        self.infer_type(env)
+        if self.type is None:
+            self.infer_type(env)
    
     def generate_result_code(self, code):
         pass
@@ -2051,7 +2049,11 @@ class IndexNode(ExprNode):
                     function = "__Pyx_GetItemInt"
                 code.globalstate.use_utility_code(getitem_int_utility_code)
             else:
-                function = "PyObject_GetItem"
+                if self.base.type is dict_type:
+                    function = "__Pyx_PyDict_GetItem"
+                    code.globalstate.use_utility_code(getitem_dict_utility_code)
+                else:
+                    function = "PyObject_GetItem"
                 index_code = self.index.py_result()
                 sign_code = ""
             code.putln(
@@ -2290,7 +2292,7 @@ class SliceIndexNode(ExprNode):
                     self.base.py_result(),
                     self.start_code(),
                     self.stop_code(),
-                    rhs.result()))
+                    rhs.py_result()))
         else:
             start_offset = ''
             if self.start:
@@ -2466,6 +2468,15 @@ class CallNode(ExprNode):
             self.analyse_types(env)
             self.coerce_to(type, env)
             return True
+        elif type and type.is_cpp_class:
+            for arg in self.args:
+                arg.analyse_types(env)
+            constructor = type.scope.lookup("<init>")
+            self.function = RawCNameExprNode(self.function.pos, constructor.type)
+            self.function.entry = constructor
+            self.function.set_cname(type.declaration_code(""))
+            self.analyse_c_function_call(env)
+            return True
 
     def nogil_check(self, env):
         func_type = self.function_type()
@@ -2603,22 +2614,35 @@ class SimpleCallNode(CallNode):
         return func_type
     
     def analyse_c_function_call(self, env):
+        if self.function.type is error_type:
+            self.type = error_type
+            return
         if self.function.type.is_cpp_class:
-            function = self.function.type.scope.lookup("operator()")
-            if function is None:
+            overloaded_entry = self.function.type.scope.lookup("operator()")
+            if overloaded_entry is None:
                 self.type = PyrexTypes.error_type
                 self.result_code = "<error>"
                 return
+        elif hasattr(self.function, 'entry'):
+            overloaded_entry = self.function.entry
         else:
-            function = self.function.entry
-        entry = PyrexTypes.best_match(self.args, function.all_alternatives(), self.pos)
-        if not entry:
-            self.type = PyrexTypes.error_type
-            self.result_code = "<error>"
-            return
-        self.function.entry = entry
-        self.function.type = entry.type
-        func_type = self.function_type()
+            overloaded_entry = None
+        if overloaded_entry:
+            entry = PyrexTypes.best_match(self.args, overloaded_entry.all_alternatives(), self.pos)
+            if not entry:
+                self.type = PyrexTypes.error_type
+                self.result_code = "<error>"
+                return
+            self.function.entry = entry
+            self.function.type = entry.type
+            func_type = self.function_type()
+        else:
+            func_type = self.function_type()
+            if not func_type.is_cfunction:
+                error(self.pos, "Calling non-function type '%s'" % func_type)
+                self.type = PyrexTypes.error_type
+                self.result_code = "<error>"
+                return
         # Check no. of args
         max_nargs = len(func_type.args)
         expected_nargs = max_nargs - func_type.optional_arg_count
@@ -3055,6 +3079,10 @@ class AttributeNode(ExprNode):
         module_scope = self.obj.analyse_as_module(env)
         if module_scope:
             return module_scope.lookup_type(self.attribute)
+        if not isinstance(self.obj, (UnicodeNode, StringNode, BytesNode)):
+            base_type = self.obj.analyse_as_type(env)
+            if base_type and hasattr(base_type, 'scope'):
+                return base_type.scope.lookup_type(self.attribute)
         return None
     
     def analyse_as_extension_type(self, env):
@@ -4320,8 +4348,7 @@ class UnopNode(ExprNode):
         type = self.operand.type
         if type.is_ptr or type.is_reference:
             type = type.base_type
-        entry = env.lookup(type.name)
-        function = entry.type.scope.lookup("operator%s" % self.operator)
+        function = type.scope.lookup("operator%s" % self.operator)
         if not function:
             error(self.pos, "'%s' operator not defined for %s"
                 % (self.operator, type))
@@ -6546,8 +6573,64 @@ impl = ""
 
 #------------------------------------------------------------------------------------
 
-# If the is_unsigned flag is set, we need to do some extra work to make 
-# sure the index doesn't become negative. 
+raise_noneattr_error_utility_code = UtilityCode(
+proto = """
+static CYTHON_INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname);
+""",
+impl = '''
+static CYTHON_INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname) {
+    PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%s'", attrname);
+}
+''')
+
+raise_noneindex_error_utility_code = UtilityCode(
+proto = """
+static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void);
+""",
+impl = '''
+static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void) {
+    PyErr_SetString(PyExc_TypeError, "'NoneType' object is unsubscriptable");
+}
+''')
+
+raise_none_iter_error_utility_code = UtilityCode(
+proto = """
+static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void);
+""",
+impl = '''
+static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void) {
+    PyErr_SetString(PyExc_TypeError, "'NoneType' object is not iterable");
+}
+''')
+
+#------------------------------------------------------------------------------------
+
+getitem_dict_utility_code = UtilityCode(
+proto = """
+
+#if PY_MAJOR_VERSION >= 3
+static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
+    PyObject *value;
+    if (unlikely(d == Py_None)) {
+        __Pyx_RaiseNoneIndexingError();
+        return NULL;
+    }
+    value = PyDict_GetItemWithError(d, key);
+    if (unlikely(!value)) {
+        if (!PyErr_Occurred())
+            PyErr_SetObject(PyExc_KeyError, key);
+        return NULL;
+    }
+    Py_INCREF(value);
+    return value;
+}
+#else
+    #define __Pyx_PyDict_GetItem(d, key) PyObject_GetItem(d, key)
+#endif
+""", 
+requires = [raise_noneindex_error_utility_code])
+
+#------------------------------------------------------------------------------------
 
 getitem_int_utility_code = UtilityCode(
 proto = """
@@ -6675,36 +6758,6 @@ impl = """
 """)
 
 #------------------------------------------------------------------------------------
-
-raise_noneattr_error_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname);
-""",
-impl = '''
-static CYTHON_INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname) {
-    PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%s'", attrname);
-}
-''')
-
-raise_noneindex_error_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void);
-""",
-impl = '''
-static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void) {
-    PyErr_SetString(PyExc_TypeError, "'NoneType' object is unsubscriptable");
-}
-''')
-
-raise_none_iter_error_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void);
-""",
-impl = '''
-static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void) {
-    PyErr_SetString(PyExc_TypeError, "'NoneType' object is not iterable");
-}
-''')
 
 raise_too_many_values_to_unpack = UtilityCode(
 proto = """

@@ -7,7 +7,7 @@ __doc__ = u"""
     (225.0, 225.0)
 """
 
-cdef extern from "shapes.h" namespace shapes:
+cdef extern from "shapes.h" namespace "shapes":
 
     cdef cppclass Shape:
         float area()
@@ -19,6 +19,7 @@ cdef extern from "shapes.h" namespace shapes:
     cdef cppclass Rectangle(Shape):
         int width
         int height
+        Rectangle()
         Rectangle(int, int)
     
     cdef cppclass Square(Rectangle):

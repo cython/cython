@@ -1121,6 +1121,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         exception_check = True)
 
     def _handle_simple_function_float(self, node, pos_args):
+        """Transform float() into either a C type cast or a faster C
+        function call.
+        """
         # Note: this requires the float() function to be typed as
         # returning a C 'double'
         if len(pos_args) != 1:
@@ -1158,6 +1161,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             ])
 
     def _handle_simple_function_getattr(self, node, pos_args):
+        """Replace 2/3 argument forms of getattr() by C-API calls.
+        """
         if len(pos_args) == 2:
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "PyObject_GetAttr", self.PyObject_GetAttr2_func_type,
@@ -1173,16 +1178,42 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             self._error_wrong_arg_count('getattr', node, pos_args, '2 or 3')
         return node
 
+    PyObject_GetIter_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None),
+            ])
+
+    PyCallIter_New_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("sentinel", PyrexTypes.py_object_type, None),
+            ])
+
+    def _handle_simple_function_iter(self, node, pos_args):
+        """Replace 1/2 argument forms of iter() by C-API calls.
+        """
+        if len(pos_args) == 1:
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "PyObject_GetIter", self.PyObject_GetIter_func_type,
+                args = pos_args,
+                is_temp = node.is_temp)
+        elif len(pos_args) == 2:
+            return ExprNodes.PythonCapiCallNode(
+                node.pos, "PyCallIter_New", self.PyCallIter_New_func_type,
+                args = pos_args,
+                is_temp = node.is_temp)
+        else:
+            self._error_wrong_arg_count('iter', node, pos_args, '1 or 2')
+        return node
+
     Pyx_strlen_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_size_t_type, [
             PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_char_ptr_type, None)
             ])
 
     def _handle_simple_function_len(self, node, pos_args):
-        # note: this only works because we already replaced len() by
-        # PyObject_Length() which returns a Py_ssize_t instead of a
-        # Python object, so we can return a plain size_t instead
-        # without caring about Python object conversion etc.
+        """Replace len(char*) by the equivalent call to strlen().
+        """
         if len(pos_args) != 1:
             self._error_wrong_arg_count('len', node, pos_args, 1)
             return node
@@ -1190,6 +1221,13 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             arg = arg.arg
         if not arg.type.is_string:
+            return node
+        if not node.type.is_numeric:
+            # this optimisation only works when we already replaced
+            # len() by PyObject_Length() which returns a Py_ssize_t
+            # instead of a Python object, so we can return a plain
+            # size_t instead without caring about Python object
+            # conversion etc.
             return node
         node = ExprNodes.PythonCapiCallNode(
             node.pos, "strlen", self.Pyx_strlen_func_type,
@@ -1205,6 +1243,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             ])
 
     def _handle_simple_function_type(self, node, pos_args):
+        """Replace type(o) by a macro call to Py_TYPE(o).
+        """
         if len(pos_args) != 1:
             return node
         node = ExprNodes.PythonCapiCallNode(
@@ -1269,7 +1309,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             ])
 
     def _handle_simple_method_object_append(self, node, args, is_unbound_method):
-        # X.append() is almost always referring to a list
+        """Optimistic optimisation as X.append() is almost always
+        referring to a list.
+        """
         if len(args) != 2:
             return node
 
@@ -1292,7 +1334,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             ])
 
     def _handle_simple_method_object_pop(self, node, args, is_unbound_method):
-        # X.pop([n]) is almost always referring to a list
+        """Optimistic optimisation as X.pop([n]) is almost always
+        referring to a list.
+        """
         if len(args) == 1:
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_PyObject_Pop", self.PyObject_Pop_func_type,
@@ -1322,6 +1366,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         exception_value = "-1")
 
     def _handle_simple_method_list_append(self, node, args, is_unbound_method):
+        """Call PyList_Append() instead of l.append().
+        """
         if len(args) != 2:
             self._error_wrong_arg_count('list.append', node, args, 2)
             return node
@@ -1336,6 +1382,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         exception_value = "-1")
 
     def _handle_simple_method_list_sort(self, node, args, is_unbound_method):
+        """Call PyList_Sort() instead of the 0-argument l.sort().
+        """
         if len(args) != 1:
             return node
         return self._substitute_method_call(
@@ -1343,12 +1391,36 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             'sort', is_unbound_method, args)
 
     def _handle_simple_method_list_reverse(self, node, args, is_unbound_method):
+        """Call PyList_Reverse() instead of l.reverse().
+        """
         if len(args) != 1:
             self._error_wrong_arg_count('list.reverse', node, args, 1)
             return node
         return self._substitute_method_call(
             node, "PyList_Reverse", self.single_param_func_type,
             'reverse', is_unbound_method, args)
+
+    Pyx_PyDict_GetItem_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("dict", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("key", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
+            ],
+        exception_value = "NULL")
+
+    def _handle_simple_method_dict_get(self, node, args, is_unbound_method):
+        """Replace dict.get() by a call to PyDict_GetItem().
+        """
+        if len(args) == 2:
+            args.append(ExprNodes.NoneNode(node.pos))
+        elif len(args) != 3:
+            self._error_wrong_arg_count('dict.get', node, args, "2 or 3")
+            return node
+
+        return self._substitute_method_call(
+            node, "__Pyx_PyDict_GetItemDefault", self.Pyx_PyDict_GetItem_func_type,
+            'get', is_unbound_method, args,
+            utility_code = dict_getitem_default_utility_code)
 
     PyUnicode_AsEncodedString_func_type = PyrexTypes.CFuncType(
         Builtin.bytes_type, [
@@ -1371,6 +1443,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                         for name in _special_encodings ]
 
     def _handle_simple_method_unicode_encode(self, node, args, is_unbound_method):
+        """Replace unicode.encode(...) by a direct C-API call to the
+        corresponding codec.
+        """
         if len(args) < 1 or len(args) > 3:
             self._error_wrong_arg_count('unicode.encode', node, args, '1-3')
             return node
@@ -1436,6 +1511,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         exception_value = "NULL")
 
     def _handle_simple_method_bytes_decode(self, node, args, is_unbound_method):
+        """Replace char*.decode() by a direct C-API call to the
+        corresponding codec, possibly resoving a slice on the char*.
+        """
         if len(args) < 1 or len(args) > 3:
             self._error_wrong_arg_count('bytes.decode', node, args, '1-3')
             return node
@@ -1575,7 +1653,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         return (encoding, encoding_node, error_handling, error_handling_node)
 
     def _substitute_method_call(self, node, name, func_type,
-                                attr_name, is_unbound_method, args=()):
+                                attr_name, is_unbound_method, args=(),
+                                utility_code=None):
         args = list(args)
         if args:
             self_arg = args[0]
@@ -1592,9 +1671,45 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         return ExprNodes.PythonCapiCallNode(
             node.pos, name, func_type,
             args = args,
-            is_temp = node.is_temp
+            is_temp = node.is_temp,
+            utility_code = utility_code
             )
 
+
+dict_getitem_default_utility_code = UtilityCode(
+proto = '''
+static PyObject* __Pyx_PyDict_GetItemDefault(PyObject* d, PyObject* key, PyObject* default_value) {
+    PyObject* value;
+#if PY_MAJOR_VERSION >= 3
+    value = PyDict_GetItemWithError(d, key);
+    if (unlikely(!value)) {
+        if (unlikely(PyErr_Occurred()))
+            return NULL;
+        value = default_value;
+    }
+    Py_INCREF(value);
+#else
+    if (PyString_CheckExact(key) || PyUnicode_CheckExact(key) || PyInt_CheckExact(key)) {
+        /* these presumably have safe hash functions */
+        value = PyDict_GetItem(d, key);
+        if (unlikely(!value)) {
+            value = default_value;
+        }
+        Py_INCREF(value);
+    } else {
+        PyObject *m;
+        m = __Pyx_GetAttrString(d, "get");
+        if (!m) return NULL;
+        value = PyObject_CallFunctionObjArgs(m, key,
+            (default_value == Py_None) ? NULL : default_value, NULL);
+        Py_DECREF(m);
+    }
+#endif
+    return value;
+}
+''',
+impl = ""
+)
 
 append_utility_code = UtilityCode(
 proto = """
@@ -1621,20 +1736,20 @@ impl = ""
 pop_utility_code = UtilityCode(
 proto = """
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
+#if PY_VERSION_HEX >= 0x02040000
     if (likely(PyList_CheckExact(L))
             /* Check that both the size is positive and no reallocation shrinking needs to be done. */
             && likely(PyList_GET_SIZE(L) > (((PyListObject*)L)->allocated >> 1))) {
         Py_SIZE(L) -= 1;
         return PyList_GET_ITEM(L, PyList_GET_SIZE(L));
     }
-    else {
-        PyObject *r, *m;
-        m = __Pyx_GetAttrString(L, "pop");
-        if (!m) return NULL;
-        r = PyObject_CallObject(m, NULL);
-        Py_DECREF(m);
-        return r;
-    }
+#endif
+    PyObject *r, *m;
+    m = __Pyx_GetAttrString(L, "pop");
+    if (!m) return NULL;
+    r = PyObject_CallObject(m, NULL);
+    Py_DECREF(m);
+    return r;
 }
 """,
 impl = ""
@@ -1647,6 +1762,7 @@ static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix);
 impl = """
 static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
     PyObject *r, *m, *t, *py_ix;
+#if PY_VERSION_HEX >= 0x02040000
     if (likely(PyList_CheckExact(L))) {
         Py_ssize_t size = PyList_GET_SIZE(L);
         if (likely(size > (((PyListObject*)L)->allocated >> 1))) {
@@ -1665,6 +1781,7 @@ static PyObject* __Pyx_PyObject_PopIndex(PyObject* L, Py_ssize_t ix) {
             }
         }
     }
+#endif
     py_ix = t = NULL;
     m = __Pyx_GetAttrString(L, "pop");
     if (!m) goto bad;

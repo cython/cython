@@ -58,4 +58,31 @@ def test_pair(int i, double x):
     finally:
         del pair
 
+def test_ptr(int i):
+    """
+    >>> test_ptr(3)
+    3
+    >>> test_ptr(5)
+    5
+    """
+    try:
+        w = new Wrap[int*](&i)
+        return deref(w.get())
+    finally:
+        del w
 
+cdef double f(double x):
+    return x*x
+
+def test_func_ptr(double x):
+    """
+    >>> test_func_ptr(3)
+    9.0
+    >>> test_func_ptr(-1.5)
+    2.25
+    """
+    try:
+        w = new Wrap[double (*)(double)](&f)
+        return w.get()(x)
+    finally:
+        del w

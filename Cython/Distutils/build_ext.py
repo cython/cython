@@ -15,16 +15,6 @@ from distutils.sysconfig import customize_compiler, get_python_version
 from distutils.dep_util import newer, newer_group
 from distutils import log
 from distutils.dir_util import mkpath
-try:
-    from Cython.Compiler.Main \
-        import CompilationOptions, \
-               default_options as pyrex_default_options, \
-               compile as cython_compile
-    from Cython.Compiler.Errors import PyrexError
-except ImportError, e:
-    print "failed to import Cython: %s" % e
-    PyrexError = None
-
 from distutils.command import build_ext as _build_ext
 
 extension_name_re = _build_ext.extension_name_re
@@ -83,18 +73,22 @@ class build_ext(_build_ext.build_ext):
             self.build_extension(ext)
 
     def cython_sources(self, sources, extension):
-
         """
         Walk the list of source files in 'sources', looking for Cython
         source files (.pyx and .py).  Run Cython on all that are
         found, and return a modified 'sources' list with Cython source
         files replaced by the generated C (or C++) files.
         """
-
-        if PyrexError == None:
-            raise DistutilsPlatformError, \
-                  ("Cython does not appear to be installed "
-                   "on platform '%s'") % os.name
+        try:
+            from Cython.Compiler.Main \
+                import CompilationOptions, \
+                       default_options as pyrex_default_options, \
+                       compile as cython_compile
+            from Cython.Compiler.Errors import PyrexError
+        except ImportError:
+            e = sys.exc_info()[1]
+            print("failed to import Cython: %s" % e)
+            raise DistutilsPlatformError("Cython does not appear to be installed")
 
         new_sources = []
         pyrex_sources = []
