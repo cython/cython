@@ -5051,6 +5051,12 @@ static PyObject* %s = 0;
 static PyObject* %s = 0;
 #endif
 """ % (Naming.print_function, Naming.print_function_kwargs),
+cleanup = """
+#if PY_MAJOR_VERSION >= 3
+Py_CLEAR(%s);
+Py_CLEAR(%s);
+#endif
+""" % (Naming.print_function, Naming.print_function_kwargs),
 impl = r"""
 #if PY_MAJOR_VERSION < 3
 static PyObject *__Pyx_GetStdout(void) {
