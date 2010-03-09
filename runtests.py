@@ -434,9 +434,9 @@ class CythonRunTestCase(CythonCompileTestCase):
                         if tests is None:
                             # importing failed, try to fake a test class
                             tests = _FakeClass(
-                                failureException=None,
-                                shortDescription = self.shortDescription,
-                                **{module_name: None})
+                                failureException=sys.exc_info()[1],
+                                _shortDescription=self.shortDescription(),
+                                module_name=None)
                         partial_result.addError(tests, sys.exc_info())
                         result_code = 1
                     output = open(result_file, 'wb')
@@ -451,6 +451,13 @@ class CythonRunTestCase(CythonCompileTestCase):
 
         try:
             cid, result_code = os.waitpid(child_id, 0)
+            # os.waitpid returns the child's result code in the
+            # upper byte of result_code, and the signal it was
+            # killed by in the lower byte
+            if result_code & 255:
+                raise Exception("Tests in module '%s' were unexpectedly killed by signal %d"%
+                                (module_name, result_code & 255))
+            result_code = result_code >> 8
             if result_code in (0,1):
                 input = open(result_file, 'rb')
                 try:
@@ -459,7 +466,7 @@ class CythonRunTestCase(CythonCompileTestCase):
                     input.close()
             if result_code:
                 raise Exception("Tests in module '%s' exited with status %d" %
-                                (module_name, result_code >> 8))
+                                (module_name, result_code))
         finally:
             try: os.unlink(result_file)
             except: pass
@@ -491,7 +498,7 @@ class PartialTestResult(_TextTestResult):
                 if attr_name == '_dt_test':
                     test_case._dt_test = _FakeClass(
                         name=test_case._dt_test.name)
-                else:
+                elif attr_name != '_shortDescription':
                     setattr(test_case, attr_name, None)
 
     def data(self):
@@ -504,7 +511,7 @@ class PartialTestResult(_TextTestResult):
         """Static method for merging the result back into the main
         result object.
         """
-        errors, failures, tests_run, output = data
+        failures, errors, tests_run, output = data
         if output:
             result.stream.write(output)
         result.errors.extend(errors)
