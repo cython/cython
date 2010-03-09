@@ -30,6 +30,7 @@ cdef cdeffunc():
     >>> True
     False
     """
+cdeffunc()
 
 def all_tests_run():
     log.sort()
