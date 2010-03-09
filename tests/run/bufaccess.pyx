@@ -53,6 +53,8 @@ def printbuf():
     """
     cdef object[int, ndim=2] buf
     print buf
+    return
+    buf[0,0] = 0
 
 @testcase
 def acquire_release(o1, o2):
