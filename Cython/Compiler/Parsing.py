@@ -929,11 +929,17 @@ def p_expression_or_assignment(s):
 def p_print_statement(s):
     # s.sy == 'print'
     pos = s.position()
+    ends_with_comma = 0
     s.next()
     if s.sy == '>>':
-        s.error("'print >>' not yet implemented")
+        s.next()
+        stream = p_simple_expr(s)
+        if s.sy == ',':
+            s.next()
+            ends_with_comma = s.sy in ('NEWLINE', 'EOF')
+    else:
+        stream = None
     args = []
-    ends_with_comma = 0
     if s.sy not in ('NEWLINE', 'EOF'):
         args.append(p_simple_expr(s))
         while s.sy == ',':
@@ -944,7 +950,8 @@ def p_print_statement(s):
             args.append(p_simple_expr(s))
     arg_tuple = ExprNodes.TupleNode(pos, args = args)
     return Nodes.PrintStatNode(pos,
-        arg_tuple = arg_tuple, append_newline = not ends_with_comma)
+        arg_tuple = arg_tuple, stream = stream,
+        append_newline = not ends_with_comma)
 
 def p_exec_statement(s):
     # s.sy == 'exec'
