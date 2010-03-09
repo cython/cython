@@ -17,7 +17,7 @@ for fast C modules that speed up the execution of Python code.
 LICENSE:
 
 The original Pyrex program was licensed "free of restrictions" (see
-below).  Cython itself is licensed under the 
+below).  Cython itself is licensed under the permissive
 
    Apache License
 
