@@ -366,7 +366,8 @@ class Scope(object):
             else:
                 cname = self.mangle(Naming.type_prefix, name)
         try:
-            type = PyrexTypes.create_typedef_type(cname, base_type, (visibility == 'extern'))
+            type = PyrexTypes.create_typedef_type(name, base_type, cname, 
+                                                  (visibility == 'extern'))
         except ValueError, e:
             error(pos, e.message)
             type = PyrexTypes.error_type
