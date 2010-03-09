@@ -2108,7 +2108,7 @@ class DefNode(FuncDefNode):
 
     def declare_python_arg(self, env, arg):
         if arg:
-            if env.directives['infer_types'] != 'none':
+            if env.directives['infer_types'] != False:
                 type = PyrexTypes.unspecified_type
             else:
                 type = py_object_type
