@@ -26,10 +26,10 @@ See LICENSE.txt.
 
 --------------------------
 
-Note that Cython no longer ships the Mercurial (hg) repository in its
-source distribution.  To get the full source history, make sure you
-have hg installed, then step into the base directory of the Cython
-source distribution and type
+Note that Cython used to ship the Mercurial (hg) repository in its source
+distribution, but no longer does so due to space constraints.  To get the
+full source history, make sure you have hg installed, then step into the
+base directory of the Cython source distribution and type
 
     make repo
 
