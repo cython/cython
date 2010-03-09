@@ -16,24 +16,17 @@ below).  Cython itself is licensed under the
 
 --------------------------
 
-There are TWO mercurial (hg) repositories included with Cython:
+Note that Cython no longer ships the Mercurial (hg) repository in its
+source distribution.  To get the full source history, make sure you
+have hg installed, then step into the base directory of the Cython
+source distribution and type
 
-   * Various project files, documentation, etc. (in the top level directory)
-   * The main codebase itself (in Cython/)
-   
-We keep these separate for easier merging with the Pyrex project. 
+    make repo
 
-To see the change history for Cython code itself, go to the Cython
-directory and type 
+Alternatively, check out the latest developer repository from
 
- $ hg log
+    http://hg.cython.org/cython-devel
 
-This requires that you have installed Mercurial.
-
-
--- William Stein (wstein@gmail.com)
-
-xxxx
 
 
 The following is from Pyrex:
