@@ -13,3 +13,5 @@ def myfunc():
     for i from 0 <= i < A.shape[0]:
         A[i, :] /= 2
     return A[0,0]
+
+include "numpy_common.pxi"

@@ -3440,8 +3440,6 @@ class SequenceNode(ExprNode):
         # allocates the temps in a rather hacky way -- the assignment
         # is evaluated twice, within each if-block.
 
-        code.globalstate.use_utility_code(unpacking_utility_code)
-
         if rhs.type is tuple_type:
             tuple_check = "likely(%s != Py_None)"
         else:
@@ -3477,6 +3475,8 @@ class SequenceNode(ExprNode):
                         rhs.py_result(), len(self.args)))
             code.putln(code.error_goto(self.pos))
         else:
+            code.globalstate.use_utility_code(unpacking_utility_code)
+
             self.iterator.allocate(code)
             code.putln(
                 "%s = PyObject_GetIter(%s); %s" % (
