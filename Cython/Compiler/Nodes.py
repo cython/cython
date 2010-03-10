@@ -5134,10 +5134,10 @@ static int __Pyx_Print(PyObject* stream, PyObject *arg_tuple, int newline) {
                 return -1;
             end_string = PyUnicode_FromStringAndSize(" ", 1);
             if (unlikely(!end_string))
-                goto bad;
+                return -1;
             if (PyDict_SetItemString(%(PRINT_KWARGS)s, "end", end_string) < 0) {
                 Py_DECREF(end_string);
-                goto bad;
+                return -1;
             }
             Py_DECREF(end_string);
         }
