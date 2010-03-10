@@ -10,13 +10,15 @@ import codecs
 from time import time
 
 import cython
-cython.declare(EncodedString=object, string_prefixes=object, raw_prefixes=object, IDENT=object)
+cython.declare(EncodedString=object, string_prefixes=object, raw_prefixes=object, IDENT=object,
+               print_function=object)
 
 from Cython import Plex, Utils
 from Cython.Plex.Scanners import Scanner
 from Cython.Plex.Errors import UnrecognizedInput
 from Errors import CompileError, error
 from Lexicon import string_prefixes, raw_prefixes, make_lexicon, IDENT
+from Future import print_function
 
 from StringEncoding import EncodedString
 
@@ -61,7 +63,7 @@ def build_resword_dict():
         d[word] = 1
     return d
 
-cython.declare(resword_dict=object)
+cython.declare(resword_dict=dict)
 resword_dict = build_resword_dict()
 
 #------------------------------------------------------------------
@@ -345,7 +347,11 @@ class PyrexScanner(Scanner):
             self.error("Unrecognized character")
         if sy == IDENT:
             if systring in resword_dict:
-                sy = systring
+                if systring == 'print' and \
+                       print_function in self.context.future_directives:
+                    systring = EncodedString(systring)
+                else:
+                    sy = systring
             else:
                 systring = EncodedString(systring)
         self.sy = sy

@@ -128,7 +128,7 @@ def parse_directive_value(name, value, relaxed_bool=False):
 
 def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False):
     """
-    Parses a comma-seperated list of pragma options. Whitespace
+    Parses a comma-separated list of pragma options. Whitespace
     is not considered.
 
     >>> parse_directive_list('      ')

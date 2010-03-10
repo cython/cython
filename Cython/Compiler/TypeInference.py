@@ -112,7 +112,7 @@ class MarkAssignments(CythonTransform):
         self.visitchildren(node)
         return node
 
-class MarkOverflowingArithmatic(CythonTransform):
+class MarkOverflowingArithmetic(CythonTransform):
 
     # It may be possible to integrate this with the above for
     # performance improvements (though likely not worth it).
@@ -122,7 +122,7 @@ class MarkOverflowingArithmatic(CythonTransform):
     def __call__(self, root):
         self.env_stack = []
         self.env = root.scope
-        return super(MarkOverflowingArithmatic, self).__call__(root)        
+        return super(MarkOverflowingArithmetic, self).__call__(root)        
 
     def visit_safe_node(self, node):
         self.might_overflow, saved = False, self.might_overflow
@@ -262,12 +262,13 @@ class SimpleAssignmentTypeInferer:
 
 def find_spanning_type(type1, type2):
     if type1 is type2:
-        return type1
+        result_type = type1
     elif type1 is PyrexTypes.c_bint_type or type2 is PyrexTypes.c_bint_type:
         # type inference can break the coercion back to a Python bool
         # if it returns an arbitrary int type here
         return py_object_type
-    result_type = PyrexTypes.spanning_type(type1, type2)
+    else:
+        result_type = PyrexTypes.spanning_type(type1, type2)
     if result_type in (PyrexTypes.c_double_type, PyrexTypes.c_float_type, Builtin.float_type):
         # Python's float type is just a C double, so it's safe to
         # use the C type instead

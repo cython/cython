@@ -1,39 +1,42 @@
 Welcome to Cython!
 =================
 
-Cython (http://www.cython.org) is based on Pyrex, but supports more
-cutting edge functionality and optimizations.
+Cython (http://cython.org) is a language that makes writing C extensions for
+the Python language as easy as Python itself.  Cython is based on the
+well-known Pyrex, but supports more cutting edge functionality and
+optimizations.
+
+The Cython language is very close to the Python language, but Cython
+additionally supports calling C functions and declaring C types on variables
+and class attributes.  This allows the compiler to generate very efficient C
+code from Cython code.
+
+This makes Cython the ideal language for wrapping external C libraries, and
+for fast C modules that speed up the execution of Python code.
 
 LICENSE:
 
 The original Pyrex program was licensed "free of restrictions" (see
-below).  Cython itself is licensed under the 
+below).  Cython itself is licensed under the permissive
 
-   PYTHON SOFTWARE FOUNDATION LICENSE
-   http://www.python.org/psf/license/
+   Apache License
 
+See LICENSE.txt.
 
 
 --------------------------
 
-There are TWO mercurial (hg) repositories included with Cython:
+Note that Cython used to ship the Mercurial (hg) repository in its source
+distribution, but no longer does so due to space constraints.  To get the
+full source history, make sure you have hg installed, then step into the
+base directory of the Cython source distribution and type
 
-   * Various project files, documentation, etc. (in the top level directory)
-   * The main codebase itself (in Cython/)
-   
-We keep these separate for easier merging with the Pyrex project. 
+    make repo
 
-To see the change history for Cython code itself, go to the Cython
-directory and type 
+Alternatively, check out the latest developer repository from
 
- $ hg log
+    http://hg.cython.org/cython-devel
 
-This requires that you have installed Mercurial.
-
-
--- William Stein (wstein@gmail.com)
-
-xxxx
 
 
 The following is from Pyrex:

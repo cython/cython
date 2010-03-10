@@ -88,7 +88,7 @@ class Context(object):
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
         from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
-        from TypeInference import MarkAssignments, MarkOverflowingArithmatic
+        from TypeInference import MarkAssignments, MarkOverflowingArithmetic
         from ParseTreeTransforms import AlignFunctionDefinitions, GilCheck
         from AnalysedTreeTransforms import AutoTestDictTransform
         from AutoDocTransforms import EmbedSignature
@@ -135,7 +135,7 @@ class Context(object):
             EmbedSignature(self),
             EarlyReplaceBuiltinCalls(self),
             MarkAssignments(self),
-            MarkOverflowingArithmatic(self),
+            MarkOverflowingArithmetic(self),
             TransformBuiltinMethods(self),
             IntroduceBufferAuxiliaryVars(self),
             _check_c_declarations,
