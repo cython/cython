@@ -5106,7 +5106,7 @@ static int __Pyx_Print(PyObject* stream, PyObject *arg_tuple, int newline) {
     PyObject* kwargs = 0;
     PyObject* result = 0;
     PyObject* end_string;
-    if (!%(PRINT_FUNCTION)s) {
+    if (unlikely(!%(PRINT_FUNCTION)s)) {
         %(PRINT_FUNCTION)s = __Pyx_GetAttrString(%(BUILTINS)s, "print");
         if (!%(PRINT_FUNCTION)s)
             return -1;
@@ -5117,35 +5117,41 @@ static int __Pyx_Print(PyObject* stream, PyObject *arg_tuple, int newline) {
             return -1;
         if (unlikely(PyDict_SetItemString(kwargs, "file", stream) < 0))
             goto bad;
-        }
-    }
-    if (!newline) {
-        if (!kwargs)
-            kwargs = %(PRINT_KWARGS)s;
-        if (!kwargs) {
-            %(PRINT_KWARGS)s = PyDict_New();
-            if unlikely((!%(PRINT_KWARGS)s))
-                return -1;
-            kwargs = %(PRINT_KWARGS)s;
-        }
-        end_string = PyUnicode_FromStringAndSize(" ", 1);
-        if (unlikely(!end_string))
-            goto bad;
-        if (PyDict_SetItemString(%(PRINT_KWARGS)s, "end", end_string) < 0) {
+        if (!newline) {
+            end_string = PyUnicode_FromStringAndSize(" ", 1);
+            if (unlikely(!end_string))
+                goto bad;
+            if (PyDict_SetItemString(kwargs, "end", end_string) < 0) {
+                Py_DECREF(end_string);
+                goto bad;
+            }
             Py_DECREF(end_string);
-            goto bad;
         }
-        Py_DECREF(end_string);
+    } else if (!newline) {
+        if (unlikely(!%(PRINT_KWARGS)s)) {
+            %(PRINT_KWARGS)s = PyDict_New();
+            if (unlikely(!%(PRINT_KWARGS)s))
+                return -1;
+            end_string = PyUnicode_FromStringAndSize(" ", 1);
+            if (unlikely(!end_string))
+                goto bad;
+            if (PyDict_SetItemString(%(PRINT_KWARGS)s, "end", end_string) < 0) {
+                Py_DECREF(end_string);
+                goto bad;
+            }
+            Py_DECREF(end_string);
+        }
+        kwargs = %(PRINT_KWARGS)s;
     }
     result = PyObject_Call(%(PRINT_FUNCTION)s, arg_tuple, kwargs);
-    if (unlikely(kwargs) && (kwargs != %(PRINT_FUNCTION)s))
+    if (unlikely(kwargs) && (kwargs != %(PRINT_KWARGS)s))
         Py_DECREF(kwargs);
     if (!result)
         return -1;
     Py_DECREF(result);
     return 0;
 bad:
-    if (kwargs != %(PRINT_FUNCTION)s)
+    if (kwargs != %(PRINT_KWARGS)s)
         Py_XDECREF(kwargs);
     return -1;
 }
