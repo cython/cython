@@ -48,7 +48,11 @@ EXT_DEP_INCLUDES = [
 ]
 
 VER_DEP_MODULES = {
+    # tests are excluded if 'CurrentPythonVersion OP VersionTuple', i.e.
+    # (2,4) : (operator.le, ...) excludes ... when PyVer <= 2.4.x
     (2,4) : (operator.le, lambda x: x in ['run.extern_builtins_T258'
+                                          ]),
+    (2,6) : (operator.lt, lambda x: x in ['run.print_function'
                                           ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
