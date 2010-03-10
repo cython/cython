@@ -261,7 +261,7 @@ def safe_only():
     res = ~d
     assert typeof(d) == "long", typeof(d)
 
-    # potentially overflowing arithmatic
+    # potentially overflowing arithmetic
     e = 1
     e += 1
     assert typeof(e) == "Python object", typeof(e)

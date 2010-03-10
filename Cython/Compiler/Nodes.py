@@ -3292,7 +3292,7 @@ class ParallelAssignmentNode(AssignmentNode):
 
 
 class InPlaceAssignmentNode(AssignmentNode):
-    #  An in place arithmatic operand:
+    #  An in place arithmetic operand:
     #
     #    a += b
     #    a -= b
