@@ -53,6 +53,8 @@ def printbuf():
     """
     cdef object[int, ndim=2] buf
     print buf
+    return
+    buf[0,0] = 0
 
 @testcase
 def acquire_release(o1, o2):
@@ -798,7 +800,7 @@ def printbuf_td_cy_int(object[td_cy_int] buf, shape):
     >>> printbuf_td_cy_int(ShortMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
-    ValueError: Buffer dtype mismatch, expected 'bufaccess.td_cy_int' but got 'short'
+    ValueError: Buffer dtype mismatch, expected 'td_cy_int' but got 'short'
     """
     cdef int i
     for i in range(shape[0]):
@@ -813,7 +815,7 @@ def printbuf_td_h_short(object[td_h_short] buf, shape):
     >>> printbuf_td_h_short(IntMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
-    ValueError: Buffer dtype mismatch, expected 'bufaccess.td_h_short' but got 'int'
+    ValueError: Buffer dtype mismatch, expected 'td_h_short' but got 'int'
     """    
     cdef int i
     for i in range(shape[0]):
@@ -828,7 +830,7 @@ def printbuf_td_h_cy_short(object[td_h_cy_short] buf, shape):
     >>> printbuf_td_h_cy_short(IntMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
-    ValueError: Buffer dtype mismatch, expected 'bufaccess.td_h_cy_short' but got 'int'
+    ValueError: Buffer dtype mismatch, expected 'td_h_cy_short' but got 'int'
     """
     cdef int i
     for i in range(shape[0]):
@@ -843,7 +845,7 @@ def printbuf_td_h_ushort(object[td_h_ushort] buf, shape):
     >>> printbuf_td_h_ushort(ShortMockBuffer(None, range(3)), (3,))
     Traceback (most recent call last):
        ...
-    ValueError: Buffer dtype mismatch, expected 'bufaccess.td_h_ushort' but got 'short'
+    ValueError: Buffer dtype mismatch, expected 'td_h_ushort' but got 'short'
     """
     cdef int i
     for i in range(shape[0]):
@@ -858,7 +860,7 @@ def printbuf_td_h_double(object[td_h_double] buf, shape):
     >>> printbuf_td_h_double(FloatMockBuffer(None, [0.25, 1, 3.125]), (3,))
     Traceback (most recent call last):
        ...
-    ValueError: Buffer dtype mismatch, expected 'bufaccess.td_h_double' but got 'float'
+    ValueError: Buffer dtype mismatch, expected 'td_h_double' but got 'float'
     """
     cdef int i
     for i in range(shape[0]):

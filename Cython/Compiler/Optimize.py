@@ -1121,6 +1121,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         exception_check = True)
 
     def _handle_simple_function_float(self, node, pos_args):
+        """Transform float() into either a C type cast or a faster C
+        function call.
+        """
         # Note: this requires the float() function to be typed as
         # returning a C 'double'
         if len(pos_args) != 1:
@@ -1158,6 +1161,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             ])
 
     def _handle_simple_function_getattr(self, node, pos_args):
+        """Replace 2/3 argument forms of getattr() by C-API calls.
+        """
         if len(pos_args) == 2:
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "PyObject_GetAttr", self.PyObject_GetAttr2_func_type,
@@ -1185,6 +1190,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             ])
 
     def _handle_simple_function_iter(self, node, pos_args):
+        """Replace 1/2 argument forms of iter() by C-API calls.
+        """
         if len(pos_args) == 1:
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "PyObject_GetIter", self.PyObject_GetIter_func_type,
@@ -1205,6 +1212,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             ])
 
     def _handle_simple_function_len(self, node, pos_args):
+        """Replace len(char*) by the equivalent call to strlen().
+        """
         if len(pos_args) != 1:
             self._error_wrong_arg_count('len', node, pos_args, 1)
             return node
@@ -1234,6 +1243,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             ])
 
     def _handle_simple_function_type(self, node, pos_args):
+        """Replace type(o) by a macro call to Py_TYPE(o).
+        """
         if len(pos_args) != 1:
             return node
         node = ExprNodes.PythonCapiCallNode(
@@ -1298,7 +1309,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             ])
 
     def _handle_simple_method_object_append(self, node, args, is_unbound_method):
-        # X.append() is almost always referring to a list
+        """Optimistic optimisation as X.append() is almost always
+        referring to a list.
+        """
         if len(args) != 2:
             return node
 
@@ -1321,7 +1334,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             ])
 
     def _handle_simple_method_object_pop(self, node, args, is_unbound_method):
-        # X.pop([n]) is almost always referring to a list
+        """Optimistic optimisation as X.pop([n]) is almost always
+        referring to a list.
+        """
         if len(args) == 1:
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_PyObject_Pop", self.PyObject_Pop_func_type,
@@ -1351,6 +1366,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         exception_value = "-1")
 
     def _handle_simple_method_list_append(self, node, args, is_unbound_method):
+        """Call PyList_Append() instead of l.append().
+        """
         if len(args) != 2:
             self._error_wrong_arg_count('list.append', node, args, 2)
             return node
@@ -1365,6 +1382,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         exception_value = "-1")
 
     def _handle_simple_method_list_sort(self, node, args, is_unbound_method):
+        """Call PyList_Sort() instead of the 0-argument l.sort().
+        """
         if len(args) != 1:
             return node
         return self._substitute_method_call(
@@ -1372,6 +1391,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             'sort', is_unbound_method, args)
 
     def _handle_simple_method_list_reverse(self, node, args, is_unbound_method):
+        """Call PyList_Reverse() instead of l.reverse().
+        """
         if len(args) != 1:
             self._error_wrong_arg_count('list.reverse', node, args, 1)
             return node
@@ -1388,6 +1409,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         exception_value = "NULL")
 
     def _handle_simple_method_dict_get(self, node, args, is_unbound_method):
+        """Replace dict.get() by a call to PyDict_GetItem().
+        """
         if len(args) == 2:
             args.append(ExprNodes.NoneNode(node.pos))
         elif len(args) != 3:
@@ -1420,6 +1443,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                         for name in _special_encodings ]
 
     def _handle_simple_method_unicode_encode(self, node, args, is_unbound_method):
+        """Replace unicode.encode(...) by a direct C-API call to the
+        corresponding codec.
+        """
         if len(args) < 1 or len(args) > 3:
             self._error_wrong_arg_count('unicode.encode', node, args, '1-3')
             return node
@@ -1485,6 +1511,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         exception_value = "NULL")
 
     def _handle_simple_method_bytes_decode(self, node, args, is_unbound_method):
+        """Replace char*.decode() by a direct C-API call to the
+        corresponding codec, possibly resoving a slice on the char*.
+        """
         if len(args) < 1 or len(args) > 3:
             self._error_wrong_arg_count('bytes.decode', node, args, '1-3')
             return node

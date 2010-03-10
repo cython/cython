@@ -262,12 +262,13 @@ class SimpleAssignmentTypeInferer:
 
 def find_spanning_type(type1, type2):
     if type1 is type2:
-        return type1
+        result_type = type1
     elif type1 is PyrexTypes.c_bint_type or type2 is PyrexTypes.c_bint_type:
         # type inference can break the coercion back to a Python bool
         # if it returns an arbitrary int type here
         return py_object_type
-    result_type = PyrexTypes.spanning_type(type1, type2)
+    else:
+        result_type = PyrexTypes.spanning_type(type1, type2)
     if result_type in (PyrexTypes.c_double_type, PyrexTypes.c_float_type, Builtin.float_type):
         # Python's float type is just a C double, so it's safe to
         # use the C type instead

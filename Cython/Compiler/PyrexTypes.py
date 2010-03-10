@@ -164,13 +164,13 @@ class PyrexType(BaseType):
         return 1
 
 
-def create_typedef_type(cname, base_type, is_external=0):
+def create_typedef_type(name, base_type, cname, is_external=0):
     if base_type.is_complex:
         if is_external:
             raise ValueError("Complex external typedefs not supported")
         return base_type
     else:
-        return CTypedefType(cname, base_type, is_external)
+        return CTypedefType(name, base_type, cname, is_external)
 
 class CTypedefType(BaseType):
     #
@@ -180,6 +180,7 @@ class CTypedefType(BaseType):
     #  HERE IS DELEGATED!
     #
     #  qualified_name      string
+    #  typedef_name        string
     #  typedef_cname       string
     #  typedef_base_type   PyrexType
     #  typedef_is_external bool
@@ -191,8 +192,9 @@ class CTypedefType(BaseType):
     from_py_utility_code = None
     
     
-    def __init__(self, cname, base_type, is_external=0):
+    def __init__(self, name, base_type, cname, is_external=0):
         assert not base_type.is_complex
+        self.typedef_name = name
         self.typedef_cname = cname
         self.typedef_base_type = base_type
         self.typedef_is_external = is_external
@@ -214,18 +216,11 @@ class CTypedefType(BaseType):
     
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
-        name = self.declaration_name(for_display, pyrex)
         if pyrex or for_display:
-            base_code = name
+            base_code = self.typedef_name
         else:
-            base_code = public_decl(name, dll_linkage)
+            base_code = public_decl(self.typedef_cname, dll_linkage)
         return self.base_declaration_code(base_code, entity_code)
-    
-    def declaration_name(self, for_display = 0, pyrex = 0):
-        if pyrex or for_display:
-            return self.qualified_name
-        else:
-            return self.typedef_cname
     
     def as_argument_type(self):
         return self
@@ -242,7 +237,7 @@ class CTypedefType(BaseType):
         return "<CTypedefType %s>" % self.typedef_cname
     
     def __str__(self):
-        return self.declaration_name(for_display = 1)
+        return self.typedef_name
 
     def _create_utility_code(self, template_utility_code,
                              template_function_name):
