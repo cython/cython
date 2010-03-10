@@ -1726,7 +1726,7 @@ class PyArgDeclNode(Node):
 class DecoratorNode(Node):
     # A decorator
     #
-    # decorator    NameNode or CallNode
+    # decorator    NameNode or CallNode or AttributeNode
     child_attrs = ['decorator']
 
 
@@ -2025,7 +2025,7 @@ class DefNode(FuncDefNode):
 
     def declare_python_arg(self, env, arg):
         if arg:
-            if env.directives['infer_types'] != 'none':
+            if env.directives['infer_types'] != False:
                 type = PyrexTypes.unspecified_type
             else:
                 type = py_object_type
@@ -2441,7 +2441,7 @@ class DefNode(FuncDefNode):
         # it looks funny to separate the init-to-0 from setting the
         # default value, but C89 needs this
         code.putln("PyObject* values[%d] = {%s};" % (
-            max_args, ','.join(['0']*max_args)))
+            max_args, ','.join('0'*max_args)))
         for i, default_value in default_args:
             code.putln('values[%d] = %s;' % (i, default_value))
 
@@ -3292,7 +3292,7 @@ class ParallelAssignmentNode(AssignmentNode):
 
 
 class InPlaceAssignmentNode(AssignmentNode):
-    #  An in place arithmatic operand:
+    #  An in place arithmetic operand:
     #
     #    a += b
     #    a -= b
@@ -3447,11 +3447,15 @@ class PrintStatNode(StatNode):
     #  print statement
     #
     #  arg_tuple         TupleNode
+    #  stream            ExprNode or None (stdout)
     #  append_newline    boolean
 
-    child_attrs = ["arg_tuple"]
+    child_attrs = ["arg_tuple", "stream"]
 
     def analyse_expressions(self, env):
+        if self.stream:
+            self.stream.analyse_expressions(env)
+            self.stream = self.stream.coerce_to_pyobject(env)
         self.arg_tuple.analyse_expressions(env)
         self.arg_tuple = self.arg_tuple.coerce_to_pyobject(env)
         env.use_utility_code(printing_utility_code)
@@ -3462,12 +3466,18 @@ class PrintStatNode(StatNode):
     gil_message = "Python print statement"
 
     def generate_execution_code(self, code):
+        if self.stream:
+            self.stream.generate_evaluation_code(code)
+            stream_result = self.stream.py_result()
+        else:
+            stream_result = '0'
         if len(self.arg_tuple.args) == 1 and self.append_newline:
             arg = self.arg_tuple.args[0]
             arg.generate_evaluation_code(code)
             
             code.putln(
-                "if (__Pyx_PrintOne(%s) < 0) %s" % (
+                "if (__Pyx_PrintOne(%s, %s) < 0) %s" % (
+                    stream_result,
                     arg.py_result(),
                     code.error_goto(self.pos)))
             arg.generate_disposal_code(code)
@@ -3475,14 +3485,21 @@ class PrintStatNode(StatNode):
         else:
             self.arg_tuple.generate_evaluation_code(code)
             code.putln(
-                "if (__Pyx_Print(%s, %d) < 0) %s" % (
+                "if (__Pyx_Print(%s, %s, %d) < 0) %s" % (
+                    stream_result,
                     self.arg_tuple.py_result(),
                     self.append_newline,
                     code.error_goto(self.pos)))
             self.arg_tuple.generate_disposal_code(code)
             self.arg_tuple.free_temps(code)
 
+        if self.stream:
+            self.stream.generate_disposal_code(code)
+            self.stream.free_temps(code)
+
     def annotate(self, code):
+        if self.stream:
+            self.stream.annotate(code)
         self.arg_tuple.annotate(code)
 
 
@@ -5028,10 +5045,16 @@ else:
 
 printing_utility_code = UtilityCode(
 proto = """
-static int __Pyx_Print(PyObject *, int); /*proto*/
+static int __Pyx_Print(PyObject*, PyObject *, int); /*proto*/
 #if PY_MAJOR_VERSION >= 3
 static PyObject* %s = 0;
 static PyObject* %s = 0;
+#endif
+""" % (Naming.print_function, Naming.print_function_kwargs),
+cleanup = """
+#if PY_MAJOR_VERSION >= 3
+Py_CLEAR(%s);
+Py_CLEAR(%s);
 #endif
 """ % (Naming.print_function, Naming.print_function_kwargs),
 impl = r"""
@@ -5044,13 +5067,14 @@ static PyObject *__Pyx_GetStdout(void) {
     return f;
 }
 
-static int __Pyx_Print(PyObject *arg_tuple, int newline) {
-    PyObject *f;
+static int __Pyx_Print(PyObject* f, PyObject *arg_tuple, int newline) {
     PyObject* v;
     int i;
 
-    if (!(f = __Pyx_GetStdout()))
-        return -1;
+    if (!f) {
+        if (!(f = __Pyx_GetStdout()))
+            return -1;
+    }
     for (i=0; i < PyTuple_GET_SIZE(arg_tuple); i++) {
         if (PyFile_SoftSpace(f, 1)) {
             if (PyFile_WriteString(" ", f) < 0)
@@ -5078,22 +5102,38 @@ static int __Pyx_Print(PyObject *arg_tuple, int newline) {
 
 #else /* Python 3 has a print function */
 
-static int __Pyx_Print(PyObject *arg_tuple, int newline) {
+static int __Pyx_Print(PyObject* stream, PyObject *arg_tuple, int newline) {
     PyObject* kwargs = 0;
     PyObject* result = 0;
     PyObject* end_string;
-    if (!%(PRINT_FUNCTION)s) {
+    if (unlikely(!%(PRINT_FUNCTION)s)) {
         %(PRINT_FUNCTION)s = __Pyx_GetAttrString(%(BUILTINS)s, "print");
         if (!%(PRINT_FUNCTION)s)
             return -1;
     }
-    if (!newline) {
-        if (!%(PRINT_KWARGS)s) {
+    if (stream) {
+        kwargs = PyDict_New();
+        if (unlikely(!kwargs))
+            return -1;
+        if (unlikely(PyDict_SetItemString(kwargs, "file", stream) < 0))
+            goto bad;
+        if (!newline) {
+            end_string = PyUnicode_FromStringAndSize(" ", 1);
+            if (unlikely(!end_string))
+                goto bad;
+            if (PyDict_SetItemString(kwargs, "end", end_string) < 0) {
+                Py_DECREF(end_string);
+                goto bad;
+            }
+            Py_DECREF(end_string);
+        }
+    } else if (!newline) {
+        if (unlikely(!%(PRINT_KWARGS)s)) {
             %(PRINT_KWARGS)s = PyDict_New();
-            if (!%(PRINT_KWARGS)s)
+            if (unlikely(!%(PRINT_KWARGS)s))
                 return -1;
             end_string = PyUnicode_FromStringAndSize(" ", 1);
-            if (!end_string)
+            if (unlikely(!end_string))
                 return -1;
             if (PyDict_SetItemString(%(PRINT_KWARGS)s, "end", end_string) < 0) {
                 Py_DECREF(end_string);
@@ -5104,10 +5144,16 @@ static int __Pyx_Print(PyObject *arg_tuple, int newline) {
         kwargs = %(PRINT_KWARGS)s;
     }
     result = PyObject_Call(%(PRINT_FUNCTION)s, arg_tuple, kwargs);
+    if (unlikely(kwargs) && (kwargs != %(PRINT_KWARGS)s))
+        Py_DECREF(kwargs);
     if (!result)
         return -1;
     Py_DECREF(result);
     return 0;
+bad:
+    if (kwargs != %(PRINT_KWARGS)s)
+        Py_XDECREF(kwargs);
+    return -1;
 }
 
 #endif
@@ -5119,15 +5165,16 @@ static int __Pyx_Print(PyObject *arg_tuple, int newline) {
 
 printing_one_utility_code = UtilityCode(
 proto = """
-static int __Pyx_PrintOne(PyObject *o); /*proto*/
+static int __Pyx_PrintOne(PyObject* stream, PyObject *o); /*proto*/
 """,
 impl = r"""
 #if PY_MAJOR_VERSION < 3
 
-static int __Pyx_PrintOne(PyObject *o) {
-    PyObject *f;
-    if (!(f = __Pyx_GetStdout()))
-        return -1;
+static int __Pyx_PrintOne(PyObject* f, PyObject *o) {
+    if (!f) {
+        if (!(f = __Pyx_GetStdout()))
+            return -1;
+    }
     if (PyFile_SoftSpace(f, 0)) {
         if (PyFile_WriteString(" ", f) < 0)
             return -1;
@@ -5139,19 +5186,19 @@ static int __Pyx_PrintOne(PyObject *o) {
     return 0;
     /* the line below is just to avoid compiler
      * compiler warnings about unused functions */
-    return __Pyx_Print(NULL, 0);
+    return __Pyx_Print(f, NULL, 0);
 }
 
 #else /* Python 3 has a print function */
 
-static int __Pyx_PrintOne(PyObject *o) {
+static int __Pyx_PrintOne(PyObject* stream, PyObject *o) {
     int res;
     PyObject* arg_tuple = PyTuple_New(1);
     if (unlikely(!arg_tuple))
         return -1;
     Py_INCREF(o);
     PyTuple_SET_ITEM(arg_tuple, 0, o);
-    res = __Pyx_Print(arg_tuple, 1);
+    res = __Pyx_Print(stream, arg_tuple, 1);
     Py_DECREF(arg_tuple);
     return res;
 }

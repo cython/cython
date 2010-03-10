@@ -3,13 +3,13 @@ from distutils.sysconfig import get_python_lib
 import os, os.path
 import sys
 
-if 'sdist' in sys.argv:
+if 'sdist' in sys.argv and sys.platform != "win32":
     # Record the current revision in .hgrev
     import subprocess # os.popen is cleaner but depricated
     changset = subprocess.Popen("hg log --rev tip | grep changeset", 
                                 shell=True,
                                 stdout=subprocess.PIPE).stdout.read()
-    rev = changset.split(':')[-1].strip()
+    rev = changset.decode('ISO-8859-1').split(':')[-1].strip()
     hgrev = open('.hgrev', 'w')
     hgrev.write(rev)
     hgrev.close()

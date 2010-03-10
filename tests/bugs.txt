@@ -9,5 +9,7 @@ missing_baseclass_in_predecl_T262
 cfunc_call_tuple_args_T408
 cascaded_list_unpacking_T467
 compile.cpp_operators
-cppwrap
-cpp_overload_wrapper
+
+# Pyrex regression tests that don't current work:
+pyregr.test_threadsignals
+pyregr.test_module

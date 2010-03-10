@@ -2035,7 +2035,11 @@ class IndexNode(ExprNode):
                     function = "__Pyx_GetItemInt"
                 code.globalstate.use_utility_code(getitem_int_utility_code)
             else:
-                function = "PyObject_GetItem"
+                if self.base.type is dict_type:
+                    function = "__Pyx_PyDict_GetItem"
+                    code.globalstate.use_utility_code(getitem_dict_utility_code)
+                else:
+                    function = "PyObject_GetItem"
                 index_code = self.index.py_result()
                 sign_code = ""
             code.putln(
@@ -2274,7 +2278,7 @@ class SliceIndexNode(ExprNode):
                     self.base.py_result(),
                     self.start_code(),
                     self.stop_code(),
-                    rhs.result()))
+                    rhs.py_result()))
         else:
             start_offset = ''
             if self.start:
@@ -3438,8 +3442,6 @@ class SequenceNode(ExprNode):
         # allocates the temps in a rather hacky way -- the assignment
         # is evaluated twice, within each if-block.
 
-        code.globalstate.use_utility_code(unpacking_utility_code)
-
         if rhs.type is tuple_type:
             tuple_check = "likely(%s != Py_None)"
         else:
@@ -3475,6 +3477,8 @@ class SequenceNode(ExprNode):
                         rhs.py_result(), len(self.args)))
             code.putln(code.error_goto(self.pos))
         else:
+            code.globalstate.use_utility_code(unpacking_utility_code)
+
             self.iterator.allocate(code)
             code.putln(
                 "%s = PyObject_GetIter(%s); %s" % (
@@ -6445,8 +6449,64 @@ impl = ""
 
 #------------------------------------------------------------------------------------
 
-# If the is_unsigned flag is set, we need to do some extra work to make 
-# sure the index doesn't become negative. 
+raise_noneattr_error_utility_code = UtilityCode(
+proto = """
+static CYTHON_INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname);
+""",
+impl = '''
+static CYTHON_INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname) {
+    PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%s'", attrname);
+}
+''')
+
+raise_noneindex_error_utility_code = UtilityCode(
+proto = """
+static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void);
+""",
+impl = '''
+static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void) {
+    PyErr_SetString(PyExc_TypeError, "'NoneType' object is unsubscriptable");
+}
+''')
+
+raise_none_iter_error_utility_code = UtilityCode(
+proto = """
+static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void);
+""",
+impl = '''
+static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void) {
+    PyErr_SetString(PyExc_TypeError, "'NoneType' object is not iterable");
+}
+''')
+
+#------------------------------------------------------------------------------------
+
+getitem_dict_utility_code = UtilityCode(
+proto = """
+
+#if PY_MAJOR_VERSION >= 3
+static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
+    PyObject *value;
+    if (unlikely(d == Py_None)) {
+        __Pyx_RaiseNoneIndexingError();
+        return NULL;
+    }
+    value = PyDict_GetItemWithError(d, key);
+    if (unlikely(!value)) {
+        if (!PyErr_Occurred())
+            PyErr_SetObject(PyExc_KeyError, key);
+        return NULL;
+    }
+    Py_INCREF(value);
+    return value;
+}
+#else
+    #define __Pyx_PyDict_GetItem(d, key) PyObject_GetItem(d, key)
+#endif
+""", 
+requires = [raise_noneindex_error_utility_code])
+
+#------------------------------------------------------------------------------------
 
 getitem_int_utility_code = UtilityCode(
 proto = """
@@ -6574,36 +6634,6 @@ impl = """
 """)
 
 #------------------------------------------------------------------------------------
-
-raise_noneattr_error_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname);
-""",
-impl = '''
-static CYTHON_INLINE void __Pyx_RaiseNoneAttributeError(const char* attrname) {
-    PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%s'", attrname);
-}
-''')
-
-raise_noneindex_error_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void);
-""",
-impl = '''
-static CYTHON_INLINE void __Pyx_RaiseNoneIndexingError(void) {
-    PyErr_SetString(PyExc_TypeError, "'NoneType' object is unsubscriptable");
-}
-''')
-
-raise_none_iter_error_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void);
-""",
-impl = '''
-static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void) {
-    PyErr_SetString(PyExc_TypeError, "'NoneType' object is not iterable");
-}
-''')
 
 raise_too_many_values_to_unpack = UtilityCode(
 proto = """

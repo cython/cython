@@ -9,5 +9,6 @@ def _get_feature(name):
 unicode_literals = _get_feature("unicode_literals")
 with_statement = _get_feature("with_statement")
 division = _get_feature("division")
+print_function = _get_feature("print_function")
 
 del _get_feature

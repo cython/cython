@@ -48,7 +48,11 @@ EXT_DEP_INCLUDES = [
 ]
 
 VER_DEP_MODULES = {
+    # tests are excluded if 'CurrentPythonVersion OP VersionTuple', i.e.
+    # (2,4) : (operator.le, ...) excludes ... when PyVer <= 2.4.x
     (2,4) : (operator.le, lambda x: x in ['run.extern_builtins_T258'
+                                          ]),
+    (2,6) : (operator.lt, lambda x: x in ['run.print_function'
                                           ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
@@ -269,12 +273,18 @@ class CythonCompileTestCase(unittest.TestCase):
         target = '%s.%s' % (module_name, self.language)
         return target
 
-    def find_source_files(self, test_directory, module_name):
+    def copy_related_files(self, test_directory, target_directory, module_name):
+        is_related = re.compile('%s_.*[.].*' % module_name).match
+        for filename in os.listdir(test_directory):
+            if is_related(filename):
+                shutil.copy(os.path.join(test_directory, filename),
+                            target_directory)
+
+    def find_source_files(self, workdir, module_name):
         is_related = re.compile('%s_.*[.]%s' % (module_name, self.language)).match
         return [self.build_target_filename(module_name)] + [
-            os.path.join(test_directory, filename)
-            for filename in os.listdir(test_directory)
-            if is_related(filename) and os.path.isfile(os.path.join(test_directory, filename)) ]
+            filename for filename in os.listdir(workdir)
+            if is_related(filename) and os.path.isfile(os.path.join(workdir, filename)) ]
 
     def split_source_and_output(self, test_directory, module, workdir):
         source_file = os.path.join(test_directory, module) + '.pyx'
@@ -329,9 +339,10 @@ class CythonCompileTestCase(unittest.TestCase):
             for match, get_additional_include_dirs in EXT_DEP_INCLUDES:
                 if match(module):
                     ext_include_dirs += get_additional_include_dirs()
+            self.copy_related_files(test_directory, workdir, module)
             extension = Extension(
                 module,
-                sources = self.find_source_files(test_directory, module),
+                sources = self.find_source_files(workdir, module),
                 include_dirs = ext_include_dirs,
                 extra_compile_args = CFLAGS,
                 )
@@ -427,9 +438,9 @@ class CythonRunTestCase(CythonCompileTestCase):
                         if tests is None:
                             # importing failed, try to fake a test class
                             tests = _FakeClass(
-                                failureException=None,
-                                shortDescription = self.shortDescription,
-                                **{module_name: None})
+                                failureException=sys.exc_info()[1],
+                                _shortDescription=self.shortDescription(),
+                                module_name=None)
                         partial_result.addError(tests, sys.exc_info())
                         result_code = 1
                     output = open(result_file, 'wb')
@@ -444,6 +455,13 @@ class CythonRunTestCase(CythonCompileTestCase):
 
         try:
             cid, result_code = os.waitpid(child_id, 0)
+            # os.waitpid returns the child's result code in the
+            # upper byte of result_code, and the signal it was
+            # killed by in the lower byte
+            if result_code & 255:
+                raise Exception("Tests in module '%s' were unexpectedly killed by signal %d"%
+                                (module_name, result_code & 255))
+            result_code = result_code >> 8
             if result_code in (0,1):
                 input = open(result_file, 'rb')
                 try:
@@ -452,7 +470,7 @@ class CythonRunTestCase(CythonCompileTestCase):
                     input.close()
             if result_code:
                 raise Exception("Tests in module '%s' exited with status %d" %
-                                (module_name, result_code >> 8))
+                                (module_name, result_code))
         finally:
             try: os.unlink(result_file)
             except: pass
@@ -484,7 +502,7 @@ class PartialTestResult(_TextTestResult):
                 if attr_name == '_dt_test':
                     test_case._dt_test = _FakeClass(
                         name=test_case._dt_test.name)
-                else:
+                elif attr_name != '_shortDescription':
                     setattr(test_case, attr_name, None)
 
     def data(self):
@@ -497,7 +515,7 @@ class PartialTestResult(_TextTestResult):
         """Static method for merging the result back into the main
         result object.
         """
-        errors, failures, tests_run, output = data
+        failures, errors, tests_run, output = data
         if output:
             result.stream.write(output)
         result.errors.extend(errors)
@@ -717,7 +735,12 @@ if __name__ == '__main__':
                       help="display test progress, pass twice to print test names")
     parser.add_option("-T", "--ticket", dest="tickets",
                       action="append",
-                      help="a bug ticket number to run the respective test in 'tests/bugs'")
+                      help="a bug ticket number to run the respective test in 'tests/*'")
+    parser.add_option("--xml-output", dest="xml_output_dir", metavar="DIR",
+                      help="write test results in XML to directory DIR")
+    parser.add_option("--exit-ok", dest="exit_ok", default=False,
+                      action="store_true",
+                      help="exit without error code even on test failures")
 
     options, cmd_args = parser.parse_args()
 
@@ -871,7 +894,14 @@ if __name__ == '__main__':
                 os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test'),
                 'pyregr'))
 
-    result = unittest.TextTestRunner(verbosity=options.verbosity).run(test_suite)
+    if options.xml_output_dir:
+        from Cython.Tests.xmlrunner import XMLTestRunner
+        test_runner = XMLTestRunner(output=options.xml_output_dir,
+                                    verbose=options.verbosity > 0)
+    else:
+        test_runner = unittest.TextTestRunner(verbosity=options.verbosity)
+
+    result = test_runner.run(test_suite)
 
     if options.coverage:
         coverage.stop()
@@ -891,4 +921,7 @@ if __name__ == '__main__':
         import refnanny
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
-    sys.exit(not result.wasSuccessful())
+    if options.exit_ok:
+        sys.exit(0)
+    else:
+        sys.exit(not result.wasSuccessful())
