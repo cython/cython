@@ -63,7 +63,7 @@ def build_resword_dict():
         d[word] = 1
     return d
 
-cython.declare(resword_dict=object)
+cython.declare(resword_dict=dict)
 resword_dict = build_resword_dict()
 
 #------------------------------------------------------------------
