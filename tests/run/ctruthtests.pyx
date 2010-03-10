@@ -77,9 +77,16 @@ def test_attr_int(TestExtInt e):
     else:
         return False
 
+ctypedef union _aux:
+    int i
+    void *p
+
 cdef class TestExtPtr:
     cdef void* p
-    def __init__(self, int i): self.p = <void*>i
+    def __init__(self, int i): 
+        cdef _aux aux
+        aux.i = i
+        self.p = aux.p
 
 def test_attr_ptr(TestExtPtr e):
     """
