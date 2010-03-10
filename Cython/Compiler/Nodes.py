@@ -1726,7 +1726,7 @@ class PyArgDeclNode(Node):
 class DecoratorNode(Node):
     # A decorator
     #
-    # decorator    NameNode or CallNode
+    # decorator    NameNode or CallNode or AttributeNode
     child_attrs = ['decorator']
 
 
