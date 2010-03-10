@@ -1,9 +1,4 @@
 
-# invalid syntax (as handled by the parser)
-
-def syntax():
-    *a, *b = 1,2,3,4,5
-
 # wrong size RHS (as handled by the parser)
 
 def length1():
@@ -27,12 +22,11 @@ def length_recursive():
 
 
 _ERRORS = u"""
- 5:4: more than 1 starred expression in assignment
-10:4: too many values to unpack (expected 2, got 3)
-13:4: need more than 1 value to unpack
-16:4: need more than 0 values to unpack
-19:4: need more than 0 values to unpack
-22:4: need more than 0 values to unpack
-23:4: need more than 1 value to unpack
-26:6: need more than 1 value to unpack
+ 5:4: too many values to unpack (expected 2, got 3)
+ 8:4: need more than 1 value to unpack
+11:4: need more than 0 values to unpack
+14:4: need more than 0 values to unpack
+17:4: need more than 0 values to unpack
+18:4: need more than 1 value to unpack
+21:6: need more than 1 value to unpack
 """

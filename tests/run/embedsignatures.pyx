@@ -135,6 +135,12 @@ __doc__ = ur"""
     >>> print (f_D.__doc__)
     f_D(long double D) -> long double
 
+    >>> print (f_my_i.__doc__)
+    f_my_i(MyInt i) -> MyInt
+
+    >>> print (f_my_f.__doc__)
+    f_my_f(MyFloat f) -> MyFloat
+
 """
 
 cdef class Ext:
@@ -279,3 +285,11 @@ cpdef double f_d(double d):
 
 cpdef long double f_D(long double D):
     return D
+
+ctypedef int MyInt
+cpdef MyInt f_my_i(MyInt i):
+    return i
+
+ctypedef float MyFloat
+cpdef MyFloat f_my_f(MyFloat f):
+    return f

@@ -242,6 +242,231 @@ class PostParse(CythonTransform):
             self.context.nonfatal_error(e)
             return None
 
+    # Split parallel assignments (a,b = b,a) into separate partial
+    # assignments that are executed rhs-first using temps.  This
+    # optimisation is best applied before type analysis so that known
+    # types on rhs and lhs can be matched directly.
+
+    def visit_SingleAssignmentNode(self, node):
+        self.visitchildren(node)
+        return self._visit_assignment_node(node, [node.lhs, node.rhs])
+
+    def visit_CascadedAssignmentNode(self, node):
+        self.visitchildren(node)
+        return self._visit_assignment_node(node, node.lhs_list + [node.rhs])
+
+    def _visit_assignment_node(self, node, expr_list):
+        """Flatten parallel assignments into separate single
+        assignments or cascaded assignments.
+        """
+        if sum([ 1 for expr in expr_list if expr.is_sequence_constructor ]) < 2:
+            # no parallel assignments => nothing to do
+            return node
+
+        expr_list_list = []
+        flatten_parallel_assignments(expr_list, expr_list_list)
+        temp_refs = []
+        eliminate_rhs_duplicates(expr_list_list, temp_refs)
+
+        nodes = []
+        for expr_list in expr_list_list:
+            lhs_list = expr_list[:-1]
+            rhs = expr_list[-1]
+            if len(lhs_list) == 1:
+                node = Nodes.SingleAssignmentNode(rhs.pos, 
+                    lhs = lhs_list[0], rhs = rhs)
+            else:
+                node = Nodes.CascadedAssignmentNode(rhs.pos,
+                    lhs_list = lhs_list, rhs = rhs)
+            nodes.append(node)
+
+        if len(nodes) == 1:
+            assign_node = nodes[0]
+        else:
+            assign_node = Nodes.ParallelAssignmentNode(nodes[0].pos, stats = nodes)
+
+        if temp_refs:
+            duplicates_and_temps = [ (temp.expression, temp)
+                                     for temp in temp_refs ]
+            sort_common_subsequences(duplicates_and_temps)
+            for _, temp_ref in duplicates_and_temps[::-1]:
+                assign_node = LetNode(temp_ref, assign_node)
+
+        return assign_node
+
+def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
+    """Replace rhs items by LetRefNodes if they appear more than once.
+    Creates a sequence of LetRefNodes that set up the required temps
+    and appends them to ref_node_sequence.  The input list is modified
+    in-place.
+    """
+    seen_nodes = set()
+    ref_nodes = {}
+    def find_duplicates(node):
+        if node.is_literal or node.is_name:
+            # no need to replace those; can't include attributes here
+            # as their access is not necessarily side-effect free
+            return
+        if node in seen_nodes:
+            if node not in ref_nodes:
+                ref_node = LetRefNode(node)
+                ref_nodes[node] = ref_node
+                ref_node_sequence.append(ref_node)
+        else:
+            seen_nodes.add(node)
+            if node.is_sequence_constructor:
+                for item in node.args:
+                    find_duplicates(item)
+
+    for expr_list in expr_list_list:
+        rhs = expr_list[-1]
+        find_duplicates(rhs)
+    if not ref_nodes:
+        return
+
+    def substitute_nodes(node):
+        if node in ref_nodes:
+            return ref_nodes[node]
+        elif node.is_sequence_constructor:
+            node.args = map(substitute_nodes, node.args)
+        return node
+
+    # replace nodes inside of the common subexpressions
+    for node in ref_nodes:
+        if node.is_sequence_constructor:
+            node.args = map(substitute_nodes, node.args)
+
+    # replace common subexpressions on all rhs items
+    for expr_list in expr_list_list:
+        expr_list[-1] = substitute_nodes(expr_list[-1])
+
+def sort_common_subsequences(items):
+    """Sort items/subsequences so that all items and subsequences that
+    an item contains appear before the item itself.  This implies a
+    partial order, and the sort must be stable to preserve the
+    original order as much as possible, so we use a simple insertion
+    sort.
+    """
+    def contains(seq, x):
+        for item in seq:
+            if item is x:
+                return True
+            elif item.is_sequence_constructor and contains(item.args, x):
+                return True
+        return False
+    def lower_than(a,b):
+        return b.is_sequence_constructor and contains(b.args, a)
+
+    for pos, item in enumerate(items):
+        new_pos = pos
+        key = item[0]
+        for i in xrange(pos-1, -1, -1):
+            if lower_than(key, items[i][0]):
+                new_pos = i
+        if new_pos != pos:
+            for i in xrange(pos, new_pos, -1):
+                items[i] = items[i-1]
+            items[new_pos] = item
+
+def flatten_parallel_assignments(input, output):
+    #  The input is a list of expression nodes, representing the LHSs
+    #  and RHS of one (possibly cascaded) assignment statement.  For
+    #  sequence constructors, rearranges the matching parts of both
+    #  sides into a list of equivalent assignments between the
+    #  individual elements.  This transformation is applied
+    #  recursively, so that nested structures get matched as well.
+    rhs = input[-1]
+    if not rhs.is_sequence_constructor or not sum([lhs.is_sequence_constructor for lhs in input[:-1]]):
+        output.append(input)
+        return
+
+    complete_assignments = []
+
+    rhs_size = len(rhs.args)
+    lhs_targets = [ [] for _ in xrange(rhs_size) ]
+    starred_assignments = []
+    for lhs in input[:-1]:
+        if not lhs.is_sequence_constructor:
+            if lhs.is_starred:
+                error(lhs.pos, "starred assignment target must be in a list or tuple")
+            complete_assignments.append(lhs)
+            continue
+        lhs_size = len(lhs.args)
+        starred_targets = sum([1 for expr in lhs.args if expr.is_starred])
+        if starred_targets > 1:
+            error(lhs.pos, "more than 1 starred expression in assignment")
+            output.append([lhs,rhs])
+            continue
+        elif lhs_size - starred_targets > rhs_size:
+            error(lhs.pos, "need more than %d value%s to unpack"
+                  % (rhs_size, (rhs_size != 1) and 's' or ''))
+            output.append([lhs,rhs])
+            continue
+        elif starred_targets:
+            map_starred_assignment(lhs_targets, starred_assignments,
+                                   lhs.args, rhs.args)
+        elif lhs_size < rhs_size:
+            error(lhs.pos, "too many values to unpack (expected %d, got %d)"
+                  % (lhs_size, rhs_size))
+            output.append([lhs,rhs])
+            continue
+        else:
+            for targets, expr in zip(lhs_targets, lhs.args):
+                targets.append(expr)
+
+    if complete_assignments:
+        complete_assignments.append(rhs)
+        output.append(complete_assignments)
+
+    # recursively flatten partial assignments
+    for cascade, rhs in zip(lhs_targets, rhs.args):
+        if cascade:
+            cascade.append(rhs)
+            flatten_parallel_assignments(cascade, output)
+
+    # recursively flatten starred assignments
+    for cascade in starred_assignments:
+        if cascade[0].is_sequence_constructor:
+            flatten_parallel_assignments(cascade, output)
+        else:
+            output.append(cascade)
+
+def map_starred_assignment(lhs_targets, starred_assignments, lhs_args, rhs_args):
+    # Appends the fixed-position LHS targets to the target list that
+    # appear left and right of the starred argument.
+    #
+    # The starred_assignments list receives a new tuple
+    # (lhs_target, rhs_values_list) that maps the remaining arguments
+    # (those that match the starred target) to a list.
+
+    # left side of the starred target
+    for i, (targets, expr) in enumerate(zip(lhs_targets, lhs_args)):
+        if expr.is_starred:
+            starred = i
+            lhs_remaining = len(lhs_args) - i - 1
+            break
+        targets.append(expr)
+    else:
+        raise InternalError("no starred arg found when splitting starred assignment")
+
+    # right side of the starred target
+    for i, (targets, expr) in enumerate(zip(lhs_targets[-lhs_remaining:],
+                                            lhs_args[-lhs_remaining:])):
+        targets.append(expr)
+
+    # the starred target itself, must be assigned a (potentially empty) list
+    target = lhs_args[starred].target # unpack starred node
+    starred_rhs = rhs_args[starred:]
+    if lhs_remaining:
+        starred_rhs = starred_rhs[:-lhs_remaining]
+    if starred_rhs:
+        pos = starred_rhs[0].pos
+    else:
+        pos = target.pos
+    starred_assignments.append([
+        target, ExprNodes.ListNode(pos=pos, args=starred_rhs)])
+
+
 class PxdPostParse(CythonTransform, SkipDeclarations):
     """
     Basic interpretation/validity checking that should only be

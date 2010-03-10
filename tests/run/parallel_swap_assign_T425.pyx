@@ -107,6 +107,60 @@ def swap_attr_values(A a, A b):
     a.x, a.y, b.x, b.y = b.y, b.x, a.y, a.x # reverse
 
 
+cdef class B:
+    cdef readonly A a1
+    cdef readonly A a2
+    def __init__(self, x1, y1, x2, y2):
+        self.a1, self.a2 = A(x1, y1), A(x2, y2)
+
+@cython.test_assert_path_exists(
+    "//ParallelAssignmentNode",
+    "//ParallelAssignmentNode/SingleAssignmentNode",
+    "//ParallelAssignmentNode/SingleAssignmentNode/CoerceToTempNode",
+    "//ParallelAssignmentNode/SingleAssignmentNode/CoerceToTempNode[@use_managed_ref=False]",
+    "//ParallelAssignmentNode/SingleAssignmentNode//AttributeNode/NameNode",
+    "//ParallelAssignmentNode/SingleAssignmentNode//AttributeNode[@use_managed_ref=False]/NameNode",
+    )
+@cython.test_fail_if_path_exists(
+    "//ParallelAssignmentNode/SingleAssignmentNode/CoerceToTempNode[@use_managed_ref=True]",
+    "//ParallelAssignmentNode/SingleAssignmentNode/AttributeNode[@use_managed_ref=True]",
+    )
+def swap_recursive_attr_values(B a, B b):
+    """
+    >>> a, b = B(1,2,3,4), B(5,6,7,8)
+    >>> a.a1.x, a.a1.y, a.a2.x, a.a2.y
+    (1, 2, 3, 4)
+    >>> b.a1.x, b.a1.y, b.a2.x, b.a2.y
+    (5, 6, 7, 8)
+    >>> swap_recursive_attr_values(a,b)
+    >>> a.a1.x, a.a1.y, a.a2.x, a.a2.y
+    (2, 1, 4, 4)
+    >>> b.a1.x, b.a1.y, b.a2.x, b.a2.y
+    (6, 5, 8, 8)
+
+    # compatibility test
+    >>> class A:
+    ...     def __init__(self, x, y):
+    ...         self.x, self.y = x, y
+    >>> class B:
+    ...     def __init__(self, x1, y1, x2, y2):
+    ...         self.a1, self.a2 = A(x1, y1), A(x2, y2)
+    >>> a, b = B(1,2,3,4), B(5,6,7,8)
+    >>> a.a1, a.a2 = a.a2, a.a1
+    >>> b.a1, b.a2 = b.a2, b.a1
+    >>> a.a1, a.a1.x, a.a2.y, a.a2, a.a1.y, a.a2.x = a.a2, a.a2.y, a.a1.x, a.a1, a.a2.x, a.a1.y
+    >>> b.a1, b.a1.x, b.a2.y, b.a2, b.a1.y, b.a2.x = b.a2, b.a2.y, b.a1.x, b.a1, b.a2.x, b.a1.y
+    >>> a.a1.x, a.a1.y, a.a2.x, a.a2.y
+    (2, 1, 4, 4)
+    >>> b.a1.x, b.a1.y, b.a2.x, b.a2.y
+    (6, 5, 8, 8)
+    """
+    a.a1, a.a2 = a.a2, a.a1
+    b.a1, b.a2 = b.a2, b.a1
+    a.a1, a.a1.x, a.a2.y, a.a2, a.a1.y, a.a2.x = a.a2, a.a2.y, a.a1.x, a.a1, a.a2.x, a.a1.y
+    b.a1, b.a1.x, b.a2.y, b.a2, b.a1.y, b.a2.x = b.a2, b.a2.y, b.a1.x, b.a1, b.a2.x, b.a1.y
+
+
 @cython.test_assert_path_exists(
 #    "//ParallelAssignmentNode",
 #    "//ParallelAssignmentNode/SingleAssignmentNode",
