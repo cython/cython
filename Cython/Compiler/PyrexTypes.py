@@ -228,8 +228,9 @@ class CTypedefType(BaseType):
     def cast_code(self, expr_code):
         # If self is really an array (rather than pointer), we can't cast.
         # For example, the gmp mpz_t. 
-        if self.typedef_base_type.is_ptr:
-            return self.typedef_base_type.cast_code(expr_code)
+        if self.typedef_base_type.is_array:
+            base_type = self.typedef_base_type.base_type
+            return CPtrType(base_type).cast_code(expr_code)
         else:
             return BaseType.cast_code(self, expr_code)
 
