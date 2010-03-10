@@ -112,7 +112,7 @@ class MarkAssignments(CythonTransform):
         self.visitchildren(node)
         return node
 
-class MarkOverflowingArithmatic(CythonTransform):
+class MarkOverflowingArithmetic(CythonTransform):
 
     # It may be possible to integrate this with the above for
     # performance improvements (though likely not worth it).
@@ -122,7 +122,7 @@ class MarkOverflowingArithmatic(CythonTransform):
     def __call__(self, root):
         self.env_stack = []
         self.env = root.scope
-        return super(MarkOverflowingArithmatic, self).__call__(root)        
+        return super(MarkOverflowingArithmetic, self).__call__(root)        
 
     def visit_safe_node(self, node):
         self.might_overflow, saved = False, self.might_overflow

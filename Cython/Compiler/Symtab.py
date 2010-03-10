@@ -119,7 +119,7 @@ class Entry(object):
     # inline_func_in_pxd boolean  Hacky special case for inline function in pxd file.
     #                             Ideally this should not be necesarry.
     # assignments      [ExprNode] List of expressions that get assigned to this entry.
-    # might_overflow   boolean    In an arithmatic expression that could cause
+    # might_overflow   boolean    In an arithmetic expression that could cause
     #                             overflow (used for type inference).
 
     inline_func_in_pxd = False

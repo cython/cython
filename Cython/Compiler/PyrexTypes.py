@@ -999,7 +999,7 @@ class CComplexType(CNumericType):
         env.use_utility_code(complex_real_imag_utility_code)
         for utility_code in (complex_type_utility_code,
                              complex_from_parts_utility_code,
-                             complex_arithmatic_utility_code):
+                             complex_arithmetic_utility_code):
             env.use_utility_code(
                 utility_code.specialize(
                     self, 
@@ -1168,7 +1168,7 @@ static %(type)s __Pyx_PyComplex_As_%(type_name)s(PyObject* o) {
 }
 """)
 
-complex_arithmatic_utility_code = UtilityCode(
+complex_arithmetic_utility_code = UtilityCode(
 proto="""
 #if CYTHON_CCOMPLEX
     #define __Pyx_c_eq%(m)s(a, b)   ((a)==(b))
