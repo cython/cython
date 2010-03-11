@@ -13,10 +13,10 @@ import sys
 
 try:
     from __builtin__ import set
-except ImportError:
+except (ImportError, AttributeError):
     try:
         from builtins import set
-    except ImportError:
+    except (ImportError, AttributeError):
         from sets import Set as set
 
 from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
