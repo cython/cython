@@ -368,8 +368,12 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives, pos, 
                     code.putln("%s = %d;" % (tmp_cname, dim))
                 code.put("} else ")
             # check bounds in positive direction
+            if signed != 0:  
+                cast = ""
+            else:
+                cast = "(size_t)"
             code.putln("if (%s) %s = %d;" % (
-                code.unlikely("%s >= %s" % (cname, shape.cname)),
+                code.unlikely("%s >= %s%s" % (cname, cast, shape.cname)),
                 tmp_cname, dim))
         code.globalstate.use_utility_code(raise_indexerror_code)
         code.putln("if (%s) {" % code.unlikely("%s != -1" % tmp_cname))
