@@ -22,7 +22,7 @@ repo: .hg
 clean:
 	@echo Cleaning Source
 	@rm -fr build
-	@rm -f *.pyc */*.pyc */*/*.pyc 
+	@rm -f *.py[co] */*.py[co] */*/*.py[co] */*/*/*.py[co]
 	@rm -f *.so */*.so */*/*.so 
 	@rm -f *.pyd */*.pyd */*/*.pyd 
 	@rm -f *~ */*~ */*/*~
