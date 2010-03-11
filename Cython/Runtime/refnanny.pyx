@@ -59,8 +59,11 @@ class Context(object):
         else:
             return None
 
-cdef void report_unraisable(object e):
+cdef void report_unraisable(object e=None):
     try:
+        if e is None:
+            import sys
+            e = sys.exc_info()[1]
         print u"refnanny raised an exception: %s" % e
     except:
         pass # We absolutely cannot exit with an exception
@@ -97,8 +100,8 @@ cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
                 (<object>ctx).regref(None, lineno, True)
             else:
                 (<object>ctx).regref(<object>p_obj, lineno, False)
-        except object, e:
-            report_unraisable(e)
+        except:
+            report_unraisable()
     except:
         # __Pyx_GetException may itself raise errors
         pass
@@ -115,8 +118,8 @@ cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
                 decref_ok = (<object>ctx).delref(None, lineno, True)
             else:
                 decref_ok = (<object>ctx).delref(<object>p_obj, lineno, False)
-        except object, e:
-            report_unraisable(e)
+        except:
+            report_unraisable()
     except:
         # __Pyx_GetException may itself raise errors
         pass
@@ -146,8 +149,8 @@ cdef void FinishContext(PyObject** ctx):
             if errors:
                 print u"%s: %s()" % pos
                 print errors
-        except Exception, e:
-            report_unraisable(e)
+        except:
+            report_unraisable()
     except:
         # __Pyx_GetException may itself raise errors
         pass
