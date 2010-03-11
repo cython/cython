@@ -14,10 +14,6 @@ if 'sdist' in sys.argv and sys.platform != "win32" and sys.version_info >= (2,4)
     hgrev.write(rev)
     hgrev.close()
 
-compiler_dir = os.path.join(get_python_lib(prefix=''), 'Cython/Compiler')
-if sys.platform == "win32":
-    compiler_dir = compiler_dir[len(sys.prefix)+1:]
-
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
     os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
@@ -44,15 +40,13 @@ if sys.version_info[0] >= 3:
 
 if sys.version_info < (2,4):
     import glob
-    cython_dir = os.path.join(get_python_lib(prefix=''), 'Cython')
-    compiler_dir = os.path.join(cython_dir, 'Compiler')
     setup_args['data_files'] = [
-        (cython_dir, [ f for pattern in
-                       ['Cython/Includes/*.pxd',
+        (os.path.dirname(pattern), [ f for f in glob.glob(pattern) ])
+        for pattern in ['Cython/Includes/*.pxd',
                         'Cython/Plex/*.pxd',
                         'Cython/Compiler/*.pxd',
                         'Cython/Runtime/*.pyx']
-                       for f in glob.glob(pattern) ])]
+        ]
 else:
     setup_args['package_data'] = {'Cython' : ['Includes/*.pxd',
                                               'Plex/*.pxd',
