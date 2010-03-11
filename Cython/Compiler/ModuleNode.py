@@ -426,6 +426,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
         
         code.put("""
+#include <stddef.h> /* For offsetof */
+#ifndef offsetof
+#define offsetof(type, member) ( (size_t) & ((type*)0) -> member )
+#endif
+
 #ifndef PY_LONG_LONG
   #define PY_LONG_LONG LONG_LONG
 #endif
@@ -903,7 +908,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_descr_set_function(scope, code)
                     self.generate_property_accessors(scope, code)
                     self.generate_method_table(scope, code)
-                    self.generate_member_table(scope, code)
                     self.generate_getset_table(scope, code)
                     self.generate_typeobj_definition(full_module_name, entry, code)
     
@@ -1528,34 +1532,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "{0, 0, 0, 0}")
         code.putln(
             "};")
-    
-    def generate_member_table(self, env, code):
-        #print "ModuleNode.generate_member_table: scope =", env ###
-        if env.public_attr_entries:
-            code.putln("")
-            code.putln(
-                "static struct PyMemberDef %s[] = {" %
-                    env.member_table_cname)
-            type = env.parent_type
-            if type.typedef_flag:
-                objstruct = type.objstruct_cname
-            else:
-                objstruct = "struct %s" % type.objstruct_cname
-            for entry in env.public_attr_entries:
-                type_code = entry.type.pymemberdef_typecode
-                if entry.visibility == 'readonly':
-                    flags = "READONLY"
-                else:
-                    flags = "0"
-                code.putln('{(char *)"%s", %s, %s, %s, 0},' % (
-                    entry.name,
-                    type_code,
-                    "offsetof(%s, %s)" % (objstruct, entry.cname),
-                    flags))
-            code.putln(
-                    "{0, 0, 0, 0, 0}")
-            code.putln(
-                "};")
     
     def generate_getset_table(self, env, code):
         if env.property_entries:
