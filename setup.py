@@ -39,9 +39,11 @@ if sys.version_info[0] >= 3:
 
 
 if sys.version_info < (2,4):
+    install_base_dir = get_python_lib(prefix='')
     import glob
     setup_args['data_files'] = [
-        (os.path.dirname(pattern), [ f for f in glob.glob(pattern) ])
+        (os.path.dirname(os.path.join(install_base_dir, pattern)),
+         [ f for f in glob.glob(pattern) ])
         for pattern in ['Cython/Includes/*.pxd',
                         'Cython/Plex/*.pxd',
                         'Cython/Compiler/*.pxd',
