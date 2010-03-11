@@ -1,6 +1,6 @@
 # Makefile for creating our standalone Cython program
 PYTHON=python
-PYVERSION=$(shell ($PYTHON) -c "import sys; print(sys.version[:3])")
+PYVERSION=$(shell $(PYTHON) -c "import sys; print(sys.version[:3])")
 PYPREFIX=$(shell $(PYTHON) -c "import sys; print(sys.prefix)")
 LINKFORSHARED=$(shell $(PYTHON) -c "import distutils.sysconfig; print(distutils.sysconfig.get_config_var('LINKFORSHARED'))")
 INCLUDES=-I$(PYPREFIX)/include/python$(PYVERSION)

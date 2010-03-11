@@ -633,6 +633,10 @@ class EmbedTest(unittest.TestCase):
     def test_embed(self):
         self.assert_(os.system(
             "make PYTHON='%s' test > make.output" % sys.executable) == 0)
+        try:
+            os.remove('make.output')
+        except OSError:
+            pass
 
 class MissingDependencyExcluder:
     def __init__(self, deps):
