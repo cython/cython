@@ -92,12 +92,16 @@ cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
     cdef PyObject* type = NULL, *value = NULL, *tb = NULL
     PyErr_Fetch(&type, &value, &tb)
     try:
-        if p_obj is NULL:
-            (<object>ctx).regref(None, lineno, True)
-        else:
-            (<object>ctx).regref(<object>p_obj, lineno, False)
-    except Exception, e:
-        report_unraisable(e)
+        try:
+            if p_obj is NULL:
+                (<object>ctx).regref(None, lineno, True)
+            else:
+                (<object>ctx).regref(<object>p_obj, lineno, False)
+        except object, e:
+            report_unraisable(e)
+    except:
+        # __Pyx_GetException may itself raise errors
+        pass
     PyErr_Restore(type, value, tb)
 
 cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
@@ -106,12 +110,16 @@ cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
     cdef bint decref_ok = False
     PyErr_Fetch(&type, &value, &tb)
     try:
-        if p_obj is NULL:
-            decref_ok = (<object>ctx).delref(None, lineno, True)
-        else:
-            decref_ok = (<object>ctx).delref(<object>p_obj, lineno, False)
-    except Exception, e:
-        report_unraisable(e)
+        try:
+            if p_obj is NULL:
+                decref_ok = (<object>ctx).delref(None, lineno, True)
+            else:
+                decref_ok = (<object>ctx).delref(<object>p_obj, lineno, False)
+        except object, e:
+            report_unraisable(e)
+    except:
+        # __Pyx_GetException may itself raise errors
+        pass
     PyErr_Restore(type, value, tb)
     return decref_ok
 
@@ -132,13 +140,17 @@ cdef void FinishContext(PyObject** ctx):
     cdef object errors = None
     PyErr_Fetch(&type, &value, &tb)
     try:
-        errors = (<object>ctx[0]).end()
-        pos = (<object>ctx[0]).filename, (<object>ctx[0]).name
-        if errors:
-            print u"%s: %s()" % pos
-            print errors
-    except Exception, e:
-        report_unraisable(e)
+        try:
+            errors = (<object>ctx[0]).end()
+            pos = (<object>ctx[0]).filename, (<object>ctx[0]).name
+            if errors:
+                print u"%s: %s()" % pos
+                print errors
+        except Exception, e:
+            report_unraisable(e)
+    except:
+        # __Pyx_GetException may itself raise errors
+        pass
     Py_DECREF(<object>ctx[0])
     ctx[0] = NULL
     PyErr_Restore(type, value, tb)
