@@ -118,7 +118,7 @@ def parse_command_line(args):
                 try:
                     options.compiler_directives = Options.parse_directive_list(pop_arg(), relaxed_bool=True)
                 except ValueError, e:
-                    sys.stderr.write("Error in compiler directive: %s\n" % e.message)
+                    sys.stderr.write("Error in compiler directive: %s\n" % e.args[0])
                     sys.exit(1)
             else:
                 sys.stderr.write("Unknown compiler flag: %s\n" % option)

@@ -362,7 +362,7 @@ class Scope(object):
             type = PyrexTypes.create_typedef_type(name, base_type, cname, 
                                                   (visibility == 'extern'))
         except ValueError, e:
-            error(pos, e.message)
+            error(pos, e.args[0])
             type = PyrexTypes.error_type
         entry = self.declare_type(name, type, pos, cname, visibility)
         type.qualified_name = entry.qualified_name
