@@ -1,20 +1,23 @@
 
 from libc.stdio cimport sprintf
 from python cimport PyType_Check
-from cpython.type cimport PyType_Check as PyType_Check2
+from python_type cimport PyType_Check as PyType_Check2
+from cpython.type cimport PyType_Check as PyType_Check3
 
-def libc_imports():
+def libc_cimports():
     """
-    >>> libc_imports()
+    >>> libc_cimports()
     hello
     """
     cdef char buf[10]
     sprintf(buf, b'hello')
     print (<object>buf).decode('ASCII')
 
-def python_imports():
+def cpython_cimports():
     """
-    >>> python_imports()
+    >>> cpython_cimports()
+    True
+    False
     True
     False
     True
@@ -24,4 +27,6 @@ def python_imports():
     print PyType_Check([])
     print PyType_Check2(list)
     print PyType_Check2([])
+    print PyType_Check3(list)
+    print PyType_Check3([])
     
