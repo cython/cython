@@ -1,12 +1,12 @@
 __doc__ = """
->>> readonly()
+>>> readonly() #doctest: +ELLIPSIS
 Traceback (most recent call last):
-...
-TypeError: readonly attribute
+    ...
+TypeError: ...
 """
 
 import sys
-if sys.version_info[0] >= 3:
+if sys.version_info[0:2] >= (2,4):
     __doc__ = __doc__.replace(u'TypeError:', u'AttributeError:')
 
 
@@ -51,9 +51,7 @@ def f():
 def longdouble_access():
     """
     >>> longdouble_access()
-    Traceback (most recent call last):
-    ...
-    SystemError: bad memberdescr type
+    42.0
     """
     cdef object c = MyClass()
     print c.float_isreally_longdouble

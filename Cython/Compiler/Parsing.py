@@ -13,10 +13,10 @@ import sys
 
 try:
     from __builtin__ import set
-except ImportError:
+except (ImportError, AttributeError):
     try:
         from builtins import set
-    except ImportError:
+    except (ImportError, AttributeError):
         from sets import Set as set
 
 from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
@@ -1745,13 +1745,13 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
             # Make sure this is not a declaration of a variable or function.  
             if s.sy == '(':
                 s.next()
-                if s.sy == '*' or s.sy == '**':
+                if s.sy == '*' or s.sy == '**' or s.sy == '&':
                     s.put_back('(', '(')
                 else:
                     s.put_back('(', '(')
                     s.put_back('IDENT', name)
                     name = None
-            elif s.sy not in ('*', '**', '['):
+            elif s.sy not in ('*', '**', '[', '&'):
                 s.put_back('IDENT', name)
                 name = None
 
@@ -1984,7 +1984,7 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                 error(s.position(), "Declarator should be empty")
             s.next()
             cname = p_opt_cname(s)
-            if s.sy == '=' and assignable:
+            if name != "operator" and s.sy == '=' and assignable:
                 s.next()
                 rhs = p_simple_expr(s)
         else:
