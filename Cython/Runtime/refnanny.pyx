@@ -1,5 +1,5 @@
-from python_ref cimport Py_INCREF, Py_DECREF, Py_XDECREF
-from python_exc cimport PyObject, PyErr_Fetch, PyErr_Restore
+from cpython.ref cimport PyObject, Py_INCREF, Py_DECREF, Py_XDECREF
+from cpython.exc cimport PyErr_Fetch, PyErr_Restore
 
 
 loglevel = 0
