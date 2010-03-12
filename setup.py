@@ -37,23 +37,32 @@ if sys.version_info[0] >= 3:
     build_py.fixer_names = fixers
     add_command_class("build_py", build_py)
 
+pxd_packages = ['cpython', 'libc', 'libcpp']
 
 if sys.version_info < (2,4):
     install_base_dir = get_python_lib(prefix='')
     import glob
+    patterns = ['Cython/Includes/*.pxd',
+                'Cython/Plex/*.pxd',
+                'Cython/Compiler/*.pxd',
+                'Cython/Runtime/*.pyx']
+    for p in pxd_packages:
+        patterns.append('Cython/Includes/%s/*.pxd' % p)
+        patterns.append('Cython/Includes/%s/__init__.pyx' % p)
     setup_args['data_files'] = [
         (os.path.dirname(os.path.join(install_base_dir, pattern)),
          [ f for f in glob.glob(pattern) ])
-        for pattern in ['Cython/Includes/*.pxd',
-                        'Cython/Plex/*.pxd',
-                        'Cython/Compiler/*.pxd',
-                        'Cython/Runtime/*.pyx']
+        for pattern in patterns
         ]
 else:
-    setup_args['package_data'] = {'Cython' : ['Includes/*.pxd',
-                                              'Plex/*.pxd',
-                                              'Compiler/*.pxd',
-                                              'Runtime/*.pyx']}
+    patterns = ['Includes/*.pxd',
+                'Plex/*.pxd',
+                'Compiler/*.pxd',
+                'Runtime/*.pyx']
+    for p in pxd_packages:
+        patterns.append('Includes/%s/*.pxd' % p)
+        patterns.append('Includes/%s/__init__.pyx' % p)
+    setup_args['package_data'] = {'Cython' : patterns}
 
 # This dict is used for passing extra arguments that are setuptools 
 # specific to setup
