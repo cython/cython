@@ -1,4 +1,4 @@
-from python_unicode cimport Py_UNICODE
+from cpython.unicode cimport Py_UNICODE
 
 cdef extern from "Python.h":
     ctypedef long long PY_LONG_LONG
