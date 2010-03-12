@@ -48,7 +48,11 @@ EXT_DEP_INCLUDES = [
 ]
 
 VER_DEP_MODULES = {
+    # tests are excluded if 'CurrentPythonVersion OP VersionTuple', i.e.
+    # (2,4) : (operator.le, ...) excludes ... when PyVer <= 2.4.x
     (2,4) : (operator.le, lambda x: x in ['run.extern_builtins_T258'
+                                          ]),
+    (2,6) : (operator.lt, lambda x: x in ['run.print_function'
                                           ]),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
@@ -615,17 +619,24 @@ class EmbedTest(unittest.TestCase):
     def setUp(self):
         self.old_dir = os.getcwd()
         os.chdir(self.working_dir)
-        os.system("make clean > /dev/null")
+        os.system(
+            "make PYTHON='%s' clean > /dev/null" % sys.executable)
     
     def tearDown(self):
         try:
-            os.system("make clean > /dev/null")
+            os.system(
+                "make PYTHON='%s' clean > /dev/null" % sys.executable)
         except:
             pass
         os.chdir(self.old_dir)
         
     def test_embed(self):
-        self.assert_(os.system("make test > make.output") == 0)
+        self.assert_(os.system(
+            "make PYTHON='%s' test > make.output" % sys.executable) == 0)
+        try:
+            os.remove('make.output')
+        except OSError:
+            pass
 
 class MissingDependencyExcluder:
     def __init__(self, deps):

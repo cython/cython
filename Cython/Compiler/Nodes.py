@@ -891,13 +891,13 @@ class CVarDefNode(StatNode):
     #  declarators   [CDeclaratorNode]
     #  in_pxd        boolean
     #  api           boolean
-    #  need_properties [entry]
+    #  properties    [entry]
 
     #  decorators    [cython.locals(...)] or None 
     #  directive_locals { string : NameNode } locals defined by cython.locals(...)
 
     child_attrs = ["base_type", "declarators"]
-    need_properties = ()
+    properties = ()
     
     decorators = None
     directive_locals = {}
@@ -912,15 +912,12 @@ class CVarDefNode(StatNode):
         # so do conversion ourself rather than rely on the CPython mechanism (through
         # a property; made in AnalyseDeclarationsTransform).
         if (dest_scope.is_c_class_scope
-                and self.visibility == 'public' 
-                and base_type.is_pyobject 
-                and (base_type.is_builtin_type or base_type.is_extension_type)):
-            self.need_properties = []
+            and self.visibility in ('public', 'readonly')):
+            self.properties = []
             need_property = True
-            visibility = 'private'
         else:
             need_property = False
-            visibility = self.visibility
+        visibility = self.visibility
             
         for declarator in self.declarators:
             name_declarator, type = declarator.analyse(base_type, env)
@@ -951,8 +948,7 @@ class CVarDefNode(StatNode):
                 entry = dest_scope.declare_var(name, type, declarator.pos,
                             cname = cname, visibility = visibility, is_cdef = 1)
                 if need_property:
-                    self.need_properties.append(entry)
-                    entry.needs_property = 1
+                    self.properties.append(entry)
     
 
 class CStructOrUnionDefNode(StatNode):
@@ -5134,10 +5130,10 @@ static int __Pyx_Print(PyObject* stream, PyObject *arg_tuple, int newline) {
                 return -1;
             end_string = PyUnicode_FromStringAndSize(" ", 1);
             if (unlikely(!end_string))
-                goto bad;
+                return -1;
             if (PyDict_SetItemString(%(PRINT_KWARGS)s, "end", end_string) < 0) {
                 Py_DECREF(end_string);
-                goto bad;
+                return -1;
             }
             Py_DECREF(end_string);
         }
