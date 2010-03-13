@@ -1026,7 +1026,7 @@ class CppClassNode(CStructOrUnionDefNode):
 
     def analyse_declarations(self, env):
         scope = None
-        if len(self.attributes) != 0:
+        if self.attributes:
             scope = CppClassScope(self.name, env)
         else:
             self.attributes = None
