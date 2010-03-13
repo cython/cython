@@ -37,7 +37,8 @@ class CompileError(PyrexError):
     # Deprecated and withdrawn in 2.6:
     #   self.message = message
         if position:
-            pos_str = u"%s:%d:%d: " % (position[0].get_description(), position[1], position[2])
+            pos_str = u"%s:%d:%d: " % (position[0].get_description(),
+                                       position[1], position[2])
             cont = context(position)
         else:
             pos_str = u""
