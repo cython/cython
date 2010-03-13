@@ -6059,10 +6059,10 @@ class CoerceFromPyTypeNode(CoercionNode):
         self.is_temp = 1
         if not result_type.create_from_py_utility_code(env):
             error(arg.pos,
-                "Cannot convert Python object to '%s'" % result_type)
+                  "Cannot convert Python object to '%s'" % result_type)
         if self.type.is_string and self.arg.is_ephemeral():
             error(arg.pos,
-                "Obtaining char * from temporary Python value")
+                  "Obtaining char * from temporary Python value")
     
     def analyse_types(self, env):
         # The arg is always already analysed

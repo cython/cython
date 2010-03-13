@@ -146,9 +146,9 @@ class Context(object):
             DropRefcountingTransform(),
             FinalOptimizePhase(self),
             GilCheck(),
-#            ClearResultCodes(self),
-#            SpecialFunctions(self),
-            #        CreateClosureClasses(context),
+            #ClearResultCodes(self),
+            #SpecialFunctions(self),
+            #CreateClosureClasses(context),
             ]
 
     def create_pyx_pipeline(self, options, result, py=False):
