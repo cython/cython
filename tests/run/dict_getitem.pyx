@@ -22,10 +22,10 @@ def test(dict d, index):
     ...
     ValueError
     
-    >>> test(None, 1)
+    >>> test(None, 1) # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    TypeError: 'NoneType' object is unsubscriptable
+    TypeError: 'NoneType' object is ...
     """
     return d[index]
 
