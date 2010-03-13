@@ -4497,7 +4497,7 @@ class ExceptClauseNode(Node):
         else:
             code.putln("/*except:*/ {")
 
-        if not getattr(self.body, 'stats', True) and
+        if not getattr(self.body, 'stats', True) and \
                 self.excinfo_target is None and self.target is None):
             # most simple case: no exception variable, empty body (pass)
             # => reset the exception state, done
