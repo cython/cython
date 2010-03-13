@@ -76,8 +76,11 @@ class _TestInfo(object):
         """
         if not self.err:
             return ''
-        return self.test_result._exc_info_to_string(self.err, \
-            self.test_method)
+        if sys.version_info < (2,4):
+            return self.test_result._exc_info_to_string(self.err)
+        else:
+            return self.test_result._exc_info_to_string(
+                self.err, self.test_method)
 
 
 class _XMLTestResult(_TextTestResult):
