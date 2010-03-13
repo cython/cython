@@ -1440,7 +1440,7 @@ class CClassScope(ClassScope):
         args = type.args
         if not args:
             error(pos, "C method has no self argument")
-        elif not args[0].type.same_as(self.parent_type):
+        elif not self.parent_type.assignable_from(args[0].type):
             error(pos, "Self argument (%s) of C method '%s' does not match parent type (%s)" %
                   (args[0].type, name, self.parent_type))
         entry = self.lookup_here(name)
