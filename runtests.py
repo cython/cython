@@ -837,6 +837,11 @@ if __name__ == '__main__':
         sys.path.insert(0, os.path.split(libpath)[0])
         CFLAGS.append("-DCYTHON_REFNANNY=1")
 
+    if options.xml_output_dir and options.fork:
+        # doesn't currently work together
+        sys.stderr.write("Disabling forked testing to support XML test output\n")
+        options.fork = False
+
     test_bugs = False
     if options.tickets:
         for ticket_number in options.tickets:
@@ -881,11 +886,6 @@ if __name__ == '__main__':
 
     if options.doctests:
         collect_doctests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors)
-
-    if options.xml_output_dir:
-        # doesn't currently work together
-        print("Disabling forked testing to support XML test output")
-        options.fork = False
 
     if options.filetests and languages:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
