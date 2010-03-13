@@ -370,10 +370,7 @@ class MemberTableSlot(SlotDescriptor):
     #  Slot descriptor for the table of Python-accessible attributes.
     
     def slot_code(self, scope):
-        if scope.public_attr_entries:
-            return scope.member_table_cname
-        else:
-            return "0"
+        return "0"
 
 
 class GetSetSlot(SlotDescriptor):

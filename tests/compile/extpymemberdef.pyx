@@ -8,7 +8,7 @@ cdef class Spam:
     cdef public float f
     cdef public double d
     cdef public char *s
-    cdef public char a[42]
+    cdef readonly char a[42]
     cdef public object o
     cdef readonly int r
     cdef readonly Spam e

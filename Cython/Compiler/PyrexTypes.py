@@ -56,7 +56,6 @@ class PyrexType(BaseType):
     #  is_buffer             boolean     Is buffer access type
     #  has_attributes        boolean     Has C dot-selectable attributes
     #  default_value         string      Initial value
-    #  pymemberdef_typecode  string      Type code for PyMemberDef struct
     #
     #  declaration_code(entity_code, 
     #      for_display = 0, dll_linkage = None, pyrex = 0)
@@ -109,7 +108,6 @@ class PyrexType(BaseType):
     is_buffer = 0
     has_attributes = 0
     default_value = ""
-    pymemberdef_typecode = None
     
     def resolve(self):
         # If a typedef, returns the base type.
@@ -198,18 +196,6 @@ class CTypedefType(BaseType):
         self.typedef_cname = cname
         self.typedef_base_type = base_type
         self.typedef_is_external = is_external
-        # Make typecodes in external typedefs use typesize-neutral macros
-        if is_external:
-            typecode = None
-            if base_type.is_int:
-                if base_type.signed == 0:
-                    typecode = "__Pyx_T_UNSIGNED_INT"
-                else:
-                    typecode = "__Pyx_T_SIGNED_INT"
-            elif base_type.is_float and not rank_to_type_name[base_type.rank] == "long double":
-                typecode = "__Pyx_T_FLOATING"
-            if typecode:
-                self.pymemberdef_typecode = "%s(%s)" % (typecode, cname)
     
     def resolve(self):
         return self.typedef_base_type.resolve()
@@ -349,7 +335,6 @@ class PyObjectType(PyrexType):
     name = "object"
     is_pyobject = 1
     default_value = "0"
-    pymemberdef_typecode = "T_OBJECT"
     buffer_defaults = None
     is_extern = False
     is_subclassed = False
@@ -626,10 +611,9 @@ class CNumericType(CType):
     
     sign_words = ("unsigned ", "", "signed ")
     
-    def __init__(self, rank, signed = 1, pymemberdef_typecode = None):
+    def __init__(self, rank, signed = 1):
         self.rank = rank
         self.signed = signed
-        self.pymemberdef_typecode = pymemberdef_typecode
     
     def sign_and_name(self):
         s = self.sign_words[self.signed]
@@ -795,8 +779,8 @@ class CIntType(CNumericType):
     from_py_function = "__Pyx_PyInt_AsInt"
     exception_value = -1
 
-    def __init__(self, rank, signed, pymemberdef_typecode = None, is_returncode = 0):
-        CNumericType.__init__(self, rank, signed, pymemberdef_typecode)
+    def __init__(self, rank, signed, is_returncode = 0):
+        CNumericType.__init__(self, rank, signed)
         self.is_returncode = is_returncode
         if self.from_py_function == "__Pyx_PyInt_AsInt":
             self.from_py_function = self.get_type_conversion()
@@ -895,8 +879,8 @@ class CFloatType(CNumericType):
 
     exception_value = -1
     
-    def __init__(self, rank, pymemberdef_typecode = None, math_h_modifier = ''):
-        CNumericType.__init__(self, rank, 1, pymemberdef_typecode)
+    def __init__(self, rank, math_h_modifier = ''):
+        CNumericType.__init__(self, rank, 1)
         self.math_h_modifier = math_h_modifier
     
     def assignable_from_resolved_type(self, src_type):
@@ -1996,7 +1980,6 @@ class CStringType(object):
 class CUTF8CharArrayType(CStringType, CArrayType):
     #  C 'char []' type.
     
-    pymemberdef_typecode = "T_STRING_INPLACE"
     is_unicode = 1
     
     to_py_function = "PyUnicode_DecodeUTF8"
@@ -2008,8 +1991,6 @@ class CUTF8CharArrayType(CStringType, CArrayType):
 class CCharArrayType(CStringType, CArrayType):
     #  C 'char []' type.
     
-    pymemberdef_typecode = "T_STRING_INPLACE"
-    
     def __init__(self, size):
         CArrayType.__init__(self, c_char_type, size)
     
@@ -2017,16 +1998,12 @@ class CCharArrayType(CStringType, CArrayType):
 class CCharPtrType(CStringType, CPtrType):
     # C 'char *' type.
     
-    pymemberdef_typecode = "T_STRING"
-    
     def __init__(self):
         CPtrType.__init__(self, c_char_type)
 
 
 class CUCharPtrType(CStringType, CPtrType):
     # C 'unsigned char *' type.
-    
-    pymemberdef_typecode = "T_STRING"
     
     to_py_function = "__Pyx_PyBytes_FromUString"
     from_py_function = "__Pyx_PyBytes_AsUString"
@@ -2093,30 +2070,30 @@ c_void_type =         CVoidType()
 c_void_ptr_type =     CPtrType(c_void_type)
 c_void_ptr_ptr_type = CPtrType(c_void_ptr_type)
 
-c_uchar_type =       CIntType(0, 0, "T_UBYTE")
-c_ushort_type =      CIntType(1, 0, "T_USHORT")
-c_uint_type =        CUIntType(2, 0, "T_UINT")
-c_ulong_type =       CULongType(3, 0, "T_ULONG")
-c_ulonglong_type =   CULongLongType(6, 0, "T_ULONGLONG")
+c_uchar_type =       CIntType(0, 0)
+c_ushort_type =      CIntType(1, 0)
+c_uint_type =        CUIntType(2, 0)
+c_ulong_type =       CULongType(3, 0)
+c_ulonglong_type =   CULongLongType(6, 0)
 
-c_char_type =        CIntType(0, 1, "T_CHAR")
-c_short_type =       CIntType(1, 1, "T_SHORT")
-c_int_type =         CIntType(2, 1, "T_INT")
-c_long_type =        CLongType(3, 1, "T_LONG")
-c_longlong_type =    CLongLongType(6, 1, "T_LONGLONG")
-c_bint_type =        CBIntType(2, 1, "T_INT")
+c_char_type =        CIntType(0, 1)
+c_short_type =       CIntType(1, 1)
+c_int_type =         CIntType(2, 1)
+c_long_type =        CLongType(3, 1)
+c_longlong_type =    CLongLongType(6, 1)
+c_bint_type =        CBIntType(2, 1)
 
-c_schar_type =       CIntType(0, 2, "T_CHAR")
-c_sshort_type =      CIntType(1, 2, "T_SHORT")
-c_sint_type =        CIntType(2, 2, "T_INT")
-c_slong_type =       CLongType(3, 2, "T_LONG")
-c_slonglong_type =   CLongLongType(6, 2, "T_LONGLONG")
+c_schar_type =       CIntType(0, 2)
+c_sshort_type =      CIntType(1, 2)
+c_sint_type =        CIntType(2, 2)
+c_slong_type =       CLongType(3, 2)
+c_slonglong_type =   CLongLongType(6, 2)
 
-c_py_ssize_t_type =  CPySSizeTType(4, 2, "T_PYSSIZET")
-c_size_t_type =      CSizeTType(5, 0, "T_SIZET")
+c_py_ssize_t_type =  CPySSizeTType(4, 2)
+c_size_t_type =      CSizeTType(5, 0)
 
-c_float_type =       CFloatType(7, "T_FLOAT", math_h_modifier='f')
-c_double_type =      CFloatType(8, "T_DOUBLE")
+c_float_type =       CFloatType(7, math_h_modifier='f')
+c_double_type =      CFloatType(8)
 c_longdouble_type =  CFloatType(9, math_h_modifier='l')
 
 c_double_complex_type = CComplexType(c_double_type)
@@ -2131,7 +2108,7 @@ c_int_ptr_type =      CPtrType(c_int_type)
 c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
 c_size_t_ptr_type =  CPtrType(c_size_t_type)
 
-c_returncode_type =   CIntType(2, 1, "T_INT", is_returncode = 1)
+c_returncode_type =   CIntType(2, 1, is_returncode = 1)
 
 c_anon_enum_type =    CAnonEnumType(-1, 1)
 
@@ -2499,68 +2476,6 @@ type_conversion_predeclarations = """
 #define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
 static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
 static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x);
-
-#if !defined(T_PYSSIZET)
-#if PY_VERSION_HEX < 0x02050000
-#define T_PYSSIZET T_INT
-#elif !defined(T_LONGLONG)
-#define T_PYSSIZET \\
-        ((sizeof(Py_ssize_t) == sizeof(int))  ? T_INT  : \\
-        ((sizeof(Py_ssize_t) == sizeof(long)) ? T_LONG : -1))
-#else
-#define T_PYSSIZET \\
-        ((sizeof(Py_ssize_t) == sizeof(int))          ? T_INT      : \\
-        ((sizeof(Py_ssize_t) == sizeof(long))         ? T_LONG     : \\
-        ((sizeof(Py_ssize_t) == sizeof(PY_LONG_LONG)) ? T_LONGLONG : -1)))
-#endif
-#endif
-
-
-#if !defined(T_ULONGLONG)
-#define __Pyx_T_UNSIGNED_INT(x) \\
-        ((sizeof(x) == sizeof(unsigned char))  ? T_UBYTE : \\
-        ((sizeof(x) == sizeof(unsigned short)) ? T_USHORT : \\
-        ((sizeof(x) == sizeof(unsigned int))   ? T_UINT : \\
-        ((sizeof(x) == sizeof(unsigned long))  ? T_ULONG : -1))))
-#else
-#define __Pyx_T_UNSIGNED_INT(x) \\
-        ((sizeof(x) == sizeof(unsigned char))  ? T_UBYTE : \\
-        ((sizeof(x) == sizeof(unsigned short)) ? T_USHORT : \\
-        ((sizeof(x) == sizeof(unsigned int))   ? T_UINT : \\
-        ((sizeof(x) == sizeof(unsigned long))  ? T_ULONG : \\
-        ((sizeof(x) == sizeof(unsigned PY_LONG_LONG)) ? T_ULONGLONG : -1)))))
-#endif
-#if !defined(T_LONGLONG)
-#define __Pyx_T_SIGNED_INT(x) \\
-        ((sizeof(x) == sizeof(char))  ? T_BYTE : \\
-        ((sizeof(x) == sizeof(short)) ? T_SHORT : \\
-        ((sizeof(x) == sizeof(int))   ? T_INT : \\
-        ((sizeof(x) == sizeof(long))  ? T_LONG : -1))))
-#else
-#define __Pyx_T_SIGNED_INT(x) \\
-        ((sizeof(x) == sizeof(char))  ? T_BYTE : \\
-        ((sizeof(x) == sizeof(short)) ? T_SHORT : \\
-        ((sizeof(x) == sizeof(int))   ? T_INT : \\
-        ((sizeof(x) == sizeof(long))  ? T_LONG : \\
-        ((sizeof(x) == sizeof(PY_LONG_LONG))   ? T_LONGLONG : -1)))))
-#endif
-
-#define __Pyx_T_FLOATING(x) \\
-        ((sizeof(x) == sizeof(float)) ? T_FLOAT : \\
-        ((sizeof(x) == sizeof(double)) ? T_DOUBLE : -1))
-
-#if !defined(T_SIZET)
-#if !defined(T_ULONGLONG)
-#define T_SIZET \\
-        ((sizeof(size_t) == sizeof(unsigned int))  ? T_UINT  : \\
-        ((sizeof(size_t) == sizeof(unsigned long)) ? T_ULONG : -1))
-#else
-#define T_SIZET \\
-        ((sizeof(size_t) == sizeof(unsigned int))          ? T_UINT      : \\
-        ((sizeof(size_t) == sizeof(unsigned long))         ? T_ULONG     : \\
-        ((sizeof(size_t) == sizeof(unsigned PY_LONG_LONG)) ? T_ULONGLONG : -1)))
-#endif
-#endif
 
 static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject*);
 static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);

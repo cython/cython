@@ -5,6 +5,15 @@ __doc__ = ur"""
     >>> print (Ext.__doc__)
     Ext(a, b, c=None)
 
+    >>> print (Ext.attr0.__doc__)
+    attr0: 'int'
+    >>> print (Ext.attr1.__doc__)
+    attr1: object
+    >>> print (Ext.attr2.__doc__)
+    attr2: list
+    >>> print (Ext.attr3.__doc__)
+    attr3: embedsignatures.Ext
+
     >>> print (Ext.a.__doc__)
     Ext.a(self)
 
@@ -144,6 +153,11 @@ __doc__ = ur"""
 """
 
 cdef class Ext:
+
+    cdef public int  attr0
+    cdef public      attr1
+    cdef public list attr2
+    cdef public Ext  attr3
 
     def __init__(self, a, b, c=None):
         pass
