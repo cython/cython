@@ -518,6 +518,14 @@ class PyExtensionType(PyObjectType):
         # know which module it's defined in, it will be imported.
         return self.typeobj_cname is None and self.module_name is not None
     
+    def assignable_from(self, src_type):
+        if self == src_type:
+            return True
+        if isinstance(src_type, PyExtensionType):
+            if src_type.base_type is not None:
+                return self.assignable_from(src_type.base_type)
+        return False
+
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0, deref = 0):
         if pyrex or for_display:
