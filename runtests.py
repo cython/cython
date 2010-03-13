@@ -785,7 +785,7 @@ if __name__ == '__main__':
                 import Cython.Compiler.Main
             except Exception:
                 cy_modules = [ name for name in sys.modules
-                               if name.startswith('Cython') ]
+                               if name == 'Cython' or name.startswith('Cython.') ]
                 for name in cy_modules:
                     del sys.modules[name]
                 # hasn't been refactored yet - do it now
