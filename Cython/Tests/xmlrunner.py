@@ -155,15 +155,11 @@ class _XMLTestResult(_TextTestResult):
         "Write some information about the FAIL or ERROR to the stream."
         for test_info in errors:
             self.stream.writeln(self.separator1)
-            if isinstance(test_info, _TestInfo):
-                self.stream.writeln('%s [%.3fs]: %s' % \
-                    (flavour, test_info.get_elapsed_time(), \
-                    test_info.get_description()))
-                self.stream.writeln(self.separator2)
-                self.stream.writeln('%s' % test_info.get_error_info())
-            else:
-                self.stream.writeln(str(test_info))
-                self.stream.writeln(self.separator2)
+            self.stream.writeln('%s [%.3fs]: %s' % \
+                (flavour, test_info.get_elapsed_time(), \
+                test_info.get_description()))
+            self.stream.writeln(self.separator2)
+            self.stream.writeln('%s' % test_info.get_error_info())
 
     def _get_info_by_testcase(self):
         """This method organizes test results by TestCase module. This
