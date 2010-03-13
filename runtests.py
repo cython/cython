@@ -683,6 +683,27 @@ class FileListExcluder:
     def __call__(self, testname):
         return testname in self.excludes or testname.split('.')[-1] in self.excludes
 
+def refactor_for_py3(distdir, cy3_dir):
+    # need to convert Cython sources first
+    import lib2to3.refactor
+    from distutils.util import copydir_run_2to3
+    fixers = [ fix for fix in lib2to3.refactor.get_fixers_from_package("lib2to3.fixes")
+               if fix.split('fix_')[-1] not in ('next',)
+               ]
+    if not os.path.exists(cy3_dir):
+        os.makedirs(cy3_dir)
+    import distutils.log as dlog
+    dlog.set_threshold(dlog.DEBUG)
+    copydir_run_2to3(distdir, cy3_dir, fixer_names=fixers,
+                     template = '''
+                     global-exclude *
+                     graft Cython
+                     recursive-exclude Cython *
+                     recursive-include Cython *.py *.pyx *.pxd
+                     ''')
+    sys.path.insert(0, cy3_dir)
+
+
 if __name__ == '__main__':
     from optparse import OptionParser
     parser = OptionParser()
@@ -755,48 +776,36 @@ if __name__ == '__main__':
     ROOTDIR = os.path.join(DISTDIR, 'tests')
     WORKDIR = os.path.join(os.getcwd(), 'BUILD')
 
-    if sys.version_info >= (3,1):
-        options.doctests    = False
-        options.unittests   = False
-        options.pyregr      = False
+    if sys.version_info[0] >= 3:
+        options.doctests = False
+        options.pyregr   = False
         if options.with_cython:
-            # need to convert Cython sources first
-            import lib2to3.refactor
-            from distutils.util import copydir_run_2to3
-            fixers = [ fix for fix in lib2to3.refactor.get_fixers_from_package("lib2to3.fixes")
-                       if fix.split('fix_')[-1] not in ('next',)
-                       ]
-            cy3_dir = os.path.join(WORKDIR, 'Cy3')
-            if not os.path.exists(cy3_dir):
-                os.makedirs(cy3_dir)
-            import distutils.log as dlog
-            dlog.set_threshold(dlog.DEBUG)
-            copydir_run_2to3(DISTDIR, cy3_dir, fixer_names=fixers,
-                             template = '''
-                             global-exclude *
-                             graft Cython
-                             recursive-exclude Cython *
-                             recursive-include Cython *.py *.pyx *.pxd
-                             ''')
-            sys.path.insert(0, cy3_dir)
-    elif sys.version_info[0] >= 3:
-        # make sure we do not import (or run) Cython itself (unless
-        # 2to3 was already run)
-        cy3_dir = os.path.join(WORKDIR, 'Cy3')
-        if os.path.isdir(cy3_dir):
-            sys.path.insert(0, cy3_dir)
-        else:
-            options.with_cython = False
-        options.doctests    = False
-        options.unittests   = False
-        options.pyregr      = False
-
-    if options.coverage:
-        import coverage
-        coverage.erase()
-        coverage.start()
+            try:
+                # try if Cython is installed in a Py3 version
+                import Cython.Compiler.Main
+            except Exception:
+                cy_modules = [ name for name in sys.modules
+                               if name.startswith('Cython') ]
+                for name in cy_modules:
+                    del sys.modules[name]
+                # hasn't been refactored yet - do it now
+                cy3_dir = os.path.join(WORKDIR, 'Cy3')
+                if sys.version_info >= (3,1):
+                    refactor_for_py3(DISTDIR, cy3_dir)
+                elif os.path.isdir(cy3_dir):
+                    sys.path.insert(0, cy3_dir)
+                else:
+                    options.with_cython = False
 
     WITH_CYTHON = options.with_cython
+
+    if options.coverage:
+        if not WITH_CYTHON:
+            options.coverage = False
+        else:
+            import coverage
+            coverage.erase()
+            coverage.start()
 
     if WITH_CYTHON:
         from Cython.Compiler.Main import \
