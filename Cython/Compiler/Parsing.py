@@ -1334,6 +1334,14 @@ def p_except_clause(s):
         if s.sy == ',':
             s.next()
             exc_value = p_simple_expr(s)
+        elif s.sy == 'IDENT' and s.systring == 'as':
+            ## XXX In Python 3, it should be:
+            ## s.next()
+            ## pos2 = s.position()
+            ## name = p_ident(s)
+            ## exc_value = ExprNodes.NameNode(pos2, name = name)
+            s.next()
+            exc_value = p_simple_expr(s)
     body = p_suite(s)
     return Nodes.ExceptClauseNode(pos,
         pattern = exc_type, target = exc_value, body = body)
