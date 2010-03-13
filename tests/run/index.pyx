@@ -6,7 +6,7 @@ __doc__ = u"""
 """
 
 import sys
-if sys.version_info[0] >= 3:
+if sys.version_info >= (2,7):
     __doc__ = __doc__.replace(u'is unsubscriptable', u'is not subscriptable')
 elif sys.version_info < (2,5):
     __doc__ = __doc__.replace(u"'int' object is unsubscriptable", u'unsubscriptable object')
