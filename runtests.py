@@ -882,6 +882,11 @@ if __name__ == '__main__':
     if options.doctests:
         collect_doctests(UNITTEST_ROOT, UNITTEST_MODULE + ".", test_suite, selectors)
 
+    if options.xml_output_dir:
+        # doesn't currently work together
+        print("Disabling forked testing to support XML test output")
+        options.fork = False
+
     if options.filetests and languages:
         filetests = TestBuilder(ROOTDIR, WORKDIR, selectors, exclude_selectors,
                                 options.annotate_source, options.cleanup_workdir,
