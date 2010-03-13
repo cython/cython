@@ -1,5 +1,5 @@
-from python_ref cimport Py_INCREF, Py_DECREF, Py_XDECREF
-from python_exc cimport PyObject, PyErr_Fetch, PyErr_Restore
+from cpython.ref cimport PyObject, Py_INCREF, Py_DECREF, Py_XDECREF
+from cpython.exc cimport PyErr_Fetch, PyErr_Restore
 
 
 loglevel = 0
@@ -59,8 +59,11 @@ class Context(object):
         else:
             return None
 
-cdef void report_unraisable(object e):
+cdef void report_unraisable(object e=None):
     try:
+        if e is None:
+            import sys
+            e = sys.exc_info()[1]
         print u"refnanny raised an exception: %s" % e
     except:
         pass # We absolutely cannot exit with an exception
@@ -92,12 +95,16 @@ cdef void GOTREF(PyObject* ctx, PyObject* p_obj, int lineno):
     cdef PyObject* type = NULL, *value = NULL, *tb = NULL
     PyErr_Fetch(&type, &value, &tb)
     try:
-        if p_obj is NULL:
-            (<object>ctx).regref(None, lineno, True)
-        else:
-            (<object>ctx).regref(<object>p_obj, lineno, False)
-    except Exception, e:
-        report_unraisable(e)
+        try:
+            if p_obj is NULL:
+                (<object>ctx).regref(None, lineno, True)
+            else:
+                (<object>ctx).regref(<object>p_obj, lineno, False)
+        except:
+            report_unraisable()
+    except:
+        # __Pyx_GetException may itself raise errors
+        pass
     PyErr_Restore(type, value, tb)
 
 cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
@@ -106,12 +113,16 @@ cdef int GIVEREF_and_report(PyObject* ctx, PyObject* p_obj, int lineno):
     cdef bint decref_ok = False
     PyErr_Fetch(&type, &value, &tb)
     try:
-        if p_obj is NULL:
-            decref_ok = (<object>ctx).delref(None, lineno, True)
-        else:
-            decref_ok = (<object>ctx).delref(<object>p_obj, lineno, False)
-    except Exception, e:
-        report_unraisable(e)
+        try:
+            if p_obj is NULL:
+                decref_ok = (<object>ctx).delref(None, lineno, True)
+            else:
+                decref_ok = (<object>ctx).delref(<object>p_obj, lineno, False)
+        except:
+            report_unraisable()
+    except:
+        # __Pyx_GetException may itself raise errors
+        pass
     PyErr_Restore(type, value, tb)
     return decref_ok
 
@@ -132,13 +143,17 @@ cdef void FinishContext(PyObject** ctx):
     cdef object errors = None
     PyErr_Fetch(&type, &value, &tb)
     try:
-        errors = (<object>ctx[0]).end()
-        pos = (<object>ctx[0]).filename, (<object>ctx[0]).name
-        if errors:
-            print u"%s: %s()" % pos
-            print errors
-    except Exception, e:
-        report_unraisable(e)
+        try:
+            errors = (<object>ctx[0]).end()
+            pos = (<object>ctx[0]).filename, (<object>ctx[0]).name
+            if errors:
+                print u"%s: %s()" % pos
+                print errors
+        except:
+            report_unraisable()
+    except:
+        # __Pyx_GetException may itself raise errors
+        pass
     Py_DECREF(<object>ctx[0])
     ctx[0] = NULL
     PyErr_Restore(type, value, tb)
