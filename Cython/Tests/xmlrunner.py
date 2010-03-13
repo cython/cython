@@ -112,8 +112,8 @@ class _XMLTestResult(_TextTestResult):
                 self.start_time = self.stop_time = 0
             
             if self.showAll:
-                self.stream.writeln('%s (%.3fs)' % \
-                    (verbose_str, test_info.get_elapsed_time()))
+                self.stream.writeln('%.3fs %s' % \
+                    (test_info.get_elapsed_time(), verbose_str))
             elif self.dots:
                 self.stream.write(short_str)
         self.callback = callback
@@ -222,7 +222,7 @@ class _XMLTestResult(_TextTestResult):
             testcase.appendChild(failure)
             
             failure.setAttribute('type', str(test_result.err[0].__name__))
-            failure.setAttribute('message', str(test_result.err[1].message))
+            failure.setAttribute('message', str(test_result.err[1]))
             
             error_info = test_result.get_error_info()
             failureText = xml_document.createCDATASection(error_info)
