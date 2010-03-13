@@ -423,8 +423,6 @@ class Scope(object):
                 if scope:
                     entry.type.scope = scope
                     self.type_entries.append(entry)
-        if not scope and not entry.type.scope:
-            entry.type.scope = CppClassScope(name, self)
         if templates is not None:
             for T in templates:
                 template_entry = entry.type.scope.declare(T.name, T.name, T, None, 'extern')
