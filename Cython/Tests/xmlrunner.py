@@ -268,7 +268,7 @@ class _XMLTestResult(_TextTestResult):
             xml_content = doc.toprettyxml(indent='\t')
             
             if type(test_runner.output) is str:
-                report_file = file('%s%sTEST-%s.xml' % \
+                report_file = open('%s%sTEST-%s.xml' % \
                     (test_runner.output, os.sep, suite), 'w')
                 try:
                     report_file.write(xml_content)
