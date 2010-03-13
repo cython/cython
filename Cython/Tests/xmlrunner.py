@@ -112,7 +112,7 @@ class _XMLTestResult(_TextTestResult):
                 self.start_time = self.stop_time = 0
             
             if self.showAll:
-                self.stream.writeln('%.3fs %s' % \
+                self.stream.writeln('(%.3fs) %s' % \
                     (test_info.get_elapsed_time(), verbose_str))
             elif self.dots:
                 self.stream.write(short_str)
