@@ -12,8 +12,14 @@ def tomato():
     """
     >>> tomato()
     42
-    >>> sorted(__test__.keys())
-    [u'Spam.eggs.__get__ (line 5)', u'tomato (line 11)']
+
+    >>> lines = __test__.keys()
+    >>> len(lines)
+    2
+    >>> 'Spam.eggs.__get__ (line 5)' in lines
+    True
+    >>> 'tomato (line 11)' in lines
+    True
     """
     cdef Spam spam
     cdef object lettuce
