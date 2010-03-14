@@ -689,6 +689,7 @@ class BuiltinScope(Scope):
             var_entry = Entry(python_equiv, python_equiv, py_object_type)
             var_entry.is_variable = 1
             var_entry.is_builtin = 1
+            var_entry.utility_code = utility_code
             entry.as_variable = var_entry
         return entry
         
@@ -698,6 +699,7 @@ class BuiltinScope(Scope):
         type.set_scope(CClassScope(name, outer_scope=None, visibility='extern'))
         self.type_names[name] = 1
         entry = self.declare_type(name, type, None, visibility='extern')
+        entry.utility_code = utility_code
 
         var_entry = Entry(name = entry.name,
             type = self.lookup('type').type, # make sure "type" is the first type declared...
