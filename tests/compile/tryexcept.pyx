@@ -76,9 +76,9 @@ def g(a, b, c, x):
     
     try:
         i = 1
-    except (a, b) as c[42]:
+    except (a, b) as c:
         i = 2
-    except (b, a) as c.x:
+    except (b, a) as c:
         i = 3
     except:
         i = 4
