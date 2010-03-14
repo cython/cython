@@ -116,13 +116,13 @@ def parse_directive_value(name, value, relaxed_bool=False):
             value = value.lower()
             if value in ("true", "yes"): return True
             elif value in ("false", "no"): return False
-        raise ValueError("%s directive must be set to True or False, got %r" % (
+        raise ValueError("%s directive must be set to True or False, got '%s'" % (
             name, orig_value))
     elif type is int:
         try:
             return int(value)
         except ValueError:
-            raise ValueError("%s directive must be set to an integer, got %r" % (
+            raise ValueError("%s directive must be set to an integer, got '%s'" % (
                 name, orig_value))
     elif type is str:
         return str(value)
