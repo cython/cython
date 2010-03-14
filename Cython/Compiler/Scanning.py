@@ -202,7 +202,7 @@ class StringSourceDescriptor(SourceDescriptor):
     """
     def __init__(self, name, code):
         self.name = name
-        self.set_file_type_from_name(name)
+        #self.set_file_type_from_name(name)
         self.codelines = [x + "\n" for x in code.split("\n")]
         self._cmp_name = name
     
