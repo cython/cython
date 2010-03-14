@@ -97,7 +97,7 @@ html_static_path = ['_static']
 html_last_updated_fmt = '%b %d, %Y'
 
 # Include the Cython logo in the sidebar
-html_logo = '_static/cythonlogo.png'
+html_logo = '_static/cython-logo-light.png'
 
 # used a favicon!
 html_favicon = '_static/favicon.ico'
