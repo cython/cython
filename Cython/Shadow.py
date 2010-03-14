@@ -160,6 +160,12 @@ try:
 except NameError: # Py3
     py_long = int
 
+try:
+    set = __builtins__.set
+except AttributeError:
+    # Py 2.3
+    from sets import Set as set
+
 
 # Predefined types
 
