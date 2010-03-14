@@ -161,11 +161,18 @@ except NameError: # Py3
     py_long = int
 
 try:
-    set = __builtins__.set
+    import __builtin__
+except ImportError:
+    # Python 3
+    import builtins as __builtin__
+
+try:
+    set = __builtin__.set
 except AttributeError:
     # Py 2.3
     from sets import Set as set
 
+del __builtin__
 
 # Predefined types
 
