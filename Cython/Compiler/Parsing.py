@@ -2089,9 +2089,17 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0, kw_only = 0)
     pos = s.position()
     not_none = 0
     default = None
-    base_type = p_c_base_type(s, cmethod_flag, nonempty = nonempty)
+    if s.in_python_file:
+        # empty type declaration
+        base_type = Nodes.CSimpleBaseTypeNode(pos,
+            name = None, module_path = [],
+            is_basic_c_type = 0, signed = 0,
+            complex = 0, longness = 0,
+            is_self_arg = cmethod_flag, templates = None)
+    else:
+        base_type = p_c_base_type(s, cmethod_flag, nonempty = nonempty)
     declarator = p_c_declarator(s, ctx, nonempty = nonempty)
-    if s.sy == 'not':
+    if s.sy == 'not' and not s.in_python_file:
         s.next()
         if s.sy == 'IDENT' and s.systring == 'None':
             s.next()

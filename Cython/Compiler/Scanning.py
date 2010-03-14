@@ -255,8 +255,10 @@ class PyrexScanner(Scanner):
         self.parse_comments = parse_comments
         self.source_encoding = source_encoding
         if filename.is_python_file():
+            self.in_python_file = True
             self.keywords = cython.set(py_reserved_words)
         else:
+            self.in_python_file = False
             self.keywords = cython.set(pyx_reserved_words)
         self.trace = trace_scanner
         self.indentation_stack = [0]
