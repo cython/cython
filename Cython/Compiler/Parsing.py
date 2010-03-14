@@ -1335,13 +1335,11 @@ def p_except_clause(s):
             s.next()
             exc_value = p_simple_expr(s)
         elif s.sy == 'IDENT' and s.systring == 'as':
-            ## XXX In Python 3, it should be:
-            ## s.next()
-            ## pos2 = s.position()
-            ## name = p_ident(s)
-            ## exc_value = ExprNodes.NameNode(pos2, name = name)
+            # Py3 syntax requires a name here
             s.next()
-            exc_value = p_simple_expr(s)
+            pos2 = s.position()
+            name = p_ident(s)
+            exc_value = ExprNodes.NameNode(pos2, name = name)
     body = p_suite(s)
     return Nodes.ExceptClauseNode(pos,
         pattern = exc_type, target = exc_value, body = body)
