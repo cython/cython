@@ -102,11 +102,12 @@ def parse_directive_value(name, value, relaxed_bool=False):
     >>> parse_directive_value('boundscheck', 'true')
     Traceback (most recent call last):
        ...
-    ValueError: boundscheck directive must be set to True or False
+    ValueError: boundscheck directive must be set to True or False, got 'true'
     
     """
     type = directive_types.get(name)
     if not type: return None
+    orig_value = value
     if type is bool:
         value = str(value)
         if value == 'True': return True
@@ -115,12 +116,14 @@ def parse_directive_value(name, value, relaxed_bool=False):
             value = value.lower()
             if value in ("true", "yes"): return True
             elif value in ("false", "no"): return False
-        raise ValueError("%s directive must be set to True or False" % name)
+        raise ValueError("%s directive must be set to True or False, got %r" % (
+            name, orig_value))
     elif type is int:
         try:
             return int(value)
         except ValueError:
-            raise ValueError("%s directive must be set to an integer" % name)
+            raise ValueError("%s directive must be set to an integer, got %r" % (
+                name, orig_value))
     elif type is str:
         return str(value)
     else:
@@ -143,7 +146,7 @@ def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False):
     >>> parse_directive_list('boundscheck=hey')
     Traceback (most recent call last):
        ...
-    ValueError: boundscheck directive must be set to True or False
+    ValueError: boundscheck directive must be set to True or False, got 'hey'
     >>> parse_directive_list('unknown=True')
     Traceback (most recent call last):
        ...
