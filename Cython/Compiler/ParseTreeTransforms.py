@@ -1260,6 +1260,8 @@ class TransformBuiltinMethods(EnvTransform):
                 node = BoolNode(node.pos, value=True)
             elif attribute == u'NULL':
                 node = NullNode(node.pos)
+            elif attribute == u'set':
+                node = NameNode(node.pos, name=EncodedString('set'))
             elif not PyrexTypes.parse_basic_type(attribute):
                 error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
         return node
@@ -1321,6 +1323,8 @@ class TransformBuiltinMethods(EnvTransform):
                 else:
                     node = binop_node(node.function.pos, '/', node.args[0], node.args[1])
                     node.cdivision = True
+            elif function == u'set':
+                node.function = NameNode(node.pos, name=EncodedString('set'))
             else:
                 error(node.function.pos, u"'%s' not a valid cython language construct" % function)
         
