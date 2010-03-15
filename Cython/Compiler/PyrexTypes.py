@@ -20,7 +20,7 @@ class BaseType(object):
     def cast_code(self, expr_code):
         return "((%s)%s)" % (self.declaration_code(""), expr_code)
     
-    def specalization_name(self):
+    def specialization_name(self):
         return self.declaration_code("").replace(" ", "__")
     
     def base_declaration_code(self, base_code, entity_code):
@@ -900,16 +900,16 @@ class CComplexType(CNumericType):
         if real_type.is_typedef and real_type.typedef_is_external:
             # The below is not actually used: Coercions are currently disabled
             # so that complex types of external types can not be created
-            self.funcsuffix = "_%s" % real_type.specalization_name()
+            self.funcsuffix = "_%s" % real_type.specialization_name()
         elif hasattr(real_type, 'math_h_modifier'):
             self.funcsuffix = real_type.math_h_modifier
         else:
-            self.funcsuffix = "_%s" % real_type.specalization_name()
+            self.funcsuffix = "_%s" % real_type.specialization_name()
     
         self.real_type = real_type
         CNumericType.__init__(self, real_type.rank + 0.5, real_type.signed)
         self.binops = {}
-        self.from_parts = "%s_from_parts" % self.specalization_name()
+        self.from_parts = "%s_from_parts" % self.specialization_name()
         self.default_value = "%s(0, 0)" % self.from_parts
 
     def __eq__(self, other):
@@ -944,7 +944,7 @@ class CComplexType(CNumericType):
         return self.base_declaration_code(base,  entity_code)
 
     def sign_and_name(self):
-        real_type_name = self.real_type.specalization_name()
+        real_type_name = self.real_type.specialization_name()
         real_type_name = real_type_name.replace('long__double','long_double')
         return Naming.type_prefix + real_type_name + "_complex"
     
@@ -1010,7 +1010,7 @@ class CComplexType(CNumericType):
                     self, 
                     real_type = self.real_type.declaration_code(''),
                     m = self.funcsuffix))
-        self.from_py_function = "__Pyx_PyComplex_As_" + self.specalization_name()
+        self.from_py_function = "__Pyx_PyComplex_As_" + self.specialization_name()
         return True
     
     def lookup_op(self, nargs, op):
