@@ -129,7 +129,8 @@ def parse_directive_value(name, value, relaxed_bool=False):
     else:
         assert False
 
-def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False):
+def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False,
+                         current_settings=None):
     """
     Parses a comma-separated list of pragma options. Whitespace
     is not considered.
@@ -152,7 +153,10 @@ def parse_directive_list(s, relaxed_bool=False, ignore_unknown=False):
        ...
     ValueError: Unknown option: "unknown"
     """
-    result = {}
+    if current_settings is None:
+        result = {}
+    else:
+        result = current_settings
     for item in s.split(','):
         item = item.strip()
         if not item: continue
