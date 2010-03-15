@@ -227,7 +227,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         h_code.putln("%s DL_IMPORT(PyTypeObject) %s;" % (
             Naming.extern_c_macro,
             type.typeobj_cname))
-        #self.generate_obj_struct_definition(type, h_code)
     
     def generate_cclass_include_code(self, type, i_code):
         i_code.putln("cdef extern class %s.%s:" % (
@@ -390,9 +389,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     elif type.is_enum:
                         self.generate_enum_definition(entry, code)
                     elif type.is_extension_type and entry not in vtabslot_entries:
-                        self.generate_obj_struct_definition(type, code)
+                        self.generate_objstruct_definition(type, code)
         for entry in vtabslot_list:
-            self.generate_obj_struct_definition(entry.type, code)
+            self.generate_objstruct_definition(entry.type, code)
         for entry in vtab_list:
             self.generate_typeobject_predeclaration(entry, code)
             self.generate_exttype_vtable_struct(entry, code)
@@ -658,7 +657,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 elif type.is_enum:
                     self.generate_enum_definition(entry, code)
                 elif type.is_extension_type:
-                    self.generate_obj_struct_definition(type, code)
+                    self.generate_objstruct_definition(type, code)
         
     def generate_gcc33_hack(self, env, code):
         # Workaround for spurious warning generation in gcc 3.3
@@ -804,7 +803,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.vtabstruct_cname,
                 type.vtabptr_cname))
     
-    def generate_obj_struct_definition(self, type, code):
+    def generate_objstruct_definition(self, type, code):
         code.mark_pos(type.pos)
         # Generate object struct definition for an
         # extension type.
@@ -1509,7 +1508,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if type.typedef_flag:
             objstruct = type.objstruct_cname
         else:
-            #objstruct = "struct %s" % scope.parent_type.objstruct_cname
             objstruct = "struct %s" % type.objstruct_cname
         code.putln(
             "sizeof(%s), /*tp_basicsize*/" %

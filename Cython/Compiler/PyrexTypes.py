@@ -517,10 +517,10 @@ class PyExtensionType(PyObjectType):
             return self.base_declaration_code(self.name, entity_code)
         else:
             if self.typedef_flag:
-                base_format = "%s"
+                objstruct = self.objstruct_cname
             else:
-                base_format = "struct %s"
-            base = public_decl(base_format % self.objstruct_cname, dll_linkage)
+                objstruct = "struct %s" % self.objstruct_cname
+            base = public_decl(objstruct, dll_linkage)
             if deref:
                 return "%s %s" % (base,  entity_code)
             else:
