@@ -430,12 +430,29 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 #define offsetof(type, member) ( (size_t) & ((type*)0) -> member )
 #endif
 
-#ifndef PY_LONG_LONG
-  #define PY_LONG_LONG LONG_LONG
+#if !defined(WIN32) && !defined(MS_WINDOWS)
+  #ifndef __stdcall
+    #define __stdcall
+  #endif
+  #ifndef __cdecl
+    #define __cdecl
+  #endif
+  #ifndef __fastcall
+    #define __fastcall
+  #endif
+#endif
+
+#ifndef DL_IMPORT
+  #define DL_IMPORT(t) t
 #endif
 #ifndef DL_EXPORT
   #define DL_EXPORT(t) t
 #endif
+
+#ifndef PY_LONG_LONG
+  #define PY_LONG_LONG LONG_LONG
+#endif
+
 #if PY_VERSION_HEX < 0x02040000
   #define METH_COEXIST 0
   #define PyDict_CheckExact(op) (Py_TYPE(op) == &PyDict_Type)
@@ -526,6 +543,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
   #define PyInt_AsSsize_t              PyLong_AsSsize_t
   #define PyInt_AsUnsignedLongMask     PyLong_AsUnsignedLongMask
   #define PyInt_AsUnsignedLongLongMask PyLong_AsUnsignedLongLongMask
+#endif
+""")
+
+        code.put("""
+#if PY_MAJOR_VERSION >= 3
   #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)
   #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceTrueDivide(x,y)
 #else
@@ -536,25 +558,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             code.putln("  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_Divide(x,y)")
             code.putln("  #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceDivide(x,y)")
-        code.put("""
-#endif
+        code.putln("#endif")
 
+        code.put("""
 #if PY_MAJOR_VERSION >= 3
   #define PyMethod_New(func, self, klass) PyInstanceMethod_New(func)
-#endif
-
-#if !defined(WIN32) && !defined(MS_WINDOWS)
-  #ifndef __stdcall
-    #define __stdcall
-  #endif
-  #ifndef __cdecl
-    #define __cdecl
-  #endif
-  #ifndef __fastcall
-    #define __fastcall
-  #endif
-#else
-  #define _USE_MATH_DEFINES
 #endif
 
 #if PY_VERSION_HEX < 0x02050000
@@ -576,7 +584,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 #endif
 """)
 
+        code.putln("")
         self.generate_extern_c_macro_definition(code)
+        code.putln("")
+        code.putln("#if defined(WIN32) || defined(MS_WINDOWS)")
+        code.putln("#define _USE_MATH_DEFINES")
+        code.putln("#endif")
         code.putln("#include <math.h>")
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
         self.generate_includes(env, cimported_modules, code)
