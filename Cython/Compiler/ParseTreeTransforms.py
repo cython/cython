@@ -1067,7 +1067,8 @@ property NAME:
         # ---------------------------------------
         # XXX This should go to AutoDocTransforms
         # ---------------------------------------
-        if self.current_directives['embedsignature']:
+        if (Options.docstrings and 
+            self.current_directives['embedsignature']):
             attr_name = entry.name
             type_name = entry.type.declaration_code("", for_display=1)
             default_value = ''
