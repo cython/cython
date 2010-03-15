@@ -2490,7 +2490,7 @@ type_conversion_functions = """
 
 static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
    if (x == Py_True) return 1;
-   else if ((x == Py_False) | (x == Py_None)) return 0;
+   else if ((x == Py_False) || (x == Py_None)) return 0;
    else return PyObject_IsTrue(x);
 }
 
