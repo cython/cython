@@ -2062,7 +2062,7 @@ class IndexNode(ExprNode):
             index_code = self.index.py_result()
             if self.base.type is dict_type:
                 function = "PyDict_SetItem"
-            # It would seem that we could specalized lists/tuples, but that
+            # It would seem that we could specialized lists/tuples, but that
             # shouldn't happen here. 
             # Both PyList_SetItem PyTuple_SetItem and a Py_ssize_t as input, 
             # not a PyObject*, and bad conversion here would give the wrong 
@@ -5091,7 +5091,7 @@ class DivNode(NumBinopNode):
             return "(%s / %s)" % (op1, op2)
         else:
             return "__Pyx_div_%s(%s, %s)" % (
-                    self.type.specalization_name(),
+                    self.type.specialization_name(),
                     self.operand1.result(), 
                     self.operand2.result())
 
@@ -5136,7 +5136,7 @@ class ModNode(DivNode):
                     self.operand2.result())
         else:
             return "__Pyx_mod_%s(%s, %s)" % (
-                    self.type.specalization_name(),
+                    self.type.specialization_name(),
                     self.operand1.result(), 
                     self.operand2.result())
 
