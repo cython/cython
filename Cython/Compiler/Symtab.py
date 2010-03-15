@@ -948,7 +948,6 @@ class ModuleScope(Scope):
             if visibility != 'public':
                 warning(pos, "ctypedef only valid for public and extern classes", 2)
             objtypedef_cname = objstruct_cname
-            objstruct_cname = None
             typedef_flag = 0
         else:
             objtypedef_cname = None
