@@ -2485,12 +2485,13 @@ static CYTHON_INLINE size_t __Pyx_PyInt_AsSize_t(PyObject*);
 
 """ + type_conversion_predeclarations
 
+# Note: __Pyx_PyObject_IsTrue is written to minimize branching.
 type_conversion_functions = """
 /* Type Conversion Functions */
 
 static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject* x) {
-   if (x == Py_True) return 1;
-   else if ((x == Py_False) || (x == Py_None)) return 0;
+   int is_true = x == Py_True;
+   if (is_true | (x == Py_False) | (x == Py_None)) return is_true;
    else return PyObject_IsTrue(x);
 }
 
