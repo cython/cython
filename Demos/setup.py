@@ -13,11 +13,10 @@ except:
 ext_modules=[ 
     Extension("primes",       ["primes.pyx"]),
     Extension("spam",         ["spam.pyx"]),
-    Extension("square",         ["square.pyx"], language="c++"),
 ]
 
 for file in glob.glob("*.pyx"):
-    if file != "numeric_demo.pyx" and file != "square.pyx":
+    if file != "numeric_demo.pyx":
         ext_modules.append(Extension(file[:-4], [file], include_dirs = numpy_include_dirs))
 
 setup(
