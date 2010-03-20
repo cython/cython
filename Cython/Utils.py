@@ -63,7 +63,7 @@ _match_file_encoding = re.compile(u"coding[:=]\s*([-\w.]+)").search
 
 def detect_file_encoding(source_filename):
     # PEPs 263 and 3120
-    f = codecs.open(source_filename, "rU", encoding="UTF-8")
+    f = open_source_file(source_filename, encoding="UTF-8", error_handling='ignore')
     try:
         chars = []
         for i in range(2):
@@ -78,9 +78,57 @@ def detect_file_encoding(source_filename):
         f.close()
     return "UTF-8"
 
-def open_source_file(source_filename, mode="rU"):
-    encoding = detect_file_encoding(source_filename)
-    return codecs.open(source_filename, mode=mode, encoding=encoding)
+normalise_newlines = re.compile(u'\r\n?|\n').sub
+
+class NormalisedNewlineStream(object):
+  """The codecs module doesn't provide universal newline support.
+  This class is used as a stream wrapper that provides this
+  functionality.  The new 'io' in Py2.6+/3.1+ supports this out of the
+  box.
+  """
+  def __init__(self, stream):
+    # let's assume .read() doesn't change
+    self._read = stream.read
+    self.close = stream.close
+    self.encoding = getattr(stream, 'encoding', 'UTF-8')
+
+  def read(self, count):
+    data = self._read(count)
+    if u'\r' not in data:
+      return data
+    if data.endswith(u'\r'):
+      # may be missing a '\n'
+      data += self._read(1)
+    return normalise_newlines(u'\n', data)
+
+  def readlines(self):
+    content = []
+    data = self._read(0x1000)
+    while data:
+        content.append(data)
+        data = self._read(0x1000)
+    return u''.join(content).split(u'\n')
+
+try:
+    from io import open as io_open
+except ImportError:
+    io_open = None
+
+def open_source_file(source_filename, mode="r",
+                     encoding=None, error_handling=None,
+                     require_normalised_newlines=True):
+    if encoding is None:
+        encoding = detect_file_encoding(source_filename)
+    if io_open is not None:
+        return io_open(source_filename, mode=mode,
+                       encoding=encoding, errors=error_handling)
+    else:
+        # codecs module doesn't have universal newline support
+        stream = codecs.open(source_filename, mode=mode,
+                             encoding=encoding, errors=error_handling)
+        if require_normalised_newlines:
+            stream = NormalisedNewlineStream(stream)
+        return stream
 
 def long_literal(value):
     if isinstance(value, basestring):
