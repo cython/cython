@@ -1207,6 +1207,10 @@ class CreateClosureClasses(CythonTransform):
         for entry in func_scope.entries.values():
             # This is wasteful--we should do this later when we know
             # which vars are actually being used inside...
+            #
+            # Also, this happens before type inference and type
+            # analysis, so the entries created here may end up having
+            # incorrect or at least unspecified types.
             cname = entry.cname
             class_scope.declare_var(pos=entry.pos,
                                     name=entry.name,
