@@ -61,7 +61,7 @@ class CodeWriter(TreeVisitor):
         self.startline(s)
         self.endline()
 
-    def comma_seperated_list(self, items, output_rhs=False):
+    def comma_separated_list(self, items, output_rhs=False):
         if len(items) > 0:
             for item in items[:-1]:
                 self.visit(item)
@@ -82,7 +82,7 @@ class CodeWriter(TreeVisitor):
 
     def visit_FuncDefNode(self, node):
         self.startline(u"def %s(" % node.name)
-        self.comma_seperated_list(node.args)
+        self.comma_separated_list(node.args)
         self.endline(u"):")
         self.indent()
         self.visit(node.body)
@@ -167,7 +167,7 @@ class CodeWriter(TreeVisitor):
     
     def visit_PrintStatNode(self, node):
         self.startline(u"print ")
-        self.comma_seperated_list(node.arg_tuple.args)
+        self.comma_separated_list(node.arg_tuple.args)
         if not node.append_newline:
             self.put(u",")
         self.endline()
@@ -181,7 +181,7 @@ class CodeWriter(TreeVisitor):
         self.startline(u"cdef ")
         self.visit(node.base_type)
         self.put(u" ")
-        self.comma_seperated_list(node.declarators, output_rhs=True)
+        self.comma_separated_list(node.declarators, output_rhs=True)
         self.endline()
 
     def visit_ForInStatNode(self, node):
@@ -200,12 +200,12 @@ class CodeWriter(TreeVisitor):
             self.dedent()
 
     def visit_SequenceNode(self, node):
-        self.comma_seperated_list(node.args) # Might need to discover whether we need () around tuples...hmm...
+        self.comma_separated_list(node.args) # Might need to discover whether we need () around tuples...hmm...
     
     def visit_SimpleCallNode(self, node):
         self.visit(node.function)
         self.put(u"(")
-        self.comma_seperated_list(node.args)
+        self.comma_separated_list(node.args)
         self.put(")")
 
     def visit_GeneralCallNode(self, node):
@@ -215,7 +215,7 @@ class CodeWriter(TreeVisitor):
         if isinstance(posarg, AsTupleNode):
             self.visit(posarg.arg)
         else:
-            self.comma_seperated_list(posarg)
+            self.comma_separated_list(posarg)
         if node.keyword_args is not None or node.starstar_arg is not None:
             raise Exception("Not implemented yet")
         self.put(u")")

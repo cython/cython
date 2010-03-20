@@ -6,6 +6,7 @@ from PyrexTypes import py_object_type
 from Builtin import dict_type
 from StringEncoding import EncodedString
 import Naming
+import Symtab
 
 class AutoTestDictTransform(ScopeTrackingTransform):
     # Handles autotestdict directive
@@ -82,7 +83,17 @@ class AutoTestDictTransform(ScopeTrackingTransform):
                                        type=py_object_type,
                                        is_py_attr=True,
                                        is_temp=True)
-                name = "%s.%s" % (clsname, node.entry.name)
+                if isinstance(node.entry.scope, Symtab.PropertyScope):
+                    new_node = AttributeNode(pos, obj=parent,
+                                             attribute=node.entry.scope.name,
+                                             type=py_object_type,
+                                             is_py_attr=True,
+                                             is_temp=True)
+                    parent = new_node
+                    name = "%s.%s.%s" % (clsname, node.entry.scope.name,
+                                         node.entry.name)
+                else:
+                    name = "%s.%s" % (clsname, node.entry.name)
             else:
                 assert False
             getfunc = AttributeNode(pos, obj=parent,

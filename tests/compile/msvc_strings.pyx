@@ -702,7 +702,7 @@ dignissim eros.
 """
 
 def a_function():
-    """"A long function docstring.
+    """A long function docstring.
 
     Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer sit amet
     mauris mauris, sit amet venenatis nisl. Vivamus a est porta enim

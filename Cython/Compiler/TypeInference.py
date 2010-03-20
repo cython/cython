@@ -112,7 +112,7 @@ class MarkAssignments(CythonTransform):
         self.visitchildren(node)
         return node
 
-class MarkOverflowingArithmatic(CythonTransform):
+class MarkOverflowingArithmetic(CythonTransform):
 
     # It may be possible to integrate this with the above for
     # performance improvements (though likely not worth it).
@@ -122,7 +122,7 @@ class MarkOverflowingArithmatic(CythonTransform):
     def __call__(self, root):
         self.env_stack = []
         self.env = root.scope
-        return super(MarkOverflowingArithmatic, self).__call__(root)        
+        return super(MarkOverflowingArithmetic, self).__call__(root)        
 
     def visit_safe_node(self, node):
         self.might_overflow, saved = False, self.might_overflow
@@ -292,10 +292,14 @@ def find_spanning_type(type1, type2):
 
 def aggressive_spanning_type(types, might_overflow):
     result_type = reduce(find_spanning_type, types)
+    if result_type.is_reference:
+        result_type = result_type.ref_base_type
     return result_type
 
 def safe_spanning_type(types, might_overflow):
     result_type = reduce(find_spanning_type, types)
+    if result_type.is_reference:
+        result_type = result_type.ref_base_type
     if result_type.is_pyobject:
         # any specific Python type is always safe to infer
         return result_type

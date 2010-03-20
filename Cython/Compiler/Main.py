@@ -88,7 +88,7 @@ class Context(object):
         from ParseTreeTransforms import AnalyseDeclarationsTransform, AnalyseExpressionsTransform
         from ParseTreeTransforms import CreateClosureClasses, MarkClosureVisitor, DecoratorTransform
         from ParseTreeTransforms import InterpretCompilerDirectives, TransformBuiltinMethods
-        from TypeInference import MarkAssignments, MarkOverflowingArithmatic
+        from TypeInference import MarkAssignments, MarkOverflowingArithmetic
         from ParseTreeTransforms import AlignFunctionDefinitions, GilCheck
         from AnalysedTreeTransforms import AutoTestDictTransform
         from AutoDocTransforms import EmbedSignature
@@ -137,7 +137,7 @@ class Context(object):
             EmbedSignature(self),
             EarlyReplaceBuiltinCalls(self),
             MarkAssignments(self),
-            MarkOverflowingArithmatic(self),
+            MarkOverflowingArithmetic(self),
             TransformBuiltinMethods(self),
             IntroduceBufferAuxiliaryVars(self),
             _check_c_declarations,
@@ -148,9 +148,9 @@ class Context(object):
             DropRefcountingTransform(),
             FinalOptimizePhase(self),
             GilCheck(),
-#            ClearResultCodes(self),
-#            SpecialFunctions(self),
-            #        CreateClosureClasses(context),
+            #ClearResultCodes(self),
+            #SpecialFunctions(self),
+            #CreateClosureClasses(context),
             ]
 
     def create_pyx_pipeline(self, options, result, py=False):
@@ -495,13 +495,14 @@ class Context(object):
         names.reverse()
         return ".".join(names)
 
-    def setup_errors(self, options):
+    def setup_errors(self, options, result):
         if options.use_listing_file:
             result.listing_file = Utils.replace_suffix(source, ".lis")
-            Errors.open_listing_file(result.listing_file,
-                echo_to_stderr = options.errors_to_stderr)
+            path = result.listing_file
         else:
-            Errors.open_listing_file(None)
+            path = None
+        Errors.open_listing_file(path=path,
+                                 echo_to_stderr=options.errors_to_stderr)
 
     def teardown_errors(self, err, options, result):
         source_desc = result.compilation_source.source_desc
@@ -565,7 +566,7 @@ def run_pipeline(source, options, full_module_name = None):
     else:
         pipeline = context.create_pyx_pipeline(options, result)
 
-    context.setup_errors(options)
+    context.setup_errors(options, result)
     err, enddata = context.run_pipeline(pipeline, source)
     context.teardown_errors(err, options, result)
     return result

@@ -76,8 +76,11 @@ class _TestInfo(object):
         """
         if not self.err:
             return ''
-        return self.test_result._exc_info_to_string(self.err, \
-            self.test_method)
+        if sys.version_info < (2,4):
+            return self.test_result._exc_info_to_string(self.err)
+        else:
+            return self.test_result._exc_info_to_string(
+                self.err, self.test_method)
 
 
 class _XMLTestResult(_TextTestResult):
@@ -109,8 +112,8 @@ class _XMLTestResult(_TextTestResult):
                 self.start_time = self.stop_time = 0
             
             if self.showAll:
-                self.stream.writeln('%s (%.3fs)' % \
-                    (verbose_str, test_info.get_elapsed_time()))
+                self.stream.writeln('(%.3fs) %s' % \
+                    (test_info.get_elapsed_time(), verbose_str))
             elif self.dots:
                 self.stream.write(short_str)
         self.callback = callback
@@ -157,7 +160,7 @@ class _XMLTestResult(_TextTestResult):
                 test_info.get_description()))
             self.stream.writeln(self.separator2)
             self.stream.writeln('%s' % test_info.get_error_info())
-    
+
     def _get_info_by_testcase(self):
         """This method organizes test results by TestCase module. This
         information is used during the report generation, where a XML report
@@ -208,7 +211,9 @@ class _XMLTestResult(_TextTestResult):
         xml_testsuite.appendChild(testcase)
         
         testcase.setAttribute('classname', str(suite_name))
-        testcase.setAttribute('name', str(test_result.test_method.shortDescription() or test_result.test_method._testMethodName))
+        testcase.setAttribute('name', test_result.test_method.shortDescription()
+                              or getattr(test_result.test_method, '_testMethodName',
+                                         str(test_result.test_method)))
         testcase.setAttribute('time', '%.3f' % test_result.get_elapsed_time())
         
         if (test_result.outcome != _TestInfo.SUCCESS):
@@ -217,7 +222,7 @@ class _XMLTestResult(_TextTestResult):
             testcase.appendChild(failure)
             
             failure.setAttribute('type', str(test_result.err[0].__name__))
-            failure.setAttribute('message', str(test_result.err[1].message))
+            failure.setAttribute('message', str(test_result.err[1]))
             
             error_info = test_result.get_error_info()
             failureText = xml_document.createCDATASection(error_info)
@@ -263,7 +268,7 @@ class _XMLTestResult(_TextTestResult):
             xml_content = doc.toprettyxml(indent='\t')
             
             if type(test_runner.output) is str:
-                report_file = file('%s%sTEST-%s.xml' % \
+                report_file = open('%s%sTEST-%s.xml' % \
                     (test_runner.output, os.sep, suite), 'w')
                 try:
                     report_file.write(xml_content)

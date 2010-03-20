@@ -1,6 +1,6 @@
-def f(a, b):
+def print_to_stdout(a, b):
     """
-    >>> f(1, 'test')
+    >>> print_to_stdout(1, 'test')
     <BLANKLINE>
     1
     1 test
@@ -21,10 +21,10 @@ try:
 except ImportError:
     from io import StringIO
 
-def s(stream, a, b):
+def print_to_stringio(stream, a, b):
     """
     >>> stream = StringIO()
-    >>> s(stream, 1, 'test')
+    >>> print_to_stringio(stream, 1, 'test')
     >>> print(stream.getvalue())
     <BLANKLINE>
     1

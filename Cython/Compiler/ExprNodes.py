@@ -1947,7 +1947,6 @@ class IndexNode(ExprNode):
                                 self.index.type)
                 elif self.base.type.is_cpp_class:
                     function = env.lookup_operator("[]", [self.base, self.index])
-                    function = self.base.type.scope.lookup("operator[]")
                     if function is None:
                         error(self.pos, "Indexing '%s' not supported for index type '%s'" % (self.base.type, self.index.type))
                         self.type = PyrexTypes.error_type
@@ -1959,7 +1958,7 @@ class IndexNode(ExprNode):
                     self.index = self.index.coerce_to(func_type.args[0].type, env)
                     self.type = func_type.return_type
                     if setting and not func_type.return_type.is_reference:
-                        error(self.pos, "Can't set non-reference '%s'" % self.type)
+                        error(self.pos, "Can't set non-reference result '%s'" % self.type)
                 else:
                     error(self.pos,
                         "Attempting to index non-array type '%s'" %
@@ -2076,7 +2075,7 @@ class IndexNode(ExprNode):
             index_code = self.index.py_result()
             if self.base.type is dict_type:
                 function = "PyDict_SetItem"
-            # It would seem that we could specalized lists/tuples, but that
+            # It would seem that we could specialized lists/tuples, but that
             # shouldn't happen here. 
             # Both PyList_SetItem PyTuple_SetItem and a Py_ssize_t as input, 
             # not a PyObject*, and bad conversion here would give the wrong 
@@ -2477,6 +2476,9 @@ class CallNode(ExprNode):
             self.function.set_cname(type.declaration_code(""))
             self.analyse_c_function_call(env)
             return True
+    
+    def is_lvalue(self):
+        return self.type.is_reference
 
     def nogil_check(self, env):
         func_type = self.function_type()
@@ -3453,8 +3455,6 @@ class SequenceNode(ExprNode):
         # allocates the temps in a rather hacky way -- the assignment
         # is evaluated twice, within each if-block.
 
-        code.globalstate.use_utility_code(unpacking_utility_code)
-
         if rhs.type is tuple_type:
             tuple_check = "likely(%s != Py_None)"
         else:
@@ -3490,6 +3490,8 @@ class SequenceNode(ExprNode):
                         rhs.py_result(), len(self.args)))
             code.putln(code.error_goto(self.pos))
         else:
+            code.globalstate.use_utility_code(unpacking_utility_code)
+
             self.iterator.allocate(code)
             code.putln(
                 "%s = PyObject_GetIter(%s); %s" % (
@@ -4319,7 +4321,7 @@ class UnopNode(ExprNode):
 
     def is_cpp_operation(self):
         type = self.operand.type
-        return type.is_cpp_class or type.is_reference and type.base_type.is_cpp_class
+        return type.is_cpp_class
     
     def coerce_operand_to_pyobject(self, env):
         self.operand = self.operand.coerce_to_pyobject(env)
@@ -4346,7 +4348,7 @@ class UnopNode(ExprNode):
 
     def analyse_cpp_operation(self, env):
         type = self.operand.type
-        if type.is_ptr or type.is_reference:
+        if type.is_ptr:
             type = type.base_type
         function = type.scope.lookup("operator%s" % self.operator)
         if not function:
@@ -4863,14 +4865,8 @@ class BinopNode(ExprNode):
         return type1.is_pyobject or type2.is_pyobject
 
     def is_cpp_operation(self):
-        type1 = self.operand1.type
-        type2 = self.operand2.type
-        if type1.is_reference:
-            type1 = type1.base_type
-        if type2.is_reference:
-            type2 = type2.base_type
-        return (type1.is_cpp_class
-            or type2.is_cpp_class)
+        return (self.operand1.type.is_cpp_class
+            or self.operand2.type.is_cpp_class)
     
     def analyse_cpp_operation(self, env):
         type1 = self.operand1.type
@@ -5209,7 +5205,7 @@ class DivNode(NumBinopNode):
             return "(%s / %s)" % (op1, op2)
         else:
             return "__Pyx_div_%s(%s, %s)" % (
-                    self.type.specalization_name(),
+                    self.type.specialization_name(),
                     self.operand1.result(), 
                     self.operand2.result())
 
@@ -5254,7 +5250,7 @@ class ModNode(DivNode):
                     self.operand2.result())
         else:
             return "__Pyx_mod_%s(%s, %s)" % (
-                    self.type.specalization_name(),
+                    self.type.specialization_name(),
                     self.operand1.result(), 
                     self.operand2.result())
 
@@ -5519,13 +5515,7 @@ class CmpNode(object):
         return result
 
     def is_cpp_comparison(self):
-        type1 = self.operand1.type
-        type2 = self.operand2.type
-        if type1.is_reference:
-            type1 = type1.base_type
-        if type2.is_reference:
-            type2 = type2.base_type
-        return type1.is_cpp_class or type2.is_cpp_class
+        return self.operand1.type.is_cpp_class or self.operand2.type.is_cpp_class
 
     def find_common_int_type(self, env, op, operand1, operand2):
         # type1 != type2 and at least one of the types is not a C int
@@ -6183,10 +6173,10 @@ class CoerceFromPyTypeNode(CoercionNode):
         self.is_temp = 1
         if not result_type.create_from_py_utility_code(env):
             error(arg.pos,
-                "Cannot convert Python object to '%s'" % result_type)
+                  "Cannot convert Python object to '%s'" % result_type)
         if self.type.is_string and self.arg.is_ephemeral():
             error(arg.pos,
-                "Obtaining char * from temporary Python value")
+                  "Obtaining char * from temporary Python value")
     
     def analyse_types(self, env):
         # The arg is always already analysed

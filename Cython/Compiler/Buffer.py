@@ -368,8 +368,12 @@ def put_buffer_lookup_code(entry, index_signeds, index_cnames, directives, pos, 
                     code.putln("%s = %d;" % (tmp_cname, dim))
                 code.put("} else ")
             # check bounds in positive direction
+            if signed != 0:  
+                cast = ""
+            else:
+                cast = "(size_t)"
             code.putln("if (%s) %s = %d;" % (
-                code.unlikely("%s >= %s" % (cname, shape.cname)),
+                code.unlikely("%s >= %s%s" % (cname, cast, shape.cname)),
                 tmp_cname, dim))
         code.globalstate.use_utility_code(raise_indexerror_code)
         code.putln("if (%s) {" % code.unlikely("%s != -1" % tmp_cname))
@@ -723,8 +727,8 @@ typedef struct {
 } __Pyx_BufFmt_StackElem;
 
 
+static CYTHON_INLINE int  __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj, __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack);
 static CYTHON_INLINE void __Pyx_SafeReleaseBuffer(Py_buffer* info);
-static int __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj, __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack);
 """, impl="""
 static CYTHON_INLINE int __Pyx_IsLittleEndian(void) {
   unsigned int n = 1;
@@ -1131,7 +1135,7 @@ static CYTHON_INLINE void __Pyx_ZeroBuffer(Py_buffer* buf) {
   buf->suboffsets = __Pyx_minusones;
 }
 
-static int __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj, __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack) {
+static CYTHON_INLINE int __Pyx_GetBufferAndValidate(Py_buffer* buf, PyObject* obj, __Pyx_TypeInfo* dtype, int flags, int nd, int cast, __Pyx_BufFmt_StackElem* stack) {
   if (obj == Py_None) {
     __Pyx_ZeroBuffer(buf);
     return 0;

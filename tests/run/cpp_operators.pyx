@@ -1,6 +1,9 @@
 cimport cython.operator
 from cython.operator cimport dereference as deref
 
+cdef out(s):
+    print s.decode('ASCII')
+
 cdef extern from "cpp_operators_helper.h":
     cdef cppclass TestOps:
 
@@ -46,10 +49,10 @@ def test_unops():
     unary *
     """
     cdef TestOps* t = new TestOps()
-    print +t[0]
-    print -t[0]
-    print ~t[0]
-    print deref(t[0])
+    out(+t[0])
+    out(-t[0])
+    out(~t[0])
+    out(deref(t[0]))
     del t
 
 def test_incdec():
@@ -61,10 +64,10 @@ def test_incdec():
     post --
     """
     cdef TestOps* t = new TestOps()
-    print cython.operator.preincrement(t[0])
-    print cython.operator.predecrement(t[0])
-    print cython.operator.postincrement(t[0])
-    print cython.operator.postdecrement(t[0])
+    out(cython.operator.preincrement(t[0]))
+    out(cython.operator.predecrement(t[0]))
+    out(cython.operator.postincrement(t[0]))
+    out(cython.operator.postdecrement(t[0]))
     del t
 
 def test_binop():
@@ -82,18 +85,18 @@ def test_binop():
     binary >>
     """
     cdef TestOps* t = new TestOps()
-    print t[0] + 1
-    print t[0] - 1
-    print t[0] * 1
-    print t[0] / 1
-    print t[0] % 1
+    out(t[0] + 1)
+    out(t[0] - 1)
+    out(t[0] * 1)
+    out(t[0] / 1)
+    out(t[0] % 1)
     
-    print t[0] & 1
-    print t[0] | 1
-    print t[0] ^ 1
+    out(t[0] & 1)
+    out(t[0] | 1)
+    out(t[0] ^ 1)
     
-    print t[0] << 1
-    print t[0] >> 1
+    out(t[0] << 1)
+    out(t[0] >> 1)
     del t
 
 def test_cmp():
@@ -107,12 +110,12 @@ def test_cmp():
     binary <
     """
     cdef TestOps* t = new TestOps()
-    print t[0] == 1
-    print t[0] != 1
-    print t[0] >= 1
-    print t[0] > 1
-    print t[0] <= 1
-    print t[0] < 1
+    out(t[0] == 1)
+    out(t[0] != 1)
+    out(t[0] >= 1)
+    out(t[0] > 1)
+    out(t[0] <= 1)
+    out(t[0] < 1)
     del t
 
 def test_index_call():
@@ -122,6 +125,6 @@ def test_index_call():
     binary ()
     """
     cdef TestOps* t = new TestOps()
-    print t[0][100]
-    print t[0](100)
+    out(t[0][100])
+    out(t[0](100))
     del t

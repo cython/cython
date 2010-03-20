@@ -13,10 +13,10 @@ import sys
 
 try:
     from __builtin__ import set
-except ImportError:
+except (ImportError, AttributeError):
     try:
         from builtins import set
-    except ImportError:
+    except (ImportError, AttributeError):
         from sets import Set as set
 
 from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
@@ -1382,6 +1382,12 @@ def p_except_clause(s):
         if s.sy == ',' or (s.sy == 'IDENT' and s.systring == 'as'):
             s.next()
             exc_value = p_simple_expr(s)
+        elif s.sy == 'IDENT' and s.systring == 'as':
+            # Py3 syntax requires a name here
+            s.next()
+            pos2 = s.position()
+            name = p_ident(s)
+            exc_value = ExprNodes.NameNode(pos2, name = name)
     body = p_suite(s)
     return Nodes.ExceptClauseNode(pos,
         pattern = exc_type, target = exc_value, body = body)
@@ -1795,13 +1801,13 @@ def p_c_simple_base_type(s, self_flag, nonempty, templates = None):
             # Make sure this is not a declaration of a variable or function.  
             if s.sy == '(':
                 s.next()
-                if s.sy == '*' or s.sy == '**':
+                if s.sy == '*' or s.sy == '**' or s.sy == '&':
                     s.put_back('(', '(')
                 else:
                     s.put_back('(', '(')
                     s.put_back('IDENT', name)
                     name = None
-            elif s.sy not in ('*', '**', '['):
+            elif s.sy not in ('*', '**', '[', '&'):
                 s.put_back('IDENT', name)
                 name = None
 
@@ -2034,7 +2040,7 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                 error(s.position(), "Declarator should be empty")
             s.next()
             cname = p_opt_cname(s)
-            if s.sy == '=' and assignable:
+            if name != "operator" and s.sy == '=' and assignable:
                 s.next()
                 rhs = p_simple_expr(s)
         else:
@@ -2136,9 +2142,17 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
     not_none = 0
     default = None
     annotation = None
-    base_type = p_c_base_type(s, cmethod_flag, nonempty = nonempty)
+    if s.in_python_file:
+        # empty type declaration
+        base_type = Nodes.CSimpleBaseTypeNode(pos,
+            name = None, module_path = [],
+            is_basic_c_type = 0, signed = 0,
+            complex = 0, longness = 0,
+            is_self_arg = cmethod_flag, templates = None)
+    else:
+        base_type = p_c_base_type(s, cmethod_flag, nonempty = nonempty)
     declarator = p_c_declarator(s, ctx, nonempty = nonempty)
-    if s.sy == 'not':
+    if s.sy == 'not' and not s.in_python_file:
         s.next()
         if s.sy == 'IDENT' and s.systring == 'None':
             s.next()

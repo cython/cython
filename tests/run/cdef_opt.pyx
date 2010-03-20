@@ -1,27 +1,22 @@
 __doc__ = u"""
     >>> a = A()
     >>> a.foo()
-    (True, u'yo')
+    (True, 'yo')
     >>> a.foo(False)
-    (False, u'yo')
-    >>> a.foo(10, u'yes')
-    (True, u'yes')
+    (False, 'yo')
+    >>> a.foo(10, 'yes')
+    (True, 'yes')
 
 """
 
-import sys
-
-if sys.version_info[0] >= 3:
-    __doc__ = __doc__.replace(u"u'", u"'")
-
 cdef class A:
-    cpdef foo(self, bint a=True, b=u"yo"):
+    cpdef foo(self, bint a=True, b="yo"):
         return a, b
 
 def call0():
     """
     >>> call0()
-    (True, u'yo')
+    (True, 'yo')
     """
     cdef A a = A()
     return a.foo()
@@ -29,7 +24,7 @@ def call0():
 def call1():
     """
     >>> call1()
-    (False, u'yo')
+    (False, 'yo')
     """
     cdef A a = A()
     return a.foo(False)
@@ -37,7 +32,7 @@ def call1():
 def call2():
     """
     >>> call2()
-    (False, u'go')
+    (False, 'go')
     """
     cdef A a = A()
-    return a.foo(False, u"go")
+    return a.foo(False, "go")
