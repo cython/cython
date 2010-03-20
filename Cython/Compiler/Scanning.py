@@ -174,11 +174,11 @@ class FileSourceDescriptor(SourceDescriptor):
         self._cmp_name = filename
     
     def get_lines(self, encoding=None, error_handling=None):
-        if not encoding:
-            return Utils.open_source_file(self.filename)
-        else:
-            return codecs.open(self.filename, "rU", encoding=encoding,
-                               errors=error_handling)
+        return Utils.open_source_file(
+            self.filename, encoding=encoding,
+            error_handling=error_handling,
+            # newline normalisation is costly before Py2.6
+            require_normalised_newlines=False)
     
     def get_description(self):
         return self.filename

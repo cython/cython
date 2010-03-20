@@ -7,10 +7,11 @@
 #
 #=======================================================================
 
+import cython
+cython.declare(BOL=object, EOL=object, EOF=object)
+
 import Errors
 from Regexps import BOL, EOL, EOF
-
-import cython
 
 class Scanner(object):
   """
@@ -77,7 +78,7 @@ class Scanner(object):
     """
     self.trace = 0
 
-    self.buffer = ''
+    self.buffer = u''
     self.buf_start_pos = 0
     self.next_pos = 0
     self.cur_pos = 0
@@ -137,15 +138,15 @@ class Scanner(object):
       if self.trace:
         print("Scanner: read: Performing %s %d:%d" % (
           action, self.start_pos, self.cur_pos))
-      base = self.buf_start_pos
-      text = self.buffer[self.start_pos - base : self.cur_pos - base]
+      text = self.buffer[self.start_pos - self.buf_start_pos :
+                         self.cur_pos   - self.buf_start_pos]
       return (text, action)
     else:
       if self.cur_pos == self.start_pos:
         if self.cur_char is EOL:
           self.next_char()
         if self.cur_char is None or self.cur_char is EOF:
-          return ('', None)
+          return (u'', None)
       raise Errors.UnrecognizedInput(self, self.state_name)
 
   def run_machine_inlined(self):
@@ -205,9 +206,9 @@ class Scanner(object):
               c = buffer[buf_index]
               next_pos = next_pos + 1
             else:
-              c = ''
+              c = u''
           # End inlined: c = self.read_char()
-          if c == '\n':
+          if c == u'\n':
             cur_char = EOL
             input_state = 2
           elif not c:
@@ -216,7 +217,7 @@ class Scanner(object):
           else:
             cur_char = c
         elif input_state == 2:
-          cur_char = '\n'
+          cur_char = u'\n'
           input_state = 3
         elif input_state == 3:
           cur_line = cur_line + 1
@@ -227,7 +228,7 @@ class Scanner(object):
           cur_char = EOF
           input_state = 5
         else: # input_state = 5
-          cur_char = ''
+          cur_char = u''
         # End inlined self.next_char()
       else: # not new_state
         if trace: #TRACE#
@@ -258,7 +259,7 @@ class Scanner(object):
     if input_state == 1:
       self.cur_pos = self.next_pos
       c = self.read_char()
-      if c == '\n':
+      if c == u'\n':
         self.cur_char = EOL
         self.input_state = 2
       elif not c:
@@ -267,7 +268,7 @@ class Scanner(object):
       else:
         self.cur_char = c
     elif input_state == 2:
-      self.cur_char = '\n'
+      self.cur_char = u'\n'
       self.input_state = 3
     elif input_state == 3:
       self.cur_line = self.cur_line + 1
@@ -278,7 +279,7 @@ class Scanner(object):
       self.cur_char = EOF
       self.input_state = 5
     else: # input_state = 5
-      self.cur_char = ''
+      self.cur_char = u''
     if self.trace:
       print("--> [%d] %d %s" % (input_state, self.cur_pos, repr(self.cur_char)))
 
