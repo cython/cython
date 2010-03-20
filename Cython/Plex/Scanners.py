@@ -138,8 +138,8 @@ class Scanner(object):
       if self.trace:
         print("Scanner: read: Performing %s %d:%d" % (
           action, self.start_pos, self.cur_pos))
-      base = self.buf_start_pos
-      text = self.buffer[self.start_pos - base : self.cur_pos - base]
+      text = self.buffer[self.start_pos - self.buf_start_pos :
+                         self.cur_pos   - self.buf_start_pos]
       return (text, action)
     else:
       if self.cur_pos == self.start_pos:
