@@ -1403,6 +1403,8 @@ class CClassScope(ClassScope):
 
     def declare_var(self, name, type, pos, 
             cname = None, visibility = 'private', is_cdef = 0):
+        if type is unspecified_type:
+            type = py_object_type
         if is_cdef:
             # Add an entry for an attribute.
             if self.defined:
@@ -1440,8 +1442,6 @@ class CClassScope(ClassScope):
                     "Non-generic Python attribute cannot be exposed for writing from Python")
             return entry
         else:
-            if type is unspecified_type:
-                type = py_object_type
             # Add an entry for a class attribute.
             entry = Scope.declare_var(self, name, type, pos, 
                 cname, visibility, is_cdef)
