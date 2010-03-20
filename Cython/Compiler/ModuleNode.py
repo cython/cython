@@ -227,7 +227,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         h_code.putln("%s DL_IMPORT(PyTypeObject) %s;" % (
             Naming.extern_c_macro,
             type.typeobj_cname))
-        #self.generate_obj_struct_definition(type, h_code)
     
     def generate_cclass_include_code(self, type, i_code):
         i_code.putln("cdef extern class %s.%s:" % (
@@ -393,9 +392,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     elif type.is_enum:
                         self.generate_enum_definition(entry, code)
                     elif type.is_extension_type and entry not in vtabslot_entries:
-                        self.generate_obj_struct_definition(type, code)
+                        self.generate_objstruct_definition(type, code)
         for entry in vtabslot_list:
-            self.generate_obj_struct_definition(entry.type, code)
+            self.generate_objstruct_definition(entry.type, code)
         for entry in vtab_list:
             self.generate_typeobject_predeclaration(entry, code)
             self.generate_exttype_vtable_struct(entry, code)
@@ -429,12 +428,34 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.globalstate["end"].putln("#endif /* Py_PYTHON_H */")
         
         code.put("""
-#ifndef PY_LONG_LONG
-  #define PY_LONG_LONG LONG_LONG
+#include <stddef.h> /* For offsetof */
+#ifndef offsetof
+#define offsetof(type, member) ( (size_t) & ((type*)0) -> member )
+#endif
+
+#if !defined(WIN32) && !defined(MS_WINDOWS)
+  #ifndef __stdcall
+    #define __stdcall
+  #endif
+  #ifndef __cdecl
+    #define __cdecl
+  #endif
+  #ifndef __fastcall
+    #define __fastcall
+  #endif
+#endif
+
+#ifndef DL_IMPORT
+  #define DL_IMPORT(t) t
 #endif
 #ifndef DL_EXPORT
   #define DL_EXPORT(t) t
 #endif
+
+#ifndef PY_LONG_LONG
+  #define PY_LONG_LONG LONG_LONG
+#endif
+
 #if PY_VERSION_HEX < 0x02040000
   #define METH_COEXIST 0
   #define PyDict_CheckExact(op) (Py_TYPE(op) == &PyDict_Type)
@@ -525,6 +546,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
   #define PyInt_AsSsize_t              PyLong_AsSsize_t
   #define PyInt_AsUnsignedLongMask     PyLong_AsUnsignedLongMask
   #define PyInt_AsUnsignedLongLongMask PyLong_AsUnsignedLongLongMask
+#endif
+""")
+
+        code.put("""
+#if PY_MAJOR_VERSION >= 3
   #define __Pyx_PyNumber_Divide(x,y)         PyNumber_TrueDivide(x,y)
   #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceTrueDivide(x,y)
 #else
@@ -535,25 +561,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         else:
             code.putln("  #define __Pyx_PyNumber_Divide(x,y)         PyNumber_Divide(x,y)")
             code.putln("  #define __Pyx_PyNumber_InPlaceDivide(x,y)  PyNumber_InPlaceDivide(x,y)")
-        code.put("""
-#endif
+        code.putln("#endif")
 
+        code.put("""
 #if PY_MAJOR_VERSION >= 3
   #define PyMethod_New(func, self, klass) PyInstanceMethod_New(func)
-#endif
-
-#if !defined(WIN32) && !defined(MS_WINDOWS)
-  #ifndef __stdcall
-    #define __stdcall
-  #endif
-  #ifndef __cdecl
-    #define __cdecl
-  #endif
-  #ifndef __fastcall
-    #define __fastcall
-  #endif
-#else
-  #define _USE_MATH_DEFINES
 #endif
 
 #if PY_VERSION_HEX < 0x02050000
@@ -575,7 +587,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 #endif
 """)
 
+        code.putln("")
         self.generate_extern_c_macro_definition(code)
+        code.putln("")
+        code.putln("#if defined(WIN32) || defined(MS_WINDOWS)")
+        code.putln("#define _USE_MATH_DEFINES")
+        code.putln("#endif")
         code.putln("#include <math.h>")
         code.putln("#define %s" % Naming.api_guard_prefix + self.api_name(env))
         self.generate_includes(env, cimported_modules, code)
@@ -654,7 +671,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 elif type.is_enum:
                     self.generate_enum_definition(entry, code)
                 elif type.is_extension_type:
-                    self.generate_obj_struct_definition(type, code)
+                    self.generate_objstruct_definition(type, code)
         
     def generate_gcc33_hack(self, env, code):
         # Workaround for spurious warning generation in gcc 3.3
@@ -800,7 +817,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 type.vtabstruct_cname,
                 type.vtabptr_cname))
     
-    def generate_obj_struct_definition(self, type, code):
+    def generate_objstruct_definition(self, type, code):
         code.mark_pos(type.pos)
         # Generate object struct definition for an
         # extension type.
@@ -904,7 +921,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_descr_set_function(scope, code)
                     self.generate_property_accessors(scope, code)
                     self.generate_method_table(scope, code)
-                    self.generate_member_table(scope, code)
                     self.generate_getset_table(scope, code)
                     self.generate_typeobj_definition(full_module_name, entry, code)
     
@@ -1507,7 +1523,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if type.typedef_flag:
             objstruct = type.objstruct_cname
         else:
-            #objstruct = "struct %s" % scope.parent_type.objstruct_cname
             objstruct = "struct %s" % type.objstruct_cname
         code.putln(
             "sizeof(%s), /*tp_basicsize*/" %
@@ -1530,34 +1545,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 "{0, 0, 0, 0}")
         code.putln(
             "};")
-    
-    def generate_member_table(self, env, code):
-        #print "ModuleNode.generate_member_table: scope =", env ###
-        if env.public_attr_entries:
-            code.putln("")
-            code.putln(
-                "static struct PyMemberDef %s[] = {" %
-                    env.member_table_cname)
-            type = env.parent_type
-            if type.typedef_flag:
-                objstruct = type.objstruct_cname
-            else:
-                objstruct = "struct %s" % type.objstruct_cname
-            for entry in env.public_attr_entries:
-                type_code = entry.type.pymemberdef_typecode
-                if entry.visibility == 'readonly':
-                    flags = "READONLY"
-                else:
-                    flags = "0"
-                code.putln('{(char *)"%s", %s, %s, %s, 0},' % (
-                    entry.name,
-                    type_code,
-                    "offsetof(%s, %s)" % (objstruct, entry.cname),
-                    flags))
-            code.putln(
-                    "{0, 0, 0, 0, 0}")
-            code.putln(
-                "};")
     
     def generate_getset_table(self, env, code):
         if env.property_entries:
@@ -1672,11 +1659,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
-        code.putln("#if PY_MAJOR_VERSION < 3");
-        code.putln("%s = PyString_FromStringAndSize(\"\", 0); %s" % (Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)));
-        code.putln("#else");
-        code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)));
-        code.putln("#endif");
+        code.putln("%s = __Pyx_PyBytes_FromStringAndSize(\"\", 0); %s" % (Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)));
         
         code.putln("#ifdef %s_USED" % Naming.binding_cfunc)
         code.putln("if (%s_init() < 0) %s" % (Naming.binding_cfunc, code.error_goto(self.pos)))

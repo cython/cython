@@ -1,7 +1,8 @@
 # Makefile for creating our standalone Cython program
-PYVERSION=$(shell python -c "import sys; print(sys.version[:3])")
-PYPREFIX=$(shell python -c "import sys; print(sys.prefix)")
-LINKFORSHARED=$(shell python -c "import distutils.sysconfig; print(distutils.sysconfig.get_config_var('LINKFORSHARED'))")
+PYTHON=python
+PYVERSION=$(shell $(PYTHON) -c "import sys; print(sys.version[:3])")
+PYPREFIX=$(shell $(PYTHON) -c "import sys; print(sys.prefix)")
+LINKFORSHARED=$(shell $(PYTHON) -c "import distutils.sysconfig; print(distutils.sysconfig.get_config_var('LINKFORSHARED'))")
 INCLUDES=-I$(PYPREFIX)/include/python$(PYVERSION)
 
 embedded: embedded.o
@@ -11,7 +12,7 @@ embedded.o: embedded.c
 	gcc -c $^ $(INCLUDES)
 
 embedded.c: embedded.pyx
-	@python ../../cython.py --embed embedded.pyx
+	@$(PYTHON) ../../cython.py --embed embedded.pyx
 
 all: embedded
 
@@ -21,4 +22,4 @@ clean:
 
 test: clean all
 	./embedded > test.output
-	python assert_equal.py embedded.output test.output
+	$(PYTHON) assert_equal.py embedded.output test.output

@@ -37,13 +37,18 @@ class CompileError(PyrexError):
     # Deprecated and withdrawn in 2.6:
     #   self.message = message
         if position:
-            pos_str = u"%s:%d:%d: " % (position[0].get_description(), position[1], position[2])
+            pos_str = u"%s:%d:%d: " % (position[0].get_description(),
+                                       position[1], position[2])
             cont = context(position)
         else:
             pos_str = u""
             cont = u''
-        Exception.__init__(self, u'\nError converting Pyrex file to C:\n%s\n%s%s' % (
-            cont, pos_str, message))
+        if position is None:
+            Exception.__init__(self, message)
+        else:
+            Exception.__init__(
+                self, u'\nError converting Pyrex file to C:\n%s\n%s%s' % (
+                cont, pos_str, message))
 
 class CompileWarning(PyrexWarning):
     
@@ -132,7 +137,9 @@ def report_error(err):
 
 def error(position, message):
     #print "Errors.error:", repr(position), repr(message) ###
-    err = CompileError(position, message)
+    if position is None:
+        raise InternalError(message)
+    err = CompileError(position, message)    
     #if position is not None: raise Exception(err) # debug
     report_error(err)
     return err

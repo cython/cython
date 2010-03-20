@@ -10,13 +10,15 @@ import codecs
 from time import time
 
 import cython
-cython.declare(EncodedString=object, string_prefixes=object, raw_prefixes=object, IDENT=object)
+cython.declare(EncodedString=object, string_prefixes=object, raw_prefixes=object, IDENT=object,
+               print_function=object)
 
 from Cython import Plex, Utils
 from Cython.Plex.Scanners import Scanner
 from Cython.Plex.Errors import UnrecognizedInput
 from Errors import CompileError, error
 from Lexicon import string_prefixes, raw_prefixes, make_lexicon, IDENT
+from Future import print_function
 
 from StringEncoding import EncodedString
 
@@ -35,13 +37,17 @@ def get_lexicon():
     
 #------------------------------------------------------------------
 
-reserved_words = [
-    "global", "include", "ctypedef", "cdef", "def", "class",
-    "print", "del", "pass", "break", "continue", "return",
-    "raise", "import", "exec", "try", "except", "finally",
-    "while", "if", "elif", "else", "for", "in", "assert",
-    "and", "or", "not", "is", "in", "lambda", "from", "yield",
-    "cimport", "by", "with", "cpdef", "DEF", "IF", "ELIF", "ELSE"
+py_reserved_words = [
+    "global", "def", "class", "print", "del", "pass", "break",
+    "continue", "return", "raise", "import", "exec", "try",
+    "except", "finally", "while", "if", "elif", "else", "for",
+    "in", "assert", "and", "or", "not", "is", "in", "lambda",
+    "from", "yield", "with", "nonlocal",
+]
+
+pyx_reserved_words = py_reserved_words + [
+    "include", "ctypedef", "cdef", "cpdef",
+    "cimport", "by", "DEF", "IF", "ELIF", "ELSE"
 ]
 
 class Method(object):
@@ -52,17 +58,6 @@ class Method(object):
     
     def __call__(self, stream, text):
         return getattr(stream, self.name)(text)
-
-#------------------------------------------------------------------
-
-def build_resword_dict():
-    d = {}
-    for word in reserved_words:
-        d[word] = 1
-    return d
-
-cython.declare(resword_dict=object)
-resword_dict = build_resword_dict()
 
 #------------------------------------------------------------------
 
@@ -121,11 +116,23 @@ class SourceDescriptor(object):
     """
     A SourceDescriptor should be considered immutable.
     """
+    _file_type = 'pyx'
+
     _escaped_description = None
     _cmp_name = ''
     def __str__(self):
         assert False # To catch all places where a descriptor is used directly as a filename
-    
+
+    def set_file_type_from_name(self, filename):
+        name, ext = os.path.splitext(filename)
+        self._file_type = ext in ('.pyx', '.pxd', '.py') and ext[1:] or 'pyx'
+
+    def is_cython_file(self):
+        return self._file_type in ('pyx', 'pxd')
+
+    def is_python_file(self):
+        return self._file_type == 'py'
+
     def get_escaped_description(self):
         if self._escaped_description is None:
             self._escaped_description = \
@@ -163,6 +170,7 @@ class FileSourceDescriptor(SourceDescriptor):
     """
     def __init__(self, filename):
         self.filename = filename
+        self.set_file_type_from_name(filename)
         self._cmp_name = filename
     
     def get_lines(self, encoding=None, error_handling=None):
@@ -194,6 +202,7 @@ class StringSourceDescriptor(SourceDescriptor):
     """
     def __init__(self, name, code):
         self.name = name
+        #self.set_file_type_from_name(name)
         self.codelines = [x + "\n" for x in code.split("\n")]
         self._cmp_name = name
     
@@ -245,6 +254,12 @@ class PyrexScanner(Scanner):
             self.compile_time_expr = 0
         self.parse_comments = parse_comments
         self.source_encoding = source_encoding
+        if filename.is_python_file():
+            self.in_python_file = True
+            self.keywords = cython.set(py_reserved_words)
+        else:
+            self.in_python_file = False
+            self.keywords = cython.set(pyx_reserved_words)
         self.trace = trace_scanner
         self.indentation_stack = [0]
         self.indentation_char = None
@@ -344,8 +359,12 @@ class PyrexScanner(Scanner):
         except UnrecognizedInput:
             self.error("Unrecognized character")
         if sy == IDENT:
-            if systring in resword_dict:
-                sy = systring
+            if systring in self.keywords:
+                if systring == 'print' and \
+                       print_function in self.context.future_directives:
+                    systring = EncodedString(systring)
+                else:
+                    sy = systring
             else:
                 systring = EncodedString(systring)
         self.sy = sy

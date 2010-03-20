@@ -3,20 +3,16 @@ from distutils.sysconfig import get_python_lib
 import os, os.path
 import sys
 
-if 'sdist' in sys.argv:
+if 'sdist' in sys.argv and sys.platform != "win32" and sys.version_info >= (2,4):
     # Record the current revision in .hgrev
-    import subprocess # os.popen is cleaner but depricated
+    import subprocess # os.popen is cleaner but deprecated
     changset = subprocess.Popen("hg log --rev tip | grep changeset", 
                                 shell=True,
                                 stdout=subprocess.PIPE).stdout.read()
-    rev = changset.split(':')[-1].strip()
+    rev = changset.decode('ISO-8859-1').split(':')[-1].strip()
     hgrev = open('.hgrev', 'w')
     hgrev.write(rev)
     hgrev.close()
-
-compiler_dir = os.path.join(get_python_lib(prefix=''), 'Cython/Compiler')
-if sys.platform == "win32":
-    compiler_dir = compiler_dir[len(sys.prefix)+1:]
 
 if sys.platform == "darwin":
     # Don't create resource files on OS X tar.
@@ -41,23 +37,35 @@ if sys.version_info[0] >= 3:
     build_py.fixer_names = fixers
     add_command_class("build_py", build_py)
 
+pxd_include_dirs = [
+    directory for directory, dirs, files in os.walk('Cython/Includes')
+    if '__init__.pyx' in files or '__init__.pxd' in files
+    or directory == 'Cython/Includes' ]
+
+pxd_include_patterns = [
+    p+'/*.pxd' for p in pxd_include_dirs ] + [
+    p+'/*.pyx' for p in pxd_include_dirs ]
 
 if sys.version_info < (2,4):
+    install_base_dir = get_python_lib(prefix='')
     import glob
-    cython_dir = os.path.join(get_python_lib(prefix=''), 'Cython')
-    compiler_dir = os.path.join(cython_dir, 'Compiler')
+    patterns = pxd_include_patterns + [
+        'Cython/Plex/*.pxd',
+        'Cython/Compiler/*.pxd',
+        'Cython/Runtime/*.pyx'
+        ]
     setup_args['data_files'] = [
-        (cython_dir, [ f for pattern in
-                       ['Cython/Includes/*.pxd',
-                        'Cython/Plex/*.pxd',
-                        'Cython/Compiler/*.pxd',
-                        'Cython/Runtime/*.pyx']
-                       for f in glob.glob(pattern) ])]
+        (os.path.dirname(os.path.join(install_base_dir, pattern)),
+         [ f for f in glob.glob(pattern) ])
+        for pattern in patterns
+        ]
 else:
-    setup_args['package_data'] = {'Cython' : ['Includes/*.pxd',
-                                              'Plex/*.pxd',
-                                              'Compiler/*.pxd',
-                                              'Runtime/*.pyx']}
+    setup_args['package_data'] = {
+        'Cython.Plex'     : ['*.pxd'],
+        'Cython.Compiler' : ['*.pxd'],
+        'Cython.Runtime'  : ['*.pyx', '*.pxd'],
+        'Cython'          : [ p[7:] for p in pxd_include_patterns ],
+        }
 
 # This dict is used for passing extra arguments that are setuptools 
 # specific to setup

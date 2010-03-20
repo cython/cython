@@ -972,6 +972,11 @@ property NAME:
     def __set__(self, value):
         ATTR = value
     """, level='c_class')
+    basic_property_ro = TreeFragment(u"""
+property NAME:
+    def __get__(self):
+        return ATTR
+    """, level='c_class')
 
     def __call__(self, root):
         self.env_stack = [root.scope]
@@ -1062,12 +1067,9 @@ property NAME:
         # to ensure all CNameDeclaratorNodes are visited.
         self.visitchildren(node)
 
-        if node.need_properties:
-            # cdef public attributes may need type testing on 
-            # assignment, so we create a property accesss
-            # mechanism for them. 
+        if node.properties:
             stats = []
-            for entry in node.need_properties:
+            for entry in node.properties:
                 property = self.create_Property(entry)
                 property.analyse_declarations(node.dest_scope)
                 self.visit(property)
@@ -1077,13 +1079,35 @@ property NAME:
             return None
             
     def create_Property(self, entry):
-        template = self.basic_property
+        if entry.visibility == 'public':
+            template = self.basic_property
+        elif entry.visibility == 'readonly':
+            template = self.basic_property_ro
         property = template.substitute({
                 u"ATTR": AttributeNode(pos=entry.pos,
                                        obj=NameNode(pos=entry.pos, name="self"), 
                                        attribute=entry.name),
             }, pos=entry.pos).stats[0]
         property.name = entry.name
+        # ---------------------------------------
+        # XXX This should go to AutoDocTransforms
+        # ---------------------------------------
+        if (Options.docstrings and 
+            self.current_directives['embedsignature']):
+            attr_name = entry.name
+            type_name = entry.type.declaration_code("", for_display=1)
+            default_value = ''
+            if not entry.type.is_pyobject:
+                type_name = "'%s'" % type_name
+            elif entry.type.is_extension_type:
+                type_name = entry.type.module_name + '.' + type_name
+            if entry.init is not None:
+                default_value = ' = ' + entry.init
+            elif entry.init_to_none:
+                default_value = ' = ' + repr(None)
+            docstring = attr_name + ': ' + type_name + default_value
+            property.doc = EncodedString(docstring)
+        # ---------------------------------------
         return property
 
 class AnalyseExpressionsTransform(CythonTransform):
@@ -1286,6 +1310,8 @@ class TransformBuiltinMethods(EnvTransform):
                 node = BoolNode(node.pos, value=True)
             elif attribute == u'NULL':
                 node = NullNode(node.pos)
+            elif attribute == u'set':
+                node = NameNode(node.pos, name=EncodedString('set'))
             elif not PyrexTypes.parse_basic_type(attribute):
                 error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
         return node
@@ -1347,6 +1373,8 @@ class TransformBuiltinMethods(EnvTransform):
                 else:
                     node = binop_node(node.function.pos, '/', node.args[0], node.args[1])
                     node.cdivision = True
+            elif function == u'set':
+                node.function = NameNode(node.pos, name=EncodedString('set'))
             else:
                 error(node.function.pos, u"'%s' not a valid cython language construct" % function)
         

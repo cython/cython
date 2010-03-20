@@ -428,3 +428,5 @@ def test_point_record():
         test[i].x = i
         test[i].y = -i
     print repr(test).replace('<', '!').replace('>', '!')
+
+include "numpy_common.pxi"

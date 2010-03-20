@@ -893,13 +893,13 @@ class CVarDefNode(StatNode):
     #  declarators   [CDeclaratorNode]
     #  in_pxd        boolean
     #  api           boolean
-    #  need_properties [entry]
+    #  properties    [entry]
 
     #  decorators    [cython.locals(...)] or None 
     #  directive_locals { string : NameNode } locals defined by cython.locals(...)
 
     child_attrs = ["base_type", "declarators"]
-    need_properties = ()
+    properties = ()
     
     decorators = None
     directive_locals = {}
@@ -914,15 +914,12 @@ class CVarDefNode(StatNode):
         # so do conversion ourself rather than rely on the CPython mechanism (through
         # a property; made in AnalyseDeclarationsTransform).
         if (dest_scope.is_c_class_scope
-                and self.visibility == 'public' 
-                and base_type.is_pyobject 
-                and (base_type.is_builtin_type or base_type.is_extension_type)):
-            self.need_properties = []
+            and self.visibility in ('public', 'readonly')):
+            self.properties = []
             need_property = True
-            visibility = 'private'
         else:
             need_property = False
-            visibility = self.visibility
+        visibility = self.visibility
             
         for declarator in self.declarators:
             name_declarator, type = declarator.analyse(base_type, env)
@@ -953,8 +950,7 @@ class CVarDefNode(StatNode):
                 entry = dest_scope.declare_var(name, type, declarator.pos,
                             cname = cname, visibility = visibility, is_cdef = 1)
                 if need_property:
-                    self.need_properties.append(entry)
-                    entry.needs_property = 1
+                    self.properties.append(entry)
     
 
 class CStructOrUnionDefNode(StatNode):
@@ -1028,7 +1024,7 @@ class CppClassNode(CStructOrUnionDefNode):
 
     def analyse_declarations(self, env):
         scope = None
-        if len(self.attributes) != 0:
+        if self.attributes:
             scope = CppClassScope(self.name, env)
         else:
             self.attributes = None
@@ -1788,7 +1784,7 @@ class PyArgDeclNode(Node):
 class DecoratorNode(Node):
     # A decorator
     #
-    # decorator    NameNode or CallNode
+    # decorator    NameNode or CallNode or AttributeNode
     child_attrs = ['decorator']
 
 
@@ -4692,7 +4688,8 @@ class ExceptClauseNode(Node):
         else:
             code.putln("/*except:*/ {")
 
-        if not getattr(self.body, 'stats', True):
+        if not getattr(self.body, 'stats', True) and \
+                self.excinfo_target is None and self.target is None:
             # most simple case: no exception variable, empty body (pass)
             # => reset the exception state, done
             code.putln("PyErr_Restore(0,0,0);")
@@ -5251,6 +5248,12 @@ static PyObject* %s = 0;
 static PyObject* %s = 0;
 #endif
 """ % (Naming.print_function, Naming.print_function_kwargs),
+cleanup = """
+#if PY_MAJOR_VERSION >= 3
+Py_CLEAR(%s);
+Py_CLEAR(%s);
+#endif
+""" % (Naming.print_function, Naming.print_function_kwargs),
 impl = r"""
 #if PY_MAJOR_VERSION < 3
 static PyObject *__Pyx_GetStdout(void) {
@@ -5300,7 +5303,7 @@ static int __Pyx_Print(PyObject* stream, PyObject *arg_tuple, int newline) {
     PyObject* kwargs = 0;
     PyObject* result = 0;
     PyObject* end_string;
-    if (!%(PRINT_FUNCTION)s) {
+    if (unlikely(!%(PRINT_FUNCTION)s)) {
         %(PRINT_FUNCTION)s = __Pyx_GetAttrString(%(BUILTINS)s, "print");
         if (!%(PRINT_FUNCTION)s)
             return -1;
@@ -5311,35 +5314,41 @@ static int __Pyx_Print(PyObject* stream, PyObject *arg_tuple, int newline) {
             return -1;
         if (unlikely(PyDict_SetItemString(kwargs, "file", stream) < 0))
             goto bad;
-        }
-    }
-    if (!newline) {
-        if (!kwargs)
-            kwargs = %(PRINT_KWARGS)s;
-        if (!kwargs) {
-            %(PRINT_KWARGS)s = PyDict_New();
-            if unlikely((!%(PRINT_KWARGS)s))
-                return -1;
-            kwargs = %(PRINT_KWARGS)s;
-        }
-        end_string = PyUnicode_FromStringAndSize(" ", 1);
-        if (unlikely(!end_string))
-            goto bad;
-        if (PyDict_SetItemString(%(PRINT_KWARGS)s, "end", end_string) < 0) {
+        if (!newline) {
+            end_string = PyUnicode_FromStringAndSize(" ", 1);
+            if (unlikely(!end_string))
+                goto bad;
+            if (PyDict_SetItemString(kwargs, "end", end_string) < 0) {
+                Py_DECREF(end_string);
+                goto bad;
+            }
             Py_DECREF(end_string);
-            goto bad;
         }
-        Py_DECREF(end_string);
+    } else if (!newline) {
+        if (unlikely(!%(PRINT_KWARGS)s)) {
+            %(PRINT_KWARGS)s = PyDict_New();
+            if (unlikely(!%(PRINT_KWARGS)s))
+                return -1;
+            end_string = PyUnicode_FromStringAndSize(" ", 1);
+            if (unlikely(!end_string))
+                return -1;
+            if (PyDict_SetItemString(%(PRINT_KWARGS)s, "end", end_string) < 0) {
+                Py_DECREF(end_string);
+                return -1;
+            }
+            Py_DECREF(end_string);
+        }
+        kwargs = %(PRINT_KWARGS)s;
     }
     result = PyObject_Call(%(PRINT_FUNCTION)s, arg_tuple, kwargs);
-    if (unlikely(kwargs) && (kwargs != %(PRINT_FUNCTION)s))
+    if (unlikely(kwargs) && (kwargs != %(PRINT_KWARGS)s))
         Py_DECREF(kwargs);
     if (!result)
         return -1;
     Py_DECREF(result);
     return 0;
 bad:
-    if (kwargs != %(PRINT_FUNCTION)s)
+    if (kwargs != %(PRINT_KWARGS)s)
         Py_XDECREF(kwargs);
     return -1;
 }

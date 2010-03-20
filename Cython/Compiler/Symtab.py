@@ -120,7 +120,7 @@ class Entry(object):
     # inline_func_in_pxd boolean  Hacky special case for inline function in pxd file.
     #                             Ideally this should not be necesarry.
     # assignments      [ExprNode] List of expressions that get assigned to this entry.
-    # might_overflow   boolean    In an arithmatic expression that could cause
+    # might_overflow   boolean    In an arithmetic expression that could cause
     #                             overflow (used for type inference).
 
     inline_func_in_pxd = False
@@ -369,7 +369,7 @@ class Scope(object):
             type = PyrexTypes.create_typedef_type(name, base_type, cname, 
                                                   (visibility == 'extern'))
         except ValueError, e:
-            error(pos, e.message)
+            error(pos, e.args[0])
             type = PyrexTypes.error_type
         entry = self.declare_type(name, type, pos, cname, visibility)
         type.qualified_name = entry.qualified_name
@@ -430,8 +430,6 @@ class Scope(object):
                 if scope:
                     entry.type.scope = scope
                     self.type_entries.append(entry)
-        if not scope and not entry.type.scope:
-            entry.type.scope = CppClassScope(name, self)
         if templates is not None:
             for T in templates:
                 template_entry = entry.type.scope.declare(T.name, T.name, T, None, 'extern')
@@ -618,8 +616,6 @@ class Scope(object):
     def lookup_operator(self, operator, operands):
         if operands[0].type.is_cpp_class:
             obj_type = operands[0].type
-            if obj_type.is_reference:
-                obj_type = obj_type.base_type
             method = obj_type.scope.lookup("operator%s" % operator)
             if method is not None:
                 res = PyrexTypes.best_match(operands[1:], method.all_alternatives())
@@ -706,6 +702,7 @@ class BuiltinScope(Scope):
             var_entry = Entry(python_equiv, python_equiv, py_object_type)
             var_entry.is_variable = 1
             var_entry.is_builtin = 1
+            var_entry.utility_code = utility_code
             entry.as_variable = var_entry
         return entry
         
@@ -715,6 +712,7 @@ class BuiltinScope(Scope):
         type.set_scope(CClassScope(name, outer_scope=None, visibility='extern'))
         self.type_names[name] = 1
         entry = self.declare_type(name, type, None, visibility='extern')
+        entry.utility_code = utility_code
 
         var_entry = Entry(name = entry.name,
             type = self.lookup('type').type, # make sure "type" is the first type declared...
@@ -806,7 +804,7 @@ class ModuleScope(Scope):
         self.doc_cname = Naming.moddoc_cname
         self.utility_code_list = []
         self.module_entries = {}
-        self.python_include_files = ["Python.h", "structmember.h"]
+        self.python_include_files = ["Python.h"]
         self.include_files = []
         self.type_names = dict(outer_scope.type_names)
         self.pxd_file_loaded = 0
@@ -963,7 +961,6 @@ class ModuleScope(Scope):
             if visibility != 'public':
                 warning(pos, "ctypedef only valid for public and extern classes", 2)
             objtypedef_cname = objstruct_cname
-            objstruct_cname = None
             typedef_flag = 0
         else:
             objtypedef_cname = None
@@ -1293,10 +1290,10 @@ class StructOrUnionScope(Scope):
         self.var_entries.append(entry)
         if type.is_pyobject and not allow_pyobject:
             error(pos,
-                "C struct/union member cannot be a Python object")
+                  "C struct/union member cannot be a Python object")
         if visibility != 'private':
             error(pos,
-                "C struct/union member cannot be declared %s" % visibility)
+                  "C struct/union member cannot be declared %s" % visibility)
         return entry
 
     def declare_cfunction(self, name, type, pos, 
@@ -1369,10 +1366,8 @@ class CClassScope(ClassScope):
     #  #typeobj_cname        string or None
     #  #objstruct_cname      string
     #  method_table_cname    string
-    #  member_table_cname    string
     #  getset_table_cname    string
     #  has_pyobject_attrs    boolean  Any PyObject attributes?
-    #  public_attr_entries   boolean  public/readonly attrs
     #  property_entries      [Entry]
     #  defined               boolean  Defined in .pxd file
     #  implemented           boolean  Defined in .pyx file
@@ -1384,10 +1379,8 @@ class CClassScope(ClassScope):
         ClassScope.__init__(self, name, outer_scope)
         if visibility != 'extern':
             self.method_table_cname = outer_scope.mangle(Naming.methtab_prefix, name)
-            self.member_table_cname = outer_scope.mangle(Naming.memtab_prefix, name)
             self.getset_table_cname = outer_scope.mangle(Naming.gstab_prefix, name)
         self.has_pyobject_attrs = 0
-        self.public_attr_entries = []
         self.property_entries = []
         self.inherited_var_entries = []
         self.defined = 0
@@ -1428,16 +1421,14 @@ class CClassScope(ClassScope):
                 error(pos,
                     "Attribute of extension type cannot be declared %s" % visibility)
             if visibility in ('public', 'readonly'):
-                if type.pymemberdef_typecode:
-                    self.public_attr_entries.append(entry)
-                    if name == "__weakref__":
-                        error(pos, "Special attribute __weakref__ cannot be exposed to Python")
-                else:
-                    error(pos,
-                        "C attribute of type '%s' cannot be accessed from Python" % type)
-            if visibility == 'public' and type.is_extension_type:
-                error(pos,
-                    "Non-generic Python attribute cannot be exposed for writing from Python")
+                if name == "__weakref__":
+                    error(pos, "Special attribute __weakref__ cannot be exposed to Python")
+                if not type.is_pyobject:
+                    if (not type.create_to_py_utility_code(self) or
+                        (visibility=='public' and not
+                         type.create_from_py_utility_code(self))):
+                        error(pos,
+                              "C attribute of type '%s' cannot be accessed from Python" % type)
             return entry
         else:
             if type is unspecified_type:
@@ -1488,7 +1479,7 @@ class CClassScope(ClassScope):
         args = type.args
         if not args:
             error(pos, "C method has no self argument")
-        elif not args[0].type.same_as(self.parent_type):
+        elif not self.parent_type.assignable_from(args[0].type):
             error(pos, "Self argument (%s) of C method '%s' does not match parent type (%s)" %
                   (args[0].type, name, self.parent_type))
         entry = self.lookup_here(name)
@@ -1609,7 +1600,6 @@ class CppClassScope(Scope):
                     error(pos, "no matching function for call to " \
                             "%s::%s()" % (temp_entry.scope.name, temp_entry.scope.name))
         elif not self.default_constructor:
-            print 5
             error(pos, "no matching function for call to %s::%s()" %
                   (self.default_constructor, self.default_constructor))
 
@@ -1656,11 +1646,16 @@ class CppClassScope(Scope):
                                     entry.pos,
                                     entry.cname)
             else:
-                scope.declare_var(entry.name,
-                                    entry.type.specialize(values),
-                                    entry.pos,
-                                    entry.cname,
-                                    entry.visibility)
+#                scope.declare_var(entry.name,
+#                                    entry.type.specialize(values),
+#                                    entry.pos,
+#                                    entry.cname,
+#                                    entry.visibility)
+                for e in entry.all_alternatives():
+                    scope.declare_cfunction(e.name,
+                                            e.type.specialize(values),
+                                            e.pos,
+                                            e.cname)
         return scope
         
         
