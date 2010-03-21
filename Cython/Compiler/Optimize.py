@@ -1232,20 +1232,15 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             arg = arg.arg
         if not arg.type.is_string:
             return node
-        if not node.type.is_numeric:
-            # this optimisation only works when we already replaced
-            # len() by PyObject_Length() which returns a Py_ssize_t
-            # instead of a Python object, so we can return a plain
-            # size_t instead without caring about Python object
-            # conversion etc.
-            return node
-        node = ExprNodes.PythonCapiCallNode(
+        new_node = ExprNodes.PythonCapiCallNode(
             node.pos, "strlen", self.Pyx_strlen_func_type,
             args = [arg],
             is_temp = node.is_temp,
             utility_code = include_string_h_utility_code
             )
-        return node
+        if node.type not in (PyrexTypes.c_size_t_type, PyrexTypes.c_py_ssize_t_type):
+            new_node = new_node.coerce_to(node.type, self.env_stack[-1])
+        return new_node
 
     Pyx_Type_func_type = PyrexTypes.CFuncType(
         Builtin.type_type, [
