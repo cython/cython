@@ -1405,8 +1405,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             PyrexTypes.CFuncTypeArg("dict", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("key", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
-            ],
-        exception_value = "NULL")
+            ])
 
     def _handle_simple_method_dict_get(self, node, args, is_unbound_method):
         """Replace dict.get() by a call to PyDict_GetItem().
@@ -1422,19 +1421,68 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             'get', is_unbound_method, args,
             utility_code = dict_getitem_default_utility_code)
 
+    PyUnicode_Splitlines_func_type = PyrexTypes.CFuncType(
+        Builtin.list_type, [
+            PyrexTypes.CFuncTypeArg("str", Builtin.unicode_type, None),
+            PyrexTypes.CFuncTypeArg("keepends", PyrexTypes.c_bint_type, None),
+            ])
+
+    def _handle_simple_method_unicode_splitlines(self, node, args, is_unbound_method):
+        """Replace unicode.splitlines(...) by a direct call to the
+        corresponding C-API function.
+        """
+        if len(args) not in (1,2):
+            self._error_wrong_arg_count('unicode.splitlines', node, args, "1 or 2")
+            return node
+        if len(args) < 2:
+            args.append(ExprNodes.BoolNode(node.pos, value=False))
+        else:
+            args[1] = args[1].coerce_to(PyrexTypes.c_bint_type,
+                                        self.env_stack[-1])
+
+        return self._substitute_method_call(
+            node, "PyUnicode_Splitlines", self.PyUnicode_Splitlines_func_type,
+            'splitlines', is_unbound_method, args)
+
+    PyUnicode_Split_func_type = PyrexTypes.CFuncType(
+        Builtin.list_type, [
+            PyrexTypes.CFuncTypeArg("str", Builtin.unicode_type, None),
+            PyrexTypes.CFuncTypeArg("sep", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("maxsplit", PyrexTypes.c_py_ssize_t_type, None),
+            ]
+        )
+
+    def _handle_simple_method_unicode_split(self, node, args, is_unbound_method):
+        """Replace unicode.split(...) by a direct call to the
+        corresponding C-API function.
+        """
+        if len(args) not in (1,2,3):
+            self._error_wrong_arg_count('unicode.split', node, args, "1-3")
+            return node
+        if len(args) < 2:
+            args.append(ExprNodes.NullNode(node.pos))
+        if len(args) < 3:
+            args.append(ExprNodes.IntNode(
+                node.pos, value="-1", type=PyrexTypes.c_py_ssize_t_type))
+        else:
+            args[2] = args[2].coerce_to(PyrexTypes.c_py_ssize_t_type,
+                                        self.env_stack[-1])
+
+        return self._substitute_method_call(
+            node, "PyUnicode_Split", self.PyUnicode_Split_func_type,
+            'split', is_unbound_method, args)
+
     PyUnicode_AsEncodedString_func_type = PyrexTypes.CFuncType(
         Builtin.bytes_type, [
             PyrexTypes.CFuncTypeArg("obj", Builtin.unicode_type, None),
             PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_char_ptr_type, None),
             PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
-            ],
-        exception_value = "NULL")
+            ])
 
     PyUnicode_AsXyzString_func_type = PyrexTypes.CFuncType(
         Builtin.bytes_type, [
             PyrexTypes.CFuncTypeArg("obj", Builtin.unicode_type, None),
-            ],
-        exception_value = "NULL")
+            ])
 
     _special_encodings = ['UTF8', 'UTF16', 'Latin1', 'ASCII',
                           'unicode_escape', 'raw_unicode_escape']
@@ -1498,8 +1546,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             PyrexTypes.CFuncTypeArg("string", PyrexTypes.c_char_ptr_type, None),
             PyrexTypes.CFuncTypeArg("size", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
-            ],
-        exception_value = "NULL")
+            ])
 
     PyUnicode_Decode_func_type = PyrexTypes.CFuncType(
         Builtin.unicode_type, [
@@ -1507,8 +1554,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             PyrexTypes.CFuncTypeArg("size", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_char_ptr_type, None),
             PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
-            ],
-        exception_value = "NULL")
+            ])
 
     def _handle_simple_method_bytes_decode(self, node, args, is_unbound_method):
         """Replace char*.decode() by a direct C-API call to the
