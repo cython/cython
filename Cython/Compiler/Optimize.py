@@ -937,6 +937,16 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node
         return node.arg
 
+    def visit_CoerceToBooleanNode(self, node):
+        """Drop redundant conversion nodes after tree changes.
+        """
+        self.visitchildren(node)
+        arg = node.arg
+        if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
+            if arg.type in (PyrexTypes.py_object_type, Builtin.bool_type):
+                return arg.arg.coerce_to_boolean(self.env_stack[-1])
+        return node
+
     def visit_CoerceFromPyTypeNode(self, node):
         """Drop redundant conversion nodes after tree changes.
 
@@ -1437,8 +1447,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if len(args) < 2:
             args.append(ExprNodes.BoolNode(node.pos, value=False))
         else:
-            args[1] = args[1].coerce_to(PyrexTypes.c_bint_type,
-                                        self.env_stack[-1])
+            args[1] = args[1].coerce_to_boolean(self.env_stack[-1])
 
         return self._substitute_method_call(
             node, "PyUnicode_Splitlines", self.PyUnicode_Splitlines_func_type,
@@ -1489,6 +1498,54 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         return self._substitute_method_call(
             node, "PyUnicode_Split", self.PyUnicode_Split_func_type,
             'split', is_unbound_method, args)
+
+    PyUnicode_Tailmatch_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_bint_type, [
+            PyrexTypes.CFuncTypeArg("str", Builtin.unicode_type, None),
+            PyrexTypes.CFuncTypeArg("substring", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("end", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("direction", PyrexTypes.c_int_type, None),
+            ],
+        exception_value = '-1')
+
+    def _handle_simple_method_unicode_endswith(self, node, args, is_unbound_method):
+        return self._inject_unicode_tailmatch(
+            node, args, is_unbound_method, 'endswith', +1)
+
+    def _handle_simple_method_unicode_startswith(self, node, args, is_unbound_method):
+        return self._inject_unicode_tailmatch(
+            node, args, is_unbound_method, 'startswith', -1)
+
+    def _inject_unicode_tailmatch(self, node, args, is_unbound_method,
+                                  method_name, direction):
+        """Replace unicode.startswith(...) and unicode.endswith(...)
+        by a direct call to the corresponding C-API function.
+        """
+        if len(args) not in (2,3,4):
+            self._error_wrong_arg_count('unicode.%s' % method_name, node, args, "2-4")
+            return node
+        if len(args) < 3:
+            args.append(ExprNodes.IntNode(
+                node.pos, value="0", type=PyrexTypes.c_py_ssize_t_type))
+        else:
+            args[2] = args[2].coerce_to(PyrexTypes.c_py_ssize_t_type,
+                                        self.env_stack[-1])
+        if len(args) < 4:
+            args.append(ExprNodes.IntNode(
+                node.pos, value="PY_SSIZE_T_MAX", type=PyrexTypes.c_py_ssize_t_type))
+        else:
+            args[3] = args[3].coerce_to(PyrexTypes.c_py_ssize_t_type,
+                                        self.env_stack[-1])
+        args.append(ExprNodes.IntNode(
+            node.pos, value=str(direction), type=PyrexTypes.c_int_type))
+
+        method_call = self._substitute_method_call(
+            node, "__Pyx_PyUnicode_Tailmatch", self.PyUnicode_Tailmatch_func_type,
+            method_name, is_unbound_method, args,
+            utility_code = unicode_tailmatch_utility_code)
+        return ExprNodes.CoerceToPyTypeNode(
+            method_call, self.env_stack[-1], Builtin.bool_type)
 
     PyUnicode_AsEncodedString_func_type = PyrexTypes.CFuncType(
         Builtin.bytes_type, [
@@ -1739,6 +1796,34 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             utility_code = utility_code
             )
 
+
+unicode_tailmatch_utility_code = UtilityCode(
+    # Python's unicode.startswith() and unicode.endswith() support a
+    # tuple of prefixes/suffixes, whereas it's much more common to
+    # test for a single unicode string.
+proto = '''
+static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr, \
+Py_ssize_t start, Py_ssize_t end, int direction);
+''',
+impl = '''
+static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
+                                     Py_ssize_t start, Py_ssize_t end, int direction) {
+    if (unlikely(PyTuple_Check(substr))) {
+        int result;
+        Py_ssize_t i;
+        for (i = 0; i < PyTuple_GET_SIZE(substr); i++) {
+            result = PyUnicode_Tailmatch(s, PyTuple_GET_ITEM(substr, i),
+                                         start, end, direction);
+            if (result) {
+                return result;
+            }
+        }
+        return 0;
+    }
+    return PyUnicode_Tailmatch(s, substr, start, end, direction);
+}
+''',
+)
 
 dict_getitem_default_utility_code = UtilityCode(
 proto = '''

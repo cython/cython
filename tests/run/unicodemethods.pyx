@@ -136,8 +136,7 @@ def splitlines_keep(unicode s, keep):
     return s.splitlines(keep)
 
 @cython.test_fail_if_path_exists(
-# boolean conversion isn't currently smart enough for this ...
-#    "//CoerceToPyTypeNode", "//CoerceFromPyTypeNode",
+    "//CoerceToPyTypeNode", "//CoerceFromPyTypeNode",
     "//CastNode", "//TypecastNode")
 @cython.test_assert_path_exists(
     "//PythonCapiCallNode")
@@ -208,3 +207,124 @@ def join_sep(l):
     ab|jd|sdflk|as|sa|sadas|asdas|fsdf
     """
     return u'|'.join(l)
+
+
+# unicode.startswith(s, prefix, [start, [end]])
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+    "//CoerceFromPyTypeNode",
+    "//CastNode", "//TypecastNode")
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
+def startswith(unicode s, sub):
+    """
+    >>> text.startswith('ab ')
+    True
+    >>> startswith(text, 'ab ')
+    'MATCH'
+    >>> text.startswith('ab X')
+    False
+    >>> startswith(text, 'ab X')
+    'NO MATCH'
+
+    >>> text.startswith(('ab', 'ab '))
+    True
+    >>> startswith(text, ('ab', 'ab '))
+    'MATCH'
+    >>> text.startswith((' ab', 'ab X'))
+    False
+    >>> startswith(text, (' ab', 'ab X'))
+    'NO MATCH'
+    """
+    if s.startswith(sub):
+        return 'MATCH'
+    else:
+        return 'NO MATCH'
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+    "//CastNode", "//TypecastNode")
+@cython.test_assert_path_exists(
+    "//CoerceFromPyTypeNode",
+    "//PythonCapiCallNode")
+def startswith_start_end(unicode s, sub, start, end):
+    """
+    >>> text.startswith('b ', 1, 5)
+    True
+    >>> startswith_start_end(text, 'b ', 1, 5)
+    'MATCH'
+    >>> text.startswith('b X', 1, 5)
+    False
+    >>> startswith_start_end(text, 'b X', 1, 5)
+    'NO MATCH'
+    """
+    if s.startswith(sub, start, end):
+        return 'MATCH'
+    else:
+        return 'NO MATCH'
+
+
+# unicode.endswith(s, prefix, [start, [end]])
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+    "//CoerceFromPyTypeNode",
+    "//CastNode", "//TypecastNode")
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
+def endswith(unicode s, sub):
+    """
+    >>> text.endswith('fsdf ')
+    True
+    >>> endswith(text, 'fsdf ')
+    'MATCH'
+    >>> text.endswith('fsdf X')
+    False
+    >>> endswith(text, 'fsdf X')
+    'NO MATCH'
+
+    >>> text.endswith(('fsdf', 'fsdf '))
+    True
+    >>> endswith(text, ('fsdf', 'fsdf '))
+    'MATCH'
+    >>> text.endswith(('fsdf', 'fsdf X'))
+    False
+    >>> endswith(text, ('fsdf', 'fsdf X'))
+    'NO MATCH'
+    """
+    if s.endswith(sub):
+        return 'MATCH'
+    else:
+        return 'NO MATCH'
+
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode",
+    "//CastNode", "//TypecastNode")
+@cython.test_assert_path_exists(
+    "//CoerceFromPyTypeNode",
+    "//PythonCapiCallNode")
+def endswith_start_end(unicode s, sub, start, end):
+    """
+    >>> text.endswith('fsdf', 10, len(text)-1)
+    True
+    >>> endswith_start_end(text, 'fsdf', 10, len(text)-1)
+    'MATCH'
+    >>> text.endswith('fsdf ', 10, len(text)-1)
+    False
+    >>> endswith_start_end(text, 'fsdf ', 10, len(text)-1)
+    'NO MATCH'
+
+    >>> text.endswith(('fsd', 'fsdf'), 10, len(text)-1)
+    True
+    >>> endswith_start_end(text, ('fsd', 'fsdf'), 10, len(text)-1)
+    'MATCH'
+    >>> text.endswith(('fsdf ', 'fsdf X'), 10, len(text)-1)
+    False
+    >>> endswith_start_end(text, ('fsdf ', 'fsdf X'), 10, len(text)-1)
+    'NO MATCH'
+    """
+    if s.endswith(sub, start, end):
+        return 'MATCH'
+    else:
+        return 'NO MATCH'
