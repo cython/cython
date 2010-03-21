@@ -1542,6 +1542,53 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         return ExprNodes.CoerceToPyTypeNode(
             method_call, self.env_stack[-1], Builtin.bool_type)
 
+    PyUnicode_Find_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_py_ssize_t_type, [
+            PyrexTypes.CFuncTypeArg("str", Builtin.unicode_type, None),
+            PyrexTypes.CFuncTypeArg("substring", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("end", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("direction", PyrexTypes.c_int_type, None),
+            ],
+        exception_value = '-2')
+
+    def _handle_simple_method_unicode_find(self, node, args, is_unbound_method):
+        return self._inject_unicode_find(
+            node, args, is_unbound_method, 'find', +1)
+
+    def _handle_simple_method_unicode_rfind(self, node, args, is_unbound_method):
+        return self._inject_unicode_find(
+            node, args, is_unbound_method, 'rfind', -1)
+
+    def _inject_unicode_find(self, node, args, is_unbound_method,
+                             method_name, direction):
+        """Replace unicode.find(...) and unicode.rfind(...) by a
+        direct call to the corresponding C-API function.
+        """
+        if len(args) not in (2,3,4):
+            self._error_wrong_arg_count('unicode.%s' % method_name, node, args, "2-4")
+            return node
+        if len(args) < 3:
+            args.append(ExprNodes.IntNode(
+                node.pos, value="0", type=PyrexTypes.c_py_ssize_t_type))
+        else:
+            args[2] = args[2].coerce_to(PyrexTypes.c_py_ssize_t_type,
+                                        self.env_stack[-1])
+        if len(args) < 4:
+            args.append(ExprNodes.IntNode(
+                node.pos, value="PY_SSIZE_T_MAX", type=PyrexTypes.c_py_ssize_t_type))
+        else:
+            args[3] = args[3].coerce_to(PyrexTypes.c_py_ssize_t_type,
+                                        self.env_stack[-1])
+        args.append(ExprNodes.IntNode(
+            node.pos, value=str(direction), type=PyrexTypes.c_int_type))
+
+        method_call = self._substitute_method_call(
+            node, "PyUnicode_Find", self.PyUnicode_Find_func_type,
+            method_name, is_unbound_method, args)
+        return ExprNodes.CoerceToPyTypeNode(
+            method_call, self.env_stack[-1], PyrexTypes.py_object_type)
+
     PyUnicode_AsEncodedString_func_type = PyrexTypes.CFuncType(
         Builtin.bytes_type, [
             PyrexTypes.CFuncTypeArg("obj", Builtin.unicode_type, None),

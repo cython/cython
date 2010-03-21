@@ -328,3 +328,73 @@ def endswith_start_end(unicode s, sub, start, end):
         return 'MATCH'
     else:
         return 'NO MATCH'
+
+
+# unicode.find(s, sub, [start, [end]])
+
+@cython.test_fail_if_path_exists(
+#    "//CoerceFromPyTypeNode",
+    "//CastNode", "//TypecastNode")
+@cython.test_assert_path_exists(
+    "//CoerceToPyTypeNode",
+    "//PythonCapiCallNode")
+def find(unicode s, substring):
+    """
+    >>> text.find('sa')
+    16
+    >>> find(text, 'sa')
+    16
+    """
+    cdef Py_ssize_t pos = s.find(substring)
+    return pos
+
+@cython.test_fail_if_path_exists(
+#    "//CoerceFromPyTypeNode",
+    "//CastNode", "//TypecastNode")
+@cython.test_assert_path_exists(
+    "//CoerceToPyTypeNode",
+    "//PythonCapiCallNode")
+def find_start_end(unicode s, substring, start, end):
+    """
+    >>> text.find('sa', 17, 25)
+    20
+    >>> find_start_end(text, 'sa', 17, 25)
+    20
+    """
+    cdef Py_ssize_t pos = s.find(substring, start, end)
+    return pos
+
+
+# unicode.rfind(s, sub, [start, [end]])
+
+@cython.test_fail_if_path_exists(
+#    "//CoerceFromPyTypeNode",
+    "//CastNode", "//TypecastNode")
+@cython.test_assert_path_exists(
+    "//CoerceToPyTypeNode",
+    "//PythonCapiCallNode")
+def rfind(unicode s, substring):
+    """
+    >>> text.rfind('sa')
+    20
+    >>> rfind(text, 'sa')
+    20
+    """
+    cdef Py_ssize_t pos = s.rfind(substring)
+    return pos
+
+@cython.test_fail_if_path_exists(
+#    "//CoerceFromPyTypeNode",
+    "//CastNode", "//TypecastNode")
+@cython.test_assert_path_exists(
+    "//CoerceToPyTypeNode",
+    "//PythonCapiCallNode")
+def rfind_start_end(unicode s, substring, start, end):
+    """
+    >>> text.rfind('sa', 14, 19)
+    16
+    >>> rfind_start_end(text, 'sa', 14, 19)
+    16
+    """
+    cdef Py_ssize_t pos = s.rfind(substring, start, end)
+    return pos
