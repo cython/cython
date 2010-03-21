@@ -434,3 +434,34 @@ def count_start_end(unicode s, substring, start, end):
     """
     cdef Py_ssize_t pos = s.count(substring, start, end)
     return pos
+
+
+# unicode.replace(s, sub, repl, [maxcount])
+
+@cython.test_fail_if_path_exists(
+    "//CoerceFromPyTypeNode",
+    "//CastNode", "//TypecastNode")
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
+def replace(unicode s, substring, repl):
+    """
+    >>> print( text.replace('sa', 'SA') )
+    ab jd  sdflk as SA  SAdas asdas fsdf 
+    >>> print( replace(text, 'sa', 'SA') )
+    ab jd  sdflk as SA  SAdas asdas fsdf 
+    """
+    return s.replace(substring, repl)
+
+@cython.test_fail_if_path_exists(
+    "//CastNode", "//TypecastNode")
+@cython.test_assert_path_exists(
+    "//CoerceFromPyTypeNode",
+    "//PythonCapiCallNode")
+def replace_maxcount(unicode s, substring, repl, maxcount):
+    """
+    >>> print( text.replace('sa', 'SA', 1) )
+    ab jd  sdflk as SA  sadas asdas fsdf 
+    >>> print( replace_maxcount(text, 'sa', 'SA', 1) )
+    ab jd  sdflk as SA  sadas asdas fsdf 
+    """
+    return s.replace(substring, repl, maxcount)

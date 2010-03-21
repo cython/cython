@@ -1629,6 +1629,32 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         return ExprNodes.CoerceToPyTypeNode(
             method_call, self.env_stack[-1], PyrexTypes.py_object_type)
 
+    PyUnicode_Replace_func_type = PyrexTypes.CFuncType(
+        Builtin.unicode_type, [
+            PyrexTypes.CFuncTypeArg("str", Builtin.unicode_type, None),
+            PyrexTypes.CFuncTypeArg("substring", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("replstr", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("maxcount", PyrexTypes.c_py_ssize_t_type, None),
+            ])
+
+    def _handle_simple_method_unicode_replace(self, node, args, is_unbound_method):
+        """Replace unicode.replace(...) by a direct call to the
+        corresponding C-API function.
+        """
+        if len(args) not in (3,4):
+            self._error_wrong_arg_count('unicode.replace', node, args, "3-4")
+            return node
+        if len(args) < 4:
+            args.append(ExprNodes.IntNode(
+                node.pos, value="-1", type=PyrexTypes.c_py_ssize_t_type))
+        else:
+            args[3] = args[3].coerce_to(PyrexTypes.c_py_ssize_t_type,
+                                        self.env_stack[-1])
+
+        return self._substitute_method_call(
+            node, "PyUnicode_Replace", self.PyUnicode_Replace_func_type,
+            'replace', is_unbound_method, args)
+
     PyUnicode_AsEncodedString_func_type = PyrexTypes.CFuncType(
         Builtin.bytes_type, [
             PyrexTypes.CFuncTypeArg("obj", Builtin.unicode_type, None),
