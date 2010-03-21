@@ -962,6 +962,11 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 return arg
             else:
                 return arg.coerce_to(node.type, self.env_stack[-1])
+        if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
+            if arg.type is PyrexTypes.py_object_type:
+                if node.type.assignable_from(arg.arg.type):
+                    # completely redundant C->Py->C coercion
+                    return arg.arg.coerce_to(node.type, self.env_stack[-1])
         if not isinstance(arg, ExprNodes.SimpleCallNode):
             return node
         if not (node.type.is_int or node.type.is_float):
