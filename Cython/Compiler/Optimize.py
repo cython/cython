@@ -1720,7 +1720,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                                 attr_name, is_unbound_method, args=(),
                                 utility_code=None):
         args = list(args)
-        if args:
+        if args and not args[0].is_literal:
             self_arg = args[0]
             if is_unbound_method:
                 self_arg = ExprNodes.NoneCheckNode(
