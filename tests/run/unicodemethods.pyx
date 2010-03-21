@@ -17,6 +17,8 @@ def print_all(l):
 
 # unicode.split(s, [sep, [maxsplit]])
 
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
 def split(unicode s):
     """
     >>> print_all( text.split() )
@@ -40,6 +42,8 @@ def split(unicode s):
     """
     return s.split()
 
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
 def split_sep(unicode s, sep):
     """
     >>> print_all( text.split(sep) )
@@ -57,7 +61,8 @@ def split_sep(unicode s, sep):
     "//CoerceToPyTypeNode",
     "//CastNode", "//TypecastNode")
 @cython.test_assert_path_exists(
-    "//CoerceFromPyTypeNode")
+    "//CoerceFromPyTypeNode",
+    "//PythonCapiCallNode")
 def split_sep_max(unicode s, sep, max):
     """
     >>> print_all( text.split(sep, 1) )
@@ -72,6 +77,8 @@ def split_sep_max(unicode s, sep, max):
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode", "//CoerceFromPyTypeNode",
     "//CastNode", "//TypecastNode")
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
 def split_sep_max_int(unicode s, sep):
     """
     >>> print_all( text.split(sep, 1) )
@@ -86,6 +93,8 @@ def split_sep_max_int(unicode s, sep):
 
 # unicode.splitlines(s, [keepends])
 
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
 def splitlines(unicode s):
     """
     >>> len(multiline_text.splitlines())
@@ -103,6 +112,8 @@ def splitlines(unicode s):
     """
     return s.splitlines()
 
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
 def splitlines_keep(unicode s, keep):
     """
     >>> len(multiline_text.splitlines(True))
@@ -128,6 +139,8 @@ def splitlines_keep(unicode s, keep):
 # boolean conversion isn't currently smart enough for this ...
 #    "//CoerceToPyTypeNode", "//CoerceFromPyTypeNode",
     "//CastNode", "//TypecastNode")
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
 def splitlines_keep_bint(unicode s):
     """
     >>> len(multiline_text.splitlines(True))
@@ -162,6 +175,11 @@ def splitlines_keep_bint(unicode s):
 
 pipe_sep = u'|'
 
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode", "//CoerceFromPyTypeNode",
+    "//CastNode", "//TypecastNode")
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
 def join(unicode sep, l):
     """
     >>> l = text.split()
@@ -174,6 +192,11 @@ def join(unicode sep, l):
     """
     return sep.join(l)
 
+@cython.test_fail_if_path_exists(
+    "//CoerceToPyTypeNode", "//CoerceFromPyTypeNode",
+    "//CastNode", "//TypecastNode", "//NoneCheckNode")
+@cython.test_assert_path_exists(
+    "//PythonCapiCallNode")
 def join_sep(l):
     """
     >>> l = text.split()
