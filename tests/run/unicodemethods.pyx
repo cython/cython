@@ -333,7 +333,7 @@ def endswith_start_end(unicode s, sub, start, end):
 # unicode.find(s, sub, [start, [end]])
 
 @cython.test_fail_if_path_exists(
-#    "//CoerceFromPyTypeNode",
+    "//CoerceFromPyTypeNode",
     "//CastNode", "//TypecastNode")
 @cython.test_assert_path_exists(
     "//CoerceToPyTypeNode",
@@ -349,7 +349,6 @@ def find(unicode s, substring):
     return pos
 
 @cython.test_fail_if_path_exists(
-#    "//CoerceFromPyTypeNode",
     "//CastNode", "//TypecastNode")
 @cython.test_assert_path_exists(
     "//CoerceToPyTypeNode",
@@ -368,7 +367,7 @@ def find_start_end(unicode s, substring, start, end):
 # unicode.rfind(s, sub, [start, [end]])
 
 @cython.test_fail_if_path_exists(
-#    "//CoerceFromPyTypeNode",
+    "//CoerceFromPyTypeNode",
     "//CastNode", "//TypecastNode")
 @cython.test_assert_path_exists(
     "//CoerceToPyTypeNode",
@@ -384,7 +383,6 @@ def rfind(unicode s, substring):
     return pos
 
 @cython.test_fail_if_path_exists(
-#    "//CoerceFromPyTypeNode",
     "//CastNode", "//TypecastNode")
 @cython.test_assert_path_exists(
     "//CoerceToPyTypeNode",
@@ -397,4 +395,42 @@ def rfind_start_end(unicode s, substring, start, end):
     16
     """
     cdef Py_ssize_t pos = s.rfind(substring, start, end)
+    return pos
+
+
+# unicode.count(s, sub, [start, [end]])
+
+@cython.test_fail_if_path_exists(
+    "//CoerceFromPyTypeNode",
+    "//CastNode", "//TypecastNode")
+@cython.test_assert_path_exists(
+    "//CoerceToPyTypeNode",
+    "//PythonCapiCallNode")
+def count(unicode s, substring):
+    """
+    >>> text.count('sa')
+    2
+    >>> count(text, 'sa')
+    2
+    """
+    cdef Py_ssize_t pos = s.count(substring)
+    return pos
+
+@cython.test_fail_if_path_exists(
+    "//CastNode", "//TypecastNode")
+@cython.test_assert_path_exists(
+    "//CoerceToPyTypeNode",
+    "//PythonCapiCallNode")
+def count_start_end(unicode s, substring, start, end):
+    """
+    >>> text.count('sa', 14, 21)
+    1
+    >>> text.count('sa', 14, 22)
+    2
+    >>> count_start_end(text, 'sa', 14, 21)
+    1
+    >>> count_start_end(text, 'sa', 14, 22)
+    2
+    """
+    cdef Py_ssize_t pos = s.count(substring, start, end)
     return pos
