@@ -907,6 +907,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         arg_tuple = node.positional_args
         if not isinstance(arg_tuple, ExprNodes.TupleNode):
             return node
+        if node.starstar_arg:
+            return node
         args = arg_tuple.args
         return self._dispatch_to_handler(
             node, function, args, node.keyword_args)
