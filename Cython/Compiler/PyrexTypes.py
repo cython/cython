@@ -2464,10 +2464,12 @@ type_conversion_predeclarations = """
 #define __Pyx_PyBytes_FromString          PyString_FromString
 #define __Pyx_PyBytes_FromStringAndSize   PyString_FromStringAndSize
 #define __Pyx_PyBytes_AsString            PyString_AsString
+#define __Pyx_PyBytes_GET_SIZE            PyString_GET_SIZE
 #else
 #define __Pyx_PyBytes_FromString          PyBytes_FromString
 #define __Pyx_PyBytes_FromStringAndSize   PyBytes_FromStringAndSize
 #define __Pyx_PyBytes_AsString            PyBytes_AsString
+#define __Pyx_PyBytes_GET_SIZE            PyBytes_GET_SIZE
 #endif
 
 #define __Pyx_PyBytes_FromUString(s)      __Pyx_PyBytes_FromString((char*)s)
