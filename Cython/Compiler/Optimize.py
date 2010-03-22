@@ -1262,9 +1262,6 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 is_temp = node.is_temp,
                 utility_code = include_string_h_utility_code)
         elif arg.type.is_pyobject:
-            if isinstance(arg, ExprNodes.NoneNode):
-                error(node.pos, "object of type 'NoneType' has no len()")
-                return node
             cfunc_name = self._map_to_capi_len_function(arg.type)
             if cfunc_name is None:
                 return node
