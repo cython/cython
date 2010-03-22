@@ -1230,6 +1230,22 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_char_ptr_type, None)
             ])
 
+    PyObject_Size_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_py_ssize_t_type, [
+            PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None)
+            ])
+
+    _map_to_capi_len_function = {
+        Builtin.unicode_type   : "PyUnicode_GET_SIZE",
+        Builtin.str_type       : "Py_SIZE",
+        Builtin.bytes_type     : "__Pyx_PyBytes_GET_SIZE",
+        Builtin.list_type      : "PyList_GET_SIZE",
+        Builtin.tuple_type     : "PyTuple_GET_SIZE",
+        Builtin.dict_type      : "PyDict_Size",
+        Builtin.set_type       : "PySet_Size",
+        Builtin.frozenset_type : "PySet_Size",
+        }.get
+
     def _handle_simple_function_len(self, node, pos_args):
         """Replace len(char*) by the equivalent call to strlen().
         """
@@ -1239,14 +1255,29 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         arg = pos_args[0]
         if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             arg = arg.arg
-        if not arg.type.is_string:
+        if arg.type.is_string:
+            new_node = ExprNodes.PythonCapiCallNode(
+                node.pos, "strlen", self.Pyx_strlen_func_type,
+                args = [arg],
+                is_temp = node.is_temp,
+                utility_code = include_string_h_utility_code)
+        elif arg.type.is_pyobject:
+            if isinstance(arg, ExprNodes.NoneNode):
+                error(node.pos, "object of type 'NoneType' has no len()")
+                return node
+            cfunc_name = self._map_to_capi_len_function(arg.type)
+            if cfunc_name is None:
+                return node
+            if not arg.is_literal:
+                arg = ExprNodes.NoneCheckNode(
+                    arg, "PyExc_TypeError",
+                    "object of type 'NoneType' has no len()")
+            new_node = ExprNodes.PythonCapiCallNode(
+                node.pos, cfunc_name, self.PyObject_Size_func_type,
+                args = [arg],
+                is_temp = node.is_temp)
+        else:
             return node
-        new_node = ExprNodes.PythonCapiCallNode(
-            node.pos, "strlen", self.Pyx_strlen_func_type,
-            args = [arg],
-            is_temp = node.is_temp,
-            utility_code = include_string_h_utility_code
-            )
         if node.type not in (PyrexTypes.c_size_t_type, PyrexTypes.c_py_ssize_t_type):
             new_node = new_node.coerce_to(node.type, self.env_stack[-1])
         return new_node
