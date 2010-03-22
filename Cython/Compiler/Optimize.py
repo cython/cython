@@ -967,10 +967,12 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 if node.type.assignable_from(arg.arg.type):
                     # completely redundant C->Py->C coercion
                     return arg.arg.coerce_to(node.type, self.env_stack[-1])
-        if not isinstance(arg, ExprNodes.SimpleCallNode):
-            return node
-        if not (node.type.is_int or node.type.is_float):
-            return node
+        if isinstance(arg, ExprNodes.SimpleCallNode):
+            if node.type.is_int or node.type.is_float:
+                return self._optimise_numeric_cast_call(node, arg)
+        return node
+
+    def _optimise_numeric_cast_call(self, node, arg):
         function = arg.function
         if not isinstance(function, ExprNodes.NameNode) \
                or not function.type.is_builtin_type \
