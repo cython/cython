@@ -1435,6 +1435,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             'get', is_unbound_method, args,
             utility_code = dict_getitem_default_utility_code)
 
+
+    ### unicode type methods
+
     PyUnicode_Splitlines_func_type = PyrexTypes.CFuncType(
         Builtin.list_type, [
             PyrexTypes.CFuncTypeArg("str", Builtin.unicode_type, None),
@@ -1448,10 +1451,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if len(args) not in (1,2):
             self._error_wrong_arg_count('unicode.splitlines', node, args, "1 or 2")
             return node
-        if len(args) < 2:
-            args.append(ExprNodes.BoolNode(node.pos, value=False))
-        else:
-            args[1] = args[1].coerce_to_boolean(self.env_stack[-1])
+        self._inject_bint_default_argument(node, args, 1, False)
 
         return self._substitute_method_call(
             node, "PyUnicode_Splitlines", self.PyUnicode_Splitlines_func_type,
@@ -1492,12 +1492,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node
         if len(args) < 2:
             args.append(ExprNodes.NullNode(node.pos))
-        if len(args) < 3:
-            args.append(ExprNodes.IntNode(
-                node.pos, value="-1", type=PyrexTypes.c_py_ssize_t_type))
-        else:
-            args[2] = args[2].coerce_to(PyrexTypes.c_py_ssize_t_type,
-                                        self.env_stack[-1])
+        self._inject_int_default_argument(
+            node, args, 2, PyrexTypes.c_py_ssize_t_type, "-1")
 
         return self._substitute_method_call(
             node, "PyUnicode_Split", self.PyUnicode_Split_func_type,
@@ -1529,18 +1525,10 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if len(args) not in (2,3,4):
             self._error_wrong_arg_count('unicode.%s' % method_name, node, args, "2-4")
             return node
-        if len(args) < 3:
-            args.append(ExprNodes.IntNode(
-                node.pos, value="0", type=PyrexTypes.c_py_ssize_t_type))
-        else:
-            args[2] = args[2].coerce_to(PyrexTypes.c_py_ssize_t_type,
-                                        self.env_stack[-1])
-        if len(args) < 4:
-            args.append(ExprNodes.IntNode(
-                node.pos, value="PY_SSIZE_T_MAX", type=PyrexTypes.c_py_ssize_t_type))
-        else:
-            args[3] = args[3].coerce_to(PyrexTypes.c_py_ssize_t_type,
-                                        self.env_stack[-1])
+        self._inject_int_default_argument(
+            node, args, 2, PyrexTypes.c_py_ssize_t_type, "0")
+        self._inject_int_default_argument(
+            node, args, 3, PyrexTypes.c_py_ssize_t_type, "PY_SSIZE_T_MAX")
         args.append(ExprNodes.IntNode(
             node.pos, value=str(direction), type=PyrexTypes.c_int_type))
 
@@ -1577,18 +1565,10 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if len(args) not in (2,3,4):
             self._error_wrong_arg_count('unicode.%s' % method_name, node, args, "2-4")
             return node
-        if len(args) < 3:
-            args.append(ExprNodes.IntNode(
-                node.pos, value="0", type=PyrexTypes.c_py_ssize_t_type))
-        else:
-            args[2] = args[2].coerce_to(PyrexTypes.c_py_ssize_t_type,
-                                        self.env_stack[-1])
-        if len(args) < 4:
-            args.append(ExprNodes.IntNode(
-                node.pos, value="PY_SSIZE_T_MAX", type=PyrexTypes.c_py_ssize_t_type))
-        else:
-            args[3] = args[3].coerce_to(PyrexTypes.c_py_ssize_t_type,
-                                        self.env_stack[-1])
+        self._inject_int_default_argument(
+            node, args, 2, PyrexTypes.c_py_ssize_t_type, "0")
+        self._inject_int_default_argument(
+            node, args, 3, PyrexTypes.c_py_ssize_t_type, "PY_SSIZE_T_MAX")
         args.append(ExprNodes.IntNode(
             node.pos, value=str(direction), type=PyrexTypes.c_int_type))
 
@@ -1614,18 +1594,10 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if len(args) not in (2,3,4):
             self._error_wrong_arg_count('unicode.count', node, args, "2-4")
             return node
-        if len(args) < 3:
-            args.append(ExprNodes.IntNode(
-                node.pos, value="0", type=PyrexTypes.c_py_ssize_t_type))
-        else:
-            args[2] = args[2].coerce_to(PyrexTypes.c_py_ssize_t_type,
-                                        self.env_stack[-1])
-        if len(args) < 4:
-            args.append(ExprNodes.IntNode(
-                node.pos, value="PY_SSIZE_T_MAX", type=PyrexTypes.c_py_ssize_t_type))
-        else:
-            args[3] = args[3].coerce_to(PyrexTypes.c_py_ssize_t_type,
-                                        self.env_stack[-1])
+        self._inject_int_default_argument(
+            node, args, 2, PyrexTypes.c_py_ssize_t_type, "0")
+        self._inject_int_default_argument(
+            node, args, 3, PyrexTypes.c_py_ssize_t_type, "PY_SSIZE_T_MAX")
 
         method_call = self._substitute_method_call(
             node, "PyUnicode_Count", self.PyUnicode_Count_func_type,
@@ -1648,12 +1620,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if len(args) not in (3,4):
             self._error_wrong_arg_count('unicode.replace', node, args, "3-4")
             return node
-        if len(args) < 4:
-            args.append(ExprNodes.IntNode(
-                node.pos, value="-1", type=PyrexTypes.c_py_ssize_t_type))
-        else:
-            args[3] = args[3].coerce_to(PyrexTypes.c_py_ssize_t_type,
-                                        self.env_stack[-1])
+        self._inject_int_default_argument(
+            node, args, 3, PyrexTypes.c_py_ssize_t_type, "-1")
 
         return self._substitute_method_call(
             node, "PyUnicode_Replace", self.PyUnicode_Replace_func_type,
@@ -1885,6 +1853,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
         return (encoding, encoding_node, error_handling, error_handling_node)
 
+
+    ### helpers
+
     def _substitute_method_call(self, node, name, func_type,
                                 attr_name, is_unbound_method, args=(),
                                 utility_code=None):
@@ -1907,6 +1878,20 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             is_temp = node.is_temp,
             utility_code = utility_code
             )
+
+    def _inject_int_default_argument(self, node, args, arg_index, type, default_value):
+        assert len(args) >= arg_index
+        if len(args) == arg_index:
+            args.append(ExprNodes.IntNode(node.pos, value=str(default_value), type=type))
+        else:
+            args[arg_index] = args[arg_index].coerce_to(type, self.env_stack[-1])
+
+    def _inject_bint_default_argument(self, node, args, arg_index, default_value):
+        assert len(args) >= arg_index
+        if len(args) == arg_index:
+            args.append(ExprNodes.BoolNode(node.pos, value=bool(default_value)))
+        else:
+            args[arg_index] = args[arg_index].coerce_to_boolean(self.env_stack[-1])
 
 
 unicode_tailmatch_utility_code = UtilityCode(
