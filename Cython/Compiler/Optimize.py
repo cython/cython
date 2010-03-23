@@ -1237,7 +1237,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
     _map_to_capi_len_function = {
         Builtin.unicode_type   : "PyUnicode_GET_SIZE",
-        Builtin.str_type       : "Py_SIZE",
+        Builtin.str_type       : "Py_SIZE", # works in Py2 and Py3
         Builtin.bytes_type     : "__Pyx_PyBytes_GET_SIZE",
         Builtin.list_type      : "PyList_GET_SIZE",
         Builtin.tuple_type     : "PyTuple_GET_SIZE",
@@ -1247,7 +1247,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         }.get
 
     def _handle_simple_function_len(self, node, pos_args):
-        """Replace len(char*) by the equivalent call to strlen().
+        """Replace len(char*) by the equivalent call to strlen() and
+        len(known_builtin_type) by an equivalent C-API call.
         """
         if len(pos_args) != 1:
             self._error_wrong_arg_count('len', node, pos_args, 1)
