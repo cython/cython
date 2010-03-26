@@ -2180,7 +2180,11 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
         PyOS_snprintf(warning, sizeof(warning), 
             "%s.%s size changed, may indicate binary incompatibility",
             module_name, class_name);
+        #if PY_VERSION_HEX < 0x02050000
+        PyErr_Warn(NULL, warning);
+        #else
         PyErr_WarnEx(NULL, warning, 0);
+        #endif
     }
     else if (((PyTypeObject *)result)->tp_basicsize != size) {
         PyErr_Format(PyExc_ValueError, 
