@@ -526,12 +526,12 @@ class SwitchTransform(Visitor.VisitorTransform):
             if is_common_value(cond.operand1, cond.operand1):
                 if cond.operand2.is_literal:
                     return cond.operand1, [cond.operand2]
-                elif hasattr(cond.operand2, 'entry') and cond.operand2.entry and cond.operand2.entry.is_const:
+                elif getattr(cond.operand2, 'entry', None) and cond.operand2.entry.is_const:
                     return cond.operand1, [cond.operand2]
             if is_common_value(cond.operand2, cond.operand2):
                 if cond.operand1.is_literal:
                     return cond.operand2, [cond.operand1]
-                elif hasattr(cond.operand1, 'entry') and cond.operand1.entry and cond.operand1.entry.is_const:
+                elif getattr(cond.operand1, 'entry', None) and cond.operand1.entry.is_const:
                     return cond.operand2, [cond.operand1]
         elif (isinstance(cond, ExprNodes.BoolBinopNode) 
                 and cond.operator == 'or'):
