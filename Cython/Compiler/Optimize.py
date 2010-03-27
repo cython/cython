@@ -591,7 +591,9 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         else:
             return node
 
-        if not isinstance(node.operand2, (ExprNodes.TupleNode, ExprNodes.ListNode)):
+        if not isinstance(node.operand2, (ExprNodes.TupleNode,
+                                          ExprNodes.ListNode,
+                                          ExprNodes.SetNode)):
             return node
 
         args = node.operand2.args

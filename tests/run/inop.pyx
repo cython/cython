@@ -52,14 +52,34 @@ def k(a):
     cdef int result = a in [1,2,3,4]
     return result
 
-def m(int a):
+def m_list(int a):
     """
-    >>> m(2)
+    >>> m_list(2)
     1
-    >>> m(5)
+    >>> m_list(5)
     0
     """
     cdef int result = a in [1,2,3,4]
+    return result
+
+def m_tuple(int a):
+    """
+    >>> m_tuple(2)
+    1
+    >>> m_tuple(5)
+    0
+    """
+    cdef int result = a in (1,2,3,4)
+    return result
+
+def m_set(int a):
+    """
+    >>> m_set(2)
+    1
+    >>> m_set(5)
+    0
+    """
+    cdef int result = a in {1,2,3,4}
     return result
 
 def n(a):
