@@ -540,34 +540,101 @@ class SwitchTransform(Visitor.VisitorTransform):
             if is_common_value(t1, t2):
                 return t1, c1+c2
         return None, None
-        
+
+    def extract_common_conditions(self, common_var, condition):
+        var, conditions = self.extract_conditions(condition)
+        if var is None:
+            return None, None
+        elif common_var is not None and not is_common_value(var, common_var):
+            return None, None
+        elif not var.type.is_int or sum([not cond.type.is_int for cond in conditions]):
+            return None, None
+        return var, conditions
+
     def visit_IfStatNode(self, node):
-        self.visitchildren(node)
         common_var = None
-        case_count = 0
         cases = []
         for if_clause in node.if_clauses:
-            var, conditions = self.extract_conditions(if_clause.condition)
-            if var is None:
+            common_var, conditions = self.extract_common_conditions(
+                common_var, if_clause.condition)
+            if common_var is None:
                 return node
-            elif common_var is not None and not is_common_value(var, common_var):
-                return node
-            elif not var.type.is_int or sum([not cond.type.is_int for cond in conditions]):
-                return node
-            else:
-                common_var = var
-                case_count += len(conditions)
-                cases.append(Nodes.SwitchCaseNode(pos = if_clause.pos,
-                                                  conditions = conditions,
-                                                  body = if_clause.body))
-        if case_count < 2:
+            cases.append(Nodes.SwitchCaseNode(pos = if_clause.pos,
+                                              conditions = conditions,
+                                              body = if_clause.body))
+
+        if sum([ len(case.conditions) for case in cases ]) < 2:
             return node
-        
+
         common_var = unwrap_node(common_var)
-        return Nodes.SwitchStatNode(pos = node.pos,
-                                    test = common_var,
-                                    cases = cases,
-                                    else_clause = node.else_clause)
+        switch_node = Nodes.SwitchStatNode(pos = node.pos,
+                                           test = common_var,
+                                           cases = cases,
+                                           else_clause = node.else_clause)
+        self.visitchildren(switch_node)
+        return switch_node
+
+    def visit_CondExprNode(self, node):
+        common_var, conditions = self.extract_common_conditions(None, node.test)
+        if common_var is None:
+            return node
+        if len(conditions) < 2:
+            return node
+
+        result_ref = UtilNodes.ResultRefNode(node)
+        true_body = Nodes.SingleAssignmentNode(
+            node.pos,
+            lhs = result_ref,
+            rhs = node.true_val,
+            first = True)
+        false_body = Nodes.SingleAssignmentNode(
+            node.pos,
+            lhs = result_ref,
+            rhs = node.false_val,
+            first = True)
+
+        cases = [Nodes.SwitchCaseNode(pos = node.pos,
+                                      conditions = conditions,
+                                      body = true_body)]
+
+        common_var = unwrap_node(common_var)
+        switch_node = Nodes.SwitchStatNode(pos = node.pos,
+                                           test = common_var,
+                                           cases = cases,
+                                           else_clause = false_body)
+        self.visitchildren(switch_node)
+        return UtilNodes.TempResultFromStatNode(result_ref, switch_node)
+
+    def visit_BoolBinopNode(self, node):
+        common_var, conditions = self.extract_common_conditions(None, node)
+        if common_var is None:
+            return node
+        if len(conditions) < 2:
+            return node
+
+        result_ref = UtilNodes.ResultRefNode(node)
+        true_body = Nodes.SingleAssignmentNode(
+            node.pos,
+            lhs = result_ref,
+            rhs = ExprNodes.BoolNode(node.pos, value=True),
+            first = True)
+        false_body = Nodes.SingleAssignmentNode(
+            node.pos,
+            lhs = result_ref,
+            rhs = ExprNodes.BoolNode(node.pos, value=False),
+            first = True)
+
+        cases = [Nodes.SwitchCaseNode(pos = node.pos,
+                                      conditions = conditions,
+                                      body = true_body)]
+
+        common_var = unwrap_node(common_var)
+        switch_node = Nodes.SwitchStatNode(pos = node.pos,
+                                           test = common_var,
+                                           cases = cases,
+                                           else_clause = false_body)
+        self.visitchildren(switch_node)
+        return UtilNodes.TempResultFromStatNode(result_ref, switch_node)
 
     visit_Node = Visitor.VisitorTransform.recurse_to_children
                               
@@ -940,6 +1007,15 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if old_arg is node.arg or node.arg.type != node.type:
             return node
         return node.arg
+
+    def visit_TypecastNode(self, node):
+        """
+        Drop redundant type casts.
+        """
+        self.visitchildren(node)
+        if node.type == node.operand.type:
+            return node.operand
+        return node
 
     def visit_CoerceToBooleanNode(self, node):
         """Drop redundant conversion nodes after tree changes.
