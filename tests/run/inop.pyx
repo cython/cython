@@ -1,3 +1,6 @@
+
+cimport cython
+
 def f(a,b):
     """
     >>> f(1,[1,2,3])
@@ -42,6 +45,7 @@ def j(b):
     cdef int result = 2 in b
     return result
 
+@cython.test_fail_if_path_exists("//SwitchStatNode")
 def k(a):
     """
     >>> k(1)
@@ -52,15 +56,79 @@ def k(a):
     cdef int result = a in [1,2,3,4]
     return result
 
-def m(int a):
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
+def m_list(int a):
     """
-    >>> m(2)
+    >>> m_list(2)
     1
-    >>> m(5)
+    >>> m_list(5)
     0
     """
     cdef int result = a in [1,2,3,4]
     return result
+
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
+def m_tuple(int a):
+    """
+    >>> m_tuple(2)
+    1
+    >>> m_tuple(5)
+    0
+    """
+    cdef int result = a in (1,2,3,4)
+    return result
+
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
+def m_set(int a):
+    """
+    >>> m_set(2)
+    1
+    >>> m_set(5)
+    0
+    """
+    cdef int result = a in {1,2,3,4}
+    return result
+
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
+def conditional_int(int a):
+    """
+    >>> conditional_int(1)
+    1
+    >>> conditional_int(0)
+    2
+    >>> conditional_int(5)
+    2
+    """
+    return 1 if a in (1,2,3,4) else 2
+
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
+def conditional_object(int a):
+    """
+    >>> conditional_object(1)
+    1
+    >>> conditional_object(0)
+    '2'
+    >>> conditional_object(5)
+    '2'
+    """
+    return 1 if a in (1,2,3,4) else '2'
+
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
+def conditional_none(int a):
+    """
+    >>> conditional_none(1)
+    >>> conditional_none(0)
+    1
+    >>> conditional_none(5)
+    1
+    """
+    return None if a in {1,2,3,4} else 1
 
 def n(a):
     """
