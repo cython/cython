@@ -6521,11 +6521,11 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j
 
 """ + ''.join([
 """
-#define __Pyx_GetItemInt_%(type)s(o, i, size, to_py_func) ((size <= sizeof(Py_ssize_t)) ? \\
-                                                    __Pyx_GetItemInt_%(type)s_Fast(o, i, size <= sizeof(long)) : \\
+#define __Pyx_GetItemInt_%(type)s(o, i, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \\
+                                                    __Pyx_GetItemInt_%(type)s_Fast(o, i) : \\
                                                     __Pyx_GetItemInt_Generic(o, to_py_func(i)))
 
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ssize_t i, int fits_long) {
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ssize_t i) {
     if (likely(o != Py_None)) {
         if (likely((0 <= i) & (i < Py%(type)s_GET_SIZE(o)))) {
             PyObject *r = Py%(type)s_GET_ITEM(o, i);
@@ -6538,16 +6538,16 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ss
             return r;
         }
     }
-    return __Pyx_GetItemInt_Generic(o, fits_long ? PyInt_FromLong(i) : PyLong_FromLongLong(i));
+    return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
 }
 """ % {'type' : type_name} for type_name in ('List', 'Tuple')
 ]) + """
 
-#define __Pyx_GetItemInt(o, i, size, to_py_func) ((size <= sizeof(Py_ssize_t)) ? \\
-                                                    __Pyx_GetItemInt_Fast(o, i, size <= sizeof(long)) : \\
+#define __Pyx_GetItemInt(o, i, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \\
+                                                    __Pyx_GetItemInt_Fast(o, i) : \\
                                                     __Pyx_GetItemInt_Generic(o, to_py_func(i)))
 
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, int fits_long) {
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i) {
     PyObject *r;
     if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
         r = PyList_GET_ITEM(o, i);
@@ -6561,7 +6561,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
         r = PySequence_GetItem(o, i);
     }
     else {
-        r = __Pyx_GetItemInt_Generic(o, fits_long ? PyInt_FromLong(i) : PyLong_FromLongLong(i));
+        r = __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
     }
     return r;
 }
@@ -6575,8 +6575,8 @@ impl = """
 
 setitem_int_utility_code = UtilityCode(
 proto = """
-#define __Pyx_SetItemInt(o, i, v, size, to_py_func) ((size <= sizeof(Py_ssize_t)) ? \\
-                                                    __Pyx_SetItemInt_Fast(o, i, v, size <= sizeof(long)) : \\
+#define __Pyx_SetItemInt(o, i, v, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \\
+                                                    __Pyx_SetItemInt_Fast(o, i, v) : \\
                                                     __Pyx_SetItemInt_Generic(o, to_py_func(i), v))
 
 static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
@@ -6587,7 +6587,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyOb
     return r;
 }
 
-static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v, int fits_long) {
+static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v) {
     if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
         Py_INCREF(v);
         Py_DECREF(PyList_GET_ITEM(o, i));
@@ -6597,7 +6597,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
     else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item && (likely(i >= 0)))
         return PySequence_SetItem(o, i, v);
     else {
-        PyObject *j = fits_long ? PyInt_FromLong(i) : PyLong_FromLongLong(i);
+        PyObject *j = PyInt_FromSsize_t(i);
         return __Pyx_SetItemInt_Generic(o, j, v);
     }
 }
@@ -6609,8 +6609,8 @@ impl = """
 
 delitem_int_utility_code = UtilityCode(
 proto = """
-#define __Pyx_DelItemInt(o, i, size, to_py_func) ((size <= sizeof(Py_ssize_t)) ? \\
-                                                    __Pyx_DelItemInt_Fast(o, i, size <= sizeof(long)) : \\
+#define __Pyx_DelItemInt(o, i, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \\
+                                                    __Pyx_DelItemInt_Fast(o, i) : \\
                                                     __Pyx_DelItem_Generic(o, to_py_func(i)))
 
 static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
@@ -6621,11 +6621,11 @@ static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
     return r;
 }
 
-static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i, int fits_long) {
+static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i) {
     if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item && likely(i >= 0))
         return PySequence_DelItem(o, i);
     else {
-        PyObject *j = fits_long ? PyInt_FromLong(i) : PyLong_FromLongLong(i);
+        PyObject *j = PyInt_FromSsize_t(i);
         return __Pyx_DelItem_Generic(o, j);
     }
 }
