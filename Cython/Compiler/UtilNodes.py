@@ -117,6 +117,7 @@ class ResultRefNode(AtomicExprNode):
     # must be set externally (usually a temp name).
 
     subexprs = []
+    lhs_of_first_assignment = False
 
     def __init__(self, expression):
         self.pos = expression.pos
