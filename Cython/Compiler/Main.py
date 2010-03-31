@@ -379,11 +379,6 @@ class Context(object):
             dir = parent
         return dir
 
-    def is_package_dir(self, dir):
-        package_init = os.path.join(dir, "__init__.py")
-        return os.path.exists(package_init) or \
-            os.path.exists(package_init + "x") # same with .pyx
-
     def check_package_dir(self, dir, package_names):
         package_dir = os.path.join(dir, *package_names)
         if not os.path.exists(package_dir):
