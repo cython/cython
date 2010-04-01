@@ -1,3 +1,6 @@
+
+cimport cython
+
 def f(a,b):
     """
     >>> f(1,[1,2,3])
@@ -44,6 +47,7 @@ def j(b):
     result = 2 not in b
     return result
 
+@cython.test_fail_if_path_exists("//SwitchStatNode")
 def k(a):
     """
     >>> k(1)
@@ -54,14 +58,84 @@ def k(a):
     cdef int result = a not in [1,2,3,4]
     return result
 
-def m(int a):
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//PrimaryCmpNode")
+def m_list(int a):
     """
-    >>> m(2)
+    >>> m_list(2)
     0
-    >>> m(5)
+    >>> m_list(5)
     1
     """
     cdef int result = a not in [1,2,3,4]
+    return result
+
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//PrimaryCmpNode")
+def m_tuple(int a):
+    """
+    >>> m_tuple(2)
+    0
+    >>> m_tuple(5)
+    1
+    """
+    cdef int result = a not in (1,2,3,4)
+    return result
+
+@cython.test_assert_path_exists("//SwitchStatNode", "//BoolBinopNode")
+@cython.test_fail_if_path_exists("//PrimaryCmpNode")
+def m_tuple_in_or_notin(int a):
+    """
+    >>> m_tuple_in_or_notin(2)
+    0
+    >>> m_tuple_in_or_notin(3)
+    1
+    >>> m_tuple_in_or_notin(5)
+    1
+    """
+    cdef int result = a not in (1,2,3,4) or a in (3,4)
+    return result
+
+@cython.test_assert_path_exists("//SwitchStatNode", "//BoolBinopNode")
+@cython.test_fail_if_path_exists("//PrimaryCmpNode")
+def m_tuple_notin_or_notin(int a):
+    """
+    >>> m_tuple_notin_or_notin(2)
+    1
+    >>> m_tuple_notin_or_notin(6)
+    1
+    >>> m_tuple_notin_or_notin(4)
+    0
+    """
+    cdef int result = a not in (1,2,3,4) or a not in (4,5)
+    return result
+
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
+def m_tuple_notin_and_notin(int a):
+    """
+    >>> m_tuple_notin_and_notin(2)
+    0
+    >>> m_tuple_notin_and_notin(6)
+    0
+    >>> m_tuple_notin_and_notin(5)
+    1
+    """
+    cdef int result = a not in (1,2,3,4) and a not in (6,7)
+    return result
+
+@cython.test_assert_path_exists("//SwitchStatNode", "//BoolBinopNode")
+@cython.test_fail_if_path_exists("//PrimaryCmpNode")
+def m_tuple_notin_and_notin_overlap(int a):
+    """
+    >>> m_tuple_notin_and_notin_overlap(2)
+    0
+    >>> m_tuple_notin_and_notin_overlap(4)
+    0
+    >>> m_tuple_notin_and_notin_overlap(5)
+    1
+    """
+    cdef int result = a not in (1,2,3,4) and a not in (3,4)
     return result
 
 def n(a):
