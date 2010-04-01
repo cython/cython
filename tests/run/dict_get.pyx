@@ -1,3 +1,8 @@
+
+cimport cython
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
 def get(dict d, key):
     """
     >>> d = { 1: 10 }
@@ -38,6 +43,9 @@ def get(dict d, key):
     """
     return d.get(key)
 
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
 def get_default(dict d, key, default):
     """
     >>> d = { 1: 10 }
@@ -69,3 +77,14 @@ def get_default(dict d, key, default):
     ValueError
     """
     return d.get(key, default)
+
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
+def get_in_condition(dict d, key, expected_result):
+    """
+    >>> d = dict(a=1, b=2)
+    >>> getitem_in_condition(d, 'a', 1)
+    True
+    """
+    return d.get(key) is expected_result
