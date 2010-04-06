@@ -806,7 +806,8 @@ if __name__ == '__main__':
         if not WITH_CYTHON:
             options.coverage = False
         else:
-            from coverage import coverage
+            from coverage import coverage as _coverage
+            coverage = _coverage()
             coverage.erase()
             coverage.start()
 
