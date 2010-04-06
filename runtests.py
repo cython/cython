@@ -752,6 +752,9 @@ if __name__ == '__main__':
     parser.add_option("-C", "--coverage", dest="coverage",
                       action="store_true", default=False,
                       help="collect source coverage data for the Compiler")
+    parser.add_option("--coverage-xml", dest="coverage_xml",
+                      action="store_true", default=False,
+                      help="collect source coverage data for the Compiler in XML format")
     parser.add_option("-A", "--annotate", dest="annotate_source",
                       action="store_true", default=True,
                       help="generate annotated HTML versions of the test source files")
@@ -799,7 +802,7 @@ if __name__ == '__main__':
 
     WITH_CYTHON = options.with_cython
 
-    if options.coverage:
+    if options.coverage or options.coverage_xml:
         if not WITH_CYTHON:
             options.coverage = False
         else:
@@ -924,14 +927,17 @@ if __name__ == '__main__':
 
     result = test_runner.run(test_suite)
 
-    if options.coverage:
+    if options.coverage or options.coverage_xml:
         coverage.stop()
         ignored_modules = ('Options', 'Version', 'DebugFlags', 'CmdLine')
         modules = [ module for name, module in sys.modules.items()
                     if module is not None and
                     name.startswith('Cython.Compiler.') and 
                     name[len('Cython.Compiler.'):] not in ignored_modules ]
-        coverage.report(modules, show_missing=0)
+        if options.coverage:
+            coverage.report(modules, show_missing=0)
+        if options.coverage_xml:
+            coverage.xml_report(modules, show_missing=0, outfile="coverage-report.xml")
 
     if missing_dep_excluder.tests_missing_deps:
         sys.stderr.write("Following tests excluded because of missing dependencies on your system:\n")
