@@ -417,7 +417,9 @@ class Context(object):
 
     def is_package_dir(self, dir_path):
         #  Return true if the given directory is a package directory.
-        for filename in ("__init__.py", "__init__.pyx"):
+        for filename in ("__init__.py", 
+                         "__init__.pyx", 
+                         "__init__.pxd"):
             path = os.path.join(dir_path, filename)
             if os.path.exists(path):
                 return 1
