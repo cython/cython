@@ -1022,10 +1022,8 @@ class CppClassNode(CStructOrUnionDefNode):
 
     def analyse_declarations(self, env):
         scope = None
-        if self.attributes:
+        if self.attributes is not None:
             scope = CppClassScope(self.name, env)
-        else:
-            self.attributes = None
         base_class_types = []
         for base_class_name in self.base_classes:
             base_class_entry = env.lookup(base_class_name)

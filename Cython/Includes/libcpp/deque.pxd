@@ -3,39 +3,44 @@ from pair cimport pair
 cdef extern from "<deque>" namespace "std":
     cdef cppclass deque[T]:
         cppclass iterator:
-            T operator*()
+            T& operator*()
             iterator operator++()
+            iterator operator--()
             bint operator==(iterator)
             bint operator!=(iterator)
-        cppclass const_iterator(iterator):
-            pass
-        cppclass reverse_iterator(iterator):
-            pass
-        cppclass const_reverse_iterator(iterator):
-            pass
+        cppclass reverse_iterator:
+            T& operator*()
+            iterator operator++()
+            iterator operator--()
+            bint operator==(iterator)
+            bint operator!=(iterator)
+        #cppclass const_iterator(iterator):
+        #    pass
+        #cppclass const_reverse_iterator(reverse_iterator):
+        #    pass
         deque()
         deque(deque&)
-        deque(size_t, T& val = T())
-        #deque(input_iterator, input_iterator)
-        TYPE& operator[]( size_type index )
-        const TYPE& operator[]( size_type index ) const
+        deque(size_t)
+        deque(size_t, T&)
+        #deque[input_iterator](input_iterator, input_iterator)
+        T& operator[](size_t)
         #deque& operator=(deque&)
-        bool operator==(deque&, deque&)
-        bool operator!=(deque&, deque&)
-        bool operator<(deque&, deque&)
-        bool operator>(deque&, deque&)
-        bool operator<=(deque&, deque&)
-        bool operator>=(deque&, deque&)
-        void assign(size_t, TYPE&)
+        bint operator==(deque&, deque&)
+        bint operator!=(deque&, deque&)
+        bint operator<(deque&, deque&)
+        bint operator>(deque&, deque&)
+        bint operator<=(deque&, deque&)
+        bint operator>=(deque&, deque&)
+        void assign(size_t, T&)
         void assign(input_iterator, input_iterator)
         T& at(size_t)
         T& back()
         iterator begin()
-        const_iterator begin()
+        #const_iterator begin()
         void clear()
-        bool empty()
+        bint empty()
         iterator end()
-        const_iterator end()
+        #const_iterator end()
         iterator erase(iterator)
         iterator erase(iterator, iterator)
         T& front()
@@ -48,9 +53,10 @@ cdef extern from "<deque>" namespace "std":
         void push_back(T&)
         void push_front(T&)
         reverse_iterator rbegin()
-        const_reverse_iterator rbegin()
+        #const_reverse_iterator rbegin()
         reverse_iterator rend()
-        const_reverse_iterator rend()
-        void resize(size_t, T val = T())
+        #const_reverse_iterator rend()
+        void resize(size_t)
+        void resize(size_t, T&)
         size_t size()
         void swap(deque&)

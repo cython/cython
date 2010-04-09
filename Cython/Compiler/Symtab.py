@@ -408,7 +408,7 @@ class Scope(object):
             error(pos, "C++ classes may only be extern")
         if cname is None:
             cname = name
-        entry = self.lookup(name)
+        entry = self.lookup_here(name)
         if not entry:
             type = PyrexTypes.CppClassType(
                 name, scope, cname, base_classes, templates = templates)
@@ -432,7 +432,8 @@ class Scope(object):
             for base_class in base_classes:
                 declare_inherited_attributes(entry, base_class.base_classes)
                 entry.type.scope.declare_inherited_cpp_attributes(base_class.scope)                 
-        declare_inherited_attributes(entry, base_classes)
+        if entry.type.scope:
+            declare_inherited_attributes(entry, base_classes)
         if self.is_cpp_class_scope:
             entry.type.namespace = self.outer_scope.lookup(self.name).type
         return entry
