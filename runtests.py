@@ -941,7 +941,7 @@ if __name__ == '__main__':
         if options.coverage:
             coverage.report(modules, show_missing=0)
         if options.coverage_xml:
-            coverage.xml_report(modules, show_missing=0, outfile="coverage-report.xml")
+            coverage.xml_report(modules, outfile="coverage-report.xml")
 
     if missing_dep_excluder.tests_missing_deps:
         sys.stderr.write("Following tests excluded because of missing dependencies on your system:\n")
