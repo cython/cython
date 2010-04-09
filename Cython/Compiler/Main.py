@@ -2,7 +2,7 @@
 #   Cython Top Level
 #
 
-import os, sys, re, codecs
+import os, sys, re
 if sys.version_info[:2] < (2, 3):
     sys.stderr.write("Sorry, Cython requires Python 2.3 or later\n")
     sys.exit(1)
