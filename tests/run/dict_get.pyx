@@ -84,7 +84,7 @@ def get_default(dict d, key, default):
 def get_in_condition(dict d, key, expected_result):
     """
     >>> d = dict(a=1, b=2)
-    >>> getitem_in_condition(d, 'a', 1)
+    >>> get_in_condition(d, 'a', 1)
     True
     """
     return d.get(key) is expected_result
