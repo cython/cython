@@ -19,6 +19,19 @@ def slice_charptr_decode():
 
 @cython.test_assert_path_exists("//PythonCapiCallNode")
 @cython.test_fail_if_path_exists("//AttributeNode")
+def slice_charptr_decode_platform_encoding():
+    """
+    >>> print(str(slice_charptr_decode()).replace("u'", "'"))
+    ('a', 'abc', 'abcABCqtp')
+    """
+    cdef bytes s = u'abcABCqtp'.encode()
+    cdef char* cstr = s
+    return (cstr[:1].decode(),
+            cstr[:3].decode(),
+            cstr[:9].decode())
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//AttributeNode")
 def slice_charptr_decode_unknown_encoding():
     """
     >>> print(str(slice_charptr_decode_unknown_encoding()).replace("u'", "'"))

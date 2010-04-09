@@ -1944,20 +1944,25 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         return None
 
     def _unpack_encoding_and_error_mode(self, pos, args):
-        encoding_node = args[1]
-        if isinstance(encoding_node, ExprNodes.CoerceToPyTypeNode):
-            encoding_node = encoding_node.arg
-        if isinstance(encoding_node, (ExprNodes.UnicodeNode, ExprNodes.StringNode,
-                                      ExprNodes.BytesNode)):
-            encoding = encoding_node.value
-            encoding_node = ExprNodes.BytesNode(encoding_node.pos, value=encoding,
-                                                 type=PyrexTypes.c_char_ptr_type)
-        elif encoding_node.type.is_string:
-            encoding = None
-        else:
-            return None
-
         null_node = ExprNodes.NullNode(pos)
+
+        if len(args) >= 2:
+            encoding_node = args[1]
+            if isinstance(encoding_node, ExprNodes.CoerceToPyTypeNode):
+                encoding_node = encoding_node.arg
+            if isinstance(encoding_node, (ExprNodes.UnicodeNode, ExprNodes.StringNode,
+                                          ExprNodes.BytesNode)):
+                encoding = encoding_node.value
+                encoding_node = ExprNodes.BytesNode(encoding_node.pos, value=encoding,
+                                                     type=PyrexTypes.c_char_ptr_type)
+            elif encoding_node.type.is_string:
+                encoding = None
+            else:
+                return None
+        else:
+            encoding = None
+            encoding_node = null_node
+
         if len(args) == 3:
             error_handling_node = args[2]
             if isinstance(error_handling_node, ExprNodes.CoerceToPyTypeNode):
