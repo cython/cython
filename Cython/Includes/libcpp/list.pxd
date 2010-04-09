@@ -1,35 +1,38 @@
-from pair cimport pair
-
 cdef extern from "<list>" namespace "std":
     cdef cppclass list[T]:
         cppclass iterator:
-            T operator*()
+            T& operator*()
             iterator operator++()
+            iterator operator--()
             bint operator==(iterator)
             bint operator!=(iterator)
-        cppclass const_iterator(iterator):
-            pass
-        cppclass reverse_iterator(iterator):
-            pass
-        cppclass const_reverse_iterator(iterator):
-            pass
+        cppclass reverse_iterator:
+            T& operator*()
+            iterator operator++()
+            iterator operator--()
+            bint operator==(iterator)
+            bint operator!=(iterator)
+        #cppclass const_iterator(iterator):
+        #    pass
+        #cppclass const_reverse_iterator(reverse_iterator):
+        #    pass
         list()
         list(list&)
         list(size_t, T&)
         #list operator=(list&)
-        bool operator==(list&, list&)
-        bool operator!=(list&, list&)
-        bool operator<(list&, list&)
-        bool operator>(list&, list&)
-        bool operator<=(list&, list&)
-        bool operator>=(list&, list&)
+        bint operator==(list&, list&)
+        bint operator!=(list&, list&)
+        bint operator<(list&, list&)
+        bint operator>(list&, list&)
+        bint operator<=(list&, list&)
+        bint operator>=(list&, list&)
         void assign(size_t, T&)
         T& back()
         iterator begin()
-        const_iterator begin()
-        bool empty()
+        #const_iterator begin()
+        bint empty()
         iterator end()
-        const_iterator end()
+        #const_iterator end()
         iterator erase(iterator)
         iterator erase(iterator, iterator)
         T& front()
@@ -37,17 +40,17 @@ cdef extern from "<list>" namespace "std":
         void insert(iterator, size_t, T&)
         size_t max_size()
         void merge(list&)
-        #voide merge(list&, BinPred)
+        #void merge(list&, BinPred)
         void pop_back()
         void pop_front()
         void push_back(T&)
         void push_front(T&)
         reverse_iterator rbegin()
-        const_reverse_iterator rbegin()
+        #const_reverse_iterator rbegin()
         void remove(T&)
         #void remove_if(UnPred)
         reverse_iterator rend()
-        const_reverse_iterator rend()
+        #const_reverse_iterator rend()
         void resize(size_t, T&)
         void reverse()
         size_t size()

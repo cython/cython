@@ -1,43 +1,45 @@
-from pair cimport pair
-
 cdef extern from "<vector>" namespace "std":
     cdef cppclass vector[T]:
         cppclass iterator:
-            T operator*()
+            T& operator*()
             iterator operator++()
+            iterator operator--()
             bint operator==(iterator)
             bint operator!=(iterator)
-        cppclass const_iterator(iterator):
-            pass
-        cppclass reverse_iterator(iterator):
-            pass
-        cppclass const_reverse_iterator(iterator):
-            pass
-        #cppclass input_iterator(iterator):
+        cppclass reverse_iterator:
+            T& operator*()
+            iterator operator++()
+            iterator operator--()
+            bint operator==(iterator)
+            bint operator!=(iterator)
+        #cppclass const_iterator(iterator):
+        #    pass
+        #cppclass const_reverse_iterator(reverse_iterator):
         #    pass
         vector()
-        #vector(vector&)
-        #vector(size_t, T&)
+        vector(vector&)
+        vector(size_t)
+        vector(size_t, T&)
         #vector[input_iterator](input_iterator, input_iterator)
         T& operator[](size_t)
         #vector& operator=(vector&)
-        bool operator==(vector&, vector&)
-        bool operator!=(vector&, vector&)
-        bool operator<(vector&, vector&)
-        bool operator>(vector&, vector&)
-        bool operator<=(vector&, vector&)
-        bool operator>=(vector&, vector&)
+        bint operator==(vector&, vector&)
+        bint operator!=(vector&, vector&)
+        bint operator<(vector&, vector&)
+        bint operator>(vector&, vector&)
+        bint operator<=(vector&, vector&)
+        bint operator>=(vector&, vector&)
         void assign(size_t, T&)
-        #void assign(input_iterator, input_iterator)
+        #void assign[input_iterator](input_iterator, input_iterator)
         T& at(size_t)
         T& back()
         iterator begin()
-        const_iterator begin()
+        #const_iterator begin()
         size_t capacity()
         void clear()
-        bool empty()
+        bint empty()
         iterator end()
-        const_iterator end()
+        #const_iterator end()
         iterator erase(iterator)
         iterator erase(iterator, iterator)
         T& front()
@@ -48,10 +50,11 @@ cdef extern from "<vector>" namespace "std":
         void pop_back()
         void push_back(T&)
         reverse_iterator rbegin()
-        const_reverse_iterator rbegin()
+        #const_reverse_iterator rbegin()
         reverse_iterator rend()
-        const_reverse_iterator rend()
+        #const_reverse_iterator rend()
         void reserve(size_t)
-        void resize(size_t, T)
+        void resize(size_t)
+        void resize(size_t, T&)
         size_t size()
         void swap(vector&)

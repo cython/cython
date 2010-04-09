@@ -2650,6 +2650,7 @@ def p_cpp_class_definition(s, pos,  ctx):
                 s.expect_newline("Expected a newline")
         s.expect_dedent()
     else:
+        attributes = None
         s.expect_newline("Syntax error in C++ class definition")
     return Nodes.CppClassNode(pos,
         name = class_name,
