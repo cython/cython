@@ -85,7 +85,7 @@ else:
     else:
         scripts = ["cython.py"]
 
-def compile_cython_modules():
+def compile_cython_modules(profile=False):
     source_root = os.path.abspath(os.path.dirname(__file__))
     compiled_modules = ["Cython.Plex.Scanners",
                         "Cython.Compiler.Scanning",
@@ -116,6 +116,10 @@ def compile_cython_modules():
                     del sys.modules[module]
                 sys.path.insert(0, os.path.join(source_root, self.build_lib))
 
+                if profile:
+                    from Cython.Compiler.Options import directive_defaults
+                    directive_defaults['profile'] = True
+                    print("Enabled profiling for the Cython binary modules")
                 build_ext_orig.build_extensions(self)
 
         setup_args['ext_modules'] = extensions
@@ -132,6 +136,10 @@ def compile_cython_modules():
                         print("Compilation of '%s' failed" % ext.sources[0])
             from Cython.Compiler.Main import compile
             from Cython import Utils
+            if profile:
+                from Cython.Compiler.Options import directive_defaults
+                directive_defaults['profile'] = True
+                print("Enabled profiling for the Cython binary modules")
             source_root = os.path.dirname(__file__)
             for module in compiled_modules:
                 source_file = os.path.join(source_root, *module.split('.'))
@@ -162,7 +170,10 @@ def compile_cython_modules():
 try:
     sys.argv.remove("--no-cython-compile")
 except ValueError:
-    compile_cython_modules()
+    cython_profile = '--cython-profile' in sys.argv
+    if cython_profile:
+        sys.argv.remove('--cython-profile')
+    compile_cython_modules(cython_profile)
 
 setup_args.update(setuptools_extra_args)
 
