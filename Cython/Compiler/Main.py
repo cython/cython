@@ -78,8 +78,8 @@ class Context(object):
 
         self.pxds = {} # full name -> node tree
 
-        standard_include_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), '..', 'Includes'))
+        standard_include_path = os.path.abspath(os.path.normpath(
+            os.path.join(os.path.dirname(__file__), os.path.pardir, 'Includes')))
         self.include_directories = include_directories + [standard_include_path]
 
     def create_pipeline(self, pxd, py=False):
@@ -356,17 +356,17 @@ class Context(object):
 
         for dir in dirs:
             path = os.path.join(dir, dotted_filename)
-            if os.path.exists(path):
+            if Utils.path_exists(path):
                 return path
             if not include:
                 package_dir = self.check_package_dir(dir, package_names)
                 if package_dir is not None:
                     path = os.path.join(package_dir, module_filename)
-                    if os.path.exists(path):
+                    if Utils.path_exists(path):
                         return path
                     path = os.path.join(dir, package_dir, module_name,
                                         package_filename)
-                    if os.path.exists(path):
+                    if Utils.path_exists(path):
                         return path
         return None
 
@@ -380,14 +380,11 @@ class Context(object):
         return dir
 
     def check_package_dir(self, dir, package_names):
-        package_dir = os.path.join(dir, *package_names)
-        if not os.path.exists(package_dir):
-            return None
         for dirname in package_names:
             dir = os.path.join(dir, dirname)
             if not self.is_package_dir(dir):
                 return None
-        return package_dir
+        return dir
 
     def c_file_out_of_date(self, source_path):
         c_path = Utils.replace_suffix(source_path, ".c")
@@ -421,7 +418,7 @@ class Context(object):
                          "__init__.pyx", 
                          "__init__.pxd"):
             path = os.path.join(dir_path, filename)
-            if os.path.exists(path):
+            if Utils.path_exists(path):
                 return 1
 
     def read_dependency_file(self, source_path):
