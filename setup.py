@@ -167,12 +167,13 @@ def compile_cython_modules(profile=False):
             print("ERROR: %s" % sys.exc_info()[1])
             print("Extension module compilation failed, using plain Python implementation")
 
+cython_profile = '--cython-profile' in sys.argv
+if cython_profile:
+    sys.argv.remove('--cython-profile')
+
 try:
     sys.argv.remove("--no-cython-compile")
 except ValueError:
-    cython_profile = '--cython-profile' in sys.argv
-    if cython_profile:
-        sys.argv.remove('--cython-profile')
     compile_cython_modules(cython_profile)
 
 setup_args.update(setuptools_extra_args)
