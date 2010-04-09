@@ -807,10 +807,10 @@ if __name__ == '__main__':
 
     if options.coverage or options.coverage_xml:
         if not WITH_CYTHON:
-            options.coverage = False
+            options.coverage = options.coverage_xml = False
         else:
             from coverage import coverage as _coverage
-            coverage = _coverage()
+            coverage = _coverage(branch=True)
             coverage.erase()
             coverage.start()
 
