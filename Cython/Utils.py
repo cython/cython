@@ -45,6 +45,27 @@ def file_newer_than(path, time):
     ftime = modification_time(path)
     return ftime > time
 
+def path_exists(path):
+    # try on the filesystem first
+    if os.path.exists(path):
+        return True
+    # figure out if a PEP 302 loader is around
+    try:
+        loader = __loader__
+        # XXX the code below assumes as 'zipimport.zipimporter' instance
+        # XXX should be easy to generalize, but too lazy right now to write it
+        if path.startswith(loader.archive):
+            nrmpath = os.path.normpath(path)
+            arcname = nrmpath[len(loader.archive)+1:]
+            try:
+                loader.get_data(arcname)
+                return True
+            except IOError:
+                return False
+    except NameError:
+        pass
+    return False
+
 # support for source file encoding detection
 
 def encode_filename(filename):
@@ -110,22 +131,55 @@ class NormalisedNewlineStream(object):
     return u''.join(content).split(u'\n')
 
 try:
-    from io import open as io_open
+    import io
 except ImportError:
-    io_open = None
+    io = None
 
 def open_source_file(source_filename, mode="r",
                      encoding=None, error_handling=None,
                      require_normalised_newlines=True):
     if encoding is None:
         encoding = detect_file_encoding(source_filename)
-    if io_open is not None:
-        return io_open(source_filename, mode=mode,
+    #
+    try:
+        loader = __loader__
+        if source_filename.startswith(loader.archive):
+            return open_source_from_loader(
+                loader, source_filename,
+                encoding, error_handling,
+                require_normalised_newlines)
+    except (NameError, AttributeError):
+        pass
+    #
+    if io is not None:
+        return io.open(source_filename, mode=mode,
                        encoding=encoding, errors=error_handling)
     else:
         # codecs module doesn't have universal newline support
         stream = codecs.open(source_filename, mode=mode,
                              encoding=encoding, errors=error_handling)
+        if require_normalised_newlines:
+            stream = NormalisedNewlineStream(stream)
+        return stream
+
+def open_source_from_loader(loader,
+                            source_filename,
+                            encoding=None, error_handling=None,
+                            require_normalised_newlines=True):
+    nrmpath = os.path.normpath(source_filename)
+    arcname = nrmpath[len(loader.archive)+1:]
+    data = loader.get_data(arcname)
+    if io is not None:
+        return io.TextIOWrapper(io.BytesIO(data),
+                                encoding=encoding,
+                                errors=error_handling)
+    else:
+        try:
+            import cStringIO as StringIO
+        except ImportError:
+            import StringIO
+        reader = codecs.getreader(encoding)
+        stream = reader(StringIO.StringIO(data))
         if require_normalised_newlines:
             stream = NormalisedNewlineStream(stream)
         return stream
