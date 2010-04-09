@@ -178,7 +178,10 @@ class TestBuilder(object):
 
     def build_tests(self, test_class, path, workdir, module, expect_errors):
         if expect_errors:
-            languages = self.languages[:1]
+            if 'cpp' in module and 'cpp' in self.languages:
+                languages = ['cpp']
+            else:
+                languages = self.languages[:1]
         else:
             languages = self.languages
         if 'cpp' in module and 'c' in languages:
