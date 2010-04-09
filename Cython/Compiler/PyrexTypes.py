@@ -2275,8 +2275,11 @@ def best_match(args, functions, pos=None):
     if len(candidates) == 1:
         return candidates[0][0]
     elif len(candidates) == 0:
-        if len(errors) == 1 and pos is not None:
-            error(pos, errors[0][1])
+        if pos is not None:
+            if len(errors) == 1:
+                error(pos, errors[0][1])
+            else:
+                error(pos, "no suitable method found")
         return None
         
     possibilities = []
