@@ -11,14 +11,6 @@ import os
 import re
 import sys
 
-try:
-    from __builtin__ import set
-except (ImportError, AttributeError):
-    try:
-        from builtins import set
-    except (ImportError, AttributeError):
-        from sets import Set as set
-
 from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
 import ExprNodes
@@ -1952,7 +1944,7 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
         exception_value = exc_val, exception_check = exc_check,
         nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil)
 
-supported_overloaded_operators = set([
+supported_overloaded_operators = cython.set([
     '+', '-', '*', '/', '%', 
     '++', '--', '~', '|', '&', '^', '<<', '>>',
     '==', '!=', '>=', '>', '<=', '<',
