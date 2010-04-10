@@ -1850,7 +1850,7 @@ class CppClassType(CType):
     def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
         if self.templates:
             template_strings = [param.declaration_code('', for_display, pyrex) for param in self.templates]
-            templates = "<" + ",".join(template_strings) + ">"
+            templates = "<%s>" % ",".join(template_strings)
         else:
             templates = ""
         if for_display or pyrex:
