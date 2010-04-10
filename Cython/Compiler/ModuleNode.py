@@ -408,7 +408,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for module in modules:
             defined_here = module is env
             modulecode.putln("/* Module declarations from %s */" %
-                       module.qualified_name.encode("ASCII", "ignore"))
+                             module.qualified_name)
             self.generate_global_declarations(module, modulecode, defined_here)
             self.generate_cfunction_predeclarations(module, modulecode, defined_here)
 
@@ -632,11 +632,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_includes(self, env, cimported_modules, code):
         includes = []
         for filename in env.include_files:
-            # fake decoding of filenames to their original byte sequence
-            if filename[0] == '<' and filename[-1] == '>':
-                code.putln('#include %s' % filename)
+            byte_decoded_filenname = str(filename)
+            if byte_decoded_filenname[0] == '<' and byte_decoded_filenname[-1] == '>':
+                code.putln('#include %s' % byte_decoded_filenname)
             else:
-                code.putln('#include "%s"' % filename)
+                code.putln('#include "%s"' % byte_decoded_filenname)
     
     def generate_filename_table(self, code):
         code.putln("")
