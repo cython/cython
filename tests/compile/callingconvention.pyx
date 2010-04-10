@@ -1,3 +1,7 @@
+cdef extern from "callingconvention.h":
+    pass
+
+
 cdef extern int f1()
 
 cdef extern int __cdecl f2()

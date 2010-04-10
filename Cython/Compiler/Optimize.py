@@ -2116,6 +2116,7 @@ impl = ""
 pop_utility_code = UtilityCode(
 proto = """
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
+    PyObject *r, *m;
 #if PY_VERSION_HEX >= 0x02040000
     if (likely(PyList_CheckExact(L))
             /* Check that both the size is positive and no reallocation shrinking needs to be done. */
@@ -2124,7 +2125,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
         return PyList_GET_ITEM(L, PyList_GET_SIZE(L));
     }
 #endif
-    PyObject *r, *m;
     m = __Pyx_GetAttrString(L, "pop");
     if (!m) return NULL;
     r = PyObject_CallObject(m, NULL);
