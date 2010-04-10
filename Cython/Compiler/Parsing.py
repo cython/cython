@@ -2186,10 +2186,10 @@ def p_cdef_extern_block(s, pos, ctx):
         s.next()
     else:
         _, include_file = p_string_literal(s)
+    ctx = ctx(cdef_flag = 1, visibility = 'extern')
     if s.systring == "namespace":
         s.next()
         ctx.namespace = p_string_literal(s)[1]
-    ctx = ctx(cdef_flag = 1, visibility = 'extern')
     if p_nogil(s):
         ctx.nogil = 1
     body = p_suite(s, ctx)
