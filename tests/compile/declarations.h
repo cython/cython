@@ -49,5 +49,5 @@ extern DL_EXPORT(int) a(int[][3], int[][3][5]);
 #endif
 
 int ia[1];
-int iaa[][3];
+int iaa[1][3];
 int a(int a[][3], int b[][3][5]) {return 0;}
