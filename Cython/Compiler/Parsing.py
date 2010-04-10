@@ -632,7 +632,7 @@ def p_opt_string_literal(s):
     else:
         return None
 
-def p_string_literal(s):
+def p_string_literal(s, kind_override=None):
     # A single string or char literal.
     # Returns (kind, value) where kind in ('b', 'c', 'u')
     # s.sy == 'BEGIN_STRING'
@@ -649,6 +649,8 @@ def p_string_literal(s):
     if Future.unicode_literals in s.context.future_directives:
         if kind == '':
             kind = 'u'
+    if kind_override is not None and kind_override in 'ub':
+        kind = kind_override
     if kind == 'u':
         chars = StringEncoding.UnicodeLiteralBuilder()
     else:
@@ -2189,7 +2191,7 @@ def p_cdef_extern_block(s, pos, ctx):
     ctx = ctx(cdef_flag = 1, visibility = 'extern')
     if s.systring == "namespace":
         s.next()
-        ctx.namespace = p_string_literal(s)[1]
+        ctx.namespace = p_string_literal(s, kind_override='u')[1]
     if p_nogil(s):
         ctx.nogil = 1
     body = p_suite(s, ctx)
