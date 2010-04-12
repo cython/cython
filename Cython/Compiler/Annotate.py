@@ -44,8 +44,9 @@ class AnnotationCCodeWriter(CCodeWriter):
         if pos is not None:
             CCodeWriter.mark_pos(self, pos)
         if self.last_pos:
-            code = self.code.get(self.last_pos[1], "")
-            self.code[self.last_pos[1]] = code + self.annotation_buffer.getvalue()
+            pos_code = self.code.setdefault(self.last_pos[0].filename,{})
+            code = pos_code.get(self.last_pos[1], "")
+            pos_code[self.last_pos[1]] = code + self.annotation_buffer.getvalue()
         self.annotation_buffer = StringIO()
         self.last_pos = pos
 
@@ -64,7 +65,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         f.close()
         all = []
         for pos, item in self.annotations:
-            if pos[0] == source_filename:
+            if pos[0].filename == source_filename:
                 start = item.start()
                 size, end = item.end()
                 if size:
@@ -136,11 +137,12 @@ function toggleDiv(id) {
         error_goto = re.compile(ur'((; *if .*)? \{__pyx_filename = .*goto __pyx_L\w+;\})')
         refnanny = re.compile(u'(__Pyx_X?(GOT|GIVE)REF|__Pyx_RefNanny[A-Za-z]+)')
         
+        code_source_file = self.code[source_filename]
         for line in lines:
 
             k += 1
             try:
-                code = self.code[k]
+                code = code_source_file[k]
             except KeyError:
                 code = ''
             
