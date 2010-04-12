@@ -64,15 +64,16 @@ class AnnotationCCodeWriter(CCodeWriter):
             lines[k] = line
         f.close()
         all = []
-        for pos, item in self.annotations:
-            if pos[0].filename == source_filename:
-                start = item.start()
-                size, end = item.end()
-                if size:
-                    all.append((pos, start))
-                    all.append(((source_filename, pos[1], pos[2]+size), end))
-                else:
-                    all.append((pos, start+end))
+        if False:
+            for pos, item in self.annotations:
+                if pos[0].filename == source_filename:
+                    start = item.start()
+                    size, end = item.end()
+                    if size:
+                        all.append((pos, start))
+                        all.append(((source_filename, pos[1], pos[2]+size), end))
+                    else:
+                        all.append((pos, start+end))
                 
         all.sort()
         all.reverse()
