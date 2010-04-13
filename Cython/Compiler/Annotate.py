@@ -44,7 +44,7 @@ class AnnotationCCodeWriter(CCodeWriter):
         if pos is not None:
             CCodeWriter.mark_pos(self, pos)
         if self.last_pos:
-            pos_code = self.code.setdefault(self.last_pos[0].filename,{})
+            pos_code = self.code.setdefault(self.last_pos[0].get_description(),{})
             code = pos_code.get(self.last_pos[1], "")
             pos_code[self.last_pos[1]] = code + self.annotation_buffer.getvalue()
         self.annotation_buffer = StringIO()
