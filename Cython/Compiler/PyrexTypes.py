@@ -805,7 +805,7 @@ class CIntType(CNumericType):
             self.from_py_function = self.get_from_py_type_conversion()
 
     def get_to_py_type_conversion(self):
-        if self.rank < rank_to_type_name.index('int'):
+        if self.rank < list(rank_to_type_name).index('int'):
             # This assumes sizeof(short) < sizeof(int)
             return "PyInt_FromLong"
         else:
@@ -816,7 +816,7 @@ class CIntType(CNumericType):
             if not self.signed:
                 Prefix = "Long"
                 SignWord = "Unsigned"
-            if self.rank == rank_to_type_name.index('PY_LONG_LONG'):
+            if self.rank >== list(rank_to_type_name).index('PY_LONG_LONG'):
                 Prefix = "Long"
                 TypeName = "LongLong"
             return "Py%s_From%s%s" % (Prefix, SignWord, TypeName)
