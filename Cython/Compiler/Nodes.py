@@ -1401,6 +1401,23 @@ class FuncDefNode(StatNode, BlockNode):
             error(arg.pos,
                 "Argument type '%s' is incomplete" % arg.type)
         return env.declare_arg(arg.name, arg.type, arg.pos)
+    
+    def generate_arg_type_test(self, arg, code):
+        # Generate type test for one argument.
+        if arg.type.typeobj_is_available():
+            typeptr_cname = arg.type.typeptr_cname
+            arg_code = "((PyObject *)%s)" % arg.entry.cname
+            code.putln(
+                'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, "%s", %s))) %s' % (
+                    arg_code, 
+                    typeptr_cname,
+                    arg.accept_none,
+                    arg.name,
+                    arg.type.is_builtin_type,
+                    code.error_goto(arg.pos)))
+        else:
+            error(arg.pos, "Cannot test type of extern C class "
+                "without type object name specification")
         
     def generate_wrapper_functions(self, code):
         pass
@@ -1650,23 +1667,6 @@ class CFuncDefNode(FuncDefNode):
         for arg in self.type.args:
             if arg.needs_type_test:
                 self.generate_arg_type_test(arg, code)
-    
-    def generate_arg_type_test(self, arg, code):
-        # Generate type test for one argument.
-        if arg.type.typeobj_is_available():
-            typeptr_cname = arg.type.typeptr_cname
-            arg_code = "((PyObject *)%s)" % arg.cname
-            code.putln(
-                'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, "%s", %s))) %s' % (
-                    arg_code, 
-                    typeptr_cname,
-                    arg.accept_none,
-                    arg.name,
-                    type.is_builtin_type,
-                    code.error_goto(arg.pos)))
-        else:
-            error(arg.pos, "Cannot test type of extern C class "
-                "without type object name specification")
 
     def error_value(self):
         if self.return_type.is_pyobject:
@@ -2653,23 +2653,6 @@ class DefNode(FuncDefNode):
         for arg in self.args:
             if arg.needs_type_test:
                 self.generate_arg_type_test(arg, code)
-    
-    def generate_arg_type_test(self, arg, code):
-        # Generate type test for one argument.
-        if arg.type.typeobj_is_available():
-            typeptr_cname = arg.type.typeptr_cname
-            arg_code = "((PyObject *)%s)" % arg.entry.cname
-            code.putln(
-                'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, "%s", %s))) %s' % (
-                    arg_code, 
-                    typeptr_cname,
-                    arg.accept_none,
-                    arg.name,
-                    arg.type.is_builtin_type,
-                    code.error_goto(arg.pos)))
-        else:
-            error(arg.pos, "Cannot test type of extern C class "
-                "without type object name specification")
     
     def error_value(self):
         return self.entry.signature.error_value
