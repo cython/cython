@@ -162,6 +162,12 @@ class PyrexType(BaseType):
         return 1
 
 
+def public_decl(base_code, dll_linkage):
+    if dll_linkage:
+        return "%s(%s)" % (dll_linkage, base_code)
+    else:
+        return base_code
+    
 def create_typedef_type(name, base_type, cname, is_external=0):
     if base_type.is_complex:
         if is_external:
@@ -169,6 +175,7 @@ def create_typedef_type(name, base_type, cname, is_external=0):
         return base_type
     else:
         return CTypedefType(name, base_type, cname, is_external)
+
 
 class CTypedefType(BaseType):
     #
@@ -286,6 +293,7 @@ class CTypedefType(BaseType):
     def __getattr__(self, name):
         return getattr(self.typedef_base_type, name)
 
+
 class BufferType(BaseType):
     #
     #  Delegates most attribute
@@ -320,12 +328,7 @@ class BufferType(BaseType):
     def __repr__(self):
         return "<BufferType %r>" % self.base
 
-def public_decl(base, dll_linkage):
-    if dll_linkage:
-        return "%s(%s)" % (dll_linkage, base)
-    else:
-        return base
-    
+
 class PyObjectType(PyrexType):
     #
     #  Base class for all Python object types (reference-counted).
@@ -355,9 +358,11 @@ class PyObjectType(PyrexType):
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
         if pyrex or for_display:
-            return self.base_declaration_code("object", entity_code)
+            base_code = "object"
         else:
-            return "%s *%s" % (public_decl("PyObject", dll_linkage), entity_code)
+            base_code = public_decl("PyObject", dll_linkage)
+            entity_code = "*%s" % entity_code
+        return self.base_declaration_code(base_code, entity_code)
 
     def as_pyobject(self, cname):
         if (not self.is_complete()) or self.is_extension_type:
@@ -436,9 +441,11 @@ class BuiltinObjectType(PyObjectType):
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
         if pyrex or for_display:
-            return self.base_declaration_code(self.name, entity_code)
+            base_code = self.name
         else:
-            return "%s *%s" % (public_decl("PyObject", dll_linkage), entity_code)
+            base_code = public_decl("PyObject", dll_linkage)
+            entity_code = "*%s" % entity_code
+        return self.base_declaration_code(base_code, entity_code)
 
 
 class PyExtensionType(PyObjectType):
@@ -514,17 +521,18 @@ class PyExtensionType(PyObjectType):
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0, deref = 0):
         if pyrex or for_display:
-            return self.base_declaration_code(self.name, entity_code)
+            base_code = self.name
         else:
             if self.typedef_flag:
                 objstruct = self.objstruct_cname
             else:
                 objstruct = "struct %s" % self.objstruct_cname
-            base = public_decl(objstruct, dll_linkage)
+            base_code = public_decl(objstruct, dll_linkage)
             if deref:
-                return "%s %s" % (base,  entity_code)
+                assert not entity_code
             else:
-                return "%s *%s" % (base,  entity_code)
+                entity_code = "*%s" % entity_code
+        return self.base_declaration_code(base_code, entity_code)
 
     def type_test_code(self, py_arg, notnone=False):
 
@@ -584,6 +592,10 @@ class CType(PyrexType):
 
 
 class CVoidType(CType):
+    #
+    #   C "void" type
+    #
+
     is_void = 1
     
     def __repr__(self):
@@ -591,8 +603,11 @@ class CVoidType(CType):
     
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
-        base = public_decl("void", dll_linkage)
-        return self.base_declaration_code(base, entity_code)
+        if pyrex or for_display:
+            base_code = "void"
+        else:
+            base_code = public_decl("void", dll_linkage)
+        return self.base_declaration_code(base_code, entity_code)
     
     def is_complete(self):
         return 0
@@ -625,10 +640,12 @@ class CNumericType(CType):
     
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
-        base = public_decl(self.sign_and_name(), dll_linkage)
-        if for_display:
-            base = base.replace('PY_LONG_LONG', 'long long')
-        return self.base_declaration_code(base,  entity_code)
+        type_name = self.sign_and_name()
+        if pyrex or for_display:
+            base_code = type_name.replace('PY_LONG_LONG', 'long long')
+        else:
+            base_code = public_decl(type_name, dll_linkage)
+        return self.base_declaration_code(base_code, entity_code)
 
 
 type_conversion_predeclarations = ""
@@ -775,17 +792,36 @@ class CIntType(CNumericType):
 
     is_int = 1
     typedef_flag = 0
-    to_py_function = "PyInt_FromLong"
-    from_py_function = "__Pyx_PyInt_AsInt"
+    to_py_function = None
+    from_py_function = None
     exception_value = -1
 
     def __init__(self, rank, signed, is_returncode = 0):
         CNumericType.__init__(self, rank, signed)
         self.is_returncode = is_returncode
-        if self.from_py_function == "__Pyx_PyInt_AsInt":
-            self.from_py_function = self.get_type_conversion()
+        if self.to_py_function is None:
+            self.to_py_function = self.get_to_py_type_conversion()
+        if self.from_py_function is None:
+            self.from_py_function = self.get_from_py_type_conversion()
 
-    def get_type_conversion(self):
+    def get_to_py_type_conversion(self):
+        if self.rank < rank_to_type_name.index('int'):
+            # This assumes sizeof(short) < sizeof(int)
+            return "PyInt_FromLong"
+        else:
+            # Py{Int|Long}_From[Unsigned]Long[Long]
+            Prefix = "Int"
+            SignWord = ""
+            TypeName = "Long"
+            if not self.signed:
+                Prefix = "Long"
+                SignWord = "Unsigned"
+            if self.rank == rank_to_type_name.index('PY_LONG_LONG'):
+                Prefix = "Long"
+                TypeName = "LongLong"
+            return "Py%s_From%s%s" % (Prefix, SignWord, TypeName)
+
+    def get_from_py_type_conversion(self):
         ctype = self.declaration_code('')
         bits = ctype.split(" ", 1)
         if len(bits) == 1:
@@ -827,48 +863,22 @@ class CAnonEnumType(CIntType):
         return 'int'
 
 
-class CUIntType(CIntType):
-
-    to_py_function = "PyLong_FromUnsignedLong"
-    exception_value = -1
-
-
-class CLongType(CIntType):
-
-    to_py_function = "PyInt_FromLong"
-
-
-class CULongType(CUIntType):
-
-    to_py_function = "PyLong_FromUnsignedLong"
-
-
-class CLongLongType(CIntType):
-
-    to_py_function = "PyLong_FromLongLong"
-
-
-class CULongLongType(CUIntType):
-
-    to_py_function = "PyLong_FromUnsignedLongLong"
-
-
 class CPySSizeTType(CIntType):
 
     to_py_function = "PyInt_FromSsize_t"
     from_py_function = "__Pyx_PyIndex_AsSsize_t"
 
     def sign_and_name(self):
-        return rank_to_type_name[self.rank]
+        return "Py_ssize_t"
 
 
-class CSizeTType(CUIntType):
+class CSizeTType(CIntType):
 
     to_py_function = "__Pyx_PyInt_FromSize_t"
     from_py_function = "__Pyx_PyInt_AsSize_t"
 
     def sign_and_name(self):
-        return rank_to_type_name[self.rank]
+        return "size_t"
 
 
 class CFloatType(CNumericType):
@@ -937,15 +947,17 @@ class CComplexType(CNumericType):
 
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
-        if for_display:
-            base = public_decl(self.real_type.sign_and_name() + " complex", dll_linkage)
+        if pyrex or for_display:
+            real_code = self.real_type.declaration_code("", for_display, dll_linkage, pyrex)
+            base_code = "%s complex" % real_code
         else:
-            base = public_decl(self.sign_and_name(), dll_linkage)
-        return self.base_declaration_code(base,  entity_code)
+            base_code = public_decl(self.sign_and_name(), dll_linkage)
+        return self.base_declaration_code(base_code, entity_code)
 
     def sign_and_name(self):
         real_type_name = self.real_type.specialization_name()
         real_type_name = real_type_name.replace('long__double','long_double')
+        real_type_name = real_type_name.replace('PY_LONG_LONG','long_long')
         return Naming.type_prefix + real_type_name + "_complex"
     
     def assignable_from(self, src_type):
@@ -1752,16 +1764,15 @@ class CStructOrUnionType(CType):
 
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
-        if pyrex:
-            return self.base_declaration_code(self.name, entity_code)
+        if pyrex or for_display:
+            base_code = self.name
         else:
-            if for_display:
-                base = self.name
-            elif self.typedef_flag:
-                base = self.cname
+            if self.typedef_flag:
+                base_code = self.cname
             else:
-                base = "%s %s" % (self.kind, self.cname)
-            return self.base_declaration_code(public_decl(base, dll_linkage), entity_code)
+                base_code = "%s %s" % (self.kind, self.cname)
+            base_code = public_decl(base_code, dll_linkage)
+        return self.base_declaration_code(base_code, entity_code)
 
     def __eq__(self, other):
         try:
@@ -1851,20 +1862,24 @@ class CppClassType(CType):
             specialized.namespace = self.namespace.specialize(values)
         return specialized
 
-    def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
+    def declaration_code(self, entity_code,
+            for_display = 0, dll_linkage = None, pyrex = 0):
         if self.templates:
-            template_strings = [param.declaration_code('', for_display, pyrex) for param in self.templates]
+            template_strings = [param.declaration_code('', for_display, None, pyrex)
+                                for param in self.templates]
             templates = "<%s>" % ",".join(template_strings)
+            if templates[-2:] == ">>":
+                templates = templates[:-2] + "> >"
         else:
             templates = ""
-        if for_display or pyrex:
-            name = self.name
+        if pyrex or for_display:
+            base_code = "%s%s" % (self.name, templates)
         else:
+            base_code = "%s%s" % (self.cname, templates)
             if self.namespace is not None:
-                name = "%s::%s" % (self.namespace.declaration_code(''), self.cname)
-            else:
-                name = self.cname
-        return "%s%s %s" % (name, templates, entity_code)
+                base_code = "%s::%s" % (self.namespace.declaration_code(''), base_code)
+            base_code = public_decl(base_code, dll_linkage)
+        return self.base_declaration_code(base_code, entity_code)
 
     def is_subclass(self, other_type):
         # TODO(danilo): Handle templates.
@@ -1903,7 +1918,8 @@ class TemplatePlaceholderType(CType):
     def __init__(self, name):
         self.name = name
     
-    def declaration_code(self, entity_code, for_display = 0, dll_linkage = None, pyrex = 0):
+    def declaration_code(self, entity_code, 
+            for_display = 0, dll_linkage = None, pyrex = 0):
         if entity_code:
             return self.name + " " + entity_code
         else:
@@ -1956,14 +1972,15 @@ class CEnumType(CType):
     
     def declaration_code(self, entity_code, 
             for_display = 0, dll_linkage = None, pyrex = 0):
-        if pyrex:
-            return self.base_declaration_code(self.cname, entity_code)
+        if pyrex or for_display:
+            base_code = self.name
         else:
             if self.typedef_flag:
-                base = self.cname
+                base_code = self.cname
             else:
-                base = "enum %s" % self.cname
-            return self.base_declaration_code(public_decl(base, dll_linkage), entity_code)
+                base_code = "enum %s" % self.cname
+            base_code = public_decl(base_code, dll_linkage)
+        return self.base_declaration_code(base_code, entity_code)
 
 
 class CStringType(object):
@@ -2076,23 +2093,23 @@ c_void_ptr_ptr_type = CPtrType(c_void_ptr_type)
 
 c_uchar_type =       CIntType(0, 0)
 c_ushort_type =      CIntType(1, 0)
-c_uint_type =        CUIntType(2, 0)
-c_ulong_type =       CULongType(3, 0)
-c_ulonglong_type =   CULongLongType(6, 0)
+c_uint_type =        CIntType(2, 0)
+c_ulong_type =       CIntType(3, 0)
+c_ulonglong_type =   CIntType(6, 0)
 
 c_char_type =        CIntType(0, 1)
 c_short_type =       CIntType(1, 1)
 c_int_type =         CIntType(2, 1)
-c_long_type =        CLongType(3, 1)
-c_longlong_type =    CLongLongType(6, 1)
-c_bint_type =        CBIntType(2, 1)
+c_long_type =        CIntType(3, 1)
+c_longlong_type =    CIntType(6, 1)
 
 c_schar_type =       CIntType(0, 2)
 c_sshort_type =      CIntType(1, 2)
 c_sint_type =        CIntType(2, 2)
-c_slong_type =       CLongType(3, 2)
-c_slonglong_type =   CLongLongType(6, 2)
+c_slong_type =       CIntType(3, 2)
+c_slonglong_type =   CIntType(6, 2)
 
+c_bint_type =        CBIntType(2, 1)
 c_py_ssize_t_type =  CPySSizeTType(4, 2)
 c_size_t_type =      CSizeTType(5, 0)
 
@@ -2100,7 +2117,9 @@ c_float_type =       CFloatType(7, math_h_modifier='f')
 c_double_type =      CFloatType(8)
 c_longdouble_type =  CFloatType(9, math_h_modifier='l')
 
-c_double_complex_type = CComplexType(c_double_type)
+c_float_complex_type =      CComplexType(c_float_type)
+c_double_complex_type =     CComplexType(c_double_type)
+c_longdouble_complex_type = CComplexType(c_longdouble_type)
 
 c_null_ptr_type =     CNullPtrType(c_void_type)
 c_char_array_type =   CCharArrayType(None)
@@ -2113,7 +2132,6 @@ c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
 c_size_t_ptr_type =  CPtrType(c_size_t_type)
 
 c_returncode_type =   CIntType(2, 1, is_returncode = 1)
-
 c_anon_enum_type =    CAnonEnumType(-1, 1)
 
 # the Py_buffer type is defined in Builtin.py
@@ -2191,24 +2209,6 @@ modifiers_and_name_to_type = {
     (1, 0, "longlong"): c_longlong_type,
     (1, 0, "bint"): c_bint_type,
 }
-
-def is_promotion0(src_type, dst_type):
-    if src_type.is_numeric and dst_type.is_numeric:
-        if src_type.is_int and dst_type.is_int:
-            if src_type.is_enum: 
-                return True
-            elif src_type.signed:
-                return dst_type.signed and src_type.rank <= dst_type.rank
-            elif dst_type.signed: # and not src_type.signed
-                src_type.rank < dst_type.rank
-            else:
-                return src_type.rank <= dst_type.rank
-        elif src_type.is_float and dst_type.is_float:
-            return src_type.rank <= dst_type.rank
-        else:
-            return False
-    else:
-        return False
 
 def is_promotion(src_type, dst_type):
     # It's hard to find a hard definition of promotion, but empirical
@@ -2323,7 +2323,6 @@ def best_match(args, functions, pos=None):
             error(pos, "no suitable method found")
     return None
 
-
 def widest_numeric_type(type1, type2):
     # Given two numeric types, return the narrowest type
     # encompassing both of them.
@@ -2432,19 +2431,6 @@ def c_ref_type(base_type):
         return error_type
     else:
         return CReferenceType(base_type)
-        
-def Node_to_type(node, env):
-    from ExprNodes import NameNode, AttributeNode, StringNode, error
-    if isinstance(node, StringNode):
-        node = NameNode(node.pos, name=node.value)
-    if isinstance(node, NameNode) and node.name in rank_to_type_name:
-        return simple_c_type(1, 0, node.name)
-    elif isinstance(node, (AttributeNode, NameNode)):
-        node.analyze_types(env)
-        if not node.entry.is_type:
-            pass
-    else:
-        error(node.pos, "Bad type")
 
 def same_type(type1, type2):
     return type1.same_as(type2)
@@ -2586,5 +2572,4 @@ static CYTHON_INLINE size_t __Pyx_PyInt_AsSize_t(PyObject* x) {
 }
 
 """ + type_conversion_functions
-
 
