@@ -1880,7 +1880,7 @@ class DefNode(FuncDefNode):
             arg.needs_conversion = 0
             arg.needs_type_test = 0
             arg.is_generic = 1
-            if arg.type.is_extension_type:
+            if arg.type.is_extension_type or arg.type.is_builtin_type:
                 if arg.or_none:
                     arg.accept_none = True
                 elif arg.not_none:
