@@ -44,3 +44,17 @@ def test_conjugate(long complex z):
     (2-3j)
     """
     return z.conjugate()
+
+def test_conjugate2(short complex z):
+    """
+    >>> test_conjugate2(2+3j)
+    (2-3j)
+    """
+    return z.conjugate()
+
+def test_conjugate3(long long complex z):
+    """
+    >>> test_conjugate3(2+3j)
+    (2-3j)
+    """
+    return z.conjugate()
