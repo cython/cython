@@ -1638,7 +1638,12 @@ class CFuncTypeArg(object):
     #  cname      string
     #  type       PyrexType
     #  pos        source file position
-    
+
+    # FIXME: is this the right setup? should None be allowed here?
+    not_none = False
+    or_none = False
+    accept_none = True
+
     def __init__(self, name, type, pos, cname=None):
         self.name = name
         if cname is not None:
@@ -1647,7 +1652,6 @@ class CFuncTypeArg(object):
             self.cname = Naming.var_prefix + name
         self.type = type
         self.pos = pos
-        self.not_none = False
         self.needs_type_test = False # TODO: should these defaults be set in analyse_types()?
     
     def __repr__(self):

@@ -630,6 +630,8 @@ class CArgDeclNode(Node):
     # base_type      CBaseTypeNode
     # declarator     CDeclaratorNode
     # not_none       boolean            Tagged with 'not None'
+    # or_none        boolean            Tagged with 'or None'
+    # accept_none    boolean            Resolved boolean for not_none/or_none
     # default        ExprNode or None
     # default_value  PyObjectConst      constant for default value
     # is_self_arg    boolean            Is the "self" arg of an extension type method
@@ -1658,7 +1660,7 @@ class CFuncDefNode(FuncDefNode):
                 'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, "%s", %s))) %s' % (
                     arg_code, 
                     typeptr_cname,
-                    not arg.not_none,
+                    arg.accept_none,
                     arg.name,
                     type.is_builtin_type,
                     code.error_goto(arg.pos)))
@@ -1849,6 +1851,7 @@ class DefNode(FuncDefNode):
 
     def analyse_argument_types(self, env):
         directive_locals = self.directive_locals = env.directives['locals']
+        allow_none_for_extension_args = env.directives['allow_none_for_extension_args']
         for arg in self.args:
             if hasattr(arg, 'name'):
                 type = arg.type
@@ -1877,9 +1880,19 @@ class DefNode(FuncDefNode):
             arg.needs_conversion = 0
             arg.needs_type_test = 0
             arg.is_generic = 1
-            if arg.not_none and not arg.type.is_extension_type:
-                error(self.pos,
-                    "Only extension type arguments can have 'not None'")
+            if arg.type.is_extension_type:
+                if arg.or_none:
+                    arg.accept_none = True
+                elif arg.not_none:
+                    arg.accept_none = False
+                else:
+                    # default depends on compiler directive
+                    arg.accept_none = allow_none_for_extension_args
+            else:
+                if arg.not_none:
+                    error(self.pos, "Only extension type arguments can have 'not None'")
+                if arg.or_none:
+                    error(self.pos, "Only extension type arguments can have 'or None'")
 
     def analyse_signature(self, env):
         any_type_tests_needed = 0
@@ -2650,7 +2663,7 @@ class DefNode(FuncDefNode):
                 'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, "%s", %s))) %s' % (
                     arg_code, 
                     typeptr_cname,
-                    not arg.not_none,
+                    arg.accept_none,
                     arg.name,
                     arg.type.is_builtin_type,
                     code.error_goto(arg.pos)))

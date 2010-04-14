@@ -58,6 +58,7 @@ directive_defaults = {
     'cdivision': False, # was True before 0.12
     'cdivision_warnings': False,
     'always_allow_keywords': False,
+    'allow_none_for_extension_args': True,
     'wraparound' : True,
     'ccomplex' : False, # use C99/C++ for complex types and arith
     'callspec' : "",

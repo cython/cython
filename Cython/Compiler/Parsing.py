@@ -2081,7 +2081,7 @@ def p_optional_ellipsis(s):
 
 def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0, kw_only = 0):
     pos = s.position()
-    not_none = 0
+    not_none = or_none = 0
     default = None
     if s.in_python_file:
         # empty type declaration
@@ -2093,15 +2093,17 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0, kw_only = 0)
     else:
         base_type = p_c_base_type(s, cmethod_flag, nonempty = nonempty)
     declarator = p_c_declarator(s, ctx, nonempty = nonempty)
-    if s.sy == 'not' and not s.in_python_file:
+    if s.sy in ('not', 'or') and not s.in_python_file:
+        kind = s.sy
         s.next()
         if s.sy == 'IDENT' and s.systring == 'None':
             s.next()
         else:
             s.error("Expected 'None'")
         if not in_pyfunc:
-            error(pos, "'not None' only allowed in Python functions")
-        not_none = 1
+            error(pos, "'%s None' only allowed in Python functions" % kind)
+        or_none = kind == 'or'
+        not_none = kind == 'not'
     if s.sy == '=':
         s.next()
         if 'pxd' in s.level:
@@ -2115,6 +2117,7 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0, kw_only = 0)
         base_type = base_type,
         declarator = declarator,
         not_none = not_none,
+        or_none = or_none,
         default = default,
         kw_only = kw_only)
 
