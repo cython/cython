@@ -816,7 +816,7 @@ class CIntType(CNumericType):
             if not self.signed:
                 Prefix = "Long"
                 SignWord = "Unsigned"
-            if self.rank >== list(rank_to_type_name).index('PY_LONG_LONG'):
+            if self.rank >= list(rank_to_type_name).index('PY_LONG_LONG'):
                 Prefix = "Long"
                 TypeName = "LongLong"
             return "Py%s_From%s%s" % (Prefix, SignWord, TypeName)
