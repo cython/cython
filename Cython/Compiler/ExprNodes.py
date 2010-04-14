@@ -593,7 +593,7 @@ class ExprNode(Node):
         if type.is_pyobject or type.is_ptr or type.is_float:
             return CoerceToBooleanNode(self, env)
         else:
-            if not type.is_int and not type.is_error:
+            if not (type.is_int or type.is_enum or type.is_error):
                 error(self.pos, 
                     "Type '%s' not acceptable as a boolean" % type)
             return self
