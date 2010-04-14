@@ -2622,10 +2622,13 @@ class DefNode(FuncDefNode):
         func = new_type.from_py_function
         # copied from CoerceFromPyTypeNode
         if func:
-            code.putln("%s = %s(%s); %s" % (
-                arg.entry.cname,
-                func,
-                arg.hdr_cname,
+            lhs = arg.entry.cname
+            rhs = "%s(%s)" % (func, arg.hdr_cname)
+            if new_type.is_enum:
+                rhs = PyrexTypes.typecast(new_type, PyrexTypes.c_long_type, rhs)
+            code.putln("%s = %s; %s" % (
+                lhs, 
+                rhs,
                 code.error_goto_if(new_type.error_condition(arg.entry.cname), arg.pos)))
         else:
             error(arg.pos, 
