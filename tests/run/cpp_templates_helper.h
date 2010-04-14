@@ -13,6 +13,7 @@ class Pair {
     T1 _first;
     T2 _second;
 public:
+    Pair() { }
     Pair(T1 u, T2 v) { _first = u; _second = v; }
     T1 first(void) { return _first; }
     T2 second(void) { return _second; }
