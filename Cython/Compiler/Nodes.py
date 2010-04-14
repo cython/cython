@@ -1889,6 +1889,7 @@ class DefNode(FuncDefNode):
                     # default depends on compiler directive
                     arg.accept_none = allow_none_for_extension_args
             else:
+                arg.accept_none = True
                 if arg.not_none:
                     error(self.pos, "Only extension type arguments can have 'not None'")
                 if arg.or_none:
