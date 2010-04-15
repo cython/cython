@@ -1066,6 +1066,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 return arg
             else:
                 return arg.coerce_to(node.type, self.current_env())
+        if isinstance(arg, ExprNodes.PyTypeTestNode):
+            arg = arg.arg
         if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             if arg.type is PyrexTypes.py_object_type:
                 if node.type.assignable_from(arg.arg.type):
