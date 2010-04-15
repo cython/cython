@@ -11,7 +11,8 @@ import Symtab
 class AutoTestDictTransform(ScopeTrackingTransform):
     # Handles autotestdict directive
 
-    blacklist = ['__cinit__', '__dealloc__', '__richcmp__', '__nonzero__']
+    blacklist = ['__cinit__', '__dealloc__', '__richcmp__', '__nonzero__',
+                 '__len__', '__contains__']
 
     def visit_ModuleNode(self, node):
         if node.is_pxd:

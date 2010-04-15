@@ -1535,7 +1535,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_method_table(self, env, code):
         code.putln("")
         code.putln(
-            "static struct PyMethodDef %s[] = {" % 
+            "static PyMethodDef %s[] = {" % 
                 env.method_table_cname)
         for entry in env.pyfunc_entries:
             code.put_pymethoddef(entry, ",")
