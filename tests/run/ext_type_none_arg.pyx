@@ -15,7 +15,7 @@ cdef attr(MyExtType x):
 
 # defaults, without 'not/or None'
 
-def ext_default(MyExtType x):
+def ext_default(MyExtType x): # currently behaves like 'or None'
     """
     >>> ext_default(MyExtType())
     123
@@ -76,7 +76,7 @@ cdef litem(list L, int item):
 
 # defaults, without 'not/or None'
 
-def builtin_default(list L):
+def builtin_default(list L): # currently behaves like 'or None'
     """
     >>> builtin_default([123])
     123
@@ -129,23 +129,75 @@ def builtin_not_none(list L not None):
     return litem(L, 0)
 
 
-## builtin type 'object' (which includes None!)  - currently unclear!
+## builtin type 'object' - isinstance(None, object) is True!
 
-## def object_or_none(object o or None):
-##     """
-##     >>> object_or_none([])
-##     list
-##     >>> object_or_none(None)
-##     NoneType
-##     """
-##     return type(o).__name__
+def object_default(object o): # behaves like 'or None'
+    """
+    >>> object_default(object())
+    'object'
+    >>> object_default([])
+    'list'
+    >>> object_default(None)
+    'NoneType'
+    """
+    return type(o).__name__
 
-## def object_not_none(object o not None):
-##     """
-##     >>> object_not_none([123])
-##     123
-##     >>> object_not_none(None)
-##     Traceback (most recent call last):
-##     TypeError: Argument 'o' has incorrect type (expected object, got NoneType)
-##     """
-##     return type(o).__name__
+def object_or_none(object o or None):
+    """
+    >>> object_or_none(object())
+    'object'
+    >>> object_or_none([])
+    'list'
+    >>> object_or_none(None)
+    'NoneType'
+    """
+    return type(o).__name__
+
+def object_not_none(object o not None):
+    """
+    >>> object_not_none(object())
+    'object'
+    >>> object_not_none([])
+    'list'
+    >>> object_not_none(None)
+    Traceback (most recent call last):
+    TypeError: Argument 'o' must not be None
+    """
+    return type(o).__name__
+
+
+## untyped 'object' - isinstance(None, object) is True!
+
+def notype_default(o): # behaves like 'or None'
+    """
+    >>> notype_default(object())
+    'object'
+    >>> notype_default([])
+    'list'
+    >>> notype_default(None)
+    'NoneType'
+    """
+    return type(o).__name__
+
+def notype_or_none(o or None):
+    """
+    >>> notype_or_none(object())
+    'object'
+    >>> notype_or_none([])
+    'list'
+    >>> notype_or_none(None)
+    'NoneType'
+    """
+    return type(o).__name__
+
+def notype_not_none(o not None):
+    """
+    >>> notype_not_none(object())
+    'object'
+    >>> notype_not_none([])
+    'list'
+    >>> notype_not_none(None)
+    Traceback (most recent call last):
+    TypeError: Argument 'o' must not be None
+    """
+    return type(o).__name__
