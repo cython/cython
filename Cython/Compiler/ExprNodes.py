@@ -6136,7 +6136,7 @@ class CoerceToBooleanNode(CoercionNode):
             return
         test_func = self._special_builtins.get(self.arg.type)
         if test_func is not None:
-            code.putln("%s = (%s != Py_None) & (%s(%s) != 0);" % (
+            code.putln("%s = (%s != Py_None) && (%s(%s) != 0);" % (
                        self.result(),
                        self.arg.py_result(),
                        test_func,
