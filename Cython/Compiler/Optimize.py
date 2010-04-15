@@ -1044,6 +1044,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         """
         self.visitchildren(node)
         arg = node.arg
+        if isinstance(arg, ExprNodes.PyTypeTestNode):
+            arg = arg.arg
         if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             if arg.type in (PyrexTypes.py_object_type, Builtin.bool_type):
                 return arg.arg.coerce_to_boolean(self.current_env())
