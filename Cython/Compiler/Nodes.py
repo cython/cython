@@ -2096,7 +2096,11 @@ class DefNode(FuncDefNode):
         code.putln("%s; /*proto*/" % header)
         if proto_only:
             return
-        if self.entry.doc and Options.docstrings:
+        if (Options.docstrings and self.entry.doc and
+            (not self.entry.is_special or
+             self.entry.signature.method_flags()) and
+            not self.entry.scope.is_property_scope
+            ):
             docstr = self.entry.doc
             if docstr.is_unicode:
                 docstr = docstr.utf8encode()

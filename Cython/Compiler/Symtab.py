@@ -207,6 +207,8 @@ class Scope(object):
     # return_type       PyrexType or None  Return type of function owning scope
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
+    # is_cpp_class_scope  boolean          Is a C++ class scope
+    # is_property_scope boolean            Is a extension type property scope
     # scope_prefix      string             Disambiguator for C names
     # in_cinclude       boolean            Suppress C declaration code
     # qualified_name    string             "modname" or "modname.classname"
@@ -220,6 +222,7 @@ class Scope(object):
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_cpp_class_scope = 0
+    is_property_scope = 0
     is_module_scope = 0
     scope_prefix = ""
     in_cinclude = 0
@@ -1619,6 +1622,8 @@ class PropertyScope(Scope):
     #  a property of an extension type.
     #
     #  parent_type   PyExtensionType   The type to which the property belongs
+
+    is_property_scope = 1
     
     def declare_pyfunction(self, name, pos):
         # Add an entry for a method.

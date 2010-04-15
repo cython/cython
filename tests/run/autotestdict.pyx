@@ -110,4 +110,20 @@ cdef class MyCdefClass:
         False
         """
 
+    def __len__(self):
+        """
+        Should not be included, as it can't be looked up with getattr in Py 3.1
+
+        >>> True
+        False
+        """
+
+    def __contains__(self, value):
+        """
+        Should not be included, as it can't be looked up with getattr in Py 3.1
+
+        >>> True
+        False
+        """
+
 cdeffunc()
