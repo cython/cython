@@ -1906,9 +1906,9 @@ class DefNode(FuncDefNode):
             else:
                 arg.accept_none = True # won't be used, but must be there
                 if arg.not_none:
-                    error(self.pos, "Only Python type arguments can have 'not None'")
+                    error(arg.pos, "Only Python type arguments can have 'not None'")
                 if arg.or_none:
-                    error(self.pos, "Only Python type arguments can have 'or None'")
+                    error(arg.pos, "Only Python type arguments can have 'or None'")
 
     def analyse_signature(self, env):
         if self.entry.is_special:
