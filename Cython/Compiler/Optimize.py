@@ -869,7 +869,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
     def _function_is_builtin_name(self, function):
         if not function.is_name:
             return False
-        entry = self.env_stack[-1].lookup(function.name)
+        entry = self.current_env().lookup(function.name)
         if not entry or getattr(entry, 'scope', None) is not Builtin.builtin_scope:
             return False
         return True
@@ -1046,7 +1046,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         arg = node.arg
         if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             if arg.type in (PyrexTypes.py_object_type, Builtin.bool_type):
-                return arg.arg.coerce_to_boolean(self.env_stack[-1])
+                return arg.arg.coerce_to_boolean(self.current_env())
         return node
 
     def visit_CoerceFromPyTypeNode(self, node):
@@ -1063,12 +1063,12 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             if node.type == arg.type:
                 return arg
             else:
-                return arg.coerce_to(node.type, self.env_stack[-1])
+                return arg.coerce_to(node.type, self.current_env())
         if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             if arg.type is PyrexTypes.py_object_type:
                 if node.type.assignable_from(arg.arg.type):
                     # completely redundant C->Py->C coercion
-                    return arg.arg.coerce_to(node.type, self.env_stack[-1])
+                    return arg.arg.coerce_to(node.type, self.current_env())
         if isinstance(arg, ExprNodes.SimpleCallNode):
             if node.type.is_int or node.type.is_float:
                 return self._optimise_numeric_cast_call(node, arg)
@@ -1377,7 +1377,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         else:
             return node
         if node.type not in (PyrexTypes.c_size_t_type, PyrexTypes.c_py_ssize_t_type):
-            new_node = new_node.coerce_to(node.type, self.env_stack[-1])
+            new_node = new_node.coerce_to(node.type, self.current_env())
         return new_node
 
     Pyx_Type_func_type = PyrexTypes.CFuncType(
@@ -1666,7 +1666,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             method_name, is_unbound_method, args,
             utility_code = unicode_tailmatch_utility_code)
         return ExprNodes.CoerceToPyTypeNode(
-            method_call, self.env_stack[-1], Builtin.bool_type)
+            method_call, self.current_env(), Builtin.bool_type)
 
     PyUnicode_Find_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
@@ -1705,7 +1705,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             node, "PyUnicode_Find", self.PyUnicode_Find_func_type,
             method_name, is_unbound_method, args)
         return ExprNodes.CoerceToPyTypeNode(
-            method_call, self.env_stack[-1], PyrexTypes.py_object_type)
+            method_call, self.current_env(), PyrexTypes.py_object_type)
 
     PyUnicode_Count_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
@@ -1732,7 +1732,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             node, "PyUnicode_Count", self.PyUnicode_Count_func_type,
             'count', is_unbound_method, args)
         return ExprNodes.CoerceToPyTypeNode(
-            method_call, self.env_stack[-1], PyrexTypes.py_object_type)
+            method_call, self.current_env(), PyrexTypes.py_object_type)
 
     PyUnicode_Replace_func_type = PyrexTypes.CFuncType(
         Builtin.unicode_type, [
@@ -1859,7 +1859,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 start = None
             else:
                 if start.type.is_pyobject:
-                    start = start.coerce_to(PyrexTypes.c_py_ssize_t_type, self.env_stack[-1])
+                    start = start.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
                 if stop:
                     start = UtilNodes.LetRefNode(start)
                     temps.append(start)
@@ -1871,7 +1871,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                                                 type=string_node.type
                                                 )
             if stop and stop.type.is_pyobject:
-                stop = stop.coerce_to(PyrexTypes.c_py_ssize_t_type, self.env_stack[-1])
+                stop = stop.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
         elif isinstance(args[0], ExprNodes.CoerceToPyTypeNode) \
                  and args[0].arg.type.is_string:
             # use strlen() to find the string length, just as CPython would
@@ -1890,7 +1890,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                     args = [string_node],
                     is_temp = False,
                     utility_code = include_string_h_utility_code,
-                    ).coerce_to(PyrexTypes.c_py_ssize_t_type, self.env_stack[-1])
+                    ).coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
         elif start:
             stop = ExprNodes.SubNode(
                 pos = stop.pos,
@@ -2018,14 +2018,14 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if len(args) == arg_index:
             args.append(ExprNodes.IntNode(node.pos, value=str(default_value), type=type))
         else:
-            args[arg_index] = args[arg_index].coerce_to(type, self.env_stack[-1])
+            args[arg_index] = args[arg_index].coerce_to(type, self.current_env())
 
     def _inject_bint_default_argument(self, node, args, arg_index, default_value):
         assert len(args) >= arg_index
         if len(args) == arg_index:
             args.append(ExprNodes.BoolNode(node.pos, value=bool(default_value)))
         else:
-            args[arg_index] = args[arg_index].coerce_to_boolean(self.env_stack[-1])
+            args[arg_index] = args[arg_index].coerce_to_boolean(self.current_env())
 
 
 unicode_tailmatch_utility_code = UtilityCode(
