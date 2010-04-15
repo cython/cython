@@ -272,6 +272,10 @@ class ExprNode(Node):
         # ConstantFolding transform will do this.
         pass
 
+    def has_constant_result(self):
+        return self.constant_result is not constant_value_not_set and \
+               self.constant_result is not not_a_constant
+
     def compile_time_value(self, denv):
         #  Return value of compile-time expression, or report error.
         error(self.pos, "Invalid compile-time expression")
@@ -589,6 +593,13 @@ class ExprNode(Node):
     def coerce_to_boolean(self, env):
         #  Coerce result to something acceptable as
         #  a boolean value.
+
+        # if it's constant, calculate the result now
+        if self.has_constant_result():
+            bool_value = bool(self.constant_result)
+            return BoolNode(self.pos, value=bool_value,
+                            constant_result=bool_value)
+
         type = self.type
         if type.is_pyobject or type.is_ptr or type.is_float:
             return CoerceToBooleanNode(self, env)
@@ -840,6 +851,11 @@ class BytesNode(ConstNode):
 
     def can_coerce_to_char_literal(self):
         return len(self.value) == 1
+
+    def coerce_to_boolean(self, env):
+        # This is special because we start off as a C char*.  Testing
+        # that for truth directly would yield the wrong result.
+        return BoolNode(self.pos, value=bool(self.value))
 
     def coerce_to(self, dst_type, env):
         if dst_type.is_int:
@@ -5009,7 +5025,7 @@ class DivNode(NumBinopNode):
         if not self.type.is_pyobject:
             self.zerodivision_check = (
                 self.cdivision is None and not env.directives['cdivision']
-                and (self.operand2.constant_result is not_a_constant or
+                and (not self.operand2.has_constant_result() or
                      self.operand2.constant_result == 0))
             if self.zerodivision_check or env.directives['cdivision_warnings']:
                 # Need to check ahead of time to warn or raise zero division error
@@ -6087,7 +6103,14 @@ class CoerceToBooleanNode(CoercionNode):
     #  in a boolean context.
     
     type = PyrexTypes.c_bint_type
-    
+
+    _special_builtins = {
+        Builtin.list_type    : 'PyList_GET_SIZE',
+        Builtin.tuple_type   : 'PyTuple_GET_SIZE',
+        Builtin.bytes_type   : 'PyBytes_GET_SIZE',
+        Builtin.unicode_type : 'PyUnicode_GET_SIZE',
+        }
+
     def __init__(self, arg, env):
         CoercionNode.__init__(self, arg)
         if arg.type.is_pyobject:
@@ -6109,7 +6132,16 @@ class CoerceToBooleanNode(CoercionNode):
         return "(%s != 0)" % self.arg.result()
 
     def generate_result_code(self, code):
-        if self.arg.type.is_pyobject:
+        if not self.is_temp:
+            return
+        test_func = self._special_builtins.get(self.arg.type)
+        if test_func is not None:
+            code.putln("%s = (%s != Py_None) & (%s(%s) != 0);" % (
+                       self.result(),
+                       self.arg.py_result(),
+                       test_func,
+                       self.arg.py_result()))
+        else:
             code.putln(
                 "%s = __Pyx_PyObject_IsTrue(%s); %s" % (
                     self.result(), 
