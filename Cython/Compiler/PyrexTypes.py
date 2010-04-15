@@ -2327,25 +2327,27 @@ def widest_numeric_type(type1, type2):
     # Given two numeric types, return the narrowest type
     # encompassing both of them.
     if type1 == type2:
-        return type1
-    if type1.is_complex:
-        if type2.is_complex:
-            return CComplexType(widest_numeric_type(type1.real_type, type2.real_type))
-        else:
-            return CComplexType(widest_numeric_type(type1.real_type, type2))
-    elif type2.is_complex:
-        return CComplexType(widest_numeric_type(type1, type2.real_type))
-    if type1.is_enum and type2.is_enum:
-        return c_int_type
-    elif type1 is type2:
-        return type1
-    elif (type1.signed and type2.signed) or (not type1.signed and not type2.signed):
-        if type2.rank > type1.rank:
-            return type2
-        else:
-            return type1
+        widest_type = type1
+    elif type1.is_complex or type2.is_complex:
+        def real_type(ntype):
+            if ntype.is_complex:
+                return ntype.real_type
+            return ntype
+        widest_type = CComplexType(
+            widest_numeric_type(
+                real_type(type1), 
+                real_type(type2)))
+    elif type1.is_enum and type2.is_enum:
+        widest_type = c_int_type
+    elif type1.rank < type2.rank:
+        widest_type = type2
+    elif type1.rank > type2.rank:
+        widest_type = type1
+    elif type1.signed < type2.signed:
+        widest_type = type1
     else:
-        return sign_and_rank_to_type[min(type1.signed, type2.signed), max(type1.rank, type2.rank)]
+        widest_type = type2
+    return widest_type
 
 def spanning_type(type1, type2):
     # Return a type assignable from both type1 and type2.
