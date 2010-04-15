@@ -1674,8 +1674,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             node, "__Pyx_PyUnicode_Tailmatch", self.PyUnicode_Tailmatch_func_type,
             method_name, is_unbound_method, args,
             utility_code = unicode_tailmatch_utility_code)
-        return ExprNodes.CoerceToPyTypeNode(
-            method_call, self.current_env(), Builtin.bool_type)
+        return method_call.coerce_to(Builtin.bool_type, self.current_env())
 
     PyUnicode_Find_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
@@ -1713,8 +1712,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         method_call = self._substitute_method_call(
             node, "PyUnicode_Find", self.PyUnicode_Find_func_type,
             method_name, is_unbound_method, args)
-        return ExprNodes.CoerceToPyTypeNode(
-            method_call, self.current_env(), PyrexTypes.py_object_type)
+        return method_call.coerce_to_pyobject(self.current_env())
 
     PyUnicode_Count_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_py_ssize_t_type, [
@@ -1740,8 +1738,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         method_call = self._substitute_method_call(
             node, "PyUnicode_Count", self.PyUnicode_Count_func_type,
             'count', is_unbound_method, args)
-        return ExprNodes.CoerceToPyTypeNode(
-            method_call, self.current_env(), PyrexTypes.py_object_type)
+        return method_call.coerce_to_pyobject(self.current_env())
 
     PyUnicode_Replace_func_type = PyrexTypes.CFuncType(
         Builtin.unicode_type, [
