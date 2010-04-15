@@ -1,4 +1,15 @@
 
+def bool_list(list obj):
+    """
+    >>> bool_list( [] )
+    False
+    >>> bool_list( [1] )
+    True
+    >>> bool_list(None)
+    False
+    """
+    return bool(obj)
+
 def if_list(list obj):
     """
     >>> if_list( [] )
@@ -30,6 +41,18 @@ def if_list_literal(t):
             return True
         else:
             return False
+
+
+def bool_tuple(tuple obj):
+    """
+    >>> bool_tuple( () )
+    False
+    >>> bool_tuple( (1,) )
+    True
+    >>> bool_tuple(None)
+    False
+    """
+    return bool(obj)
 
 def if_tuple(tuple obj):
     """
@@ -63,8 +86,20 @@ def if_tuple_literal(t):
         else:
             return False
 
+
 b0 = b''
 b1 = b'abc'
+
+def bool_bytes(bytes obj):
+    """
+    >>> bool_bytes(b0)
+    False
+    >>> bool_bytes(b1)
+    True
+    >>> bool_bytes(None)
+    False
+    """
+    return bool(obj)
 
 def if_bytes(bytes obj):
     """
@@ -98,8 +133,20 @@ def if_bytes_literal(t):
         else:
             return False
 
+
 u0 = u''
 u1 = u'abc'
+
+def bool_unicode(unicode obj):
+    """
+    >>> bool_unicode(u0)
+    False
+    >>> bool_unicode(u1)
+    True
+    >>> bool_unicode(None)
+    False
+    """
+    return bool(obj)
 
 def if_unicode(unicode obj):
     """

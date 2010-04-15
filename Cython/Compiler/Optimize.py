@@ -1264,6 +1264,15 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             utility_code = pyobject_as_double_utility_code,
             py_name = "float")
 
+    def _handle_simple_function_bool(self, node, pos_args):
+        """Transform bool(x) into a type coercion to a boolean.
+        """
+        if len(pos_args) != 1:
+            self._error_wrong_arg_count('bool', node, pos_args, 1)
+            return node
+        return pos_args[0].coerce_to_boolean(
+            self.current_env()).coerce_to_pyobject(self.current_env())
+
     ### builtin functions
 
     PyObject_GetAttr2_func_type = PyrexTypes.CFuncType(
