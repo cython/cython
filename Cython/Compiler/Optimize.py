@@ -1249,8 +1249,12 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         """
         # Note: this requires the float() function to be typed as
         # returning a C 'double'
-        if len(pos_args) != 1:
-            self._error_wrong_arg_count('float', node, pos_args, 1)
+        if len(pos_args) == 0:
+            return ExprNode.FloatNode(
+                node, value="0.0", constant_result=0.0
+                ).coerce_to(Builtin.float_type, self.current_env())
+        elif len(pos_args) != 1:
+            self._error_wrong_arg_count('float', node, pos_args, '0 or 1')
             return node
         func_arg = pos_args[0]
         if isinstance(func_arg, ExprNodes.CoerceToPyTypeNode):
@@ -1271,8 +1275,12 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
     def _handle_simple_function_bool(self, node, pos_args):
         """Transform bool(x) into a type coercion to a boolean.
         """
-        if len(pos_args) != 1:
-            self._error_wrong_arg_count('bool', node, pos_args, 1)
+        if len(pos_args) == 0:
+            return ExprNodes.BoolNode(
+                node.pos, value=False, constant_result=False
+                ).coerce_to(Builtin.bool_type, self.current_env())
+        elif len(pos_args) != 1:
+            self._error_wrong_arg_count('bool', node, pos_args, '0 or 1')
             return node
         return pos_args[0].coerce_to_boolean(
             self.current_env()).coerce_to_pyobject(self.current_env())
