@@ -1898,8 +1898,12 @@ class DefNode(FuncDefNode):
                 elif arg.not_none:
                     arg.accept_none = False
                 elif arg.type.is_extension_type or arg.type.is_builtin_type:
-                    # default depends on compiler directive
-                    arg.accept_none = allow_none_for_extension_args
+                    if arg.default and arg.default.constant_result is None:
+                        # special case: def func(MyType obj = None)
+                        arg.accept_none = True
+                    else:
+                        # default depends on compiler directive
+                        arg.accept_none = allow_none_for_extension_args
                 else:
                     # probably just a plain 'object'
                     arg.accept_none = True
