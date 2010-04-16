@@ -522,11 +522,29 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
 #if PY_MAJOR_VERSION >= 3
   #define PyBaseString_Type            PyUnicode_Type
+  #define PyStringObject               PyUnicodeObject
   #define PyString_Type                PyUnicode_Type
+  #define PyString_Check               PyUnicode_Check
   #define PyString_CheckExact          PyUnicode_CheckExact
-#else
+#endif
+
+#if PY_VERSION_HEX < 0x02060000
+  #define PyBytesObject                PyStringObject
   #define PyBytes_Type                 PyString_Type
+  #define PyBytes_Check                PyString_Check
   #define PyBytes_CheckExact           PyString_CheckExact
+  #define PyBytes_FromString           PyString_FromString
+  #define PyBytes_FromStringAndSize    PyString_FromStringAndSize
+  #define PyBytes_FromFormat           PyString_FromFormat
+  #define PyBytes_DecodeEscape         PyString_DecodeEscape
+  #define PyBytes_AsString             PyString_AsString
+  #define PyBytes_AsStringAndSize      PyString_AsStringAndSize
+  #define PyBytes_Size                 PyString_Size
+  #define PyBytes_AS_STRING            PyString_AS_STRING
+  #define PyBytes_GET_SIZE             PyString_GET_SIZE
+  #define PyBytes_Repr                 PyString_Repr
+  #define PyBytes_Concat               PyString_Concat
+  #define PyBytes_ConcatAndDel         PyString_ConcatAndDel
 #endif
 
 #if PY_MAJOR_VERSION >= 3
@@ -1663,7 +1681,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         self.generate_filename_init_call(code)
 
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
-        code.putln("%s = __Pyx_PyBytes_FromStringAndSize(\"\", 0); %s" % (Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)));
+        code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)));
 
         code.putln("/*--- Library function declarations ---*/")
         env.generate_library_function_declarations(code)
