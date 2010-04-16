@@ -6107,7 +6107,7 @@ class CoerceToBooleanNode(CoercionNode):
     _special_builtins = {
         Builtin.list_type    : 'PyList_GET_SIZE',
         Builtin.tuple_type   : 'PyTuple_GET_SIZE',
-        Builtin.bytes_type   : 'PyBytes_GET_SIZE',
+        Builtin.bytes_type   : '__Pyx_PyBytes_GET_SIZE',
         Builtin.unicode_type : 'PyUnicode_GET_SIZE',
         }
 
