@@ -2141,38 +2141,43 @@ c_py_buffer_ptr_type = CPtrType(c_py_buffer_type)
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()
 
-
 modifiers_and_name_to_type = {
-    #(signed, longness, name)
-    (0, 0, "char"): c_uchar_type,
+    #(signed, longness, name) : type
+    (0,  0, "char"): c_uchar_type,
+    (1,  0, "char"): c_char_type,
+    (2,  0, "char"): c_schar_type,
+
     (0, -1, "int"): c_ushort_type,
-    (0, 0, "int"): c_uint_type,
-    (0, 1, "int"): c_ulong_type,
-    (0, 2, "int"): c_ulonglong_type,
-    (1, 0, "void"): c_void_type,
-    (1, 0, "char"): c_char_type,
+    (0,  0, "int"): c_uint_type,
+    (0,  1, "int"): c_ulong_type,
+    (0,  2, "int"): c_ulonglong_type,
+
     (1, -1, "int"): c_short_type,
-    (1, 0, "int"): c_int_type,
-    (1, 1, "int"): c_long_type,
-    (1, 2, "int"): c_longlong_type,
-    (1, 0, "float"): c_float_type,
-    (1, 0, "double"): c_double_type,
-    (1, 1, "double"): c_longdouble_type,
-    (1, 0, "object"): py_object_type,
-    (1, 0, "bint"): c_bint_type,
-    (2, 0, "char"): c_schar_type,
+    (1,  0, "int"): c_int_type,
+    (1,  1, "int"): c_long_type,
+    (1,  2, "int"): c_longlong_type,
+
     (2, -1, "int"): c_sshort_type,
-    (2, 0, "int"): c_sint_type,
-    (2, 1, "int"): c_slong_type,
-    (2, 2, "int"): c_slonglong_type,
+    (2,  0, "int"): c_sint_type,
+    (2,  1, "int"): c_slong_type,
+    (2,  2, "int"): c_slonglong_type,
 
-    (2, 0, "Py_ssize_t"): c_py_ssize_t_type,
-    (0, 0, "size_t") : c_size_t_type,
+    (1,  0, "bint"): c_bint_type,
+    (0,  0, "size_t") :    c_size_t_type,
+    (2,  0, "Py_ssize_t"): c_py_ssize_t_type,
 
-    (1, 0, "long"): c_long_type,
-    (1, 0, "short"): c_short_type,
-    (1, 0, "longlong"): c_longlong_type,
-    (1, 0, "bint"): c_bint_type,
+    (1,  0, "float"):  c_float_type,
+    (1,  0, "double"): c_double_type,
+    (1,  1, "double"): c_longdouble_type,
+
+    (1,  0, "complex"):  c_float_complex_type,
+    (1,  0, "floatcomplex"):  c_float_complex_type,
+    (1,  0, "doublecomplex"): c_double_complex_type,
+    (1,  1, "doublecomplex"): c_longdouble_complex_type,
+
+    #
+    (1,  0, "void"): c_void_type,
+    (1,  0, "object"): py_object_type,
 }
 
 def is_promotion(src_type, dst_type):
@@ -2367,10 +2372,35 @@ def parse_basic_type(name):
         base = parse_basic_type(name[:-1])
     if base:
         return CPtrType(base)
-    elif name.startswith('u'):
-        return simple_c_type(0, 0, name[1:])
+    #
+    basic_type = simple_c_type(1, 0, name)
+    if basic_type:
+        return basic_type
+    #
+    signed = 1
+    longness = 0
+    if name == 'Py_ssize_t':
+        signed = 2
+    elif name == 'size_t':
+        signed = 0
     else:
-        return simple_c_type(1, 0, name)
+        if name.startswith('u'):
+            name = name[1:]
+            signed = 0
+        elif (name.startswith('s') and 
+              not name.startswith('short')):
+            name = name[1:]
+            signed = 2
+        longness = 0
+        while name.startswith('short'):
+            name = name.replace('short', '', 1).strip()
+            longness -= 1
+        while name.startswith('long'):
+            name = name.replace('long', '', 1).strip()
+            longness += 1
+        if longness != 0 and not name:
+            name = 'int'
+    return simple_c_type(signed, longness, name)
 
 def c_array_type(base_type, size):
     # Construct a C array type.
