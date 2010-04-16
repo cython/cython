@@ -2,6 +2,10 @@
 
 cimport cython
 
+import sys
+
+PY_VERSION = sys.version_info
+
 text = u'ab jd  sdflk as sa  sadas asdas fsdf '
 sep = u'  '
 
@@ -228,14 +232,14 @@ def startswith(unicode s, sub):
     >>> startswith(text, 'ab X')
     'NO MATCH'
 
-    >>> text.startswith(('ab', 'ab '))
+    >>> PY_VERSION < (2,5) or text.startswith(('ab', 'ab '))
     True
-    >>> startswith(text, ('ab', 'ab '))
-    'MATCH'
-    >>> text.startswith((' ab', 'ab X'))
-    False
-    >>> startswith(text, (' ab', 'ab X'))
-    'NO MATCH'
+    >>> PY_VERSION < (2,5) or startswith(text, ('ab', 'ab ')) == 'MATCH'
+    True
+    >>> PY_VERSION < (2,5) or not text.startswith((' ab', 'ab X'))
+    True
+    >>> PY_VERSION < (2,5) or startswith(text, (' ab', 'ab X')) == 'NO MATCH'
+    True
     """
     if s.startswith(sub):
         return 'MATCH'
@@ -284,14 +288,14 @@ def endswith(unicode s, sub):
     >>> endswith(text, 'fsdf X')
     'NO MATCH'
 
-    >>> text.endswith(('fsdf', 'fsdf '))
+    >>> PY_VERSION < (2,5) or text.endswith(('fsdf', 'fsdf '))
     True
-    >>> endswith(text, ('fsdf', 'fsdf '))
-    'MATCH'
-    >>> text.endswith(('fsdf', 'fsdf X'))
-    False
-    >>> endswith(text, ('fsdf', 'fsdf X'))
-    'NO MATCH'
+    >>> PY_VERSION < (2,5) or endswith(text, ('fsdf', 'fsdf ')) == 'MATCH'
+    True
+    >>> PY_VERSION < (2,5) or not text.endswith(('fsdf', 'fsdf X'))
+    True
+    >>> PY_VERSION < (2,5) or endswith(text, ('fsdf', 'fsdf X')) == 'NO MATCH'
+    True
     """
     if s.endswith(sub):
         return 'MATCH'
@@ -315,14 +319,14 @@ def endswith_start_end(unicode s, sub, start, end):
     >>> endswith_start_end(text, 'fsdf ', 10, len(text)-1)
     'NO MATCH'
 
-    >>> text.endswith(('fsd', 'fsdf'), 10, len(text)-1)
+    >>> PY_VERSION < (2,5) or text.endswith(('fsd', 'fsdf'), 10, len(text)-1)
     True
-    >>> endswith_start_end(text, ('fsd', 'fsdf'), 10, len(text)-1)
-    'MATCH'
-    >>> text.endswith(('fsdf ', 'fsdf X'), 10, len(text)-1)
-    False
-    >>> endswith_start_end(text, ('fsdf ', 'fsdf X'), 10, len(text)-1)
-    'NO MATCH'
+    >>> PY_VERSION < (2,5) or endswith_start_end(text, ('fsd', 'fsdf'), 10, len(text)-1) == 'MATCH'
+    True
+    >>> PY_VERSION < (2,5) or not text.endswith(('fsdf ', 'fsdf X'), 10, len(text)-1)
+    True
+    >>> PY_VERSION < (2,5) or endswith_start_end(text, ('fsdf ', 'fsdf X'), 10, len(text)-1) == 'NO MATCH'
+    True
     """
     if s.endswith(sub, start, end):
         return 'MATCH'
