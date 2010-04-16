@@ -153,12 +153,13 @@ class typedef(CythonType):
         
 
 
-py_float = float
 py_int = int
 try:
     py_long = long
 except NameError: # Py3
     py_long = int
+py_float = float
+py_complex = complex
 
 try:
     # Python 3
@@ -173,20 +174,29 @@ except ImportError:
 
 # Predefined types
 
-int_types = ['char', 'short', 'int', 'long', 'longlong', 'Py_ssize_t'] 
-float_types = ['double', 'float']
+int_types = ['char', 'short', 'int', 'long', 'longlong', 'Py_ssize_t', 'size_t']
+float_types = ['longdouble', 'double', 'float']
+complex_types = ['longdoublecomplex', 'doublecomplex', 'floatcomplex', 'complex']
 other_types = ['bint', 'void']
+
 gs = globals()
 
 for name in int_types:
     gs[name] = typedef(py_int)
-    gs['u'+name] = typedef(py_int)
+    if not name.endswith('size_t'):
+        gs['u'+name] = typedef(py_int)
+        gs['s'+name] = typedef(py_int)
     
-double = float = typedef(py_float)
+for name in float_types:
+    gs[name] = typedef(py_float)
+
+for name in complex_types:
+    gs[name] = typedef(py_complex)
+
 bint = typedef(bool)
 void = typedef(int)
 
-for t in int_types + float_types + other_types:
+for t in int_types + float_types + complex_types + other_types:
     for i in range(1, 4):
         gs["%s_%s" % ('p'*i, t)] = globals()[t]._pointer(i)
 
