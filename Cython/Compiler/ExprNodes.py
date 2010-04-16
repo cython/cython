@@ -2262,14 +2262,14 @@ class SliceIndexNode(ExprNode):
         if self.base.type.is_string:
             if self.stop is None:
                 code.putln(
-                    "%s = __Pyx_PyBytes_FromString(%s + %s); %s" % (
+                    "%s = PyBytes_FromString(%s + %s); %s" % (
                         self.result(),
                         self.base.result(),
                         self.start_code(),
                         code.error_goto_if_null(self.result(), self.pos)))
             else:
                 code.putln(
-                    "%s = __Pyx_PyBytes_FromStringAndSize(%s + %s, %s - %s); %s" % (
+                    "%s = PyBytes_FromStringAndSize(%s + %s, %s - %s); %s" % (
                         self.result(),
                         self.base.result(),
                         self.start_code(),
@@ -6107,7 +6107,7 @@ class CoerceToBooleanNode(CoercionNode):
     _special_builtins = {
         Builtin.list_type    : 'PyList_GET_SIZE',
         Builtin.tuple_type   : 'PyTuple_GET_SIZE',
-        Builtin.bytes_type   : '__Pyx_PyBytes_GET_SIZE',
+        Builtin.bytes_type   : 'PyBytes_GET_SIZE',
         Builtin.unicode_type : 'PyUnicode_GET_SIZE',
         }
 

@@ -1359,7 +1359,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
     _map_to_capi_len_function = {
         Builtin.unicode_type   : "PyUnicode_GET_SIZE",
         Builtin.str_type       : "Py_SIZE", # works in Py2 and Py3
-        Builtin.bytes_type     : "__Pyx_PyBytes_GET_SIZE",
+        Builtin.bytes_type     : "PyBytes_GET_SIZE",
         Builtin.list_type      : "PyList_GET_SIZE",
         Builtin.tuple_type     : "PyTuple_GET_SIZE",
         Builtin.dict_type      : "PyDict_Size",

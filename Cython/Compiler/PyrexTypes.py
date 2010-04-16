@@ -1989,8 +1989,8 @@ class CStringType(object):
     is_string = 1
     is_unicode = 0
     
-    to_py_function = "__Pyx_PyBytes_FromString"
-    from_py_function = "__Pyx_PyBytes_AsString"
+    to_py_function = "PyBytes_FromString"
+    from_py_function = "PyBytes_AsString"
     exception_value = "NULL"
 
     def literal_code(self, value):
@@ -2455,20 +2455,8 @@ def typecast(to_type, from_type, expr_code):
 type_conversion_predeclarations = """
 /* Type Conversion Predeclarations */
 
-#if PY_MAJOR_VERSION < 3
-#define __Pyx_PyBytes_FromString          PyString_FromString
-#define __Pyx_PyBytes_FromStringAndSize   PyString_FromStringAndSize
-#define __Pyx_PyBytes_AsString            PyString_AsString
-#define __Pyx_PyBytes_GET_SIZE            PyString_GET_SIZE
-#else
-#define __Pyx_PyBytes_FromString          PyBytes_FromString
-#define __Pyx_PyBytes_FromStringAndSize   PyBytes_FromStringAndSize
-#define __Pyx_PyBytes_AsString            PyBytes_AsString
-#define __Pyx_PyBytes_GET_SIZE            PyBytes_GET_SIZE
-#endif
-
-#define __Pyx_PyBytes_FromUString(s)      __Pyx_PyBytes_FromString((char*)s)
-#define __Pyx_PyBytes_AsUString(s)        ((unsigned char*) __Pyx_PyBytes_AsString(s))
+#define __Pyx_PyBytes_FromUString(s) PyBytes_FromString((char*)s)
+#define __Pyx_PyBytes_AsUString(s)   ((unsigned char*) PyBytes_AsString(s))
 
 #define __Pyx_PyBool_FromLong(b) ((b) ? (Py_INCREF(Py_True), Py_True) : (Py_INCREF(Py_False), Py_False))
 static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
