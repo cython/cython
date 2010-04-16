@@ -2141,41 +2141,6 @@ c_py_buffer_ptr_type = CPtrType(c_py_buffer_type)
 error_type =    ErrorType()
 unspecified_type = UnspecifiedType()
 
-sign_and_rank_to_type = {
-    #(signed, rank)
-    (0, 0): c_uchar_type,
-    (0, 1): c_ushort_type,
-    (0, 2): c_uint_type,
-    (0, 3): c_ulong_type,
-    (0, 6): c_ulonglong_type,
-
-    (1, 0): c_char_type,
-    (1, 1): c_short_type,
-    (1, 2): c_int_type,
-    (1, 3): c_long_type,
-    (1, 6): c_longlong_type,
-
-    (2, 0): c_schar_type,
-    (2, 1): c_sshort_type,
-    (2, 2): c_sint_type,
-    (2, 3): c_slong_type,
-    (2, 6): c_slonglong_type,
-
-    (0, 4): c_py_ssize_t_type,
-    (1, 4): c_py_ssize_t_type,
-    (2, 4): c_py_ssize_t_type,
-    (0, 5): c_size_t_type,
-    (1, 5): c_size_t_type,
-    (2, 5): c_size_t_type,
-
-    (1, 7): c_float_type,
-    (1, 8): c_double_type,
-    (1, 9): c_longdouble_type,
-# In case we're mixing unsigned ints and floats...
-    (0, 7): c_float_type,
-    (0, 8): c_double_type,
-    (0, 9): c_longdouble_type,
-}
 
 modifiers_and_name_to_type = {
     #(signed, longness, name)
