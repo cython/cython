@@ -24,6 +24,18 @@ def ext_default(MyExtType x): # currently behaves like 'or None'
     """
     return attr(x)
 
+@cython.allow_none_for_extension_args(False)
+def ext_default_none(MyExtType x=None): # special cased default arg
+    """
+    >>> ext_default_none(MyExtType())
+    123
+    >>> ext_default_none(None)
+    321
+    >>> ext_default_none()
+    321
+    """
+    return attr(x)
+
 @cython.allow_none_for_extension_args(True)
 def ext_default_check_off(MyExtType x):
     """
@@ -85,6 +97,18 @@ def builtin_default(list L): # currently behaves like 'or None'
     """
     return litem(L, 0)
 
+@cython.allow_none_for_extension_args(False)
+def builtin_default_none(list L=None): # special cased default arg
+    """
+    >>> builtin_default_none([123])
+    123
+    >>> builtin_default_none(None)
+    321
+    >>> builtin_default_none()
+    321
+    """
+    return litem(L, 0)
+
 @cython.allow_none_for_extension_args(True)
 def builtin_default_check_off(list L):
     """
@@ -131,7 +155,8 @@ def builtin_not_none(list L not None):
 
 ## builtin type 'object' - isinstance(None, object) is True!
 
-def object_default(object o): # behaves like 'or None'
+@cython.allow_none_for_extension_args(False)
+def object_default(object o): # always behaves like 'or None'
     """
     >>> object_default(object())
     'object'
@@ -142,6 +167,21 @@ def object_default(object o): # behaves like 'or None'
     """
     return type(o).__name__
 
+@cython.allow_none_for_extension_args(False)
+def object_default_none(object o=None): # behaves like 'or None'
+    """
+    >>> object_default_none(object())
+    'object'
+    >>> object_default_none([])
+    'list'
+    >>> object_default_none(None)
+    'NoneType'
+    >>> object_default_none()
+    'NoneType'
+    """
+    return type(o).__name__
+
+@cython.allow_none_for_extension_args(False)
 def object_or_none(object o or None):
     """
     >>> object_or_none(object())
@@ -153,6 +193,7 @@ def object_or_none(object o or None):
     """
     return type(o).__name__
 
+@cython.allow_none_for_extension_args(False)
 def object_not_none(object o not None):
     """
     >>> object_not_none(object())
@@ -168,6 +209,7 @@ def object_not_none(object o not None):
 
 ## untyped 'object' - isinstance(None, object) is True!
 
+@cython.allow_none_for_extension_args(False)
 def notype_default(o): # behaves like 'or None'
     """
     >>> notype_default(object())
@@ -179,6 +221,21 @@ def notype_default(o): # behaves like 'or None'
     """
     return type(o).__name__
 
+@cython.allow_none_for_extension_args(False)
+def notype_default_none(o=None): # behaves like 'or None'
+    """
+    >>> notype_default_none(object())
+    'object'
+    >>> notype_default_none([])
+    'list'
+    >>> notype_default_none(None)
+    'NoneType'
+    >>> notype_default_none()
+    'NoneType'
+    """
+    return type(o).__name__
+
+@cython.allow_none_for_extension_args(False)
 def notype_or_none(o or None):
     """
     >>> notype_or_none(object())
@@ -190,6 +247,7 @@ def notype_or_none(o or None):
     """
     return type(o).__name__
 
+@cython.allow_none_for_extension_args(False)
 def notype_not_none(o not None):
     """
     >>> notype_not_none(object())
