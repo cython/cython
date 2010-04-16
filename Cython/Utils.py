@@ -130,10 +130,12 @@ class NormalisedNewlineStream(object):
         data = self._read(0x1000)
     return u''.join(content).split(u'\n')
 
-try:
-    import io
-except ImportError:
-    io = None
+io = None
+if sys.version_info >= (2,6):
+    try:
+        import io
+    except ImportError:
+        pass
 
 def open_source_file(source_filename, mode="r",
                      encoding=None, error_handling=None,
