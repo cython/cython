@@ -290,12 +290,12 @@ def endswith(unicode s, sub):
 
     >>> PY_VERSION < (2,5) or text.endswith(('fsdf', 'fsdf '))
     True
-    >>> endswith(text, ('fsdf', 'fsdf ')) == 'MATCH'
-    True
+    >>> endswith(text, ('fsdf', 'fsdf '))
+    'MATCH'
     >>> PY_VERSION < (2,5) or not text.endswith(('fsdf', 'fsdf X'))
     True
-    >>> endswith(text, ('fsdf', 'fsdf X')) == 'NO MATCH'
-    True
+    >>> endswith(text, ('fsdf', 'fsdf X'))
+    'NO MATCH'
     """
     if s.endswith(sub):
         return 'MATCH'
@@ -321,12 +321,12 @@ def endswith_start_end(unicode s, sub, start, end):
 
     >>> PY_VERSION < (2,5) or text.endswith(('fsd', 'fsdf'), 10, len(text)-1)
     True
-    >>> endswith_start_end(text, ('fsd', 'fsdf'), 10, len(text)-1) == 'MATCH'
-    True
+    >>> endswith_start_end(text, ('fsd', 'fsdf'), 10, len(text)-1)
+    'MATCH'
     >>> PY_VERSION < (2,5) or not text.endswith(('fsdf ', 'fsdf X'), 10, len(text)-1)
     True
-    >>> endswith_start_end(text, ('fsdf ', 'fsdf X'), 10, len(text)-1) == 'NO MATCH'
-    True
+    >>> endswith_start_end(text, ('fsdf ', 'fsdf X'), 10, len(text)-1)
+    'NO MATCH'
     """
     if s.endswith(sub, start, end):
         return 'MATCH'
