@@ -14,7 +14,8 @@ def for_in_bytes(bytes s):
     'C'
     """
     for c in s:
-        if c == b'C':
+        # Py2/Py3
+        if c == b'C' or c == c'C':
             return 'C'
     else:
         return 'X'
