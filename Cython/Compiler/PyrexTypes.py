@@ -863,6 +863,20 @@ class CAnonEnumType(CIntType):
         return 'int'
 
 
+class CPyUnicodeIntType(CIntType):
+    # Py_UNICODE
+
+    # Conversion from a unicode string to Py_UNICODE at runtime is not
+    # currently supported and may never be - we only convert from and
+    # to integers here.  The maximum value for a Py_UNICODE is
+    # 1114111, so PyInt_FromLong() will do just fine here.
+
+    to_py_function = "PyInt_FromLong"
+
+    def sign_and_name(self):
+        return "Py_UNICODE"
+
+
 class CPySSizeTType(CIntType):
 
     to_py_function = "PyInt_FromSsize_t"
@@ -2075,14 +2089,15 @@ class ErrorType(PyrexType):
 rank_to_type_name = (
     "char",         # 0
     "short",        # 1
-    "int",          # 2
-    "long",         # 3
-    "Py_ssize_t",   # 4
-    "size_t",       # 5
-    "PY_LONG_LONG", # 6
-    "float",        # 7
-    "double",       # 8
-    "long double",  # 9
+    "Py_UNICODE",   # 2
+    "int",          # 3
+    "long",         # 4
+    "Py_ssize_t",   # 5
+    "size_t",       # 6
+    "PY_LONG_LONG", # 7
+    "float",        # 8
+    "double",       # 9
+    "long double",  # 10
 )
 
 py_object_type = PyObjectType()
@@ -2093,29 +2108,30 @@ c_void_ptr_ptr_type = CPtrType(c_void_ptr_type)
 
 c_uchar_type =       CIntType(0, 0)
 c_ushort_type =      CIntType(1, 0)
-c_uint_type =        CIntType(2, 0)
-c_ulong_type =       CIntType(3, 0)
-c_ulonglong_type =   CIntType(6, 0)
+c_py_unicode_type =  CPyUnicodeIntType(2, 0)
+c_uint_type =        CIntType(3, 0)
+c_ulong_type =       CIntType(4, 0)
+c_ulonglong_type =   CIntType(7, 0)
 
 c_char_type =        CIntType(0, 1)
 c_short_type =       CIntType(1, 1)
-c_int_type =         CIntType(2, 1)
-c_long_type =        CIntType(3, 1)
-c_longlong_type =    CIntType(6, 1)
+c_int_type =         CIntType(3, 1)
+c_long_type =        CIntType(4, 1)
+c_longlong_type =    CIntType(7, 1)
 
 c_schar_type =       CIntType(0, 2)
 c_sshort_type =      CIntType(1, 2)
-c_sint_type =        CIntType(2, 2)
-c_slong_type =       CIntType(3, 2)
-c_slonglong_type =   CIntType(6, 2)
+c_sint_type =        CIntType(3, 2)
+c_slong_type =       CIntType(4, 2)
+c_slonglong_type =   CIntType(7, 2)
 
-c_bint_type =        CBIntType(2, 1)
-c_py_ssize_t_type =  CPySSizeTType(4, 2)
-c_size_t_type =      CSizeTType(5, 0)
+c_bint_type =        CBIntType(3, 1)
+c_py_ssize_t_type =  CPySSizeTType(5, 2)
+c_size_t_type =      CSizeTType(6, 0)
 
-c_float_type =       CFloatType(7, math_h_modifier='f')
-c_double_type =      CFloatType(8)
-c_longdouble_type =  CFloatType(9, math_h_modifier='l')
+c_float_type =       CFloatType(8, math_h_modifier='f')
+c_double_type =      CFloatType(9)
+c_longdouble_type =  CFloatType(10, math_h_modifier='l')
 
 c_float_complex_type =      CComplexType(c_float_type)
 c_double_complex_type =     CComplexType(c_double_type)
@@ -2131,7 +2147,7 @@ c_int_ptr_type =      CPtrType(c_int_type)
 c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
 c_size_t_ptr_type =  CPtrType(c_size_t_type)
 
-c_returncode_type =   CIntType(2, 1, is_returncode = 1)
+c_returncode_type =   CIntType(3, 1, is_returncode = 1)
 c_anon_enum_type =    CAnonEnumType(-1, 1)
 
 # the Py_buffer type is defined in Builtin.py
@@ -2165,6 +2181,7 @@ modifiers_and_name_to_type = {
     (1,  0, "bint"): c_bint_type,
     (0,  0, "size_t") :    c_size_t_type,
     (2,  0, "Py_ssize_t"): c_py_ssize_t_type,
+    (0,  0, "Py_UNICODE"): c_py_unicode_type,
 
     (1,  0, "float"):  c_float_type,
     (1,  0, "double"): c_double_type,
@@ -2382,6 +2399,8 @@ def parse_basic_type(name):
     if name == 'Py_ssize_t':
         signed = 2
     elif name == 'size_t':
+        signed = 0
+    elif name == 'Py_UNICODE':
         signed = 0
     else:
         if name.startswith('u'):

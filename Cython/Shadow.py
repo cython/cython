@@ -174,7 +174,7 @@ except ImportError:
 
 # Predefined types
 
-int_types = ['char', 'short', 'int', 'long', 'longlong', 'Py_ssize_t', 'size_t']
+int_types = ['char', 'short', 'Py_UNICODE', 'int', 'long', 'longlong', 'Py_ssize_t', 'size_t']
 float_types = ['longdouble', 'double', 'float']
 complex_types = ['longdoublecomplex', 'doublecomplex', 'floatcomplex', 'complex']
 other_types = ['bint', 'void']
@@ -183,7 +183,7 @@ gs = globals()
 
 for name in int_types:
     gs[name] = typedef(py_int)
-    if not name.endswith('size_t'):
+    if name != 'Py_UNICODE' and not name.endswith('size_t'):
         gs['u'+name] = typedef(py_int)
         gs['s'+name] = typedef(py_int)
     

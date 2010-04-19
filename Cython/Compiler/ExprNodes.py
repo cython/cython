@@ -860,7 +860,10 @@ class BytesNode(ConstNode):
     def coerce_to(self, dst_type, env):
         if dst_type.is_int:
             if not self.can_coerce_to_char_literal():
-                error(self.pos, "Only single-character strings can be coerced into ints.")
+                error(self.pos, "Only single-character string literals can be coerced into ints.")
+                return self
+            if dst_type is PyrexTypes.c_py_unicode_type:
+                error(self.pos, "Bytes literals cannot coerce to Py_UNICODE, use a unicode literal instead.")
                 return self
             return CharNode(self.pos, value=self.value)
 
@@ -915,12 +918,21 @@ class UnicodeNode(PyConstNode):
     def coerce_to(self, dst_type, env):
         if dst_type is self.type:
             pass
+        elif dst_type is PyrexTypes.c_py_unicode_type:
+            if not self.can_coerce_to_char_literal():
+                error(self.pos, "Only single-character Unicode string literals can be coerced into Py_UNICODE.")
+                return self
+            int_value = ord(self.value)
+            return IntNode(self.pos, value=int_value, constant_result=int_value)
         elif not dst_type.is_pyobject:
-            error(self.pos, "Unicode objects do not support coercion to C types.")
+            error(self.pos, "Unicode literals do not support coercion to C types other than Py_UNICODE.")
         elif dst_type is not py_object_type:
             if not self.check_for_coercion_error(dst_type):
                 self.fail_assignment(dst_type)
         return self
+
+    def can_coerce_to_char_literal(self):
+        return len(self.value) == 1
 
     def generate_evaluation_code(self, code):
         self.result_code = code.get_py_string_const(self.value)
@@ -5426,10 +5438,10 @@ class CmpNode(object):
         type1_can_be_int = False
         type2_can_be_int = False
 
-        if isinstance(operand1, (StringNode, BytesNode)) \
+        if isinstance(operand1, (StringNode, BytesNode, UnicodeNode)) \
                and operand1.can_coerce_to_char_literal():
             type1_can_be_int = True
-        if isinstance(operand2, (StringNode, BytesNode)) \
+        if isinstance(operand2, (StringNode, BytesNode, UnicodeNode)) \
                  and operand2.can_coerce_to_char_literal():
             type2_can_be_int = True
 
