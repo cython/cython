@@ -13,7 +13,7 @@ def char_too_long_bytes():
     cdef Py_UNICODE c = b'AB'
 
 def char_too_long_latin1():
-    cdef Py_UNICODE char_bytes_latin1 = b'ö'
+    cdef Py_UNICODE char_bytes_latin1 = b'\xf6'
 
 
 _ERRORS = """
