@@ -14,7 +14,7 @@ def for_in_bytes(bytes s):
     'C'
     """
     for c in s:
-        if c == 'C':
+        if c == b'C':
             return 'C'
     else:
         return 'X'
@@ -28,21 +28,21 @@ def for_char_in_bytes(bytes s):
     """
     cdef char c
     for c in s:
-        if c == 'C':
+        if c == b'C':
             return 'C'
     else:
         return 'X'
 
-def for_int_in_unicode(unicode s):
+def for_pyunicode_in_unicode(unicode s):
     """
-    >>> for_int_in_unicode(unicode_abc)
+    >>> for_pyunicode_in_unicode(unicode_abc)
     'X'
-    >>> for_int_in_unicode(unicode_ABC)
+    >>> for_pyunicode_in_unicode(unicode_ABC)
     'C'
     """
-    cdef int c
+    cdef Py_UNICODE c
     for c in s:
-        if c == 'C':
+        if c == u'C':
             return 'C'
     else:
         return 'X'
