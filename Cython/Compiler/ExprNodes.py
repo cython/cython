@@ -5562,7 +5562,7 @@ class CmpNode(object):
         else: 
             negation = ""
         if op == 'in' or op == 'not_in':
-            code.globalstate.use_utility_code(contians_utility_code)
+            code.globalstate.use_utility_code(contains_utility_code)
             if self.type is PyrexTypes.py_object_type:
                 coerce_result = "__Pyx_PyBoolOrNull_FromLong"
             if op == 'not_in':
@@ -5644,7 +5644,7 @@ class CmpNode(object):
         else:
             return op
     
-contians_utility_code = UtilityCode(
+contains_utility_code = UtilityCode(
 proto="""
 static CYTHON_INLINE long __Pyx_NegateNonNeg(long b) { return unlikely(b < 0) ? b : !b; }
 static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
