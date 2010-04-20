@@ -5553,7 +5553,7 @@ class CmpNode(object):
 
     def generate_operation_code(self, code, result_code, 
             operand1, op , operand2):
-        if self.type is PyrexTypes.py_object_type:
+        if self.type.is_pyobject:
             coerce_result = "__Pyx_PyBool_FromLong"
         else:
             coerce_result = ""
@@ -5563,7 +5563,7 @@ class CmpNode(object):
             negation = ""
         if op == 'in' or op == 'not_in':
             code.globalstate.use_utility_code(contains_utility_code)
-            if self.type is PyrexTypes.py_object_type:
+            if self.type.is_pyobject:
                 coerce_result = "__Pyx_PyBoolOrNull_FromLong"
             if op == 'not_in':
                 negation = "__Pyx_NegateNonNeg"
@@ -5577,7 +5577,7 @@ class CmpNode(object):
                 method = "PyDict_Contains"
             else:
                 method = "PySequence_Contains"
-            if self.type is PyrexTypes.py_object_type:
+            if self.type.is_pyobject:
                 error_clause = code.error_goto_if_null
                 got_ref = "__Pyx_XGOTREF(%s); " % result_code
             else:
