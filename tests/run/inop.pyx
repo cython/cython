@@ -92,6 +92,72 @@ def m_set(int a):
     cdef int result = a in {1,2,3,4}
     return result
 
+cdef bytes bytes_string = b'abcdefg'
+py_bytes_string = bytes_string
+
+@cython.test_assert_path_exists("//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
+def m_bytes(char a, bytes bytes_string):
+    """
+    >>> m_bytes(ord('f'), py_bytes_string)
+    1
+    >>> m_bytes(ord('X'), py_bytes_string)
+    0
+    >>> 'f'.encode('ASCII') in None
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    >>> m_bytes(ord('f'), None)
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    """
+    cdef int result = a in bytes_string
+    return result
+
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
+def m_bytes_literal(char a):
+    """
+    >>> m_bytes_literal(ord('f'))
+    1
+    >>> m_bytes_literal(ord('X'))
+    0
+    """
+    cdef int result = a in b'abcdefg'
+    return result
+
+cdef unicode unicode_string = u'abcdefg\u1234\uF8D2'
+py_unicode_string = unicode_string
+
+@cython.test_assert_path_exists("//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
+def m_unicode(Py_UNICODE a, unicode unicode_string):
+    """
+    >>> m_unicode(ord('f'), py_unicode_string)
+    1
+    >>> m_unicode(ord('X'), py_unicode_string)
+    0
+    >>> 'f' in None
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    >>> m_unicode(ord('f'), None)
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    """
+    cdef int result = a in unicode_string
+    return result
+
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
+def m_unicode_literal(Py_UNICODE a):
+    """
+    >>> m_unicode_literal(ord('f'))
+    1
+    >>> m_unicode_literal(ord('X'))
+    0
+    """
+    cdef int result = a in u'abcdefg\u1234\uF8D2'
+    return result
+
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
 def conditional_int(int a):

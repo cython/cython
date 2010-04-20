@@ -5535,9 +5535,10 @@ class CmpNode(object):
               (op, operand1.type, operand2.type))
 
     def is_python_comparison(self):
-        return (self.has_python_operands()
-                or (self.cascade and self.cascade.is_python_comparison())
-                or self.operator in ('in', 'not_in'))
+        return not self.is_c_string_contains() and (
+            self.has_python_operands()
+            or (self.cascade and self.cascade.is_python_comparison())
+            or self.operator in ('in', 'not_in'))
 
     def coerce_operands_to(self, dst_type, env):
         operand2 = self.operand2
@@ -5548,8 +5549,18 @@ class CmpNode(object):
 
     def is_python_result(self):
         return ((self.has_python_operands() and
-                 self.operator not in ('is', 'is_not', 'in', 'not_in'))
+                 self.operator not in ('is', 'is_not', 'in', 'not_in') and
+                 not self.is_c_string_contains())
             or (self.cascade and self.cascade.is_python_result()))
+
+    def is_c_string_contains(self):
+        return self.operator in ('in', 'not_in') and \
+               ((self.operand1.type in (PyrexTypes.c_char_type, PyrexTypes.c_uchar_type)
+                 and self.operand2.type in (PyrexTypes.c_char_ptr_type,
+                                            PyrexTypes.c_uchar_ptr_type,
+                                            bytes_type)) or
+                (self.operand1.type is PyrexTypes.c_py_unicode_type
+                 and self.operand2.type is unicode_type))
 
     def generate_operation_code(self, code, result_code, 
             operand1, op , operand2):
@@ -5652,6 +5663,38 @@ static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
 }
 """)
 
+char_in_bytes_utility_code = UtilityCode(
+proto="""
+static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character); /*proto*/
+""",
+impl="""
+static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character) {
+    const Py_ssize_t length = PyBytes_GET_SIZE(bytes);
+    char* char_start = PyBytes_AS_STRING(bytes);
+    char* pos;
+    for (pos=char_start; pos < char_start+length; pos++) {
+        if (character == pos[0]) return 1;
+    }
+    return 0;
+}
+""")
+
+pyunicode_in_unicode_utility_code = UtilityCode(
+proto="""
+static CYTHON_INLINE int __Pyx_UnicodeContains(PyObject* unicode, Py_UNICODE character); /*proto*/
+""",
+impl="""
+static CYTHON_INLINE int __Pyx_UnicodeContains(PyObject* unicode, Py_UNICODE character) {
+    const Py_ssize_t length = PyUnicode_GET_SIZE(unicode);
+    Py_UNICODE* char_start = PyUnicode_AS_UNICODE(unicode);
+    Py_UNICODE* pos;
+    for (pos=char_start; pos < char_start+length; pos++) {
+        if (character == pos[0]) return 1;
+    }
+    return 0;
+}
+""")
+
 
 class PrimaryCmpNode(ExprNode, CmpNode):
     #  Non-cascaded comparison or first comparison of
@@ -5698,13 +5741,32 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             self.cascade.analyse_types(env)
 
         if self.operator in ('in', 'not_in'):
-            common_type = py_object_type
-            self.is_pycmp = True
+            if self.is_c_string_contains():
+                self.is_pycmp = False
+                common_type = None
+                if self.cascade:
+                    error(self.pos, "Cascading comparison not yet supported for 'int_val in string'.")
+                    return
+                if self.operand2.type is unicode_type:
+                    env.use_utility_code(pyunicode_in_unicode_utility_code)
+                else:
+                    if self.operand1.type is PyrexTypes.c_uchar_type:
+                        self.operand1 = self.operand1.coerce_to(PyrexTypes.c_char_type, env)
+                    if self.operand2.type is not bytes_type:
+                        self.operand2 = self.operand2.coerce_to(bytes_type, env)
+                    env.use_utility_code(char_in_bytes_utility_code)
+                if not isinstance(self.operand2, (UnicodeNode, BytesNode)):
+                    self.operand2 = NoneCheckNode(
+                        self.operand2, "PyExc_TypeError",
+                        "argument of type 'NoneType' is not iterable")
+            else:
+                common_type = py_object_type
+                self.is_pycmp = True
         else:
             common_type = self.find_common_type(env, self.operator, self.operand1)
             self.is_pycmp = common_type.is_pyobject
 
-        if not common_type.is_error:
+        if common_type is not None and not common_type.is_error:
             if self.operand1.type != common_type:
                 self.operand1 = self.operand1.coerce_to(common_type, env)
             self.coerce_operands_to(common_type, env)
@@ -5765,6 +5827,20 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 self.operand1.type.binary_op('=='), 
                 self.operand1.result(), 
                 self.operand2.result())
+        elif self.is_c_string_contains():
+            if self.operand2.type is bytes_type:
+                method = "__Pyx_BytesContains"
+            else:
+                method = "__Pyx_UnicodeContains"
+            if self.operator == "not_in":
+                negation = "!"
+            else:
+                negation = ""
+            return "(%s%s(%s, %s))" % (
+                negation,
+                method,
+                self.operand2.result(), 
+                self.operand1.result())
         else:
             return "(%s %s %s)" % (
                 self.operand1.result(),

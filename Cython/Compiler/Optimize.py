@@ -596,6 +596,17 @@ class SwitchTransform(Visitor.VisitorTransform):
                     not_in = False
                 elif allow_not_in and cond.operator == '!=':
                     not_in = True
+                elif cond.is_c_string_contains() and \
+                         isinstance(cond.operand2, (ExprNodes.UnicodeNode, ExprNodes.BytesNode)):
+                    not_in = cond.operator == 'not_in'
+                    if not_in and not allow_not_in:
+                        return self.NO_MATCH
+                    # this looks somewhat silly, but it does the right
+                    # checks for NameNode and AttributeNode
+                    if is_common_value(cond.operand1, cond.operand1):
+                        return not_in, cond.operand1, self.extract_in_string_conditions(cond.operand2)
+                    else:
+                        return self.NO_MATCH
                 else:
                     return self.NO_MATCH
                 # this looks somewhat silly, but it does the right
@@ -621,6 +632,23 @@ class SwitchTransform(Visitor.VisitorTransform):
                     if (not not_in_1) or allow_not_in:
                         return not_in_1, t1, c1+c2
         return self.NO_MATCH
+
+    def extract_in_string_conditions(self, string_literal):
+        if isinstance(string_literal, ExprNodes.UnicodeNode):
+            charvals = map(ord, set(string_literal.value))
+            charvals.sort()
+            return [ ExprNodes.IntNode(string_literal.pos, value=str(charval),
+                                       constant_result=charval)
+                     for charval in charvals ]
+        else:
+            # this is a bit tricky as Py3's bytes type returns
+            # integers on iteration, whereas Py2 returns 1-char byte
+            # strings
+            characters = string_literal.value
+            characters = set([ characters[i:i+1] for i in range(len(characters)) ])
+            return [ ExprNodes.CharNode(string_literal.pos, value=charval,
+                                        constant_result=charval)
+                     for charval in characters ]
 
     def extract_common_conditions(self, common_var, condition, allow_not_in):
         not_in, var, conditions = self.extract_conditions(condition, allow_not_in)
@@ -696,8 +724,22 @@ class SwitchTransform(Visitor.VisitorTransform):
 
         return self.build_simple_switch_statement(
             node, common_var, conditions, not_in,
-            ExprNodes.BoolNode(node.pos, value=True),
-            ExprNodes.BoolNode(node.pos, value=False))
+            ExprNodes.BoolNode(node.pos, value=True, constant_result=True),
+            ExprNodes.BoolNode(node.pos, value=False, constant_result=False))
+
+    def visit_PrimaryCmpNode(self, node):
+        not_in, common_var, conditions = self.extract_common_conditions(
+            None, node, True)
+        if common_var is None \
+               or len(conditions) < 2 \
+               or self.has_duplicate_values(conditions):
+            self.visitchildren(node)
+            return node
+
+        return self.build_simple_switch_statement(
+            node, common_var, conditions, not_in,
+            ExprNodes.BoolNode(node.pos, value=True, constant_result=True),
+            ExprNodes.BoolNode(node.pos, value=False, constant_result=False))
 
     def build_simple_switch_statement(self, node, common_var, conditions,
                                       not_in, true_val, false_val):
