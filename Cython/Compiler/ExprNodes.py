@@ -636,9 +636,21 @@ class ExprNode(Node):
         #  a constant, local var, C global var, struct member
         #  reference, or temporary.
         return self.result_in_temp()
-        
+
+    def may_be_none(self):
+        return self.type.is_pyobject
+
     def as_cython_attribute(self):
         return None
+
+    def as_none_safe_node(self, error, message):
+        # Wraps the node in a NoneCheckNode if it is not known to be
+        # not-None (e.g. because it is a Python literal).
+        if self.may_be_none():
+            return NoneCheckNode(self, error, message)
+        else:
+            return self
+
 
 class AtomicExprNode(ExprNode):
     #  Abstract base class for expression nodes which have
@@ -660,7 +672,10 @@ class PyConstNode(AtomicExprNode):
     
     def is_simple(self):
         return 1
-    
+
+    def may_be_none(self):
+        return False
+
     def analyse_types(self, env):
         pass
     
@@ -682,7 +697,11 @@ class NoneNode(PyConstNode):
 
     def compile_time_value(self, denv):
         return None
-    
+
+    def may_be_none(self):
+        return True
+
+
 class EllipsisNode(PyConstNode):
     #  '...' in a subscript list.
     
@@ -704,7 +723,10 @@ class ConstNode(AtomicExprNode):
 
     def is_simple(self):
         return 1
-    
+
+    def may_be_none(self):
+        return False
+
     def analyse_types(self, env):
         pass # Types are held in class variables
     
@@ -1012,6 +1034,9 @@ class LongNode(AtomicExprNode):
     def analyse_types(self, env):
         self.is_temp = 1
 
+    def may_be_none(self):
+        return False
+
     gil_message = "Constructing Python long int"
 
     def generate_result_code(self, code):
@@ -1038,6 +1063,9 @@ class ImagNode(AtomicExprNode):
     
     def analyse_types(self, env):
         self.type.create_declaration_utility_code(env)
+
+    def may_be_none(self):
+        return False
 
     def coerce_to(self, dst_type, env):
         if self.type is dst_type:
@@ -1098,7 +1126,10 @@ class NewExprNode(AtomicExprNode):
     def analyse_types(self, env):
         if self.type is None:
             self.infer_type(env)
-   
+
+    def may_be_none(self):
+        return False
+
     def generate_result_code(self, code):
         pass
    
@@ -2958,6 +2989,9 @@ class AsTupleNode(ExprNode):
         self.type = tuple_type
         self.is_temp = 1
 
+    def may_be_none(self):
+        return False
+
     nogil_check = Node.gil_error
     gil_message = "Constructing Python tuple"
 
@@ -3434,6 +3468,9 @@ class SequenceNode(ExprNode):
         self.type = py_object_type
         self.is_temp = 1
 
+    def may_be_none(self):
+        return False
+
     def analyse_target_types(self, env):
         self.iterator = PyTempNode(self.pos, env)
         self.unpacked_items = []
@@ -3817,6 +3854,9 @@ class ComprehensionNode(ExprNode):
         self.type = self.target.type
         self.loop.analyse_expressions(env)
 
+    def may_be_none(self):
+        return False
+
     def calculate_result_code(self):
         return self.target.result()
     
@@ -3897,6 +3937,9 @@ class SetNode(ExprNode):
         self.type = set_type
         self.is_temp = 1
 
+    def may_be_none(self):
+        return False
+
     def calculate_constant_result(self):
         self.constant_result = set([
                 arg.constant_result for arg in self.args])
@@ -3964,6 +4007,9 @@ class DictNode(ExprNode):
             item.analyse_types(env)
         self.obj_conversion_errors = held_errors()
         release_errors(ignore=True)
+
+    def may_be_none(self):
+        return False
         
     def coerce_to(self, dst_type, env):
         if dst_type.is_pyobject:
@@ -4094,6 +4140,9 @@ class ClassNode(ExprNode):
         self.is_temp = 1
         env.use_utility_code(create_class_utility_code);
 
+    def may_be_none(self):
+        return False
+
     gil_message = "Constructing Python class"
 
     def generate_result_code(self, code):
@@ -4129,6 +4178,9 @@ class UnboundMethodNode(ExprNode):
     def analyse_types(self, env):
         self.function.analyse_types(env)
 
+    def may_be_none(self):
+        return False
+
     gil_message = "Constructing an unbound method"
 
     def generate_result_code(self, code):
@@ -4154,6 +4206,9 @@ class PyCFunctionNode(AtomicExprNode):
     
     def analyse_types(self, env):
         pass
+
+    def may_be_none(self):
+        return False
     
     gil_message = "Constructing Python function"
 
@@ -4675,7 +4730,10 @@ class TypeofNode(ExprNode):
             self.pos, value=StringEncoding.EncodedString(str(self.operand.type)))
         self.literal.analyse_types(env)
         self.literal = self.literal.coerce_to_pyobject(env)
-    
+
+    def may_be_none(self):
+        return False
+
     def generate_evaluation_code(self, code):
         self.literal.generate_evaluation_code(code)
     
@@ -5756,8 +5814,8 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                         self.operand2 = self.operand2.coerce_to(bytes_type, env)
                     env.use_utility_code(char_in_bytes_utility_code)
                 if not isinstance(self.operand2, (UnicodeNode, BytesNode)):
-                    self.operand2 = NoneCheckNode(
-                        self.operand2, "PyExc_TypeError",
+                    self.operand2 = self.operand2.as_none_safe_node(
+                        "PyExc_TypeError",
                         "argument of type 'NoneType' is not iterable")
             else:
                 common_type = py_object_type
@@ -6087,6 +6145,9 @@ class NoneCheckNode(CoercionNode):
     def analyse_types(self, env):
         pass
 
+    def may_be_none(self):
+        return False
+
     def result_in_temp(self):
         return self.arg.result_in_temp()
 
@@ -6128,6 +6189,10 @@ class CoerceToPyTypeNode(CoercionNode):
             self.type = Builtin.bytes_type
 
     gil_message = "Converting to Python object"
+
+    def may_be_none(self):
+        # FIXME: is this always safe?
+        return False
 
     def coerce_to_boolean(self, env):
         return self.arg.coerce_to_boolean(env).coerce_to_temp(env)
@@ -6350,6 +6415,9 @@ class ModuleRefNode(ExprNode):
     
     def analyse_types(self, env):
         pass
+
+    def may_be_none(self):
+        return False
 
     def calculate_result_code(self):
         return Naming.module_cname
