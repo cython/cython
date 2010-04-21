@@ -173,8 +173,7 @@ class IterationTransform(Visitor.VisitorTransform):
             return node
 
         unpack_temp_node = UtilNodes.LetRefNode(
-            ExprNodes.NoneCheckNode(
-                slice_node, "PyExc_TypeError", "'NoneType' is not iterable"))
+            slice_node.as_none_safe_node("PyExc_TypeError", "'NoneType' is not iterable"))
 
         slice_base_node = ExprNodes.PythonCapiCallNode(
             slice_node.pos, unpack_func, unpack_func_type,
@@ -1313,8 +1312,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node
         arg = pos_args[0]
         if arg.type is Builtin.dict_type:
-            arg = ExprNodes.NoneCheckNode(
-                arg, "PyExc_TypeError", "'NoneType' is not iterable")
+            arg = arg.as_none_safe_node("PyExc_TypeError", "'NoneType' is not iterable")
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "PyDict_Copy", self.PyDict_Copy_func_type,
                 args = [arg],
@@ -1337,9 +1335,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node
         if not isinstance(list_arg, (ExprNodes.ComprehensionNode,
                                      ExprNodes.ListNode)):
-            pos_args[0] = ExprNodes.NoneCheckNode(
-                list_arg, "PyExc_TypeError",
-                "'NoneType' object is not iterable")
+            pos_args[0] = list_arg.as_none_safe_node(
+                "PyExc_TypeError", "'NoneType' object is not iterable")
 
         return ExprNodes.PythonCapiCallNode(
             node.pos, "PyList_AsTuple", self.PyList_AsTuple_func_type,
@@ -1499,9 +1496,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             if cfunc_name is None:
                 return node
             if not arg.is_literal:
-                arg = ExprNodes.NoneCheckNode(
-                    arg, "PyExc_TypeError",
-                    "object of type 'NoneType' has no len()")
+                arg = arg.as_none_safe_node(
+                    "PyExc_TypeError", "object of type 'NoneType' has no len()")
             new_node = ExprNodes.PythonCapiCallNode(
                 node.pos, cfunc_name, self.PyObject_Size_func_type,
                 args = [arg],
@@ -1564,8 +1560,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
         if not type_arg.type_entry:
             # arbitrary variable, needs a None check for safety
-            type_arg = ExprNodes.NoneCheckNode(
-                type_arg, "PyExc_TypeError",
+            type_arg = type_arg.as_none_safe_node(
+                "PyExc_TypeError",
                 "object.__new__(X): X is not a type object (NoneType)")
 
         return ExprNodes.PythonCapiCallNode(
@@ -2126,13 +2122,13 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if args and not args[0].is_literal:
             self_arg = args[0]
             if is_unbound_method:
-                self_arg = ExprNodes.NoneCheckNode(
-                    self_arg, "PyExc_TypeError",
+                self_arg = self_arg.as_none_safe_node(
+                    "PyExc_TypeError",
                     "descriptor '%s' requires a '%s' object but received a 'NoneType'" % (
-                    attr_name, node.function.obj.name))
+                        attr_name, node.function.obj.name))
             else:
-                self_arg = ExprNodes.NoneCheckNode(
-                    self_arg, "PyExc_AttributeError",
+                self_arg = self_arg.as_none_safe_node(
+                    "PyExc_AttributeError",
                     "'NoneType' object has no attribute '%s'" % attr_name)
             args[0] = self_arg
         return ExprNodes.PythonCapiCallNode(
