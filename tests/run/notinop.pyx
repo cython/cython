@@ -121,15 +121,27 @@ def m_bytes_literal(char a):
     return result
 
 cdef unicode unicode_string = u'abcdefg\u1234\uF8D2'
+py_unicode_string = unicode_string
+
+cdef unicode klingon_character = u'\uF8D2'
+py_klingon_character = klingon_character
 
 @cython.test_assert_path_exists("//PrimaryCmpNode")
 @cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
-def m_unicode(Py_UNICODE a):
+def m_unicode(Py_UNICODE a, unicode unicode_string):
     """
-    >>> m_unicode(ord('f'))
+    >>> m_unicode(ord('f'), py_unicode_string)
     0
-    >>> m_unicode(ord('X'))
+    >>> m_unicode(ord('X'), py_unicode_string)
     1
+    >>> m_unicode(ord(py_klingon_character), py_unicode_string)
+    0
+    >>> 'f' in None
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    >>> m_unicode(ord('f'), None)
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
     """
     cdef int result = a not in unicode_string
     return result
@@ -142,6 +154,8 @@ def m_unicode_literal(Py_UNICODE a):
     0
     >>> m_unicode_literal(ord('X'))
     1
+    >>> m_unicode_literal(ord(py_klingon_character))
+    0
     """
     cdef int result = a not in u'abcdefg\u1234\uF8D2'
     return result

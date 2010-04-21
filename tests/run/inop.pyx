@@ -136,6 +136,8 @@ def m_unicode(Py_UNICODE a, unicode unicode_string):
     1
     >>> m_unicode(ord('X'), py_unicode_string)
     0
+    >>> m_unicode(ord(py_klingon_character), py_unicode_string)
+    1
     >>> 'f' in None
     Traceback (most recent call last):
     TypeError: argument of type 'NoneType' is not iterable
@@ -146,6 +148,9 @@ def m_unicode(Py_UNICODE a, unicode unicode_string):
     cdef int result = a in unicode_string
     return result
 
+cdef unicode klingon_character = u'\uF8D2'
+py_klingon_character = klingon_character
+
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
 def m_unicode_literal(Py_UNICODE a):
@@ -154,6 +159,8 @@ def m_unicode_literal(Py_UNICODE a):
     1
     >>> m_unicode_literal(ord('X'))
     0
+    >>> m_unicode_literal(ord(py_klingon_character))
+    1
     """
     cdef int result = a in u'abcdefg\u1234\uF8D2'
     return result
