@@ -796,9 +796,8 @@ class CIntType(CNumericType):
     from_py_function = None
     exception_value = -1
 
-    def __init__(self, rank, signed, is_returncode = 0):
+    def __init__(self, rank, signed):
         CNumericType.__init__(self, rank, signed)
-        self.is_returncode = is_returncode
         if self.to_py_function is None:
             self.to_py_function = self.get_to_py_type_conversion()
         if self.from_py_function is None:
@@ -861,6 +860,10 @@ class CAnonEnumType(CIntType):
 
     def sign_and_name(self):
         return 'int'
+
+class CReturnCodeType(CIntType):
+
+    is_returncode = 1
 
 
 class CPyUnicodeIntType(CIntType):
@@ -2147,7 +2150,7 @@ c_int_ptr_type =      CPtrType(c_int_type)
 c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
 c_size_t_ptr_type =  CPtrType(c_size_t_type)
 
-c_returncode_type =   CIntType(3, 1, is_returncode = 1)
+c_returncode_type =   CReturnCodeType(3, 1)
 c_anon_enum_type =    CAnonEnumType(-1, 1)
 
 # the Py_buffer type is defined in Builtin.py
