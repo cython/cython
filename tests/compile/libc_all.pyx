@@ -34,6 +34,6 @@ from libc.stdio  cimport *
 from libc.stdlib cimport *
 from libc.string cimport *
 
-libc.stdio.printf("hello\n")
-stdio.printf("hello\n")
-printf("hello\n")
+libc.stdio.printf("hello %s\n", b"world")
+stdio.printf("hello %s\n", b"world")
+printf("hello %s\n", b"world")
