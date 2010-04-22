@@ -643,7 +643,7 @@ class ExprNode(Node):
     def as_cython_attribute(self):
         return None
 
-    def as_none_safe_node(self, error, message):
+    def as_none_safe_node(self, message, error="PyExc_TypeError"):
         # Wraps the node in a NoneCheckNode if it is not known to be
         # not-None (e.g. because it is a Python literal).
         if self.may_be_none():
@@ -5815,7 +5815,6 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                     env.use_utility_code(char_in_bytes_utility_code)
                 if not isinstance(self.operand2, (UnicodeNode, BytesNode)):
                     self.operand2 = self.operand2.as_none_safe_node(
-                        "PyExc_TypeError",
                         "argument of type 'NoneType' is not iterable")
             else:
                 common_type = py_object_type
