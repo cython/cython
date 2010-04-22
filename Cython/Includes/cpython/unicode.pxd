@@ -94,7 +94,7 @@ cdef extern from *:
     # The ordinal must be in range(0x10000) on narrow Python builds
     # (UCS2), and range(0x110000) on wide builds (UCS4). A ValueError
     # is raised in case it is not.
-    PyObject* PyUnicode_FromOrdinal(int ordinal)
+    object PyUnicode_FromOrdinal(int ordinal)
 
     # Return a read-only pointer to the Unicode object's internal
     # Py_UNICODE buffer, NULL if unicode is not a Unicode object.
