@@ -137,7 +137,7 @@ class IterationTransform(Visitor.VisitorTransform):
         return node
 
     PyUnicode_AS_UNICODE_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.CPtrType(PyrexTypes.c_py_unicode_type), [
+        PyrexTypes.c_py_unicode_ptr_type, [
             PyrexTypes.CFuncTypeArg("s", Builtin.unicode_type, None)
             ])
 
