@@ -1,5 +1,3 @@
-
-
 #
 #   Pyrex - Types
 #
@@ -2156,6 +2154,7 @@ c_uchar_ptr_type =    CUCharPtrType()
 c_utf8_char_array_type = CUTF8CharArrayType(None)
 c_char_ptr_ptr_type = CPtrType(c_char_ptr_type)
 c_int_ptr_type =      CPtrType(c_int_type)
+c_py_unicode_ptr_type = CPtrType(c_py_unicode_type)
 c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
 c_ssize_t_ptr_type =  CPtrType(c_ssize_t_type)
 c_size_t_ptr_type =  CPtrType(c_size_t_type)
