@@ -828,7 +828,7 @@ class CIntType(CNumericType):
         type_name = type_name.replace("PY_LONG_LONG","long long")
         SignWord  = sign_word.title()
         TypeName  = type_name.title().replace(" ", "")
-        if "Long" in TypeName:
+        if self.rank >= list(rank_to_type_name).index('long'):
             utility_code = c_long_from_py_function
         else:
             utility_code = c_int_from_py_function
@@ -874,6 +874,7 @@ class CPyUnicodeIntType(CIntType):
     # 1114111, so PyInt_FromLong() will do just fine here.
 
     to_py_function = "PyInt_FromLong"
+    from_py_function = "__Pyx_PyInt_AsPy_UNICODE"
 
     def sign_and_name(self):
         return "Py_UNICODE"
@@ -2491,6 +2492,10 @@ type_conversion_predeclarations = """
 static CYTHON_INLINE int __Pyx_PyObject_IsTrue(PyObject*);
 static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x);
 
+#ifdef Py_USING_UNICODE
+static CYTHON_INLINE Py_UNICODE __Pyx_PyInt_AsPy_UNICODE(PyObject*);
+#endif
+
 static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject*);
 static CYTHON_INLINE PyObject * __Pyx_PyInt_FromSize_t(size_t);
 static CYTHON_INLINE size_t __Pyx_PyInt_AsSize_t(PyObject*);
@@ -2554,6 +2559,26 @@ static CYTHON_INLINE PyObject* __Pyx_PyNumber_Int(PyObject* x) {
   }
   return res;
 }
+
+#ifdef Py_USING_UNICODE
+static CYTHON_INLINE Py_UNICODE __Pyx_PyInt_AsPy_UNICODE(PyObject* x) {
+   long ival = __Pyx_PyInt_AsLong(x);
+   static long maxval = 0;
+   if (unlikely(!maxval))
+       maxval = (long)PyUnicode_GetMax();
+   if (unlikely(ival < 0)) {
+       if (!PyErr_Occurred())
+           PyErr_SetString(PyExc_OverflowError,
+                           "can't convert negative value to Py_UNICODE");
+       return (Py_UNICODE)-1;
+   } else if (unlikely(ival > maxval)) {
+       PyErr_SetString(PyExc_OverflowError,
+                       "value too large to convert to Py_UNICODE");
+       return (Py_UNICODE)-1;
+   }
+   return (Py_UNICODE)ival;
+}
+#endif
 
 static CYTHON_INLINE Py_ssize_t __Pyx_PyIndex_AsSsize_t(PyObject* b) {
   Py_ssize_t ival;

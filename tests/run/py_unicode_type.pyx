@@ -42,3 +42,28 @@ def index_literal(int i):
     # runtime casts are not currently supported
     #return <Py_UNICODE>(u"12345"[i])
     return u"12345"[i]
+
+
+def unicode_cardinal(Py_UNICODE i):
+    """
+    >>> import sys
+
+    >>> unicode_cardinal(0)
+    0
+    >>> unicode_cardinal(1)
+    1
+    >>> unicode_cardinal(sys.maxunicode) == sys.maxunicode
+    True
+
+    
+    >>> unicode_cardinal(-1) #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    OverflowError: ...
+
+    >>> unicode_cardinal(sys.maxunicode+1) #doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    OverflowError: ...
+    """
+    return i
