@@ -113,9 +113,39 @@ def m_bytes(char a, bytes bytes_string):
     cdef int result = a in bytes_string
     return result
 
+@cython.test_assert_path_exists("//PrimaryCmpNode")
+@cython.test_fail_if_path_exists("//SwitchStatNode", "//BoolBinopNode")
+def m_bytes_unsigned(unsigned char a, bytes bytes_string):
+    """
+    >>> m_bytes(ord('f'), py_bytes_string)
+    1
+    >>> m_bytes(ord('X'), py_bytes_string)
+    0
+    >>> 'f'.encode('ASCII') in None
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    >>> m_bytes(ord('f'), None)
+    Traceback (most recent call last):
+    TypeError: argument of type 'NoneType' is not iterable
+    """
+    cdef int result = a in bytes_string
+    return result
+
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
 def m_bytes_literal(char a):
+    """
+    >>> m_bytes_literal(ord('f'))
+    1
+    >>> m_bytes_literal(ord('X'))
+    0
+    """
+    cdef int result = a in b'ab\0cde\0f\0g'
+    return result
+
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
+def m_bytes_literal_unsigned(unsigned char a):
     """
     >>> m_bytes_literal(ord('f'))
     1
