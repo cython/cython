@@ -92,7 +92,7 @@ def m_set(int a):
     cdef int result = a in {1,2,3,4}
     return result
 
-cdef bytes bytes_string = b'abcdefg'
+cdef bytes bytes_string = b'ab\0cde\0f\0g'
 py_bytes_string = bytes_string
 
 @cython.test_assert_path_exists("//PrimaryCmpNode")
@@ -122,10 +122,10 @@ def m_bytes_literal(char a):
     >>> m_bytes_literal(ord('X'))
     0
     """
-    cdef int result = a in b'abcdefg'
+    cdef int result = a in b'ab\0cde\0f\0g'
     return result
 
-cdef unicode unicode_string = u'abcdefg\u1234\uF8D2'
+cdef unicode unicode_string = u'abc\0defg\u1234\uF8D2'
 py_unicode_string = unicode_string
 
 @cython.test_assert_path_exists("//PrimaryCmpNode")
@@ -162,7 +162,7 @@ def m_unicode_literal(Py_UNICODE a):
     >>> m_unicode_literal(ord(py_klingon_character))
     1
     """
-    cdef int result = a in u'abcdefg\u1234\uF8D2'
+    cdef int result = a in u'abc\0defg\u1234\uF8D2'
     return result
 
 @cython.test_assert_path_exists("//SwitchStatNode")
@@ -190,6 +190,32 @@ def conditional_object(int a):
     '2'
     """
     return 1 if a in (1,2,3,4) else '2'
+
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
+def conditional_bytes(char a):
+    """
+    >>> conditional_bytes(ord('a'))
+    1
+    >>> conditional_bytes(ord('X'))
+    '2'
+    >>> conditional_bytes(0)
+    '2'
+    """
+    return 1 if a in b'abc' else '2'
+
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
+def conditional_unicode(Py_UNICODE a):
+    """
+    >>> conditional_unicode(ord('a'))
+    1
+    >>> conditional_unicode(ord('X'))
+    '2'
+    >>> conditional_unicode(0)
+    '2'
+    """
+    return 1 if a in u'abc' else '2'
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")

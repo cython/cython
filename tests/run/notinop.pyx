@@ -244,6 +244,32 @@ def conditional_object(int a):
 
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
+def conditional_bytes(char a):
+    """
+    >>> conditional_bytes(ord('a'))
+    '2'
+    >>> conditional_bytes(ord('X'))
+    1
+    >>> conditional_bytes(0)
+    1
+    """
+    return 1 if a not in b'abc' else '2'
+
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
+def conditional_unicode(Py_UNICODE a):
+    """
+    >>> conditional_unicode(ord('a'))
+    '2'
+    >>> conditional_unicode(ord('X'))
+    1
+    >>> conditional_unicode(0)
+    1
+    """
+    return 1 if a not in u'abc' else '2'
+
+@cython.test_assert_path_exists("//SwitchStatNode")
+@cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
 def conditional_none(int a):
     """
     >>> conditional_none(1)
