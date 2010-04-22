@@ -5813,9 +5813,8 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                     if self.operand2.type is not bytes_type:
                         self.operand2 = self.operand2.coerce_to(bytes_type, env)
                     env.use_utility_code(char_in_bytes_utility_code)
-                if not isinstance(self.operand2, (UnicodeNode, BytesNode)):
-                    self.operand2 = self.operand2.as_none_safe_node(
-                        "argument of type 'NoneType' is not iterable")
+                self.operand2 = self.operand2.as_none_safe_node(
+                    "argument of type 'NoneType' is not iterable")
             else:
                 common_type = py_object_type
                 self.is_pycmp = True
