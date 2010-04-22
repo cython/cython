@@ -153,40 +153,50 @@ class typedef(CythonType):
         
 
 
-py_float = float
 py_int = int
 try:
     py_long = long
 except NameError: # Py3
     py_long = int
+py_float = float
+py_complex = complex
 
 try:
     # Python 3
-    from builtins import set
+    from builtins import set, frozenset
 except ImportError:
     try:
         # Python 2.4+
-        from __builtin__ import set
+        from __builtin__ import set, frozenset
     except ImportError:
         # Py 2.3
-        from sets import Set as set
+        from sets import Set as set, ImmutableSet as frozenset
 
 # Predefined types
 
-int_types = ['char', 'short', 'int', 'long', 'longlong', 'Py_ssize_t'] 
-float_types = ['double', 'float']
+int_types = ['char', 'short', 'Py_UNICODE', 'int', 'long', 'longlong', 'Py_ssize_t', 'size_t']
+float_types = ['longdouble', 'double', 'float']
+complex_types = ['longdoublecomplex', 'doublecomplex', 'floatcomplex', 'complex']
 other_types = ['bint', 'void']
+
 gs = globals()
 
 for name in int_types:
     gs[name] = typedef(py_int)
-    gs['u'+name] = typedef(py_int)
+    if name != 'Py_UNICODE' and not name.endswith('size_t'):
+        gs['u'+name] = typedef(py_int)
+        gs['s'+name] = typedef(py_int)
     
-double = float = typedef(py_float)
+for name in float_types:
+    gs[name] = typedef(py_float)
+
+for name in complex_types:
+    gs[name] = typedef(py_complex)
+
 bint = typedef(bool)
 void = typedef(int)
 
-for t in int_types + float_types + other_types:
+for t in int_types + float_types + complex_types + other_types:
     for i in range(1, 4):
         gs["%s_%s" % ('p'*i, t)] = globals()[t]._pointer(i)
 

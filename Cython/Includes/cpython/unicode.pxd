@@ -1,6 +1,4 @@
 cdef extern from *:
-    ctypedef unsigned int Py_UNICODE
-
     # Return true if the object o is a Unicode object or an instance
     # of a Unicode subtype. Changed in version 2.2: Allowed subtypes
     # to be accepted.
@@ -90,6 +88,13 @@ cdef extern from *:
     # modification of the resulting Unicode object is only allowed
     # when u is NULL.
     object PyUnicode_FromUnicode(Py_UNICODE *u, Py_ssize_t size)
+
+    # Create a Unicode Object from the given Unicode code point ordinal.
+    #
+    # The ordinal must be in range(0x10000) on narrow Python builds
+    # (UCS2), and range(0x110000) on wide builds (UCS4). A ValueError
+    # is raised in case it is not.
+    object PyUnicode_FromOrdinal(int ordinal)
 
     # Return a read-only pointer to the Unicode object's internal
     # Py_UNICODE buffer, NULL if unicode is not a Unicode object.

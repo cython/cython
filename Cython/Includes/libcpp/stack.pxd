@@ -1,61 +1,10 @@
-from pair cimport pair
-
-cdef extern from "<list>" namespace "std":
-    cdef cppclass list[T]:
-        cppclass iterator:
-            T operator*()
-            iterator operator++()
-            bint operator==(iterator)
-            bint operator!=(iterator)
-        cppclass const_iterator(iterator):
-            pass
-        cppclass reverse_iterator(iterator):
-            pass
-        cppclass const_reverse_iterator(iterator):
-            pass
-        list()
-        list(list&)
-        list(size_t, T&)
-        #list operator=(list&)
-        bool operator==(list&, list&)
-        bool operator!=(list&, list&)
-        bool operator<(list&, list&)
-        bool operator>(list&, list&)
-        bool operator<=(list&, list&)
-        bool operator>=(list&, list&)
-        void assign(size_t, T&)
-        T& back()
-        iterator begin()
-        const_iterator begin()
-        bool empty()
-        iterator end()
-        const_iterator end()
-        iterator erase(iterator)
-        iterator erase(iterator, iterator)
-        T& front()
-        iterator insert(iterator, T&)
-        void insert(iterator, size_t, T&)
-        size_t max_size()
-        void merge(list&)
-        #voide merge(list&, BinPred)
-        void pop_back()
-        void pop_front()
-        void push_back(T&)
-        void push_front(T&)
-        reverse_iterator rbegin()
-        const_reverse_iterator rbegin()
-        void remove(T&)
-        #void remove_if(UnPred)
-        reverse_iterator rend()
-        const_reverse_iterator rend()
-        void resize(size_t, T&)
-        void reverse()
+cdef extern from "<stack>" namespace "std":
+    cdef cppclass stack[T]:
+        stack()
+        stack(stack&)
+        #stack(Container&)
+        bint empty()
+        void pop()
+        void push(T&)
         size_t size()
-        void sort()
-        #void sort(BinPred)
-        void splice(iterator, list&)
-        void splice(iterator, list&, iterator)
-        void splice(iterator, list&, iterator, iterator)
-        void swap(list&)
-        void unique()
-        #void unique(BinPred)
+        T& top()

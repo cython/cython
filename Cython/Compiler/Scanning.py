@@ -2,12 +2,9 @@
 #   Cython Scanner
 #
 
+import sys
 import os
 import platform
-import stat
-import sys
-import codecs
-from time import time
 
 import cython
 cython.declare(EncodedString=object, string_prefixes=object, raw_prefixes=object, IDENT=object,

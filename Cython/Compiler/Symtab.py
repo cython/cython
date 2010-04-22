@@ -210,6 +210,8 @@ class Scope(object):
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
     # is_closure_scope  boolean
+    # is_cpp_class_scope  boolean          Is a C++ class scope
+    # is_property_scope boolean            Is a extension type property scope
     # scope_prefix      string             Disambiguator for C names
     # in_cinclude       boolean            Suppress C declaration code
     # qualified_name    string             "modname" or "modname.classname"
@@ -225,6 +227,7 @@ class Scope(object):
     is_c_class_scope = 0
     is_closure_scope = 0
     is_cpp_class_scope = 0
+    is_property_scope = 0
     is_module_scope = 0
     is_internal = 0
     scope_prefix = ""
@@ -415,7 +418,7 @@ class Scope(object):
             error(pos, "C++ classes may only be extern")
         if cname is None:
             cname = name
-        entry = self.lookup(name)
+        entry = self.lookup_here(name)
         if not entry:
             type = PyrexTypes.CppClassType(
                 name, scope, cname, base_classes, templates = templates)
@@ -439,7 +442,8 @@ class Scope(object):
             for base_class in base_classes:
                 declare_inherited_attributes(entry, base_class.base_classes)
                 entry.type.scope.declare_inherited_cpp_attributes(base_class.scope)                 
-        declare_inherited_attributes(entry, base_classes)
+        if entry.type.scope:
+            declare_inherited_attributes(entry, base_classes)
         if self.is_cpp_class_scope:
             entry.type.namespace = self.outer_scope.lookup(self.name).type
         return entry
@@ -1664,6 +1668,8 @@ class PropertyScope(Scope):
     #  a property of an extension type.
     #
     #  parent_type   PyExtensionType   The type to which the property belongs
+
+    is_property_scope = 1
     
     def declare_pyfunction(self, name, pos):
         # Add an entry for a method.

@@ -274,6 +274,10 @@ class ExprNode(Node):
         # ConstantFolding transform will do this.
         pass
 
+    def has_constant_result(self):
+        return self.constant_result is not constant_value_not_set and \
+               self.constant_result is not not_a_constant
+
     def compile_time_value(self, denv):
         #  Return value of compile-time expression, or report error.
         error(self.pos, "Invalid compile-time expression")
@@ -594,11 +598,18 @@ class ExprNode(Node):
     def coerce_to_boolean(self, env):
         #  Coerce result to something acceptable as
         #  a boolean value.
+
+        # if it's constant, calculate the result now
+        if self.has_constant_result():
+            bool_value = bool(self.constant_result)
+            return BoolNode(self.pos, value=bool_value,
+                            constant_result=bool_value)
+
         type = self.type
         if type.is_pyobject or type.is_ptr or type.is_float:
             return CoerceToBooleanNode(self, env)
         else:
-            if not type.is_int and not type.is_error:
+            if not (type.is_int or type.is_enum or type.is_error):
                 error(self.pos, 
                     "Type '%s' not acceptable as a boolean" % type)
             return self
@@ -630,9 +641,21 @@ class ExprNode(Node):
         #  a constant, local var, C global var, struct member
         #  reference, or temporary.
         return self.result_in_temp()
-        
+
+    def may_be_none(self):
+        return self.type.is_pyobject
+
     def as_cython_attribute(self):
         return None
+
+    def as_none_safe_node(self, message, error="PyExc_TypeError"):
+        # Wraps the node in a NoneCheckNode if it is not known to be
+        # not-None (e.g. because it is a Python literal).
+        if self.may_be_none():
+            return NoneCheckNode(self, error, message)
+        else:
+            return self
+
 
 class AtomicExprNode(ExprNode):
     #  Abstract base class for expression nodes which have
@@ -654,7 +677,10 @@ class PyConstNode(AtomicExprNode):
     
     def is_simple(self):
         return 1
-    
+
+    def may_be_none(self):
+        return False
+
     def analyse_types(self, env):
         pass
     
@@ -676,7 +702,11 @@ class NoneNode(PyConstNode):
 
     def compile_time_value(self, denv):
         return None
-    
+
+    def may_be_none(self):
+        return True
+
+
 class EllipsisNode(PyConstNode):
     #  '...' in a subscript list.
     
@@ -698,7 +728,10 @@ class ConstNode(AtomicExprNode):
 
     def is_simple(self):
         return 1
-    
+
+    def may_be_none(self):
+        return False
+
     def analyse_types(self, env):
         pass # Types are held in class variables
     
@@ -853,10 +886,18 @@ class BytesNode(ConstNode):
     def can_coerce_to_char_literal(self):
         return len(self.value) == 1
 
+    def coerce_to_boolean(self, env):
+        # This is special because we start off as a C char*.  Testing
+        # that for truth directly would yield the wrong result.
+        return BoolNode(self.pos, value=bool(self.value))
+
     def coerce_to(self, dst_type, env):
         if dst_type.is_int:
             if not self.can_coerce_to_char_literal():
-                error(self.pos, "Only single-character strings can be coerced into ints.")
+                error(self.pos, "Only single-character string literals can be coerced into ints.")
+                return self
+            if dst_type is PyrexTypes.c_py_unicode_type:
+                error(self.pos, "Bytes literals cannot coerce to Py_UNICODE, use a unicode literal instead.")
                 return self
             return CharNode(self.pos, value=self.value)
 
@@ -911,12 +952,21 @@ class UnicodeNode(PyConstNode):
     def coerce_to(self, dst_type, env):
         if dst_type is self.type:
             pass
+        elif dst_type is PyrexTypes.c_py_unicode_type:
+            if not self.can_coerce_to_char_literal():
+                error(self.pos, "Only single-character Unicode string literals can be coerced into Py_UNICODE.")
+                return self
+            int_value = ord(self.value)
+            return IntNode(self.pos, value=int_value, constant_result=int_value)
         elif not dst_type.is_pyobject:
-            error(self.pos, "Unicode objects do not support coercion to C types.")
+            error(self.pos, "Unicode literals do not support coercion to C types other than Py_UNICODE.")
         elif dst_type is not py_object_type:
             if not self.check_for_coercion_error(dst_type):
                 self.fail_assignment(dst_type)
         return self
+
+    def can_coerce_to_char_literal(self):
+        return len(self.value) == 1
 
     def generate_evaluation_code(self, code):
         self.result_code = code.get_py_string_const(self.value)
@@ -996,6 +1046,9 @@ class LongNode(AtomicExprNode):
     def analyse_types(self, env):
         self.is_temp = 1
 
+    def may_be_none(self):
+        return False
+
     gil_message = "Constructing Python long int"
 
     def generate_result_code(self, code):
@@ -1022,6 +1075,9 @@ class ImagNode(AtomicExprNode):
     
     def analyse_types(self, env):
         self.type.create_declaration_utility_code(env)
+
+    def may_be_none(self):
+        return False
 
     def coerce_to(self, dst_type, env):
         if self.type is dst_type:
@@ -1082,7 +1138,10 @@ class NewExprNode(AtomicExprNode):
     def analyse_types(self, env):
         if self.type is None:
             self.infer_type(env)
-   
+
+    def may_be_none(self):
+        return False
+
     def generate_result_code(self, code):
         pass
    
@@ -2259,14 +2318,14 @@ class SliceIndexNode(ExprNode):
         if self.base.type.is_string:
             if self.stop is None:
                 code.putln(
-                    "%s = __Pyx_PyBytes_FromString(%s + %s); %s" % (
+                    "%s = PyBytes_FromString(%s + %s); %s" % (
                         self.result(),
                         self.base.result(),
                         self.start_code(),
                         code.error_goto_if_null(self.result(), self.pos)))
             else:
                 code.putln(
-                    "%s = __Pyx_PyBytes_FromStringAndSize(%s + %s, %s - %s); %s" % (
+                    "%s = PyBytes_FromStringAndSize(%s + %s, %s - %s); %s" % (
                         self.result(),
                         self.base.result(),
                         self.start_code(),
@@ -2943,6 +3002,9 @@ class AsTupleNode(ExprNode):
         self.type = tuple_type
         self.is_temp = 1
 
+    def may_be_none(self):
+        return False
+
     nogil_check = Node.gil_error
     gil_message = "Constructing Python tuple"
 
@@ -3419,6 +3481,9 @@ class SequenceNode(ExprNode):
         self.type = py_object_type
         self.is_temp = 1
 
+    def may_be_none(self):
+        return False
+
     def analyse_target_types(self, env):
         self.iterator = PyTempNode(self.pos, env)
         self.unpacked_items = []
@@ -3802,6 +3867,9 @@ class ComprehensionNode(ExprNode):
         self.type = self.target.type
         self.loop.analyse_expressions(env)
 
+    def may_be_none(self):
+        return False
+
     def calculate_result_code(self):
         return self.target.result()
     
@@ -3882,6 +3950,9 @@ class SetNode(ExprNode):
         self.type = set_type
         self.is_temp = 1
 
+    def may_be_none(self):
+        return False
+
     def calculate_constant_result(self):
         self.constant_result = set([
                 arg.constant_result for arg in self.args])
@@ -3949,6 +4020,9 @@ class DictNode(ExprNode):
             item.analyse_types(env)
         self.obj_conversion_errors = held_errors()
         release_errors(ignore=True)
+
+    def may_be_none(self):
+        return False
         
     def coerce_to(self, dst_type, env):
         if dst_type.is_pyobject:
@@ -4079,6 +4153,9 @@ class ClassNode(ExprNode):
         self.is_temp = 1
         env.use_utility_code(create_class_utility_code);
 
+    def may_be_none(self):
+        return False
+
     gil_message = "Constructing Python class"
 
     def generate_result_code(self, code):
@@ -4140,6 +4217,9 @@ class UnboundMethodNode(ExprNode):
     def analyse_types(self, env):
         self.function.analyse_types(env)
 
+    def may_be_none(self):
+        return False
+
     gil_message = "Constructing an unbound method"
 
     def generate_result_code(self, code):
@@ -4172,6 +4252,9 @@ class PyCFunctionNode(ExprNode):
     def analyse_types(self, env):
         if self.binding:
             env.use_utility_code(binding_cfunc_utility_code)
+
+    def may_be_none(self):
+        return False
     
     gil_message = "Constructing Python function"
 
@@ -4761,7 +4844,10 @@ class TypeofNode(ExprNode):
             self.pos, value=StringEncoding.EncodedString(str(self.operand.type)))
         self.literal.analyse_types(env)
         self.literal = self.literal.coerce_to_pyobject(env)
-    
+
+    def may_be_none(self):
+        return False
+
     def generate_evaluation_code(self, code):
         self.literal.generate_evaluation_code(code)
     
@@ -5123,7 +5209,7 @@ class DivNode(NumBinopNode):
         if not self.type.is_pyobject:
             self.zerodivision_check = (
                 self.cdivision is None and not env.directives['cdivision']
-                and (self.operand2.constant_result is not_a_constant or
+                and (not self.operand2.has_constant_result() or
                      self.operand2.constant_result == 0))
             if self.zerodivision_check or env.directives['cdivision_warnings']:
                 # Need to check ahead of time to warn or raise zero division error
@@ -5524,10 +5610,10 @@ class CmpNode(object):
         type1_can_be_int = False
         type2_can_be_int = False
 
-        if isinstance(operand1, (StringNode, BytesNode)) \
+        if isinstance(operand1, (StringNode, BytesNode, UnicodeNode)) \
                and operand1.can_coerce_to_char_literal():
             type1_can_be_int = True
-        if isinstance(operand2, (StringNode, BytesNode)) \
+        if isinstance(operand2, (StringNode, BytesNode, UnicodeNode)) \
                  and operand2.can_coerce_to_char_literal():
             type2_can_be_int = True
 
@@ -5621,9 +5707,10 @@ class CmpNode(object):
               (op, operand1.type, operand2.type))
 
     def is_python_comparison(self):
-        return (self.has_python_operands()
-                or (self.cascade and self.cascade.is_python_comparison())
-                or self.operator in ('in', 'not_in'))
+        return not self.is_c_string_contains() and (
+            self.has_python_operands()
+            or (self.cascade and self.cascade.is_python_comparison())
+            or self.operator in ('in', 'not_in'))
 
     def coerce_operands_to(self, dst_type, env):
         operand2 = self.operand2
@@ -5634,12 +5721,22 @@ class CmpNode(object):
 
     def is_python_result(self):
         return ((self.has_python_operands() and
-                 self.operator not in ('is', 'is_not', 'in', 'not_in'))
+                 self.operator not in ('is', 'is_not', 'in', 'not_in') and
+                 not self.is_c_string_contains())
             or (self.cascade and self.cascade.is_python_result()))
+
+    def is_c_string_contains(self):
+        return self.operator in ('in', 'not_in') and \
+               ((self.operand1.type in (PyrexTypes.c_char_type, PyrexTypes.c_uchar_type)
+                 and self.operand2.type in (PyrexTypes.c_char_ptr_type,
+                                            PyrexTypes.c_uchar_ptr_type,
+                                            bytes_type)) or
+                (self.operand1.type is PyrexTypes.c_py_unicode_type
+                 and self.operand2.type is unicode_type))
 
     def generate_operation_code(self, code, result_code, 
             operand1, op , operand2):
-        if self.type is PyrexTypes.py_object_type:
+        if self.type.is_pyobject:
             coerce_result = "__Pyx_PyBool_FromLong"
         else:
             coerce_result = ""
@@ -5648,8 +5745,8 @@ class CmpNode(object):
         else: 
             negation = ""
         if op == 'in' or op == 'not_in':
-            code.globalstate.use_utility_code(contians_utility_code)
-            if self.type is PyrexTypes.py_object_type:
+            code.globalstate.use_utility_code(contains_utility_code)
+            if self.type.is_pyobject:
                 coerce_result = "__Pyx_PyBoolOrNull_FromLong"
             if op == 'not_in':
                 negation = "__Pyx_NegateNonNeg"
@@ -5663,7 +5760,7 @@ class CmpNode(object):
                 method = "PyDict_Contains"
             else:
                 method = "PySequence_Contains"
-            if self.type is PyrexTypes.py_object_type:
+            if self.type.is_pyobject:
                 error_clause = code.error_goto_if_null
                 got_ref = "__Pyx_XGOTREF(%s); " % result_code
             else:
@@ -5730,11 +5827,43 @@ class CmpNode(object):
         else:
             return op
     
-contians_utility_code = UtilityCode(
+contains_utility_code = UtilityCode(
 proto="""
 static CYTHON_INLINE long __Pyx_NegateNonNeg(long b) { return unlikely(b < 0) ? b : !b; }
 static CYTHON_INLINE PyObject* __Pyx_PyBoolOrNull_FromLong(long b) {
     return unlikely(b < 0) ? NULL : __Pyx_PyBool_FromLong(b);
+}
+""")
+
+char_in_bytes_utility_code = UtilityCode(
+proto="""
+static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character); /*proto*/
+""",
+impl="""
+static CYTHON_INLINE int __Pyx_BytesContains(PyObject* bytes, char character) {
+    const Py_ssize_t length = PyBytes_GET_SIZE(bytes);
+    char* char_start = PyBytes_AS_STRING(bytes);
+    char* pos;
+    for (pos=char_start; pos < char_start+length; pos++) {
+        if (character == pos[0]) return 1;
+    }
+    return 0;
+}
+""")
+
+pyunicode_in_unicode_utility_code = UtilityCode(
+proto="""
+static CYTHON_INLINE int __Pyx_UnicodeContains(PyObject* unicode, Py_UNICODE character); /*proto*/
+""",
+impl="""
+static CYTHON_INLINE int __Pyx_UnicodeContains(PyObject* unicode, Py_UNICODE character) {
+    const Py_ssize_t length = PyUnicode_GET_SIZE(unicode);
+    Py_UNICODE* char_start = PyUnicode_AS_UNICODE(unicode);
+    Py_UNICODE* pos;
+    for (pos=char_start; pos < char_start+length; pos++) {
+        if (character == pos[0]) return 1;
+    }
+    return 0;
 }
 """)
 
@@ -5784,13 +5913,30 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             self.cascade.analyse_types(env)
 
         if self.operator in ('in', 'not_in'):
-            common_type = py_object_type
-            self.is_pycmp = True
+            if self.is_c_string_contains():
+                self.is_pycmp = False
+                common_type = None
+                if self.cascade:
+                    error(self.pos, "Cascading comparison not yet supported for 'int_val in string'.")
+                    return
+                if self.operand2.type is unicode_type:
+                    env.use_utility_code(pyunicode_in_unicode_utility_code)
+                else:
+                    if self.operand1.type is PyrexTypes.c_uchar_type:
+                        self.operand1 = self.operand1.coerce_to(PyrexTypes.c_char_type, env)
+                    if self.operand2.type is not bytes_type:
+                        self.operand2 = self.operand2.coerce_to(bytes_type, env)
+                    env.use_utility_code(char_in_bytes_utility_code)
+                self.operand2 = self.operand2.as_none_safe_node(
+                    "argument of type 'NoneType' is not iterable")
+            else:
+                common_type = py_object_type
+                self.is_pycmp = True
         else:
             common_type = self.find_common_type(env, self.operator, self.operand1)
             self.is_pycmp = common_type.is_pyobject
 
-        if not common_type.is_error:
+        if common_type is not None and not common_type.is_error:
             if self.operand1.type != common_type:
                 self.operand1 = self.operand1.coerce_to(common_type, env)
             self.coerce_operands_to(common_type, env)
@@ -5851,6 +5997,20 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 self.operand1.type.binary_op('=='), 
                 self.operand1.result(), 
                 self.operand2.result())
+        elif self.is_c_string_contains():
+            if self.operand2.type is bytes_type:
+                method = "__Pyx_BytesContains"
+            else:
+                method = "__Pyx_UnicodeContains"
+            if self.operator == "not_in":
+                negation = "!"
+            else:
+                negation = ""
+            return "(%s%s(%s, %s))" % (
+                negation,
+                method,
+                self.operand2.result(), 
+                self.operand1.result())
         else:
             return "(%s %s %s)" % (
                 self.operand1.result(),
@@ -6097,6 +6257,9 @@ class NoneCheckNode(CoercionNode):
     def analyse_types(self, env):
         pass
 
+    def may_be_none(self):
+        return False
+
     def result_in_temp(self):
         return self.arg.result_in_temp()
 
@@ -6138,6 +6301,10 @@ class CoerceToPyTypeNode(CoercionNode):
             self.type = Builtin.bytes_type
 
     gil_message = "Converting to Python object"
+
+    def may_be_none(self):
+        # FIXME: is this always safe?
+        return False
 
     def coerce_to_boolean(self, env):
         return self.arg.coerce_to_boolean(env).coerce_to_temp(env)
@@ -6201,7 +6368,14 @@ class CoerceToBooleanNode(CoercionNode):
     #  in a boolean context.
     
     type = PyrexTypes.c_bint_type
-    
+
+    _special_builtins = {
+        Builtin.list_type    : 'PyList_GET_SIZE',
+        Builtin.tuple_type   : 'PyTuple_GET_SIZE',
+        Builtin.bytes_type   : 'PyBytes_GET_SIZE',
+        Builtin.unicode_type : 'PyUnicode_GET_SIZE',
+        }
+
     def __init__(self, arg, env):
         CoercionNode.__init__(self, arg)
         if arg.type.is_pyobject:
@@ -6223,7 +6397,16 @@ class CoerceToBooleanNode(CoercionNode):
         return "(%s != 0)" % self.arg.result()
 
     def generate_result_code(self, code):
-        if self.arg.type.is_pyobject:
+        if not self.is_temp:
+            return
+        test_func = self._special_builtins.get(self.arg.type)
+        if test_func is not None:
+            code.putln("%s = (%s != Py_None) && (%s(%s) != 0);" % (
+                       self.result(),
+                       self.arg.py_result(),
+                       test_func,
+                       self.arg.py_result()))
+        else:
             code.putln(
                 "%s = __Pyx_PyObject_IsTrue(%s); %s" % (
                     self.result(), 
@@ -6345,6 +6528,9 @@ class ModuleRefNode(ExprNode):
     def analyse_types(self, env):
         pass
 
+    def may_be_none(self):
+        return False
+
     def calculate_result_code(self):
         return Naming.module_cname
 
@@ -6401,14 +6587,14 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list); /*proto*/
 """,
 impl = """
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list) {
-    PyObject *__import__ = 0;
+    PyObject *py_import = 0;
     PyObject *empty_list = 0;
     PyObject *module = 0;
     PyObject *global_dict = 0;
     PyObject *empty_dict = 0;
     PyObject *list;
-    __import__ = __Pyx_GetAttrString(%(BUILTINS)s, "__import__");
-    if (!__import__)
+    py_import = __Pyx_GetAttrString(%(BUILTINS)s, "__import__");
+    if (!py_import)
         goto bad;
     if (from_list)
         list = from_list;
@@ -6424,11 +6610,11 @@ static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list) {
     empty_dict = PyDict_New();
     if (!empty_dict)
         goto bad;
-    module = PyObject_CallFunctionObjArgs(__import__,
+    module = PyObject_CallFunctionObjArgs(py_import,
         name, global_dict, empty_dict, list, NULL);
 bad:
     Py_XDECREF(empty_list);
-    Py_XDECREF(__import__);
+    Py_XDECREF(py_import);
     Py_XDECREF(empty_dict);
     return module;
 }
@@ -6635,11 +6821,11 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j
 
 """ + ''.join([
 """
-#define __Pyx_GetItemInt_%(type)s(o, i, size, to_py_func) ((size <= sizeof(Py_ssize_t)) ? \\
-                                                    __Pyx_GetItemInt_%(type)s_Fast(o, i, size <= sizeof(long)) : \\
+#define __Pyx_GetItemInt_%(type)s(o, i, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \\
+                                                    __Pyx_GetItemInt_%(type)s_Fast(o, i) : \\
                                                     __Pyx_GetItemInt_Generic(o, to_py_func(i)))
 
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ssize_t i, int fits_long) {
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ssize_t i) {
     if (likely(o != Py_None)) {
         if (likely((0 <= i) & (i < Py%(type)s_GET_SIZE(o)))) {
             PyObject *r = Py%(type)s_GET_ITEM(o, i);
@@ -6652,16 +6838,16 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ss
             return r;
         }
     }
-    return __Pyx_GetItemInt_Generic(o, fits_long ? PyInt_FromLong(i) : PyLong_FromLongLong(i));
+    return __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
 }
 """ % {'type' : type_name} for type_name in ('List', 'Tuple')
 ]) + """
 
-#define __Pyx_GetItemInt(o, i, size, to_py_func) ((size <= sizeof(Py_ssize_t)) ? \\
-                                                    __Pyx_GetItemInt_Fast(o, i, size <= sizeof(long)) : \\
+#define __Pyx_GetItemInt(o, i, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \\
+                                                    __Pyx_GetItemInt_Fast(o, i) : \\
                                                     __Pyx_GetItemInt_Generic(o, to_py_func(i)))
 
-static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, int fits_long) {
+static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i) {
     PyObject *r;
     if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
         r = PyList_GET_ITEM(o, i);
@@ -6675,7 +6861,7 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i, 
         r = PySequence_GetItem(o, i);
     }
     else {
-        r = __Pyx_GetItemInt_Generic(o, fits_long ? PyInt_FromLong(i) : PyLong_FromLongLong(i));
+        r = __Pyx_GetItemInt_Generic(o, PyInt_FromSsize_t(i));
     }
     return r;
 }
@@ -6689,8 +6875,8 @@ impl = """
 
 setitem_int_utility_code = UtilityCode(
 proto = """
-#define __Pyx_SetItemInt(o, i, v, size, to_py_func) ((size <= sizeof(Py_ssize_t)) ? \\
-                                                    __Pyx_SetItemInt_Fast(o, i, v, size <= sizeof(long)) : \\
+#define __Pyx_SetItemInt(o, i, v, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \\
+                                                    __Pyx_SetItemInt_Fast(o, i, v) : \\
                                                     __Pyx_SetItemInt_Generic(o, to_py_func(i), v))
 
 static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyObject *v) {
@@ -6701,7 +6887,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyOb
     return r;
 }
 
-static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v, int fits_long) {
+static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v) {
     if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
         Py_INCREF(v);
         Py_DECREF(PyList_GET_ITEM(o, i));
@@ -6711,7 +6897,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObje
     else if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item && (likely(i >= 0)))
         return PySequence_SetItem(o, i, v);
     else {
-        PyObject *j = fits_long ? PyInt_FromLong(i) : PyLong_FromLongLong(i);
+        PyObject *j = PyInt_FromSsize_t(i);
         return __Pyx_SetItemInt_Generic(o, j, v);
     }
 }
@@ -6723,8 +6909,8 @@ impl = """
 
 delitem_int_utility_code = UtilityCode(
 proto = """
-#define __Pyx_DelItemInt(o, i, size, to_py_func) ((size <= sizeof(Py_ssize_t)) ? \\
-                                                    __Pyx_DelItemInt_Fast(o, i, size <= sizeof(long)) : \\
+#define __Pyx_DelItemInt(o, i, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \\
+                                                    __Pyx_DelItemInt_Fast(o, i) : \\
                                                     __Pyx_DelItem_Generic(o, to_py_func(i)))
 
 static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
@@ -6735,11 +6921,11 @@ static CYTHON_INLINE int __Pyx_DelItem_Generic(PyObject *o, PyObject *j) {
     return r;
 }
 
-static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i, int fits_long) {
+static CYTHON_INLINE int __Pyx_DelItemInt_Fast(PyObject *o, Py_ssize_t i) {
     if (Py_TYPE(o)->tp_as_sequence && Py_TYPE(o)->tp_as_sequence->sq_ass_item && likely(i >= 0))
         return PySequence_DelItem(o, i);
     else {
-        PyObject *j = fits_long ? PyInt_FromLong(i) : PyLong_FromLongLong(i);
+        PyObject *j = PyInt_FromSsize_t(i);
         return __Pyx_DelItem_Generic(o, j);
     }
 }

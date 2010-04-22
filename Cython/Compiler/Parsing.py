@@ -11,14 +11,6 @@ import os
 import re
 import sys
 
-try:
-    from __builtin__ import set
-except (ImportError, AttributeError):
-    try:
-        from builtins import set
-    except (ImportError, AttributeError):
-        from sets import Set as set
-
 from Cython.Compiler.Scanning import PyrexScanner, FileSourceDescriptor
 import Nodes
 import ExprNodes
@@ -678,7 +670,7 @@ def p_opt_string_literal(s):
     else:
         return None
 
-def p_string_literal(s):
+def p_string_literal(s, kind_override=None):
     # A single string or char literal.
     # Returns (kind, value) where kind in ('b', 'c', 'u')
     # s.sy == 'BEGIN_STRING'
@@ -695,6 +687,8 @@ def p_string_literal(s):
     if Future.unicode_literals in s.context.future_directives:
         if kind == '':
             kind = 'u'
+    if kind_override is not None and kind_override in 'ub':
+        kind = kind_override
     if kind == 'u':
         chars = StringEncoding.UnicodeLiteralBuilder()
     else:
@@ -1907,7 +1901,9 @@ basic_c_type_names = ("void", "char", "int", "float", "double", "bint")
 
 special_basic_c_types = {
     # name : (signed, longness)
+    "Py_UNICODE" : (0, 0),
     "Py_ssize_t" : (2, 0),
+    "ssize_t"    : (2, 0),
     "size_t"     : (0, 0),
 }
 
@@ -2000,7 +1996,7 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
         exception_value = exc_val, exception_check = exc_check,
         nogil = nogil or ctx.nogil or with_gil, with_gil = with_gil)
 
-supported_overloaded_operators = set([
+supported_overloaded_operators = cython.set([
     '+', '-', '*', '/', '%', 
     '++', '--', '~', '|', '&', '^', '<<', '>>',
     '==', '!=', '>=', '>', '<=', '<',
@@ -2139,7 +2135,7 @@ def p_optional_ellipsis(s):
 def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
                  kw_only = 0, annotated = 1):
     pos = s.position()
-    not_none = 0
+    not_none = or_none = 0
     default = None
     annotation = None
     if s.in_python_file:
@@ -2152,15 +2148,17 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
     else:
         base_type = p_c_base_type(s, cmethod_flag, nonempty = nonempty)
     declarator = p_c_declarator(s, ctx, nonempty = nonempty)
-    if s.sy == 'not' and not s.in_python_file:
+    if s.sy in ('not', 'or') and not s.in_python_file:
+        kind = s.sy
         s.next()
         if s.sy == 'IDENT' and s.systring == 'None':
             s.next()
         else:
             s.error("Expected 'None'")
         if not in_pyfunc:
-            error(pos, "'not None' only allowed in Python functions")
-        not_none = 1
+            error(pos, "'%s None' only allowed in Python functions" % kind)
+        or_none = kind == 'or'
+        not_none = kind == 'not'
     if annotated and s.sy == ':':
         s.next()
         annotation = p_simple_expr(s)
@@ -2177,6 +2175,7 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
         base_type = base_type,
         declarator = declarator,
         not_none = not_none,
+        or_none = or_none,
         default = default,
         annotation = annotation,
         kw_only = kw_only)
@@ -2243,10 +2242,10 @@ def p_cdef_extern_block(s, pos, ctx):
         s.next()
     else:
         _, include_file = p_string_literal(s)
+    ctx = ctx(cdef_flag = 1, visibility = 'extern')
     if s.systring == "namespace":
         s.next()
-        ctx.namespace = p_string_literal(s)[1]
-    ctx = ctx(cdef_flag = 1, visibility = 'extern')
+        ctx.namespace = p_string_literal(s, kind_override='u')[1]
     if p_nogil(s):
         ctx.nogil = 1
     body = p_suite(s, ctx)
@@ -2720,6 +2719,7 @@ def p_cpp_class_definition(s, pos,  ctx):
                 s.expect_newline("Expected a newline")
         s.expect_dedent()
     else:
+        attributes = None
         s.expect_newline("Syntax error in C++ class definition")
     return Nodes.CppClassNode(pos,
         name = class_name,

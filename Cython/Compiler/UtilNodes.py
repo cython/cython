@@ -117,6 +117,7 @@ class ResultRefNode(AtomicExprNode):
     # must be set externally (usually a temp name).
 
     subexprs = []
+    lhs_of_first_assignment = False
 
     def __init__(self, expression):
         self.pos = expression.pos
@@ -148,7 +149,8 @@ class ResultRefNode(AtomicExprNode):
     def generate_assignment_code(self, rhs, code):
         if self.type.is_pyobject:
             rhs.make_owned_reference(code)
-            code.put_decref(self.result(), self.ctype())
+            if not self.lhs_of_first_assignment:
+                code.put_decref(self.result(), self.ctype())
         code.putln('%s = %s;' % (self.result(), rhs.result_as(self.ctype())))
         rhs.generate_post_assignment_code(code)
         rhs.free_temps(code)
@@ -250,3 +252,26 @@ class LetNode(Nodes.StatNode, LetNodeMixin):
         self.setup_temp_expr(code)
         self.body.generate_execution_code(code)
         self.teardown_temp_expr(code)
+
+class TempResultFromStatNode(ExprNodes.ExprNode):
+    # An ExprNode wrapper around a StatNode that executes the StatNode
+    # body.  Requires a ResultRefNode that it sets up to refer to its
+    # own temp result.  The StatNode must assign a value to the result
+    # node, which then becomes the result of this node.
+    #
+    # This can only be used in/after type analysis.
+    #
+
+    subexprs = []
+    child_attrs = ['body']
+
+    def __init__(self, result_ref, body):
+        self.result_ref = result_ref
+        self.pos = body.pos
+        self.body = body
+        self.type = result_ref.type
+        self.is_temp = 1
+
+    def generate_result_code(self, code):
+        self.result_ref.result_code = self.result()
+        self.body.generate_execution_code(code)

@@ -630,6 +630,8 @@ class CArgDeclNode(Node):
     # base_type      CBaseTypeNode
     # declarator     CDeclaratorNode
     # not_none       boolean            Tagged with 'not None'
+    # or_none        boolean            Tagged with 'or None'
+    # accept_none    boolean            Resolved boolean for not_none/or_none
     # default        ExprNode or None
     # default_value  PyObjectConst      constant for default value
     # annotation     ExprNode or None   Py3 function arg annotation
@@ -1024,10 +1026,8 @@ class CppClassNode(CStructOrUnionDefNode):
 
     def analyse_declarations(self, env):
         scope = None
-        if self.attributes:
+        if self.attributes is not None:
             scope = CppClassScope(self.name, env)
-        else:
-            self.attributes = None
         base_class_types = []
         for base_class_name in self.base_classes:
             base_class_entry = env.lookup(base_class_name)
@@ -1457,6 +1457,33 @@ class FuncDefNode(StatNode, BlockNode):
             error(arg.pos,
                 "Argument type '%s' is incomplete" % arg.type)
         return env.declare_arg(arg.name, arg.type, arg.pos)
+    
+    def generate_arg_type_test(self, arg, code):
+        # Generate type test for one argument.
+        if arg.type.typeobj_is_available():
+            code.globalstate.use_utility_code(arg_type_test_utility_code)
+            typeptr_cname = arg.type.typeptr_cname
+            arg_code = "((PyObject *)%s)" % arg.entry.cname
+            code.putln(
+                'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, "%s", %s))) %s' % (
+                    arg_code, 
+                    typeptr_cname,
+                    arg.accept_none,
+                    arg.name,
+                    arg.type.is_builtin_type,
+                    code.error_goto(arg.pos)))
+        else:
+            error(arg.pos, "Cannot test type of extern C class "
+                "without type object name specification")
+
+    def generate_arg_none_check(self, arg, code):
+        # Generate None check for one argument.
+        code.globalstate.use_utility_code(arg_type_test_utility_code)
+        code.putln('if (unlikely(((PyObject *)%s) == Py_None)) {' % arg.entry.cname)
+        code.putln('''PyErr_Format(PyExc_TypeError, "Argument '%s' must not be None"); %s''' % (
+            arg.name,
+            code.error_goto(arg.pos)))
+        code.putln('}')
         
     def generate_wrapper_functions(self, code):
         pass
@@ -1709,23 +1736,8 @@ class CFuncDefNode(FuncDefNode):
         for arg in self.type.args:
             if arg.needs_type_test:
                 self.generate_arg_type_test(arg, code)
-    
-    def generate_arg_type_test(self, arg, code):
-        # Generate type test for one argument.
-        if arg.type.typeobj_is_available():
-            typeptr_cname = arg.type.typeptr_cname
-            arg_code = "((PyObject *)%s)" % arg.cname
-            code.putln(
-                'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, "%s", %s))) %s' % (
-                    arg_code, 
-                    typeptr_cname,
-                    not arg.not_none,
-                    arg.name,
-                    type.is_builtin_type,
-                    code.error_goto(arg.pos)))
-        else:
-            error(arg.pos, "Cannot test type of extern C class "
-                "without type object name specification")
+            elif arg.type.is_pyobject and not arg.accept_none:
+                self.generate_arg_none_check(arg, code)
 
     def error_value(self):
         if self.return_type.is_pyobject:
@@ -1921,6 +1933,7 @@ class DefNode(FuncDefNode):
 
     def analyse_argument_types(self, env):
         directive_locals = self.directive_locals = env.directives['locals']
+        allow_none_for_extension_args = env.directives['allow_none_for_extension_args']
         for arg in self.args:
             if hasattr(arg, 'name'):
                 type = arg.type
@@ -1949,12 +1962,29 @@ class DefNode(FuncDefNode):
             arg.needs_conversion = 0
             arg.needs_type_test = 0
             arg.is_generic = 1
-            if arg.not_none and not arg.type.is_extension_type:
-                error(self.pos,
-                    "Only extension type arguments can have 'not None'")
+            if arg.type.is_pyobject:
+                if arg.or_none:
+                    arg.accept_none = True
+                elif arg.not_none:
+                    arg.accept_none = False
+                elif arg.type.is_extension_type or arg.type.is_builtin_type:
+                    if arg.default and arg.default.constant_result is None:
+                        # special case: def func(MyType obj = None)
+                        arg.accept_none = True
+                    else:
+                        # default depends on compiler directive
+                        arg.accept_none = allow_none_for_extension_args
+                else:
+                    # probably just a plain 'object'
+                    arg.accept_none = True
+            else:
+                arg.accept_none = True # won't be used, but must be there
+                if arg.not_none:
+                    error(arg.pos, "Only Python type arguments can have 'not None'")
+                if arg.or_none:
+                    error(arg.pos, "Only Python type arguments can have 'or None'")
 
     def analyse_signature(self, env):
-        any_type_tests_needed = 0
         if self.entry.is_special:
             self.entry.trivial_signature = len(self.args) == 1 and not (self.star_arg or self.starstar_arg)
         elif not env.directives['always_allow_keywords'] and not (self.star_arg or self.starstar_arg):
@@ -1999,7 +2029,6 @@ class DefNode(FuncDefNode):
                 if not arg.type.same_as(arg.hdr_type):
                     if arg.hdr_type.is_pyobject and arg.type.is_pyobject:
                         arg.needs_type_test = 1
-                        any_type_tests_needed = 1
                     else:
                         arg.needs_conversion = 1
             if arg.needs_conversion:
@@ -2017,9 +2046,6 @@ class DefNode(FuncDefNode):
                 if arg.is_generic and \
                         (arg.type.is_extension_type or arg.type.is_builtin_type):
                     arg.needs_type_test = 1
-                    any_type_tests_needed = 1
-        if any_type_tests_needed:
-            env.use_utility_code(arg_type_test_utility_code)
 
     def bad_signature(self):
         sig = self.entry.signature
@@ -2175,7 +2201,11 @@ class DefNode(FuncDefNode):
         code.putln("%s; /*proto*/" % header)
         if proto_only:
             return
-        if self.entry.doc and Options.docstrings:
+        if (Options.docstrings and self.entry.doc and
+            (not self.entry.is_special or
+             self.entry.signature.method_flags()) and
+            not self.entry.scope.is_property_scope
+            ):
             docstr = self.entry.doc
             if docstr.is_unicode:
                 docstr = docstr.utf8encode()
@@ -2714,10 +2744,13 @@ class DefNode(FuncDefNode):
         func = new_type.from_py_function
         # copied from CoerceFromPyTypeNode
         if func:
-            code.putln("%s = %s(%s); %s" % (
-                arg.entry.cname,
-                func,
-                arg.hdr_cname,
+            lhs = arg.entry.cname
+            rhs = "%s(%s)" % (func, arg.hdr_cname)
+            if new_type.is_enum:
+                rhs = PyrexTypes.typecast(new_type, PyrexTypes.c_long_type, rhs)
+            code.putln("%s = %s; %s" % (
+                lhs, 
+                rhs,
                 code.error_goto_if(new_type.error_condition(arg.entry.cname), arg.pos)))
         else:
             error(arg.pos, 
@@ -2746,24 +2779,9 @@ class DefNode(FuncDefNode):
         for arg in self.args:
             if arg.needs_type_test:
                 self.generate_arg_type_test(arg, code)
-    
-    def generate_arg_type_test(self, arg, code):
-        # Generate type test for one argument.
-        if arg.type.typeobj_is_available():
-            typeptr_cname = arg.type.typeptr_cname
-            arg_code = "((PyObject *)%s)" % arg.entry.cname
-            code.putln(
-                'if (unlikely(!__Pyx_ArgTypeTest(%s, %s, %d, "%s", %s))) %s' % (
-                    arg_code, 
-                    typeptr_cname,
-                    not arg.not_none,
-                    arg.name,
-                    arg.type.is_builtin_type,
-                    code.error_goto(arg.pos)))
-        else:
-            error(arg.pos, "Cannot test type of extern C class "
-                "without type object name specification")
-    
+            elif not arg.accept_none and arg.type.is_pyobject:
+                self.generate_arg_none_check(arg, code)
+
     def error_value(self):
         return self.entry.signature.error_value
     

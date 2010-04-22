@@ -69,15 +69,9 @@ def lentest_uchar_c():
     return l
 
 
-@cython.test_assert_path_exists(
-    "//SimpleCallNode",
-    )
 def lentest_py():
     return len(pystr)
 
-@cython.test_assert_path_exists(
-    "//SimpleCallNode",
-    )
 def lentest_py_c():
     cdef Py_ssize_t l = len(pystr)
     return l

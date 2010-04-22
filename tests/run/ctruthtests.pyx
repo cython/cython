@@ -78,7 +78,7 @@ def test_attr_int(TestExtInt e):
         return False
 
 ctypedef union _aux:
-    int i
+    size_t i
     void *p
 
 cdef class TestExtPtr:

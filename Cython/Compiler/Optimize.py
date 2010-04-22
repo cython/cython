@@ -95,7 +95,11 @@ class IterationTransform(Visitor.VisitorTransform):
             return self._transform_carray_iteration(node, iterator)
         elif iterator.type.is_array:
             return self._transform_carray_iteration(node, iterator)
-        elif not isinstance(iterator, ExprNodes.SimpleCallNode):
+        elif iterator.type in (Builtin.bytes_type, Builtin.unicode_type):
+            return self._transform_string_iteration(node, iterator)
+
+        # the rest is based on function calls
+        if not isinstance(iterator, ExprNodes.SimpleCallNode):
             return node
 
         function = iterator.function
@@ -132,6 +136,70 @@ class IterationTransform(Visitor.VisitorTransform):
 
         return node
 
+    PyUnicode_AS_UNICODE_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_py_unicode_ptr_type, [
+            PyrexTypes.CFuncTypeArg("s", Builtin.unicode_type, None)
+            ])
+
+    PyUnicode_GET_SIZE_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_py_ssize_t_type, [
+            PyrexTypes.CFuncTypeArg("s", Builtin.unicode_type, None)
+            ])
+
+    PyBytes_AS_STRING_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_char_ptr_type, [
+            PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
+            ])
+
+    PyBytes_GET_SIZE_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_py_ssize_t_type, [
+            PyrexTypes.CFuncTypeArg("s", Builtin.bytes_type, None)
+            ])
+
+    def _transform_string_iteration(self, node, slice_node):
+        if not node.target.type.is_int:
+            return node
+        if slice_node.type is Builtin.unicode_type:
+            unpack_func = "PyUnicode_AS_UNICODE"
+            len_func = "PyUnicode_GET_SIZE"
+            unpack_func_type = self.PyUnicode_AS_UNICODE_func_type
+            len_func_type = self.PyUnicode_GET_SIZE_func_type
+        elif slice_node.type is Builtin.bytes_type:
+            unpack_func = "PyBytes_AS_STRING"
+            unpack_func_type = self.PyBytes_AS_STRING_func_type
+            len_func = "PyBytes_GET_SIZE"
+            len_func_type = self.PyBytes_GET_SIZE_func_type
+        else:
+            return node
+
+        unpack_temp_node = UtilNodes.LetRefNode(
+            slice_node.as_none_safe_node("'NoneType' is not iterable"))
+
+        slice_base_node = ExprNodes.PythonCapiCallNode(
+            slice_node.pos, unpack_func, unpack_func_type,
+            args = [unpack_temp_node],
+            is_temp = 0,
+            )
+        len_node = ExprNodes.PythonCapiCallNode(
+            slice_node.pos, len_func, len_func_type,
+            args = [unpack_temp_node],
+            is_temp = 0,
+            )
+
+        return UtilNodes.LetNode(
+            unpack_temp_node,
+            self._transform_carray_iteration(
+                node,
+                ExprNodes.SliceIndexNode(
+                    slice_node.pos,
+                    base = slice_base_node,
+                    start = None,
+                    step = None,
+                    stop = len_node,
+                    type = slice_base_node.type,
+                    is_temp = 1,
+                    )))
+
     def _transform_carray_iteration(self, node, slice_node):
         if isinstance(slice_node, ExprNodes.SliceIndexNode):
             slice_base = slice_node.base
@@ -166,7 +234,7 @@ class IterationTransform(Visitor.VisitorTransform):
 
         stop_ptr_node = ExprNodes.AddNode(
             stop.pos,
-            operand1=carray_ptr,
+            operand1=ExprNodes.CloneNode(carray_ptr),
             operator='+',
             operand2=stop,
             type=ptr_type
@@ -507,7 +575,9 @@ class SwitchTransform(Visitor.VisitorTransform):
     The requirement is that every clause be an (or of) var == value, where the var
     is common among all clauses and both var and value are ints. 
     """
-    def extract_conditions(self, cond):
+    NO_MATCH = (None, None, None)
+
+    def extract_conditions(self, cond, allow_not_in):
         while True:
             if isinstance(cond, ExprNodes.CoerceToTempNode):
                 cond = cond.arg
@@ -519,55 +589,185 @@ class SwitchTransform(Visitor.VisitorTransform):
             else:
                 break
 
-        if (isinstance(cond, ExprNodes.PrimaryCmpNode) 
-                and cond.cascade is None 
-                and cond.operator == '=='
-                and not cond.is_python_comparison()):
-            if is_common_value(cond.operand1, cond.operand1):
-                if cond.operand2.is_literal:
-                    return cond.operand1, [cond.operand2]
-                elif hasattr(cond.operand2, 'entry') and cond.operand2.entry and cond.operand2.entry.is_const:
-                    return cond.operand1, [cond.operand2]
-            if is_common_value(cond.operand2, cond.operand2):
-                if cond.operand1.is_literal:
-                    return cond.operand2, [cond.operand1]
-                elif hasattr(cond.operand1, 'entry') and cond.operand1.entry and cond.operand1.entry.is_const:
-                    return cond.operand2, [cond.operand1]
-        elif (isinstance(cond, ExprNodes.BoolBinopNode) 
-                and cond.operator == 'or'):
-            t1, c1 = self.extract_conditions(cond.operand1)
-            t2, c2 = self.extract_conditions(cond.operand2)
-            if is_common_value(t1, t2):
-                return t1, c1+c2
-        return None, None
-        
+        if isinstance(cond, ExprNodes.PrimaryCmpNode):
+            if cond.cascade is None and not cond.is_python_comparison():
+                if cond.operator == '==':
+                    not_in = False
+                elif allow_not_in and cond.operator == '!=':
+                    not_in = True
+                elif cond.is_c_string_contains() and \
+                         isinstance(cond.operand2, (ExprNodes.UnicodeNode, ExprNodes.BytesNode)):
+                    not_in = cond.operator == 'not_in'
+                    if not_in and not allow_not_in:
+                        return self.NO_MATCH
+                    # this looks somewhat silly, but it does the right
+                    # checks for NameNode and AttributeNode
+                    if is_common_value(cond.operand1, cond.operand1):
+                        return not_in, cond.operand1, self.extract_in_string_conditions(cond.operand2)
+                    else:
+                        return self.NO_MATCH
+                else:
+                    return self.NO_MATCH
+                # this looks somewhat silly, but it does the right
+                # checks for NameNode and AttributeNode
+                if is_common_value(cond.operand1, cond.operand1):
+                    if cond.operand2.is_literal:
+                        return not_in, cond.operand1, [cond.operand2]
+                    elif getattr(cond.operand2, 'entry', None) \
+                             and cond.operand2.entry.is_const:
+                        return not_in, cond.operand1, [cond.operand2]
+                if is_common_value(cond.operand2, cond.operand2):
+                    if cond.operand1.is_literal:
+                        return not_in, cond.operand2, [cond.operand1]
+                    elif getattr(cond.operand1, 'entry', None) \
+                             and cond.operand1.entry.is_const:
+                        return not_in, cond.operand2, [cond.operand1]
+        elif isinstance(cond, ExprNodes.BoolBinopNode):
+            if cond.operator == 'or' or (allow_not_in and cond.operator == 'and'):
+                allow_not_in = (cond.operator == 'and')
+                not_in_1, t1, c1 = self.extract_conditions(cond.operand1, allow_not_in)
+                not_in_2, t2, c2 = self.extract_conditions(cond.operand2, allow_not_in)
+                if t1 is not None and not_in_1 == not_in_2 and is_common_value(t1, t2):
+                    if (not not_in_1) or allow_not_in:
+                        return not_in_1, t1, c1+c2
+        return self.NO_MATCH
+
+    def extract_in_string_conditions(self, string_literal):
+        if isinstance(string_literal, ExprNodes.UnicodeNode):
+            charvals = map(ord, set(string_literal.value))
+            charvals.sort()
+            return [ ExprNodes.IntNode(string_literal.pos, value=str(charval),
+                                       constant_result=charval)
+                     for charval in charvals ]
+        else:
+            # this is a bit tricky as Py3's bytes type returns
+            # integers on iteration, whereas Py2 returns 1-char byte
+            # strings
+            characters = string_literal.value
+            characters = list(set([ characters[i:i+1] for i in range(len(characters)) ]))
+            characters.sort()
+            return [ ExprNodes.CharNode(string_literal.pos, value=charval,
+                                        constant_result=charval)
+                     for charval in characters ]
+
+    def extract_common_conditions(self, common_var, condition, allow_not_in):
+        not_in, var, conditions = self.extract_conditions(condition, allow_not_in)
+        if var is None:
+            return self.NO_MATCH
+        elif common_var is not None and not is_common_value(var, common_var):
+            return self.NO_MATCH
+        elif not var.type.is_int or sum([not cond.type.is_int for cond in conditions]):
+            return self.NO_MATCH
+        return not_in, var, conditions
+
+    def has_duplicate_values(self, condition_values):
+        # duplicated values don't work in a switch statement
+        seen = set()
+        for value in condition_values:
+            if value.constant_result is not ExprNodes.not_a_constant:
+                if value.constant_result in seen:
+                    return True
+                seen.add(value.constant_result)
+            else:
+                # this isn't completely safe as we don't know the
+                # final C value, but this is about the best we can do
+                seen.add(getattr(getattr(value, 'entry', None), 'cname'))
+        return False
+
     def visit_IfStatNode(self, node):
-        self.visitchildren(node)
         common_var = None
-        case_count = 0
         cases = []
         for if_clause in node.if_clauses:
-            var, conditions = self.extract_conditions(if_clause.condition)
-            if var is None:
+            _, common_var, conditions = self.extract_common_conditions(
+                common_var, if_clause.condition, False)
+            if common_var is None:
+                self.visitchildren(node)
                 return node
-            elif common_var is not None and not is_common_value(var, common_var):
-                return node
-            elif not var.type.is_int or sum([not cond.type.is_int for cond in conditions]):
-                return node
-            else:
-                common_var = var
-                case_count += len(conditions)
-                cases.append(Nodes.SwitchCaseNode(pos = if_clause.pos,
-                                                  conditions = conditions,
-                                                  body = if_clause.body))
-        if case_count < 2:
+            cases.append(Nodes.SwitchCaseNode(pos = if_clause.pos,
+                                              conditions = conditions,
+                                              body = if_clause.body))
+
+        if sum([ len(case.conditions) for case in cases ]) < 2:
+            self.visitchildren(node)
             return node
-        
+        if self.has_duplicate_values(sum([case.conditions for case in cases], [])):
+            self.visitchildren(node)
+            return node
+
         common_var = unwrap_node(common_var)
-        return Nodes.SwitchStatNode(pos = node.pos,
-                                    test = common_var,
-                                    cases = cases,
-                                    else_clause = node.else_clause)
+        switch_node = Nodes.SwitchStatNode(pos = node.pos,
+                                           test = common_var,
+                                           cases = cases,
+                                           else_clause = node.else_clause)
+        return switch_node
+
+    def visit_CondExprNode(self, node):
+        not_in, common_var, conditions = self.extract_common_conditions(
+            None, node.test, True)
+        if common_var is None \
+               or len(conditions) < 2 \
+               or self.has_duplicate_values(conditions):
+            self.visitchildren(node)
+            return node
+        return self.build_simple_switch_statement(
+            node, common_var, conditions, not_in,
+            node.true_val, node.false_val)
+
+    def visit_BoolBinopNode(self, node):
+        not_in, common_var, conditions = self.extract_common_conditions(
+            None, node, True)
+        if common_var is None \
+               or len(conditions) < 2 \
+               or self.has_duplicate_values(conditions):
+            self.visitchildren(node)
+            return node
+
+        return self.build_simple_switch_statement(
+            node, common_var, conditions, not_in,
+            ExprNodes.BoolNode(node.pos, value=True, constant_result=True),
+            ExprNodes.BoolNode(node.pos, value=False, constant_result=False))
+
+    def visit_PrimaryCmpNode(self, node):
+        not_in, common_var, conditions = self.extract_common_conditions(
+            None, node, True)
+        if common_var is None \
+               or len(conditions) < 2 \
+               or self.has_duplicate_values(conditions):
+            self.visitchildren(node)
+            return node
+
+        return self.build_simple_switch_statement(
+            node, common_var, conditions, not_in,
+            ExprNodes.BoolNode(node.pos, value=True, constant_result=True),
+            ExprNodes.BoolNode(node.pos, value=False, constant_result=False))
+
+    def build_simple_switch_statement(self, node, common_var, conditions,
+                                      not_in, true_val, false_val):
+        result_ref = UtilNodes.ResultRefNode(node)
+        true_body = Nodes.SingleAssignmentNode(
+            node.pos,
+            lhs = result_ref,
+            rhs = true_val,
+            first = True)
+        false_body = Nodes.SingleAssignmentNode(
+            node.pos,
+            lhs = result_ref,
+            rhs = false_val,
+            first = True)
+
+        if not_in:
+            true_body, false_body = false_body, true_body
+
+        cases = [Nodes.SwitchCaseNode(pos = node.pos,
+                                      conditions = conditions,
+                                      body = true_body)]
+
+        common_var = unwrap_node(common_var)
+        switch_node = Nodes.SwitchStatNode(pos = node.pos,
+                                           test = common_var,
+                                           cases = cases,
+                                           else_clause = false_body)
+        return UtilNodes.TempResultFromStatNode(result_ref, switch_node)
 
     visit_Node = Visitor.VisitorTransform.recurse_to_children
                               
@@ -591,7 +791,9 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         else:
             return node
 
-        if not isinstance(node.operand2, (ExprNodes.TupleNode, ExprNodes.ListNode)):
+        if not isinstance(node.operand2, (ExprNodes.TupleNode,
+                                          ExprNodes.ListNode,
+                                          ExprNodes.SetNode)):
             return node
 
         args = node.operand2.args
@@ -778,7 +980,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
     def _function_is_builtin_name(self, function):
         if not function.is_name:
             return False
-        entry = self.env_stack[-1].lookup(function.name)
+        entry = self.current_env().lookup(function.name)
         if not entry or getattr(entry, 'scope', None) is not Builtin.builtin_scope:
             return False
         return True
@@ -907,6 +1109,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         arg_tuple = node.positional_args
         if not isinstance(arg_tuple, ExprNodes.TupleNode):
             return node
+        if node.starstar_arg:
+            return node
         args = arg_tuple.args
         return self._dispatch_to_handler(
             node, function, args, node.keyword_args)
@@ -937,6 +1141,27 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node
         return node.arg
 
+    def visit_TypecastNode(self, node):
+        """
+        Drop redundant type casts.
+        """
+        self.visitchildren(node)
+        if node.type == node.operand.type:
+            return node.operand
+        return node
+
+    def visit_CoerceToBooleanNode(self, node):
+        """Drop redundant conversion nodes after tree changes.
+        """
+        self.visitchildren(node)
+        arg = node.arg
+        if isinstance(arg, ExprNodes.PyTypeTestNode):
+            arg = arg.arg
+        if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
+            if arg.type in (PyrexTypes.py_object_type, Builtin.bool_type):
+                return arg.arg.coerce_to_boolean(self.current_env())
+        return node
+
     def visit_CoerceFromPyTypeNode(self, node):
         """Drop redundant conversion nodes after tree changes.
 
@@ -951,11 +1176,20 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             if node.type == arg.type:
                 return arg
             else:
-                return arg.coerce_to(node.type, self.env_stack[-1])
-        if not isinstance(arg, ExprNodes.SimpleCallNode):
-            return node
-        if not (node.type.is_int or node.type.is_float):
-            return node
+                return arg.coerce_to(node.type, self.current_env())
+        if isinstance(arg, ExprNodes.PyTypeTestNode):
+            arg = arg.arg
+        if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
+            if arg.type is PyrexTypes.py_object_type:
+                if node.type.assignable_from(arg.arg.type):
+                    # completely redundant C->Py->C coercion
+                    return arg.arg.coerce_to(node.type, self.current_env())
+        if isinstance(arg, ExprNodes.SimpleCallNode):
+            if node.type.is_int or node.type.is_float:
+                return self._optimise_numeric_cast_call(node, arg)
+        return node
+
+    def _optimise_numeric_cast_call(self, node, arg):
         function = arg.function
         if not isinstance(function, ExprNodes.NameNode) \
                or not function.type.is_builtin_type \
@@ -1079,8 +1313,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node
         arg = pos_args[0]
         if arg.type is Builtin.dict_type:
-            arg = ExprNodes.NoneCheckNode(
-                arg, "PyExc_TypeError", "'NoneType' is not iterable")
+            arg = arg.as_none_safe_node("'NoneType' is not iterable")
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "PyDict_Copy", self.PyDict_Copy_func_type,
                 args = [arg],
@@ -1103,8 +1336,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return node
         if not isinstance(list_arg, (ExprNodes.ComprehensionNode,
                                      ExprNodes.ListNode)):
-            pos_args[0] = ExprNodes.NoneCheckNode(
-                list_arg, "PyExc_TypeError",
+            pos_args[0] = list_arg.as_none_safe_node(
                 "'NoneType' object is not iterable")
 
         return ExprNodes.PythonCapiCallNode(
@@ -1126,8 +1358,12 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         """
         # Note: this requires the float() function to be typed as
         # returning a C 'double'
-        if len(pos_args) != 1:
-            self._error_wrong_arg_count('float', node, pos_args, 1)
+        if len(pos_args) == 0:
+            return ExprNode.FloatNode(
+                node, value="0.0", constant_result=0.0
+                ).coerce_to(Builtin.float_type, self.current_env())
+        elif len(pos_args) != 1:
+            self._error_wrong_arg_count('float', node, pos_args, '0 or 1')
             return node
         func_arg = pos_args[0]
         if isinstance(func_arg, ExprNodes.CoerceToPyTypeNode):
@@ -1144,6 +1380,19 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             is_temp = node.is_temp,
             utility_code = pyobject_as_double_utility_code,
             py_name = "float")
+
+    def _handle_simple_function_bool(self, node, pos_args):
+        """Transform bool(x) into a type coercion to a boolean.
+        """
+        if len(pos_args) == 0:
+            return ExprNodes.BoolNode(
+                node.pos, value=False, constant_result=False
+                ).coerce_to(Builtin.bool_type, self.current_env())
+        elif len(pos_args) != 1:
+            self._error_wrong_arg_count('bool', node, pos_args, '0 or 1')
+            return node
+        return pos_args[0].coerce_to_boolean(
+            self.current_env()).coerce_to_pyobject(self.current_env())
 
     ### builtin functions
 
@@ -1211,8 +1460,25 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             PyrexTypes.CFuncTypeArg("bytes", PyrexTypes.c_char_ptr_type, None)
             ])
 
+    PyObject_Size_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_py_ssize_t_type, [
+            PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None)
+            ])
+
+    _map_to_capi_len_function = {
+        Builtin.unicode_type   : "PyUnicode_GET_SIZE",
+        Builtin.str_type       : "Py_SIZE", # works in Py2 and Py3
+        Builtin.bytes_type     : "PyBytes_GET_SIZE",
+        Builtin.list_type      : "PyList_GET_SIZE",
+        Builtin.tuple_type     : "PyTuple_GET_SIZE",
+        Builtin.dict_type      : "PyDict_Size",
+        Builtin.set_type       : "PySet_Size",
+        Builtin.frozenset_type : "PySet_Size",
+        }.get
+
     def _handle_simple_function_len(self, node, pos_args):
-        """Replace len(char*) by the equivalent call to strlen().
+        """Replace len(char*) by the equivalent call to strlen() and
+        len(known_builtin_type) by an equivalent C-API call.
         """
         if len(pos_args) != 1:
             self._error_wrong_arg_count('len', node, pos_args, 1)
@@ -1220,22 +1486,28 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         arg = pos_args[0]
         if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
             arg = arg.arg
-        if not arg.type.is_string:
+        if arg.type.is_string:
+            new_node = ExprNodes.PythonCapiCallNode(
+                node.pos, "strlen", self.Pyx_strlen_func_type,
+                args = [arg],
+                is_temp = node.is_temp,
+                utility_code = include_string_h_utility_code)
+        elif arg.type.is_pyobject:
+            cfunc_name = self._map_to_capi_len_function(arg.type)
+            if cfunc_name is None:
+                return node
+            if not arg.is_literal:
+                arg = arg.as_none_safe_node(
+                    "object of type 'NoneType' has no len()")
+            new_node = ExprNodes.PythonCapiCallNode(
+                node.pos, cfunc_name, self.PyObject_Size_func_type,
+                args = [arg],
+                is_temp = node.is_temp)
+        else:
             return node
-        if not node.type.is_numeric:
-            # this optimisation only works when we already replaced
-            # len() by PyObject_Length() which returns a Py_ssize_t
-            # instead of a Python object, so we can return a plain
-            # size_t instead without caring about Python object
-            # conversion etc.
-            return node
-        node = ExprNodes.PythonCapiCallNode(
-            node.pos, "strlen", self.Pyx_strlen_func_type,
-            args = [arg],
-            is_temp = node.is_temp,
-            utility_code = include_string_h_utility_code
-            )
-        return node
+        if node.type not in (PyrexTypes.c_size_t_type, PyrexTypes.c_py_ssize_t_type):
+            new_node = new_node.coerce_to(node.type, self.current_env())
+        return new_node
 
     Pyx_Type_func_type = PyrexTypes.CFuncType(
         Builtin.type_type, [
@@ -1289,8 +1561,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
         if not type_arg.type_entry:
             # arbitrary variable, needs a None check for safety
-            type_arg = ExprNodes.NoneCheckNode(
-                type_arg, "PyExc_TypeError",
+            type_arg = type_arg.as_none_safe_node(
                 "object.__new__(X): X is not a type object (NoneType)")
 
         return ExprNodes.PythonCapiCallNode(
@@ -1405,8 +1676,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             PyrexTypes.CFuncTypeArg("dict", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("key", PyrexTypes.py_object_type, None),
             PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
-            ],
-        exception_value = "NULL")
+            ])
 
     def _handle_simple_method_dict_get(self, node, args, is_unbound_method):
         """Replace dict.get() by a call to PyDict_GetItem().
@@ -1422,19 +1692,206 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             'get', is_unbound_method, args,
             utility_code = dict_getitem_default_utility_code)
 
+
+    ### unicode type methods
+
+    PyUnicode_Splitlines_func_type = PyrexTypes.CFuncType(
+        Builtin.list_type, [
+            PyrexTypes.CFuncTypeArg("str", Builtin.unicode_type, None),
+            PyrexTypes.CFuncTypeArg("keepends", PyrexTypes.c_bint_type, None),
+            ])
+
+    def _handle_simple_method_unicode_splitlines(self, node, args, is_unbound_method):
+        """Replace unicode.splitlines(...) by a direct call to the
+        corresponding C-API function.
+        """
+        if len(args) not in (1,2):
+            self._error_wrong_arg_count('unicode.splitlines', node, args, "1 or 2")
+            return node
+        self._inject_bint_default_argument(node, args, 1, False)
+
+        return self._substitute_method_call(
+            node, "PyUnicode_Splitlines", self.PyUnicode_Splitlines_func_type,
+            'splitlines', is_unbound_method, args)
+
+    PyUnicode_Join_func_type = PyrexTypes.CFuncType(
+        Builtin.unicode_type, [
+            PyrexTypes.CFuncTypeArg("sep", Builtin.unicode_type, None),
+            PyrexTypes.CFuncTypeArg("iterable", PyrexTypes.py_object_type, None),
+            ])
+
+    def _handle_simple_method_unicode_join(self, node, args, is_unbound_method):
+        """Replace unicode.join(...) by a direct call to the
+        corresponding C-API function.
+        """
+        if len(args) != 2:
+            self._error_wrong_arg_count('unicode.join', node, args, 2)
+            return node
+
+        return self._substitute_method_call(
+            node, "PyUnicode_Join", self.PyUnicode_Join_func_type,
+            'join', is_unbound_method, args)
+
+    PyUnicode_Split_func_type = PyrexTypes.CFuncType(
+        Builtin.list_type, [
+            PyrexTypes.CFuncTypeArg("str", Builtin.unicode_type, None),
+            PyrexTypes.CFuncTypeArg("sep", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("maxsplit", PyrexTypes.c_py_ssize_t_type, None),
+            ]
+        )
+
+    def _handle_simple_method_unicode_split(self, node, args, is_unbound_method):
+        """Replace unicode.split(...) by a direct call to the
+        corresponding C-API function.
+        """
+        if len(args) not in (1,2,3):
+            self._error_wrong_arg_count('unicode.split', node, args, "1-3")
+            return node
+        if len(args) < 2:
+            args.append(ExprNodes.NullNode(node.pos))
+        self._inject_int_default_argument(
+            node, args, 2, PyrexTypes.c_py_ssize_t_type, "-1")
+
+        return self._substitute_method_call(
+            node, "PyUnicode_Split", self.PyUnicode_Split_func_type,
+            'split', is_unbound_method, args)
+
+    PyUnicode_Tailmatch_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_bint_type, [
+            PyrexTypes.CFuncTypeArg("str", Builtin.unicode_type, None),
+            PyrexTypes.CFuncTypeArg("substring", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("end", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("direction", PyrexTypes.c_int_type, None),
+            ],
+        exception_value = '-1')
+
+    def _handle_simple_method_unicode_endswith(self, node, args, is_unbound_method):
+        return self._inject_unicode_tailmatch(
+            node, args, is_unbound_method, 'endswith', +1)
+
+    def _handle_simple_method_unicode_startswith(self, node, args, is_unbound_method):
+        return self._inject_unicode_tailmatch(
+            node, args, is_unbound_method, 'startswith', -1)
+
+    def _inject_unicode_tailmatch(self, node, args, is_unbound_method,
+                                  method_name, direction):
+        """Replace unicode.startswith(...) and unicode.endswith(...)
+        by a direct call to the corresponding C-API function.
+        """
+        if len(args) not in (2,3,4):
+            self._error_wrong_arg_count('unicode.%s' % method_name, node, args, "2-4")
+            return node
+        self._inject_int_default_argument(
+            node, args, 2, PyrexTypes.c_py_ssize_t_type, "0")
+        self._inject_int_default_argument(
+            node, args, 3, PyrexTypes.c_py_ssize_t_type, "PY_SSIZE_T_MAX")
+        args.append(ExprNodes.IntNode(
+            node.pos, value=str(direction), type=PyrexTypes.c_int_type))
+
+        method_call = self._substitute_method_call(
+            node, "__Pyx_PyUnicode_Tailmatch", self.PyUnicode_Tailmatch_func_type,
+            method_name, is_unbound_method, args,
+            utility_code = unicode_tailmatch_utility_code)
+        return method_call.coerce_to(Builtin.bool_type, self.current_env())
+
+    PyUnicode_Find_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_py_ssize_t_type, [
+            PyrexTypes.CFuncTypeArg("str", Builtin.unicode_type, None),
+            PyrexTypes.CFuncTypeArg("substring", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("end", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("direction", PyrexTypes.c_int_type, None),
+            ],
+        exception_value = '-2')
+
+    def _handle_simple_method_unicode_find(self, node, args, is_unbound_method):
+        return self._inject_unicode_find(
+            node, args, is_unbound_method, 'find', +1)
+
+    def _handle_simple_method_unicode_rfind(self, node, args, is_unbound_method):
+        return self._inject_unicode_find(
+            node, args, is_unbound_method, 'rfind', -1)
+
+    def _inject_unicode_find(self, node, args, is_unbound_method,
+                             method_name, direction):
+        """Replace unicode.find(...) and unicode.rfind(...) by a
+        direct call to the corresponding C-API function.
+        """
+        if len(args) not in (2,3,4):
+            self._error_wrong_arg_count('unicode.%s' % method_name, node, args, "2-4")
+            return node
+        self._inject_int_default_argument(
+            node, args, 2, PyrexTypes.c_py_ssize_t_type, "0")
+        self._inject_int_default_argument(
+            node, args, 3, PyrexTypes.c_py_ssize_t_type, "PY_SSIZE_T_MAX")
+        args.append(ExprNodes.IntNode(
+            node.pos, value=str(direction), type=PyrexTypes.c_int_type))
+
+        method_call = self._substitute_method_call(
+            node, "PyUnicode_Find", self.PyUnicode_Find_func_type,
+            method_name, is_unbound_method, args)
+        return method_call.coerce_to_pyobject(self.current_env())
+
+    PyUnicode_Count_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_py_ssize_t_type, [
+            PyrexTypes.CFuncTypeArg("str", Builtin.unicode_type, None),
+            PyrexTypes.CFuncTypeArg("substring", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("start", PyrexTypes.c_py_ssize_t_type, None),
+            PyrexTypes.CFuncTypeArg("end", PyrexTypes.c_py_ssize_t_type, None),
+            ],
+        exception_value = '-1')
+
+    def _handle_simple_method_unicode_count(self, node, args, is_unbound_method):
+        """Replace unicode.count(...) by a direct call to the
+        corresponding C-API function.
+        """
+        if len(args) not in (2,3,4):
+            self._error_wrong_arg_count('unicode.count', node, args, "2-4")
+            return node
+        self._inject_int_default_argument(
+            node, args, 2, PyrexTypes.c_py_ssize_t_type, "0")
+        self._inject_int_default_argument(
+            node, args, 3, PyrexTypes.c_py_ssize_t_type, "PY_SSIZE_T_MAX")
+
+        method_call = self._substitute_method_call(
+            node, "PyUnicode_Count", self.PyUnicode_Count_func_type,
+            'count', is_unbound_method, args)
+        return method_call.coerce_to_pyobject(self.current_env())
+
+    PyUnicode_Replace_func_type = PyrexTypes.CFuncType(
+        Builtin.unicode_type, [
+            PyrexTypes.CFuncTypeArg("str", Builtin.unicode_type, None),
+            PyrexTypes.CFuncTypeArg("substring", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("replstr", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("maxcount", PyrexTypes.c_py_ssize_t_type, None),
+            ])
+
+    def _handle_simple_method_unicode_replace(self, node, args, is_unbound_method):
+        """Replace unicode.replace(...) by a direct call to the
+        corresponding C-API function.
+        """
+        if len(args) not in (3,4):
+            self._error_wrong_arg_count('unicode.replace', node, args, "3-4")
+            return node
+        self._inject_int_default_argument(
+            node, args, 3, PyrexTypes.c_py_ssize_t_type, "-1")
+
+        return self._substitute_method_call(
+            node, "PyUnicode_Replace", self.PyUnicode_Replace_func_type,
+            'replace', is_unbound_method, args)
+
     PyUnicode_AsEncodedString_func_type = PyrexTypes.CFuncType(
         Builtin.bytes_type, [
             PyrexTypes.CFuncTypeArg("obj", Builtin.unicode_type, None),
             PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_char_ptr_type, None),
             PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
-            ],
-        exception_value = "NULL")
+            ])
 
     PyUnicode_AsXyzString_func_type = PyrexTypes.CFuncType(
         Builtin.bytes_type, [
             PyrexTypes.CFuncTypeArg("obj", Builtin.unicode_type, None),
-            ],
-        exception_value = "NULL")
+            ])
 
     _special_encodings = ['UTF8', 'UTF16', 'Latin1', 'ASCII',
                           'unicode_escape', 'raw_unicode_escape']
@@ -1498,8 +1955,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             PyrexTypes.CFuncTypeArg("string", PyrexTypes.c_char_ptr_type, None),
             PyrexTypes.CFuncTypeArg("size", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
-            ],
-        exception_value = "NULL")
+            ])
 
     PyUnicode_Decode_func_type = PyrexTypes.CFuncType(
         Builtin.unicode_type, [
@@ -1507,8 +1963,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             PyrexTypes.CFuncTypeArg("size", PyrexTypes.c_py_ssize_t_type, None),
             PyrexTypes.CFuncTypeArg("encoding", PyrexTypes.c_char_ptr_type, None),
             PyrexTypes.CFuncTypeArg("errors", PyrexTypes.c_char_ptr_type, None),
-            ],
-        exception_value = "NULL")
+            ])
 
     def _handle_simple_method_bytes_decode(self, node, args, is_unbound_method):
         """Replace char*.decode() by a direct C-API call to the
@@ -1529,7 +1984,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 start = None
             else:
                 if start.type.is_pyobject:
-                    start = start.coerce_to(PyrexTypes.c_py_ssize_t_type, self.env_stack[-1])
+                    start = start.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
                 if stop:
                     start = UtilNodes.LetRefNode(start)
                     temps.append(start)
@@ -1541,7 +1996,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                                                 type=string_node.type
                                                 )
             if stop and stop.type.is_pyobject:
-                stop = stop.coerce_to(PyrexTypes.c_py_ssize_t_type, self.env_stack[-1])
+                stop = stop.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
         elif isinstance(args[0], ExprNodes.CoerceToPyTypeNode) \
                  and args[0].arg.type.is_string:
             # use strlen() to find the string length, just as CPython would
@@ -1560,7 +2015,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                     args = [string_node],
                     is_temp = False,
                     utility_code = include_string_h_utility_code,
-                    ).coerce_to(PyrexTypes.c_py_ssize_t_type, self.env_stack[-1])
+                    ).coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_env())
         elif start:
             stop = ExprNodes.SubNode(
                 pos = stop.pos,
@@ -1614,20 +2069,25 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         return None
 
     def _unpack_encoding_and_error_mode(self, pos, args):
-        encoding_node = args[1]
-        if isinstance(encoding_node, ExprNodes.CoerceToPyTypeNode):
-            encoding_node = encoding_node.arg
-        if isinstance(encoding_node, (ExprNodes.UnicodeNode, ExprNodes.StringNode,
-                                      ExprNodes.BytesNode)):
-            encoding = encoding_node.value
-            encoding_node = ExprNodes.BytesNode(encoding_node.pos, value=encoding,
-                                                 type=PyrexTypes.c_char_ptr_type)
-        elif encoding_node.type.is_string:
-            encoding = None
-        else:
-            return None
-
         null_node = ExprNodes.NullNode(pos)
+
+        if len(args) >= 2:
+            encoding_node = args[1]
+            if isinstance(encoding_node, ExprNodes.CoerceToPyTypeNode):
+                encoding_node = encoding_node.arg
+            if isinstance(encoding_node, (ExprNodes.UnicodeNode, ExprNodes.StringNode,
+                                          ExprNodes.BytesNode)):
+                encoding = encoding_node.value
+                encoding_node = ExprNodes.BytesNode(encoding_node.pos, value=encoding,
+                                                     type=PyrexTypes.c_char_ptr_type)
+            elif encoding_node.type.is_string:
+                encoding = None
+            else:
+                return None
+        else:
+            encoding = None
+            encoding_node = null_node
+
         if len(args) == 3:
             error_handling_node = args[2]
             if isinstance(error_handling_node, ExprNodes.CoerceToPyTypeNode):
@@ -1652,21 +2112,23 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
         return (encoding, encoding_node, error_handling, error_handling_node)
 
+
+    ### helpers
+
     def _substitute_method_call(self, node, name, func_type,
                                 attr_name, is_unbound_method, args=(),
                                 utility_code=None):
         args = list(args)
-        if args:
+        if args and not args[0].is_literal:
             self_arg = args[0]
             if is_unbound_method:
-                self_arg = ExprNodes.NoneCheckNode(
-                    self_arg, "PyExc_TypeError",
+                self_arg = self_arg.as_none_safe_node(
                     "descriptor '%s' requires a '%s' object but received a 'NoneType'" % (
-                    attr_name, node.function.obj.name))
+                        attr_name, node.function.obj.name))
             else:
-                self_arg = ExprNodes.NoneCheckNode(
-                    self_arg, "PyExc_AttributeError",
-                    "'NoneType' object has no attribute '%s'" % attr_name)
+                self_arg = self_arg.as_none_safe_node(
+                    "'NoneType' object has no attribute '%s'" % attr_name,
+                    error = "PyExc_AttributeError")
             args[0] = self_arg
         return ExprNodes.PythonCapiCallNode(
             node.pos, name, func_type,
@@ -1675,6 +2137,48 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             utility_code = utility_code
             )
 
+    def _inject_int_default_argument(self, node, args, arg_index, type, default_value):
+        assert len(args) >= arg_index
+        if len(args) == arg_index:
+            args.append(ExprNodes.IntNode(node.pos, value=str(default_value), type=type))
+        else:
+            args[arg_index] = args[arg_index].coerce_to(type, self.current_env())
+
+    def _inject_bint_default_argument(self, node, args, arg_index, default_value):
+        assert len(args) >= arg_index
+        if len(args) == arg_index:
+            args.append(ExprNodes.BoolNode(node.pos, value=bool(default_value)))
+        else:
+            args[arg_index] = args[arg_index].coerce_to_boolean(self.current_env())
+
+
+unicode_tailmatch_utility_code = UtilityCode(
+    # Python's unicode.startswith() and unicode.endswith() support a
+    # tuple of prefixes/suffixes, whereas it's much more common to
+    # test for a single unicode string.
+proto = '''
+static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr, \
+Py_ssize_t start, Py_ssize_t end, int direction);
+''',
+impl = '''
+static int __Pyx_PyUnicode_Tailmatch(PyObject* s, PyObject* substr,
+                                     Py_ssize_t start, Py_ssize_t end, int direction) {
+    if (unlikely(PyTuple_Check(substr))) {
+        int result;
+        Py_ssize_t i;
+        for (i = 0; i < PyTuple_GET_SIZE(substr); i++) {
+            result = PyUnicode_Tailmatch(s, PyTuple_GET_ITEM(substr, i),
+                                         start, end, direction);
+            if (result) {
+                return result;
+            }
+        }
+        return 0;
+    }
+    return PyUnicode_Tailmatch(s, substr, start, end, direction);
+}
+''',
+)
 
 dict_getitem_default_utility_code = UtilityCode(
 proto = '''
@@ -1736,6 +2240,7 @@ impl = ""
 pop_utility_code = UtilityCode(
 proto = """
 static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
+    PyObject *r, *m;
 #if PY_VERSION_HEX >= 0x02040000
     if (likely(PyList_CheckExact(L))
             /* Check that both the size is positive and no reallocation shrinking needs to be done. */
@@ -1744,7 +2249,6 @@ static CYTHON_INLINE PyObject* __Pyx_PyObject_Pop(PyObject* L) {
         return PyList_GET_ITEM(L, PyList_GET_SIZE(L));
     }
 #endif
-    PyObject *r, *m;
     m = __Pyx_GetAttrString(L, "pop");
     if (!m) return NULL;
     r = PyObject_CallObject(m, NULL);
