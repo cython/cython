@@ -1,3 +1,6 @@
+cdef extern from "declarations.h":
+    pass
+
 cdef extern char *cp
 cdef extern char *cpa[5]
 cdef extern int (*ifnpa[5])()

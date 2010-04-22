@@ -411,7 +411,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         for module in modules:
             defined_here = module is env
             modulecode.putln("/* Module declarations from %s */" %
-                       module.qualified_name.encode("ASCII", "ignore"))
+                             module.qualified_name)
             self.generate_global_declarations(module, modulecode, defined_here)
             self.generate_cfunction_predeclarations(module, modulecode, defined_here)
 
@@ -525,11 +525,29 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
 #if PY_MAJOR_VERSION >= 3
   #define PyBaseString_Type            PyUnicode_Type
+  #define PyStringObject               PyUnicodeObject
   #define PyString_Type                PyUnicode_Type
+  #define PyString_Check               PyUnicode_Check
   #define PyString_CheckExact          PyUnicode_CheckExact
-#else
+#endif
+
+#if PY_VERSION_HEX < 0x02060000
+  #define PyBytesObject                PyStringObject
   #define PyBytes_Type                 PyString_Type
+  #define PyBytes_Check                PyString_Check
   #define PyBytes_CheckExact           PyString_CheckExact
+  #define PyBytes_FromString           PyString_FromString
+  #define PyBytes_FromStringAndSize    PyString_FromStringAndSize
+  #define PyBytes_FromFormat           PyString_FromFormat
+  #define PyBytes_DecodeEscape         PyString_DecodeEscape
+  #define PyBytes_AsString             PyString_AsString
+  #define PyBytes_AsStringAndSize      PyString_AsStringAndSize
+  #define PyBytes_Size                 PyString_Size
+  #define PyBytes_AS_STRING            PyString_AS_STRING
+  #define PyBytes_GET_SIZE             PyString_GET_SIZE
+  #define PyBytes_Repr                 PyString_Repr
+  #define PyBytes_Concat               PyString_Concat
+  #define PyBytes_ConcatAndDel         PyString_ConcatAndDel
 #endif
 
 #if PY_MAJOR_VERSION >= 3
@@ -634,11 +652,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_includes(self, env, cimported_modules, code):
         includes = []
         for filename in env.include_files:
-            # fake decoding of filenames to their original byte sequence
-            if filename[0] == '<' and filename[-1] == '>':
-                code.putln('#include %s' % filename)
+            byte_decoded_filenname = str(filename)
+            if byte_decoded_filenname[0] == '<' and byte_decoded_filenname[-1] == '>':
+                code.putln('#include %s' % byte_decoded_filenname)
             else:
-                code.putln('#include "%s"' % filename)
+                code.putln('#include "%s"' % byte_decoded_filenname)
     
     def generate_filename_table(self, code):
         code.putln("")
@@ -1537,7 +1555,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
     def generate_method_table(self, env, code):
         code.putln("")
         code.putln(
-            "static struct PyMethodDef %s[] = {" % 
+            "static PyMethodDef %s[] = {" % 
                 env.method_table_cname)
         for entry in env.pyfunc_entries:
             code.put_pymethoddef(entry, ",")
@@ -1659,8 +1677,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.putln("%s = PyTuple_New(0); %s" % (Naming.empty_tuple, code.error_goto_if_null(Naming.empty_tuple, self.pos)));
-        code.putln("%s = __Pyx_PyBytes_FromStringAndSize(\"\", 0); %s" % (Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)));
-        
+        code.putln("%s = PyBytes_FromStringAndSize(\"\", 0); %s" % (Naming.empty_bytes, code.error_goto_if_null(Naming.empty_bytes, self.pos)));
+
         code.putln("#ifdef %s_USED" % Naming.binding_cfunc)
         code.putln("if (%s_init() < 0) %s" % (Naming.binding_cfunc, code.error_goto(self.pos)))
         code.putln("#endif")
@@ -2177,7 +2195,11 @@ static PyTypeObject *__Pyx_ImportType(const char *module_name, const char *class
         PyOS_snprintf(warning, sizeof(warning), 
             "%s.%s size changed, may indicate binary incompatibility",
             module_name, class_name);
+        #if PY_VERSION_HEX < 0x02050000
+        PyErr_Warn(NULL, warning);
+        #else
         PyErr_WarnEx(NULL, warning, 0);
+        #endif
     }
     else if (((PyTypeObject *)result)->tp_basicsize != size) {
         PyErr_Format(PyExc_ValueError, 

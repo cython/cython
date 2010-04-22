@@ -104,3 +104,42 @@ def test_imports():
 MyStruct3 = typedef(MyStruct[3])
 MyStruct4 = my_typedef(MyStruct[4])
 MyStruct5 = cy.typedef(MyStruct[5])
+
+def test_declare_c_types(n):
+    """
+    >>> test_declare_c_types(0)
+    >>> test_declare_c_types(1)
+    >>> test_declare_c_types(2)
+    """
+    #
+    b00 = cython.declare(cython.bint, 0)
+    b01 = cython.declare(cython.bint, 1)
+    b02 = cython.declare(cython.bint, 2)
+    #
+    i00 = cython.declare(cython.uchar, n)
+    i01 = cython.declare(cython.char, n)
+    i02 = cython.declare(cython.schar, n)
+    i03 = cython.declare(cython.ushort, n)
+    i04 = cython.declare(cython.short, n)
+    i05 = cython.declare(cython.sshort, n)
+    i06 = cython.declare(cython.uint, n)
+    i07 = cython.declare(cython.int, n)
+    i08 = cython.declare(cython.sint, n)
+    i09 = cython.declare(cython.slong, n)
+    i10 = cython.declare(cython.long, n)
+    i11 = cython.declare(cython.ulong, n)
+    i12 = cython.declare(cython.slonglong, n)
+    i13 = cython.declare(cython.longlong, n)
+    i14 = cython.declare(cython.ulonglong, n)
+
+    i20 = cython.declare(cython.Py_ssize_t, n)
+    i21 = cython.declare(cython.size_t, n)
+    #
+    f00 = cython.declare(cython.float, n)
+    f01 = cython.declare(cython.double, n)
+    f02 = cython.declare(cython.longdouble, n)
+    #
+    #z00 = cython.declare(cython.complex, n+1j)
+    #z01 = cython.declare(cython.floatcomplex, n+1j)
+    #z02 = cython.declare(cython.doublecomplex, n+1j)
+    #z03 = cython.declare(cython.longdoublecomplex, n+1j)

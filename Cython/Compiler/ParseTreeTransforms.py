@@ -1310,8 +1310,8 @@ class TransformBuiltinMethods(EnvTransform):
                 node = BoolNode(node.pos, value=True)
             elif attribute == u'NULL':
                 node = NullNode(node.pos)
-            elif attribute == u'set':
-                node = NameNode(node.pos, name=EncodedString('set'))
+            elif attribute in (u'set', u'frozenset'):
+                node = NameNode(node.pos, name=EncodedString(attribute))
             elif not PyrexTypes.parse_basic_type(attribute):
                 error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
         return node
