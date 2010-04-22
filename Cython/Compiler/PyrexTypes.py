@@ -794,7 +794,7 @@ class CIntType(CNumericType):
     from_py_function = None
     exception_value = -1
 
-    def __init__(self, rank, signed):
+    def __init__(self, rank, signed = 1):
         CNumericType.__init__(self, rank, signed)
         if self.to_py_function is None:
             self.to_py_function = self.get_to_py_type_conversion()
@@ -819,15 +819,10 @@ class CIntType(CNumericType):
             return "Py%s_From%s%s" % (Prefix, SignWord, TypeName)
 
     def get_from_py_type_conversion(self):
-        ctype = self.declaration_code('')
-        bits = ctype.split(" ", 1)
-        if len(bits) == 1:
-            sign_word, type_name = "", bits[0]
-        else:
-            sign_word, type_name = bits
-        type_name = type_name.replace("PY_LONG_LONG","long long")
-        SignWord  = sign_word.title()
-        TypeName  = type_name.title().replace(" ", "")
+        type_name = rank_to_type_name[self.rank]
+        type_name = type_name.replace("PY_LONG_LONG", "long long")
+        TypeName = type_name.title().replace(" ", "")
+        SignWord = self.sign_words[self.signed].strip().title()
         if self.rank >= list(rank_to_type_name).index('long'):
             utility_code = c_long_from_py_function
         else:
@@ -849,10 +844,10 @@ class CAnonEnumType(CIntType):
     def sign_and_name(self):
         return 'int'
 
+
 class CReturnCodeType(CIntType):
 
     is_returncode = 1
-
 
 
 class CBIntType(CIntType):
@@ -2099,56 +2094,61 @@ class ErrorType(PyrexType):
 rank_to_type_name = (
     "char",         # 0
     "short",        # 1
-    "Py_UNICODE",   # 2
-    "int",          # 3
-    "long",         # 4
-    "Py_ssize_t",   # 5
-    "size_t",       # 6
-    "PY_LONG_LONG", # 7
-    "float",        # 8
-    "double",       # 9
-    "long double",  # 10
+    "int",          # 2
+    "long",         # 3
+    "PY_LONG_LONG", # 4
+    "float",        # 5
+    "double",       # 6
+    "long double",  # 7
 )
+
+RANK_INT  = list(rank_to_type_name).index('int')
+RANK_LONG = list(rank_to_type_name).index('long')
+UNSIGNED = 0
+SIGNED = 2
+
 
 py_object_type = PyObjectType()
 
-c_void_type =         CVoidType()
-c_void_ptr_type =     CPtrType(c_void_type)
-c_void_ptr_ptr_type = CPtrType(c_void_ptr_type)
+c_void_type =        CVoidType()
 
-c_uchar_type =       CIntType(0, 0)
-c_ushort_type =      CIntType(1, 0)
-c_uint_type =        CIntType(3, 0)
-c_ulong_type =       CIntType(4, 0)
-c_ulonglong_type =   CIntType(7, 0)
+c_uchar_type =       CIntType(0, UNSIGNED)
+c_ushort_type =      CIntType(1, UNSIGNED)
+c_uint_type =        CIntType(2, UNSIGNED)
+c_ulong_type =       CIntType(3, UNSIGNED)
+c_ulonglong_type =   CIntType(4, UNSIGNED)
 
-c_char_type =        CIntType(0, 1)
-c_short_type =       CIntType(1, 1)
-c_int_type =         CIntType(3, 1)
-c_long_type =        CIntType(4, 1)
-c_longlong_type =    CIntType(7, 1)
+c_char_type =        CIntType(0)
+c_short_type =       CIntType(1)
+c_int_type =         CIntType(2)
+c_long_type =        CIntType(3)
+c_longlong_type =    CIntType(4)
 
-c_schar_type =       CIntType(0, 2)
-c_sshort_type =      CIntType(1, 2)
-c_sint_type =        CIntType(3, 2)
-c_slong_type =       CIntType(4, 2)
-c_slonglong_type =   CIntType(7, 2)
+c_schar_type =       CIntType(0, SIGNED)
+c_sshort_type =      CIntType(1, SIGNED)
+c_sint_type =        CIntType(2, SIGNED)
+c_slong_type =       CIntType(3, SIGNED)
+c_slonglong_type =   CIntType(4, SIGNED)
 
-c_bint_type =        CBIntType(3, 1)
-c_py_unicode_type =  CPyUnicodeIntType(2, 0)
-c_py_ssize_t_type =  CPySSizeTType(5, 2)
-c_ssize_t_type =     CSSizeTType(5, 2)
-c_size_t_type =      CSizeTType(6, 0)
-
-c_float_type =       CFloatType(8, math_h_modifier='f')
-c_double_type =      CFloatType(9)
-c_longdouble_type =  CFloatType(10, math_h_modifier='l')
+c_float_type =       CFloatType(5, math_h_modifier='f')
+c_double_type =      CFloatType(6)
+c_longdouble_type =  CFloatType(7, math_h_modifier='l')
 
 c_float_complex_type =      CComplexType(c_float_type)
 c_double_complex_type =     CComplexType(c_double_type)
 c_longdouble_complex_type = CComplexType(c_longdouble_type)
 
+c_anon_enum_type =   CAnonEnumType(-1)
+c_returncode_type =  CReturnCodeType(RANK_INT)
+c_bint_type =        CBIntType(RANK_INT)
+c_py_unicode_type =  CPyUnicodeIntType(RANK_INT-0.5, UNSIGNED)
+c_py_ssize_t_type =  CPySSizeTType(RANK_LONG+0.5, SIGNED)
+c_ssize_t_type =     CSSizeTType(RANK_LONG+0.5, SIGNED)
+c_size_t_type =      CSizeTType(RANK_LONG+0.5, UNSIGNED)
+
 c_null_ptr_type =     CNullPtrType(c_void_type)
+c_void_ptr_type =     CPtrType(c_void_type)
+c_void_ptr_ptr_type = CPtrType(c_void_ptr_type)
 c_char_array_type =   CCharArrayType(None)
 c_char_ptr_type =     CCharPtrType()
 c_uchar_ptr_type =    CUCharPtrType()
@@ -2160,8 +2160,6 @@ c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
 c_ssize_t_ptr_type =  CPtrType(c_ssize_t_type)
 c_size_t_ptr_type =  CPtrType(c_size_t_type)
 
-c_returncode_type =   CReturnCodeType(3, 1)
-c_anon_enum_type =    CAnonEnumType(-1, 1)
 
 # the Py_buffer type is defined in Builtin.py
 c_py_buffer_type = CStructOrUnionType("Py_buffer", "struct", None, 1, "Py_buffer")
@@ -2191,12 +2189,6 @@ modifiers_and_name_to_type = {
     (2,  1, "int"): c_slong_type,
     (2,  2, "int"): c_slonglong_type,
 
-    (1,  0, "bint"): c_bint_type,
-    (0,  0, "Py_UNICODE"): c_py_unicode_type,
-    (2,  0, "Py_ssize_t"): c_py_ssize_t_type,
-    (2,  0, "ssize_t") :   c_ssize_t_type,
-    (0,  0, "size_t") :    c_size_t_type,
-
     (1,  0, "float"):  c_float_type,
     (1,  0, "double"): c_double_type,
     (1,  1, "double"): c_longdouble_type,
@@ -2208,6 +2200,13 @@ modifiers_and_name_to_type = {
 
     #
     (1,  0, "void"): c_void_type,
+
+    (1,  0, "bint"):       c_bint_type,
+    (0,  0, "Py_UNICODE"): c_py_unicode_type,
+    (2,  0, "Py_ssize_t"): c_py_ssize_t_type,
+    (2,  0, "ssize_t") :   c_ssize_t_type,
+    (0,  0, "size_t") :    c_size_t_type,
+
     (1,  0, "object"): py_object_type,
 }
 
@@ -2216,7 +2215,10 @@ def is_promotion(src_type, dst_type):
     # evidence suggests that the below is all that's allowed. 
     if src_type.is_numeric:
         if dst_type.same_as(c_int_type):
-            return src_type.is_enum or (src_type.is_int and (not src_type.signed) + src_type.rank < dst_type.rank)
+            unsigned = (not src_type.signed)
+            return (src_type.is_enum or
+                    (src_type.is_int and
+                     unsigned + src_type.rank < dst_type.rank))
         elif dst_type.same_as(c_double_type):
             return src_type.is_float and src_type.rank <= dst_type.rank
     return False
