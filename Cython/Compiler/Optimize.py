@@ -644,7 +644,8 @@ class SwitchTransform(Visitor.VisitorTransform):
             # integers on iteration, whereas Py2 returns 1-char byte
             # strings
             characters = string_literal.value
-            characters = set([ characters[i:i+1] for i in range(len(characters)) ])
+            characters = list(set([ characters[i:i+1] for i in range(len(characters)) ]))
+            characters.sort()
             return [ ExprNodes.CharNode(string_literal.pos, value=charval,
                                         constant_result=charval)
                      for charval in characters ]
