@@ -1853,6 +1853,7 @@ special_basic_c_types = {
     # name : (signed, longness)
     "Py_UNICODE" : (0, 0),
     "Py_ssize_t" : (2, 0),
+    "ssize_t"    : (2, 0),
     "size_t"     : (0, 0),
 }
 

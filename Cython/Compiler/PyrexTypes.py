@@ -844,16 +844,6 @@ class CIntType(CNumericType):
         return src_type.is_int or src_type.is_enum or src_type is error_type
 
 
-class CBIntType(CIntType):
-
-    to_py_function = "__Pyx_PyBool_FromLong"
-    from_py_function = "__Pyx_PyObject_IsTrue"
-    exception_check = 0
-
-    def __repr__(self):
-        return "<CNumericType bint>"
-
-
 class CAnonEnumType(CIntType):
 
     is_enum = 1
@@ -864,6 +854,17 @@ class CAnonEnumType(CIntType):
 class CReturnCodeType(CIntType):
 
     is_returncode = 1
+
+
+
+class CBIntType(CIntType):
+
+    to_py_function = "__Pyx_PyBool_FromLong"
+    from_py_function = "__Pyx_PyObject_IsTrue"
+    exception_check = 0
+
+    def __repr__(self):
+        return "<CNumericType bint>"
 
 
 class CPyUnicodeIntType(CIntType):
@@ -888,6 +889,13 @@ class CPySSizeTType(CIntType):
     def sign_and_name(self):
         return "Py_ssize_t"
 
+class CSSizeTType(CIntType):
+
+    to_py_function = "PyInt_FromSsize_t"
+    from_py_function = "PyInt_AsSsize_t"
+
+    def sign_and_name(self):
+        return "ssize_t"
 
 class CSizeTType(CIntType):
 
@@ -2111,7 +2119,6 @@ c_void_ptr_ptr_type = CPtrType(c_void_ptr_type)
 
 c_uchar_type =       CIntType(0, 0)
 c_ushort_type =      CIntType(1, 0)
-c_py_unicode_type =  CPyUnicodeIntType(2, 0)
 c_uint_type =        CIntType(3, 0)
 c_ulong_type =       CIntType(4, 0)
 c_ulonglong_type =   CIntType(7, 0)
@@ -2129,7 +2136,9 @@ c_slong_type =       CIntType(4, 2)
 c_slonglong_type =   CIntType(7, 2)
 
 c_bint_type =        CBIntType(3, 1)
+c_py_unicode_type =  CPyUnicodeIntType(2, 0)
 c_py_ssize_t_type =  CPySSizeTType(5, 2)
+c_ssize_t_type =     CSSizeTType(5, 2)
 c_size_t_type =      CSizeTType(6, 0)
 
 c_float_type =       CFloatType(8, math_h_modifier='f')
@@ -2148,6 +2157,7 @@ c_utf8_char_array_type = CUTF8CharArrayType(None)
 c_char_ptr_ptr_type = CPtrType(c_char_ptr_type)
 c_int_ptr_type =      CPtrType(c_int_type)
 c_py_ssize_t_ptr_type =  CPtrType(c_py_ssize_t_type)
+c_ssize_t_ptr_type =  CPtrType(c_ssize_t_type)
 c_size_t_ptr_type =  CPtrType(c_size_t_type)
 
 c_returncode_type =   CReturnCodeType(3, 1)
@@ -2182,9 +2192,10 @@ modifiers_and_name_to_type = {
     (2,  2, "int"): c_slonglong_type,
 
     (1,  0, "bint"): c_bint_type,
-    (0,  0, "size_t") :    c_size_t_type,
-    (2,  0, "Py_ssize_t"): c_py_ssize_t_type,
     (0,  0, "Py_UNICODE"): c_py_unicode_type,
+    (2,  0, "Py_ssize_t"): c_py_ssize_t_type,
+    (2,  0, "ssize_t") :   c_ssize_t_type,
+    (0,  0, "size_t") :    c_size_t_type,
 
     (1,  0, "float"):  c_float_type,
     (1,  0, "double"): c_double_type,
@@ -2399,11 +2410,13 @@ def parse_basic_type(name):
     #
     signed = 1
     longness = 0
-    if name == 'Py_ssize_t':
+    if name == 'Py_UNICODE':
+        signed = 0
+    elif name == 'Py_ssize_t':
+        signed = 2
+    elif name == 'ssize_t':
         signed = 2
     elif name == 'size_t':
-        signed = 0
-    elif name == 'Py_UNICODE':
         signed = 0
     else:
         if name.startswith('u'):
