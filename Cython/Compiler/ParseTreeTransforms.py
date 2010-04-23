@@ -1228,17 +1228,18 @@ class CreateClosureClasses(CythonTransform):
                                     cname=Naming.outer_scope_cname,
                                     type=node.entry.scope.scope_class.type,
                                     is_cdef=True)
-        for entry in func_scope.entries.values():
+        entries = func_scope.entries.items()
+        entries.sort()
+        for name, entry in entries:
             # This is wasteful--we should do this later when we know
             # which vars are actually being used inside...
             #
             # Also, this happens before type inference and type
             # analysis, so the entries created here may end up having
             # incorrect or at least unspecified types.
-            cname = entry.cname
             class_scope.declare_var(pos=entry.pos,
                                     name=entry.name,
-                                    cname=cname,
+                                    cname=entry.cname,
                                     type=entry.type,
                                     is_cdef=True)
             
