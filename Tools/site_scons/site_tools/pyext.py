@@ -178,13 +178,13 @@ def set_configuration(env, use_distutils):
     # We define commands as strings so that we can either execute them using
     # eval (same python for scons and distutils) or by executing them through
     # the shell.
-    dist_cfg = {'PYEXTCC': "sysconfig.get_config_var('CC')", 
-                'PYEXTCFLAGS': "sysconfig.get_config_var('CFLAGS')", 
-                'PYEXTCCSHARED': "sysconfig.get_config_var('CCSHARED')", 
-                'PYEXTLINKFLAGS': "sysconfig.get_config_var('LDFLAGS')", 
-                'PYEXTLINK': "sysconfig.get_config_var('LDSHARED')", 
-                'PYEXTINCPATH': "sysconfig.get_python_inc()", 
-                'PYEXTSUFFIX': "sysconfig.get_config_var('SO')"}
+    dist_cfg = {'PYEXTCC': ("sysconfig.get_config_var('CC')", False), 
+                'PYEXTCFLAGS': ("sysconfig.get_config_var('CFLAGS')", True), 
+                'PYEXTCCSHARED': ("sysconfig.get_config_var('CCSHARED')", False), 
+                'PYEXTLINKFLAGS': ("sysconfig.get_config_var('LDFLAGS')", True), 
+                'PYEXTLINK': ("sysconfig.get_config_var('LDSHARED')", False), 
+                'PYEXTINCPATH': ("sysconfig.get_python_inc()", False), 
+                'PYEXTSUFFIX': ("sysconfig.get_config_var('SO')", False)}
 
     from distutils import sysconfig
 
@@ -193,8 +193,11 @@ def set_configuration(env, use_distutils):
     ifnotset(env, 'PYEXTINCPATH', sysconfig.get_python_inc())
 
     if use_distutils:
-        for k, v in dist_cfg.items():
-            ifnotset(env, k, eval(v))
+        for k, (v, should_split) in dist_cfg.items():
+            val = eval(v)
+            if should_split:
+                val = val.split()
+            ifnotset(env, k, val)
     else:
         _set_configuration_nodistutils(env)
 
