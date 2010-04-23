@@ -964,7 +964,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         py_attrs = []
         for entry in scope.var_entries:
             if entry.type.is_pyobject:
-                py_attrs.append(entry)
+                py_attrs.append((entry.cname, entry))
+        py_attrs.sort()
         need_self_cast = type.vtabslot_cname or py_attrs
         code.putln("")
         code.putln(
@@ -1002,9 +1003,9 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
             code.putln("p->%s = %s%s;" % (
                 type.vtabslot_cname,
                 struct_type_cast, type.vtabptr_cname))
-        for entry in py_attrs:
+        for cname, entry in py_attrs:
             if entry.name == "__weakref__":
-                code.putln("p->%s = 0;" % entry.cname)
+                code.putln("p->%s = 0;" % cname)
             else:
                 code.put_init_var_to_py_none(entry, "p->%s", nanny=False)
         entry = scope.lookup_here("__new__")
@@ -1038,14 +1039,15 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         weakref_slot = scope.lookup_here("__weakref__")
         for entry in scope.var_entries:
             if entry.type.is_pyobject and entry is not weakref_slot:
-                py_attrs.append(entry)
+                py_attrs.append((entry.cname, entry))
+        py_attrs.sort()
         if py_attrs or weakref_slot in scope.var_entries:
             self.generate_self_cast(scope, code)
         self.generate_usr_dealloc_call(scope, code)
         if weakref_slot in scope.var_entries:
             code.putln("if (p->__weakref__) PyObject_ClearWeakRefs(o);")
-        for entry in py_attrs:
-            code.put_xdecref("p->%s" % entry.cname, entry.type, nanny=False)
+        for cname, entry in py_attrs:
+            code.put_xdecref("p->%s" % cname, entry.type, nanny=False)
         if base_type:
             tp_dealloc = TypeSlots.get_base_slot_function(scope, tp_slot)
             if tp_dealloc is None:
@@ -1094,7 +1096,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         py_attrs = []
         for entry in scope.var_entries:
             if entry.type.is_pyobject and entry.name != "__weakref__":
-                py_attrs.append(entry)
+                py_attrs.append((entry.cname, entry))
+        py_attrs.sort()
         if base_type or py_attrs:
             code.putln("int e;")
         if py_attrs:
@@ -1110,8 +1113,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         "e = %s->tp_traverse(o, v, a); if (e) return e;" %
                             base_type.typeptr_cname)
                 code.putln("}")
-        for entry in py_attrs:
-            var_code = "p->%s" % entry.cname
+        for cname, entry in py_attrs:
+            var_code = "p->%s" % cname
             code.putln(
                     "if (%s) {"
                         % var_code)
@@ -1138,7 +1141,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         py_attrs = []
         for entry in scope.var_entries:
             if entry.type.is_pyobject and entry.name != "__weakref__":
-                py_attrs.append(entry)
+                py_attrs.append((entry.cname, entry))
+        py_attrs.sort()
         if py_attrs:
             self.generate_self_cast(scope, code)
             code.putln("PyObject* tmp;")
@@ -1151,8 +1155,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 code.putln("if (%s->tp_clear) {" % base_type.typeptr_cname)
                 code.putln("%s->tp_clear(o);" % base_type.typeptr_cname)
                 code.putln("}")
-        for entry in py_attrs:
-            name = "p->%s" % entry.cname
+        for cname, entry in py_attrs:
+            name = "p->%s" % cname
             code.putln("tmp = ((PyObject*)%s);" % name)
             code.put_init_to_py_none(name, entry.type, nanny=False)
             code.putln("Py_XDECREF(tmp);")
