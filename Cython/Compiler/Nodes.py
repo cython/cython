@@ -2317,8 +2317,8 @@ class DefNode(FuncDefNode):
             # the closure instance must be properly ref-counted to
             # facilitate generic closure instance deallocation.  In
             # the case of an argument type error, it's best to just
-            # Py_CLEAR() the already handled references, as this frees
-            # them as early as possible.
+            # DECREF+clear the already handled references, as this
+            # frees their references as early as possible.
             for arg in self.args:
                 if arg.type.is_pyobject and arg.entry.in_closure:
                     code.put_var_xdecref_clear(arg.entry)
