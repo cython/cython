@@ -1263,23 +1263,27 @@ class FuncDefNode(StatNode, BlockNode):
             env.use_utility_code(force_init_threads_utility_code)
             code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
         # ----- Automatic lead-ins for certain special functions
-        if not lenv.nogil:
-            code.put_setup_refcount_context(self.entry.name)
         if profile:
             code.put_trace_call(self.entry.name, self.pos)
         if is_getbuffer_slot:
             self.getbuffer_init(code)
-        # ----- Create closure scope object
+        # ----- Create closure scope object, init ref-nanny
         if self.needs_closure:
-            code.putln("%s = (%s)%s->tp_new(%s, %s, NULL);" % (
-                            Naming.cur_scope_cname,
-                            lenv.scope_class.type.declaration_code(''),
-                            lenv.scope_class.type.typeptr_cname, 
-                            lenv.scope_class.type.typeptr_cname,
-                            Naming.empty_tuple))
-            # TODO: error handling
+            code.putln("%s = (%s)%s->tp_new(%s, %s, NULL); if (unlikely(!%s)) return %s;" % (
+                Naming.cur_scope_cname,
+                lenv.scope_class.type.declaration_code(''),
+                lenv.scope_class.type.typeptr_cname, 
+                lenv.scope_class.type.typeptr_cname,
+                Naming.empty_tuple,
+                Naming.cur_scope_cname,
+                # FIXME: what if the error return value is a Python value?
+                self.error_value()))
+            if not lenv.nogil:
+                code.put_setup_refcount_context(self.entry.name)
             code.put_gotref(Naming.cur_scope_cname)
             # Note that it is unsafe to decref the scope at this point.
+        elif not lenv.nogil:
+            code.put_setup_refcount_context(self.entry.name)
         if env.is_closure_scope:
             code.putln("%s = (%s)%s;" % (
                             outer_scope_cname,
@@ -1294,8 +1298,9 @@ class FuncDefNode(StatNode, BlockNode):
         # If an argument is assigned to in the body, we must 
         # incref it to properly keep track of refcounts.
         for entry in lenv.arg_entries:
-            if entry.type.is_pyobject and entry.assignments:
-                code.put_var_incref(entry)
+            if entry.type.is_pyobject:
+                if entry.assignments and not entry.in_closure:
+                    code.put_var_incref(entry)
         # ----- Initialise local variables 
         for entry in lenv.var_entries:
             if entry.type.is_pyobject and entry.init_to_none and entry.used:
@@ -1403,8 +1408,6 @@ class FuncDefNode(StatNode, BlockNode):
         for entry in lenv.arg_entries:
             if entry.type.is_pyobject:
                 if entry.in_closure:
-                    if not entry.assignments:
-                        code.put_var_incref(entry)
                     code.put_var_giveref(entry)
                 elif entry.assignments:
                     code.put_var_decref(entry)
@@ -2302,6 +2305,19 @@ class DefNode(FuncDefNode):
                     else:
                         code.put_var_decref(self.starstar_arg.entry)
             code.putln('__Pyx_AddTraceback("%s");' % self.entry.qualified_name)
+            # The arguments are put into the closure one after the
+            # other, so when type errors are found, all references in
+            # the closure instance must be properly ref-counted to
+            # facilitate generic closure instance deallocation.  In
+            # the case of an argument type error, it's best to just
+            # Py_CLEAR() the already handled references, as this frees
+            # them as early as possible.
+            for arg in self.args:
+                if arg.type.is_pyobject and arg.entry.in_closure:
+                    code.put_var_xdecref_clear(arg.entry)
+            if self.needs_closure:
+                code.put_decref(Naming.cur_scope_cname, self.local_scope.scope_class.type)
+            code.put_finish_refcount_context()
             code.putln("return %s;" % self.error_value())
         if code.label_used(end_label):
             code.put_label(end_label)
@@ -2310,7 +2326,10 @@ class DefNode(FuncDefNode):
         if arg.type.is_pyobject:
             if arg.is_generic:
                 item = PyrexTypes.typecast(arg.type, PyrexTypes.py_object_type, item)
-            code.putln("%s = %s;" % (arg.entry.cname, item))
+            entry = arg.entry
+            code.putln("%s = %s;" % (entry.cname, item))
+            if entry.in_closure:
+                code.put_var_incref(entry)
         else:
             func = arg.type.from_py_function
             if func:
@@ -2372,7 +2391,7 @@ class DefNode(FuncDefNode):
                     self.star_arg.entry.cname))
             if self.starstar_arg:
                 code.putln("{")
-                code.put_decref(self.starstar_arg.entry.cname, py_object_type)
+                code.put_decref_clear(self.starstar_arg.entry.cname, py_object_type)
                 code.putln("return %s;" % self.error_value())
                 code.putln("}")
             else:
@@ -2716,6 +2735,8 @@ class DefNode(FuncDefNode):
                 self.generate_arg_conversion(arg, code)
             elif arg.entry.in_closure:
                 code.putln('%s = %s;' % (arg.entry.cname, arg.hdr_cname))
+                if arg.type.is_pyobject:
+                    code.put_var_incref(arg.entry)
 
     def generate_arg_conversion(self, arg, code):
         # Generate conversion code for one argument.
