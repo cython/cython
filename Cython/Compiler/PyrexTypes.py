@@ -721,8 +721,8 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject *);
 """,
 impl="""
 static CYTHON_INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject* x) {
-    const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
-    const int is_unsigned = neg_one > const_zero;
+    const %(type)s neg_one = (%(type)s)-1, const_zero = (%(type)s)0;
+    const int is_unsigned = const_zero < neg_one;
     if (sizeof(%(type)s) == sizeof(char)) {
         if (is_unsigned)
             return (%(type)s)__Pyx_PyInt_AsUnsignedChar(x);
@@ -748,17 +748,28 @@ static CYTHON_INLINE %(type)s __Pyx_PyInt_from_py_%(TypeName)s(PyObject* x) {
             return (%(type)s)__Pyx_PyInt_AsUnsignedLongLong(x);
         else
             return (%(type)s)__Pyx_PyInt_AsSignedLongLong(x);
-#if 0
-    } else if (sizeof(%(type)s) > sizeof(short) &&
-               sizeof(%(type)s) < sizeof(int)) { /*  __int32 ILP64 ? */
-        if (is_unsigned)
-            return (%(type)s)__Pyx_PyInt_AsUnsignedInt(x);
-        else
-            return (%(type)s)__Pyx_PyInt_AsSignedInt(x);
-#endif
+    }  else {
+        %(type)s val;
+        PyObject *v = __Pyx_PyNumber_Int(x);
+        #if PY_VERSION_HEX < 0x03000000
+        if (likely(v) && !PyLong_Check(v)) {
+            PyObject *tmp = v;
+            v = PyNumber_Long(tmp);
+            Py_DECREF(tmp);
+        }
+        #endif
+        if (likely(v)) {
+            int one = 1; int is_little = (int)*(unsigned char *)&one;
+            unsigned char *bytes = (unsigned char *)&val;
+            int ret = _PyLong_AsByteArray((PyLongObject *)v,
+                                          bytes, sizeof(val),
+                                          is_little, !is_unsigned);
+            Py_DECREF(v);
+            if (likely(!ret))
+                return val;
+        }
+        return (%(type)s)-1;
     }
-    PyErr_SetString(PyExc_TypeError, "%(TypeName)s");
-    return (%(type)s)-1;
 }
 """)
 
@@ -768,20 +779,27 @@ static CYTHON_INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s);
 """,
 impl="""
 static CYTHON_INLINE PyObject *__Pyx_PyInt_to_py_%(TypeName)s(%(type)s val) {
-    const %(type)s neg_one = (%(type)s)-1, const_zero = 0;
-    const int is_unsigned = neg_one > const_zero;
-    if (sizeof(%(type)s) <  sizeof(long)) {
+    const %(type)s neg_one = (%(type)s)-1, const_zero = (%(type)s)0;
+    const int is_unsigned = const_zero < neg_one;
+    if ((sizeof(%(type)s) == sizeof(char))  ||
+        (sizeof(%(type)s) == sizeof(short))) {
         return PyInt_FromLong((long)val);
-    } else if (sizeof(%(type)s) == sizeof(long)) {
+    } else if ((sizeof(%(type)s) == sizeof(int)) ||
+               (sizeof(%(type)s) == sizeof(long))) {
         if (is_unsigned)
             return PyLong_FromUnsignedLong((unsigned long)val);
         else
             return PyInt_FromLong((long)val);
-    } else { /* (sizeof(%(type)s) > sizeof(long)) */
+    } else if (sizeof(%(type)s) == sizeof(PY_LONG_LONG)) {
         if (is_unsigned)
             return PyLong_FromUnsignedLongLong((unsigned PY_LONG_LONG)val);
         else
             return PyLong_FromLongLong((PY_LONG_LONG)val);
+    } else {
+        int one = 1; int little = (int)*(unsigned char *)&one;
+        unsigned char *bytes = (unsigned char *)&val;
+        return _PyLong_FromByteArray(bytes, sizeof(%(type)s), 
+                                     little, !is_unsigned);
     }
 }
 """)
