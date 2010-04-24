@@ -1262,28 +1262,30 @@ class FuncDefNode(StatNode, BlockNode):
         if acquire_gil:
             env.use_utility_code(force_init_threads_utility_code)
             code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
+        # ----- set up refnanny
+        if not lenv.nogil:
+            code.put_setup_refcount_context(self.entry.name)
         # ----- Automatic lead-ins for certain special functions
-        if profile:
-            code.put_trace_call(self.entry.name, self.pos)
         if is_getbuffer_slot:
             self.getbuffer_init(code)
-        # ----- Create closure scope object, init ref-nanny
+        # ----- Create closure scope object
         if self.needs_closure:
-            code.putln("%s = (%s)%s->tp_new(%s, %s, NULL); if (unlikely(!%s)) return %s;" % (
+            code.putln("%s = (%s)%s->tp_new(%s, %s, NULL);" % (
                 Naming.cur_scope_cname,
                 lenv.scope_class.type.declaration_code(''),
                 lenv.scope_class.type.typeptr_cname, 
                 lenv.scope_class.type.typeptr_cname,
-                Naming.empty_tuple,
-                Naming.cur_scope_cname,
-                # FIXME: what if the error return value is a Python value?
-                self.error_value()))
+                Naming.empty_tuple))
+            code.putln("if (unlikely(!%s)) {" % Naming.cur_scope_cname)
+            if is_getbuffer_slot:
+                self.getbuffer_error_cleanup(code)
             if not lenv.nogil:
-                code.put_setup_refcount_context(self.entry.name)
+                code.put_finish_refcount_context()
+            # FIXME: what if the error return value is a Python value?
+            code.putln("return %s;" % self.error_value())
+            code.putln("}")
             code.put_gotref(Naming.cur_scope_cname)
             # Note that it is unsafe to decref the scope at this point.
-        elif not lenv.nogil:
-            code.put_setup_refcount_context(self.entry.name)
         if env.is_closure_scope:
             code.putln("%s = (%s)%s;" % (
                             outer_scope_cname,
@@ -1293,6 +1295,11 @@ class FuncDefNode(StatNode, BlockNode):
                 # inner closures own a reference to their outer parent
                 code.put_incref(outer_scope_cname, env.scope_class.type)
                 code.put_giveref(outer_scope_cname)
+        # ----- Trace function call
+        if profile:
+            # this looks a bit late, but if we don't get here due to a
+            # fatal error before hand, it's not really worth tracing
+            code.put_trace_call(self.entry.name, self.pos)
         # ----- Fetch arguments
         self.generate_argument_parsing_code(env, code)
         # If an argument is assigned to in the body, we must 
