@@ -3,7 +3,6 @@
 cdef Py_UNICODE char_ASCII = u'A'
 cdef Py_UNICODE char_KLINGON = u'\uF8D2'
 
-
 def compare_ASCII():
     """
     >>> compare_ASCII()
@@ -39,31 +38,68 @@ def index_literal(int i):
     >>> index_literal(4) == '5'
     True
     """
-    # runtime casts are not currently supported
-    #return <Py_UNICODE>(u"12345"[i])
     return u"12345"[i]
 
 
-def unicode_cardinal(Py_UNICODE i):
+def index_literal_pyunicode(int i):
     """
-    >>> import sys
+    >>> index_literal_pyunicode(0) == '1'
+    True
+    >>> index_literal_pyunicode(-5) == '1'
+    True
+    >>> index_literal_pyunicode(2) == '3'
+    True
+    >>> index_literal_pyunicode(4) == '5'
+    True
+    """
+    return <Py_UNICODE>(u"12345"[i])
 
-    >>> unicode_cardinal(0)
-    0
-    >>> unicode_cardinal(1)
-    1
-    >>> unicode_cardinal(sys.maxunicode) == sys.maxunicode
+
+from cpython.unicode cimport PyUnicode_FromOrdinal
+import sys
+
+u0 = u'\x00'
+u1 = u'\x01'
+umax = PyUnicode_FromOrdinal(sys.maxunicode)
+
+def unicode_ordinal(Py_UNICODE i):
+    """
+    >>> ord(unicode_ordinal(0)) == 0
+    True
+    >>> ord(unicode_ordinal(1)) == 1
+    True
+    >>> ord(unicode_ordinal(sys.maxunicode)) == sys.maxunicode
     True
 
-    
-    >>> unicode_cardinal(-1) #doctest: +ELLIPSIS
+    >>> ord(unicode_ordinal(u0)) == 0
+    True
+    >>> ord(unicode_ordinal(u1)) == 1
+    True
+    >>> ord(unicode_ordinal(umax)) == sys.maxunicode
+    True
+
+    Value too small:
+    >>> unicode_ordinal(-1) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     OverflowError: ...
 
-    >>> unicode_cardinal(sys.maxunicode+1) #doctest: +ELLIPSIS
+    Value too large:
+    >>> unicode_ordinal(sys.maxunicode+1) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     OverflowError: ...
+
+    Less than one character:
+    >>> unicode_ordinal(u0[:0])
+    Traceback (most recent call last):
+    ...
+    ValueError: only single character unicode strings can be converted to Py_UNICODE, got length 0
+
+    More than one character:
+    >>> unicode_ordinal(u0+u1)
+    Traceback (most recent call last):
+    ...
+    ValueError: only single character unicode strings can be converted to Py_UNICODE, got length 2
     """
     return i
