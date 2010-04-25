@@ -1,5 +1,7 @@
 # -*- coding: iso-8859-1 -*-
 
+cimport cython
+
 cdef Py_UNICODE char_ASCII = u'A'
 cdef Py_UNICODE char_KLINGON = u'\uF8D2'
 
@@ -15,9 +17,9 @@ def compare_ASCII():
     print(char_ASCII == u'\uF8D2')
 
 
-def compare_KLINGON():
+def compare_klingon():
     """
-    >>> compare_ASCII()
+    >>> compare_klingon()
     True
     False
     False
@@ -41,18 +43,64 @@ def index_literal(int i):
     return u"12345"[i]
 
 
-def index_literal_pyunicode(int i):
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//IndexNode",
+                                 "//CoerceFromPyTypeNode")
+def index_literal_pyunicode_cast(int i):
     """
-    >>> index_literal_pyunicode(0) == '1'
+    >>> index_literal_pyunicode_cast(0) == '1'
     True
-    >>> index_literal_pyunicode(-5) == '1'
+    >>> index_literal_pyunicode_cast(-5) == '1'
     True
-    >>> index_literal_pyunicode(2) == '3'
+    >>> index_literal_pyunicode_cast(2) == '3'
     True
-    >>> index_literal_pyunicode(4) == '5'
+    >>> index_literal_pyunicode_cast(4) == '5'
     True
+    >>> index_literal_pyunicode_coerce(6)
+    Traceback (most recent call last):
+    IndexError: string index out of range
     """
     return <Py_UNICODE>(u"12345"[i])
+
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//IndexNode",
+                                 "//CoerceFromPyTypeNode")
+def index_literal_pyunicode_coerce(int i):
+    """
+    >>> index_literal_pyunicode_coerce(0) == '1'
+    True
+    >>> index_literal_pyunicode_coerce(-5) == '1'
+    True
+    >>> index_literal_pyunicode_coerce(2) == '3'
+    True
+    >>> index_literal_pyunicode_coerce(4) == '5'
+    True
+    >>> index_literal_pyunicode_coerce(6)
+    Traceback (most recent call last):
+    IndexError: string index out of range
+    """
+    cdef Py_UNICODE result = u"12345"[i]
+    return result
+
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//IndexNode",
+                                 "//CoerceFromPyTypeNode")
+@cython.boundscheck(False)
+def index_literal_pyunicode_coerce_no_check(int i):
+    """
+    >>> index_literal_pyunicode_coerce_no_check(0) == '1'
+    True
+    >>> index_literal_pyunicode_coerce_no_check(-5) == '1'
+    True
+    >>> index_literal_pyunicode_coerce_no_check(2) == '3'
+    True
+    >>> index_literal_pyunicode_coerce_no_check(4) == '5'
+    True
+    """
+    cdef Py_UNICODE result = u"12345"[i]
+    return result
 
 
 from cpython.unicode cimport PyUnicode_FromOrdinal
