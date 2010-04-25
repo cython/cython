@@ -2010,6 +2010,7 @@ class IndexNode(ExprNode):
                         "Attempting to index non-array type '%s'" %
                             self.base.type)
                     self.type = PyrexTypes.error_type
+
     gil_message = "Indexing Python object"
 
     def nogil_check(self, env):
