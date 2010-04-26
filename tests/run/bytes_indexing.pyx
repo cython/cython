@@ -5,13 +5,16 @@ cdef bytes b12345 = b'12345'
 
 def index_literal(int i):
     """
-    >>> index_literal(0) == '1'.encode('ASCII')
+    Python 3 returns integer values on indexing, Py2 returns byte
+    string literals...
+
+    >>> index_literal(0) in (ord('1'), '1')
     True
-    >>> index_literal(-5) == '1'.encode('ASCII')
+    >>> index_literal(-5) in (ord('1'), '1')
     True
-    >>> index_literal(2) == '3'.encode('ASCII')
+    >>> index_literal(2) in (ord('3'), '3')
     True
-    >>> index_literal(4) == '5'.encode('ASCII')
+    >>> index_literal(4) in (ord('5'), '5')
     True
     """
     return b"12345"[i]
