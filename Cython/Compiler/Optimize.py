@@ -1226,7 +1226,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                     coerce_node.pos, "__Pyx_PyUnicode_GetItemInt",
                     self.PyUnicode_GetItemInt_func_type,
                     args = [
-                        arg.base.as_none_safe_node(env),
+                        arg.base.as_none_safe_node("'NoneType' object is not subscriptable"),
                         index_node.coerce_to(PyrexTypes.c_py_ssize_t_type, env),
                         bound_check_node,
                         ],
@@ -1242,7 +1242,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                     coerce_node.pos, "__Pyx_PyBytes_GetItemInt",
                     self.PyBytes_GetItemInt_func_type,
                     args = [
-                        arg.base.as_none_safe_node(env),
+                        arg.base.as_none_safe_node("'NoneType' object is not subscriptable"),
                         index_node.coerce_to(PyrexTypes.c_py_ssize_t_type, env),
                         bound_check_node,
                         ],
