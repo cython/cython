@@ -2204,14 +2204,17 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
     def _inject_int_default_argument(self, node, args, arg_index, type, default_value):
         assert len(args) >= arg_index
         if len(args) == arg_index:
-            args.append(ExprNodes.IntNode(node.pos, value=str(default_value), type=type))
+            args.append(ExprNodes.IntNode(node.pos, value=str(default_value),
+                                          type=type, constant_result=default_value))
         else:
             args[arg_index] = args[arg_index].coerce_to(type, self.current_env())
 
     def _inject_bint_default_argument(self, node, args, arg_index, default_value):
         assert len(args) >= arg_index
         if len(args) == arg_index:
-            args.append(ExprNodes.BoolNode(node.pos, value=bool(default_value)))
+            default_value = bool(default_value)
+            args.append(ExprNodes.BoolNode(node.pos, value=default_value,
+                                           constant_result=default_value))
         else:
             args[arg_index] = args[arg_index].coerce_to_boolean(self.current_env())
 
