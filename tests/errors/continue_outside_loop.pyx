@@ -16,11 +16,13 @@ except: pass
 try: continue
 finally: pass
 
-if True:
+if bool_result():
     continue
 else:
     continue
 
+def bool_result():
+    return True
 
 _ERRORS = u'''
 2:0: continue statement not inside loop
