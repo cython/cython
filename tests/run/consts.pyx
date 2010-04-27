@@ -124,6 +124,8 @@ def if_compare_cascaded():
     else:
         return False
 
+@cython.test_fail_if_path_exists("//CoerceToBooleanNode",
+                                 "//ListNode")
 def list_bool_result():
     """
     >>> list_bool_result()
