@@ -1,6 +1,10 @@
 import sys
 IS_PY3 = sys.version_info[0] >= 3
 
+cimport cython
+
+DEF INT_VAL = 1
+
 def _func(a,b,c):
     return a+b+c
 
@@ -76,3 +80,74 @@ def lists():
     True
     """
     return [1,2,3] + [4,5,6]
+
+def int_bool_result():
+    """
+    >>> int_bool_result()
+    True
+    """
+    if 5:
+        return True
+    else:
+        return False
+
+@cython.test_fail_if_path_exists("//PrimaryCmpNode")
+def if_compare_true():
+    """
+    >>> if_compare_true()
+    True
+    """
+    if 0 == 0:
+        return True
+    else:
+        return False
+
+@cython.test_fail_if_path_exists("//PrimaryCmpNode")
+def if_compare_false():
+    """
+    >>> if_compare_false()
+    False
+    """
+    if 0 == 1 or 1 == 0:
+        return True
+    else:
+        return False
+
+@cython.test_fail_if_path_exists("//PrimaryCmpNode")
+def if_compare_cascaded():
+    """
+    >>> if_compare_cascaded()
+    True
+    """
+    if 0 < 1 < 2 < 3:
+        return True
+    else:
+        return False
+
+def list_bool_result():
+    """
+    >>> list_bool_result()
+    True
+    """
+    if [1,2,3]:
+        return True
+    else:
+        return False
+
+def compile_time_DEF():
+    """
+    >>> compile_time_DEF()
+    (1, False, True, True, False)
+    """
+    return INT_VAL, INT_VAL == 0, INT_VAL != 0, INT_VAL == 1, INT_VAL != 1
+
+@cython.test_fail_if_path_exists("//PrimaryCmpNode")
+def compile_time_DEF_if():
+    """
+    >>> compile_time_DEF_if()
+    True
+    """
+    if INT_VAL != 0:
+        return True
+    else:
+        return False
