@@ -327,8 +327,9 @@ class ExprNode(Node):
         #  time we get the result.
         self.analyse_types(env)
         bool = self.coerce_to_boolean(env)
-        temp_bool = bool.coerce_to_temp(env)
-        return temp_bool
+        if not bool.is_simple():
+            bool = bool.coerce_to_temp(env)
+        return bool
     
     # --------------- Type Inference -----------------
     
@@ -6383,6 +6384,7 @@ class CoerceToTempNode(CoercionNode):
     def __init__(self, arg, env):
         CoercionNode.__init__(self, arg)
         self.type = self.arg.type
+        self.constant_result = self.arg.constant_result
         self.is_temp = 1
         if self.type.is_pyobject:
             self.result_ctype = py_object_type
@@ -6395,6 +6397,8 @@ class CoerceToTempNode(CoercionNode):
         
     def coerce_to_boolean(self, env):
         self.arg = self.arg.coerce_to_boolean(env)
+        if self.arg.is_simple():
+            return self.arg
         self.type = self.arg.type
         self.result_ctype = self.type
         return self
