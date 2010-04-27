@@ -554,7 +554,10 @@ class ExprNode(Node):
 
         if dst_type.is_pyobject:
             if not src.type.is_pyobject:
-                src = CoerceToPyTypeNode(src, env)
+                if dst_type is bytes_type and src.type.is_int:
+                    src = CoerceIntToBytesNode(src, env)
+                else:
+                    src = CoerceToPyTypeNode(src, env)
             if not src.type.subtype_of(dst_type):
                 if not isinstance(src, NoneNode):
                     src = PyTypeTestNode(src, dst_type, env)
@@ -4555,7 +4558,12 @@ class TypecastNode(ExprNode):
         if from_py and not to_py and self.operand.is_ephemeral() and not self.type.is_numeric:
             error(self.pos, "Casting temporary Python object to non-numeric non-Python type")
         if to_py and not from_py:
-            if self.operand.type.can_coerce_to_pyobject(env):
+            if self.type is bytes_type and self.operand.type.is_int:
+                # FIXME: the type cast node isn't needed in this case
+                # and can be dropped once analyse_types() can return a
+                # different node
+                self.operand = CoerceIntToBytesNode(self.operand, env)
+            elif self.operand.type.can_coerce_to_pyobject(env):
                 self.result_ctype = py_object_type
                 self.operand = self.operand.coerce_to_pyobject(env)
             else:
@@ -5614,10 +5622,8 @@ class CmpNode(object):
 
     def is_c_string_contains(self):
         return self.operator in ('in', 'not_in') and \
-               ((self.operand1.type in (PyrexTypes.c_char_type, PyrexTypes.c_uchar_type)
-                 and self.operand2.type in (PyrexTypes.c_char_ptr_type,
-                                            PyrexTypes.c_uchar_ptr_type,
-                                            bytes_type)) or
+               ((self.operand1.type.is_int
+                 and (self.operand2.type.is_string or self.operand2.type is bytes_type)) or
                 (self.operand1.type is PyrexTypes.c_py_unicode_type
                  and self.operand2.type is unicode_type))
 
@@ -6181,7 +6187,7 @@ class CoerceToPyTypeNode(CoercionNode):
         CoercionNode.__init__(self, arg)
         if not arg.type.create_to_py_utility_code(env):
             error(arg.pos,
-                "Cannot convert '%s' to Python object" % arg.type)
+                  "Cannot convert '%s' to Python object" % arg.type)
         if type is not py_object_type:
             self.type = py_object_type
         elif arg.type.is_string:
@@ -6214,6 +6220,46 @@ class CoerceToPyTypeNode(CoercionNode):
             function, 
             self.arg.result(), 
             code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
+
+
+class CoerceIntToBytesNode(CoerceToPyTypeNode):
+    #  This node is used to convert a C int type to a Python bytes
+    #  object.
+
+    is_temp = 1
+
+    def __init__(self, arg, env):
+        arg = arg.coerce_to_simple(env)
+        CoercionNode.__init__(self, arg)
+        self.type = Builtin.bytes_type
+
+    def generate_result_code(self, code):
+        arg = self.arg
+        arg_result = arg.result()
+        if arg.type not in (PyrexTypes.c_char_type,
+                            PyrexTypes.c_uchar_type,
+                            PyrexTypes.c_schar_type):
+            if arg.type.signed:
+                code.putln("if ((%s < 0) || (%s > 255)) {" % (
+                    arg_result, arg_result))
+            else:
+                code.putln("if (%s > 255) {" % arg_result)
+            code.putln('PyErr_Format(PyExc_OverflowError, '
+                       '"value too large to pack into a byte"); %s' % (
+                           code.error_goto(self.pos)))
+            code.putln('}')
+        temp = None
+        if arg.type is not PyrexTypes.c_char_type:
+            temp = code.funcstate.allocate_temp(PyrexTypes.c_char_type, manage_ref=False)
+            code.putln("%s = (char)%s;" % (temp, arg_result))
+            arg_result = temp
+        code.putln('%s = PyBytes_FromStringAndSize(&%s, 1); %s' % (
+            self.result(),
+            arg_result,
+            code.error_goto_if_null(self.result(), self.pos)))
+        if temp is not None:
+            code.funcstate.release_temp(temp)
         code.put_gotref(self.py_result())
 
 
