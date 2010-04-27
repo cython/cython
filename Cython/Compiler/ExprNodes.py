@@ -5475,11 +5475,13 @@ class CmpNode(object):
         func = compile_time_binary_operators[self.operator]
         operand2_result = self.operand2.constant_result
         result = func(operand1_result, operand2_result)
-        if result and self.cascade:
-            result = result and \
-                self.cascade.cascaded_compile_time_value(operand2_result)
-        self.constant_result = result
-    
+        if self.cascade:
+            self.cascade.calculate_cascaded_constant_result(operand2_result)
+            if self.cascade.constant_result:
+                self.constant_result = result and self.cascade.constant_result
+        else:
+            self.constant_result = result
+
     def cascaded_compile_time_value(self, operand1, denv):
         func = get_compile_time_binop(self)
         operand2 = self.operand2.compile_time_value(denv)
@@ -5492,7 +5494,7 @@ class CmpNode(object):
             cascade = self.cascade
             if cascade:
                 # FIXME: I bet this must call cascaded_compile_time_value()
-                result = result and cascade.compile_time_value(operand2, denv)
+                result = result and cascade.cascaded_compile_time_value(operand2, denv)
         return result
 
     def is_cpp_comparison(self):
@@ -5787,8 +5789,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         return ()
 
     def calculate_constant_result(self):
-        self.constant_result = self.calculate_cascaded_constant_result(
-            self.operand1.constant_result)
+        self.calculate_cascaded_constant_result(self.operand1.constant_result)
     
     def compile_time_value(self, denv):
         operand1 = self.operand1.compile_time_value(denv)
@@ -5965,6 +5966,10 @@ class CascadedCmpNode(Node, CmpNode):
 
     def type_dependencies(self, env):
         return ()
+
+    def has_constant_result(self):
+        return self.constant_result is not constant_value_not_set and \
+               self.constant_result is not not_a_constant
 
     def analyse_types(self, env):
         self.operand2.analyse_types(env)
