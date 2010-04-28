@@ -1,8 +1,9 @@
 # -*- coding: iso-8859-1 -*-
 
+cimport cython
+
 cdef Py_UNICODE char_ASCII = u'A'
 cdef Py_UNICODE char_KLINGON = u'\uF8D2'
-
 
 def compare_ASCII():
     """
@@ -16,9 +17,9 @@ def compare_ASCII():
     print(char_ASCII == u'\uF8D2')
 
 
-def compare_KLINGON():
+def compare_klingon():
     """
-    >>> compare_ASCII()
+    >>> compare_klingon()
     True
     False
     False
@@ -39,31 +40,114 @@ def index_literal(int i):
     >>> index_literal(4) == '5'
     True
     """
-    # runtime casts are not currently supported
-    #return <Py_UNICODE>(u"12345"[i])
     return u"12345"[i]
 
 
-def unicode_cardinal(Py_UNICODE i):
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//IndexNode",
+                                 "//CoerceFromPyTypeNode")
+def index_literal_pyunicode_cast(int i):
     """
-    >>> import sys
+    >>> index_literal_pyunicode_cast(0) == '1'
+    True
+    >>> index_literal_pyunicode_cast(-5) == '1'
+    True
+    >>> index_literal_pyunicode_cast(2) == '3'
+    True
+    >>> index_literal_pyunicode_cast(4) == '5'
+    True
+    >>> index_literal_pyunicode_coerce(6)
+    Traceback (most recent call last):
+    IndexError: string index out of range
+    """
+    return <Py_UNICODE>(u"12345"[i])
 
-    >>> unicode_cardinal(0)
-    0
-    >>> unicode_cardinal(1)
-    1
-    >>> unicode_cardinal(sys.maxunicode) == sys.maxunicode
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//IndexNode",
+                                 "//CoerceFromPyTypeNode")
+def index_literal_pyunicode_coerce(int i):
+    """
+    >>> index_literal_pyunicode_coerce(0) == '1'
+    True
+    >>> index_literal_pyunicode_coerce(-5) == '1'
+    True
+    >>> index_literal_pyunicode_coerce(2) == '3'
+    True
+    >>> index_literal_pyunicode_coerce(4) == '5'
+    True
+    >>> index_literal_pyunicode_coerce(6)
+    Traceback (most recent call last):
+    IndexError: string index out of range
+    """
+    cdef Py_UNICODE result = u"12345"[i]
+    return result
+
+
+@cython.test_assert_path_exists("//PythonCapiCallNode")
+@cython.test_fail_if_path_exists("//IndexNode",
+                                 "//CoerceFromPyTypeNode")
+@cython.boundscheck(False)
+def index_literal_pyunicode_coerce_no_check(int i):
+    """
+    >>> index_literal_pyunicode_coerce_no_check(0) == '1'
+    True
+    >>> index_literal_pyunicode_coerce_no_check(-5) == '1'
+    True
+    >>> index_literal_pyunicode_coerce_no_check(2) == '3'
+    True
+    >>> index_literal_pyunicode_coerce_no_check(4) == '5'
+    True
+    """
+    cdef Py_UNICODE result = u"12345"[i]
+    return result
+
+
+from cpython.unicode cimport PyUnicode_FromOrdinal
+import sys
+
+u0 = u'\x00'
+u1 = u'\x01'
+umax = PyUnicode_FromOrdinal(sys.maxunicode)
+
+def unicode_ordinal(Py_UNICODE i):
+    """
+    >>> ord(unicode_ordinal(0)) == 0
+    True
+    >>> ord(unicode_ordinal(1)) == 1
+    True
+    >>> ord(unicode_ordinal(sys.maxunicode)) == sys.maxunicode
     True
 
-    
-    >>> unicode_cardinal(-1) #doctest: +ELLIPSIS
+    >>> ord(unicode_ordinal(u0)) == 0
+    True
+    >>> ord(unicode_ordinal(u1)) == 1
+    True
+    >>> ord(unicode_ordinal(umax)) == sys.maxunicode
+    True
+
+    Value too small:
+    >>> unicode_ordinal(-1) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     OverflowError: ...
 
-    >>> unicode_cardinal(sys.maxunicode+1) #doctest: +ELLIPSIS
+    Value too large:
+    >>> unicode_ordinal(sys.maxunicode+1) #doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
     OverflowError: ...
+
+    Less than one character:
+    >>> unicode_ordinal(u0[:0])
+    Traceback (most recent call last):
+    ...
+    ValueError: only single character unicode strings can be converted to Py_UNICODE, got length 0
+
+    More than one character:
+    >>> unicode_ordinal(u0+u1)
+    Traceback (most recent call last):
+    ...
+    ValueError: only single character unicode strings can be converted to Py_UNICODE, got length 2
     """
     return i

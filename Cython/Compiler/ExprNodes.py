@@ -329,8 +329,9 @@ class ExprNode(Node):
         #  time we get the result.
         self.analyse_types(env)
         bool = self.coerce_to_boolean(env)
-        temp_bool = bool.coerce_to_temp(env)
-        return temp_bool
+        if not bool.is_simple():
+            bool = bool.coerce_to_temp(env)
+        return bool
     
     # --------------- Type Inference -----------------
     
@@ -559,7 +560,10 @@ class ExprNode(Node):
 
         if dst_type.is_pyobject:
             if not src.type.is_pyobject:
-                src = CoerceToPyTypeNode(src, env)
+                if dst_type is bytes_type and src.type.is_int:
+                    src = CoerceIntToBytesNode(src, env)
+                else:
+                    src = CoerceToPyTypeNode(src, env)
             if not src.type.subtype_of(dst_type):
                 if not isinstance(src, NoneNode):
                     src = PyTypeTestNode(src, dst_type, env)
@@ -2023,6 +2027,7 @@ class IndexNode(ExprNode):
                         "Attempting to index non-array type '%s'" %
                             self.base.type)
                     self.type = PyrexTypes.error_type
+
     gil_message = "Indexing Python object"
 
     def nogil_check(self, env):
@@ -4668,7 +4673,12 @@ class TypecastNode(ExprNode):
         if from_py and not to_py and self.operand.is_ephemeral() and not self.type.is_numeric:
             error(self.pos, "Casting temporary Python object to non-numeric non-Python type")
         if to_py and not from_py:
-            if self.operand.type.can_coerce_to_pyobject(env):
+            if self.type is bytes_type and self.operand.type.is_int:
+                # FIXME: the type cast node isn't needed in this case
+                # and can be dropped once analyse_types() can return a
+                # different node
+                self.operand = CoerceIntToBytesNode(self.operand, env)
+            elif self.operand.type.can_coerce_to_pyobject(env):
                 self.result_ctype = py_object_type
                 self.operand = self.operand.coerce_to_pyobject(env)
             else:
@@ -5580,11 +5590,13 @@ class CmpNode(object):
         func = compile_time_binary_operators[self.operator]
         operand2_result = self.operand2.constant_result
         result = func(operand1_result, operand2_result)
-        if result and self.cascade:
-            result = result and \
-                self.cascade.cascaded_compile_time_value(operand2_result)
-        self.constant_result = result
-    
+        if self.cascade:
+            self.cascade.calculate_cascaded_constant_result(operand2_result)
+            if self.cascade.constant_result:
+                self.constant_result = result and self.cascade.constant_result
+        else:
+            self.constant_result = result
+
     def cascaded_compile_time_value(self, operand1, denv):
         func = get_compile_time_binop(self)
         operand2 = self.operand2.compile_time_value(denv)
@@ -5597,7 +5609,7 @@ class CmpNode(object):
             cascade = self.cascade
             if cascade:
                 # FIXME: I bet this must call cascaded_compile_time_value()
-                result = result and cascade.compile_time_value(operand2, denv)
+                result = result and cascade.cascaded_compile_time_value(operand2, denv)
         return result
 
     def is_cpp_comparison(self):
@@ -5727,10 +5739,8 @@ class CmpNode(object):
 
     def is_c_string_contains(self):
         return self.operator in ('in', 'not_in') and \
-               ((self.operand1.type in (PyrexTypes.c_char_type, PyrexTypes.c_uchar_type)
-                 and self.operand2.type in (PyrexTypes.c_char_ptr_type,
-                                            PyrexTypes.c_uchar_ptr_type,
-                                            bytes_type)) or
+               ((self.operand1.type.is_int
+                 and (self.operand2.type.is_string or self.operand2.type is bytes_type)) or
                 (self.operand1.type is PyrexTypes.c_py_unicode_type
                  and self.operand2.type is unicode_type))
 
@@ -5894,8 +5904,7 @@ class PrimaryCmpNode(ExprNode, CmpNode):
         return ()
 
     def calculate_constant_result(self):
-        self.constant_result = self.calculate_cascaded_constant_result(
-            self.operand1.constant_result)
+        self.calculate_cascaded_constant_result(self.operand1.constant_result)
     
     def compile_time_value(self, denv):
         operand1 = self.operand1.compile_time_value(denv)
@@ -6072,6 +6081,10 @@ class CascadedCmpNode(Node, CmpNode):
 
     def type_dependencies(self, env):
         return ()
+
+    def has_constant_result(self):
+        return self.constant_result is not constant_value_not_set and \
+               self.constant_result is not not_a_constant
 
     def analyse_types(self, env):
         self.operand2.analyse_types(env)
@@ -6294,7 +6307,7 @@ class CoerceToPyTypeNode(CoercionNode):
         CoercionNode.__init__(self, arg)
         if not arg.type.create_to_py_utility_code(env):
             error(arg.pos,
-                "Cannot convert '%s' to Python object" % arg.type)
+                  "Cannot convert '%s' to Python object" % arg.type)
         if type is not py_object_type:
             self.type = py_object_type
         elif arg.type.is_string:
@@ -6327,6 +6340,46 @@ class CoerceToPyTypeNode(CoercionNode):
             function, 
             self.arg.result(), 
             code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
+
+
+class CoerceIntToBytesNode(CoerceToPyTypeNode):
+    #  This node is used to convert a C int type to a Python bytes
+    #  object.
+
+    is_temp = 1
+
+    def __init__(self, arg, env):
+        arg = arg.coerce_to_simple(env)
+        CoercionNode.__init__(self, arg)
+        self.type = Builtin.bytes_type
+
+    def generate_result_code(self, code):
+        arg = self.arg
+        arg_result = arg.result()
+        if arg.type not in (PyrexTypes.c_char_type,
+                            PyrexTypes.c_uchar_type,
+                            PyrexTypes.c_schar_type):
+            if arg.type.signed:
+                code.putln("if ((%s < 0) || (%s > 255)) {" % (
+                    arg_result, arg_result))
+            else:
+                code.putln("if (%s > 255) {" % arg_result)
+            code.putln('PyErr_Format(PyExc_OverflowError, '
+                       '"value too large to pack into a byte"); %s' % (
+                           code.error_goto(self.pos)))
+            code.putln('}')
+        temp = None
+        if arg.type is not PyrexTypes.c_char_type:
+            temp = code.funcstate.allocate_temp(PyrexTypes.c_char_type, manage_ref=False)
+            code.putln("%s = (char)%s;" % (temp, arg_result))
+            arg_result = temp
+        code.putln('%s = PyBytes_FromStringAndSize(&%s, 1); %s' % (
+            self.result(),
+            arg_result,
+            code.error_goto_if_null(self.result(), self.pos)))
+        if temp is not None:
+            code.funcstate.release_temp(temp)
         code.put_gotref(self.py_result())
 
 
@@ -6445,6 +6498,7 @@ class CoerceToTempNode(CoercionNode):
     def __init__(self, arg, env):
         CoercionNode.__init__(self, arg)
         self.type = self.arg.type
+        self.constant_result = self.arg.constant_result
         self.is_temp = 1
         if self.type.is_pyobject:
             self.result_ctype = py_object_type
@@ -6457,6 +6511,8 @@ class CoerceToTempNode(CoercionNode):
         
     def coerce_to_boolean(self, env):
         self.arg = self.arg.coerce_to_boolean(env)
+        if self.arg.is_simple():
+            return self.arg
         self.type = self.arg.type
         self.result_ctype = self.type
         return self

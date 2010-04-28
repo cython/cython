@@ -4038,24 +4038,42 @@ class IfStatNode(StatNode):
             if_clause.analyse_expressions(env)
         if self.else_clause:
             self.else_clause.analyse_expressions(env)
-    
+
+        # eliminate dead code based on constant condition results
+        if_clauses = []
+        condition_result = None
+        for if_clause in self.if_clauses:
+            condition_result = if_clause.get_constant_condition_result()
+            if condition_result != False:
+                if_clauses.append(if_clause)
+                if condition_result == True:
+                    # other conditions can no longer apply
+                    self.else_clause = None
+                    break
+        self.if_clauses = if_clauses
+        # FIXME: if only one active code body is left here, we can
+        # replace the whole node
+
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
-        end_label = code.new_label()
-        for if_clause in self.if_clauses:
-            if_clause.generate_execution_code(code, end_label)
-        if self.else_clause:
-            code.putln("/*else*/ {")
+        if self.if_clauses:
+            end_label = code.new_label()
+            for if_clause in self.if_clauses:
+                if_clause.generate_execution_code(code, end_label)
+            if self.else_clause:
+                code.putln("/*else*/ {")
+                self.else_clause.generate_execution_code(code)
+                code.putln("}")
+            code.put_label(end_label)
+        elif self.else_clause:
             self.else_clause.generate_execution_code(code)
-            code.putln("}")
-        code.put_label(end_label)
 
     def generate_function_definitions(self, env, code):
         for clause in self.if_clauses:
             clause.generate_function_definitions(env, code)
         if self.else_clause is not None:
             self.else_clause.generate_function_definitions(env, code)
-        
+
     def annotate(self, code):
         for if_clause in self.if_clauses:
             if_clause.annotate(code)
@@ -4082,7 +4100,13 @@ class IfClauseNode(Node):
         self.condition = \
             self.condition.analyse_temp_boolean_expression(env)
         self.body.analyse_expressions(env)
-    
+
+    def get_constant_condition_result(self):
+        if self.condition.has_constant_result():
+            return self.condition.constant_result
+        else:
+            return None
+
     def generate_execution_code(self, code, end_label):
         self.condition.generate_evaluation_code(code)
         code.putln(
@@ -5258,8 +5282,7 @@ if Options.gcc_branch_hints:
     """
 #ifdef __GNUC__
 /* Test for GCC > 2.95 */
-#if __GNUC__ > 2 || \
-              (__GNUC__ == 2 && (__GNUC_MINOR__ > 95)) 
+#if __GNUC__ > 2 || (__GNUC__ == 2 && (__GNUC_MINOR__ > 95)) 
 #define likely(x)   __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 #else /* __GNUC__ > 2 ... */
