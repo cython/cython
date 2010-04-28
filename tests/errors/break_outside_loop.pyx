@@ -16,10 +16,13 @@ except: pass
 try: break
 finally: pass
 
-if True:
+if bool_result():
     break
 else:
     break
+
+def bool_result():
+    return True
 
 
 _ERRORS = u'''
