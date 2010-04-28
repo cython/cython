@@ -126,16 +126,17 @@ class SlotDescriptor(object):
     #  slot_name    string           Member name of the slot in the type object
     #  is_initialised_dynamically    Is initialised by code in the module init function
     #  flag                          Py_TPFLAGS_XXX value indicating presence of slot
-    #  py3k                          Indicates presence of slot in Python 3
+    #  py3                           Indicates presence of slot in Python 3
     #  py2                           Indicates presence of slot in Python 2
-    #  ifdef                         Full #ifdef string that slot is wrapped in. Using this causes py3k, py2 and flags to be ignored.)
+    #  ifdef                         Full #ifdef string that slot is wrapped in. Using this causes py3, py2 and flags to be ignored.)
 
-    def __init__(self, slot_name, dynamic = 0, flag = None, py3k = True, py2 = True, ifdef = None):
+    def __init__(self, slot_name, dynamic=0,
+                 flag=None, py3=True, py2=True, ifdef=None):
         self.slot_name = slot_name
         self.is_initialised_dynamically = dynamic
         self.flag = flag
-        self.py3k = py3k
-        self.py2  = py2
+        self.py3 = py3
+        self.py2 = py2
         self.ifdef = ifdef
 
     def generate(self, scope, code):
@@ -144,26 +145,26 @@ class SlotDescriptor(object):
         else:
             value = self.slot_code(scope)
         flag = self.flag
-        py3k = self.py3k
-        py2  = self.py2
+        py3 = self.py3
+        py2 = self.py2
         if self.ifdef:
             code.putln("#if %s" % self.ifdef)
         else:
-            if not py3k:
+            if not py3:
                 code.putln("#if PY_MAJOR_VERSION < 3")
             elif not py2:
                 code.putln("#if PY_MAJOR_VERSION >= 3")
             if flag:
                 code.putln("#if (PY_MAJOR_VERSION >= 3) || (Py_TPFLAGS_DEFAULT & %s)" % flag)
-        if py3k == '<RESERVED>':
+        if py3 == '<RESERVED>':
             code.putln("#if PY_MAJOR_VERSION >= 3")
             code.putln("0, /*reserved*/")
             code.putln("#else")
 
         code.putln("%s, /*%s*/" % (value, self.slot_name))
-        if py3k == '<RESERVED>':
+        if py3 == '<RESERVED>':
             code.putln("#endif")
-        if flag or (not py3k or not py2) or self.ifdef:
+        if flag or (not py3 or not py2) or self.ifdef:
             code.putln("#endif")
 
     # Some C implementations have trouble statically 
@@ -188,8 +189,8 @@ class FixedSlot(SlotDescriptor):
     #
     #  value        string
     
-    def __init__(self, slot_name, value, py3k=True, py2=True, ifdef=None):
-        SlotDescriptor.__init__(self, slot_name, py3k=py3k, py2=py2, ifdef=ifdef)
+    def __init__(self, slot_name, value, flag=None, py3=True, py2=True, ifdef=None):
+        SlotDescriptor.__init__(self, slot_name, flag=flag, py3=py3, py2=py2, ifdef=ifdef)
         self.value = value
     
     def slot_code(self, scope):
@@ -199,8 +200,8 @@ class FixedSlot(SlotDescriptor):
 class EmptySlot(FixedSlot):
     #  Descriptor for a type slot whose value is always 0.
     
-    def __init__(self, slot_name, py3k=True, py2=True, ifdef=None):
-        FixedSlot.__init__(self, slot_name, "0", py3k=py3k, py2=py2, ifdef=ifdef)
+    def __init__(self, slot_name, flag=None, py3=True, py2=True, ifdef=None):
+        FixedSlot.__init__(self, slot_name, "0", flag=flag, py3=py3, py2=py2, ifdef=ifdef)
 
 
 class MethodSlot(SlotDescriptor):
@@ -208,22 +209,31 @@ class MethodSlot(SlotDescriptor):
     #
     #  signature    Signature
     #  method_name  string           The __xxx__ name of the method
-    #  default      string or None   Default value of the slot
+    #  alternatives [string]         Alternative list of __xxx__ names for the method
     
-    def __init__(self, signature, slot_name, method_name, default = None, flag = None, py3k=True, py2=True, ifdef=None):
-        SlotDescriptor.__init__(self, slot_name, flag = flag, py3k = py3k, py2=py2, ifdef=ifdef)
+    def __init__(self, signature, slot_name, method_name, fallback=None, 
+                 flag=None, py3=True, py2=True, ifdef=None):
+        SlotDescriptor.__init__(self, slot_name, flag=flag, py3=py3, py2=py2, ifdef=ifdef)
         self.signature = signature
         self.slot_name = slot_name
         self.method_name = method_name
-        self.default = default
+        self.alternatives = []
         method_name_to_slot[method_name] = self
+        #
+        if fallback:
+            self.alternatives.append(fallback)
+        for alt in (self.py2, self.py3):
+            if isinstance(alt, (tuple, list)):
+                slot_name, method_name = alt
+                self.alternatives.append(method_name)
+                method_name_to_slot[method_name] = self
 
     def slot_code(self, scope):
         entry = scope.lookup_here(self.method_name)
         if entry and entry.func_cname:
             return entry.func_cname
-        if self.default is not None:
-            entry = scope.lookup_here(self.default)
+        for method_name in self.alternatives:
+            entry = scope.lookup_here(method_name)
             if entry and entry.func_cname:
                 return entry.func_cname
         return "0"
@@ -235,8 +245,8 @@ class InternalMethodSlot(SlotDescriptor):
     #
     #  slot_name    string           Member name of the slot in the type object
 
-    def __init__(self, slot_name, py2 = True):
-        SlotDescriptor.__init__(self, slot_name, py2 = py2)
+    def __init__(self, slot_name, **kargs):
+        SlotDescriptor.__init__(self, slot_name, **kargs)
 
     def slot_code(self, scope):
         return scope.mangle_internal(self.slot_name)
@@ -246,8 +256,8 @@ class GCDependentSlot(InternalMethodSlot):
     #  Descriptor for a slot whose value depends on whether
     #  the type participates in GC.
     
-    def __init__(self, slot_name):
-        InternalMethodSlot.__init__(self, slot_name)
+    def __init__(self, slot_name, **kargs):
+        InternalMethodSlot.__init__(self, slot_name, **kargs)
     
     def slot_code(self, scope):
         if not scope.needs_gc():
@@ -267,8 +277,8 @@ class GCDependentSlot(InternalMethodSlot):
 class ConstructorSlot(InternalMethodSlot):
     #  Descriptor for tp_new and tp_dealloc.
     
-    def __init__(self, slot_name, method):
-        InternalMethodSlot.__init__(self, slot_name)
+    def __init__(self, slot_name, method, **kargs):
+        InternalMethodSlot.__init__(self, slot_name, **kargs)
         self.method = method
     
     def slot_code(self, scope):
@@ -294,8 +304,8 @@ class SyntheticSlot(InternalMethodSlot):
     #  alternative default value will be placed in the type
     #  slot.
     
-    def __init__(self, slot_name, user_methods, default_value, py2 = True):
-        InternalMethodSlot.__init__(self, slot_name, py2 = py2)
+    def __init__(self, slot_name, user_methods, default_value, **kargs):
+        InternalMethodSlot.__init__(self, slot_name, **kargs)
         self.user_methods = user_methods
         self.default_value = default_value
     
@@ -550,32 +560,32 @@ PyNumberMethods = (
     MethodSlot(binaryfunc, "nb_add", "__add__"),
     MethodSlot(binaryfunc, "nb_subtract", "__sub__"),
     MethodSlot(binaryfunc, "nb_multiply", "__mul__"),
-    MethodSlot(binaryfunc, "nb_divide", "__div__", py3k = False),
+    MethodSlot(binaryfunc, "nb_divide", "__div__", py3 = False),
     MethodSlot(binaryfunc, "nb_remainder", "__mod__"),
     MethodSlot(binaryfunc, "nb_divmod", "__divmod__"),
     MethodSlot(ternaryfunc, "nb_power", "__pow__"),
     MethodSlot(unaryfunc, "nb_negative", "__neg__"),
     MethodSlot(unaryfunc, "nb_positive", "__pos__"),
     MethodSlot(unaryfunc, "nb_absolute", "__abs__"),
-    MethodSlot(inquiry, "nb_nonzero", "__nonzero__"),
+    MethodSlot(inquiry, "nb_nonzero", "__nonzero__", py3 = ("nb_bool", "__bool__")),
     MethodSlot(unaryfunc, "nb_invert", "__invert__"),
     MethodSlot(binaryfunc, "nb_lshift", "__lshift__"),
     MethodSlot(binaryfunc, "nb_rshift", "__rshift__"),
     MethodSlot(binaryfunc, "nb_and", "__and__"),
     MethodSlot(binaryfunc, "nb_xor", "__xor__"),
     MethodSlot(binaryfunc, "nb_or", "__or__"),
-    EmptySlot("nb_coerce", py3k = False),
-    MethodSlot(unaryfunc, "nb_int", "__int__", default="__long__"),
-    MethodSlot(unaryfunc, "nb_long", "__long__", default="__int__", py3k = "<RESERVED>"),
+    EmptySlot("nb_coerce", py3 = False),
+    MethodSlot(unaryfunc, "nb_int", "__int__", fallback="__long__"),
+    MethodSlot(unaryfunc, "nb_long", "__long__", fallback="__int__", py3 = "<RESERVED>"),
     MethodSlot(unaryfunc, "nb_float", "__float__"),
-    MethodSlot(unaryfunc, "nb_oct", "__oct__", py3k = False),
-    MethodSlot(unaryfunc, "nb_hex", "__hex__", py3k = False),
+    MethodSlot(unaryfunc, "nb_oct", "__oct__", py3 = False),
+    MethodSlot(unaryfunc, "nb_hex", "__hex__", py3 = False),
     
     # Added in release 2.0
     MethodSlot(ibinaryfunc, "nb_inplace_add", "__iadd__"),
     MethodSlot(ibinaryfunc, "nb_inplace_subtract", "__isub__"),
     MethodSlot(ibinaryfunc, "nb_inplace_multiply", "__imul__"),
-    MethodSlot(ibinaryfunc, "nb_inplace_divide", "__idiv__", py3k = False),
+    MethodSlot(ibinaryfunc, "nb_inplace_divide", "__idiv__", py3 = False),
     MethodSlot(ibinaryfunc, "nb_inplace_remainder", "__imod__"),
     MethodSlot(ternaryfunc, "nb_inplace_power", "__ipow__"), # NOT iternaryfunc!!!
     MethodSlot(ibinaryfunc, "nb_inplace_lshift", "__ilshift__"),
@@ -615,10 +625,10 @@ PyMappingMethods = (
 )
 
 PyBufferProcs = (
-    MethodSlot(getreadbufferproc, "bf_getreadbuffer", "__getreadbuffer__", py3k = False),
-    MethodSlot(getwritebufferproc, "bf_getwritebuffer", "__getwritebuffer__", py3k = False),
-    MethodSlot(getsegcountproc, "bf_getsegcount", "__getsegcount__", py3k = False),
-    MethodSlot(getcharbufferproc, "bf_getcharbuffer", "__getcharbuffer__", py3k = False),
+    MethodSlot(getreadbufferproc, "bf_getreadbuffer", "__getreadbuffer__", py3 = False),
+    MethodSlot(getwritebufferproc, "bf_getwritebuffer", "__getwritebuffer__", py3 = False),
+    MethodSlot(getsegcountproc, "bf_getsegcount", "__getsegcount__", py3 = False),
+    MethodSlot(getcharbufferproc, "bf_getcharbuffer", "__getcharbuffer__", py3 = False),
 
     MethodSlot(getbufferproc, "bf_getbuffer", "__getbuffer__", ifdef = "PY_VERSION_HEX >= 0x02060000"),
     MethodSlot(releasebufferproc, "bf_releasebuffer", "__releasebuffer__", ifdef = "PY_VERSION_HEX >= 0x02060000")
@@ -637,7 +647,7 @@ slot_table = (
     EmptySlot("tp_print"), #MethodSlot(printfunc, "tp_print", "__print__"),
     EmptySlot("tp_getattr"),
     EmptySlot("tp_setattr"),
-    MethodSlot(cmpfunc, "tp_compare", "__cmp__"),
+    MethodSlot(cmpfunc, "tp_compare", "__cmp__", py3 = '<RESERVED>'),
     MethodSlot(reprfunc, "tp_repr", "__repr__"),
     
     SuiteSlot(PyNumberMethods, "PyNumberMethods", "tp_as_number"),
