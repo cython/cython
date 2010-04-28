@@ -126,4 +126,20 @@ cdef class MyCdefClass:
         False
         """
 
+cdef class MyOtherCdefClass:
+    """
+    Needs no hack
+    
+    >>> True
+    True
+    """
+
+    def __bool__(self):
+        """
+        Should not be included, as it can't be looked up with getattr in Py 2
+
+        >>> True
+        False
+        """
+
 cdeffunc()
