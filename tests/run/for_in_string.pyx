@@ -72,6 +72,36 @@ def for_char_in_enumerate_bytes(bytes s):
 
 @cython.test_assert_path_exists("//ForFromStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
+def for_pyvar_in_char_ptr(char* c_string):
+    """
+    >>> for_pyvar_in_char_ptr( (bytes_abc+bytes_ABC) * 2 )
+    [True, True, True, False, False, False, True, True, True, False]
+    >>> for_pyvar_in_char_ptr( bytes_abc_null * 2 )
+    [True, False, True, False, True, True, False, True, False, True]
+    """
+    in_test = []
+    cdef object c
+    for c in c_string[:10]:
+        in_test.append( c in b'abc' )
+    return in_test
+
+@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def for_char_in_char_ptr(char* c_string):
+    """
+    >>> for_char_in_char_ptr( (bytes_abc+bytes_ABC) * 2 )
+    [True, True, True, False, False, False, True, True, True, False]
+    >>> for_char_in_char_ptr( bytes_abc_null * 2 )
+    [True, False, True, False, True, True, False, True, False, True]
+    """
+    in_test = []
+    cdef char c
+    for c in c_string[:10]:
+        in_test.append( c in b'abc' )
+    return in_test
+
+@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
 def for_pyunicode_in_unicode(unicode s):
     """
     >>> for_pyunicode_in_unicode(unicode_abc)
