@@ -2582,23 +2582,21 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         self.visitchildren(node)
         # eliminate dead code based on constant condition results
         if_clauses = []
-        condition_result = None
         for if_clause in node.if_clauses:
             condition_result = if_clause.get_constant_condition_result()
-            # condition_result is True, False or None (unknown)
-            if condition_result != False:
+            if condition_result is None:
+                # unknown result => normal runtime evaluation
                 if_clauses.append(if_clause)
-                if condition_result == True:
-                    # other conditions can no longer apply
-                    node.else_clause = None
-                    break
+            elif condition_result == True:
+                # subsequent clauses can safely be dropped
+                node.else_clause = if_clause.body
+                break
+            else:
+                assert condition_result == False
         if not if_clauses:
-            return node.else_clause # if None, deletes the node completely
-        elif len(if_clauses) == 1 and condition_result == True:
-            return if_clauses[0].body
-        else:
-            node.if_clauses = if_clauses
-            return node
+            return node.else_clause
+        node.if_clauses = if_clauses
+        return node
 
     # in the future, other nodes can have their own handler method here
     # that can replace them with a constant result node
