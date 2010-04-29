@@ -67,6 +67,7 @@ def arithm():
     """
     return 9*2+3*8//6-10
 
+@cython.test_fail_if_path_exists("//BinopNode")
 def parameters():
     """
     >>> parameters() == _func(-1 -2, - (-3+4), 1*2*3)
@@ -74,6 +75,7 @@ def parameters():
     """
     return _func(-1 -2, - (-3+4), 1*2*3)
 
+@cython.test_fail_if_path_exists("//BinopNode")
 def lists():
     """
     >>> lists() == [1,2,3] + [4,5,6]
@@ -81,75 +83,10 @@ def lists():
     """
     return [1,2,3] + [4,5,6]
 
-def int_bool_result():
-    """
-    >>> int_bool_result()
-    True
-    """
-    if 5:
-        return True
-    else:
-        return False
-
 @cython.test_fail_if_path_exists("//PrimaryCmpNode")
-def if_compare_true():
-    """
-    >>> if_compare_true()
-    True
-    """
-    if 0 == 0:
-        return True
-    else:
-        return False
-
-@cython.test_fail_if_path_exists("//PrimaryCmpNode")
-def if_compare_false():
-    """
-    >>> if_compare_false()
-    False
-    """
-    if 0 == 1 or 1 == 0:
-        return True
-    else:
-        return False
-
-@cython.test_fail_if_path_exists("//PrimaryCmpNode")
-def if_compare_cascaded():
-    """
-    >>> if_compare_cascaded()
-    True
-    """
-    if 0 < 1 < 2 < 3:
-        return True
-    else:
-        return False
-
-@cython.test_fail_if_path_exists("//CoerceToBooleanNode",
-                                 "//ListNode")
-def list_bool_result():
-    """
-    >>> list_bool_result()
-    True
-    """
-    if [1,2,3]:
-        return True
-    else:
-        return False
-
 def compile_time_DEF():
     """
     >>> compile_time_DEF()
     (1, False, True, True, False)
     """
     return INT_VAL, INT_VAL == 0, INT_VAL != 0, INT_VAL == 1, INT_VAL != 1
-
-@cython.test_fail_if_path_exists("//PrimaryCmpNode")
-def compile_time_DEF_if():
-    """
-    >>> compile_time_DEF_if()
-    True
-    """
-    if INT_VAL != 0:
-        return True
-    else:
-        return False
