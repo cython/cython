@@ -3880,34 +3880,16 @@ class IfStatNode(StatNode):
         if self.else_clause:
             self.else_clause.analyse_expressions(env)
 
-        # eliminate dead code based on constant condition results
-        if_clauses = []
-        condition_result = None
-        for if_clause in self.if_clauses:
-            condition_result = if_clause.get_constant_condition_result()
-            if condition_result != False:
-                if_clauses.append(if_clause)
-                if condition_result == True:
-                    # other conditions can no longer apply
-                    self.else_clause = None
-                    break
-        self.if_clauses = if_clauses
-        # FIXME: if only one active code body is left here, we can
-        # replace the whole node
-
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
-        if self.if_clauses:
-            end_label = code.new_label()
-            for if_clause in self.if_clauses:
-                if_clause.generate_execution_code(code, end_label)
-            if self.else_clause:
-                code.putln("/*else*/ {")
-                self.else_clause.generate_execution_code(code)
-                code.putln("}")
-            code.put_label(end_label)
-        elif self.else_clause:
+        end_label = code.new_label()
+        for if_clause in self.if_clauses:
+            if_clause.generate_execution_code(code, end_label)
+        if self.else_clause:
+            code.putln("/*else*/ {")
             self.else_clause.generate_execution_code(code)
+            code.putln("}")
+        code.put_label(end_label)
 
     def annotate(self, code):
         for if_clause in self.if_clauses:
@@ -3938,7 +3920,7 @@ class IfClauseNode(Node):
 
     def get_constant_condition_result(self):
         if self.condition.has_constant_result():
-            return self.condition.constant_result
+            return bool(self.condition.constant_result)
         else:
             return None
 
