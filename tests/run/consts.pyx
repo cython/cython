@@ -8,6 +8,7 @@ DEF INT_VAL = 1
 def _func(a,b,c):
     return a+b+c
 
+@cython.test_fail_if_path_exists("//BinopNode")
 def add():
     """
     >>> add() == 1+2+3+4
@@ -15,6 +16,7 @@ def add():
     """
     return 1+2+3+4
 
+@cython.test_fail_if_path_exists("//BinopNode")
 def add_var(a):
     """
     >>> add_var(10) == 1+2+10+3+4
@@ -22,6 +24,7 @@ def add_var(a):
     """
     return 1+2 +a+ 3+4
 
+@cython.test_fail_if_path_exists("//BinopNode")
 def neg():
     """
     >>> neg() == -1 -2 - (-3+4)
@@ -29,6 +32,7 @@ def neg():
     """
     return -1 -2 - (-3+4)
 
+@cython.test_fail_if_path_exists("//BinopNode")
 def long_int_mix():
     """
     >>> long_int_mix() == 1 + (2 * 3) // 2
@@ -39,6 +43,7 @@ def long_int_mix():
     """
     return 1L + (2 * 3L) // 2
 
+@cython.test_fail_if_path_exists("//BinopNode")
 def char_int_mix():
     """
     >>> char_int_mix() == 1 + (ord(' ') * 3) // 2 + ord('A')
@@ -46,6 +51,7 @@ def char_int_mix():
     """
     return 1L + (c' ' * 3L) // 2 + c'A'
 
+@cython.test_fail_if_path_exists("//BinopNode")
 def int_cast():
     """
     >>> int_cast() == 1 + 2 * 6000
@@ -53,6 +59,7 @@ def int_cast():
     """
     return <int>(1 + 2 * 6000)
 
+@cython.test_fail_if_path_exists("//BinopNode")
 def mul():
     """
     >>> mul() == 1*60*1000
@@ -60,6 +67,7 @@ def mul():
     """
     return 1*60*1000
 
+@cython.test_fail_if_path_exists("//BinopNode")
 def arithm():
     """
     >>> arithm() == 9*2+3*8//6-10
