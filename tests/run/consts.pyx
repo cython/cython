@@ -98,3 +98,11 @@ def compile_time_DEF():
     (1, False, True, True, False)
     """
     return INT_VAL, INT_VAL == 0, INT_VAL != 0, INT_VAL == 1, INT_VAL != 1
+
+@cython.test_fail_if_path_exists("//PrimaryCmpNode")
+def cascaded_compare():
+    """
+    >>> cascaded_compare()
+    True
+    """
+    return 1 < 2 < 3 < 4
