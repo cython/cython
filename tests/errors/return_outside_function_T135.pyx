@@ -1,4 +1,7 @@
 
+def _runtime_True():
+    return True
+
 return 'bar'
 
 class A:
@@ -19,20 +22,20 @@ for i in (1,2):
 while True:
     return None
 
-if True:
+if _runtime_True():
     return None
 else:
     return None
 
 
 _ERRORS = u'''
- 2:0: Return not inside a function body
- 5:4: Return not inside a function body
+ 5:0: Return not inside a function body
  8:4: Return not inside a function body
-10:5: Return not inside a function body
+11:4: Return not inside a function body
 13:5: Return not inside a function body
-17:4: Return not inside a function body
+16:5: Return not inside a function body
 20:4: Return not inside a function body
 23:4: Return not inside a function body
-25:4: Return not inside a function body
+26:4: Return not inside a function body
+28:4: Return not inside a function body
 '''
