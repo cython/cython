@@ -3,12 +3,72 @@ cimport cython
 
 DEF INT_VAL = 1
 
+def _not_constant_but_False():
+    return False
+
+@cython.test_fail_if_path_exists("//PrimaryCmpNode",
+                                 "//IfStatNode")
 def int_bool_result():
     """
     >>> int_bool_result()
     True
     """
     if 5:
+        return True
+    else:
+        return False
+
+@cython.test_fail_if_path_exists("//IfStatNode")
+def constant_if_elif_else():
+    """
+    >>> constant_if_elif_else()
+    True
+    """
+    if 0:
+        return False
+    elif 5:
+        return True
+    else:
+        return False
+
+@cython.test_fail_if_path_exists("//PrintStatNode")
+@cython.test_assert_path_exists("//IfStatNode",
+                                "//IfClauseNode")
+def non_constant_if_elif_else1():
+    """
+    >>> non_constant_if_elif_else1()
+    True
+    """
+    if _not_constant_but_False():
+        return False
+    elif 5:
+        return True
+    else:
+        print(False)
+
+@cython.test_fail_if_path_exists("//PrintStatNode")
+@cython.test_assert_path_exists("//IfStatNode",
+                                "//IfClauseNode")
+def non_constant_if_elif_else2():
+    """
+    >>> non_constant_if_elif_else2()
+    True
+    """
+    if _not_constant_but_False():
+        return False
+    elif 0:
+        print(False)
+    else:
+        return True
+
+@cython.test_fail_if_path_exists("//PrimaryCmpNode",
+                                 "//IfStatNode")
+def if_not_compare_true():
+    """
+    >>> if_not_compare_true()
+    False
+    """
+    if not 0 == 0:
         return True
     else:
         return False
