@@ -37,6 +37,9 @@ however, when the C function stores the pointer for later use.  Apart
 from keeping a Python reference to the string, no manual memory
 management is required.
 
+Decoding bytes to text
+----------------------
+
 The above way of passing and receiving C strings is as simple that
 that, as long as we only deal with binary data in the strings.  When
 we deal with encoded text, however, it is best practice to decode the C byte
@@ -48,20 +51,19 @@ With a Python byte string object, you would normally just call the
 
     ustring = byte_string.decode('UTF-8')
 
-You can do the same in Cython for a C string, but the generated code
-is rather inefficient for small strings.
-While Cython could potentially call the Python
-C-API function for decoding a C string from UTF-8 to Unicode
-(``PyUnicode_DecodeUTF8()``), the problem is that this requires
-passing the length of the C string, which Cython cannot know at
-compile time nor runtime.  So it would have to call ``strlen()``
-first, although the user code will already know the length of the
-string in almost all cases.  Also, the encoded byte string might
-actually contain null bytes, so this isn't even a safe solution.  It
-is therefore currently recommended to call the API functions directly::
+Cython allows you to do the same for a C string, as long as it
+contains no null bytes::
 
-    # .pxd file that comes with Cython
-    cimport python_unicode
+    cdef char* some_c_string = c_call_returning_a_c_string()
+    ustring = some_c_string.decode('UTF-8')
+
+However, this will not work for strings that contain null bytes, and
+it is very inefficient for long strings, since Cython has to call
+``strlen()`` on the C string first to find out the length by counting
+the bytes up to the terminating null byte.  In many cases, the user
+code will know the length already, e.g. because a C function returned
+it.  In this case, it is much more efficient to tell Cython the exact
+number of bytes by slicing the C string::
 
     cdef char* c_string = NULL
     cdef Py_ssize_t length = 0
@@ -69,33 +71,31 @@ is therefore currently recommended to call the API functions directly::
     # get pointer and length from a C function
     get_a_c_string(&c_string, &length)
 
-    # decode the string to Unicode
-    ustring = python_unicode.PyUnicode_DecodeUTF8(
-        c_string, length, 'strict')
+    ustring = c_string[:length].decode('UTF-8')
 
-It is common practice to wrap this in a dedicated function, as this
-needs to be done whenever receiving text from C.  This could look as
-follows::
+The same can be used when the string contains null bytes, e.g. when it
+uses an encoding like UCS-2, where each character is encoded as two
+bytes.
+
+It is common practice to wrap string conversions (and non-trivial type
+conversions in general) in dedicated functions, as this needs to be
+done in exactly the same way whenever receiving text from C.  This
+could look as follows::
 
     cimport python_unicode
     cimport stdlib
-    cdef extern from "string.h":
-        size_t strlen(char *s)
 
     cdef unicode tounicode(char* s):
-        return python_unicode.PyUnicode_DecodeUTF8(
-            s, strlen(s), 'strict')
+        return s.decode('UTF-8', 'strict')
 
     cdef unicode tounicode_with_length(
             char* s, size_t length):
-        return python_unicode.PyUnicode_DecodeUTF8(
-            s, length, 'strict')
+        return s[:length].decode('UTF-8', 'strict')
 
     cdef unicode tounicode_with_length_and_free(
             char* s, size_t length):
         try:
-            return python_unicode.PyUnicode_DecodeUTF8(
-                s, length, 'strict')
+            return s[:length].decode('UTF-8', 'strict')
         finally:
             stdlib.free(s)
 
@@ -105,6 +105,9 @@ imply different ways of handling them on reception.  To make the code
 more readable and to anticipate future changes, it is good practice to
 use separate conversion functions for different types of strings.
 
+Encoding text to bytes
+----------------------
+
 The reverse way, converting a Python unicode string to a C ``char*``,
 is pretty efficient by itself, assuming that what you actually want is
 a memory managed byte string::
@@ -112,7 +115,7 @@ a memory managed byte string::
     py_byte_string = py_unicode_string.encode('UTF-8')
     cdef char* c_string = py_byte_string
 
-As noted above, this takes the pointer to the byte buffer of the
+As noted before, this takes the pointer to the byte buffer of the
 Python byte string.  Trying to do the same without keeping a reference
 to the intermediate byte string will fail with a compile error::
 
@@ -123,3 +126,84 @@ Here, the Cython compiler notices that the code takes a pointer to a
 temporary string result that will be garbage collected after the
 assignment.  Later access to the invalidated pointer will most likely
 result in a crash.  Cython will therefore refuse to compile this code.
+
+Single bytes and characters
+---------------------------
+
+The Python C-API uses the normal C ``char`` type to represent a byte
+value, but it has a special ``Py_UNICODE`` integer type for a Unicode
+code point value, i.e. a single Unicode character.  Since version
+0.13, Cython supports the latter natively, which is either defined as
+an unsigned 2-byte or 4-byte integer, or as ``wchar_t``, depending on
+the platform.  The exact type is a compile time option in the build of
+the CPython interpreter.
+
+In Cython, the ``char`` and ``Py_UNICODE`` types behave differently
+when coercing to Python objects.  Similar to the behaviour of the
+bytes type in Python 3, the ``char`` type coerces to a Python integer
+value by default, so that the following prints 65 and not ``A``::
+
+    cdef char char_val = 'A'
+    assert char_val == 65   # 'A'
+    print( char_val )
+
+If you want a Python bytes string instead, you have to request it
+explicitly, and the following will print ``A`` (or ``b'A'`` in Python
+3)::
+
+    print( <bytes>char_val )
+
+The coercion will also happen automatically when assigning to a typed
+variable, e.g.::
+
+    cdef bytes py_byte_string = char_val
+
+On the other hand, the ``Py_UNICODE`` type is rarely used outside of
+the context of a Python unicode string, so its default behaviour is to
+coerce to a Python unicode object.  The following will therefore print
+the character ``A``::
+
+    cdef Py_UNICODE uchar_val = u'A'
+    assert uchar_val == ord(u'A')  # 65
+    print( uchar_val )
+
+Again, explicit casting will allow users to override this behaviour.
+The following will print 65::
+
+    cdef Py_UNICODE uchar_val = u'A'
+    print( <int>uchar_val )
+
+Note that casting to a C ``int`` (or ``unsigned int``) will do just
+fine on a platform with 32bit or more, as the maximum code point value
+that a Unicode character can have is 1114111 on a 4-byte unicode
+CPython platform ("wide unicode") and 65535 on a 2-byte unicode
+platform.
+
+Iteration
+---------
+
+Cython 0.13 supports efficient iteration over ``char*``, bytes and
+unicode strings, as long as the loop variable is appropriately typed.
+So the following will generate the expected C code::
+
+    cdef char* c_string = c_call_returning_a_c_string()
+
+    cdef char c
+    for c in c_string[:100]:
+        if c == 'A': ...
+
+The same applies to unicode objects::
+
+    cdef unicode ustring = ...
+
+    cdef Py_UNICODE uchar
+    for uchar in ustring:
+        if uchar == u'A': ...
+
+There is also an optimisation for ``in`` tests, so that the following
+code will run in plain C code::
+
+    cdef Py_UNICODE uchar_val = get_a_unicode_character()
+    if uchar_val in u'abcABCxY':
+        ...
+
