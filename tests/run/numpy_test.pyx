@@ -326,6 +326,10 @@ def inc1_float64_t(np.ndarray[np.float64_t] arr):       arr[1] += 1
 
     
 def test_dtype(dtype, inc1):
+    if dtype in ("g", np.longdouble,
+                 "G", np.clongdouble):
+        if sizeof(double) == sizeof(long double): # MSVC
+            return
     if dtype in (b'F', b'D', b'G'):
         a = np.array([0, 10+10j], dtype=dtype)
         inc1(a)

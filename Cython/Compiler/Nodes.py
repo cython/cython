@@ -1209,6 +1209,12 @@ class FuncDefNode(StatNode, BlockNode):
 
         is_getbuffer_slot = (self.entry.name == "__getbuffer__" and
                              self.entry.scope.is_c_class_scope)
+        is_releasebuffer_slot = (self.entry.name == "__releasebuffer__" and
+                                 self.entry.scope.is_c_class_scope)
+        is_buffer_slot = is_getbuffer_slot or is_releasebuffer_slot
+        if is_buffer_slot:
+            if 'cython_unused' not in self.modifiers:
+                self.modifiers = self.modifiers + ['cython_unused']
         
         profile = code.globalstate.directives['profile']
         if profile:
@@ -2200,14 +2206,16 @@ class DefNode(FuncDefNode):
                     arg_code_list.append(
                         arg.hdr_type.declaration_code(arg.hdr_cname))
         if not self.entry.is_special and sig.method_flags() == [TypeSlots.method_noargs]:
-            arg_code_list.append("PyObject *unused")
+            arg_code_list.append("CYTHON_UNUSED PyObject *unused")
         if sig.has_generic_args:
             arg_code_list.append(
                 "PyObject *%s, PyObject *%s"
                     % (Naming.args_cname, Naming.kwds_cname))
         arg_code = ", ".join(arg_code_list)
         dc = self.return_type.declaration_code(self.entry.func_cname)
-        header = "static %s(%s)" % (dc, arg_code)
+        mf = " ".join(self.modifiers).upper()
+        if mf: mf += " "
+        header = "static %s%s(%s)" % (mf, dc, arg_code)
         code.putln("%s; /*proto*/" % header)
         if proto_only:
             return
@@ -4039,34 +4047,16 @@ class IfStatNode(StatNode):
         if self.else_clause:
             self.else_clause.analyse_expressions(env)
 
-        # eliminate dead code based on constant condition results
-        if_clauses = []
-        condition_result = None
-        for if_clause in self.if_clauses:
-            condition_result = if_clause.get_constant_condition_result()
-            if condition_result != False:
-                if_clauses.append(if_clause)
-                if condition_result == True:
-                    # other conditions can no longer apply
-                    self.else_clause = None
-                    break
-        self.if_clauses = if_clauses
-        # FIXME: if only one active code body is left here, we can
-        # replace the whole node
-
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
-        if self.if_clauses:
-            end_label = code.new_label()
-            for if_clause in self.if_clauses:
-                if_clause.generate_execution_code(code, end_label)
-            if self.else_clause:
-                code.putln("/*else*/ {")
-                self.else_clause.generate_execution_code(code)
-                code.putln("}")
-            code.put_label(end_label)
-        elif self.else_clause:
+        end_label = code.new_label()
+        for if_clause in self.if_clauses:
+            if_clause.generate_execution_code(code, end_label)
+        if self.else_clause:
+            code.putln("/*else*/ {")
             self.else_clause.generate_execution_code(code)
+            code.putln("}")
+        code.put_label(end_label)
 
     def generate_function_definitions(self, env, code):
         for clause in self.if_clauses:
@@ -4103,7 +4093,7 @@ class IfClauseNode(Node):
 
     def get_constant_condition_result(self):
         if self.condition.has_constant_result():
-            return self.condition.constant_result
+            return bool(self.condition.constant_result)
         else:
             return None
 
@@ -5261,6 +5251,7 @@ class FromImportStatNode(StatNode):
 
 utility_function_predeclarations = \
 """
+/* inline attribute */
 #ifndef CYTHON_INLINE
   #if defined(__GNUC__)
     #define CYTHON_INLINE __inline__
@@ -5271,6 +5262,21 @@ utility_function_predeclarations = \
   #else
     #define CYTHON_INLINE 
   #endif
+#endif
+
+/* unused attribute */
+#ifndef CYTHON_UNUSED
+# if defined(__GNUC__)
+#   if !(defined(__cplusplus)) || (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4))
+#     define CYTHON_UNUSED __attribute__ ((__unused__)) 
+#   else
+#     define CYTHON_UNUSED
+#   endif
+# elif defined(__ICC) || defined(__INTEL_COMPILER)
+#   define CYTHON_UNUSED __attribute__ ((__unused__)) 
+# else
+#   define CYTHON_UNUSED 
+# endif
 #endif
 
 typedef struct {PyObject **p; char *s; const long n; const char* encoding; const char is_unicode; const char is_str; const char intern; } __Pyx_StringTabEntry; /*proto*/

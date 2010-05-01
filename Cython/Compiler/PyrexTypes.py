@@ -950,7 +950,7 @@ class CSSizeTType(CIntType):
     from_py_function = "PyInt_AsSsize_t"
 
     def sign_and_name(self):
-        return "ssize_t"
+        return "Py_ssize_t"
 
 class CSizeTType(CIntType):
 

@@ -2570,6 +2570,34 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         #new_node = new_node.coerce_to(node.type, self.current_scope)
         return new_node
 
+    def visit_PrimaryCmpNode(self, node):
+        self._calculate_const(node)
+        if node.constant_result is ExprNodes.not_a_constant:
+            return node
+        bool_result = bool(node.constant_result)
+        return ExprNodes.BoolNode(node.pos, value=bool_result,
+                                  constant_result=bool_result)
+
+    def visit_IfStatNode(self, node):
+        self.visitchildren(node)
+        # eliminate dead code based on constant condition results
+        if_clauses = []
+        for if_clause in node.if_clauses:
+            condition_result = if_clause.get_constant_condition_result()
+            if condition_result is None:
+                # unknown result => normal runtime evaluation
+                if_clauses.append(if_clause)
+            elif condition_result == True:
+                # subsequent clauses can safely be dropped
+                node.else_clause = if_clause.body
+                break
+            else:
+                assert condition_result == False
+        if not if_clauses:
+            return node.else_clause
+        node.if_clauses = if_clauses
+        return node
+
     # in the future, other nodes can have their own handler method here
     # that can replace them with a constant result node
 
