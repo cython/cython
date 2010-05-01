@@ -328,11 +328,8 @@ class ExprNode(Node):
         #  we ensure that all disposal has been done by the
         #  time we get the result.
         self.analyse_types(env)
-        bool = self.coerce_to_boolean(env)
-        if not bool.is_simple():
-            bool = bool.coerce_to_temp(env)
-        return bool
-    
+        return self.coerce_to_boolean(env).coerce_to_simple(env)
+
     # --------------- Type Inference -----------------
     
     def type_dependencies(self, env):
@@ -6435,7 +6432,7 @@ class CoerceToBooleanNode(CoercionNode):
             self.is_temp = 1
 
     def nogil_check(self, env):
-        if self.arg.type.is_pyobject:
+        if self.arg.type.is_pyobject and self._special_builtins.get(self.arg.type) is None:
             self.gil_error()
 
     gil_message = "Truth-testing Python object"

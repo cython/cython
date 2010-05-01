@@ -2454,7 +2454,7 @@ def p_def_statement(s, decorators=None):
     args, star_arg, starstar_arg = p_varargslist(s, terminator=')')
     s.expect(')')
     if p_nogil(s):
-        error(s.pos, "Python function cannot be declared nogil")
+        error(pos, "Python function cannot be declared nogil")
     return_type_annotation = None
     if s.sy == '->':
         s.next()

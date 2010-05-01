@@ -1771,7 +1771,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         if not Options.generate_cleanup_code:
             return
         code.globalstate.use_utility_code(register_cleanup_utility_code)
-        code.putln('static PyObject* %s(PyObject *self, PyObject *unused) {' % Naming.cleanup_cname)
+        code.putln('static PyObject *%s(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED PyObject *unused) {' % 
+                   Naming.cleanup_cname)
         if Options.generate_cleanup_code >= 2:
             code.putln("/*--- Global cleanup code ---*/")
             rev_entries = list(env.var_entries)
@@ -2330,9 +2331,9 @@ bad:
 register_cleanup_utility_code = UtilityCode(
 proto = """
 static int __Pyx_RegisterCleanup(void); /*proto*/
-static PyObject* __pyx_module_cleanup(PyObject *self, PyObject *unused); /*proto*/
-static PyMethodDef cleanup_def = {__Pyx_NAMESTR("__cleanup"), (PyCFunction)&__pyx_module_cleanup, METH_NOARGS, 0};
-""",
+static PyObject* %(module_cleanup)s(CYTHON_UNUSED PyObject *self, CYTHON_UNUSED PyObject *unused); /*proto*/
+static PyMethodDef cleanup_def = {__Pyx_NAMESTR("__cleanup"), (PyCFunction)&%(module_cleanup)s, METH_NOARGS, 0};
+""" % {'module_cleanup': Naming.cleanup_cname},
 impl = """
 static int __Pyx_RegisterCleanup(void) {
     /* Don't use Py_AtExit because that has a 32-call limit 

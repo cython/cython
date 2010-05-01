@@ -1312,7 +1312,8 @@ class TransformBuiltinMethods(EnvTransform):
             elif attribute == u'NULL':
                 node = NullNode(node.pos)
             elif attribute in (u'set', u'frozenset'):
-                node = NameNode(node.pos, name=EncodedString(attribute))
+                node = NameNode(node.pos, name=EncodedString(attribute),
+                                entry=self.current_env().builtin_scope().lookup_here(attribute))
             elif not PyrexTypes.parse_basic_type(attribute):
                 error(node.pos, u"'%s' not a valid cython attribute or is being used incorrectly" % attribute)
         return node
@@ -1322,7 +1323,7 @@ class TransformBuiltinMethods(EnvTransform):
         # locals builtin
         if isinstance(node.function, ExprNodes.NameNode):
             if node.function.name == 'locals':
-                lenv = self.env_stack[-1]
+                lenv = self.current_env()
                 entry = lenv.lookup_here('locals')
                 if entry:
                     # not the builtin 'locals'
@@ -1348,7 +1349,7 @@ class TransformBuiltinMethods(EnvTransform):
                 if len(node.args) != 2:
                     error(node.function.pos, u"cast() takes exactly two arguments")
                 else:
-                    type = node.args[0].analyse_as_type(self.env_stack[-1])
+                    type = node.args[0].analyse_as_type(self.current_env())
                     if type:
                         node = TypecastNode(node.function.pos, type=type, operand=node.args[1])
                     else:
@@ -1357,7 +1358,7 @@ class TransformBuiltinMethods(EnvTransform):
                 if len(node.args) != 1:
                     error(node.function.pos, u"sizeof() takes exactly one argument")
                 else:
-                    type = node.args[0].analyse_as_type(self.env_stack[-1])
+                    type = node.args[0].analyse_as_type(self.current_env())
                     if type:
                         node = SizeofTypeNode(node.function.pos, arg_type=type)
                     else:

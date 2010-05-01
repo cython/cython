@@ -24,6 +24,23 @@ def if_list(list obj):
     else:
         return False
 
+def if_list_nogil(list obj):
+    """
+    >>> if_list_nogil( [] )
+    False
+    >>> if_list_nogil( [1] )
+    True
+    >>> if_list_nogil(None)
+    False
+    """
+    cdef bint result
+    with nogil:
+        if obj:
+            result = True
+        else:
+            result = False
+    return result
+
 def if_list_literal(t):
     """
     >>> if_list_literal(True)
