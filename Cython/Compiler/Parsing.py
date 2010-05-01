@@ -2413,7 +2413,7 @@ def p_def_statement(s, decorators=None):
         starstar_arg = p_py_arg_decl(s)
     s.expect(')')
     if p_nogil(s):
-        error(s.pos, "Python function cannot be declared nogil")
+        error(pos, "Python function cannot be declared nogil")
     doc, body = p_suite(s, Ctx(level = 'function'), with_doc = 1)
     return Nodes.DefNode(pos, name = name, args = args, 
         star_arg = star_arg, starstar_arg = starstar_arg,
