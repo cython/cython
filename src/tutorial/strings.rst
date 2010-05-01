@@ -153,8 +153,10 @@ explicitly, and the following will print ``A`` (or ``b'A'`` in Python
 
     print( <bytes>char_val )
 
-The coercion will also happen automatically when assigning to a typed
-variable, e.g.::
+The explicit coercion works for any C integer type.  Values outside of
+the range of a ``char`` will raise an ``OverflowError``.  Coercion
+will also happen automatically when assigning to a typed variable,
+e.g.::
 
     cdef bytes py_byte_string = char_val
 
