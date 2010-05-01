@@ -12,6 +12,14 @@ def cython_set():
     assert set is cython.set
     return cython.set
 
+def cython_set_override():
+    """
+    >>> cython_set_override() is _set
+    True
+    """
+    set = 1
+    return cython.set
+
 def test_set_literal():
     """
     >>> type(test_set_literal()) is _set
