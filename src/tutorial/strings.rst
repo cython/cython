@@ -21,6 +21,18 @@ original C string.  It can be safely passed around in Python code, and
 will be garbage collected when the last reference to it goes out of
 scope.
 
+Note that the creation of the Python bytes string can fail with an
+exception, e.g. due to insufficient memory.  If you need to ``free()``
+the string after the conversion, you should wrap the assignment in a
+try-finally construct::
+
+    cimport stdlib
+    cdef char* c_string = c_call_returning_a_c_string()
+    try:
+        py_string = c_string
+    finally:
+        stdlib.free(c_string)
+
 To convert the byte string back into a C ``char*``, use the opposite
 assignment::
 
@@ -40,11 +52,11 @@ management is required.
 Decoding bytes to text
 ----------------------
 
-The above way of passing and receiving C strings is as simple that
-that, as long as we only deal with binary data in the strings.  When
-we deal with encoded text, however, it is best practice to decode the C byte
-strings to Python Unicode strings on reception, and to encode Python
-Unicode strings to C byte strings on the way out.
+The initially presented way of passing and receiving C strings is
+sufficient if your code only deals with binary data in the strings.
+When we deal with encoded text, however, it is best practice to decode
+the C byte strings to Python Unicode strings on reception, and to
+encode Python Unicode strings to C byte strings on the way out.
 
 With a Python byte string object, you would normally just call the
 ``.decode()`` method to decode it into a Unicode string::
@@ -74,7 +86,7 @@ number of bytes by slicing the C string::
     ustring = c_string[:length].decode('UTF-8')
 
 The same can be used when the string contains null bytes, e.g. when it
-uses an encoding like UCS-2, where each character is encoded as two
+uses an encoding like UCS-4, where each character is encoded in four
 bytes.
 
 It is common practice to wrap string conversions (and non-trivial type
@@ -117,15 +129,69 @@ a memory managed byte string::
 
 As noted before, this takes the pointer to the byte buffer of the
 Python byte string.  Trying to do the same without keeping a reference
-to the intermediate byte string will fail with a compile error::
+to the Python byte string will fail with a compile error::
 
     # this will not compile !
     cdef char* c_string = py_unicode_string.encode('UTF-8')
 
 Here, the Cython compiler notices that the code takes a pointer to a
 temporary string result that will be garbage collected after the
-assignment.  Later access to the invalidated pointer will most likely
-result in a crash.  Cython will therefore refuse to compile this code.
+assignment.  Later access to the invalidated pointer will read invalid
+memory and likely result in a segfault.  Cython will therefore refuse
+to compile this code.
+
+Source code encoding
+--------------------
+
+When string literals appear in the code, the source code encoding is
+important.  It determines the byte sequence that Cython will store in
+the C code for bytes literals, and the Unicode code points that Cython
+builds for unicode literals when parsing the byte encoded source file.
+Following `PEP 263`_, Cython supports the explicit declaration of
+source file encodings.  For example, putting the following comment at
+the top of an ``ISO-8859-15`` (Latin-9) encoded source file (into the
+first or second line) is required to enable ``ISO-8859-15`` decoding
+in the parser::
+
+    # -*- coding: ISO-8859-15 -*-
+
+When no explicit encoding declaration is provided, the source code is
+parsed as UTF-8 encoded text, as specified by `PEP 3120`_.  `UTF-8`_
+is a very common encoding that can represent the entire Unicode set of
+characters and is compatible with plain ASCII encoded text that it
+encodes efficiently.  This makes it a very good choice for source code
+files which usually consist mostly of ASCII characters.
+
+.. _`PEP 263`: http://www.python.org/dev/peps/pep-0263/
+.. _`PEP 3120`: http://www.python.org/dev/peps/pep-3120/
+.. _`UTF-8`: http://en.wikipedia.org/wiki/UTF-8
+
+As an example, putting the following line into a UTF-8 encoded source
+file will print ``5``, as UTF-8 encodes the letter ``'ö'`` in the two
+byte sequence ``'\xc3\xb6'``::
+
+    print( len(b'abcö') )
+
+whereas the following ``ISO-8859-15`` encoded source file will print
+``4``, as the encoding uses only 1 byte for this letter::
+
+    # -*- coding: ISO-8859-15 -*-
+    print( len(b'abcö') )
+
+Note that the unicode literal ``u'abcö'`` is a correctly decoded four
+character Unicode string in both cases, whereas the unprefixed Python
+``str`` literal ``'abcö'`` will become a byte string in Python 2 (thus
+having length 4 or 5 in the examples above), and a 4 character Unicode
+string in Python 3.  If you are not familiar with encodings, this may
+not appear obvious at first read.  See `CEP 108`_ for details.
+
+As a rule of thumb, it is best to avoid unprefixed non-ASCII ``str``
+literals and to use unicode string literals for all text.  Cython also
+supports the ``__future__`` import ``unicode_literals`` that instructs
+the parser to read all unprefixed ``str`` literals in a source file as
+unicode string literals.
+
+.. _`CEP 108`: http://wiki.cython.org/enhancements/stringliterals
 
 Single bytes and characters
 ---------------------------
@@ -136,15 +202,18 @@ code point value, i.e. a single Unicode character.  Since version
 0.13, Cython supports the latter natively, which is either defined as
 an unsigned 2-byte or 4-byte integer, or as ``wchar_t``, depending on
 the platform.  The exact type is a compile time option in the build of
-the CPython interpreter.
+the CPython interpreter and extension modules inherit this definition
+at C compile time.
 
 In Cython, the ``char`` and ``Py_UNICODE`` types behave differently
 when coercing to Python objects.  Similar to the behaviour of the
 bytes type in Python 3, the ``char`` type coerces to a Python integer
 value by default, so that the following prints 65 and not ``A``::
 
+    # -*- coding: ASCII -*-
+
     cdef char char_val = 'A'
-    assert char_val == 65   # 'A'
+    assert char_val == 65   # ASCII encoded byte value of 'A'
     print( char_val )
 
 If you want a Python bytes string instead, you have to request it
@@ -154,9 +223,9 @@ explicitly, and the following will print ``A`` (or ``b'A'`` in Python
     print( <bytes>char_val )
 
 The explicit coercion works for any C integer type.  Values outside of
-the range of a ``char`` will raise an ``OverflowError``.  Coercion
-will also happen automatically when assigning to a typed variable,
-e.g.::
+the range of a ``char`` or ``unsigned char`` will raise an
+``OverflowError``.  Coercion will also happen automatically when
+assigning to a typed variable, e.g.::
 
     cdef bytes py_byte_string = char_val
 
@@ -187,6 +256,8 @@ Iteration
 Cython 0.13 supports efficient iteration over ``char*``, bytes and
 unicode strings, as long as the loop variable is appropriately typed.
 So the following will generate the expected C code::
+
+    # -*- coding: ASCII -*-
 
     cdef char* c_string = c_call_returning_a_c_string()
 
