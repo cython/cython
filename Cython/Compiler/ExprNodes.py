@@ -6252,17 +6252,10 @@ class CoerceIntToBytesNode(CoerceToPyTypeNode):
                        '"value too large to pack into a byte"); %s' % (
                            code.error_goto(self.pos)))
             code.putln('}')
-        temp = None
-        if arg.type is not PyrexTypes.c_char_type:
-            temp = code.funcstate.allocate_temp(PyrexTypes.c_char_type, manage_ref=False)
-            code.putln("%s = (char)%s;" % (temp, arg_result))
-            arg_result = temp
-        code.putln('%s = PyBytes_FromStringAndSize(&%s, 1); %s' % (
+        code.putln('%s = PyBytes_FromStringAndSize((const char*)&%s, 1); %s' % (
             self.result(),
             arg_result,
             code.error_goto_if_null(self.result(), self.pos)))
-        if temp is not None:
-            code.funcstate.release_temp(temp)
         code.put_gotref(self.py_result())
 
 
