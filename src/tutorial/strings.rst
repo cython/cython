@@ -189,7 +189,7 @@ As a rule of thumb, it is best to avoid unprefixed non-ASCII ``str``
 literals and to use unicode string literals for all text.  Cython also
 supports the ``__future__`` import ``unicode_literals`` that instructs
 the parser to read all unprefixed ``str`` literals in a source file as
-unicode string literals.
+unicode string literals, just like Python 3.
 
 .. _`CEP 108`: http://wiki.cython.org/enhancements/stringliterals
 
@@ -257,15 +257,21 @@ Cython 0.13 supports efficient iteration over ``char*``, bytes and
 unicode strings, as long as the loop variable is appropriately typed.
 So the following will generate the expected C code::
 
-    # -*- coding: ASCII -*-
-
-    cdef char* c_string = c_call_returning_a_c_string()
+    cdef char* c_string = ...
 
     cdef char c
     for c in c_string[:100]:
         if c == 'A': ...
 
-The same applies to unicode objects::
+The same applies to bytes objects::
+
+    cdef bytes bytes_string = ...
+
+    cdef char c
+    for c in bytes_string:
+        if c == 'A': ...
+
+and unicode objects::
 
     cdef unicode ustring = ...
 
