@@ -1693,6 +1693,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 
         return node
 
+    _handle_simple_method_list_pop = _handle_simple_method_object_pop
+
     PyList_Append_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_int_type, [
             PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),
