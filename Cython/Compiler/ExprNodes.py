@@ -5305,6 +5305,14 @@ class BoolBinopNode(ExprNode):
         self.operand1.analyse_types(env)
         self.operand2.analyse_types(env)
         self.type = PyrexTypes.spanning_type(self.operand1.type, self.operand2.type)
+        if self.type.is_numeric and self.type is not PyrexTypes.c_bint_type:
+            # special case: if one of the results is a bint and the other
+            # is another C integer, we must prevent returning a numeric
+            # type so that we do not loose the ability to coerce to a
+            # Python bool
+            if self.operand1.type is PyrexTypes.c_bint_type or \
+                   self.operand2.type is PyrexTypes.c_bint_type:
+                self.type = py_object_type
         self.operand1 = self.operand1.coerce_to(self.type, env)
         self.operand2 = self.operand2.coerce_to(self.type, env)
         
