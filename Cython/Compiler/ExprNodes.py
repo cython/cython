@@ -5275,7 +5275,7 @@ class BoolBinopNode(ExprNode):
     def infer_type(self, env):
         type1 = self.operand1.infer_type(env)
         type2 = self.operand2.infer_type(env)
-        return PyrexTypes.spanning_type(type1, type2)
+        return PyrexTypes.independent_spanning_type(type1, type2)
 
     def calculate_constant_result(self):
         if self.operator == 'and':
@@ -5304,15 +5304,7 @@ class BoolBinopNode(ExprNode):
     def analyse_types(self, env):
         self.operand1.analyse_types(env)
         self.operand2.analyse_types(env)
-        self.type = PyrexTypes.spanning_type(self.operand1.type, self.operand2.type)
-        if self.type.is_numeric and self.type is not PyrexTypes.c_bint_type:
-            # special case: if one of the results is a bint and the other
-            # is another C integer, we must prevent returning a numeric
-            # type so that we do not loose the ability to coerce to a
-            # Python bool
-            if self.operand1.type is PyrexTypes.c_bint_type or \
-                   self.operand2.type is PyrexTypes.c_bint_type:
-                self.type = py_object_type
+        self.type = PyrexTypes.independent_spanning_type(self.operand1.type, self.operand2.type)
         self.operand1 = self.operand1.coerce_to(self.type, env)
         self.operand2 = self.operand2.coerce_to(self.type, env)
         
@@ -5386,8 +5378,8 @@ class CondExprNode(ExprNode):
         return self.true_val.type_dependencies(env) + self.false_val.type_dependencies(env)
     
     def infer_type(self, env):
-        return self.compute_result_type(self.true_val.infer_type(env),
-                                        self.false_val.infer_type(env))
+        return PyrexTypes.independent_spanning_type(self.true_val.infer_type(env),
+                                                    self.false_val.infer_type(env))
 
     def calculate_constant_result(self):
         if self.test.constant_result:
@@ -5400,31 +5392,13 @@ class CondExprNode(ExprNode):
         self.test = self.test.coerce_to_boolean(env)
         self.true_val.analyse_types(env)
         self.false_val.analyse_types(env)
-        self.type = self.compute_result_type(self.true_val.type, self.false_val.type)
+        self.type = PyrexTypes.independent_spanning_type(self.true_val.type, self.false_val.type)
         if self.true_val.type.is_pyobject or self.false_val.type.is_pyobject:
             self.true_val = self.true_val.coerce_to(self.type, env)
             self.false_val = self.false_val.coerce_to(self.type, env)
         self.is_temp = 1
         if self.type == PyrexTypes.error_type:
             self.type_error()
-        
-    def compute_result_type(self, type1, type2):
-        if type1 == type2:
-            return type1
-        elif type1.is_numeric and type2.is_numeric:
-            return PyrexTypes.widest_numeric_type(type1, type2)
-        elif type1.is_extension_type and type1.subtype_of_resolved_type(type2):
-            return type2
-        elif type2.is_extension_type and type2.subtype_of_resolved_type(type1):
-            return type1
-        elif type1.is_pyobject or type2.is_pyobject:
-            return py_object_type
-        elif type1.assignable_from(type2):
-            return type1
-        elif type2.assignable_from(type1):
-            return type2
-        else:
-            return PyrexTypes.error_type
         
     def type_error(self):
         if not (self.true_val.type.is_error or self.false_val.type.is_error):
