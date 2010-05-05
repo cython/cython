@@ -1693,6 +1693,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 
         return node
 
+    _handle_simple_method_list_pop = _handle_simple_method_object_pop
+
     PyList_Append_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_int_type, [
             PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),
@@ -2423,7 +2425,7 @@ impl = """
 static CYTHON_INLINE Py_UNICODE __Pyx_PyUnicode_GetItemInt(PyObject* unicode, Py_ssize_t index, int check_bounds) {
     if (check_bounds) {
         if (unlikely(index >= PyUnicode_GET_SIZE(unicode)) |
-            unlikely(index < -PyUnicode_GET_SIZE(unicode))) {
+            ((index < 0) & unlikely(index < -PyUnicode_GET_SIZE(unicode)))) {
             PyErr_Format(PyExc_IndexError, "string index out of range");
             return (Py_UNICODE)-1;
         }
@@ -2444,7 +2446,7 @@ impl = """
 static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t index, int check_bounds) {
     if (check_bounds) {
         if (unlikely(index >= PyBytes_GET_SIZE(bytes)) |
-            unlikely(index < -PyBytes_GET_SIZE(bytes))) {
+            ((index < 0) & unlikely(index < -PyBytes_GET_SIZE(bytes)))) {
             PyErr_Format(PyExc_IndexError, "string index out of range");
             return -1;
         }
@@ -2524,6 +2526,24 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         self._calculate_const(node)
         return node
 
+    def visit_BoolBinopNode(self, node):
+        self._calculate_const(node)
+        if node.constant_result is ExprNodes.not_a_constant:
+            return node
+        if not node.operand1.is_literal or not node.operand2.is_literal:
+            # We calculate other constants to make them available to
+            # the compiler, but we only aggregate constant nodes
+            # recursively, so non-const nodes are straight out.
+            return node
+
+        if node.constant_result == node.operand1.constant_result and node.operand1.is_literal:
+            return node.operand1
+        elif node.constant_result == node.operand2.constant_result and node.operand2.is_literal:
+            return node.operand2
+        else:
+            # FIXME: we could do more ...
+            return node
+
     def visit_BinopNode(self, node):
         self._calculate_const(node)
         if node.constant_result is ExprNodes.not_a_constant:
@@ -2566,7 +2586,10 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                 new_node = target_class(pos=node.pos, type = widest_type)
 
         new_node.constant_result = node.constant_result
-        new_node.value = str(node.constant_result)
+        if isinstance(node, ExprNodes.BoolNode):
+            new_node.value = node.constant_result
+        else:
+            new_node.value = str(node.constant_result)
         #new_node = new_node.coerce_to(node.type, self.current_scope)
         return new_node
 

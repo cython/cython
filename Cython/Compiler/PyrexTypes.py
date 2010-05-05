@@ -2413,31 +2413,52 @@ def widest_numeric_type(type1, type2):
         widest_type = type2
     return widest_type
 
-def spanning_type(type1, type2):
-    # Return a type assignable from both type1 and type2.
-    if type1 is py_object_type or type2 is py_object_type:
-        return py_object_type
-    elif type1 == type2:
+def independent_spanning_type(type1, type2):
+    # Return a type assignable independently from both type1 and
+    # type2, but do not require any interoperability between the two.
+    # For example, in "True * 2", it is safe to assume an integer
+    # result type (so spanning_type() will do the right thing),
+    # whereas "x = True or 2" must evaluate to a type that can hold
+    # both a boolean value and an integer, so this function works
+    # better.
+    if type1 == type2:
         return type1
-    elif type1.is_numeric and type2.is_numeric:
+    elif (type1 is c_bint_type or type2 is c_bint_type) and (type1.is_numeric and type2.is_numeric):
+        # special case: if one of the results is a bint and the other
+        # is another C integer, we must prevent returning a numeric
+        # type so that we do not loose the ability to coerce to a
+        # Python bool if we have to.
+        return py_object_type
+    span_type = _spanning_type(type1, type2)
+    if span_type is None:
+        return PyrexTypes.error_type
+    return span_type
+
+def spanning_type(type1, type2):
+    # Return a type assignable from both type1 and type2, or
+    # py_object_type if no better type is found.  Assumes that the
+    # code that calls this will try a coercion afterwards, which will
+    # fail if the types cannot actually coerce to a py_object_type.
+    if type1 == type2:
+        return type1
+    elif type1 is py_object_type or type2 is py_object_type:
+        return py_object_type
+    span_type = _spanning_type(type1, type2)
+    if span_type is None:
+        return py_object_type
+    return span_type
+
+def _spanning_type(type1, type2):
+    if type1.is_numeric and type2.is_numeric:
         return widest_numeric_type(type1, type2)
     elif type1.is_builtin_type and type1.name == 'float' and type2.is_numeric:
         return widest_numeric_type(c_double_type, type2)
     elif type2.is_builtin_type and type2.name == 'float' and type1.is_numeric:
         return widest_numeric_type(type1, c_double_type)
-    elif type1.is_pyobject ^ type2.is_pyobject:
-        return py_object_type
     elif type1.is_extension_type and type2.is_extension_type:
-        if type1.typeobj_is_imported() or type2.typeobj_is_imported():
-            return py_object_type
-        while True:
-            if type1.subtype_of(type2):
-                return type2
-            elif type2.subtype_of(type1):
-                return type1
-            type1, type2 = type1.base_type, type2.base_type
-            if type1 is None or type2 is None:
-                return py_object_type
+        return widest_extension_type(type1, type2)
+    elif type1.is_pyobject or type2.is_pyobject:
+        return py_object_type
     elif type1.assignable_from(type2):
         if type1.is_extension_type and type1.typeobj_is_imported():
             # external types are unsafe, so we use PyObject instead
@@ -2449,8 +2470,20 @@ def spanning_type(type1, type2):
             return py_object_type
         return type2
     else:
+        return None
+
+def widest_extension_type(type1, type2):
+    if type1.typeobj_is_imported() or type2.typeobj_is_imported():
         return py_object_type
-    
+    while True:
+        if type1.subtype_of(type2):
+            return type2
+        elif type2.subtype_of(type1):
+            return type1
+        type1, type2 = type1.base_type, type2.base_type
+        if type1 is None or type2 is None:
+            return py_object_type
+
 def simple_c_type(signed, longness, name):
     # Find type descriptor for simple type given name and modifiers.
     # Returns None if arguments don't make sense.
