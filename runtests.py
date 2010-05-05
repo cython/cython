@@ -35,7 +35,8 @@ TEST_RUN_DIRS = ['run', 'wrappers', 'pyregr']
 # which should be excluded if the module is not present.
 EXT_DEP_MODULES = {
     'numpy' : re.compile('.*\.numpy_.*').match,
-    'pstats' : re.compile('.*\.pstats_.*').match
+    'pstats' : re.compile('.*\.pstats_.*').match,
+    'posix' : re.compile('.*\.posix_.*').match,
 }
 
 def get_numpy_include_dirs():

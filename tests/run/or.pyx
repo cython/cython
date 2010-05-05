@@ -51,3 +51,10 @@ def or2_no_result(a,b):
     'a *'
     """
     a or b
+
+def or2_literal():
+    """
+    >>> or2_literal()
+    5
+    """
+    return False or 5

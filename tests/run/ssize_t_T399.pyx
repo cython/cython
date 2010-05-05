@@ -46,12 +46,13 @@ Traceback (most recent call last):
 OverflowError: ...
 """
 
-# XXX This should generate a warning !!!
 cdef extern from *:
-    ctypedef long ssize_t
+    ctypedef long ssize_t # XXX This should generate a warning !!!
+    ssize_t PY_SSIZE_T_MAX
+    ssize_t PY_SSIZE_T_MIN
 
-SSIZE_T_MAX = <ssize_t>((<size_t>-1)>>1)
-SSIZE_T_MIN = (-SSIZE_T_MAX-1)
+SSIZE_T_MAX = PY_SSIZE_T_MAX
+SSIZE_T_MIN = PY_SSIZE_T_MIN
 
 def test(ssize_t i):
     return i

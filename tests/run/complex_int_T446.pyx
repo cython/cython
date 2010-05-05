@@ -1,5 +1,8 @@
 import cython
 
+cdef extern from "complex_int_T446_fix.h":
+    pass
+
 def test_arith(int complex a, int complex b):
     """
     >>> test_arith(4, 2)

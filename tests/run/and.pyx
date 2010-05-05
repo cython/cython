@@ -52,3 +52,10 @@ def and2_no_result(a,b):
     'b *'
     """
     a and b
+
+def and2_literal():
+    """
+    >>> and2_literal()
+    5
+    """
+    return True and 5
