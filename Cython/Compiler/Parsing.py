@@ -87,25 +87,6 @@ def p_binop_expr(s, ops, p_sub_expr):
                 n1.truedivision = None # unknown
     return n1
 
-#expression: or_test [if or_test else test] | lambda_form
-
-# actually:
-#test: or_test ['if' or_test 'else' test] | lambdef
-
-def p_simple_expr(s):
-    if s.sy == 'lambda':
-        return p_lambdef(s)
-    pos = s.position()
-    expr = p_or_test(s)
-    if s.sy == 'if':
-        s.next()
-        test = p_or_test(s)
-        s.expect('else')
-        other = p_test(s)
-        return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
-    else:
-        return expr
-
 #lambdef: 'lambda' [varargslist] ':' test
 
 def p_lambdef(s, allow_conditional=True):
@@ -120,7 +101,7 @@ def p_lambdef(s, allow_conditional=True):
             s, terminator=':', annotated=False)
     s.expect(':')
     if allow_conditional:
-        expr = p_simple_expr(s)
+        expr = p_test(s)
     else:
         expr = p_test_nocond(s)
     return ExprNodes.LambdaNode(
@@ -133,10 +114,21 @@ def p_lambdef(s, allow_conditional=True):
 def p_lambdef_nocond(s):
     return p_lambdef(s, allow_conditional=False)
 
-#test: or_test | lambdef
+#test: or_test ['if' or_test 'else' test] | lambdef
 
 def p_test(s):
-    return p_or_test(s)
+    if s.sy == 'lambda':
+        return p_lambdef(s)
+    pos = s.position()
+    expr = p_or_test(s)
+    if s.sy == 'if':
+        s.next()
+        test = p_or_test(s)
+        s.expect('else')
+        other = p_test(s)
+        return ExprNodes.CondExprNode(pos, test=test, true_val=expr, false_val=other)
+    else:
+        return expr
 
 #test_nocond: or_test | lambdef_nocond
 
@@ -319,7 +311,7 @@ def p_sizeof(s):
     # If it is actually a type, but parsable as an expression, 
     # we treat it as an expression here. 
     if looking_at_expr(s):
-        operand = p_simple_expr(s)
+        operand = p_test(s)
         node = ExprNodes.SizeofVarNode(pos, operand = operand)
     else:
         base_type = p_c_base_type(s)
@@ -397,9 +389,9 @@ def p_call(s, function):
                 s.error("only one star-arg parameter allowed",
                     pos = s.position())
             s.next()
-            star_arg = p_simple_expr(s)
+            star_arg = p_test(s)
         else:
-            arg = p_simple_expr(s)
+            arg = p_test(s)
             if s.sy == '=':
                 s.next()
                 if not arg.is_name:
@@ -407,7 +399,7 @@ def p_call(s, function):
                         pos = arg.pos)
                 encoded_name = EncodedString(arg.name)
                 keyword = ExprNodes.IdentifierStringNode(arg.pos, value = encoded_name)
-                arg = p_simple_expr(s)
+                arg = p_test(s)
                 keyword_args.append((keyword, arg))
             else:
                 if keyword_args:
@@ -426,7 +418,7 @@ def p_call(s, function):
             positional_args = [ p_genexp(s, positional_args[0]) ]
     elif s.sy == '**':
         s.next()
-        starstar_arg = p_simple_expr(s)
+        starstar_arg = p_test(s)
         if s.sy == ',':
             s.next()
     s.expect(')')
@@ -518,7 +510,7 @@ def p_slice_element(s, follow_set):
     # Simple expression which may be missing iff
     # it is followed by something in follow_set.
     if s.sy not in follow_set:
-        return p_simple_expr(s)
+        return p_test(s)
     else:
         return None
 
@@ -774,7 +766,7 @@ def p_list_maker(s):
     if s.sy == ']':
         s.expect(']')
         return ExprNodes.ListNode(pos, args = [])
-    expr = p_simple_expr(s)
+    expr = p_test(s)
     if s.sy == 'for':
         target = ExprNodes.ListNode(pos, args = [])
         append = ExprNodes.ComprehensionAppendNode(
@@ -828,7 +820,7 @@ def p_dict_or_set_maker(s):
     if s.sy == '}':
         s.next()
         return ExprNodes.DictNode(pos, key_value_pairs = [])
-    item = p_simple_expr(s)
+    item = p_test(s)
     if s.sy == ',' or s.sy == '}':
         # set literal
         values = [item]
@@ -836,7 +828,7 @@ def p_dict_or_set_maker(s):
             s.next()
             if s.sy == '}':
                 break
-            values.append( p_simple_expr(s) )
+            values.append( p_test(s) )
         s.expect('}')
         return ExprNodes.SetNode(pos, args=values)
     elif s.sy == 'for':
@@ -852,7 +844,7 @@ def p_dict_or_set_maker(s):
         # dict literal or comprehension
         key = item
         s.next()
-        value = p_simple_expr(s)
+        value = p_test(s)
         if s.sy == 'for':
             # dict comprehension
             target = ExprNodes.DictNode(pos, key_value_pairs = [])
@@ -870,9 +862,9 @@ def p_dict_or_set_maker(s):
                 s.next()
                 if s.sy == '}':
                     break
-                key = p_simple_expr(s)
+                key = p_test(s)
                 s.expect(':')
-                value = p_simple_expr(s)
+                value = p_test(s)
                 items.append(
                     ExprNodes.DictItemNode(key.pos, key=key, value=value))
             s.expect('}')
@@ -893,7 +885,7 @@ def p_backquote_expr(s):
 def p_simple_expr_list(s):
     exprs = []
     while s.sy not in expr_terminators:
-        expr = p_simple_expr(s)
+        expr = p_test(s)
         exprs.append(expr)
         if s.sy != ',':
             break
@@ -902,7 +894,7 @@ def p_simple_expr_list(s):
 
 def p_expr(s):
     pos = s.position()
-    expr = p_simple_expr(s)
+    expr = p_test(s)
     if s.sy == ',':
         s.next()
         exprs = [expr] + p_simple_expr_list(s)
@@ -1000,7 +992,7 @@ def p_print_statement(s):
     s.next()
     if s.sy == '>>':
         s.next()
-        stream = p_simple_expr(s)
+        stream = p_test(s)
         if s.sy == ',':
             s.next()
             ends_with_comma = s.sy in ('NEWLINE', 'EOF')
@@ -1008,13 +1000,13 @@ def p_print_statement(s):
         stream = None
     args = []
     if s.sy not in ('NEWLINE', 'EOF'):
-        args.append(p_simple_expr(s))
+        args.append(p_test(s))
         while s.sy == ',':
             s.next()
             if s.sy in ('NEWLINE', 'EOF'):
                 ends_with_comma = 1
                 break
-            args.append(p_simple_expr(s))
+            args.append(p_test(s))
     arg_tuple = ExprNodes.TupleNode(pos, args = args)
     return Nodes.PrintStatNode(pos,
         arg_tuple = arg_tuple, stream = stream,
@@ -1027,10 +1019,10 @@ def p_exec_statement(s):
     args = [ p_bit_expr(s) ]
     if s.sy == 'in':
         s.next()
-        args.append(p_simple_expr(s))
+        args.append(p_test(s))
         if s.sy == ',':
             s.next()
-            args.append(p_simple_expr(s))
+            args.append(p_test(s))
     else:
         error(pos, "'exec' currently requires a target mapping (globals/locals)")
     return Nodes.ExecStatNode(pos, args = args)
@@ -1039,6 +1031,7 @@ def p_del_statement(s):
     # s.sy == 'del'
     pos = s.position()
     s.next()
+    # FIXME: 'exprlist' in Python
     args = p_simple_expr_list(s)
     return Nodes.DelStatNode(pos, args = args)
 
@@ -1079,13 +1072,13 @@ def p_raise_statement(s):
     exc_value = None
     exc_tb = None
     if s.sy not in statement_terminators:
-        exc_type = p_simple_expr(s)
+        exc_type = p_test(s)
         if s.sy == ',':
             s.next()
-            exc_value = p_simple_expr(s)
+            exc_value = p_test(s)
             if s.sy == ',':
                 s.next()
-                exc_tb = p_simple_expr(s)
+                exc_tb = p_test(s)
     if exc_type or exc_value or exc_tb:
         return Nodes.RaiseStatNode(pos, 
             exc_type = exc_type,
@@ -1229,10 +1222,10 @@ def p_assert_statement(s):
     # s.sy == 'assert'
     pos = s.position()
     s.next()
-    cond = p_simple_expr(s)
+    cond = p_test(s)
     if s.sy == ',':
         s.next()
-        value = p_simple_expr(s)
+        value = p_test(s)
     else:
         value = None
     return Nodes.AssertStatNode(pos, cond = cond, value = value)
@@ -1253,7 +1246,7 @@ def p_if_statement(s):
 
 def p_if_clause(s):
     pos = s.position()
-    test = p_simple_expr(s)
+    test = p_test(s)
     body = p_suite(s)
     return Nodes.IfClauseNode(pos,
         condition = test, body = body)
@@ -1269,7 +1262,7 @@ def p_while_statement(s):
     # s.sy == 'while'
     pos = s.position()
     s.next()
-    test = p_simple_expr(s)
+    test = p_test(s)
     body = p_suite(s)
     else_clause = p_else_clause(s)
     return Nodes.WhileStatNode(pos, 
@@ -1399,10 +1392,10 @@ def p_except_clause(s):
     exc_type = None
     exc_value = None
     if s.sy != ':':
-        exc_type = p_simple_expr(s)
+        exc_type = p_test(s)
         if s.sy == ',' or (s.sy == 'IDENT' and s.systring == 'as'):
             s.next()
-            exc_value = p_simple_expr(s)
+            exc_value = p_test(s)
         elif s.sy == 'IDENT' and s.systring == 'as':
             # Py3 syntax requires a name here
             s.next()
@@ -1717,7 +1710,7 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
             s.next() # s.sy is '='
             s.next()
             if looking_at_expr(s):
-                arg = p_simple_expr(s)
+                arg = p_test(s)
             else:
                 base_type = p_c_base_type(s, templates = templates)
                 declarator = p_c_declarator(s, empty = 1)
@@ -1731,7 +1724,7 @@ def p_positional_and_keyword_args(s, end_sy_set, templates = None):
                 
         else:
             if looking_at_expr(s):
-                arg = p_simple_expr(s)
+                arg = p_test(s)
             else:
                 base_type = p_c_base_type(s, templates = templates)
                 declarator = p_c_declarator(s, empty = 1)
@@ -2065,7 +2058,7 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
             cname = p_opt_cname(s)
             if name != "operator" and s.sy == '=' and assignable:
                 s.next()
-                rhs = p_simple_expr(s)
+                rhs = p_test(s)
         else:
             if nonempty:
                 error(s.position(), "Empty declarator")
@@ -2131,7 +2124,7 @@ def p_exception_value_clause(s):
             if s.sy == '?':
                 exc_check = 1
                 s.next()
-            exc_val = p_simple_expr(s)
+            exc_val = p_test(s)
     return exc_val, exc_check
 
 c_arg_list_terminators = ('*', '**', '.', ')')
@@ -2188,7 +2181,7 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
         not_none = kind == 'not'
     if annotated and s.sy == ':':
         s.next()
-        annotation = p_simple_expr(s)
+        annotation = p_test(s)
     if s.sy == '=':
         s.next()
         if 'pxd' in s.level:
@@ -2197,7 +2190,7 @@ def p_c_arg_decl(s, ctx, in_pyfunc, cmethod_flag = 0, nonempty = 0,
             default = ExprNodes.BoolNode(1)
             s.next()
         else:
-            default = p_simple_expr(s)
+            default = p_test(s)
     return Nodes.CArgDeclNode(pos,
         base_type = base_type,
         declarator = declarator,
@@ -2328,7 +2321,7 @@ def p_c_enum_item(s, items):
     value = None
     if s.sy == '=':
         s.next()
-        value = p_simple_expr(s)
+        value = p_test(s)
     items.append(Nodes.CEnumDefItemNode(pos, 
         name = name, cname = cname, value = value))
 
@@ -2485,7 +2478,7 @@ def p_def_statement(s, decorators=None):
     return_type_annotation = None
     if s.sy == '->':
         s.next()
-        return_type_annotation = p_simple_expr(s)
+        return_type_annotation = p_test(s)
     doc, body = p_suite(s, Ctx(level = 'function'), with_doc = 1)
     return Nodes.DefNode(pos, name = name, args = args, 
         star_arg = star_arg, starstar_arg = starstar_arg,
@@ -2518,7 +2511,7 @@ def p_py_arg_decl(s):
     annotation = None
     if s.sy == ':':
         s.next()
-        annotation = p_simple_expr(s)
+        annotation = p_test(s)
     return Nodes.PyArgDeclNode(pos, name = name, annotation = annotation)
 
 def p_class_statement(s, decorators):
