@@ -918,11 +918,8 @@ def p_testlist(s):
     pos = s.position()
     expr = p_test(s)
     if s.sy == ',':
-        exprs = [expr]
-        while s.sy == ',':
-            s.next()
-            exprs.append(p_test(s))
-        return ExprNodes.TupleNode(pos, args = exprs)
+        s.next()
+        return p_testlist_tuple(s, pos, expr)
     else:
         return expr
 
@@ -930,17 +927,23 @@ def p_testlist(s):
 
 def p_testlist_comp(s):
     pos = s.position()
-    expr = p_simple_expr(s)
+    expr = p_test(s)
     if s.sy == ',':
-        exprs = [expr]
-        while s.sy == ',':
-            s.next()
-            exprs.append(p_test(s))
-        return ExprNodes.TupleNode(pos, args = exprs)
+        s.next()
+        return p_testlist_tuple(s, pos, expr)
     elif s.sy == 'for':
         return p_genexp(s, expr)
     else:
         return expr
+
+def p_testlist_tuple(s, pos, expr):
+    exprs = [expr]
+    while s.sy not in expr_terminators:
+        exprs.append(p_test(s))
+        if s.sy != ',':
+            break
+        s.next()
+    return ExprNodes.TupleNode(pos, args = exprs)
 
 def p_genexp(s, expr):
     # s.sy == 'for'
