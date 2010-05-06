@@ -3935,6 +3935,30 @@ class DictComprehensionAppendNode(ComprehensionAppendNode):
              code.error_goto_if(self.result(), self.pos)))
 
 
+class GeneratorExpressionNode(ExprNode):
+    # A generator expression, e.g.  (i for i in range(10))
+    #
+    # Result is a generator.
+    #
+    # loop   ForStatNode   the for-loop, containing a YieldExprNode
+    subexprs = []
+    child_attrs = ["loop"]
+
+    type = py_object_type
+
+    def analyse_declarations(self, env):
+        self.loop.analyse_declarations(env)
+
+    def analyse_types(self, env):
+        self.loop.analyse_expressions(env)
+
+    def may_be_none(self):
+        return False
+
+    def annotate(self, code):
+        self.loop.annotate(code)
+
+
 class SetNode(ExprNode):
     #  Set constructor.
 
@@ -4325,6 +4349,7 @@ class YieldExprNode(ExprNode):
             self.arg.analyse_types(env)
             if not self.arg.type.is_pyobject:
                 self.arg = self.arg.coerce_to_pyobject(env)
+        error(self.pos, "Generators are not supported")
 
     def generate_result_code(self, code):
         self.label_name = code.new_label('resume_from_yield')

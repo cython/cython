@@ -421,7 +421,10 @@ def p_call(s, function):
             break
         s.next()
 
-    if s.sy == '**':
+    if s.sy == 'for':
+        if len(positional_args) == 1 and not star_arg:
+            positional_args = [ p_genexp(s, positional_args[0]) ]
+    elif s.sy == '**':
         s.next()
         starstar_arg = p_simple_expr(s)
         if s.sy == ',':
@@ -547,7 +550,7 @@ def make_slice_node(pos, start, stop = None, step = None):
     return ExprNodes.SliceNode(pos,
         start = start, stop = stop, step = step)
 
-#atom: '(' [testlist] ')' | '[' [listmaker] ']' | '{' [dict_or_set_maker] '}' | '`' testlist '`' | NAME | NUMBER | STRING+
+#atom: '(' [yield_expr|testlist_comp] ')' | '[' [listmaker] ']' | '{' [dict_or_set_maker] '}' | '`' testlist '`' | NAME | NUMBER | STRING+
 
 def p_atom(s):
     pos = s.position()
@@ -559,7 +562,7 @@ def p_atom(s):
         elif s.sy == 'yield':
             result = p_yield_expression(s)
         else:
-            result = p_expr(s)
+            result = p_testlist_comp(s)
         s.expect(')')
         return result
     elif sy == '[':
@@ -922,7 +925,28 @@ def p_testlist(s):
         return ExprNodes.TupleNode(pos, args = exprs)
     else:
         return expr
-        
+
+# testlist_comp: (test|star_expr) ( comp_for | (',' (test|star_expr))* [','] )
+
+def p_testlist_comp(s):
+    pos = s.position()
+    expr = p_simple_expr(s)
+    if s.sy == ',':
+        exprs = [expr]
+        while s.sy == ',':
+            s.next()
+            exprs.append(p_test(s))
+        return ExprNodes.TupleNode(pos, args = exprs)
+    elif s.sy == 'for':
+        return p_genexp(s, expr)
+    else:
+        return expr
+
+def p_genexp(s, expr):
+    # s.sy == 'for'
+    loop = p_comp_for(s, ExprNodes.YieldExprNode(expr.pos, arg=expr))
+    return ExprNodes.GeneratorExpressionNode(expr.pos, loop=loop)
+
 expr_terminators = (')', ']', '}', ':', '=', 'NEWLINE')
 
 #-------------------------------------------------------
