@@ -184,6 +184,12 @@ def p_comparison(s):
             n1.cascade = p_cascaded_cmp(s)
     return n1
 
+def p_test_or_starred_expr(s):
+    if s.sy == '*':
+        return p_starred_expr(s)
+    else:
+        return p_test(s)
+
 def p_starred_expr(s):
     pos = s.position()
     if s.sy == '*':
@@ -326,7 +332,7 @@ def p_yield_expression(s):
     pos = s.position()
     s.next()
     if s.sy != ')' and s.sy not in statement_terminators:
-        arg = p_expr(s)
+        arg = p_testlist(s)
     else:
         arg = None
     return ExprNodes.YieldExprNode(pos, arg=arg)
@@ -776,10 +782,11 @@ def p_list_maker(s):
         return ExprNodes.ComprehensionNode(
             pos, loop=loop, append=append, target=target)
     else:
-        exprs = [expr]
         if s.sy == ',':
             s.next()
-            exprs += p_simple_expr_list(s)
+            exprs = p_simple_expr_list(s, expr)
+        else:
+            exprs = [expr]
         s.expect(']')
         return ExprNodes.ListNode(pos, args = exprs)
         
@@ -796,7 +803,7 @@ def p_comp_for(s, body):
     # s.sy == 'for'
     pos = s.position()
     s.next()
-    kw = p_for_bounds(s)
+    kw = p_for_bounds(s, allow_testlist=False)
     kw['else_clause'] = None
     kw['body'] = p_comp_iter(s, body)
     return Nodes.ForStatNode(pos, **kw)
@@ -874,44 +881,62 @@ def p_dict_or_set_maker(s):
         s.expect('}')
     return ExprNodes.DictNode(pos, key_value_pairs = [])
 
+# NOTE: no longer in Py3 :)
 def p_backquote_expr(s):
     # s.sy == '`'
     pos = s.position()
     s.next()
-    arg = p_expr(s)
+    args = [p_test(s)]
+    while s.sy == ',':
+        s.next()
+        args.append(p_test(s))
     s.expect('`')
+    if len(args) == 1:
+        arg = args[0]
+    else:
+        arg = ExprNodes.TupleNode(pos, args = args)
     return ExprNodes.BackquoteNode(pos, arg = arg)
 
-def p_simple_expr_list(s):
-    exprs = []
+def p_simple_expr_list(s, expr=None):
+    exprs = expr is not None and [expr] or []
     while s.sy not in expr_terminators:
-        expr = p_test(s)
-        exprs.append(expr)
+        exprs.append( p_test(s) )
         if s.sy != ',':
             break
         s.next()
     return exprs
 
-def p_expr(s):
-    pos = s.position()
-    expr = p_test(s)
-    if s.sy == ',':
+def p_test_or_starred_expr_list(s, expr=None):
+    exprs = expr is not None and [expr] or []
+    while s.sy not in expr_terminators:
+        exprs.append( p_test_or_starred_expr(s) )
+        if s.sy != ',':
+            break
         s.next()
-        exprs = [expr] + p_simple_expr_list(s)
-        return ExprNodes.TupleNode(pos, args = exprs)
-    else:
-        return expr
-
+    return exprs
+    
 
 #testlist: test (',' test)* [',']
-# differs from p_expr only in the fact that it cannot contain conditional expressions
 
 def p_testlist(s):
     pos = s.position()
     expr = p_test(s)
     if s.sy == ',':
         s.next()
-        return p_testlist_tuple(s, pos, expr)
+        exprs = p_simple_expr_list(s, expr)
+        return ExprNodes.TupleNode(pos, args = exprs)
+    else:
+        return expr
+
+# testlist_star_expr: (test|star_expr) ( comp_for | (',' (test|star_expr))* [','] )
+
+def p_testlist_star_expr(s):
+    pos = s.position()
+    expr = p_test_or_starred_expr(s)
+    if s.sy == ',':
+        s.next()
+        exprs = p_test_or_starred_expr_list(s, expr)
+        return ExprNodes.TupleNode(pos, args = exprs)
     else:
         return expr
 
@@ -919,23 +944,15 @@ def p_testlist(s):
 
 def p_testlist_comp(s):
     pos = s.position()
-    expr = p_test(s)
+    expr = p_test_or_starred_expr(s)
     if s.sy == ',':
         s.next()
-        return p_testlist_tuple(s, pos, expr)
+        exprs = p_test_or_starred_expr_list(s, expr)
+        return ExprNodes.TupleNode(pos, args = exprs)
     elif s.sy == 'for':
         return p_genexp(s, expr)
     else:
         return expr
-
-def p_testlist_tuple(s, pos, expr):
-    exprs = [expr]
-    while s.sy not in expr_terminators:
-        exprs.append(p_test(s))
-        if s.sy != ',':
-            break
-        s.next()
-    return ExprNodes.TupleNode(pos, args = exprs)
 
 def p_genexp(s, expr):
     # s.sy == 'for'
@@ -958,10 +975,14 @@ def p_global_statement(s):
     return Nodes.GlobalNode(pos, names = names)
 
 def p_expression_or_assignment(s):
-    expr_list = [p_expr(s)]
+    expr_list = [p_testlist_star_expr(s)]
     while s.sy == '=':
         s.next()
-        expr_list.append(p_expr(s))
+        if s.sy == 'yield':
+            expr = p_yield_expression(s)
+        else:
+            expr = p_testlist_star_expr(s)
+        expr_list.append(expr)
     if len(expr_list) == 1:
         if re.match(r"([+*/\%^\&|-]|<<|>>|\*\*|//)=", s.sy):
             lhs = expr_list[0]
@@ -969,7 +990,10 @@ def p_expression_or_assignment(s):
                 error(lhs.pos, "Illegal operand for inplace operation.")
             operator = s.sy[:-1]
             s.next()
-            rhs = p_expr(s)
+            if s.sy == 'yield':
+                rhs = p_yield_expression(s)
+            else:
+                rhs = p_testlist(s)
             return Nodes.InPlaceAssignmentNode(lhs.pos, operator = operator, lhs = lhs, rhs = rhs)
         expr = expr_list[0]
         if isinstance(expr, (ExprNodes.UnicodeNode, ExprNodes.StringNode, ExprNodes.BytesNode)):
@@ -1059,7 +1083,7 @@ def p_return_statement(s):
     pos = s.position()
     s.next()
     if s.sy not in statement_terminators:
-        value = p_expr(s)
+        value = p_testlist(s)
     else:
         value = None
     return Nodes.ReturnStatNode(pos, value = value)
@@ -1273,16 +1297,16 @@ def p_for_statement(s):
     # s.sy == 'for'
     pos = s.position()
     s.next()
-    kw = p_for_bounds(s)
+    kw = p_for_bounds(s, allow_testlist=True)
     kw['body'] = p_suite(s)
     kw['else_clause'] = p_else_clause(s)
     return Nodes.ForStatNode(pos, **kw)
             
-def p_for_bounds(s):
+def p_for_bounds(s, allow_testlist=True):
     target = p_for_target(s)
     if s.sy == 'in':
         s.next()
-        iterator = p_for_iterator(s)
+        iterator = p_for_iterator(s, allow_testlist)
         return { 'target': target, 'iterator': iterator }
     else:
         if s.sy == 'from':
@@ -1353,9 +1377,12 @@ def p_target(s, terminator):
 def p_for_target(s):
     return p_target(s, 'in')
 
-def p_for_iterator(s):
+def p_for_iterator(s, allow_testlist=True):
     pos = s.position()
-    expr = p_testlist(s)
+    if allow_testlist:
+        expr = p_testlist(s)
+    else:
+        expr = p_or_test(s)
     return ExprNodes.IteratorNode(pos, sequence = expr)
 
 def p_try_statement(s):
@@ -1462,7 +1489,7 @@ def p_with_statement(s):
         else:
             error(pos, "Syntax error in template function declaration")
     else:
-        manager = p_expr(s)
+        manager = p_test(s)
         target = None
         if s.sy == 'IDENT' and s.systring == 'as':
             s.next()
@@ -1525,7 +1552,7 @@ def p_simple_statement_list(s, ctx, first_statement = 0):
 def p_compile_time_expr(s):
     old = s.compile_time_expr
     s.compile_time_expr = 1
-    expr = p_expr(s)
+    expr = p_testlist(s)
     s.compile_time_expr = old
     return expr
 
@@ -1996,7 +2023,7 @@ def p_c_array_declarator(s, base):
     pos = s.position()
     s.next() # '['
     if s.sy != ']':
-        dim = p_expr(s)
+        dim = p_testlist(s)
     else:
         dim = None
     s.expect(']')
