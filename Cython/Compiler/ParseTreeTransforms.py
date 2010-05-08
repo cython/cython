@@ -1205,10 +1205,8 @@ class MarkClosureVisitor(CythonTransform):
         self.visitchildren(node)
         self.needs_closure = True
         return node
-        
-    def visit_YieldNode(self, node):
-        self.needs_closure = True
-        
+
+
 class CreateClosureClasses(CythonTransform):
     # Output closure classes in module scope for all functions
     # that need it. 
