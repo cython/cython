@@ -1035,6 +1035,11 @@ property NAME:
         node.analyse_declarations(self.env_stack[-1])
         return node
 
+    def visit_TempResultFromStatNode(self, node):
+        self.visitchildren(node)
+        node.analyse_declarations(self.env_stack[-1])
+        return node
+
     # Some nodes are no longer needed after declaration
     # analysis and can be dropped. The analysis was performed
     # on these nodes in a seperate recursive process from the
