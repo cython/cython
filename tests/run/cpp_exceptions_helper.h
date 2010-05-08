@@ -13,3 +13,13 @@ int raise_index(int fire) {
     }
     return 0;
 }
+
+class Foo {
+ public:
+  int bar(int fire) {
+    if (fire) {
+      throw 1;
+    }
+    return 0;
+  }
+};

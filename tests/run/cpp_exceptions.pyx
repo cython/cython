@@ -10,6 +10,12 @@ cdef extern from "cpp_exceptions_helper.h":
     cdef int raise_index_value "raise_index"(bint fire) except +ValueError
     cdef int raise_index_custom "raise_index"(bint fire) except +raise_py_error
 
+    cdef cppclass Foo:
+        int bar_raw "bar"(bint fire) except +
+        int bar_value "bar"(bint fire) except +ValueError
+        int bar_custom "bar"(bint fire) except +raise_py_error
+
+
 def test_int_raw(bint fire):
     """
     >>> test_int_raw(False)
@@ -69,3 +75,45 @@ def test_index_custom(bint fire):
     TypeError: custom
     """
     raise_index_custom(fire)
+
+def test_cppclass_method_raw(bint fire):
+    """
+    >>> test_cppclass_method_raw(False)
+    >>> test_cppclass_method_raw(True)
+    Traceback (most recent call last):
+    ...
+    RuntimeError: Unknown exception
+    """
+    foo = new Foo()
+    try:
+        foo.bar_raw(fire)
+    finally:
+        del foo
+
+def test_cppclass_method_value(bint fire):
+    """
+    >>> test_cppclass_method_value(False)
+    >>> test_cppclass_method_value(True)
+    Traceback (most recent call last):
+    ...
+    ValueError
+    """
+    foo = new Foo()
+    try:
+        foo.bar_value(fire)
+    finally:
+        del foo
+
+def test_cppclass_method_custom(bint fire):
+    """
+    >>> test_cppclass_method_custom(False)
+    >>> test_cppclass_method_custom(True)
+    Traceback (most recent call last):
+    ...
+    TypeError: custom
+    """
+    foo = new Foo()
+    try:
+        foo.bar_custom(fire)
+    finally:
+        del foo
