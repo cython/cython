@@ -2431,7 +2431,7 @@ def independent_spanning_type(type1, type2):
         return py_object_type
     span_type = _spanning_type(type1, type2)
     if span_type is None:
-        return PyrexTypes.error_type
+        return error_type
     return span_type
 
 def spanning_type(type1, type2):

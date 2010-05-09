@@ -4290,11 +4290,28 @@ class ForInStatNode(LoopNode, StatNode):
             "}")
         break_label = code.break_label
         code.set_loop_labels(old_loop_labels)
+
         if self.else_clause:
+            # in nested loops, the 'else' block can contain a
+            # 'continue' statement for the outer loop, but we may need
+            # to generate cleanup code before taking that path, so we
+            # intercept it here
+            orig_continue_label = code.continue_label
+            code.continue_label = code.new_label('outer_continue')
+
             code.putln("/*else*/ {")
             self.else_clause.generate_execution_code(code)
             code.putln("}")
-        code.put_label(break_label)
+
+            if code.label_used(code.continue_label):
+                code.put_goto(break_label)
+                code.put_label(code.continue_label)
+                self.iterator.generate_disposal_code(code)
+                code.put_goto(orig_continue_label)
+            code.set_loop_labels(old_loop_labels)
+
+        if code.label_used(break_label):
+            code.put_label(break_label)
         self.iterator.release_counter_temp(code)
         self.iterator.generate_disposal_code(code)
         self.iterator.free_temps(code)
