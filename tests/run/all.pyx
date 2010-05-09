@@ -86,6 +86,38 @@ def all_in_simple_gen(seq):
 @cython.test_fail_if_path_exists("//SimpleCallNode",
                                  "//YieldExprNode",
                                  "//GeneratorExpressionNode")
+def all_in_conditional_gen(seq):
+    """
+    >>> all_in_conditional_gen([3,6,9])
+    False
+    >>> all_in_conditional_gen([0,3,7])
+    False
+    >>> all_in_conditional_gen([1,0,1])
+    True
+
+    >>> all_in_conditional_gen(VerboseGetItem([1,1,1,1,1]))
+    0
+    1
+    2
+    3
+    4
+    5
+    True
+    >>> all_in_conditional_gen(VerboseGetItem([1,1,0,1,1]))
+    0
+    1
+    2
+    3
+    4
+    5
+    True
+    """
+    return all(x%3 for x in seq if x%2 == 1)
+
+@cython.test_assert_path_exists("//ForInStatNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode",
+                                 "//YieldExprNode",
+                                 "//GeneratorExpressionNode")
 def all_in_typed_gen(seq):
     """
     >>> all_in_typed_gen([1,1,1])
