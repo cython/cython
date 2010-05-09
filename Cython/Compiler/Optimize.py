@@ -981,8 +981,9 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         if not function.is_name:
             return False
         entry = self.current_env().lookup(function.name)
-        if not entry or getattr(entry, 'scope', None) is not Builtin.builtin_scope:
+        if entry and getattr(entry, 'scope', None) is not Builtin.builtin_scope:
             return False
+        # if entry is None, it's at least an undeclared name, so likely builtin
         return True
 
     def _dispatch_to_handler(self, node, function, args, kwargs=None):
@@ -1073,6 +1074,121 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         if len(pos_args) > 1:
             self._error_wrong_arg_count('float', node, pos_args, 1)
         return node
+
+    class YieldNodeCollector(Visitor.TreeVisitor):
+        def __init__(self):
+            Visitor.TreeVisitor.__init__(self)
+            self.yield_nodes = []
+
+        visit_Node = Visitor.TreeVisitor.visitchildren
+        def visit_YieldExprNode(self, node):
+            self.yield_nodes.append(node)
+            self.visitchildren(node)
+
+    def _handle_simple_function_all(self, node, pos_args):
+        """Transform
+
+        _result = all(x for L in LL for x in L)
+
+        into
+
+        for L in LL:
+            for x in L:
+                if not x:
+                    _result = False
+                    break
+            else:
+                continue
+            break
+        else:
+            _result = True
+        """
+        return self._transform_any_all(node, pos_args, False)
+
+    def _handle_simple_function_any(self, node, pos_args):
+        """Transform
+
+        _result = any(x for L in LL for x in L)
+
+        into
+
+        for L in LL:
+            for x in L:
+                if x:
+                    _result = True
+                    break
+            else:
+                continue
+            break
+        else:
+            _result = False
+        """
+        return self._transform_any_all(node, pos_args, True)
+
+    def _transform_any_all(self, node, pos_args, is_any):
+        if len(pos_args) != 1:
+            return node
+        if not isinstance(pos_args[0], ExprNodes.GeneratorExpressionNode):
+            return node
+        loop_node = pos_args[0].loop
+
+        collector = self.YieldNodeCollector()
+        collector.visitchildren(loop_node)
+        if len(collector.yield_nodes) != 1:
+            return node
+        yield_node = collector.yield_nodes[0]
+        yield_expression = yield_node.arg
+        del collector
+
+        result_ref = UtilNodes.ResultRefNode(pos=node.pos)
+        result_ref.type = PyrexTypes.c_bint_type
+
+        if is_any:
+            condition = yield_expression
+        else:
+            condition = ExprNodes.NotNode(yield_expression.pos, operand = yield_expression)
+
+        # Transform generator expression into plain for-loop, replace
+        # yield node in body by assignment of True to the node result,
+        # set the 'else' branch to a False assignment.  Propagate the
+        # break after the inner assignment by injecting breaks after
+        # the inner loops, and putting a default 'continue' into their
+        # 'else' clauses.
+        test_node = Nodes.IfStatNode(
+            yield_node.pos,
+            else_clause = None,
+            if_clauses = [ Nodes.IfClauseNode(
+                yield_node.pos,
+                condition = condition,
+                body = Nodes.StatListNode(
+                    node.pos,
+                    stats = [
+                        Nodes.SingleAssignmentNode(
+                            node.pos,
+                            lhs = result_ref,
+                            rhs = ExprNodes.BoolNode(yield_node.pos, value = is_any,
+                                                     constant_result = is_any)),
+                        Nodes.BreakStatNode(node.pos)
+                        ])) ]
+            )
+        loop = loop_node
+        while isinstance(loop.body, Nodes.LoopNode):
+            next_loop = loop.body
+            loop.body = Nodes.StatListNode(loop.body.pos, stats = [
+                loop.body,
+                Nodes.BreakStatNode(yield_node.pos)
+                ])
+            next_loop.else_clause = Nodes.ContinueStatNode(yield_node.pos)
+            loop = next_loop
+        loop_node.else_clause = Nodes.SingleAssignmentNode(
+            node.pos,
+            lhs = result_ref,
+            rhs = ExprNodes.BoolNode(yield_node.pos, value = not is_any,
+                                     constant_result = not is_any))
+
+        Visitor.RecursiveNodeReplacer(yield_node, test_node).visitchildren(loop_node)
+
+        return UtilNodes.TempResultFromStatNode(result_ref, loop_node)
 
     # specific handlers for general call nodes
 
