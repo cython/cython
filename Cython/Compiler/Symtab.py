@@ -1661,7 +1661,9 @@ class CppClassScope(Scope):
                                             e.pos,
                                             e.cname)
         return scope
-        
+
+    def add_include_file(self, filename):
+        self.outer_scope.add_include_file(filename)        
         
 class PropertyScope(Scope):
     #  Scope holding the __get__, __set__ and __del__ methods for
