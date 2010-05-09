@@ -1148,12 +1148,6 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         else:
             condition = ExprNodes.NotNode(yield_expression.pos, operand = yield_expression)
 
-        # Transform generator expression into plain for-loop, replace
-        # yield node in body by assignment of True to the node result,
-        # set the 'else' branch to a False assignment.  Propagate the
-        # break after the inner assignment by injecting breaks after
-        # the inner loops, and putting a default 'continue' into their
-        # 'else' clauses.
         test_node = Nodes.IfStatNode(
             yield_node.pos,
             else_clause = None,
