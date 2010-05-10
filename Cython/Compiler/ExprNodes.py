@@ -6748,12 +6748,12 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Generic(PyObject *o, PyObject* j
 
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ssize_t i) {
     if (likely(o != Py_None)) {
-        if (likely((0 <= i) && (i < Py%(type)s_GET_SIZE(o)))) {
+        if (likely((0 <= i) & (i < Py%(type)s_GET_SIZE(o)))) {
             PyObject *r = Py%(type)s_GET_ITEM(o, i);
             Py_INCREF(r);
             return r;
         }
-        else if ((-Py%(type)s_GET_SIZE(o) <= i) && (i < 0)) {
+        else if ((-Py%(type)s_GET_SIZE(o) <= i) & (i < 0)) {
             PyObject *r = Py%(type)s_GET_ITEM(o, Py%(type)s_GET_SIZE(o) + i);
             Py_INCREF(r);
             return r;
@@ -6770,11 +6770,11 @@ static CYTHON_INLINE PyObject *__Pyx_GetItemInt_%(type)s_Fast(PyObject *o, Py_ss
 
 static CYTHON_INLINE PyObject *__Pyx_GetItemInt_Fast(PyObject *o, Py_ssize_t i) {
     PyObject *r;
-    if (PyList_CheckExact(o) && ((0 <= i) && (i < PyList_GET_SIZE(o)))) {
+    if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
         r = PyList_GET_ITEM(o, i);
         Py_INCREF(r);
     }
-    else if (PyTuple_CheckExact(o) && ((0 <= i) && (i < PyTuple_GET_SIZE(o)))) {
+    else if (PyTuple_CheckExact(o) && ((0 <= i) & (i < PyTuple_GET_SIZE(o)))) {
         r = PyTuple_GET_ITEM(o, i);
         Py_INCREF(r);
     }
@@ -6809,7 +6809,7 @@ static CYTHON_INLINE int __Pyx_SetItemInt_Generic(PyObject *o, PyObject *j, PyOb
 }
 
 static CYTHON_INLINE int __Pyx_SetItemInt_Fast(PyObject *o, Py_ssize_t i, PyObject *v) {
-    if (PyList_CheckExact(o) && ((0 <= i) && (i < PyList_GET_SIZE(o)))) {
+    if (PyList_CheckExact(o) && ((0 <= i) & (i < PyList_GET_SIZE(o)))) {
         Py_INCREF(v);
         Py_DECREF(PyList_GET_ITEM(o, i));
         PyList_SET_ITEM(o, i, v);
@@ -7005,7 +7005,7 @@ impl="""
 static CYTHON_INLINE %(type)s __Pyx_div_%(type_name)s(%(type)s a, %(type)s b) {
     %(type)s q = a / b;
     %(type)s r = a - q*b;
-    q -= ((r != 0) && ((r ^ b) < 0));
+    q -= ((r != 0) & ((r ^ b) < 0));
     return q;
 }
 """)
@@ -7017,7 +7017,7 @@ static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* pr
 impl="""
 static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
     %(type)s r = a %% b;
-    r += ((r != 0) && ((r ^ b) < 0)) * b;
+    r += ((r != 0) & ((r ^ b) < 0)) * b;
     return r;
 }
 """)
@@ -7029,7 +7029,7 @@ static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s, %(type)s); /* pr
 impl="""
 static CYTHON_INLINE %(type)s __Pyx_mod_%(type_name)s(%(type)s a, %(type)s b) {
     %(type)s r = fmod%(math_h_modifier)s(a, b);
-    r += ((r != 0) && ((r < 0) ^ (b < 0))) * b;
+    r += ((r != 0) & ((r < 0) ^ (b < 0))) * b;
     return r;
 }
 """)
@@ -7056,5 +7056,5 @@ static int __Pyx_cdivision_warning(void) {
 division_overflow_test_code = UtilityCode(
 proto="""
 #define UNARY_NEG_WOULD_OVERFLOW(x)	\
-	(((x) < 0) && ((unsigned long)(x) == 0-(unsigned long)(x)))
+	(((x) < 0) & ((unsigned long)(x) == 0-(unsigned long)(x)))
 """)
