@@ -2425,7 +2425,7 @@ impl = """
 static CYTHON_INLINE Py_UNICODE __Pyx_PyUnicode_GetItemInt(PyObject* unicode, Py_ssize_t index, int check_bounds) {
     if (check_bounds) {
         if (unlikely(index >= PyUnicode_GET_SIZE(unicode)) |
-            ((index < 0) & unlikely(index < -PyUnicode_GET_SIZE(unicode)))) {
+            ((index < 0) && unlikely(index < -PyUnicode_GET_SIZE(unicode)))) {
             PyErr_Format(PyExc_IndexError, "string index out of range");
             return (Py_UNICODE)-1;
         }
@@ -2446,7 +2446,7 @@ impl = """
 static CYTHON_INLINE char __Pyx_PyBytes_GetItemInt(PyObject* bytes, Py_ssize_t index, int check_bounds) {
     if (check_bounds) {
         if (unlikely(index >= PyBytes_GET_SIZE(bytes)) |
-            ((index < 0) & unlikely(index < -PyBytes_GET_SIZE(bytes)))) {
+            ((index < 0) && unlikely(index < -PyBytes_GET_SIZE(bytes)))) {
             PyErr_Format(PyExc_IndexError, "string index out of range");
             return -1;
         }
