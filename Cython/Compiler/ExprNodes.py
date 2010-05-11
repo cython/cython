@@ -839,12 +839,14 @@ class FloatNode(ConstNode):
         return float(self.value)
     
     def calculate_result_code(self):
-        strval = repr(float(self.value))
-        if strval == 'nan':
+        strval = self.value
+        assert isinstance(strval, (str, unicode))
+        cmpval = repr(float(strval))
+        if cmpval == 'nan':
             return "(Py_HUGE_VAL * 0)"
-        elif strval == 'inf':
+        elif cmpval == 'inf':
             return "Py_HUGE_VAL"
-        elif strval == '-inf':
+        elif cmpval == '-inf':
             return "(-Py_HUGE_VAL)"
         else:
             return strval
