@@ -103,6 +103,9 @@ __doc__ = ur"""
     True
     >>> len(u6)
     7
+    
+    >>> newlines == "Aaa\n"
+    True
 """
 
 import sys
@@ -127,3 +130,5 @@ u3 = ur"abc\x11"
 u4 = Ur"abc\x11"
 u5 = uR"abc\x11"
 u6 = UR"abc\x11"
+
+newlines = "Aaa\n"
