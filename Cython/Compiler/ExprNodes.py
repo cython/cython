@@ -1897,9 +1897,14 @@ class IndexNode(ExprNode):
         base_type = self.base.infer_type(env)
         if base_type.is_ptr or base_type.is_array:
             return base_type.base_type
-        elif base_type is Builtin.unicode_type:
+        elif base_type is Builtin.unicode_type and self.index.infer_type(env).is_int:
             # Py_UNICODE will automatically coerce to a unicode string
-            # if required, so this is safe
+            # if required, so this is safe. We only infer Py_UNICODE
+            # when the index is a C integer type. Otherwise, we may
+            # need to use normal Python item access, in which case
+            # it's faster to return the one-char unicode string than
+            # to receive it, throw it away, and potentially rebuild it
+            # on a subsequent PyObject coercion.
             return PyrexTypes.c_py_unicode_type
         else:
             # TODO: Handle buffers (hopefully without too much redundancy).
@@ -1988,9 +1993,9 @@ class IndexNode(ExprNode):
                 else:
                     self.index = self.index.coerce_to_pyobject(env)
                     self.is_temp = 1
-                if base_type is unicode_type:
+                if self.index.type.is_int and base_type is unicode_type:
                     # Py_UNICODE will automatically coerce to a unicode string
-                    # if required, so this is safe
+                    # if required, so this is fast and safe
                     self.type = PyrexTypes.c_py_unicode_type
                 else:
                     self.type = py_object_type
@@ -2128,13 +2133,10 @@ class IndexNode(ExprNode):
                         code.error_goto(self.pos)))
                 code.put_gotref(self.py_result())
             elif self.type is PyrexTypes.c_py_unicode_type and self.base.type is unicode_type:
+                assert self.index.type.is_int
+                index_code = self.index.result()
+                function = "__Pyx_GetItemInt_Unicode"
                 code.globalstate.use_utility_code(getitem_int_pyunicode_utility_code)
-                if self.index.type.is_int:
-                    index_code = self.index.result()
-                    function = "__Pyx_GetItemInt_Unicode"
-                else:
-                    index_code = self.index.py_result()
-                    function = "__Pyx_GetItemInt_Unicode_Generic"
                 code.putln(
                     "%s = %s(%s, %s%s); if (unlikely(%s == (Py_UNICODE)-1)) %s;" % (
                         self.result(),
@@ -6784,18 +6786,17 @@ static CYTHON_INLINE Py_UNICODE __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring,
 }
 
 static CYTHON_INLINE Py_UNICODE __Pyx_GetItemInt_Unicode_Generic(PyObject* ustring, PyObject* j) {
-    PyObject *r;
     Py_UNICODE uchar;
+    PyObject *uchar_string;
     if (!j) return (Py_UNICODE)-1;
-    r = PyObject_GetItem(ustring, j);
+    uchar_string = PyObject_GetItem(ustring, j);
     Py_DECREF(j);
-    if (!r) return (Py_UNICODE)-1;
-    uchar = PyUnicode_AS_UNICODE(r)[0];
-    Py_DECREF(r);
+    if (!uchar_string) return (Py_UNICODE)-1;
+    uchar = PyUnicode_AS_UNICODE(uchar_string)[0];
+    Py_DECREF(uchar_string);
     return uchar;
 }
-''',
-)
+''')
 
 getitem_int_utility_code = UtilityCode(
 proto = """
