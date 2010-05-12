@@ -1,4 +1,5 @@
 DEF FLOAT = 12.5
+DEF EFLOAT = 5e-1
 DEF FLOAT_NAN = float('nan')
 DEF FLOAT_INFP = float('+inf')
 DEF FLOAT_INFN = float('-inf')
@@ -18,6 +19,14 @@ def f():
     """
     cdef float f
     f = FLOAT
+    return f
+
+def efloat():
+    """
+    >>> efloat()
+    0.5
+    """
+    cdef float f = EFLOAT
     return f
 
 def nan1():
