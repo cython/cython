@@ -788,7 +788,6 @@ if __name__ == '__main__':
 
     if sys.version_info[0] >= 3:
         options.doctests = False
-        options.pyregr   = False
         if options.with_cython:
             try:
                 # try if Cython is installed in a Py3 version
