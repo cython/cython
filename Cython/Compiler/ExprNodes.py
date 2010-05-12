@@ -6651,8 +6651,9 @@ class DocstringRefNode(ExprNode):
         pass
 
     def generate_result_code(self, code):
-        code.putln('%s = __Pyx_GetAttrString(%s, "__doc__");' %
-                   (self.result(), self.body.result()))
+        code.putln('%s = __Pyx_GetAttrString(%s, "__doc__"); %s' % (
+            self.result(), self.body.result(),
+            code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.result())
 
 
