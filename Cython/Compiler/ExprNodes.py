@@ -5015,6 +5015,11 @@ class NumBinopNode(BinopNode):
                 self.operand1.result(),
                 self.operand2.result())
     
+    def is_py_operation_types(self, type1, type2):
+        return (type1 is PyrexTypes.c_py_unicode_type or
+                type2 is PyrexTypes.c_py_unicode_type or
+                BinopNode.is_py_operation_types(self, type1, type2))
+    
     def py_operation_function(self):
         return self.py_functions[self.operator]
 
