@@ -14,4 +14,3 @@ genexpr_T491
 # CPython regression tests that don't current work:
 pyregr.test_threadsignals
 pyregr.test_module
-pyregr.test_winreg
