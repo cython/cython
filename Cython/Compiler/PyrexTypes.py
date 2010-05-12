@@ -2443,6 +2443,9 @@ def spanning_type(type1, type2):
         return type1
     elif type1 is py_object_type or type2 is py_object_type:
         return py_object_type
+    elif type1 is c_py_unicode_type or type2 is c_py_unicode_type:
+        # Py_UNICODE behaves more like a string than an int
+        return py_object_type
     span_type = _spanning_type(type1, type2)
     if span_type is None:
         return py_object_type

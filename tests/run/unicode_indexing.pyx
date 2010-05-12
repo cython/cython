@@ -126,3 +126,31 @@ def index_compare_string(unicode ustring, Py_ssize_t i, unicode other):
     IndexError: string index out of range
     """
     return ustring[i] == other
+
+@cython.test_assert_path_exists("//CoerceToPyTypeNode",
+                                "//IndexNode",
+                                "//MulNode",
+                                "//MulNode/CoerceToPyTypeNode")
+@cython.test_fail_if_path_exists("//IndexNode//CoerceToPyTypeNode")
+def index_multiply(unicode ustring, Py_ssize_t i, int mul):
+    """
+    >>> ustring[0] * 5
+    u'aaaaa'
+    >>> index_multiply(ustring, 0, 5)
+    u'aaaaa'
+    """
+    return ustring[i] * mul
+
+@cython.test_assert_path_exists("//CoerceToPyTypeNode",
+                                "//IndexNode",
+                                "//AddNode",
+                                "//AddNode/CoerceToPyTypeNode")
+@cython.test_fail_if_path_exists("//IndexNode//CoerceToPyTypeNode")
+def index_add(unicode ustring, Py_ssize_t i, Py_ssize_t j):
+    """
+    >>> ustring[0] + ustring[-1]
+    u'a6'
+    >>> index_add(ustring, 0, -1)
+    u'a6'
+    """
+    return ustring[i] + ustring[j]
