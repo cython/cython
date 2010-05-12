@@ -2450,6 +2450,9 @@ static int %(IMPORT_STAR)s(PyObject* m) {
     char* s;
     PyObject *locals = 0;
     PyObject *list = 0;
+#if PY_MAJOR_VERSION >= 3
+    PyObject *utf8_name = 0;
+#endif
     PyObject *name;
     PyObject *item;
     
@@ -2460,19 +2463,26 @@ static int %(IMPORT_STAR)s(PyObject* m) {
     for(i=0; i<PyList_GET_SIZE(list); i++) {
         name = PyTuple_GET_ITEM(PyList_GET_ITEM(list, i), 0);
         item = PyTuple_GET_ITEM(PyList_GET_ITEM(list, i), 1);
-#if PY_MAJOR_VERSION < 3
-        s = PyString_AsString(name);
+#if PY_MAJOR_VERSION >= 3
+        utf8_name = PyUnicode_AsUTF8String(name);
+        if (!utf8_name) goto bad;
+        s = PyBytes_AS_STRING(utf8_name);
+        if (%(IMPORT_STAR_SET)s(item, name, s) < 0) goto bad;
+        Py_DECREF(utf8_name); utf8_name = 0;
 #else
-        s = PyUnicode_AsString(name);
-#endif
+        s = PyString_AsString(name);
         if (!s) goto bad;
         if (%(IMPORT_STAR_SET)s(item, name, s) < 0) goto bad;
+#endif
     }
     ret = 0;
     
 bad:
     Py_XDECREF(locals);
     Py_XDECREF(list);
+#if PY_MAJOR_VERSION >= 3
+    Py_XDECREF(utf8_name);
+#endif
     return ret;
 }
 """ % {'IMPORT_STAR'     : Naming.import_star,
