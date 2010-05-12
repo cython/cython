@@ -26,6 +26,26 @@ def index(unicode ustring, Py_ssize_t i):
     return ustring[i]
 
 
+@cython.test_assert_path_exists("//IndexNode")
+@cython.test_fail_if_path_exists("//CoerceToPyTypeNode")
+def index_pyindex(unicode ustring, i):
+    """
+    >>> index(ustring, 0) == 'a'
+    True
+    >>> index(ustring, 2) == 'e'
+    True
+    >>> index(ustring, -1) == '6'
+    True
+    >>> index(ustring, -len(ustring)) == 'a'
+    True
+
+    >>> index(ustring, len(ustring))
+    Traceback (most recent call last):
+    IndexError: string index out of range
+    """
+    return ustring[i]
+
+
 
 @cython.test_assert_path_exists("//CoerceToPyTypeNode",
                                 "//IndexNode")
@@ -219,3 +239,33 @@ def index_add(unicode ustring, Py_ssize_t i, Py_ssize_t j):
     True
     """
     return ustring[i] + ustring[j]
+
+
+@cython.test_assert_path_exists("//CoerceToPyTypeNode",
+                                "//IndexNode",
+                                "//InPlaceAssignmentNode",
+                                "//CoerceToPyTypeNode//IndexNode")
+@cython.test_fail_if_path_exists("//IndexNode//CoerceToPyTypeNode")
+def index_concat_loop(unicode ustring):
+    """
+    >>> index_concat_loop(ustring) == ustring
+    True
+    """
+    cdef int i
+    cdef unicode s = u''
+    for i in range(len(ustring)):
+        s += ustring[i]
+    return s
+
+
+@cython.test_assert_path_exists("//CoerceToPyTypeNode",
+                                "//IndexNode",
+                                "//CoerceToPyTypeNode//IndexNode")
+@cython.test_fail_if_path_exists("//IndexNode//CoerceToPyTypeNode")
+def index_join_loop(unicode ustring):
+    """
+    >>> index_join_loop(ustring) == ustring
+    True
+    """
+    cdef int i
+    return u''.join([ ustring[i] for i in range(len(ustring)) ])
