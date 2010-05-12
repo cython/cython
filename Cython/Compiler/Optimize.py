@@ -1305,15 +1305,6 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 return self._optimise_int_indexing(node, arg, index_node)
         return node
 
-    PyUnicode_GetItemInt_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_py_unicode_type, [
-            PyrexTypes.CFuncTypeArg("unicode", Builtin.unicode_type, None),
-            PyrexTypes.CFuncTypeArg("index", PyrexTypes.c_py_ssize_t_type, None),
-            PyrexTypes.CFuncTypeArg("check_bounds", PyrexTypes.c_int_type, None),
-            ],
-        exception_value = "((Py_UNICODE)-1)",
-        exception_check = True)
-
     PyBytes_GetItemInt_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_char_type, [
             PyrexTypes.CFuncTypeArg("bytes", Builtin.bytes_type, None),
@@ -1326,23 +1317,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
     def _optimise_int_indexing(self, coerce_node, arg, index_node):
         env = self.current_env()
         bound_check_bool = env.directives['boundscheck'] and 1 or 0
-        if arg.base.type is Builtin.unicode_type:
-            if coerce_node.type is PyrexTypes.c_py_unicode_type:
-                # unicode[index] -> Py_UNICODE
-                bound_check_node = ExprNodes.IntNode(
-                    coerce_node.pos, value=str(bound_check_bool),
-                    constant_result=bound_check_bool)
-                return ExprNodes.PythonCapiCallNode(
-                    coerce_node.pos, "__Pyx_PyUnicode_GetItemInt",
-                    self.PyUnicode_GetItemInt_func_type,
-                    args = [
-                        arg.base.as_none_safe_node("'NoneType' object is not subscriptable"),
-                        index_node.coerce_to(PyrexTypes.c_py_ssize_t_type, env),
-                        bound_check_node,
-                        ],
-                    is_temp = True,
-                    utility_code=unicode_index_utility_code)
-        elif arg.base.type is Builtin.bytes_type:
+        if arg.base.type is Builtin.bytes_type:
             if coerce_node.type in (PyrexTypes.c_char_type, PyrexTypes.c_uchar_type):
                 # bytes[index] -> char
                 bound_check_node = ExprNodes.IntNode(
@@ -2524,27 +2499,6 @@ bad:
     return (double)-1;
 }
 '''
-)
-
-
-unicode_index_utility_code = UtilityCode(
-proto = """
-static CYTHON_INLINE Py_UNICODE __Pyx_PyUnicode_GetItemInt(PyObject* unicode, Py_ssize_t index, int check_bounds); /* proto */
-""",
-impl = """
-static CYTHON_INLINE Py_UNICODE __Pyx_PyUnicode_GetItemInt(PyObject* unicode, Py_ssize_t index, int check_bounds) {
-    if (check_bounds) {
-        if (unlikely(index >= PyUnicode_GET_SIZE(unicode)) |
-            ((index < 0) & unlikely(index < -PyUnicode_GET_SIZE(unicode)))) {
-            PyErr_Format(PyExc_IndexError, "string index out of range");
-            return (Py_UNICODE)-1;
-        }
-    }
-    if (index < 0)
-        index += PyUnicode_GET_SIZE(unicode);
-    return PyUnicode_AS_UNICODE(unicode)[index];
-}
-"""
 )
 
 
