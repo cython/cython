@@ -6769,7 +6769,7 @@ getitem_int_pyunicode_utility_code = UtilityCode(
 proto = '''
 #define __Pyx_GetItemInt_Unicode(o, i, size, to_py_func) (((size) <= sizeof(Py_ssize_t)) ? \\
                                                __Pyx_GetItemInt_Unicode_Fast(o, i) : \\
-                                               __Pyx_GetItemInt_Generic(o, to_py_func(i)))
+                                               __Pyx_GetItemInt_Unicode_Generic(o, to_py_func(i)))
 
 static CYTHON_INLINE Py_UNICODE __Pyx_GetItemInt_Unicode_Fast(PyObject* ustring, Py_ssize_t i) {
     if (likely((0 <= i) & (i < PyUnicode_GET_SIZE(ustring)))) {
