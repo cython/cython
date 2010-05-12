@@ -10,14 +10,14 @@ ustring = _ustring
 @cython.test_fail_if_path_exists("//IndexNode//CoerceToPyTypeNode")
 def index(unicode ustring, Py_ssize_t i):
     """
-    >>> index(ustring, 0)
-    u'a'
-    >>> index(ustring, 2)
-    u'e'
-    >>> index(ustring, -1)
-    u'6'
-    >>> index(ustring, -len(ustring))
-    u'a'
+    >>> index(ustring, 0) == 'a'
+    True
+    >>> index(ustring, 2) == 'e'
+    True
+    >>> index(ustring, -1) == '6'
+    True
+    >>> index(ustring, -len(ustring)) == 'a'
+    True
 
     >>> index(ustring, len(ustring))
     Traceback (most recent call last):
@@ -32,14 +32,14 @@ def index(unicode ustring, Py_ssize_t i):
 @cython.test_fail_if_path_exists("//IndexNode//CoerceToPyTypeNode")
 def index_literal(Py_ssize_t i):
     """
-    >>> index_literal(0)
-    u'a'
-    >>> index_literal(2)
-    u'e'
-    >>> index_literal(-1)
-    u'6'
-    >>> index_literal(-len('azerty123456'))
-    u'a'
+    >>> index_literal(0) == 'a'
+    True
+    >>> index_literal(2) == 'e'
+    True
+    >>> index_literal(-1) == '6'
+    True
+    >>> index_literal(-len('azerty123456')) == 'a'
+    True
 
     >>> index_literal(len(ustring))
     Traceback (most recent call last):
@@ -112,16 +112,16 @@ def index_literal_pyunicode_coerce_no_check(int i):
 @cython.boundscheck(False)
 def index_no_boundscheck(unicode ustring, Py_ssize_t i):
     """
-    >>> index_no_boundscheck(ustring, 0)
-    u'a'
-    >>> index_no_boundscheck(ustring, 2)
-    u'e'
-    >>> index_no_boundscheck(ustring, -1)
-    u'6'
-    >>> index_no_boundscheck(ustring, len(ustring)-1)
-    u'6'
-    >>> index_no_boundscheck(ustring, -len(ustring))
-    u'a'
+    >>> index_no_boundscheck(ustring, 0) == 'a'
+    True
+    >>> index_no_boundscheck(ustring, 2) == 'e'
+    True
+    >>> index_no_boundscheck(ustring, -1) == '6'
+    True
+    >>> index_no_boundscheck(ustring, len(ustring)-1) == '6'
+    True
+    >>> index_no_boundscheck(ustring, -len(ustring)) == 'a'
+    True
     """
     return ustring[i]
 
@@ -132,12 +132,12 @@ def index_no_boundscheck(unicode ustring, Py_ssize_t i):
 @cython.boundscheck(False)
 def unsigned_index_no_boundscheck(unicode ustring, unsigned int i):
     """
-    >>> unsigned_index_no_boundscheck(ustring, 0)
-    u'a'
-    >>> unsigned_index_no_boundscheck(ustring, 2)
-    u'e'
-    >>> unsigned_index_no_boundscheck(ustring, len(ustring)-1)
-    u'6'
+    >>> unsigned_index_no_boundscheck(ustring, 0) == 'a'
+    True
+    >>> unsigned_index_no_boundscheck(ustring, 2) == 'e'
+    True
+    >>> unsigned_index_no_boundscheck(ustring, len(ustring)-1) == '6'
+    True
     """
     return ustring[i]
 
@@ -198,10 +198,10 @@ def index_compare_string(unicode ustring, Py_ssize_t i, unicode other):
 @cython.test_fail_if_path_exists("//IndexNode//CoerceToPyTypeNode")
 def index_multiply(unicode ustring, Py_ssize_t i, int mul):
     """
-    >>> ustring[0] * 5
-    u'aaaaa'
-    >>> index_multiply(ustring, 0, 5)
-    u'aaaaa'
+    >>> ustring[0] * 5 == 'aaaaa'
+    True
+    >>> index_multiply(ustring, 0, 5) == 'aaaaa'
+    True
     """
     return ustring[i] * mul
 
@@ -213,9 +213,9 @@ def index_multiply(unicode ustring, Py_ssize_t i, int mul):
 @cython.test_fail_if_path_exists("//IndexNode//CoerceToPyTypeNode")
 def index_add(unicode ustring, Py_ssize_t i, Py_ssize_t j):
     """
-    >>> ustring[0] + ustring[-1]
-    u'a6'
-    >>> index_add(ustring, 0, -1)
-    u'a6'
+    >>> ustring[0] + ustring[-1] == 'a6'
+    True
+    >>> index_add(ustring, 0, -1) == 'a6'
+    True
     """
     return ustring[i] + ustring[j]
