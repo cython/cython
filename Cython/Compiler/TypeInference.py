@@ -169,7 +169,7 @@ class MarkOverflowingArithmetic(CythonTransform):
     visit_Node = visit_safe_node
 
 
-class PyObjectTypeInferer:
+class PyObjectTypeInferer(object):
     """
     If it's not declared, it's a PyObject.
     """
@@ -181,7 +181,7 @@ class PyObjectTypeInferer:
             if entry.type is unspecified_type:
                 entry.type = py_object_type
 
-class SimpleAssignmentTypeInferer:
+class SimpleAssignmentTypeInferer(object):
     """
     Very basic type inference.
     """
