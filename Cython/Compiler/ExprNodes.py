@@ -5485,7 +5485,7 @@ class CmpNode(object):
     #  Mixin class containing code common to PrimaryCmpNodes
     #  and CascadedCmpNodes.
     
-    def infer_types(self, env):
+    def infer_type(self, env):
         # TODO: Actually implement this (after merging with -unstable).
         return py_object_type
 
