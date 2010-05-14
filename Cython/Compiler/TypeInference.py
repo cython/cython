@@ -70,7 +70,15 @@ class MarkAssignments(CythonTransform):
                                                  sequence.args[0],
                                                  sequence.args[2]))
         if not is_special:
-            self.mark_assignment(node.target, object_expr)
+            # A for-loop basically translates to subsequent calls to
+            # __getitem__(), so using an IndexNode here allows us to
+            # naturally infer the base type of pointers, C arrays,
+            # Python strings, etc., while correctly falling back to an
+            # object type when the base type cannot be handled.
+            self.mark_assignment(node.target, ExprNodes.IndexNode(
+                node.pos,
+                base = sequence,
+                index = ExprNodes.IntNode(node.pos, value = '0')))
         self.visitchildren(node)
         return node
 
