@@ -21,10 +21,10 @@ annotate = 0
 # This will convert statements of the form "for i in range(...)" 
 # to "for i from ..." when i is a cdef'd integer type, and the direction
 # (i.e. sign of step) can be determined. 
-# WARNING: This may change the symantics if the range causes assignment to 
+# WARNING: This may change the semantics if the range causes assignment to 
 # i to overflow. Specifically, if this option is set, an error will be
 # raised before the loop is entered, wheras without this option the loop
-# will execute util a overflowing value is encountered. 
+# will execute until an overflowing value is encountered. 
 convert_range = 1
 
 # Enable this to allow one to write your_module.foo = ... to overwrite the 

@@ -673,7 +673,7 @@ def p_opt_string_literal(s):
 
 def p_string_literal(s, kind_override=None):
     # A single string or char literal.
-    # Returns (kind, value) where kind in ('b', 'c', 'u')
+    # Returns (kind, value) where kind in ('b', 'c', 'u', '')
     # s.sy == 'BEGIN_STRING'
     pos = s.position()
     is_raw = 0
