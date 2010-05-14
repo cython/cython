@@ -187,6 +187,46 @@ def loop():
         pass
     assert typeof(a) == "long"
 
+def loop_over_charptr():
+    """
+    >>> print( loop_over_charptr() )
+    char
+    """
+    cdef char* char_ptr_string = 'abcdefg'
+    for c in char_ptr_string:
+        pass
+    return typeof(c)
+
+def loop_over_bytes():
+    """
+    >>> print( loop_over_bytes() )
+    Python object
+    """
+    cdef bytes bytes_string = b'abcdefg'
+    for c in bytes_string:
+        pass
+    return typeof(c)
+
+def loop_over_unicode():
+    """
+    >>> print( loop_over_unicode() )
+    Py_UNICODE
+    """
+    cdef unicode ustring = u'abcdefg'
+    for uchar in ustring:
+        pass
+    return typeof(uchar)
+
+def loop_over_int_array():
+    """
+    >>> print( loop_over_int_array() )
+    int
+    """
+    cdef int[10] int_array
+    for i in int_array:
+        pass
+    return typeof(i)
+
 cdef unicode retu():
     return u"12345"
 
