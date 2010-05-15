@@ -1892,12 +1892,12 @@ class IndexNode(ExprNode):
         return self.base.type_dependencies(env)
     
     def infer_type(self, env):
-        if isinstance(self.base, StringNode): # FIXME: BytesNode?
+        if isinstance(self.base, BytesNode):
             return py_object_type
         base_type = self.base.infer_type(env)
         if base_type.is_ptr or base_type.is_array:
             return base_type.base_type
-        elif base_type is Builtin.unicode_type and self.index.infer_type(env).is_int:
+        elif base_type is unicode_type and self.index.infer_type(env).is_int:
             # Py_UNICODE will automatically coerce to a unicode string
             # if required, so this is safe. We only infer Py_UNICODE
             # when the index is a C integer type. Otherwise, we may
@@ -1906,6 +1906,9 @@ class IndexNode(ExprNode):
             # to receive it, throw it away, and potentially rebuild it
             # on a subsequent PyObject coercion.
             return PyrexTypes.c_py_unicode_type
+        elif base_type in (str_type, unicode_type):
+            # these types will always return themselves on Python indexing
+            return base_type
         else:
             # TODO: Handle buffers (hopefully without too much redundancy).
             return py_object_type
