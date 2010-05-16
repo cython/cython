@@ -77,3 +77,45 @@ def unicode_ordinal(Py_UNICODE i):
     ValueError: only single character unicode strings can be converted to Py_UNICODE, got length 2
     """
     return i
+
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_fail_if_path_exists('//SimpleCallNode')
+def unicode_type_methods(Py_UNICODE uchar):
+    """
+    >>> unicode_type_methods(ord('A'))
+    [True, True, False, False, False, False, False, True, True]
+    >>> unicode_type_methods(ord('a'))
+    [True, True, False, False, True, False, False, False, False]
+    >>> unicode_type_methods(ord('8'))
+    [True, False, True, True, False, True, False, False, False]
+    >>> unicode_type_methods(ord('\\t'))
+    [False, False, False, False, False, False, True, False, False]
+    """
+    return [
+        # character types
+        uchar.isalnum(),
+        uchar.isalpha(),
+        uchar.isdecimal(),
+        uchar.isdigit(),
+        uchar.islower(),
+        uchar.isnumeric(),
+        uchar.isspace(),
+        uchar.istitle(),
+        uchar.isupper(),
+        ]
+
+@cython.test_assert_path_exists('//PythonCapiCallNode')
+@cython.test_fail_if_path_exists('//SimpleCallNode')
+def unicode_methods(Py_UNICODE uchar):
+    """
+    >>> unicode_methods(ord('A')) == ['a', 'A', 'A']
+    True
+    >>> unicode_methods(ord('a')) == ['a', 'A', 'A']
+    True
+    """
+    return [
+        # character conversion
+        uchar.lower(),
+        uchar.upper(),
+        uchar.title(),
+        ]
