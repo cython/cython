@@ -1846,6 +1846,71 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
     ### unicode type methods
 
+    PyUnicode_uchar_predicate_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_bint_type, [
+            PyrexTypes.CFuncTypeArg("uchar", PyrexTypes.c_py_unicode_type, None),
+            ])
+
+    def _inject_unicode_predicate(self, node, args, is_unbound_method):
+        if is_unbound_method or len(args) != 1:
+            return node
+        ustring = args[0]
+        if not isinstance(ustring, ExprNodes.CoerceToPyTypeNode) or \
+               ustring.arg.type is not PyrexTypes.c_py_unicode_type:
+            return node
+        uchar = ustring.arg
+        method_name = node.function.attribute
+        if method_name == 'istitle':
+            # istitle() doesn't directly map to Py_UNICODE_ISTITLE()
+            utility_code = py_unicode_istitle_utility_code
+            function_name = '__Pyx_Py_UNICODE_ISTITLE'
+        else:
+            utility_code = None
+            function_name = 'Py_UNICODE_%s' % method_name.upper()
+        func_call = self._substitute_method_call(
+            node, function_name, self.PyUnicode_uchar_predicate_func_type,
+            method_name, is_unbound_method, [uchar],
+            utility_code = utility_code)
+        if node.type.is_pyobject:
+            func_call = func_call.coerce_to_pyobject(self.current_env)
+        return func_call
+
+    _handle_simple_method_unicode_isalnum   = _inject_unicode_predicate
+    _handle_simple_method_unicode_isalpha   = _inject_unicode_predicate
+    _handle_simple_method_unicode_isdecimal = _inject_unicode_predicate
+    _handle_simple_method_unicode_isdigit   = _inject_unicode_predicate
+    _handle_simple_method_unicode_islower   = _inject_unicode_predicate
+    _handle_simple_method_unicode_isnumeric = _inject_unicode_predicate
+    _handle_simple_method_unicode_isspace   = _inject_unicode_predicate
+    _handle_simple_method_unicode_istitle   = _inject_unicode_predicate
+    _handle_simple_method_unicode_isupper   = _inject_unicode_predicate
+
+    PyUnicode_uchar_conversion_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_py_unicode_type, [
+            PyrexTypes.CFuncTypeArg("uchar", PyrexTypes.c_py_unicode_type, None),
+            ])
+
+    def _inject_unicode_character_conversion(self, node, args, is_unbound_method):
+        if is_unbound_method or len(args) != 1:
+            return node
+        ustring = args[0]
+        if not isinstance(ustring, ExprNodes.CoerceToPyTypeNode) or \
+               ustring.arg.type is not PyrexTypes.c_py_unicode_type:
+            return node
+        uchar = ustring.arg
+        method_name = node.function.attribute
+        function_name = 'Py_UNICODE_TO%s' % method_name.upper()
+        func_call = self._substitute_method_call(
+            node, function_name, self.PyUnicode_uchar_conversion_func_type,
+            method_name, is_unbound_method, [uchar])
+        if node.type.is_pyobject:
+            func_call = func_call.coerce_to_pyobject(self.current_env)
+        return func_call
+
+    _handle_simple_method_unicode_lower = _inject_unicode_character_conversion
+    _handle_simple_method_unicode_upper = _inject_unicode_character_conversion
+    _handle_simple_method_unicode_title = _inject_unicode_character_conversion
+
     PyUnicode_Splitlines_func_type = PyrexTypes.CFuncType(
         Builtin.list_type, [
             PyrexTypes.CFuncTypeArg("str", Builtin.unicode_type, None),
@@ -2305,6 +2370,18 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         else:
             args[arg_index] = args[arg_index].coerce_to_boolean(self.current_env())
 
+
+py_unicode_istitle_utility_code = UtilityCode(
+# Py_UNICODE_ISTITLE() doesn't match unicode.istitle() as the latter
+# additionally allows character that comply with Py_UNICODE_ISUPPER()
+proto = '''
+static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UNICODE uchar); /* proto */
+''',
+impl = '''
+static CYTHON_INLINE int __Pyx_Py_UNICODE_ISTITLE(Py_UNICODE uchar) {
+    return Py_UNICODE_ISTITLE(uchar) || Py_UNICODE_ISUPPER(uchar);
+}
+''')
 
 unicode_tailmatch_utility_code = UtilityCode(
     # Python's unicode.startswith() and unicode.endswith() support a
