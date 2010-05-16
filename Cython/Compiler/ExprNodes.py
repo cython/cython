@@ -6217,7 +6217,9 @@ class CoerceToPyTypeNode(CoercionNode):
         if type is not py_object_type:
             self.type = py_object_type
         elif arg.type.is_string:
-            self.type = Builtin.bytes_type
+            self.type = bytes_type
+        elif arg.type is PyrexTypes.c_py_unicode_type:
+            self.type = unicode_type
 
     gil_message = "Converting to Python object"
 
