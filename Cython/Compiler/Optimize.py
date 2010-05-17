@@ -1506,7 +1506,6 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
     _map_to_capi_len_function = {
         Builtin.unicode_type   : "PyUnicode_GET_SIZE",
-        Builtin.str_type       : "Py_SIZE", # works in Py2 and Py3
         Builtin.bytes_type     : "PyBytes_GET_SIZE",
         Builtin.list_type      : "PyList_GET_SIZE",
         Builtin.tuple_type     : "PyTuple_GET_SIZE",
@@ -1535,9 +1534,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             cfunc_name = self._map_to_capi_len_function(arg.type)
             if cfunc_name is None:
                 return node
-            if not arg.is_literal:
-                arg = arg.as_none_safe_node(
-                    "object of type 'NoneType' has no len()")
+            arg = arg.as_none_safe_node(
+                "object of type 'NoneType' has no len()")
             new_node = ExprNodes.PythonCapiCallNode(
                 node.pos, cfunc_name, self.PyObject_Size_func_type,
                 args = [arg],
