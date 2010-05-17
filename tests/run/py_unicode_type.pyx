@@ -130,6 +130,18 @@ def len_uchar(Py_UNICODE uchar):
     """
     return len(uchar)
 
+def index_uchar(Py_UNICODE uchar, Py_ssize_t i):
+    """
+    >>> index_uchar(ord('A'), 0) == ('A', 'A', 'A')
+    True
+    >>> index_uchar(ord('A'), -1) == ('A', 'A', 'A')
+    True
+    >>> index_uchar(ord('A'), 1)
+    Traceback (most recent call last):
+    IndexError: string index out of range
+    """
+    return uchar[0], uchar[-1], uchar[i]
+
 mixed_ustring = u'AbcDefGhIjKlmnoP'
 lower_ustring = mixed_ustring.lower()
 upper_ustring = mixed_ustring.lower()
