@@ -1540,6 +1540,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 node.pos, cfunc_name, self.PyObject_Size_func_type,
                 args = [arg],
                 is_temp = node.is_temp)
+        elif arg.type is PyrexTypes.c_py_unicode_type:
+            return ExprNodes.IntNode(node.pos, value='1', constant_result=1,
+                                     type=node.type)
         else:
             return node
         if node.type not in (PyrexTypes.c_size_t_type, PyrexTypes.c_py_ssize_t_type):

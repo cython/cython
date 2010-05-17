@@ -119,3 +119,13 @@ def unicode_methods(Py_UNICODE uchar):
         uchar.upper(),
         uchar.title(),
         ]
+
+@cython.test_assert_path_exists('//IntNode')
+@cython.test_fail_if_path_exists('//SimpleCallNode',
+                                 '//PythonCapiCallNode')
+def len_uchar(Py_UNICODE uchar):
+    """
+    >>> len_uchar(ord('A'))
+    1
+    """
+    return len(uchar)
