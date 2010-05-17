@@ -114,6 +114,25 @@ def all_in_conditional_gen(seq):
     """
     return all(x%3 for x in seq if x%2 == 1)
 
+mixed_ustring = u'AbcDefGhIjKlmnoP'
+lower_ustring = mixed_ustring.lower()
+upper_ustring = mixed_ustring.upper()
+
+@cython.test_assert_path_exists('//PythonCapiCallNode',
+                                '//ForFromStatNode')
+@cython.test_fail_if_path_exists('//SimpleCallNode',
+                                 '//ForInStatNode')
+def all_lower_case_characters(unicode ustring):
+    """
+    >>> all_lower_case_characters(mixed_ustring)
+    False
+    >>> all_lower_case_characters(upper_ustring)
+    False
+    >>> all_lower_case_characters(lower_ustring)
+    True
+    """
+    return all(uchar.islower() for uchar in ustring)
+
 @cython.test_assert_path_exists("//ForInStatNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode",
                                  "//YieldExprNode",
