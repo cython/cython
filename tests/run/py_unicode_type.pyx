@@ -129,3 +129,24 @@ def len_uchar(Py_UNICODE uchar):
     1
     """
     return len(uchar)
+
+mixed_ustring = u'AbcDefGhIjKlmnoP'
+lower_ustring = mixed_ustring.lower()
+upper_ustring = mixed_ustring.lower()
+
+@cython.test_assert_path_exists('//PythonCapiCallNode',
+                                '//ForFromStatNode')
+@cython.test_fail_if_path_exists('//SimpleCallNode',
+                                 '//ForInStatNode')
+def count_lower_case_characters(unicode ustring):
+    """
+    >>> count_lower_case_characters(mixed_ustring)
+    10
+    >>> count_lower_case_characters(lower_ustring)
+    16
+    """
+    cdef Py_ssize_t count = 0
+    for uchar in ustring:
+         if uchar.islower():
+             count += 1
+    return count
