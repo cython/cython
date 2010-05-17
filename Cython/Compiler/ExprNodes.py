@@ -1983,6 +1983,15 @@ class IndexNode(ExprNode):
             elif not skip_child_analysis:
                 self.index.analyse_types(env)
             self.original_index_type = self.index.type
+            if base_type is PyrexTypes.c_py_unicode_type:
+                # we infer Py_UNICODE for unicode strings in some
+                # cases, but indexing must still work for them
+                if self.index.constant_result in (0, -1):
+                    # FIXME: we know that this node is redundant -
+                    # currently, this needs to get handled in Optimize.py
+                    pass
+                self.base = self.base.coerce_to_pyobject(env)
+                base_type = self.base.type
             if base_type.is_pyobject:
                 if self.index.type.is_int:
                     if (not setting
