@@ -53,10 +53,10 @@ def all_item(x):
     """
     return all(x)
 
-@cython.test_assert_path_exists("//ForInStatNode")
+@cython.test_assert_path_exists("//ForInStatNode",
+                                "//InlinedGeneratorExpressionNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode",
-                                 "//YieldExprNode",
-                                 "//GeneratorExpressionNode")
+                                 "//YieldExprNode")
 def all_in_simple_gen(seq):
     """
     >>> all_in_simple_gen([1,1,1])
@@ -82,10 +82,42 @@ def all_in_simple_gen(seq):
     """
     return all(x for x in seq)
 
-@cython.test_assert_path_exists("//ForInStatNode")
+@cython.test_assert_path_exists("//ForInStatNode",
+                                "//InlinedGeneratorExpressionNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode",
-                                 "//YieldExprNode",
-                                 "//GeneratorExpressionNode")
+                                 "//YieldExprNode")
+def all_in_simple_gen_scope(seq):
+    """
+    >>> all_in_simple_gen_scope([1,1,1])
+    True
+    >>> all_in_simple_gen_scope([1,1,0])
+    False
+    >>> all_in_simple_gen_scope([1,0,1])
+    False
+
+    >>> all_in_simple_gen_scope(VerboseGetItem([1,1,1,1,1]))
+    0
+    1
+    2
+    3
+    4
+    5
+    True
+    >>> all_in_simple_gen_scope(VerboseGetItem([1,1,0,1,1]))
+    0
+    1
+    2
+    False
+    """
+    x = 'abc'
+    result = all(x for x in seq)
+    assert x == 'abc'
+    return result
+
+@cython.test_assert_path_exists("//ForInStatNode",
+                                "//InlinedGeneratorExpressionNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode",
+                                 "//YieldExprNode")
 def all_in_conditional_gen(seq):
     """
     >>> all_in_conditional_gen([3,6,9])
@@ -133,10 +165,10 @@ def all_lower_case_characters(unicode ustring):
     """
     return all(uchar.islower() for uchar in ustring)
 
-@cython.test_assert_path_exists("//ForInStatNode")
+@cython.test_assert_path_exists("//ForInStatNode",
+                                "//InlinedGeneratorExpressionNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode",
-                                 "//YieldExprNode",
-                                 "//GeneratorExpressionNode")
+                                 "//YieldExprNode")
 def all_in_typed_gen(seq):
     """
     >>> all_in_typed_gen([1,1,1])
@@ -165,10 +197,10 @@ def all_in_typed_gen(seq):
     cdef int x
     return all(x for x in seq)
 
-@cython.test_assert_path_exists("//ForInStatNode")
+@cython.test_assert_path_exists("//ForInStatNode",
+                                "//InlinedGeneratorExpressionNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode",
-                                 "//YieldExprNode",
-                                 "//GeneratorExpressionNode")
+                                 "//YieldExprNode")
 def all_in_nested_gen(seq):
     """
     >>> all(x for L in [[1,1,1],[1,1,1],[1,1,1]] for x in L)

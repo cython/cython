@@ -1030,9 +1030,16 @@ property NAME:
         node.analyse_declarations(self.env_stack[-1])
         return node
 
-    def visit_GeneratorExpressionNode(self, node):
-        self.visitchildren(node)
+    def visit_ScopedExprNode(self, node):
         node.analyse_declarations(self.env_stack[-1])
+        if self.seen_vars_stack:
+            self.seen_vars_stack.append(set(self.seen_vars_stack[-1]))
+        else:
+            self.seen_vars_stack.append(set())
+        self.env_stack.append(node.expr_scope)
+        self.visitchildren(node)
+        self.env_stack.pop()
+        self.seen_vars_stack.pop()
         return node
 
     def visit_TempResultFromStatNode(self, node):
@@ -1131,6 +1138,12 @@ class AnalyseExpressionsTransform(CythonTransform):
     def visit_FuncDefNode(self, node):
         node.local_scope.infer_types()
         node.body.analyse_expressions(node.local_scope)
+        self.visitchildren(node)
+        return node
+
+    def visit_ScopedExprNode(self, node):
+        node.expr_scope.infer_types()
+        node.analyse_scoped_expressions(node.expr_scope)
         self.visitchildren(node)
         return node
         
