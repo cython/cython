@@ -1130,7 +1130,8 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return node
         if not isinstance(pos_args[0], ExprNodes.GeneratorExpressionNode):
             return node
-        loop_node = pos_args[0].loop
+        gen_expr_node = pos_args[0]
+        loop_node = gen_expr_node.loop
 
         collector = self.YieldNodeCollector()
         collector.visitchildren(loop_node)
@@ -1140,14 +1141,12 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         yield_expression = yield_node.arg
         del collector
 
-        result_ref = UtilNodes.ResultRefNode(pos=node.pos)
-        result_ref.type = PyrexTypes.c_bint_type
-
         if is_any:
             condition = yield_expression
         else:
             condition = ExprNodes.NotNode(yield_expression.pos, operand = yield_expression)
 
+        result_ref = UtilNodes.ResultRefNode(pos=node.pos, type=PyrexTypes.c_bint_type)
         test_node = Nodes.IfStatNode(
             yield_node.pos,
             else_clause = None,
@@ -1182,7 +1181,9 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
         Visitor.RecursiveNodeReplacer(yield_node, test_node).visitchildren(loop_node)
 
-        return UtilNodes.TempResultFromStatNode(result_ref, loop_node)
+        return ExprNodes.InlinedGeneratorExpressionNode(
+            gen_expr_node.pos, loop = loop_node, result_node = result_ref,
+            expr_scope = gen_expr_node.expr_scope)
 
     # specific handlers for general call nodes
 

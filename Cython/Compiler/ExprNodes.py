@@ -3898,7 +3898,29 @@ class ListNode(SequenceNode):
             # generate_evaluation_code which will do that.
 
 
-class ComprehensionNode(ExprNode):
+class ScopedExprNode(ExprNode):
+    # Abstract base class for ExprNodes that have their own local
+    # scope, such as generator expressions.
+    #
+    # expr_scope    Scope  the inner scope of the expression
+
+    subexprs = []
+    expr_scope = None
+
+    def analyse_types(self, env):
+        # nothing to do here, the children will be analysed separately
+        pass
+
+    def analyse_expressions(self, env):
+        # nothing to do here, the children will be analysed separately
+        pass
+
+    def analyse_scoped_expressions(self, env):
+        # this is called with the expr_scope as env
+        pass
+
+
+class ComprehensionNode(ScopedExprNode):
     subexprs = ["target"]
     child_attrs = ["loop", "append"]
 
@@ -3907,11 +3929,14 @@ class ComprehensionNode(ExprNode):
 
     def analyse_declarations(self, env):
         self.append.target = self # this is used in the PyList_Append of the inner loop
-        self.loop.analyse_declarations(env)
+        self.expr_scope = Symtab.GeneratorExpressionScope(env)
+        self.loop.analyse_declarations(self.expr_scope)
 
     def analyse_types(self, env):
         self.target.analyse_expressions(env)
         self.type = self.target.type
+
+    def analyse_scoped_expressions(self, env):
         self.loop.analyse_expressions(env)
 
     def may_be_none(self):
@@ -3980,21 +4005,25 @@ class DictComprehensionAppendNode(ComprehensionAppendNode):
              code.error_goto_if(self.result(), self.pos)))
 
 
-class GeneratorExpressionNode(ExprNode):
+class GeneratorExpressionNode(ScopedExprNode):
     # A generator expression, e.g.  (i for i in range(10))
     #
     # Result is a generator.
     #
-    # loop   ForStatNode   the for-loop, containing a YieldExprNode
-    subexprs = []
+    # loop      ForStatNode   the for-loop, containing a YieldExprNode
+
     child_attrs = ["loop"]
 
     type = py_object_type
 
     def analyse_declarations(self, env):
-        self.loop.analyse_declarations(env)
+        self.expr_scope = Symtab.GeneratorExpressionScope(env)
+        self.loop.analyse_declarations(self.expr_scope)
 
     def analyse_types(self, env):
+        self.is_temp = True
+
+    def analyse_scoped_expressions(self, env):
         self.loop.analyse_expressions(env)
 
     def may_be_none(self):
@@ -4002,6 +4031,24 @@ class GeneratorExpressionNode(ExprNode):
 
     def annotate(self, code):
         self.loop.annotate(code)
+
+
+class InlinedGeneratorExpressionNode(GeneratorExpressionNode):
+    # An inlined generator expression for which the result is
+    # calculated inside of the loop.
+    #
+    # loop           ForStatNode      the for-loop, not containing any YieldExprNodes
+    # result_node    ResultRefNode    the reference to the result value temp
+
+    child_attrs = ["loop"]
+
+    def analyse_types(self, env):
+        self.type = self.result_node.type
+        self.is_temp = True
+
+    def generate_result_code(self, code):
+        self.result_node.result_code = self.result()
+        self.loop.generate_execution_code(code)
 
 
 class SetNode(ExprNode):

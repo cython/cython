@@ -91,6 +91,8 @@ frame_cname      = pyrex_prefix + "frame"
 frame_code_cname = pyrex_prefix + "frame_code"
 binding_cfunc    = pyrex_prefix + "binding_PyCFunctionType"
 
+genexpr_id_ref = 'genexpr'
+
 line_c_macro = "__LINE__"
 
 file_c_macro = "__FILE__"

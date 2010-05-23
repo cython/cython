@@ -269,7 +269,8 @@ class Scope(object):
         self.lambda_defs = []
         self.control_flow = ControlFlow.LinearControlFlow()
         self.return_type = None
-        
+        self.id_counters = {}
+
     def start_branching(self, pos):
         self.control_flow = self.control_flow.start_branch(pos)
     
@@ -297,7 +298,19 @@ class Scope(object):
         prefix = "%s%s_" % (Naming.pyrex_prefix, name)
         return self.mangle(prefix)
         #return self.parent_scope.mangle(prefix, self.name)
-    
+
+    def next_id(self, name=None):
+        # Return a cname fragment that is unique for this scope.
+        try:
+            count = self.id_counters[name] + 1
+        except KeyError:
+            count = 0
+        self.id_counters[name] = count
+        if name:
+            return '%s%d' % (name, count)
+        else:
+            return '%d' % count
+
     def global_scope(self):
         # Return the module-level scope containing this scope.
         return self.outer_scope.global_scope()
@@ -1244,7 +1257,30 @@ class LocalScope(Scope):
             elif entry.in_closure:
                 entry.original_cname = entry.cname
                 entry.cname = "%s->%s" % (Naming.cur_scope_cname, entry.cname)
-            
+
+
+class GeneratorExpressionScope(LocalScope):
+    """Scope for generator expressions and comprehensions.  As opposed
+    to generators, these can be easily inlined in some cases, so all
+    we really need is a scope that holds the loop variable(s).
+    """
+    def __init__(self, outer_scope):
+        name = outer_scope.global_scope().next_id(Naming.genexpr_id_ref)
+        LocalScope.__init__(self, name, outer_scope)
+        self.directives = outer_scope.directives
+        self.genexp_prefix = "%s%s" % (Naming.pyrex_prefix, name)
+    
+    def mangle(self, prefix, name):
+        return '%s%s' % (self.genexp_prefix, LocalScope.mangle(self, prefix, name))
+
+    def declare_var(self, name, type, pos,
+                    cname = None, visibility = 'private', is_cdef = 0):
+        cname = '%s%s' % (self.genexp_prefix, self.outer_scope.mangle(Naming.var_prefix, name))
+        entry = self.outer_scope.declare_var(None, type, pos, cname, visibility, is_cdef)
+        self.entries[name] = entry
+        return entry
+
+
 class ClosureScope(LocalScope):
 
     is_closure_scope = True
