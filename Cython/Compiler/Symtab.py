@@ -1268,15 +1268,17 @@ class GeneratorExpressionScope(LocalScope):
         name = outer_scope.global_scope().next_id(Naming.genexpr_id_ref)
         LocalScope.__init__(self, name, outer_scope)
         self.directives = outer_scope.directives
-        self.genexp_prefix = "%s%s" % (Naming.pyrex_prefix, name)
-    
+        self.genexp_prefix = "%s%d%s" % (Naming.pyrex_prefix, len(name), name)
+
     def mangle(self, prefix, name):
-        return '%s%s' % (self.genexp_prefix, LocalScope.mangle(self, prefix, name))
+        return '%s%s' % (self.genexp_prefix, self.outer_scope.mangle(self, prefix, name))
 
     def declare_var(self, name, type, pos,
-                    cname = None, visibility = 'private', is_cdef = 0):
+                    cname = None, visibility = 'private', is_cdef = True):
+        # the outer scope needs to generate code for the variable, but
+        # this scope must hold its name exclusively
         cname = '%s%s' % (self.genexp_prefix, self.outer_scope.mangle(Naming.var_prefix, name))
-        entry = self.outer_scope.declare_var(None, type, pos, cname, visibility, is_cdef)
+        entry = self.outer_scope.declare_var(None, type, pos, cname, visibility, is_cdef = True)
         self.entries[name] = entry
         return entry
 

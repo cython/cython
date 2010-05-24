@@ -33,3 +33,12 @@ def iterdict():
     l = [d[key] for key in d]
     l.sort()
     print l
+
+listcomp_result = [ i*i for i in range(5) ]
+def global_listcomp():
+    """
+    >>> [ i*i for i in range(5) ]
+    [0, 1, 4, 9, 16]
+    >>> listcomp_result
+    [0, 1, 4, 9, 16]
+    """
