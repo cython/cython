@@ -542,7 +542,7 @@ class GlobalState(object):
     # constant handling at code generation time
 
     def get_int_const(self, str_value, longness=False):
-        longness = bool(longness or Utils.long_literal(str_value))
+        longness = bool(longness)
         try:
             c = self.int_const_index[(str_value, longness)]
         except KeyError:
@@ -722,6 +722,8 @@ class GlobalState(object):
             decls_writer.putln("static PyObject *%s;" % cname)
             if longness:
                 function = '%s = PyLong_FromString((char *)"%s", 0, 0); %s;'
+            elif Utils.long_literal(value):
+                function = '%s = PyInt_FromString((char *)"%s", 0, 0); %s;'
             else:
                 function = "%s = PyInt_FromLong(%s); %s;"
             init_globals = self.parts['init_globals']
