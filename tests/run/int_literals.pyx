@@ -25,3 +25,13 @@ def c_longs():
     
 def py_longs():
     return 1, 1L, 100000000000000000000000000000000, -100000000000000000000000000000000
+
+def large_literal():
+    """
+    >>> type(large_literal()) is int
+    True
+    """
+    if sys.version_info[0] >= 3 or sys.maxint > 0xFFFFFFFFFFFF:
+        return 0xFFFFFFFFFFFF
+    else:
+        return 0xFFFFFFF
