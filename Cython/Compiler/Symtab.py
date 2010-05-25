@@ -1275,6 +1275,11 @@ class GeneratorExpressionScope(LocalScope):
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private', is_cdef = True):
+        if type is unspecified_type:
+            # if the outer scope defines a type for this variable, inherit it
+            outer_entry = self.outer_scope.lookup(name)
+            if outer_entry and not outer_entry.is_builtin:
+                type = outer_entry.type # may still be 'unspecified_type' !
         # the outer scope needs to generate code for the variable, but
         # this scope must hold its name exclusively
         cname = '%s%s' % (self.genexp_prefix, self.outer_scope.mangle(Naming.var_prefix, name))

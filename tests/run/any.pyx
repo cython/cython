@@ -143,7 +143,8 @@ lower_ustring = mixed_ustring.lower()
 upper_ustring = mixed_ustring.upper()
 
 @cython.test_assert_path_exists('//PythonCapiCallNode',
-                                '//ForFromStatNode')
+                                '//ForFromStatNode',
+                                "//InlinedGeneratorExpressionNode")
 @cython.test_fail_if_path_exists('//SimpleCallNode',
                                  '//ForInStatNode')
 def any_lower_case_characters(unicode ustring):
@@ -158,9 +159,11 @@ def any_lower_case_characters(unicode ustring):
     return any(uchar.islower() for uchar in ustring)
 
 @cython.test_assert_path_exists("//ForInStatNode",
-                                "//InlinedGeneratorExpressionNode")
+                                "//InlinedGeneratorExpressionNode",
+                                "//InlinedGeneratorExpressionNode//IfStatNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode",
-                                 "//YieldExprNode")
+                                 "//YieldExprNode",
+                                 "//IfStatNode//CoerceToBooleanNode")
 def any_in_typed_gen(seq):
     """
     >>> any_in_typed_gen([0,1,0])
@@ -182,15 +185,15 @@ def any_in_typed_gen(seq):
     5
     False
     """
-    # FIXME: this isn't really supposed to work, but it currently does
-    # due to incorrect scoping - this should be fixed!!
     cdef int x
     return any(x for x in seq)
 
 @cython.test_assert_path_exists("//ForInStatNode",
-                                "//InlinedGeneratorExpressionNode")
+                                "//InlinedGeneratorExpressionNode",
+                                "//InlinedGeneratorExpressionNode//IfStatNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode",
-                                 "//YieldExprNode")
+                                 "//YieldExprNode",
+                                 "//IfStatNode//CoerceToBooleanNode")
 def any_in_nested_gen(seq):
     """
     >>> any(x for L in [[0,0,0],[0,0,1],[0,0,0]] for x in L)
@@ -226,7 +229,5 @@ def any_in_nested_gen(seq):
     3
     False
     """
-    # FIXME: this isn't really supposed to work, but it currently does
-    # due to incorrect scoping - this should be fixed!!
     cdef int x
     return any(x for L in seq for x in L)
