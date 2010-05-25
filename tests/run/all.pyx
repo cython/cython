@@ -203,24 +203,24 @@ def all_in_typed_gen(seq):
 @cython.test_fail_if_path_exists("//SimpleCallNode",
                                  "//YieldExprNode",
                                  "//IfStatNode//CoerceToBooleanNode")
-def all_in_nested_gen(seq):
+def all_in_double_gen(seq):
     """
     >>> all(x for L in [[1,1,1],[1,1,1],[1,1,1]] for x in L)
     True
-    >>> all_in_nested_gen([[1,1,1],[1,1,1],[1,1,1]])
+    >>> all_in_double_gen([[1,1,1],[1,1,1],[1,1,1]])
     True
 
     >>> all(x for L in [[1,1,1],[1,1,1],[1,1,0]] for x in L)
     False
-    >>> all_in_nested_gen([[1,1,1],[1,1,1],[1,1,0]])
+    >>> all_in_double_gen([[1,1,1],[1,1,1],[1,1,0]])
     False
 
     >>> all(x for L in [[1,1,1],[0,1,1],[1,1,1]] for x in L)
     False
-    >>> all_in_nested_gen([[1,1,1],[0,1,1],[1,1,1]])
+    >>> all_in_double_gen([[1,1,1],[0,1,1],[1,1,1]])
     False
 
-    >>> all_in_nested_gen([VerboseGetItem([1,1,1]), VerboseGetItem([1,1,1,1,1])])
+    >>> all_in_double_gen([VerboseGetItem([1,1,1]), VerboseGetItem([1,1,1,1,1])])
     0
     1
     2
@@ -232,7 +232,7 @@ def all_in_nested_gen(seq):
     4
     5
     True
-    >>> all_in_nested_gen([VerboseGetItem([1,1,1]),VerboseGetItem([1,1]),VerboseGetItem([1,1,0])])
+    >>> all_in_double_gen([VerboseGetItem([1,1,1]),VerboseGetItem([1,1]),VerboseGetItem([1,1,0])])
     0
     1
     2

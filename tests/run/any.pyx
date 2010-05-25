@@ -194,19 +194,19 @@ def any_in_typed_gen(seq):
 @cython.test_fail_if_path_exists("//SimpleCallNode",
                                  "//YieldExprNode",
                                  "//IfStatNode//CoerceToBooleanNode")
-def any_in_nested_gen(seq):
+def any_in_double_gen(seq):
     """
     >>> any(x for L in [[0,0,0],[0,0,1],[0,0,0]] for x in L)
     True
-    >>> any_in_nested_gen([[0,0,0],[0,0,1],[0,0,0]])
+    >>> any_in_double_gen([[0,0,0],[0,0,1],[0,0,0]])
     True
 
     >>> any(x for L in [[0,0,0],[0,0,0],[0,0,0]] for x in L)
     False
-    >>> any_in_nested_gen([[0,0,0],[0,0,0],[0,0,0]])
+    >>> any_in_double_gen([[0,0,0],[0,0,0],[0,0,0]])
     False
 
-    >>> any_in_nested_gen([VerboseGetItem([0,0,0]), VerboseGetItem([0,0,1,0,0])])
+    >>> any_in_double_gen([VerboseGetItem([0,0,0]), VerboseGetItem([0,0,1,0,0])])
     0
     1
     2
@@ -215,7 +215,7 @@ def any_in_nested_gen(seq):
     1
     2
     True
-    >>> any_in_nested_gen([VerboseGetItem([0,0,0]),VerboseGetItem([0,0]),VerboseGetItem([0,0,0])])
+    >>> any_in_double_gen([VerboseGetItem([0,0,0]),VerboseGetItem([0,0]),VerboseGetItem([0,0,0])])
     0
     1
     2
