@@ -3920,7 +3920,7 @@ class ScopedExprNode(ExprNode):
         pass
 
 
-class ComprehensionNode(ScopedExprNode):
+class ComprehensionNode(ExprNode):    # (ScopedExprNode)
     subexprs = ["target"]
     child_attrs = ["loop", "append"]
 
@@ -3929,15 +3929,17 @@ class ComprehensionNode(ScopedExprNode):
 
     def analyse_declarations(self, env):
         self.append.target = self # this is used in the PyList_Append of the inner loop
-        self.expr_scope = Symtab.GeneratorExpressionScope(env)
-        self.loop.analyse_declarations(self.expr_scope)
+        self.loop.analyse_declarations(env)
+#        self.expr_scope = Symtab.GeneratorExpressionScope(env)
+#        self.loop.analyse_declarations(self.expr_scope)
 
     def analyse_types(self, env):
         self.target.analyse_expressions(env)
         self.type = self.target.type
-
-    def analyse_scoped_expressions(self, env):
         self.loop.analyse_expressions(env)
+
+#    def analyse_scoped_expressions(self, env):
+#        self.loop.analyse_expressions(env)
 
     def may_be_none(self):
         return False
