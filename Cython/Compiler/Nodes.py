@@ -3578,7 +3578,7 @@ class InPlaceAssignmentNode(AssignmentNode):
                                              indices = indices,
                                              is_temp = self.dup.is_temp)
         else:
-            assert False
+            assert False, "Unsupported node: %s" % type(self.lhs)
         self.lhs = target_lhs
         return self.dup
     
