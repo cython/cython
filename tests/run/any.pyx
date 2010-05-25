@@ -51,6 +51,7 @@ def any_item(x):
     """
     return any(x)
 
+
 @cython.test_assert_path_exists("//ForInStatNode",
                                 "//InlinedGeneratorExpressionNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode",
@@ -77,6 +78,7 @@ def any_in_simple_gen(seq):
     False
     """
     return any(x for x in seq)
+
 
 @cython.test_assert_path_exists("//ForInStatNode",
                                 "//InlinedGeneratorExpressionNode")
@@ -107,6 +109,7 @@ def any_in_simple_gen_scope(seq):
     result = any(x for x in seq)
     assert x == 'abc'
     return result
+
 
 @cython.test_assert_path_exists("//ForInStatNode",
                                 "//InlinedGeneratorExpressionNode")
@@ -142,6 +145,7 @@ mixed_ustring = u'AbcDefGhIjKlmnoP'
 lower_ustring = mixed_ustring.lower()
 upper_ustring = mixed_ustring.upper()
 
+
 @cython.test_assert_path_exists('//PythonCapiCallNode',
                                 '//ForFromStatNode',
                                 "//InlinedGeneratorExpressionNode")
@@ -157,6 +161,7 @@ def any_lower_case_characters(unicode ustring):
     True
     """
     return any(uchar.islower() for uchar in ustring)
+
 
 @cython.test_assert_path_exists("//ForInStatNode",
                                 "//InlinedGeneratorExpressionNode",
@@ -187,6 +192,36 @@ def any_in_typed_gen(seq):
     """
     cdef int x
     return any(x for x in seq)
+
+
+@cython.test_assert_path_exists("//ForInStatNode",
+                                "//InlinedGeneratorExpressionNode",
+                                "//InlinedGeneratorExpressionNode//IfStatNode")
+@cython.test_fail_if_path_exists("//SimpleCallNode",
+                                 "//YieldExprNode")
+def any_in_gen_builtin_name(seq):
+    """
+    >>> any_in_gen_builtin_name([0,1,0])
+    True
+    >>> any_in_gen_builtin_name([0,0,0])
+    False
+
+    >>> any_in_gen_builtin_name(VerboseGetItem([0,0,1,0,0]))
+    0
+    1
+    2
+    True
+    >>> any_in_gen_builtin_name(VerboseGetItem([0,0,0,0,0]))
+    0
+    1
+    2
+    3
+    4
+    5
+    False
+    """
+    return any(type for type in seq)
+
 
 @cython.test_assert_path_exists("//ForInStatNode",
                                 "//InlinedGeneratorExpressionNode",

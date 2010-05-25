@@ -1278,7 +1278,7 @@ class GeneratorExpressionScope(LocalScope):
         if type is unspecified_type:
             # if the outer scope defines a type for this variable, inherit it
             outer_entry = self.outer_scope.lookup(name)
-            if outer_entry and not outer_entry.is_builtin:
+            if outer_entry and outer_entry.is_variable:
                 type = outer_entry.type # may still be 'unspecified_type' !
         # the outer scope needs to generate code for the variable, but
         # this scope must hold its name exclusively
