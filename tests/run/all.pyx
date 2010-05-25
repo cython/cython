@@ -166,9 +166,11 @@ def all_lower_case_characters(unicode ustring):
     return all(uchar.islower() for uchar in ustring)
 
 @cython.test_assert_path_exists("//ForInStatNode",
-                                "//InlinedGeneratorExpressionNode")
+                                "//InlinedGeneratorExpressionNode",
+                                "//InlinedGeneratorExpressionNode//IfStatNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode",
-                                 "//YieldExprNode")
+                                 "//YieldExprNode",
+                                 "//IfStatNode//CoerceToBooleanNode")
 def all_in_typed_gen(seq):
     """
     >>> all_in_typed_gen([1,1,1])
@@ -192,15 +194,15 @@ def all_in_typed_gen(seq):
     4
     False
     """
-    # FIXME: this isn't really supposed to work, but it currently does
-    # due to incorrect scoping - this should be fixed!!
     cdef int x
     return all(x for x in seq)
 
 @cython.test_assert_path_exists("//ForInStatNode",
-                                "//InlinedGeneratorExpressionNode")
+                                "//InlinedGeneratorExpressionNode",
+                                "//InlinedGeneratorExpressionNode//IfStatNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode",
-                                 "//YieldExprNode")
+                                 "//YieldExprNode",
+                                 "//IfStatNode//CoerceToBooleanNode")
 def all_in_nested_gen(seq):
     """
     >>> all(x for L in [[1,1,1],[1,1,1],[1,1,1]] for x in L)
@@ -243,7 +245,5 @@ def all_in_nested_gen(seq):
     2
     False
     """
-    # FIXME: this isn't really supposed to work, but it currently does
-    # due to incorrect scoping - this should be fixed!!
     cdef int x
     return all(x for L in seq for x in L)
