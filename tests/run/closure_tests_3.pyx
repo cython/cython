@@ -466,7 +466,7 @@ def g1769():
       return g1767
     f_1299 = g1768()
     def g1766():
-      return callable(f_1299)
+      return hasattr(f_1299, '__call__')
     if (g1766()):
       return True
     else:
