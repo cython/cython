@@ -1546,7 +1546,7 @@ def p_statement(s, ctx, first_statement = 0):
         return node
     else:
         if ctx.api:
-            error(s.pos, "'api' not allowed with this statement")
+            s.error("'api' not allowed with this statement")
         elif s.sy == 'def':
             if ctx.level not in ('module', 'class', 'c_class', 'c_class_pxd', 'property'):
                 s.error('def statement not allowed here')
@@ -1607,7 +1607,7 @@ def p_suite(s, ctx = Ctx(), with_doc = 0, with_pseudo_doc = 0):
         s.expect_dedent()
     else:
         if ctx.api:
-            error(s.pos, "'api' not allowed with this statement")
+            s.error("'api' not allowed with this statement")
         if ctx.level in ('module', 'class', 'function', 'other'):
             body = p_simple_statement_list(s, ctx)
         else:
@@ -2324,7 +2324,7 @@ def p_c_func_or_var_declaration(s, pos, ctx):
             overridable = ctx.overridable)
     else:
         #if api:
-        #    error(s.pos, "'api' not allowed with variable declaration")
+        #    s.error("'api' not allowed with variable declaration")
         declarators = [declarator]
         while s.sy == ',':
             s.next()
