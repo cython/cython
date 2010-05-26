@@ -1085,6 +1085,13 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             self.yield_nodes.append(node)
             self.visitchildren(node)
 
+    def _find_single_yield_node(self, node):
+        collector = self.YieldNodeCollector()
+        collector.visitchildren(node)
+        if len(collector.yield_nodes) != 1:
+            return None
+        return collector.yield_nodes[0]
+
     def _handle_simple_function_all(self, node, pos_args):
         """Transform
 
@@ -1132,14 +1139,10 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return node
         gen_expr_node = pos_args[0]
         loop_node = gen_expr_node.loop
-
-        collector = self.YieldNodeCollector()
-        collector.visitchildren(loop_node)
-        if len(collector.yield_nodes) != 1:
+        yield_node = self._find_single_yield_node(loop_node)
+        if yield_node is None:
             return node
-        yield_node = collector.yield_nodes[0]
         yield_expression = yield_node.arg
-        del collector
 
         if is_any:
             condition = yield_expression
@@ -1183,6 +1186,48 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
         return ExprNodes.InlinedGeneratorExpressionNode(
             gen_expr_node.pos, loop = loop_node, result_node = result_ref,
+            expr_scope = gen_expr_node.expr_scope)
+
+    def _handle_simple_function_sum(self, node, pos_args):
+        if len(pos_args) not in (1,2):
+            return node
+        if not isinstance(pos_args[0], ExprNodes.GeneratorExpressionNode):
+            return node
+        gen_expr_node = pos_args[0]
+        loop_node = gen_expr_node.loop
+
+        yield_node = self._find_single_yield_node(loop_node)
+        if yield_node is None:
+            return node
+        yield_expression = yield_node.arg
+
+        if len(pos_args) == 1:
+            start = ExprNodes.IntNode(node.pos, value='0', constant_result=0)
+        else:
+            start = pos_args[1]
+
+        result_ref = UtilNodes.ResultRefNode(pos=node.pos, type=PyrexTypes.py_object_type)
+        add_node = Nodes.SingleAssignmentNode(
+            yield_node.pos,
+            lhs = result_ref,
+            rhs = ExprNodes.binop_node(node.pos, '+', result_ref, yield_expression)
+            )
+
+        Visitor.RecursiveNodeReplacer(yield_node, add_node).visitchildren(loop_node)
+
+        exec_code = Nodes.StatListNode(
+            node.pos,
+            stats = [
+                Nodes.SingleAssignmentNode(
+                    start.pos,
+                    lhs = UtilNodes.ResultRefNode(pos=node.pos, expression=result_ref),
+                    rhs = start,
+                    first = True),
+                loop_node
+                ])
+
+        return ExprNodes.InlinedGeneratorExpressionNode(
+            gen_expr_node.pos, loop = exec_code, result_node = result_ref,
             expr_scope = gen_expr_node.expr_scope)
 
     # specific handlers for general call nodes
