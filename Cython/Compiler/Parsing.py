@@ -1216,7 +1216,7 @@ def p_for_bounds(s):
         s.next()
         iterator = p_for_iterator(s)
         return { 'target': target, 'iterator': iterator }
-    else:
+    elif not s.in_python_file:
         if s.sy == 'from':
             s.next()
             bound1 = p_bit_expr(s)
@@ -1248,6 +1248,9 @@ def p_for_bounds(s):
                 'relation2': rel2,
                 'bound2': bound2,
                 'step': step }
+    else:
+        s.expect('in')
+        return {}
 
 def p_for_from_relation(s):
     if s.sy in inequality_relations:
