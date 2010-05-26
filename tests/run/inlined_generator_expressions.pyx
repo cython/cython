@@ -1,4 +1,10 @@
 
+cimport cython
+
+@cython.test_assert_path_exists('//ForFromStatNode',
+                                "//InlinedGeneratorExpressionNode")
+@cython.test_fail_if_path_exists('//SimpleCallNode',
+                                 '//ForInStatNode')
 def range_sum(int N):
     """
     >>> sum(range(10))
@@ -9,6 +15,10 @@ def range_sum(int N):
     result = sum(i for i in range(N))
     return result
 
+@cython.test_assert_path_exists('//ForFromStatNode',
+                                "//InlinedGeneratorExpressionNode")
+@cython.test_fail_if_path_exists('//SimpleCallNode',
+                                 '//ForInStatNode')
 def return_range_sum(int N):
     """
     >>> sum(range(10))
@@ -18,6 +28,10 @@ def return_range_sum(int N):
     """
     return sum(i for i in range(N))
 
+@cython.test_assert_path_exists('//ForFromStatNode',
+                                "//InlinedGeneratorExpressionNode")
+@cython.test_fail_if_path_exists('//SimpleCallNode',
+                                 '//ForInStatNode')
 def return_range_sum_squares(int N):
     """
     >>> sum([i*i for i in range(10)])
@@ -32,6 +46,9 @@ def return_range_sum_squares(int N):
     """
     return sum(i*i for i in range(N))
 
+@cython.test_assert_path_exists('//ForInStatNode',
+                                "//InlinedGeneratorExpressionNode")
+@cython.test_fail_if_path_exists('//SimpleCallNode')
 def return_sum_squares(seq):
     """
     >>> sum([i*i for i in range(10)])
@@ -46,6 +63,9 @@ def return_sum_squares(seq):
     """
     return sum(i*i for i in seq)
 
+@cython.test_assert_path_exists('//ForInStatNode',
+                                "//InlinedGeneratorExpressionNode")
+@cython.test_fail_if_path_exists('//SimpleCallNode')
 def return_sum_squares_start(seq, int start):
     """
     >>> sum([i*i for i in range(10)], -1)
