@@ -144,6 +144,11 @@ class ResultRefNode(AtomicExprNode):
         return True
 
     def result(self):
+        try:
+            return self.result_code
+        except AttributeError:
+            if self.expression is not None:
+                self.result_code = self.expression.result()
         return self.result_code
 
     def generate_evaluation_code(self, code):
