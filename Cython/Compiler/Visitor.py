@@ -352,7 +352,9 @@ class RecursiveNodeReplacer(VisitorTransform):
         else:
             return node
 
-
+def recursively_replace_node(tree, old_node, new_node):
+    replace_in = RecursiveNodeReplacer(old_node, new_node)
+    replace_in(tree)
 
 
 # Utils

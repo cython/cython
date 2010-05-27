@@ -1142,8 +1142,9 @@ class AnalyseExpressionsTransform(CythonTransform):
         return node
 
     def visit_ScopedExprNode(self, node):
-        node.expr_scope.infer_types()
-        node.analyse_scoped_expressions(node.expr_scope)
+        if node.expr_scope is not None:
+            node.expr_scope.infer_types()
+            node.analyse_scoped_expressions(node.expr_scope)
         self.visitchildren(node)
         return node
         

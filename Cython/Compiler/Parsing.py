@@ -777,7 +777,7 @@ def p_list_maker(s):
         target = ExprNodes.ListNode(pos, args = [])
         append = ExprNodes.ComprehensionAppendNode(
             pos, expr=expr, target=ExprNodes.CloneNode(target))
-        loop = p_comp_for(s, Nodes.ExprStatNode(append.pos, expr=append))
+        loop = p_comp_for(s, append)
         s.expect(']')
         return ExprNodes.ComprehensionNode(
             pos, loop=loop, append=append, target=target)
@@ -843,7 +843,7 @@ def p_dict_or_set_maker(s):
         target = ExprNodes.SetNode(pos, args=[])
         append = ExprNodes.ComprehensionAppendNode(
             item.pos, expr=item, target=ExprNodes.CloneNode(target))
-        loop = p_comp_for(s, Nodes.ExprStatNode(append.pos, expr=append))
+        loop = p_comp_for(s, append)
         s.expect('}')
         return ExprNodes.ComprehensionNode(
             pos, loop=loop, append=append, target=target)
@@ -858,7 +858,7 @@ def p_dict_or_set_maker(s):
             append = ExprNodes.DictComprehensionAppendNode(
                 item.pos, key_expr=key, value_expr=value,
                 target=ExprNodes.CloneNode(target))
-            loop = p_comp_for(s, Nodes.ExprStatNode(append.pos, expr=append))
+            loop = p_comp_for(s, append)
             s.expect('}')
             return ExprNodes.ComprehensionNode(
                 pos, loop=loop, append=append, target=target)

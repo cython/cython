@@ -1022,52 +1022,6 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
     # specific handlers for simple call nodes
 
-    def _handle_simple_function_set(self, node, pos_args):
-        """Replace set([a,b,...]) by a literal set {a,b,...} and
-        set([ x for ... ]) by a literal { x for ... }.
-        """
-        arg_count = len(pos_args)
-        if arg_count == 0:
-            return ExprNodes.SetNode(node.pos, args=[],
-                                     type=Builtin.set_type)
-        if arg_count > 1:
-            return node
-        iterable = pos_args[0]
-        if isinstance(iterable, (ExprNodes.ListNode, ExprNodes.TupleNode)):
-            return ExprNodes.SetNode(node.pos, args=iterable.args)
-        elif isinstance(iterable, ExprNodes.ComprehensionNode) and \
-                 isinstance(iterable.target, (ExprNodes.ListNode,
-                                              ExprNodes.SetNode)):
-            iterable.target = ExprNodes.SetNode(node.pos, args=[])
-            iterable.pos = node.pos
-            return iterable
-        else:
-            return node
-
-    def _handle_simple_function_dict(self, node, pos_args):
-        """Replace dict([ (a,b) for ... ]) by a literal { a:b for ... }.
-        """
-        if len(pos_args) != 1:
-            return node
-        arg = pos_args[0]
-        if isinstance(arg, ExprNodes.ComprehensionNode) and \
-               isinstance(arg.target, (ExprNodes.ListNode,
-                                       ExprNodes.SetNode)):
-            append_node = arg.append
-            if isinstance(append_node.expr, (ExprNodes.TupleNode, ExprNodes.ListNode)) and \
-                   len(append_node.expr.args) == 2:
-                key_node, value_node = append_node.expr.args
-                target_node = ExprNodes.DictNode(
-                    pos=arg.target.pos, key_value_pairs=[])
-                new_append_node = ExprNodes.DictComprehensionAppendNode(
-                    append_node.pos, target=target_node,
-                    key_expr=key_node, value_expr=value_node)
-                arg.target = target_node
-                arg.type = target_node.type
-                replace_in = Visitor.RecursiveNodeReplacer(append_node, new_append_node)
-                return replace_in(arg)
-        return node
-
     def _handle_simple_function_float(self, node, pos_args):
         if len(pos_args) == 0:
             return ExprNodes.FloatNode(node.pos, value='0.0')
@@ -1182,7 +1136,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             rhs = ExprNodes.BoolNode(yield_node.pos, value = not is_any,
                                      constant_result = not is_any))
 
-        Visitor.RecursiveNodeReplacer(yield_node, test_node).visitchildren(loop_node)
+        Visitor.recursively_replace_node(loop_node, yield_node, test_node)
 
         return ExprNodes.InlinedGeneratorExpressionNode(
             gen_expr_node.pos, loop = loop_node, result_node = result_ref,
@@ -1215,7 +1169,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             rhs = ExprNodes.binop_node(node.pos, '+', result_ref, yield_expression)
             )
 
-        Visitor.RecursiveNodeReplacer(yield_node, add_node).visitchildren(loop_node)
+        Visitor.recursively_replace_node(loop_node, yield_node, add_node)
 
         exec_code = Nodes.StatListNode(
             node.pos,
@@ -1231,6 +1185,113 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         return ExprNodes.InlinedGeneratorExpressionNode(
             gen_expr_node.pos, loop = exec_code, result_node = result_ref,
             expr_scope = gen_expr_node.expr_scope, orig_func = 'sum')
+
+    def _handle_simple_function_list(self, node, pos_args):
+        if len(pos_args) == 0:
+            return ExprNodes.ListNode(node.pos, args=[], constant_result=[])
+        return self._transform_list_set_genexpr(node, pos_args, ExprNodes.ListNode)
+
+    def _handle_simple_function_set(self, node, pos_args):
+        if len(pos_args) == 0:
+            return ExprNodes.SetNode(node.pos, args=[], constant_result=set())
+        return self._transform_list_set_genexpr(node, pos_args, ExprNodes.SetNode)
+
+    def _transform_list_set_genexpr(self, node, pos_args, container_node_class):
+        """Replace set(genexpr) and list(genexpr) by a literal comprehension.
+        """
+        if len(pos_args) > 1:
+            return node
+        if not isinstance(pos_args[0], ExprNodes.GeneratorExpressionNode):
+            return node
+        gen_expr_node = pos_args[0]
+        loop_node = gen_expr_node.loop
+
+        yield_node = self._find_single_yield_node(loop_node)
+        if yield_node is None:
+            return node
+        yield_expression = yield_node.arg
+
+        target_node = container_node_class(node.pos, args=[])
+        append_node = ExprNodes.ComprehensionAppendNode(
+            yield_node.pos,
+            expr = yield_expression,
+            target = ExprNodes.CloneNode(target_node),
+            is_temp = 1) # FIXME: why is this an ExprNode?
+
+        Visitor.recursively_replace_node(loop_node, yield_node, append_node)
+
+        setcomp = ExprNodes.ComprehensionNode(
+            node.pos,
+            has_local_scope = True,
+            expr_scope = gen_expr_node.expr_scope,
+            loop = loop_node,
+            append = append_node,
+            target = target_node)
+        append_node.target = setcomp
+        return setcomp
+
+    def _handle_simple_function_dict(self, node, pos_args):
+        """Replace dict( (a,b) for ... ) by a literal { a:b for ... }.
+        """
+        if len(pos_args) == 0:
+            return ExprNodes.DictNode(node.pos, key_value_pairs=[], constant_result={})
+        if len(pos_args) > 1:
+            return node
+        if not isinstance(pos_args[0], ExprNodes.GeneratorExpressionNode):
+            return node
+        gen_expr_node = pos_args[0]
+        loop_node = gen_expr_node.loop
+
+        yield_node = self._find_single_yield_node(loop_node)
+        if yield_node is None:
+            return node
+        yield_expression = yield_node.arg
+
+        if not isinstance(yield_expression, ExprNodes.TupleNode):
+            return node
+        if len(yield_expression.args) != 2:
+            return node
+
+        target_node = ExprNodes.DictNode(node.pos, key_value_pairs=[])
+        append_node = ExprNodes.DictComprehensionAppendNode(
+            yield_node.pos,
+            key_expr = yield_expression.args[0],
+            value_expr = yield_expression.args[1],
+            target = ExprNodes.CloneNode(target_node),
+            is_temp = 1) # FIXME: why is this an ExprNode?
+
+        Visitor.recursively_replace_node(loop_node, yield_node, append_node)
+
+        dictcomp = ExprNodes.ComprehensionNode(
+            node.pos,
+            has_local_scope = True,
+            expr_scope = gen_expr_node.expr_scope,
+            loop = loop_node,
+            append = append_node,
+            target = target_node)
+        append_node.target = dictcomp
+        return dictcomp
+
+
+
+        arg = pos_args[0]
+        if isinstance(arg, ExprNodes.ComprehensionNode) and \
+               isinstance(arg.target, (ExprNodes.ListNode,
+                                       ExprNodes.SetNode)):
+            append_node = arg.append
+            if isinstance(append_node.expr, (ExprNodes.TupleNode, ExprNodes.ListNode)) and \
+                   len(append_node.expr.args) == 2:
+                key_node, value_node = append_node.expr.args
+                target_node = ExprNodes.DictNode(
+                    pos=arg.target.pos, key_value_pairs=[])
+                new_append_node = ExprNodes.DictComprehensionAppendNode(
+                    append_node.pos, target=target_node,
+                    key_expr=key_node, value_expr=value_node)
+                arg.target = target_node
+                arg.type = target_node.type
+                replace_in = Visitor.RecursiveNodeReplacer(append_node, new_append_node)
+                return replace_in(arg)
+        return node
 
     # specific handlers for general call nodes
 
