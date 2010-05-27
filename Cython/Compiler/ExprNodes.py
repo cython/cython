@@ -792,11 +792,19 @@ class IntNode(ConstNode):
 
     unsigned = ""
     longness = ""
-    type = PyrexTypes.c_long_type
+
+    def __init__(self, pos, **kwds):
+        ExprNode.__init__(self, pos, **kwds)
+        if 'type' not in kwds:
+            rank = max(1, len(self.longness))
+            sign = not self.unsigned
+            self.type = PyrexTypes.modifiers_and_name_to_type[sign, rank, "int"]
 
     def coerce_to(self, dst_type, env):
         if self.type is dst_type:
             return self
+        elif dst_type.is_float:
+            return FloatNode(self.pos, value=repr(float(self.value)))
         node = IntNode(self.pos, value=self.value,
                        unsigned=self.unsigned, longness=self.longness)
         if dst_type.is_numeric and not dst_type.is_complex:
@@ -5233,7 +5241,7 @@ class NumBinopNode(BinopNode):
             return
         if self.type.is_complex:
             self.infix = False
-        if not self.infix:
+        if not self.infix or (type1.is_numeric and type2.is_numeric):
             self.operand1 = self.operand1.coerce_to(self.type, env)
             self.operand2 = self.operand2.coerce_to(self.type, env)
     

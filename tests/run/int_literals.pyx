@@ -6,6 +6,7 @@ __doc__ = u"""
 """
 
 import sys
+from cython cimport typeof
 
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u'L', u'')
@@ -35,3 +36,20 @@ def large_literal():
         return 0xFFFFFFFFFFFF
     else:
         return 0xFFFFFFF
+
+def c_long_types():
+    """
+    >>> c_long_types()
+    long
+    long
+    long long
+    unsigned long
+    unsigned long
+    unsigned long long
+    """
+    print typeof(1)
+    print typeof(1L)
+    print typeof(1LL)
+    print typeof(1U)
+    print typeof(1UL)
+    print typeof(1ULL)
