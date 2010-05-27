@@ -1189,6 +1189,8 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             expr_scope = gen_expr_node.expr_scope)
 
     def _handle_simple_function_sum(self, node, pos_args):
+        """Transform sum(genexpr) into an equivalent inlined aggregation loop.
+        """
         if len(pos_args) not in (1,2):
             return node
         if not isinstance(pos_args[0], ExprNodes.GeneratorExpressionNode):
@@ -1728,7 +1730,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         return self._optimise_min_max(node, pos_args, '>')
 
     def _optimise_min_max(self, node, args, operator):
-        """Replace min(a,b,...) and max(a,b,...) by explicit conditional code.
+        """Replace min(a,b,...) and max(a,b,...) by explicit comparison code.
         """
         if len(args) <= 1:
             # leave this to Python
