@@ -125,3 +125,25 @@ def return_sum_squares_start(seq, int start):
     333283335009
     """
     return sum((i*i for i in seq), start)
+
+
+@cython.test_assert_path_exists(
+    '//ForInStatNode',
+    "//InlinedGeneratorExpressionNode")
+@cython.test_fail_if_path_exists(
+    '//SimpleCallNode',
+    "//InlinedGeneratorExpressionNode//CoerceToPyTypeNode")
+def return_typed_sum_squares_start(seq, int start):
+    """
+    >>> sum([i*i for i in range(10)], -1)
+    284
+    >>> return_typed_sum_squares_start(range(10), -1)
+    284
+
+    >>> sum([i*i for i in range(10000)], 9)
+    333283335009
+    >>> return_typed_sum_squares_start(range(10000), 9)
+    333283335009
+    """
+    cdef int i
+    return <long>sum((i*i for i in seq), start)
