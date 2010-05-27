@@ -790,9 +790,10 @@ class IntNode(ConstNode):
 
     def __init__(self, pos, **kwds):
         ExprNode.__init__(self, pos, **kwds)
-        rank = max(1, len(self.longness))
-        sign = not self.unsigned
-        self.type = PyrexTypes.modifiers_and_name_to_type[sign, rank, "int"]
+        if 'type' not in kwds:
+            rank = max(1, len(self.longness))
+            sign = not self.unsigned
+            self.type = PyrexTypes.modifiers_and_name_to_type[sign, rank, "int"]
 
     def coerce_to(self, dst_type, env):
         if self.type is dst_type:
