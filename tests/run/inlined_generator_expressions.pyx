@@ -18,6 +18,7 @@ def range_sum(int N):
 @cython.test_assert_path_exists('//ForFromStatNode',
                                 "//InlinedGeneratorExpressionNode")
 @cython.test_fail_if_path_exists('//SimpleCallNode',
+                                 '//CoerceFromPyTypeNode//InlinedGeneratorExpressionNode',
                                  '//ForInStatNode')
 def range_sum_typed(int N):
     """
@@ -28,6 +29,23 @@ def range_sum_typed(int N):
     """
     cdef int result = sum(i for i in range(N))
     return result
+
+@cython.test_assert_path_exists('//ForFromStatNode',
+                                "//InlinedGeneratorExpressionNode",
+                                "//ReturnStatNode//InlinedGeneratorExpressionNode",
+                                "//ReturnStatNode//CoerceToPyTypeNode//InlinedGeneratorExpressionNode")
+@cython.test_fail_if_path_exists('//SimpleCallNode',
+                                 '//CoerceFromPyTypeNode//InlinedGeneratorExpressionNode',
+                                 '//TypecastNode//InlinedGeneratorExpressionNode',
+                                 '//ForInStatNode')
+def return_range_sum_cast(int N):
+    """
+    >>> sum(range(10))
+    45
+    >>> return_range_sum_cast(10)
+    45
+    """
+    return <int>sum(i for i in range(N))
 
 @cython.test_assert_path_exists('//ForFromStatNode',
                                 "//InlinedGeneratorExpressionNode")
