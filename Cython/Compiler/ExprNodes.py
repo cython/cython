@@ -4037,16 +4037,26 @@ class GeneratorExpressionNode(ScopedExprNode):
 
 class InlinedGeneratorExpressionNode(GeneratorExpressionNode):
     # An inlined generator expression for which the result is
-    # calculated inside of the loop.
+    # calculated inside of the loop.  This will only be created by
+    # transforms when replacing builtin calls on generator
+    # expressions.
     #
     # loop           ForStatNode      the for-loop, not containing any YieldExprNodes
     # result_node    ResultRefNode    the reference to the result value temp
+    # orig_func      String           the name of the builtin function this node replaces
 
     child_attrs = ["loop"]
 
     def analyse_types(self, env):
         self.type = self.result_node.type
         self.is_temp = True
+
+    def coerce_to(self, dst_type, env):
+        if self.orig_func == 'sum' and dst_type.is_numeric:
+            # we can optimise by dropping the aggregation variable into C
+            self.result_node.type = self.type = dst_type
+            return self
+        return GeneratorExpressionNode.coerce_to(self, dst_type, env)
 
     def generate_result_code(self, code):
         self.result_node.result_code = self.result()
