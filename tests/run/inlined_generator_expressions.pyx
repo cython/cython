@@ -145,5 +145,5 @@ def return_typed_sum_squares_start(seq, int start):
     >>> return_typed_sum_squares_start(range(10000), 9)
     333283335009
     """
-    cdef int i
+    cdef long i
     return <long>sum((i*i for i in seq), start)
