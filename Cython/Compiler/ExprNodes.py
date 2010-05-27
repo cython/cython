@@ -792,6 +792,8 @@ class IntNode(ConstNode):
     def coerce_to(self, dst_type, env):
         if self.type is dst_type:
             return self
+        elif dst_type.is_float:
+            return FloatNode(self.pos, value=repr(float(self.value)))
         node = IntNode(self.pos, value=self.value,
                        unsigned=self.unsigned, longness=self.longness)
         if dst_type.is_numeric and not dst_type.is_complex:
@@ -4991,9 +4993,8 @@ class NumBinopNode(BinopNode):
             return
         if self.type.is_complex:
             self.infix = False
-        if not self.infix:
-            self.operand1 = self.operand1.coerce_to(self.type, env)
-            self.operand2 = self.operand2.coerce_to(self.type, env)
+        self.operand1 = self.operand1.coerce_to(self.type, env)
+        self.operand2 = self.operand2.coerce_to(self.type, env)
     
     def compute_c_result_type(self, type1, type2):
         if self.c_types_okay(type1, type2):
