@@ -1287,27 +1287,6 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         append_node.target = dictcomp
         return dictcomp
 
-
-
-        arg = pos_args[0]
-        if isinstance(arg, ExprNodes.ComprehensionNode) and \
-               isinstance(arg.target, (ExprNodes.ListNode,
-                                       ExprNodes.SetNode)):
-            append_node = arg.append
-            if isinstance(append_node.expr, (ExprNodes.TupleNode, ExprNodes.ListNode)) and \
-                   len(append_node.expr.args) == 2:
-                key_node, value_node = append_node.expr.args
-                target_node = ExprNodes.DictNode(
-                    pos=arg.target.pos, key_value_pairs=[])
-                new_append_node = ExprNodes.DictComprehensionAppendNode(
-                    append_node.pos, target=target_node,
-                    key_expr=key_node, value_expr=value_node)
-                arg.target = target_node
-                arg.type = target_node.type
-                replace_in = Visitor.RecursiveNodeReplacer(append_node, new_append_node)
-                return replace_in(arg)
-        return node
-
     # specific handlers for general call nodes
 
     def _handle_general_function_dict(self, node, pos_args, kwargs):
