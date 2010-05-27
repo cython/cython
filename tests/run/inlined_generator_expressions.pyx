@@ -1,6 +1,14 @@
 
 cimport cython
 
+def range_tuple_genexp(int N):
+    """
+    >>> range_tuple_genexp(5)
+    (0, 1, 2, 3, 4)
+    """
+    return tuple(i for i in range(N))
+
+
 @cython.test_assert_path_exists('//ForFromStatNode',
                                 "//InlinedGeneratorExpressionNode")
 @cython.test_fail_if_path_exists('//SimpleCallNode',
@@ -14,6 +22,7 @@ def range_sum(int N):
     """
     result = sum(i for i in range(N))
     return result
+
 
 @cython.test_assert_path_exists('//ForFromStatNode',
                                 "//InlinedGeneratorExpressionNode")
@@ -29,6 +38,7 @@ def range_sum_typed(int N):
     """
     cdef int result = sum(i for i in range(N))
     return result
+
 
 @cython.test_assert_path_exists('//ForFromStatNode',
                                 "//InlinedGeneratorExpressionNode",
@@ -47,6 +57,7 @@ def return_range_sum_cast(int N):
     """
     return <int>sum(i for i in range(N))
 
+
 @cython.test_assert_path_exists('//ForFromStatNode',
                                 "//InlinedGeneratorExpressionNode")
 @cython.test_fail_if_path_exists('//SimpleCallNode',
@@ -59,6 +70,7 @@ def return_range_sum(int N):
     45
     """
     return sum(i for i in range(N))
+
 
 @cython.test_assert_path_exists('//ForFromStatNode',
                                 "//InlinedGeneratorExpressionNode")
@@ -78,6 +90,7 @@ def return_range_sum_squares(int N):
     """
     return sum(i*i for i in range(N))
 
+
 @cython.test_assert_path_exists('//ForInStatNode',
                                 "//InlinedGeneratorExpressionNode")
 @cython.test_fail_if_path_exists('//SimpleCallNode')
@@ -94,6 +107,7 @@ def return_sum_squares(seq):
     333283335000
     """
     return sum(i*i for i in seq)
+
 
 @cython.test_assert_path_exists('//ForInStatNode',
                                 "//InlinedGeneratorExpressionNode")

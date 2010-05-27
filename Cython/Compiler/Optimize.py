@@ -1186,6 +1186,21 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             gen_expr_node.pos, loop = exec_code, result_node = result_ref,
             expr_scope = gen_expr_node.expr_scope, orig_func = 'sum')
 
+    def _handle_simple_function_tuple(self, node, pos_args):
+        if len(pos_args) == 0:
+            return ExprNodes.TupleNode(node.pos, args=[], constant_result=())
+        # This is a bit special - for iterables (including genexps),
+        # Python actually overallocates and resizes a newly created
+        # tuple incrementally while reading items, which we can't
+        # easily do without explicit node support. Instead, we read
+        # the items into a list and then copy them into a tuple of the
+        # final size.  This takes up to twice as much memory, but will
+        # have to do until we have real support for genexps.
+        result = self._transform_list_set_genexpr(node, pos_args, ExprNodes.ListNode)
+        if result is not node:
+            return ExprNodes.AsTupleNode(node.pos, arg=result)
+        return node
+
     def _handle_simple_function_list(self, node, pos_args):
         if len(pos_args) == 0:
             return ExprNodes.ListNode(node.pos, args=[], constant_result=[])
