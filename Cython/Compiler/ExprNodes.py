@@ -4993,8 +4993,9 @@ class NumBinopNode(BinopNode):
             return
         if self.type.is_complex:
             self.infix = False
-        self.operand1 = self.operand1.coerce_to(self.type, env)
-        self.operand2 = self.operand2.coerce_to(self.type, env)
+        if not self.infix or (type1.is_numeric and type2.is_numeric):
+            self.operand1 = self.operand1.coerce_to(self.type, env)
+            self.operand2 = self.operand2.coerce_to(self.type, env)
     
     def compute_c_result_type(self, type1, type2):
         if self.c_types_okay(type1, type2):
