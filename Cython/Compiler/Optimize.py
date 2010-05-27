@@ -1186,7 +1186,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
         return ExprNodes.InlinedGeneratorExpressionNode(
             gen_expr_node.pos, loop = loop_node, result_node = result_ref,
-            expr_scope = gen_expr_node.expr_scope)
+            expr_scope = gen_expr_node.expr_scope, orig_func = is_any and 'any' or 'all')
 
     def _handle_simple_function_sum(self, node, pos_args):
         """Transform sum(genexpr) into an equivalent inlined aggregation loop.
@@ -1230,7 +1230,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
         return ExprNodes.InlinedGeneratorExpressionNode(
             gen_expr_node.pos, loop = exec_code, result_node = result_ref,
-            expr_scope = gen_expr_node.expr_scope)
+            expr_scope = gen_expr_node.expr_scope, orig_func = 'sum')
 
     # specific handlers for general call nodes
 
