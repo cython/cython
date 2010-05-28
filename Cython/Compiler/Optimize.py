@@ -1230,8 +1230,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         append_node = ExprNodes.ComprehensionAppendNode(
             yield_node.pos,
             expr = yield_expression,
-            target = ExprNodes.CloneNode(target_node),
-            is_temp = 1) # FIXME: why is this an ExprNode?
+            target = ExprNodes.CloneNode(target_node))
 
         Visitor.recursively_replace_node(loop_node, yield_node, append_node)
 
@@ -1272,8 +1271,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             yield_node.pos,
             key_expr = yield_expression.args[0],
             value_expr = yield_expression.args[1],
-            target = ExprNodes.CloneNode(target_node),
-            is_temp = 1) # FIXME: why is this an ExprNode?
+            target = ExprNodes.CloneNode(target_node))
 
         Visitor.recursively_replace_node(loop_node, yield_node, append_node)
 
