@@ -1186,7 +1186,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             gen_expr_node.pos, loop = exec_code, result_node = result_ref,
             expr_scope = gen_expr_node.expr_scope, orig_func = 'sum')
 
-    def _handle_simple_function_tuple(self, node, pos_args):
+    def _DISABLED_handle_simple_function_tuple(self, node, pos_args):
         if len(pos_args) == 0:
             return ExprNodes.TupleNode(node.pos, args=[], constant_result=())
         # This is a bit special - for iterables (including genexps),
