@@ -1,12 +1,12 @@
 
 cimport cython
 
-def range_tuple_genexp(int N):
-    """
-    >>> range_tuple_genexp(5)
-    (0, 1, 2, 3, 4)
-    """
-    return tuple(i for i in range(N))
+## def range_tuple_genexp(int N):
+##     """
+##     >>> range_tuple_genexp(5)
+##     (0, 1, 2, 3, 4)
+##     """
+##     return tuple(i for i in range(N))
 
 
 @cython.test_assert_path_exists('//ForFromStatNode',
