@@ -36,6 +36,8 @@ Options:
   --line-directives              Produce #line directives pointing to the .pyx source
   --cplus                        Output a c++ rather than c file.
   --embed                        Embed the Python interpreter in a main() method.
+  -2                             Compile based on Python-2 syntax and code semantics.
+  -3                             Compile based on Python-3 syntax and code semantics.
   -X, --directive <name>=<value>[,<name=value,...] Overrides a compiler directive
 """
 
@@ -114,6 +116,10 @@ def parse_command_line(args):
                 Options.convert_range = True
             elif option == "--line-directives":
                 options.emit_linenums = True
+            elif option == '-2':
+                options.language_level = 2
+            elif option == '-3':
+                options.language_level = 3
             elif option in ("-X", "--directive"):
                 try:
                     options.compiler_directives = Options.parse_directive_list(
