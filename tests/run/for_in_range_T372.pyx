@@ -22,6 +22,42 @@ def test_modify():
 
 @cython.test_assert_path_exists("//ForFromStatNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
+def test_negindex():
+    """
+    >>> test_negindex()
+    6
+    5
+    4
+    3
+    2
+    (2, 0)
+    """
+    cdef int i, n = 5
+    for i in range(n+1, 1, -1):
+        print i
+        n = 0
+    return i,n
+
+@cython.test_assert_path_exists("//ForFromStatNode",
+                                "//ForFromStatNode//PrintStatNode//CoerceToPyTypeNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
+def test_negindex_inferred():
+    """
+    >>> test_negindex_inferred()
+    5
+    4
+    3
+    2
+    (2, 0)
+    """
+    cdef int n = 5
+    for i in range(n, 1, -1):
+        print i
+        n = 0
+    return i,n
+
+@cython.test_assert_path_exists("//ForFromStatNode")
+@cython.test_fail_if_path_exists("//ForInStatNode")
 def test_fix():
     """
     >>> test_fix()
