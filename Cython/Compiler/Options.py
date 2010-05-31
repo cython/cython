@@ -66,6 +66,7 @@ directive_defaults = {
     'infer_types': None,
     'infer_types.verbose': False,
     'autotestdict': True,
+    'language_level': 2,
     
     'warn': None,
     'warn.undeclared': False,

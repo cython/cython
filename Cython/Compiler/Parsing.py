@@ -2706,6 +2706,9 @@ def p_module(s, pxd, full_module_name):
     directive_comments = p_compiler_directive_comments(s)
     s.parse_comments = False
 
+    if 'language_level' in directive_comments:
+        s.context.set_language_level('language_level')
+
     doc = p_doc_string(s)
     if pxd:
         level = 'module_pxd'
