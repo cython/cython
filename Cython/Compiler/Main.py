@@ -65,8 +65,9 @@ class Context(object):
     #  modules               {string : ModuleScope}
     #  include_directories   [string]
     #  future_directives     [object]
+    #  language_level        int     currently 2 or 3 for Python 2/3
     
-    def __init__(self, include_directories, compiler_directives, cpp=False):
+    def __init__(self, include_directories, compiler_directives, cpp=False, language_level=2):
         #self.modules = {"__builtin__" : BuiltinScope()}
         import Builtin, CythonScope
         self.modules = {"__builtin__" : Builtin.builtin_scope}
@@ -81,6 +82,15 @@ class Context(object):
         standard_include_path = os.path.abspath(os.path.normpath(
             os.path.join(os.path.dirname(__file__), os.path.pardir, 'Includes')))
         self.include_directories = include_directories + [standard_include_path]
+
+        self.set_language_level(language_level)
+
+    def set_language_level(self, level):
+        self.language_level = level
+        if level >= 3:
+            from Future import print_function, unicode_literals
+            self.future_directives.add(print_function)
+            self.future_directives.add(unicode_literals)
 
     def create_pipeline(self, pxd, py=False):
         from Visitor import PrintTree
@@ -541,7 +551,8 @@ def create_default_resultobj(compilation_source, options):
 
 def run_pipeline(source, options, full_module_name = None):
     # Set up context
-    context = Context(options.include_path, options.compiler_directives, options.cplus)
+    context = Context(options.include_path, options.compiler_directives,
+                      options.cplus, options.language_level)
 
     # Set up source object
     cwd = os.getcwd()
@@ -596,6 +607,7 @@ class CompilationOptions(object):
     quiet             boolean   Don't print source names in recursive mode
     compiler_directives  dict      Overrides for pragma options (see Options.py)
     evaluate_tree_assertions boolean  Test support: evaluate parse tree assertions
+    language_level    integer   The Python language level: 2 or 3
     
     cplus             boolean   Compile as c++ code
     """
@@ -774,4 +786,5 @@ default_options = dict(
     compiler_directives = {},
     evaluate_tree_assertions = False,
     emit_linenums = False,
+    language_level = 2,
 )
