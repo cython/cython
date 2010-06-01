@@ -2707,7 +2707,7 @@ def p_module(s, pxd, full_module_name):
     s.parse_comments = False
 
     if 'language_level' in directive_comments:
-        s.context.set_language_level('language_level')
+        s.context.set_language_level(directive_comments['language_level'])
 
     doc = p_doc_string(s)
     if pxd:
