@@ -863,7 +863,7 @@ class WithTransform(CythonTransform, SkipDeclarations):
     def visit_WithStatNode(self, node):
         # TODO: Cleanup badly needed
         TemplateTransform.temp_name_counter += 1
-        handle = "__tmpvar_%d" % TemplateTransform.temp_name_counter
+        handle = EncodedString("__tmpvar_%d" % TemplateTransform.temp_name_counter)
         
         self.visitchildren(node, ['body'])
         excinfo_temp = NameNode(node.pos, name=handle)#TempHandle(Builtin.tuple_type)
