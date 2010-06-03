@@ -235,7 +235,7 @@ coerce to a Python unicode object.  The following will therefore print
 the character ``A``::
 
     cdef Py_UNICODE uchar_val = u'A'
-    assert uchar_val == ord(u'A')  # 65
+    assert uchar_val == 65 # character point value of u'A'
     print( uchar_val )
 
 Again, explicit casting will allow users to override this behaviour.
@@ -271,16 +271,26 @@ The same applies to bytes objects::
     for c in bytes_string:
         if c == 'A': ...
 
-and unicode objects::
+For unicode objects, Cython will automatically infer the type of the
+loop variable as ``Py_UNICODE``::
 
     cdef unicode ustring = ...
 
-    cdef Py_UNICODE uchar
+    # NOTE: no typing required for 'uchar' !
     for uchar in ustring:
         if uchar == u'A': ...
 
+The automatic type inference usually leads to much more efficient code
+here.  However, note that some unicode operations still require the
+value to be a Python object, so Cython may end up generating redundant
+conversion code for the loop variable value inside of the loop.  If
+this leads to a performance degradation for a specific piece of code,
+you can either type the loop variable as a Python object explicitly,
+or assign it to a Python typed temporary variable to enforce one-time
+coercion before running Python operations on it.
+
 There is also an optimisation for ``in`` tests, so that the following
-code will run in plain C code::
+code will run in plain C code, (actually using a switch statement)::
 
     cdef Py_UNICODE uchar_val = get_a_unicode_character()
     if uchar_val in u'abcABCxY':
