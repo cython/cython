@@ -20,16 +20,16 @@ sys.path.append('sphinxext')
 # in the sphinxext directory defined above)
 import ipython_console_highlighting
 
-# support cython highlighting
-import cython_highlighting
-
-
 # General configuration
 # ---------------------
 
+# Use cython as the default syntax highlighting language, as python is a subset
+# this does the right thing
+highlight_language = 'cython'
+
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['ipython_console_highlighting', 'cython_highlighting', 'sphinx.ext.pngmath', 'sphinx.ext.todo']
+extensions = ['ipython_console_highlighting', 'sphinx.ext.pngmath', 'sphinx.ext.todo']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -74,7 +74,6 @@ today_fmt = '%B %d, %Y'
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
-
 
 # Options for HTML output
 # -----------------------
