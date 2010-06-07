@@ -129,6 +129,7 @@ def test_boundscheck(list L, tuple t, object o, unsigned long ix):
 
 def large_literal_index(object o):
     """
-    >>> large_literal_index({1000000000000000000000000000000: "yes"})
+    >>> large_literal_index({1000000000000000000000000000000: True})
+    True
     """
     return o[1000000000000000000000000000000]
