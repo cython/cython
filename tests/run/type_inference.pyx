@@ -417,3 +417,18 @@ def common_extension_type_base():
     w = A()
     w = CC()
     assert typeof(w) == "Python object", typeof(w)
+
+
+@infer_types(None)
+def large_literals():
+    """
+    >>> large_literals()
+    """
+    # It's only safe to infer small integer literals.
+    a = 10
+    b = 100000000000000000000000000000000
+    assert typeof(a) == "long", typeof(a)
+    assert typeof(b) == "Python object", typeof(b)
+    c, d = 10, 100000000000000000000000000000000
+    assert typeof(c) == "long", typeof(c)
+    assert typeof(d) == "Python object", typeof(d)
