@@ -29,7 +29,8 @@ class Signature(object):
     #    'b'  bint
     #    'I'  int *
     #    'l'  long
-    #    'Z'  Py_ssize_t
+    #    'z'  Py_ssize_t
+    #    'Z'  Py_ssize_t *
     #    's'  char *
     #    'S'  char **
     #    'r'  int used only to signal exception
@@ -48,7 +49,8 @@ class Signature(object):
         'b': PyrexTypes.c_bint_type,
         'I': PyrexTypes.c_int_ptr_type,
         'l': PyrexTypes.c_long_type,
-        'Z': PyrexTypes.c_py_ssize_t_type,
+        'z': PyrexTypes.c_py_ssize_t_type,
+        'Z': PyrexTypes.c_py_ssize_t_ptr_type,
         's': PyrexTypes.c_char_ptr_type,
         'S': PyrexTypes.c_char_ptr_ptr_type,
         'r': PyrexTypes.c_returncode_type,
@@ -63,7 +65,7 @@ class Signature(object):
         'b': "-1",
         'l': "-1",
         'r': "-1",
-        'Z': "-1",
+        'z': "-1",
     }
     
     def __init__(self, arg_format, ret_format):
@@ -484,30 +486,26 @@ ternaryfunc = Signature("OOO", "O")        # typedef PyObject * (*ternaryfunc)(P
 iternaryfunc = Signature("TOO", "O")       # typedef PyObject * (*ternaryfunc)(PyObject *, PyObject *, PyObject *);
 callfunc = Signature("T*", "O")            # typedef PyObject * (*ternaryfunc)(PyObject *, PyObject *, PyObject *);
 inquiry = Signature("T", "i")              # typedef int (*inquiry)(PyObject *);
-lenfunc = Signature("T", "Z")              # typedef Py_ssize_t (*lenfunc)(PyObject *);
+lenfunc = Signature("T", "z")              # typedef Py_ssize_t (*lenfunc)(PyObject *);
 
                                            # typedef int (*coercion)(PyObject **, PyObject **);
 intargfunc = Signature("Ti", "O")          # typedef PyObject *(*intargfunc)(PyObject *, int);
-ssizeargfunc = Signature("TZ", "O")        # typedef PyObject *(*ssizeargfunc)(PyObject *, Py_ssize_t);
+ssizeargfunc = Signature("Tz", "O")        # typedef PyObject *(*ssizeargfunc)(PyObject *, Py_ssize_t);
 intintargfunc = Signature("Tii", "O")      # typedef PyObject *(*intintargfunc)(PyObject *, int, int);
-ssizessizeargfunc = Signature("TZZ", "O")  # typedef PyObject *(*ssizessizeargfunc)(PyObject *, Py_ssize_t, Py_ssize_t);
+ssizessizeargfunc = Signature("Tzz", "O")  # typedef PyObject *(*ssizessizeargfunc)(PyObject *, Py_ssize_t, Py_ssize_t);
 intobjargproc = Signature("TiO", 'r')      # typedef int(*intobjargproc)(PyObject *, int, PyObject *);
-ssizeobjargproc = Signature("TZO", 'r')    # typedef int(*ssizeobjargproc)(PyObject *, Py_ssize_t, PyObject *);
+ssizeobjargproc = Signature("TzO", 'r')    # typedef int(*ssizeobjargproc)(PyObject *, Py_ssize_t, PyObject *);
 intintobjargproc = Signature("TiiO", 'r')  # typedef int(*intintobjargproc)(PyObject *, int, int, PyObject *);
-ssizessizeobjargproc = Signature("TZZO", 'r') # typedef int(*ssizessizeobjargproc)(PyObject *, Py_ssize_t, Py_ssize_t, PyObject *);
+ssizessizeobjargproc = Signature("TzzO", 'r') # typedef int(*ssizessizeobjargproc)(PyObject *, Py_ssize_t, Py_ssize_t, PyObject *);
 
 intintargproc = Signature("Tii", 'r')
-ssizessizeargproc = Signature("TZZ", 'r')
+ssizessizeargproc = Signature("Tzz", 'r')
 objargfunc = Signature("TO", "O")
 objobjargproc = Signature("TOO", 'r')      # typedef int (*objobjargproc)(PyObject *, PyObject *, PyObject *);
-getreadbufferproc = Signature("TiP", 'i')  # typedef int (*getreadbufferproc)(PyObject *, int, void **);
-getwritebufferproc = Signature("TiP", 'i') # typedef int (*getwritebufferproc)(PyObject *, int, void **);
-getsegcountproc = Signature("TI", 'i')     # typedef int (*getsegcountproc)(PyObject *, int *);
-getcharbufferproc = Signature("TiS", 'i')  # typedef int (*getcharbufferproc)(PyObject *, int, const char **);
-readbufferproc = Signature("TZP", "Z")     # typedef Py_ssize_t (*readbufferproc)(PyObject *, Py_ssize_t, void **);
-writebufferproc = Signature("TZP", "Z")    # typedef Py_ssize_t (*writebufferproc)(PyObject *, Py_ssize_t, void **);
-segcountproc = Signature("TZ", "Z")        # typedef Py_ssize_t (*segcountproc)(PyObject *, Py_ssize_t *);
-charbufferproc = Signature("TZS", "Z")     # typedef Py_ssize_t (*charbufferproc)(PyObject *, Py_ssize_t, char **);
+readbufferproc = Signature("TzP", "z")     # typedef Py_ssize_t (*readbufferproc)(PyObject *, Py_ssize_t, void **);
+writebufferproc = Signature("TzP", "z")    # typedef Py_ssize_t (*writebufferproc)(PyObject *, Py_ssize_t, void **);
+segcountproc = Signature("TZ", "z")        # typedef Py_ssize_t (*segcountproc)(PyObject *, Py_ssize_t *);
+charbufferproc = Signature("TzS", "z")     # typedef Py_ssize_t (*charbufferproc)(PyObject *, Py_ssize_t, char **);
 objargproc = Signature("TO", 'r')          # typedef int (*objobjproc)(PyObject *, PyObject *);
                                            # typedef int (*visitproc)(PyObject *, void *);
                                            # typedef int (*traverseproc)(PyObject *, visitproc, void *);
@@ -625,10 +623,10 @@ PyMappingMethods = (
 )
 
 PyBufferProcs = (
-    MethodSlot(getreadbufferproc, "bf_getreadbuffer", "__getreadbuffer__", py3 = False),
-    MethodSlot(getwritebufferproc, "bf_getwritebuffer", "__getwritebuffer__", py3 = False),
-    MethodSlot(getsegcountproc, "bf_getsegcount", "__getsegcount__", py3 = False),
-    MethodSlot(getcharbufferproc, "bf_getcharbuffer", "__getcharbuffer__", py3 = False),
+    MethodSlot(readbufferproc, "bf_getreadbuffer", "__getreadbuffer__", py3 = False),
+    MethodSlot(writebufferproc, "bf_getwritebuffer", "__getwritebuffer__", py3 = False),
+    MethodSlot(segcountproc, "bf_getsegcount", "__getsegcount__", py3 = False),
+    MethodSlot(charbufferproc, "bf_getcharbuffer", "__getcharbuffer__", py3 = False),
 
     MethodSlot(getbufferproc, "bf_getbuffer", "__getbuffer__", ifdef = "PY_VERSION_HEX >= 0x02060000"),
     MethodSlot(releasebufferproc, "bf_releasebuffer", "__releasebuffer__", ifdef = "PY_VERSION_HEX >= 0x02060000")
