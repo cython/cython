@@ -32,7 +32,7 @@ builtin_function_table = [
     ('isinstance', "OO",   "b",     "PyObject_IsInstance"),
     ('issubclass', "OO",   "b",     "PyObject_IsSubclass"),
     #('iter',       "O",    "O",     "PyObject_GetIter"),   # optimised later on
-    ('len',        "O",    "Z",     "PyObject_Length"),
+    ('len',        "O",    "z",     "PyObject_Length"),
     ('locals',     "",     "O",     "__pyx_locals"),
     #('map',       "",     "",      ""),
     #('max',       "",     "",      ""),
@@ -103,7 +103,7 @@ builtin_types_table = [
 
     ("tuple",   "PyTuple_Type",    []),
 
-    ("list",    "PyList_Type",     [("insert", "OZO",  "i", "PyList_Insert")]),
+    ("list",    "PyList_Type",     [("insert", "OzO",  "i", "PyList_Insert")]),
 
     ("dict",    "PyDict_Type",     [("items", "O",   "O", "PyDict_Items"),
                                     ("keys",  "O",   "O", "PyDict_Keys"),
