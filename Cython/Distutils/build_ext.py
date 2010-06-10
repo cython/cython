@@ -36,6 +36,8 @@ class build_ext(_build_ext.build_ext):
          "generate C++ source files"),
         ('pyrex-create-listing', None,
          "write errors to a listing file"),
+        ('pyrex-line-directives', None,
+         "emit source line directives"),
         ('pyrex-include-dirs=', None,
          "path to the Cython include files" + sep_by),
         ('pyrex-c-in-temp', None,
@@ -45,13 +47,14 @@ class build_ext(_build_ext.build_ext):
         ])
 
     boolean_options.extend([
-        'pyrex-cplus', 'pyrex-create-listing', 'pyrex-c-in-temp'
+        'pyrex-cplus', 'pyrex-create-listing', 'pyrex-line-directives', 'pyrex-c-in-temp'
     ])
 
     def initialize_options(self):
         _build_ext.build_ext.initialize_options(self)
         self.pyrex_cplus = 0
         self.pyrex_create_listing = 0
+        self.pyrex_line_directives = 0
         self.pyrex_include_dirs = None
         self.pyrex_c_in_temp = 0
         self.pyrex_gen_pxi = 0
@@ -114,6 +117,8 @@ class build_ext(_build_ext.build_ext):
         
         create_listing = self.pyrex_create_listing or \
             getattr(extension, 'pyrex_create_listing', 0)
+        line_directives = self.pyrex_line_directives or \
+            getattr(extension, 'pyrex_line_directives', 0)
         cplus = self.pyrex_cplus or getattr(extension, 'pyrex_cplus', 0) or \
                 (extension.language and extension.language.lower() == 'c++')
         pyrex_gen_pxi = self.pyrex_gen_pxi or getattr(extension, 'pyrex_gen_pxi', 0)
@@ -186,6 +191,7 @@ class build_ext(_build_ext.build_ext):
                     include_path = includes,
                     output_file = target,
                     cplus = cplus,
+                    emit_linenums = line_directives,
                     generate_pxi = pyrex_gen_pxi)
                 result = cython_compile(source, options=options,
                                         full_module_name=module_name)
