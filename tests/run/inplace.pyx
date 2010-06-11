@@ -30,7 +30,7 @@ def h(double a, double b):
     a *= b
     return a
 
-cimport stdlib
+from libc cimport stdlib
 
 def arrays():
     """
