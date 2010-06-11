@@ -9,12 +9,12 @@
 
 from __future__ import unicode_literals
 
-cimport stdlib
-cimport python_buffer
-cimport stdio
+from libc cimport stdlib
+from libc cimport stdio
+cimport cpython.buffer
 cimport cython
 
-from python_ref cimport PyObject
+from cpython cimport PyObject, Py_INCREF, Py_DECREF
 
 __test__ = {}
 
@@ -871,7 +871,6 @@ def printbuf_td_h_double(object[td_h_double] buf, shape):
 #
 # Object access
 #
-from python_ref cimport Py_INCREF, Py_DECREF
 def addref(*args):
     for item in args: Py_INCREF(item)
 def decref(*args):
@@ -983,13 +982,13 @@ def buffer_cast_fails(object[char, cast=True] buf):
 
 
 available_flags = (
-    ('FORMAT', python_buffer.PyBUF_FORMAT),
-    ('INDIRECT', python_buffer.PyBUF_INDIRECT),
-    ('ND', python_buffer.PyBUF_ND),
-    ('STRIDES', python_buffer.PyBUF_STRIDES),
-    ('C_CONTIGUOUS', python_buffer.PyBUF_C_CONTIGUOUS),
-    ('F_CONTIGUOUS', python_buffer.PyBUF_F_CONTIGUOUS),
-    ('WRITABLE', python_buffer.PyBUF_WRITABLE)
+    ('FORMAT', cpython.buffer.PyBUF_FORMAT),
+    ('INDIRECT', cpython.buffer.PyBUF_INDIRECT),
+    ('ND', cpython.buffer.PyBUF_ND),
+    ('STRIDES', cpython.buffer.PyBUF_STRIDES),
+    ('C_CONTIGUOUS', cpython.buffer.PyBUF_C_CONTIGUOUS),
+    ('F_CONTIGUOUS', cpython.buffer.PyBUF_F_CONTIGUOUS),
+    ('WRITABLE', cpython.buffer.PyBUF_WRITABLE)
 )
 
 cdef class MockBuffer:
