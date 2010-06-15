@@ -4497,7 +4497,7 @@ class YieldExprNode(ExprNode):
     # arg         ExprNode   the value to return from the generator
     # label_name  string     name of the C label used for this yield
 
-    subexprs = []
+    subexprs = ['arg']
     type = py_object_type
 
     def analyse_types(self, env):
