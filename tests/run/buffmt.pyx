@@ -7,7 +7,7 @@ def testcase(func):
     __test__[func.__name__] = func.__doc__
     return func
 
-cimport stdlib
+from libc cimport stdlib
 
 def little_endian():
     cdef unsigned int n = 1
