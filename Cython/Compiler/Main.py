@@ -19,7 +19,7 @@ import Errors
 import Parsing
 import Version
 from Scanning import PyrexScanner, FileSourceDescriptor
-from Errors import PyrexError, CompileError, InternalError, error
+from Errors import PyrexError, CompileError, InternalError, error, warning
 from Symtab import BuiltinScope, ModuleScope
 from Cython import Utils
 from Cython.Utils import open_new_file, replace_suffix
@@ -323,7 +323,27 @@ class Context(object):
         # the directory containing the source file is searched first
         # for a dotted filename, and its containing package root
         # directory is searched first for a non-dotted filename.
-        return self.search_include_directories(qualified_name, ".pxd", pos)
+        pxd = self.search_include_directories(qualified_name, ".pxd", pos)
+        if pxd is None: # XXX Keep this until Includes/Deprecated is removed
+            if (qualified_name.startswith('python') or
+                qualified_name in ('stdlib', 'stdio', 'stl')):
+                standard_include_path = os.path.abspath(os.path.normpath(
+                        os.path.join(os.path.dirname(__file__), os.path.pardir, 'Includes')))
+                deprecated_include_path = os.path.join(standard_include_path, 'Deprecated')
+                self.include_directories.append(deprecated_include_path)
+                try:
+                    pxd = self.search_include_directories(qualified_name, ".pxd", pos)
+                finally:
+                    self.include_directories.pop()
+                if pxd:
+                    name = qualified_name
+                    if name.startswith('python'):
+                        warning(pos, "'%s' is deprecated, use 'cpython'" % name, 1)
+                    elif name in ('stdlib', 'stdio'):
+                        warning(pos, "'%s' is deprecated, use 'libc.%s'" % (name, name), 1)
+                    elif name in ('stl'):
+                        warning(pos, "'%s' is deprecated, use 'libcpp.*.*'" % name, 1)
+        return pxd
 
     def find_pyx_file(self, qualified_name, pos):
         # Search include path for the .pyx file corresponding to the

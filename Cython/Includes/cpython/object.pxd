@@ -1,5 +1,5 @@
 from cpython.ref cimport PyObject, PyTypeObject
-from stdio cimport FILE
+from libc.stdio cimport FILE
 
 cdef extern from "Python.h":
     

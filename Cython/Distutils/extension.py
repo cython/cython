@@ -21,6 +21,8 @@ class Extension(_Extension.Extension):
         Unix form for portability)
     pyrex_create_listing_file : boolean
         write pyrex error messages to a listing (.lis) file.
+    pyrex_line_directivess : boolean
+        emit pyx line numbers for debugging/profiling
     pyrex_cplus : boolean
         use the C++ compiler for compiling and linking.
     pyrex_c_in_temp : boolean
@@ -47,6 +49,7 @@ class Extension(_Extension.Extension):
             language = None,
             pyrex_include_dirs = None,
             pyrex_create_listing = 0,
+            pyrex_line_directives = 0,
             pyrex_cplus = 0,
             pyrex_c_in_temp = 0,
             pyrex_gen_pxi = 0,
@@ -70,6 +73,7 @@ class Extension(_Extension.Extension):
 
         self.pyrex_include_dirs = pyrex_include_dirs or []
         self.pyrex_create_listing = pyrex_create_listing
+        self.pyrex_line_directives = pyrex_line_directives
         self.pyrex_cplus = pyrex_cplus
         self.pyrex_c_in_temp = pyrex_c_in_temp
         self.pyrex_gen_pxi = pyrex_gen_pxi

@@ -19,6 +19,7 @@ from Builtin import list_type, tuple_type, set_type, dict_type, \
 import Builtin
 import Symtab
 import Options
+from Cython import Utils
 from Annotate import AnnotationItem
 from Cython import Utils
 
@@ -1957,6 +1958,9 @@ class IndexNode(ExprNode):
             # error messages
             self.type = PyrexTypes.error_type
             return
+        
+        if isinstance(self.index, IntNode) and Utils.long_literal(self.index.value):
+            self.index = self.index.coerce_to_pyobject(env)
         
         # Handle the case where base is a literal char* (and we expect a string, not an int)
         if isinstance(self.base, BytesNode):

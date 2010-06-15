@@ -1,7 +1,7 @@
 
 from libc.stdio cimport sprintf
-from python cimport PyType_Check
-from python_type cimport PyType_Check as PyType_Check2
+from cpython cimport PyType_Check
+from cpython cimport PyType_Check as PyType_Check2
 from cpython.type cimport PyType_Check as PyType_Check3
 
 def libc_cimports():

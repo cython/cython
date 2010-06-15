@@ -14,7 +14,6 @@ from ExprNodes import NameNode
 import Parsing
 import Main
 import UtilNodes
-import StringEncoding
 
 """
 Support for parsing strings into code trees.
@@ -121,7 +120,7 @@ class TemplateTransform(VisitorTransform):
         temphandles = []
         for temp in temps:
             TemplateTransform.temp_name_counter += 1
-            handle = StringEncoding.EncodedString("__tmpvar_%d" % TemplateTransform.temp_name_counter)
+            handle = "__tmpvar_%d" % TemplateTransform.temp_name_counter
 #            handle = UtilNodes.TempHandle(PyrexTypes.py_object_type)
             tempmap[temp] = handle
 #            temphandles.append(handle)

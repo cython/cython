@@ -6,7 +6,7 @@
 
 print 3
 
-cimport python_dict as asadf, python_exc, cython as cy
+cimport cython as cy
 
 def e(object[int, ndim=2] buf):
     print buf[3, 2] # no bc
