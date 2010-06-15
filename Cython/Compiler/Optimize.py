@@ -803,7 +803,12 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
         lhs = UtilNodes.ResultRefNode(node.operand1)
 
         conds = []
+        temps = []
         for arg in args:
+            if not arg.is_simple():
+                # must evaluate all non-simple RHS before doing the comparisons
+                arg = UtilNodes.LetRefNode(arg)
+                temps.append(arg)
             cond = ExprNodes.PrimaryCmpNode(
                                 pos = node.pos,
                                 operand1 = lhs,
@@ -822,7 +827,10 @@ class FlattenInListTransform(Visitor.VisitorTransform, SkipDeclarations):
                                 operand2 = right)
 
         condition = reduce(concat, conds)
-        return UtilNodes.EvalWithTempExprNode(lhs, condition)
+        new_node = UtilNodes.EvalWithTempExprNode(lhs, condition)
+        for temp in temps[::-1]:
+            new_node = UtilNodes.EvalWithTempExprNode(temp, new_node)
+        return new_node
 
     visit_Node = Visitor.VisitorTransform.recurse_to_children
 
