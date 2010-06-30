@@ -166,6 +166,7 @@ class FileSourceDescriptor(SourceDescriptor):
     the position()-tuple.
     """
     def __init__(self, filename):
+        filename = Utils.decode_filename(filename)
         self.filename = filename
         self.set_file_type_from_name(filename)
         self._cmp_name = filename

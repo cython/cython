@@ -479,7 +479,7 @@ class Context(object):
     def parse(self, source_desc, scope, pxd, full_module_name):
         if not isinstance(source_desc, FileSourceDescriptor):
             raise RuntimeError("Only file sources for code supported")
-        source_filename = Utils.encode_filename(source_desc.filename)
+        source_filename = source_desc.filename
         scope.cpp = self.cpp
         # Parse the given source file and return a parse tree.
         try:

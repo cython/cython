@@ -66,9 +66,9 @@ def path_exists(path):
         pass
     return False
 
-# support for source file encoding detection
+# file name encodings
 
-def encode_filename(filename):
+def decode_filename(filename):
     if isinstance(filename, unicode):
         return filename
     try:
@@ -79,6 +79,8 @@ def encode_filename(filename):
     except UnicodeDecodeError:
         pass
     return filename
+
+# support for source file encoding detection
 
 _match_file_encoding = re.compile(u"coding[:=]\s*([-\w.]+)").search
 
