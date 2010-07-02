@@ -155,6 +155,12 @@ def compile_cython_modules(profile=False):
                     result = compile(pyx_source_file)
                     c_source_file = result.c_file
                 if c_source_file:
+                    # Py2 distutils can't handle unicode file paths
+                    if isinstance(c_source_file, unicode):
+                        filename_encoding = sys.getfilesystemencoding()
+                        if filename_encoding is None:
+                            filename_encoding = sys.getdefaultencoding()
+                        c_source_file = c_source_file.encode(filename_encoding)
                     extensions.append(
                         Extension(module, sources = [c_source_file])
                         )
@@ -164,8 +170,15 @@ def compile_cython_modules(profile=False):
                 setup_args['ext_modules'] = extensions
                 add_command_class("build_ext", build_ext)
         except Exception:
-            print("ERROR: %s" % sys.exc_info()[1])
-            print("Extension module compilation failed, using plain Python implementation")
+            print('''
+ERROR: %s
+
+Extension module compilation failed, looks like Cython cannot run
+properly on this system.  To work around this, pass the option
+"--no-cython-compile".  This will install a pure Python version of
+Cython without compiling its own sources.
+''' % sys.exc_info()[1])
+            raise
 
 cython_profile = '--cython-profile' in sys.argv
 if cython_profile:
