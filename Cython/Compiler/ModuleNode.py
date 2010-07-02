@@ -2246,10 +2246,10 @@ static int __Pyx_ExportFunction(const char *name, void (*f)(void), const char *s
             goto bad;
     }
     tmp.fp = f;
-#if PY_VERSION_HEX < 0x03010000
-    cobj = PyCObject_FromVoidPtrAndDesc(tmp.p, (void *)sig, 0);
-#else
+#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
     cobj = PyCapsule_New(tmp.p, sig, 0);
+#else
+    cobj = PyCObject_FromVoidPtrAndDesc(tmp.p, (void *)sig, 0);
 #endif
     if (!cobj)
         goto bad;
@@ -2280,9 +2280,6 @@ static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**
         void (*fp)(void);
         void *p;
     } tmp;
-#if PY_VERSION_HEX < 0x03010000
-    const char *desc, *s1, *s2;
-#endif
 
     d = PyObject_GetAttrString(module, (char *)"%(API)s");
     if (!d)
@@ -2294,7 +2291,16 @@ static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**
                 PyModule_GetName(module), funcname);
         goto bad;
     }
-#if PY_VERSION_HEX < 0x03010000
+#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
+    if (!PyCapsule_IsValid(cobj, sig)) {
+        PyErr_Format(PyExc_TypeError,
+            "C function %%s.%%s has wrong signature (expected %%s, got %%s)",
+             PyModule_GetName(module), funcname, sig, PyCapsule_GetName(cobj));
+        goto bad;
+    }
+    tmp.p = PyCapsule_GetPointer(cobj, sig);
+#else
+    {const char *desc, *s1, *s2;
     desc = (const char *)PyCObject_GetDesc(cobj);
     if (!desc)
         goto bad;
@@ -2306,15 +2312,7 @@ static int __Pyx_ImportFunction(PyObject *module, const char *funcname, void (**
              PyModule_GetName(module), funcname, sig, desc);
         goto bad;
     }
-    tmp.p = PyCObject_AsVoidPtr(cobj);
-#else
-    if (!PyCapsule_IsValid(cobj, sig)) {
-        PyErr_Format(PyExc_TypeError,
-            "C function %%s.%%s has wrong signature (expected %%s, got %%s)",
-             PyModule_GetName(module), funcname, sig, PyCapsule_GetName(cobj));
-        goto bad;
-    }
-    tmp.p = PyCapsule_GetPointer(cobj, sig);
+    tmp.p = PyCObject_AsVoidPtr(cobj);}
 #endif
     *f = tmp.fp;
     if (!(*f))

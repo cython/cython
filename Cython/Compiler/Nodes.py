@@ -5931,10 +5931,10 @@ static int __Pyx_SetVtable(PyObject *dict, void *vtable); /*proto*/
 """,
 impl = """
 static int __Pyx_SetVtable(PyObject *dict, void *vtable) {
-#if PY_VERSION_HEX < 0x03010000
-    PyObject *ob = PyCObject_FromVoidPtr(vtable, 0);
-#else
+#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
     PyObject *ob = PyCapsule_New(vtable, 0, 0);
+#else
+    PyObject *ob = PyCObject_FromVoidPtr(vtable, 0);
 #endif
     if (!ob)
         goto bad;
@@ -5959,10 +5959,10 @@ static int __Pyx_GetVtable(PyObject *dict, void *vtabptr) {
     PyObject *ob = PyMapping_GetItemString(dict, (char *)"__pyx_vtable__");
     if (!ob)
         goto bad;
-#if PY_VERSION_HEX < 0x03010000
-    *(void **)vtabptr = PyCObject_AsVoidPtr(ob);
-#else
+#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
     *(void **)vtabptr = PyCapsule_GetPointer(ob, 0);
+#else
+    *(void **)vtabptr = PyCObject_AsVoidPtr(ob);
 #endif
     if (!*(void **)vtabptr)
         goto bad;
