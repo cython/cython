@@ -30,8 +30,19 @@ class UnicodeLiteralBuilder(object):
         assert isinstance(characters, _unicode), str(type(characters))
         self.chars.append(characters)
 
-    def append_charval(self, char_number):
-        self.chars.append( unichr(char_number) )
+    if sys.maxunicode == 65535:
+        def append_charval(self, char_number):
+            if char_number > 65535:
+                # wide Unicode character on narrow platform => replace
+                # by surrogate pair
+                char_number -= 0x10000
+                self.chars.append( unichr((char_number  % 1024) + 0xDC00) )
+                self.chars.append( unichr((char_number // 1024) + 0xD800) )
+            else:
+                self.chars.append( unichr(char_number) )
+    else:
+        def append_charval(self, char_number):
+            self.chars.append( unichr(char_number) )
 
     def getstring(self):
         return EncodedString(u''.join(self.chars))
