@@ -36,8 +36,8 @@ class UnicodeLiteralBuilder(object):
                 # wide Unicode character on narrow platform => replace
                 # by surrogate pair
                 char_number -= 0x10000
-                self.chars.append( unichr((char_number  % 1024) + 0xDC00) )
                 self.chars.append( unichr((char_number // 1024) + 0xD800) )
+                self.chars.append( unichr((char_number  % 1024) + 0xDC00) )
             else:
                 self.chars.append( unichr(char_number) )
     else:
