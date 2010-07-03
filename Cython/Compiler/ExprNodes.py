@@ -969,6 +969,23 @@ class UnicodeNode(PyConstNode):
     def can_coerce_to_char_literal(self):
         return len(self.value) == 1
 
+    def contains_surrogates(self):
+        # Check if the unicode string contains surrogate code points
+        # on a CPython platform with wide (UCS-4) or narrow (UTF-16)
+        # Unicode, i.e. characters that would be spelled as two
+        # separate code units on a narrow platform.
+        for c in map(ord, self.value):
+            if c > 65535: # can only happen on wide platforms
+                return True
+            # We only look for the first code unit (D800-DBFF) of a
+            # surrogate pair - if we find one, the other one
+            # (DC00-DFFF) is likely there, too.  If we don't find it,
+            # any second code unit cannot make for a surrogate pair by
+            # itself.
+            if c >= 0xD800 and c <= 0xDBFF:
+                return True
+        return False
+
     def generate_evaluation_code(self, code):
         self.result_code = code.get_py_string_const(self.value)
 
