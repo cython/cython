@@ -195,6 +195,34 @@ def m_unicode_literal(Py_UNICODE a):
     cdef int result = a in u'abc\0defg\u1234\uF8D2'
     return result
 
+cdef unicode wide_unicode_character = u'\U0010FEDC'
+py_wide_unicode_character = wide_unicode_character
+cdef unicode wide_unicode_character_surrogate1 = u'\uDBFF'
+cdef unicode wide_unicode_character_surrogate2 = u'\uDEDC'
+py_wide_unicode_character_surrogate1 = wide_unicode_character_surrogate1
+py_wide_unicode_character_surrogate2 = wide_unicode_character_surrogate2
+
+@cython.test_fail_if_path_exists("//SwitchStatNode")
+@cython.test_assert_path_exists("//PrimaryCmpNode")
+def m_wide_unicode_literal(Py_UNICODE a):
+    """
+    >>> m_unicode_literal(ord('f'))
+    1
+    >>> m_unicode_literal(ord('X'))
+    0
+    >>> import sys
+    >>> if sys.maxunicode == 65535:
+    ...     m_wide_unicode_literal(ord(py_wide_unicode_character_surrogate1))
+    ...     m_wide_unicode_literal(ord(py_wide_unicode_character_surrogate2))
+    ... else:
+    ...     m_wide_unicode_literal(ord(py_wide_unicode_character))
+    ...     1
+    1
+    1
+    """
+    cdef int result = a in u'abc\0defg\u1234\uF8D2\U0010FEDC'
+    return result
+
 @cython.test_assert_path_exists("//SwitchStatNode")
 @cython.test_fail_if_path_exists("//BoolBinopNode", "//PrimaryCmpNode")
 def conditional_int(int a):

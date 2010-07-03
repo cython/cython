@@ -600,6 +600,12 @@ class SwitchTransform(Visitor.VisitorTransform):
                     not_in = cond.operator == 'not_in'
                     if not_in and not allow_not_in:
                         return self.NO_MATCH
+                    if isinstance(cond.operand2, ExprNodes.UnicodeNode) and \
+                           cond.operand2.contains_surrogates():
+                        # dealing with surrogates leads to different
+                        # behaviour on wide and narrow Unicode
+                        # platforms => refuse to optimise this case
+                        return self.NO_MATCH
                     # this looks somewhat silly, but it does the right
                     # checks for NameNode and AttributeNode
                     if is_common_value(cond.operand1, cond.operand1):
