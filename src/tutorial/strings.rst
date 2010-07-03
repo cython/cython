@@ -1,3 +1,5 @@
+.. highlight:: cython
+
 Unicode and passing strings
 ===========================
 
