@@ -3940,8 +3940,10 @@ class ComprehensionNode(ScopedExprNode):
     subexprs = ["target"]
     child_attrs = ["loop", "append"]
 
-    # different behaviour in Py2 and Py3: leak loop variables or not?
-    has_local_scope = False # Py2 behaviour as default
+    # leak loop variables or not?  non-leaking Py3 behaviour is
+    # default, except for list comprehensions where the behaviour
+    # differs in Py2 and Py3 (see Parsing.py)
+    has_local_scope = True
 
     def infer_type(self, env):
         return self.target.infer_type(env)

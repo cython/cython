@@ -13,9 +13,12 @@ def setcomp():
     >>> sorted(setcomp())
     [0, 4, 8]
     """
-    return { x*2
+    x = 'abc'
+    result = { x*2
              for x in range(5)
              if x % 2 == 0 }
+    assert x == 'abc' # do not leak
+    return result
 
 @cython.test_fail_if_path_exists(
     "//GeneratorExpressionNode",
@@ -30,9 +33,12 @@ def genexp_set():
     >>> sorted(genexp_set())
     [0, 4, 8]
     """
-    return set( x*2
-                 for x in range(5)
-                 if x % 2 == 0 )
+    x = 'abc'
+    result = set( x*2
+                  for x in range(5)
+                  if x % 2 == 0 )
+    assert x == 'abc' # do not leak
+    return result
 
 cdef class A:
     def __repr__(self): return u"A"

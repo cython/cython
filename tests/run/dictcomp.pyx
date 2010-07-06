@@ -12,7 +12,7 @@ def dictcomp():
     result = { x+2:x*2
                for x in range(5)
                if x % 2 == 0 }
-    assert x != 'abc'
+    assert x == 'abc' # do not leak!
     return result
 
 @cython.test_fail_if_path_exists(
