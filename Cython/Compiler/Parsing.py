@@ -782,7 +782,7 @@ def p_list_maker(s):
         return ExprNodes.ComprehensionNode(
             pos, loop=loop, append=append, target=target,
             # list comprehensions leak their loop variable in Py2
-            has_local_scope = s.context.language_level > 2)
+            has_local_scope = s.context.language_level >= 3)
     else:
         if s.sy == ',':
             s.next()
