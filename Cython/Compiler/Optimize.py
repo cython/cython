@@ -1444,8 +1444,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         elif len(pos_args) != 1:
             self._error_wrong_arg_count('bool', node, pos_args, '0 or 1')
             return node
-        return pos_args[0].coerce_to_boolean(
-            self.current_env()).coerce_to_pyobject(self.current_env())
+        else:
+            return pos_args[0].coerce_to_boolean(
+                self.current_env()).coerce_to_pyobject(self.current_env())
 
     ### builtin functions
 

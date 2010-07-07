@@ -5337,13 +5337,12 @@ class PowNode(NumBinopNode):
             self.operand2.result())
 
 
-# Note: This class is temporary "shut down" into an ineffective mode temp
+# Note: This class is temporarily "shut down" into an ineffective temp
 # allocation mode.
 #
-# More sophisticated temp reuse was going on before,
-# one could have a look at adding this again after /all/ classes
-# are converted to the new temp scheme. (The temp juggling cannot work
-# otherwise).
+# More sophisticated temp reuse was going on before, one could have a
+# look at adding this again after /all/ classes are converted to the
+# new temp scheme. (The temp juggling cannot work otherwise).
 class BoolBinopNode(ExprNode):
     #  Short-circuiting boolean operation.
     #
