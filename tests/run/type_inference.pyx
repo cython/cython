@@ -122,6 +122,27 @@ def arithmetic():
     d = 1 * 1.5 ** 2
     assert typeof(d) == "double", typeof(d)
 
+cdef class some_class:
+    pass
+
+def unary_operators():
+    """
+    >>> unary_operators()
+    """
+    cdef int x = 1
+    assert typeof(~x) == "int", typeof(~x)
+    cdef some_class obj
+    assert typeof(~obj) == "Python object", typeof(~obj)
+    a = int(1)
+    assert typeof(a) == "Python object", typeof(a)
+    b = not int(3)
+    assert typeof(b) == "int", typeof(b)
+    c = +int(3)
+    assert typeof(c) == "Python object", typeof(c)
+    d = -int(5)
+    assert typeof(d) == "Python object", typeof(d)
+    
+
 def builtin_type_operations():
     """
     >>> builtin_type_operations()
