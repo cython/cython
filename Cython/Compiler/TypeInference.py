@@ -296,7 +296,8 @@ def find_spanning_type(type1, type2):
         return py_object_type
     else:
         result_type = PyrexTypes.spanning_type(type1, type2)
-    if result_type in (PyrexTypes.c_double_type, PyrexTypes.c_float_type, Builtin.float_type):
+    if result_type in (PyrexTypes.c_double_type, PyrexTypes.c_float_type,
+                       Builtin.float_type):
         # Python's float type is just a C double, so it's safe to
         # use the C type instead
         return PyrexTypes.c_double_type
