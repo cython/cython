@@ -40,7 +40,7 @@ if sys.version_info[0] >= 3:
 pxd_include_dirs = [
     directory for directory, dirs, files in os.walk('Cython/Includes')
     if '__init__.pyx' in files or '__init__.pxd' in files
-    or directory == 'Cython/Includes' ]
+    or directory == 'Cython/Includes' or directory == 'Cython/Includes/Deprecated']
 
 pxd_include_patterns = [
     p+'/*.pxd' for p in pxd_include_dirs ] + [
