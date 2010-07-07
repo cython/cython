@@ -6268,7 +6268,12 @@ class CoerceToPyTypeNode(CoercionNode):
         return False
 
     def coerce_to_boolean(self, env):
-        return self.arg.coerce_to_boolean(env).coerce_to_temp(env)
+        arg_type = self.arg.type
+        if (arg_type == PyrexTypes.c_bint_type or
+            (arg_type.is_pyobject and arg_type.name == 'bool')):
+            return self.arg.coerce_to_temp(env)
+        else:
+            return CoerceToBooleanNode(self, env)
     
     def coerce_to_integer(self, env):
         # If not already some C integer type, coerce to longint.
