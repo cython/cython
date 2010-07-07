@@ -362,6 +362,11 @@ def safe_only():
     res = ~d
     assert typeof(d) == "long", typeof(d)
 
+    # we special-case inference to type str, see
+    # trac # 
+    s = "abc"
+    assert typeof(s) == "Python object", typeof(s)
+
     # potentially overflowing arithmetic
     e = 1
     e += 1
