@@ -4988,17 +4988,26 @@ class FromImportStatNode(StatNode):
                         break
             else:
                 entry =  env.lookup(target.name)
-                if (entry.is_type and 
-                    entry.type.name == name and
-                    entry.type.module_name == self.module.module_name.value):
-                    continue # already cimported
+                # check whether or not entry is already cimported
+                if (entry.is_type and entry.type.name == name
+                    and hasattr(entry.type, 'module_name')):
+                    if entry.type.module_name == self.module.module_name.value:
+                        # cimported with absolute name
+                        continue
+                    try:
+                        # cimported with relative name
+                        module = env.find_module(self.module.module_name.value,
+                                                 pos=None)
+                        if entry.type.module_name == module.qualified_name:
+                            continue
+                    except AttributeError:
+                        pass 
                 target.analyse_target_expression(env, None)
                 if target.type is py_object_type:
                     coerced_item = None
                 else:
                     coerced_item = self.item.coerce_to(target.type, env)
-                self.interned_items.append(
-                    (name, target, coerced_item))
+                self.interned_items.append((name, target, coerced_item))
     
     def generate_execution_code(self, code):
         self.module.generate_evaluation_code(code)
