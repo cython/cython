@@ -3427,7 +3427,8 @@ class AttributeNode(ExprNode):
     def generate_deletion_code(self, code):
         interned_attr_cname = code.intern_identifier(self.attribute)
         self.obj.generate_evaluation_code(code)
-        if self.is_py_attr:
+        if self.is_py_attr or (isinstance(self.entry.scope, Symtab.PropertyScope)
+                               and self.entry.scope.entries.has_key(u'__del__')):
             code.put_error_if_neg(self.pos,
                 'PyObject_DelAttr(%s, %s)' % (
                     self.obj.py_result(),
