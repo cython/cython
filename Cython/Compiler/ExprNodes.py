@@ -4343,7 +4343,11 @@ class UnopNode(ExprNode):
             self.compile_time_value_error(e)
     
     def infer_type(self, env):
-        return self.operand.infer_type(env)
+        operand_type = self.operand.infer_type(env)
+        if operand_type.is_pyobject:
+            return py_object_type
+        else:
+            return operand_type
 
     def analyse_types(self, env):
         self.operand.analyse_types(env)
