@@ -12,13 +12,12 @@ cdef extern from "pythread.h":
 
     PyThread_type_lock PyThread_allocate_lock()
     void PyThread_free_lock(PyThread_type_lock)
-    int PyThread_acquire_lock(PyThread_type_lock, int mode)
+    int PyThread_acquire_lock(PyThread_type_lock, int mode) nogil
+    void PyThread_release_lock(PyThread_type_lock) nogil
 
-    enum:
+    enum: # 'mode' in PyThread_acquire_lock
         WAIT_LOCK    #   1
         NOWAIT_LOCK  #   0
-
-    void PyThread_release_lock(PyThread_type_lock)
 
     size_t PyThread_get_stacksize()
     int PyThread_set_stacksize(size_t)
