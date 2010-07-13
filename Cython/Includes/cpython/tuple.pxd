@@ -13,11 +13,11 @@ cdef extern from "Python.h":
     bint PyTuple_CheckExact(object  p)
     # Return true if p is a tuple object, but not an instance of a subtype of the tuple type.
 
-    object PyTuple_New(Py_ssize_t len)
+    tuple PyTuple_New(Py_ssize_t len)
     # Return value: New reference.
     # Return a new tuple object of size len, or NULL on failure. 
 
-    object PyTuple_Pack(Py_ssize_t n, ...)
+    tuple PyTuple_Pack(Py_ssize_t n, ...)
     # Return value: New reference.
     # Return a new tuple object of size n, or NULL on failure. The
     # tuple values are initialized to the subsequent n C arguments
@@ -41,7 +41,7 @@ cdef extern from "Python.h":
     # Return value: Borrowed reference.
     # Like PyTuple_GetItem(), but does no checking of its arguments. 
 
-    object PyTuple_GetSlice(object  p, Py_ssize_t low, Py_ssize_t high)
+    tuple PyTuple_GetSlice(object  p, Py_ssize_t low, Py_ssize_t high)
     # Return value: New reference.
     # Take a slice of the tuple pointed to by p from low to high and return it as a new tuple. 
 
