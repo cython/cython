@@ -972,6 +972,15 @@ property NAME:
     def __set__(self, value):
         ATTR = value
     """, level='c_class')
+    basic_pyobject_property = TreeFragment(u"""
+property NAME:
+    def __get__(self):
+        return ATTR
+    def __set__(self, value):
+        ATTR = value
+    def __del__(self):
+        ATTR = None
+    """, level='c_class')
     basic_property_ro = TreeFragment(u"""
 property NAME:
     def __get__(self):
@@ -1097,7 +1106,10 @@ property NAME:
             
     def create_Property(self, entry):
         if entry.visibility == 'public':
-            template = self.basic_property
+            if entry.type.is_pyobject:
+                template = self.basic_pyobject_property
+            else:
+                template = self.basic_property
         elif entry.visibility == 'readonly':
             template = self.basic_property_ro
         property = template.substitute({

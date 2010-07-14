@@ -10,7 +10,7 @@ def libc_cimports():
     hello
     """
     cdef char buf[10]
-    sprintf(buf, b'hello')
+    sprintf(buf, "%s", b'hello')
     print (<object>buf).decode('ASCII')
 
 def cpython_cimports():
