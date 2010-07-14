@@ -981,6 +981,23 @@ class UnicodeNode(PyConstNode):
     def can_coerce_to_char_literal(self):
         return len(self.value) == 1
 
+    def contains_surrogates(self):
+        # Check if the unicode string contains surrogate code points
+        # on a CPython platform with wide (UCS-4) or narrow (UTF-16)
+        # Unicode, i.e. characters that would be spelled as two
+        # separate code units on a narrow platform.
+        for c in map(ord, self.value):
+            if c > 65535: # can only happen on wide platforms
+                return True
+            # We only look for the first code unit (D800-DBFF) of a
+            # surrogate pair - if we find one, the other one
+            # (DC00-DFFF) is likely there, too.  If we don't find it,
+            # any second code unit cannot make for a surrogate pair by
+            # itself.
+            if c >= 0xD800 and c <= 0xDBFF:
+                return True
+        return False
+
     def generate_evaluation_code(self, code):
         self.result_code = code.get_py_string_const(self.value)
 
@@ -3423,7 +3440,8 @@ class AttributeNode(ExprNode):
     def generate_deletion_code(self, code):
         interned_attr_cname = code.intern_identifier(self.attribute)
         self.obj.generate_evaluation_code(code)
-        if self.is_py_attr:
+        if self.is_py_attr or (isinstance(self.entry.scope, Symtab.PropertyScope)
+                               and self.entry.scope.entries.has_key(u'__del__')):
             code.put_error_if_neg(self.pos,
                 'PyObject_DelAttr(%s, %s)' % (
                     self.obj.py_result(),
@@ -4569,7 +4587,11 @@ class UnopNode(ExprNode):
             self.compile_time_value_error(e)
     
     def infer_type(self, env):
-        return self.operand.infer_type(env)
+        operand_type = self.operand.infer_type(env)
+        if operand_type.is_pyobject:
+            return py_object_type
+        else:
+            return operand_type
 
     def analyse_types(self, env):
         self.operand.analyse_types(env)
@@ -5563,13 +5585,12 @@ class PowNode(NumBinopNode):
             self.operand2.result())
 
 
-# Note: This class is temporary "shut down" into an ineffective mode temp
+# Note: This class is temporarily "shut down" into an ineffective temp
 # allocation mode.
 #
-# More sophisticated temp reuse was going on before,
-# one could have a look at adding this again after /all/ classes
-# are converted to the new temp scheme. (The temp juggling cannot work
-# otherwise).
+# More sophisticated temp reuse was going on before, one could have a
+# look at adding this again after /all/ classes are converted to the
+# new temp scheme. (The temp juggling cannot work otherwise).
 class BoolBinopNode(ExprNode):
     #  Short-circuiting boolean operation.
     #
@@ -6494,7 +6515,12 @@ class CoerceToPyTypeNode(CoercionNode):
         return False
 
     def coerce_to_boolean(self, env):
-        return self.arg.coerce_to_boolean(env).coerce_to_temp(env)
+        arg_type = self.arg.type
+        if (arg_type == PyrexTypes.c_bint_type or
+            (arg_type.is_pyobject and arg_type.name == 'bool')):
+            return self.arg.coerce_to_temp(env)
+        else:
+            return CoerceToBooleanNode(self, env)
     
     def coerce_to_integer(self, env):
         # If not already some C integer type, coerce to longint.

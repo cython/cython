@@ -5216,17 +5216,26 @@ class FromImportStatNode(StatNode):
                         break
             else:
                 entry =  env.lookup(target.name)
-                if (entry.is_type and 
-                    entry.type.name == name and
-                    entry.type.module_name == self.module.module_name.value):
-                    continue # already cimported
+                # check whether or not entry is already cimported
+                if (entry.is_type and entry.type.name == name
+                    and hasattr(entry.type, 'module_name')):
+                    if entry.type.module_name == self.module.module_name.value:
+                        # cimported with absolute name
+                        continue
+                    try:
+                        # cimported with relative name
+                        module = env.find_module(self.module.module_name.value,
+                                                 pos=None)
+                        if entry.type.module_name == module.qualified_name:
+                            continue
+                    except AttributeError:
+                        pass 
                 target.analyse_target_expression(env, None)
                 if target.type is py_object_type:
                     coerced_item = None
                 else:
                     coerced_item = self.item.coerce_to(target.type, env)
-                self.interned_items.append(
-                    (name, target, coerced_item))
+                self.interned_items.append((name, target, coerced_item))
     
     def generate_execution_code(self, code):
         self.module.generate_evaluation_code(code)
@@ -6159,10 +6168,10 @@ static int __Pyx_SetVtable(PyObject *dict, void *vtable); /*proto*/
 """,
 impl = """
 static int __Pyx_SetVtable(PyObject *dict, void *vtable) {
-#if PY_VERSION_HEX < 0x03010000
-    PyObject *ob = PyCObject_FromVoidPtr(vtable, 0);
-#else
+#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
     PyObject *ob = PyCapsule_New(vtable, 0, 0);
+#else
+    PyObject *ob = PyCObject_FromVoidPtr(vtable, 0);
 #endif
     if (!ob)
         goto bad;
@@ -6187,10 +6196,10 @@ static int __Pyx_GetVtable(PyObject *dict, void *vtabptr) {
     PyObject *ob = PyMapping_GetItemString(dict, (char *)"__pyx_vtable__");
     if (!ob)
         goto bad;
-#if PY_VERSION_HEX < 0x03010000
-    *(void **)vtabptr = PyCObject_AsVoidPtr(ob);
-#else
+#if PY_VERSION_HEX >= 0x02070000 && !(PY_MAJOR_VERSION==3&&PY_MINOR_VERSION==0)
     *(void **)vtabptr = PyCapsule_GetPointer(ob, 0);
+#else
+    *(void **)vtabptr = PyCObject_AsVoidPtr(ob);
 #endif
     if (!*(void **)vtabptr)
         goto bad;

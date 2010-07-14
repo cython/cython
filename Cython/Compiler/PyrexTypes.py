@@ -2426,7 +2426,7 @@ def independent_spanning_type(type1, type2):
     elif (type1 is c_bint_type or type2 is c_bint_type) and (type1.is_numeric and type2.is_numeric):
         # special case: if one of the results is a bint and the other
         # is another C integer, we must prevent returning a numeric
-        # type so that we do not loose the ability to coerce to a
+        # type so that we do not lose the ability to coerce to a
         # Python bool if we have to.
         return py_object_type
     span_type = _spanning_type(type1, type2)
