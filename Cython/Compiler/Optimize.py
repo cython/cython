@@ -2202,6 +2202,10 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 encoding = encoding_node.value
                 encoding_node = ExprNodes.BytesNode(encoding_node.pos, value=encoding,
                                                      type=PyrexTypes.c_char_ptr_type)
+            elif encoding_node.type is Builtin.bytes_type:
+                encoding = None
+                encoding_node = encoding_node.coerce_to(
+                    PyrexTypes.c_char_ptr_type, self.current_env())
             elif encoding_node.type.is_string:
                 encoding = None
             else:
@@ -2224,6 +2228,10 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                     error_handling_node = ExprNodes.BytesNode(
                         error_handling_node.pos, value=error_handling,
                         type=PyrexTypes.c_char_ptr_type)
+            elif error_handling_node.type is Builtin.bytes_type:
+                error_handling = None
+                error_handling_node = error_handling_node.coerce_to(
+                    PyrexTypes.c_char_ptr_type, self.current_env())
             elif error_handling_node.type.is_string:
                 error_handling = None
             else:
