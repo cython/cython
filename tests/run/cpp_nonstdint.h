@@ -45,7 +45,8 @@ class Integral {
  private:
   static bool is_le() {
     int one = 1;
-    return (int)*(unsigned char *)&one;
+    int b = (int)*(unsigned char *)&one;
+    return b ? true : false;
   }
   static unsigned int lsb() {
     return is_le() ? 0 : N-1;
