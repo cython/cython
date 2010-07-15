@@ -311,7 +311,8 @@ def find_spanning_type(type1, type2):
         return py_object_type
     else:
         result_type = PyrexTypes.spanning_type(type1, type2)
-    if result_type in (PyrexTypes.c_double_type, PyrexTypes.c_float_type, Builtin.float_type):
+    if result_type in (PyrexTypes.c_double_type, PyrexTypes.c_float_type,
+                       Builtin.float_type):
         # Python's float type is just a C double, so it's safe to
         # use the C type instead
         return PyrexTypes.c_double_type
@@ -328,8 +329,14 @@ def safe_spanning_type(types, might_overflow):
     if result_type.is_reference:
         result_type = result_type.ref_base_type
     if result_type.is_pyobject:
-        # any specific Python type is always safe to infer
-        return result_type
+        # In theory, any specific Python type is always safe to
+        # infer. However, inferring str can cause some existing code
+        # to break, since we are also now much more strict about
+        # coercion from str to char *. See trac #553.
+        if result_type.name == 'str':
+            return py_object_type
+        else:
+            return result_type
     elif result_type is PyrexTypes.c_double_type:
         # Python's float type is just a C double, so it's safe to use
         # the C type instead

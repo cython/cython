@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import sys
+
 __doc__ = br"""
     >>> sa
     'abc'
@@ -38,6 +40,12 @@ __doc__ = br"""
     12
     >>> len(null)
     1
+    >>> sys.maxunicode >= 65535
+    True
+    >>> sys.maxunicode == 65535 and 1 or len(wide_literal) # test for wide build
+    1
+    >>> sys.maxunicode > 65535 and 2 or len(wide_literal)  # test for narrow build
+    2
 """.decode("ASCII") + u"""
     >>> ua == u'abc'
     True
@@ -59,9 +67,12 @@ __doc__ = br"""
     True
     >>> null == u'\\x00' # unescaped by Python (required by doctest)
     True
+    >>> wide_literal == u'\U00101234'    # unescaped by Cython
+    True
+    >>> wide_literal == u'\\U00101234'   # unescaped by Python
+    True
 """
 
-import sys
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u" u'", u" '")
 else:
@@ -78,3 +89,5 @@ f = u'\xf8'
 
 add = u'Søk ik' + u'üÖä' + u'abc'
 null = u'\x00'
+
+wide_literal = u'\U00101234'
