@@ -600,6 +600,12 @@ class SwitchTransform(Visitor.VisitorTransform):
                     not_in = cond.operator == 'not_in'
                     if not_in and not allow_not_in:
                         return self.NO_MATCH
+                    if isinstance(cond.operand2, ExprNodes.UnicodeNode) and \
+                           cond.operand2.contains_surrogates():
+                        # dealing with surrogates leads to different
+                        # behaviour on wide and narrow Unicode
+                        # platforms => refuse to optimise this case
+                        return self.NO_MATCH
                     # this looks somewhat silly, but it does the right
                     # checks for NameNode and AttributeNode
                     if is_common_value(cond.operand1, cond.operand1):
@@ -1649,8 +1655,9 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         elif len(pos_args) != 1:
             self._error_wrong_arg_count('bool', node, pos_args, '0 or 1')
             return node
-        return pos_args[0].coerce_to_boolean(
-            self.current_env()).coerce_to_pyobject(self.current_env())
+        else:
+            return pos_args[0].coerce_to_boolean(
+                self.current_env()).coerce_to_pyobject(self.current_env())
 
     ### builtin functions
 
@@ -2463,6 +2470,10 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                 encoding = encoding_node.value
                 encoding_node = ExprNodes.BytesNode(encoding_node.pos, value=encoding,
                                                      type=PyrexTypes.c_char_ptr_type)
+            elif encoding_node.type is Builtin.bytes_type:
+                encoding = None
+                encoding_node = encoding_node.coerce_to(
+                    PyrexTypes.c_char_ptr_type, self.current_env())
             elif encoding_node.type.is_string:
                 encoding = None
             else:
@@ -2485,6 +2496,10 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                     error_handling_node = ExprNodes.BytesNode(
                         error_handling_node.pos, value=error_handling,
                         type=PyrexTypes.c_char_ptr_type)
+            elif error_handling_node.type is Builtin.bytes_type:
+                error_handling = None
+                error_handling_node = error_handling_node.coerce_to(
+                    PyrexTypes.c_char_ptr_type, self.current_env())
             elif error_handling_node.type.is_string:
                 error_handling = None
             else:

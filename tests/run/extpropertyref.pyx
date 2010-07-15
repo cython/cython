@@ -15,7 +15,7 @@ def tomato():
 
     >>> lines = __test__.keys()
     >>> len(lines)
-    2
+    3
     >>> 'Spam.eggs.__get__ (line 5)' in lines
     True
     >>> 'tomato (line 11)' in lines
@@ -26,3 +26,17 @@ def tomato():
     spam = Spam()
     lettuce = spam.eggs
     return lettuce
+
+cdef class Bacon(object):
+    cdef object number_of_slices
+    cdef public object is_a_vegetable
+
+def breakfast():
+    """
+    >>> breakfast()
+    """
+    cdef Bacon myslices = Bacon()
+    myslices.is_a_vegetable = True
+    assert myslices.is_a_vegetable, myslices.is_a_vegetable
+    del myslices.is_a_vegetable
+    assert myslices.is_a_vegetable is None, myslices.is_a_vegetable
