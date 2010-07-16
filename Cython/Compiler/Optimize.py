@@ -1803,50 +1803,49 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         if len(args) <= 1:
             # leave this to Python
             return node
+
         unpacked_args = []
         for arg in args:
             if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
                 arg = arg.arg
             unpacked_args.append(arg)
-        spanning_type = reduce(PyrexTypes.spanning_type,
-                               [ arg.type for arg in unpacked_args ])
-        is_pycompare = spanning_type.is_pyobject
 
-        result_ref = UtilNodes.ResultRefNode(pos=node.pos, type=spanning_type)
+        arg_nodes = []
+        ref_nodes = []
+        spanning_type = PyrexTypes.spanning_type(unpacked_args[0].type, unpacked_args[1].type)
+        for arg in unpacked_args:
+            arg = arg.coerce_to(spanning_type, self.current_env())
+            if not isinstance(arg, ExprNodes.ConstNode):
+                arg = UtilNodes.LetRefNode(arg)
+                ref_nodes.append(arg)
+            arg_nodes.append(arg)
+            spanning_type = PyrexTypes.spanning_type(spanning_type, arg.type)
 
-        stats = [
-            Nodes.SingleAssignmentNode(
-                node.pos,
-                lhs = UtilNodes.ResultRefNode(pos=node.pos, expression=result_ref),
-                rhs = unpacked_args[0].coerce_to(spanning_type, self.current_env()),
-                first = True)
-            ]
-
-        for arg in unpacked_args[1:]:
-            stats.append(Nodes.IfStatNode(
-                arg.pos,
-                else_clause = None,
-                if_clauses = [ Nodes.IfClauseNode(
+        last_result = arg_nodes[0]
+        for arg_node in arg_nodes[1:]:
+            last_result = last_result.coerce_to(arg_node.type, self.current_env())
+            is_py_compare = arg_node.type.is_pyobject
+            last_result = ExprNodes.CondExprNode(
+                arg_node.pos,
+                type = arg_node.type, # already coerced, so this is the target type
+                is_temp = True,
+                true_val = arg_node,
+                false_val = last_result,
+                test = ExprNodes.PrimaryCmpNode(
                     arg.pos,
-                    condition = ExprNodes.PrimaryCmpNode(
-                        arg.pos,
-                        operand1 = arg.coerce_to(spanning_type, self.current_env()),
-                        operator = operator,
-                        operand2 = result_ref,
-                        is_pycmp = is_pycompare,
-                        is_temp = is_pycompare,
-                        type = is_pycompare and PyrexTypes.py_object_type or PyrexTypes.c_bint_type
-                        ).coerce_to_boolean(self.current_env()),
-                    body = Nodes.SingleAssignmentNode(
-                        arg.pos,
-                        lhs = result_ref,
-                        rhs = arg)
-                    )]
-                ))
+                    operand1 = arg_node,
+                    operator = operator,
+                    operand2 = last_result,
+                    is_pycmp = is_py_compare,
+                    is_temp = is_py_compare,
+                    type = is_py_compare and PyrexTypes.py_object_type or PyrexTypes.c_bint_type,
+                    ).coerce_to_boolean(self.current_env()).coerce_to_temp(self.current_env()),
+                )
 
-        return UtilNodes.TempResultFromStatNode(
-            result_ref, Nodes.StatListNode(node.pos, stats = stats)
-            ).coerce_to(node.type, self.current_env())
+        for ref_node in ref_nodes[::-1]:
+            last_result = UtilNodes.EvalWithTempExprNode(ref_node, last_result)
+
+        return last_result.coerce_to(node.type, self.current_env())
 
     ### special methods
 
