@@ -3,7 +3,7 @@ cimport cython
 
 # min()
 
-@cython.test_assert_path_exists("//IfStatNode")
+@cython.test_assert_path_exists("//CondExprNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
 def min3(a,b,c):
     """
@@ -20,7 +20,7 @@ def min3(a,b,c):
     """
     return min(a,b,c)
 
-@cython.test_assert_path_exists("//IfStatNode")
+@cython.test_assert_path_exists("//CondExprNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
 def min3_typed(int a, int b, int c):
     """
@@ -37,7 +37,7 @@ def min3_typed(int a, int b, int c):
     """
     return min(a,b,c)
 
-@cython.test_assert_path_exists("//IfStatNode")
+@cython.test_assert_path_exists("//CondExprNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
 def literal_min3():
     """
@@ -48,7 +48,7 @@ def literal_min3():
 
 # max()
 
-@cython.test_assert_path_exists("//IfStatNode")
+@cython.test_assert_path_exists("//CondExprNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
 def max3(a,b,c):
     """
@@ -65,7 +65,7 @@ def max3(a,b,c):
     """
     return max(a,b,c)
 
-@cython.test_assert_path_exists("//IfStatNode")
+@cython.test_assert_path_exists("//CondExprNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
 def max3_typed(int a, int b, int c):
     """
@@ -82,7 +82,7 @@ def max3_typed(int a, int b, int c):
     """
     return max(a,b,c)
 
-@cython.test_assert_path_exists("//IfStatNode")
+@cython.test_assert_path_exists("//CondExprNode")
 @cython.test_fail_if_path_exists("//SimpleCallNode")
 def literal_max3():
     """
