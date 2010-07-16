@@ -1,4 +1,6 @@
 
+cimport cython
+
 class loud_list(list):
     def __len__(self):
         print "calling __len__"
@@ -6,6 +8,11 @@ class loud_list(list):
 
 # max()
 
+@cython.test_assert_path_exists(
+    '//PrintStatNode//CondExprNode')
+@cython.test_fail_if_path_exists(
+    '//PrintStatNode//SimpleCallNode//CoerceToPyTypeNode',
+    '//PrintStatNode//SimpleCallNode//ConstNode')
 def test_max2():
     """
     >>> test_max2()
@@ -33,6 +40,11 @@ def test_max2():
     print max(my_int, len(my_list))
     print max(len(my_list), my_int)
 
+@cython.test_assert_path_exists(
+    '//PrintStatNode//CondExprNode')
+@cython.test_fail_if_path_exists(
+    '//PrintStatNode//SimpleCallNode//CoerceToPyTypeNode',
+    '//PrintStatNode//SimpleCallNode//ConstNode')
 def test_max3():
     """
     >>> test_max3()
@@ -49,6 +61,11 @@ def test_max3():
     print max(my_int, my_pyint, len(my_list))
     print max(my_pyint, my_list.__len__(), len(my_list))
 
+@cython.test_assert_path_exists(
+    '//PrintStatNode//CondExprNode')
+@cython.test_fail_if_path_exists(
+    '//PrintStatNode//SimpleCallNode//CoerceToPyTypeNode',
+    '//PrintStatNode//SimpleCallNode//ConstNode')
 def test_maxN():
     """
     >>> test_maxN()
@@ -71,6 +88,11 @@ def test_maxN():
 
 # min()
 
+@cython.test_assert_path_exists(
+    '//PrintStatNode//CondExprNode')
+@cython.test_fail_if_path_exists(
+    '//PrintStatNode//SimpleCallNode//CoerceToPyTypeNode',
+    '//PrintStatNode//SimpleCallNode//ConstNode')
 def test_min2():
     """
     >>> test_min2()
@@ -99,6 +121,11 @@ def test_min2():
     print min(len(my_list), my_int)
 
 
+@cython.test_assert_path_exists(
+    '//PrintStatNode//CondExprNode')
+@cython.test_fail_if_path_exists(
+    '//PrintStatNode//SimpleCallNode//CoerceToPyTypeNode',
+    '//PrintStatNode//SimpleCallNode//ConstNode')
 def test_min3():
     """
     >>> test_min3()
@@ -116,6 +143,11 @@ def test_min3():
     print min(my_pyint, my_list.__len__(), len(my_list))
 
 
+@cython.test_assert_path_exists(
+    '//PrintStatNode//CondExprNode')
+@cython.test_fail_if_path_exists(
+    '//PrintStatNode//SimpleCallNode//CoerceToPyTypeNode',
+    '//PrintStatNode//SimpleCallNode//ConstNode')
 def test_minN():
     """
     >>> test_minN()

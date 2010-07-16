@@ -1200,6 +1200,42 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             gen_expr_node.pos, loop = exec_code, result_node = result_ref,
             expr_scope = gen_expr_node.expr_scope, orig_func = 'sum')
 
+    def _handle_simple_function_min(self, node, pos_args):
+        return self._optimise_min_max(node, pos_args, '<')
+
+    def _handle_simple_function_max(self, node, pos_args):
+        return self._optimise_min_max(node, pos_args, '>')
+
+    def _optimise_min_max(self, node, args, operator):
+        """Replace min(a,b,...) and max(a,b,...) by explicit comparison code.
+        """
+        if len(args) <= 1:
+            # leave this to Python
+            return node
+
+        cascaded_nodes = map(UtilNodes.ResultRefNode, args[1:])
+
+        last_result = args[0]
+        for arg_node in cascaded_nodes:
+            result_ref = UtilNodes.ResultRefNode(last_result)
+            last_result = ExprNodes.CondExprNode(
+                arg_node.pos,
+                true_val = arg_node,
+                false_val = result_ref,
+                test = ExprNodes.PrimaryCmpNode(
+                    arg_node.pos,
+                    operand1 = arg_node,
+                    operator = operator,
+                    operand2 = result_ref,
+                    )
+                )
+            last_result = UtilNodes.EvalWithTempExprNode(result_ref, last_result)
+
+        for ref_node in cascaded_nodes[::-1]:
+            last_result = UtilNodes.EvalWithTempExprNode(ref_node, last_result)
+
+        return last_result
+
     def _DISABLED_handle_simple_function_tuple(self, node, pos_args):
         if len(pos_args) == 0:
             return ExprNodes.TupleNode(node.pos, args=[], constant_result=())
@@ -1790,62 +1826,6 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             args = pos_args,
             is_temp = False)
         return ExprNodes.CastNode(node, PyrexTypes.py_object_type)
-
-    def _handle_simple_function_min(self, node, pos_args):
-        return self._optimise_min_max(node, pos_args, '<')
-
-    def _handle_simple_function_max(self, node, pos_args):
-        return self._optimise_min_max(node, pos_args, '>')
-
-    def _optimise_min_max(self, node, args, operator):
-        """Replace min(a,b,...) and max(a,b,...) by explicit comparison code.
-        """
-        if len(args) <= 1:
-            # leave this to Python
-            return node
-
-        unpacked_args = []
-        for arg in args:
-            if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
-                arg = arg.arg
-            unpacked_args.append(arg)
-
-        arg_nodes = []
-        ref_nodes = []
-        spanning_type = PyrexTypes.spanning_type(unpacked_args[0].type, unpacked_args[1].type)
-        for arg in unpacked_args:
-            arg = arg.coerce_to(spanning_type, self.current_env())
-            if not isinstance(arg, ExprNodes.ConstNode):
-                arg = UtilNodes.LetRefNode(arg)
-                ref_nodes.append(arg)
-            arg_nodes.append(arg)
-            spanning_type = PyrexTypes.spanning_type(spanning_type, arg.type)
-
-        last_result = arg_nodes[0]
-        for arg_node in arg_nodes[1:]:
-            last_result = last_result.coerce_to(arg_node.type, self.current_env())
-            is_py_compare = arg_node.type.is_pyobject
-            last_result = ExprNodes.CondExprNode(
-                arg_node.pos,
-                type = arg_node.type, # already coerced, so this is the target type
-                is_temp = True,
-                true_val = arg_node,
-                false_val = last_result,
-                test = ExprNodes.PrimaryCmpNode(
-                    arg.pos,
-                    operand1 = arg_node,
-                    operator = operator,
-                    operand2 = last_result,
-                    is_pycmp = is_py_compare,
-                    is_temp = is_py_compare,
-                    type = is_py_compare and PyrexTypes.py_object_type or PyrexTypes.c_bint_type,
-                    ).coerce_to_boolean(self.current_env()).coerce_to_temp(self.current_env()),
-                )
-
-        for ref_node in ref_nodes[::-1]:
-            last_result = UtilNodes.EvalWithTempExprNode(ref_node, last_result)
-
-        return last_result.coerce_to(node.type, self.current_env())
 
     ### special methods
 
