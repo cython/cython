@@ -1224,6 +1224,12 @@ class MarkClosureVisitor(CythonTransform):
         node.needs_closure = self.needs_closure
         self.needs_closure = True
         return node
+    
+    def visit_CFuncDefNode(self, node):
+        self.visit_FuncDefNode(node)
+        if node.needs_closure:
+            error(node.pos, "closures inside cdef functions not yet supported")
+        return node
 
     def visit_LambdaNode(self, node):
         self.needs_closure = False
