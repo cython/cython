@@ -28,15 +28,14 @@ __doc__ = u"""
 >>> b = B()
 >>> b.a0 #doctest: +ELLIPSIS
 Traceback (most recent call last):
-    ...
 AttributeError: ...
+
 >>> b.b0 #doctest: +ELLIPSIS
 Traceback (most recent call last):
-    ...
 AttributeError: ...
+
 >>> b.c0 #doctest: +ELLIPSIS
 Traceback (most recent call last):
-    ...
 AttributeError: ...
 
 >>> isinstance(b.a1, type(None))
@@ -56,27 +55,34 @@ True
 >>> b.a1 is not b.a2
 True
 
+TYPE_FIXES_REQUIRED:
+
 >>> b.b1 = 1 #doctest: +ELLIPSIS
 Traceback (most recent call last):
-    ...
 TypeError: ...
+
 >>> b.c1 = 1 #doctest: +ELLIPSIS
 Traceback (most recent call last):
-    ...
 TypeError: ...
+
 >>> b.a2 = None #doctest: +ELLIPSIS
 Traceback (most recent call last):
-    ...
 AttributeError: ...
+
 >>> b.b2 = [] #doctest: +ELLIPSIS
 Traceback (most recent call last):
-    ...
 AttributeError: ...
+
 >>> b.c2 = A() #doctest: +ELLIPSIS
 Traceback (most recent call last):
-    ...
 AttributeError: ...
 """
+
+import sys
+if sys.version_info < (2,5):
+    __doc__ = (__doc__.split('TYPE_FIXES_REQUIRED')[0] +
+               __doc__.split('TYPE_FIXES_REQUIRED')[1].replace('\nAttributeError: ...', '\nTypeError: ...'))
+
 
 cdef class A:
 

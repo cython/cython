@@ -6,12 +6,10 @@ def test(dict d, index):
 
     >>> test(d, 2)
     Traceback (most recent call last):
-    ...
     KeyError: 2
 
     >>> test(d, (1,2))
     Traceback (most recent call last):
-    ...
     KeyError: (1, 2)
 
     >>> class Unhashable:
@@ -19,13 +17,11 @@ def test(dict d, index):
     ...        raise ValueError
     >>> test(d, Unhashable())
     Traceback (most recent call last):
-    ...
     ValueError
     
     >>> test(None, 1) # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    TypeError: 'NoneType' object is ...
+    TypeError: ...subscriptable...
     """
     return d[index]
 

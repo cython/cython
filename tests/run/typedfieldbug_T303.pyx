@@ -6,8 +6,8 @@ TypeError: ...
 """
 
 import sys
-if sys.version_info[0:2] >= (2,4):
-    __doc__ = __doc__.replace(u'TypeError:', u'AttributeError:')
+if sys.version_info >= (2,5):
+    __doc__ = __doc__.replace('TypeError:', 'AttributeError:')
 
 
 cdef extern from "external_defs.h":

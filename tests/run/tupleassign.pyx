@@ -15,7 +15,7 @@ def assign3(t):
     ValueError: need more than 2 values to unpack
     >>> assign3((1,2,3,4))
     Traceback (most recent call last):
-    ValueError: too many values to unpack
+    ValueError: too many values to unpack (expected 3)
     """
     a,b,c = t
     return (a,b,c)
@@ -39,16 +39,16 @@ def assign3_typed(tuple t):
     >>> assign3_typed((1,2))
     Traceback (most recent call last):
     ValueError: need more than 2 values to unpack
-    >>> a,b,c = (1,2,3,4)
+    >>> a,b,c = (1,2,3,4)    # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ValueError: too many values to unpack
+    ValueError: too many values to unpack...
     >>> assign3_typed((1,2,3,4))
     Traceback (most recent call last):
-    ValueError: too many values to unpack
+    ValueError: too many values to unpack (expected 3)
     >>> a,b = 99,98
-    >>> a,b = t
+    >>> a,b = t     # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ValueError: too many values to unpack
+    ValueError: too many values to unpack...
     >>> a,b
     (99, 98)
     """
