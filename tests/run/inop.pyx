@@ -103,9 +103,9 @@ def m_bytes(char a, bytes bytes_string):
     1
     >>> m_bytes(ord('X'), py_bytes_string)
     0
-    >>> 'f'.encode('ASCII') in None
+    >>> 'f'.encode('ASCII') in None    # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: argument of type 'NoneType' is not iterable
+    TypeError: ...iterable...
     >>> m_bytes(ord('f'), None)
     Traceback (most recent call last):
     TypeError: argument of type 'NoneType' is not iterable
@@ -121,9 +121,9 @@ def m_bytes_unsigned(unsigned char a, bytes bytes_string):
     1
     >>> m_bytes(ord('X'), py_bytes_string)
     0
-    >>> 'f'.encode('ASCII') in None
+    >>> 'f'.encode('ASCII') in None    # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: argument of type 'NoneType' is not iterable
+    TypeError: ...iterable...
     >>> m_bytes(ord('f'), None)
     Traceback (most recent call last):
     TypeError: argument of type 'NoneType' is not iterable
@@ -168,9 +168,10 @@ def m_unicode(Py_UNICODE a, unicode unicode_string):
     0
     >>> m_unicode(ord(py_klingon_character), py_unicode_string)
     1
-    >>> 'f' in None
+
+    >>> 'f' in None   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: argument of type 'NoneType' is not iterable
+    TypeError: ...iterable...
     >>> m_unicode(ord('f'), None)
     Traceback (most recent call last):
     TypeError: argument of type 'NoneType' is not iterable

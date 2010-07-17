@@ -136,9 +136,9 @@ def m_unicode(Py_UNICODE a, unicode unicode_string):
     1
     >>> m_unicode(ord(py_klingon_character), py_unicode_string)
     0
-    >>> 'f' in None
+    >>> 'f' in None    # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: argument of type 'NoneType' is not iterable
+    TypeError: ...iterable...
     >>> m_unicode(ord('f'), None)
     Traceback (most recent call last):
     TypeError: argument of type 'NoneType' is not iterable
