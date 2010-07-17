@@ -3988,6 +3988,9 @@ class ComprehensionNode(ScopedExprNode):
         if not self.has_local_scope:
             self.loop.analyse_expressions(env)
 
+    def analyse_expressions(self, env):
+        self.analyse_types(env)
+
     def analyse_scoped_expressions(self, env):
         if self.has_local_scope:
             self.loop.analyse_expressions(env)
