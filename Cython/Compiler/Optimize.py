@@ -1059,13 +1059,16 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             if node.expr in self.yield_nodes:
                 self.yield_stat_nodes[node.expr] = node
 
-    def _find_single_yield_node(self, node):
+    def _find_single_yield_expression(self, node):
         collector = self.YieldNodeCollector()
         collector.visitchildren(node)
         if len(collector.yield_nodes) != 1:
             return None, None
         yield_node = collector.yield_nodes[0]
-        return (yield_node, collector.yield_stat_nodes.get(yield_node))
+        try:
+            return (yield_node.arg, collector.yield_stat_nodes[yield_node])
+        except KeyError:
+            return None, None
 
     def _handle_simple_function_all(self, node, pos_args):
         """Transform
@@ -1114,10 +1117,9 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             return node
         gen_expr_node = pos_args[0]
         loop_node = gen_expr_node.loop
-        yield_node, yield_stat_node = self._find_single_yield_node(loop_node)
-        if yield_node is None or yield_stat_node is None:
+        yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+        if yield_expression is None:
             return node
-        yield_expression = yield_node.arg
 
         if is_any:
             condition = yield_expression
@@ -1126,10 +1128,10 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
         result_ref = UtilNodes.ResultRefNode(pos=node.pos, type=PyrexTypes.c_bint_type)
         test_node = Nodes.IfStatNode(
-            yield_node.pos,
+            yield_expression.pos,
             else_clause = None,
             if_clauses = [ Nodes.IfClauseNode(
-                yield_node.pos,
+                yield_expression.pos,
                 condition = condition,
                 body = Nodes.StatListNode(
                     node.pos,
@@ -1137,7 +1139,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
                         Nodes.SingleAssignmentNode(
                             node.pos,
                             lhs = result_ref,
-                            rhs = ExprNodes.BoolNode(yield_node.pos, value = is_any,
+                            rhs = ExprNodes.BoolNode(yield_expression.pos, value = is_any,
                                                      constant_result = is_any)),
                         Nodes.BreakStatNode(node.pos)
                         ])) ]
@@ -1147,14 +1149,14 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             next_loop = loop.body
             loop.body = Nodes.StatListNode(loop.body.pos, stats = [
                 loop.body,
-                Nodes.BreakStatNode(yield_node.pos)
+                Nodes.BreakStatNode(yield_expression.pos)
                 ])
-            next_loop.else_clause = Nodes.ContinueStatNode(yield_node.pos)
+            next_loop.else_clause = Nodes.ContinueStatNode(yield_expression.pos)
             loop = next_loop
         loop_node.else_clause = Nodes.SingleAssignmentNode(
             node.pos,
             lhs = result_ref,
-            rhs = ExprNodes.BoolNode(yield_node.pos, value = not is_any,
+            rhs = ExprNodes.BoolNode(yield_expression.pos, value = not is_any,
                                      constant_result = not is_any))
 
         Visitor.recursively_replace_node(loop_node, yield_stat_node, test_node)
@@ -1173,10 +1175,9 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         gen_expr_node = pos_args[0]
         loop_node = gen_expr_node.loop
 
-        yield_node, yield_stat_node = self._find_single_yield_node(loop_node)
-        if yield_node is None or yield_stat_node is None:
+        yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+        if yield_expression is None:
             return node
-        yield_expression = yield_node.arg
 
         if len(pos_args) == 1:
             start = ExprNodes.IntNode(node.pos, value='0', constant_result=0)
@@ -1185,7 +1186,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
         result_ref = UtilNodes.ResultRefNode(pos=node.pos, type=PyrexTypes.py_object_type)
         add_node = Nodes.SingleAssignmentNode(
-            yield_node.pos,
+            yield_expression.pos,
             lhs = result_ref,
             rhs = ExprNodes.binop_node(node.pos, '+', result_ref, yield_expression)
             )
@@ -1278,18 +1279,17 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         gen_expr_node = pos_args[0]
         loop_node = gen_expr_node.loop
 
-        yield_node = self._find_single_yield_node(loop_node)
-        if yield_node is None:
+        yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+        if yield_expression is None:
             return node
-        yield_expression = yield_node.arg
 
         target_node = container_node_class(node.pos, args=[])
         append_node = ExprNodes.ComprehensionAppendNode(
-            yield_node.pos,
+            yield_expression.pos,
             expr = yield_expression,
             target = ExprNodes.CloneNode(target_node))
 
-        Visitor.recursively_replace_node(loop_node, yield_node, append_node)
+        Visitor.recursively_replace_node(loop_node, yield_stat_node, append_node)
 
         setcomp = ExprNodes.ComprehensionNode(
             node.pos,
@@ -1313,10 +1313,9 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         gen_expr_node = pos_args[0]
         loop_node = gen_expr_node.loop
 
-        yield_node = self._find_single_yield_node(loop_node)
-        if yield_node is None:
+        yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+        if yield_expression is None:
             return node
-        yield_expression = yield_node.arg
 
         if not isinstance(yield_expression, ExprNodes.TupleNode):
             return node
@@ -1325,12 +1324,12 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
         target_node = ExprNodes.DictNode(node.pos, key_value_pairs=[])
         append_node = ExprNodes.DictComprehensionAppendNode(
-            yield_node.pos,
+            yield_expression.pos,
             key_expr = yield_expression.args[0],
             value_expr = yield_expression.args[1],
             target = ExprNodes.CloneNode(target_node))
 
-        Visitor.recursively_replace_node(loop_node, yield_node, append_node)
+        Visitor.recursively_replace_node(loop_node, yield_stat_node, append_node)
 
         dictcomp = ExprNodes.ComprehensionNode(
             node.pos,
