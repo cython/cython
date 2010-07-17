@@ -1,8 +1,15 @@
 from __future__ import with_statement
 
+import sys
 
 def typename(t):
-    return u"<type '%s'>" % type(t).__name__
+    name = type(t).__name__
+    if sys.version_info < (2,5):
+        if name == 'classobj' and issubclass(t, MyException):
+            name = 'type'
+        elif name == 'instance' and isinstance(t, MyException):
+            name = 'MyException'
+    return u"<type '%s'>" % name
 
 class MyException(Exception):
     pass
