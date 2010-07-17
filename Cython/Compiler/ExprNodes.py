@@ -3642,9 +3642,9 @@ class SequenceNode(ExprNode):
                 code.put_gotref(item.py_result())
                 value_node = self.coerced_unpacked_items[i]
                 value_node.generate_evaluation_code(code)
-            code.put_error_if_neg(self.pos, 
-                "__Pyx_EndUnpack(%s)" % (
-                    self.iterator.py_result()))
+            code.put_error_if_neg(self.pos, "__Pyx_EndUnpack(%s, %d)" % (
+                self.iterator.py_result(),
+                len(self.args)))
             if debug_disposal_code:
                 print("UnpackNode.generate_assignment_code:")
                 print("...generating disposal code for %s" % self.iterator)
@@ -6981,11 +6981,16 @@ impl = """
 
 raise_too_many_values_to_unpack = UtilityCode(
 proto = """
-static CYTHON_INLINE void __Pyx_RaiseTooManyValuesError(void);
+static CYTHON_INLINE void __Pyx_RaiseTooManyValuesError(Py_ssize_t expected);
 """,
 impl = '''
-static CYTHON_INLINE void __Pyx_RaiseTooManyValuesError(void) {
-    PyErr_SetString(PyExc_ValueError, "too many values to unpack");
+static CYTHON_INLINE void __Pyx_RaiseTooManyValuesError(Py_ssize_t expected) {
+    PyErr_Format(PyExc_ValueError,
+        #if PY_VERSION_HEX < 0x02050000
+            "too many values to unpack (expected %d)", (int)expected);
+        #else
+            "too many values to unpack (expected %zd)", expected);
+        #endif
 }
 ''')
 
@@ -7018,7 +7023,7 @@ static void __Pyx_UnpackTupleError(PyObject *t, Py_ssize_t index) {
     } else if (PyTuple_GET_SIZE(t) < index) {
       __Pyx_RaiseNeedMoreValuesError(PyTuple_GET_SIZE(t));
     } else {
-      __Pyx_RaiseTooManyValuesError();
+      __Pyx_RaiseTooManyValuesError(index);
     }
 }
 """, 
@@ -7030,7 +7035,7 @@ requires = [raise_none_iter_error_utility_code,
 unpacking_utility_code = UtilityCode(
 proto = """
 static PyObject *__Pyx_UnpackItem(PyObject *, Py_ssize_t index); /*proto*/
-static int __Pyx_EndUnpack(PyObject *); /*proto*/
+static int __Pyx_EndUnpack(PyObject *, Py_ssize_t expected); /*proto*/
 """,
 impl = """
 static PyObject *__Pyx_UnpackItem(PyObject *iter, Py_ssize_t index) {
@@ -7043,11 +7048,11 @@ static PyObject *__Pyx_UnpackItem(PyObject *iter, Py_ssize_t index) {
     return item;
 }
 
-static int __Pyx_EndUnpack(PyObject *iter) {
+static int __Pyx_EndUnpack(PyObject *iter, Py_ssize_t expected) {
     PyObject *item;
     if ((item = PyIter_Next(iter))) {
         Py_DECREF(item);
-        __Pyx_RaiseTooManyValuesError();
+        __Pyx_RaiseTooManyValuesError(expected);
         return -1;
     }
     else if (!PyErr_Occurred())
