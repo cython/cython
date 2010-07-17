@@ -1059,6 +1059,12 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             if node.expr in self.yield_nodes:
                 self.yield_stat_nodes[node.expr] = node
 
+        def __visit_GeneratorExpressionNode(self, node):
+            # enable when we support generic generator expressions
+            #
+            # everything below this node is out of scope
+            pass
+
     def _find_single_yield_expression(self, node):
         collector = self.YieldNodeCollector()
         collector.visitchildren(node)
