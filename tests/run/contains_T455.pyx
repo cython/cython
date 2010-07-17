@@ -13,15 +13,13 @@ def in_sequence(x, seq):
     >>> in_sequence(1, {1:None})
     True
 
-    >>> in_sequence(1, None)
+    >>> in_sequence(1, None)    # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    TypeError: argument of type 'NoneType' is not iterable
+    TypeError: ...iterable...
 
-    >>> in_sequence(1, 1)
+    >>> in_sequence(1, 1)       # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    TypeError: argument of type 'int' is not iterable
+    TypeError: ...iterable...
     """
     return x in seq
 
@@ -40,15 +38,13 @@ def not_in_sequence(x, seq):
     >>> not_in_sequence(1, {1:None})
     False
 
-    >>> not_in_sequence(1, None)
+    >>> not_in_sequence(1, None)    # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    TypeError: argument of type 'NoneType' is not iterable
+    TypeError: ...iterable...
 
-    >>> not_in_sequence(1, 1)
+    >>> not_in_sequence(1, 1)       # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    TypeError: argument of type 'int' is not iterable
+    TypeError: ...iterable...
     """
     return x not in seq
 
@@ -83,10 +79,10 @@ def not_in_dict(k, dict dct):
 
 def cascaded(a, b, c):
     """
-    >>> cascaded(1, 2, 3)
+    >>> cascaded(1, 2, 3)    # doctest: +ELLIPSIS
     Traceback (most recent call last):
     ...
-    TypeError: argument of type 'int' is not iterable
+    TypeError: ...iterable...
     >>> cascaded(-1, (1,2), (1,3))
     True
     >>> cascaded(1, (1,2), (1,3))
