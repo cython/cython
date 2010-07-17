@@ -1,8 +1,3 @@
-import sys
-if sys.version_info < (2,5):
-    __doc__ = __doc__.replace(
-        u"'NoneType' object is not iterable\n    >>> tuple_none_list()",
-        u'iteration over non-sequence\n    >>> tuple_none_list()')
 
 def f(obj1, obj2, obj3, obj4, obj5):
     """
@@ -69,17 +64,17 @@ def l(obj1, obj2, obj3, obj4, obj5):
 
 def tuple_none():
     """
-    >>> tuple_none()
+    >>> tuple_none()   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'NoneType' object is not iterable
+    TypeError: ...itera...
     """
     return tuple(None)
 
 def tuple_none_list():
     """
-    >>> tuple_none_list()
+    >>> tuple_none_list()   # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    TypeError: 'NoneType' object is not iterable
+    TypeError: ...iterable...
     """
     cdef list none = None
     return tuple(none)
