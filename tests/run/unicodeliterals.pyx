@@ -71,17 +71,17 @@ __doc__ = br"""
     True
 """
 
+if sys.version_info >= (2,6):
+    # this doesn't work well in older Python versions
+    __doc__ += u"""\
+    >>> wide_literal == u'\U00101234'    # unescaped by Cython
+    True
+"""
+
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u" u'", u" '")
 else:
     __doc__ = __doc__.replace(u" b'", u" '")
-
-if sys.version_info >= (2,6):
-    # this doesn't work well in older Python versions
-    __doc__ += u"""
-    >>> wide_literal == u'\U00101234'    # unescaped by Cython
-    True
-"""
 
 sa = 'abc'
 ua = u'abc'
