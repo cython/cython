@@ -197,10 +197,8 @@ def m_unicode_literal(Py_UNICODE a):
 
 cdef unicode wide_unicode_character = u'\U0010FEDC'
 py_wide_unicode_character = wide_unicode_character
-cdef unicode wide_unicode_character_surrogate1 = u'\uDBFF'
-cdef unicode wide_unicode_character_surrogate2 = u'\uDEDC'
-py_wide_unicode_character_surrogate1 = wide_unicode_character_surrogate1
-py_wide_unicode_character_surrogate2 = wide_unicode_character_surrogate2
+wide_unicode_character_surrogate1 = 0xDBFF
+wide_unicode_character_surrogate2 = 0xDEDC
 
 @cython.test_fail_if_path_exists("//SwitchStatNode")
 @cython.test_assert_path_exists("//PrimaryCmpNode")
@@ -212,8 +210,8 @@ def m_wide_unicode_literal(Py_UNICODE a):
     0
     >>> import sys
     >>> if sys.maxunicode == 65535:
-    ...     m_wide_unicode_literal(ord(py_wide_unicode_character_surrogate1))
-    ...     m_wide_unicode_literal(ord(py_wide_unicode_character_surrogate2))
+    ...     m_wide_unicode_literal(py_wide_unicode_character_surrogate1)
+    ...     m_wide_unicode_literal(py_wide_unicode_character_surrogate2)
     ... else:
     ...     m_wide_unicode_literal(ord(py_wide_unicode_character))
     ...     1
