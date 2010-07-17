@@ -958,7 +958,8 @@ def p_testlist_comp(s):
 
 def p_genexp(s, expr):
     # s.sy == 'for'
-    loop = p_comp_for(s, ExprNodes.YieldExprNode(expr.pos, arg=expr))
+    loop = p_comp_for(s, Nodes.ExprStatNode(
+        expr.pos, expr = ExprNodes.YieldExprNode(expr.pos, arg=expr)))
     return ExprNodes.GeneratorExpressionNode(expr.pos, loop=loop)
 
 expr_terminators = (')', ']', '}', ':', '=', 'NEWLINE')
