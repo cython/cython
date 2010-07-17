@@ -55,3 +55,11 @@ def global_listcomp():
     >>> listcomp_result
     [0, 1, 4, 9, 16]
     """
+
+def nested_result():
+    """
+    >>> nested_result()
+    [[], [-1], [-1, 0], [-1, 0, 1]]
+    """
+    result = [[a-1 for a in range(b)] for b in range(4)]
+    return result
