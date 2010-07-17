@@ -583,7 +583,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         code.put("""
 #if PY_MAJOR_VERSION >= 3
-  #define PyMethod_New(func, self, klass) PyInstanceMethod_New(func)
+  #define PyMethod_New(func, self, klass) ((self) ? PyMethod_New(func, self) : PyInstanceMethod_New(func))
 #endif
 
 #if PY_VERSION_HEX < 0x02050000
