@@ -129,10 +129,9 @@ def index_pop_typed(list L, int i):
 @cython.test_fail_if_path_exists('//PythonCapiCallNode')
 def crazy_pop(L):
     """
-    >>> crazy_pop(list(range(10)))
+    >>> crazy_pop(list(range(10)))    # doctest: +ELLIPSIS
     Traceback (most recent call last):
-    ...
-    TypeError: pop() takes at most 1 argument (3 given)
+    TypeError: pop... at most 1 argument...3...
     >>> crazy_pop(A())
     (1, 2, 3)
     """
