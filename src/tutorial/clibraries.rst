@@ -45,7 +45,7 @@ file, say, ``cqueue.pxd``::
             pass
         ctypedef void* QueueValue
 
-        Queue* new_queue()
+        Queue* queue_new()
         void queue_free(Queue* queue)
 
         int queue_push_head(Queue* queue, QueueValue data)
@@ -88,7 +88,7 @@ Here is a first start for the Queue class::
     cdef class Queue:
         cdef cqueue.Queue _c_queue
         def __cinit__(self):
-            self._c_queue = cqueue.new_queue()
+            self._c_queue = cqueue.queue_new()
 
 Note that it says ``__cinit__`` rather than ``__init__``. While
 ``__init__`` is available as well, it is not guaranteed to be run (for
@@ -110,9 +110,9 @@ method.
 
 Before we continue implementing the other methods, it is important to
 understand that the above implementation is not safe.  In case
-anything goes wrong in the call to ``new_queue()``, this code will
+anything goes wrong in the call to ``queue_new()``, this code will
 simply swallow the error, so we will likely run into a crash later on.
-According to the documentation of the ``new_queue()`` function, the
+According to the documentation of the ``queue_new()`` function, the
 only reason why the above can fail is due to insufficient memory.  In
 that case, it will return ``NULL``, whereas it would normally return a
 pointer to the new queue.
@@ -124,7 +124,7 @@ running out of memory.  Luckily, CPython provides a function
 thus change the init function as follows::
 
         def __cinit__(self):
-            self._c_queue = cqueue.new_queue()
+            self._c_queue = cqueue.queue_new()
             if self._c_queue is NULL:
 	        python_exc.PyErr_NoMemory()
 
