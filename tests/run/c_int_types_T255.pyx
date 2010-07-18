@@ -2,55 +2,6 @@ __doc__ = u""
 
 # -------------------------------------------------------------------
 
-CHAR_MAX = <char>((<unsigned char>-1)>>1)
-CHAR_MIN = (-CHAR_MAX-1)
-
-def test_char(char x):
-   u"""
-   >>> test_char(CHAR_MIN-1) #doctest: +ELLIPSIS
-   Traceback (most recent call last):
-       ...
-   OverflowError: ...
-   >>> test_char(CHAR_MIN) == CHAR_MIN
-   True
-   >>> test_char(-1)
-   -1
-   >>> test_char(0)
-   0
-   >>> test_char(1)
-   1
-   >>> test_char(CHAR_MAX) == CHAR_MAX
-   True
-   >>> test_char(CHAR_MAX+1) #doctest: +ELLIPSIS
-   Traceback (most recent call last):
-       ...
-   OverflowError: ...
-   """
-   return x
-
-def test_add_char(x, y):
-   u"""
-   >>> test_add_char(CHAR_MIN, -1) #doctest: +ELLIPSIS
-   Traceback (most recent call last):
-       ...
-   OverflowError: ...
-   >>> test_add_char(CHAR_MIN, 0) == CHAR_MIN
-   True
-   >>> test_add_char(CHAR_MIN, 1) == CHAR_MIN+1
-   True
-   >>> test_add_char(CHAR_MAX, -1) == CHAR_MAX-1
-   True
-   >>> test_add_char(CHAR_MAX, 0) == CHAR_MAX
-   True
-   >>> test_add_char(CHAR_MAX, 1) #doctest: +ELLIPSIS
-   Traceback (most recent call last):
-       ...
-   OverflowError: ...
-   """
-   cdef char r = x + y
-   return r
-
-
 SCHAR_MAX = <signed char>((<unsigned char>-1)>>1)
 SCHAR_MIN = (-SCHAR_MAX-1)
 
@@ -126,6 +77,59 @@ def test_add_uchar(x, y):
    OverflowError: ...
    """
    cdef unsigned char r = x + y
+   return r
+
+# chars may be signed or unsigned
+if (<char>-1) < 0:
+    CHAR_MAX = SCHAR_MAX
+    CHAR_MIN = SCHAR_MIN
+else:
+    CHAR_MAX = UCHAR_MAX
+    CHAR_MIN = 0
+
+def test_char(char x):
+   u"""
+   >>> test_char(CHAR_MIN-1) #doctest: +ELLIPSIS
+   Traceback (most recent call last):
+       ...
+   OverflowError: ...
+   >>> test_char(CHAR_MIN) == CHAR_MIN
+   True
+   >>> test_char(-1)
+   -1
+   >>> test_char(0)
+   0
+   >>> test_char(1)
+   1
+   >>> test_char(CHAR_MAX) == CHAR_MAX
+   True
+   >>> test_char(CHAR_MAX+1) #doctest: +ELLIPSIS
+   Traceback (most recent call last):
+       ...
+   OverflowError: ...
+   """
+   return x
+
+def test_add_char(x, y):
+   u"""
+   >>> test_add_char(CHAR_MIN, -1) #doctest: +ELLIPSIS
+   Traceback (most recent call last):
+       ...
+   OverflowError: ...
+   >>> test_add_char(CHAR_MIN, 0) == CHAR_MIN
+   True
+   >>> test_add_char(CHAR_MIN, 1) == CHAR_MIN+1
+   True
+   >>> test_add_char(CHAR_MAX, -1) == CHAR_MAX-1
+   True
+   >>> test_add_char(CHAR_MAX, 0) == CHAR_MAX
+   True
+   >>> test_add_char(CHAR_MAX, 1) #doctest: +ELLIPSIS
+   Traceback (most recent call last):
+       ...
+   OverflowError: ...
+   """
+   cdef char r = x + y
    return r
 
 # -------------------------------------------------------------------
