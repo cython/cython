@@ -832,7 +832,11 @@ class TemplatedTypeNode(CBaseTypeNode):
             else:
                 template_types = []
                 for template_node in self.positional_args:
-                    template_types.append(template_node.analyse_as_type(env))
+                    type = template_node.analyse_as_type(env)
+                    if type is None:
+                        error(template_node.pos, "unknown type in template argument")
+                        return error_type
+                    template_types.append(type)
                 self.type = base_type.specialize_here(self.pos, template_types)
         
         elif base_type.is_pyobject:
