@@ -23,19 +23,19 @@ cdef extern from "Python.h":
     bint PyBytes_CheckExact(object o)
     # Return true if the object o is a string object, but not an instance of a subtype of the string type. 
 
-    object PyBytes_FromString(char *v)
+    bytes PyBytes_FromString(char *v)
     # Return value: New reference.
     # Return a new string object with the value v on success, and NULL
     # on failure. The parameter v must not be NULL; it will not be
     # checked.
 
-    object PyBytes_FromStringAndSize(char *v, Py_ssize_t len)
+    bytes PyBytes_FromStringAndSize(char *v, Py_ssize_t len)
     # Return value: New reference.
     # Return a new string object with the value v and length len on
     # success, and NULL on failure. If v is NULL, the contents of the
     # string are uninitialized.
 
-    object PyBytes_FromFormat(char *format, ...)
+    bytes PyBytes_FromFormat(char *format, ...)
     # Return value: New reference.
     # Take a C printf()-style format string and a variable number of
     # arguments, calculate the size of the resulting Python string and
@@ -64,7 +64,7 @@ cdef extern from "Python.h":
     # format string to be copied as-is to the result string, and any
     # extra arguments discarded.
 
-    object PyBytes_FromFormatV(char *format, va_list vargs)
+    bytes PyBytes_FromFormatV(char *format, va_list vargs)
     # Return value: New reference.
     # Identical to PyBytes_FromFormat() except that it takes exactly two arguments. 
 
@@ -134,7 +134,7 @@ cdef extern from "Python.h":
     # *string is set to NULL, a memory exception is set, and -1 is
     # returned.
 
-    object PyBytes_Format(object format, object args)
+    bytes PyBytes_Format(object format, object args)
     # Return value: New reference.  Return a new string object from
     # format and args. Analogous to format % args. The args argument
     # must be a tuple.
@@ -152,7 +152,7 @@ cdef extern from "Python.h":
     # reference-count-neutral; you own the object after the call if
     # and only if you owned it before the call.)
 
-    object PyBytes_InternFromString(char *v)
+    bytes PyBytes_InternFromString(char *v)
     # Return value: New reference.
     # A combination of PyBytes_FromString() and
     # PyBytes_InternInPlace(), returning either a new string object
