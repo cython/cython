@@ -4906,6 +4906,7 @@ class TryFinallyStatNode(StatNode):
         code.putln(
             "}")
         temps_to_clean_up = code.funcstate.all_free_managed_temps()
+        code.mark_pos(self.finally_clause.pos)
         code.putln(
             "/*finally:*/ {")
         cases_used = []
