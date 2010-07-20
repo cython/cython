@@ -1839,6 +1839,59 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             is_temp = False)
         return ExprNodes.CastNode(node, PyrexTypes.py_object_type)
 
+    Py_type_check_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_bint_type, [
+            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.py_object_type, None)
+            ])
+
+    def _handle_simple_function_isinstance(self, node, pos_args):
+        """Replace isinstance() checks against builtin types by the
+        corresponding C-API call.
+        """
+        if len(pos_args) != 2:
+            return node
+        arg, types = pos_args
+        temp = None
+        if isinstance(types, ExprNodes.TupleNode):
+            types = types.args
+            arg = temp = UtilNodes.ResultRefNode(arg)
+        elif types.type is Builtin.type_type:
+            types = [types]
+        else:
+            return node
+
+        tests = []
+        test_nodes = []
+        env = self.current_env()
+        for test_type_node in types:
+            if not test_type_node.entry:
+                return node
+            entry = env.lookup(test_type_node.entry.name)
+            if not entry or not entry.type or not entry.type.is_builtin_type:
+                return node
+            type_check_function = entry.type.type_check_function(exact=False)
+            if not type_check_function:
+                return node
+            if type_check_function not in tests:
+                tests.append(type_check_function)
+                test_nodes.append(
+                    ExprNodes.PythonCapiCallNode(
+                        test_type_node.pos, type_check_function, self.Py_type_check_func_type,
+                        args = [arg],
+                        is_temp = True,
+                        ))
+
+        def join_with_or(a,b, make_binop_node=ExprNodes.binop_node):
+            or_node = make_binop_node(node.pos, 'or', a, b)
+            or_node.type = PyrexTypes.c_bint_type
+            or_node.is_temp = True
+            return or_node
+
+        test_node = reduce(join_with_or, test_nodes).coerce_to(node.type, env)
+        if temp is not None:
+            test_node = UtilNodes.EvalWithTempExprNode(temp, test_node)
+        return test_node
+
     ### special methods
 
     Pyx_tp_new_func_type = PyrexTypes.CFuncType(
