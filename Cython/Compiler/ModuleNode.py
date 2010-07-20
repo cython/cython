@@ -553,7 +553,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 #endif
 
 #ifndef PySet_CheckExact
-#  define PySet_CheckExact(obj)          (Py_TYPE(obj) == PySet_Type)
+#  define PySet_CheckExact(obj)          (Py_TYPE(obj) == &PySet_Type)
 #endif
 
 #if PY_MAJOR_VERSION >= 3
