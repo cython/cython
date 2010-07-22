@@ -44,6 +44,8 @@ class build_ext(_build_ext.build_ext):
          "put generated C files in temp directory"),
         ('pyrex-gen-pxi', None,
             "generate .pxi file for public declarations"),
+        ('pyrex-directives=', None,
+            "compiler directive overrides"),
         ])
 
     boolean_options.extend([
@@ -56,6 +58,7 @@ class build_ext(_build_ext.build_ext):
         self.pyrex_create_listing = 0
         self.pyrex_line_directives = 0
         self.pyrex_include_dirs = None
+        self.pyrex_directives = None
         self.pyrex_c_in_temp = 0
         self.pyrex_gen_pxi = 0
 
@@ -66,6 +69,8 @@ class build_ext(_build_ext.build_ext):
         elif type(self.pyrex_include_dirs) is StringType:
             self.pyrex_include_dirs = \
                 self.pyrex_include_dirs.split(os.pathsep)
+        if self.pyrex_directives is None:
+            self.pyrex_directives = {}
     # finalize_options ()
 
     def build_extensions(self):
@@ -139,6 +144,13 @@ class build_ext(_build_ext.build_ext):
             if not i in includes:
                 includes.append(i)
 
+        # Set up Cython compiler directives:
+        #    1. Start with the command line option.
+        #    2. Add in any (unique) entries from the extension
+        #         pyrex_directives (if Cython.Distutils.extension is used).
+        directives = self.pyrex_directives
+        directives.update(extension.pyrex_directives)
+
         # Set the target_ext to '.c'.  Cython will change this to '.cpp' if
         # needed.
         if cplus:
@@ -189,6 +201,7 @@ class build_ext(_build_ext.build_ext):
                 options = CompilationOptions(pyrex_default_options, 
                     use_listing_file = create_listing,
                     include_path = includes,
+                    compiler_directives = directives,
                     output_file = target,
                     cplus = cplus,
                     emit_linenums = line_directives,
