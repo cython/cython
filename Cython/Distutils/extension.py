@@ -19,6 +19,8 @@ class Extension(_Extension.Extension):
     """pyrex_include_dirs : [string]
         list of directories to search for Pyrex header files (.pxd) (in
         Unix form for portability)
+    pyrex_directives : {string:value}
+        dict of compiler directives
     pyrex_create_listing_file : boolean
         write pyrex error messages to a listing (.lis) file.
     pyrex_line_directivess : boolean
@@ -48,6 +50,7 @@ class Extension(_Extension.Extension):
             depends = None,
             language = None,
             pyrex_include_dirs = None,
+            pyrex_directives = None,
             pyrex_create_listing = 0,
             pyrex_line_directives = 0,
             pyrex_cplus = 0,
@@ -72,6 +75,7 @@ class Extension(_Extension.Extension):
             **kw)
 
         self.pyrex_include_dirs = pyrex_include_dirs or []
+        self.pyrex_directives = pyrex_directives or {}
         self.pyrex_create_listing = pyrex_create_listing
         self.pyrex_line_directives = pyrex_line_directives
         self.pyrex_cplus = pyrex_cplus
