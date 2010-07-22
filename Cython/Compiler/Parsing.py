@@ -2216,34 +2216,36 @@ def p_c_enum_definition(s, pos, ctx):
     s.expect(':')
     items = []
     if s.sy != 'NEWLINE':
-        p_c_enum_line(s, items)
+        p_c_enum_line(s, ctx, items)
     else:
         s.next() # 'NEWLINE'
         s.expect_indent()
         while s.sy not in ('DEDENT', 'EOF'):
-            p_c_enum_line(s, items)
+            p_c_enum_line(s, ctx, items)
         s.expect_dedent()
     return Nodes.CEnumDefNode(
         pos, name = name, cname = cname, items = items,
         typedef_flag = ctx.typedef_flag, visibility = ctx.visibility,
         in_pxd = ctx.level == 'module_pxd')
 
-def p_c_enum_line(s, items):
+def p_c_enum_line(s, ctx, items):
     if s.sy != 'pass':
-        p_c_enum_item(s, items)
+        p_c_enum_item(s, ctx, items)
         while s.sy == ',':
             s.next()
             if s.sy in ('NEWLINE', 'EOF'):
                 break
-            p_c_enum_item(s, items)
+            p_c_enum_item(s, ctx, items)
     else:
         s.next()
     s.expect_newline("Syntax error in enum item list")
 
-def p_c_enum_item(s, items):
+def p_c_enum_item(s, ctx, items):
     pos = s.position()
     name = p_ident(s)
     cname = p_opt_cname(s)
+    if cname is None and ctx.namespace is not None:
+        cname = ctx.namespace + "::" + name
     value = None
     if s.sy == '=':
         s.next()
