@@ -149,7 +149,8 @@ class build_ext(_build_ext.build_ext):
         #    2. Add in any (unique) entries from the extension
         #         pyrex_directives (if Cython.Distutils.extension is used).
         directives = self.pyrex_directives
-        directives.update(extension.pyrex_directives)
+        if hasattr(extension, "pyrex_directives"):
+            directives.update(extension.pyrex_directives)
 
         # Set the target_ext to '.c'.  Cython will change this to '.cpp' if
         # needed.
