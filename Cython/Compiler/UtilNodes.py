@@ -119,22 +119,36 @@ class ResultRefNode(AtomicExprNode):
     subexprs = []
     lhs_of_first_assignment = False
 
-    def __init__(self, expression):
-        self.pos = expression.pos
+    def __init__(self, expression=None, pos=None, type=None):
         self.expression = expression
-        if hasattr(expression, "type"):
-            self.type = expression.type
+        self.pos = None
+        if expression is not None:
+            self.pos = expression.pos
+            if hasattr(expression, "type"):
+                self.type = expression.type
+        if pos is not None:
+            self.pos = pos
+        if type is not None:
+            self.type = type
+        assert self.pos is not None
 
     def analyse_types(self, env):
-        self.type = self.expression.type
+        if self.expression is not None:
+            self.type = self.expression.type
 
     def infer_type(self, env):
-        return self.expression.infer_type(env)
+        if self.expression is not None:
+            return self.expression.infer_type(env)
 
     def is_simple(self):
         return True
 
     def result(self):
+        try:
+            return self.result_code
+        except AttributeError:
+            if self.expression is not None:
+                self.result_code = self.expression.result()
         return self.result_code
 
     def generate_evaluation_code(self, code):
@@ -258,9 +272,6 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
     # body.  Requires a ResultRefNode that it sets up to refer to its
     # own temp result.  The StatNode must assign a value to the result
     # node, which then becomes the result of this node.
-    #
-    # This can only be used in/after type analysis.
-    #
 
     subexprs = []
     child_attrs = ['body']
@@ -271,6 +282,12 @@ class TempResultFromStatNode(ExprNodes.ExprNode):
         self.body = body
         self.type = result_ref.type
         self.is_temp = 1
+
+    def analyse_declarations(self, env):
+        self.body.analyse_declarations(env)
+    
+    def analyse_types(self, env):
+        self.body.analyse_expressions(env)
 
     def generate_result_code(self, code):
         self.result_ref.result_code = self.result()

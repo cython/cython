@@ -70,7 +70,7 @@ class ControlFlow(object):
         if current is None:
             return (None, None)
         state = current._get_pos_state_local(item, pos)
-        while state is None and current.incoming is not None:
+        while (state is None or state == (None, None)) and current.incoming is not None:
             current = current.incoming
             state = current._get_pos_state_local(item, pos)
         if state is None:

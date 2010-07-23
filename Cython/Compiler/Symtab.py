@@ -20,6 +20,7 @@ try:
     set
 except NameError:
     from sets import Set as set
+import copy
 
 possible_identifier = re.compile(ur"(?![0-9])\w+$", re.U).match
 nice_identifier = re.compile('^[a-zA-Z0-0_]+$').match
@@ -146,6 +147,7 @@ class Entry(object):
     is_arg = 0
     is_local = 0
     in_closure = 0
+    from_closure = 0
     is_declared_generic = 0
     is_readonly = 0
     func_cname = None
@@ -207,6 +209,7 @@ class Scope(object):
     # return_type       PyrexType or None  Return type of function owning scope
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
+    # is_closure_scope  boolean
     # is_cpp_class_scope  boolean          Is a C++ class scope
     # is_property_scope boolean            Is a extension type property scope
     # scope_prefix      string             Disambiguator for C names
@@ -218,12 +221,15 @@ class Scope(object):
     # nogil             boolean            In a nogil section
     # directives       dict                Helper variable for the recursive
     #                                      analysis, contains directive values.
+    # is_internal       boolean            Is only used internally (simpler setup)
 
     is_py_class_scope = 0
     is_c_class_scope = 0
+    is_closure_scope = 0
     is_cpp_class_scope = 0
     is_property_scope = 0
     is_module_scope = 0
+    is_internal = 0
     scope_prefix = ""
     in_cinclude = 0
     nogil = 0
@@ -260,9 +266,11 @@ class Scope(object):
         self.obj_to_entry = {}
         self.pystring_entries = []
         self.buffer_entries = []
+        self.lambda_defs = []
         self.control_flow = ControlFlow.LinearControlFlow()
         self.return_type = None
-        
+        self.id_counters = {}
+
     def start_branching(self, pos):
         self.control_flow = self.control_flow.start_branch(pos)
     
@@ -290,7 +298,19 @@ class Scope(object):
         prefix = "%s%s_" % (Naming.pyrex_prefix, name)
         return self.mangle(prefix)
         #return self.parent_scope.mangle(prefix, self.name)
-    
+
+    def next_id(self, name=None):
+        # Return a cname fragment that is unique for this scope.
+        try:
+            count = self.id_counters[name] + 1
+        except KeyError:
+            count = 0
+        self.id_counters[name] = count
+        if name:
+            return '%s%d' % (name, count)
+        else:
+            return '%d' % count
+
     def global_scope(self):
         # Return the module-level scope containing this scope.
         return self.outer_scope.global_scope()
@@ -482,7 +502,7 @@ class Scope(object):
                 error(pos, "C++ class must have a default constructor to be stack allocated")
         entry = self.declare(name, cname, type, pos, visibility)
         entry.is_variable = 1
-        self.control_flow.set_state((), (name, 'initalized'), False)
+        self.control_flow.set_state((), (name, 'initialized'), False)
         return entry
         
     def declare_builtin(self, name, pos):
@@ -498,7 +518,20 @@ class Scope(object):
         entry.signature = pyfunction_signature
         self.pyfunc_entries.append(entry)
         return entry
-    
+
+    def declare_lambda_function(self, func_cname, pos):
+        # Add an entry for an anonymous Python function.
+        entry = self.declare_var(None, py_object_type, pos,
+                                 cname=func_cname, visibility='private')
+        entry.name = EncodedString(func_cname)
+        entry.func_cname = func_cname
+        entry.signature = pyfunction_signature
+        self.pyfunc_entries.append(entry)
+        return entry
+
+    def add_lambda_def(self, def_node):
+        self.lambda_defs.append(def_node)
+
     def register_pyfunction(self, entry):
         self.pyfunc_entries.append(entry)
     
@@ -577,14 +610,7 @@ class Scope(object):
         # Look up name in this scope or an enclosing one.
         # Return None if not found.
         return (self.lookup_here(name)
-            or (self.outer_scope and self.outer_scope.lookup_from_inner(name))
-            or None)
-
-    def lookup_from_inner(self, name):
-        # Look up name in this scope or an enclosing one.
-        # This is only called from enclosing scopes.
-        return (self.lookup_here(name)
-            or (self.outer_scope and self.outer_scope.lookup_from_inner(name))
+            or (self.outer_scope and self.outer_scope.lookup(name))
             or None)
 
     def lookup_here(self, name):
@@ -1157,7 +1183,7 @@ class ModuleScope(Scope):
         from TypeInference import PyObjectTypeInferer
         PyObjectTypeInferer().infer_types(self)
         
-class LocalScope(Scope):    
+class LocalScope(Scope):
 
     def __init__(self, name, outer_scope, parent_scope = None):
         if parent_scope is None:
@@ -1202,31 +1228,94 @@ class LocalScope(Scope):
             entry = self.global_scope().lookup_target(name)
             self.entries[name] = entry
         
-    def lookup_from_inner(self, name):
-        entry = self.lookup_here(name)
-        if entry:
-            entry.in_closure = 1
-            return entry
-        else:
-            return (self.outer_scope and self.outer_scope.lookup_from_inner(name)) or None
+    def lookup(self, name):
+        # Look up name in this scope or an enclosing one.
+        # Return None if not found.
+        entry = Scope.lookup(self, name)
+        if entry is not None:
+            if entry.scope is not self and entry.scope.is_closure_scope:
+                # The actual c fragment for the different scopes differs 
+                # on the outside and inside, so we make a new entry
+                entry.in_closure = True
+                # Would it be better to declare_var here?
+                inner_entry = Entry(entry.name, entry.cname, entry.type, entry.pos)
+                inner_entry.scope = self
+                inner_entry.is_variable = True
+                inner_entry.outer_entry = entry
+                inner_entry.from_closure = True
+                self.entries[name] = inner_entry
+                return inner_entry
+        return entry
             
-    def mangle_closure_cnames(self, scope_var):
+    def mangle_closure_cnames(self, outer_scope_cname):
         for entry in self.entries.values():
-            if entry.in_closure:
-                if not hasattr(entry, 'orig_cname'):
-                    entry.orig_cname = entry.cname
-                entry.cname = scope_var + "->" + entry.cname
-                
+            if entry.from_closure:
+                cname = entry.outer_entry.cname
+                if cname.startswith(Naming.cur_scope_cname):
+                    cname = cname[len(Naming.cur_scope_cname)+2:]
+                entry.cname = "%s->%s" % (outer_scope_cname, cname)
+            elif entry.in_closure:
+                entry.original_cname = entry.cname
+                entry.cname = "%s->%s" % (Naming.cur_scope_cname, entry.cname)
 
-class GeneratorLocalScope(LocalScope):
 
-    def mangle_closure_cnames(self, scope_var):
+class GeneratorExpressionScope(LocalScope):
+    """Scope for generator expressions and comprehensions.  As opposed
+    to generators, these can be easily inlined in some cases, so all
+    we really need is a scope that holds the loop variable(s).
+    """
+    def __init__(self, outer_scope):
+        name = outer_scope.global_scope().next_id(Naming.genexpr_id_ref)
+        LocalScope.__init__(self, name, outer_scope)
+        self.directives = outer_scope.directives
+        self.genexp_prefix = "%s%d%s" % (Naming.pyrex_prefix, len(name), name)
+
+    def mangle(self, prefix, name):
+        return '%s%s' % (self.genexp_prefix, self.outer_scope.mangle(self, prefix, name))
+
+    def declare_var(self, name, type, pos,
+                    cname = None, visibility = 'private', is_cdef = True):
+        if type is unspecified_type:
+            # if the outer scope defines a type for this variable, inherit it
+            outer_entry = self.outer_scope.lookup(name)
+            if outer_entry and outer_entry.is_variable:
+                type = outer_entry.type # may still be 'unspecified_type' !
+        # the outer scope needs to generate code for the variable, but
+        # this scope must hold its name exclusively
+        cname = '%s%s' % (self.genexp_prefix, self.outer_scope.mangle(Naming.var_prefix, name))
+        entry = self.outer_scope.declare_var(None, type, pos, cname, visibility, is_cdef = True)
+        self.entries[name] = entry
+        return entry
+
+
+class ClosureScope(LocalScope):
+
+    is_closure_scope = True
+
+    def __init__(self, name, scope_name, outer_scope):
+        LocalScope.__init__(self, name, outer_scope)
+        self.closure_cname = "%s%s" % (Naming.closure_scope_prefix, scope_name)
+
+#    def mangle_closure_cnames(self, scope_var):
 #        for entry in self.entries.values() + self.temp_entries:
 #            entry.in_closure = 1
-        LocalScope.mangle_closure_cnames(self, scope_var)
+#        LocalScope.mangle_closure_cnames(self, scope_var)
     
 #    def mangle(self, prefix, name):
-#        return "%s->%s" % (Naming.scope_obj_cname, name)
+#        return "%s->%s" % (self.cur_scope_cname, name)
+#        return "%s->%s" % (self.closure_cname, name)
+
+    def declare_pyfunction(self, name, pos):
+        # Add an entry for a Python function.
+        entry = self.lookup_here(name)
+        if entry and not entry.type.is_cfunction:
+            # This is legal Python, but for now may produce invalid C.
+            error(pos, "'%s' already declared" % name)
+        entry = self.declare_var(name, py_object_type, pos)
+        entry.signature = pyfunction_signature
+        self.pyfunc_entries.append(entry)
+        return entry
+
 
 class StructOrUnionScope(Scope):
     #  Namespace of a C struct or union.

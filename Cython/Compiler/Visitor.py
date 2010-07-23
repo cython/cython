@@ -46,7 +46,7 @@ class BasicVisitor(object):
                 if self.access_path:
                     print self.access_path[-1][0].pos
                     print self.access_path[-1][0].__dict__
-            raise RuntimeError("Visitor does not accept object: %s" % obj)
+            raise RuntimeError("Visitor %r does not accept object: %s" % (self, obj))
         #print "Caching " + cls.__name__
         return handler_method
 
@@ -260,7 +260,7 @@ class VisitorTransform(TreeVisitor):
 
 class CythonTransform(VisitorTransform):
     """
-    Certain common conventions and utilitues for Cython transforms.
+    Certain common conventions and utilities for Cython transforms.
 
      - Sets up the context of the pipeline in self.context
      - Tracks directives in effect in self.current_directives
@@ -352,7 +352,9 @@ class RecursiveNodeReplacer(VisitorTransform):
         else:
             return node
 
-
+def recursively_replace_node(tree, old_node, new_node):
+    replace_in = RecursiveNodeReplacer(old_node, new_node)
+    replace_in(tree)
 
 
 # Utils
