@@ -74,7 +74,9 @@ __doc__ = br"""
 if sys.version_info >= (2,6):
     # this doesn't work well in older Python versions
     __doc__ += u"""\
-    >>> wide_literal == u'\U00101234'    # unescaped by Cython
+    >>> expected = u'\U00101234'    # unescaped by Cython
+    >>> if wide_literal == expected: print True
+    ... else: print repr(wide_literal), repr(expected)
     True
 """
 
