@@ -3,7 +3,20 @@ def smoketest():
     >>> smoketest()
     [0, 4, 8]
     """
-    print [x*2 for x in range(5) if x % 2 == 0]
+    x = 'abc'
+    result = [x*2 for x in range(5) if x % 2 == 0]
+    assert x != 'abc'
+    return result
+
+def list_genexp():
+    """
+    >>> list_genexp()
+    [0, 4, 8]
+    """
+    x = 'abc'
+    result = list(x*2 for x in range(5) if x % 2 == 0)
+    assert x == 'abc'
+    return result
 
 def int_runvar():
     """
@@ -33,3 +46,20 @@ def iterdict():
     l = [d[key] for key in d]
     l.sort()
     print l
+
+listcomp_result = [ i*i for i in range(5) ]
+def global_listcomp():
+    """
+    >>> [ i*i for i in range(5) ]
+    [0, 1, 4, 9, 16]
+    >>> listcomp_result
+    [0, 1, 4, 9, 16]
+    """
+
+def nested_result():
+    """
+    >>> nested_result()
+    [[], [-1], [-1, 0], [-1, 0, 1]]
+    """
+    result = [[a-1 for a in range(b)] for b in range(4)]
+    return result

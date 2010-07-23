@@ -177,6 +177,7 @@ class PostParse(CythonTransform):
     def visit_ModuleNode(self, node):
         self.scope_type = 'module'
         self.scope_node = node
+        self.lambda_counter = 1
         self.visitchildren(node)
         return node
 
@@ -196,6 +197,25 @@ class PostParse(CythonTransform):
 
     def visit_CStructOrUnionDefNode(self, node):
         return self.visit_scope(node, 'struct')
+
+    def visit_LambdaNode(self, node):
+        # unpack a lambda expression into the corresponding DefNode
+        if self.scope_type != 'function':
+            error(node.pos,
+                  "lambda functions are currently only supported in functions")
+        lambda_id = self.lambda_counter
+        self.lambda_counter += 1
+        node.lambda_name = EncodedString(u'lambda%d' % lambda_id)
+
+        body = Nodes.ReturnStatNode(
+            node.result_expr.pos, value = node.result_expr)
+        node.def_node = Nodes.DefNode(
+            node.pos, name=node.name, lambda_name=node.lambda_name,
+            args=node.args, star_arg=node.star_arg,
+            starstar_arg=node.starstar_arg,
+            body=body)
+        self.visitchildren(node)
+        return node
 
     # cdef variables
     def handle_bufferdefaults(self, decl):
@@ -983,7 +1003,12 @@ property NAME:
         self.visitchildren(node)
         self.seen_vars_stack.pop()
         return node
-    
+
+    def visit_LambdaNode(self, node):
+        node.analyse_declarations(self.env_stack[-1])
+        self.visitchildren(node)
+        return node
+
     def visit_ClassDefNode(self, node):
         self.env_stack.append(node.scope)
         self.visitchildren(node)
@@ -1010,6 +1035,23 @@ property NAME:
         return node
 
     def visit_ComprehensionNode(self, node):
+        self.visitchildren(node)
+        node.analyse_declarations(self.env_stack[-1])
+        return node
+
+    def visit_ScopedExprNode(self, node):
+        node.analyse_declarations(self.env_stack[-1])
+        if self.seen_vars_stack:
+            self.seen_vars_stack.append(set(self.seen_vars_stack[-1]))
+        else:
+            self.seen_vars_stack.append(set())
+        self.env_stack.append(node.expr_scope)
+        self.visitchildren(node)
+        self.env_stack.pop()
+        self.seen_vars_stack.pop()
+        return node
+
+    def visit_TempResultFromStatNode(self, node):
         self.visitchildren(node)
         node.analyse_declarations(self.env_stack[-1])
         return node
@@ -1110,6 +1152,13 @@ class AnalyseExpressionsTransform(CythonTransform):
         node.body.analyse_expressions(node.local_scope)
         self.visitchildren(node)
         return node
+
+    def visit_ScopedExprNode(self, node):
+        if node.expr_scope is not None:
+            node.expr_scope.infer_types()
+            node.analyse_scoped_expressions(node.expr_scope)
+        self.visitchildren(node)
+        return node
         
 class AlignFunctionDefinitions(CythonTransform):
     """
@@ -1175,15 +1224,26 @@ class MarkClosureVisitor(CythonTransform):
         node.needs_closure = self.needs_closure
         self.needs_closure = True
         return node
-        
+    
+    def visit_CFuncDefNode(self, node):
+        self.visit_FuncDefNode(node)
+        if node.needs_closure:
+            error(node.pos, "closures inside cdef functions not yet supported")
+        return node
+
+    def visit_LambdaNode(self, node):
+        self.needs_closure = False
+        self.visitchildren(node)
+        node.needs_closure = self.needs_closure
+        self.needs_closure = True
+        return node
+
     def visit_ClassDefNode(self, node):
         self.visitchildren(node)
         self.needs_closure = True
         return node
-        
-    def visit_YieldNode(self, node):
-        self.needs_closure = True
-        
+
+
 class CreateClosureClasses(CythonTransform):
     # Output closure classes in module scope for all functions
     # that need it. 
@@ -1194,21 +1254,39 @@ class CreateClosureClasses(CythonTransform):
         return node
 
     def create_class_from_scope(self, node, target_module_scope):
-        as_name = temp_name_handle("closure")
+        as_name = "%s%s" % (Naming.closure_class_prefix, node.entry.cname)
         func_scope = node.local_scope
 
         entry = target_module_scope.declare_c_class(name = as_name,
             pos = node.pos, defining = True, implementing = True)
+        func_scope.scope_class = entry
         class_scope = entry.type.scope
-        for entry in func_scope.entries.values():
+        class_scope.is_internal = True
+        if node.entry.scope.is_closure_scope:
             class_scope.declare_var(pos=node.pos,
+                                    name=Naming.outer_scope_cname, # this could conflict?
+                                    cname=Naming.outer_scope_cname,
+                                    type=node.entry.scope.scope_class.type,
+                                    is_cdef=True)
+        entries = func_scope.entries.items()
+        entries.sort()
+        for name, entry in entries:
+            # This is wasteful--we should do this later when we know
+            # which vars are actually being used inside...
+            #
+            # Also, this happens before type inference and type
+            # analysis, so the entries created here may end up having
+            # incorrect or at least unspecified types.
+            class_scope.declare_var(pos=entry.pos,
                                     name=entry.name,
                                     cname=entry.cname,
                                     type=entry.type,
                                     is_cdef=True)
             
     def visit_FuncDefNode(self, node):
-        self.create_class_from_scope(node, self.module_scope)
+        if node.needs_closure:
+            self.create_class_from_scope(node, self.module_scope)
+            self.visitchildren(node)
         return node
 
 

@@ -995,8 +995,9 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
         if not function.is_name:
             return False
         entry = self.current_env().lookup(function.name)
-        if not entry or getattr(entry, 'scope', None) is not Builtin.builtin_scope:
+        if entry and getattr(entry, 'scope', None) is not Builtin.builtin_scope:
             return False
+        # if entry is None, it's at least an undeclared name, so likely builtin
         return True
 
     def _dispatch_to_handler(self, node, function, args, kwargs=None):
@@ -1035,58 +1036,316 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
 
     # specific handlers for simple call nodes
 
-    def _handle_simple_function_set(self, node, pos_args):
-        """Replace set([a,b,...]) by a literal set {a,b,...} and
-        set([ x for ... ]) by a literal { x for ... }.
-        """
-        arg_count = len(pos_args)
-        if arg_count == 0:
-            return ExprNodes.SetNode(node.pos, args=[],
-                                     type=Builtin.set_type)
-        if arg_count > 1:
-            return node
-        iterable = pos_args[0]
-        if isinstance(iterable, (ExprNodes.ListNode, ExprNodes.TupleNode)):
-            return ExprNodes.SetNode(node.pos, args=iterable.args)
-        elif isinstance(iterable, ExprNodes.ComprehensionNode) and \
-                 isinstance(iterable.target, (ExprNodes.ListNode,
-                                              ExprNodes.SetNode)):
-            iterable.target = ExprNodes.SetNode(node.pos, args=[])
-            iterable.pos = node.pos
-            return iterable
-        else:
-            return node
-
-    def _handle_simple_function_dict(self, node, pos_args):
-        """Replace dict([ (a,b) for ... ]) by a literal { a:b for ... }.
-        """
-        if len(pos_args) != 1:
-            return node
-        arg = pos_args[0]
-        if isinstance(arg, ExprNodes.ComprehensionNode) and \
-               isinstance(arg.target, (ExprNodes.ListNode,
-                                       ExprNodes.SetNode)):
-            append_node = arg.append
-            if isinstance(append_node.expr, (ExprNodes.TupleNode, ExprNodes.ListNode)) and \
-                   len(append_node.expr.args) == 2:
-                key_node, value_node = append_node.expr.args
-                target_node = ExprNodes.DictNode(
-                    pos=arg.target.pos, key_value_pairs=[])
-                new_append_node = ExprNodes.DictComprehensionAppendNode(
-                    append_node.pos, target=target_node,
-                    key_expr=key_node, value_expr=value_node)
-                arg.target = target_node
-                arg.type = target_node.type
-                replace_in = Visitor.RecursiveNodeReplacer(append_node, new_append_node)
-                return replace_in(arg)
-        return node
-
     def _handle_simple_function_float(self, node, pos_args):
         if len(pos_args) == 0:
             return ExprNodes.FloatNode(node.pos, value='0.0')
         if len(pos_args) > 1:
             self._error_wrong_arg_count('float', node, pos_args, 1)
         return node
+
+    class YieldNodeCollector(Visitor.TreeVisitor):
+        def __init__(self):
+            Visitor.TreeVisitor.__init__(self)
+            self.yield_stat_nodes = {}
+            self.yield_nodes = []
+
+        visit_Node = Visitor.TreeVisitor.visitchildren
+        def visit_YieldExprNode(self, node):
+            self.yield_nodes.append(node)
+            self.visitchildren(node)
+
+        def visit_ExprStatNode(self, node):
+            self.visitchildren(node)
+            if node.expr in self.yield_nodes:
+                self.yield_stat_nodes[node.expr] = node
+
+        def __visit_GeneratorExpressionNode(self, node):
+            # enable when we support generic generator expressions
+            #
+            # everything below this node is out of scope
+            pass
+
+    def _find_single_yield_expression(self, node):
+        collector = self.YieldNodeCollector()
+        collector.visitchildren(node)
+        if len(collector.yield_nodes) != 1:
+            return None, None
+        yield_node = collector.yield_nodes[0]
+        try:
+            return (yield_node.arg, collector.yield_stat_nodes[yield_node])
+        except KeyError:
+            return None, None
+
+    def _handle_simple_function_all(self, node, pos_args):
+        """Transform
+
+        _result = all(x for L in LL for x in L)
+
+        into
+
+        for L in LL:
+            for x in L:
+                if not x:
+                    _result = False
+                    break
+            else:
+                continue
+            break
+        else:
+            _result = True
+        """
+        return self._transform_any_all(node, pos_args, False)
+
+    def _handle_simple_function_any(self, node, pos_args):
+        """Transform
+
+        _result = any(x for L in LL for x in L)
+
+        into
+
+        for L in LL:
+            for x in L:
+                if x:
+                    _result = True
+                    break
+            else:
+                continue
+            break
+        else:
+            _result = False
+        """
+        return self._transform_any_all(node, pos_args, True)
+
+    def _transform_any_all(self, node, pos_args, is_any):
+        if len(pos_args) != 1:
+            return node
+        if not isinstance(pos_args[0], ExprNodes.GeneratorExpressionNode):
+            return node
+        gen_expr_node = pos_args[0]
+        loop_node = gen_expr_node.loop
+        yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+        if yield_expression is None:
+            return node
+
+        if is_any:
+            condition = yield_expression
+        else:
+            condition = ExprNodes.NotNode(yield_expression.pos, operand = yield_expression)
+
+        result_ref = UtilNodes.ResultRefNode(pos=node.pos, type=PyrexTypes.c_bint_type)
+        test_node = Nodes.IfStatNode(
+            yield_expression.pos,
+            else_clause = None,
+            if_clauses = [ Nodes.IfClauseNode(
+                yield_expression.pos,
+                condition = condition,
+                body = Nodes.StatListNode(
+                    node.pos,
+                    stats = [
+                        Nodes.SingleAssignmentNode(
+                            node.pos,
+                            lhs = result_ref,
+                            rhs = ExprNodes.BoolNode(yield_expression.pos, value = is_any,
+                                                     constant_result = is_any)),
+                        Nodes.BreakStatNode(node.pos)
+                        ])) ]
+            )
+        loop = loop_node
+        while isinstance(loop.body, Nodes.LoopNode):
+            next_loop = loop.body
+            loop.body = Nodes.StatListNode(loop.body.pos, stats = [
+                loop.body,
+                Nodes.BreakStatNode(yield_expression.pos)
+                ])
+            next_loop.else_clause = Nodes.ContinueStatNode(yield_expression.pos)
+            loop = next_loop
+        loop_node.else_clause = Nodes.SingleAssignmentNode(
+            node.pos,
+            lhs = result_ref,
+            rhs = ExprNodes.BoolNode(yield_expression.pos, value = not is_any,
+                                     constant_result = not is_any))
+
+        Visitor.recursively_replace_node(loop_node, yield_stat_node, test_node)
+
+        return ExprNodes.InlinedGeneratorExpressionNode(
+            gen_expr_node.pos, loop = loop_node, result_node = result_ref,
+            expr_scope = gen_expr_node.expr_scope, orig_func = is_any and 'any' or 'all')
+
+    def _handle_simple_function_sum(self, node, pos_args):
+        """Transform sum(genexpr) into an equivalent inlined aggregation loop.
+        """
+        if len(pos_args) not in (1,2):
+            return node
+        if not isinstance(pos_args[0], ExprNodes.GeneratorExpressionNode):
+            return node
+        gen_expr_node = pos_args[0]
+        loop_node = gen_expr_node.loop
+
+        yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+        if yield_expression is None:
+            return node
+
+        if len(pos_args) == 1:
+            start = ExprNodes.IntNode(node.pos, value='0', constant_result=0)
+        else:
+            start = pos_args[1]
+
+        result_ref = UtilNodes.ResultRefNode(pos=node.pos, type=PyrexTypes.py_object_type)
+        add_node = Nodes.SingleAssignmentNode(
+            yield_expression.pos,
+            lhs = result_ref,
+            rhs = ExprNodes.binop_node(node.pos, '+', result_ref, yield_expression)
+            )
+
+        Visitor.recursively_replace_node(loop_node, yield_stat_node, add_node)
+
+        exec_code = Nodes.StatListNode(
+            node.pos,
+            stats = [
+                Nodes.SingleAssignmentNode(
+                    start.pos,
+                    lhs = UtilNodes.ResultRefNode(pos=node.pos, expression=result_ref),
+                    rhs = start,
+                    first = True),
+                loop_node
+                ])
+
+        return ExprNodes.InlinedGeneratorExpressionNode(
+            gen_expr_node.pos, loop = exec_code, result_node = result_ref,
+            expr_scope = gen_expr_node.expr_scope, orig_func = 'sum')
+
+    def _handle_simple_function_min(self, node, pos_args):
+        return self._optimise_min_max(node, pos_args, '<')
+
+    def _handle_simple_function_max(self, node, pos_args):
+        return self._optimise_min_max(node, pos_args, '>')
+
+    def _optimise_min_max(self, node, args, operator):
+        """Replace min(a,b,...) and max(a,b,...) by explicit comparison code.
+        """
+        if len(args) <= 1:
+            # leave this to Python
+            return node
+
+        cascaded_nodes = map(UtilNodes.ResultRefNode, args[1:])
+
+        last_result = args[0]
+        for arg_node in cascaded_nodes:
+            result_ref = UtilNodes.ResultRefNode(last_result)
+            last_result = ExprNodes.CondExprNode(
+                arg_node.pos,
+                true_val = arg_node,
+                false_val = result_ref,
+                test = ExprNodes.PrimaryCmpNode(
+                    arg_node.pos,
+                    operand1 = arg_node,
+                    operator = operator,
+                    operand2 = result_ref,
+                    )
+                )
+            last_result = UtilNodes.EvalWithTempExprNode(result_ref, last_result)
+
+        for ref_node in cascaded_nodes[::-1]:
+            last_result = UtilNodes.EvalWithTempExprNode(ref_node, last_result)
+
+        return last_result
+
+    def _DISABLED_handle_simple_function_tuple(self, node, pos_args):
+        if len(pos_args) == 0:
+            return ExprNodes.TupleNode(node.pos, args=[], constant_result=())
+        # This is a bit special - for iterables (including genexps),
+        # Python actually overallocates and resizes a newly created
+        # tuple incrementally while reading items, which we can't
+        # easily do without explicit node support. Instead, we read
+        # the items into a list and then copy them into a tuple of the
+        # final size.  This takes up to twice as much memory, but will
+        # have to do until we have real support for genexps.
+        result = self._transform_list_set_genexpr(node, pos_args, ExprNodes.ListNode)
+        if result is not node:
+            return ExprNodes.AsTupleNode(node.pos, arg=result)
+        return node
+
+    def _handle_simple_function_list(self, node, pos_args):
+        if len(pos_args) == 0:
+            return ExprNodes.ListNode(node.pos, args=[], constant_result=[])
+        return self._transform_list_set_genexpr(node, pos_args, ExprNodes.ListNode)
+
+    def _handle_simple_function_set(self, node, pos_args):
+        if len(pos_args) == 0:
+            return ExprNodes.SetNode(node.pos, args=[], constant_result=set())
+        return self._transform_list_set_genexpr(node, pos_args, ExprNodes.SetNode)
+
+    def _transform_list_set_genexpr(self, node, pos_args, container_node_class):
+        """Replace set(genexpr) and list(genexpr) by a literal comprehension.
+        """
+        if len(pos_args) > 1:
+            return node
+        if not isinstance(pos_args[0], ExprNodes.GeneratorExpressionNode):
+            return node
+        gen_expr_node = pos_args[0]
+        loop_node = gen_expr_node.loop
+
+        yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+        if yield_expression is None:
+            return node
+
+        target_node = container_node_class(node.pos, args=[])
+        append_node = ExprNodes.ComprehensionAppendNode(
+            yield_expression.pos,
+            expr = yield_expression,
+            target = ExprNodes.CloneNode(target_node))
+
+        Visitor.recursively_replace_node(loop_node, yield_stat_node, append_node)
+
+        setcomp = ExprNodes.ComprehensionNode(
+            node.pos,
+            has_local_scope = True,
+            expr_scope = gen_expr_node.expr_scope,
+            loop = loop_node,
+            append = append_node,
+            target = target_node)
+        append_node.target = setcomp
+        return setcomp
+
+    def _handle_simple_function_dict(self, node, pos_args):
+        """Replace dict( (a,b) for ... ) by a literal { a:b for ... }.
+        """
+        if len(pos_args) == 0:
+            return ExprNodes.DictNode(node.pos, key_value_pairs=[], constant_result={})
+        if len(pos_args) > 1:
+            return node
+        if not isinstance(pos_args[0], ExprNodes.GeneratorExpressionNode):
+            return node
+        gen_expr_node = pos_args[0]
+        loop_node = gen_expr_node.loop
+
+        yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+        if yield_expression is None:
+            return node
+
+        if not isinstance(yield_expression, ExprNodes.TupleNode):
+            return node
+        if len(yield_expression.args) != 2:
+            return node
+
+        target_node = ExprNodes.DictNode(node.pos, key_value_pairs=[])
+        append_node = ExprNodes.DictComprehensionAppendNode(
+            yield_expression.pos,
+            key_expr = yield_expression.args[0],
+            value_expr = yield_expression.args[1],
+            target = ExprNodes.CloneNode(target_node))
+
+        Visitor.recursively_replace_node(loop_node, yield_stat_node, append_node)
+
+        dictcomp = ExprNodes.ComprehensionNode(
+            node.pos,
+            has_local_scope = True,
+            expr_scope = gen_expr_node.expr_scope,
+            loop = loop_node,
+            append = append_node,
+            target = target_node)
+        append_node.target = dictcomp
+        return dictcomp
 
     # specific handlers for general call nodes
 
@@ -1579,6 +1838,59 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             args = pos_args,
             is_temp = False)
         return ExprNodes.CastNode(node, PyrexTypes.py_object_type)
+
+    Py_type_check_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.c_bint_type, [
+            PyrexTypes.CFuncTypeArg("arg", PyrexTypes.py_object_type, None)
+            ])
+
+    def _handle_simple_function_isinstance(self, node, pos_args):
+        """Replace isinstance() checks against builtin types by the
+        corresponding C-API call.
+        """
+        if len(pos_args) != 2:
+            return node
+        arg, types = pos_args
+        temp = None
+        if isinstance(types, ExprNodes.TupleNode):
+            types = types.args
+            arg = temp = UtilNodes.ResultRefNode(arg)
+        elif types.type is Builtin.type_type:
+            types = [types]
+        else:
+            return node
+
+        tests = []
+        test_nodes = []
+        env = self.current_env()
+        for test_type_node in types:
+            if not test_type_node.entry:
+                return node
+            entry = env.lookup(test_type_node.entry.name)
+            if not entry or not entry.type or not entry.type.is_builtin_type:
+                return node
+            type_check_function = entry.type.type_check_function(exact=False)
+            if not type_check_function:
+                return node
+            if type_check_function not in tests:
+                tests.append(type_check_function)
+                test_nodes.append(
+                    ExprNodes.PythonCapiCallNode(
+                        test_type_node.pos, type_check_function, self.Py_type_check_func_type,
+                        args = [arg],
+                        is_temp = True,
+                        ))
+
+        def join_with_or(a,b, make_binop_node=ExprNodes.binop_node):
+            or_node = make_binop_node(node.pos, 'or', a, b)
+            or_node.type = PyrexTypes.c_bint_type
+            or_node.is_temp = True
+            return or_node
+
+        test_node = reduce(join_with_or, test_nodes).coerce_to(node.type, env)
+        if temp is not None:
+            test_node = UtilNodes.EvalWithTempExprNode(temp, test_node)
+        return test_node
 
     ### special methods
 
@@ -2549,9 +2861,9 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         for child_result in children.itervalues():
             if type(child_result) is list:
                 for child in child_result:
-                    if child.constant_result is not_a_constant:
+                    if getattr(child, 'constant_result', not_a_constant) is not_a_constant:
                         return
-            elif child_result.constant_result is not_a_constant:
+            elif getattr(child_result, 'constant_result', not_a_constant) is not_a_constant:
                 return
 
         # now try to calculate the real constant value

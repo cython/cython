@@ -407,6 +407,7 @@ class GlobalState(object):
 
     code_layout = [
         'h_code',
+        'filename_table',
         'utility_code_proto_before_types',
         'numeric_typedefs',          # Let these detailed individual parts stay!,
         'complex_type_declarations', # as the proper solution is to make a full DAG...
@@ -425,7 +426,6 @@ class GlobalState(object):
         'cleanup_globals',
         'cleanup_module',
         'main_method',
-        'filename_table',
         'utility_code_def',
         'end'
     ]
@@ -484,11 +484,6 @@ class GlobalState(object):
             code.write('\n#line 1 "cython_utility"\n')
         code.putln("")
         code.putln("/* Runtime support code */")
-        code.putln("")
-        code.putln("static void %s(void) {" % Naming.fileinit_cname)
-        code.putln("%s = %s;" % 
-            (Naming.filetable_cname, Naming.filenames_cname))
-        code.putln("}")
 
     def finalize_main_c_code(self):
         self.close_global_decls()

@@ -416,20 +416,27 @@ class BuiltinObjectType(PyObjectType):
         
     def subtype_of(self, type):
         return type.is_pyobject and self.assignable_from(type)
-        
-    def type_test_code(self, arg, notnone=False):
-        type_name = self.name
-        if type_name == 'str':
-            type_check = 'PyString_CheckExact'
-        elif type_name == 'set':
-            type_check = 'PyAnySet_CheckExact'
-        elif type_name == 'frozenset':
-            type_check = 'PyFrozenSet_CheckExact'
-        elif type_name == 'bool':
-            type_check = 'PyBool_Check'
-        else:
-            type_check = 'Py%s_CheckExact' % type_name.capitalize()
 
+    def type_check_function(self, exact=True):
+        type_name = self.name
+        if type_name == 'bool':
+            return 'PyBool_Check'
+
+        if type_name == 'str':
+            type_check = 'PyString_Check'
+        elif type_name == 'frozenset':
+            type_check = 'PyFrozenSet_Check'
+        else:
+            type_check = 'Py%s_Check' % type_name.capitalize()
+        if exact:
+            type_check += 'Exact'
+        return type_check
+
+    def isinstance_code(self, arg):
+        return '%s(%s)' % (self.type_check_function(exact=False), arg)
+
+    def type_test_code(self, arg, notnone=False):
+        type_check = self.type_check_function(exact=True)
         check = 'likely(%s(%s))' % (type_check, arg)
         if not notnone:
             check = check + ('||((%s) == Py_None)' % arg)
