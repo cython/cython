@@ -2239,7 +2239,7 @@ class DefNode(FuncDefNode):
             code.put(
                 "static PyMethodDef %s = " % 
                     self.entry.pymethdef_cname)
-            code.put_pymethoddef(self.entry, ";")
+            code.put_pymethoddef(self.entry, ";", allow_skip=False)
         code.putln("%s {" % header)
 
     def generate_argument_declarations(self, env, code):

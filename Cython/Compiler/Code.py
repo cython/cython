@@ -1230,7 +1230,14 @@ class CCodeWriter(object):
         #    code = "((PyObject*)%s)" % code
         self.put_init_to_py_none(code, entry.type, nanny)
 
-    def put_pymethoddef(self, entry, term):
+    def put_pymethoddef(self, entry, term, allow_skip=True):
+        if entry.is_special or entry.name in ['__getitem__', '__setslice__', '__delslice__', '__setitem__', '__delitem__', '__getattr__', '__getattribute__', '__setattr__', '__delattr__']:
+            if entry.name not in ['__next__', '__getreadbuffer__', '__getwritebuffer__', '__getsegcount__', '__getcharbuffer__', '__getbuffer__', '__releasebuffer__']:
+                # Python's typeobject.c will automatically fill in our slot
+                # in add_operators() (called by PyType_Ready) with a value
+                # that's better than ours.
+                if allow_skip:
+                    return
         from TypeSlots import method_coexist
         if entry.doc:
             doc_code = entry.doc_cname
