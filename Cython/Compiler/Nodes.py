@@ -2647,10 +2647,10 @@ class DefNode(FuncDefNode):
                     if arg.kw_only:
                         # handled separately below
                         continue
-                    code.putln('if (kw_args > %d) {' % num_required_args)
+                    code.putln('if (kw_args > 0) {')
                     code.putln('PyObject* value = PyDict_GetItem(%s, %s);' % (
                         Naming.kwds_cname, pystring_cname))
-                    code.putln('if (unlikely(value)) { values[%d] = value; kw_args--; }' % i)
+                    code.putln('if (value) { values[%d] = value; kw_args--; }' % i)
                     code.putln('}')
                 else:
                     num_required_args -= 1
