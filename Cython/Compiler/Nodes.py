@@ -2593,26 +2593,21 @@ class DefNode(FuncDefNode):
         all_args = tuple(positional_args) + tuple(kw_only_args)
         max_args = len(all_args)
 
-        default_args = []
-        for i, arg in enumerate(all_args):
-            if arg.default and arg.type.is_pyobject:
-                default_value = arg.calculate_default_value_code(code)
-                if arg.type is not PyrexTypes.py_object_type:
-                    default_value = "(PyObject*)"+default_value
-                default_args.append((i, default_value))
-
         code.putln("Py_ssize_t kw_args = PyDict_Size(%s);" %
                    Naming.kwds_cname)
         # the 'values' array collects borrowed references to arguments
         # before doing any type coercion etc.
         code.putln("PyObject* values[%d] = {%s};" % (
             max_args, ','.join('0'*max_args)))
-        # it looks funny to separate the init-to-0 from setting the
-        # default value, but C89 needs this
-        for i, default_value in default_args:
-            code.putln('values[%d] = %s;' % (i, default_value))
 
-        # parse the tuple and check that it's not too long
+        # assign borrowed Python default values to the values array,
+        # so that they can be overwritten by received arguments below
+        for i, arg in enumerate(all_args):
+            if arg.default and arg.type.is_pyobject:
+                default_value = arg.calculate_default_value_code(code)
+                code.putln('values[%d] = %s;' % (i, arg.type.as_pyobject(default_value)))
+
+        # parse the args tuple and check that it's not too long
         code.putln('switch (PyTuple_GET_SIZE(%s)) {' % Naming.args_cname)
         if self.star_arg:
             code.putln('default:')
