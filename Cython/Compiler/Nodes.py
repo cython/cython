@@ -2603,10 +2603,12 @@ class DefNode(FuncDefNode):
 
         code.putln("Py_ssize_t kw_args = PyDict_Size(%s);" %
                    Naming.kwds_cname)
-        # it looks funny to separate the init-to-0 from setting the
-        # default value, but C89 needs this
+        # the 'values' array collects borrowed references to arguments
+        # before doing any type coercion etc.
         code.putln("PyObject* values[%d] = {%s};" % (
             max_args, ','.join('0'*max_args)))
+        # it looks funny to separate the init-to-0 from setting the
+        # default value, but C89 needs this
         for i, default_value in default_args:
             code.putln('values[%d] = %s;' % (i, default_value))
 
