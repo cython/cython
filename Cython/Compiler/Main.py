@@ -138,7 +138,7 @@ class Context(object):
             _align_function_definitions,
             MarkClosureVisitor(self),
             ConstantFolding(),
-#            FlattenInListTransform(),
+            FlattenInListTransform(),
             WithTransform(self),
             DecoratorTransform(self),
             AnalyseDeclarationsTransform(self),
@@ -153,7 +153,7 @@ class Context(object):
             _check_c_declarations,
             AnalyseExpressionsTransform(self),
             OptimizeBuiltinCalls(self),  ## Necessary?
-#            IterationTransform(),
+            IterationTransform(),
             SwitchTransform(),
 #            DropRefcountingTransform(),
 #            FinalOptimizePhase(self),
