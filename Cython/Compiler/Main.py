@@ -138,7 +138,7 @@ class Context(object):
             _align_function_definitions,
             MarkClosureVisitor(self),
             ConstantFolding(),
-            FlattenInListTransform(),
+#            FlattenInListTransform(),
             WithTransform(self),
             DecoratorTransform(self),
             AnalyseDeclarationsTransform(self),
