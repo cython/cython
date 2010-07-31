@@ -138,7 +138,7 @@ class Context(object):
             _align_function_definitions,
             MarkClosureVisitor(self),
             ConstantFolding(),
- #           FlattenInListTransform(),
+#            FlattenInListTransform(),
             WithTransform(self),
             DecoratorTransform(self),
             AnalyseDeclarationsTransform(self),
@@ -148,7 +148,7 @@ class Context(object):
             EarlyReplaceBuiltinCalls(self),  ## Necessary?
             MarkAssignments(self),
             MarkOverflowingArithmetic(self),
-#            TransformBuiltinMethods(self),
+            TransformBuiltinMethods(self),
             IntroduceBufferAuxiliaryVars(self),
             _check_c_declarations,
             AnalyseExpressionsTransform(self),
