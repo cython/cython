@@ -148,11 +148,11 @@ class Context(object):
             EarlyReplaceBuiltinCalls(self),  ## Necessary?
             MarkAssignments(self),
             MarkOverflowingArithmetic(self),
-            TransformBuiltinMethods(self),
+            TransformBuiltinMethods(self),  ## Necessary?
             IntroduceBufferAuxiliaryVars(self),
             _check_c_declarations,
             AnalyseExpressionsTransform(self),
-#            OptimizeBuiltinCalls(self),
+            OptimizeBuiltinCalls(self),  ## Necessary?
 #            IterationTransform(),
             SwitchTransform(),
 #            DropRefcountingTransform(),
