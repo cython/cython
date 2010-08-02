@@ -155,7 +155,7 @@ class Context(object):
             OptimizeBuiltinCalls(self),  ## Necessary?
             IterationTransform(),
             SwitchTransform(),
-#            DropRefcountingTransform(),
+            DropRefcountingTransform(),
 #            FinalOptimizePhase(self),
             GilCheck(),
             #ClearResultCodes(self),
