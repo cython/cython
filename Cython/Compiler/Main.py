@@ -156,7 +156,7 @@ class Context(object):
             IterationTransform(),
             SwitchTransform(),
 #            DropRefcountingTransform(),
-            FinalOptimizePhase(self),
+#            FinalOptimizePhase(self),
             GilCheck(),
             #ClearResultCodes(self),
             #SpecialFunctions(self),
