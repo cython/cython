@@ -135,7 +135,7 @@ def _to_escape_sequence(s):
         # within a character sequence, oct passes much better than hex
         return ''.join(['\\%03o' % ord(c) for c in s])
 
-_c_special = ('\\', '\0', '\n', '\r', '\t', '??', '"')
+_c_special = ('\\', '??', '"') + tuple(map(chr, range(32)))
 _c_special_replacements = [(orig.encode('ASCII'),
                             _to_escape_sequence(orig).encode('ASCII'))
                            for orig in _c_special ]
@@ -171,7 +171,8 @@ def escape_byte_string(s):
     """
     if _has_specials(s):
         for special, replacement in _c_special_replacements:
-            s = s.replace(special, replacement)
+            if special in s:
+                s = s.replace(special, replacement)
     try:
         return s.decode("ASCII") # trial decoding: plain ASCII => done
     except UnicodeDecodeError:
