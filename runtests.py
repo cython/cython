@@ -329,8 +329,7 @@ class CythonCompileTestCase(unittest.TestCase):
             use_listing_file = False,
             cplus = self.language == 'cpp',
             generate_pxi = False,
-#            evaluate_tree_assertions = True,
-            evaluate_tree_assertions = False,
+            evaluate_tree_assertions = True,
             )
         cython_compile(source, options=options,
                        full_module_name=module)
