@@ -73,3 +73,17 @@ def test_custom():
     """
     assert isinstance(A(), A)
     return True
+
+def test_nested(x):
+    """
+    >>> test_nested(1)
+    True
+    >>> test_nested(1.5)
+    True
+    >>> test_nested("a")
+    False
+    """
+    cdef object a = (x, None)
+    if isinstance(a[0], (int, float)):
+        return True
+    return False

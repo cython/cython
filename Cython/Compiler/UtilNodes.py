@@ -186,8 +186,8 @@ class LetNodeMixin:
 
     def setup_temp_expr(self, code):
         self.temp_expression.generate_evaluation_code(code)
-        self._result_in_temp = self.temp_expression.result_in_temp()
         self.temp_type = self.temp_expression.type
+        self._result_in_temp = self.temp_expression.result_in_temp()
         if self._result_in_temp:
             self.temp = self.temp_expression.result()
         else:
@@ -195,10 +195,15 @@ class LetNodeMixin:
             self.temp = code.funcstate.allocate_temp(
                 self.temp_type, manage_ref=True)
             code.putln("%s = %s;" % (self.temp, self.temp_expression.result()))
+            self.temp_expression.generate_disposal_code(code)
+            self.temp_expression.free_temps(code)
         self.lazy_temp.result_code = self.temp
 
     def teardown_temp_expr(self, code):
-       if not self._result_in_temp:
+        if self._result_in_temp:
+            self.temp_expression.generate_disposal_code(code)
+            self.temp_expression.free_temps(code)
+        else:
             if self.temp_type.is_pyobject:
                 code.put_decref_clear(self.temp, self.temp_type)
             code.funcstate.release_temp(self.temp)
@@ -226,6 +231,12 @@ class EvalWithTempExprNode(ExprNodes.ExprNode, LetNodeMixin):
         self.temp_expression.analyse_types(env)
         self.subexpression.analyse_types(env)
         self.type = self.subexpression.type
+
+    def free_subexpr_temps(self, code):
+        self.subexpression.free_temps(code)
+
+    def generate_subexpr_disposal_code(self, code):
+        self.subexpression.generate_disposal_code(code)
 
     def generate_evaluation_code(self, code):
         self.setup_temp_expr(code)
