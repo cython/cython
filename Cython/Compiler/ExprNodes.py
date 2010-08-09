@@ -32,7 +32,10 @@ try:
 except NameError:
     from sets import Set as set
 
-class NotConstant(object): pass # just for the name
+class NotConstant(object):
+    def __repr__(self):
+        return "<NOT CONSTANT>"
+
 not_a_constant = NotConstant()
 constant_value_not_set = object()
 
