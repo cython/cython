@@ -155,12 +155,10 @@ class Context(object):
             OptimizeBuiltinCalls(self),  ## Necessary?
             IterationTransform(),
             SwitchTransform(),
-#            DropRefcountingTransform(),
-#            FinalOptimizePhase(self),
+            DropRefcountingTransform(),
+            FinalOptimizePhase(self),
             GilCheck(),
             #ClearResultCodes(self),
-            #SpecialFunctions(self),
-            #CreateClosureClasses(context),
             ]
 
     def create_pyx_pipeline(self, options, result, py=False):
