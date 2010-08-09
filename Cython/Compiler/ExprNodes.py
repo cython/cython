@@ -2592,6 +2592,14 @@ class SliceNode(ExprNode):
 
 class CallNode(ExprNode):
 
+    # allow overriding the default 'may_be_none' behaviour
+    may_return_none = None
+
+    def may_be_none(self):
+        if self.may_return_none is not None:
+            return self.may_return_none
+        return ExprNode.may_be_none(self)
+
     def analyse_as_type_constructor(self, env):
         type = self.function.analyse_as_type(env)
         if type and type.is_struct_or_union:
@@ -2725,12 +2733,14 @@ class SimpleCallNode(CallNode):
                 else:
                     self.type = Builtin.builtin_types[function.entry.name]
                     self.result_ctype = py_object_type
+                self.may_return_none = False
             elif function.is_name and function.type_entry:
                 # We are calling an extension type constructor.  As
                 # long as we do not support __new__(), the result type
                 # is clear
                 self.type = function.type_entry.type
                 self.result_ctype = py_object_type
+                self.may_return_none = False
             else:
                 self.type = py_object_type
             self.is_temp = 1
@@ -2945,6 +2955,12 @@ class PythonCapiFunctionNode(ExprNode):
 class PythonCapiCallNode(SimpleCallNode):
     # Python C-API Function call (only created in transforms)
 
+    # By default, we assume that the call never returns None, as this
+    # is true for most C-API functions in CPython.  If this does not
+    # apply to a call, set the following to True (or None to inherit
+    # the default behaviour).
+    may_return_none = False
+
     def __init__(self, pos, function_name, func_type,
                  utility_code = None, py_name=None, **kwargs):
         self.type = func_type.return_type
@@ -3017,6 +3033,7 @@ class GeneralCallNode(CallNode):
             # as we do not support __new__(), the result type is clear
             self.type = function.type_entry.type
             self.result_ctype = py_object_type
+            self.may_return_none = False
         else:
             self.type = py_object_type
         self.is_temp = 1
@@ -5611,6 +5628,12 @@ class BoolBinopNode(ExprNode):
         type2 = self.operand2.infer_type(env)
         return PyrexTypes.independent_spanning_type(type1, type2)
 
+    def may_be_none(self):
+        if self.operator == 'or':
+            return self.operand2.may_be_none()
+        else:
+            return self.operand1.may_be_none() or self.operand2.may_be_none()
+
     def calculate_constant_result(self):
         if self.operator == 'and':
             self.constant_result = \
@@ -6397,6 +6420,9 @@ class CastNode(CoercionNode):
     def __init__(self, arg, new_type):
         CoercionNode.__init__(self, arg)
         self.type = new_type
+
+    def may_be_none(self):
+        return self.arg.may_be_none()
     
     def calculate_result_code(self):
         return self.arg.result_as(self.type)
@@ -6424,6 +6450,11 @@ class PyTypeTestNode(CoercionNode):
     
     def analyse_types(self, env):
         pass
+
+    def may_be_none(self):
+        if self.notnone:
+            return False
+        return self.arg.may_be_none()
     
     def result_in_temp(self):
         return self.arg.result_in_temp()
