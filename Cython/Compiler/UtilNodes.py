@@ -140,6 +140,15 @@ class ResultRefNode(AtomicExprNode):
         if self.expression is not None:
             return self.expression.infer_type(env)
 
+    def _DISABLED_may_be_none(self):
+        # not sure if this is safe - the expression may not be the
+        # only value that gets assigned
+        if self.expression is not None:
+            return self.expression.may_be_none()
+        if self.type is not None:
+            return self.type.is_pyobject
+        return True # play safe
+
     def is_simple(self):
         return True
 

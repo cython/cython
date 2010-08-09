@@ -1729,11 +1729,13 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "PyObject_GetAttr", self.PyObject_GetAttr2_func_type,
                 args = pos_args,
+                may_return_none = True,
                 is_temp = node.is_temp)
         elif len(pos_args) == 3:
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_GetAttr3", self.PyObject_GetAttr3_func_type,
                 args = pos_args,
+                may_return_none = True,
                 is_temp = node.is_temp,
                 utility_code = Builtin.getattr3_utility_code)
         else:
@@ -1758,6 +1760,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "PyObject_GetIter", self.PyObject_GetIter_func_type,
                 args = pos_args,
+                may_return_none = True,
                 is_temp = node.is_temp)
         elif len(pos_args) == 2:
             return ExprNodes.PythonCapiCallNode(
@@ -1956,6 +1959,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         return ExprNodes.PythonCapiCallNode(
             node.pos, "__Pyx_PyObject_Append", self.PyObject_Append_func_type,
             args = args,
+            may_return_none = True,
             is_temp = node.is_temp,
             utility_code = append_utility_code
             )
@@ -1979,6 +1983,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             return ExprNodes.PythonCapiCallNode(
                 node.pos, "__Pyx_PyObject_Pop", self.PyObject_Pop_func_type,
                 args = args,
+                may_return_none = True,
                 is_temp = node.is_temp,
                 utility_code = pop_utility_code
                 )
@@ -1990,6 +1995,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
                     return ExprNodes.PythonCapiCallNode(
                         node.pos, "__Pyx_PyObject_PopIndex", self.PyObject_PopIndex_func_type,
                         args = args,
+                        may_return_none = True,
                         is_temp = node.is_temp,
                         utility_code = pop_index_utility_code
                         )
@@ -2059,6 +2065,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         return self._substitute_method_call(
             node, "__Pyx_PyDict_GetItemDefault", self.Pyx_PyDict_GetItem_func_type,
             'get', is_unbound_method, args,
+            may_return_none = True,
             utility_code = dict_getitem_default_utility_code)
 
 
@@ -2559,7 +2566,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
     def _substitute_method_call(self, node, name, func_type,
                                 attr_name, is_unbound_method, args=(),
-                                utility_code=None):
+                                utility_code=None,
+                                may_return_none=ExprNodes.PythonCapiCallNode.may_return_none):
         args = list(args)
         if args and not args[0].is_literal:
             self_arg = args[0]
@@ -2576,7 +2584,8 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             node.pos, name, func_type,
             args = args,
             is_temp = node.is_temp,
-            utility_code = utility_code
+            utility_code = utility_code,
+            may_return_none = may_return_none,
             )
 
     def _inject_int_default_argument(self, node, args, arg_index, type, default_value):
@@ -3000,8 +3009,9 @@ class FinalOptimizePhase(Visitor.CythonTransform):
     just before the C code generation phase. 
     
     The optimizations currently implemented in this class are: 
-        - Eliminate None assignment and refcounting for first assignment. 
+        - eliminate None assignment and refcounting for first assignment. 
         - isinstance -> typecheck for cdef types
+        - eliminate checks for None and/or types that became redundant after tree changes
     """
     def visit_SingleAssignmentNode(self, node):
         """Avoid redundant initialisation of local variables before their
@@ -3031,4 +3041,15 @@ class FinalOptimizePhase(Visitor.CythonTransform):
                     node.function.type = node.function.entry.type
                     PyTypeObjectPtr = PyrexTypes.CPtrType(utility_scope.lookup('PyTypeObject').type)
                     node.args[1] = ExprNodes.CastNode(node.args[1], PyTypeObjectPtr)
+        return node
+
+    def visit_PyTypeTestNode(self, node):
+        """Remove tests for alternatively allowed None values from
+        type tests when we know that the argument cannot be None
+        anyway.
+        """
+        self.visitchildren(node)
+        if not node.notnone:
+            if not node.arg.may_be_none():
+                node.notnone = True
         return node
