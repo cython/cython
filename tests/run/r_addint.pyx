@@ -4,8 +4,8 @@ __doc__ = u"""
 
     >>> test(1, 2)
     (1, 2, 3)
-    >>> [ str(f) for f in test(17.3, 88.6) ]
-    ['17.3', '88.6', '105.9']
+    >>> [ repr(f) for f in test(17.25, 88.5) ]
+    ['17.25', '88.5', '105.75']
     >>> test(u'eggs', u'spam')
     (u'eggs', u'spam', u'eggsspam')
 """
