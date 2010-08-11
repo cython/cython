@@ -244,7 +244,9 @@ class CTypedefType(BaseType):
         if self.typedef_is_external:
             if not self.to_py_utility_code:
                 base_type = self.typedef_base_type
-                if base_type.is_int:
+                if type(base_type) is CIntType:
+                    # Various subclasses have special methods
+                    # that should be inherited.
                     self.to_py_utility_code, self.to_py_function = \
                         self._create_utility_code(c_typedef_int_to_py_function,
                                                   '__Pyx_PyInt_to_py_%s')
@@ -263,7 +265,9 @@ class CTypedefType(BaseType):
         if self.typedef_is_external:
             if not self.from_py_utility_code:
                 base_type = self.typedef_base_type
-                if base_type.is_int:
+                if type(base_type) is CIntType:
+                    # Various subclasses have special methods
+                    # that should be inherited.
                     self.from_py_utility_code, self.from_py_function = \
                         self._create_utility_code(c_typedef_int_from_py_function,
                                                   '__Pyx_PyInt_from_py_%s')
@@ -879,7 +883,7 @@ class CBIntType(CIntType):
 
     to_py_function = "__Pyx_PyBool_FromLong"
     from_py_function = "__Pyx_PyObject_IsTrue"
-    exception_check = 0
+    exception_check = 1 # for C++ bool
 
     def __repr__(self):
         return "<CNumericType bint>"
