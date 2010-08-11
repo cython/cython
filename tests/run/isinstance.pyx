@@ -1,5 +1,6 @@
 
 cimport cython
+from cpython.bool cimport bool
 
 cdef class A:
     pass
@@ -33,7 +34,7 @@ def test_optimised():
 
     # Optimized tests.
     assert isinstance(new_type, type)
-    assert isinstance(bool(), bool)
+    assert isinstance(True, bool)
     assert isinstance(int(), int)
     assert isinstance(long(), long)
     assert isinstance(float(), float)
@@ -58,9 +59,8 @@ def test_optimised_tuple():
     >>> test_optimised_tuple()
     True
     """
-    assert isinstance(bool(),  (bool, int, long, float, bytes, str, unicode, tuple, list, dict, set, slice))
-    assert isinstance(int(),   (bool, int, long, float, bytes, str, unicode, tuple, list, dict, set, slice))
-    assert isinstance(list(),  (bool, int, long, float, bytes, str, unicode, tuple, list, dict, set, slice))
+    assert isinstance(int(),   (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice))
+    assert isinstance(list(),  (int, long, float, bytes, str, unicode, tuple, list, dict, set, slice))
     return True
 
 @cython.test_assert_path_exists('//SimpleCallNode//SimpleCallNode')

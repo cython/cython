@@ -4,6 +4,8 @@
 cimport cython
 from cython cimport typeof, infer_types
 
+from cpython cimport bool
+
 ##################################################
 # type inference tests in 'full' mode
 
@@ -48,7 +50,7 @@ def builtin_types():
     d = dict()
     assert typeof(d) == "dict object", typeof(d)
     B = bool()
-    assert typeof(B) == "bool object", typeof(B)
+    assert typeof(B) == "bool", typeof(B)
 
 def slicing():
     """
