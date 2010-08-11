@@ -5,6 +5,9 @@ cdef extern from "Python.h":
     # 7.2.2 Boolean Objects
     ############################################################################
 
+    ctypedef class __builtin__.bool [object PyBoolObject]:
+        pass
+
     # Booleans in Python are implemented as a subclass of
     # integers. There are only two booleans, Py_False and Py_True. As
     # such, the normal creation and deletion functions don't apply to
