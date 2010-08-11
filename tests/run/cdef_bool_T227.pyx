@@ -1,3 +1,5 @@
+from cpython.bool cimport bool
+
 def foo(bool a):
     """
     >>> foo(True)
