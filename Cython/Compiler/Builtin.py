@@ -88,7 +88,11 @@ builtin_types_table = [
 
     ("type",    "PyType_Type",     []),
 
-    ("bool",    "PyBool_Type",     []),
+# This conflicts with the C++ bool type, and unfortunately
+# C++ is too liberal about PyObject* <-> bool conversions, 
+# resulting in unintuitive runtime behavior and segfaults.
+#    ("bool",    "PyBool_Type",     []),
+
     ("int",     "PyInt_Type",      []),
     ("long",    "PyLong_Type",     []),
     ("float",   "PyFloat_Type",    []),
