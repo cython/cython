@@ -571,6 +571,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
   #define PyInt_AsUnsignedLongMask     PyLong_AsUnsignedLongMask
   #define PyInt_AsUnsignedLongLongMask PyLong_AsUnsignedLongLongMask
 #endif
+
+#if PY_MAJOR_VERSION >= 3
+  #define PyBoolObject PyLongObject
+#endif
+
 """)
 
         code.put("""
