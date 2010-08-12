@@ -175,33 +175,6 @@ __doc__ = u"""
     >>> vs0_getitem = vs0.__getitem__
     >>> vs0_getitem('foo')
     VS __getitem__ 0['foo']
-    >>> vs0_getslice = vs0.__getslice__
-    >>> vs0_getslice(13, 42)
-    VS __getslice__ 0 13 42
-    >>> # If you define either setslice or delslice, you get wrapper objects 
-    >>> # for both methods.  (This behavior is unchanged by #561.)
-    >>> ss_setslice = SetSlice().__setslice__
-    >>> ss_setslice(13, 42, 'foo')
-    SetSlice setslice 13 42 'foo'
-    >>> ss_delslice = SetSlice().__delslice__
-    >>> ss_delslice(13, 42)
-    Traceback (most recent call last):
-    ...
-    NotImplementedError: 2-element slice deletion not supported by special_methods_T561.SetSlice
-    >>> ds_setslice = DelSlice().__setslice__
-    >>> ds_setslice(13, 42, 'foo')
-    Traceback (most recent call last):
-    ...
-    NotImplementedError: 2-element slice assignment not supported by special_methods_T561.DelSlice
-    >>> ds_delslice = DelSlice().__delslice__
-    >>> ds_delslice(13, 42)
-    DelSlice delslice 13 42
-    >>> sds_setslice = SetDelSlice().__setslice__
-    >>> sds_setslice(13, 42, 'foo')
-    SetDelSlice setslice 13 42 'foo'
-    >>> sds_delslice = SetDelSlice().__delslice__
-    >>> sds_delslice(13, 42)
-    SetDelSlice delslice 13 42
     >>> vs0_contains = vs0.__contains__
     >>> vs0_contains(vs1)
     VS __contains__ 0 1
@@ -365,6 +338,39 @@ __doc__ = u"""
     Long __long__
 """
 
+# Not tested because there is no way to conditionally compile this for 
+# Python 2. 
+unused = """
+    >>> vs0_getslice = vs0.__getslice__
+    >>> vs0_getslice(13, 42)
+    VS __getslice__ 0 13 42
+    >>> # If you define either setslice or delslice, you get wrapper objects 
+    >>> # for both methods.  (This behavior is unchanged by #561.)
+    >>> ss_setslice = SetSlice().__setslice__
+    >>> ss_setslice(13, 42, 'foo')
+    SetSlice setslice 13 42 'foo'
+    >>> ss_delslice = SetSlice().__delslice__
+    >>> ss_delslice(13, 42)
+    Traceback (most recent call last):
+    ...
+    NotImplementedError: 2-element slice deletion not supported by special_methods_T561.SetSlice
+    >>> ds_setslice = DelSlice().__setslice__
+    >>> ds_setslice(13, 42, 'foo')
+    Traceback (most recent call last):
+    ...
+    NotImplementedError: 2-element slice assignment not supported by special_methods_T561.DelSlice
+    >>> ds_delslice = DelSlice().__delslice__
+    >>> ds_delslice(13, 42)
+    DelSlice delslice 13 42
+    >>> sds_setslice = SetDelSlice().__setslice__
+    >>> sds_setslice(13, 42, 'foo')
+    SetDelSlice setslice 13 42 'foo'
+    >>> sds_delslice = SetDelSlice().__delslice__
+    >>> sds_delslice(13, 42)
+    SetDelSlice delslice 13 42
+"""
+
+
 cdef class VerySpecial:
     cdef readonly int value
 
@@ -491,8 +497,8 @@ cdef class VerySpecial:
     def __getitem__(self, index):
         print "VS __getitem__ %d[%r]" % (self.value, index)
 
-    def __getslice__(self, a, b):
-        print "VS __getslice__ %d %d %d" % (self.value, a, b)
+#    def __getslice__(self, a, b):
+#        print "VS __getslice__ %d %d %d" % (self.value, a, b)
 
     def __contains__(self, other):
         print "VS __contains__ %d %d" % (self.value, other.value)
@@ -528,20 +534,20 @@ cdef class VerySpecial:
     def __get__(self, inst, own):
         print "VS __get__ %d %r %r" % (self.value, inst, own)
 
-cdef class SetSlice:
-    def __setslice__(self, a, b, value):
-        print "SetSlice setslice %d %d %r" % (a, b, value)
-
-cdef class DelSlice:
-    def __delslice__(self, a, b):
-        print "DelSlice delslice %d %d" % (a, b)
-
-cdef class SetDelSlice:
-    def __setslice__(self, a, b, value):
-        print "SetDelSlice setslice %d %d %r" % (a, b, value)
-
-    def __delslice__(self, a, b):
-        print "SetDelSlice delslice %d %d" % (a, b)
+#cdef class SetSlice:
+#    def __setslice__(self, a, b, value):
+#        print "SetSlice setslice %d %d %r" % (a, b, value)
+#
+#cdef class DelSlice:
+#    def __delslice__(self, a, b):
+#        print "DelSlice delslice %d %d" % (a, b)
+#
+#cdef class SetDelSlice:
+#    def __setslice__(self, a, b, value):
+#        print "SetDelSlice setslice %d %d %r" % (a, b, value)
+#
+#    def __delslice__(self, a, b):
+#        print "SetDelSlice delslice %d %d" % (a, b)
 
 cdef class SetItem:
     def __setitem__(self, index, value):
