@@ -83,9 +83,9 @@ def return_range_sum_squares(int N):
     >>> return_range_sum_squares(10)
     285
 
-    >>> sum([i*i for i in range(10000)])
+    >>> print(sum([i*i for i in range(10000)]))
     333283335000
-    >>> return_range_sum_squares(10000)
+    >>> print(return_range_sum_squares(10000))
     333283335000
     """
     return sum(i*i for i in range(N))
@@ -101,9 +101,9 @@ def return_sum_squares(seq):
     >>> return_sum_squares(range(10))
     285
 
-    >>> sum([i*i for i in range(10000)])
+    >>> print(sum([i*i for i in range(10000)]))
     333283335000
-    >>> return_sum_squares(range(10000))
+    >>> print(return_sum_squares(range(10000)))
     333283335000
     """
     return sum(i*i for i in seq)
@@ -119,9 +119,9 @@ def return_sum_squares_start(seq, int start):
     >>> return_sum_squares_start(range(10), -1)
     284
 
-    >>> sum([i*i for i in range(10000)], 9)
+    >>> print(sum([i*i for i in range(10000)], 9))
     333283335009
-    >>> return_sum_squares_start(range(10000), 9)
+    >>> print(return_sum_squares_start(range(10000), 9))
     333283335009
     """
     return sum((i*i for i in seq), start)
@@ -140,9 +140,9 @@ def return_typed_sum_squares_start(seq, int start):
     >>> return_typed_sum_squares_start(range(10), -1)
     284
 
-    >>> sum([i*i for i in range(1000)], 9)
+    >>> print(sum([i*i for i in range(1000)], 9))
     332833509
-    >>> return_typed_sum_squares_start(range(1000), 9)
+    >>> print(return_typed_sum_squares_start(range(1000), 9))
     332833509
     """
     cdef int i
