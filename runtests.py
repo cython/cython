@@ -59,9 +59,15 @@ VER_DEP_MODULES = {
     (2,6) : (operator.lt, lambda x: x in ['run.print_function',
                                           'run.cython3',
                                           ]),
+    # The next line should start (3,); but this is a dictionary, so
+    # we can only have one (3,) key.  Since 2.7 is supposed to be the
+    # last 2.x release, things would have to change drastically for this
+    # to be unsafe...
+    (2,999): (operator.lt, lambda x: x in ['run.special_methods_T561_py3']),
     (3,): (operator.ge, lambda x: x in ['run.non_future_division',
                                         'compile.extsetslice',
-                                        'compile.extdelslice']),
+                                        'compile.extdelslice',
+                                        'run.special_methods_T561_py2']),
 }
 
 INCLUDE_DIRS = [ d for d in os.getenv('INCLUDE', '').split(os.pathsep) if d ]
