@@ -1426,6 +1426,11 @@ def p_except_clause(s):
     exc_value = None
     if s.sy != ':':
         exc_type = p_test(s)
+        # normalise into list of single exception tests
+        if isinstance(exc_type, ExprNodes.TupleNode):
+            exc_type = exc_type.args
+        else:
+            exc_type = [exc_type]
         if s.sy == ',' or (s.sy == 'IDENT' and s.systring == 'as'):
             s.next()
             exc_value = p_test(s)
