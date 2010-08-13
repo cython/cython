@@ -4702,7 +4702,7 @@ class TryExceptStatNode(StatNode):
 class ExceptClauseNode(Node):
     #  Part of try ... except statement.
     #
-    #  pattern        ExprNode
+    #  pattern        [ExprNode]
     #  target         ExprNode or None
     #  body           StatNode
     #  excinfo_target NameNode or None   optional target for exception info
@@ -4732,8 +4732,10 @@ class ExceptClauseNode(Node):
         genv = env.global_scope()
         self.function_name = env.qualified_name
         if self.pattern:
-            self.pattern.analyse_expressions(env)
-            self.pattern = self.pattern.coerce_to_pyobject(env)
+            # normalise/unpack self.pattern into a list
+            for i, pattern in enumerate(self.pattern):
+                pattern.analyse_expressions(env)
+                self.pattern[i] = pattern.coerce_to_pyobject(env)
 
         if self.target:
             self.exc_value = ExprNodes.ExcValueNode(self.pos, env)
@@ -4750,15 +4752,17 @@ class ExceptClauseNode(Node):
     def generate_handling_code(self, code, end_label):
         code.mark_pos(self.pos)
         if self.pattern:
-            self.pattern.generate_evaluation_code(code)
-            
+            exc_tests = []
+            for pattern in self.pattern:
+                pattern.generate_evaluation_code(code)
+                exc_tests.append("PyErr_ExceptionMatches(%s)" % pattern.py_result())
+
             match_flag = code.funcstate.allocate_temp(PyrexTypes.c_int_type, False)
             code.putln(
-                "%s = PyErr_ExceptionMatches(%s);" % (
-                    match_flag,
-                    self.pattern.py_result()))
-            self.pattern.generate_disposal_code(code)
-            self.pattern.free_temps(code)
+                "%s = %s;" % (match_flag, ' || '.join(exc_tests)))
+            for pattern in self.pattern:
+                pattern.generate_disposal_code(code)
+                pattern.free_temps(code)
             code.putln(
                 "if (%s) {" %
                     match_flag)
@@ -4837,7 +4841,8 @@ class ExceptClauseNode(Node):
         
     def annotate(self, code):
         if self.pattern:
-            self.pattern.annotate(code)
+            for pattern in self.pattern:
+                pattern.annotate(code)
         if self.target:
             self.target.annotate(code)
         self.body.annotate(code)
