@@ -7499,12 +7499,12 @@ PyObject *%(binding_cfunc)s_NewEx(PyMethodDef *ml, PyObject *self, PyObject *mod
 	op->func.m_self = self;
 	Py_XINCREF(module);
 	op->func.m_module = module;
-	_PyObject_GC_TRACK(op);
+	PyObject_GC_Track(op);
 	return (PyObject *)op;
 }
 
 static void %(binding_cfunc)s_dealloc(%(binding_cfunc)s_object *m) {
-	_PyObject_GC_UNTRACK(m);
+	PyObject_GC_UnTrack(m);
 	Py_XDECREF(m->func.m_self);
 	Py_XDECREF(m->func.m_module);
     PyObject_GC_Del(m);
