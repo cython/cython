@@ -8,6 +8,9 @@ import PyrexTypes
 import StringEncoding
 import sys
 
+invisible = ['__cinit__', '__dealloc__', '__richcmp__', 
+             '__nonzero__', '__bool__']
+
 class Signature(object):
     #  Method slot signature descriptor.
     #
