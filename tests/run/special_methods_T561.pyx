@@ -525,3 +525,31 @@ cdef class SetDelete:
 cdef class Long:
     def __long__(self):
         print "Long __long__"
+
+cdef class GetAttrGetItemRedirect:
+    """
+    >>> o = GetAttrGetItemRedirect()
+
+    >>> assert o.item == o['item']
+    >>> source, item_value = o.item
+    >>> assert source == 'item', source
+
+    >>> assert o['attr'] == o.attr
+    >>> source, attr_value = o['attr']
+    >>> assert source == 'attr', source
+
+    >>> assert item_value is attr_value, repr((item_value, attr_value))
+    """
+    cdef object obj
+    def __cinit__(self):
+        self.obj = object()
+
+    def __getattr__(self, name):
+        if name == 'item':
+            return self.__getitem__(name)
+        return ('attr', self.obj)
+
+    def __getitem__(self, key):
+        if key == 'attr':
+            return self.__getattr__(key)
+        return ('item', self.obj)
