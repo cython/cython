@@ -2045,7 +2045,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 # unless we let PyType_Ready create the slot wrappers we have
                 # a significant performance hit. (See trac #561.) 
                 for func in entry.type.scope.pyfunc_entries:
-                    if func.is_special and func.doc:
+                    if func.is_special and func.wrapperbase_cname:
                         code.putln("{");
                         code.putln(
                             'PyObject *wrapper = PyObject_GetAttrString((PyObject *)&%s, "%s"); %s' % (

@@ -2111,7 +2111,10 @@ class DefNode(FuncDefNode):
             entry.doc_cname = \
                 Naming.funcdoc_prefix + prefix + name
             if entry.is_special:
-                entry.wrapperbase_cname = Naming.wrapperbase_prefix + prefix + name
+                if entry.name in TypeSlots.invisible or not entry.doc:
+                    entry.wrapperbase_cname = None
+                else:
+                    entry.wrapperbase_cname = Naming.wrapperbase_prefix + prefix + name
         else:
             entry.doc = None
 
@@ -2226,7 +2229,8 @@ class DefNode(FuncDefNode):
         if proto_only:
             return
         if (Options.docstrings and self.entry.doc and
-                not self.entry.scope.is_property_scope):
+                not self.entry.scope.is_property_scope and
+                (not self.entry.is_special or self.entry.wrapperbase_cname)):
             docstr = self.entry.doc
             if docstr.is_unicode:
                 docstr = docstr.utf8encode()
