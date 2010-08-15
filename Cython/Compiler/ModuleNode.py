@@ -2041,6 +2041,29 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "if (PyType_Ready(&%s) < 0) %s" % (
                         typeobj_cname,
                         code.error_goto(entry.pos)))
+                # Fix special method docstrings. This is a bit of a hack, but 
+                # unless we let PyType_Ready create the slot wrappers we have
+                # a significant performance hit. (See trac #561.) 
+                for func in entry.type.scope.pyfunc_entries:
+                    if func.is_special and func.doc:
+                        code.putln("{");
+                        code.putln(
+                            'PyObject *wrapper = PyObject_GetAttrString((PyObject *)&%s, "%s"); %s' % (
+                                typeobj_cname,
+                                func.name,
+                                code.error_goto_if_null('wrapper', entry.pos)));
+                        code.putln(
+                            "if (Py_TYPE(wrapper) == &PyWrapperDescr_Type) {");
+                        code.putln(
+                            "%s = *((PyWrapperDescrObject *)wrapper)->d_base;" % (
+                                func.wrapperbase_cname));
+                        code.putln(
+                            "%s.doc = %s;" % (func.wrapperbase_cname, func.doc_cname));
+                        code.putln(
+                            "((PyWrapperDescrObject *)wrapper)->d_base = &%s;" % (
+                                func.wrapperbase_cname));
+                        code.putln("}");
+                        code.putln("}");
                 if type.vtable_cname:
                     code.putln(
                         "if (__Pyx_SetVtable(%s.tp_dict, %s) < 0) %s" % (

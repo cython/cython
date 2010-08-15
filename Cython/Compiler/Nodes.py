@@ -2110,6 +2110,8 @@ class DefNode(FuncDefNode):
             entry.doc = embed_position(self.pos, self.doc)
             entry.doc_cname = \
                 Naming.funcdoc_prefix + prefix + name
+            if entry.is_special:
+                entry.wrapperbase_cname = Naming.wrapperbase_prefix + prefix + name
         else:
             entry.doc = None
 
@@ -2224,10 +2226,7 @@ class DefNode(FuncDefNode):
         if proto_only:
             return
         if (Options.docstrings and self.entry.doc and
-            (not self.entry.is_special or
-             self.entry.signature.method_flags()) and
-            not self.entry.scope.is_property_scope
-            ):
+                not self.entry.scope.is_property_scope):
             docstr = self.entry.doc
             if docstr.is_unicode:
                 docstr = docstr.utf8encode()
@@ -2235,6 +2234,9 @@ class DefNode(FuncDefNode):
                 'static char %s[] = "%s";' % (
                     self.entry.doc_cname,
                     split_string_literal(escape_byte_string(docstr))))
+            if self.entry.is_special:
+                code.putln(
+                    "struct wrapperbase %s;" % self.entry.wrapperbase_cname)
         if with_pymethdef:
             code.put(
                 "static PyMethodDef %s = " % 
