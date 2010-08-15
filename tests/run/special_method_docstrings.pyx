@@ -6,6 +6,8 @@ cdef class A:
     'A.__len__ docstring'
     >>> A.__add__.__doc__
     'A.__add__ docstring'
+    >>> A.__getattr__.__doc__
+    'A.__getattr__ docstring'
     """
     def __init__(self):
         "A.__init__ docstring"
@@ -13,6 +15,8 @@ cdef class A:
         "A.__len__ docstring"
     def __add__(self, other):
         "A.__add__ docstring"
+    def __getattr__(self, name):
+        "A.__getattr__ docstring"
 
 cdef class B(A):
     """
@@ -22,6 +26,8 @@ cdef class B(A):
     'B.__len__ docstring'
     >>> B.__add__.__doc__
     'A.__add__ docstring'
+    >>> B.__getattr__.__doc__
+    'A.__getattr__ docstring'
     """
     def __len__(self):
         "B.__len__ docstring"
@@ -34,6 +40,8 @@ class C(A):
     'C.__len__ docstring'
     >>> C.__add__.__doc__
     'A.__add__ docstring'
+    >>> C.__getattr__.__doc__
+    'A.__getattr__ docstring'
     """
     def __len__(self):
         "C.__len__ docstring"
