@@ -211,8 +211,8 @@ def m_wide_unicode_literal(Py_UNICODE a):
     0
     >>> import sys
     >>> if sys.maxunicode == 65535:
-    ...     m_wide_unicode_literal(py_wide_unicode_character_surrogate1)
-    ...     m_wide_unicode_literal(py_wide_unicode_character_surrogate2)
+    ...     m_wide_unicode_literal(wide_unicode_character_surrogate1)
+    ...     m_wide_unicode_literal(wide_unicode_character_surrogate2)
     ... else:
     ...     m_wide_unicode_literal(ord(py_wide_unicode_character))
     ...     1
