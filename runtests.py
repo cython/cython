@@ -707,7 +707,7 @@ def refactor_for_py3(distdir, cy3_dir):
     if not os.path.exists(cy3_dir):
         os.makedirs(cy3_dir)
     import distutils.log as dlog
-    dlog.set_threshold(dlog.DEBUG)
+    dlog.set_threshold(dlog.INFO)
     copydir_run_2to3(distdir, cy3_dir, fixer_names=fixers,
                      template = '''
                      global-exclude *
