@@ -71,7 +71,7 @@ __doc__ = br"""
     True
 """
 
-if sys.version_info >= (2,6):
+if sys.version_info >= (2,6,5):
     # this doesn't work well in older Python versions
     __doc__ += u"""\
     >>> expected = u'\U00101234'    # unescaped by Cython
