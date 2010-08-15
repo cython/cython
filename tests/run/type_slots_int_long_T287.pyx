@@ -7,8 +7,6 @@ __doc__ = u"""
 2
 >>> print( "%d" % IntLongB() )
 2
->>> print( "%d" % IntLongC() )
-3
 
 """
 
@@ -23,8 +21,6 @@ def getint(int i):
     2
     >>> getint( IntLongB() )
     2
-    >>> getint( IntLongC() )
-    3
     """
     return i
 
@@ -38,8 +34,6 @@ def getlong(long long i):
     2
     >>> getlong( IntLongB() )
     2
-    >>> getlong( IntLongC() )
-    3
     """
     return <int>i
 
@@ -62,8 +56,3 @@ cdef class IntLongB:
    def __int__(self):
        return 2
    __long__ = __int__
-
-cdef class IntLongC:
-   def __long__(self):
-       return 3
-   __int__ = __long__

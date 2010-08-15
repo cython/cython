@@ -571,6 +571,11 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
   #define PyInt_AsUnsignedLongMask     PyLong_AsUnsignedLongMask
   #define PyInt_AsUnsignedLongLongMask PyLong_AsUnsignedLongLongMask
 #endif
+
+#if PY_MAJOR_VERSION >= 3
+  #define PyBoolObject PyLongObject
+#endif
+
 """)
 
         code.put("""
@@ -932,8 +937,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         self.generate_getitem_int_function(scope, code)
                     if scope.defines_any(["__setitem__", "__delitem__"]):
                         self.generate_ass_subscript_function(scope, code)
+                    if scope.defines_any(["__getslice__", "__setslice__", "__delslice__"]):
+                        warning(self.pos, "__getslice__, __setslice__, and __delslice__ are not supported by Python 3, use __getitem__, __setitem__, and __delitem__ instead", 1)
+                        code.putln("#if PY_MAJOR_VERSION >= 3")
+                        code.putln("#error __getslice__, __setslice__, and __delslice__ not supported in Python 3.")
+                        code.putln("#endif")
                     if scope.defines_any(["__setslice__", "__delslice__"]):
-                        warning(self.pos, "__setslice__ and __delslice__ are not supported by Python 3, use __setitem__ and __getitem__ instead", 1)
                         self.generate_ass_slice_function(scope, code)
                     if scope.defines_any(["__getattr__","__getattribute__"]):
                         self.generate_getattro_function(scope, code)
@@ -1260,9 +1269,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         # Setting and deleting a slice are both done through
         # the ass_slice method, so we dispatch to user's __setslice__
         # or __delslice__, or raise an exception.
-        code.putln("#if PY_MAJOR_VERSION >= 3")
-        code.putln("#error __setslice__ and __delslice__ not supported in Python 3.")
-        code.putln("#endif")
         base_type = scope.parent_type.base_type
         set_entry = scope.lookup_here("__setslice__")
         del_entry = scope.lookup_here("__delslice__")
@@ -2035,6 +2041,29 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     "if (PyType_Ready(&%s) < 0) %s" % (
                         typeobj_cname,
                         code.error_goto(entry.pos)))
+                # Fix special method docstrings. This is a bit of a hack, but 
+                # unless we let PyType_Ready create the slot wrappers we have
+                # a significant performance hit. (See trac #561.) 
+                for func in entry.type.scope.pyfunc_entries:
+                    if func.is_special and func.wrapperbase_cname:
+                        code.putln("{");
+                        code.putln(
+                            'PyObject *wrapper = PyObject_GetAttrString((PyObject *)&%s, "%s"); %s' % (
+                                typeobj_cname,
+                                func.name,
+                                code.error_goto_if_null('wrapper', entry.pos)));
+                        code.putln(
+                            "if (Py_TYPE(wrapper) == &PyWrapperDescr_Type) {");
+                        code.putln(
+                            "%s = *((PyWrapperDescrObject *)wrapper)->d_base;" % (
+                                func.wrapperbase_cname));
+                        code.putln(
+                            "%s.doc = %s;" % (func.wrapperbase_cname, func.doc_cname));
+                        code.putln(
+                            "((PyWrapperDescrObject *)wrapper)->d_base = &%s;" % (
+                                func.wrapperbase_cname));
+                        code.putln("}");
+                        code.putln("}");
                 if type.vtable_cname:
                     code.putln(
                         "if (__Pyx_SetVtable(%s.tp_dict, %s) < 0) %s" % (
