@@ -2048,7 +2048,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                     if func.is_special and func.wrapperbase_cname:
                         code.putln("{");
                         code.putln(
-                            'PyObject *wrapper = PyObject_GetAttrString((PyObject *)&%s, "%s"); %s' % (
+                            'PyObject *wrapper = __Pyx_GetAttrString((PyObject *)&%s, "%s"); %s' % (
                                 typeobj_cname,
                                 func.name,
                                 code.error_goto_if_null('wrapper', entry.pos)));

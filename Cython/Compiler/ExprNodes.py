@@ -7518,7 +7518,7 @@ static PyObject *%(binding_cfunc)s_descr_get(PyObject *func, PyObject *obj, PyOb
 
 int %(binding_cfunc)s_init(void) {
     %(binding_cfunc)s_type = PyCFunction_Type;
-    %(binding_cfunc)s_type.tp_name = "cython_binding_builtin_function_or_method";
+    %(binding_cfunc)s_type.tp_name = __Pyx_NAMESTR("cython_binding_builtin_function_or_method");
     %(binding_cfunc)s_type.tp_dealloc = (destructor)%(binding_cfunc)s_dealloc;
     %(binding_cfunc)s_type.tp_descr_get = %(binding_cfunc)s_descr_get;
     if (PyType_Ready(&%(binding_cfunc)s_type) < 0) {
