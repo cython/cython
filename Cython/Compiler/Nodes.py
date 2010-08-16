@@ -1216,7 +1216,9 @@ class FuncDefNode(StatNode, BlockNode):
         is_releasebuffer_slot = (self.entry.name == "__releasebuffer__" and
                                  self.entry.scope.is_c_class_scope)
         is_buffer_slot = is_getbuffer_slot or is_releasebuffer_slot
-        if is_buffer_slot:
+        is_index_slot = (self.entry.name == "__index__" and
+                         self.entry.scope.is_c_class_scope)
+        if is_buffer_slot or is_index_slot:
             if 'cython_unused' not in self.modifiers:
                 self.modifiers = self.modifiers + ['cython_unused']
         
