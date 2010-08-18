@@ -130,26 +130,23 @@ class SlotDescriptor(object):
     #
     #  slot_name    string           Member name of the slot in the type object
     #  is_initialised_dynamically    Is initialised by code in the module init function
-    #  flag                          Py_TPFLAGS_XXX value indicating presence of slot
     #  py3                           Indicates presence of slot in Python 3
     #  py2                           Indicates presence of slot in Python 2
     #  ifdef                         Full #ifdef string that slot is wrapped in. Using this causes py3, py2 and flags to be ignored.)
 
     def __init__(self, slot_name, dynamic=0,
-                 flag=None, py3=True, py2=True, ifdef=None):
+                 py3=True, py2=True, ifdef=None):
         self.slot_name = slot_name
         self.is_initialised_dynamically = dynamic
-        self.flag = flag
+        self.ifdef = ifdef
         self.py3 = py3
         self.py2 = py2
-        self.ifdef = ifdef
 
     def generate(self, scope, code):
         if self.is_initialised_dynamically:
             value = 0
         else:
             value = self.slot_code(scope)
-        flag = self.flag
         py3 = self.py3
         py2 = self.py2
         if self.ifdef:
@@ -159,8 +156,6 @@ class SlotDescriptor(object):
                 code.putln("#if PY_MAJOR_VERSION < 3")
             elif not py2:
                 code.putln("#if PY_MAJOR_VERSION >= 3")
-            if flag:
-                code.putln("#if (PY_MAJOR_VERSION >= 3) || (Py_TPFLAGS_DEFAULT & %s)" % flag)
         if py3 == '<RESERVED>':
             code.putln("#if PY_MAJOR_VERSION >= 3")
             code.putln("0, /*reserved*/")
@@ -169,7 +164,7 @@ class SlotDescriptor(object):
         code.putln("%s, /*%s*/" % (value, self.slot_name))
         if py3 == '<RESERVED>':
             code.putln("#endif")
-        if flag or (not py3 or not py2) or self.ifdef:
+        if (not py3 or not py2) or self.ifdef:
             code.putln("#endif")
 
     # Some C implementations have trouble statically 
@@ -194,8 +189,8 @@ class FixedSlot(SlotDescriptor):
     #
     #  value        string
     
-    def __init__(self, slot_name, value, flag=None, py3=True, py2=True, ifdef=None):
-        SlotDescriptor.__init__(self, slot_name, flag=flag, py3=py3, py2=py2, ifdef=ifdef)
+    def __init__(self, slot_name, value, py3=True, py2=True, ifdef=None):
+        SlotDescriptor.__init__(self, slot_name, py3=py3, py2=py2, ifdef=ifdef)
         self.value = value
     
     def slot_code(self, scope):
@@ -205,8 +200,8 @@ class FixedSlot(SlotDescriptor):
 class EmptySlot(FixedSlot):
     #  Descriptor for a type slot whose value is always 0.
     
-    def __init__(self, slot_name, flag=None, py3=True, py2=True, ifdef=None):
-        FixedSlot.__init__(self, slot_name, "0", flag=flag, py3=py3, py2=py2, ifdef=ifdef)
+    def __init__(self, slot_name, py3=True, py2=True, ifdef=None):
+        FixedSlot.__init__(self, slot_name, "0", py3=py3, py2=py2, ifdef=ifdef)
 
 
 class MethodSlot(SlotDescriptor):
@@ -217,8 +212,8 @@ class MethodSlot(SlotDescriptor):
     #  alternatives [string]         Alternative list of __xxx__ names for the method
     
     def __init__(self, signature, slot_name, method_name, fallback=None, 
-                 flag=None, py3=True, py2=True, ifdef=None):
-        SlotDescriptor.__init__(self, slot_name, flag=flag, py3=py3, py2=py2, ifdef=ifdef)
+                 py3=True, py2=True, ifdef=None):
+        SlotDescriptor.__init__(self, slot_name, py3=py3, py2=py2, ifdef=ifdef)
         self.signature = signature
         self.slot_name = slot_name
         self.method_name = method_name
@@ -603,7 +598,7 @@ PyNumberMethods = (
     MethodSlot(ibinaryfunc, "nb_inplace_true_divide", "__itruediv__"),
 
     # Added in release 2.5
-    MethodSlot(unaryfunc, "nb_index", "__index__", flag = "Py_TPFLAGS_HAVE_INDEX")
+    MethodSlot(unaryfunc, "nb_index", "__index__", ifdef = "PY_VERSION_HEX >= 0x02050000")
 )
 
 PySequenceMethods = (
