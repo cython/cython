@@ -142,29 +142,32 @@ class SlotDescriptor(object):
         self.py3 = py3
         self.py2 = py2
 
+    def preprocessor_guard_code(self):
+        ifdef = self.ifdef
+        py2 = self.py2
+        py3 = self.py3
+        guard = None
+        if ifdef:
+            guard = ("#if %s" % ifdef)
+        elif not py3 or py3 == '<RESERVED>':
+            guard = ("#if PY_MAJOR_VERSION < 3")
+        elif not py2:
+            guard = ("#if PY_MAJOR_VERSION >= 3")
+        return guard
+
     def generate(self, scope, code):
         if self.is_initialised_dynamically:
             value = 0
         else:
             value = self.slot_code(scope)
-        py3 = self.py3
-        py2 = self.py2
-        if self.ifdef:
-            code.putln("#if %s" % self.ifdef)
-        else:
-            if not py3:
-                code.putln("#if PY_MAJOR_VERSION < 3")
-            elif not py2:
-                code.putln("#if PY_MAJOR_VERSION >= 3")
-        if py3 == '<RESERVED>':
-            code.putln("#if PY_MAJOR_VERSION >= 3")
-            code.putln("0, /*reserved*/")
-            code.putln("#else")
-
+        preprocessor_guard = self.preprocessor_guard_code()
+        if preprocessor_guard:
+            code.putln(preprocessor_guard)
         code.putln("%s, /*%s*/" % (value, self.slot_name))
-        if py3 == '<RESERVED>':
-            code.putln("#endif")
-        if (not py3 or not py2) or self.ifdef:
+        if self.py3 == '<RESERVED>':
+            code.putln("#else")
+            code.putln("0, /*reserved*/")
+        if preprocessor_guard:
             code.putln("#endif")
 
     # Some C implementations have trouble statically 
