@@ -1237,6 +1237,18 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_cached_builtins_decls(lenv, code)
         # ----- Function header
         code.putln("")
+
+        preprocessor_guard = None
+        if self.entry.is_special:
+            slot = TypeSlots.method_name_to_slot.get(self.entry.name)
+            if slot:
+                preprocessor_guard = slot.preprocessor_guard_code()
+                if (self.entry.name == '__long__' and
+                    not self.entry.scope.lookup_here('__int__')):
+                    preprocessor_guard = None
+        if preprocessor_guard:
+            code.putln(preprocessor_guard)
+
         with_pymethdef = self.needs_assignment_synthesis(env, code)
         if self.py_func:
             self.py_func.generate_function_header(code, 
@@ -1464,6 +1476,10 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("return %s;" % Naming.retval_cname)
             
         code.putln("}")
+
+        if preprocessor_guard:
+            code.putln("#endif /*!(%s)*/" % preprocessor_guard)
+
         # ----- Go back and insert temp variable declarations
         tempvardecl_code.put_temp_declarations(code.funcstate)
         # ----- Python version
