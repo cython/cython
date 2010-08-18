@@ -635,7 +635,7 @@ Error and Exception Handling
 
  * Third::
 
-     cdef int spam() except +
+     cdef int spam() except *
 
   * A call to ``PyErr_Occurred`` happens *every* time the function gets called.
 
