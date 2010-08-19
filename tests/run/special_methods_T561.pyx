@@ -203,13 +203,6 @@ __doc__ = u"""
     >>> vs0_str = vs0.__str__
     >>> vs0_str()
     VS __str__ 0
-    >>> # If you define either a __getattr__ or a __getattribute__, you get
-    >>> # only a __getattribute__ method.  (Without #561, defining __getattr__
-    >>> # would give you both __getattr__ and __getattribute__.)
-    >>> g00 = object.__getattribute__(GetAttr(), '__getattr__')
-    Traceback (most recent call last):
-    ...
-    AttributeError: 'special_methods_T561.GetAttr' object has no attribute '__getattr__'
     >>> g01 = object.__getattribute__(GetAttr(), '__getattribute__')
     >>> g01('attr')
     GetAttr getattr 'attr'
