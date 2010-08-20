@@ -748,8 +748,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 self.sue_header_footer(type, kind, type.cname)
             code.putln("")
             if packed:
-                code.putln("#if !defined(__GNUC__)")
-                code.putln("#pragma pack(push, 1)")
+                code.putln("#if defined(__SUNPRO_C)")
+                code.putln("  #pragma pack(1)")
+                code.putln("#elif !defined(__GNUC__)")
+                code.putln("  #pragma pack(push, 1)")
                 code.putln("#endif")
             code.putln(header)
             var_entries = scope.var_entries
@@ -763,8 +765,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         attr.type.declaration_code(attr.cname))
             code.putln(footer)
             if packed:
-                code.putln("#if !defined(__GNUC__)")
-                code.putln("#pragma pack(pop)")
+                code.putln("#if defined(__SUNPRO_C)")
+                code.putln("  #pragma pack()")
+                code.putln("#elif !defined(__GNUC__)")
+                code.putln("  #pragma pack(pop)")
                 code.putln("#endif")
 
     def generate_enum_definition(self, entry, code):
