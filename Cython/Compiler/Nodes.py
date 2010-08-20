@@ -1216,11 +1216,18 @@ class FuncDefNode(StatNode, BlockNode):
         is_releasebuffer_slot = (self.entry.name == "__releasebuffer__" and
                                  self.entry.scope.is_c_class_scope)
         is_buffer_slot = is_getbuffer_slot or is_releasebuffer_slot
-        is_index_slot = (self.entry.name == "__index__" and
-                         self.entry.scope.is_c_class_scope)
-        if is_buffer_slot or is_index_slot:
+        if is_buffer_slot:
             if 'cython_unused' not in self.modifiers:
                 self.modifiers = self.modifiers + ['cython_unused']
+
+        preprocessor_guard = None
+        if self.entry.is_special and not is_buffer_slot:
+            slot = TypeSlots.method_name_to_slot.get(self.entry.name)
+            if slot:
+                preprocessor_guard = slot.preprocessor_guard_code()
+                if (self.entry.name == '__long__' and
+                    not self.entry.scope.lookup_here('__int__')):
+                    preprocessor_guard = None
         
         profile = code.globalstate.directives['profile']
         if profile:
@@ -1238,14 +1245,6 @@ class FuncDefNode(StatNode, BlockNode):
         # ----- Function header
         code.putln("")
 
-        preprocessor_guard = None
-        if self.entry.is_special:
-            slot = TypeSlots.method_name_to_slot.get(self.entry.name)
-            if slot:
-                preprocessor_guard = slot.preprocessor_guard_code()
-                if (self.entry.name == '__long__' and
-                    not self.entry.scope.lookup_here('__int__')):
-                    preprocessor_guard = None
         if preprocessor_guard:
             code.putln(preprocessor_guard)
 
