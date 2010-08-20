@@ -11,6 +11,8 @@
 # special_methods_T561_py3.pyx for tests of the differences between
 # Python 2 and 3.
 
+import sys
+
 __doc__ = u"""
     >>> vs0 = VerySpecial(0)
     VS __init__ 0
@@ -152,9 +154,6 @@ __doc__ = u"""
     >>> vs0_rtruediv = vs0.__rtruediv__
     >>> vs0_rtruediv(vs1)
     VS __truediv__ 1 / 0
-    >>> vs0_index = vs0.__index__
-    >>> vs0_index()
-    VS __index__ 0
     >>> vs0_getitem = vs0.__getitem__
     >>> vs0_getitem('foo')
     VS __getitem__ 0['foo']
@@ -300,6 +299,12 @@ __doc__ = u"""
     >>> Li = Long().__int__
     >>> Li()
     Long __long__
+"""
+if sys.version_info >= (2,5):
+    __doc__ += u"""\
+    >>> vs0_index = vs0.__index__
+    >>> vs0_index()
+    VS __index__ 0
 """
 
 cdef class VerySpecial:
