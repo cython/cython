@@ -1,15 +1,22 @@
 # Makefile for creating our standalone Cython program
 PYTHON=python
 PYVERSION=$(shell $(PYTHON) -c "import sys; print(sys.version[:3])")
-PYPREFIX=$(shell $(PYTHON) -c "import sys; print(sys.prefix)")
+
+INCDIR=$(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_python_inc())")
+LIBDIR1=$(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
+LIBDIR2=$(shell $(PYTHON) -c "from distutils import sysconfig; print(sysconfig.get_config_var('LIBPL'))")
+
+CC=$(shell $(PYTHON) -c "import distutils.sysconfig; print(distutils.sysconfig.get_config_var('CC'))")
+LINKCC=$(shell $(PYTHON) -c "import distutils.sysconfig; print(distutils.sysconfig.get_config_var('LINKCC'))")
 LINKFORSHARED=$(shell $(PYTHON) -c "import distutils.sysconfig; print(distutils.sysconfig.get_config_var('LINKFORSHARED'))")
-INCLUDES=-I$(PYPREFIX)/include/python$(PYVERSION)
+LIBS=$(shell $(PYTHON) -c "import distutils.sysconfig; print(distutils.sysconfig.get_config_var('LIBS'))")
+SYSLIBS= $(shell $(PYTHON) -c "import distutils.sysconfig; print(distutils.sysconfig.get_config_var('SYSLIBS'))")
 
 embedded: embedded.o
-	gcc -o $@ $^ $(LINKFORSHARED) -lpython$(PYVERSION) -lm -lpthread -ldl -lutil -L$(PYPREFIX)/lib
+	$(LINKCC) -o $@ $^ $(LINKFORSHARED) -L$(LIBDIR1) -L$(LIBDIR2) -lpython$(PYVERSION) $(LIBS) $(SYSLIBS)
 
 embedded.o: embedded.c
-	gcc -c $^ $(INCLUDES)
+	$(CC) -c $^ -I$(INCDIR)
 
 embedded.c: embedded.pyx
 	@$(PYTHON) ../../cython.py --embed embedded.pyx
