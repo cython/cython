@@ -34,7 +34,7 @@ master_doc = 'index'
 
 # General substitutions.
 project = 'Cython'
-copyright = '2008, Stefan Behnel, Robert Bradshaw, William Stein, Gary Furnish, Dag Seljebotn, Gabriel Gellner, Greg Ewing'
+copyright = '2010, Stefan Behnel, Robert Bradshaw, Dag Sverre Seljebotn, Greg Ewing, William Stein, Gabriel Gellner, et al.'
 
 # The default replacements for |version| and |release|, also used in various
 # other places throughout the built documents.
