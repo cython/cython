@@ -29,7 +29,7 @@ highlight_language = 'cython'
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['ipython_console_highlighting', 'sphinx.ext.pngmath', 'sphinx.ext.todo']
+extensions = ['ipython_console_highlighting', 'cython_highlighting', 'sphinx.ext.pngmath', 'sphinx.ext.todo']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -42,15 +42,15 @@ master_doc = 'index'
 
 # General substitutions.
 project = 'Cython'
-copyright = '2009, Stefan Behnel, Robert Bradshaw, Grew Ewing, Gabriel Gellner, Dag Seljebotn, William Stein, et al.'
+copyright = '2010, Stefan Behnel, Robert Bradshaw, Dag Sverre Seljebotn, Greg Ewing, William Stein, Gabriel Gellner, et al.'
 
 # The default replacements for |version| and |release|, also used in various
 # other places throughout the built documents.
 #
 # The short X.Y version.
-version = '0.12'
+version = '0.13'
 # The full version, including alpha/beta/rc tags.
-release = '0.12'
+release = '0.13'
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:

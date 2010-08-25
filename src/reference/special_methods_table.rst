@@ -1,3 +1,5 @@
+.. _special_methods_table:
+
 Special Methods Table
 ---------------------
 

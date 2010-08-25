@@ -7,9 +7,3 @@ syntax: glob
 syntax: regexp
 ^build/
 ^_build/
-
-
-
-
-
-

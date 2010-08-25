@@ -3,7 +3,7 @@
 .. _extension_types:
 
 ***************
-Extention Types
+Extension Types
 ***************
 
 * Normal Python as well as extension type classes can be defined.
@@ -165,7 +165,7 @@ Special Methods
     #. There are substantial differences in some behavior.
     #. Some Cython special methods have no Python counter-part.
 
-* See the :doc:`special_methods_table` for the many that are available.
+* See the :ref:`special_methods_table` for the many that are available.
 
 
 Declaration
@@ -338,7 +338,7 @@ Forward Declarations
 Extension Types and None
 ========================
 
-* Parameters and C-variables declared as an Extention type, may take the value of ``None``.
+* Parameters and C-variables declared as an Extension type, may take the value of ``None``.
 * This is analogous to the way a C-pointer can take the value of ``NULL``.
 
 .. note::
