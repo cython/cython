@@ -9,7 +9,7 @@ Wrapping C++ Classes in Cython
 Overview
 =========
 
-Cython v0.13 introduces native support for most of the C++ language. This means that the previous tricks that were used to wrap C++ classes (as described in http://wiki.cython.org/WrappingCPlusPlus_ForCython012AndLower) are no longer useful. 
+Cython v0.13 introduces native support for most of the C++ language. This means that the previous tricks that were used to wrap C++ classes (as described in http://wiki.cython.org/WrappingCPlusPlus_ForCython012AndLower) are no longer needed. 
 
 Wrapping C++ classes with Cython is now much more straightforward. This document describe in details the new way of wrapping C++ code.
 

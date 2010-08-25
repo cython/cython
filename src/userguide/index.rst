@@ -1,4 +1,4 @@
-Old Cython Users Guide
+Cython Users Guide
 ======================
 
 Contents:
