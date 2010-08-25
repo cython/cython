@@ -165,7 +165,7 @@ Special Methods
     #. There are substantial differences in some behavior.
     #. Some Cython special methods have no Python counter-part.
 
-* See the :doc:`special_methods_table` for the many that are available.
+* See the :ref:`special_methods_table` for the many that are available.
 
 
 Declaration
