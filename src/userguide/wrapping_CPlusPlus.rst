@@ -3,7 +3,7 @@
 .. _wrapping-cplusplus:
 
 ********************************
-Wrapping C++ Classes in Cython
+Using C++ in Cython
 ********************************
 
 Overview
