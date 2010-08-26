@@ -5279,6 +5279,28 @@ class BinopNode(ExprNode):
         self.type = PyrexTypes.error_type
 
 
+class CBinopNode(BinopNode):
+    
+    def analyse_types(self, env):
+        BinopNode.analyse_types(self, env)
+        if self.is_py_operation():
+            self.type = PyrexTypes.error_type
+    
+    def py_operation_function():
+        return ""
+        
+    def calculate_result_code(self):
+        return "(%s %s %s)" % (
+            self.operand1.result(), 
+            self.operator, 
+            self.operand2.result())
+
+
+def c_binop_constructor(operator):
+    def make_binop_node(pos, **operands):
+        return CBinopNode(pos, operator=operator, **operands)
+    return make_binop_node
+
 class NumBinopNode(BinopNode):
     #  Binary operation taking numeric arguments.
     
