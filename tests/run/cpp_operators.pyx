@@ -26,6 +26,7 @@ cdef extern from "cpp_operators_helper.h":
         char* operator|(int)
         char* operator&(int)
         char* operator^(int)
+        char* operator,(int)
 
         char* operator<<(int)
         char* operator>>(int)
@@ -83,6 +84,7 @@ def test_binop():
     binary ^
     binary <<
     binary >>
+    binary COMMA
     """
     cdef TestOps* t = new TestOps()
     out(t[0] + 1)
@@ -97,6 +99,8 @@ def test_binop():
     
     out(t[0] << 1)
     out(t[0] >> 1)
+
+    out(cython.operator.comma(t[0], 1))
     del t
 
 def test_cmp():

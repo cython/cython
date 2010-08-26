@@ -2056,7 +2056,7 @@ def p_c_func_declarator(s, pos, ctx, base, cmethod_flag):
 
 supported_overloaded_operators = cython.set([
     '+', '-', '*', '/', '%', 
-    '++', '--', '~', '|', '&', '^', '<<', '>>',
+    '++', '--', '~', '|', '&', '^', '<<', '>>', ',',
     '==', '!=', '>=', '>', '<=', '<',
     '[]', '()',
 ])
@@ -2102,12 +2102,11 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                 error(s.position(), "Empty declarator")
             name = ""
             cname = None
-        print pos, ctx.__dict__
         if cname is None and ctx.namespace is not None:
             cname = ctx.namespace + "::" + name
         if name == 'operator' and ctx.visibility == 'extern' and nonempty:
             op = s.sy
-            if op in '+-*/<=>!%&|([^~,':
+            if [c in '+-*/<=>!%&|([^~,' for c in op]:
                 s.next()
                 # Handle diphthong operators.
                 if op == '(':
