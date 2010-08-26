@@ -2094,7 +2094,7 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                 error(s.position(), "Declarator should be empty")
             s.next()
             cname = p_opt_cname(s)
-            if name != "operator" and s.sy == '=' and assignable:
+            if name != 'operator' and s.sy == '=' and assignable:
                 s.next()
                 rhs = p_test(s)
         else:
@@ -2102,27 +2102,29 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                 error(s.position(), "Empty declarator")
             name = ""
             cname = None
+        print pos, ctx.__dict__
         if cname is None and ctx.namespace is not None:
             cname = ctx.namespace + "::" + name
-        if name == 'operator' and ctx.visibility == 'extern':
+        if name == 'operator' and ctx.visibility == 'extern' and nonempty:
             op = s.sy
-            s.next()
-            # Handle diphthong operators.
-            if op == '(':
-                s.expect(')')
-                op = '()'
-            elif op == '[':
-                s.expect(']')
-                op = '[]'
-            if op in ['-', '+', '|', '&'] and s.sy == op:
-                op = op*2
+            if op in '+-*/<=>!%&|([^~,':
                 s.next()
-            if s.sy == '=':
-                op += s.sy
-                s.next()
-            if op not in supported_overloaded_operators:
-                s.error("Overloading operator '%s' not yet supported." % op)
-            name = name+op
+                # Handle diphthong operators.
+                if op == '(':
+                    s.expect(')')
+                    op = '()'
+                elif op == '[':
+                    s.expect(']')
+                    op = '[]'
+                if op in ['-', '+', '|', '&'] and s.sy == op:
+                    op = op*2
+                    s.next()
+                if s.sy == '=':
+                    op += s.sy
+                    s.next()
+                if op not in supported_overloaded_operators:
+                    s.error("Overloading operator '%s' not yet supported." % op)
+                name = name+op
         result = Nodes.CNameDeclaratorNode(pos,
             name = name, cname = cname, default = rhs)
     result.calling_convention = calling_convention
