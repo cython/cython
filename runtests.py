@@ -633,12 +633,8 @@ class EmbedTest(unittest.TestCase):
     def setUp(self):
         self.old_dir = os.getcwd()
         os.chdir(self.working_dir)
-        from distutils import sysconfig
-        libdir = sysconfig.get_config_var('LIBDIR')
-        if not os.path.isdir(libdir):
-            libdir = os.path.join(os.path.dirname(sys.executable), '../lib')
         os.system(
-            "make PYTHON='%s' LIBDIR1='%s' clean > /dev/null" % (sys.executable, libdir))
+            "make PYTHON='%s' clean > /dev/null" % sys.executable)
     
     def tearDown(self):
         try:
@@ -649,8 +645,12 @@ class EmbedTest(unittest.TestCase):
         os.chdir(self.old_dir)
         
     def test_embed(self):
+        from distutils import sysconfig
+        libdir = sysconfig.get_config_var('LIBDIR')
+        if not os.path.isdir(libdir):
+            libdir = os.path.join(os.path.dirname(sys.executable), '../lib')
         self.assert_(os.system(
-            "make PYTHON='%s' test > make.output" % sys.executable) == 0)
+            "make PYTHON='%s' LIBDIR1='%s' test > make.output" % (sys.executable, libdir)) == 0)
         try:
             os.remove('make.output')
         except OSError:
