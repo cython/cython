@@ -633,8 +633,12 @@ class EmbedTest(unittest.TestCase):
     def setUp(self):
         self.old_dir = os.getcwd()
         os.chdir(self.working_dir)
+        from distutils import sysconfig
+        libdir = sysconfig.get_config_var('LIBDIR')
+        if not os.path.isdir(libdir):
+            libdir = os.path.join(os.path.dirname(sys.executable), '../lib')
         os.system(
-            "make PYTHON='%s' clean > /dev/null" % sys.executable)
+            "make PYTHON='%s' LIBDIR1='%s' clean > /dev/null" % (sys.executable, libdir))
     
     def tearDown(self):
         try:
