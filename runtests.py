@@ -646,9 +646,15 @@ class EmbedTest(unittest.TestCase):
         
     def test_embed(self):
         from distutils import sysconfig
+        libname = sysconfig.get_config_var('LIBRARY')
         libdir = sysconfig.get_config_var('LIBDIR')
-        if not os.path.isdir(libdir):
-            libdir = os.path.join(os.path.dirname(sys.executable), '../lib')
+        if not os.path.isdir(libdir) or libname not in os.listdir(libdir):
+            libdir = os.path.join(os.path.dirname(sys.executable), '..', 'lib')
+            if not os.path.isdir(libdir) or libname not in os.listdir(libdir):
+                libdir = os.path.join(libdir, 'python%d.%d' % sys.version_info[:2], 'config')
+                if not os.path.isdir(libdir) or libname not in os.listdir(libdir):
+                    # report the error for the original directory
+                    libdir = sysconfig.get_config_var('LIBDIR')
         self.assert_(os.system(
             "make PYTHON='%s' LIBDIR1='%s' test > make.output" % (sys.executable, libdir)) == 0)
         try:
