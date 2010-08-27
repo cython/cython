@@ -233,7 +233,7 @@ class CTypedefType(BaseType):
 
     def _create_utility_code(self, template_utility_code,
                              template_function_name):
-        type_name = self.typedef_cname.replace(" ","_")
+        type_name = self.typedef_cname.replace(" ","_").replace("::","__")
         utility_code = template_utility_code.specialize(
             type     = self.typedef_cname,
             TypeName = type_name)
