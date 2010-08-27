@@ -2102,7 +2102,7 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
                 error(s.position(), "Empty declarator")
             name = ""
             cname = None
-        if cname is None and ctx.namespace is not None:
+        if cname is None and ctx.namespace is not None and nonempty:
             cname = ctx.namespace + "::" + name
         if name == 'operator' and ctx.visibility == 'extern' and nonempty:
             op = s.sy
