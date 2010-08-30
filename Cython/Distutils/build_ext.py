@@ -193,7 +193,7 @@ class build_ext(_build_ext.build_ext):
 
         for source in pyrex_sources:
             target = pyrex_targets[source]
-            depends = [source] + extension.depends
+            depends = [source] + list(extension.depends or ())
             rebuild = self.force or newer_group(depends, target, 'newer')
             if not rebuild and newest_dependency is not None:
                 rebuild = newer(newest_dependency, target)
