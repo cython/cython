@@ -90,15 +90,16 @@ class IterationTransform(Visitor.VisitorTransform):
                 node, dict_obj=iterator, keys=True, values=False)
 
         # C array (slice) iteration?
+        plain_iterator = iterator
         if isinstance(iterator, ExprNodes.CoerceToPyTypeNode):
-            iterator = iterator.arg
-        if isinstance(iterator, ExprNodes.SliceIndexNode) and \
-               (iterator.base.type.is_array or iterator.base.type.is_ptr):
-            return self._transform_carray_iteration(node, iterator)
-        elif isinstance(iterator, ExprNodes.IndexNode) and \
-               isinstance(iterator.index, (ExprNodes.SliceNode, ExprNodes.CoerceFromPyTypeNode)) and \
-               (iterator.base.type.is_array or iterator.base.type.is_ptr):
-            return self._transform_carray_iteration(node, iterator)
+            plain_iterator = iterator.arg
+        if isinstance(plain_iterator, ExprNodes.SliceIndexNode) and \
+               (plain_iterator.base.type.is_array or plain_iterator.base.type.is_ptr):
+            return self._transform_carray_iteration(node, plain_iterator)
+        elif isinstance(plain_iterator, ExprNodes.IndexNode) and \
+               isinstance(plain_iterator.index, (ExprNodes.SliceNode, ExprNodes.CoerceFromPyTypeNode)) and \
+               (plain_iterator.base.type.is_array or plain_iterator.base.type.is_ptr):
+            return self._transform_carray_iteration(node, plain_iterator)
         elif iterator.type.is_array:
             return self._transform_carray_iteration(node, iterator)
         elif iterator.type in (Builtin.bytes_type, Builtin.unicode_type):
