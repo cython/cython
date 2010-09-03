@@ -90,7 +90,13 @@ class IterationTransform(Visitor.VisitorTransform):
                 node, dict_obj=iterator, keys=True, values=False)
 
         # C array (slice) iteration?
+        if isinstance(iterator, ExprNodes.CoerceToPyTypeNode):
+            iterator = iterator.arg
         if isinstance(iterator, ExprNodes.SliceIndexNode) and \
+               (iterator.base.type.is_array or iterator.base.type.is_ptr):
+            return self._transform_carray_iteration(node, iterator)
+        elif isinstance(iterator, ExprNodes.IndexNode) and \
+               isinstance(iterator.index, (ExprNodes.SliceNode, ExprNodes.CoerceFromPyTypeNode)) and \
                (iterator.base.type.is_array or iterator.base.type.is_ptr):
             return self._transform_carray_iteration(node, iterator)
         elif iterator.type.is_array:
@@ -201,6 +207,7 @@ class IterationTransform(Visitor.VisitorTransform):
                     )))
 
     def _transform_carray_iteration(self, node, slice_node):
+        neg_step = False
         if isinstance(slice_node, ExprNodes.SliceIndexNode):
             slice_base = slice_node.base
             start = slice_node.start
@@ -208,14 +215,50 @@ class IterationTransform(Visitor.VisitorTransform):
             step = None
             if not stop:
                 return node
+        elif isinstance(slice_node, ExprNodes.IndexNode):
+            # slice_node.index must be a SliceNode
+            slice_base = slice_node.base
+            index = slice_node.index
+            if isinstance(index, ExprNodes.CoerceFromPyTypeNode):
+                index = index.arg
+            start = index.start
+            stop = index.stop
+            step = index.step
+            if step:
+                if step.constant_result is None:
+                    step = None
+                elif not isinstance(step.constant_result, (int,long)) \
+                       or step.constant_result == 0 \
+                       or step.constant_result > 0 and not stop \
+                       or step.constant_result < 0 and not start:
+                    error(step.pos, "C array iteration requires known step size and end index")
+                    return node
+                else:
+                    # step sign is handled internally by ForFromStatNode
+                    neg_step = step.constant_result < 0
+                    step = ExprNodes.IntNode(step.pos, type=PyrexTypes.c_py_ssize_t_type,
+                                             value=abs(step.constant_result),
+                                             constant_result=abs(step.constant_result))
         elif slice_node.type.is_array and slice_node.type.size is not None:
             slice_base = slice_node
             start = None
             stop = ExprNodes.IntNode(
-                slice_node.pos, value=str(slice_node.type.size))
+                slice_node.pos, value=str(slice_node.type.size),
+                type=PyrexTypes.c_py_ssize_t_type, constant_result=slice_node.type.size)
             step = None
         else:
             return node
+
+        if start:
+            if start.constant_result is None:
+                start = None
+            else:
+                start = start.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_scope)
+        if stop:
+            if stop.constant_result is None:
+                stop = None
+            else:
+                stop = stop.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_scope)
 
         ptr_type = slice_base.type
         if ptr_type.is_array:
@@ -281,9 +324,9 @@ class IterationTransform(Visitor.VisitorTransform):
 
         for_node = Nodes.ForFromStatNode(
             node.pos,
-            bound1=start_ptr_node, relation1='<=',
+            bound1=start_ptr_node, relation1=neg_step and '>=' or '<=',
             target=counter_temp,
-            relation2='<', bound2=stop_ptr_node,
+            relation2=neg_step and '>' or '<', bound2=stop_ptr_node,
             step=step, body=body,
             else_clause=node.else_clause,
             from_range=True)
