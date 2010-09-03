@@ -7050,8 +7050,13 @@ static void __Pyx_CppExn2PyErr() {
       ; // let the latest Python exn pass through and ignore the current one
     else
       throw;
+  } catch (const std::invalid_argument& exn) {
+    // Catch a handful of different errors here and turn them into the
+    // equivalent Python errors.
+    // Change invalid_argument to ValueError
+    PyErr_SetString(PyExc_ValueError, exn.what());
   } catch (const std::out_of_range& exn) {
-    // catch out_of_range explicitly so the proper Python exn may be raised
+    // Change out_of_range to IndexError
     PyErr_SetString(PyExc_IndexError, exn.what());
   } catch (const std::exception& exn) {
     PyErr_SetString(PyExc_RuntimeError, exn.what());
