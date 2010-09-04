@@ -961,8 +961,10 @@ class BytesNode(ConstNode):
 class UnicodeNode(PyConstNode):
     # A Python unicode object
     #
-    # value    EncodedString
+    # value        EncodedString
+    # bytes_value  BytesLiteral    the literal parsed as bytes string ('-3' unicode literals only)
 
+    bytes_value = None
     type = unicode_type
 
     def coerce_to(self, dst_type, env):
@@ -975,6 +977,9 @@ class UnicodeNode(PyConstNode):
             int_value = ord(self.value)
             return IntNode(self.pos, value=int_value, constant_result=int_value)
         elif not dst_type.is_pyobject:
+            if dst_type.is_string and self.bytes_value is not None:
+                # special case: '-3' enforced unicode literal used in a C char* context
+                return BytesNode(self.pos, value=self.bytes_value).coerce_to(dst_type, env)
             error(self.pos, "Unicode literals do not support coercion to C types other than Py_UNICODE.")
         elif dst_type is not py_object_type:
             if not self.check_for_coercion_error(dst_type):
@@ -1015,11 +1020,13 @@ class StringNode(PyConstNode):
     # A Python str object, i.e. a byte string in Python 2.x and a
     # unicode string in Python 3.x
     #
-    # value          BytesLiteral or EncodedString
+    # value          BytesLiteral
+    # unicode_value  EncodedString
     # is_identifier  boolean
 
     type = str_type
     is_identifier = None
+    unicode_value = None
 
     def coerce_to(self, dst_type, env):
         if dst_type is not py_object_type and not str_type.subtype_of(dst_type):

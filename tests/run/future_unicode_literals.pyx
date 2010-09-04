@@ -7,6 +7,8 @@ if sys.version_info[0] >= 3:
     True
     >>> isinstance(u, str)
     True
+    >>> isinstance(b, bytes)
+    True
 """
 else:
     __doc__ = u"""
@@ -14,6 +16,11 @@ else:
     True
     >>> isinstance(u, unicode)
     True
+    >>> isinstance(b, bytes)
+    True
 """
 
 u = "test"
+
+cdef char* s = "bytes test"
+b = s

@@ -44,8 +44,14 @@ class UnicodeLiteralBuilder(object):
         def append_charval(self, char_number):
             self.chars.append( unichr(char_number) )
 
+    def append_uescape(self, char_number, escape_string):
+        self.append_charval(char_number)
+
     def getstring(self):
         return EncodedString(u''.join(self.chars))
+
+    def getstrings(self):
+        return (None, self.getstring())
 
 
 class BytesLiteralBuilder(object):
@@ -64,6 +70,9 @@ class BytesLiteralBuilder(object):
     def append_charval(self, char_number):
         self.chars.append( unichr(char_number).encode('ISO-8859-1') )
 
+    def append_uescape(self, char_number, escape_string):
+        self.append(escape_string)
+
     def getstring(self):
         # this *must* return a byte string!
         s = BytesLiteral(join_bytes(self.chars))
@@ -73,6 +82,32 @@ class BytesLiteralBuilder(object):
     def getchar(self):
         # this *must* return a byte string!
         return self.getstring()
+
+    def getstrings(self):
+        return (self.getstring(), None)
+
+class StrLiteralBuilder(object):
+    """Assemble both a bytes and a unicode representation of a string.
+    """
+    def __init__(self, target_encoding):
+        self._bytes   = BytesLiteralBuilder(target_encoding)
+        self._unicode = UnicodeLiteralBuilder()
+
+    def append(self, characters):
+        self._bytes.append(characters)
+        self._unicode.append(characters)
+
+    def append_charval(self, char_number):
+        self._bytes.append_charval(char_number)
+        self._unicode.append_charval(char_number)
+
+    def append_uescape(self, char_number, escape_string):
+        self._bytes.append(escape_string)
+        self._unicode.append_charval(char_number)
+
+    def getstrings(self):
+        return (self._bytes.getstring(), self._unicode.getstring())
+
 
 class EncodedString(_unicode):
     # unicode string subclass to keep track of the original encoding.
