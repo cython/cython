@@ -593,15 +593,15 @@ def p_atom(s):
         s.next()
         return ExprNodes.ImagNode(pos, value = value)
     elif sy == 'BEGIN_STRING':
-        kind, value = p_cat_string_literal(s)
+        kind, bytes_value, unicode_value = p_cat_string_literal(s)
         if kind == 'c':
-            return ExprNodes.CharNode(pos, value = value)
+            return ExprNodes.CharNode(pos, value = bytes_value)
         elif kind == 'u':
-            return ExprNodes.UnicodeNode(pos, value = value)
+            return ExprNodes.UnicodeNode(pos, value = unicode_value, bytes_value = bytes_value)
         elif kind == 'b':
-            return ExprNodes.BytesNode(pos, value = value)
+            return ExprNodes.BytesNode(pos, value = bytes_value)
         else:
-            return ExprNodes.StringNode(pos, value = value)
+            return ExprNodes.StringNode(pos, value = bytes_value, unicode_value = unicode_value)
     elif sy == 'IDENT':
         name = EncodedString( s.systring )
         s.next()
@@ -642,38 +642,53 @@ def p_name(s, name):
 
 def p_cat_string_literal(s):
     # A sequence of one or more adjacent string literals.
-    # Returns (kind, value) where kind in ('b', 'c', 'u', '')
-    kind, value = p_string_literal(s)
-    if s.sy != 'BEGIN_STRING':
-        return kind, value
-    if kind != 'c':
-        strings = [value]
-        while s.sy == 'BEGIN_STRING':
-            pos = s.position()
-            next_kind, next_value = p_string_literal(s)
-            if next_kind == 'c':
-                error(pos, "Cannot concatenate char literal with another string or char literal")
-            elif next_kind != kind:
-                error(pos, "Cannot mix string literals of different types, expected %s'', got %s''" %
-                      (kind, next_kind))
-            else:
-                strings.append(next_value)
-        if kind == 'u':
-            value = EncodedString( u''.join(strings) )
+    # Returns (kind, bytes_value, unicode_value)
+    # where kind in ('b', 'c', 'u', '')
+    kind, bytes_value, unicode_value = p_string_literal(s)
+    if kind == 'c' or s.sy != 'BEGIN_STRING':
+        return kind, bytes_value, unicode_value
+    bstrings, ustrings = [bytes_value], [unicode_value]
+    bytes_value = unicode_value = None
+    while s.sy == 'BEGIN_STRING':
+        pos = s.position()
+        next_kind, next_bytes_value, next_unicode_value = p_string_literal(s)
+        if next_kind == 'c':
+            error(pos, "Cannot concatenate char literal with another string or char literal")
+        elif next_kind != kind:
+            error(pos, "Cannot mix string literals of different types, expected %s'', got %s''" %
+                  (kind, next_kind))
         else:
-            value = BytesLiteral( StringEncoding.join_bytes(strings) )
-            value.encoding = s.source_encoding
-    return kind, value
+            bstrings.append(next_bytes_value)
+            ustrings.append(next_unicode_value)
+    # join and rewrap the partial literals
+    if kind in ('b', 'c', '') or kind == 'u' and bstrings[0] is not None:
+        # Py3 enforced unicode literals are parsed as bytes/unicode combination
+        bytes_value = BytesLiteral( StringEncoding.join_bytes([ b for b in bstrings if b is not None ]) )
+        bytes_value.encoding = s.source_encoding
+    if kind in ('u', ''):
+        unicode_value = EncodedString( u''.join([ u for u in ustrings if u is not None ]) )
+    return kind, bytes_value, unicode_value
 
-def p_opt_string_literal(s):
+def p_opt_string_literal(s, required_type='u'):
     if s.sy == 'BEGIN_STRING':
-        return p_string_literal(s)
+        kind, bytes_value, unicode_value = p_string_literal(s, required_type)
+        if required_type == 'u':
+            return unicode_value
+        elif required_type == 'b':
+            return bytes_value
+        else:
+            s.error("internal parser configuration error")
     else:
         return None
 
 def p_string_literal(s, kind_override=None):
-    # A single string or char literal.
-    # Returns (kind, value) where kind in ('b', 'c', 'u', '')
+    # A single string or char literal.  Returns (kind, bvalue, uvalue)
+    # where kind in ('b', 'c', 'u', '').  The 'bvalue' is the source
+    # code byte sequence of the string literal, 'uvalue' is the
+    # decoded Unicode string.  Either of the two may be None depending
+    # on the 'kind' of string, only unprefixed strings have both
+    # representations.
+
     # s.sy == 'BEGIN_STRING'
     pos = s.position()
     is_raw = 0
@@ -685,15 +700,18 @@ def p_string_literal(s, kind_override=None):
         is_raw = s.systring[1:2].lower() == 'r'
     elif kind != 'c':
         kind = ''
-    if Future.unicode_literals in s.context.future_directives:
-        if kind == '':
-            kind = 'u'
-    if kind_override is not None and kind_override in 'ub':
-        kind = kind_override
-    if kind == 'u':
-        chars = StringEncoding.UnicodeLiteralBuilder()
+    if kind == '' and kind_override is None and Future.unicode_literals in s.context.future_directives:
+        chars = StringEncoding.StrLiteralBuilder(s.source_encoding)
+        kind = 'u'
     else:
-        chars = StringEncoding.BytesLiteralBuilder(s.source_encoding)
+        if kind_override is not None and kind_override in 'ub':
+            kind = kind_override
+        if kind == 'u':
+            chars = StringEncoding.UnicodeLiteralBuilder()
+        elif kind == '':
+            chars = StringEncoding.StrLiteralBuilder(s.source_encoding)
+        else:
+            chars = StringEncoding.BytesLiteralBuilder(s.source_encoding)
     while 1:
         s.next()
         sy = s.sy
@@ -723,20 +741,18 @@ def p_string_literal(s, kind_override=None):
                         StringEncoding.char_from_escape_sequence(systr))
                 elif c == u'\n':
                     pass
-                elif c in u'Uux':
-                    if kind == 'u' or c == 'x':
+                elif c == u'x':
+                    chars.append_charval( int(systr[2:], 16) )
+                elif c in u'Uu':
+                    if kind in ('u', ''):
                         chrval = int(systr[2:], 16)
                         if chrval > 1114111: # sys.maxunicode:
                             s.error("Invalid unicode escape '%s'" % systr,
                                     pos = pos)
-                        elif chrval > 65535:
-                            warning(s.position(),
-                                    "Unicode characters above 65535 are not "
-                                    "necessarily portable across Python installations", 1)
-                        chars.append_charval(chrval)
                     else:
                         # unicode escapes in plain byte strings are not unescaped
-                        chars.append(systr)
+                        chrval = None
+                    chars.append_uescape(chrval, systr)
                 else:
                     chars.append(u'\\' + systr[1:])
         elif sy == 'NEWLINE':
@@ -750,14 +766,14 @@ def p_string_literal(s, kind_override=None):
                 "Unexpected token %r:%r in string literal" %
                     (sy, s.systring))
     if kind == 'c':
-        value = chars.getchar()
-        if len(value) != 1:
-            error(pos, u"invalid character literal: %r" % value)
+        unicode_value = None
+        bytes_value = chars.getchar()
+        if len(bytes_value) != 1:
+            error(pos, u"invalid character literal: %r" % bytes_value)
     else:
-        value = chars.getstring()
+        bytes_value, unicode_value = chars.getstrings()
     s.next()
-    #print "p_string_literal: value =", repr(value) ###
-    return kind, value
+    return (kind, bytes_value, unicode_value)
 
 # list_display      ::=      "[" [listmaker] "]"
 # listmaker     ::=     expression ( comp_for | ( "," expression )* [","] )
@@ -1447,10 +1463,10 @@ def p_except_clause(s):
 def p_include_statement(s, ctx):
     pos = s.position()
     s.next() # 'include'
-    _, include_file_name = p_string_literal(s)
+    unicode_include_file_name = p_string_literal(s, 'u')[2]
     s.expect_newline("Syntax error in include statement")
     if s.compile_time_eval:
-        include_file_name = include_file_name.decode(s.source_encoding)
+        include_file_name = unicode_include_file_name
         include_file_path = s.context.find_include_file(include_file_name, pos)
         if include_file_path:
             s.included_files.append(include_file_name)
@@ -1986,10 +2002,9 @@ def p_sign_and_longness(s):
     return signed, longness
 
 def p_opt_cname(s):
-    literal = p_opt_string_literal(s)
-    if literal:
-        _, cname = literal
-        cname = EncodedString(cname)
+    literal = p_opt_string_literal(s, 'u')
+    if literal is not None:
+        cname = EncodedString(literal)
         cname.encoding = s.source_encoding
     else:
         cname = None
@@ -2300,11 +2315,11 @@ def p_cdef_extern_block(s, pos, ctx):
     if s.sy == '*':
         s.next()
     else:
-        _, include_file = p_string_literal(s)
+        include_file = p_string_literal(s, 'u')[2]
     ctx = ctx(cdef_flag = 1, visibility = 'extern')
     if s.systring == "namespace":
         s.next()
-        ctx.namespace = p_string_literal(s, kind_override='u')[1]
+        ctx.namespace = p_string_literal(s, 'u')[2]
     if p_nogil(s):
         ctx.nogil = 1
     body = p_suite(s, ctx)
@@ -2677,17 +2692,16 @@ def p_property_decl(s):
 def p_doc_string(s):
     if s.sy == 'BEGIN_STRING':
         pos = s.position()
-        kind, result = p_cat_string_literal(s)
+        kind, bytes_result, unicode_result = p_cat_string_literal(s)
         if s.sy != 'EOF':
             s.expect_newline("Syntax error in doc string")
-        if kind != 'u':
-            # warning(pos, "Python 3 requires docstrings to be unicode strings")
-            if kind == 'b':
-                result.encoding = None # force a unicode string
-        return result
+        if kind in ('u', ''):
+            return unicode_result
+        warning(pos, "Python 3 requires docstrings to be unicode strings")
+        return bytes_result
     else:
         return None
-        
+
 def p_code(s, level=None):
     body = p_statement_list(s, Ctx(level = level), first_statement = 1)
     if s.sy != 'EOF':
