@@ -661,9 +661,9 @@ def p_cat_string_literal(s):
             bstrings.append(next_bytes_value)
             ustrings.append(next_unicode_value)
     # join and rewrap the partial literals
-    if kind in ('b', 'c', '') or kind == 'u' and bstrings[0] is not None:
+    if kind in ('b', 'c', '') or kind == 'u' and None not in bstrings:
         # Py3 enforced unicode literals are parsed as bytes/unicode combination
-        bytes_value = BytesLiteral( StringEncoding.join_bytes([ b for b in bstrings if b is not None ]) )
+        bytes_value = BytesLiteral( StringEncoding.join_bytes(bstrings) )
         bytes_value.encoding = s.source_encoding
     if kind in ('u', ''):
         unicode_value = EncodedString( u''.join([ u for u in ustrings if u is not None ]) )
@@ -681,6 +681,12 @@ def p_opt_string_literal(s, required_type='u'):
     else:
         return None
 
+def check_for_non_ascii_characters(string):
+    for c in string:
+        if c >= u'\x80':
+            return True
+    return False
+
 def p_string_literal(s, kind_override=None):
     # A single string or char literal.  Returns (kind, bvalue, uvalue)
     # where kind in ('b', 'c', 'u', '').  The 'bvalue' is the source
@@ -692,6 +698,7 @@ def p_string_literal(s, kind_override=None):
     # s.sy == 'BEGIN_STRING'
     pos = s.position()
     is_raw = 0
+    has_non_ASCII_literal_characters = False
     kind = s.systring[:1].lower()
     if kind == 'r':
         kind = ''
@@ -715,12 +722,13 @@ def p_string_literal(s, kind_override=None):
     while 1:
         s.next()
         sy = s.sy
+        systr = s.systring
         #print "p_string_literal: sy =", sy, repr(s.systring) ###
         if sy == 'CHARS':
-            chars.append(s.systring)
+            chars.append(systr)
+            if not has_non_ASCII_literal_characters and check_for_non_ascii_characters(systr):
+                has_non_ASCII_literal_characters = True
         elif sy == 'ESCAPE':
-            has_escape = True
-            systr = s.systring
             if is_raw:
                 if systr == u'\\\n':
                     chars.append(u'\\\n')
@@ -730,6 +738,8 @@ def p_string_literal(s, kind_override=None):
                     chars.append(u"'")
                 else:
                     chars.append(systr)
+                    if not has_non_ASCII_literal_characters and check_for_non_ascii_characters(systr):
+                        has_non_ASCII_literal_characters = True
             else:
                 c = systr[1]
                 if c in u"01234567":
@@ -755,6 +765,8 @@ def p_string_literal(s, kind_override=None):
                     chars.append_uescape(chrval, systr)
                 else:
                     chars.append(u'\\' + systr[1:])
+                    if not has_non_ASCII_literal_characters and check_for_non_ascii_characters(systr):
+                        has_non_ASCII_literal_characters = True
         elif sy == 'NEWLINE':
             chars.append(u'\n')
         elif sy == 'END_STRING':
@@ -772,6 +784,11 @@ def p_string_literal(s, kind_override=None):
             error(pos, u"invalid character literal: %r" % bytes_value)
     else:
         bytes_value, unicode_value = chars.getstrings()
+        if has_non_ASCII_literal_characters and s.context.language_level >= 3:
+            # Python 3 forbids literal non-ASCII characters in byte strings
+            if kind != 'u':
+                s.error("bytes can only contain ASCII literal characters.", pos = pos)
+            bytes_value = None
     s.next()
     return (kind, bytes_value, unicode_value)
 
