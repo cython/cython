@@ -1942,29 +1942,39 @@ class IndexNode(ExprNode):
         return self.base.type_dependencies(env)
     
     def infer_type(self, env):
-        is_slice = isinstance(self.index, SliceNode)
-        if isinstance(self.base, BytesNode):
-            if is_slice:
-                return bytes_type
-            else:
-                return py_object_type # Py2/3 return different types
         base_type = self.base.infer_type(env)
-        if base_type.is_ptr or base_type.is_array:
-            return base_type.base_type
-        elif base_type is unicode_type and self.index.infer_type(env).is_int:
-            # Py_UNICODE will automatically coerce to a unicode string
-            # if required, so this is safe. We only infer Py_UNICODE
-            # when the index is a C integer type. Otherwise, we may
-            # need to use normal Python item access, in which case
-            # it's faster to return the one-char unicode string than
-            # to receive it, throw it away, and potentially rebuild it
-            # on a subsequent PyObject coercion.
-            return PyrexTypes.c_py_unicode_type
-        elif base_type in (str_type, unicode_type):
-            # these types will always return their own type on Python indexing/slicing
-            return base_type
-        elif is_slice and base_type in (bytes_type, list_type, tuple_type):
-            # slicing these returns the same type
+        if isinstance(self.index, SliceNode):
+            # slicing!
+            if base_type.is_string:
+                return bytes_type
+            elif base_type in (unicode_type, bytes_type, str_type, list_type, tuple_type):
+                # slicing these returns the same type
+                return base_type
+            else:
+                # TODO: Handle buffers (hopefully without too much redundancy).
+                return py_object_type
+
+        if isinstance(self.base, BytesNode):
+            # Py2/3 return different types on indexing bytes objects
+            # and we can't be sure if we are slicing, so we can't do
+            # any better than this:
+            return py_object_type
+
+        if self.index.infer_type(env).is_int or isinstance(self.index, (IntNode, LongNode)):
+            # indexing!
+            if base_type is unicode_type:
+                # Py_UNICODE will automatically coerce to a unicode string
+                # if required, so this is safe. We only infer Py_UNICODE
+                # when the index is a C integer type. Otherwise, we may
+                # need to use normal Python item access, in which case
+                # it's faster to return the one-char unicode string than
+                # to receive it, throw it away, and potentially rebuild it
+                # on a subsequent PyObject coercion.
+                return PyrexTypes.c_py_unicode_type
+            elif base_type.is_ptr or base_type.is_array:
+                return base_type.base_type
+        if base_type is unicode_type:
+            # this type always returns its own type on Python indexing/slicing
             return base_type
         else:
             # TODO: Handle buffers (hopefully without too much redundancy).
@@ -1993,11 +2003,12 @@ class IndexNode(ExprNode):
             self.type = PyrexTypes.error_type
             return
         
-        if isinstance(self.index, IntNode) and Utils.long_literal(self.index.value):
+        is_slice = isinstance(self.index, SliceNode)
+        if not is_slice and isinstance(self.index, IntNode) and Utils.long_literal(self.index.value):
             self.index = self.index.coerce_to_pyobject(env)
-        
+
         # Handle the case where base is a literal char* (and we expect a string, not an int)
-        if isinstance(self.base, BytesNode):
+        if isinstance(self.base, BytesNode) or is_slice:
             self.base = self.base.coerce_to_pyobject(env)
 
         skip_child_analysis = False
@@ -2069,6 +2080,8 @@ class IndexNode(ExprNode):
                     # Py_UNICODE will automatically coerce to a unicode string
                     # if required, so this is fast and safe
                     self.type = PyrexTypes.c_py_unicode_type
+                elif is_slice and base_type in (bytes_type, str_type, unicode_type, list_type, tuple_type):
+                    self.type = base_type
                 else:
                     self.type = py_object_type
             else:

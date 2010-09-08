@@ -60,10 +60,20 @@ def slicing():
     assert typeof(b) == "char *", typeof(b)
     b1 = b[1:2]
     assert typeof(b1) == "bytes object", typeof(b1)
+    b2 = b[1:2:2]
+    assert typeof(b2) == "bytes object", typeof(b2)
     u = u"xyz"
     assert typeof(u) == "unicode object", typeof(u)
     u1 = u[1:2]
     assert typeof(u1) == "unicode object", typeof(u1)
+    u2 = u[1:2:2]
+    assert typeof(u2) == "unicode object", typeof(u2)
+    s = "xyz"
+    assert typeof(s) == "str object", typeof(s)
+    s1 = s[1:2]
+    assert typeof(s1) == "str object", typeof(s1)
+    s2 = s[1:2:2]
+    assert typeof(s2) == "str object", typeof(s2)
     L = [1,2,3]
     assert typeof(L) == "list object", typeof(L)
     L1 = L[1:2]
@@ -84,11 +94,15 @@ def indexing():
     b = b"abc"
     assert typeof(b) == "char *", typeof(b)
     b1 = b[1]
-    assert typeof(b1) == "char", typeof(b1)  # FIXME: bytes object ??
+    assert typeof(b1) == "char", typeof(b1)  # FIXME: Python object ??
     u = u"xyz"
     assert typeof(u) == "unicode object", typeof(u)
     u1 = u[1]
     assert typeof(u1) == "Py_UNICODE", typeof(u1)
+    s = "xyz"
+    assert typeof(s) == "str object", typeof(s)
+    s1 = s[1]
+    assert typeof(s1) == "Python object", typeof(s1)
     L = [1,2,3]
     assert typeof(L) == "list object", typeof(L)
     L1 = L[1]
@@ -267,7 +281,7 @@ def loop_over_bytes():
 def loop_over_str():
     """
     >>> print( loop_over_str() )
-    str object
+    Python object
     """
     cdef str string = 'abcdefg'
     for c in string:
