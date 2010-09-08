@@ -109,15 +109,6 @@ class Context(object):
         from Buffer import IntroduceBufferAuxiliaryVars
         from ModuleNode import check_c_declarations, check_c_declarations_pxd
 
-        # Temporary hack that can be used to ensure that all result_code's
-        # are generated at code generation time.
-        import Visitor
-        class ClearResultCodes(Visitor.CythonTransform):
-            def visit_ExprNode(self, node):
-                self.visitchildren(node)
-                node.result_code = "<cleared>"
-                return node
-
         if pxd:
             _check_c_declarations = check_c_declarations_pxd
             _specific_post_parse = PxdPostParse(self)
@@ -158,7 +149,6 @@ class Context(object):
             DropRefcountingTransform(),
             FinalOptimizePhase(self),
             GilCheck(),
-            #ClearResultCodes(self),
             ]
 
     def create_pyx_pipeline(self, options, result, py=False):
