@@ -48,8 +48,8 @@ def slice_charptr_for_loop_c():
 def slice_charptr_for_loop_c_step():
     """
     >>> slice_charptr_for_loop_c_step()
-    []
-    []
+    ['p', 't', 'q', 'C', 'B']
+    ['p', 't', 'q', 'C', 'B']
     ['b', 'A']
     ['a', 'c', 'B']
     ['a', 'c', 'B']
