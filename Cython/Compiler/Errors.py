@@ -40,15 +40,8 @@ class CompileError(PyrexError):
             pos_str = u"%s:%d:%d: " % (position[0].get_description(),
                                        position[1], position[2])
             cont = context(position)
-        else:
-            pos_str = u""
-            cont = u''
-        if position is None:
-            Exception.__init__(self, message)
-        else:
-            Exception.__init__(
-                self, u'\nError converting Pyrex file to C:\n%s\n%s%s' % (
-                cont, pos_str, message))
+            message = u'\nError converting Pyrex file to C:\n%s\n%s%s' % (cont, pos_str, message)
+        Exception.__init__(self, message)
 
 class CompileWarning(PyrexWarning):
     
