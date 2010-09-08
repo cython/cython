@@ -68,10 +68,14 @@ def slicing():
     assert typeof(L) == "list object", typeof(L)
     L1 = L[1:2]
     assert typeof(L1) == "list object", typeof(L1)
+    L2 = L[1:2:2]
+    assert typeof(L2) == "list object", typeof(L2)
     t = (4,5,6)
     assert typeof(t) == "tuple object", typeof(t)
     t1 = t[1:2]
     assert typeof(t1) == "tuple object", typeof(t1)
+    t2 = t[1:2:2]
+    assert typeof(t2) == "tuple object", typeof(t2)
 
 def indexing():
     """
