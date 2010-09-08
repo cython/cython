@@ -1942,8 +1942,12 @@ class IndexNode(ExprNode):
         return self.base.type_dependencies(env)
     
     def infer_type(self, env):
+        is_slice = isinstance(self.index, SliceNode)
         if isinstance(self.base, BytesNode):
-            return py_object_type
+            if is_slice:
+                return bytes_type
+            else:
+                return py_object_type # Py2/3 return different types
         base_type = self.base.infer_type(env)
         if base_type.is_ptr or base_type.is_array:
             return base_type.base_type
@@ -1957,7 +1961,10 @@ class IndexNode(ExprNode):
             # on a subsequent PyObject coercion.
             return PyrexTypes.c_py_unicode_type
         elif base_type in (str_type, unicode_type):
-            # these types will always return themselves on Python indexing
+            # these types will always return their own type on Python indexing/slicing
+            return base_type
+        elif is_slice and base_type in (bytes_type, list_type, tuple_type):
+            # slicing these returns the same type
             return base_type
         else:
             # TODO: Handle buffers (hopefully without too much redundancy).
