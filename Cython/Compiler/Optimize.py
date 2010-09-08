@@ -1939,6 +1939,17 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             test_node = UtilNodes.EvalWithTempExprNode(temp, test_node)
         return test_node
 
+    def _handle_simple_function_ord(self, node, pos_args):
+        """Unpack ord(Py_UNICODE).
+        """
+        if len(pos_args) != 1:
+            return node
+        arg = pos_args[0]
+        if isinstance(arg, ExprNodes.CoerceToPyTypeNode):
+            if arg.arg.type is PyrexTypes.c_py_unicode_type:
+                return arg.arg.coerce_to(node.type, self.current_env())
+        return node
+
     ### special methods
 
     Pyx_tp_new_func_type = PyrexTypes.CFuncType(
