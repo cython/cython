@@ -192,6 +192,20 @@ def slice_doublptr_for_loop_c():
     print [ d for d in cdoubles_ptr[1:5] ]
     print [ d for d in cdoubles_ptr[4:6] ]
 
+## @cython.test_assert_path_exists("//ForFromStatNode",
+##                                 "//ForFromStatNode//IndexNode")
+## @cython.test_fail_if_path_exists("//ForInStatNode")
+## def slice_doublptr_for_loop_c_step():
+##     """
+##     >>> slice_doublptr_for_loop_c_step()
+##     """
+##     cdef double d
+##     print [ d for d in cdoubles_ptr[:3:1] ]
+##     print [ d for d in cdoubles_ptr[5:1:-1] ]
+##     print [ d for d in cdoubles_ptr[:2:-2] ]
+##     print [ d for d in cdoubles_ptr[4:6:2] ]
+##     print [ d for d in cdoubles_ptr[4:6:-2] ]
+
 @cython.test_assert_path_exists("//ForFromStatNode",
                                 "//ForFromStatNode//IndexNode")
 @cython.test_fail_if_path_exists("//ForInStatNode")
