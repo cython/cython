@@ -1946,6 +1946,7 @@ class IndexNode(ExprNode):
         if isinstance(self.index, SliceNode):
             # slicing!
             if base_type.is_string:
+                # sliced C strings must coerce to Python 
                 return bytes_type
             elif base_type in (unicode_type, bytes_type, str_type, list_type, tuple_type):
                 # slicing these returns the same type
@@ -1953,12 +1954,6 @@ class IndexNode(ExprNode):
             else:
                 # TODO: Handle buffers (hopefully without too much redundancy).
                 return py_object_type
-
-        if isinstance(self.base, BytesNode):
-            # Py2/3 return different types on indexing bytes objects
-            # and we can't be sure if we are slicing, so we can't do
-            # any better than this:
-            return py_object_type
 
         index_type = self.index.infer_type(env)
         if index_type and index_type.is_int or isinstance(self.index, (IntNode, LongNode)):
@@ -1972,9 +1967,16 @@ class IndexNode(ExprNode):
                 # to receive it, throw it away, and potentially rebuild it
                 # on a subsequent PyObject coercion.
                 return PyrexTypes.c_py_unicode_type
+            elif isinstance(self.base, BytesNode):
+                #if env.global_scope().context.language_level >= 3:
+                #    # infering 'char' can be made to work in Python 3 mode
+                #    return PyrexTypes.c_char_type
+                # Py2/3 return different types on indexing bytes objects
+                return py_object_type
             elif base_type.is_ptr or base_type.is_array:
                 return base_type.base_type
 
+        # may be slicing or indexing, we don't know
         if base_type is unicode_type:
             # this type always returns its own type on Python indexing/slicing
             return base_type
