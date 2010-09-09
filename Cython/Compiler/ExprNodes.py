@@ -2011,7 +2011,8 @@ class IndexNode(ExprNode):
 
         # Handle the case where base is a literal char* (and we expect a string, not an int)
         if isinstance(self.base, BytesNode) or is_slice:
-            self.base = self.base.coerce_to_pyobject(env)
+            if not (self.base.type.is_ptr or self.base.type.is_array):
+                self.base = self.base.coerce_to_pyobject(env)
 
         skip_child_analysis = False
         buffer_access = False
@@ -2092,7 +2093,7 @@ class IndexNode(ExprNode):
                     if self.index.type.is_pyobject:
                         self.index = self.index.coerce_to(
                             PyrexTypes.c_py_ssize_t_type, env)
-                    if not self.index.type.is_int:
+                    elif not self.index.type.is_int:
                         error(self.pos,
                             "Invalid index type '%s'" %
                                 self.index.type)
@@ -5995,10 +5996,11 @@ class CmpNode(object):
               (op, operand1.type, operand2.type))
 
     def is_python_comparison(self):
-        return not self.is_c_string_contains() and (
-            self.has_python_operands()
-            or (self.cascade and self.cascade.is_python_comparison())
-            or self.operator in ('in', 'not_in'))
+        return (not self.is_ptr_contains()
+            and not self.is_c_string_contains()
+            and (self.has_python_operands()
+                 or (self.cascade and self.cascade.is_python_comparison())
+                 or self.operator in ('in', 'not_in')))
 
     def coerce_operands_to(self, dst_type, env):
         operand2 = self.operand2
@@ -6010,7 +6012,8 @@ class CmpNode(object):
     def is_python_result(self):
         return ((self.has_python_operands() and
                  self.operator not in ('is', 'is_not', 'in', 'not_in') and
-                 not self.is_c_string_contains())
+                 not self.is_c_string_contains() and
+                 not self.is_ptr_contains())
             or (self.cascade and self.cascade.is_python_result()))
 
     def is_c_string_contains(self):
@@ -6019,6 +6022,16 @@ class CmpNode(object):
                  and (self.operand2.type.is_string or self.operand2.type is bytes_type)) or
                 (self.operand1.type is PyrexTypes.c_py_unicode_type
                  and self.operand2.type is unicode_type))
+    
+    def is_ptr_contains(self):
+        if self.operator in ('in', 'not_in'):
+            iterator = self.operand2
+            if iterator.type.is_ptr or iterator.type.is_array:
+                return iterator.type.base_type is not PyrexTypes.c_char_type
+            if (isinstance(iterator, IndexNode) and
+                isinstance(iterator.index, (SliceNode, CoerceFromPyTypeNode)) and
+                (iterator.base.type.is_array or iterator.base.type.is_ptr)):
+                return iterator.base.type.base_type is not PyrexTypes.c_char_type
 
     def generate_operation_code(self, code, result_code, 
             operand1, op , operand2):
@@ -6214,6 +6227,12 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                     env.use_utility_code(char_in_bytes_utility_code)
                 self.operand2 = self.operand2.as_none_safe_node(
                     "argument of type 'NoneType' is not iterable")
+            elif self.is_ptr_contains():
+                if self.cascade:
+                    error(self.pos, "Cascading comparison not yet supported for 'val in sliced pointer'.")
+                self.type = PyrexTypes.c_bint_type
+                # Will be transformed by IterationTransform
+                return
             else:
                 common_type = py_object_type
                 self.is_pycmp = True
