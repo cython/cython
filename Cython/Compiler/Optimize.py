@@ -30,6 +30,11 @@ class FakePythonEnv(object):
     "A fake environment for creating type test nodes etc."
     nogil = False
 
+def unwrap_coerced_node(node, coercion_nodes=(ExprNodes.CoerceToPyTypeNode, ExprNodes.CoerceFromPyTypeNode)):
+    if isinstance(node, coercion_nodes):
+        return node.arg
+    return node
+
 def unwrap_node(node):
     while isinstance(node, UtilNodes.ResultRefNode):
         node = node.expression
@@ -90,19 +95,18 @@ class IterationTransform(Visitor.VisitorTransform):
                 node, dict_obj=iterator, keys=True, values=False)
 
         # C array (slice) iteration?
-        plain_iterator = iterator
-        if isinstance(iterator, ExprNodes.CoerceToPyTypeNode):
-            plain_iterator = iterator.arg
+        plain_iterator = unwrap_coerced_node(iterator)
         if isinstance(plain_iterator, ExprNodes.SliceIndexNode) and \
                (plain_iterator.base.type.is_array or plain_iterator.base.type.is_ptr):
             return self._transform_carray_iteration(node, plain_iterator)
-        elif isinstance(plain_iterator, ExprNodes.IndexNode) and \
-               isinstance(plain_iterator.index, (ExprNodes.SliceNode, ExprNodes.CoerceFromPyTypeNode)) and \
-               (plain_iterator.base.type.is_array or plain_iterator.base.type.is_ptr):
-            return self._transform_carray_iteration(node, plain_iterator)
-        elif iterator.type.is_array:
+        if isinstance(plain_iterator, ExprNodes.IndexNode) and \
+               isinstance(plain_iterator.index, (ExprNodes.SliceNode, ExprNodes.CoerceFromPyTypeNode)):
+            iterator_base = unwrap_coerced_node(plain_iterator.base)
+            if iterator_base.type.is_array or iterator_base.type.is_ptr:
+                return self._transform_carray_iteration(node, plain_iterator)
+        if iterator.type.is_array:
             return self._transform_carray_iteration(node, iterator)
-        elif iterator.type in (Builtin.bytes_type, Builtin.unicode_type):
+        if iterator.type in (Builtin.bytes_type, Builtin.unicode_type):
             return self._transform_string_iteration(node, iterator)
 
         # the rest is based on function calls
@@ -218,10 +222,8 @@ class IterationTransform(Visitor.VisitorTransform):
                 return node
         elif isinstance(slice_node, ExprNodes.IndexNode):
             # slice_node.index must be a SliceNode
-            slice_base = slice_node.base
-            index = slice_node.index
-            if isinstance(index, ExprNodes.CoerceFromPyTypeNode):
-                index = index.arg
+            slice_base = unwrap_coerced_node(slice_node.base)
+            index = unwrap_coerced_node(slice_node.index)
             start = index.start
             stop = index.stop
             step = index.step
@@ -260,6 +262,13 @@ class IterationTransform(Visitor.VisitorTransform):
                 stop = None
             else:
                 stop = stop.coerce_to(PyrexTypes.c_py_ssize_t_type, self.current_scope)
+        if stop is None:
+            if neg_step:
+                stop = ExprNodes.IntNode(
+                    slice_node.pos, value='-1', type=PyrexTypes.c_py_ssize_t_type, constant_result=-1)
+            else:
+                error(slice_node.pos, "C array iteration requires known step size and end index")
+                return node
 
         ptr_type = slice_base.type
         if ptr_type.is_array:

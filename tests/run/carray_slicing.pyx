@@ -48,23 +48,40 @@ def slice_charptr_for_loop_c():
 def slice_charptr_for_loop_c_step():
     """
     >>> slice_charptr_for_loop_c_step()
-    ['p', 't', 'q', 'C', 'B']
-    ['p', 't', 'q', 'C', 'B']
+    Acba
+    ['A', 'c', 'b', 'a']
+    Acba
+    ['A', 'c', 'b', 'a']
+    bA
     ['b', 'A']
+    acB
     ['a', 'c', 'B']
+    acB
     ['a', 'c', 'B']
+    <BLANKLINE>
     []
+    ptqC
     ['p', 't', 'q', 'C']
+    pq
     ['p', 'q']
     """
+    cdef unicode ustring = cstring.decode('ASCII')
     cdef char c
-    print [ chr(c) for c in cstring[:3:-1] ]
-    print [ chr(c) for c in cstring[None:3:-1] ]
+    print ustring[3::-1]
+    print [ chr(c) for c in cstring[3::-1] ]
+    print ustring[3:None:-1]
+    print [ chr(c) for c in cstring[3:None:-1] ]
+    print ustring[1:5:2]
     print [ chr(c) for c in cstring[1:5:2] ]
+    print ustring[:5:2]
     print [ chr(c) for c in cstring[:5:2] ]
+    print ustring[None:5:2]
     print [ chr(c) for c in cstring[None:5:2] ]
+    print ustring[4:9:-1]
     print [ chr(c) for c in cstring[4:9:-1] ]
+    print ustring[8:4:-1]
     print [ chr(c) for c in cstring[8:4:-1] ]
+    print ustring[8:4:-2]
     print [ chr(c) for c in cstring[8:4:-2] ]
 
 @cython.test_assert_path_exists("//ForFromStatNode",
