@@ -82,11 +82,62 @@ class IterationTransform(Visitor.VisitorTransform):
         self.visitchildren(node)
         self.current_scope = oldscope
         return node
+    
+    def visit_PrimaryCmpNode(self, node):
+        if node.is_ptr_contains():
+        
+            # for t in operand2:
+            #     if operand1 == t:
+            #         res = True
+            #         break
+            # else:
+            #     res = False
+            
+            pos = node.pos
+            res_handle = UtilNodes.TempHandle(PyrexTypes.c_bint_type)
+            res = res_handle.ref(pos)
+            result_ref = UtilNodes.ResultRefNode(node)
+            if isinstance(node.operand2, ExprNodes.IndexNode):
+                base_type = node.operand2.base.type.base_type
+            else:
+                base_type = node.operand2.type.base_type
+            target_handle = UtilNodes.TempHandle(base_type)
+            target = target_handle.ref(pos)
+            cmp_node = ExprNodes.PrimaryCmpNode(
+                pos, operator=u'==', operand1=node.operand1, operand2=target)
+            if_body = Nodes.StatListNode(
+                pos, 
+                stats = [Nodes.SingleAssignmentNode(pos, lhs=result_ref, rhs=ExprNodes.BoolNode(pos, value=1)),
+                         Nodes.BreakStatNode(pos)])
+            if_node = Nodes.IfStatNode(
+                pos,
+                if_clauses=[Nodes.IfClauseNode(pos, condition=cmp_node, body=if_body)],
+                else_clause=None)
+            for_loop = UtilNodes.TempsBlockNode(
+                pos,
+                temps = [target_handle],
+                body = Nodes.ForInStatNode(
+                    pos,
+                    target=target,
+                    iterator=ExprNodes.IteratorNode(node.operand2.pos, sequence=node.operand2),
+                    body=if_node,
+                    else_clause=Nodes.SingleAssignmentNode(pos, lhs=result_ref, rhs=ExprNodes.BoolNode(pos, value=0))))
+            for_loop.analyse_expressions(self.current_scope)
+            for_loop = self(for_loop)
+            new_node = UtilNodes.TempResultFromStatNode(result_ref, for_loop)
+            
+            if node.operator == 'not_in':
+                new_node = ExprNodes.NotNode(pos, operand=new_node)
+            return new_node
+
+        else:
+            self.visitchildren(node)
+            return node
 
     def visit_ForInStatNode(self, node):
         self.visitchildren(node)
         return self._optimise_for_loop(node)
-
+    
     def _optimise_for_loop(self, node):
         iterator = node.iterator.sequence
         if iterator.type is Builtin.dict_type:

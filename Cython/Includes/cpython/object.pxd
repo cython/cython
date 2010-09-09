@@ -53,6 +53,8 @@ cdef extern from "Python.h":
     # Delete attribute named attr_name, for object o. Returns -1 on
     # failure. This is the equivalent of the Python statement "del
     # o.attr_name".
+    
+    int Py_LT, Py_LE, Py_EQ, Py_NE, Py_GT, Py_GE
 
     object PyObject_RichCompare(object o1, object o2, int opid)
     # Return value: New reference.
