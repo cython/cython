@@ -1960,7 +1960,8 @@ class IndexNode(ExprNode):
             # any better than this:
             return py_object_type
 
-        if self.index.infer_type(env).is_int or isinstance(self.index, (IntNode, LongNode)):
+        index_type = self.index.infer_type(env)
+        if index_type and index_type.is_int or isinstance(self.index, (IntNode, LongNode)):
             # indexing!
             if base_type is unicode_type:
                 # Py_UNICODE will automatically coerce to a unicode string
@@ -1973,6 +1974,7 @@ class IndexNode(ExprNode):
                 return PyrexTypes.c_py_unicode_type
             elif base_type.is_ptr or base_type.is_array:
                 return base_type.base_type
+
         if base_type is unicode_type:
             # this type always returns its own type on Python indexing/slicing
             return base_type
