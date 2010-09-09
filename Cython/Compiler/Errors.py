@@ -28,6 +28,19 @@ def context(position):
     s = u'%s\n%s%s\n' % (u'-'*60, s, u'-'*60)
     return s
 
+def format_position(position):
+    if position:
+        return u"%s:%d:%d: " % (position[0].get_description(),
+                                position[1], position[2])
+    return u''
+
+def format_error(message, position):
+    if position:
+        pos_str = format_position(position)
+        cont = context(position)
+        message = u'\nError converting Pyrex file to C:\n%s\n%s%s' % (cont, pos_str, message or u'')
+    return message
+
 class CompileError(PyrexError):
     
     def __init__(self, position = None, message = u""):
@@ -36,12 +49,7 @@ class CompileError(PyrexError):
         self.reported = False
     # Deprecated and withdrawn in 2.6:
     #   self.message = message
-        if position:
-            pos_str = u"%s:%d:%d: " % (position[0].get_description(),
-                                       position[1], position[2])
-            cont = context(position)
-            message = u'\nError converting Pyrex file to C:\n%s\n%s%s' % (cont, pos_str, message)
-        Exception.__init__(self, message)
+        Exception.__init__(self, format_error(message, position))
 
 class CompileWarning(PyrexWarning):
     
@@ -49,17 +57,14 @@ class CompileWarning(PyrexWarning):
         self.position = position
     # Deprecated and withdrawn in 2.6:
     #   self.message = message
-        if position:
-            pos_str = u"%s:%d:%d: " % (position[0].get_description(), position[1], position[2])
-        else:
-            pos_str = u""
-        Exception.__init__(self, pos_str + message)
+        Exception.__init__(self, format_position(position) + message)
 
 
 class InternalError(Exception):
     # If this is ever raised, there is a bug in the compiler.
     
     def __init__(self, message):
+        self.message_only = message
         Exception.__init__(self, u"Internal compiler error: %s"
             % message)
 
@@ -71,6 +76,7 @@ class CompilerCrash(CompileError):
             message = u'\n' + message
         else:
             message = u'\n'
+        self.message_only = message
         if context:
             message = u"Compiler crash in %s%s" % (context, message)
         if stacktrace:
@@ -117,7 +123,11 @@ def report_error(err):
         # See Main.py for why dual reporting occurs. Quick fix for now.
         if err.reported: return
         err.reported = True
-        line = u"%s\n" % err
+        try: line = u"%s\n" % err
+        except UnicodeEncodeError:
+            # Python <= 2.5 does this for non-ASCII Unicode exceptions
+            line = format_error(getattr(err, 'message_only', "[unprintable exception message]"),
+                                getattr(err, 'position', None)) + u'\n'
         if listing_file:
             try: listing_file.write(line)
             except UnicodeEncodeError:
