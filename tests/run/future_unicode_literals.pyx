@@ -16,7 +16,7 @@ else:
     True
     >>> isinstance(u, unicode)
     True
-    >>> isinstance(b, bytes)
+    >>> isinstance(b, str)
     True
 """
 
