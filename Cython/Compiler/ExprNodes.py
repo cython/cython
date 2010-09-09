@@ -2011,7 +2011,7 @@ class IndexNode(ExprNode):
 
         # Handle the case where base is a literal char* (and we expect a string, not an int)
         if isinstance(self.base, BytesNode) or is_slice:
-            if not (self.base.type.is_ptr or self.base.type.is_array):
+            if self.base.type.is_string or not (self.base.type.is_ptr or self.base.type.is_array):
                 self.base = self.base.coerce_to_pyobject(env)
 
         skip_child_analysis = False
