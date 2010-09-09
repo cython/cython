@@ -106,7 +106,7 @@ normalise_newlines = re.compile(u'\r\n?|\n').sub
 class NormalisedNewlineStream(object):
   """The codecs module doesn't provide universal newline support.
   This class is used as a stream wrapper that provides this
-  functionality.  The new 'io' in Py2.6+/3.1+ supports this out of the
+  functionality.  The new 'io' in Py2.6+/3.x supports this out of the
   box.
   """
   def __init__(self, stream):
@@ -126,10 +126,10 @@ class NormalisedNewlineStream(object):
 
   def readlines(self):
     content = []
-    data = self._read(0x1000)
+    data = self.read(0x1000)
     while data:
         content.append(data)
-        data = self._read(0x1000)
+        data = self.read(0x1000)
     return u''.join(content).split(u'\n')
 
 io = None
