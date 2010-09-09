@@ -3,7 +3,7 @@ from cpython.object cimport Py_EQ, Py_NE
 
 def double_ptr_slice(x, L, int a, int b):
     """
-    >>> L = range(10)
+    >>> L = list(range(10))
     >>> double_ptr_slice(5, L, 0, 10)
     >>> double_ptr_slice(6, L, 0, 10)
     >>> double_ptr_slice(None, L, 0, 10)
@@ -27,7 +27,7 @@ def double_ptr_slice(x, L, int a, int b):
 
 def void_ptr_slice(py_x, L, int a, int b):
     """
-    >>> L = range(10)
+    >>> L = list(range(10))
     >>> void_ptr_slice(5, L, 0, 10)
     >>> void_ptr_slice(6, L, 0, 10)
     >>> void_ptr_slice(None, L, 0, 10)
