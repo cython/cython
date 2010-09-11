@@ -44,7 +44,7 @@ def void_ptr_slice(py_x, L, int a, int b):
             L_c[i] = <void*>L[i]
         assert (x in L_c[:b]) == (py_x in L[:b])
         assert (x in L_c[a:b]) == (py_x in L[a:b])
-#        assert (x in L_c[a:b:2]) == (py_x in L[a:b:2])
+        assert (x in L_c[a:b:2]) == (py_x in L[a:b:2])
     finally:
         free(L_c)
 

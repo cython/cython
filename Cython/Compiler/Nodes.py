@@ -4295,9 +4295,6 @@ class ForInStatNode(LoopNode, StatNode):
         self.target.analyse_target_types(env)
         self.iterator.analyse_expressions(env)
         self.item = ExprNodes.NextNode(self.iterator, env)
-        if not self.target.type.assignable_from(self.item.type) and \
-            (self.iterator.sequence.type.is_ptr or self.iterator.sequence.type.is_array):
-            self.item.type = self.iterator.sequence.type.base_type
         self.item = self.item.coerce_to(self.target.type, env)
         self.body.analyse_expressions(env)
         if self.else_clause:

@@ -1667,11 +1667,10 @@ class IteratorNode(ExprNode):
     
     def analyse_types(self, env):
         self.sequence.analyse_types(env)
-        if isinstance(self.sequence, SliceIndexNode) and \
-               (self.sequence.base.type.is_array or self.sequence.base.type.is_ptr) \
-               or self.sequence.type.is_array and self.sequence.type.size is not None:
+        if (self.sequence.type.is_array or self.sequence.type.is_ptr) and \
+                not self.sequence.type.is_string:
             # C array iteration will be transformed later on
-            pass
+            self.type = self.sequence.type
         else:
             self.sequence = self.sequence.coerce_to_pyobject(env)
         self.is_temp = 1
@@ -1686,6 +1685,8 @@ class IteratorNode(ExprNode):
         code.funcstate.release_temp(self.counter_cname)
 
     def generate_result_code(self, code):
+        if self.sequence.type.is_array or self.sequence.type.is_ptr:
+            raise InternalError("for in carray slice not transformed")
         is_builtin_sequence = self.sequence.type is list_type or \
                               self.sequence.type is tuple_type
         may_be_a_sequence = is_builtin_sequence or not self.sequence.type.is_builtin_type
@@ -1733,6 +1734,8 @@ class NextNode(AtomicExprNode):
     def __init__(self, iterator, env):
         self.pos = iterator.pos
         self.iterator = iterator
+        if iterator.type.is_ptr or iterator.type.is_array:
+            self.type = iterator.type.base_type
         self.is_temp = 1
     
     def generate_result_code(self, code):
@@ -2008,6 +2011,7 @@ class IndexNode(ExprNode):
             return
         
         is_slice = isinstance(self.index, SliceNode)
+        # Potentially overflowing index value.
         if not is_slice and isinstance(self.index, IntNode) and Utils.long_literal(self.index.value):
             self.index = self.index.coerce_to_pyobject(env)
 
@@ -2092,7 +2096,9 @@ class IndexNode(ExprNode):
             else:
                 if base_type.is_ptr or base_type.is_array:
                     self.type = base_type.base_type
-                    if self.index.type.is_pyobject:
+                    if is_slice:
+                        self.type = base_type
+                    elif self.index.type.is_pyobject:
                         self.index = self.index.coerce_to(
                             PyrexTypes.c_py_ssize_t_type, env)
                     elif not self.index.type.is_int:
@@ -2147,6 +2153,8 @@ class IndexNode(ExprNode):
             return "PyTuple_GET_ITEM(%s, %s)" % (self.base.result(), self.index.result())
         elif self.base.type is unicode_type and self.type is PyrexTypes.c_py_unicode_type:
             return "PyUnicode_AS_UNICODE(%s)[%s]" % (self.base.result(), self.index.result())
+        elif (self.type.is_ptr or self.type.is_array) and self.type == self.base.type:
+            error(self.pos, "Invalid use of pointer slice")
         else:
             return "(%s[%s])" % (
                 self.base.result(), self.index.result())
@@ -2401,7 +2409,9 @@ class SliceIndexNode(ExprNode):
         base_type = self.base.type
         if base_type.is_string:
             self.type = bytes_type
-        elif base_type.is_array or base_type.is_ptr:
+        elif base_type.is_ptr:
+            self.type = base_type
+        elif base_type.is_array:
             # we need a ptr type here instead of an array type, as
             # array types can result in invalid type casts in the C
             # code
@@ -6027,13 +6037,9 @@ class CmpNode(object):
     
     def is_ptr_contains(self):
         if self.operator in ('in', 'not_in'):
-            iterator = self.operand2
-            if iterator.type.is_ptr or iterator.type.is_array:
-                return iterator.type.base_type is not PyrexTypes.c_char_type
-            if (isinstance(iterator, IndexNode) and
-                isinstance(iterator.index, (SliceNode, CoerceFromPyTypeNode)) and
-                (iterator.base.type.is_array or iterator.base.type.is_ptr)):
-                return iterator.base.type.base_type is not PyrexTypes.c_char_type
+            container_type = self.operand2.type
+            return (container_type.is_ptr or container_type.is_array) \
+                and not container_type.is_string
 
     def generate_operation_code(self, code, result_code, 
             operand1, op , operand2):
