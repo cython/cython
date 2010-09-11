@@ -4,6 +4,7 @@
 
 import sys
 from Cython.Utils import open_new_file
+from DebugFlags import debug_exception_on_error
 
 
 class PyrexError(Exception):
@@ -143,7 +144,7 @@ def error(position, message):
     if position is None:
         raise InternalError(message)
     err = CompileError(position, message)    
-    #if position is not None: raise Exception(err) # debug
+    if debug_exception_on_error: raise Exception(err) # debug
     report_error(err)
     return err
 
