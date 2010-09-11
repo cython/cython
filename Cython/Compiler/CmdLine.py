@@ -125,9 +125,17 @@ def parse_command_line(args):
                 except ValueError, e:
                     sys.stderr.write("Error in compiler directive: %s\n" % e.args[0])
                     sys.exit(1)
+            elif option.startswith('--debug'):
+                option = option[2:].replace('-', '_')
+                import DebugFlags
+                if option in dir(DebugFlags):
+                    setattr(DebugFlags, option, True)
+                else:
+                    sys.stderr.write("Unknown debug flag: %s\n" % option)
+                    bad_usage()
             else:
                 sys.stderr.write("Unknown compiler flag: %s\n" % option)
-                bad_usage()
+                sys.exit(1)
         else:
             arg = pop_arg()
             if arg.endswith(".pyx"):
