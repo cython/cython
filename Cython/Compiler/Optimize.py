@@ -146,16 +146,13 @@ class IterationTransform(Visitor.VisitorTransform):
                 node, dict_obj=iterator, keys=True, values=False)
 
         # C array (slice) iteration?
-        plain_iterator = unwrap_coerced_node(iterator)
-        if isinstance(plain_iterator, ExprNodes.SliceIndexNode) and \
-               (plain_iterator.base.type.is_array or plain_iterator.base.type.is_ptr):
-            return self._transform_carray_iteration(node, plain_iterator)
-        if isinstance(plain_iterator, ExprNodes.IndexNode) and \
-               isinstance(plain_iterator.index, (ExprNodes.SliceNode, ExprNodes.CoerceFromPyTypeNode)):
-            iterator_base = unwrap_coerced_node(plain_iterator.base)
-            if iterator_base.type.is_array or iterator_base.type.is_ptr:
+        if False:
+            plain_iterator = unwrap_coerced_node(iterator)
+            if isinstance(plain_iterator, ExprNodes.SliceIndexNode) and \
+                   (plain_iterator.base.type.is_array or plain_iterator.base.type.is_ptr):
                 return self._transform_carray_iteration(node, plain_iterator)
-        if iterator.type.is_array:
+
+        if iterator.type.is_ptr or iterator.type.is_array:
             return self._transform_carray_iteration(node, iterator)
         if iterator.type in (Builtin.bytes_type, Builtin.unicode_type):
             return self._transform_string_iteration(node, iterator)
@@ -220,7 +217,7 @@ class IterationTransform(Visitor.VisitorTransform):
 
     def _transform_string_iteration(self, node, slice_node):
         if not node.target.type.is_int:
-            return node
+            return self._transform_carray_iteration(node, slice_node)
         if slice_node.type is Builtin.unicode_type:
             unpack_func = "PyUnicode_AS_UNICODE"
             len_func = "PyUnicode_GET_SIZE"
@@ -270,11 +267,13 @@ class IterationTransform(Visitor.VisitorTransform):
             stop = slice_node.stop
             step = None
             if not stop:
+                if not slice_base.type.is_pyobject:
+                    error(slice_node.pos, "C array iteration requires known end index")
                 return node
         elif isinstance(slice_node, ExprNodes.IndexNode):
             # slice_node.index must be a SliceNode
-            slice_base = unwrap_coerced_node(slice_node.base)
-            index = unwrap_coerced_node(slice_node.index)
+            slice_base = slice_node.base
+            index = slice_node.index
             start = index.start
             stop = index.stop
             step = index.step
@@ -285,7 +284,8 @@ class IterationTransform(Visitor.VisitorTransform):
                        or step.constant_result == 0 \
                        or step.constant_result > 0 and not stop \
                        or step.constant_result < 0 and not start:
-                    error(step.pos, "C array iteration requires known step size and end index")
+                    if not slice_base.type.is_pyobject:
+                        error(step.pos, "C array iteration requires known step size and end index")
                     return node
                 else:
                     # step sign is handled internally by ForFromStatNode
@@ -293,14 +293,20 @@ class IterationTransform(Visitor.VisitorTransform):
                     step = ExprNodes.IntNode(step.pos, type=PyrexTypes.c_py_ssize_t_type,
                                              value=abs(step.constant_result),
                                              constant_result=abs(step.constant_result))
-        elif slice_node.type.is_array and slice_node.type.size is not None:
+        elif slice_node.type.is_array:
+            if slice_node.type.size is None:
+                error(step.pos, "C array iteration requires known end index")
+                return node
             slice_base = slice_node
             start = None
             stop = ExprNodes.IntNode(
                 slice_node.pos, value=str(slice_node.type.size),
                 type=PyrexTypes.c_py_ssize_t_type, constant_result=slice_node.type.size)
             step = None
+
         else:
+            if not slice_node.type.is_pyobject:
+                error(slice_node.pos, "Invalid C array iteration")
             return node
 
         if start:
