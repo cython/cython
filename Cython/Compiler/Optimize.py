@@ -306,7 +306,7 @@ class IterationTransform(Visitor.VisitorTransform):
 
         else:
             if not slice_node.type.is_pyobject:
-                error(slice_node.pos, "Invalid C array iteration")
+                error(slice_node.pos, "C array iteration requires known end index")
             return node
 
         if start:
