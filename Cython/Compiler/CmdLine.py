@@ -23,9 +23,6 @@ Options:
   -v, --verbose                  Be verbose, print file names on multiple compilation
   -p, --embed-positions          If specified, the positions in Cython files of each
                                  function definition is embedded in its docstring.
-  -z, --pre-import <module>      If specified, assume undeclared names in this 
-                                 module. Emulates the behavior of putting 
-                                 "from <module> import *" at the top of the file. 
   --cleanup <level>              Release interned objects on python exit, for memory debugging. 
                                  Level indicates aggressiveness, default 0 releases nothing. 
   -w, --working <directory>      Sets the working directory for Cython (the directory modules 
