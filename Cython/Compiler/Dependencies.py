@@ -226,7 +226,10 @@ def create_dependency_tree(ctx):
         _dep_tree = DependencyTree(ctx)
     return _dep_tree
 
-def create_extension_list(filepatterns, ctx):
+def create_extension_list(filepatterns, ctx=None):
+    if ctx is None:
+        from Cython.Compiler.Main import Context
+        ctx = Context(["."])
     deps = create_dependency_tree(ctx)
     if isinstance(filepatterns, str):
         filepatterns = [filepatterns]
