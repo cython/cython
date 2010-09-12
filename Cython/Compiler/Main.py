@@ -584,6 +584,89 @@ def run_pipeline(source, options, full_module_name = None):
     context.teardown_errors(err, options, result)
     return result
 
+def parse_dependancies(source):
+
+    # Set up context
+    options = CompilationOptions()
+    context = Context(options.include_path, options.compiler_directives,
+                      options.cplus, options.language_level)
+
+    # Set up source object
+    cwd = os.getcwd()
+    source_desc = FileSourceDescriptor(os.path.join(cwd, source))
+    full_module_name = context.extract_module_name(source, options)
+    source = CompilationSource(source_desc, full_module_name, cwd)
+
+    scope = ModuleScope(name = full_module_name, parent_module = None, context = context)
+    f = Utils.open_source_file(source_desc.filename, "rU")
+    s = PyrexScanner(f, source_desc, source_encoding = f.encoding,
+                     scope = scope, context = context)
+    
+    from Parsing import p_string_literal
+    
+    def p_all(s):
+        while s.sy != 'EOF':
+            if s.sy == 'cimport':
+                p_cimport(s)
+            elif s.sy == 'from':
+                p_from(s)
+            elif s.sy == 'include':
+                p_include(s)
+            elif s.sy == 'cdef':
+                p_cdef_extern(s)
+            else:
+                p_other(s)
+        
+    def p_include(s):
+        s.next()
+        _, include_file = p_string_literal(s)
+        includes.append(include_file)
+    
+    def p_dotted_name(s):
+        path = [s.systring]
+        s.next()
+        while s.sy == '.':
+            s.next()
+            path.append(s.systring)
+            s.next()
+        return '.'.join(path)
+    
+    def p_cimport(s):
+        # TODO: newstyle relative imports
+        s.next()
+        cimports.append(p_dotted_name(s))
+    
+    def p_from(s):
+        s.next()
+        module = p_dotted_name(s)
+        if s.systring == 'cimport':
+            cimports.append(module)
+        p_other(s)
+    
+    def p_cdef_extern(s):
+        s.next()
+        if s.systring != 'extern': return
+        s.next()
+        if s.systring != 'from': return
+        s.next()
+        if s.systring == '*': return
+        _, include_file = p_string_literal(s)
+        externs.append(include_file)
+        
+    def p_other(s):
+        while s.sy not in ('NEWLINE', 'EOF'):
+            s.next()
+        if s.sy == 'NEWLINE':
+            s.next()
+    
+    cimports = []
+    includes = []
+    externs = []
+    p_all(s)
+    
+    print cimports, includes, externs
+    
+
 #------------------------------------------------------------------------
 #
 #  Main Python entry points
