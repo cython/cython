@@ -7,7 +7,8 @@ from Cython.Compiler.Visitor import TreeVisitor, VisitorTransform
 from Cython.Compiler import TreePath
 
 import unittest
-import sys
+import os, sys
+import tempfile
 
 class NodeTypeWriter(TreeVisitor):
     def __init__(self):
@@ -166,3 +167,19 @@ class TreeAssertVisitor(VisitorTransform):
         return node
 
     visit_Node = VisitorTransform.recurse_to_children
+
+def unpack_source_tree(tree_file):
+    dir = tempfile.mkdtemp()
+    cur_file = None
+    for line in open(tree_file).readlines():
+        if line[:5] == '#####':
+            filename = line.strip().strip('#').strip()
+            path = os.path.join(dir, filename)
+            print os.path.dirname(path)
+            if not os.path.exists(os.path.dirname(path)):
+                print "    ...creating"
+                os.makedirs(os.path.dirname(path))
+            cur_file = open(path, 'w')
+        elif cur_file is not None:
+            cur_file.write(line)
+    return dir
