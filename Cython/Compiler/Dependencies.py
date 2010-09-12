@@ -334,6 +334,8 @@ def create_extension_list(filepatterns, ctx=None):
             module_list.append(Extension(name=name, sources=[file], **deps.distutils_info(file).values))
     return module_list
 
+cython_py = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../cython.py'))
+
 def cythonize(module_list, ctx=None):
     deps = create_dependency_tree(ctx)
     to_compile = []
@@ -365,7 +367,6 @@ def cythonize(module_list, ctx=None):
         m.sources = new_sources
     to_compile.sort()
     # TODO: invoke directly
-    cython_py = os.path.join(os.path.dirname(__file__), '../../cython.py')
     for priority, pyx_file, c_file in to_compile:
         cmd = "%s %s %s -o %s" % (sys.executable, cython_py, pyx_file, c_file)
         print cmd
