@@ -1,5 +1,10 @@
-from Cython import Utils
+from glob import glob
 import re
+
+from distutils.extension import Extension
+
+from Cython import Utils
+
 
 def cached_method(f):
     cache_name = '__%s_cache' % f.__name__
@@ -114,23 +119,31 @@ class DependencyTree(object):
         return parse_dependencies(source_filename)
     
     @cached_method
-    def immediate_dependencies(self, filename):
+    def cimports_and_externs(self, filename):
         cimports, includes, externs = self.parse_dependencies(filename)
         cimports = set(cimports)
         externs = set(externs)
         for include in includes:
-            a, b = self.immediate_dependencies(os.path.join(os.path.dirname(filename), include))
+            a, b = self.cimports_and_externs(os.path.join(os.path.dirname(filename), include))
             cimports.update(a)
             externs.update(b)
-        return cimports, externs
+        return tuple(cimports), tuple(externs)
+    
+    def cimports(self, filename):
+        return self.cimports_and_externs(filename)[0]
     
     @cached_method
     def package(self, filename):
         dir = os.path.dirname(filename)
         if os.path.exists(os.path.join(dir, '__init__.py')):
-            return self.package(dir) + [os.path.basename(dir)]
+            return self.package(dir) + (os.path.basename(dir),)
         else:
-            return []
+            return ()
+    
+    @cached_method
+    def fully_qualifeid_name(self, filename):
+        module = os.path.splitext(os.path.basename(filename))[0]
+        return '.'.join(self.package(filename) + (module,))
     
     def find_pxd(self, module, filename=None):
         if module[0] == '.':
@@ -145,22 +158,29 @@ class DependencyTree(object):
     @cached_method
     def cimported_files(self, filename):
         if filename[-4:] == '.pyx' and os.path.exists(filename[:-4] + '.pxd'):
-            self_pxd = [filename[:-4] + '.pxd']
+            self_pxd = (filename[:-4] + '.pxd',)
         else:
-            self_pxd = []
-        a = self.immediate_dependencies(filename)[0]
-        b = filter(None, [self.find_pxd(m, filename) for m in self.immediate_dependencies(filename)[0]])
+            self_pxd = ()
+        a = self.cimports(filename)
+        b = filter(None, [self.find_pxd(m, filename) for m in self.cimports(filename)])
         if len(a) != len(b):
             print (filename)
             print ("\n\t".join(a))
             print ("\n\t".join(b))
-        return self_pxd + filter(None, [self.find_pxd(m, filename) for m in self.immediate_dependencies(filename)[0]])
+        return tuple(self_pxd + filter(None, [self.find_pxd(m, filename) for m in self.cimports(filename)]))
+    
+    def immediate_dependencies(self, filename):
+        all = list(self.cimported_files(filename))
+        for extern in self.cimports_and_externs(filename):
+            all.append(os.path.normpath(os.path.join(os.path.dirname(filename), extern)))
+        return tuple(all)
     
     @cached_method
     def timestamp(self, filename):
         return os.path.getmtime(filename)
     
     def extract_timestamp(self, filename):
+        # TODO: .h files from extern blocks
         return self.timestamp(filename), filename
     
     def newest_dependency(self, filename):
@@ -198,3 +218,59 @@ class DependencyTree(object):
             return deps, loop
         finally:
             del stack[node]
+
+_dep_tree = None
+def create_dependency_tree(ctx):
+    global _dep_tree
+    if _dep_tree is None:
+        _dep_tree = DependencyTree(ctx)
+    return _dep_tree
+
+def create_extension_list(filepatterns, ctx):
+    deps = create_dependency_tree(ctx)
+    if isinstance(filepatterns, str):
+        filepatterns = [filepatterns]
+    for pattern in filepatterns:
+        for file in glob(pattern):
+            pkg = deps.package(file)
+            name = fully_qualifeid_name(file)
+            return Extension(name=name, sources=[file])
+
+def cythonize(module_list):
+    deps = create_dependency_tree(ctx)
+    to_compile = []
+    for m in module_list:
+        new_sources = []
+        for source in m.sources:
+            base, ext = os.path.splitext(source)
+            if ext in ('pyx', 'py'):
+                if m.language == 'c++':
+                    c_file = base + '.cpp'
+                else:
+                    c_file = base + '.c'
+                if os.path.exists(c_file):
+                    c_timestamp = os.path.getmtime(outfile)
+                else:
+                    c_timestamp = -1
+                if c_timestamp < deps.timestamp(source):
+                    dep, dep_timestamp = deps.timestamp(source), source
+                    priority = 0
+                else:
+                    dep, dep_timestamp = deps.newest_dependency(source)
+                    priority = 2 - (dep in deps.immediate_dependencies(source))
+                if c_timestamp < dep_timestamp:
+                    print ("Compiling", source, "because it depends on ", dep)
+                    if dep == source:
+                    to_compile.append((priority, source, c_file))
+                new_sources.append(outfile)
+            else:
+                new_sources.append(source)
+        m.sources = new_sources
+    to_compile.sort()
+    # TODO: invoke directly
+    cython_py = os.path.join(os.path.dirname(__FILE__), '../../cython.py')
+    for priority, pyx_file, c_file in to_compile:
+        cmd = "python %s %s -o %s" % (python_py, pyx_file, c_file)
+        print cmd
+        os.system(cmd)
+    return module_list
