@@ -28,7 +28,7 @@ from distutils.core import Extension
 from distutils.command.build_ext import build_ext as _build_ext
 distutils_distro = Distribution()
 
-TEST_DIRS = ['compile', 'errors', 'run', 'wrappers', 'pyregr']
+TEST_DIRS = ['compile', 'errors', 'run', 'wrappers', 'pyregr', 'build']
 TEST_RUN_DIRS = ['run', 'wrappers', 'pyregr']
 
 # Lists external modules, and a matcher matching tests
@@ -162,6 +162,9 @@ class TestBuilder(object):
         filenames = os.listdir(path)
         filenames.sort()
         for filename in filenames:
+            if context == "build" and filename.endswith(".srctree"):
+                suite.addTest(EndToEndTest(filename, workdir, self.cleanup_workdir))
+                continue
             if not (filename.endswith(".pyx") or filename.endswith(".py")):
                 continue
             if filename.startswith('.'): continue # certain emacs backup files
@@ -622,6 +625,47 @@ def collect_doctests(path, module_prefix, suite, selectors):
                             suite.addTest(doctest.DocTestSuite(module))
                         except ValueError: # no tests
                             pass
+
+
+class EndToEndTest(unittest.TestCase):
+    """
+    This is a test of build/*.srctree files, where srctree defines a full
+    directory structure and its header gives a list of commands to run.
+    """
+    def __init__(self, treefile, workdir, cleanup_workdir=True):
+        self.treefile = treefile
+        self.workdir = os.path.join(workdir, os.path.splitext(treefile)[0])
+        self.cleanup_workdir = cleanup_workdir
+        unittest.TestCase.__init__(self)
+
+    def shortDescription(self):
+        return "End-to-end %s" % self.treefile
+
+    def setUp(self):
+        from Cython.TestUtils import unpack_source_tree
+        _, self.commands = unpack_source_tree(os.path.join('tests', 'build', self.treefile), self.workdir)
+        self.old_dir = os.getcwd()
+        if not os.path.exists(self.workdir):
+            os.makedirs(self.workdir)
+        os.chdir(self.workdir)
+        if self.workdir not in sys.path:
+            sys.path.insert(0, self.workdir)
+
+    def tearDown(self):
+        try:
+            sys.path.remove(self.workdir)
+        except ValueError:
+            pass
+        if self.cleanup_workdir:
+            shutil.rmtree(self.workdir)
+        os.chdir(self.old_dir)
+    
+    def runTest(self):
+        commands = (self.commands
+            .replace("CYTHON", "PYTHON %s" % os.path.join(self.old_dir, 'cython.py'))
+            .replace("PYTHON", sys.executable))
+        self.assertEqual(0, os.system(commands))
+
 
 # TODO: Support cython_freeze needed here as well.
 # TODO: Windows support.
