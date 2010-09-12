@@ -168,18 +168,20 @@ class TreeAssertVisitor(VisitorTransform):
 
     visit_Node = VisitorTransform.recurse_to_children
 
-def unpack_source_tree(tree_file):
-    dir = tempfile.mkdtemp()
+def unpack_source_tree(tree_file, dir=None):
+    if dir is None:
+        dir = tempfile.mkdtemp()
+    header = []
     cur_file = None
     for line in open(tree_file).readlines():
         if line[:5] == '#####':
-            filename = line.strip().strip('#').strip()
+            filename = line.strip().strip('#').strip().replace('/', os.path.sep)
             path = os.path.join(dir, filename)
-            print os.path.dirname(path)
             if not os.path.exists(os.path.dirname(path)):
-                print "    ...creating"
                 os.makedirs(os.path.dirname(path))
             cur_file = open(path, 'w')
         elif cur_file is not None:
             cur_file.write(line)
-    return dir
+        else:
+            header.append(line)
+    return dir, ''.join(header)
