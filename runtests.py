@@ -634,6 +634,8 @@ class EndToEndTest(unittest.TestCase):
     This is a test of build/*.srctree files, where srctree defines a full
     directory structure and its header gives a list of commands to run.
     """
+    cython_root = os.path.dirname(os.path.abspath(__file__))
+    
     def __init__(self, treefile, workdir, cleanup_workdir=True):
         self.treefile = treefile
         self.workdir = os.path.join(workdir, os.path.splitext(treefile)[0])
@@ -657,14 +659,13 @@ class EndToEndTest(unittest.TestCase):
         os.chdir(self.old_dir)
     
     def runTest(self):
-        # Assumes old_dir is root of the cython directory...
         commands = (self.commands
-            .replace("CYTHON", "PYTHON %s" % os.path.join(self.old_dir, 'cython.py'))
+            .replace("CYTHON", "PYTHON %s" % os.path.join(self.cython_root, 'cython.py'))
             .replace("PYTHON", sys.executable))
         commands = """
         PYTHONPATH="%s%s$PYTHONPATH"
         %s
-        """ % (self.old_dir, os.pathsep, commands)
+        """ % (self.cython_root, os.pathsep, commands)
         self.assertEqual(0, os.system(commands))
 
 
