@@ -163,6 +163,8 @@ class TestBuilder(object):
         filenames.sort()
         for filename in filenames:
             if context == "build" and filename.endswith(".srctree"):
+                if not [ 1 for match in self.selectors if match(filename) ]:
+                    continue
                 suite.addTest(EndToEndTest(filename, workdir, self.cleanup_workdir))
                 continue
             if not (filename.endswith(".pyx") or filename.endswith(".py")):
@@ -645,25 +647,24 @@ class EndToEndTest(unittest.TestCase):
         from Cython.TestUtils import unpack_source_tree
         _, self.commands = unpack_source_tree(os.path.join('tests', 'build', self.treefile), self.workdir)
         self.old_dir = os.getcwd()
-        if not os.path.exists(self.workdir):
-            os.makedirs(self.workdir)
         os.chdir(self.workdir)
         if self.workdir not in sys.path:
             sys.path.insert(0, self.workdir)
 
     def tearDown(self):
-        try:
-            sys.path.remove(self.workdir)
-        except ValueError:
-            pass
         if self.cleanup_workdir:
             shutil.rmtree(self.workdir)
         os.chdir(self.old_dir)
     
     def runTest(self):
+        # Assumes old_dir is root of the cython directory...
         commands = (self.commands
             .replace("CYTHON", "PYTHON %s" % os.path.join(self.old_dir, 'cython.py'))
             .replace("PYTHON", sys.executable))
+        commands = """
+        PYTHONPATH="%s%s$PYTHONPATH"
+        %s
+        """ % (self.old_dir, os.pathsep, commands)
         self.assertEqual(0, os.system(commands))
 
 

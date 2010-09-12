@@ -1,5 +1,5 @@
 from glob import glob
-import re
+import re, os, sys
 
 from distutils.extension import Extension
 
@@ -220,60 +220,61 @@ class DependencyTree(object):
             del stack[node]
 
 _dep_tree = None
-def create_dependency_tree(ctx):
+def create_dependency_tree(ctx=None):
     global _dep_tree
     if _dep_tree is None:
+        if ctx is None:
+            from Cython.Compiler.Main import Context, CompilationOptions
+            ctx = Context(["."], CompilationOptions())
         _dep_tree = DependencyTree(ctx)
     return _dep_tree
 
 def create_extension_list(filepatterns, ctx=None):
-    if ctx is None:
-        from Cython.Compiler.Main import Context
-        ctx = Context(["."])
     deps = create_dependency_tree(ctx)
     if isinstance(filepatterns, str):
         filepatterns = [filepatterns]
+    module_list = []
     for pattern in filepatterns:
         for file in glob(pattern):
             pkg = deps.package(file)
-            name = fully_qualifeid_name(file)
-            return Extension(name=name, sources=[file])
+            name = deps.fully_qualifeid_name(file)
+            module_list.append(Extension(name=name, sources=[file]))
+    return module_list
 
-def cythonize(module_list):
+def cythonize(module_list, ctx=None):
     deps = create_dependency_tree(ctx)
     to_compile = []
     for m in module_list:
         new_sources = []
         for source in m.sources:
             base, ext = os.path.splitext(source)
-            if ext in ('pyx', 'py'):
+            if ext in ('.pyx', '.py'):
                 if m.language == 'c++':
                     c_file = base + '.cpp'
                 else:
                     c_file = base + '.c'
                 if os.path.exists(c_file):
-                    c_timestamp = os.path.getmtime(outfile)
+                    c_timestamp = os.path.getmtime(c_file)
                 else:
                     c_timestamp = -1
                 if c_timestamp < deps.timestamp(source):
-                    dep, dep_timestamp = deps.timestamp(source), source
+                    dep_timestamp, dep = deps.timestamp(source), source
                     priority = 0
                 else:
-                    dep, dep_timestamp = deps.newest_dependency(source)
+                    dep_timestamp, dep = deps.newest_dependency(source)
                     priority = 2 - (dep in deps.immediate_dependencies(source))
                 if c_timestamp < dep_timestamp:
-                    print ("Compiling", source, "because it depends on ", dep)
-                    if dep == source:
+                    print "Compiling", source, "because it depends on", dep
                     to_compile.append((priority, source, c_file))
-                new_sources.append(outfile)
+                new_sources.append(c_file)
             else:
                 new_sources.append(source)
         m.sources = new_sources
     to_compile.sort()
     # TODO: invoke directly
-    cython_py = os.path.join(os.path.dirname(__FILE__), '../../cython.py')
+    cython_py = os.path.join(os.path.dirname(__file__), '../../cython.py')
     for priority, pyx_file, c_file in to_compile:
-        cmd = "python %s %s -o %s" % (python_py, pyx_file, c_file)
+        cmd = "%s %s %s -o %s" % (sys.executable, cython_py, pyx_file, c_file)
         print cmd
         os.system(cmd)
     return module_list

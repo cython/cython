@@ -1,0 +1,16 @@
+PYTHON setup.py build_ext --inplace
+PYTHON -c "import a"
+
+######## setup.py ########
+
+
+# TODO: Better interface...
+from Cython.Compiler.Dependencies import create_extension_list, cythonize
+
+from distutils.core import setup
+
+setup(
+  ext_modules = cythonize(create_extension_list("*.pyx")),
+)
+
+######## a.pyx ########
