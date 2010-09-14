@@ -68,24 +68,25 @@ def line_iter(source):
 
 class DistutilsInfo(object):
     
-    def __init__(self, source):
+    def __init__(self, source=None):
         self.values = {}
-        for line in line_iter(source):
-            line = line.strip()
-            if line != '' and line[0] != '#':
-                break
-            line = line[1:].strip()
-            if line[:10] == 'distutils:':
-                line = line[10:]
-                ix = line.index('=')
-                key = str(line[:ix].strip())
-                value = line[ix+1:].strip()
-                type = distutils_settings[key]
-                if type in (list, transitive_list):
-                    value = parse_list(value)
-                    if key == 'define_macros':
-                        value = [tuple(macro.split('=')) for macro in value]
-                self.values[key] = value
+        if source is not None:
+            for line in line_iter(source):
+                line = line.strip()
+                if line != '' and line[0] != '#':
+                    break
+                line = line[1:].strip()
+                if line[:10] == 'distutils:':
+                    line = line[10:]
+                    ix = line.index('=')
+                    key = str(line[:ix].strip())
+                    value = line[ix+1:].strip()
+                    type = distutils_settings[key]
+                    if type in (list, transitive_list):
+                        value = parse_list(value)
+                        if key == 'define_macros':
+                            value = [tuple(macro.split('=')) for macro in value]
+                    self.values[key] = value
     
     def merge(self, other):
         for key, value in other.values.items():
@@ -101,6 +102,28 @@ class DistutilsInfo(object):
                 else:
                     self.values[key] = value
         return self
+    
+    def subs(self, aliases):
+        if aliases is None:
+            return self
+        resolved = DistutilsInfo()
+        for key, value in self.values.items():
+            type = distutils_settings[key]
+            if type in [list, transitive_list]:
+                new_value_list = []
+                for v in value:
+                    if v in aliases:
+                        v = aliases[v]
+                    if isinstance(v, list):
+                        new_value_list += v
+                    else:
+                        new_value_list.append(v)
+                value = new_value_list
+            else:
+                if value in aliases:
+                    value = aliases[value]
+            resolved.values[key] = value
+        return resolved
 
 
 def strip_string_literals(code, prefix='__Pyx_L'):
@@ -280,8 +303,8 @@ class DependencyTree(object):
     def distutils_info0(self, filename):
         return self.parse_dependencies(filename)[3]
     
-    def distutils_info(self, filename):
-        return self.transitive_merge(filename, self.distutils_info0, DistutilsInfo.merge)
+    def distutils_info(self, filename, aliases):
+        return self.transitive_merge(filename, self.distutils_info0, DistutilsInfo.merge).subs(aliases)
     
     def transitive_merge(self, node, extract, merge):
         try:
@@ -328,7 +351,7 @@ def create_dependency_tree(ctx=None):
 
 # TODO: Take common options.
 # TODO: Symbolic names (e.g. for numpy.include_dirs()
-def create_extension_list(filepatterns, ctx=None):
+def create_extension_list(filepatterns, ctx=None, aliases=None):
     deps = create_dependency_tree(ctx)
     if isinstance(filepatterns, str):
         filepatterns = [filepatterns]
@@ -337,7 +360,7 @@ def create_extension_list(filepatterns, ctx=None):
         for file in glob(pattern):
             pkg = deps.package(file)
             name = deps.fully_qualifeid_name(file)
-            module_list.append(Extension(name=name, sources=[file], **deps.distutils_info(file).values))
+            module_list.append(Extension(name=name, sources=[file], **deps.distutils_info(file, aliases).values))
     return module_list
 
 def cythonize(module_list, ctx=None, nthreads=0):
