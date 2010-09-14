@@ -1,6 +1,12 @@
 from glob import glob
 import re, os, sys
 
+try:
+    set
+except NameError:
+    # Python 2.3
+    from sets import Set as set
+
 from distutils.extension import Extension
 
 from Cython import Utils
@@ -68,7 +74,7 @@ def line_iter(source):
 
 class DistutilsInfo(object):
     
-    def __init__(self, source=None):
+    def __init__(self, source=None, exn=None):
         self.values = {}
         if source is not None:
             for line in line_iter(source):
@@ -87,8 +93,17 @@ class DistutilsInfo(object):
                         if key == 'define_macros':
                             value = [tuple(macro.split('=')) for macro in value]
                     self.values[key] = value
+        elif exn is not None:
+            for key in self.distutils_settings:
+                if key in ('name', 'sources'):
+                    pass
+                value = getattr(exn, key, None)
+                if value:
+                    self.values[key] = value
     
     def merge(self, other):
+        if other is None:
+            return self
         for key, value in other.values.items():
             type = distutils_settings[key]
             if type is transitive_str and key not in self.values:
@@ -303,8 +318,10 @@ class DependencyTree(object):
     def distutils_info0(self, filename):
         return self.parse_dependencies(filename)[3]
     
-    def distutils_info(self, filename, aliases):
-        return self.transitive_merge(filename, self.distutils_info0, DistutilsInfo.merge).subs(aliases)
+    def distutils_info(self, filename, aliases=None, base=None):
+        return (self.transitive_merge(filename, self.distutils_info0, DistutilsInfo.merge)
+            .subs(aliases)
+            .merge(base))
     
     def transitive_merge(self, node, extract, merge):
         try:
@@ -351,19 +368,38 @@ def create_dependency_tree(ctx=None):
 
 # TODO: Take common options.
 # TODO: Symbolic names (e.g. for numpy.include_dirs()
-def create_extension_list(filepatterns, ctx=None, aliases=None):
+def create_extension_list(patterns, ctx=None, aliases=None):
+    seen = set()
     deps = create_dependency_tree(ctx)
-    if isinstance(filepatterns, str):
-        filepatterns = [filepatterns]
+    if not isinstance(patterns, list):
+        patterns = [patterns]
     module_list = []
-    for pattern in filepatterns:
-        for file in glob(pattern):
+    for pattern in patterns:
+        if isinstance(pattern, str):
+            filepattern = pattern
+            template = None
+            name = '*'
+            base = None
+            exn_type = Extension
+        elif isinstance(pattern, Extension):
+            filepattern = pattern.sources[0]
+            template = pattern
+            name = template.name
+            base = DistutilsInfo(template)
+            exn_type = type(template)
+        else:
+            raise TypeError, pattern
+        for file in glob(filepattern):
             pkg = deps.package(file)
-            name = deps.fully_qualifeid_name(file)
-            module_list.append(Extension(name=name, sources=[file], **deps.distutils_info(file, aliases).values))
+            if name == '*':
+                name = deps.fully_qualifeid_name(file)
+            if name not in seen:
+                module_list.append(exn_type(name=name, sources=[file], **deps.distutils_info(file, aliases, base).values))
+                seen.add(name)
     return module_list
 
-def cythonize(module_list, ctx=None, nthreads=0):
+def cythonize(module_list, ctx=None, nthreads=0, aliases=None):
+    module_list = create_extension_list(module_list, ctx=ctx, aliases=aliases)
     deps = create_dependency_tree(ctx)
     to_compile = []
     for m in module_list:
