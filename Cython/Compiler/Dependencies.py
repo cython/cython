@@ -340,9 +340,7 @@ def create_extension_list(filepatterns, ctx=None):
             module_list.append(Extension(name=name, sources=[file], **deps.distutils_info(file).values))
     return module_list
 
-cython_py = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../cython.py'))
-
-def cythonize(module_list, ctx=None):
+def cythonize(module_list, ctx=None, nthreads=0):
     deps = create_dependency_tree(ctx)
     to_compile = []
     for m in module_list:
@@ -358,6 +356,8 @@ def cythonize(module_list, ctx=None):
                     c_timestamp = os.path.getmtime(c_file)
                 else:
                     c_timestamp = -1
+                # Priority goes first to modified files, second to direct
+                # dependents, and finally to indirect dependents.
                 if c_timestamp < deps.timestamp(source):
                     dep_timestamp, dep = deps.timestamp(source), source
                     priority = 0
@@ -373,8 +373,27 @@ def cythonize(module_list, ctx=None):
         m.sources = new_sources
     to_compile.sort()
     # TODO: invoke directly
-    for priority, pyx_file, c_file in to_compile:
-        cmd = "%s %s %s -o %s" % (sys.executable, cython_py, pyx_file, c_file)
-        print cmd
-        os.system(cmd)
+    if nthreads:
+        # Requires multiprocessing (or Python >= 2.6)
+        try:
+            import multiprocessing
+        except ImportError:
+            print "multiprocessing required for parallel cythonization"
+            nthreads = 0
+        pool = multiprocessing.Pool(nthreads)
+        pool.map(cythonoize_one_helper, to_compile)
+    if not nthreads:
+        for priority, pyx_file, c_file in to_compile:
+            cythonoize_one(pyx_file, c_file)
     return module_list
+
+cython_py = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../cython.py'))
+
+def cythonoize_one(pyx_file, c_file):
+    cmd = "%s %s %s -o %s" % (sys.executable, cython_py, pyx_file, c_file)
+    print cmd
+    if os.system(cmd) != 0:
+        raise CompilerError, pyx_file
+
+def cythonoize_one_helper(m):
+    return cythonoize_one(*m[1:])
