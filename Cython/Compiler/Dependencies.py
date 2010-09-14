@@ -383,6 +383,10 @@ def create_extension_list(patterns, ctx=None, aliases=None):
             exn_type = Extension
         elif isinstance(pattern, Extension):
             filepattern = pattern.sources[0]
+            if os.path.splitext(filepattern)[1] not in ('.py', '.pyx'):
+                # ignore non-cython modules
+                module_list.append(pattern)
+                continue
             template = pattern
             name = template.name
             base = DistutilsInfo(template)
