@@ -5,12 +5,12 @@ PYTHON -c "import a"
 
 
 # TODO: Better interface...
-from Cython.Compiler.Dependencies import create_extension_list, cythonize
+from Cython.Compiler.Dependencies import cythonize
 
 from distutils.core import setup
 
 setup(
-  ext_modules = cythonize(create_extension_list("*.pyx", aliases={'MATH_LIBS': ['m']})),
+  ext_modules = cythonize("*.pyx", aliases={'MATH_LIBS': ['m']}),
 )
 
 ######## my_lib.pxd ########
