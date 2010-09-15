@@ -544,10 +544,10 @@ cdef class GetAttrGetItemRedirect:
 
     def __getattr__(self, name):
         if name == 'item':
-            return self.__getitem__(name)
+            return self[name]
         return ('attr', self.obj)
 
     def __getitem__(self, key):
         if key == 'attr':
-            return self.__getattr__(key)
+            return getattr(self, key)
         return ('item', self.obj)
