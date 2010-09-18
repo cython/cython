@@ -13,7 +13,9 @@ except NameError:
     # Python 2.3
     from sets import Set as set
 
+import itertools
 from time import time
+
 import Code
 import Errors
 import Parsing
@@ -176,13 +178,19 @@ class Context(object):
             from Cython.TestUtils import TreeAssertVisitor
             test_support.append(TreeAssertVisitor())
 
-        return ([
-                create_parse(self),
-            ] + self.create_pipeline(pxd=False, py=py) + test_support + [
-                inject_pxd_code,
-                abort_on_errors,
-                generate_pyx_code,
-            ])
+        if options.debug:
+            import ParseTreeTransforms
+            debug_transform = [ParseTreeTransforms.DebuggerTransform(self)]
+        else:
+            debug_transform = []
+            
+        return list(itertools.chain(
+            [create_parse(self)],
+            self.create_pipeline(pxd=False, py=py),
+            test_support,
+            [inject_pxd_code, abort_on_errors],
+            debug_transform,
+            [generate_pyx_code]))
 
     def create_pxd_pipeline(self, scope, module_name):
         def parse_pxd(source_desc):
@@ -798,4 +806,5 @@ default_options = dict(
     evaluate_tree_assertions = False,
     emit_linenums = False,
     language_level = 2,
+    debug = False,
 )

@@ -7,11 +7,39 @@ from Cython.Compiler.UtilNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment, TemplateTransform
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import error, CompileError
+from Cython.Compiler import Errors
+
 try:
     set
 except NameError:
     from sets import Set as set
+
 import copy
+import os
+import errno
+
+try:
+  from lxml import etree
+  have_lxml = True
+except ImportError:
+    have_lxml = False
+    try:
+        # Python 2.5
+        from xml.etree import cElementTree as etree
+    except ImportError:
+        try:
+            # Python 2.5
+            from xml.etree import ElementTree as etree
+        except ImportError:
+            try:
+                # normal cElementTree install
+                import cElementTree as etree
+            except ImportError:
+                try:
+                    # normal ElementTree install
+                    import elementtree.ElementTree as etree
+                except ImportError:
+                    etree = None
 
 
 class NameNodeCollector(TreeVisitor):
@@ -1431,3 +1459,122 @@ class TransformBuiltinMethods(EnvTransform):
         
         self.visitchildren(node)
         return node
+
+
+def _create_xmlnode(tb, name, attrs=None):
+    "create a xml node with name name and attrs attrs given TreeBuilder tb"
+    tb.start(name, attrs or {})
+    tb.end(name)
+
+
+class DebuggerTransform(CythonTransform):
+    """
+    Class to output debugging information for cygdb
+    
+    It writes debug information to cython_debug/cython_debug_info_<modulename>
+    in the build directory. Also sets all functions' visibility to extern to 
+    enable debugging
+    """
+    
+    def __init__(self, context):
+        super(DebuggerTransform, self).__init__(context)
+        if etree is None:
+            raise Errors.NoElementTreeInstalledException()
+        else:
+            self.tb = etree.TreeBuilder()
+        self.visited = set()
+        
+    def visit_ModuleNode(self, node):
+        self.module_name = node.full_module_name
+        attrs = dict(
+            module_name=self.module_name,
+            filename=node.pos[0].filename)
+        
+        self.tb.start('Module', attrs)
+        
+        # serialize functions
+        self.tb.start('Functions', {})
+        self.visitchildren(node)
+        self.tb.end('Functions')
+        
+        # 2.3 compatibility. Serialize global variables
+        self.tb.start('Globals', {})
+        entries = {}
+        for k, v in node.scope.entries.iteritems():
+            if (v.qualified_name not in self.visited and 
+                not v.name.startswith('__pyx_')):
+                # if v.qualified_name == 'testcython.G': import pdb; pdb.set_trace()
+                entries[k]= v
+        
+        self.serialize_local_variables(entries)
+        self.tb.end('Globals')
+        self.tb.end('Module')
+        return node
+    
+    def visit_FuncDefNode(self, node):
+        self.visited.add(node.local_scope.qualified_name)
+        node.entry.visibility = 'extern'
+        if node.py_func is None:
+            pf_cname = ''
+        else:
+            pf_cname = node.py_func.entry.func_cname
+            
+        attrs = dict(
+            name=node.entry.name,
+            cname=node.entry.func_cname,
+            pf_cname=pf_cname,
+            qualified_name=node.local_scope.qualified_name,
+            lineno=str(node.pos[1]))
+        
+        self.tb.start('Function', attrs=attrs)
+        
+        self.tb.start('Locals', {})
+        self.serialize_local_variables(node.local_scope.entries)
+        self.tb.end('Locals')
+        self.tb.start('Arguments', {})
+        for arg in node.local_scope.arg_entries:
+            _create_xmlnode(self.tb, arg.name)
+        self.tb.end('Arguments')
+        self.tb.end('Function')
+        return node
+    
+    def serialize_local_variables(self, entries):
+        for entry in entries.values():
+            if entry.type.is_pyobject:
+                vartype = 'PyObject'
+            else:
+                vartype = 'CObject'
+            
+            cname = entry.cname
+            if entry.type.is_extension_type:
+                cname = entry.type.typeptr_cname
+
+            attrs = dict(
+                name=entry.name,
+                cname=cname,
+                qualified_name=entry.qualified_name,
+                type=vartype)
+                
+            _create_xmlnode(self.tb, 'LocalVar', attrs)
+    
+    def __call__(self, root):
+        self.tb.start('cython_debug', attrs=dict(version='1.0'))
+        super(DebuggerTransform, self).__call__(root)
+        self.tb.end('cython_debug')
+        xml_root_element = self.tb.close()
+
+        try:
+            os.mkdir('cython_debug')
+        except OSError, e:
+            if e.errno != errno.EEXIST:
+                raise
+
+        et = etree.ElementTree(xml_root_element)
+        kw = {}
+        if have_lxml:
+            kw['pretty_print'] = True
+        et.write("cython_debug/cython_debug_info_" + self.module_name, 
+                 encoding="UTF-8", 
+                 **kw)
+            
+        return root
