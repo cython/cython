@@ -113,6 +113,8 @@ def parse_command_line(args):
                 Options.convert_range = True
             elif option == "--line-directives":
                 options.emit_linenums = True
+            elif option == "--debug":
+                options.debug = True
             elif option == '-2':
                 options.language_level = 2
             elif option == '-3':

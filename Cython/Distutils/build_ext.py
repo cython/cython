@@ -46,10 +46,13 @@ class build_ext(_build_ext.build_ext):
             "generate .pxi file for public declarations"),
         ('pyrex-directives=', None,
             "compiler directive overrides"),
+        ('pyrex-debug', None,
+         "generate debug information for cygdb"),
         ])
 
     boolean_options.extend([
-        'pyrex-cplus', 'pyrex-create-listing', 'pyrex-line-directives', 'pyrex-c-in-temp'
+        'pyrex-cplus', 'pyrex-create-listing', 'pyrex-line-directives', 
+        'pyrex-c-in-temp', 'pyrex-debug',
     ])
 
     def initialize_options(self):
@@ -61,6 +64,7 @@ class build_ext(_build_ext.build_ext):
         self.pyrex_directives = None
         self.pyrex_c_in_temp = 0
         self.pyrex_gen_pxi = 0
+        self.pyrex_debug = False
 
     def finalize_options (self):
         _build_ext.build_ext.finalize_options(self)
@@ -127,7 +131,7 @@ class build_ext(_build_ext.build_ext):
         cplus = self.pyrex_cplus or getattr(extension, 'pyrex_cplus', 0) or \
                 (extension.language and extension.language.lower() == 'c++')
         pyrex_gen_pxi = self.pyrex_gen_pxi or getattr(extension, 'pyrex_gen_pxi', 0)
-
+        pyrex_debug = self.pyrex_debug or getattr(extension, 'pyrex_debug', False)
         # Set up the include_path for the Cython compiler:
         #    1.    Start with the command line option.
         #    2.    Add in any (unique) paths from the extension
@@ -207,7 +211,8 @@ class build_ext(_build_ext.build_ext):
                     output_file = target,
                     cplus = cplus,
                     emit_linenums = line_directives,
-                    generate_pxi = pyrex_gen_pxi)
+                    generate_pxi = pyrex_gen_pxi,
+                    debug = pyrex_debug)
                 result = cython_compile(source, options=options,
                                         full_module_name=module_name)
             else:
