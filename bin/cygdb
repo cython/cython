@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+
 from Cython.Debugger import cygdb
 
 if __name__ == '__main__':

@@ -227,8 +227,8 @@ class CyBreak(gdb.Command):
     @dont_suppress_errors
     def complete(self, text, word):
         names = itertools.chain(functions_by_qualified_name, functions_by_name)
-        lastword = text.strip().split()[-1]
-        if '.' in lastword:
+        words = text.strip().split()
+        if words and '.' in words[-1]:
             compl = [n for n in functions_by_qualified_name 
                            if n.startswith(lastword)]
         else:
@@ -291,7 +291,8 @@ class CyPrint(gdb.Command):
         try:
             cython_function = self._get_current_cython_function()
         except NoCythonFunctionNameInFrameError:
-            print 'Unable to determine the name of the function in the current frame.'
+            print('Unable to determine the name of the function in the '
+                  'current frame.')
         except RuntimeError, e:
             print e.args[0]
         else:
