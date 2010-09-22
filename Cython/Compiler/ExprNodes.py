@@ -5658,7 +5658,7 @@ class PowNode(NumBinopNode):
             error(self.pos, "complex powers not yet supported")
             self.pow_func = "<error>"
         elif self.type.is_float:
-            self.pow_func = "pow"
+            self.pow_func = "pow" + self.type.math_h_modifier
         else:
             self.pow_func = "__Pyx_pow_%s" % self.type.declaration_code('').replace(' ', '_')
             env.use_utility_code(
@@ -5666,10 +5666,16 @@ class PowNode(NumBinopNode):
                                                 type=self.type.declaration_code('')))
 
     def calculate_result_code(self):
+        # Work around MSVC overloading ambiguity.
+        def typecast(operand):
+            if self.type == operand.type:
+                return operand.result()
+            else:
+                return self.type.cast_code(operand.result())
         return "%s(%s, %s)" % (
             self.pow_func, 
-            self.operand1.result(), 
-            self.operand2.result())
+            typecast(self.operand1), 
+            typecast(self.operand2))
 
 
 # Note: This class is temporarily "shut down" into an ineffective temp
