@@ -5655,8 +5655,13 @@ class PowNode(NumBinopNode):
     def analyse_c_operation(self, env):
         NumBinopNode.analyse_c_operation(self, env)
         if self.type.is_complex:
-            error(self.pos, "complex powers not yet supported")
-            self.pow_func = "<error>"
+            if self.type.real_type.is_float:
+                self.operand1 = self.operand1.coerce_to(self.type, env)
+                self.operand2 = self.operand2.coerce_to(self.type, env)
+                self.pow_func = "__Pyx_c_pow" + self.type.real_type.math_h_modifier
+            else:
+                error(self.pos, "complex int powers not supported")
+                self.pow_func = "<error>"
         elif self.type.is_float:
             self.pow_func = "pow" + self.type.math_h_modifier
         else:
