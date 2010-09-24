@@ -1476,12 +1476,14 @@ class DebuggerTransform(CythonTransform):
     enable debugging
     """
     
-    def __init__(self, context):
+    def __init__(self, context, output_dir):
         super(DebuggerTransform, self).__init__(context)
+        self.output_dir = os.path.join(output_dir, 'cython_debug')
+        
         if etree is None:
             raise Errors.NoElementTreeInstalledException()
-        else:
-            self.tb = etree.TreeBuilder()
+        
+        self.tb = etree.TreeBuilder()
         self.visited = set()
         
     def visit_ModuleNode(self, node):
@@ -1564,7 +1566,7 @@ class DebuggerTransform(CythonTransform):
         xml_root_element = self.tb.close()
 
         try:
-            os.mkdir('cython_debug')
+            os.makedirs(self.output_dir)
         except OSError, e:
             if e.errno != errno.EEXIST:
                 raise
@@ -1573,8 +1575,8 @@ class DebuggerTransform(CythonTransform):
         kw = {}
         if have_lxml:
             kw['pretty_print'] = True
-        et.write("cython_debug/cython_debug_info_" + self.module_name, 
-                 encoding="UTF-8", 
-                 **kw)
+        
+        fn = "cython_debug_info_" + self.module_name
+        et.write(os.path.join(self.output_dir, fn), encoding="UTF-8", **kw)
             
         return root

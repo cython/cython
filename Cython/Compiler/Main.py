@@ -179,8 +179,8 @@ class Context(object):
             test_support.append(TreeAssertVisitor())
 
         if options.debug:
-            import ParseTreeTransforms
-            debug_transform = [ParseTreeTransforms.DebuggerTransform(self)]
+            from ParseTreeTransforms import DebuggerTransform
+            debug_transform = [DebuggerTransform(self, options.output_dir)]
         else:
             debug_transform = []
             
