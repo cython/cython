@@ -204,6 +204,10 @@ class build_ext(_build_ext.build_ext):
             if rebuild:
                 log.info("cythoning %s to %s", source, target)
                 self.mkpath(os.path.dirname(target))
+                if self.inplace:
+                    output_dir = os.curdir
+                else:
+                    output_dir = self.build_lib
                 options = CompilationOptions(pyrex_default_options, 
                     use_listing_file = create_listing,
                     include_path = includes,
@@ -212,6 +216,7 @@ class build_ext(_build_ext.build_ext):
                     cplus = cplus,
                     emit_linenums = line_directives,
                     generate_pxi = pyrex_gen_pxi,
+                    output_dir = output_dir,
                     debug = pyrex_debug)
                 result = cython_compile(source, options=options,
                                         full_module_name=module_name)

@@ -6,6 +6,9 @@ The Cython debugger
 The current directory should contain a directory named 'cython_debug', or a
 path to the cython project directory should be given (the parent directory of
 cython_debug).
+
+Additional gdb args can be provided only if a path to the project directory is 
+given.
 """
 
 import os
@@ -14,7 +17,10 @@ import glob
 import tempfile
 import subprocess
 
-def main(import_libpython=False, path_to_debug_info=os.curdir):
+def usage():
+    print("Usage: cygdb [PATH GDB_ARGUMENTS]")
+
+def main(gdb_argv=[], import_libpython=False, path_to_debug_info=os.curdir):
     """
     Start the Cython debugger. This tells gdb to import the Cython and Python
     extensions (libpython.py and libcython.py) and it enables gdb's pending 
@@ -29,6 +35,7 @@ def main(import_libpython=False, path_to_debug_info=os.curdir):
         os.path.join(path_to_debug_info, 'cython_debug/cython_debug_info_*'))
 
     if not debug_files:
+        usage()
         sys.exit('No debug files were found in %s. Aborting.' % (
                  os.path.abspath(path_to_debug_info))) 
         
@@ -42,8 +49,8 @@ def main(import_libpython=False, path_to_debug_info=os.curdir):
         f.write('python from Cython.Debugger import libpython\n')
     f.write('\n'.join('cy import %s\n' % fn for fn in debug_files))
     f.close()
-    
-    p = subprocess.Popen(['gdb', '-command', tempfilename])
+
+    p = subprocess.Popen(['gdb', '-command', tempfilename] + gdb_argv)
     while True:
         try:
             p.wait()
