@@ -2863,6 +2863,7 @@ class SimpleCallNode(CallNode):
                  or func_type.exception_check:
             self.is_temp = 1
         # C++ exception handler
+        self.nogil = env.nogil
         if func_type.exception_check == '+':
             if func_type.exception_value is None:
                 env.use_utility_code(cpp_exception_utility_code)
@@ -2957,6 +2958,8 @@ class SimpleCallNode(CallNode):
                             func_type.exception_value.entry.cname)
                     else:
                         raise_py_exception = '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.")' % func_type.exception_value.entry.cname
+                    if self.nogil:
+                        raise_py_exception = 'Py_BLOCK_THREADS; %s; Py_UNBLOCK_THREADS' % raise_py_exception
                     code.putln(
                     "try {%s%s;} catch(...) {%s; %s}" % (
                         lhs,
