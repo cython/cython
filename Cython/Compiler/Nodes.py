@@ -1284,7 +1284,9 @@ class FuncDefNode(StatNode, BlockNode):
         acquire_gil = self.acquire_gil
         if acquire_gil:
             env.use_utility_code(force_init_threads_utility_code)
+            code.putln("#ifdef WITH_THREAD")
             code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
+            code.putln("#endif")
         # ----- set up refnanny
         if not lenv.nogil:
             code.put_setup_refcount_context(self.entry.name)
@@ -1469,7 +1471,9 @@ class FuncDefNode(StatNode, BlockNode):
             code.put_finish_refcount_context()
         
         if acquire_gil:
+            code.putln("#ifdef WITH_THREAD")
             code.putln("PyGILState_Release(_save);")
+            code.putln("#endif")
 
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
@@ -5085,7 +5089,9 @@ class GILStatNode(TryFinallyStatNode):
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
         if self.state == 'gil':
+            code.putln("#ifdef WITH_THREAD")
             code.putln("{ PyGILState_STATE _save = PyGILState_Ensure();")
+            code.putln("#endif")
         else:
             code.putln("{ PyThreadState *_save;")
             code.putln("Py_UNBLOCK_THREADS")
@@ -5105,7 +5111,9 @@ class GILExitNode(StatNode):
 
     def generate_execution_code(self, code):
         if self.state == 'gil':
-            code.putln("PyGILState_Release();")
+            code.putln("#ifdef WITH_THREAD")
+            code.putln("PyGILState_Release(_save); }")
+            code.putln("#endif")
         else:
             code.putln("Py_BLOCK_THREADS")
 
