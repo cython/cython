@@ -667,7 +667,10 @@ class EndToEndTest(unittest.TestCase):
             os.environ['PYTHONPATH'] = self.cython_root + os.pathsep + (old_path or '')
             self.assertEqual(0, os.system(commands))
         finally:
-            os.environ['PYTHONPATH'] = old_path
+            if old_path:
+                os.environ['PYTHONPATH'] = old_path
+            else:
+                del os.environ['PYTHONPATH']
 
 
 # TODO: Support cython_freeze needed here as well.
