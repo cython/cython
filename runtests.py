@@ -662,11 +662,12 @@ class EndToEndTest(unittest.TestCase):
         commands = (self.commands
             .replace("CYTHON", "PYTHON %s" % os.path.join(self.cython_root, 'cython.py'))
             .replace("PYTHON", sys.executable))
-        commands = """
-        PYTHONPATH="%s%s$PYTHONPATH"
-        %s
-        """ % (self.cython_root, os.pathsep, commands)
-        self.assertEqual(0, os.system(commands))
+        old_path = os.environ.get('PYTHONPATH')
+        try:
+            os.environ['PYTHONPATH'] = self.cython_root + os.pathsep + (old_path or '')
+            self.assertEqual(0, os.system(commands))
+        finally:
+            os.environ['PYTHONPATH'] = old_path
 
 
 # TODO: Support cython_freeze needed here as well.
