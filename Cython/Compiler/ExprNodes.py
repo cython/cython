@@ -559,6 +559,9 @@ class ExprNode(Node):
         if self.check_for_coercion_error(dst_type):
             return self
 
+        if dst_type.is_reference:
+            dst_type = dst_type.ref_base_type
+        
         if dst_type.is_pyobject:
             if not src.type.is_pyobject:
                 if dst_type is bytes_type and src.type.is_int:
