@@ -1,11 +1,7 @@
 from cython.operator cimport dereference as d
+from cython.operator cimport preincrement as incr
 
-cdef extern from "<vector>" namespace "std":
-
-    cdef cppclass vector[T]:
-        void push_back(T)
-        size_t size()
-        T& operator[](size_t)
+from libcpp.vector cimport vector
 
 def simple_test(double x):
     """
@@ -69,5 +65,45 @@ def index_set_test(L):
         for i in range(v.size()):
             d(v)[i] = -d(v)[i]
         return d(v)[0], d(v)[v.size()-1]
+    finally:
+        del v
+
+def iteration_test(L):
+    """
+    >>> iteration_test([1,2,4,8])
+    1
+    2
+    4
+    8
+    """
+    try:
+        v = new vector[int]()
+        for a in L:
+            v.push_back(a)
+        it = v.begin()
+        while it != v.end():
+            a = d(it)
+            incr(it)
+            print(a)
+    finally:
+        del v
+
+def reverse_iteration_test(L):
+    """
+    >>> reverse_iteration_test([1,2,4,8])
+    8
+    4
+    2
+    1
+    """
+    try:
+        v = new vector[int]()
+        for a in L:
+            v.push_back(a)
+        it = v.rbegin()
+        while it != v.rend():
+            a = d(it)
+            incr(it)
+            print(a)
     finally:
         del v
