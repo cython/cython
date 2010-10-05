@@ -53,3 +53,15 @@ cdef vector[int].iterator iv1 = v1.begin()
 cdef vector[int].iterator iv2 = v1.end()
 cdef vector[int].reverse_iterator riv1 = v1.rbegin()
 cdef vector[int].reverse_iterator riv2 = v1.rend()
+
+def test_vector_coercion(*args):
+    """
+    >>> test_vector_coercion(1.75)
+    [1.75]
+    >>> test_vector_coercion(1, 10, 100)
+    [1.0, 10.0, 100.0]
+    """
+    v = new vector[double]()
+    for a in args:
+        v.push_back(a)
+    return [v[0][i] for i in range(v.size())]
