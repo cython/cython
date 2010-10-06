@@ -5084,12 +5084,15 @@ class GILStatNode(TryFinallyStatNode):
 
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
+        code.putln("{")
         if self.state == 'gil':
             code.putln("#ifdef WITH_THREAD")
-            code.putln("{ PyGILState_STATE _save = PyGILState_Ensure();")
+            code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
             code.putln("#endif")
         else:
-            code.putln("{ PyThreadState *_save;")
+            code.putln("#ifdef WITH_THREAD")
+            code.putln("PyThreadState *_save;")
+            code.putln("#endif")
             code.putln("Py_UNBLOCK_THREADS")
         TryFinallyStatNode.generate_execution_code(self, code)
         code.putln("}")
@@ -5108,7 +5111,7 @@ class GILExitNode(StatNode):
     def generate_execution_code(self, code):
         if self.state == 'gil':
             code.putln("#ifdef WITH_THREAD")
-            code.putln("PyGILState_Release(_save); }")
+            code.putln("PyGILState_Release(_save);")
             code.putln("#endif")
         else:
             code.putln("Py_BLOCK_THREADS")

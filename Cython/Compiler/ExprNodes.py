@@ -2692,6 +2692,7 @@ class SimpleCallNode(CallNode):
     #  coerced_self   ExprNode or None     used internally
     #  wrapper_call   bool                 used internally
     #  has_optional_args   bool            used internally
+    #  nogil          bool                 used internally
     
     subexprs = ['self', 'coerced_self', 'function', 'args', 'arg_tuple']
     
@@ -2865,8 +2866,13 @@ class SimpleCallNode(CallNode):
         elif func_type.exception_value is not None \
                  or func_type.exception_check:
             self.is_temp = 1
-        # C++ exception handler
+        # Called in 'nogil' context?
         self.nogil = env.nogil
+        if (self.nogil and
+            func_type.exception_check and
+            func_type.exception_check != '+'):
+            env.use_utility_code(pyerr_occurred_withgil_utility_code)
+        # C++ exception handler
         if func_type.exception_check == '+':
             if func_type.exception_value is None:
                 env.use_utility_code(cpp_exception_utility_code)
@@ -2940,7 +2946,10 @@ class SimpleCallNode(CallNode):
                 if exc_val is not None:
                     exc_checks.append("%s == %s" % (self.result(), exc_val))
                 if exc_check:
-                    exc_checks.append("PyErr_Occurred()")
+                    if self.nogil:
+                        exc_checks.append("__Pyx_ErrOccurredWithGIL()")
+                    else:    
+                        exc_checks.append("PyErr_Occurred()")
             if self.is_temp or exc_checks:
                 rhs = self.c_call_code()
                 if self.result():
@@ -7142,6 +7151,25 @@ static void __Pyx_CppExn2PyErr() {
 #endif
 """,
 impl = ""
+)
+
+pyerr_occurred_withgil_utility_code= UtilityCode(
+proto = """
+static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void); /* proto */
+""",
+impl = """
+static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void) {
+  int err;
+  #ifdef WITH_THREAD
+  PyGILState_STATE _save = PyGILState_Ensure();
+  #endif
+  err = !!PyErr_Occurred();
+  #ifdef WITH_THREAD
+  PyGILState_Release(_save);
+  #endif
+  return err;
+}
+"""
 )
 
 #------------------------------------------------------------------------------------
