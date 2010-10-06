@@ -1018,6 +1018,20 @@ property NAME:
         self.visitchildren(node)
         self.env_stack.pop()
         return node
+    
+    def visit_CClassDefNode(self, node):
+        node = self.visit_ClassDefNode(node)
+        if node.scope and node.scope.implemented:
+            stats = []
+            for entry in node.scope.var_entries:
+                if entry.needs_property:
+                    property = self.create_Property(entry)
+                    property.analyse_declarations(node.scope)
+                    self.visit(property)
+                    stats.append(property)
+            if stats:
+                node.body.stats += stats
+        return node
         
     def visit_FuncDefNode(self, node):
         self.seen_vars_stack.append(set())
@@ -1093,20 +1107,9 @@ property NAME:
         return node
 
     def visit_CVarDefNode(self, node):
-
         # to ensure all CNameDeclaratorNodes are visited.
         self.visitchildren(node)
-
-        if node.properties:
-            stats = []
-            for entry in node.properties:
-                property = self.create_Property(entry)
-                property.analyse_declarations(node.dest_scope)
-                self.visit(property)
-                stats.append(property)
-            return StatListNode(pos=node.pos, stats=stats)
-        else:
-            return None
+        return None
             
     def create_Property(self, entry):
         if entry.visibility == 'public':
