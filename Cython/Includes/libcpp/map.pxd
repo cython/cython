@@ -1,4 +1,4 @@
-from pair cimport pair
+from utility cimport pair
 
 cdef extern from "<map>" namespace "std":
     cdef cppclass map[T, U]:
@@ -9,11 +9,11 @@ cdef extern from "<map>" namespace "std":
             bint operator==(iterator)
             bint operator!=(iterator)
         cppclass reverse_iterator:
-            pair[T,U] operator*()
+            pair[T,U]& operator*()
             iterator operator++()
             iterator operator--()
-            bint operator==(iterator)
-            bint operator!=(iterator)
+            bint operator==(reverse_iterator)
+            bint operator!=(reverse_iterator)
         #cppclass const_iterator(iterator):
         #    pass
         #cppclass const_reverse_iterator(reverse_iterator):
