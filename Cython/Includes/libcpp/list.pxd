@@ -10,8 +10,8 @@ cdef extern from "<list>" namespace "std":
             T& operator*()
             iterator operator++()
             iterator operator--()
-            bint operator==(iterator)
-            bint operator!=(iterator)
+            bint operator==(reverse_iterator)
+            bint operator!=(reverse_iterator)
         #cppclass const_iterator(iterator):
         #    pass
         #cppclass const_reverse_iterator(reverse_iterator):
@@ -30,6 +30,7 @@ cdef extern from "<list>" namespace "std":
         T& back()
         iterator begin()
         #const_iterator begin()
+        void clear()
         bint empty()
         iterator end()
         #const_iterator end()
