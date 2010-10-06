@@ -899,13 +899,11 @@ class CVarDefNode(StatNode):
     #  declarators   [CDeclaratorNode]
     #  in_pxd        boolean
     #  api           boolean
-    #  properties    [entry]
 
     #  decorators    [cython.locals(...)] or None 
     #  directive_locals { string : NameNode } locals defined by cython.locals(...)
 
     child_attrs = ["base_type", "declarators"]
-    properties = ()
     
     decorators = None
     directive_locals = {}
@@ -921,7 +919,6 @@ class CVarDefNode(StatNode):
         # a property; made in AnalyseDeclarationsTransform).
         if (dest_scope.is_c_class_scope
             and self.visibility in ('public', 'readonly')):
-            self.properties = []
             need_property = True
         else:
             need_property = False
@@ -955,8 +952,7 @@ class CVarDefNode(StatNode):
                         "Only 'extern' C variable declaration allowed in .pxd file")
                 entry = dest_scope.declare_var(name, type, declarator.pos,
                             cname = cname, visibility = visibility, is_cdef = 1)
-                if need_property:
-                    self.properties.append(entry)
+                entry.needs_property = need_property
     
 
 class CStructOrUnionDefNode(StatNode):
