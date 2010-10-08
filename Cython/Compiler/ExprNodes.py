@@ -2701,6 +2701,7 @@ class SimpleCallNode(CallNode):
     arg_tuple = None
     wrapper_call = False
     has_optional_args = False
+    nogil = False
     
     def compile_time_value(self, denv):
         function = self.function.compile_time_value(denv)
