@@ -7,7 +7,6 @@ from Cython.Compiler.UtilNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment, TemplateTransform
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import error, CompileError
-from Cython.Compiler import Errors
 
 try:
     set
@@ -15,31 +14,6 @@ except NameError:
     from sets import Set as set
 
 import copy
-import os
-import errno
-
-try:
-  from lxml import etree
-  have_lxml = True
-except ImportError:
-    have_lxml = False
-    try:
-        # Python 2.5
-        from xml.etree import cElementTree as etree
-    except ImportError:
-        try:
-            # Python 2.5
-            from xml.etree import ElementTree as etree
-        except ImportError:
-            try:
-                # normal cElementTree install
-                import cElementTree as etree
-            except ImportError:
-                try:
-                    # normal ElementTree install
-                    import elementtree.ElementTree as etree
-                except ImportError:
-                    etree = None
 
 
 class NameNodeCollector(TreeVisitor):
@@ -1461,56 +1435,44 @@ class TransformBuiltinMethods(EnvTransform):
         return node
 
 
-def _create_xmlnode(tb, name, attrs=None):
-    "create a xml node with name name and attrs attrs given TreeBuilder tb"
-    tb.start(name, attrs or {})
-    tb.end(name)
-
-
-class DebuggerTransform(CythonTransform):
+class DebugTransform(CythonTransform):
     """
-    Class to output debugging information for cygdb
-    
-    It writes debug information to cython_debug/cython_debug_info_<modulename>
-    in the build directory. Also sets all functions' visibility to extern to 
-    enable debugging
+    Create debug information and all functions' visibility to extern in order
+    to enable debugging.
     """
     
-    def __init__(self, context, output_dir):
-        super(DebuggerTransform, self).__init__(context)
-        self.output_dir = os.path.join(output_dir, 'cython_debug')
-        
-        if etree is None:
-            raise Errors.NoElementTreeInstalledException()
-        
-        self.tb = etree.TreeBuilder()
+    def __init__(self, context):
+        super(DebugTransform, self).__init__(context)
         self.visited = set()
+        # our treebuilder and debug output writer 
+        # (see Cython.Debugger.debug_output.CythonDebugWriter)
+        self.tb = self.context.debug_outputwriter
         
     def visit_ModuleNode(self, node):
-        self.module_name = node.full_module_name
+        self.tb.module_name = node.full_module_name
         attrs = dict(
-            module_name=self.module_name,
+            module_name=node.full_module_name,
             filename=node.pos[0].filename)
         
         self.tb.start('Module', attrs)
         
         # serialize functions
-        self.tb.start('Functions', {})
+        self.tb.start('Functions')
         self.visitchildren(node)
         self.tb.end('Functions')
         
         # 2.3 compatibility. Serialize global variables
-        self.tb.start('Globals', {})
+        self.tb.start('Globals')
         entries = {}
         for k, v in node.scope.entries.iteritems():
             if (v.qualified_name not in self.visited and 
                 not v.name.startswith('__pyx_')):
-                # if v.qualified_name == 'testcython.G': import pdb; pdb.set_trace()
                 entries[k]= v
         
         self.serialize_local_variables(entries)
         self.tb.end('Globals')
-        self.tb.end('Module')
+        # self.tb.end('Module') # end Module after the line number mapping in
+        # Cython.Compiler.ModuleNode.ModuleNode._serialize_lineno_map
         return node
     
     def visit_FuncDefNode(self, node):
@@ -1530,14 +1492,32 @@ class DebuggerTransform(CythonTransform):
         
         self.tb.start('Function', attrs=attrs)
         
-        self.tb.start('Locals', {})
+        self.tb.start('Locals')
         self.serialize_local_variables(node.local_scope.entries)
         self.tb.end('Locals')
-        self.tb.start('Arguments', {})
+
+        self.tb.start('Arguments')
         for arg in node.local_scope.arg_entries:
-            _create_xmlnode(self.tb, arg.name)
+            self.tb.start(arg.name)
+            self.tb.end(arg.name)
         self.tb.end('Arguments')
+
+        self.tb.start('StepIntoFunctions')
+        self.visitchildren(node)
+        self.tb.end('StepIntoFunctions')
         self.tb.end('Function')
+
+        return node
+
+    def visit_NameNode(self, node):
+        if (node.type.is_cfunction and 
+            node.is_called and 
+            node.entry.in_cinclude):
+            attrs = dict(name=node.entry.func_cname)
+            self.tb.start('StepIntoFunction', attrs=attrs)
+            self.tb.end('StepIntoFunction')
+            
+        self.visitchildren(node)
         return node
     
     def serialize_local_variables(self, entries):
@@ -1557,26 +1537,6 @@ class DebuggerTransform(CythonTransform):
                 qualified_name=entry.qualified_name,
                 type=vartype)
                 
-            _create_xmlnode(self.tb, 'LocalVar', attrs)
-    
-    def __call__(self, root):
-        self.tb.start('cython_debug', attrs=dict(version='1.0'))
-        super(DebuggerTransform, self).__call__(root)
-        self.tb.end('cython_debug')
-        xml_root_element = self.tb.close()
-
-        try:
-            os.makedirs(self.output_dir)
-        except OSError, e:
-            if e.errno != errno.EEXIST:
-                raise
-
-        et = etree.ElementTree(xml_root_element)
-        kw = {}
-        if have_lxml:
-            kw['pretty_print'] = True
+            self.tb.start('LocalVar', attrs)
+            self.tb.end('LocalVar')
         
-        fn = "cython_debug_info_" + self.module_name
-        et.write(os.path.join(self.output_dir, fn), encoding="UTF-8", **kw)
-            
-        return root

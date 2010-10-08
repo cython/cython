@@ -298,12 +298,34 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         
         f = open_new_file(result.c_file)
         rootwriter.copyto(f)
+        if options.debug:
+            self._serialize_lineno_map(env, rootwriter)
         f.close()
         result.c_file_generated = 1
         if Options.annotate or options.annotate:
             self.annotate(rootwriter)
             rootwriter.save_annotation(result.main_source_file, result.c_file)
     
+    def _serialize_lineno_map(self, env, ccodewriter):
+        tb = env.context.debug_outputwriter
+        markers = ccodewriter.buffer.allmarkers()
+        
+        d = {}
+        for c_lineno, cython_lineno in enumerate(markers): 
+            if cython_lineno > 0:
+                d.setdefault(cython_lineno, []).append(c_lineno + 1)
+        
+        tb.start('LineNumberMapping')
+        for cython_lineno, c_linenos in sorted(d.iteritems()):
+                attrs = {
+                    'c_linenos': ' '.join(map(str, c_linenos)),
+                    'cython_lineno': str(cython_lineno),
+                }
+                tb.start('LineNumber', attrs)
+                tb.end('LineNumber')
+        tb.end('LineNumberMapping')
+        tb.serialize()
+        
     def find_referenced_modules(self, env, module_list, modules_seen):
         if env not in modules_seen:
             modules_seen[env] = 1
