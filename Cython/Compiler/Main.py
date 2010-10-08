@@ -86,6 +86,8 @@ class Context(object):
         self.include_directories = include_directories + [standard_include_path]
 
         self.set_language_level(language_level)
+        
+        self.debug_outputwriter = None
 
     def set_language_level(self, level):
         self.language_level = level
@@ -179,8 +181,10 @@ class Context(object):
             test_support.append(TreeAssertVisitor())
 
         if options.debug:
-            from ParseTreeTransforms import DebuggerTransform
-            debug_transform = [DebuggerTransform(self, options.output_dir)]
+            from Cython.Debugger import debug_output
+            from ParseTreeTransforms import DebugTransform
+            self.debug_outputwriter = debug_output.CythonDebugWriter(options)
+            debug_transform = [DebugTransform(self)]
         else:
             debug_transform = []
             

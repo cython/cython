@@ -11,10 +11,12 @@ class StringIOTree(object):
             stream = StringIO()
         self.stream = stream
         self.write = stream.write
+        self.markers = []
 
     def getvalue(self):
         content = [x.getvalue() for x in self.prepended_children]
         content.append(self.stream.getvalue())
+        print self.linenumber_map()
         return "".join(content)
 
     def copyto(self, target):
@@ -58,6 +60,11 @@ class StringIOTree(object):
         other = StringIOTree()
         self.prepended_children.append(other)
         return other
+
+    def allmarkers(self):
+        children = self.prepended_children
+        return [m for c in children for m in c.allmarkers()] + self.markers
+        
 
 __doc__ = r"""
 Implements a buffer with insertion points. When you know you need to

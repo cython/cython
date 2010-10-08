@@ -238,7 +238,7 @@ setup(
     'Cython.Runtime',
     'Cython.Distutils',
     'Cython.Plex',
-
+    'Cython.Debugger',
     'Cython.Tests',
     'Cython.Compiler.Tests',
     ],
