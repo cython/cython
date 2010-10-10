@@ -246,7 +246,7 @@ class Scope(object):
             self.qualified_name = qual_scope.qualify_name(name)
             self.scope_prefix = qual_scope.scope_prefix + mangled_name
         else:
-            self.qualified_name = name
+            self.qualified_name = EncodedString(name)
             self.scope_prefix = mangled_name
         self.entries = {}
         self.const_entries = []
@@ -348,7 +348,7 @@ class Scope(object):
         return entry
     
     def qualify_name(self, name):
-        return "%s.%s" % (self.qualified_name, name)
+        return EncodedString("%s.%s" % (self.qualified_name, name))
 
     def declare_const(self, name, type, value, pos, cname = None, visibility = 'private'):
         # Add an entry for a named constant.
@@ -813,6 +813,7 @@ class ModuleScope(Scope):
             # Treat Spam/__init__.pyx specially, so that when Python loads
             # Spam/__init__.so, initSpam() is defined.
             self.module_name = parent_module.module_name
+        self.module_name = EncodedString(self.module_name)
         self.context = context
         self.module_cname = Naming.module_cname
         self.module_dict_cname = Naming.moddict_cname
