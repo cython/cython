@@ -106,12 +106,19 @@ def compile_cython_modules(profile=False):
                 )
 
         class build_ext(build_ext_orig):
+            # we must keep the original modules alive to make sure
+            # their code keeps working when we remove them from
+            # sys.modules
+            dead_modules = []
+
             def build_extensions(self):
                 # add path where 2to3 installed the transformed sources
                 # and make sure Python (re-)imports them from there
                 already_imported = [ module for module in sys.modules
                                      if module == 'Cython' or module.startswith('Cython.') ]
+                keep_alive = self.dead_modules.append
                 for module in already_imported:
+                    keep_alive(sys.modules[module])
                     del sys.modules[module]
                 sys.path.insert(0, os.path.join(source_root, self.build_lib))
 
