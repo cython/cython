@@ -869,6 +869,8 @@ if __name__ == '__main__':
                 # try if Cython is installed in a Py3 version
                 import Cython.Compiler.Main
             except Exception:
+                # back out anything the import process loaded, then
+                # 2to3 the Cython sources to make them re-importable
                 cy_modules = [ name for name in sys.modules
                                if name == 'Cython' or name.startswith('Cython.') ]
                 for name in cy_modules:
