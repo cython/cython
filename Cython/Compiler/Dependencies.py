@@ -444,19 +444,19 @@ def cythonize(module_list, ctx=None, nthreads=0, aliases=None):
             print("multiprocessing required for parallel cythonization")
             nthreads = 0
         pool = multiprocessing.Pool(nthreads)
-        pool.map(cythonoize_one_helper, to_compile)
+        pool.map(cythonize_one_helper, to_compile)
     if not nthreads:
         for priority, pyx_file, c_file in to_compile:
-            cythonoize_one(pyx_file, c_file)
+            cythonize_one(pyx_file, c_file)
     return module_list
 
 cython_py = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../cython.py'))
 
-def cythonoize_one(pyx_file, c_file):
+def cythonize_one(pyx_file, c_file):
     cmd = "%s %s %s -o %s" % (sys.executable, cython_py, pyx_file, c_file)
     print(cmd)
     if os.system(cmd) != 0:
         raise CompilerError(pyx_file)
 
-def cythonoize_one_helper(m):
-    return cythonoize_one(*m[1:])
+def cythonize_one_helper(m):
+    return cythonize_one(*m[1:])
