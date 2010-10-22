@@ -640,6 +640,14 @@ class EndToEndTest(unittest.TestCase):
         self.treefile = treefile
         self.workdir = os.path.join(workdir, os.path.splitext(treefile)[0])
         self.cleanup_workdir = cleanup_workdir
+        cython_syspath = self.cython_root
+        for path in sys.path[::-1]:
+            if path.startswith(self.cython_root):
+                # Py3 installation and refnanny build prepend their
+                # fixed paths to sys.path => prefer that over the
+                # generic one
+                cython_syspath = path + os.pathsep + cython_syspath
+        self.cython_syspath = cython_syspath
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -664,7 +672,8 @@ class EndToEndTest(unittest.TestCase):
             .replace("PYTHON", sys.executable))
         old_path = os.environ.get('PYTHONPATH')
         try:
-            os.environ['PYTHONPATH'] = self.cython_root + os.pathsep + (old_path or '')
+            os.environ['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
+            print(os.environ['PYTHONPATH'])
             self.assertEqual(0, os.system(commands))
         finally:
             if old_path:
