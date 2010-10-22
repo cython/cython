@@ -3,7 +3,7 @@
 Implements a version of the Distutils 'build_ext' command, for
 building Cython extension modules."""
 
-# This module should be kept compatible with Python 2.1.
+# This module should be kept compatible with Python 2.3.
 
 __revision__ = "$Id:$"
 
