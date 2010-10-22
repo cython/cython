@@ -450,13 +450,24 @@ def cythonize(module_list, ctx=None, nthreads=0, aliases=None):
             cythonize_one(pyx_file, c_file)
     return module_list
 
-cython_py = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../cython.py'))
+def cythonize_one(pyx_file, c_file, options=None):
+    from Cython.Compiler.Main import compile, CompilationOptions, default_options
+    from Cython.Compiler.Errors import CompileError, PyrexError
 
-def cythonize_one(pyx_file, c_file):
-    cmd = "%s %s %s -o %s" % (sys.executable, cython_py, pyx_file, c_file)
-    print(cmd)
-    if os.system(cmd) != 0:
-        raise CompilerError(pyx_file)
+    if options is None:
+        options = CompilationOptions(default_options)
+    options.output_file = c_file
+
+    any_failures = 0
+    try:
+        result = compile([pyx_file], options)
+        if result.num_errors > 0:
+            any_failures = 1
+    except (EnvironmentError, PyrexError), e:
+        sys.stderr.write(str(e) + '\n')
+        any_failures = 1
+    if any_failures:
+        raise CompileError(None, pyx_file)
 
 def cythonize_one_helper(m):
     return cythonize_one(*m[1:])
