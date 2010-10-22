@@ -7,10 +7,11 @@ building Cython extension modules."""
 
 __revision__ = "$Id:$"
 
-import sys, os, re
-from types import *
+import sys
+import os
+import re
 from distutils.core import Command
-from distutils.errors import *
+from distutils.errors import DistutilsPlatformError
 from distutils.sysconfig import customize_compiler, get_python_version
 from distutils.dep_util import newer, newer_group
 from distutils import log
@@ -66,7 +67,7 @@ class build_ext(_build_ext.build_ext):
         _build_ext.build_ext.finalize_options(self)
         if self.pyrex_include_dirs is None:
             self.pyrex_include_dirs = []
-        elif type(self.pyrex_include_dirs) is StringType:
+        elif isinstance(self.pyrex_include_dirs, basestring):
             self.pyrex_include_dirs = \
                 self.pyrex_include_dirs.split(os.pathsep)
         if self.pyrex_directives is None:
