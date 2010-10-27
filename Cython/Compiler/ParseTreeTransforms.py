@@ -1523,7 +1523,7 @@ class DebugTransform(CythonTransform):
     def serialize_local_variables(self, entries):
         for entry in entries.values():
             if entry.type.is_pyobject:
-                vartype = 'PyObject'
+                vartype = 'PythonObject'
             else:
                 vartype = 'CObject'
             

@@ -606,8 +606,13 @@ def collect_doctests(path, module_prefix, suite, selectors):
     def package_matches(dirname):
         return dirname not in ("Mac", "Distutils", "Plex")
     def file_matches(filename):
-        return (filename.endswith(".py") and not ('~' in filename
-                or '#' in filename or filename.startswith('.')))
+        filename, ext = os.path.splitext(filename)
+        blacklist = ('libcython', 'libpython', 'test_libcython_in_gdb')
+        return (ext == '.py' and not
+                '~' in filename and not
+                '#' in filename and not
+                filename.startswith('.') and not
+                filename in blacklist)
     import doctest, types
     for dirpath, dirnames, filenames in os.walk(path):
         parentname = os.path.split(dirpath)[-1]
