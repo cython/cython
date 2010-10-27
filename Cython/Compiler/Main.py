@@ -181,9 +181,10 @@ class Context(object):
             test_support.append(TreeAssertVisitor())
 
         if options.debug:
-            from Cython.Debugger import debug_output
+            from Cython.Debugger import DebugWriter
             from ParseTreeTransforms import DebugTransform
-            self.debug_outputwriter = debug_output.CythonDebugWriter(options)
+            self.debug_outputwriter = DebugWriter.CythonDebugWriter(
+                options.output_dir)
             debug_transform = [DebugTransform(self)]
         else:
             debug_transform = []

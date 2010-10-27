@@ -16,7 +16,6 @@ class StringIOTree(object):
     def getvalue(self):
         content = [x.getvalue() for x in self.prepended_children]
         content.append(self.stream.getvalue())
-        print self.linenumber_map()
         return "".join(content)
 
     def copyto(self, target):
@@ -33,6 +32,8 @@ class StringIOTree(object):
         # itself is empty -- this makes it ready for insertion
         if self.stream.tell():
             self.prepended_children.append(StringIOTree(self.stream))
+            self.prepended_children[-1].markers = self.markers
+            self.markers = []
             self.stream = StringIO()
             self.write = self.stream.write
 
