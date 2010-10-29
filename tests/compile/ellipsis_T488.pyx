@@ -1,0 +1,6 @@
+#from ... import foo
+
+print ...
+def test():
+    x = ...
+    assert x is Ellipsis

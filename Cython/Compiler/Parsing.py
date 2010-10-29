@@ -497,20 +497,16 @@ def p_subscript(s):
     # 1, 2 or 3 ExprNodes, depending on how
     # many slice elements were encountered.
     pos = s.position()
-    if s.sy == '.':
-        expect_ellipsis(s)
-        return [ExprNodes.EllipsisNode(pos)]
-    else:
-        start = p_slice_element(s, (':',))
-        if s.sy != ':':
-            return [start]
-        s.next()
-        stop = p_slice_element(s, (':', ',', ']'))
-        if s.sy != ':':
-            return [start, stop]
-        s.next()
-        step = p_slice_element(s, (':', ',', ']'))
-        return [start, stop, step]
+    start = p_slice_element(s, (':',))
+    if s.sy != ':':
+        return [start]
+    s.next()
+    stop = p_slice_element(s, (':', ',', ']'))
+    if s.sy != ':':
+        return [start, stop]
+    s.next()
+    step = p_slice_element(s, (':', ',', ']'))
+    return [start, stop, step]
 
 def p_slice_element(s, follow_set):
     # Simple expression which may be missing iff
@@ -569,6 +565,9 @@ def p_atom(s):
         return p_dict_or_set_maker(s)
     elif sy == '`':
         return p_backquote_expr(s)
+    elif sy == '.':
+        expect_ellipsis(s)
+        return ExprNodes.EllipsisNode(pos)
     elif sy == 'INT':
         value = s.systring
         s.next()
