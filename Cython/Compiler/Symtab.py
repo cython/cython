@@ -726,7 +726,11 @@ class BuiltinScope(Scope):
     def declare_builtin_type(self, name, cname, utility_code = None):
         name = EncodedString(name)
         type = PyrexTypes.BuiltinObjectType(name, cname)
-        type.set_scope(CClassScope(name, outer_scope=None, visibility='extern'))
+        scope = CClassScope(name, outer_scope=None, visibility='extern')
+        scope.directives = {}
+        if name == 'bool':
+            scope.directives['final'] = True
+        type.set_scope(scope)
         self.type_names[name] = 1
         entry = self.declare_type(name, type, None, visibility='extern')
         entry.utility_code = utility_code
