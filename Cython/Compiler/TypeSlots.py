@@ -323,7 +323,9 @@ class TypeFlagsSlot(SlotDescriptor):
     #  Descriptor for the type flags slot.
     
     def slot_code(self, scope):
-        value = "Py_TPFLAGS_DEFAULT|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_BASETYPE|Py_TPFLAGS_HAVE_NEWBUFFER"
+        value = "Py_TPFLAGS_DEFAULT|Py_TPFLAGS_CHECKTYPES|Py_TPFLAGS_HAVE_NEWBUFFER"
+        if not scope.directives.get('final', False):
+            value += "|Py_TPFLAGS_BASETYPE"
         if scope.needs_gc():
             value += "|Py_TPFLAGS_HAVE_GC"
         return value

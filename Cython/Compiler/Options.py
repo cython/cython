@@ -81,6 +81,7 @@ directive_defaults = {
 
 # Override types possibilities above, if needed
 directive_types = {
+    'final' : bool,  # final cdef classes and methods
     'infer_types' : bool, # values can be True/None/False
     }
 
@@ -90,6 +91,7 @@ for key, val in directive_defaults.items():
 
 directive_scopes = { # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
+    'final' : ('cclass',),   # add 'method' in the future
     'autotestdict' : ('module',),
     'test_assert_path_exists' : ('function',),
     'test_fail_if_path_exists' : ('function',),
