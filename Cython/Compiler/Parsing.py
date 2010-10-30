@@ -1681,8 +1681,8 @@ def p_statement(s, ctx, first_statement = 0):
         s.level = ctx.level
         node = p_cdef_statement(s, ctx(overridable = overridable))
         if decorators is not None:
-            if not isinstance(node, (Nodes.CFuncDefNode, Nodes.CVarDefNode)):
-                s.error("Decorators can only be followed by functions or Python classes")
+            if not isinstance(node, (Nodes.CFuncDefNode, Nodes.CVarDefNode, Nodes.CClassDefNode)):
+                s.error("Decorators can only be followed by functions or classes")
             node.decorators = decorators
         return node
     else:
