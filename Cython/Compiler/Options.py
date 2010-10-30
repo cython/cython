@@ -62,6 +62,8 @@ directive_defaults = {
     'wraparound' : True,
     'ccomplex' : False, # use C99/C++ for complex types and arith
     'callspec' : "",
+    'final' : False,
+    'internal' : False,
     'profile': False,
     'infer_types': None,
     'infer_types.verbose': False,
@@ -82,6 +84,7 @@ directive_defaults = {
 # Override types possibilities above, if needed
 directive_types = {
     'final' : bool,  # final cdef classes and methods
+    'internal' : bool,  # cdef class visibility in the module dict
     'infer_types' : bool, # values can be True/None/False
     }
 
@@ -92,6 +95,7 @@ for key, val in directive_defaults.items():
 directive_scopes = { # defaults to available everywhere
     # 'module', 'function', 'class', 'with statement'
     'final' : ('cclass',),   # add 'method' in the future
+    'internal' : ('cclass',),
     'autotestdict' : ('module',),
     'test_assert_path_exists' : ('function',),
     'test_fail_if_path_exists' : ('function',),
