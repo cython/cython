@@ -6031,6 +6031,12 @@ class CmpNode(object):
                 self.invalid_types_error(operand1, op, operand2)
                 new_common_type = error_type
 
+        if new_common_type.is_string and (isinstance(operand1, BytesNode) or
+                                          isinstance(operand2, BytesNode)):
+            # special case when comparing char* to bytes literal: must
+            # compare string values!
+            new_common_type = bytes_type
+
         # recursively merge types
         if common_type is None or new_common_type.is_error:
             common_type = new_common_type
