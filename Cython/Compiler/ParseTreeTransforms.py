@@ -929,9 +929,8 @@ class DecoratorTransform(CythonTransform, SkipDeclarations):
         return self._handle_decorators(
             func_node, func_node.name)
 
-    def _visit_CClassDefNode(self, class_node):
-        # This doesn't currently work, so it's disabled (also in the
-        # parser).
+    def visit_CClassDefNode(self, class_node):
+        # This doesn't currently work, so it's disabled.
         #
         # Problem: assignments to cdef class names do not work.  They
         # would require an additional check anyway, as the extension
@@ -941,8 +940,11 @@ class DecoratorTransform(CythonTransform, SkipDeclarations):
         self.visitchildren(class_node)
         if not class_node.decorators:
             return class_node
-        return self._handle_decorators(
-            class_node, class_node.class_name)
+        error(class_node.pos,
+              "Decorators not allowed on cdef classes (used on type '%s')" % class_node.class_name)
+        return class_node
+        #return self._handle_decorators(
+        #    class_node, class_node.class_name)
 
     def visit_ClassDefNode(self, class_node):
         self.visitchildren(class_node)
