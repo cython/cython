@@ -789,6 +789,8 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         return self.visit_with_directives(body, directives)
 
     def visit_CVarDefNode(self, node):
+        if not node.decorators:
+            return node
         for dec in node.decorators:
             for directive in self.try_to_parse_directives(dec.decorator) or ():
                 if directive is not None and directive[0] == u'locals':
