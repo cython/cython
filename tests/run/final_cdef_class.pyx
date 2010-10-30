@@ -11,7 +11,7 @@ cdef class FinalClass:
     >>> try:
     ...     class SubType(FinalClass): pass
     ... except TypeError:
-    ...     print 'PASSED!'
+    ...     print('PASSED!')
     PASSED!
     """
 
@@ -31,7 +31,7 @@ cdef class FinalSubClass(NonFinalClass):
     >>> try:
     ...     class SubType(FinalSubClass): pass
     ... except TypeError:
-    ...     print 'PASSED!'
+    ...     print('PASSED!')
     PASSED!
     """
 
