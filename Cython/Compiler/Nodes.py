@@ -3104,7 +3104,12 @@ class CClassDefNode(ClassDefNode):
                     elif not base_class_entry.type.is_extension_type:
                         error(self.pos, "'%s' is not an extension type" % self.base_class_name)
                     elif not base_class_entry.type.is_complete():
-                        error(self.pos, "Base class '%s' is incomplete" % self.base_class_name)
+                        error(self.pos, "Base class '%s' of type '%s' is incomplete" % (
+                            self.base_class_name, self.class_name))
+                    elif base_class_entry.type.scope and base_class_entry.type.scope.directives and \
+                             base_class_entry.type.scope.directives.get('final', False):
+                        error(self.pos, "Base class '%s' of type '%s' is final" % (
+                            self.base_class_name, self.class_name))
                     else:
                         self.base_type = base_class_entry.type
         has_body = self.body is not None
