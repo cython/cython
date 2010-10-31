@@ -1441,18 +1441,23 @@ class DebugTransform(CythonTransform):
     to enable debugging.
     """
     
-    def __init__(self, context):
+    def __init__(self, context, options):
         super(DebugTransform, self).__init__(context)
         self.visited = set()
         # our treebuilder and debug output writer 
         # (see Cython.Debugger.debug_output.CythonDebugWriter)
         self.tb = self.context.debug_outputwriter
+        self.c_output_file = options.output_file
+        
+        # tells visit_NameNode whether it should register step-into functions
+        self.register_stepinto = False
         
     def visit_ModuleNode(self, node):
         self.tb.module_name = node.full_module_name
         attrs = dict(
             module_name=node.full_module_name,
-            filename=node.pos[0].filename)
+            filename=node.pos[0].filename,
+            c_filename=self.c_output_file)
         
         self.tb.start('Module', attrs)
         
@@ -1503,20 +1508,25 @@ class DebugTransform(CythonTransform):
         self.tb.end('Arguments')
 
         self.tb.start('StepIntoFunctions')
+        self.register_stepinto = True
         self.visitchildren(node)
+        self.register_stepinto = False
         self.tb.end('StepIntoFunctions')
         self.tb.end('Function')
 
         return node
 
     def visit_NameNode(self, node):
-        if (node.type.is_cfunction and 
-            node.is_called and 
-            node.entry.in_cinclude):
+        if (self.register_stepinto and node.type.is_cfunction and node.is_called):
+            # don't check node.entry.in_cinclude, as 'cdef extern: ...' 
+            # declared functions are not 'in_cinclude'. 
+            # This means we will list called 'cdef' functions as 
+            # "step into functions", but this is not an issue as they will be 
+            # recognized as Cython functions anyway.
             attrs = dict(name=node.entry.func_cname)
             self.tb.start('StepIntoFunction', attrs=attrs)
             self.tb.end('StepIntoFunction')
-            
+        
         self.visitchildren(node)
         return node
     

@@ -20,25 +20,29 @@ import subprocess
 def usage():
     print("Usage: cygdb [PATH GDB_ARGUMENTS]")
 
-def make_command_file(path_to_debug_info):
-    debug_files = glob.glob(
-        os.path.join(path_to_debug_info, 'cython_debug/cython_debug_info_*'))
+def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
+    if not no_import:
+        pattern = os.path.join(path_to_debug_info, 
+                               'cython_debug/cython_debug_info_*')
+        debug_files = glob.glob(pattern)
 
-    if not debug_files:
-        usage()
-        sys.exit('No debug files were found in %s. Aborting.' % (
-                 os.path.abspath(path_to_debug_info)))
+        if not debug_files:
+            usage()
+            sys.exit('No debug files were found in %s. Aborting.' % (
+                    os.path.abspath(path_to_debug_info)))
         
     fd, tempfilename = tempfile.mkstemp()
     f = os.fdopen(fd, 'w')
+    f.write(prefix_code)
     f.write('set breakpoint pending on\n')
     f.write('python from Cython.Debugger import libcython\n')
-    f.write('\n'.join('cy import %s\n' % fn for fn in debug_files))
+    if not no_import:
+        f.write('\n'.join('cy import %s\n' % fn for fn in debug_files))
     f.close()
     
     return tempfilename
 
-def main(gdb_argv=[], path_to_debug_info=os.curdir):
+def main(path_to_debug_info=os.curdir, gdb_argv=[], no_import=False):
     """
     Start the Cython debugger. This tells gdb to import the Cython and Python
     extensions (libpython.py and libcython.py) and it enables gdb's pending 
@@ -46,7 +50,7 @@ def main(gdb_argv=[], path_to_debug_info=os.curdir):
     
     path_to_debug_info is the path to the cython_debug directory
     """
-    tempfilename = make_command_file(path_to_debug_info)
+    tempfilename = make_command_file(path_to_debug_info, no_import=no_import)
     p = subprocess.Popen(['gdb', '-command', tempfilename] + gdb_argv)
     while True:
         try:
