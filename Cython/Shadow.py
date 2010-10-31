@@ -1,10 +1,22 @@
+# cython.* namespace for pure mode.
+
 compiled = False
 
 def empty_decorator(x):
     return x
 
+# Function decorators
+
 def locals(**arg_types):
     return empty_decorator
+
+def inline(f, *args, **kwds):
+  if isinstance(f, basestring):
+    from Cython.Build.Inline import cython_inline
+    return cython_inline(f, *args, **kwds)
+  else:
+    assert len(args) == len(kwds) == 0
+    return f
 
 # Special functions
 
