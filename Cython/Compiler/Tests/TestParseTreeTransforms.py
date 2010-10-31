@@ -197,10 +197,12 @@ class TestDebugTransform(TestLibCython.DebuggerTestCase):
             self.assertEqual(1, len(list(spam_arguments)))
             
             # test step-into functions
-            spam_stepinto = list(spam.find('StepIntoFunctions'))
+            step_into = spam.find('StepIntoFunctions')
+            spam_stepinto = [x.attrib['name'] for x in step_into]
             assert spam_stepinto
-            self.assertEqual(1, len(list(spam_stepinto)))
-            self.assertEqual('puts', list(spam_stepinto)[0].attrib['name'])
+            self.assertEqual(2, len(spam_stepinto))
+            assert 'puts' in spam_stepinto
+            assert 'some_c_function' in spam_stepinto
         except:
             print open(self.debug_dest).read()
             raise
