@@ -12,8 +12,8 @@ all_tests_run() is executed which does final validation.
 >>> items.sort()
 >>> for key, value in items:
 ...     print('%s ; %s' % (key, value))
-MyCdefClass.cpdef_method (line 78) ; >>> add_log("cpdef class method")
-MyCdefClass.method (line 75) ; >>> add_log("cdef class method")
+MyCdefClass.cpdef_method (line 79) ; >>> add_log("cpdef class method")
+MyCdefClass.method (line 76) ; >>> add_log("cdef class method")
 MyClass.method (line 65) ; >>> add_log("class method")
 doc_without_test (line 47) ; Some docs
 mycpdeffunc (line 53) ; >>> add_log("cpdef")
@@ -33,7 +33,7 @@ cdef cdeffunc():
 
 def all_tests_run():
     log.sort()
-    assert log == [u'cdef class method', u'class method', u'cpdef', u'def'], log
+    assert log == [u'cdef class', u'cdef class method', u'class method', u'cpdef', u'cpdef class method', u'def'], log
 
 def add_log(s):
     log.append(unicode(s))
@@ -68,7 +68,8 @@ class MyClass:
 cdef class MyCdefClass:
     """
     Needs no hack
-    
+
+    >>> add_log("cdef class")
     >>> True
     True
     """
