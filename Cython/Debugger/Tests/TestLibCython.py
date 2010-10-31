@@ -9,10 +9,16 @@ import tempfile
 import subprocess
 import distutils.core
 from distutils import sysconfig
+from distutils import ccompiler
 
 import Cython.Distutils.extension
 from Cython.Debugger import Cygdb as cygdb
 
+root = os.path.dirname(os.path.abspath(__file__))
+codefile = os.path.join(root, 'codefile')
+cfuncs_file = os.path.join(root, 'cfuncs.c')
+with open(codefile) as f:
+    source_to_lineno = dict((line.strip(), i + 1) for i, line in enumerate(f))
 
 class DebuggerTestCase(unittest.TestCase):
     
@@ -26,52 +32,26 @@ class DebuggerTestCase(unittest.TestCase):
         self.debug_dest = os.path.join(self.tempdir, 
                                       'cython_debug', 
                                       'cython_debug_info_codefile')
-        
-        code = textwrap.dedent("""
-            cdef extern from "stdio.h":
-                int puts(char *s)
-                
-            cdef int c_var = 0
-            python_var = 0
-            
-            def spam(a=0):
-                cdef:
-                    int b, c, d
-                
-                b = c = d = 0
-                
-                b = 1
-                c = 2
-                d = 3
-                int(10)
-                puts("spam")
-                
-            cdef ham():
-                pass
-                
-            cpdef eggs():
-                pass
-            
-            cdef class SomeClass(object):
-                def spam(self):
-                    pass
-            
-            spam()
-        """)
+        self.cfuncs_destfile = os.path.join(self.tempdir, 'cfuncs')
         
         self.cwd = os.getcwd()
         os.chdir(self.tempdir)
         
-        open(self.destfile, 'w').write(code)
+        shutil.copy(codefile, self.destfile)
+        shutil.copy(cfuncs_file, self.cfuncs_destfile + '.c')
+        
+        compiler = ccompiler.new_compiler()
+        compiler.compile(['cfuncs.c'], debug=True)
         
         ext = Cython.Distutils.extension.Extension(
             'codefile',
             ['codefile.pyx'], 
-            pyrex_debug=True)
+            pyrex_debug=True,
+            extra_objects=['cfuncs.o'])
             
         distutils.core.setup(
             script_args=['build_ext', '--inplace'],
-            ext_modules=[ext], 
+            ext_modules=[ext],
             cmdclass=dict(build_ext=Cython.Distutils.build_ext)
         )
     
@@ -84,12 +64,39 @@ class GdbDebuggerTestCase(DebuggerTestCase):
     def setUp(self):
         super(GdbDebuggerTestCase, self).setUp()
         
-        self.gdb_command_file = cygdb.make_command_file(self.tempdir)
-        with open(self.gdb_command_file, 'a') as f:
-            f.write('python '
-                'from Cython.Debugger.Tests import test_libcython_in_gdb;'
-                'test_libcython_in_gdb.main()\n')
+        prefix_code = textwrap.dedent('''\
+            python
                 
+            import os
+            import sys
+            import traceback
+            
+            def excepthook(type, value, tb):
+                traceback.print_exception(type, value, tb)
+                os._exit(1)
+            
+            sys.excepthook = excepthook
+            
+            # Have tracebacks end up on sys.stderr (gdb replaces sys.stderr
+            # with an object that calls gdb.write())
+            sys.stderr = sys.__stderr__
+            
+            end
+            ''')
+        
+        code = textwrap.dedent('''\
+            python
+            
+            from Cython.Debugger.Tests import test_libcython_in_gdb
+            test_libcython_in_gdb.main()
+            
+            end
+            ''')
+        
+        self.gdb_command_file = cygdb.make_command_file(self.tempdir, 
+                                                        prefix_code)
+        open(self.gdb_command_file, 'a').write(code)
+        
         args = ['gdb', '-batch', '-x', self.gdb_command_file, '-n', '--args',
                 sys.executable, '-c', 'import codefile']
         
@@ -100,6 +107,7 @@ class GdbDebuggerTestCase(DebuggerTestCase):
         paths.append(os.path.dirname(os.path.dirname(
             os.path.abspath(Cython.__file__))))
         env = dict(os.environ, PYTHONPATH=os.pathsep.join(paths))
+
         self.p = subprocess.Popen(
             args,
             stdout=open(os.devnull, 'w'),
