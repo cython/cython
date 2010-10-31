@@ -81,6 +81,7 @@ def cython_inline(code,
                   locals=None,
                   globals=None,
                   **kwds):
+    code = strip_common_indent(code)
     ctx = Context(include_dirs, default_options)
     if locals is None:
         locals = inspect.currentframe().f_back.f_back.f_locals
@@ -140,28 +141,25 @@ def __invoke(%(params)s):
     return __import__(module).__invoke(*arg_list)
 
 non_space = re.compile('[^ ]')
-def strip_common_indent(lines):
+def strip_common_indent(code):
     min_indent = None
+    lines = code.split('\n')
     for line in lines:
-        if not line:
-            continue # empty
-        indent = non_space.search(line).start()
-        if indent == len(line):
+        match = non_space.search(line)
+        if not match:
             continue # blank
-        elif line[indent] == '#':
+        indent = match.start()
+        if line[indent] == '#':
             continue # comment
         elif min_indent is None or min_indent > indent:
             min_indent = indent
-    for line in lines:
-        if not line:
+    for ix, line in enumerate(lines):
+        match = non_space.search(line)
+        if not match or line[indent] == '#':
             continue
-        indent = non_space.search(line).start()
-        if indent == len(line):
-            continue
-        elif line[indent] == '#':
-            yield line
         else:
-            yield line[min_indent:]
+            lines[ix] = line[min_indent:]
+    return '\n'.join(lines)
 
 module_statement = re.compile(r'^((cdef +(extern|class))|cimport|(from .+ cimport)|(from .+ import +[*]))')
 def extract_func_code(code):
@@ -170,7 +168,7 @@ def extract_func_code(code):
     # TODO: string literals, backslash
     current = function
     code = code.replace('\t', ' ')
-    lines = strip_common_indent(code.split('\n'))
+    lines = code.split('\n')
     for line in lines:
         if not line.startswith(' '):
             if module_statement.match(line):
