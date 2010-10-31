@@ -101,7 +101,7 @@ def cython_inline(code,
         print "Could not parse code as a string (to extract unbound symbols)."
     arg_names = kwds.keys()
     arg_names.sort()
-    arg_sigs = tuple((get_type(kwds[arg], ctx), arg) for arg in arg_names)
+    arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
     key = code, arg_sigs
     module = _code_cache.get(key)
     if not module:
