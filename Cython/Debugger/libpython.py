@@ -44,8 +44,12 @@ the type names are known to the debugger
 The module also extends gdb with some python-specific commands.
 '''
 from __future__ import with_statement
-import gdb
+
+import os
 import sys
+import tempfile
+
+import gdb
 
 # Look up the gdb.Type for some standard types:
 _type_char_ptr = gdb.lookup_type('char').pointer() # char*
@@ -1448,3 +1452,165 @@ class PyLocals(gdb.Command):
                       pyop_value.get_truncated_repr(MAX_OUTPUT_LEN)))
 
 PyLocals()
+
+
+def execute(command, from_tty=False, to_string=False):
+    """
+    Replace gdb.execute() with this function and have it accept a 'to_string'
+    argument (new in 7.2). Have it properly capture stderr also.
+    
+    Unfortuntaly, this function is not reentrant.
+    """
+    if not to_string:
+        return _execute(command, from_tty)
+            
+    fd, filename = tempfile.mkstemp()
+    
+    try:
+        _execute("set logging file %s" % filename)
+        _execute("set logging redirect on")
+        _execute("set logging on")
+        _execute("set pagination off")
+        
+        _execute(command, from_tty)
+    finally:
+        data = os.fdopen(fd).read()
+        os.remove(filename)
+        _execute("set logging off")
+        _execute("set pagination on")
+        return data
+        
+_execute = gdb.execute
+gdb.execute = execute
+
+
+class GenericCodeStepper(gdb.Command):
+    """
+    Superclass for code stepping. Subclasses must implement the following 
+    methods:
+        
+        lineno(frame)               - tells the current line number (only
+                                      called for a relevant frame)
+        is_relevant_function(frame) - tells whether we care about frame 'frame'
+        get_source_line(frame)      - get the line of source code for the 
+                                      current line (only called for a relevant
+                                      frame)
+        
+    This class provides an 'invoke' method that invokes a 'step' or 'step-over'
+    depending on the 'stepper' argument.
+    """
+    
+    def __init__(self, name, stepper=False):
+        super(GenericCodeStepper, self).__init__(name, 
+                                                 gdb.COMMAND_RUNNING,
+                                                 gdb.COMPLETE_NONE)
+        self.stepper = stepper
+    
+    def _init_stepping(self):
+        self.beginframe = gdb.selected_frame()
+        self.beginline = self.lineno(self.beginframe)
+        if not self.stepper:
+            self.depth = self._stackdepth(self.beginframe)
+
+    def _next_step(self, gdb_command):
+        """
+        Teturns whether to continue stepping. This method sets the instance 
+        attributes 'result' and 'stopped_running'. 'result' hold the output
+        of the executed gdb command ('step' or 'next')
+        """
+        self.result = gdb.execute(gdb_command, to_string=True)
+        self.stopped_running = gdb.inferiors()[0].pid == 0
+        
+        if self.stopped_running:
+            # We stopped running
+            return False
+            
+        newframe = gdb.selected_frame()
+        
+        hit_breakpoint = self.result.startswith('Breakpoint')
+        is_relevant_function = self.is_relevant_function(newframe)
+        
+        if newframe != self.beginframe:
+            # new function
+            if not self.stepper:
+                is_relevant_function = (
+                    self._stackdepth(newframe) < self.depth and
+                    is_relevant_function)
+
+            new_lineno = False
+        else:
+            is_relevant_function = False
+            new_lineno = self.lineno(newframe) > self.beginline
+        
+        return not (hit_breakpoint or new_lineno or is_relevant_function)
+        
+    def _end_stepping(self):
+        # sys.stdout.write(self.result)
+        
+        if not self.stopped_running:
+            frame = gdb.selected_frame()
+            if self.is_relevant_function(frame):
+                print self.get_source_line(frame)
+    
+    def _stackdepth(self, frame):
+        depth = 0
+        while frame:
+            frame = frame.older()
+            depth += 1
+            
+        return depth
+    
+    def invoke(self, args, from_tty):
+        if args:
+            nsteps = int(args)
+        else:
+            nsteps = 1
+        
+        if self.stepper:
+            gdb_command = 'step'
+        else:
+            gdb_command= 'next'
+        
+        for nthstep in xrange(nsteps):
+            self._init_stepping()
+            while self._next_step(gdb_command):
+                pass
+            
+            self._end_stepping()
+
+
+class PythonCodeStepper(GenericCodeStepper):
+    
+    def pyframe(self, frame):
+        pyframe = Frame(frame).get_pyop()
+        if pyframe:
+            return pyframe
+        else:
+            raise gdb.GdbError(
+                "Unable to find the Python frame, run your code with a debug "
+                "build (configure with --with-pydebug or compile with -g).")
+        
+    def lineno(self, frame):
+        return self.pyframe(frame).current_line_num()
+    
+    def is_relevant_function(self, frame):
+        return Frame(frame).is_evalframeex()
+
+    def get_source_line(self, frame):
+        try:
+            return self.pyframe(frame).current_line().rstrip()
+        except IOError, e:
+            gdb.GdbError('Unable to retrieve source code: %s' % (e,))
+
+
+class PyStep(PythonCodeStepper):
+    "Step through Python code."
+
+class PyNext(PythonCodeStepper):
+    "Step-over Python code."
+
+py_step = PyStep('py-step', stepper=True)
+py_next = PyNext('py-next', stepper=False)
+
+class PyShowCCode(gdb.Parameter):
+    pass
