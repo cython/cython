@@ -113,7 +113,7 @@ def cython_inline(code,
             if m:
                 cimports.append('\ncimport %s' % m.groups()[0])
         module_body, func_body = extract_func_code(code)
-        params = ', '.join('%s %s' % a for a in arg_sigs)
+        params = ', '.join(['%s %s' % a for a in arg_sigs])
         module_code = """
 %(cimports)s
 %(module_body)s
