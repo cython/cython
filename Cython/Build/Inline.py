@@ -34,7 +34,7 @@ def cython_inline(code, types='aggressive', lib_dir=os.path.expanduser('~/.cytho
     key = code, arg_sigs
     module = code_cache.get(key)
     if not module:
-        module_body, extract_func_code = extract_bodies(code)
+        module_body, func_body = extract_func_code(code)
         params = ', '.join('%s %s' % a for a in arg_sigs)
         module_code = """
 %(module_body)s
@@ -58,13 +58,39 @@ def __invoke(%(params)s):
     arg_list = [kwds[arg] for arg in arg_names]
     return __import__(module).__invoke(*arg_list)
 
+non_space = re.compile('[^ ]')
+def strip_common_indent(lines):
+    min_indent = None
+    for line in lines:
+        if not line:
+            continue # empty
+        indent = non_space.search(line).start()
+        if indent == len(line):
+            continue # blank
+        elif line[indent] == '#':
+            continue # comment
+        elif min_indent is None or min_indent > indent:
+            min_indent = indent
+    for line in lines:
+        if not line:
+            continue
+        indent = non_space.search(line).start()
+        if indent == len(line):
+            continue
+        elif line[indent] == '#':
+            yield line
+        else:
+            yield line[min_indent:]
+
 module_statement = re.compile(r'^((cdef +(extern|class))|cimport|(from .+ cimport)|(from .+ import +[*]))')
 def extract_func_code(code):
     module = []
     function = []
     # TODO: string literals, backslash
     current = function
-    for line in code.split('\n'):
+    code = code.replace('\t', ' ')
+    lines = strip_common_indent(code.split('\n'))
+    for line in lines:
         if not line.startswith(' '):
             if module_statement.match(line):
                 current = module
