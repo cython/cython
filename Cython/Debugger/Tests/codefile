@@ -6,8 +6,8 @@ cdef extern:
 
 import os
 
-cdef int c_var = 0
-python_var = 0
+cdef int c_var = 12
+python_var = 13
 
 def spam(a=0):
     cdef:

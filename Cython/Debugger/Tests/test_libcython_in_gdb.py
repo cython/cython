@@ -8,6 +8,7 @@ Cython.Debugger.Cygdb.make_command_file()
 import os
 import sys
 import trace
+import inspect
 import warnings
 import unittest
 import traceback
@@ -19,11 +20,16 @@ from Cython.Debugger import libcython
 from Cython.Debugger import libpython
 from Cython.Debugger.Tests import TestLibCython as test_libcython
 
+
 # for some reason sys.argv is missing in gdb
 sys.argv = ['gdb']
 
 
 class DebugTestCase(unittest.TestCase):
+    """
+    Base class for test cases. On teardown it kills the inferior and unsets 
+    all breakpoints.
+    """
     
     def __init__(self, name):
         super(DebugTestCase, self).__init__(name)
@@ -50,25 +56,26 @@ class DebugTestCase(unittest.TestCase):
             lineno = test_libcython.source_to_lineno[source_line]
         frame = gdb.selected_frame()
         self.assertEqual(libcython.cy.step.lineno(frame), lineno)
-    
-    def tearDown(self):
-        gdb.execute('delete breakpoints', to_string=True)
-        try:
-            gdb.execute('kill inferior 1', to_string=True)
-        except RuntimeError:
-            pass
 
     def break_and_run(self, source_line):
         break_lineno = test_libcython.source_to_lineno[source_line]
         gdb.execute('cy break codefile:%d' % break_lineno, to_string=True)
         gdb.execute('run', to_string=True)
 
+    def tearDown(self):
+        gdb.execute('delete breakpoints', to_string=True)
+        try:
+            gdb.execute('kill inferior 1', to_string=True)
+        except RuntimeError:
+            pass
+            
+
 class TestDebugInformationClasses(DebugTestCase):
     
     def test_CythonModule(self):
         "test that debug information was parsed properly into data structures"
         self.assertEqual(self.module.name, 'codefile')
-        global_vars = ('c_var', 'python_var', 'SomeClass', '__name__', 
+        global_vars = ('c_var', 'python_var', '__name__', 
                        '__builtins__', '__doc__', '__file__')
         assert set(global_vars).issubset(self.module.globals)
         
@@ -115,7 +122,6 @@ class TestBreak(DebugTestCase):
 
     def test_break(self):
         result = libpython._execute('cy break codefile.spam', to_string=True)
-        print >>sys.stderr, repr(result)
         assert self.spam_func.cname in result
         
         self.assertEqual(len(gdb.breakpoints()), 1)
@@ -140,6 +146,7 @@ class TestStep(DebugStepperTestCase):
     Test stepping. Stepping happens in the code found in 
     Cython/Debugger/Tests/codefile.
     """
+    
     def test_cython_step(self):
         gdb.execute('cy break codefile.spam')
         libcython.parameters.step_into_c_code.value = False
@@ -197,8 +204,28 @@ class TestNext(DebugStepperTestCase):
             self.lineno_equals(line)
 
 
+class TestLocalsGlobals(DebugTestCase):
+    
+    def test_locals(self):
+        self.break_and_run('int(10)')
+        
+        result = gdb.execute('cy locals', to_string=True)
+        assert 'a = 0' in result, repr(result)
+        assert 'b = 1' in result, repr(result)
+        assert 'c = 2' in result, repr(result)
+    
+    def test_globals(self):
+        self.break_and_run('int(10)')
+        
+        result = gdb.execute('cy globals', to_string=True)
+        assert '__name__ =' in result, repr(result)
+        assert '__doc__ =' in result, repr(result)
+        assert 'os =' in result, repr(result)
+        assert 'c_var = 12' in result, repr(result)
+        assert 'python_var = 13' in result, repr(result)
+
+
 def _main():
-    # unittest.main(module=__import__(__name__, fromlist=['']))
     try:
         gdb.lookup_type('PyModuleObject')
     except RuntimeError:
@@ -207,17 +234,14 @@ def _main():
                 "-g or get a debug build (configure with --with-pydebug).")
         warnings.warn(msg)
     else:
-        tests = (
-            TestDebugInformationClasses,
-            TestParameters,
-            TestBreak,
-            TestStep,
-            TestNext,
-        )
+        m = __import__(__name__, fromlist=[''])
+        tests = inspect.getmembers(m, inspect.isclass)
+        
         # test_support.run_unittest(tests)
+        
         test_loader = unittest.TestLoader()
         suite = unittest.TestSuite(
-            [test_loader.loadTestsFromTestCase(cls) for cls in tests])
+            [test_loader.loadTestsFromTestCase(cls) for name, cls in tests])
         
         result = unittest.TextTestRunner(verbosity=1).run(suite)
         if not result.wasSuccessful():
