@@ -248,9 +248,9 @@ class CythonBase(object):
 
         return False
     
-    def print_cython_var_if_initialized(self, varname):
+    def print_cython_var_if_initialized(self, varname, max_name_length=None):
         try:
-            self.cy.print_.invoke(varname, True)
+            self.cy.print_.invoke(varname, True, max_name_length)
         except gdb.GdbError:
             # variable not initialized yet
             pass
@@ -731,13 +731,18 @@ class CyPrint(CythonCommand):
     command_class = gdb.COMMAND_DATA
     
     @dispatch_on_frame(c_command='print', python_command='py-print')
-    def invoke(self, name, from_tty):
+    def invoke(self, name, from_tty, max_name_length=None):
         cname = self.cy.cy_cname.invoke(name, string=True)
         try:
-            print  '%s = %s' % (name, gdb.parse_and_eval(cname))
+             value = gdb.parse_and_eval(cname)
         except RuntimeError, e:
             raise gdb.GdbError("Variable %s is not initialized yet." % (name,))
-            
+        else:
+            if max_name_length is None:
+                print '%s = %s' % (name, value)
+            else:
+                print '%-*s = %s' % (max_name_length, name, value)
+        
     def complete(self):
         if self.is_cython_function():
             f = self.get_cython_function()
@@ -757,8 +762,10 @@ class CyLocals(CythonCommand):
     
     @dispatch_on_frame(c_command='info locals', python_command='py-locals')
     def invoke(self, args, from_tty):
-        for varname in self.get_cython_function().locals:
-            self.print_cython_var_if_initialized(varname)
+        local_cython_vars = self.get_cython_function().locals
+        max_name_length = len(max(local_cython_vars, key=len))
+        for varname in local_cython_vars:
+            self.print_cython_var_if_initialized(varname, max_name_length)
                 
 
 class CyGlobals(CythonCommand):
@@ -783,10 +790,15 @@ class CyGlobals(CythonCommand):
                 """))
             
         m = m.cast(PyModuleObject.pointer())
-        d = libpython.PyObjectPtr.from_pyobject_ptr(m['md_dict'])
+        pyobject_dict = libpython.PyObjectPtr.from_pyobject_ptr(m['md_dict'])
+        
+        module_globals = self.get_cython_function().module.globals
+        # - 2 for the surrounding quotes
+        max_name_length = max(len(max(module_globals, key=len)),
+                              len(max(pyobject_dict.iteritems())) - 2)
         
         seen = set()
-        for k, v in d.iteritems():
+        for k, v in pyobject_dict.iteritems():
             # Note: k and v are values in the inferior, they are 
             #       libpython.PyObjectPtr objects
             
@@ -796,12 +808,12 @@ class CyGlobals(CythonCommand):
             v = v.get_truncated_repr(libpython.MAX_OUTPUT_LEN)
             
             seen.add(k)
-            print '%s = %s' % (k, v)
+            print '%-*s = %s' % (max_name_length, k, v)
         
-        module_globals = self.get_cython_function().module.globals
         for varname in seen.symmetric_difference(module_globals):
-            self.print_cython_var_if_initialized(varname)
-            
+            self.print_cython_var_if_initialized(varname, max_name_length)
+
+
 # Functions
 
 class CyCName(gdb.Function, CythonBase):

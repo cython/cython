@@ -1427,12 +1427,6 @@ PyPrint()
 
 class PyLocals(gdb.Command):
     'Look up the given python variable name, and print it'
-    def __init__(self):
-        gdb.Command.__init__ (self,
-                              "py-locals",
-                              gdb.COMMAND_DATA,
-                              gdb.COMPLETE_NONE)
-
 
     def invoke(self, args, from_tty):
         name = str(args)
@@ -1447,12 +1441,29 @@ class PyLocals(gdb.Command):
             print 'Unable to read information on python frame'
             return
 
-        for pyop_name, pyop_value in pyop_frame.iter_locals():
-            print ('%s = %s'
-                   % (pyop_name.proxyval(set()),
-                      pyop_value.get_truncated_repr(MAX_OUTPUT_LEN)))
+        namespace = self.get_namespace(pyop_frame)
+        namespace = [(name.proxyval(set()), val) for name, val in namespace]
+        
+        name, val = max(namespace, key=lambda (name, val): len(name))
+        max_name_length = len(name)
+        
+        for name, pyop_value in namespace:
+            value = pyop_value.get_truncated_repr(MAX_OUTPUT_LEN)
+            print ('%-*s = %s' % (max_name_length, name, value))
 
-PyLocals()
+    def get_namespace(self, pyop_frame):
+        return pyop_frame.iter_locals()
+
+
+class PyGlobals(PyLocals):
+    'List all the globals in the currently select Python frame'
+    
+    def get_namespace(self, pyop_frame):
+        return pyop_frame.iter_globals()
+
+
+PyLocals("py-locals", gdb.COMMAND_DATA, gdb.COMPLETE_NONE)
+PyGlobals("py-globals", gdb.COMMAND_DATA, gdb.COMPLETE_NONE)
 
 
 class _LoggingState(object):
