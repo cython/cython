@@ -2459,7 +2459,7 @@ class SliceIndexNode(ExprNode):
                         code.error_goto_if_null(self.result(), self.pos)))
         else:
             code.putln(
-                "%s = PySequence_GetSlice(%s, %s, %s); %s" % (
+                "%s = __Pyx_PySequence_GetSlice(%s, %s, %s); %s" % (
                     self.result(),
                     self.base.py_result(),
                     self.start_code(),
@@ -2471,7 +2471,7 @@ class SliceIndexNode(ExprNode):
         self.generate_subexpr_evaluation_code(code)
         if self.type.is_pyobject:
             code.put_error_if_neg(self.pos, 
-                "PySequence_SetSlice(%s, %s, %s, %s)" % (
+                "__Pyx_PySequence_SetSlice(%s, %s, %s, %s)" % (
                     self.base.py_result(),
                     self.start_code(),
                     self.stop_code(),
@@ -2508,7 +2508,7 @@ class SliceIndexNode(ExprNode):
             return
         self.generate_subexpr_evaluation_code(code)
         code.put_error_if_neg(self.pos,
-            "PySequence_DelSlice(%s, %s, %s)" % (
+            "__Pyx_PySequence_DelSlice(%s, %s, %s)" % (
                 self.base.py_result(),
                 self.start_code(),
                 self.stop_code()))

@@ -593,6 +593,25 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("#endif")
 
         code.put("""
+#if (PY_MAJOR_VERSION < 3) || (PY_VERSION_HEX >= 0x03010300)
+  #define __Pyx_PySequence_GetSlice(obj, a, b) PySequence_GetSlice(obj, a, b)
+  #define __Pyx_PySequence_SetSlice(obj, a, b, value) PySequence_SetSlice(obj, a, b, value)
+  #define __Pyx_PySequence_DelSlice(obj, a, b) PySequence_DelSlice(obj, a, b)
+#else
+  #define __Pyx_PySequence_GetSlice(obj, a, b) ((!(obj)) ? \\
+        (PyErr_SetString(PyExc_SystemError, "null argument to internal routine"), (PyObject*)0) : \\
+        (((obj)->ob_type->tp_as_mapping) ? (PySequence_GetSlice(obj, a, b)) : \\
+            (PyErr_Format(PyExc_TypeError, "'%.200s' object is unsliceable", (obj)->ob_type->tp_name), (PyObject*)0)))
+  #define __Pyx_PySequence_SetSlice(obj, a, b, value) ((!(obj)) ? \\
+        (PyErr_SetString(PyExc_SystemError, "null argument to internal routine"), -1) : \\
+        (((obj)->ob_type->tp_as_mapping) ? (PySequence_SetSlice(obj, a, b, value)) : \\
+            (PyErr_Format(PyExc_TypeError, "'%.200s' object doesn't support slice assignment", (obj)->ob_type->tp_name), -1)))
+  #define __Pyx_PySequence_DelSlice(obj, a, b) ((!(obj)) ? \\
+        (PyErr_SetString(PyExc_SystemError, "null argument to internal routine"), -1) : \\
+        (((obj)->ob_type->tp_as_mapping) ? (PySequence_DelSlice(obj, a, b)) : \\
+            (PyErr_Format(PyExc_TypeError, "'%.200s' object doesn't support slice deletion", (obj)->ob_type->tp_name), -1)))
+#endif
+
 #if PY_MAJOR_VERSION >= 3
   #define PyMethod_New(func, self, klass) ((self) ? PyMethod_New(func, self) : PyInstanceMethod_New(func))
 #endif
