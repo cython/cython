@@ -452,6 +452,8 @@ class CyCy(CythonCommand):
             break_ = CyBreak.register(),
             step = CyStep.register(),
             next = CyNext.register(),
+            run = CyRun.register(),
+            cont = CyCont.register(),
             list = CyList.register(),
             print_ = CyPrint.register(),
             locals = CyLocals.register(),
@@ -703,6 +705,32 @@ class CyNext(CythonCodeStepper):
     @dispatch_on_frame(c_command='next')
     def invoke(self, *args, **kwargs):
         super(CythonCodeStepper, self).invoke(*args, **kwargs)
+
+
+class CyRun(CythonCodeStepper):
+    """
+    Run a Cython program. This is like the 'run' command, except that it 
+    displays Cython or Python source lines as well
+    """
+    
+    name = 'cy run'
+    
+    def invoke(self, *args):
+        self.result = gdb.execute('run', to_string=True)
+        self.end_stepping()
+
+
+class CyCont(CythonCodeStepper):
+    """
+    Continue a Cython program. This is like the 'run' command, except that it 
+    displays Cython or Python source lines as well.
+    """
+    
+    name = 'cy cont'
+    
+    def invoke(self, *args):
+        self.result = gdb.execute('cont', to_string=True)
+        self.end_stepping()
 
 
 class CyList(CythonCommand):
