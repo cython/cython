@@ -1542,29 +1542,29 @@ class GenericCodeStepper(gdb.Command):
     depending on the 'stepper' argument.
     """
     
+    stepper = False
+    
     def __init__(self, name, stepper=False):
         super(GenericCodeStepper, self).__init__(name, 
                                                  gdb.COMMAND_RUNNING,
                                                  gdb.COMPLETE_NONE)
         self.stepper = stepper
     
-    def _init_stepping(self):
+    def init_stepping(self):
         self.beginframe = gdb.selected_frame()
         self.beginline = self.lineno(self.beginframe)
         if not self.stepper:
             self.depth = self._stackdepth(self.beginframe)
 
-    def _next_step(self, gdb_command):
+    def next_step(self, gdb_command):
         """
         Teturns whether to continue stepping. This method sets the instance 
-        attributes 'result' and 'stopped_running'. 'result' hold the output
-        of the executed gdb command ('step' or 'next')
+        attribute 'result'. 'result' hold the output of the executed gdb 
+        command ('step' or 'next')
         """
         self.result = gdb.execute(gdb_command, to_string=True)
-        self.stopped_running = gdb.inferiors()[0].pid == 0
         
-        if self.stopped_running:
-            # We stopped running
+        if self.stopped():
             return False
             
         newframe = gdb.selected_frame()
@@ -1586,8 +1586,9 @@ class GenericCodeStepper(gdb.Command):
         
         return not (hit_breakpoint or new_lineno or is_relevant_function)
         
-    def _end_stepping(self):
-        if self.stopped_running:
+    def end_stepping(self):
+        "requires that the instance attribute self.result is set"
+        if self.stopped():
             sys.stdout.write(self.result)
         else:
             frame = gdb.selected_frame()
@@ -1598,6 +1599,9 @@ class GenericCodeStepper(gdb.Command):
                 else:
                     print output
     
+    def stopped(self):
+        return gdb.inferiors()[0].pid == 0
+        
     def _stackdepth(self, frame):
         depth = 0
         while frame:
@@ -1618,11 +1622,11 @@ class GenericCodeStepper(gdb.Command):
             gdb_command= 'next'
         
         for nthstep in xrange(nsteps):
-            self._init_stepping()
-            while self._next_step(gdb_command):
+            self.init_stepping()
+            while self.next_step(gdb_command):
                 pass
             
-            self._end_stepping()
+            self.end_stepping()
 
 
 class PythonCodeStepper(GenericCodeStepper):
