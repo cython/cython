@@ -431,13 +431,15 @@ class CyCy(CythonCommand):
         cy break
         cy step
         cy next
+        cy run
+        cy cont
+        cy up
+        cy down
         cy print
         cy list
         cy locals
         cy globals
         cy backtrace
-        cy up
-        cy down
     """
     
     name = 'cy'
@@ -454,6 +456,8 @@ class CyCy(CythonCommand):
             next = CyNext.register(),
             run = CyRun.register(),
             cont = CyCont.register(),
+            up = CyUp.register(),
+            down = CyDown.register(),
             list = CyList.register(),
             print_ = CyPrint.register(),
             locals = CyLocals.register(),
@@ -714,23 +718,44 @@ class CyRun(CythonCodeStepper):
     """
     
     name = 'cy run'
+    _command = 'run'
     
     def invoke(self, *args):
-        self.result = gdb.execute('run', to_string=True)
+        self.result = gdb.execute(self._command, to_string=True)
         self.end_stepping()
 
 
-class CyCont(CythonCodeStepper):
+class CyCont(CyRun):
     """
     Continue a Cython program. This is like the 'run' command, except that it 
     displays Cython or Python source lines as well.
     """
     
     name = 'cy cont'
+    _command = 'cont'
+
+
+class CyUp(CythonCodeStepper):
+    """
+    Go up a Cython, Python or relevant C frame.
+    """
+    name = 'cy up'
+    _command = 'up'
     
     def invoke(self, *args):
-        self.result = gdb.execute('cont', to_string=True)
+        self.result = gdb.execute(self._command, to_string=True)
+        while not self.is_relevant_function(gdb.selected_frame()):
+            self.result = gdb.execute(self._command, to_string=True)
         self.end_stepping()
+
+
+class CyDown(CyUp):
+    """
+    Go down a Cython, Python or relevant C frame.
+    """
+    
+    name = 'cy down'
+    _command = 'down'
 
 
 class CyList(CythonCommand):
