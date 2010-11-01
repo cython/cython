@@ -47,6 +47,7 @@ from __future__ import with_statement
 
 import os
 import sys
+import atexit
 import tempfile
 
 import gdb
@@ -1454,34 +1455,62 @@ class PyLocals(gdb.Command):
 PyLocals()
 
 
-def execute(command, from_tty=False, to_string=False):
+class _LoggingState(object):
+    """
+    State that helps to provide a reentrant gdb.execute() function.
+    """
+    
+    def __init__(self):
+        self.fd, self.filename = tempfile.mkstemp()
+        self.file = os.fdopen(self.fd, 'r+')
+        _execute("set logging file %s" % self.filename)
+        self.file_position_stack = []
+        
+        atexit.register(os.close, self.fd)
+        atexit.register(os.remove, self.filename)
+        
+    def __enter__(self):
+        if not self.file_position_stack:
+            _execute("set logging redirect on")
+            _execute("set logging on")
+            _execute("set pagination off")
+        
+        self.file_position_stack.append(os.fstat(self.fd).st_size)
+        return self
+    
+    def getoutput(self):
+        gdb.flush()
+        self.file.seek(self.file_position_stack[-1])
+        result = self.file.read()
+        return result
+        
+    def __exit__(self, exc_type, exc_val, tb):
+        startpos = self.file_position_stack.pop()
+        self.file.seek(startpos)
+        self.file.truncate()
+        if not self.file_position_stack:
+            _execute("set logging off")
+            _execute("set logging redirect off")
+            _execute("set pagination on")
+
+
+def execute(command, from_tty=True, to_string=False):
     """
     Replace gdb.execute() with this function and have it accept a 'to_string'
-    argument (new in 7.2). Have it properly capture stderr also.
-    
-    Unfortuntaly, this function is not reentrant.
+    argument (new in 7.2). Have it properly capture stderr also. Ensure 
+    reentrancy.
     """
-    if not to_string:
-        return _execute(command, from_tty)
-            
-    fd, filename = tempfile.mkstemp()
-    
-    try:
-        _execute("set logging file %s" % filename)
-        _execute("set logging redirect on")
-        _execute("set logging on")
-        _execute("set pagination off")
-        
+    if to_string:
+        with _logging_state as state:
+            _execute(command, from_tty)
+            return state.getoutput()
+    else:
         _execute(command, from_tty)
-    finally:
-        data = os.fdopen(fd).read()
-        os.remove(filename)
-        _execute("set logging off")
-        _execute("set pagination on")
-        return data
-        
+
+
 _execute = gdb.execute
 gdb.execute = execute
+_logging_state = _LoggingState()
 
 
 class GenericCodeStepper(gdb.Command):
@@ -1494,7 +1523,9 @@ class GenericCodeStepper(gdb.Command):
         is_relevant_function(frame) - tells whether we care about frame 'frame'
         get_source_line(frame)      - get the line of source code for the 
                                       current line (only called for a relevant
-                                      frame)
+                                      frame). If the source code cannot be 
+                                      retrieved this function should 
+                                      return None
         
     This class provides an 'invoke' method that invokes a 'step' or 'step-over'
     depending on the 'stepper' argument.
@@ -1545,12 +1576,16 @@ class GenericCodeStepper(gdb.Command):
         return not (hit_breakpoint or new_lineno or is_relevant_function)
         
     def _end_stepping(self):
-        # sys.stdout.write(self.result)
-        
-        if not self.stopped_running:
+        if self.stopped_running:
+            sys.stdout.write(self.result)
+        else:
             frame = gdb.selected_frame()
             if self.is_relevant_function(frame):
-                print self.get_source_line(frame)
+                output = self.get_source_line(frame)
+                if output is None:
+                    sys.stdout.write(self.result)
+                else:
+                    print output
     
     def _stackdepth(self, frame):
         depth = 0
@@ -1600,8 +1635,7 @@ class PythonCodeStepper(GenericCodeStepper):
         try:
             return self.pyframe(frame).current_line().rstrip()
         except IOError, e:
-            gdb.GdbError('Unable to retrieve source code: %s' % (e,))
-
+            return None
 
 class PyStep(PythonCodeStepper):
     "Step through Python code."
@@ -1611,6 +1645,3 @@ class PyNext(PythonCodeStepper):
 
 py_step = PyStep('py-step', stepper=True)
 py_next = PyNext('py-next', stepper=False)
-
-class PyShowCCode(gdb.Parameter):
-    pass

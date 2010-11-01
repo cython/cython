@@ -7,6 +7,7 @@ from Cython.Compiler.UtilNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment, TemplateTransform
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import error, CompileError
+from Cython.Compiler import PyrexTypes
 
 try:
     set
@@ -1469,11 +1470,14 @@ class DebugTransform(CythonTransform):
         # 2.3 compatibility. Serialize global variables
         self.tb.start('Globals')
         entries = {}
+
         for k, v in node.scope.entries.iteritems():
-            if (v.qualified_name not in self.visited and 
-                not v.name.startswith('__pyx_')):
+            if (v.qualified_name not in self.visited and not
+                v.name.startswith('__pyx_') and not 
+                v.type.is_cfunction and not
+                v.type.is_extension_type):
                 entries[k]= v
-        
+                
         self.serialize_local_variables(entries)
         self.tb.end('Globals')
         # self.tb.end('Module') # end Module after the line number mapping in

@@ -229,6 +229,7 @@ class CythonBase(object):
         source_desc, lineno = self.get_source_desc()
         return source_desc.get_source(lineno)
     
+    @default_selected_gdb_frame()
     def is_relevant_function(self, frame):
         """
         returns whether we care about a frame on the user-level when debugging
@@ -236,7 +237,7 @@ class CythonBase(object):
         """
         name = frame.name()
         older_frame = frame.older()
-        
+        # print 'is_relevant_function', name
         if self.is_cython_function(frame) or self.is_python_function(frame):
             return True
         elif (parameters.step_into_c_code and 
@@ -246,7 +247,13 @@ class CythonBase(object):
             return name in cython_func.step_into_functions
 
         return False
-
+    
+    def print_cython_var_if_initialized(self, varname):
+        try:
+            self.cy.print_.invoke(varname, True)
+        except gdb.GdbError:
+            # variable not initialized yet
+            pass
 
 class SourceFileDescriptor(object):
     def __init__(self, filename, lexer, formatter=None):
@@ -456,7 +463,9 @@ class CyCy(CythonCommand):
         for command_name, command in commands.iteritems():
             command.cy = self
             setattr(self, command_name, command)
-            
+        
+        self.cy = self
+        
         # Cython module namespace
         self.cython_namespace = {}
         
@@ -507,6 +516,7 @@ class CyImport(CythonCommand):
 
                     # update the global function mappings
                     name = cython_function.name
+                    qname = cython_function.qualified_name
                     
                     self.cy.functions_by_name[name].append(cython_function)
                     self.cy.functions_by_qualified_name[
@@ -514,9 +524,7 @@ class CyImport(CythonCommand):
                     self.cy.functions_by_cname[
                         cython_function.cname] = cython_function
                     
-                    d = cython_module.functions
-                    L = d.setdefault(cython_function.qualified_name, [])
-                    L.append(cython_function)
+                    d = cython_module.functions[qname] = cython_function
                     
                     for local in function.find('Locals'):
                         d = local.attrib
@@ -658,17 +666,17 @@ class CythonCodeStepper(CythonCommand, libpython.GenericCodeStepper):
     
     def get_source_line(self, frame):
         # We may have ended up in a Python, Cython, or C function
-        # In case of C, don't display any additional data (gdb already 
-        # does this)
-        result = ''
+        result = None
         
         if self.is_cython_function(frame) or self.is_python_function(frame):
             try:
-                result = super(CythonCodeStepper, self).get_source_line(frame)
+                line = super(CythonCodeStepper, self).get_source_line(frame)
             except gdb.GdbError:
-                result = ''
-        
-        return result.lstrip()
+                pass
+            else:
+                result = line.lstrip()
+
+        return result
         
     @classmethod
     def register(cls):
@@ -724,8 +732,12 @@ class CyPrint(CythonCommand):
     
     @dispatch_on_frame(c_command='print', python_command='py-print')
     def invoke(self, name, from_tty):
-        gdb.execute('print ' + self.cy.cy_cname.invoke(name, string=True))
-    
+        cname = self.cy.cy_cname.invoke(name, string=True)
+        try:
+            print  '%s = %s' % (name, gdb.parse_and_eval(cname))
+        except RuntimeError, e:
+            raise gdb.GdbError("Variable %s is not initialized yet." % (name,))
+            
     def complete(self):
         if self.is_cython_function():
             f = self.get_cython_function()
@@ -743,32 +755,11 @@ class CyLocals(CythonCommand):
     command_class = gdb.COMMAND_STACK
     completer_class = gdb.COMPLETE_NONE
     
-    def ns(self):
-        return self.get_cython_function().locals
-    
     @dispatch_on_frame(c_command='info locals', python_command='py-locals')
-    def invoke(self, name, from_tty):
-        try:
-            ns = self.ns()
-        except RuntimeError, e:
-            print e.args[0]
-            return
-        
-        if ns is None:
-            raise gdb.GdbError(
-                'Information of Cython locals could not be obtained. '
-                'Is this an actual Cython function and did you '
-                "'cy import' the debug information?")
-        
-        for var in ns.itervalues():
-            val = gdb.parse_and_eval(var.cname)
-            if var.type == PythonObject:
-                result = libpython.PyObjectPtr.from_pyobject_ptr(val)
-            else:
-                result = val
+    def invoke(self, args, from_tty):
+        for varname in self.get_cython_function().locals:
+            self.print_cython_var_if_initialized(varname)
                 
-            print '%s = %s' % (var.name, result)
-
 
 class CyGlobals(CythonCommand):
     """
@@ -779,12 +770,8 @@ class CyGlobals(CythonCommand):
     command_class = gdb.COMMAND_STACK
     completer_class = gdb.COMPLETE_NONE
     
-    def ns(self):
-        return self.get_cython_function().globals
-    
     @dispatch_on_frame(c_command='info variables', python_command='py-globals')
-    def invoke(self, name, from_tty):
-        # include globals from the debug info XML file!
+    def invoke(self, args, from_tty):
         m = gdb.parse_and_eval('__pyx_m')
         
         try:
@@ -792,16 +779,29 @@ class CyGlobals(CythonCommand):
         except RuntimeError:
             raise gdb.GdbError(textwrap.dedent("""
                 Unable to lookup type PyModuleObject, did you compile python 
-                with debugging support (-g)? If this installation is from your
-                package manager, install python-dbg and run the debug version
-                of python or compile it yourself.
+                with debugging support (-g)?
                 """))
             
         m = m.cast(PyModuleObject.pointer())
         d = libpython.PyObjectPtr.from_pyobject_ptr(m['md_dict'])
-        print d.get_truncated_repr(1000)
-
-
+        
+        seen = set()
+        for k, v in d.iteritems():
+            # Note: k and v are values in the inferior, they are 
+            #       libpython.PyObjectPtr objects
+            
+            k = k.get_truncated_repr(libpython.MAX_OUTPUT_LEN)
+            # make it look like an actual name (inversion of repr())
+            k = k[1:-1].decode('string-escape')
+            v = v.get_truncated_repr(libpython.MAX_OUTPUT_LEN)
+            
+            seen.add(k)
+            print '%s = %s' % (k, v)
+        
+        module_globals = self.get_cython_function().module.globals
+        for varname in seen.symmetric_difference(module_globals):
+            self.print_cython_var_if_initialized(varname)
+            
 # Functions
 
 class CyCName(gdb.Function, CythonBase):
