@@ -59,15 +59,16 @@ class AutoTestDictTransform(ScopeTrackingTransform):
     def visit_FuncDefNode(self, node):
         if not node.doc:
             return node
+        if isinstance(node, CFuncDefNode) and not node.py_func:
+            # skip non-cpdef cdef functions
+            return node
+
         pos = self.testspos
         if self.scope_type == 'module':
             path = node.entry.name
         elif self.scope_type in ('pyclass', 'cclass'):
             if isinstance(node, CFuncDefNode):
-                if node.py_func is not None:
-                    name = node.py_func.name
-                else:
-                    name = node.entry.name
+                name = node.py_func.name
             else:
                 name = node.name
             if self.scope_type == 'cclass' and name in self.blacklist:
