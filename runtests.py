@@ -763,10 +763,14 @@ class FileListExcluder:
 
     def __init__(self, list_file):
         self.excludes = {}
-        for line in open(list_file).readlines():
-            line = line.strip()
-            if line and line[0] != '#':
-                self.excludes[line.split()[0]] = True
+        f = open(list_file)
+        try:
+            for line in f.readlines():
+                line = line.strip()
+                if line and line[0] != '#':
+                    self.excludes[line.split()[0]] = True
+        finally:
+            f.close()
                 
     def __call__(self, testname):
         return testname in self.excludes or testname.split('.')[-1] in self.excludes
