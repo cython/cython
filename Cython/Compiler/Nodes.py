@@ -1959,6 +1959,9 @@ class DefNode(FuncDefNode):
             # staticmethod() was overridden - not much we can do here ...
             self.is_staticmethod = False
 
+        if self.name == '__new__':
+            self.is_staticmethod = 1
+
         self.analyse_argument_types(env)
         if self.name == '<lambda>':
             self.declare_lambda_function(env)
@@ -2203,9 +2206,11 @@ class DefNode(FuncDefNode):
     def synthesize_assignment_node(self, env):
         import ExprNodes
         if env.is_py_class_scope:
-            rhs = ExprNodes.UnboundMethodNode(self.pos, 
-                function = ExprNodes.PyCFunctionNode(self.pos,
-                    pymethdef_cname = self.entry.pymethdef_cname))
+            rhs = ExprNodes.PyCFunctionNode(self.pos,
+                        pymethdef_cname = self.entry.pymethdef_cname)
+            if not self.is_staticmethod and not self.is_classmethod:
+                rhs.binding = True
+
         elif env.is_closure_scope:
             rhs = ExprNodes.InnerFunctionNode(
                 self.pos, pymethdef_cname = self.entry.pymethdef_cname)
@@ -3016,9 +3021,10 @@ class PyClassDefNode(ClassDefNode):
         code.pyclass_stack.append(self)
         cenv = self.scope
         self.dict.generate_evaluation_code(code)
+        cenv.namespace_cname = cenv.class_obj_cname = self.dict.result()
+        self.body.generate_execution_code(code)
         self.classobj.generate_evaluation_code(code)
         cenv.namespace_cname = cenv.class_obj_cname = self.classobj.result()
-        self.body.generate_execution_code(code)
         self.target.generate_assignment_code(self.classobj, code)
         self.dict.generate_disposal_code(code)
         self.dict.free_temps(code)
