@@ -1,7 +1,7 @@
 
 cdef extern from "Python.h":
     ctypedef long long PY_LONG_LONG
-    ctypedef unsigned long long uPY_LONG_LONG
+    ctypedef unsigned long long uPY_LONG_LONG "unsigned PY_LONG_LONG"
 
     ############################################################################
     # 7.2.3 Long Integer Objects
