@@ -1467,6 +1467,64 @@ PyLocals("py-locals", gdb.COMMAND_DATA, gdb.COMPLETE_NONE)
 PyGlobals("py-globals", gdb.COMMAND_DATA, gdb.COMPLETE_NONE)
 
 
+class PyNameEquals(gdb.Function):
+    
+    def _get_pycurframe_attr(self, attr):
+        frame = Frame(gdb.selected_frame())
+        if frame.is_evalframeex():
+            pyframe = frame.get_pyop()
+            if pyframe is None:
+                return None
+            
+            return str(getattr(pyframe, attr))
+        
+        return None
+    
+    def invoke(self, funcname):
+        attr = self._get_pycurframe_attr('co_name')
+        return attr is not None and attr == funcname.string()
+
+PyNameEquals("pyname_equals")
+
+
+class PyModEquals(PyNameEquals):
+    
+    def invoke(self, modname):
+        attr = self._get_pycurframe_attr('co_filename')
+        if attr is not None:
+            filename, ext = os.path.splitext(os.path.basename(attr))
+            return filename == modname.string()
+        return False
+
+PyModEquals("pymod_equals")
+
+
+class PyBreak(gdb.Command):
+    """
+    Set a Python breakpoint. Examples:
+    
+    Break on any function or method named 'func' in module 'modname'
+            
+        py-break modname.func 
+        
+    Break on any function or method named 'func'
+        
+        py-break func
+    """
+    
+    def invoke(self, funcname, from_tty):
+        if '.' in funcname:
+            modname, dot, funcname = funcname.rpartition('.')
+            cond = '$pyname_equals("%s") && $pymod_equals("%s")' % (funcname, 
+                                                                    modname)
+        else:
+            cond = '$pyname_equals("%s")' % funcname
+
+        gdb.execute('break PyEval_EvalFrameEx if ' + cond)
+
+PyBreak("py-break", gdb.COMMAND_RUNNING, gdb.COMPLETE_NONE)
+
+
 class _LoggingState(object):
     """
     State that helps to provide a reentrant gdb.execute() function.

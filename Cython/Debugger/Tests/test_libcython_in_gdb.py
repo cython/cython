@@ -131,7 +131,11 @@ class TestBreak(DebugTestCase):
         assert self.spam_func.cname in bp.location
         assert bp.enabled
 
-        
+    
+    def test_python_break(self):
+        gdb.execute('cy break -p join')
+        assert 'def join(' in gdb.execute('cy run', to_string=True)
+    
 class DebugStepperTestCase(DebugTestCase):
     
     def step(self, varnames_and_values, source_line=None, lineno=None):
