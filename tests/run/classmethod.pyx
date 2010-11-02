@@ -11,6 +11,10 @@ class2
 class3
 >>> class3.plus(1)
 8
+>>> class4.view()
+class4
+>>> class5.view()
+class5
 """
 
 def f_plus(cls, a):
@@ -36,3 +40,11 @@ cdef class class3:
     def view(cls):
         print cls.__name__
     view = classmethod(view)
+
+class class4:
+    @classmethod
+    def view(cls):
+        print cls.__name__
+
+class class5(class4):
+    pass

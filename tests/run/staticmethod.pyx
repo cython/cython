@@ -5,6 +5,8 @@ __doc__ = u"""
 2
 >>> class3.plus1(1)
 2
+>>> class4.plus1(1)
+2
 """
 
 def f_plus(a):
@@ -18,3 +20,8 @@ class class2(object):
 
 cdef class class3:
     plus1 = f_plus
+
+class class4:
+    @staticmethod
+    def plus1(a):
+        return a + 1

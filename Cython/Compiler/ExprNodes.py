@@ -1450,6 +1450,22 @@ class NameNode(AtomicExprNode):
             return # There was an error earlier
         if entry.is_builtin and Options.cache_builtins:
             return # Lookup already cached
+        elif entry.is_real_dict:
+            assert entry.type.is_pyobject, "Python global or builtin not a Python object"
+            interned_cname = code.intern_identifier(self.entry.name)
+            if entry.is_builtin:
+                namespace = Naming.builtins_cname
+            else: # entry.is_pyglobal
+                namespace = entry.scope.namespace_cname
+            code.globalstate.use_utility_code(getitem_dict_utility_code)
+            code.putln(
+                '%s = __Pyx_PyDict_GetItem(%s, %s); %s' % (
+                self.result(),
+                namespace,
+                interned_cname,
+                code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.py_result())
+            
         elif entry.is_pyglobal or entry.is_builtin:
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
@@ -1504,8 +1520,16 @@ class NameNode(AtomicExprNode):
                 rhs.free_temps(code)
                 # in Py2.6+, we need to invalidate the method cache
                 code.putln("PyType_Modified(%s);" %
-                           entry.scope.parent_type.typeptr_cname)
-            else: 
+                            entry.scope.parent_type.typeptr_cname)
+            elif entry.is_real_dict:
+                code.put_error_if_neg(self.pos,
+                    'PyDict_SetItem(%s, %s, %s)' % (
+                        namespace,
+                        interned_cname,
+                        rhs.py_result()))
+                rhs.generate_disposal_code(code)
+                rhs.free_temps(code)
+            else:
                 code.put_error_if_neg(self.pos,
                     'PyObject_SetAttr(%s, %s, %s)' % (
                         namespace,
@@ -1584,10 +1608,17 @@ class NameNode(AtomicExprNode):
         if not self.entry.is_pyglobal:
             error(self.pos, "Deletion of local or C global name not supported")
             return
-        code.put_error_if_neg(self.pos, 
-            '__Pyx_DelAttrString(%s, "%s")' % (
-                Naming.module_cname,
-                self.entry.name))
+        if self.entry.is_real_dict:
+            namespace = self.entry.scope.namespace_cname
+            code.put_error_if_neg(self.pos,
+                'PyDict_DelItemString(%s, "%s")' % (
+                    namespace,
+                    self.entry.name))
+        else:
+            code.put_error_if_neg(self.pos, 
+                '__Pyx_DelAttrString(%s, "%s")' % (
+                    Naming.module_cname,
+                    self.entry.name))
                 
     def annotate(self, code):
         if hasattr(self, 'is_called') and self.is_called:
@@ -7127,16 +7158,38 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
 """,
 impl = """
 static PyObject *__Pyx_CreateClass(
-    PyObject *bases, PyObject *dict, PyObject *name, PyObject *modname)
+    PyObject *bases, PyObject *methods, PyObject *name, PyObject *modname)
 {
     PyObject *result = 0;
+#if PY_MAJOR_VERSION < 3
+    PyObject *metaclass = 0, *base;
+#endif
 
-    if (PyDict_SetItemString(dict, "__module__", modname) < 0)
+    if (PyDict_SetItemString(methods, "__module__", modname) < 0)
         goto bad;
     #if PY_MAJOR_VERSION < 3
-    result = PyClass_New(bases, dict, name);
+    metaclass = PyDict_GetItemString(methods, "__metaclass__");
+
+    if (metaclass != NULL)
+        Py_INCREF(metaclass);
+    else if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+        base = PyTuple_GET_ITEM(bases, 0);
+        metaclass = PyObject_GetAttrString(base, "__class__");
+        if (metaclass == NULL) {
+            PyErr_Clear();
+            metaclass = (PyObject *)base->ob_type;
+            Py_INCREF(metaclass);
+        }
+    }
+    else {
+        metaclass = (PyObject *) &PyClass_Type;
+        Py_INCREF(metaclass);
+    }
+
+    result = PyObject_CallFunctionObjArgs(metaclass, name, bases, methods, NULL);
     #else
-    result = PyObject_CallFunctionObjArgs((PyObject *)&PyType_Type, name, bases, dict, NULL);
+    /* it seems that python3+ handle __metaclass__ itself */
+    result = PyObject_CallFunctionObjArgs((PyObject *)&PyType_Type, name, bases, methods, NULL);
     #endif
 bad:
     return result;
