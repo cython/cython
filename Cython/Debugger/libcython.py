@@ -2,6 +2,7 @@
 GDB extension that adds Cython support.
 """
 
+import os
 import sys
 import textwrap
 import traceback
@@ -69,7 +70,7 @@ def dont_suppress_errors(function):
 def default_selected_gdb_frame(err=True):
     def decorator(function):
         @functools.wraps(function)
-        def wrapper(self, frame=None, **kwargs):
+        def wrapper(self, frame=None, *args, **kwargs):
             try:
                 frame = frame or gdb.selected_frame()
             except RuntimeError:
@@ -78,14 +79,16 @@ def default_selected_gdb_frame(err=True):
             if err and frame.name() is None:
                 raise NoFunctionNameInFrameError()
     
-            return function(self, frame, **kwargs)
+            return function(self, frame, *args, **kwargs)
         return wrapper
     return decorator
 
 def require_cython_frame(function):
     @functools.wraps(function)
+    @require_running_program
     def wrapper(self, *args, **kwargs):
-        if not self.is_cython_function():
+        frame = kwargs.get('frame') or gdb.selected_frame()
+        if not self.is_cython_function(frame):
             raise gdb.GdbError('Selected frame does not correspond with a '
                                'Cython function we know about.')
         return function(self, *args, **kwargs)
@@ -111,6 +114,17 @@ def dispatch_on_frame(c_command, python_command=None):
         return wrapper
     return decorator
 
+def require_running_program(function):
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        try:
+            gdb.selected_frame()
+        except RuntimeError:
+            raise gdb.GdbError("No frame is currently selected.")
+        
+        return function(*args, **kwargs)
+    return wrapper
+    
 
 # Classes that represent the debug information
 # Don't rename the parameters of these classes, they come directly from the XML
@@ -206,12 +220,12 @@ class CythonBase(object):
     @default_selected_gdb_frame()
     def get_source_desc(self, frame):
         filename = lineno = lexer = None
-        if self.is_cython_function():
+        if self.is_cython_function(frame):
             filename = self.get_cython_function(frame).module.filename
             lineno = self.get_cython_lineno(frame)
             if pygments:
                 lexer = pygments.lexers.CythonLexer()
-        elif self.is_python_function():
+        elif self.is_python_function(frame):
             pyframeobject = libpython.Frame(frame).get_pyop()
 
             if not pyframeobject:
@@ -221,7 +235,17 @@ class CythonBase(object):
             lineno = pyframeobject.current_line_num()
             if pygments:
                 lexer = pygments.lexers.PythonLexer()
-
+        else:
+            symbol_and_line_obj = frame.find_sal()
+            if symbol_and_line_obj is None:
+                filename = None
+                lineno = 0
+            else:
+                filename = symbol_and_line_obj.symtab.filename
+                lineno = symbol_and_line_obj.line
+                if pygments:
+                    lexer = pygments.lexers.CLexer()
+            
         return SourceFileDescriptor(filename, lexer), lineno
 
     @default_selected_gdb_frame()
@@ -254,6 +278,61 @@ class CythonBase(object):
         except gdb.GdbError:
             # variable not initialized yet
             pass
+
+    @default_selected_gdb_frame()
+    def print_stackframe(self, frame, index, is_c=False):
+        """
+        Print a C, Cython or Python stack frame and the line of source code
+        if available.
+        """
+        # do this to prevent the require_cython_frame decorator from
+        # raising GdbError when calling self.cy.cy_cvalue.invoke()
+        selected_frame = gdb.selected_frame()
+        frame.select()
+        
+        source_desc, lineno = self.get_source_desc(frame)
+        
+        if not is_c and self.is_python_function(frame):
+            pyframe = libpython.Frame(frame).get_pyop()
+            if pyframe is None or pyframe.is_optimized_out():
+                # print this python function as a C function
+                return self.print_stackframe(frame, index, is_c=True)
+            
+            func_name = pyframe.co_name
+            func_cname = 'PyEval_EvalFrameEx'
+            func_args = []
+        elif self.is_cython_function(frame):
+            cyfunc = self.get_cython_function(frame)
+            f = lambda arg: self.cy.cy_cvalue.invoke(arg, frame=frame)
+            
+            func_name = cyfunc.name
+            func_cname = cyfunc.cname
+            func_args = [] # [(arg, f(arg)) for arg in cyfunc.arguments]
+        else:
+            source_desc, lineno = self.get_source_desc(frame)
+            func_name = frame.name()
+            func_cname = func_name
+            func_args = []
+        
+        gdb_value = gdb.parse_and_eval(func_cname)
+        # Seriously? Why is the address not an int?
+        func_address = int(str(gdb_value.address).split()[0], 0)
+        
+        print '#%-2d 0x%016x in %s(%s) at %s:%s' % (
+            index,
+            func_address,
+            func_name,
+            ', '.join('%s=%s' % (name, val) for name, val in func_args),
+            source_desc.filename,
+            lineno)
+            
+        try:
+            print '    ' + source_desc.get_source(lineno)
+        except gdb.GdbError:
+            pass
+        
+        selected_frame.select()
+            
 
 class SourceFileDescriptor(object):
     def __init__(self, filename, lexer, formatter=None):
@@ -413,14 +492,25 @@ class CythonCommand(gdb.Command, CythonBase):
     """
     Base class for Cython commands
     """
-
+    
+    command_class = gdb.COMMAND_NONE
+    completer_class = gdb.COMPLETE_NONE
+    
     @classmethod
-    def register(cls, *args, **kwargs):
+    def _register(cls, clsname, args, kwargs):
         if not hasattr(cls, 'completer_class'):
             return cls(cls.name, cls.command_class, *args, **kwargs)
         else:
             return cls(cls.name, cls.command_class, cls.completer_class, 
                        *args, **kwargs)
+    
+    @classmethod
+    def register(cls, *args, **kwargs):
+        alias = getattr(cls, 'alias', None)
+        if alias:
+            cls._register(cls.alias, args, kwargs)
+            
+        return cls._register(cls.name, args, kwargs)
 
 
 class CyCy(CythonCommand):
@@ -435,11 +525,11 @@ class CyCy(CythonCommand):
         cy cont
         cy up
         cy down
+        cy bt / cy backtrace
         cy print
         cy list
         cy locals
         cy globals
-        cy backtrace
     """
     
     name = 'cy'
@@ -458,12 +548,14 @@ class CyCy(CythonCommand):
             cont = CyCont.register(),
             up = CyUp.register(),
             down = CyDown.register(),
+            bt = CyBacktrace.register(),
             list = CyList.register(),
             print_ = CyPrint.register(),
             locals = CyLocals.register(),
             globals = CyGlobals.register(),
             cy_cname = CyCName('cy_cname'),
-            cy_line = CyLine('cy_line'),
+            cy_cvalue = CyCValue('cy_cvalue'),
+            cy_lineno = CyLine('cy_lineno'),
         )
             
         for command_name, command in commands.iteritems():
@@ -687,7 +779,7 @@ class CythonCodeStepper(CythonCommand, libpython.GenericCodeStepper):
     @classmethod
     def register(cls):
         return cls(cls.name, stepper=cls.stepper)
-    
+
 
 class CyStep(CythonCodeStepper):
     "Step through Python code."
@@ -743,10 +835,20 @@ class CyUp(CythonCodeStepper):
     _command = 'up'
     
     def invoke(self, *args):
-        self.result = gdb.execute(self._command, to_string=True)
-        while not self.is_relevant_function(gdb.selected_frame()):
-            self.result = gdb.execute(self._command, to_string=True)
-        self.end_stepping()
+        try:
+            gdb.execute(self._command, to_string=True)
+            while not self.is_relevant_function(gdb.selected_frame()):
+                gdb.execute(self._command, to_string=True)
+        except RuntimeError, e:
+            raise gdb.GdbError(*e.args)
+        
+        frame = gdb.selected_frame()
+        index = 0
+        while frame:
+            frame = frame.older()
+            index += 1
+            
+        self.print_stackframe(index=index - 1)
 
 
 class CyDown(CyUp):
@@ -757,6 +859,35 @@ class CyDown(CyUp):
     name = 'cy down'
     _command = 'down'
 
+
+class CyBacktrace(CythonCommand):
+    'Print the Cython stack'
+    
+    name = 'cy bt'
+    alias = 'cy backtrace'
+    command_class = gdb.COMMAND_STACK
+    completer_class = gdb.COMPLETE_NONE
+    
+    @require_running_program
+    def invoke(self, args, from_tty):
+        # get the first frame
+        selected_frame = frame = gdb.selected_frame()
+        while frame.older():
+            frame = frame.older()
+        
+        print_all = args == '-a'
+        
+        index = 0
+        while frame:
+            is_c = False
+            
+            if print_all or self.is_relevant_function(frame):
+                self.print_stackframe(frame, index)
+            
+            index += 1
+            frame = frame.newer()
+        
+        selected_frame.select()
 
 class CyList(CythonCommand):
     """
@@ -785,7 +916,7 @@ class CyPrint(CythonCommand):
     
     @dispatch_on_frame(c_command='print', python_command='py-print')
     def invoke(self, name, from_tty, max_name_length=None):
-        cname = self.cy.cy_cname.invoke(name, string=True)
+        cname = self.cy.cy_cname.invoke(name)
         try:
              value = gdb.parse_and_eval(cname)
         except RuntimeError, e:
@@ -880,7 +1011,7 @@ class CyCName(gdb.Function, CythonBase):
     """
     
     @require_cython_frame
-    def invoke(self, cyname, string=False, frame=None):
+    def invoke(self, cyname, frame=None):
         frame = frame or gdb.selected_frame()
         cname = None
         
@@ -905,11 +1036,19 @@ class CyCName(gdb.Function, CythonBase):
         if not cname:
             raise gdb.GdbError('No such Cython variable: %s' % cyname)
         
-        if string:
-            return cname
-        else:
-            return gdb.parse_and_eval(cname)
+        return cname
 
+
+class CyCValue(CyCName):
+    """
+    Get the value of a Cython variable.
+    """
+    
+    @require_cython_frame
+    def invoke(self, cyname, frame=None):
+        cname = super(CyCValue, self).invoke(cyname, frame=frame)
+        return gdb.parse_and_eval(cname)
+    
 
 class CyLine(gdb.Function, CythonBase):
     """

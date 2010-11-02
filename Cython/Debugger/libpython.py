@@ -1444,12 +1444,13 @@ class PyLocals(gdb.Command):
         namespace = self.get_namespace(pyop_frame)
         namespace = [(name.proxyval(set()), val) for name, val in namespace]
         
-        name, val = max(namespace, key=lambda (name, val): len(name))
-        max_name_length = len(name)
-        
-        for name, pyop_value in namespace:
-            value = pyop_value.get_truncated_repr(MAX_OUTPUT_LEN)
-            print ('%-*s = %s' % (max_name_length, name, value))
+        if namespace:
+            name, val = max(namespace, key=lambda (name, val): len(name))
+            max_name_length = len(name)
+            
+            for name, pyop_value in namespace:
+                value = pyop_value.get_truncated_repr(MAX_OUTPUT_LEN)
+                print ('%-*s = %s' % (max_name_length, name, value))
 
     def get_namespace(self, pyop_frame):
         return pyop_frame.iter_locals()
