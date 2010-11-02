@@ -833,19 +833,28 @@ class IntNode(ConstNode):
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
             # pre-allocate a Python version of the number
-            self.result_code = code.get_py_num(self.value, self.longness)
+            plain_integer_string = self.value_as_c_integer_string(plain_digits=True)
+            self.result_code = code.get_py_num(plain_integer_string, self.longness)
         else:
             self.result_code = self.get_constant_c_result_code()
     
     def get_constant_c_result_code(self):
+        return self.value_as_c_integer_string() + self.unsigned + self.longness
+
+    def value_as_c_integer_string(self, plain_digits=False):
         value = self.value
         if isinstance(value, basestring) and len(value) > 2:
             # must convert C-incompatible Py3 oct/bin notations
             if value[1] in 'oO':
-                value = value[0] + value[2:] # '0o123' => '0123'
+                if plain_digits:
+                    value = int(value[2:], 8)
+                else:
+                    value = value[0] + value[2:] # '0o123' => '0123'
             elif value[1] in 'bB':
                 value = int(value[2:], 2)
-        return str(value) + self.unsigned + self.longness
+            elif plain_digits and value[1] in 'xX':
+                value = int(value[2:], 16)
+        return str(value)
 
     def calculate_result_code(self):
         return self.result_code
