@@ -361,9 +361,10 @@ Descriptor objects (see note 2)
 | __delete__ 	        | self, instance 	  	        |             |     Delete attribute                                |
 +-----------------------+---------------------------------------+-------------+-----------------------------------------------------+
 
-.. note:: (1) The buffer interface is intended for use by C code and is not directly
+.. note:: (1) The buffer interface was intended for use by C code and is not directly
         accessible from Python. It is described in the Python/C API Reference Manual
-        under sections 6.6 and 10.6.
+        of Python 2.x under sections 6.6 and 10.6. It was superseded by the new
+        PEP 3118 buffer protocol in Python 2.6 and is no longer available in Python 3.
 
 .. note:: (2) Descriptor objects are part of the support mechanism for new-style
         Python classes. See the discussion of descriptors in the Python documentation.
