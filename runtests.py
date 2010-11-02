@@ -850,6 +850,9 @@ if __name__ == '__main__':
     parser.add_option("-T", "--ticket", dest="tickets",
                       action="append",
                       help="a bug ticket number to run the respective test in 'tests/*'")
+    parser.add_option("-3", dest="language_level",
+                      action="store_const", const=3, default=2,
+                      help="set language level to Python 3 (useful for running the CPython regression tests)'")
     parser.add_option("--xml-output", dest="xml_output_dir", metavar="DIR",
                       help="write test results in XML to directory DIR")
     parser.add_option("--exit-ok", dest="exit_ok", default=False,
@@ -918,13 +921,13 @@ if __name__ == '__main__':
     if not os.path.exists(WORKDIR):
         os.makedirs(WORKDIR)
 
+    sys.stderr.write("Python %s\n" % sys.version)
+    sys.stderr.write("\n")
     if WITH_CYTHON:
         from Cython.Compiler.Version import version
         sys.stderr.write("Running tests against Cython %s\n" % version)
     else:
         sys.stderr.write("Running tests without Cython.\n")
-    sys.stderr.write("Python %s\n" % sys.version)
-    sys.stderr.write("\n")
 
     if options.with_refnanny:
         from pyximport.pyxbuild import pyx_to_dll
@@ -938,6 +941,13 @@ if __name__ == '__main__':
         # doesn't currently work together
         sys.stderr.write("Disabling forked testing to support XML test output\n")
         options.fork = False
+
+    if WITH_CYTHON and options.language_level == 3:
+        sys.stderr.write("Using Cython language level 3.\n")
+        from Cython.Compiler import Options
+        Options.directive_defaults['language_level'] = 3
+
+    sys.stderr.write("\n")
 
     test_bugs = False
     if options.tickets:
