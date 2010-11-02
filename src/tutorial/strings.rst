@@ -16,12 +16,15 @@ convert it into a Python byte string by simply assigning it to a
 Python variable::
 
     cdef char* c_string = c_call_returning_a_c_string()
-    py_string = c_string
+    cdef bytes py_string = c_string
 
 This creates a Python byte string object that holds a copy of the
 original C string.  It can be safely passed around in Python code, and
 will be garbage collected when the last reference to it goes out of
-scope.
+scope.  It is important to remember that null bytes in the string act
+as terminator character, as generally known from C.  The above will
+therefore only work correctly for C strings that do not contain null
+bytes.
 
 Note that the creation of the Python bytes string can fail with an
 exception, e.g. due to insufficient memory.  If you need to ``free()``
@@ -29,6 +32,7 @@ the string after the conversion, you should wrap the assignment in a
 try-finally construct::
 
     cimport stdlib
+    cdef bytes py_string
     cdef char* c_string = c_call_returning_a_c_string()
     try:
         py_string = c_string
@@ -249,8 +253,51 @@ The following will print 65::
 Note that casting to a C ``int`` (or ``unsigned int``) will do just
 fine on a platform with 32bit or more, as the maximum code point value
 that a Unicode character can have is 1114111 on a 4-byte unicode
-CPython platform ("wide unicode") and 65535 on a 2-byte unicode
-platform.
+CPython platform ("wide unicode") and 65535 on a narrow (2-byte)
+unicode platform.
+
+
+Narrow Unicode builds
+----------------------
+
+In narrow Unicode builds of CPython, i.e. builds where
+``sys.maxunicode`` is 65535 (such as all Windows builds, as opposed to
+1114111 in wide builds), it is still possible to use Unicode character
+code points that do not fit into the two bytes wide ``Py_UNICODE``
+type.  For example, such a CPython build will accept the unicode
+literal ``u'\U00012345'``.  However, the underlying system level
+encoding leaks into Python space in this case, so that the length of
+this literal becomes 2 instead of 1.  This also shows when iterating
+over it or when indexing into it.  The visible substrings are
+``u'\uD808'`` and ``u'\uDF45'`` in this example.  They form a
+so-called surrogate pair that represents the above character.
+
+For more information on this topic, it is worth reading the `Wikipedia
+article about the UTF-16 encoding`_.
+
+.. _`Wikipedia article on the UTF-16 encoding`: http://en.wikipedia.org/wiki/UTF-16/UCS-2
+
+The same properties apply to Cython code that gets compiled for a
+narrow CPython runtime environment.  In most cases, e.g. when
+searching for a substring, this difference can be ignored as both the
+text and the substring will contain the surrogates.  So most Unicode
+processing code will work correctly also on narrow builds.  Encoding,
+decoding and printing will work as expected, so that the above literal
+turns into exactly the same byte sequence on both narrow and wide
+Unicode platforms.
+
+However, programmers should be aware that a single ``Py_UNICODE``
+value (or single 'character' unicode string in CPython) may not be
+enough to represent a complete Unicode character on narrow platforms.
+For example, if an independent search for ``u'\uD808'`` and
+``u'\uDF45'`` in a unicode string succeeds, this does not necessarily
+mean that the character ``u'\U00012345`` is part of that string.  It
+may well be that two different characters are in the string that just
+happen to share a code unit with the surrogate pair of the character
+in question.  Looking for substrings works correctly because the two
+code units in the surrogate pair use distinct value ranges, so the
+pair is always identifiable in a sequence of code points.
+
 
 Iteration
 ---------
