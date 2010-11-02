@@ -494,7 +494,6 @@ class CythonCommand(gdb.Command, CythonBase):
     """
     
     command_class = gdb.COMMAND_NONE
-    completer_class = gdb.COMPLETE_NONE
     
     @classmethod
     def _register(cls, clsname, args, kwargs):
@@ -656,6 +655,15 @@ class CyBreak(CythonCommand):
     or for a line number:
     
         cy break cython_module:lineno...
+    
+    Set a Python breakpoint:
+        Break on any function or method named 'func' in module 'modname'
+            
+            cy break -p modname.func...
+        
+        Break on any function or method named 'func'
+            
+            cy break -p func...
     """
     
     name = 'cy break'
@@ -717,8 +725,17 @@ class CyBreak(CythonCommand):
                 gdb.execute('break %s' % func.pf_cname)
     
     def invoke(self, function_names, from_tty):
-        for funcname in string_to_argv(function_names.encode('UTF-8')):
-            if ':' in funcname:
+        argv = string_to_argv(function_names.encode('UTF-8'))
+        if function_names.startswith('-p'):
+            argv = argv[1:]
+            python_breakpoints = True
+        else:
+            python_breakpoints = False
+        
+        for funcname in argv:
+            if python_breakpoints:
+                gdb.execute('py-break %s' % funcname)
+            elif ':' in funcname:
                 self._break_pyx(funcname)
             else:
                 self._break_funcname(funcname)
