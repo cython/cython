@@ -117,7 +117,7 @@ class ErrorWriter(object):
 class TestBuilder(object):
     def __init__(self, rootdir, workdir, selectors, exclude_selectors, annotate,
                  cleanup_workdir, cleanup_sharedlibs, with_pyregr, cython_only,
-                 languages, test_bugs, fork):
+                 languages, test_bugs, fork, language_level):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
@@ -130,6 +130,7 @@ class TestBuilder(object):
         self.languages = languages
         self.test_bugs = test_bugs
         self.fork = fork
+        self.language_level = language_level
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -220,12 +221,14 @@ class TestBuilder(object):
                           cleanup_workdir=self.cleanup_workdir,
                           cleanup_sharedlibs=self.cleanup_sharedlibs,
                           cython_only=self.cython_only,
-                          fork=self.fork)
+                          fork=self.fork,
+                          language_level=self.language_level)
 
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, test_directory, workdir, module, language='c',
                  expect_errors=False, annotate=False, cleanup_workdir=True,
-                 cleanup_sharedlibs=True, cython_only=False, fork=True):
+                 cleanup_sharedlibs=True, cython_only=False, fork=True,
+                 language_level=2):
         self.test_directory = test_directory
         self.workdir = workdir
         self.module = module
@@ -236,6 +239,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.cleanup_sharedlibs = cleanup_sharedlibs
         self.cython_only = cython_only
         self.fork = fork
+        self.language_level = language_level
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -339,6 +343,7 @@ class CythonCompileTestCase(unittest.TestCase):
             annotate = annotate,
             use_listing_file = False,
             cplus = self.language == 'cpp',
+            language_level = self.language_level,
             generate_pxi = False,
             evaluate_tree_assertions = True,
             )
@@ -944,8 +949,6 @@ if __name__ == '__main__':
 
     if WITH_CYTHON and options.language_level == 3:
         sys.stderr.write("Using Cython language level 3.\n")
-        from Cython.Compiler import Options
-        Options.directive_defaults['language_level'] = 3
 
     sys.stderr.write("\n")
 
@@ -999,7 +1002,7 @@ if __name__ == '__main__':
                                 options.annotate_source, options.cleanup_workdir,
                                 options.cleanup_sharedlibs, options.pyregr,
                                 options.cython_only, languages, test_bugs,
-                                options.fork)
+                                options.fork, options.language_level)
         test_suite.addTest(filetests.build_suite())
 
     if options.system_pyregr and languages:
@@ -1007,7 +1010,7 @@ if __name__ == '__main__':
                                 options.annotate_source, options.cleanup_workdir,
                                 options.cleanup_sharedlibs, True,
                                 options.cython_only, languages, test_bugs,
-                                options.fork)
+                                options.fork, options.language_level)
         test_suite.addTest(
             filetests.handle_directory(
                 os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test'),
