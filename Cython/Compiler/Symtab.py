@@ -772,7 +772,7 @@ class BuiltinScope(Scope):
         "frozenset":   ["((PyObject*)&PyFrozenSet_Type)", py_object_type],
 
         "slice":  ["((PyObject*)&PySlice_Type)", py_object_type],
-        "file":   ["((PyObject*)&PyFile_Type)", py_object_type],
+#        "file":   ["((PyObject*)&PyFile_Type)", py_object_type],  # not in Py3
 
         "None":   ["Py_None", py_object_type],
         "False":  ["Py_False", py_object_type],
