@@ -2568,23 +2568,23 @@ def p_varargslist(s, terminator=')', annotated=1):
     if s.sy == '*':
         s.next()
         if s.sy == 'IDENT':
-            star_arg = p_py_arg_decl(s)
+            star_arg = p_py_arg_decl(s, annotated=annotated)
         if s.sy == ',':
             s.next()
             args.extend(p_c_arg_list(s, in_pyfunc = 1,
-                nonempty_declarators = 1, kw_only = 1))
+                nonempty_declarators = 1, kw_only = 1, annotated = annotated))
         elif s.sy != terminator:
             s.error("Syntax error in Python function argument list")
     if s.sy == '**':
         s.next()
-        starstar_arg = p_py_arg_decl(s)
+        starstar_arg = p_py_arg_decl(s, annotated=annotated)
     return (args, star_arg, starstar_arg)
 
-def p_py_arg_decl(s):
+def p_py_arg_decl(s, annotated = 1):
     pos = s.position()
     name = p_ident(s)
     annotation = None
-    if s.sy == ':':
+    if annotated and s.sy == ':':
         s.next()
         annotation = p_test(s)
     return Nodes.PyArgDeclNode(pos, name = name, annotation = annotation)
