@@ -6,6 +6,7 @@ Cython.Debugger.Cygdb.make_command_file()
 """
 
 import os
+import re
 import sys
 import trace
 import inspect
@@ -42,7 +43,7 @@ class DebugTestCase(unittest.TestCase):
             'codefile.eggs']
     
     def read_var(self, varname, cast_to=None):
-        result = gdb.parse_and_eval('$cy_cname("%s")' % varname)
+        result = gdb.parse_and_eval('$cy_cvalue("%s")' % varname)
         if cast_to:
             result = cast_to(result)
         
@@ -113,6 +114,7 @@ class TestDebugInformationClasses(DebugTestCase):
 class TestParameters(unittest.TestCase):
     
     def test_parameters(self):
+        gdb.execute('set cy_colorize_code on')
         assert libcython.parameters.colorize_code
         gdb.execute('set cy_colorize_code off')
         assert not libcython.parameters.colorize_code
@@ -121,20 +123,19 @@ class TestParameters(unittest.TestCase):
 class TestBreak(DebugTestCase):
 
     def test_break(self):
-        result = libpython._execute('cy break codefile.spam', to_string=True)
-        assert self.spam_func.cname in result
+        gdb.execute('cy break codefile.spam')
         
         self.assertEqual(len(gdb.breakpoints()), 1)
         bp, = gdb.breakpoints()
         self.assertEqual(bp.type, gdb.BP_BREAKPOINT)
-        self.assertEqual(bp.location, self.spam_func.cname)
+        assert self.spam_func.cname in bp.location
         assert bp.enabled
 
         
 class DebugStepperTestCase(DebugTestCase):
     
     def step(self, varnames_and_values, source_line=None, lineno=None):
-        gdb.execute(self.command, to_string=True)
+        gdb.execute(self.command)
         for varname, value in varnames_and_values:
             self.assertEqual(self.read_var(varname), value, self.local_info())
         
@@ -177,14 +178,14 @@ class TestStep(DebugStepperTestCase):
     def test_python_step(self):
         self.break_and_run('os.path.join("foo", "bar")')
         
-        gdb.execute('cy step', to_string=True)
+        result = gdb.execute('cy step', to_string=True)
         
         curframe = gdb.selected_frame()
         self.assertEqual(curframe.name(), 'PyEval_EvalFrameEx')
         
         pyframe = libpython.Frame(curframe).get_pyop()
         self.assertEqual(str(pyframe.co_name), 'join')
-
+        assert re.match(r'\d+    def join\(', result), result
 
 class TestNext(DebugStepperTestCase):
     
@@ -218,11 +219,64 @@ class TestLocalsGlobals(DebugTestCase):
         self.break_and_run('int(10)')
         
         result = gdb.execute('cy globals', to_string=True)
-        assert '__name__ =' in result, repr(result)
-        assert '__doc__ =' in result, repr(result)
-        assert 'os =' in result, repr(result)
-        assert 'c_var = 12' in result, repr(result)
-        assert 'python_var = 13' in result, repr(result)
+        assert '__name__ ' in result, repr(result)
+        assert '__doc__ ' in result, repr(result)
+        assert 'os ' in result, repr(result)
+        assert 'c_var ' in result, repr(result)
+        assert 'python_var ' in result, repr(result)
+
+
+class TestBacktrace(DebugTestCase):
+    
+    def test_backtrace(self):
+        libcython.parameters.colorize_code.value = False
+        
+        self.break_and_run('os.path.join("foo", "bar")')
+        result = gdb.execute('cy bt', to_string=True)
+        assert re.search(r'\#\d+ *0x.* in spam\(\) at .*codefile\.pyx:22', 
+                         result), result
+        assert 'os.path.join("foo", "bar")' in result, result
+        
+        gdb.execute("cy step")
+        
+        gdb.execute('cy bt')
+        result = gdb.execute('cy bt -a', to_string=True)
+        assert re.search(r'\#0 *0x.* in main\(\) at', result), result
+
+
+class TestFunctions(DebugTestCase):
+    
+    def test_functions(self):
+        self.break_and_run('c = 2')
+        result = gdb.execute('print $cy_cname("b")', to_string=True)
+        assert re.search('__pyx_.*b', result), result
+        
+        result = gdb.execute('print $cy_lineno()', to_string=True)
+        supposed_lineno = test_libcython.source_to_lineno['c = 2']
+        assert str(supposed_lineno) in result, (supposed_lineno, result)
+        
+        result = gdb.execute('print $cy_cvalue("b")', to_string=True)
+        assert '= 1' in result
+        
+
+class TestPrint(DebugTestCase):
+    
+    def test_print(self):
+        self.break_and_run('c = 2')
+        result = gdb.execute('cy print b', to_string=True)
+        assert '= 1' in result
+
+
+class TestUpDown(DebugTestCase):
+
+    def test_updown(self):
+        self.break_and_run('os.path.join("foo", "bar")')
+        gdb.execute('cy step')
+        self.assertRaises(RuntimeError, gdb.execute, 'cy down')
+        
+        result = gdb.execute('cy up', to_string=True)
+        assert 'spam()' in result
+        assert 'os.path.join("foo", "bar")' in result
 
 
 def _main():
