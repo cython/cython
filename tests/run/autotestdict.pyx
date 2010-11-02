@@ -12,25 +12,28 @@ all_tests_run() is executed which does final validation.
 >>> items.sort()
 >>> for key, value in items:
 ...     print('%s ; %s' % (key, value))
-MyCdefClass.cdef_method (line 79) ; >>> add_log("cdef class method")
-MyCdefClass.cpdef_method (line 76) ; >>> add_log("cpdef class method")
-MyCdefClass.method (line 73) ; >>> add_log("cdef class method")
-MyClass.method (line 62) ; >>> add_log("class method")
-cdeffunc (line 28) ; >>> add_log("cdef")
-doc_without_test (line 44) ; Some docs
-mycpdeffunc (line 50) ; >>> add_log("cpdef")
-myfunc (line 41) ; >>> add_log("def")
+MyCdefClass.cpdef_method (line 79) ; >>> add_log("cpdef class method")
+MyCdefClass.method (line 76) ; >>> add_log("cdef class method")
+MyClass.method (line 65) ; >>> add_log("class method")
+doc_without_test (line 47) ; Some docs
+mycpdeffunc (line 53) ; >>> add_log("cpdef")
+myfunc (line 44) ; >>> add_log("def")
 
 """
 
 log = []
 
 cdef cdeffunc():
-    """>>> add_log("cdef")"""
+    """
+    Please don't include me!
+
+    >>> True
+    False
+    """
 
 def all_tests_run():
     log.sort()
-    assert log == [u'cdef', u'cdef class', u'cdef class method', u'class method', u'cpdef', u'cpdef class method', u'def'], log
+    assert log == [u'cdef class', u'cdef class method', u'class method', u'cpdef', u'cpdef class method', u'def'], log
 
 def add_log(s):
     log.append(unicode(s))
@@ -75,9 +78,6 @@ cdef class MyCdefClass:
 
     cpdef cpdef_method(self):
         """>>> add_log("cpdef class method")"""
-
-    cdef cdef_method(self):
-        """>>> add_log("cdef class method")"""
 
     def __cinit__(self):
         """
