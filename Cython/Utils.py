@@ -115,7 +115,7 @@ class NormalisedNewlineStream(object):
     self.close = stream.close
     self.encoding = getattr(stream, 'encoding', 'UTF-8')
 
-  def read(self, count):
+  def read(self, count=-1):
     data = self._read(count)
     if u'\r' not in data:
       return data
