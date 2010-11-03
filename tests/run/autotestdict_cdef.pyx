@@ -1,4 +1,4 @@
-# Directive defaults to True
+# cython: autotestdict.cdef=True
 
 """
 Tests autotestdict compiler directive.
@@ -10,30 +10,29 @@ all_tests_run() is executed which does final validation.
 >>> items.sort()
 >>> for key, value in items:
 ...     print('%s ; %s' % (key, value))
-MyCdefClass.cpdef_method (line 76) ; >>> add_log("cpdef class method")
-MyCdefClass.method (line 73) ; >>> add_log("cdef class method")
-MyClass.method (line 62) ; >>> add_log("class method")
-mycpdeffunc (line 49) ; >>> add_log("cpdef")
-myfunc (line 40) ; >>> add_log("def")
+MyCdefClass.cdef_method (line 78) ; >>> add_log("cdef class method")
+MyCdefClass.cpdef_method (line 75) ; >>> add_log("cpdef class method")
+MyCdefClass.method (line 72) ; >>> add_log("cdef class method")
+MyClass.method (line 61) ; >>> add_log("class method")
+cdeffunc (line 25) ; >>> add_log("cdef")
+mycpdeffunc (line 48) ; >>> add_log("cpdef")
+myfunc (line 39) ; >>> add_log("def")
 
 """
 
 log = []
 
 cdef cdeffunc():
-    """
-    >>> True
-    False
-    """
+    """>>> add_log("cdef")"""
 cdeffunc() # make sure it's being used
 
 def all_tests_run():
     log.sort()
-    assert log == [u'cdef class', u'cdef class method', u'class', u'class method', u'cpdef', u'cpdef class method', u'def'], log
+    assert log == [u'cdef', u'cdef class', u'cdef class method', u'class', u'class method', u'cpdef', u'cpdef class method', u'def'], log
 
 def add_log(s):
     log.append(unicode(s))
-    if len(log) == len(__test__) + 2:
+    if len(log) == len(__test__) + 1:
         # Final per-function doctest executed
         all_tests_run()
 
