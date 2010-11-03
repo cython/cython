@@ -1,1 +1,3 @@
-version = '0.13'
+# for backwards compatibility
+
+from Cython import __version__ as version
