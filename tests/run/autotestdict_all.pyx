@@ -1,4 +1,4 @@
-# Directive defaults to True
+# cython: autotestdict.all=True
 
 """
 Tests autotestdict compiler directive.
@@ -10,9 +10,12 @@ all_tests_run() is executed which does final validation.
 >>> items.sort()
 >>> for key, value in items:
 ...     print('%s ; %s' % (key, value))
+MyCdefClass.cdef_method (line 79) ; >>> add_log("cdef class method")
 MyCdefClass.cpdef_method (line 76) ; >>> add_log("cpdef class method")
 MyCdefClass.method (line 73) ; >>> add_log("cdef class method")
 MyClass.method (line 62) ; >>> add_log("class method")
+cdeffunc (line 26) ; >>> add_log("cdef")
+doc_without_test (line 43) ; Some docs
 mycpdeffunc (line 49) ; >>> add_log("cpdef")
 myfunc (line 40) ; >>> add_log("def")
 
@@ -21,19 +24,16 @@ myfunc (line 40) ; >>> add_log("def")
 log = []
 
 cdef cdeffunc():
-    """
-    >>> True
-    False
-    """
+    """>>> add_log("cdef")"""
 cdeffunc() # make sure it's being used
 
 def all_tests_run():
     log.sort()
-    assert log == [u'cdef class', u'cdef class method', u'class', u'class method', u'cpdef', u'cpdef class method', u'def'], log
+    assert log == [u'cdef', u'cdef class', u'cdef class method', u'class', u'class method', u'cpdef', u'cpdef class method', u'def'], log
 
 def add_log(s):
     log.append(unicode(s))
-    if len(log) == len(__test__) + 2:
+    if len(log) == len(__test__):
         # Final per-function doctest executed
         all_tests_run()
 
