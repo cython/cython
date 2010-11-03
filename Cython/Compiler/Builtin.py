@@ -22,8 +22,8 @@ builtin_function_table = [
     #('eval',      "",     "",      ""),
     #('execfile',  "",     "",      ""),
     #('filter',    "",     "",      ""),
-    #('getattr',    "OO",   "O",     "PyObject_GetAttr"),   # optimised later on
-    ('getattr3',   "OOO",  "O",     "__Pyx_GetAttr3",       "getattr"),
+    ('getattr',    "OO",   "O",     "PyObject_GetAttr"),   # for 3 arguments, see code further down
+    ('getattr3',   "OOO",  "O",     "__Pyx_GetAttr3",       "getattr"), # Pyrex compatibility
     ('hasattr',    "OO",   "b",     "PyObject_HasAttr"),
     ('hash',       "O",    "l",     "PyObject_Hash"),
     #('hex',       "",     "",      ""),
@@ -399,6 +399,16 @@ def declare_builtin_func(name, args, ret, cname, py_equiv = "*"):
 def init_builtin_funcs():
     for desc in builtin_function_table:
         declare_builtin_func(*desc)
+
+    # getattr with 3 args
+    PyObject_GetAttr3_func_type = PyrexTypes.CFuncType(
+        PyrexTypes.py_object_type, [
+            PyrexTypes.CFuncTypeArg("object", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("attr_name", PyrexTypes.py_object_type, None),
+            PyrexTypes.CFuncTypeArg("default", PyrexTypes.py_object_type, None),
+            ])
+    builtin_scope.declare_builtin_cfunction('getattr', PyObject_GetAttr3_func_type,
+                                            '__Pyx_GetAttr3', 'getattr', getattr3_utility_code)
 
 builtin_types = {}
 
