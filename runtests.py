@@ -191,7 +191,7 @@ class TestBuilder(object):
             for test in self.build_tests(test_class, path, workdir,
                                          module, expect_errors):
                 suite.addTest(test)
-            if filename.endswith('.py') and context in TEST_RUN_DIRS:
+            if context == 'run' and filename.endswith('.py'):
                 # additionally test file in real Python
                 suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename)))
         return suite
