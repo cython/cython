@@ -20,89 +20,76 @@ class AutoTestDictTransform(ScopeTrackingTransform):
             return node
         self.scope_type = 'module'
         self.scope_node = node
-        if self.current_directives['autotestdict']:
-            assert isinstance(node.body, StatListNode)
 
-            # First see if __test__ is already created
-            if u'__test__' in node.scope.entries:
-                # Do nothing
-                return node
-            
-            pos = node.pos
+        if not self.current_directives['autotestdict']:
+            return node
+        self.all_docstrings = self.current_directives['autotestdict.all']
+        self.cdef_docstrings = self.all_docstrings or self.current_directives['autotestdict.cdef']
 
-            self.tests = []
-            self.testspos = node.pos
+        assert isinstance(node.body, StatListNode)
 
-            test_dict_entry = node.scope.declare_var(EncodedString(u'__test__'),
-                                                     py_object_type,
-                                                     pos,
-                                                     visibility='public')
-            create_test_dict_assignment = SingleAssignmentNode(pos,
-                lhs=NameNode(pos, name=EncodedString(u'__test__'),
-                             entry=test_dict_entry),
-                rhs=DictNode(pos, key_value_pairs=self.tests))
-            self.visitchildren(node)
-            node.body.stats.append(create_test_dict_assignment)
+        # First see if __test__ is already created
+        if u'__test__' in node.scope.entries:
+            # Do nothing
+            return node
 
-            
+        pos = node.pos
+
+        self.tests = []
+        self.testspos = node.pos
+
+        test_dict_entry = node.scope.declare_var(EncodedString(u'__test__'),
+                                                 py_object_type,
+                                                 pos,
+                                                 visibility='public')
+        create_test_dict_assignment = SingleAssignmentNode(pos,
+            lhs=NameNode(pos, name=EncodedString(u'__test__'),
+                         entry=test_dict_entry),
+            rhs=DictNode(pos, key_value_pairs=self.tests))
+        self.visitchildren(node)
+        node.body.stats.append(create_test_dict_assignment)
         return node
 
-    def add_test(self, testpos, name, func_ref_node):
-        # func_ref_node must evaluate to the function object containing
-        # the docstring, BUT it should not be the function itself (which
-        # would lead to a new *definition* of the function)
+    def add_test(self, testpos, path, doctest):
         pos = self.testspos
-        keystr = u'%s (line %d)' % (name, testpos[1])
+        keystr = u'%s (line %d)' % (path, testpos[1])
         key = UnicodeNode(pos, value=EncodedString(keystr))
-
-        value = DocstringRefNode(pos, func_ref_node)
+        value = UnicodeNode(pos, value=doctest)
         self.tests.append(DictItemNode(pos, key=key, value=value))
-    
+
     def visit_FuncDefNode(self, node):
-        if node.doc:
+        if not node.doc:
+            return node
+        if not self.cdef_docstrings:
             if isinstance(node, CFuncDefNode) and not node.py_func:
-                # skip non-cpdef cdef functions
                 return node
-            
-            pos = self.testspos
-            if self.scope_type == 'module':
-                parent = ModuleRefNode(pos)
-                name = node.entry.name
-            elif self.scope_type in ('pyclass', 'cclass'):
-                if isinstance(node, CFuncDefNode):
+        if not self.all_docstrings and '>>>' not in node.doc:
+            return node
+
+        pos = self.testspos
+        if self.scope_type == 'module':
+            path = node.entry.name
+        elif self.scope_type in ('pyclass', 'cclass'):
+            if isinstance(node, CFuncDefNode):
+                if node.py_func is not None:
                     name = node.py_func.name
                 else:
-                    name = node.name
-                if self.scope_type == 'cclass' and name in self.blacklist:
-                    return node
-                mod = ModuleRefNode(pos)
-                if self.scope_type == 'pyclass':
-                    clsname = self.scope_node.name
-                else:
-                    clsname = self.scope_node.class_name
-                parent = AttributeNode(pos, obj=mod,
-                                       attribute=clsname,
-                                       type=py_object_type,
-                                       is_py_attr=True,
-                                       is_temp=True)
-                if isinstance(node.entry.scope, Symtab.PropertyScope):
-                    new_node = AttributeNode(pos, obj=parent,
-                                             attribute=node.entry.scope.name,
-                                             type=py_object_type,
-                                             is_py_attr=True,
-                                             is_temp=True)
-                    parent = new_node
-                    name = "%s.%s.%s" % (clsname, node.entry.scope.name,
-                                         node.entry.name)
-                else:
-                    name = "%s.%s" % (clsname, node.entry.name)
+                    name = node.entry.name
             else:
-                assert False
-            getfunc = AttributeNode(pos, obj=parent,
-                                    attribute=node.entry.name,
-                                    type=py_object_type,
-                                    is_py_attr=True,
-                                    is_temp=True)
-            self.add_test(node.pos, name, getfunc)
+                name = node.name
+            if self.scope_type == 'cclass' and name in self.blacklist:
+                return node
+            if self.scope_type == 'pyclass':
+                class_name = self.scope_node.name
+            else:
+                class_name = self.scope_node.class_name
+            if isinstance(node.entry.scope, Symtab.PropertyScope):
+                property_method_name = node.entry.scope.name
+                path = "%s.%s.%s" % (class_name, node.entry.scope.name,
+                                     node.entry.name)
+            else:
+                path = "%s.%s" % (class_name, node.entry.name)
+        else:
+            assert False
+        self.add_test(node.pos, path, node.doc)
         return node
-

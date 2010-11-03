@@ -730,7 +730,18 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                             return directives
                     directives.append(self.try_to_parse_directive(optname, args, kwds, node.function.pos))
                     return directives
-                
+        elif isinstance(node, (AttributeNode, NameNode)):
+            self.visit(node)
+            optname = node.as_cython_attribute()
+            if optname:
+                directivetype = Options.directive_types.get(optname)
+                if directivetype is bool:
+                    return [(optname, True)]
+                elif directivetype is None:
+                    return [(optname, None)]
+                else:
+                    raise PostParseError(
+                        node.pos, "The '%s' directive should be used as a function call." % optname)
         return None
 
     def try_to_parse_directive(self, optname, args, kwds, pos):
@@ -774,57 +785,68 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
  
     # Handle decorators
     def visit_FuncDefNode(self, node):
-        directives = []
-        if node.decorators:
-            # Split the decorators into two lists -- real decorators and directives
-            realdecs = []
-            for dec in node.decorators:
-                new_directives = self.try_to_parse_directives(dec.decorator)
-                if new_directives is not None:
-                    directives.extend(new_directives)
+        directives = self._extract_directives(node, 'function')
+        if not directives:
+            return self.visit_Node(node)
+        body = StatListNode(node.pos, stats=[node])
+        return self.visit_with_directives(body, directives)
+
+    def visit_CVarDefNode(self, node):
+        if not node.decorators:
+            return node
+        for dec in node.decorators:
+            for directive in self.try_to_parse_directives(dec.decorator) or ():
+                if directive is not None and directive[0] == u'locals':
+                    node.directive_locals = directive[1]
                 else:
-                    realdecs.append(dec)
-            if realdecs and isinstance(node, CFuncDefNode):
-                raise PostParseError(realdecs[0].pos, "Cdef functions cannot take arbitrary decorators.")
+                    self.context.nonfatal_error(PostParseError(dec.pos,
+                        "Cdef functions can only take cython.locals() decorator."))
+        return node
+
+    def visit_CClassDefNode(self, node):
+        directives = self._extract_directives(node, 'cclass')
+        if not directives:
+            return self.visit_Node(node)
+        body = StatListNode(node.pos, stats=[node])
+        return self.visit_with_directives(body, directives)
+
+    def _extract_directives(self, node, scope_name):
+        if not node.decorators:
+            return {}
+        # Split the decorators into two lists -- real decorators and directives
+        directives = []
+        realdecs = []
+        for dec in node.decorators:
+            new_directives = self.try_to_parse_directives(dec.decorator)
+            if new_directives is not None:
+                for directive in new_directives:
+                    if self.check_directive_scope(node.pos, directive[0], scope_name):
+                        directives.append(directive)
             else:
-                node.decorators = realdecs
-        
-        if directives:
-            optdict = {}
-            directives.reverse() # Decorators coming first take precedence
-            for directive in directives:
-                name, value = directive
-                legal_scopes = Options.directive_scopes.get(name, None)
-                if not self.check_directive_scope(node.pos, name, 'function'):
-                    continue
-                if name in optdict:
-                    old_value = optdict[name]
-                    # keywords and arg lists can be merged, everything
-                    # else overrides completely
-                    if isinstance(old_value, dict):
-                        old_value.update(value)
-                    elif isinstance(old_value, list):
-                        old_value.extend(value)
-                    else:
-                        optdict[name] = value
+                realdecs.append(dec)
+        if realdecs and isinstance(node, (CFuncDefNode, CClassDefNode)):
+            raise PostParseError(realdecs[0].pos, "Cdef functions/classes cannot take arbitrary decorators.")
+        else:
+            node.decorators = realdecs
+        # merge or override repeated directives
+        optdict = {}
+        directives.reverse() # Decorators coming first take precedence
+        for directive in directives:
+            name, value = directive
+            if name in optdict:
+                old_value = optdict[name]
+                # keywords and arg lists can be merged, everything
+                # else overrides completely
+                if isinstance(old_value, dict):
+                    old_value.update(value)
+                elif isinstance(old_value, list):
+                    old_value.extend(value)
                 else:
                     optdict[name] = value
-            body = StatListNode(node.pos, stats=[node])
-            return self.visit_with_directives(body, optdict)
-        else:
-            return self.visit_Node(node)
-    
-    def visit_CVarDefNode(self, node):
-        if node.decorators:
-            for dec in node.decorators:
-                for directive in self.try_to_parse_directives(dec.decorator) or []:
-                    if directive is not None and directive[0] == u'locals':
-                        node.directive_locals = directive[1]
-                    else:
-                        self.context.nonfatal_error(PostParseError(dec.pos,
-                            "Cdef functions can only take cython.locals() decorator."))
-        return node
-                                   
+            else:
+                optdict[name] = value
+        return optdict
+
     # Handle with statements
     def visit_WithStatNode(self, node):
         directive_dict = {}
@@ -835,6 +857,10 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                         PostParseError(node.pos, "Compiler directive with statements cannot contain 'as'"))
                 else:
                     name, value = directive
+                    if name == 'nogil':
+                        # special case: in pure mode, "with nogil" spells "with cython.nogil"
+                        node = GILStatNode(node.pos, state = "nogil", body = node.body)
+                        return self.visit_Node(node)
                     if self.check_directive_scope(node.pos, name, 'with statement'):
                         directive_dict[name] = value
         if directive_dict:
@@ -932,9 +958,8 @@ class DecoratorTransform(CythonTransform, SkipDeclarations):
         return self._handle_decorators(
             func_node, func_node.name)
 
-    def _visit_CClassDefNode(self, class_node):
-        # This doesn't currently work, so it's disabled (also in the
-        # parser).
+    def visit_CClassDefNode(self, class_node):
+        # This doesn't currently work, so it's disabled.
         #
         # Problem: assignments to cdef class names do not work.  They
         # would require an additional check anyway, as the extension
@@ -944,8 +969,11 @@ class DecoratorTransform(CythonTransform, SkipDeclarations):
         self.visitchildren(class_node)
         if not class_node.decorators:
             return class_node
-        return self._handle_decorators(
-            class_node, class_node.class_name)
+        error(class_node.pos,
+              "Decorators not allowed on cdef classes (used on type '%s')" % class_node.class_name)
+        return class_node
+        #return self._handle_decorators(
+        #    class_node, class_node.class_name)
 
     def visit_ClassDefNode(self, class_node):
         self.visitchildren(class_node)
@@ -1020,6 +1048,20 @@ property NAME:
         self.env_stack.append(node.scope)
         self.visitchildren(node)
         self.env_stack.pop()
+        return node
+    
+    def visit_CClassDefNode(self, node):
+        node = self.visit_ClassDefNode(node)
+        if node.scope and node.scope.implemented:
+            stats = []
+            for entry in node.scope.var_entries:
+                if entry.needs_property:
+                    property = self.create_Property(entry)
+                    property.analyse_declarations(node.scope)
+                    self.visit(property)
+                    stats.append(property)
+            if stats:
+                node.body.stats += stats
         return node
         
     def visit_FuncDefNode(self, node):
@@ -1096,20 +1138,9 @@ property NAME:
         return node
 
     def visit_CVarDefNode(self, node):
-
         # to ensure all CNameDeclaratorNodes are visited.
         self.visitchildren(node)
-
-        if node.properties:
-            stats = []
-            for entry in node.properties:
-                property = self.create_Property(entry)
-                property.analyse_declarations(node.dest_scope)
-                self.visit(property)
-                stats.append(property)
-            return StatListNode(pos=node.pos, stats=stats)
-        else:
-            return None
+        return None
             
     def create_Property(self, entry):
         if entry.visibility == 'public':
@@ -1269,6 +1300,7 @@ class CreateClosureClasses(CythonTransform):
         func_scope.scope_class = entry
         class_scope = entry.type.scope
         class_scope.is_internal = True
+        class_scope.directives = {'final': True}
         if node.entry.scope.is_closure_scope:
             class_scope.declare_var(pos=node.pos,
                                     name=Naming.outer_scope_cname, # this could conflict?

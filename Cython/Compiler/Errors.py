@@ -39,7 +39,7 @@ def format_error(message, position):
     if position:
         pos_str = format_position(position)
         cont = context(position)
-        message = u'\nError converting Pyrex file to C:\n%s\n%s%s' % (cont, pos_str, message or u'')
+        message = u'\nError compiling Cython file:\n%s\n%s%s' % (cont, pos_str, message or u'')
     return message
 
 class CompileError(PyrexError):

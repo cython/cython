@@ -117,7 +117,7 @@ class ErrorWriter(object):
 class TestBuilder(object):
     def __init__(self, rootdir, workdir, selectors, exclude_selectors, annotate,
                  cleanup_workdir, cleanup_sharedlibs, with_pyregr, cython_only,
-                 languages, test_bugs, fork):
+                 languages, test_bugs, fork, language_level):
         self.rootdir = rootdir
         self.workdir = workdir
         self.selectors = selectors
@@ -130,6 +130,7 @@ class TestBuilder(object):
         self.languages = languages
         self.test_bugs = test_bugs
         self.fork = fork
+        self.language_level = language_level
 
     def build_suite(self):
         suite = unittest.TestSuite()
@@ -190,6 +191,9 @@ class TestBuilder(object):
             for test in self.build_tests(test_class, path, workdir,
                                          module, expect_errors):
                 suite.addTest(test)
+            if context == 'run' and filename.endswith('.py'):
+                # additionally test file in real Python
+                suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename)))
         return suite
 
     def build_tests(self, test_class, path, workdir, module, expect_errors):
@@ -220,12 +224,14 @@ class TestBuilder(object):
                           cleanup_workdir=self.cleanup_workdir,
                           cleanup_sharedlibs=self.cleanup_sharedlibs,
                           cython_only=self.cython_only,
-                          fork=self.fork)
+                          fork=self.fork,
+                          language_level=self.language_level)
 
 class CythonCompileTestCase(unittest.TestCase):
     def __init__(self, test_directory, workdir, module, language='c',
                  expect_errors=False, annotate=False, cleanup_workdir=True,
-                 cleanup_sharedlibs=True, cython_only=False, fork=True):
+                 cleanup_sharedlibs=True, cython_only=False, fork=True,
+                 language_level=2):
         self.test_directory = test_directory
         self.workdir = workdir
         self.module = module
@@ -236,6 +242,7 @@ class CythonCompileTestCase(unittest.TestCase):
         self.cleanup_sharedlibs = cleanup_sharedlibs
         self.cython_only = cython_only
         self.fork = fork
+        self.language_level = language_level
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -339,6 +346,7 @@ class CythonCompileTestCase(unittest.TestCase):
             annotate = annotate,
             use_listing_file = False,
             cplus = self.language == 'cpp',
+            language_level = self.language_level,
             generate_pxi = False,
             evaluate_tree_assertions = True,
             )
@@ -494,6 +502,38 @@ class CythonRunTestCase(CythonCompileTestCase):
             try: os.unlink(result_file)
             except: pass
 
+class PureDoctestTestCase(unittest.TestCase):
+    def __init__(self, module_name, module_path):
+        self.module_name = module_name
+        self.module_path = module_path
+        unittest.TestCase.__init__(self, 'run')
+
+    def shortDescription(self):
+        return "running pure doctests in %s" % self.module_name
+
+    def run(self, result=None):
+        if result is None:
+            result = self.defaultTestResult()
+        loaded_module_name = 'pure_doctest__' + self.module_name
+        result.startTest(self)
+        try:
+            self.setUp()
+
+            import imp
+            m = imp.load_source(loaded_module_name, self.module_path)
+            try:
+                doctest.DocTestSuite(m).run(result)
+            finally:
+                del m
+                if loaded_module_name in sys.modules:
+                    del sys.modules[loaded_module_name]
+        except Exception:
+            result.addError(self, sys.exc_info())
+            result.stopTest(self)
+        try:
+            self.tearDown()
+        except Exception:
+            pass
 
 is_private_field = re.compile('^_[^_]').match
 
@@ -645,6 +685,14 @@ class EndToEndTest(unittest.TestCase):
         self.treefile = treefile
         self.workdir = os.path.join(workdir, os.path.splitext(treefile)[0])
         self.cleanup_workdir = cleanup_workdir
+        cython_syspath = self.cython_root
+        for path in sys.path[::-1]:
+            if path.startswith(self.cython_root):
+                # Py3 installation and refnanny build prepend their
+                # fixed paths to sys.path => prefer that over the
+                # generic one
+                cython_syspath = path + os.pathsep + cython_syspath
+        self.cython_syspath = cython_syspath
         unittest.TestCase.__init__(self)
 
     def shortDescription(self):
@@ -667,11 +715,16 @@ class EndToEndTest(unittest.TestCase):
         commands = (self.commands
             .replace("CYTHON", "PYTHON %s" % os.path.join(self.cython_root, 'cython.py'))
             .replace("PYTHON", sys.executable))
-        commands = """
-        PYTHONPATH="%s%s$PYTHONPATH"
-        %s
-        """ % (self.cython_root, os.pathsep, commands)
-        self.assertEqual(0, os.system(commands))
+        old_path = os.environ.get('PYTHONPATH')
+        try:
+            os.environ['PYTHONPATH'] = self.cython_syspath + os.pathsep + (old_path or '')
+            print(os.environ['PYTHONPATH'])
+            self.assertEqual(0, os.system(commands))
+        finally:
+            if old_path:
+                os.environ['PYTHONPATH'] = old_path
+            else:
+                del os.environ['PYTHONPATH']
 
 
 # TODO: Support cython_freeze needed here as well.
@@ -750,10 +803,14 @@ class FileListExcluder:
 
     def __init__(self, list_file):
         self.excludes = {}
-        for line in open(list_file).readlines():
-            line = line.strip()
-            if line and line[0] != '#':
-                self.excludes[line.split()[0]] = True
+        f = open(list_file)
+        try:
+            for line in f.readlines():
+                line = line.strip()
+                if line and line[0] != '#':
+                    self.excludes[line.split()[0]] = True
+        finally:
+            f.close()
                 
     def __call__(self, testname):
         return testname in self.excludes or testname.split('.')[-1] in self.excludes
@@ -842,6 +899,9 @@ if __name__ == '__main__':
     parser.add_option("-T", "--ticket", dest="tickets",
                       action="append",
                       help="a bug ticket number to run the respective test in 'tests/*'")
+    parser.add_option("-3", dest="language_level",
+                      action="store_const", const=3, default=2,
+                      help="set language level to Python 3 (useful for running the CPython regression tests)'")
     parser.add_option("--xml-output", dest="xml_output_dir", metavar="DIR",
                       help="write test results in XML to directory DIR")
     parser.add_option("--exit-ok", dest="exit_ok", default=False,
@@ -861,6 +921,8 @@ if __name__ == '__main__':
                 # try if Cython is installed in a Py3 version
                 import Cython.Compiler.Main
             except Exception:
+                # back out anything the import process loaded, then
+                # 2to3 the Cython sources to make them re-importable
                 cy_modules = [ name for name in sys.modules
                                if name == 'Cython' or name.startswith('Cython.') ]
                 for name in cy_modules:
@@ -908,13 +970,13 @@ if __name__ == '__main__':
     if not os.path.exists(WORKDIR):
         os.makedirs(WORKDIR)
 
+    sys.stderr.write("Python %s\n" % sys.version)
+    sys.stderr.write("\n")
     if WITH_CYTHON:
         from Cython.Compiler.Version import version
         sys.stderr.write("Running tests against Cython %s\n" % version)
     else:
         sys.stderr.write("Running tests without Cython.\n")
-    sys.stderr.write("Python %s\n" % sys.version)
-    sys.stderr.write("\n")
 
     if options.with_refnanny:
         from pyximport.pyxbuild import pyx_to_dll
@@ -928,6 +990,11 @@ if __name__ == '__main__':
         # doesn't currently work together
         sys.stderr.write("Disabling forked testing to support XML test output\n")
         options.fork = False
+
+    if WITH_CYTHON and options.language_level == 3:
+        sys.stderr.write("Using Cython language level 3.\n")
+
+    sys.stderr.write("\n")
 
     test_bugs = False
     if options.tickets:
@@ -979,7 +1046,7 @@ if __name__ == '__main__':
                                 options.annotate_source, options.cleanup_workdir,
                                 options.cleanup_sharedlibs, options.pyregr,
                                 options.cython_only, languages, test_bugs,
-                                options.fork)
+                                options.fork, options.language_level)
         test_suite.addTest(filetests.build_suite())
 
     if options.system_pyregr and languages:
@@ -987,7 +1054,7 @@ if __name__ == '__main__':
                                 options.annotate_source, options.cleanup_workdir,
                                 options.cleanup_sharedlibs, True,
                                 options.cython_only, languages, test_bugs,
-                                options.fork)
+                                options.fork, options.language_level)
         test_suite.addTest(
             filetests.handle_directory(
                 os.path.join(sys.prefix, 'lib', 'python'+sys.version[:3], 'test'),

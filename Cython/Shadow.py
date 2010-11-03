@@ -1,10 +1,22 @@
+# cython.* namespace for pure mode.
+
 compiled = False
 
 def empty_decorator(x):
     return x
 
+# Function decorators
+
 def locals(**arg_types):
     return empty_decorator
+
+def inline(f, *args, **kwds):
+  if isinstance(f, basestring):
+    from Cython.Build.Inline import cython_inline
+    return cython_inline(f, *args, **kwds)
+  else:
+    assert len(args) == len(kwds) == 0
+    return f
 
 # Special functions
 
@@ -45,6 +57,17 @@ def declare(type=None, value=None, **kwds):
             return type()
     else:
         return value
+
+class _nogil(object):
+    """Support for 'with nogil' statement
+    """
+    def __enter__(self):
+        pass
+    def __exit__(self, exc_class, exc, tb):
+        return exc_class is None
+
+nogil = _nogil()
+del _nogil
 
 # Emulated types
 

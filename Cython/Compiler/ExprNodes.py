@@ -559,6 +559,9 @@ class ExprNode(Node):
         if self.check_for_coercion_error(dst_type):
             return self
 
+        if dst_type.is_reference:
+            dst_type = dst_type.ref_base_type
+        
         if dst_type.is_pyobject:
             if not src.type.is_pyobject:
                 if dst_type is bytes_type and src.type.is_int:
@@ -830,19 +833,28 @@ class IntNode(ConstNode):
     def generate_evaluation_code(self, code):
         if self.type.is_pyobject:
             # pre-allocate a Python version of the number
-            self.result_code = code.get_py_num(self.value, self.longness)
+            plain_integer_string = self.value_as_c_integer_string(plain_digits=True)
+            self.result_code = code.get_py_num(plain_integer_string, self.longness)
         else:
             self.result_code = self.get_constant_c_result_code()
     
     def get_constant_c_result_code(self):
+        return self.value_as_c_integer_string() + self.unsigned + self.longness
+
+    def value_as_c_integer_string(self, plain_digits=False):
         value = self.value
         if isinstance(value, basestring) and len(value) > 2:
             # must convert C-incompatible Py3 oct/bin notations
             if value[1] in 'oO':
-                value = value[0] + value[2:] # '0o123' => '0123'
+                if plain_digits:
+                    value = int(value[2:], 8)
+                else:
+                    value = value[0] + value[2:] # '0o123' => '0123'
             elif value[1] in 'bB':
                 value = int(value[2:], 2)
-        return str(value) + self.unsigned + self.longness
+            elif plain_digits and value[1] in 'xX':
+                value = int(value[2:], 16)
+        return str(value)
 
     def calculate_result_code(self):
         return self.result_code
@@ -1438,6 +1450,22 @@ class NameNode(AtomicExprNode):
             return # There was an error earlier
         if entry.is_builtin and Options.cache_builtins:
             return # Lookup already cached
+        elif entry.is_real_dict:
+            assert entry.type.is_pyobject, "Python global or builtin not a Python object"
+            interned_cname = code.intern_identifier(self.entry.name)
+            if entry.is_builtin:
+                namespace = Naming.builtins_cname
+            else: # entry.is_pyglobal
+                namespace = entry.scope.namespace_cname
+            code.globalstate.use_utility_code(getitem_dict_utility_code)
+            code.putln(
+                '%s = __Pyx_PyDict_GetItem(%s, %s); %s' % (
+                self.result(),
+                namespace,
+                interned_cname,
+                code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.py_result())
+            
         elif entry.is_pyglobal or entry.is_builtin:
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
@@ -1492,8 +1520,16 @@ class NameNode(AtomicExprNode):
                 rhs.free_temps(code)
                 # in Py2.6+, we need to invalidate the method cache
                 code.putln("PyType_Modified(%s);" %
-                           entry.scope.parent_type.typeptr_cname)
-            else: 
+                            entry.scope.parent_type.typeptr_cname)
+            elif entry.is_real_dict:
+                code.put_error_if_neg(self.pos,
+                    'PyDict_SetItem(%s, %s, %s)' % (
+                        namespace,
+                        interned_cname,
+                        rhs.py_result()))
+                rhs.generate_disposal_code(code)
+                rhs.free_temps(code)
+            else:
                 code.put_error_if_neg(self.pos,
                     'PyObject_SetAttr(%s, %s, %s)' % (
                         namespace,
@@ -1572,10 +1608,17 @@ class NameNode(AtomicExprNode):
         if not self.entry.is_pyglobal:
             error(self.pos, "Deletion of local or C global name not supported")
             return
-        code.put_error_if_neg(self.pos, 
-            '__Pyx_DelAttrString(%s, "%s")' % (
-                Naming.module_cname,
-                self.entry.name))
+        if self.entry.is_real_dict:
+            namespace = self.entry.scope.namespace_cname
+            code.put_error_if_neg(self.pos,
+                'PyDict_DelItemString(%s, "%s")' % (
+                    namespace,
+                    self.entry.name))
+        else:
+            code.put_error_if_neg(self.pos, 
+                '__Pyx_DelAttrString(%s, "%s")' % (
+                    Naming.module_cname,
+                    self.entry.name))
                 
     def annotate(self, code):
         if hasattr(self, 'is_called') and self.is_called:
@@ -2456,7 +2499,7 @@ class SliceIndexNode(ExprNode):
                         code.error_goto_if_null(self.result(), self.pos)))
         else:
             code.putln(
-                "%s = PySequence_GetSlice(%s, %s, %s); %s" % (
+                "%s = __Pyx_PySequence_GetSlice(%s, %s, %s); %s" % (
                     self.result(),
                     self.base.py_result(),
                     self.start_code(),
@@ -2468,7 +2511,7 @@ class SliceIndexNode(ExprNode):
         self.generate_subexpr_evaluation_code(code)
         if self.type.is_pyobject:
             code.put_error_if_neg(self.pos, 
-                "PySequence_SetSlice(%s, %s, %s, %s)" % (
+                "__Pyx_PySequence_SetSlice(%s, %s, %s, %s)" % (
                     self.base.py_result(),
                     self.start_code(),
                     self.stop_code(),
@@ -2505,7 +2548,7 @@ class SliceIndexNode(ExprNode):
             return
         self.generate_subexpr_evaluation_code(code)
         code.put_error_if_neg(self.pos,
-            "PySequence_DelSlice(%s, %s, %s)" % (
+            "__Pyx_PySequence_DelSlice(%s, %s, %s)" % (
                 self.base.py_result(),
                 self.start_code(),
                 self.stop_code()))
@@ -2689,6 +2732,7 @@ class SimpleCallNode(CallNode):
     #  coerced_self   ExprNode or None     used internally
     #  wrapper_call   bool                 used internally
     #  has_optional_args   bool            used internally
+    #  nogil          bool                 used internally
     
     subexprs = ['self', 'coerced_self', 'function', 'args', 'arg_tuple']
     
@@ -2697,6 +2741,7 @@ class SimpleCallNode(CallNode):
     arg_tuple = None
     wrapper_call = False
     has_optional_args = False
+    nogil = False
     
     def compile_time_value(self, denv):
         function = self.function.compile_time_value(denv)
@@ -2862,6 +2907,12 @@ class SimpleCallNode(CallNode):
         elif func_type.exception_value is not None \
                  or func_type.exception_check:
             self.is_temp = 1
+        # Called in 'nogil' context?
+        self.nogil = env.nogil
+        if (self.nogil and
+            func_type.exception_check and
+            func_type.exception_check != '+'):
+            env.use_utility_code(pyerr_occurred_withgil_utility_code)
         # C++ exception handler
         if func_type.exception_check == '+':
             if func_type.exception_value is None:
@@ -2936,7 +2987,10 @@ class SimpleCallNode(CallNode):
                 if exc_val is not None:
                     exc_checks.append("%s == %s" % (self.result(), exc_val))
                 if exc_check:
-                    exc_checks.append("PyErr_Occurred()")
+                    if self.nogil:
+                        exc_checks.append("__Pyx_ErrOccurredWithGIL()")
+                    else:    
+                        exc_checks.append("PyErr_Occurred()")
             if self.is_temp or exc_checks:
                 rhs = self.c_call_code()
                 if self.result():
@@ -2957,6 +3011,8 @@ class SimpleCallNode(CallNode):
                             func_type.exception_value.entry.cname)
                     else:
                         raise_py_exception = '%s(); if (!PyErr_Occurred()) PyErr_SetString(PyExc_RuntimeError , "Error converting c++ exception.")' % func_type.exception_value.entry.cname
+                    if self.nogil:
+                        raise_py_exception = 'Py_BLOCK_THREADS; %s; Py_UNBLOCK_THREADS' % raise_py_exception
                     code.putln(
                     "try {%s%s;} catch(...) {%s; %s}" % (
                         lhs,
@@ -4401,8 +4457,15 @@ class DictItemNode(ExprNode):
     def __iter__(self):
         return iter([self.key, self.value])
 
+class ModuleNameMixin(object):
+    def set_mod_name(self, env):
+        self.module_name = env.global_scope().qualified_name
 
-class ClassNode(ExprNode):
+    def get_py_mod_name(self, code):
+        return code.get_py_string_const(
+                 self.module_name, identifier=True)
+
+class ClassNode(ExprNode, ModuleNameMixin):
     #  Helper class used in the implementation of Python
     #  class definitions. Constructs a class object given
     #  a name, tuple of bases and class dictionary.
@@ -4411,7 +4474,7 @@ class ClassNode(ExprNode):
     #  bases        ExprNode           Base class tuple
     #  dict         ExprNode           Class dict (not owned by this node)
     #  doc          ExprNode or None   Doc string
-    #  module_name  string             Name of defining module
+    #  module_name  EncodedString      Name of defining module
     
     subexprs = ['bases', 'doc']
 
@@ -4420,10 +4483,11 @@ class ClassNode(ExprNode):
         if self.doc:
             self.doc.analyse_types(env)
             self.doc = self.doc.coerce_to_pyobject(env)
-        self.module_name = env.global_scope().qualified_name
         self.type = py_object_type
         self.is_temp = 1
         env.use_utility_code(create_class_utility_code);
+        #TODO(craig,haoyu) This should be moved to a better place
+        self.set_mod_name(env)
 
     def may_be_none(self):
         return False
@@ -4437,13 +4501,14 @@ class ClassNode(ExprNode):
                 'PyDict_SetItemString(%s, "__doc__", %s)' % (
                     self.dict.py_result(),
                     self.doc.py_result()))
+        py_mod_name = self.get_py_mod_name(code)
         code.putln(
-            '%s = __Pyx_CreateClass(%s, %s, %s, "%s"); %s' % (
+            '%s = __Pyx_CreateClass(%s, %s, %s, %s); %s' % (
                 self.result(),
                 self.bases.py_result(),
                 self.dict.py_result(),
                 cname,
-                self.module_name,
+                py_mod_name,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
@@ -4505,14 +4570,15 @@ class UnboundMethodNode(ExprNode):
         code.put_gotref(self.py_result())
 
 
-class PyCFunctionNode(ExprNode):
+class PyCFunctionNode(ExprNode, ModuleNameMixin):
     #  Helper class used in the implementation of Python
     #  class definitions. Constructs a PyCFunction object
     #  from a PyMethodDef struct.
     #
-    #  pymethdef_cname   string   PyMethodDef structure
+    #  pymethdef_cname   string             PyMethodDef structure
     #  self_object       ExprNode or None
     #  binding           bool
+    #  module_name       EncodedString      Name of defining module
 
     subexprs = []
     self_object = None
@@ -4524,6 +4590,9 @@ class PyCFunctionNode(ExprNode):
     def analyse_types(self, env):
         if self.binding:
             env.use_utility_code(binding_cfunc_utility_code)
+
+        #TODO(craig,haoyu) This should be moved to a better place
+        self.set_mod_name(env)
 
     def may_be_none(self):
         return False
@@ -4539,15 +4608,17 @@ class PyCFunctionNode(ExprNode):
 
     def generate_result_code(self, code):
         if self.binding:
-            constructor = "%s_New" % Naming.binding_cfunc
+            constructor = "%s_NewEx" % Naming.binding_cfunc
         else:
-            constructor = "PyCFunction_New"
+            constructor = "PyCFunction_NewEx"
+        py_mod_name = self.get_py_mod_name(code)
         code.putln(
-            "%s = %s(&%s, %s); %s" % (
+            '%s = %s(&%s, %s, %s); %s' % (
                 self.result(),
                 constructor,
                 self.pymethdef_cname,
                 self.self_result_code(),
+                py_mod_name,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
@@ -5655,10 +5726,15 @@ class PowNode(NumBinopNode):
     def analyse_c_operation(self, env):
         NumBinopNode.analyse_c_operation(self, env)
         if self.type.is_complex:
-            error(self.pos, "complex powers not yet supported")
-            self.pow_func = "<error>"
+            if self.type.real_type.is_float:
+                self.operand1 = self.operand1.coerce_to(self.type, env)
+                self.operand2 = self.operand2.coerce_to(self.type, env)
+                self.pow_func = "__Pyx_c_pow" + self.type.real_type.math_h_modifier
+            else:
+                error(self.pos, "complex int powers not supported")
+                self.pow_func = "<error>"
         elif self.type.is_float:
-            self.pow_func = "pow"
+            self.pow_func = "pow" + self.type.math_h_modifier
         else:
             self.pow_func = "__Pyx_pow_%s" % self.type.declaration_code('').replace(' ', '_')
             env.use_utility_code(
@@ -5666,10 +5742,16 @@ class PowNode(NumBinopNode):
                                                 type=self.type.declaration_code('')))
 
     def calculate_result_code(self):
+        # Work around MSVC overloading ambiguity.
+        def typecast(operand):
+            if self.type == operand.type:
+                return operand.result()
+            else:
+                return self.type.cast_code(operand.result())
         return "%s(%s, %s)" % (
             self.pow_func, 
-            self.operand1.result(), 
-            self.operand2.result())
+            typecast(self.operand1), 
+            typecast(self.operand2))
 
 
 # Note: This class is temporarily "shut down" into an ineffective temp
@@ -5988,6 +6070,12 @@ class CmpNode(object):
                 # C types that we couldn't handle up to here are an error
                 self.invalid_types_error(operand1, op, operand2)
                 new_common_type = error_type
+
+        if new_common_type.is_string and (isinstance(operand1, BytesNode) or
+                                          isinstance(operand2, BytesNode)):
+            # special case when comparing char* to bytes literal: must
+            # compare string values!
+            new_common_type = bytes_type
 
         # recursively merge types
         if common_type is None or new_common_type.is_error:
@@ -7066,31 +7154,44 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
 
 create_class_utility_code = UtilityCode(
 proto = """
-static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name, const char *modname); /*proto*/
+static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name, PyObject *modname); /*proto*/
 """,
 impl = """
 static PyObject *__Pyx_CreateClass(
-    PyObject *bases, PyObject *dict, PyObject *name, const char *modname)
+    PyObject *bases, PyObject *methods, PyObject *name, PyObject *modname)
 {
-    PyObject *py_modname;
     PyObject *result = 0;
+#if PY_MAJOR_VERSION < 3
+    PyObject *metaclass = 0, *base;
+#endif
 
-    #if PY_MAJOR_VERSION < 3
-    py_modname = PyString_FromString(modname);
-    #else
-    py_modname = PyUnicode_FromString(modname);
-    #endif
-    if (!py_modname)
-        goto bad;
-    if (PyDict_SetItemString(dict, "__module__", py_modname) < 0)
+    if (PyDict_SetItemString(methods, "__module__", modname) < 0)
         goto bad;
     #if PY_MAJOR_VERSION < 3
-    result = PyClass_New(bases, dict, name);
+    metaclass = PyDict_GetItemString(methods, "__metaclass__");
+
+    if (metaclass != NULL)
+        Py_INCREF(metaclass);
+    else if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+        base = PyTuple_GET_ITEM(bases, 0);
+        metaclass = PyObject_GetAttrString(base, "__class__");
+        if (metaclass == NULL) {
+            PyErr_Clear();
+            metaclass = (PyObject *)base->ob_type;
+            Py_INCREF(metaclass);
+        }
+    }
+    else {
+        metaclass = (PyObject *) &PyClass_Type;
+        Py_INCREF(metaclass);
+    }
+
+    result = PyObject_CallFunctionObjArgs(metaclass, name, bases, methods, NULL);
     #else
-    result = PyObject_CallFunctionObjArgs((PyObject *)&PyType_Type, name, bases, dict, NULL);
+    /* it seems that python3+ handle __metaclass__ itself */
+    result = PyObject_CallFunctionObjArgs((PyObject *)&PyType_Type, name, bases, methods, NULL);
     #endif
 bad:
-    Py_XDECREF(py_modname);
     return result;
 }
 """)
@@ -7125,6 +7226,25 @@ static void __Pyx_CppExn2PyErr() {
 #endif
 """,
 impl = ""
+)
+
+pyerr_occurred_withgil_utility_code= UtilityCode(
+proto = """
+static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void); /* proto */
+""",
+impl = """
+static CYTHON_INLINE int __Pyx_ErrOccurredWithGIL(void) {
+  int err;
+  #ifdef WITH_THREAD
+  PyGILState_STATE _save = PyGILState_Ensure();
+  #endif
+  err = !!PyErr_Occurred();
+  #ifdef WITH_THREAD
+  PyGILState_Release(_save);
+  #endif
+  return err;
+}
+"""
 )
 
 #------------------------------------------------------------------------------------
