@@ -237,7 +237,7 @@ class CythonBase(object):
                 lexer = pygments.lexers.PythonLexer()
         else:
             symbol_and_line_obj = frame.find_sal()
-            if symbol_and_line_obj is None:
+            if not symbol_and_line_obj or not symbol_and_line_obj.symtab:
                 filename = None
                 lineno = 0
             else:
@@ -279,7 +279,7 @@ class CythonBase(object):
             # variable not initialized yet
             pass
 
-    @default_selected_gdb_frame()
+    @default_selected_gdb_frame(err=False)
     def print_stackframe(self, frame, index, is_c=False):
         """
         Print a C, Cython or Python stack frame and the line of source code
@@ -290,8 +290,12 @@ class CythonBase(object):
         selected_frame = gdb.selected_frame()
         frame.select()
         
-        source_desc, lineno = self.get_source_desc(frame)
-        
+        try:
+            source_desc, lineno = self.get_source_desc(frame)
+        except NoFunctionNameInFrameError:
+            print '#%-2d Unknown Frame (compile with -g)' % index
+            return
+
         if not is_c and self.is_python_function(frame):
             pyframe = libpython.Frame(frame).get_pyop()
             if pyframe is None or pyframe.is_optimized_out():
@@ -318,13 +322,13 @@ class CythonBase(object):
         # Seriously? Why is the address not an int?
         func_address = int(str(gdb_value.address).split()[0], 0)
         
-        print '#%-2d 0x%016x in %s(%s) at %s:%s' % (
-            index,
-            func_address,
-            func_name,
-            ', '.join('%s=%s' % (name, val) for name, val in func_args),
-            source_desc.filename,
-            lineno)
+        a = ', '.join('%s=%s' % (name, val) for name, val in func_args)
+        print '#%-2d 0x%016x in %s(%s)' % (index, func_address, func_name, a),
+            
+        if source_desc.filename is not None:
+            print 'at %s:%s' % (source_desc.filename, lineno),
+        
+        print
             
         try:
             print '    ' + source_desc.get_source(lineno)
@@ -498,9 +502,9 @@ class CythonCommand(gdb.Command, CythonBase):
     @classmethod
     def _register(cls, clsname, args, kwargs):
         if not hasattr(cls, 'completer_class'):
-            return cls(cls.name, cls.command_class, *args, **kwargs)
+            return cls(clsname, cls.command_class, *args, **kwargs)
         else:
-            return cls(cls.name, cls.command_class, cls.completer_class, 
+            return cls(clsname, cls.command_class, cls.completer_class, 
                        *args, **kwargs)
     
     @classmethod
