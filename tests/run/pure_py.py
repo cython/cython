@@ -10,14 +10,14 @@ def test_sizeof():
     True
     """
     x = cython.declare(cython.bint)
-    print cython.sizeof(x) == cython.sizeof(cython.bint)
-    print cython.sizeof(cython.char) <= cython.sizeof(cython.short) <= cython.sizeof(cython.int) <= cython.sizeof(cython.long) <= cython.sizeof(cython.longlong)
-    print cython.sizeof(cython.uint) == cython.sizeof(cython.int)
-    print cython.sizeof(cython.p_int) == cython.sizeof(cython.p_double)
+    print(cython.sizeof(x) == cython.sizeof(cython.bint))
+    print(cython.sizeof(cython.char) <= cython.sizeof(cython.short) <= cython.sizeof(cython.int) <= cython.sizeof(cython.long) <= cython.sizeof(cython.longlong))
+    print(cython.sizeof(cython.uint) == cython.sizeof(cython.int))
+    print(cython.sizeof(cython.p_int) == cython.sizeof(cython.p_double))
     if cython.compiled:
-        print cython.sizeof(cython.char) < cython.sizeof(cython.longlong)
+        print(cython.sizeof(cython.char) < cython.sizeof(cython.longlong))
     else:
-        print cython.sizeof(cython.char) == 1
+        print(cython.sizeof(cython.char) == 1)
 
 ## CURRENTLY BROKEN - FIXME!!
 
@@ -88,7 +88,7 @@ def test_with_nogil(nogil):
     """
     result = False
     with nogil:
-        print "WORKS"
+        print("WORKS")
         with cython.nogil:
             result = True
     return result
