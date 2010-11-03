@@ -1072,6 +1072,7 @@ class CComplexType(CNumericType):
                     None,
                     visibility="extern")
             scope.parent_type = self
+            scope.directives = {}
             scope.declare_var("real", self.real_type, None, "real", is_cdef=True)
             scope.declare_var("imag", self.real_type, None, "imag", is_cdef=True)
             entry = scope.declare_cfunction(
@@ -1095,7 +1096,8 @@ class CComplexType(CNumericType):
                 utility_code.specialize(
                     self, 
                     real_type = self.real_type.declaration_code(''),
-                    m = self.funcsuffix))
+                    m = self.funcsuffix,
+                    is_float = self.real_type.is_float))
         return True
 
     def create_to_py_utility_code(self, env):
@@ -1112,7 +1114,8 @@ class CComplexType(CNumericType):
                 utility_code.specialize(
                     self, 
                     real_type = self.real_type.declaration_code(''),
-                    m = self.funcsuffix))
+                    m = self.funcsuffix,
+                    is_float = self.real_type.is_float))
         self.from_py_function = "__Pyx_PyComplex_As_" + self.specialization_name()
         return True
     
@@ -1271,11 +1274,17 @@ proto="""
   #ifdef __cplusplus
     #define __Pyx_c_is_zero%(m)s(z) ((z)==(%(real_type)s)0)
     #define __Pyx_c_conj%(m)s(z)    (::std::conj(z))
-    /*#define __Pyx_c_abs%(m)s(z)     (::std::abs(z))*/
+    #if %(is_float)s
+        #define __Pyx_c_abs%(m)s(z)     (::std::abs(z))
+        #define __Pyx_c_pow%(m)s(a, b)  (::std::pow(a, b))
+    #endif
   #else
     #define __Pyx_c_is_zero%(m)s(z) ((z)==0)
     #define __Pyx_c_conj%(m)s(z)    (conj%(m)s(z))
-    /*#define __Pyx_c_abs%(m)s(z)     (cabs%(m)s(z))*/
+    #if %(is_float)s
+        #define __Pyx_c_abs%(m)s(z)     (cabs%(m)s(z))
+        #define __Pyx_c_pow%(m)s(a, b)  (cpow%(m)s(a, b))
+    #endif
  #endif
 #else
     static CYTHON_INLINE int __Pyx_c_eq%(m)s(%(type)s, %(type)s);
@@ -1286,7 +1295,10 @@ proto="""
     static CYTHON_INLINE %(type)s __Pyx_c_neg%(m)s(%(type)s);
     static CYTHON_INLINE int __Pyx_c_is_zero%(m)s(%(type)s);
     static CYTHON_INLINE %(type)s __Pyx_c_conj%(m)s(%(type)s);
-    /*static CYTHON_INLINE %(real_type)s __Pyx_c_abs%(m)s(%(type)s);*/
+    #if %(is_float)s
+        static CYTHON_INLINE %(real_type)s __Pyx_c_abs%(m)s(%(type)s);
+        static CYTHON_INLINE %(type)s __Pyx_c_pow%(m)s(%(type)s, %(type)s);
+    #endif
 #endif
 """,
 impl="""
@@ -1335,15 +1347,60 @@ impl="""
         z.imag = -a.imag;
         return z;
     }
-/*
-    static CYTHON_INLINE %(real_type)s __Pyx_c_abs%(m)s(%(type)s z) {
-#if HAVE_HYPOT
-        return hypot%(m)s(z.real, z.imag);
-#else
-        return sqrt%(m)s(z.real*z.real + z.imag*z.imag);
-#endif
-    }
-*/
+    #if %(is_float)s
+        static CYTHON_INLINE %(real_type)s __Pyx_c_abs%(m)s(%(type)s z) {
+          #if HAVE_HYPOT
+            return hypot%(m)s(z.real, z.imag);
+          #else
+            return sqrt%(m)s(z.real*z.real + z.imag*z.imag);
+          #endif
+        }
+        static CYTHON_INLINE %(type)s __Pyx_c_pow%(m)s(%(type)s a, %(type)s b) {
+            %(type)s z;
+            %(real_type)s r, lnr, theta, z_r, z_theta;
+            if (b.imag == 0 && b.real == (int)b.real) {
+                if (b.real < 0) {
+                    %(real_type)s denom = a.real * a.real + a.imag * a.imag;
+                    a.real = a.real / denom;
+                    a.imag = -a.imag / denom;
+                    b.real = -b.real;
+                }
+                switch ((int)b.real) {
+                    case 0:
+                        z.real = 1;
+                        z.imag = 0;
+                        return z;
+                    case 1:
+                        return a;
+                    case 2:
+                        z = __Pyx_c_prod%(m)s(a, a);
+                        return __Pyx_c_prod%(m)s(a, a);
+                    case 3:
+                        z = __Pyx_c_prod%(m)s(a, a);
+                        return __Pyx_c_prod%(m)s(z, a);
+                    case 4:
+                        z = __Pyx_c_prod%(m)s(a, a);
+                        return __Pyx_c_prod%(m)s(z, z);
+                }
+            }
+            if (a.imag == 0) {
+                if (a.real == 0) {
+                    return a;
+                }
+                r = a.real;
+                theta = 0;
+            } else {
+                r = __Pyx_c_abs%(m)s(a);
+                theta = atan2%(m)s(a.imag, a.real);
+            }
+            lnr = log%(m)s(r);
+            z_r = exp%(m)s(lnr * b.real - theta * b.imag);
+            z_theta = theta * b.real + lnr * b.imag;
+            z.real = z_r * cos%(m)s(z_theta);
+            z.imag = z_r * sin%(m)s(z_theta);
+            return z;
+        }
+    #endif
 #endif
 """)
 

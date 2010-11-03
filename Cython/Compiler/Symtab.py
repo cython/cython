@@ -70,6 +70,7 @@ class Entry(object):
     #                               or class attribute during
     #                               class construction
     # is_member        boolean    Is an assigned class member
+    # is_real_dict     boolean    Is a real dict, PyClass attributes dict
     # is_variable      boolean    Is a variable
     # is_cfunction     boolean    Is a C function
     # is_cmethod       boolean    Is a C method of an extension type
@@ -131,6 +132,7 @@ class Entry(object):
     is_cglobal = 0
     is_pyglobal = 0
     is_member = 0
+    is_real_dict = 0
     is_variable = 0
     is_cfunction = 0
     is_cmethod = 0
@@ -246,7 +248,7 @@ class Scope(object):
             self.qualified_name = qual_scope.qualify_name(name)
             self.scope_prefix = qual_scope.scope_prefix + mangled_name
         else:
-            self.qualified_name = name
+            self.qualified_name = EncodedString(name)
             self.scope_prefix = mangled_name
         self.entries = {}
         self.const_entries = []
@@ -348,7 +350,7 @@ class Scope(object):
         return entry
     
     def qualify_name(self, name):
-        return "%s.%s" % (self.qualified_name, name)
+        return EncodedString("%s.%s" % (self.qualified_name, name))
 
     def declare_const(self, name, type, value, pos, cname = None, visibility = 'private'):
         # Add an entry for a named constant.
@@ -726,7 +728,11 @@ class BuiltinScope(Scope):
     def declare_builtin_type(self, name, cname, utility_code = None):
         name = EncodedString(name)
         type = PyrexTypes.BuiltinObjectType(name, cname)
-        type.set_scope(CClassScope(name, outer_scope=None, visibility='extern'))
+        scope = CClassScope(name, outer_scope=None, visibility='extern')
+        scope.directives = {}
+        if name == 'bool':
+            scope.directives['final'] = True
+        type.set_scope(scope)
         self.type_names[name] = 1
         entry = self.declare_type(name, type, None, visibility='extern')
         entry.utility_code = utility_code
@@ -768,7 +774,7 @@ class BuiltinScope(Scope):
         "frozenset":   ["((PyObject*)&PyFrozenSet_Type)", py_object_type],
 
         "slice":  ["((PyObject*)&PySlice_Type)", py_object_type],
-        "file":   ["((PyObject*)&PyFile_Type)", py_object_type],
+#        "file":   ["((PyObject*)&PyFile_Type)", py_object_type],  # not in Py3
 
         "None":   ["Py_None", py_object_type],
         "False":  ["Py_False", py_object_type],
@@ -813,6 +819,7 @@ class ModuleScope(Scope):
             # Treat Spam/__init__.pyx specially, so that when Python loads
             # Spam/__init__.so, initSpam() is defined.
             self.module_name = parent_module.module_name
+        self.module_name = EncodedString(self.module_name)
         self.context = context
         self.module_cname = Naming.module_cname
         self.module_dict_cname = Naming.moddict_cname
@@ -1400,6 +1407,7 @@ class PyClassScope(ClassScope):
         entry = Scope.declare_var(self, name, type, pos, 
             cname, visibility, is_cdef)
         entry.is_pyglobal = 1
+        entry.is_real_dict = 1
         return entry
 
     def add_default_value(self, type):
@@ -1763,8 +1771,13 @@ static PyObject* __Pyx_Method_ClassMethod(PyObject *method) {
     else if (PyCFunction_Check(method)) {
         return PyClassMethod_New(method);
     }
+#ifdef __pyx_binding_PyCFunctionType_USED
+    else if (PyObject_TypeCheck(method, __pyx_binding_PyCFunctionType)) { /* binded CFunction */
+        return PyClassMethod_New(method);
+    }
+#endif
     PyErr_Format(PyExc_TypeError,
-                 "Class-level classmethod() can only be called on"
+                 "Class-level classmethod() can only be called on "
                  "a method_descriptor or instance method.");
     return NULL;
 }

@@ -60,6 +60,7 @@ def parse_from_strings(name, code, pxds={}, level=None, initial_pos=None):
                      scope = scope, context = context, initial_pos = initial_pos)
     if level is None:
         tree = Parsing.p_module(scanner, 0, module_name)
+        tree.scope = scope
     else:
         tree = Parsing.p_code(scanner, level=level)
     return tree
@@ -201,6 +202,8 @@ class TreeFragment(object):
             if not isinstance(t, StatListNode):
                 t = StatListNode(pos=mod.pos, stats=[t])
             for transform in pipeline:
+                if transform is None:
+                    continue
                 t = transform(t)
             self.root = t
         elif isinstance(code, Node):

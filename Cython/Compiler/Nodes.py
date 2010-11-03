@@ -899,13 +899,11 @@ class CVarDefNode(StatNode):
     #  declarators   [CDeclaratorNode]
     #  in_pxd        boolean
     #  api           boolean
-    #  properties    [entry]
 
     #  decorators    [cython.locals(...)] or None 
     #  directive_locals { string : NameNode } locals defined by cython.locals(...)
 
     child_attrs = ["base_type", "declarators"]
-    properties = ()
     
     decorators = None
     directive_locals = {}
@@ -921,7 +919,6 @@ class CVarDefNode(StatNode):
         # a property; made in AnalyseDeclarationsTransform).
         if (dest_scope.is_c_class_scope
             and self.visibility in ('public', 'readonly')):
-            self.properties = []
             need_property = True
         else:
             need_property = False
@@ -955,8 +952,7 @@ class CVarDefNode(StatNode):
                         "Only 'extern' C variable declaration allowed in .pxd file")
                 entry = dest_scope.declare_var(name, type, declarator.pos,
                             cname = cname, visibility = visibility, is_cdef = 1)
-                if need_property:
-                    self.properties.append(entry)
+                entry.needs_property = need_property
     
 
 class CStructOrUnionDefNode(StatNode):
@@ -1284,7 +1280,9 @@ class FuncDefNode(StatNode, BlockNode):
         acquire_gil = self.acquire_gil
         if acquire_gil:
             env.use_utility_code(force_init_threads_utility_code)
+            code.putln("#ifdef WITH_THREAD")
             code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
+            code.putln("#endif")
         # ----- set up refnanny
         if not lenv.nogil:
             code.put_setup_refcount_context(self.entry.name)
@@ -1469,7 +1467,9 @@ class FuncDefNode(StatNode, BlockNode):
             code.put_finish_refcount_context()
         
         if acquire_gil:
+            code.putln("#ifdef WITH_THREAD")
             code.putln("PyGILState_Release(_save);")
+            code.putln("#endif")
 
         if not self.return_type.is_void:
             code.putln("return %s;" % Naming.retval_cname)
@@ -1959,6 +1959,9 @@ class DefNode(FuncDefNode):
             # staticmethod() was overridden - not much we can do here ...
             self.is_staticmethod = False
 
+        if self.name == '__new__':
+            self.is_staticmethod = 1
+
         self.analyse_argument_types(env)
         if self.name == '<lambda>':
             self.declare_lambda_function(env)
@@ -2203,9 +2206,11 @@ class DefNode(FuncDefNode):
     def synthesize_assignment_node(self, env):
         import ExprNodes
         if env.is_py_class_scope:
-            rhs = ExprNodes.UnboundMethodNode(self.pos, 
-                function = ExprNodes.PyCFunctionNode(self.pos,
-                    pymethdef_cname = self.entry.pymethdef_cname))
+            rhs = ExprNodes.PyCFunctionNode(self.pos,
+                        pymethdef_cname = self.entry.pymethdef_cname)
+            if not self.is_staticmethod and not self.is_classmethod:
+                rhs.binding = True
+
         elif env.is_closure_scope:
             rhs = ExprNodes.InnerFunctionNode(
                 self.pos, pymethdef_cname = self.entry.pymethdef_cname)
@@ -3016,9 +3021,10 @@ class PyClassDefNode(ClassDefNode):
         code.pyclass_stack.append(self)
         cenv = self.scope
         self.dict.generate_evaluation_code(code)
+        cenv.namespace_cname = cenv.class_obj_cname = self.dict.result()
+        self.body.generate_execution_code(code)
         self.classobj.generate_evaluation_code(code)
         cenv.namespace_cname = cenv.class_obj_cname = self.classobj.result()
-        self.body.generate_execution_code(code)
         self.target.generate_assignment_code(self.classobj, code)
         self.dict.generate_disposal_code(code)
         self.dict.free_temps(code)
@@ -3104,7 +3110,12 @@ class CClassDefNode(ClassDefNode):
                     elif not base_class_entry.type.is_extension_type:
                         error(self.pos, "'%s' is not an extension type" % self.base_class_name)
                     elif not base_class_entry.type.is_complete():
-                        error(self.pos, "Base class '%s' is incomplete" % self.base_class_name)
+                        error(self.pos, "Base class '%s' of type '%s' is incomplete" % (
+                            self.base_class_name, self.class_name))
+                    elif base_class_entry.type.scope and base_class_entry.type.scope.directives and \
+                             base_class_entry.type.scope.directives['final']:
+                        error(self.pos, "Base class '%s' of type '%s' is final" % (
+                            self.base_class_name, self.class_name))
                     else:
                         self.base_type = base_class_entry.type
         has_body = self.body is not None
@@ -5084,10 +5095,15 @@ class GILStatNode(TryFinallyStatNode):
 
     def generate_execution_code(self, code):
         code.mark_pos(self.pos)
+        code.putln("{")
         if self.state == 'gil':
-            code.putln("{ PyGILState_STATE _save = PyGILState_Ensure();")
+            code.putln("#ifdef WITH_THREAD")
+            code.putln("PyGILState_STATE _save = PyGILState_Ensure();")
+            code.putln("#endif")
         else:
-            code.putln("{ PyThreadState *_save;")
+            code.putln("#ifdef WITH_THREAD")
+            code.putln("PyThreadState *_save;")
+            code.putln("#endif")
             code.putln("Py_UNBLOCK_THREADS")
         TryFinallyStatNode.generate_execution_code(self, code)
         code.putln("}")
@@ -5105,7 +5121,9 @@ class GILExitNode(StatNode):
 
     def generate_execution_code(self, code):
         if self.state == 'gil':
-            code.putln("PyGILState_Release();")
+            code.putln("#ifdef WITH_THREAD")
+            code.putln("PyGILState_Release(_save);")
+            code.putln("#endif")
         else:
             code.putln("Py_BLOCK_THREADS")
 

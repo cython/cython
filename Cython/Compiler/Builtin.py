@@ -115,7 +115,7 @@ builtin_types_table = [
                                     ("copy",  "O",   "O", "PyDict_Copy")]),
 
     ("slice",   "PySlice_Type",    []),
-    ("file",    "PyFile_Type",     []),
+#    ("file",    "PyFile_Type",     []),  # not in Py3
 
     ("set",       "PySet_Type",    [("clear",   "O",  "i", "PySet_Clear"), 
                                     ("discard", "OO", "i", "PySet_Discard"),
@@ -128,8 +128,9 @@ types_that_construct_their_instance = (
     # some builtin types do not always return an instance of
     # themselves - these do:
     'type', 'bool', 'long', 'float', 'bytes', 'unicode', 'tuple', 'list',
-    'dict', 'file', 'set', 'frozenset'
+    'dict', 'set', 'frozenset'
     # 'str',             # only in Py3.x
+    # 'file',            # only in Py2.x
     )
 
         

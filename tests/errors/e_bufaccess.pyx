@@ -10,6 +10,7 @@ def f():
     cdef object[int,2,3,4,5,6] buf4
     cdef object[int, 2, 'foo'] buf5
     cdef object[int, 2, well] buf6
+    cdef object[x, 1] buf0
 
 _ERRORS = u"""
 1:17: Buffer types only allowed as function local variables
@@ -23,5 +24,6 @@ _ERRORS = u"""
 #10:15: Too many buffer options
 #11:24: Only allowed buffer modes are "full" or "strided" (as a compile-time string)
 #12:28: Only allowed buffer modes are "full" or "strided" (as a compile-time string)
+#13:17: Invalid type.
 #"""
 

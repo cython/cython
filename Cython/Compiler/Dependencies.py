@@ -274,7 +274,7 @@ class DependencyTree(object):
     
     def find_pxd(self, module, filename=None):
         if module[0] == '.':
-            raise NotImplementedError, "New relative imports."
+            raise NotImplementedError("New relative imports.")
         if filename is not None:
             relative = '.'.join(self.package(filename) + tuple(module.split('.')))
             pxd = self.context.find_pxd_file(relative, None)
@@ -291,9 +291,9 @@ class DependencyTree(object):
         a = self.cimports(filename)
         b = filter(None, [self.find_pxd(m, filename) for m in self.cimports(filename)])
         if len(a) != len(b):
-            print (filename)
-            print ("\n\t".join(a))
-            print ("\n\t".join(b))
+            print(filename)
+            print("\n\t".join(a))
+            print("\n\t".join(b))
         return tuple(self_pxd + filter(None, [self.find_pxd(m, filename) for m in self.cimports(filename)]))
     cimported_files = cached_method(cimported_files)
     
@@ -392,7 +392,7 @@ def create_extension_list(patterns, ctx=None, aliases=None):
             base = DistutilsInfo(template)
             exn_type = type(template)
         else:
-            raise TypeError, pattern
+            raise TypeError(pattern)
         for file in glob(filepattern):
             pkg = deps.package(file)
             if name == '*':
@@ -428,7 +428,7 @@ def cythonize(module_list, ctx=None, nthreads=0, aliases=None):
                     dep_timestamp, dep = deps.newest_dependency(source)
                     priority = 2 - (dep in deps.immediate_dependencies(source))
                 if c_timestamp < dep_timestamp:
-                    print "Compiling", source, "because it depends on", dep
+                    print("Compiling %s because it depends on %s" % (source, dep))
                     to_compile.append((priority, source, c_file))
                 new_sources.append(c_file)
             else:
@@ -441,22 +441,33 @@ def cythonize(module_list, ctx=None, nthreads=0, aliases=None):
         try:
             import multiprocessing
         except ImportError:
-            print "multiprocessing required for parallel cythonization"
+            print("multiprocessing required for parallel cythonization")
             nthreads = 0
         pool = multiprocessing.Pool(nthreads)
-        pool.map(cythonoize_one_helper, to_compile)
+        pool.map(cythonize_one_helper, to_compile)
     if not nthreads:
         for priority, pyx_file, c_file in to_compile:
-            cythonoize_one(pyx_file, c_file)
+            cythonize_one(pyx_file, c_file)
     return module_list
 
-cython_py = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../cython.py'))
+def cythonize_one(pyx_file, c_file, options=None):
+    from Cython.Compiler.Main import compile, CompilationOptions, default_options
+    from Cython.Compiler.Errors import CompileError, PyrexError
 
-def cythonoize_one(pyx_file, c_file):
-    cmd = "%s %s %s -o %s" % (sys.executable, cython_py, pyx_file, c_file)
-    print cmd
-    if os.system(cmd) != 0:
-        raise CompilerError, pyx_file
+    if options is None:
+        options = CompilationOptions(default_options)
+    options.output_file = c_file
 
-def cythonoize_one_helper(m):
-    return cythonoize_one(*m[1:])
+    any_failures = 0
+    try:
+        result = compile([pyx_file], options)
+        if result.num_errors > 0:
+            any_failures = 1
+    except (EnvironmentError, PyrexError), e:
+        sys.stderr.write(str(e) + '\n')
+        any_failures = 1
+    if any_failures:
+        raise CompileError(None, pyx_file)
+
+def cythonize_one_helper(m):
+    return cythonize_one(*m[1:])

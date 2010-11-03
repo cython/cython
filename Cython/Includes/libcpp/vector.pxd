@@ -6,12 +6,20 @@ cdef extern from "<vector>" namespace "std":
             iterator operator--()
             bint operator==(iterator)
             bint operator!=(iterator)
+            bint operator<(iterator)
+            bint operator>(iterator)
+            bint operator<=(iterator)
+            bint operator>=(iterator)
         cppclass reverse_iterator:
             T& operator*()
             iterator operator++()
             iterator operator--()
-            bint operator==(iterator)
-            bint operator!=(iterator)
+            bint operator==(reverse_iterator)
+            bint operator!=(reverse_iterator)
+            bint operator<(reverse_iterator)
+            bint operator>(reverse_iterator)
+            bint operator<=(reverse_iterator)
+            bint operator>=(reverse_iterator)
         #cppclass const_iterator(iterator):
         #    pass
         #cppclass const_reverse_iterator(reverse_iterator):

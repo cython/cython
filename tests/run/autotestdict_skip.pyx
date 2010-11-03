@@ -1,6 +1,6 @@
-#cython: doctesthack=True
+#cython: autotestdict=True
 """
-Tests that doctesthack doesn't come into effect when
+Tests that autotestdict doesn't come into effect when
 a __test__ is defined manually.
 
 If this doesn't work, then the function doctest should fail.
