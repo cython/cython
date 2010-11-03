@@ -69,7 +69,55 @@ def test_locals(x):
     """
     y = x
     return y
-    
+
+@cython.test_assert_path_exists("//TryFinallyStatNode",
+                                "//TryFinallyStatNode//GILStatNode")
+@cython.test_fail_if_path_exists("//TryFinallyStatNode//TryFinallyStatNode")
+def test_with_nogil(nogil):
+    """
+    >>> raised = []
+    >>> class nogil(object):
+    ...     def __enter__(self):
+    ...         pass
+    ...     def __exit__(self, exc_class, exc, tb):
+    ...         raised.append(exc)
+    ...         return exc_class is None
+
+    >>> test_with_nogil(nogil())
+    WORKS
+    True
+    >>> raised
+    [None]
+    """
+    result = False
+    with nogil:
+        print "WORKS"
+        with cython.nogil:
+            result = True
+    return result
+
+@cython.test_assert_path_exists("//TryFinallyStatNode",
+                                "//TryFinallyStatNode//GILStatNode")
+@cython.test_fail_if_path_exists("//TryFinallyStatNode//TryFinallyStatNode")
+def test_with_nogil_multiple(nogil):
+    """
+    >>> raised = []
+    >>> class nogil(object):
+    ...     def __enter__(self):
+    ...         pass
+    ...     def __exit__(self, exc_class, exc, tb):
+    ...         raised.append(exc)
+    ...         return exc_class is None
+
+    >>> test_with_nogil_multiple(nogil())
+    True
+    >>> raised
+    [None]
+    """
+    result = False
+    with nogil, cython.nogil:
+        result = True
+    return result
 
 MyUnion = cython.union(n=cython.int, x=cython.double)
 MyStruct = cython.struct(is_integral=cython.bint, data=MyUnion)
