@@ -5,6 +5,9 @@ cdef class Spam:
         def __get__(self):
             """
             This is the docstring for Spam.eggs.__get__
+
+            >>> True
+            True
             """
             return 42
 
@@ -16,9 +19,9 @@ def tomato():
     >>> lines = __test__.keys()
     >>> len(lines)
     3
-    >>> 'Spam.eggs.__get__ (line 5)' in lines
+    >>> 'Spam.eggs.__get__ (line 5)' in lines or lines
     True
-    >>> 'tomato (line 11)' in lines
+    >>> 'tomato (line 14)' in lines or lines
     True
     """
     cdef Spam spam
