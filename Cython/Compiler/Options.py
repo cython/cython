@@ -68,6 +68,8 @@ directive_defaults = {
     'infer_types': None,
     'infer_types.verbose': False,
     'autotestdict': True,
+    'autotestdict.cdef': False,
+    'autotestdict.all': False,
     'language_level': 2,
     
     'warn': None,
@@ -97,6 +99,8 @@ directive_scopes = { # defaults to available everywhere
     'final' : ('cclass',),   # add 'method' in the future
     'internal' : ('cclass',),
     'autotestdict' : ('module',),
+    'autotestdict.all' : ('module',),
+    'autotestdict.cdef' : ('module',),
     'test_assert_path_exists' : ('function',),
     'test_fail_if_path_exists' : ('function',),
 }

@@ -197,7 +197,7 @@ except ValueError:
 
 setup_args.update(setuptools_extra_args)
 
-from Cython.Compiler.Version import version
+from Cython import __version__ as version
 
 setup(
   name = 'Cython',
