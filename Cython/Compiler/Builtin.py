@@ -18,6 +18,7 @@ builtin_function_table = [
     ('dir',        "O",    "O",     "PyObject_Dir"),
     ('divmod',     "OO",   "O",     "PyNumber_Divmod"),
     ('exec',       "OOO",  "O",     "__Pyx_PyRun"),
+    ('exec',       "OO",   "O",     "__Pyx_PyRun2"),
     #('eval',      "",     "",      ""),
     #('execfile',  "",     "",      ""),
     #('filter',    "",     "",      ""),
@@ -181,8 +182,13 @@ proto = """
 #endif
 #endif
 static PyObject* __Pyx_PyRun(PyObject*, PyObject*, PyObject*);
+static CYTHON_INLINE PyObject* __Pyx_PyRun2(PyObject*, PyObject*);
 """,
 impl = """
+static CYTHON_INLINE PyObject* __Pyx_PyRun2(PyObject* o, PyObject* globals) {
+    return __Pyx_PyRun(o, globals, NULL);
+}
+
 static PyObject* __Pyx_PyRun(PyObject* o, PyObject* globals, PyObject* locals) {
     PyObject* result;
     PyObject* s = 0;
