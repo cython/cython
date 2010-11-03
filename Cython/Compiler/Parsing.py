@@ -1504,7 +1504,7 @@ def p_include_statement(s, ctx):
 
 def p_with_statement(s):
     s.next() # 'with'
-    if s.systring == 'template':
+    if s.systring == 'template' and not s.in_python_file:
         node = p_with_template(s)
     else:
         node = p_with_items(s)
