@@ -191,6 +191,9 @@ class TestBuilder(object):
             for test in self.build_tests(test_class, path, workdir,
                                          module, expect_errors):
                 suite.addTest(test)
+            if filename.endswith('.py'):
+                # additionally test file in real Python
+                suite.addTest(PureDoctestTestCase(module, os.path.join(path, filename)))
         return suite
 
     def build_tests(self, test_class, path, workdir, module, expect_errors):
@@ -499,6 +502,38 @@ class CythonRunTestCase(CythonCompileTestCase):
             try: os.unlink(result_file)
             except: pass
 
+class PureDoctestTestCase(unittest.TestCase):
+    def __init__(self, module_name, module_path):
+        self.module_name = module_name
+        self.module_path = module_path
+        unittest.TestCase.__init__(self, 'run')
+
+    def shortDescription(self):
+        return "running pure doctests in %s" % self.module_name
+
+    def run(self, result=None):
+        if result is None:
+            result = self.defaultTestResult()
+        loaded_module_name = 'pure_doctest__' + self.module_name
+        result.startTest(self)
+        try:
+            self.setUp()
+
+            import imp
+            m = imp.load_source(loaded_module_name, self.module_path)
+            try:
+                doctest.DocTestSuite(m).run(result)
+            finally:
+                del m
+                if loaded_module_name in sys.modules:
+                    del sys.modules[loaded_module_name]
+        except Exception:
+            result.addError(self, sys.exc_info())
+            result.stopTest(self)
+        try:
+            self.tearDown()
+        except Exception:
+            pass
 
 is_private_field = re.compile('^_[^_]').match
 
