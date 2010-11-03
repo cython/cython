@@ -552,7 +552,7 @@ class Scope(object):
                 warning(pos, "Function '%s' previously declared as '%s'" % (name, entry.visibility), 1)
             if not entry.type.same_as(type):
                 if visibility == 'extern' and entry.visibility == 'extern':
-                    if self.is_cpp():
+                    if self.is_cpp() or (cname and entry.cname and cname != entry.cname):
                         temp = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
                         temp.overloaded_alternatives = entry.all_alternatives()
                         entry = temp
