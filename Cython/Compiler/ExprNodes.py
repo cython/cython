@@ -7187,6 +7187,7 @@ static PyObject *__Pyx_CreateClass(
     }
 
     result = PyObject_CallFunctionObjArgs(metaclass, name, bases, methods, NULL);
+    Py_DECREF(metaclass);
     #else
     /* it seems that python3+ handle __metaclass__ itself */
     result = PyObject_CallFunctionObjArgs((PyObject *)&PyType_Type, name, bases, methods, NULL);
