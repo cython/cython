@@ -58,6 +58,17 @@ def declare(type=None, value=None, **kwds):
     else:
         return value
 
+class _nogil(object):
+    """Support for 'with nogil' statement
+    """
+    def __enter__(self):
+        pass
+    def __exit__(self, exc_class, exc, tb):
+        return exc_class is None
+
+nogil = _nogil()
+del _nogil
+
 # Emulated types
 
 class CythonType(object):

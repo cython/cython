@@ -854,6 +854,10 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
                         PostParseError(node.pos, "Compiler directive with statements cannot contain 'as'"))
                 else:
                     name, value = directive
+                    if name == 'nogil':
+                        # special case: in pure mode, "with nogil" spells "with cython.nogil"
+                        node = GILStatNode(node.pos, state = "nogil", body = node.body)
+                        return self.visit_Node(node)
                     if self.check_directive_scope(node.pos, name, 'with statement'):
                         directive_dict[name] = value
         if directive_dict:
