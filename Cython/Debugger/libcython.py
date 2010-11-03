@@ -752,6 +752,7 @@ class CyBreak(CythonCommand):
 
         words = text.strip().split()
         if words and '.' in words[-1]:
+            lastword = words[-1]
             compl = [n for n in self.cy.functions_by_qualified_name 
                            if n.startswith(lastword)]
         else:
