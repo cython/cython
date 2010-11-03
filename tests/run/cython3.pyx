@@ -15,6 +15,25 @@ def print_function(*args):
     """
     print(*args) # this isn't valid Py2 syntax
 
+def exec3_function(cmd):
+    """
+    >>> exec3_function('a = 1+1')['a']
+    2
+    """
+    g = {}
+    l = {}
+    exec(cmd, g, l)
+    return l
+
+def exec2_function(cmd):
+    """
+    >>> exec2_function('a = 1+1')['a']
+    2
+    """
+    g = {}
+    exec(cmd, g)
+    return g
+
 ustring = "abcdefg"
 
 def unicode_literals():

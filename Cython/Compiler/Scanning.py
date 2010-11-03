@@ -358,8 +358,11 @@ class PyrexScanner(Scanner):
             self.error("Unrecognized character")
         if sy == IDENT:
             if systring in self.keywords:
-                if systring == 'print' and \
-                       print_function in self.context.future_directives:
+                if systring == 'print' and print_function in self.context.future_directives:
+                    self.keywords.remove('print')
+                    systring = EncodedString(systring)
+                elif systring == 'exec' and self.context.language_level >= 3:
+                    self.keywords.remove('exec')
                     systring = EncodedString(systring)
                 else:
                     sy = systring
