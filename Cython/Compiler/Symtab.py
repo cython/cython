@@ -552,7 +552,18 @@ class Scope(object):
                 warning(pos, "Function '%s' previously declared as '%s'" % (name, entry.visibility), 1)
             if not entry.type.same_as(type):
                 if visibility == 'extern' and entry.visibility == 'extern':
-                    if self.is_cpp() or (cname and entry.cname and cname != entry.cname):
+                    can_override = False
+                    if self.is_cpp():
+                        can_override = True
+                    elif cname:
+                        # if all alternatives have different cnames,
+                        # it's safe to allow signature overrides
+                        for alt_entry in entry.all_alternatives():
+                            if not alt_entry.cname or cname == alt_entry.cname:
+                                break # cname not unique!
+                        else:
+                            can_override = True
+                    if can_override:
                         temp = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
                         temp.overloaded_alternatives = entry.all_alternatives()
                         entry = temp
