@@ -18,12 +18,13 @@ class AutoTestDictTransform(ScopeTrackingTransform):
     def visit_ModuleNode(self, node):
         if node.is_pxd:
             return node
-
         self.scope_type = 'module'
         self.scope_node = node
 
         if not self.current_directives['autotestdict']:
             return node
+        self.all_docstrings = self.current_directives['autotestdict.all']
+        self.cdef_docstrings = self.all_docstrings or self.current_directives['autotestdict.cdef']
 
         assert isinstance(node.body, StatListNode)
 
@@ -59,8 +60,10 @@ class AutoTestDictTransform(ScopeTrackingTransform):
     def visit_FuncDefNode(self, node):
         if not node.doc:
             return node
-        if isinstance(node, CFuncDefNode) and not node.py_func:
-            # skip non-cpdef cdef functions
+        if not self.cdef_docstrings:
+            if isinstance(node, CFuncDefNode) and not node.py_func:
+                return node
+        if not self.all_docstrings and '>>>' not in node.doc:
             return node
 
         pos = self.testspos
@@ -68,7 +71,10 @@ class AutoTestDictTransform(ScopeTrackingTransform):
             path = node.entry.name
         elif self.scope_type in ('pyclass', 'cclass'):
             if isinstance(node, CFuncDefNode):
-                name = node.py_func.name
+                if node.py_func is not None:
+                    name = node.py_func.name
+                else:
+                    name = node.entry.name
             else:
                 name = node.name
             if self.scope_type == 'cclass' and name in self.blacklist:
