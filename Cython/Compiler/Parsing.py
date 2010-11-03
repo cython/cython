@@ -1503,50 +1503,62 @@ def p_include_statement(s, ctx):
         return Nodes.PassStatNode(pos)
 
 def p_with_statement(s):
-    pos = s.position()
     s.next() # 'with'
-#    if s.sy == 'IDENT' and s.systring in ('gil', 'nogil'):
+    if s.systring == 'template':
+        node = p_with_template(s)
+    else:
+        node = p_with_items(s)
+    return node
+
+def p_with_items(s):
+    pos = s.position()
     if s.sy == 'IDENT' and s.systring == 'nogil':
         state = s.systring
         s.next()
-        body = p_suite(s)
-        return Nodes.GILStatNode(pos, state = state, body = body)
-    elif s.systring == 'template':
-        templates = []
-        s.next()
-        s.expect('[')
-        #s.next()
-        templates.append(s.systring)
-        s.next()
-        while s.systring == ',':
+        if s.sy == ',':
             s.next()
-            templates.append(s.systring)
-            s.next()
-        s.expect(']')
-        if s.sy == ':':
-            s.next()
-            s.expect_newline("Syntax error in template function declaration")
-            s.expect_indent()
-            body_ctx = Ctx()
-            body_ctx.templates = templates
-            func_or_var = p_c_func_or_var_declaration(s, pos, body_ctx)
-            s.expect_dedent()
-            return func_or_var
+            body = p_with_items(s)
         else:
-            error(pos, "Syntax error in template function declaration")
+            body = p_suite(s)
+        return Nodes.GILStatNode(pos, state = state, body = body)
     else:
         manager = p_test(s)
         target = None
         if s.sy == 'IDENT' and s.systring == 'as':
             s.next()
-            allow_multi = (s.sy == '(')
-            target = p_target(s, ':')
-            if not allow_multi and isinstance(target, ExprNodes.TupleNode):
-                s.error("Multiple with statement target values not allowed without paranthesis")
-        body = p_suite(s)
+            target = p_starred_expr(s)
+        if s.sy == ',':
+            s.next()
+            body = p_with_items(s)
+        else:
+            body = p_suite(s)
     return Nodes.WithStatNode(pos, manager = manager, 
                               target = target, body = body)
-    
+
+def p_with_template(s):
+    pos = s.position()
+    templates = []
+    s.next()
+    s.expect('[')
+    templates.append(s.systring)
+    s.next()
+    while s.systring == ',':
+        s.next()
+        templates.append(s.systring)
+        s.next()
+    s.expect(']')
+    if s.sy == ':':
+        s.next()
+        s.expect_newline("Syntax error in template function declaration")
+        s.expect_indent()
+        body_ctx = Ctx()
+        body_ctx.templates = templates
+        func_or_var = p_c_func_or_var_declaration(s, pos, body_ctx)
+        s.expect_dedent()
+        return func_or_var
+    else:
+        error(pos, "Syntax error in template function declaration")
+
 def p_simple_statement(s, first_statement = 0):
     #print "p_simple_statement:", s.sy, s.systring ###
     if s.sy == 'global':
