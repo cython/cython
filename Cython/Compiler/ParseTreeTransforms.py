@@ -1474,13 +1474,14 @@ class DebugTransform(CythonTransform):
     to enable debugging.
     """
     
-    def __init__(self, context, options):
+    def __init__(self, context, options, result):
         super(DebugTransform, self).__init__(context)
         self.visited = set()
         # our treebuilder and debug output writer 
         # (see Cython.Debugger.debug_output.CythonDebugWriter)
         self.tb = self.context.debug_outputwriter
-        self.c_output_file = options.output_file
+        #self.c_output_file = options.output_file 
+        self.c_output_file = result.c_file
         
         # tells visit_NameNode whether it should register step-into functions
         self.register_stepinto = False

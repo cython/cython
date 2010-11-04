@@ -185,7 +185,7 @@ class Context(object):
             from ParseTreeTransforms import DebugTransform
             self.debug_outputwriter = DebugWriter.CythonDebugWriter(
                 options.output_dir)
-            debug_transform = [DebugTransform(self, options)]
+            debug_transform = [DebugTransform(self, options, result)]
         else:
             debug_transform = []
             
