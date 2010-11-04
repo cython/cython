@@ -44,6 +44,7 @@ builtin_function_table = [
     #('open',       "ss",   "O",     "PyFile_FromString"),
     #('ord',       "",     "",      ""),
     ('pow',        "OOO",  "O",     "PyNumber_Power"),
+    ('pow',        "OO",   "O",     "__Pyx_PyNumber_Power2"),
     #('range',     "",     "",      ""),
     #('raw_input', "",     "",      ""),
     #('reduce',    "",     "",      ""),
@@ -151,6 +152,11 @@ builtin_structs_table = [
       ("internal",   PyrexTypes.c_void_ptr_type),
       ])
 ]
+
+pow2_utility_code = UtilityCode(
+proto = """
+#define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
+""")
 
 getattr3_utility_code = UtilityCode(
 proto = """
@@ -383,6 +389,7 @@ Py_XDECREF(__Pyx_PyFrozenSet_Type); __Pyx_PyFrozenSet_Type = NULL;
 builtin_utility_code = {
     'exec'      : pyexec_utility_code,
     'getattr3'  : getattr3_utility_code,
+    'pow'       : pow2_utility_code,
     'intern'    : intern_utility_code,
     'set'       : py23_set_utility_code,
     'frozenset' : py23_set_utility_code,

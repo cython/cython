@@ -15,6 +15,7 @@ cdef int f() except -1:
     i = len(x)
     x = open(y, z)
     x = pow(y, z, w)
+    x = pow(y, z)
     x = reload(y)
     x = repr(y)
     setattr(x, y, z)
