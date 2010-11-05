@@ -94,7 +94,7 @@ class DistutilsInfo(object):
                             value = [tuple(macro.split('=')) for macro in value]
                     self.values[key] = value
         elif exn is not None:
-            for key in self.distutils_settings:
+            for key in distutils_settings:
                 if key in ('name', 'sources'):
                     pass
                 value = getattr(exn, key, None)
@@ -154,19 +154,32 @@ def strip_string_literals(code, prefix='__Pyx_L'):
     in_quote = False
     raw = False
     while True:
+        hash_mark = code.find('#', q)
         single_q = code.find("'", q)
         double_q = code.find('"', q)
         q = min(single_q, double_q)
         if q == -1: q = max(single_q, double_q)
-        if q == -1:
-            if in_quote:
-                counter += 1
-                label = "'%s%s" % (prefix, counter)
-                literals[label] = code[start:]
-                new_code.append(label)
-            else:
-                new_code.append(code[start:])
+        
+        # Process comment.
+        if hash_mark < q or hash_mark > -1 == q:
+            end = code.find('\n', hash_mark)
+            if end == -1:
+                end = None
+            new_code.append(code[start:hash_mark+1])
+            counter += 1
+            label = "%s%s" % (prefix, counter)
+            literals[label] = code[hash_mark+1:end]
+            new_code.append(label)
+            if end is None:
+                break
+            q = end
+
+        # We're done.
+        elif q == -1:
+            new_code.append(code[start:])
             break
+
+        # Try to close the quote.
         elif in_quote:
             if code[q-1] == '\\':
                 k = 2
@@ -179,12 +192,14 @@ def strip_string_literals(code, prefix='__Pyx_L'):
                 counter += 1
                 label = "%s%s" % (prefix, counter)
                 literals[label] = code[start+len(in_quote):q]
-                new_code.append("'%s'" % label)
+                new_code.append("%s%s%s" % (in_quote, label, in_quote))
                 q += len(in_quote)
                 start = q
                 in_quote = False
             else:
                 q += 1
+
+        # Open the quote.
         else:
             raw = False
             if len(code) >= q+3 and (code[q+1] == code[q] == code[q+2]):
@@ -202,13 +217,13 @@ def strip_string_literals(code, prefix='__Pyx_L'):
     
     return "".join(new_code), literals
 
+
 def parse_dependencies(source_filename):
     # Actual parsing is way to slow, so we use regular expressions.
     # The only catch is that we must strip comments and string
     # literals ahead of time.
     source = Utils.open_source_file(source_filename, "rU").read()
     distutils_info = DistutilsInfo(source)
-    source = re.sub('#.*', '', source)
     source, literals = strip_string_literals(source)
     source = source.replace('\\\n', ' ')
     if '\t' in source:
@@ -389,8 +404,8 @@ def create_extension_list(patterns, ctx=None, aliases=None):
                 continue
             template = pattern
             name = template.name
-            base = DistutilsInfo(template)
-            exn_type = type(template)
+            base = DistutilsInfo(exn=template)
+            exn_type = template.__class__
         else:
             raise TypeError(pattern)
         for file in glob(filepattern):
