@@ -30,3 +30,12 @@ def pow2_const():
     8
     """
     return pow(2,3)
+
+def pow_args(*args):
+    """
+    >>> pow_args(2,3)
+    8
+    >>> pow_args(2,3,5)
+    3
+    """
+    return pow(*args)
