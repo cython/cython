@@ -241,6 +241,7 @@ setup(
   scripts = scripts,
   packages=[
     'Cython',
+    'Cython.Build',
     'Cython.Compiler',
     'Cython.Runtime',
     'Cython.Distutils',
