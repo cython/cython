@@ -106,21 +106,24 @@ def cython_inline(code,
     arg_names = kwds.keys()
     arg_names.sort()
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
-    key = code, arg_sigs
-    module_name = _code_cache.get(key)
-    if module_name is None:
-        module_name = "_cython_inline_" + hashlib.md5(code + str(arg_sigs) + Cython.__version__).hexdigest()
+    key = code, arg_sigs, sys.version_info, sys.executable, Cython.__version__
+    module_name = "_cython_inline_" + hashlib.md5(str(key)).hexdigest()
     try:
         if lib_dir not in sys.path:
             sys.path.append(lib_dir)
         __import__(module_name)
     except ImportError:
+        c_include_dirs = []
         cimports = []
         qualified = re.compile(r'([.\w]+)[.]')
         for type, _ in arg_sigs:
             m = qualified.match(type)
             if m:
                 cimports.append('\ncimport %s' % m.groups()[0])
+                # one special case
+                if m.groups()[0] == 'numpy':
+                    import numpy
+                    c_include_dirs.append(numpy.get_include())
         module_body, func_body = extract_func_code(code)
         params = ', '.join(['%s %s' % a for a in arg_sigs])
         module_code = """
@@ -136,7 +139,7 @@ def __invoke(%(params)s):
         extension = Extension(
             name = module_name,
             sources = [pyx_file],
-            pyrex_include_dirs = include_dirs)
+            include_dirs = c_include_dirs)
         build_extension = build_ext(Distribution())
         build_extension.finalize_options()
         build_extension.extensions = cythonize([extension])
