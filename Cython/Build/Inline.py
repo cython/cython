@@ -9,14 +9,14 @@ try:
 except ImportError:
     import md5 as hashlib
 
-from distutils.dist import Distribution
-from Cython.Distutils.extension import Extension
-from Cython.Distutils import build_ext
+from distutils.core import Distribution, Extension
+from distutils.command.build_ext import build_ext
 
 from Cython.Compiler.Main import Context, CompilationOptions, default_options
 
 from Cython.Compiler.ParseTreeTransforms import CythonTransform, SkipDeclarations, AnalyseDeclarationsTransform
 from Cython.Compiler.TreeFragment import parse_from_strings
+from Cython.Build.Dependencies import strip_string_literals, cythonize
 
 _code_cache = {}
 
@@ -82,6 +82,7 @@ def cython_inline(code,
                   locals=None,
                   globals=None,
                   **kwds):
+    code, literals = strip_string_literals(code)
     code = strip_common_indent(code)
     ctx = Context(include_dirs, default_options)
     if locals is None:
@@ -116,22 +117,23 @@ def cython_inline(code,
         module_body, func_body = extract_func_code(code)
         params = ', '.join(['%s %s' % a for a in arg_sigs])
         module_code = """
-%(cimports)s
 %(module_body)s
+%(cimports)s
 def __invoke(%(params)s):
 %(func_body)s
         """ % {'cimports': '\n'.join(cimports), 'module_body': module_body, 'params': params, 'func_body': func_body }
-#        print module_code
-        _, pyx_file = tempfile.mkstemp('.pyx')
-        open(pyx_file, 'w').write(module_code)
+        for key, value in literals.items():
+            module_code = module_code.replace(key, value)
         module = "_" + hashlib.md5(code + str(arg_sigs)).hexdigest()
+        pyx_file = os.path.join(tempfile.mkdtemp(), module + '.pyx')
+        open(pyx_file, 'w').write(module_code)
         extension = Extension(
             name = module,
             sources = [pyx_file],
             pyrex_include_dirs = include_dirs)
         build_extension = build_ext(Distribution())
         build_extension.finalize_options()
-        build_extension.extensions = [extension]
+        build_extension.extensions = cythonize([extension])
         build_extension.build_temp = os.path.dirname(pyx_file)
         if lib_dir not in sys.path:
             sys.path.append(lib_dir)
