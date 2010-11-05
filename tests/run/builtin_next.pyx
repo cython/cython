@@ -26,6 +26,21 @@ StopIteration
 123
 """
 
+if IS_PY3:
+    __doc__ += """
+>>> next(123)
+Traceback (most recent call last):
+TypeError: int object is not an iterator
+"""
+
+def test_next_not_iterable(it):
+    """
+    >>> test_next_not_iterable(123)
+    Traceback (most recent call last):
+    TypeError: int object is not an iterator
+    """
+    return next(it)
+
 def test_single_next(it):
     """
     >>> it = iter([1,2,3])
@@ -59,14 +74,6 @@ def test_default_next(it, default):
     99
     """
     return next(it, default)
-
-def test_next_not_iterable(it):
-    """
-    >>> test_next_not_iterable(123)
-    Traceback (most recent call last):
-    TypeError: int object is not an iterator
-    """
-    return next(it)
 
 def test_next_override(it):
     """
