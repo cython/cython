@@ -4480,14 +4480,23 @@ class ClassNode(ExprNode, ModuleNameMixin):
     #  dict         ExprNode           Class dict (not owned by this node)
     #  doc          ExprNode or None   Doc string
     #  module_name  EncodedString      Name of defining module
+    #  keyword_args ExprNode or None   Py3 Dict of keyword arguments, passed to __new__
+    #  starstar_arg ExprNode or None   Py3 Dict of extra keyword args, same here
     
-    subexprs = ['bases', 'doc']
+    subexprs = ['bases', 'keyword_args', 'starstar_arg', 'doc']
 
     def analyse_types(self, env):
         self.bases.analyse_types(env)
         if self.doc:
             self.doc.analyse_types(env)
             self.doc = self.doc.coerce_to_pyobject(env)
+        if self.keyword_args:
+            self.keyword_args.analyse_types(env)
+        if self.starstar_arg:
+            self.starstar_arg.analyse_types(env)
+        if self.starstar_arg:
+            self.starstar_arg = \
+                self.starstar_arg.coerce_to_pyobject(env)
         self.type = py_object_type
         self.is_temp = 1
         env.use_utility_code(create_class_utility_code);
@@ -4501,6 +4510,19 @@ class ClassNode(ExprNode, ModuleNameMixin):
 
     def generate_result_code(self, code):
         cname = code.intern_identifier(self.name)
+        if self.keyword_args and self.starstar_arg:
+            code.put_error_if_neg(self.pos,
+                "PyDict_Update(%s, %s)" % (
+                    self.keyword_args.py_result(),
+                    self.starstar_arg.py_result()))
+            keyword_code = self.keyword_args.py_result()
+        elif self.keyword_args:
+            keyword_code = self.keyword_args.py_result()
+        elif self.starstar_arg:
+            keyword_code = self.starstar_arg.py_result()
+        else:
+            keyword_code = 'NULL'
+
         if self.doc:
             code.put_error_if_neg(self.pos, 
                 'PyDict_SetItemString(%s, "__doc__", %s)' % (
@@ -4508,12 +4530,13 @@ class ClassNode(ExprNode, ModuleNameMixin):
                     self.doc.py_result()))
         py_mod_name = self.get_py_mod_name(code)
         code.putln(
-            '%s = __Pyx_CreateClass(%s, %s, %s, %s); %s' % (
+            '%s = __Pyx_CreateClass(%s, %s, %s, %s, %s); %s' % (
                 self.result(),
                 self.bases.py_result(),
                 self.dict.py_result(),
                 cname,
                 py_mod_name,
+                keyword_code,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
@@ -7159,45 +7182,106 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
 
 create_class_utility_code = UtilityCode(
 proto = """
-static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name, PyObject *modname); /*proto*/
+static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name,
+                                     PyObject *modname, PyObject *kwargs); /*proto*/
 """,
 impl = """
-static PyObject *__Pyx_CreateClass(
-    PyObject *bases, PyObject *methods, PyObject *name, PyObject *modname)
+static int __Pyx_PrepareClass(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *mkw, PyObject *dict)
 {
-    PyObject *result = 0;
-#if PY_MAJOR_VERSION < 3
-    PyObject *metaclass = 0, *base;
-#endif
+    PyObject *prep;
+    PyObject *pargs;
+    PyObject *ns;
 
-    if (PyDict_SetItemString(methods, "__module__", modname) < 0)
-        goto bad;
-    #if PY_MAJOR_VERSION < 3
-    metaclass = PyDict_GetItemString(methods, "__metaclass__");
+    prep = PyObject_GetAttrString(metaclass, "__prepare__");
+    if (prep == NULL) {
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
+            return -1;
+        PyErr_Clear();
+        return 0;
+    }
+    pargs = PyTuple_Pack(2, name, bases);
+    if (pargs == NULL) {
+        Py_DECREF(prep);
+        return -1;
+    }
+    ns = PyEval_CallObjectWithKeywords(prep, pargs, mkw);
+    Py_DECREF(pargs);
+    Py_DECREF(prep);
+    if (ns == NULL)
+        return -1;
+    /* XXX: This is hack, merge namespace back to dict,
+       __prepare__ should be ran before dict initialization */
+    if (PyDict_Merge(dict, ns, 0)) {
+        Py_DECREF(ns);
+        return -1;
+    }
+    Py_DECREF(ns);
+    return 0;
+}
 
-    if (metaclass != NULL)
-        Py_INCREF(metaclass);
-    else if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
-        base = PyTuple_GET_ITEM(bases, 0);
-        metaclass = PyObject_GetAttrString(base, "__class__");
-        if (metaclass == NULL) {
-            PyErr_Clear();
-            metaclass = (PyObject *)base->ob_type;
+static PyObject *__Pyx_CreateClass(
+    PyObject *bases, PyObject *dict, PyObject *name, PyObject *modname, PyObject *kwargs)
+{
+    PyObject *result = NULL;
+    PyObject *metaclass = NULL;
+    PyObject *mkw = NULL;
+
+    if (PyDict_SetItemString(dict, "__module__", modname) < 0)
+        return NULL;
+
+    /* Python3 metaclasses */
+    if (kwargs) {
+        mkw = PyDict_Copy(kwargs); /* Don't modify kwargs passed in! */
+        if (mkw == NULL)
+            return NULL;
+        metaclass = PyDict_GetItemString(mkw, "metaclass");
+        if (metaclass) {
             Py_INCREF(metaclass);
+            if (PyDict_DelItemString(mkw, "metaclass") < 0)
+                goto bad;
+            if (__Pyx_PrepareClass(metaclass, bases, name, mkw, dict))
+                goto bad;
         }
     }
-    else {
-        metaclass = (PyObject *) &PyClass_Type;
+    /* Python2 __metaclass__ */
+    if (metaclass == NULL) {
+        metaclass = PyDict_GetItemString(dict, "__metaclass__");
+        if (metaclass)
+            Py_INCREF(metaclass);
+    }
+    /* Default metaclass */
+    if (metaclass == NULL) {
+#if PY_MAJOR_VERSION < 3
+        if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+            PyObject *base = PyTuple_GET_ITEM(bases, 0);
+            metaclass = PyObject_GetAttrString(base, "__class__");
+            if (metaclass == NULL) {
+                PyErr_Clear();
+                metaclass = (PyObject *)base->ob_type;
+            }
+        } else
+            metaclass = (PyObject *) &PyClass_Type;
+#else
+        if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+            PyObject *base = PyTuple_GET_ITEM(bases, 0);
+            metaclass = (PyObject *)base->ob_type;
+        } else
+            metaclass = (PyObject *) &PyType_Type;
+#endif
         Py_INCREF(metaclass);
     }
-
-    result = PyObject_CallFunctionObjArgs(metaclass, name, bases, methods, NULL);
-    Py_DECREF(metaclass);
-    #else
-    /* it seems that python3+ handle __metaclass__ itself */
-    result = PyObject_CallFunctionObjArgs((PyObject *)&PyType_Type, name, bases, methods, NULL);
-    #endif
+    if (mkw && PyDict_Size(mkw) > 0) {
+        PyObject *margs;
+        margs = PyTuple_Pack(3, name, bases, dict, NULL);
+        result = PyEval_CallObjectWithKeywords(metaclass, margs, mkw);
+        Py_DECREF(margs);
+    } else {
+        result = PyObject_CallFunctionObjArgs(metaclass, name, bases, dict, NULL);
+    }
 bad:
+    Py_DECREF(metaclass);
+    if (mkw)
+        Py_XDECREF(mkw);
     return result;
 }
 """)
