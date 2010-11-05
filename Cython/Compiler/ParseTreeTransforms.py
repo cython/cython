@@ -1554,7 +1554,9 @@ class DebugTransform(CythonTransform):
         return node
 
     def visit_NameNode(self, node):
-        if (self.register_stepinto and node.type.is_cfunction and node.is_called):
+        if (self.register_stepinto and 
+            node.type.is_cfunction and 
+            getattr(node, 'is_called', False)):
             # don't check node.entry.in_cinclude, as 'cdef extern: ...' 
             # declared functions are not 'in_cinclude'. 
             # This means we will list called 'cdef' functions as 
