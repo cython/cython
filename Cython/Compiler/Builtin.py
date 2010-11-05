@@ -39,6 +39,8 @@ builtin_function_table = [
     #('map',       "",     "",      ""),
     #('max',       "",     "",      ""),
     #('min',       "",     "",      ""),
+    ('next',       "O",    "O",     "__Pyx_PyIter_Next"),   # not available in Py2 => implemented here
+    ('next',      "OO",    "O",     "__Pyx_PyIter_Next2"),  # not available in Py2 => implemented here
     #('oct',       "",     "",      ""),
     # Not worth doing open, when second argument would become mandatory
     #('open',       "ss",   "O",     "PyFile_FromString"),
@@ -157,6 +159,40 @@ pow2_utility_code = UtilityCode(
 proto = """
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
 """)
+
+iter_next_utility_code = UtilityCode(
+proto = """
+#define __Pyx_PyIter_Next(obj) __Pyx_PyIter_Next2(obj, NULL);
+static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject *, PyObject *); /*proto*/
+""",
+# copied from Py3's builtin_next()
+impl = '''
+static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* defval) {
+    PyObject* next;
+    if (unlikely(!PyIter_Check(iterator))) {
+        PyErr_Format(PyExc_TypeError,
+            "%.200s object is not an iterator", iterator->ob_type->tp_name);
+        return NULL;
+    }
+    next = (*iterator->ob_type->tp_iternext)(iterator);
+    if (likely(next)) {
+        return next;
+    } else if (defval) {
+        if (PyErr_Occurred()) {
+            if(!PyErr_ExceptionMatches(PyExc_StopIteration))
+                return NULL;
+            PyErr_Clear();
+        }
+        Py_INCREF(defval);
+        return defval;
+    } else if (PyErr_Occurred()) {
+        return NULL;
+    } else {
+        PyErr_SetNone(PyExc_StopIteration);
+        return NULL;
+    }
+}
+''')
 
 getattr3_utility_code = UtilityCode(
 proto = """
@@ -390,6 +426,7 @@ builtin_utility_code = {
     'exec'      : pyexec_utility_code,
     'getattr3'  : getattr3_utility_code,
     'pow'       : pow2_utility_code,
+    'next'      : iter_next_utility_code,
     'intern'    : intern_utility_code,
     'set'       : py23_set_utility_code,
     'frozenset' : py23_set_utility_code,
