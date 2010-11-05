@@ -2940,7 +2940,8 @@ class PyClassDefNode(ClassDefNode):
     child_attrs = ["body", "dict", "classobj", "target"]
     decorators = None
     
-    def __init__(self, pos, name, bases, doc, body, decorators = None):
+    def __init__(self, pos, name, bases, doc, body, decorators = None,
+                 keyword_args = None, starstar_arg = None):
         StatNode.__init__(self, pos)
         self.name = name
         self.doc = doc
@@ -2955,7 +2956,8 @@ class PyClassDefNode(ClassDefNode):
         else:
             doc_node = None
         self.classobj = ExprNodes.ClassNode(pos, name = name,
-            bases = bases, dict = self.dict, doc = doc_node)
+            bases = bases, dict = self.dict, doc = doc_node,
+            keyword_args = keyword_args, starstar_arg = starstar_arg)
         self.target = ExprNodes.NameNode(pos, name = name)
         
     def as_cclass(self):
