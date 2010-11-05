@@ -1,3 +1,4 @@
+#no doctest
 print "Warning: Using prototype cython.inline code..."
 
 import tempfile
