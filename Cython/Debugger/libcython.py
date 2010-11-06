@@ -7,6 +7,7 @@ from __future__ import with_statement
 import os
 import sys
 import textwrap
+import operator
 import traceback
 import functools
 import itertools
@@ -127,6 +128,16 @@ def require_running_program(function):
         return function(*args, **kwargs)
     return wrapper
     
+
+def gdb_function_value_to_unicode(function):
+    @functools.wraps(function)
+    def wrapper(self, string, *args, **kwargs):
+        if isinstance(string, gdb.Value):
+            string = string.string()
+
+        return function(self, string, *args, **kwargs)
+    return wrapper
+
 
 # Classes that represent the debug information
 # Don't rename the parameters of these classes, they come directly from the XML
@@ -274,13 +285,6 @@ class CythonBase(object):
 
         return False
     
-    def print_cython_var_if_initialized(self, varname, max_name_length=None):
-        try:
-            self.cy.print_.invoke(varname, True, max_name_length)
-        except gdb.GdbError:
-            # variable not initialized yet
-            pass
-
     @default_selected_gdb_frame(err=False)
     def print_stackframe(self, frame, index, is_c=False):
         """
@@ -338,7 +342,30 @@ class CythonBase(object):
             pass
         
         selected_frame.select()
+    
+    def get_cython_globals_dict(self):
+        """
+        Get the Cython globals dict where the remote names are turned into
+        local strings.
+        """
+        m = gdb.parse_and_eval('__pyx_m')
+        
+        try:
+            PyModuleObject = gdb.lookup_type('PyModuleObject')
+        except RuntimeError:
+            raise gdb.GdbError(textwrap.dedent("""\
+                Unable to lookup type PyModuleObject, did you compile python 
+                with debugging support (-g)?"""))
             
+        m = m.cast(PyModuleObject.pointer())
+        pyobject_dict = libpython.PyObjectPtr.from_pyobject_ptr(m['md_dict'])
+        
+        result = {}
+        seen = set()
+        for k, v in pyobject_dict.iteritems():
+            result[k.proxyval(seen)] = v
+            
+        return result
 
 class SourceFileDescriptor(object):
     def __init__(self, filename, lexer, formatter=None):
@@ -946,18 +973,17 @@ class CyPrint(CythonCommand):
     name = 'cy print'
     command_class = gdb.COMMAND_DATA
     
-    @dispatch_on_frame(c_command='print', python_command='py-print')
     def invoke(self, name, from_tty, max_name_length=None):
-        cname = self.cy.cy_cname.invoke(name)
-        try:
-             value = gdb.parse_and_eval(cname)
-        except RuntimeError, e:
-            raise gdb.GdbError("Variable %s is not initialized yet." % (name,))
-        else:
+        if self.is_python_function():
+            return gdb.execute('py-print ' + name)
+        elif self.is_cython_function():
+            value = self.cy.cy_cvalue.invoke(name)
             if max_name_length is None:
                 print '%s = %s' % (name, value)
             else:
                 print '%-*s = %s' % (max_name_length, name, value)
+        else:
+            gdb.execute('print ' + name)
         
     def complete(self):
         if self.is_cython_function():
@@ -966,6 +992,8 @@ class CyPrint(CythonCommand):
         else:
             return []
 
+
+sortkey = lambda (name, value): name.lower()
 
 class CyLocals(CythonCommand):
     """
@@ -976,15 +1004,24 @@ class CyLocals(CythonCommand):
     command_class = gdb.COMMAND_STACK
     completer_class = gdb.COMPLETE_NONE
     
+    def _print_if_initialized(self, cyvar, max_name_length, prefix=''):
+        try:
+            value = gdb.parse_and_eval(cyvar.cname)
+        except RuntimeError:
+            # variable not initialized yet
+            pass
+        else:
+            print '%s%-*s = %s' % (prefix, max_name_length, cyvar.name, value)
+    
     @dispatch_on_frame(c_command='info locals', python_command='py-locals')
     def invoke(self, args, from_tty):
         local_cython_vars = self.get_cython_function().locals
         max_name_length = len(max(local_cython_vars, key=len))
-        for varname in local_cython_vars:
-            self.print_cython_var_if_initialized(varname, max_name_length)
-                
+        for name, cyvar in sorted(local_cython_vars.iteritems(), key=sortkey):
+            self._print_if_initialized(cyvar, max_name_length)
 
-class CyGlobals(CythonCommand):
+
+class CyGlobals(CyLocals):
     """
     List the globals from the current Cython module.
     """
@@ -995,39 +1032,30 @@ class CyGlobals(CythonCommand):
     
     @dispatch_on_frame(c_command='info variables', python_command='py-globals')
     def invoke(self, args, from_tty):
-        m = gdb.parse_and_eval('__pyx_m')
-        
-        try:
-            PyModuleObject = gdb.lookup_type('PyModuleObject')
-        except RuntimeError:
-            raise gdb.GdbError(textwrap.dedent("""
-                Unable to lookup type PyModuleObject, did you compile python 
-                with debugging support (-g)?
-                """))
-            
-        m = m.cast(PyModuleObject.pointer())
-        pyobject_dict = libpython.PyObjectPtr.from_pyobject_ptr(m['md_dict'])
-        
+        global_python_dict = self.get_cython_globals_dict()
         module_globals = self.get_cython_function().module.globals
-        # - 2 for the surrounding quotes
-        max_name_length = max(len(max(module_globals, key=len)),
-                              len(max(pyobject_dict.iteritems())) - 2)
+        
+        max_globals_len = 0
+        max_globals_dict_len = 0
+        if module_globals:
+            max_globals_len = len(max(module_globals, key=len))
+        if global_python_dict:
+            max_globals_dict_len = len(max(global_python_dict))
+            
+        max_name_length = max(max_globals_len, max_globals_dict_len)
         
         seen = set()
-        for k, v in pyobject_dict.iteritems():
-            # Note: k and v are values in the inferior, they are 
-            #       libpython.PyObjectPtr objects
-            
-            k = k.get_truncated_repr(libpython.MAX_OUTPUT_LEN)
-            # make it look like an actual name (inversion of repr())
-            k = k[1:-1].decode('string-escape')
+        print 'Python globals:'
+        for k, v in sorted(global_python_dict.iteritems(), key=sortkey):
             v = v.get_truncated_repr(libpython.MAX_OUTPUT_LEN)
-            
             seen.add(k)
-            print '%-*s = %s' % (max_name_length, k, v)
+            print '    %-*s = %s' % (max_name_length, k, v)
         
-        for varname in seen.symmetric_difference(module_globals):
-            self.print_cython_var_if_initialized(varname, max_name_length)
+        print 'C globals:'
+        for name, cyvar in sorted(module_globals.iteritems(), key=sortkey):
+            if name not in seen:
+                self._print_if_initialized(cyvar, max_name_length, 
+                                           prefix='    ')
 
 
 # Functions
@@ -1043,13 +1071,10 @@ class CyCName(gdb.Function, CythonBase):
     """
     
     @require_cython_frame
+    @gdb_function_value_to_unicode
     def invoke(self, cyname, frame=None):
         frame = frame or gdb.selected_frame()
         cname = None
-        
-        if isinstance(cyname, gdb.Value):
-            # convert to a python string so it supports proper hashing
-            cyname = cyname.string()
         
         if self.is_cython_function(frame):
             cython_function = self.get_cython_function(frame)
@@ -1077,10 +1102,22 @@ class CyCValue(CyCName):
     """
     
     @require_cython_frame
+    @gdb_function_value_to_unicode
     def invoke(self, cyname, frame=None):
         cname = super(CyCValue, self).invoke(cyname, frame=frame)
-        return gdb.parse_and_eval(cname)
-    
+        try:
+            return gdb.parse_and_eval(cname)
+        except RuntimeError:
+            # variable exists but may not have been initialized yet, or may be
+            # in the globals dict of the Cython module
+            if cyname in self.get_cython_function().module.globals:
+                # look in the global dict
+                d = self.get_cython_globals_dict()
+                if cyname in d:
+                    return d[cyname]._gdbval
+            # print cyname, self.get_cython_function().module.globals, '\n', self.get_cython_globals_dict()
+            raise gdb.GdbError("Variable %s not initialized yet." % cyname)
+
 
 class CyLine(gdb.Function, CythonBase):
     """
