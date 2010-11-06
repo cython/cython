@@ -2,6 +2,8 @@
 GDB extension that adds Cython support.
 """
 
+from __future__ import with_statement
+
 import os
 import sys
 import textwrap
@@ -224,7 +226,7 @@ class CythonBase(object):
             filename = self.get_cython_function(frame).module.filename
             lineno = self.get_cython_lineno(frame)
             if pygments:
-                lexer = pygments.lexers.CythonLexer()
+                lexer = pygments.lexers.CythonLexer(stripall=False)
         elif self.is_python_function(frame):
             pyframeobject = libpython.Frame(frame).get_pyop()
 
@@ -234,7 +236,7 @@ class CythonBase(object):
             filename = pyframeobject.filename()
             lineno = pyframeobject.current_line_num()
             if pygments:
-                lexer = pygments.lexers.PythonLexer()
+                lexer = pygments.lexers.PythonLexer(stripall=False)
         else:
             symbol_and_line_obj = frame.find_sal()
             if not symbol_and_line_obj or not symbol_and_line_obj.symtab:
@@ -244,7 +246,7 @@ class CythonBase(object):
                 filename = symbol_and_line_obj.symtab.filename
                 lineno = symbol_and_line_obj.line
                 if pygments:
-                    lexer = pygments.lexers.CLexer()
+                    lexer = pygments.lexers.CLexer(stripall=False)
             
         return SourceFileDescriptor(filename, lexer), lineno
 
@@ -362,13 +364,14 @@ class SourceFileDescriptor(object):
     def _get_source(self, start, stop, lex_source, mark_line):
         with open(self.filename) as f:
             if lex_source:
-                # to provide proper colouring, the entire code needs to be 
+                # to provide proper colouring, the entire code needs to be
                 # lexed
                 lines = self.lex(f.read()).splitlines()
             else:
                 lines = f
-            
-            for idx, line in enumerate(itertools.islice(lines, start - 1, stop - 1)):
+                
+            slice = itertools.islice(lines, start - 1, stop - 1)
+            for idx, line in enumerate(slice):
                 if start + idx == mark_line:
                     prefix = '>'
                 else:
@@ -381,7 +384,8 @@ class SourceFileDescriptor(object):
         
         if not self.filename:
             raise exc
-            
+        
+        start = max(start, 1)
         if stop is None:
             stop = start + 1
 
@@ -804,7 +808,7 @@ class CythonCodeStepper(CythonCommand, libpython.GenericCodeStepper):
 
 
 class CyStep(CythonCodeStepper):
-    "Step through Python code."
+    "Step through Cython, Python or C code."
     
     name = 'cy step'
     stepper = True
@@ -904,7 +908,10 @@ class CyBacktrace(CythonCommand):
             is_c = False
             
             if print_all or self.is_relevant_function(frame):
-                self.print_stackframe(frame, index)
+                try:
+                    self.print_stackframe(frame, index)
+                except gdb.GdbError:
+                    print 'Unable to fsdk.fjkds'
             
             index += 1
             frame = frame.newer()
