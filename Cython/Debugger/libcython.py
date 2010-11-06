@@ -907,11 +907,14 @@ class CyBacktrace(CythonCommand):
         while frame:
             is_c = False
             
-            if print_all or self.is_relevant_function(frame):
-                try:
-                    self.print_stackframe(frame, index)
-                except gdb.GdbError:
-                    print 'Unable to fsdk.fjkds'
+            is_relevant = False
+            try:
+                is_relevant = self.is_relevant_function(frame)
+            except CyGDBError:
+                pass
+                
+            if print_all or is_relevant:
+                self.print_stackframe(frame, index)
             
             index += 1
             frame = frame.newer()
