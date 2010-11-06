@@ -215,9 +215,9 @@ class TestLocalsGlobals(DebugTestCase):
         self.break_and_run('int(10)')
         
         result = gdb.execute('cy locals', to_string=True)
-        assert 'a = 0' in result, repr(result)
-        assert 'b = 1' in result, repr(result)
-        assert 'c = 2' in result, repr(result)
+        assert 'a = 0', repr(result)
+        assert 'b = (int) 1', result
+        assert 'c = (int) 2' in result, repr(result)
     
     def test_globals(self):
         self.break_and_run('int(10)')
@@ -268,7 +268,7 @@ class TestPrint(DebugTestCase):
     def test_print(self):
         self.break_and_run('c = 2')
         result = gdb.execute('cy print b', to_string=True)
-        assert '= 1' in result
+        self.assertEqual('b = (int) 1\n', result)
 
 
 class TestUpDown(DebugTestCase):

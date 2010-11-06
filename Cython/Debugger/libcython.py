@@ -367,6 +367,19 @@ class CythonBase(object):
             
         return result
 
+    def print_gdb_value(self, name, value, max_name_length=None, prefix=''):
+        if libpython.pretty_printer_lookup(value):
+            typename = ''
+        else:
+            typename = '(%s) ' % (value.type,)
+                
+        if max_name_length is None:
+            print '%s%s = %s%s' % (prefix, name, typename, value)
+        else:
+            print '%s%-*s = %s%s' % (prefix, max_name_length, name, typename, 
+                                     value)
+
+
 class SourceFileDescriptor(object):
     def __init__(self, filename, lexer, formatter=None):
         self.filename = filename
@@ -977,11 +990,14 @@ class CyPrint(CythonCommand):
         if self.is_python_function():
             return gdb.execute('py-print ' + name)
         elif self.is_cython_function():
-            value = self.cy.cy_cvalue.invoke(name)
-            if max_name_length is None:
-                print '%s = %s' % (name, value)
-            else:
-                print '%-*s = %s' % (max_name_length, name, value)
+            value = self.cy.cy_cvalue.invoke(name.lstrip('*'))
+            for c in name:
+                if c == '*':
+                    value = value.dereference()
+                else:
+                    break
+                
+            self.print_gdb_value(name, value, max_name_length)
         else:
             gdb.execute('print ' + name)
         
@@ -1011,7 +1027,7 @@ class CyLocals(CythonCommand):
             # variable not initialized yet
             pass
         else:
-            print '%s%-*s = %s' % (prefix, max_name_length, cyvar.name, value)
+            self.print_gdb_value(cyvar.name, value, max_name_length, prefix)
     
     @dispatch_on_frame(c_command='info locals', python_command='py-locals')
     def invoke(self, args, from_tty):
@@ -1104,18 +1120,16 @@ class CyCValue(CyCName):
     @require_cython_frame
     @gdb_function_value_to_unicode
     def invoke(self, cyname, frame=None):
-        cname = super(CyCValue, self).invoke(cyname, frame=frame)
         try:
+            cname = super(CyCValue, self).invoke(cyname, frame=frame)
             return gdb.parse_and_eval(cname)
-        except RuntimeError:
+        except (gdb.GdbError, RuntimeError):
             # variable exists but may not have been initialized yet, or may be
             # in the globals dict of the Cython module
-            if cyname in self.get_cython_function().module.globals:
-                # look in the global dict
-                d = self.get_cython_globals_dict()
-                if cyname in d:
-                    return d[cyname]._gdbval
-            # print cyname, self.get_cython_function().module.globals, '\n', self.get_cython_globals_dict()
+            d = self.get_cython_globals_dict()
+            if cyname in d:
+                return d[cyname]._gdbval
+
             raise gdb.GdbError("Variable %s not initialized yet." % cyname)
 
 
