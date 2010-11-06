@@ -1670,22 +1670,16 @@ class GenericCodeStepper(gdb.Command):
         return depth
     
     def invoke(self, args, from_tty):
-        if args:
-            nsteps = int(args)
-        else:
-            nsteps = 1
-        
         if self.stepper:
             gdb_command = 'step'
         else:
             gdb_command= 'next'
         
-        for nthstep in xrange(nsteps):
-            self.init_stepping()
-            while self.next_step(gdb_command):
-                pass
-            
-            self.end_stepping()
+        self.init_stepping()
+        while self.next_step(gdb_command):
+            pass
+        
+        self.end_stepping()
 
 
 class PythonCodeStepper(GenericCodeStepper):
