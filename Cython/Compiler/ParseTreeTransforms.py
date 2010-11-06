@@ -1577,8 +1577,8 @@ class DebugTransform(CythonTransform):
                 vartype = 'CObject'
             
             cname = entry.cname
-            if entry.type.is_extension_type:
-                cname = entry.type.typeptr_cname
+            # if entry.type.is_extension_type:
+                # cname = entry.type.typeptr_cname
 
             attrs = dict(
                 name=entry.name,
