@@ -1108,12 +1108,16 @@ class PyObjectPtrPrinter:
             proxyval = pyop.proxyval(set())
             return stringify(proxyval)
 
+
 def pretty_printer_lookup(gdbval):
     type = gdbval.type.unqualified()
     if type.code == gdb.TYPE_CODE_PTR:
         type = type.target().unqualified()
-        t = str(type)
-        if t in ("PyObject", "PyFrameObject"):
+        # do this every time to allow new subclasses to "register"
+        # alternatively, we could use a metaclass to register all the typenames
+        classes = [PyObjectPtr]
+        classes.extend(PyObjectPtr.__subclasses__())
+        if str(type) in [cls._typename for cls in classes]:
             return PyObjectPtrPrinter(gdbval)
 
 """
