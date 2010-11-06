@@ -160,6 +160,12 @@ proto = """
 #define __Pyx_PyNumber_Power2(a, b) PyNumber_Power(a, b, Py_None)
 """)
 
+include_string_h_utility_code = UtilityCode(
+proto = """
+#include <string.h>
+"""
+)
+
 iter_next_utility_code = UtilityCode(
 proto = """
 #define __Pyx_PyIter_Next(obj) __Pyx_PyIter_Next2(obj, NULL);
