@@ -18,6 +18,10 @@ def inline(f, *args, **kwds):
     assert len(args) == len(kwds) == 0
     return f
 
+def compile(f):
+    from Cython.Build.Inline import RuntimeCompiledFunction
+    return RuntimeCompiledFunction(f)
+
 # Special functions
 
 def cdiv(a, b):
