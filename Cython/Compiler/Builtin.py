@@ -112,7 +112,10 @@ builtin_types_table = [
 
     ("tuple",   "PyTuple_Type",    []),
 
-    ("list",    "PyList_Type",     [("insert", "TzO",  "i", "PyList_Insert")]),
+    ("list",    "PyList_Type",     [("insert",  "TzO",  "i", "PyList_Insert"),
+                                    ("reverse", "T",    "i", "PyList_Reverse"),
+                                    ("append",  "TO",   "i", "PyList_Append"),
+                                    ]),
 
     ("dict",    "PyDict_Type",     [("items", "T",   "O", "PyDict_Items"),
                                     ("keys",  "T",   "O", "PyDict_Keys"),

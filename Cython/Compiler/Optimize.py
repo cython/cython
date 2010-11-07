@@ -2063,23 +2063,6 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
 
     _handle_simple_method_list_pop = _handle_simple_method_object_pop
 
-    PyList_Append_func_type = PyrexTypes.CFuncType(
-        PyrexTypes.c_int_type, [
-            PyrexTypes.CFuncTypeArg("list", PyrexTypes.py_object_type, None),
-            PyrexTypes.CFuncTypeArg("item", PyrexTypes.py_object_type, None),
-            ],
-        exception_value = "-1")
-
-    def _handle_simple_method_list_append(self, node, args, is_unbound_method):
-        """Call PyList_Append() instead of l.append().
-        """
-        if len(args) != 2:
-            self._error_wrong_arg_count('list.append', node, args, 2)
-            return node
-        return self._substitute_method_call(
-            node, "PyList_Append", self.PyList_Append_func_type,
-            'append', is_unbound_method, args)
-
     single_param_func_type = PyrexTypes.CFuncType(
         PyrexTypes.c_int_type, [
             PyrexTypes.CFuncTypeArg("obj", PyrexTypes.py_object_type, None),
@@ -2094,16 +2077,6 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         return self._substitute_method_call(
             node, "PyList_Sort", self.single_param_func_type,
             'sort', is_unbound_method, args)
-
-    def _handle_simple_method_list_reverse(self, node, args, is_unbound_method):
-        """Call PyList_Reverse() instead of l.reverse().
-        """
-        if len(args) != 1:
-            self._error_wrong_arg_count('list.reverse', node, args, 1)
-            return node
-        return self._substitute_method_call(
-            node, "PyList_Reverse", self.single_param_func_type,
-            'reverse', is_unbound_method, args)
 
     Pyx_PyDict_GetItem_func_type = PyrexTypes.CFuncType(
         PyrexTypes.py_object_type, [
