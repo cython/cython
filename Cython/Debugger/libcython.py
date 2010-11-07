@@ -687,7 +687,9 @@ class CyImport(CythonCommand):
                     cython_module.lineno_cy2c[cython_lineno] = min(c_linenos)
                     for c_lineno in c_linenos:
                         cython_module.lineno_c2cy[c_lineno] = cython_lineno
-                    
+
+        self.cy.step.init_breakpoints()
+
 
 class CyBreak(CythonCommand):
     """
@@ -839,11 +841,12 @@ class CythonCodeStepper(CythonCommand, libpython.GenericCodeStepper):
     def register(cls):
         return cls(cls.name, stepinto=getattr(cls, 'stepinto', False))
 
-    def break_functions(self):
-        result = ['PyEval_EvalFrameEx']
+    def runtime_break_functions(self):
         if self.is_cython_function():
-            result.extend(self.get_cython_function().step_into_functions)
-
+            return self.get_cython_function().step_into_functions
+    
+    def static_break_functions(self):
+        result = ['PyEval_EvalFrameEx']
         result.extend(self.cy.functions_by_cname)
         return result
 
@@ -852,7 +855,7 @@ class CythonCodeStepper(CythonCommand, libpython.GenericCodeStepper):
             if self.stepinto:
                 command = 'step'
             else:
-                comamnd = 'next'
+                command = 'next'
                 
             self.finish_executing(gdb.execute(command, to_string=True))
         else:
