@@ -2836,7 +2836,11 @@ class SimpleCallNode(CallNode):
                 arg.analyse_types(env)
             if self.self and func_type.args:
                 # Coerce 'self' to the type expected by the method.
-                expected_type = func_type.args[0].type
+                self_arg = func_type.args[0]
+                if self_arg.not_none: # C methods must do the None test for self at *call* time
+                    self.self = self.self.as_none_safe_node(
+                        "'NoneType' object has no attribute '%s'" % self.function.entry.name)
+                expected_type = self_arg.type
                 self.coerced_self = CloneNode(self.self).coerce_to(
                     expected_type, env)
                 # Insert coerced 'self' argument into argument list.
