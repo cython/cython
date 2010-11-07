@@ -64,6 +64,7 @@ class Signature(object):
     
     error_value_map = {
         'O': "NULL",
+        'T': "NULL",
         'i': "-1",
         'b': "-1",
         'l': "-1",
@@ -91,6 +92,10 @@ class Signature(object):
         # argument is 'self' for methods or 'class' for classmethods
         return self.fixed_arg_format[i] == 'T'
     
+    def returns_self_type(self):
+        # return type is same as 'self' argument type
+        return self.ret_format == 'T'
+    
     def fixed_arg_type(self, i):
         return self.format_map[self.fixed_arg_format[i]]
     
@@ -110,7 +115,10 @@ class Signature(object):
             else:
                 arg_type = self.fixed_arg_type(i)
                 args.append(PyrexTypes.CFuncTypeArg("", arg_type, None))
-        ret_type = self.return_type()
+        if self_arg_override is not None and self.returns_self_type():
+            ret_type = self_arg_override.type
+        else:
+            ret_type = self.return_type()
         exc_value = self.exception_value()
         return PyrexTypes.CFuncType(ret_type, args, exception_value = exc_value)
 

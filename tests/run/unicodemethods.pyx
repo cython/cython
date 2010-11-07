@@ -180,9 +180,12 @@ pipe_sep = u'|'
 
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode", "//CoerceFromPyTypeNode",
-    "//CastNode", "//TypecastNode")
+    "//CastNode", "//TypecastNode",
+    "//SimpleCallNode//AttributeNode[@is_py_attr = true]")
 @cython.test_assert_path_exists(
-    "//PythonCapiCallNode")
+    "//SimpleCallNode",
+    "//SimpleCallNode//NoneCheckNode",
+    "//SimpleCallNode//AttributeNode[@is_py_attr = false]")
 def join(unicode sep, l):
     """
     >>> l = text.split()
@@ -197,9 +200,11 @@ def join(unicode sep, l):
 
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode", "//CoerceFromPyTypeNode",
-    "//CastNode", "//TypecastNode", "//NoneCheckNode")
+    "//CastNode", "//TypecastNode", "//NoneCheckNode",
+    "//SimpleCallNode//AttributeNode[@is_py_attr = true]")
 @cython.test_assert_path_exists(
-    "//PythonCapiCallNode")
+    "//SimpleCallNode",
+    "//SimpleCallNode//AttributeNode[@is_py_attr = false]")
 def join_sep(l):
     """
     >>> l = text.split()
