@@ -2187,24 +2187,6 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             node, "PyUnicode_Splitlines", self.PyUnicode_Splitlines_func_type,
             'splitlines', is_unbound_method, args)
 
-    PyUnicode_Join_func_type = PyrexTypes.CFuncType(
-        Builtin.unicode_type, [
-            PyrexTypes.CFuncTypeArg("sep", Builtin.unicode_type, None),
-            PyrexTypes.CFuncTypeArg("iterable", PyrexTypes.py_object_type, None),
-            ])
-
-    def _handle_simple_method_unicode_join(self, node, args, is_unbound_method):
-        """Replace unicode.join(...) by a direct call to the
-        corresponding C-API function.
-        """
-        if len(args) != 2:
-            self._error_wrong_arg_count('unicode.join', node, args, 2)
-            return node
-
-        return self._substitute_method_call(
-            node, "PyUnicode_Join", self.PyUnicode_Join_func_type,
-            'join', is_unbound_method, args)
-
     PyUnicode_Split_func_type = PyrexTypes.CFuncType(
         Builtin.list_type, [
             PyrexTypes.CFuncTypeArg("str", Builtin.unicode_type, None),

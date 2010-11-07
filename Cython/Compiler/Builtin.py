@@ -108,7 +108,8 @@ builtin_types_table = [
 
     ("bytes",   "PyBytes_Type",    []),
     ("str",     "PyString_Type",   []),
-    ("unicode", "PyUnicode_Type",  []),
+    ("unicode", "PyUnicode_Type",  [("join",  "TO",   "T", "PyUnicode_Join"),
+                                    ]),
 
     ("tuple",   "PyTuple_Type",    []),
 
@@ -120,7 +121,7 @@ builtin_types_table = [
     ("dict",    "PyDict_Type",     [("items", "T",   "O", "PyDict_Items"),
                                     ("keys",  "T",   "O", "PyDict_Keys"),
                                     ("values","T",   "O", "PyDict_Values"),
-                                    ("copy",  "T",   "O", "PyDict_Copy")]),
+                                    ("copy",  "T",   "T", "PyDict_Copy")]),
 
     ("slice",   "PySlice_Type",    []),
 #    ("file",    "PyFile_Type",     []),  # not in Py3
