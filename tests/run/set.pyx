@@ -60,7 +60,7 @@ def test_set_clear_None():
     """
     >>> test_set_clear_None()
     Traceback (most recent call last):
-    TypeError: 'NoneType' object has no attribute 'clear'
+    AttributeError: 'NoneType' object has no attribute 'clear'
     """
     cdef set s1 = None
     s1.clear()
