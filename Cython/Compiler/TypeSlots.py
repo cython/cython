@@ -100,12 +100,16 @@ class Signature(object):
     def exception_value(self):
         return self.error_value_map.get(self.ret_format)
     
-    def function_type(self):
+    def function_type(self, self_arg_override=None):
         #  Construct a C function type descriptor for this signature
         args = []
         for i in xrange(self.num_fixed_args()):
-            arg_type = self.fixed_arg_type(i)
-            args.append(PyrexTypes.CFuncTypeArg("", arg_type, None))
+            if self_arg_override is not None and self.is_self_arg(i):
+                assert isinstance(self_arg_override, PyrexTypes.CFuncTypeArg)
+                args.append(self_arg_override)
+            else:
+                arg_type = self.fixed_arg_type(i)
+                args.append(PyrexTypes.CFuncTypeArg("", arg_type, None))
         ret_type = self.return_type()
         exc_value = self.exception_value()
         return PyrexTypes.CFuncType(ret_type, args, exception_value = exc_value)

@@ -112,20 +112,20 @@ builtin_types_table = [
 
     ("tuple",   "PyTuple_Type",    []),
 
-    ("list",    "PyList_Type",     [("insert", "OzO",  "i", "PyList_Insert")]),
+    ("list",    "PyList_Type",     [("insert", "TzO",  "i", "PyList_Insert")]),
 
-    ("dict",    "PyDict_Type",     [("items", "O",   "O", "PyDict_Items"),
-                                    ("keys",  "O",   "O", "PyDict_Keys"),
-                                    ("values","O",   "O", "PyDict_Values"),
-                                    ("copy",  "O",   "O", "PyDict_Copy")]),
+    ("dict",    "PyDict_Type",     [("items", "T",   "O", "PyDict_Items"),
+                                    ("keys",  "T",   "O", "PyDict_Keys"),
+                                    ("values","T",   "O", "PyDict_Values"),
+                                    ("copy",  "T",   "O", "PyDict_Copy")]),
 
     ("slice",   "PySlice_Type",    []),
 #    ("file",    "PyFile_Type",     []),  # not in Py3
 
-    ("set",       "PySet_Type",    [("clear",   "O",  "i", "PySet_Clear"), 
-                                    ("discard", "OO", "i", "PySet_Discard"),
-                                    ("add",     "OO", "i", "PySet_Add"),
-                                    ("pop",     "O",  "O", "PySet_Pop")]),
+    ("set",       "PySet_Type",    [("clear",   "T",  "i", "PySet_Clear"), 
+                                    ("discard", "TO", "i", "PySet_Discard"),
+                                    ("add",     "TO", "i", "PySet_Add"),
+                                    ("pop",     "T",  "O", "PySet_Pop")]),
     ("frozenset", "PyFrozenSet_Type", []),
 ]
 
@@ -470,7 +470,11 @@ def init_builtin_types():
         builtin_types[name] = the_type
         for name, args, ret, cname in funcs:
             sig = Signature(args, ret)
-            the_type.scope.declare_cfunction(name, sig.function_type(), None, cname)
+            # override 'self' type (first argument)
+            self_arg = PyrexTypes.CFuncTypeArg("", the_type, None)
+            self_arg.not_none = True
+            method_type = sig.function_type(self_arg)
+            the_type.scope.declare_cfunction(name, method_type, None, cname)
 
 def init_builtin_structs():
     for name, cname, attribute_types in builtin_structs_table:
