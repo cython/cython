@@ -73,6 +73,7 @@ class IterationTransform(Visitor.VisitorTransform):
 
     def visit_ModuleNode(self, node):
         self.current_scope = node.scope
+        self.module_scope = node.scope
         self.visitchildren(node)
         return node
 
@@ -168,12 +169,13 @@ class IterationTransform(Visitor.VisitorTransform):
             dict_obj = function.obj
             method = function.attribute
 
+            is_py3 = self.module_scope.context.language_level >= 3
             keys = values = False
-            if method == 'iterkeys':
+            if method == 'iterkeys' or (is_py3 and method == 'keys'):
                 keys = True
-            elif method == 'itervalues':
+            elif method == 'itervalues' or (is_py3 and method == 'values'):
                 values = True
-            elif method == 'iteritems':
+            elif method == 'iteritems' or (is_py3 and method == 'items'):
                 keys = values = True
             else:
                 return node
