@@ -119,8 +119,10 @@ of these commands are analogous to their respective gdb command.
 
 .. function:: cy run
     
-    Run the program. The default interpreter is the interpreter cygdb is run
-    with (but can be overridden using gdb's ``file`` command).
+    Run the program. The default interpreter is the interpreter that was used
+    to build your extensions with, or the interpreter ``cygdb`` is run with
+    in case the "don't import debug information" option was in effect. 
+    The interpreter can be overridden using gdb's ``file`` command.
 
 .. function:: cy cont
 
