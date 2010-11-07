@@ -274,7 +274,6 @@ class CythonBase(object):
         """
         name = frame.name()
         older_frame = frame.older()
-        # print 'is_relevant_function', name
         if self.is_cython_function(frame) or self.is_python_function(frame):
             return True
         elif (parameters.step_into_c_code and 
@@ -829,44 +828,49 @@ class CythonCodeStepper(CythonCommand, libpython.GenericCodeStepper):
             return libpython.py_step.lineno(frame)
     
     def get_source_line(self, frame):
-        # We may have ended up in a Python, Cython, or C function
-        result = None
-        
-        if self.is_cython_function(frame) or self.is_python_function(frame):
-            try:
-                line = super(CythonCodeStepper, self).get_source_line(frame)
-            except gdb.GdbError:
-                pass
-            else:
-                result = line.lstrip()
+        try:
+            line = super(CythonCodeStepper, self).get_source_line(frame)
+        except gdb.GdbError:
+            return None
+        else:
+            return line.strip() or None
 
-        return result
-        
     @classmethod
     def register(cls):
-        return cls(cls.name, stepper=cls.stepper)
+        return cls(cls.name, stepinto=getattr(cls, 'stepinto', False))
+
+    def break_functions(self):
+        result = ['PyEval_EvalFrameEx']
+        if self.is_cython_function():
+            result.extend(self.get_cython_function().step_into_functions)
+
+        result.extend(self.cy.functions_by_cname)
+        return result
+
+    def invoke(self, args, from_tty):
+        if not self.is_cython_function() and not self.is_python_function():
+            if self.stepinto:
+                command = 'step'
+            else:
+                comamnd = 'next'
+                
+            self.finish_executing(gdb.execute(command, to_string=True))
+        else:
+            super(CythonCodeStepper, self).invoke(args, from_tty)
 
 
 class CyStep(CythonCodeStepper):
     "Step through Cython, Python or C code."
     
     name = 'cy step'
-    stepper = True
-    
-    @dispatch_on_frame(c_command='step')
-    def invoke(self, *args, **kwargs):
-        super(CythonCodeStepper, self).invoke(*args, **kwargs)
+    stepinto = True
 
 
 class CyNext(CythonCodeStepper):
     "Step-over Python code."
 
     name = 'cy next'
-    stepper = False
-
-    @dispatch_on_frame(c_command='next')
-    def invoke(self, *args, **kwargs):
-        super(CythonCodeStepper, self).invoke(*args, **kwargs)
+    stepinto = False
 
 
 class CyRun(CythonCodeStepper):
@@ -879,8 +883,7 @@ class CyRun(CythonCodeStepper):
     _command = 'run'
     
     def invoke(self, *args):
-        self.result = gdb.execute(self._command, to_string=True)
-        self.end_stepping()
+        self.finish_executing(gdb.execute(self._command, to_string=True))
 
 
 class CyCont(CyRun):
@@ -893,7 +896,7 @@ class CyCont(CyRun):
     _command = 'cont'
 
 
-class CyUp(CythonCodeStepper):
+class CyUp(CythonCommand):
     """
     Go up a Cython, Python or relevant C frame.
     """
@@ -960,6 +963,7 @@ class CyBacktrace(CythonCommand):
             frame = frame.newer()
         
         selected_frame.select()
+
 
 class CyList(CythonCommand):
     """

@@ -46,6 +46,7 @@ The module also extends gdb with some python-specific commands.
 from __future__ import with_statement
 
 import os
+import re
 import sys
 import atexit
 import tempfile
@@ -1568,7 +1569,7 @@ class _LoggingState(object):
             _execute("set pagination on")
 
 
-def execute(command, from_tty=True, to_string=False):
+def execute(command, from_tty=False, to_string=False):
     """
     Replace gdb.execute() with this function and have it accept a 'to_string'
     argument (new in 7.2). Have it properly capture stderr also. Ensure 
@@ -1600,6 +1601,10 @@ class GenericCodeStepper(gdb.Command):
                                       frame). If the source code cannot be 
                                       retrieved this function should 
                                       return None
+        break_functions()           - an iterable of function names that are
+                                      considered relevant and should halt
+                                      step-into execution. This is needed to
+                                      provide a performing step-into
         
     This class provides an 'invoke' method that invokes a 'step' or 'step-over'
     depending on the 'stepper' argument.
@@ -1607,61 +1612,70 @@ class GenericCodeStepper(gdb.Command):
     
     stepper = False
     
-    def __init__(self, name, stepper=False):
+    def __init__(self, name, stepinto=False):
         super(GenericCodeStepper, self).__init__(name, 
                                                  gdb.COMMAND_RUNNING,
                                                  gdb.COMPLETE_NONE)
-        self.stepper = stepper
+        self.stepinto = stepinto
     
-    def init_stepping(self):
-        self.beginframe = gdb.selected_frame()
-        self.beginline = self.lineno(self.beginframe)
-        if not self.stepper:
-            self.depth = self._stackdepth(self.beginframe)
-
-    def next_step(self, gdb_command):
+    def _step(self):
         """
-        Teturns whether to continue stepping. This method sets the instance 
-        attribute 'result'. 'result' hold the output of the executed gdb 
-        command ('step' or 'next')
+        Do a single step or step-over. Returns the result of the last gdb
+        command that made execution stop.
         """
-        self.result = gdb.execute(gdb_command, to_string=True)
+        if self.stepinto:
+            # set breakpoints for any function we may end up in that seems 
+            # relevant
+            breakpoints = [] 
+            for break_func in self.break_functions():
+                result = gdb.execute('break %s' % break_func, to_string=True)
+                bp = re.search(r'Breakpoint (\d+)', result).group(1)
+                breakpoints.append(bp)
         
-        if self.stopped():
-            return False
+        beginframe = gdb.selected_frame()
+        beginline = self.lineno(beginframe)
+        if not self.stepinto:
+            depth = self._stackdepth(beginframe)
+        
+        newframe = beginframe
+        result = ''
+
+        while True:
+            if self.stopped():
+                break
             
-        newframe = gdb.selected_frame()
+            if self.is_relevant_function(newframe):
+                result = gdb.execute('next', to_string=True)
+            else:
+                result = gdb.execute('finish', to_string=True)
+            
+            if result.startswith('Breakpoint'):
+                break
+            
+            newframe = gdb.selected_frame()
+            is_relevant_function = self.is_relevant_function(newframe)
+            
+            if newframe != beginframe:
+                # new function
+                
+                if not self.stepinto:
+                    # see if we returned to the caller
+                    newdepth = self._stackdepth(newframe)
+                    is_relevant_function = (newdepth < depth and 
+                                            is_relevant_function)
+                
+                if is_relevant_function:
+                    break
+            else:
+                if self.lineno(newframe) > beginline:
+                    break
         
-        hit_breakpoint = self.result.startswith('Breakpoint')
-        is_relevant_function = self.is_relevant_function(newframe)
+        if self.stepinto:
+            for bp in breakpoints:
+                gdb.execute('delete %s' % bp, to_string=True)
         
-        if newframe != self.beginframe:
-            # new function
-            if not self.stepper:
-                is_relevant_function = (
-                    self._stackdepth(newframe) < self.depth and
-                    is_relevant_function)
-
-            new_lineno = False
-        else:
-            is_relevant_function = False
-            new_lineno = self.lineno(newframe) > self.beginline
+        return result
         
-        return not (hit_breakpoint or new_lineno or is_relevant_function)
-        
-    def end_stepping(self):
-        "requires that the instance attribute self.result is set"
-        if self.stopped():
-            sys.stdout.write(self.result)
-        else:
-            frame = gdb.selected_frame()
-            if self.is_relevant_function(frame):
-                output = self.get_source_line(frame)
-                if output is None:
-                    sys.stdout.write(self.result)
-                else:
-                    print output
-    
     def stopped(self):
         return gdb.inferiors()[0].pid == 0
         
@@ -1674,16 +1688,22 @@ class GenericCodeStepper(gdb.Command):
         return depth
     
     def invoke(self, args, from_tty):
-        if self.stepper:
-            gdb_command = 'step'
+        self.finish_executing(self._step())
+    
+    def finish_executing(self, result):
+        if self.stopped():
+            print result.strip()
         else:
-            gdb_command= 'next'
-        
-        self.init_stepping()
-        while self.next_step(gdb_command):
-            pass
-        
-        self.end_stepping()
+            frame = gdb.selected_frame()
+            output = None
+            
+            if self.is_relevant_function(frame):
+                output = self.get_source_line(frame)
+            
+            if output is None:
+                print result.strip()
+            else:
+                print output
 
 
 class PythonCodeStepper(GenericCodeStepper):
@@ -1708,6 +1728,10 @@ class PythonCodeStepper(GenericCodeStepper):
             return self.pyframe(frame).current_line().rstrip()
         except IOError, e:
             return None
+    
+    def break_functions(self):
+        yield 'PyEval_EvalFrameEx'
+
 
 class PyStep(PythonCodeStepper):
     "Step through Python code."
@@ -1715,5 +1739,5 @@ class PyStep(PythonCodeStepper):
 class PyNext(PythonCodeStepper):
     "Step-over Python code."
 
-py_step = PyStep('py-step', stepper=True)
-py_next = PyNext('py-next', stepper=False)
+py_step = PyStep('py-step', stepinto=True)
+py_next = PyNext('py-next', stepinto=False)
