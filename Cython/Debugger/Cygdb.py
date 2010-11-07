@@ -36,6 +36,7 @@ def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
     f.write(prefix_code)
     f.write('set breakpoint pending on\n')
     f.write("set print pretty on\n")
+    f.write("file %s\n" % sys.executable)
     f.write('python from Cython.Debugger import libcython\n')
     if not no_import:
         f.write('\n'.join('cy import %s\n' % fn for fn in debug_files))

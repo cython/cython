@@ -721,7 +721,11 @@ class CyBreak(CythonCommand):
     def _break_pyx(self, name):
         modulename, _, lineno = name.partition(':')
         lineno = int(lineno)
-        cython_module = self.cy.cython_namespace[modulename]
+        if modulename:
+            cython_module = self.cy.cython_namespace[modulename]
+        else:
+            cython_module = self.get_cython_function().module
+
         if lineno in cython_module.lineno_cy2c:
             c_lineno = cython_module.lineno_cy2c[lineno]
             breakpoint = '%s:%s' % (cython_module.c_filename, c_lineno)
