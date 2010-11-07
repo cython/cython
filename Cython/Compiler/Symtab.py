@@ -539,7 +539,7 @@ class Scope(object):
     
     def declare_cfunction(self, name, type, pos, 
                           cname = None, visibility = 'private', defining = 0,
-                          api = 0, in_pxd = 0, modifiers = ()):
+                          api = 0, in_pxd = 0, modifiers = (), utility_code = None):
         # Add an entry for a C function.
         if not cname:
             if api or visibility != 'private':
@@ -585,6 +585,7 @@ class Scope(object):
             entry.is_implemented = True
         if modifiers:
             entry.func_modifiers = modifiers
+        entry.utility_code = utility_code
         return entry
     
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers):
@@ -722,8 +723,8 @@ class BuiltinScope(Scope):
         # If python_equiv == "*", the Python equivalent has the same name
         # as the entry, otherwise it has the name specified by python_equiv.
         name = EncodedString(name)
-        entry = self.declare_cfunction(name, type, None, cname, visibility='extern')
-        entry.utility_code = utility_code
+        entry = self.declare_cfunction(name, type, None, cname, visibility='extern',
+                                       utility_code = utility_code)
         if python_equiv:
             if python_equiv == "*":
                 python_equiv = name
@@ -1363,7 +1364,7 @@ class StructOrUnionScope(Scope):
 
     def declare_cfunction(self, name, type, pos, 
                           cname = None, visibility = 'private', defining = 0,
-                          api = 0, in_pxd = 0, modifiers = ()):
+                          api = 0, in_pxd = 0, modifiers = ()): # currently no utility code ...
         return self.declare_var(name, type, pos, cname, visibility)
 
 class ClassScope(Scope):
@@ -1539,7 +1540,8 @@ class CClassScope(ClassScope):
     
     def declare_cfunction(self, name, type, pos,
                           cname = None, visibility = 'private',
-                          defining = 0, api = 0, in_pxd = 0, modifiers = ()):
+                          defining = 0, api = 0, in_pxd = 0, modifiers = (),
+                          utility_code = None):
         if get_special_method_signature(name):
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
         args = type.args
@@ -1573,6 +1575,7 @@ class CClassScope(ClassScope):
                                        visibility, modifiers)
         if defining:
             entry.func_cname = self.mangle(Naming.func_prefix, name)
+        entry.utility_code = utility_code
         return entry
         
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers):
@@ -1671,7 +1674,7 @@ class CppClassScope(Scope):
 
     def declare_cfunction(self, name, type, pos,
             cname = None, visibility = 'extern', defining = 0,
-            api = 0, in_pxd = 0, modifiers = ()):
+            api = 0, in_pxd = 0, modifiers = (), utility_code = None):
         if name == self.name.split('::')[-1] and cname is None:
             self.check_base_default_constructor(pos)
             name = '<init>'
@@ -1680,6 +1683,8 @@ class CppClassScope(Scope):
         entry = self.declare_var(name, type, pos, cname, visibility)
         if prev_entry:
             entry.overloaded_alternatives = prev_entry.all_alternatives()
+        entry.utility_code = utility_code
+        return entry
 
     def declare_inherited_cpp_attributes(self, base_scope):
         # Declare entries for all the C++ attributes of an
@@ -1700,7 +1705,8 @@ class CppClassScope(Scope):
         for base_entry in base_scope.cfunc_entries:
             entry = self.declare_cfunction(base_entry.name, base_entry.type,
                                        base_entry.pos, base_entry.cname,
-                                       base_entry.visibility, base_entry.func_modifiers)
+                                       base_entry.visibility, base_entry.func_modifiers,
+                                           utility_code = base_entry.utility_code)
             entry.is_inherited = 1
     
     def specialize(self, values):
@@ -1721,7 +1727,8 @@ class CppClassScope(Scope):
                     scope.declare_cfunction(e.name,
                                             e.type.specialize(values),
                                             e.pos,
-                                            e.cname)
+                                            e.cname,
+                                            utility_code = e.utility_code)
         return scope
 
     def add_include_file(self, filename):
