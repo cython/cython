@@ -50,6 +50,7 @@ import re
 import sys
 import atexit
 import tempfile
+import itertools
 
 import gdb
 
@@ -1593,30 +1594,95 @@ class GenericCodeStepper(gdb.Command):
     Superclass for code stepping. Subclasses must implement the following 
     methods:
         
-        lineno(frame)               - tells the current line number (only
-                                      called for a relevant frame)
-        is_relevant_function(frame) - tells whether we care about frame 'frame'
-        get_source_line(frame)      - get the line of source code for the 
-                                      current line (only called for a relevant
-                                      frame). If the source code cannot be 
-                                      retrieved this function should 
-                                      return None
-        break_functions()           - an iterable of function names that are
-                                      considered relevant and should halt
-                                      step-into execution. This is needed to
-                                      provide a performing step-into
+        lineno(frame)
+            tells the current line number (only called for a relevant frame)
         
+        is_relevant_function(frame)
+            tells whether we care about frame 'frame'
+        
+        get_source_line(frame)
+            get the line of source code for the current line (only called for a
+            relevant frame). If the source code cannot be retrieved this 
+            function should return None
+        
+        static_break_functions() 
+            returns an iterable of function names that are considered relevant 
+            and should halt step-into execution. This is needed to provide a 
+            performing step-into
+      
+        runtime_break_functions 
+            list of functions that we should break into depending on the 
+            context
+
     This class provides an 'invoke' method that invokes a 'step' or 'step-over'
-    depending on the 'stepper' argument.
+    depending on the 'stepinto' argument.
     """
     
     stepper = False
+    static_breakpoints = {}
+    runtime_breakpoints = {}
     
     def __init__(self, name, stepinto=False):
         super(GenericCodeStepper, self).__init__(name, 
                                                  gdb.COMMAND_RUNNING,
                                                  gdb.COMPLETE_NONE)
         self.stepinto = stepinto
+
+    def _break_func(self, funcname):
+        result = gdb.execute('break %s' % funcname, to_string=True)
+        return re.search(r'Breakpoint (\d+)', result).group(1)
+
+    def init_breakpoints(self):
+        """
+        Keep all breakpoints around and simply disable/enable them each time
+        we are stepping. We need this because if you set and delete a 
+        breakpoint, gdb will not repeat your command (this is due to 'delete').
+        Why? I'm buggered if I know. To further annoy us, we can't use the 
+        breakpoint API because there's no option to make breakpoint setting 
+        silent.
+        So now! We may have an insane amount of breakpoints to list when the
+        user does 'info breakpoints' :(
+        
+        This method must be called whenever the list of functions we should
+        step into changes. It can be called on any GenericCodeStepper instance.
+        """
+        break_funcs = set(self.static_break_functions())
+        
+        for funcname in break_funcs:
+            if funcname not in self.static_breakpoints:
+                self.static_breakpoints[funcname] = self._break_func(funcname)
+        
+        for bp in set(self.static_breakpoints) - break_funcs:
+            gdb.execute("delete " + self.static_breakpoints[bp])
+
+        self.disable_breakpoints()
+
+    def enable_breakpoints(self):
+        for bp in self.static_breakpoints.itervalues():
+            gdb.execute('enable ' + bp)
+        
+        runtime_break_functions = self.runtime_break_functions()
+        if runtime_break_functions is None:
+            return
+            
+        for funcname in runtime_break_functions:
+            if (funcname not in self.static_breakpoints and 
+                funcname not in self.runtime_breakpoints):
+                self.runtime_breakpoints[funcname] = self._break_func(funcname)
+            elif funcname in self.runtime_breakpoints:
+                gdb.execute('enable ' + self.runtime_breakpoints[funcname])
+            
+    def disable_breakpoints(self):
+        chain = itertools.chain(self.static_breakpoints.itervalues(),
+                                self.runtime_breakpoints.itervalues())
+        for bp in chain:
+            gdb.execute('disable ' + bp)
+    
+    def runtime_break_functions(self):
+        """
+        Implement this if the list of step-into functions depends on the 
+        context.
+        """
     
     def _step(self):
         """
@@ -1624,13 +1690,7 @@ class GenericCodeStepper(gdb.Command):
         command that made execution stop.
         """
         if self.stepinto:
-            # set breakpoints for any function we may end up in that seems 
-            # relevant
-            breakpoints = [] 
-            for break_func in self.break_functions():
-                result = gdb.execute('break %s' % break_func, to_string=True)
-                bp = re.search(r'Breakpoint (\d+)', result).group(1)
-                breakpoints.append(bp)
+            self.enable_breakpoints()
         
         beginframe = gdb.selected_frame()
         beginline = self.lineno(beginframe)
@@ -1641,19 +1701,32 @@ class GenericCodeStepper(gdb.Command):
         result = ''
 
         while True:
-            if self.stopped():
-                break
-            
             if self.is_relevant_function(newframe):
                 result = gdb.execute('next', to_string=True)
             else:
-                result = gdb.execute('finish', to_string=True)
+                if self._stackdepth(newframe) == 1:
+                    result = gdb.execute('cont', to_string=True)
+                else:
+                    result = gdb.execute('finish', to_string=True)
             
-            if result.startswith('Breakpoint'):
+            if self.stopped():
                 break
             
             newframe = gdb.selected_frame()
             is_relevant_function = self.is_relevant_function(newframe)
+            try:
+                framename = newframe.name()
+            except RuntimeError:
+                framename = None
+            
+            m = re.search(r'Breakpoint (\d+)', result)
+            if m:
+                bp = self.runtime_breakpoints.get(framename)
+                if bp is None or (m.group(1) == bp and is_relevant_function):
+                    # although we hit a breakpoint, we still need to check
+                    # that the function, in case hit by a runtime breakpoint,
+                    # is in the right context
+                    break
             
             if newframe != beginframe:
                 # new function
@@ -1671,9 +1744,8 @@ class GenericCodeStepper(gdb.Command):
                     break
         
         if self.stepinto:
-            for bp in breakpoints:
-                gdb.execute('delete %s' % bp, to_string=True)
-        
+            self.disable_breakpoints()
+
         return result
         
     def stopped(self):
@@ -1701,7 +1773,11 @@ class GenericCodeStepper(gdb.Command):
                 output = self.get_source_line(frame)
             
             if output is None:
-                print result.strip()
+                pframe = getattr(self, 'print_stackframe', None)
+                if pframe:
+                    pframe(frame, index=0)
+                else:
+                    print result.strip()
             else:
                 print output
 
@@ -1729,7 +1805,7 @@ class PythonCodeStepper(GenericCodeStepper):
         except IOError, e:
             return None
     
-    def break_functions(self):
+    def static_break_functions(self):
         yield 'PyEval_EvalFrameEx'
 
 
@@ -1741,3 +1817,5 @@ class PyNext(PythonCodeStepper):
 
 py_step = PyStep('py-step', stepinto=True)
 py_next = PyNext('py-next', stepinto=False)
+
+py_step.init_breakpoints()
