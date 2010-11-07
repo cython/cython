@@ -442,9 +442,9 @@ builtin_types_table = [
                                     BuiltinMethod("append",  "TO",   "i", "PyList_Append"),
                                     ]),
 
-    ("dict",    "PyDict_Type",     [BuiltinMethod("items", "T",   "O", "PyDict_Items"),
-                                    BuiltinMethod("keys",  "T",   "O", "PyDict_Keys"),
-                                    BuiltinMethod("values","T",   "O", "PyDict_Values"),
+    ("dict",    "PyDict_Type",     [BuiltinMethod("items", "T",   "O", "PyDict_Items"),  # FIXME: Py3 mode?
+                                    BuiltinMethod("keys",  "T",   "O", "PyDict_Keys"),   # FIXME: Py3 mode?
+                                    BuiltinMethod("values","T",   "O", "PyDict_Values"), # FIXME: Py3 mode?
                                     BuiltinMethod("copy",  "T",   "T", "PyDict_Copy")]),
 
     ("slice",   "PySlice_Type",    []),
