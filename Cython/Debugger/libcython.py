@@ -323,9 +323,13 @@ class CythonBase(object):
             func_cname = func_name
             func_args = []
         
-        gdb_value = gdb.parse_and_eval(func_cname)
-        # Seriously? Why is the address not an int?
-        func_address = int(str(gdb_value.address).split()[0], 0)
+        try:
+            gdb_value = gdb.parse_and_eval(func_cname)
+        except RuntimeError:
+            func_address = 0
+        else:
+            # Seriously? Why is the address not an int?
+            func_address = int(str(gdb_value.address).split()[0], 0)
         
         a = ', '.join('%s=%s' % (name, val) for name, val in func_args)
         print '#%-2d 0x%016x in %s(%s)' % (index, func_address, func_name, a),
@@ -400,25 +404,30 @@ class SourceFileDescriptor(object):
 
         return code
 
-    def _get_source(self, start, stop, lex_source, mark_line):
+    def _get_source(self, start, stop, lex_source, mark_line, lex_entire):
         with open(self.filename) as f:
-            if lex_source:
-                # to provide proper colouring, the entire code needs to be
-                # lexed
-                lines = self.lex(f.read()).splitlines()
-            else:
-                lines = f
-                
-            slice = itertools.islice(lines, start - 1, stop - 1)
+            # to provide "correct" colouring, the entire code needs to be
+            # lexed. However, this makes a lot of things terribly slow, so
+            # we decide not to. Besides, it's unlikely to matter.
+            
+            if lex_source and lex_entire:
+                f = self.lex(f.read()).splitlines()
+            
+            slice = itertools.islice(f, start - 1, stop - 1)
+            
             for idx, line in enumerate(slice):
                 if start + idx == mark_line:
                     prefix = '>'
                 else:
                     prefix = ' '
                 
-                yield '%s %4d    %s' % (prefix, start + idx, line)
+                if lex_source and not lex_entire:
+                    line = self.lex(line)
 
-    def get_source(self, start, stop=None, lex_source=True, mark_line=0):
+                yield '%s %4d    %s' % (prefix, start + idx, line.rstrip())
+
+    def get_source(self, start, stop=None, lex_source=True, mark_line=0, 
+                   lex_entire=False):
         exc = gdb.GdbError('Unable to retrieve source code')
         
         if not self.filename:
@@ -430,7 +439,7 @@ class SourceFileDescriptor(object):
 
         try:
             return '\n'.join(
-                self._get_source(start, stop, lex_source, mark_line))
+                self._get_source(start, stop, lex_source, mark_line, lex_entire))
         except IOError:
             raise exc
 
@@ -985,7 +994,8 @@ class CyList(CythonCommand):
     @dispatch_on_frame(c_command='list')
     def invoke(self, _, from_tty):
         sd, lineno = self.get_source_desc()
-        source = sd.get_source(lineno - 5, lineno + 5, mark_line=lineno)
+        source = sd.get_source(lineno - 5, lineno + 5, mark_line=lineno, 
+                               lex_entire=True)
         print source
 
 

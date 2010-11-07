@@ -30,16 +30,24 @@ def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
             usage()
             sys.exit('No debug files were found in %s. Aborting.' % (
                     os.path.abspath(path_to_debug_info)))
-        
+    
+    
+    
     fd, tempfilename = tempfile.mkstemp()
     f = os.fdopen(fd, 'w')
     f.write(prefix_code)
     f.write('set breakpoint pending on\n')
     f.write("set print pretty on\n")
-    f.write("file %s\n" % sys.executable)
     f.write('python from Cython.Debugger import libcython\n')
-    if not no_import:
+    
+    if no_import:
+        f.write("file %s\n" % sys.executable)
+    else:
+        path = os.path.join(path_to_debug_info, "cython_debug", "interpreter")
+        interpreter = open(path).read()
+        f.write("file %s\n" % interpreter)
         f.write('\n'.join('cy import %s\n' % fn for fn in debug_files))
+    
     f.close()
     
     return tempfilename

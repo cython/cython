@@ -796,7 +796,7 @@ class PyNoneStructPtr(PyObjectPtr):
 class PyFrameObjectPtr(PyObjectPtr):
     _typename = 'PyFrameObject'
 
-    def __init__(self, gdbval, cast_to):
+    def __init__(self, gdbval, cast_to=None):
         PyObjectPtr.__init__(self, gdbval, cast_to)
 
         if not self.is_optimized_out():
