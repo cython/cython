@@ -1,5 +1,7 @@
 # cython: language_level=3
 
+cimport cython
+
 try:
     sorted
 except NameError:
@@ -74,3 +76,26 @@ def dict_comp():
     result = {x:x*2 for x in range(5) if x % 2 == 0}
     assert x == 'abc' # don't leak
     return result
+
+# in Python 3, d.keys/values/items() are the iteration methods
+@cython.test_assert_path_exists(
+    "//WhileStatNode",
+    "//WhileStatNode/SimpleCallNode",
+    "//WhileStatNode/SimpleCallNode/NameNode")
+@cython.test_fail_if_path_exists(
+    "//ForInStatNode")
+def dict_iter(dict d):
+    """
+    >>> d = {'a' : 1, 'b' : 2, 'c' : 3}
+    >>> keys, values, items = dict_iter(d)
+    >>> sorted(keys)
+    ['a', 'b', 'c']
+    >>> sorted(values)
+    [1, 2, 3]
+    >>> sorted(items)
+    [('a', 1), ('b', 2), ('c', 3)]
+    """
+    keys = [ key for key in d.keys() ]
+    values = [ value for value in d.values() ]
+    items = [ item for item in d.items() ]
+    return keys, values, items
