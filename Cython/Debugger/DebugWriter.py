@@ -1,4 +1,5 @@
 import os
+import sys
 import errno
 
 try:
@@ -69,3 +70,7 @@ class CythonDebugWriter(object):
         
         fn = "cython_debug_info_" + self.module_name
         et.write(os.path.join(self.output_dir, fn), encoding="UTF-8", **kw)
+        
+        interpreter_path = os.path.join(self.output_dir, 'interpreter')
+        with open(interpreter_path, 'w') as f:
+            f.write(sys.executable)
