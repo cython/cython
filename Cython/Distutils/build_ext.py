@@ -17,10 +17,44 @@ from distutils.dep_util import newer, newer_group
 from distutils import log
 from distutils.dir_util import mkpath
 from distutils.command import build_ext as _build_ext
+from distutils import sysconfig
 
 extension_name_re = _build_ext.extension_name_re
 
 show_compilers = _build_ext.show_compilers
+
+class Optimization(object):
+    def __init__(self):
+        self.flags = (
+            'OPT', 
+            'CFLAGS',
+            'CPPFLAGS',
+            'EXTRA_CFLAGS', 
+            'BASECFLAGS',
+            'PY_CFLAGS',
+        )
+        self.state = sysconfig.get_config_vars(*self.flags)
+        self.config_vars = sysconfig.get_config_vars()
+        
+        
+    def disable_optimization(self):
+        "disable optimization for the C or C++ compiler"
+        badoptions = ('-O1', '-O2', '-O3')
+        
+        for flag, option in zip(self.flags, self.state):
+            if option is not None:
+                g = (opt for opt in option.split() if opt not in badoptions)
+                self.config_vars[flag] = ' '.join(g)
+    
+    def restore_state(self):
+        "restore the original state"
+        for flag, option in zip(self.flags, self.state):
+            if option is not None:
+                self.config_vars[flag] = option
+
+
+optimization = Optimization()
+
 
 class build_ext(_build_ext.build_ext):
 
@@ -77,10 +111,22 @@ class build_ext(_build_ext.build_ext):
         if self.pyrex_directives is None:
             self.pyrex_directives = {}
     # finalize_options ()
-
+    
+    def run(self):
+        # We have one shot at this before build_ext initializes the compiler.
+        # If --pyrex-debug is in effect as a command line option or as option
+        # of any Extension module, disable optimization for the C or C++
+        # compiler.
+        if (self.pyrex_debug or any(getattr(ext, 'pyrex_debug', False) 
+                                        for ext in self.extensions)):
+            optimization.disable_optimization()
+        
+        _build_ext.build_ext.run(self)
+    
     def build_extensions(self):
         # First, sanity-check the 'extensions' list
         self.check_extensions_list(self.extensions)
+        
         for ext in self.extensions:
             ext.sources = self.cython_sources(ext.sources, ext)
             self.build_extension(ext)
