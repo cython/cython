@@ -381,7 +381,7 @@ def p_trailer(s, node1):
 # arglist:  argument (',' argument)* [',']
 # argument: [test '='] test       # Really [keyword '='] test
 
-def p_call_parse(s):
+def p_call_parse_args(s, allow_genexp = True):
     # s.sy == '('
     pos = s.position()
     s.next()
@@ -430,7 +430,7 @@ def p_call_parse(s):
     s.expect(')')
     return positional_args, keyword_args, star_arg, starstar_arg
 
-def p_call_prepare_full(pos, positional_args, keyword_args, star_arg):
+def p_call_build_packed_args(pos, positional_args, keyword_args, star_arg):
     arg_tuple = None
     keyword_dict = None
     if positional_args or not star_arg:
@@ -456,15 +456,15 @@ def p_call(s, function):
     pos = s.position()
 
     positional_args, keyword_args, star_arg, starstar_arg = \
-                     p_call_parse(s)
+                     p_call_parse_args(s)
 
     if not (keyword_args or star_arg or starstar_arg):
         return ExprNodes.SimpleCallNode(pos,
             function = function,
             args = positional_args)
     else:
-        arg_tuple, keyword_dict = p_call_prepare_full(pos,
-                            positional_args, keyword_args, star_arg)
+        arg_tuple, keyword_dict = p_call_build_packed_args(
+            pos, positional_args, keyword_args, star_arg)
         return ExprNodes.GeneralCallNode(pos, 
             function = function,
             positional_args = arg_tuple,
@@ -2626,9 +2626,9 @@ def p_class_statement(s, decorators):
     starstar_arg = None
     if s.sy == '(':
         positional_args, keyword_args, star_arg, starstar_arg = \
-                            p_call_parse(s)
-        arg_tuple, keyword_dict = p_call_prepare_full(pos,
-                            positional_args, keyword_args, star_arg)
+                            p_call_parse_args(s, allow_genexp = False)
+        arg_tuple, keyword_dict = p_call_build_packed_args(
+            pos, positional_args, keyword_args, star_arg)
     if arg_tuple is None:
         # XXX: empty arg_tuple
         arg_tuple = ExprNodes.TupleNode(pos, args = [])
