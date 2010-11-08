@@ -975,7 +975,9 @@ class PyStringObjectPtr(PyObjectPtr):
     def __str__(self):
         field_ob_size = self.field('ob_size')
         field_ob_sval = self.field('ob_sval')
-        char_ptr = field_ob_sval.address.cast(_type_unsigned_char_ptr)
+        char_ptr = field_ob_sval.address.cast(
+            gdb.lookup_type('char').pointer())
+        
         return ''.join([chr(char_ptr[i]) for i in safe_range(field_ob_size)])
 
     def proxyval(self, visited):
