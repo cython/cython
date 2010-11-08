@@ -12,6 +12,7 @@ class Foo(object):
     """
     __metaclass__ = Base
 
+
 class Py3Base(type):
     def __new__(cls, name, bases, attrs, foo=None):
         attrs['foo'] = foo
