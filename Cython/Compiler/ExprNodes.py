@@ -7202,11 +7202,15 @@ static int __Pyx_PrepareClass(PyObject *metaclass, PyObject *bases, PyObject *na
         PyErr_Clear();
         return 0;
     }
-    pargs = PyTuple_Pack(2, name, bases);
-    if (pargs == NULL) {
+    pargs = PyTuple_New(2);
+    if (!pargs) {
         Py_DECREF(prep);
         return -1;
     }
+    Py_INCREF(name);
+    Py_INCREF(bases);
+    PyTuple_SET_ITEM(pargs, 0, name);
+    PyTuple_SET_ITEM(pargs, 1, bases);
     ns = PyEval_CallObjectWithKeywords(prep, pargs, mkw);
     Py_DECREF(pargs);
     Py_DECREF(prep);
@@ -7271,8 +7275,13 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
         Py_INCREF(metaclass);
     }
     if (mkw && PyDict_Size(mkw) > 0) {
-        PyObject *margs;
-        margs = PyTuple_Pack(3, name, bases, dict, NULL);
+        PyObject *margs = PyTuple_New(3);
+        Py_INCREF(name);
+        Py_INCREF(bases);
+        Py_INCREF(dict);
+        PyTuple_SET_ITEM(margs, 0, name);
+        PyTuple_SET_ITEM(margs, 1, bases);
+        PyTuple_SET_ITEM(margs, 2, dict);
         result = PyEval_CallObjectWithKeywords(metaclass, margs, mkw);
         Py_DECREF(margs);
     } else {
