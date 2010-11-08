@@ -7276,6 +7276,8 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
     }
     if (mkw && PyDict_Size(mkw) > 0) {
         PyObject *margs = PyTuple_New(3);
+        if (!margs)
+            goto bad;
         Py_INCREF(name);
         Py_INCREF(bases);
         Py_INCREF(dict);
