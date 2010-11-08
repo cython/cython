@@ -1233,15 +1233,11 @@ class AlignFunctionDefinitions(CythonTransform):
     def visit_DefNode(self, node):
         pxd_def = self.scope.lookup(node.name)
         if pxd_def:
-            if self.scope.is_c_class_scope and len(pxd_def.type.args) > 0:
-                # The self parameter type needs adjusting.
-                pxd_def.type.args[0].type = self.scope.parent_type
-            if pxd_def.is_cfunction:
-                node = node.as_cfunction(pxd_def)
-            else:
+            if not pxd_def.is_cfunction:
                 error(node.pos, "'%s' redeclared" % node.name)
                 error(pxd_def.pos, "previous declaration here")
                 return None
+            node = node.as_cfunction(pxd_def)
         elif self.scope.is_module_scope and self.directives['auto_cpdef']:
             node = node.as_cfunction(scope=self.scope)
         # Enable this when internal def functions are allowed. 

@@ -534,8 +534,9 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         if nonempty:
             nonempty -= 1
         func_type_args = []
-        for arg_node in self.args:
-            name_declarator, type = arg_node.analyse(env, nonempty = nonempty)
+        for i, arg_node in enumerate(self.args):
+            name_declarator, type = arg_node.analyse(env, nonempty = nonempty,
+                                                     is_self_arg = (i == 0 and env.is_c_class_scope))
             name = name_declarator.name
             if name_declarator.cname:
                 error(self.pos, 
@@ -649,8 +650,9 @@ class CArgDeclNode(Node):
     default_value = None
     annotation = None
 
-    def analyse(self, env, nonempty = 0):
-        #print "CArgDeclNode.analyse: is_self_arg =", self.is_self_arg ###
+    def analyse(self, env, nonempty = 0, is_self_arg = False):
+        if is_self_arg:
+            self.base_type.is_self_arg = self.is_self_arg = True
         if self.type is None:
             # The parser may missinterpret names as types...
             # We fix that here.
@@ -1600,7 +1602,7 @@ class CFuncDefNode(FuncDefNode):
     def analyse_declarations(self, env):
         self.directive_locals.update(env.directives['locals'])
         base_type = self.base_type.analyse(env)
-        # The 2 here is because we need both function and argument names. 
+        # The 2 here is because we need both function and argument names.
         name_declarator, type = self.declarator.analyse(base_type, env, nonempty = 2 * (self.body is not None))
         if not type.is_cfunction:
             error(self.pos, 
@@ -1907,12 +1909,15 @@ class DefNode(FuncDefNode):
                                               is_overridable = True)
             cfunc = CVarDefNode(self.pos, type=cfunc_type)
         else:
+            if scope is None:
+                scope = cfunc.scope
             cfunc_type = cfunc.type
             if len(self.args) != len(cfunc_type.args) or cfunc_type.has_varargs:
                 error(self.pos, "wrong number of arguments")
                 error(cfunc.pos, "previous declaration here")
-            for formal_arg, type_arg in zip(self.args, cfunc_type.args):
-                name_declarator, type = formal_arg.analyse(cfunc.scope, nonempty=1)
+            for i, (formal_arg, type_arg) in enumerate(zip(self.args, cfunc_type.args)):
+                name_declarator, type = formal_arg.analyse(scope, nonempty=1,
+                                                           is_self_arg = (i == 0 and scope.is_c_class_scope))
                 if type is None or type is PyrexTypes.py_object_type:
                     formal_arg.type = type_arg.type
                     formal_arg.name_declarator = name_declarator
