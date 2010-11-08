@@ -70,7 +70,7 @@ class Entry(object):
     #                               or class attribute during
     #                               class construction
     # is_member        boolean    Is an assigned class member
-    # is_real_dict     boolean    Is a real dict, PyClass attributes dict
+    # is_pyclass_attr  boolean    Is a name in a Python class namespace
     # is_variable      boolean    Is a variable
     # is_cfunction     boolean    Is a C function
     # is_cmethod       boolean    Is a C method of an extension type
@@ -132,7 +132,7 @@ class Entry(object):
     is_cglobal = 0
     is_pyglobal = 0
     is_member = 0
-    is_real_dict = 0
+    is_pyclass_attr = 0
     is_variable = 0
     is_cfunction = 0
     is_cmethod = 0
@@ -1419,7 +1419,7 @@ class PyClassScope(ClassScope):
         entry = Scope.declare_var(self, name, type, pos, 
             cname, visibility, is_cdef)
         entry.is_pyglobal = 1
-        entry.is_real_dict = 1
+        entry.is_pyclass_attr = 1
         return entry
 
     def add_default_value(self, type):

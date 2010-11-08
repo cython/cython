@@ -1450,7 +1450,7 @@ class NameNode(AtomicExprNode):
             return # There was an error earlier
         if entry.is_builtin and Options.cache_builtins:
             return # Lookup already cached
-        elif entry.is_real_dict:
+        elif entry.is_pyclass_attr:
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
             if entry.is_builtin:
@@ -1459,7 +1459,7 @@ class NameNode(AtomicExprNode):
                 namespace = entry.scope.namespace_cname
             code.globalstate.use_utility_code(getitem_dict_utility_code)
             code.putln(
-                '%s = __Pyx_PyDict_GetItem(%s, %s); %s' % (
+                '%s = PyObject_GetItem(%s, %s); %s' % (
                 self.result(),
                 namespace,
                 interned_cname,
@@ -1521,9 +1521,9 @@ class NameNode(AtomicExprNode):
                 # in Py2.6+, we need to invalidate the method cache
                 code.putln("PyType_Modified(%s);" %
                             entry.scope.parent_type.typeptr_cname)
-            elif entry.is_real_dict:
+            elif entry.is_pyclass_attr:
                 code.put_error_if_neg(self.pos,
-                    'PyDict_SetItem(%s, %s, %s)' % (
+                    'PyObject_SetItem(%s, %s, %s)' % (
                         namespace,
                         interned_cname,
                         rhs.py_result()))
@@ -1608,10 +1608,10 @@ class NameNode(AtomicExprNode):
         if not self.entry.is_pyglobal:
             error(self.pos, "Deletion of local or C global name not supported")
             return
-        if self.entry.is_real_dict:
+        if self.entry.is_pyclass_attr:
             namespace = self.entry.scope.namespace_cname
             code.put_error_if_neg(self.pos,
-                'PyDict_DelItemString(%s, "%s")' % (
+                'PyMapping_DelItemString(%s, "%s")' % (
                     namespace,
                     self.entry.name))
         else:
@@ -4494,7 +4494,7 @@ class ClassNode(ExprNode, ModuleNameMixin):
             self.keyword_args.analyse_types(env)
         if self.starstar_arg:
             self.starstar_arg.analyse_types(env)
-        if self.starstar_arg:
+            # make sure we have a Python object as **kwargs mapping
             self.starstar_arg = \
                 self.starstar_arg.coerce_to_pyobject(env)
         self.type = py_object_type
@@ -4504,7 +4504,7 @@ class ClassNode(ExprNode, ModuleNameMixin):
         self.set_mod_name(env)
 
     def may_be_none(self):
-        return False
+        return True
 
     gil_message = "Constructing Python class"
 
@@ -4539,6 +4539,7 @@ class ClassNode(ExprNode, ModuleNameMixin):
                 keyword_code,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
+
 
 class BoundMethodNode(ExprNode):
     #  Helper class used in the implementation of Python
@@ -7183,11 +7184,13 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
 create_class_utility_code = UtilityCode(
 proto = """
 static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name,
-                                     PyObject *modname, PyObject *kwargs); /*proto*/
+                                   PyObject *modname, PyObject *kwargs); /*proto*/
+static int __Pyx_PrepareClass(PyObject *metaclass, PyObject *bases, PyObject *name,
+                              PyObject *mkw, PyObject *dict); /*proto*/
 """,
 impl = """
-static int __Pyx_PrepareClass(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *mkw, PyObject *dict)
-{
+static int __Pyx_PrepareClass(PyObject *metaclass, PyObject *bases, PyObject *name,
+                              PyObject *mkw, PyObject *dict) {
     PyObject *prep;
     PyObject *pargs;
     PyObject *ns;
@@ -7219,9 +7222,8 @@ static int __Pyx_PrepareClass(PyObject *metaclass, PyObject *bases, PyObject *na
     return 0;
 }
 
-static PyObject *__Pyx_CreateClass(
-    PyObject *bases, PyObject *dict, PyObject *name, PyObject *modname, PyObject *kwargs)
-{
+static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name,
+                                   PyObject *modname, PyObject *kwargs) {
     PyObject *result = NULL;
     PyObject *metaclass = NULL;
     PyObject *mkw = NULL;
@@ -7232,7 +7234,7 @@ static PyObject *__Pyx_CreateClass(
     /* Python3 metaclasses */
     if (kwargs) {
         mkw = PyDict_Copy(kwargs); /* Don't modify kwargs passed in! */
-        if (mkw == NULL)
+        if (!mkw)
             return NULL;
         metaclass = PyDict_GetItemString(mkw, "metaclass");
         if (metaclass) {
@@ -7243,31 +7245,29 @@ static PyObject *__Pyx_CreateClass(
                 goto bad;
         }
     }
-    /* Python2 __metaclass__ */
-    if (metaclass == NULL) {
+    if (!metaclass) {
+        /* Python2 __metaclass__ */
         metaclass = PyDict_GetItemString(dict, "__metaclass__");
-        if (metaclass)
-            Py_INCREF(metaclass);
-    }
-    /* Default metaclass */
-    if (metaclass == NULL) {
+        if (!metaclass) {
+            /* Default metaclass */
 #if PY_MAJOR_VERSION < 3
-        if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
-            PyObject *base = PyTuple_GET_ITEM(bases, 0);
-            metaclass = PyObject_GetAttrString(base, "__class__");
-            if (metaclass == NULL) {
-                PyErr_Clear();
-                metaclass = (PyObject *)base->ob_type;
-            }
-        } else
-            metaclass = (PyObject *) &PyClass_Type;
+            if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+                PyObject *base = PyTuple_GET_ITEM(bases, 0);
+                metaclass = PyObject_GetAttrString(base, "__class__");
+                if (!metaclass) {
+                    PyErr_Clear();
+                    metaclass = (PyObject *)base->ob_type;
+                }
+            } else
+                metaclass = (PyObject *) &PyClass_Type;
 #else
-        if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
-            PyObject *base = PyTuple_GET_ITEM(bases, 0);
-            metaclass = (PyObject *)base->ob_type;
-        } else
-            metaclass = (PyObject *) &PyType_Type;
+            if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+                PyObject *base = PyTuple_GET_ITEM(bases, 0);
+                metaclass = (PyObject *)base->ob_type;
+            } else
+                metaclass = (PyObject *) &PyType_Type;
 #endif
+        }
         Py_INCREF(metaclass);
     }
     if (mkw && PyDict_Size(mkw) > 0) {
@@ -7280,8 +7280,7 @@ static PyObject *__Pyx_CreateClass(
     }
 bad:
     Py_DECREF(metaclass);
-    if (mkw)
-        Py_XDECREF(mkw);
+    Py_XDECREF(mkw);
     return result;
 }
 """)
