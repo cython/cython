@@ -244,8 +244,14 @@ class CythonBase(object):
             if not pyframeobject:
                 raise gdb.GdbError('Unable to read information on python frame')
 
-            filename = pyframeobject.filename()
-            lineno = pyframeobject.current_line_num()
+            try:
+                filename = pyframeobject.filename()
+            except RuntimeError:
+                filename = None
+                lineno = None
+            else:
+                lineno = pyframeobject.current_line_num()
+            
             if pygments:
                 lexer = pygments.lexers.PythonLexer(stripall=False)
         else:
@@ -307,7 +313,10 @@ class CythonBase(object):
                 # print this python function as a C function
                 return self.print_stackframe(frame, index, is_c=True)
             
-            func_name = pyframe.co_name
+            try:
+                func_name = str(pyframe.co_name)
+            except RuntimeError:
+                func_name = 'Unknown Function Name'
             func_cname = 'PyEval_EvalFrameEx'
             func_args = []
         elif self.is_cython_function(frame):
