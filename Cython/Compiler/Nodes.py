@@ -1913,7 +1913,7 @@ class DefNode(FuncDefNode):
                 error(cfunc.pos, "previous declaration here")
             for formal_arg, type_arg in zip(self.args, cfunc_type.args):
                 name_declarator, type = formal_arg.analyse(cfunc.scope, nonempty=1)
-                if type is None or type is PyrexTypes.py_object_type or formal_arg.is_self:
+                if type is None or type is PyrexTypes.py_object_type:
                     formal_arg.type = type_arg.type
                     formal_arg.name_declarator = name_declarator
         import ExprNodes
