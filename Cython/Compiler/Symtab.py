@@ -1586,7 +1586,20 @@ class CClassScope(ClassScope):
         entry.is_cmethod = 1
         entry.prev_entry = prev_entry
         return entry
-    
+
+    def declare_builtin_cfunction(self, name, type, cname, utility_code = None):
+        # overridden methods of builtin types still have their Python
+        # equivalent that must be accessible to support bound methods
+        name = EncodedString(name)
+        entry = self.declare_cfunction(name, type, None, cname, visibility='extern',
+                                       utility_code = utility_code)
+        var_entry = Entry(name, name, py_object_type)
+        var_entry.is_variable = 1
+        var_entry.is_builtin = 1
+        var_entry.utility_code = utility_code
+        entry.as_variable = var_entry
+        return entry
+
     def declare_property(self, name, doc, pos):
         entry = self.lookup_here(name)
         if entry is None:

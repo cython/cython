@@ -320,8 +320,8 @@ class BuiltinMethod(_BuiltinOverride):
             self_arg = PyrexTypes.CFuncTypeArg("", self_type, None)
             self_arg.not_none = True
             method_type = sig.function_type(self_arg)
-        self_type.scope.declare_cfunction(self.py_name, method_type, None, self.cname,
-                                          utility_code = self.utility_code)
+        self_type.scope.declare_builtin_cfunction(
+            self.py_name, method_type, self.cname, utility_code = self.utility_code)
 
 
 builtin_function_table = [

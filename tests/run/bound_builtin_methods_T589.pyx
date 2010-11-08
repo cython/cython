@@ -1,6 +1,8 @@
 
 cimport cython
 
+_set = set # CPython may not define it (in Py2.3), but Cython does :)
+
 def test_set_clear_bound():
     """
     >>> type(test_set_clear_bound()) is _set
