@@ -1559,8 +1559,7 @@ class CClassScope(ClassScope):
                     error(pos, "'%s' already defined" % name)
                 #print "CClassScope.declare_cfunction: checking signature" ###
                 if type.same_c_signature_as(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
-                    # may still need to adjust the type of 'self' => simply override the type
-                    entry.type = type
+                    pass
                 elif type.compatible_signature_with(entry.type, as_cmethod = 1) and type.nogil == entry.type.nogil:
                     entry = self.add_cfunction(name, type, pos, cname or name, visibility='ignore', modifiers=modifiers)
                     defining = 1
