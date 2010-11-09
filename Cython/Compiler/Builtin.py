@@ -36,7 +36,7 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
             "%.200s object is not an iterator", iterator->ob_type->tp_name);
         return NULL;
     }
-    next = (*iterator->ob_type->tp_iternext)(iterator);
+    next = (*(Py_TYPE(iterator)->tp_iternext))(iterator);
     if (likely(next)) {
         return next;
     } else if (defval) {
