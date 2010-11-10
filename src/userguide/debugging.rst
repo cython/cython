@@ -142,8 +142,18 @@ of these commands are analogous to their respective gdb command.
 .. function:: cy print varname
 
     Print a local or global Cython, Python or C variable (depending on the 
-    context).
+    context). Variables may also be dereferenced::
 
+        (gdb) cy print x
+        x = 1
+        (gdb) cy print *x
+        *x = (PyObject) {
+            _ob_next = 0x93efd8, 
+            _ob_prev = 0x93ef88, 
+            ob_refcnt = 65, 
+            ob_type = 0x83a3e0
+        }
+                
 .. function:: cy list
 
     List the source code surrounding the current line.
@@ -158,3 +168,63 @@ of these commands are analogous to their respective gdb command.
     Import debug information from files given as arguments. The easiest way to
     import debug information is to use the cygdb command line tool.
 
+Convenience functions
+=====================
+The following functions are gdb functions, which means they can be used in a
+gdb expression.
+
+.. function:: cy_cname(varname)
+
+    Returns the C variable name of a Cython variable. For global
+    variables this may not be actually valid.
+
+.. function:: cy_cvalue(varname)
+
+    Returns the value of a Cython variable.
+
+.. function:: cy_lineno()
+
+    Returns the current line number in the selected Cython frame.
+
+
+Example::
+
+    (gdb) print $cy_cname("x")
+    $1 = "__pyx_v_x"
+    (gdb) watch $cy_cvalue("x")
+    Hardware watchpoint 13: $cy_cvalue("x")
+    (gdb) print $cy_lineno()
+    $2 = 12
+
+    
+Configuring the Debugger
+========================
+A few aspects of the debugger are configurable with gdb parameters. For 
+instance, colors can be disabled, the terminal background color 
+and breakpoint autocompletion can be configured.
+
+.. c:macro:: cy_complete_unqualified
+    
+    Tells the Cython debugger whether ``cy break`` should also complete
+    plain function names, i.e. not prefixed by their module name.
+    E.g. if you have a function named ``spam``,
+    in module ``M``, it tells whether to only complete ``M.spam`` or also just
+    ``spam``.
+
+    The default is true.
+
+.. c:macro:: cy_colorize_code
+
+    Tells the debugger whether to colorize source code. The default is true.
+
+.. c:macro:: cy_terminal_background_color
+
+    Tells the debugger about the terminal background color, which affects
+    source code coloring. The default is "dark", another valid option is 
+    "light".
+
+This is how these parameters can be used::
+
+    (gdb) set cy_complete_unqualified off
+    (gdb) set cy_terminal_background_color light
+    (gdb) show cy_colorize_code
