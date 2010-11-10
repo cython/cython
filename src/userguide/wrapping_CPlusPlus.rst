@@ -165,7 +165,7 @@ We now need to declare the attributes for use on Cython::
 Declare a var with the wrapped C++ class
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Now, we use cdef to declare a var of the class with the know C++ ``new`` statement::
+Now, we use cdef to declare a var of the class with the C++ ``new`` statement::
 
     cdef Rectangle *rec = new Rectangle(1, 2, 3, 4)
     cdef int recLength = rec.getLength()
