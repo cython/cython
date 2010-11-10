@@ -5,7 +5,7 @@ cdef class Scanner:
     cdef public lexicon
     cdef public stream
     cdef public name
-    cdef public buffer
+    cdef public unicode buffer
     cdef public Py_ssize_t buf_start_pos
     cdef public Py_ssize_t next_pos
     cdef public Py_ssize_t cur_pos
@@ -32,9 +32,9 @@ cdef class Scanner:
     cpdef tuple position(self)
 
     @cython.locals(cur_pos=long, cur_line=long, cur_line_start=long,
-                   input_state=long, next_pos=long,
+                   input_state=long, next_pos=long, state=dict,
                    buf_start_pos=long, buf_len=long, buf_index=long,
-                   trace=bint, discard=long)
+                   trace=bint, discard=long, data=unicode, buffer=unicode)
     cpdef run_machine_inlined(self)
     
     cpdef begin(self, state)
