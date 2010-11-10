@@ -23,7 +23,8 @@ def usage():
 def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
     if not no_import:
         pattern = os.path.join(path_to_debug_info, 
-                               'cython_debug/cython_debug_info_*')
+                               'cython_debug',
+                               'cython_debug_info_*')
         debug_files = glob.glob(pattern)
 
         if not debug_files:
