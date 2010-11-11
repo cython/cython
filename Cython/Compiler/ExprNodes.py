@@ -651,7 +651,11 @@ class ExprNode(Node):
         return self.result_in_temp()
 
     def may_be_none(self):
-        return self.type.is_pyobject
+        if not self.type.is_pyobject:
+            return False
+        if self.constant_result not in (not_a_constant, constant_value_not_set):
+            return self.constant_result is not None
+        return True
 
     def as_cython_attribute(self):
         return None
