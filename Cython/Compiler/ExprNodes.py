@@ -3888,7 +3888,8 @@ class TupleNode(SequenceNode):
             self.is_literal = 1
         else:
             SequenceNode.analyse_types(self, env, skip_children)
-            
+        self.type = tuple_type
+
     def calculate_result_code(self):
         if len(self.args) > 0:
             error(self.pos, "Positive length tuples must be constructed.")
