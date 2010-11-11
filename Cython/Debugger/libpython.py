@@ -1686,6 +1686,72 @@ class GenericCodeStepper(gdb.Command):
         context.
         """
     
+    def stopped(self):
+        return gdb.inferiors()[0].pid == 0
+        
+    def _stackdepth(self, frame):
+        depth = 0
+        while frame:
+            frame = frame.older()
+            depth += 1
+            
+        return depth
+    
+    def finish_executing(self, result):
+        """
+        After doing some kind of code running in the inferior, print the line
+        of source code or the result of the last executed gdb command (passed
+        in as the `result` argument).
+        """
+        if self.stopped():
+            print result.strip()
+        else:
+            frame = gdb.selected_frame()
+            output = None
+            
+            if self.is_relevant_function(frame):
+                output = self.get_source_line(frame)
+            
+            if output is None:
+                pframe = getattr(self, 'print_stackframe', None)
+                if pframe:
+                    pframe(frame, index=0)
+                else:
+                    print result.strip()
+            else:
+                print output
+    
+    def _finish(self):
+        """
+        Execute until the function returns (or until something else makes it 
+        stop)
+        """
+        if gdb.selected_frame().older() is not None:
+            return gdb.execute('finish', to_string=True)
+        else:
+            # outermost frame, continue
+            return gdb.execute('cont', to_string=True)
+    
+    def finish(self, *args):
+        """
+        Execute until the function returns to a relevant caller.
+        """
+        
+        while True:
+            result = self._finish()
+            
+            try:
+                frame = gdb.selected_frame()
+            except RuntimeError:
+                break
+            
+            hitbp = re.search(r'Breakpoint (\d+)', result)
+            is_relavant = self.is_relevant_function(frame)
+            if hitbp or is_relavant or self.stopped():
+                break
+            
+        self.finish_executing(result)
+    
     def _step(self):
         """
         Do a single step or step-over. Returns the result of the last gdb
@@ -1706,10 +1772,7 @@ class GenericCodeStepper(gdb.Command):
             if self.is_relevant_function(newframe):
                 result = gdb.execute('next', to_string=True)
             else:
-                if self._stackdepth(newframe) == 1:
-                    result = gdb.execute('cont', to_string=True)
-                else:
-                    result = gdb.execute('finish', to_string=True)
+                result = self._finish()
             
             if self.stopped():
                 break
@@ -1749,39 +1812,15 @@ class GenericCodeStepper(gdb.Command):
             self.disable_breakpoints()
 
         return result
-        
-    def stopped(self):
-        return gdb.inferiors()[0].pid == 0
-        
-    def _stackdepth(self, frame):
-        depth = 0
-        while frame:
-            frame = frame.older()
-            depth += 1
-            
-        return depth
     
-    def invoke(self, args, from_tty):
-        self.finish_executing(self._step())
+    def step(self):
+        return self.finish_executing(self._step())
+
+    def run(self, *args):
+        self.finish_executing(gdb.execute('run', to_string=True))
     
-    def finish_executing(self, result):
-        if self.stopped():
-            print result.strip()
-        else:
-            frame = gdb.selected_frame()
-            output = None
-            
-            if self.is_relevant_function(frame):
-                output = self.get_source_line(frame)
-            
-            if output is None:
-                pframe = getattr(self, 'print_stackframe', None)
-                if pframe:
-                    pframe(frame, index=0)
-                else:
-                    print result.strip()
-            else:
-                print output
+    def cont(self, *args):
+        self.finish_executing(gdb.execute('cont', to_string=True))
 
 
 class PythonCodeStepper(GenericCodeStepper):
@@ -1813,11 +1852,33 @@ class PythonCodeStepper(GenericCodeStepper):
 
 class PyStep(PythonCodeStepper):
     "Step through Python code."
-
+    
+    invoke = PythonCodeStepper.step
+    
 class PyNext(PythonCodeStepper):
     "Step-over Python code."
+    
+    invoke = PythonCodeStepper.step
+    
+class PyFinish(PythonCodeStepper):
+    "Execute until function returns to a caller."
+    
+    invoke = PythonCodeStepper.finish
+
+class PyRun(PythonCodeStepper):
+    "Run the program."
+    
+    invoke = PythonCodeStepper.run
+
+class PyCont(PythonCodeStepper):
+    
+    invoke = PythonCodeStepper.cont
+
 
 py_step = PyStep('py-step', stepinto=True)
 py_next = PyNext('py-next', stepinto=False)
+py_finish = PyFinish('py-finish')
+py_run = PyRun('py-run')
+py_cont = PyCont('py-cont')
 
 py_step.init_breakpoints()

@@ -277,8 +277,7 @@ class CythonBase(object):
         older_frame = frame.older()
         if self.is_cython_function(frame) or self.is_python_function(frame):
             return True
-        elif (parameters.step_into_c_code and 
-              older_frame and self.is_cython_function(older_frame)):
+        elif older_frame and self.is_cython_function(older_frame):
             # direct C function call from a Cython function
             cython_func = self.get_cython_function(older_frame)
             return name in cython_func.step_into_functions
@@ -506,12 +505,6 @@ class TerminalBackground(CythonParameter):
     Tell cygdb about the user's terminal background (light or dark).
     """
 
-class StepIntoCCode(CythonParameter):
-    """
-    Tells cygdb whether to step into C functions called directly from Cython
-    code.
-    """
-
 class CythonParameters(object):
     """
     Simple container class that might get more functionality in the distant
@@ -534,11 +527,6 @@ class CythonParameters(object):
             gdb.COMMAND_FILES,
             gdb.PARAM_STRING,
             "dark")
-        self.step_into_c_code = StepIntoCCode(
-            'cy_step_into_c_code',
-            gdb.COMMAND_RUNNING,
-            gdb.PARAM_BOOLEAN,
-            True)
         
 parameters = CythonParameters()
 
@@ -602,6 +590,7 @@ class CyCy(CythonCommand):
             next = CyNext.register(),
             run = CyRun.register(),
             cont = CyCont.register(),
+            finish = CyFinish.register(),
             up = CyUp.register(),
             down = CyDown.register(),
             bt = CyBacktrace.register(),
@@ -873,7 +862,7 @@ class CythonCodeStepper(CythonCommand, libpython.GenericCodeStepper):
                 
             self.finish_executing(gdb.execute(command, to_string=True))
         else:
-            super(CythonCodeStepper, self).invoke(args, from_tty)
+            self.step()
 
 
 class CyStep(CythonCodeStepper):
@@ -897,10 +886,8 @@ class CyRun(CythonCodeStepper):
     """
     
     name = 'cy run'
-    _command = 'run'
     
-    def invoke(self, *args):
-        self.finish_executing(gdb.execute(self._command, to_string=True))
+    invoke = CythonCodeStepper.run
 
 
 class CyCont(CyRun):
@@ -910,7 +897,16 @@ class CyCont(CyRun):
     """
     
     name = 'cy cont'
-    _command = 'cont'
+    invoke = CythonCodeStepper.cont
+
+
+class CyFinish(CyRun):
+    """
+    Execute until the function returns.
+    """
+    name = 'cy finish'
+
+    invoke = CythonCodeStepper.finish
 
 
 class CyUp(CythonCommand):
