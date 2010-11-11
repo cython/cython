@@ -26,16 +26,15 @@ cdef class Scanner:
 
     @cython.locals(input_state=long)
     cpdef next_char(self)
-    @cython.locals(queue=list)
     cpdef tuple read(self)
-    cpdef tuple scan_a_token(self)
+    cdef tuple scan_a_token(self)
     cpdef tuple position(self)
 
     @cython.locals(cur_pos=long, cur_line=long, cur_line_start=long,
                    input_state=long, next_pos=long, state=dict,
                    buf_start_pos=long, buf_len=long, buf_index=long,
                    trace=bint, discard=long, data=unicode, buffer=unicode)
-    cpdef run_machine_inlined(self)
+    cdef run_machine_inlined(self)
     
     cpdef begin(self, state)
     cpdef produce(self, value, text = *)
