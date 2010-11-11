@@ -4,7 +4,7 @@ cdef class BasicVisitor:
     cdef dict dispatch_table
     cpdef visit(self, obj)
     cdef _visit(self, obj)
-    cdef _find_handler(self, obj)
+    cdef find_handler(self, obj)
 
 cdef class TreeVisitor(BasicVisitor):
     cdef public list access_path
