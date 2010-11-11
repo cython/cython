@@ -3683,8 +3683,8 @@ class SequenceNode(ExprNode):
             arg = self.args[i]
             if not skip_children: arg.analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
-        self.type = py_object_type
         self.is_temp = 1
+        # not setting self.type here, subtypes do this
 
     def may_be_none(self):
         return False
@@ -3888,7 +3888,6 @@ class TupleNode(SequenceNode):
             self.is_literal = 1
         else:
             SequenceNode.analyse_types(self, env, skip_children)
-        self.type = tuple_type
 
     def calculate_result_code(self):
         if len(self.args) > 0:
@@ -3945,6 +3944,7 @@ class ListNode(SequenceNode):
     # orignial_args            [ExprNode]     used internally
 
     obj_conversion_errors = []
+    type = list_type
 
     gil_message = "Constructing Python list"
     
@@ -3963,7 +3963,6 @@ class ListNode(SequenceNode):
         hold_errors()
         self.original_args = list(self.args)
         SequenceNode.analyse_types(self, env)
-        self.type = list_type
         self.obj_conversion_errors = held_errors()
         release_errors(ignore=True)
         
