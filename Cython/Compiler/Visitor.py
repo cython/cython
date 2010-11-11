@@ -26,11 +26,11 @@ class BasicVisitor(object):
         try:
             handler_method = self.dispatch_table[type(obj)]
         except KeyError:
-            handler_method = self._find_handler(obj)
+            handler_method = self.find_handler(obj)
             self.dispatch_table[type(obj)] = handler_method
         return handler_method(obj)
 
-    def _find_handler(self, obj):
+    def find_handler(self, obj):
         cls = type(obj)
         #print "Cache miss for class %s in visitor %s" % (
         #    cls.__name__, type(self).__name__)
