@@ -3,14 +3,15 @@ cimport cython
 cdef class BasicVisitor:
     cdef dict dispatch_table
     cpdef visit(self, obj)
-    cpdef find_handler(self, obj)
+    cdef _visit(self, obj)
+    cdef find_handler(self, obj)
 
 cdef class TreeVisitor(BasicVisitor):
     cdef public list access_path
     cpdef visitchild(self, child, parent, attrname, idx)
     @cython.locals(idx=int)
     cdef dict _visitchildren(self, parent, attrs)
-#    cpdef visitchildren(self, parent, attrs=*)
+    cpdef visitchildren(self, parent, attrs=*)
 
 cdef class VisitorTransform(TreeVisitor):
     cpdef visitchildren(self, parent, attrs=*)

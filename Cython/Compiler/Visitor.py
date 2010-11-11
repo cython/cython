@@ -20,6 +20,9 @@ class BasicVisitor(object):
         self.dispatch_table = {}
 
     def visit(self, obj):
+        return self._visit(obj)
+
+    def _visit(self, obj):
         try:
             handler_method = self.dispatch_table[type(obj)]
         except KeyError:
@@ -176,7 +179,7 @@ class TreeVisitor(BasicVisitor):
     def visitchild(self, child, parent, attrname, idx):
         self.access_path.append((parent, attrname, idx))
         try:
-            result = self.visit(child)
+            result = self._visit(child)
         except Errors.CompileError:
             raise
         except Exception, e:
@@ -256,7 +259,7 @@ class VisitorTransform(TreeVisitor):
         return node
     
     def __call__(self, root):
-        return self.visit(root)
+        return self._visit(root)
 
 class CythonTransform(VisitorTransform):
     """
@@ -388,7 +391,7 @@ class PrintTree(TreeVisitor):
 
     def __call__(self, tree, phase=None):
         print("Parse tree dump at phase '%s'" % phase)
-        self.visit(tree)
+        self._visit(tree)
         return tree
 
     # Don't do anything about process_list, the defaults gives
