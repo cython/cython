@@ -8,7 +8,7 @@ cdef class BasicVisitor:
 
 cdef class TreeVisitor(BasicVisitor):
     cdef public list access_path
-    cpdef visitchild(self, child, parent, attrname, idx)
+    cdef visitchild(self, child, parent, attrname, idx)
     @cython.locals(idx=int)
     cdef dict _visitchildren(self, parent, attrs)
     cpdef visitchildren(self, parent, attrs=*)
