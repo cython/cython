@@ -57,6 +57,13 @@ def list_comp():
     assert x == 'abc' # don't leak in Py3 code
     return result
 
+def list_comp_unknown_type(l):
+    """
+    >>> list_comp_unknown_type(range(5))
+    [0, 4, 8]
+    """
+    return [x*2 for x in l if x % 2 == 0]
+
 def set_comp():
     """
     >>> sorted(set_comp())
