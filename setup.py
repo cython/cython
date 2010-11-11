@@ -101,8 +101,12 @@ def compile_cython_modules(profile=False):
                 pyx_source_file = source_file + ".py"
             else:
                 pyx_source_file = source_file + ".pyx"
+            dep_files = []
+            if os.path.exists(source_file + '.pxd'):
+                dep_files.append(source_file + '.pxd')
             extensions.append(
-                Extension(module, sources = [pyx_source_file])
+                Extension(module, sources = [pyx_source_file],
+                          depends = dep_files)
                 )
 
         class build_ext(build_ext_orig):
@@ -154,9 +158,18 @@ def compile_cython_modules(profile=False):
                 else:
                     pyx_source_file = source_file + ".pyx"
                 c_source_file = source_file + ".c"
-                if not os.path.exists(c_source_file) or \
-                   Utils.file_newer_than(pyx_source_file,
-                                         Utils.modification_time(c_source_file)):
+                source_is_newer = False
+                if not os.path.exists(c_source_file):
+                    source_is_newer = True
+                else:
+                    c_last_modified = Utils.modification_time(c_source_file)
+                    if Utils.file_newer_than(pyx_source_file, c_last_modified):
+                        source_is_newer = True
+                    else:
+                        pxd_source_file = source_file + ".pxd"
+                        if os.path.exists(pxd_source_file) and Utils.file_newer_than(pxd_source_file, c_last_modified):
+                            source_is_newer = True
+                if source_is_newer:
                     print("Compiling module %s ..." % module)
                     result = compile(pyx_source_file)
                     c_source_file = result.c_file
