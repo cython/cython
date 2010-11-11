@@ -7,9 +7,10 @@ for Python users, so this list may change in the future.
 
  - ``10**-2 == 0``, instead of ``0.01`` like in Python.
  - Given two typed ``int`` variables ``a`` and ``b``, ``a % b`` has the
-   same sign as the first argument (following C semantics) rather then
-   having the same sign as the second (as in Python).  This will change
-   in Cython 0.12.
+   same sign as the second argument (following Python semantics) rather then
+   having the same sign as the first (as in C).  The C behavior can be 
+   obtained, at some speed gain, by enabling the division directive. 
+   (Versions prior to Cython 0.12. always followed C semantics.)
  - Care is needed with unsigned types. ``cdef unsigned n = 10;
    print(range(-n, n))`` will print an empty list, since ``-n`` wraps
    around to a large positive integer prior to being passed to the
