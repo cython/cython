@@ -158,7 +158,6 @@ class TestStep(DebugStepperTestCase):
     
     def test_cython_step(self):
         gdb.execute('cy break codefile.spam')
-        libcython.parameters.step_into_c_code.value = False
         
         gdb.execute('run', to_string=True)
         self.lineno_equals('def spam(a=0):')
@@ -171,14 +170,12 @@ class TestStep(DebugStepperTestCase):
         self.step([('b', 1), ('c', 0)], source_line='c = 2')
         self.step([('c', 2)], source_line='int(10)')
         self.step([], source_line='puts("spam")')
-        self.step([], source_line='os.path.join("foo", "bar")')
         
         gdb.execute('cont', to_string=True)
         self.assertEqual(len(gdb.inferiors()), 1)
         self.assertEqual(gdb.inferiors()[0].pid, 0)
     
     def test_c_step(self):
-        libcython.parameters.step_into_c_code.value = True
         self.break_and_run('some_c_function()')
         gdb.execute('cy step', to_string=True)
         self.assertEqual(gdb.selected_frame().name(), 'some_c_function')
@@ -198,7 +195,6 @@ class TestStep(DebugStepperTestCase):
 class TestNext(DebugStepperTestCase):
     
     def test_cython_next(self):
-        libcython.parameters.step_into_c_code.value = True
         self.break_and_run('c = 2')
 
         lines = (
