@@ -6204,12 +6204,6 @@ class CmpNode(object):
             if op == 'not_in':
                 negation = "__Pyx_NegateNonNeg"
             if operand2.type is dict_type:
-                code.globalstate.use_utility_code(
-                    raise_none_iter_error_utility_code)
-                code.putln("if (unlikely(%s == Py_None)) {" % operand2.py_result())
-                code.putln("__Pyx_RaiseNoneNotIterableError(); %s" %
-                           code.error_goto(self.pos))
-                code.putln("} else {")
                 method = "PyDict_Contains"
             else:
                 method = "PySequence_Contains"
@@ -6229,8 +6223,6 @@ class CmpNode(object):
                     operand1.py_result(), 
                     got_ref,
                     error_clause(result_code, self.pos)))
-            if operand2.type is dict_type:
-                code.putln("}")
         elif (operand1.type.is_pyobject
             and op not in ('is', 'is_not')):
                 code.putln("%s = PyObject_RichCompare(%s, %s, %s); %s" % (
@@ -6427,6 +6419,8 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 # Will be transformed by IterationTransform
                 return
             else:
+                if self.operand2.type is dict_type:
+                    self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
                 common_type = py_object_type
                 self.is_pycmp = True
         elif self.find_special_bool_compare_function(env):
@@ -6588,6 +6582,8 @@ class CascadedCmpNode(Node, CmpNode):
         
     def coerce_operands_to_pyobjects(self, env):
         self.operand2 = self.operand2.coerce_to_pyobject(env)
+        if self.operand2.type is dict_type and self.operator in ('in', 'not_in'):
+            self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
         if self.cascade:
             self.cascade.coerce_operands_to_pyobjects(env)
 
