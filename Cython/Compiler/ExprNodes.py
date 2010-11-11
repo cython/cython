@@ -5981,7 +5981,9 @@ richcmp_constants = {
 class CmpNode(object):
     #  Mixin class containing code common to PrimaryCmpNodes
     #  and CascadedCmpNodes.
-    
+
+    special_bool_cmp_function = None
+
     def infer_type(self, env):
         # TODO: Actually implement this (after merging with -unstable).
         return py_object_type
@@ -6140,6 +6142,7 @@ class CmpNode(object):
 
     def is_python_result(self):
         return ((self.has_python_operands() and
+                 self.special_bool_cmp_function is None and
                  self.operator not in ('is', 'is_not', 'in', 'not_in') and
                  not self.is_c_string_contains() and
                  not self.is_ptr_contains())
@@ -6158,6 +6161,16 @@ class CmpNode(object):
             return (container_type.is_ptr or container_type.is_array) \
                 and not container_type.is_string
 
+    def find_special_bool_compare_function(self, env):
+        if self.operator in ('==', '!='):
+            type1, type2 = self.operand1.type, self.operand2.type
+            if type1.is_pyobject and type2.is_pyobject:
+                if type1 is Builtin.unicode_type or type2 is Builtin.unicode_type:
+                    env.use_utility_code(pyunicode_equals_utility_code)
+                    self.special_bool_cmp_function = "__Pyx_PyUnicode_Equals"
+                    return True
+        return False
+
     def generate_operation_code(self, code, result_code, 
             operand1, op , operand2):
         if self.type.is_pyobject:
@@ -6168,7 +6181,23 @@ class CmpNode(object):
             negation = "!"
         else: 
             negation = ""
-        if op == 'in' or op == 'not_in':
+        if self.special_bool_cmp_function:
+            if operand1.type.is_pyobject:
+                result1 = operand1.py_result()
+            else:
+                result1 = operand1.result()
+            if operand2.type.is_pyobject:
+                result2 = operand2.py_result()
+            else:
+                result2 = operand2.result()
+            code.putln("%s = %s(%s, %s, %s); %s" % (
+                result_code,
+                self.special_bool_cmp_function,
+                result1,
+                result2,
+                richcmp_constants[op],
+                code.error_goto_if_neg(result_code, self.pos)))
+        elif op == 'in' or op == 'not_in':
             code.globalstate.use_utility_code(contains_utility_code)
             if self.type.is_pyobject:
                 coerce_result = "__Pyx_PyBoolOrNull_FromLong"
@@ -6202,7 +6231,6 @@ class CmpNode(object):
                     error_clause(result_code, self.pos)))
             if operand2.type is dict_type:
                 code.putln("}")
-                    
         elif (operand1.type.is_pyobject
             and op not in ('is', 'is_not')):
                 code.putln("%s = PyObject_RichCompare(%s, %s, %s); %s" % (
@@ -6291,6 +6319,46 @@ static CYTHON_INLINE int __Pyx_UnicodeContains(PyObject* unicode, Py_UNICODE cha
 }
 """)
 
+pyunicode_equals_utility_code = UtilityCode(
+proto="""
+static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals); /*proto*/
+""",
+impl="""
+static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals) {
+    if (s1 == s2) {   /* as done by PyObject_RichCompareBool() */
+        return (equals == Py_EQ);
+    } else if (PyUnicode_CheckExact(s1) & PyUnicode_CheckExact(s2)) {
+        if (PyUnicode_GET_SIZE(s1) != PyUnicode_GET_SIZE(s2)) {
+            return (equals == Py_NE);
+        } else if (PyUnicode_GET_SIZE(s1) == 1) {
+            if (equals == Py_EQ)
+                return (PyUnicode_AS_UNICODE(s1)[0] == PyUnicode_AS_UNICODE(s2)[0]);
+            else
+                return (PyUnicode_AS_UNICODE(s1)[0] != PyUnicode_AS_UNICODE(s2)[0]);
+        } else {
+            int result = PyUnicode_Compare(s1, s2);
+            if ((result == -1) && unlikely(PyErr_Occurred()))
+                return -1;
+            return (equals == Py_EQ) ? (result == 0) : (result != 0);
+        }
+    } else if ((s1 == Py_None) & (s2 == Py_None)) {
+        return (equals == Py_EQ);
+    } else if ((s1 == Py_None) & PyUnicode_CheckExact(s2)) {
+        return (equals == Py_NE);
+    } else if ((s2 == Py_None) & PyUnicode_CheckExact(s1)) {
+        return (equals == Py_NE);
+    } else {
+        int result;
+        PyObject* py_result = PyObject_RichCompare(s1, s2, equals);
+        if (!py_result)
+            return -1;
+        result = __Pyx_PyObject_IsTrue(py_result);
+        Py_DECREF(py_result);
+        return result;
+    }
+}
+""")
+
 
 class PrimaryCmpNode(ExprNode, CmpNode):
     #  Non-cascaded comparison or first comparison of
@@ -6361,6 +6429,10 @@ class PrimaryCmpNode(ExprNode, CmpNode):
             else:
                 common_type = py_object_type
                 self.is_pycmp = True
+        elif self.find_special_bool_compare_function(env):
+            common_type = None # if coercion needed, the method call above has already done it
+            self.is_pycmp = False # result is bint
+            self.is_temp = True # must check for error return
         else:
             common_type = self.find_common_type(env, self.operator, self.operand1)
             self.is_pycmp = common_type.is_pyobject
