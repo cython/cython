@@ -26,11 +26,11 @@ class BasicVisitor(object):
         try:
             handler_method = self.dispatch_table[type(obj)]
         except KeyError:
-            handler_method = self.find_handler(obj)
+            handler_method = self._find_handler(obj)
             self.dispatch_table[type(obj)] = handler_method
         return handler_method(obj)
 
-    def find_handler(self, obj):
+    def _find_handler(self, obj):
         cls = type(obj)
         #print "Cache miss for class %s in visitor %s" % (
         #    cls.__name__, type(self).__name__)
@@ -176,7 +176,7 @@ class TreeVisitor(BasicVisitor):
             last_node.pos, self.__class__.__name__,
             u'\n'.join(trace), e, stacktrace)
 
-    def visitchild(self, child, parent, attrname, idx):
+    def _visitchild(self, child, parent, attrname, idx):
         self.access_path.append((parent, attrname, idx))
         try:
             result = self._visit(child)
@@ -209,9 +209,9 @@ class TreeVisitor(BasicVisitor):
             child = getattr(parent, attr)
             if child is not None:
                 if type(child) is list:
-                    childretval = [self.visitchild(x, parent, attr, idx) for idx, x in enumerate(child)]
+                    childretval = [self._visitchild(x, parent, attr, idx) for idx, x in enumerate(child)]
                 else:
-                    childretval = self.visitchild(child, parent, attr, None)
+                    childretval = self._visitchild(child, parent, attr, None)
                     assert not isinstance(childretval, list), 'Cannot insert list here: %s in %r' % (attr, parent)
                 result[attr] = childretval
         return result
