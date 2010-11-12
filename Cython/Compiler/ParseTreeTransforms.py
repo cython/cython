@@ -1195,17 +1195,7 @@ class AnalyseExpressionsTransform(CythonTransform):
         self.visitchildren(node)
         return node
 
-class ExpandInplaceOperators(CythonTransform):
-
-    def __call__(self, root):
-        self.env_stack = [root.scope]
-        return super(ExpandInplaceOperators, self).__call__(root)
-
-    def visit_FuncDefNode(self, node):
-        self.env_stack.append(node.local_scope)
-        self.visitchildren(node)
-        self.env_stack.pop()
-        return node
+class ExpandInplaceOperators(EnvTransform):
     
     def visit_InPlaceAssignmentNode(self, node):
         lhs = node.lhs
@@ -1250,16 +1240,13 @@ class ExpandInplaceOperators(CythonTransform):
         let_ref_nodes.reverse()
         for t in let_ref_nodes:
             node = LetNode(t, node)
-        node.analyse_expressions(self.env_stack[-1])
+        node.analyse_expressions(self.current_env())
         return node
 
     def visit_ExprNode(self, node):
         # In-place assignments can't happen within an expression.
         return node
 
-    def visit_Node(self, node):
-        self.visitchildren(node)
-        return node
 
 class AlignFunctionDefinitions(CythonTransform):
     """
