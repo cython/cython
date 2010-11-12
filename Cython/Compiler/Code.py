@@ -759,16 +759,22 @@ class GlobalState(object):
         try:
             return self.input_file_contents[source_desc]
         except KeyError:
+            pass
+        source_file = source_desc.get_lines(encoding='ASCII',
+                                            error_handling='ignore')
+        try:
             F = [u' * ' + line.rstrip().replace(
                     u'*/', u'*[inserted by cython to avoid comment closer]/'
                     ).replace(
                     u'/*', u'/[inserted by cython to avoid comment start]*'
                     )
-                 for line in source_desc.get_lines(encoding='ASCII',
-                                                   error_handling='ignore')]
-            if len(F) == 0: F.append(u'')
-            self.input_file_contents[source_desc] = F
-            return F
+                 for line in source_file]
+        finally:
+            if hasattr(source_file, 'close'):
+                source_file.close()
+        if not F: F.append(u'')
+        self.input_file_contents[source_desc] = F
+        return F
 
     #
     # Utility code state
