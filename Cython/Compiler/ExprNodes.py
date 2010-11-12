@@ -847,9 +847,16 @@ class IntNode(ConstNode):
         node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
                        type = dst_type, unsigned=self.unsigned, longness=self.longness)
         if dst_type.is_numeric and not dst_type.is_complex:
+            node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
+                           type = dst_type, unsigned=self.unsigned, longness=self.longness)
             return node
-        if dst_type.is_pyobject:
-            node.type = PyrexTypes.py_object_type
+        elif dst_type.is_pyobject:
+            node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
+                           type = PyrexTypes.py_object_type, unsigned=self.unsigned, longness=self.longness)
+        else:
+            # not setting the type here!
+            node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
+                           unsigned=self.unsigned, longness=self.longness)
         # We still need to perform normal coerce_to processing on the
         # result, because we might be coercing to an extension type,
         # in which case a type test node will be needed.
