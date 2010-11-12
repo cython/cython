@@ -1,10 +1,10 @@
-__doc__ = u"""
-    >>> str(f(5, 7))
-    '29509034655744'
-
-"""
+cimport cython
 
 def f(a,b):
+    """
+    >>> str(f(5, 7))
+    '29509034655744'
+    """
     a += b
     a *= b
     a **= b
@@ -117,3 +117,33 @@ def test_side_effects():
     b[side_effect(3)] += 10
     b[c_side_effect(4)] += 100
     return a, [b[i] for i from 0 <= i < 5]
+
+@cython.cdivision(True)
+def test_inplace_cdivision(int a, int b):
+    """
+    >>> test_inplace_cdivision(13, 10)
+    3
+    >>> test_inplace_cdivision(13, -10)
+    3
+    >>> test_inplace_cdivision(-13, 10)
+    -3
+    >>> test_inplace_cdivision(-13, -10)
+    -3
+    """
+    a %= b
+    return a
+
+@cython.cdivision(False)
+def test_inplace_pydivision(int a, int b):
+    """
+    >>> test_inplace_pydivision(13, 10)
+    3
+    >>> test_inplace_pydivision(13, -10)
+    -7
+    >>> test_inplace_pydivision(-13, 10)
+    7
+    >>> test_inplace_pydivision(-13, -10)
+    -3
+    """
+    a %= b
+    return a
