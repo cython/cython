@@ -1243,8 +1243,9 @@ class ExpandInplaceOperators(CythonTransform):
         binop = binop_node(node.pos, 
                            operator = node.operator,
                            operand1 = dup,
-                           operand2 = rhs)
-        node = SingleAssignmentNode(node.pos, lhs=lhs, rhs=binop) #, inplace=True)
+                           operand2 = rhs,
+                           inplace=True)
+        node = SingleAssignmentNode(node.pos, lhs=lhs, rhs=binop)
         # Use LetRefNode to avoid side effects.
         let_ref_nodes.reverse()
         for t in let_ref_nodes:
