@@ -5301,6 +5301,7 @@ class BinopNode(ExprNode):
     #      - Allocate temporary for result if needed.
     
     subexprs = ['operand1', 'operand2']
+    inplace = False
 
     def calculate_constant_result(self):
         func = compile_time_binary_operators[self.operator]
