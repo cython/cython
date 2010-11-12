@@ -2940,7 +2940,16 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
                isinstance(node.operand, ExprNodes.IntNode) and node_type.is_pyobject:
             return ExprNodes.IntNode(node.pos, value = '-' + node.operand.value,
                                      type = node_type,
+                                     longness = node.operand.longness,
                                      constant_result = node.constant_result)
+        return node
+
+    def visit_UnaryPlusNode(self, node):
+        self._calculate_const(node)
+        if node.constant_result is ExprNodes.not_a_constant:
+            return node
+        if node.constant_result == node.operand.constant_result:
+            return node.operand
         return node
 
     def visit_BoolBinopNode(self, node):
@@ -2948,9 +2957,6 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         if node.constant_result is ExprNodes.not_a_constant:
             return node
         if not node.operand1.is_literal or not node.operand2.is_literal:
-            # We calculate other constants to make them available to
-            # the compiler, but we only aggregate constant nodes
-            # recursively, so non-const nodes are straight out.
             return node
 
         if node.constant_result == node.operand1.constant_result and node.operand1.is_literal:
@@ -2966,14 +2972,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         if node.constant_result is ExprNodes.not_a_constant:
             return node
         if isinstance(node.constant_result, float):
-            # We calculate float constants to make them available to
-            # the compiler, but we do not aggregate them into a
-            # constant node to prevent any loss of precision.
             return node
         if not node.operand1.is_literal or not node.operand2.is_literal:
-            # We calculate other constants to make them available to
-            # the compiler, but we only aggregate constant nodes
-            # recursively, so non-const nodes are straight out.
             return node
 
         # now inject a new constant node with the calculated value
