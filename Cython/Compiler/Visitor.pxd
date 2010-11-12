@@ -23,3 +23,7 @@ cdef class CythonTransform(VisitorTransform):
 
 cdef class EnvTransform(CythonTransform):
     cdef public list env_stack
+
+cdef class RecursiveNodeReplacer(VisitorTransform):
+     cdef public orig_node
+     cdef public new_node
