@@ -1220,7 +1220,9 @@ class ExpandInplaceOperators(CythonTransform):
             return node
 
         def side_effect_free_reference(node, setting=False):
-            if node.type.is_pyobject and not setting:
+            if isinstance(node, NameNode):
+                return node, []
+            elif node.type.is_pyobject and not setting:
                 node = LetRefNode(node)
                 return node, [node]
             elif isinstance(node, IndexNode):
@@ -1232,8 +1234,6 @@ class ExpandInplaceOperators(CythonTransform):
             elif isinstance(node, AttributeNode):
                 obj, temps = side_effect_free_reference(node.obj)
                 return AttributeNode(node.pos, obj=obj, attribute=node.attribute), temps
-            elif isinstance(node, NameNode):
-                return node, []
             else:
                 node = LetRefNode(node)
                 return node, [node]
