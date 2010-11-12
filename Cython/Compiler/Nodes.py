@@ -3552,21 +3552,6 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.rhs.generate_disposal_code(code)
         self.rhs.free_temps(code)
 
-    py_functions = {
-        "|":        "PyNumber_InPlaceOr",
-        "^":        "PyNumber_InPlaceXor",
-        "&":        "PyNumber_InPlaceAnd",
-        "+":        "PyNumber_InPlaceAdd",
-        "-":        "PyNumber_InPlaceSubtract",
-        "*":        "PyNumber_InPlaceMultiply",
-        "/":        "__Pyx_PyNumber_InPlaceDivide",
-        "%":        "PyNumber_InPlaceRemainder",
-        "<<":        "PyNumber_InPlaceLshift",
-        ">>":        "PyNumber_InPlaceRshift",
-        "**":        "PyNumber_InPlacePower",
-        "//":        "PyNumber_InPlaceFloorDivide",
-    }
-
     def annotate(self, code):
         self.lhs.annotate(code)
         self.rhs.annotate(code)

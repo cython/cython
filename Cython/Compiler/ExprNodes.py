@@ -5407,7 +5407,7 @@ class BinopNode(ExprNode):
         #print "BinopNode.generate_result_code:", self.operand1, self.operand2 ###
         if self.operand1.type.is_pyobject:
             function = self.py_operation_function()
-            if function == "PyNumber_Power":
+            if self.operator == '**':
                 extra_args = ", Py_None"
             else:
                 extra_args = ""
@@ -5510,7 +5510,10 @@ class NumBinopNode(BinopNode):
                 BinopNode.is_py_operation_types(self, type1, type2))
     
     def py_operation_function(self):
-        return self.py_functions[self.operator]
+        fuction = self.py_functions[self.operator]
+        if self.inplace:
+            fuction = fuction.replace('PyNumber_', 'PyNumber_InPlace')
+        return fuction
 
     py_functions = {
         "|":        "PyNumber_Or",
@@ -5526,7 +5529,6 @@ class NumBinopNode(BinopNode):
         "%":        "PyNumber_Remainder",
         "**":       "PyNumber_Power"
     }
-
 
 class IntBinopNode(NumBinopNode):
     #  Binary operation taking integer arguments.
@@ -6642,13 +6644,14 @@ binop_node_classes = {
     "**":       PowNode
 }
 
-def binop_node(pos, operator, operand1, operand2):
+def binop_node(pos, operator, operand1, operand2, inplace=False):
     # Construct binop node of appropriate class for 
     # given operator.
     return binop_node_classes[operator](pos, 
         operator = operator, 
         operand1 = operand1, 
-        operand2 = operand2)
+        operand2 = operand2,
+        inplace = inplace)
 
 #-------------------------------------------------------------------
 #
