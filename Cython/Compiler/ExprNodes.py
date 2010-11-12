@@ -815,8 +815,13 @@ class IntNode(ConstNode):
         if self.type is dst_type:
             return self
         elif dst_type.is_float:
-            float_value = float(self.value)
-            return FloatNode(self.pos, value=repr(float_value), constant_result=float_value)
+            if self.constant_result is not not_a_constant:
+                float_value = float(self.constant_result)
+                return FloatNode(self.pos, value=repr(float_value), type=dst_type,
+                                 constant_result=float_value)
+            else:
+                return FloatNode(self.pos, value=self.value, type=dst_type,
+                                 constant_result=not_a_constant)
         node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
                        unsigned=self.unsigned, longness=self.longness)
         if dst_type.is_numeric and not dst_type.is_complex:
