@@ -20,3 +20,6 @@ cdef class VisitorTransform(TreeVisitor):
 cdef class CythonTransform(VisitorTransform):
     cdef public context
     cdef public current_directives
+
+cdef class EnvTransform(CythonTransform):
+    cdef public list env_stack
