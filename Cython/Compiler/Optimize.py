@@ -2975,7 +2975,6 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             new_node.value = node.constant_result
         else:
             new_node.value = str(node.constant_result)
-        #new_node = new_node.coerce_to(node.type, self.current_scope)
         return new_node
 
     def visit_PrimaryCmpNode(self, node):
