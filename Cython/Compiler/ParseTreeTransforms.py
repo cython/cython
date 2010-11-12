@@ -1194,7 +1194,73 @@ class AnalyseExpressionsTransform(CythonTransform):
             node.analyse_scoped_expressions(node.expr_scope)
         self.visitchildren(node)
         return node
-        
+
+class ExpandInplaceOperators(CythonTransform):
+
+    def __call__(self, root):
+        self.env_stack = [root.scope]
+        return super(ExpandInplaceOperators, self).__call__(root)
+
+    def visit_FuncDefNode(self, node):
+        self.env_stack.append(node.local_scope)
+        self.visitchildren(node)
+        self.env_stack.pop()
+        return node
+    
+    def visit_InPlaceAssignmentNode(self, node):
+        lhs = node.lhs
+        rhs = node.rhs
+        if lhs.type.is_cpp_class:
+            # No getting around this exact operator here.
+            return node
+        if isinstance(lhs, IndexNode) and lhs.is_buffer_access:
+            # There is code to handle this case.
+            return node
+
+        def side_effect_free_reference(node, setting=False):
+            if isinstance(node, NameNode):
+                return node, []
+            elif node.type.is_pyobject and not setting:
+                node = LetRefNode(node)
+                return node, [node]
+            elif isinstance(node, IndexNode):
+                if node.is_buffer_access:
+                    raise ValueError, "Buffer access"
+                base, temps = side_effect_free_reference(node.base)
+                index = LetRefNode(node.index)
+                return IndexNode(node.pos, base=base, index=index), temps + [index]
+            elif isinstance(node, AttributeNode):
+                obj, temps = side_effect_free_reference(node.obj)
+                return AttributeNode(node.pos, obj=obj, attribute=node.attribute), temps
+            else:
+                node = LetRefNode(node)
+                return node, [node]
+        try:
+            lhs, let_ref_nodes = side_effect_free_reference(lhs, setting=True)
+        except ValueError:
+            return node
+        dup = lhs.__class__(**lhs.__dict__)
+        binop = binop_node(node.pos, 
+                           operator = node.operator,
+                           operand1 = dup,
+                           operand2 = rhs,
+                           inplace=True)
+        node = SingleAssignmentNode(node.pos, lhs=lhs, rhs=binop)
+        # Use LetRefNode to avoid side effects.
+        let_ref_nodes.reverse()
+        for t in let_ref_nodes:
+            node = LetNode(t, node)
+        node.analyse_expressions(self.env_stack[-1])
+        return node
+
+    def visit_ExprNode(self, node):
+        # In-place assignments can't happen within an expression.
+        return node
+
+    def visit_Node(self, node):
+        self.visitchildren(node)
+        return node
+
 class AlignFunctionDefinitions(CythonTransform):
     """
     This class takes the signatures from a .pxd file and applies them to 
