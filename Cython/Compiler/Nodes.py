@@ -3520,15 +3520,15 @@ class InPlaceAssignmentNode(AssignmentNode):
     #  (it must be a NameNode, AttributeNode, or IndexNode).     
     
     child_attrs = ["lhs", "rhs"]
-    dup = None
 
     def analyse_declarations(self, env):
         self.lhs.analyse_target_declaration(env)
         
     def analyse_types(self, env):
-        self.dup = self.create_dup_node(env) # re-assigns lhs to a shallow copy
         self.rhs.analyse_types(env)
         self.lhs.analyse_target_types(env)
+        return
+        
         import ExprNodes
         if self.lhs.type.is_pyobject:
             self.rhs = self.rhs.coerce_to_pyobject(env)
@@ -3539,6 +3539,28 @@ class InPlaceAssignmentNode(AssignmentNode):
             self.result_value = self.result_value_temp.coerce_to(self.lhs.type, env)
         
     def generate_execution_code(self, code):
+        import ExprNodes
+        self.rhs.generate_evaluation_code(code)
+        self.lhs.generate_subexpr_evaluation_code(code)
+        c_op = self.operator
+        if c_op == "//":
+            c_op = "/"
+        elif c_op == "**":
+            error(self.pos, "No C inplace power operator")
+        if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
+            if self.lhs.type.is_pyobject:
+                error(self.pos, "In-place operators not allowed on object buffers in this release.")
+            self.lhs.generate_buffer_setitem_code(self.rhs, code, c_op)
+        else:
+            # C++
+            # TODO: make sure overload is declared
+            code.putln("%s %s= %s;" % (self.lhs.result(), c_op, self.rhs.result()))
+        self.lhs.generate_subexpr_disposal_code(code)
+        self.lhs.free_subexpr_temps(code)
+        self.rhs.generate_disposal_code(code)
+        self.rhs.free_temps(code)
+
+        return
         import ExprNodes
         self.rhs.generate_evaluation_code(code)
         self.dup.generate_subexpr_evaluation_code(code)
@@ -3581,10 +3603,15 @@ class InPlaceAssignmentNode(AssignmentNode):
                 
             # have to do assignment directly to avoid side-effects
             if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
+                if self.lhs.type.is_int and c_op == "/" and not code.globalstate.directives['cdivision']:
+                    error(self.pos, "Inplace non-c division not implemented for buffer types. (Use cdivision=False for now.)")
                 self.lhs.generate_buffer_setitem_code(self.rhs, code, c_op)
             else:
                 self.dup.generate_result_code(code)
-                code.putln("%s %s= %s;" % (self.lhs.result(), c_op, self.rhs.result()) )
+                if self.lhs.type.is_int and c_op == "/" and not code.globalstate.directives['cdivision']:
+                    error(self.pos, "bad")
+                else:
+                    code.putln("%s %s= %s;" % (self.lhs.result(), c_op, self.rhs.result()) )
             self.rhs.generate_disposal_code(code)
             self.rhs.free_temps(code)
         if self.dup.is_temp:
@@ -3645,7 +3672,6 @@ class InPlaceAssignmentNode(AssignmentNode):
     def annotate(self, code):
         self.lhs.annotate(code)
         self.rhs.annotate(code)
-        self.dup.annotate(code)
     
     def create_binop_node(self):
         import ExprNodes
