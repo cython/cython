@@ -165,9 +165,6 @@ class PostParse(ScopeTrackingTransform):
     if a more pure Abstract Syntax Tree is wanted.
     """
 
-    # Track our context.
-    scope_type = None # can be either of 'module', 'function', 'class'
-
     def __init__(self, context):
         super(PostParse, self).__init__(context)
         self.specialattribute_handlers = {
