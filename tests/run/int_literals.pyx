@@ -3,10 +3,17 @@ __doc__ = u"""
 (1, 1L, -1L, 18446744073709551615L)
 >>> py_longs()
 (1, 1L, 100000000000000000000000000000000L, -100000000000000000000000000000000L)
+
+>>> py_huge_calculated_long()
+1606938044258990275541962092341162602522202993782792835301376L
+>>> py_huge_computation_small_result_neg()
+(-2535301200456458802993406410752L, -2535301200456458802993406410752L)
 """
 
-import sys
+cimport cython
 from cython cimport typeof
+
+import sys
 
 if sys.version_info[0] >= 3:
     __doc__ = __doc__.replace(u'L', u'')
@@ -26,6 +33,25 @@ def c_longs():
     
 def py_longs():
     return 1, 1L, 100000000000000000000000000000000, -100000000000000000000000000000000
+
+@cython.test_fail_if_path_exists("//NumBinopNode", "//IntBinopNode")
+@cython.test_assert_path_exists("//ReturnStatNode/IntNode")
+def py_huge_calculated_long():
+    return 1 << 200
+
+@cython.test_fail_if_path_exists("//NumBinopNode", "//IntBinopNode")
+@cython.test_assert_path_exists("//ReturnStatNode/IntNode")
+def py_huge_computation_small_result():
+    """
+    >>> py_huge_computation_small_result()
+    2
+    """
+    return (1 << 200) >> 199
+
+@cython.test_fail_if_path_exists("//NumBinopNode", "//IntBinopNode")
+#@cython.test_assert_path_exists("//ReturnStatNode/IntNode")
+def py_huge_computation_small_result_neg():
+    return -(2 ** 101), (-2) ** 101
 
 def large_literal():
     """
