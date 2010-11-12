@@ -2746,6 +2746,7 @@ class SimpleCallNode(CallNode):
     wrapper_call = False
     has_optional_args = False
     nogil = False
+    analysed = False
     
     def compile_time_value(self, denv):
         function = self.function.compile_time_value(denv)
@@ -2799,6 +2800,9 @@ class SimpleCallNode(CallNode):
     def analyse_types(self, env):
         if self.analyse_as_type_constructor(env):
             return
+        if self.analysed:
+            return
+        self.analysed = True
         function = self.function
         function.is_called = 1
         self.function.analyse_types(env)
