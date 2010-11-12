@@ -147,3 +147,16 @@ def test_inplace_pydivision(int a, int b):
     """
     a %= b
     return a
+
+def test_complex_inplace(double complex x, double complex y):
+    """
+    >>> test_complex_inplace(1, 1)
+    (2+0j)
+    >>> test_complex_inplace(2, 3)
+    (15+0j)
+    >>> test_complex_inplace(2+3j, 4+5j)
+    (-16+62j)
+    """
+    x += y
+    x *= y
+    return x
