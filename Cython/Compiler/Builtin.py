@@ -58,10 +58,10 @@ static CYTHON_INLINE PyObject *__Pyx_PyIter_Next2(PyObject* iterator, PyObject* 
 
 getattr3_utility_code = UtilityCode(
 proto = """
-static PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *); /*proto*/
+static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *, PyObject *, PyObject *); /*proto*/
 """,
 impl = """
-static PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
+static CYTHON_INLINE PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
     PyObject *r = PyObject_GetAttr(o, n);
     if (!r) {
         if (!PyErr_ExceptionMatches(PyExc_AttributeError))
@@ -72,7 +72,7 @@ static PyObject *__Pyx_GetAttr3(PyObject *o, PyObject *n, PyObject *d) {
     }
     return r;
 bad:
-    return 0;
+    return NULL;
 }
 """)
 
