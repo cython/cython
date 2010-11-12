@@ -2908,8 +2908,8 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             import traceback, sys
             traceback.print_exc(file=sys.stdout)
 
-    NODE_TYPE_ORDER = (ExprNodes.CharNode, ExprNodes.IntNode,
-                       ExprNodes.LongNode, ExprNodes.FloatNode)
+    NODE_TYPE_ORDER = [ExprNodes.CharNode, ExprNodes.IntNode,
+                       ExprNodes.LongNode, ExprNodes.FloatNode]
 
     def _widest_node_class(self, *nodes):
         try:
