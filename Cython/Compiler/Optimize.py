@@ -2865,6 +2865,17 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
     """Calculate the result of constant expressions to store it in
     ``expr_node.constant_result``, and replace trivial cases by their
     constant result.
+
+    General rules:
+
+    - We calculate float constants to make them available to the
+      compiler, but we do not aggregate them into a single literal
+      node to prevent any loss of precision.
+
+    - We recursively calculate constants from non-literal nodes to
+      make them available to the compiler, but we only aggregate
+      literal nodes at each step.  Non-literal nodes are never merged
+      into a single node.
     """
     def _calculate_const(self, node):
         if node.constant_result is not ExprNodes.constant_value_not_set:
@@ -2909,6 +2920,27 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
     def visit_ExprNode(self, node):
         self._calculate_const(node)
+        return node
+
+    def visit_UnaryMinusNode(self, node):
+        self._calculate_const(node)
+        if node.constant_result is ExprNodes.not_a_constant:
+            return node
+        if not node.operand.is_literal:
+            return node
+        if isinstance(node.operand, ExprNodes.LongNode):
+            return ExprNodes.LongNode(node.pos, value = '-' + node.operand.value,
+                                      constant_result = node.constant_result)
+        if isinstance(node.operand, ExprNodes.FloatNode):
+            # this is a safe operation
+            return ExprNodes.FloatNode(node.pos, value = '-' + node.operand.value,
+                                       constant_result = node.constant_result)
+        node_type = node.operand.type
+        if node_type.is_int and node_type.signed or \
+               isinstance(node.operand, ExprNodes.IntNode) and node_type.is_pyobject:
+            return ExprNodes.IntNode(node.pos, value = '-' + node.operand.value,
+                                     type = node_type,
+                                     constant_result = node.constant_result)
         return node
 
     def visit_BoolBinopNode(self, node):
