@@ -2070,7 +2070,6 @@ class IndexNode(ExprNode):
         skip_child_analysis = False
         buffer_access = False
         if self.base.type.is_buffer:
-            assert hasattr(self.base, "entry") # Must be a NameNode-like node
             if self.indices:
                 indices = self.indices
             else:
@@ -2085,6 +2084,8 @@ class IndexNode(ExprNode):
                     x.analyse_types(env)
                     if not x.type.is_int:
                         buffer_access = False
+            if buffer_access:
+                assert hasattr(self.base, "entry") # Must be a NameNode-like node
 
         # On cloning, indices is cloned. Otherwise, unpack index into indices
         assert not (buffer_access and isinstance(self.index, CloneNode))
@@ -2746,6 +2747,7 @@ class SimpleCallNode(CallNode):
     wrapper_call = False
     has_optional_args = False
     nogil = False
+    analysed = False
     
     def compile_time_value(self, denv):
         function = self.function.compile_time_value(denv)
@@ -2799,6 +2801,9 @@ class SimpleCallNode(CallNode):
     def analyse_types(self, env):
         if self.analyse_as_type_constructor(env):
             return
+        if self.analysed:
+            return
+        self.analysed = True
         function = self.function
         function.is_called = 1
         self.function.analyse_types(env)
@@ -5402,7 +5407,7 @@ class BinopNode(ExprNode):
         #print "BinopNode.generate_result_code:", self.operand1, self.operand2 ###
         if self.operand1.type.is_pyobject:
             function = self.py_operation_function()
-            if function == "PyNumber_Power":
+            if self.operator == '**':
                 extra_args = ", Py_None"
             else:
                 extra_args = ""
@@ -5505,7 +5510,10 @@ class NumBinopNode(BinopNode):
                 BinopNode.is_py_operation_types(self, type1, type2))
     
     def py_operation_function(self):
-        return self.py_functions[self.operator]
+        fuction = self.py_functions[self.operator]
+        if self.inplace:
+            fuction = fuction.replace('PyNumber_', 'PyNumber_InPlace')
+        return fuction
 
     py_functions = {
         "|":        "PyNumber_Or",
@@ -5521,7 +5529,6 @@ class NumBinopNode(BinopNode):
         "%":        "PyNumber_Remainder",
         "**":       "PyNumber_Power"
     }
-
 
 class IntBinopNode(NumBinopNode):
     #  Binary operation taking integer arguments.
@@ -6637,13 +6644,14 @@ binop_node_classes = {
     "**":       PowNode
 }
 
-def binop_node(pos, operator, operand1, operand2):
+def binop_node(pos, operator, operand1, operand2, inplace=False):
     # Construct binop node of appropriate class for 
     # given operator.
     return binop_node_classes[operator](pos, 
         operator = operator, 
         operand1 = operand1, 
-        operand2 = operand2)
+        operand2 = operand2,
+        inplace = inplace)
 
 #-------------------------------------------------------------------
 #

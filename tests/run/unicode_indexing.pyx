@@ -243,7 +243,6 @@ def index_add(unicode ustring, Py_ssize_t i, Py_ssize_t j):
 
 @cython.test_assert_path_exists("//CoerceToPyTypeNode",
                                 "//IndexNode",
-                                "//InPlaceAssignmentNode",
                                 "//CoerceToPyTypeNode//IndexNode")
 @cython.test_fail_if_path_exists("//IndexNode//CoerceToPyTypeNode")
 def index_concat_loop(unicode ustring):

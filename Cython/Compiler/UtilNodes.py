@@ -8,6 +8,7 @@ import Nodes
 import ExprNodes
 from Nodes import Node
 from ExprNodes import AtomicExprNode
+from PyrexTypes import c_ptr_type
 
 class TempHandle(object):
     # THIS IS DEPRECATED, USE LetRefNode instead
@@ -196,6 +197,8 @@ class LetNodeMixin:
     def setup_temp_expr(self, code):
         self.temp_expression.generate_evaluation_code(code)
         self.temp_type = self.temp_expression.type
+        if self.temp_type.is_array:
+            self.temp_type = c_ptr_type(self.temp_type.base_type)
         self._result_in_temp = self.temp_expression.result_in_temp()
         if self._result_in_temp:
             self.temp = self.temp_expression.result()
