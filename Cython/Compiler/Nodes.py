@@ -3527,17 +3527,7 @@ class InPlaceAssignmentNode(AssignmentNode):
     def analyse_types(self, env):
         self.rhs.analyse_types(env)
         self.lhs.analyse_target_types(env)
-        return
-        
-        import ExprNodes
-        if self.lhs.type.is_pyobject:
-            self.rhs = self.rhs.coerce_to_pyobject(env)
-        elif self.rhs.type.is_pyobject or (self.lhs.type.is_numeric and self.rhs.type.is_numeric):
-            self.rhs = self.rhs.coerce_to(self.lhs.type, env)
-        if self.lhs.type.is_pyobject:
-            self.result_value_temp = ExprNodes.PyTempNode(self.pos, env)
-            self.result_value = self.result_value_temp.coerce_to(self.lhs.type, env)
-        
+
     def generate_execution_code(self, code):
         import ExprNodes
         self.rhs.generate_evaluation_code(code)
@@ -3550,6 +3540,8 @@ class InPlaceAssignmentNode(AssignmentNode):
         if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
             if self.lhs.type.is_pyobject:
                 error(self.pos, "In-place operators not allowed on object buffers in this release.")
+            if c_op in ('/', '%') and self.lhs.type.is_int and not code.directives['cdivision']:
+                error(self.pos, "In-place non-c divide operators not allowed on int buffers.")
             self.lhs.generate_buffer_setitem_code(self.rhs, code, c_op)
         else:
             # C++
@@ -3559,100 +3551,6 @@ class InPlaceAssignmentNode(AssignmentNode):
         self.lhs.free_subexpr_temps(code)
         self.rhs.generate_disposal_code(code)
         self.rhs.free_temps(code)
-
-        return
-        import ExprNodes
-        self.rhs.generate_evaluation_code(code)
-        self.dup.generate_subexpr_evaluation_code(code)
-        if self.dup.is_temp:
-            self.dup.allocate_temp_result(code)
-        # self.dup.generate_result_code is run only if it is not buffer access
-        if self.operator == "**":
-            extra = ", Py_None"
-        else:
-            extra = ""
-        if self.lhs.type.is_pyobject:
-            if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
-                error(self.pos, "In-place operators not allowed on object buffers in this release.")
-            self.dup.generate_result_code(code)
-            self.result_value_temp.allocate(code)
-            code.putln(
-                "%s = %s(%s, %s%s); %s" % (
-                    self.result_value.result(), 
-                    self.py_operation_function(), 
-                    self.dup.py_result(),
-                    self.rhs.py_result(),
-                    extra,
-                    code.error_goto_if_null(self.result_value.py_result(), self.pos)))
-            code.put_gotref(self.result_value.py_result())
-            self.result_value.generate_evaluation_code(code) # May be a type check...
-            self.rhs.generate_disposal_code(code)
-            self.rhs.free_temps(code)
-            self.dup.generate_disposal_code(code)
-            self.dup.free_temps(code)
-            self.lhs.generate_assignment_code(self.result_value, code)
-            self.result_value_temp.release(code)
-        else: 
-            c_op = self.operator
-            if c_op == "//":
-                c_op = "/"
-            elif c_op == "**":
-                error(self.pos, "No C inplace power operator")
-            elif self.lhs.type.is_complex:
-                error(self.pos, "Inplace operators not implemented for complex types.")
-                
-            # have to do assignment directly to avoid side-effects
-            if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
-                if self.lhs.type.is_int and c_op == "/" and not code.globalstate.directives['cdivision']:
-                    error(self.pos, "Inplace non-c division not implemented for buffer types. (Use cdivision=False for now.)")
-                self.lhs.generate_buffer_setitem_code(self.rhs, code, c_op)
-            else:
-                self.dup.generate_result_code(code)
-                if self.lhs.type.is_int and c_op == "/" and not code.globalstate.directives['cdivision']:
-                    error(self.pos, "bad")
-                else:
-                    code.putln("%s %s= %s;" % (self.lhs.result(), c_op, self.rhs.result()) )
-            self.rhs.generate_disposal_code(code)
-            self.rhs.free_temps(code)
-        if self.dup.is_temp:
-            self.dup.generate_subexpr_disposal_code(code)
-            self.dup.free_subexpr_temps(code)
-            
-    def create_dup_node(self, env): 
-        import ExprNodes
-        self.dup = self.lhs
-        self.dup.analyse_types(env)
-        if isinstance(self.lhs, ExprNodes.NameNode):
-            target_lhs = ExprNodes.NameNode(self.dup.pos,
-                                            name = self.dup.name,
-                                            is_temp = self.dup.is_temp,
-                                            entry = self.dup.entry)
-        elif isinstance(self.lhs, ExprNodes.AttributeNode):
-            target_lhs = ExprNodes.AttributeNode(self.dup.pos,
-                                                 obj = ExprNodes.CloneNode(self.lhs.obj),
-                                                 attribute = self.dup.attribute,
-                                                 is_temp = self.dup.is_temp)
-        elif isinstance(self.lhs, ExprNodes.IndexNode):
-            if self.lhs.index:
-                index = ExprNodes.CloneNode(self.lhs.index)
-            else:
-                index = None
-            if self.lhs.indices:
-                indices = [ExprNodes.CloneNode(x) for x in self.lhs.indices]
-            else:
-                indices = []
-            target_lhs = ExprNodes.IndexNode(self.dup.pos,
-                                             base = ExprNodes.CloneNode(self.dup.base),
-                                             index = index,
-                                             indices = indices,
-                                             is_temp = self.dup.is_temp)
-        else:
-            assert False, "Unsupported node: %s" % type(self.lhs)
-        self.lhs = target_lhs
-        return self.dup
-    
-    def py_operation_function(self):
-        return self.py_functions[self.operator]
 
     py_functions = {
         "|":        "PyNumber_InPlaceOr",

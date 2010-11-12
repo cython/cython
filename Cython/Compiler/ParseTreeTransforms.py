@@ -1207,8 +1207,6 @@ class ExpandInplaceOperators(CythonTransform):
         self.env_stack.pop()
         return node
     
-        
-
     def visit_InPlaceAssignmentNode(self, node):
         lhs = node.lhs
         rhs = node.rhs
