@@ -350,8 +350,7 @@ cdef object some_float_value():
 
 
 @cython.test_fail_if_path_exists('//NameNode[@type.is_pyobject = True]')
-@cython.test_assert_path_exists('//InPlaceAssignmentNode/NameNode',
-                                '//NameNode[@type.is_pyobject]',
+@cython.test_assert_path_exists('//NameNode[@type.is_pyobject]',
                                 '//NameNode[@type.is_pyobject = False]')
 @infer_types(None)
 def double_loop():
