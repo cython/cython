@@ -173,15 +173,23 @@ def unpack_source_tree(tree_file, dir=None):
         dir = tempfile.mkdtemp()
     header = []
     cur_file = None
-    for line in open(tree_file).readlines():
+    f = open(tree_file)
+    lines = f.readlines()
+    f.close()
+    f = None
+    for line in lines:
         if line[:5] == '#####':
             filename = line.strip().strip('#').strip().replace('/', os.path.sep)
             path = os.path.join(dir, filename)
             if not os.path.exists(os.path.dirname(path)):
                 os.makedirs(os.path.dirname(path))
+            if cur_file is not None:
+                cur_file.close()
             cur_file = open(path, 'w')
         elif cur_file is not None:
             cur_file.write(line)
         else:
             header.append(line)
+    if cur_file is not None:
+        cur_file.close()
     return dir, ''.join(header)
