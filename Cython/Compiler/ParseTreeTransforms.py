@@ -1,5 +1,5 @@
 from Cython.Compiler.Visitor import VisitorTransform, TreeVisitor
-from Cython.Compiler.Visitor import CythonTransform, EnvTransform
+from Cython.Compiler.Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import *
 from Cython.Compiler.ExprNodes import *
@@ -130,7 +130,7 @@ class PostParseError(CompileError): pass
 ERR_CDEF_INCLASS = 'Cannot assign default value to fields in cdef classes, structs or unions'
 ERR_BUF_DEFAULTS = 'Invalid buffer defaults specification (see docs)'
 ERR_INVALID_SPECIALATTR_TYPE = 'Special attributes must not have a type declared'
-class PostParse(CythonTransform):
+class PostParse(ScopeTrackingTransform):
     """
     Basic interpretation of the parse tree, as well as validity
     checking that can be done on a very basic level on the parse
@@ -175,28 +175,8 @@ class PostParse(CythonTransform):
         }
 
     def visit_ModuleNode(self, node):
-        self.scope_type = 'module'
-        self.scope_node = node
         self.lambda_counter = 1
-        self.visitchildren(node)
-        return node
-
-    def visit_scope(self, node, scope_type):
-        prev = self.scope_type, self.scope_node
-        self.scope_type = scope_type
-        self.scope_node = node
-        self.visitchildren(node)
-        self.scope_type, self.scope_node = prev
-        return node
-    
-    def visit_ClassDefNode(self, node):
-        return self.visit_scope(node, 'class')
-
-    def visit_FuncDefNode(self, node):
-        return self.visit_scope(node, 'function')
-
-    def visit_CStructOrUnionDefNode(self, node):
-        return self.visit_scope(node, 'struct')
+        return super(PostParse, self).visit_ModuleNode(node)
 
     def visit_LambdaNode(self, node):
         # unpack a lambda expression into the corresponding DefNode
@@ -239,7 +219,7 @@ class PostParse(CythonTransform):
                     declbase = declbase.base
                 if isinstance(declbase, CNameDeclaratorNode):
                     if declbase.default is not None:
-                        if self.scope_type in ('class', 'struct'):
+                        if self.scope_type in ('cclass', 'pyclass', 'struct'):
                             if isinstance(self.scope_node, CClassDefNode):
                                 handler = self.specialattribute_handlers.get(decl.name)
                                 if handler:
