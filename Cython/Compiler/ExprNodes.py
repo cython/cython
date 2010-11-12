@@ -2070,7 +2070,6 @@ class IndexNode(ExprNode):
         skip_child_analysis = False
         buffer_access = False
         if self.base.type.is_buffer:
-            assert hasattr(self.base, "entry") # Must be a NameNode-like node
             if self.indices:
                 indices = self.indices
             else:
@@ -2085,6 +2084,8 @@ class IndexNode(ExprNode):
                     x.analyse_types(env)
                     if not x.type.is_int:
                         buffer_access = False
+            if buffer_access:
+                assert hasattr(self.base, "entry") # Must be a NameNode-like node
 
         # On cloning, indices is cloned. Otherwise, unpack index into indices
         assert not (buffer_access and isinstance(self.index, CloneNode))
