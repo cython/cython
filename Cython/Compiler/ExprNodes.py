@@ -807,9 +807,31 @@ class IntNode(ConstNode):
     def __init__(self, pos, **kwds):
         ExprNode.__init__(self, pos, **kwds)
         if 'type' not in kwds:
-            rank = max(1, len(self.longness))
-            sign = not self.unsigned
-            self.type = PyrexTypes.modifiers_and_name_to_type[sign, rank, "int"]
+            self.type = self.find_suitable_type_for_value()
+
+    def find_suitable_type_for_value(self):
+        if self.constant_result is constant_value_not_set:
+            try:
+                self.calculate_constant_result()
+            except ValueError:
+                pass
+        if self.constant_result in (constant_value_not_set, not_a_constant) or \
+               self.unsigned or self.longness == 'LL':
+            # clearly a C literal
+            rank = (self.longness == 'LL') and 2 or 1
+            suitable_type = PyrexTypes.modifiers_and_name_to_type[not self.unsigned, rank, "int"]
+            if self.type:
+                suitable_type = PyrexTypes.widest_numeric_type(suitable_type, self.type)
+        else:
+            # C literal or Python literal - split at 32bit boundary
+            if self.constant_result >= -2**31 and self.constant_result < 2**31:
+                if self.type and self.type.is_int:
+                    suitable_type = self.type
+                else:
+                    suitable_type = PyrexTypes.c_long_type
+            else:
+                suitable_type = PyrexTypes.py_object_type
+        return suitable_type
 
     def coerce_to(self, dst_type, env):
         if self.type is dst_type:
