@@ -2984,29 +2984,36 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
         except AttributeError:
             return node
 
-        if type1 is type2:
-            new_node = node.operand1
-        else:
+        if type1.is_numeric and type2.is_numeric:
             widest_type = PyrexTypes.widest_numeric_type(type1, type2)
-            if type(node.operand1) is type(node.operand2):
-                new_node = node.operand1
-                new_node.type = widest_type
-            elif type1 is widest_type:
-                new_node = node.operand1
-            elif type2 is widest_type:
-                new_node = node.operand2
-            else:
-                target_class = self._widest_node_class(
-                    node.operand1, node.operand2)
-                if target_class is None:
-                    return node
-                new_node = target_class(pos=node.pos, type = widest_type)
-
-        new_node.constant_result = node.constant_result
-        if isinstance(node, ExprNodes.BoolNode):
-            new_node.value = node.constant_result
         else:
-            new_node.value = str(node.constant_result)
+            widest_type = PyrexTypes.py_object_type
+        target_class = self._widest_node_class(node.operand1, node.operand2)
+        if target_class is None:
+            return node
+        elif target_class is ExprNodes.IntNode:
+            unsigned = getattr(node.operand1, 'unsigned', '') and \
+                       getattr(node.operand2, 'unsigned', '')
+            longness = "LL"[:max(len(getattr(node.operand1, 'longness', '')),
+                                 len(getattr(node.operand2, 'longness', '')))]
+            new_node = ExprNodes.IntNode(pos=node.pos,
+                                         unsigned = unsigned, longness = longness,
+                                         value = str(node.constant_result),
+                                         constant_result = node.constant_result)
+            # IntNode is smart about the type it chooses, so we just
+            # make sure we were not smarter this time
+            if widest_type.is_pyobject or new_node.type.is_pyobject:
+                new_node.type = PyrexTypes.py_object_type
+            else:
+                new_node.type = PyrexTypes.widest_numeric_type(widest_type, new_node.type)
+        else:
+            if isinstance(node, ExprNodes.BoolNode):
+                node_value = node.constant_result
+            else:
+                node_value = str(node.constant_result)
+            new_node = target_class(pos=node.pos, type = widest_type,
+                                    value = node_value,
+                                    constant_result = node.constant_result)
         return new_node
 
     def visit_PrimaryCmpNode(self, node):
