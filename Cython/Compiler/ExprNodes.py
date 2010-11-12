@@ -845,7 +845,7 @@ class IntNode(ConstNode):
                 return FloatNode(self.pos, value=self.value, type=dst_type,
                                  constant_result=not_a_constant)
         node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
-                       unsigned=self.unsigned, longness=self.longness)
+                       type = dst_type, unsigned=self.unsigned, longness=self.longness)
         if dst_type.is_numeric and not dst_type.is_complex:
             return node
         if dst_type.is_pyobject:
