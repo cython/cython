@@ -346,11 +346,7 @@ class CythonBase(object):
         
         selected_frame.select()
     
-    def get_cython_globals_dict(self):
-        """
-        Get the Cython globals dict where the remote names are turned into
-        local strings.
-        """
+    def get_remote_cython_globals_dict(self):
         m = gdb.parse_and_eval('__pyx_m')
         
         try:
@@ -361,7 +357,16 @@ class CythonBase(object):
                 with debugging support (-g)?"""))
             
         m = m.cast(PyModuleObject.pointer())
-        pyobject_dict = libpython.PyObjectPtr.from_pyobject_ptr(m['md_dict'])
+        return m['md_dict']
+        
+    
+    def get_cython_globals_dict(self):
+        """
+        Get the Cython globals dict where the remote names are turned into
+        local strings.
+        """
+        remote_dict = self.get_remote_cython_globals_dict()
+        pyobject_dict = libpython.PyObjectPtr.from_pyobject_ptr(remote_dict)
         
         result = {}
         seen = set()
@@ -598,6 +603,8 @@ class CyCy(CythonCommand):
             print_ = CyPrint.register(),
             locals = CyLocals.register(),
             globals = CyGlobals.register(),
+            exec_ = libpython.FixGdbCommand('cy exec', '-cy-exec'),
+            _exec = CyExec.register(),
             cy_cname = CyCName('cy_cname'),
             cy_cvalue = CyCValue('cy_cvalue'),
             cy_lineno = CyLine('cy_lineno'),
@@ -1090,6 +1097,75 @@ class CyGlobals(CyLocals):
             if name not in seen:
                 self._print_if_initialized(cyvar, max_name_length, 
                                            prefix='    ')
+
+
+class CyExec(CythonCommand):
+    name = '-cy-exec'
+    command_class = gdb.COMMAND_STACK
+    completer_class = gdb.COMPLETE_NONE
+    
+    def _fill_locals_dict(self, executor, local_dict_pointer):
+        "Fill a remotely allocated dict with values from the Cython C stack"
+        cython_func = self.get_cython_function()
+        
+        for name, cyvar in cython_func.locals.iteritems():
+            if cyvar.type == PythonObject:
+                # skip unitialized Cython variables 
+                try:
+                    val = gdb.parse_and_eval(cyvar.cname)
+                except RuntimeError:
+                    continue
+                else:
+                    # Fortunately, Cython initializes all local (automatic)
+                    # variables to NULL
+                    if libpython.pointervalue(val) == 0:
+                        continue
+
+                pystringp = executor.alloc_pystring(name)
+                code = '''
+                    PyDict_SetItem(
+                        (PyObject *) %d, 
+                        (PyObject *) %d, 
+                        (PyObject *) %s)
+                ''' % (local_dict_pointer, pystringp, cyvar.cname)
+                
+                # PyDict_SetItem doesn't steal our reference
+                executor.decref(pystringp)
+                
+                if gdb.parse_and_eval(code) < 0:
+                    gdb.parse_and_eval('PyErr_Print()')
+                    raise gdb.GdbError("Unable to execute Python code.")
+    
+    def _find_first_cython_or_python_frame(self):
+        frame = gdb.selected_frame()
+        while frame:
+            if (self.is_cython_function(frame) or 
+                self.is_python_function(frame)):
+                return frame
+            
+            frame = frame.older()
+        
+        raise gdb.GdbError("There is no Cython or Python frame on the stack.")
+        
+    def invoke(self, expr, from_tty):
+        frame = self._find_first_cython_or_python_frame()
+        if self.is_python_function(frame):
+            libpython.py_exec.invoke(expr, from_tty)
+            return
+        
+        executor = libpython.PythonCodeExecutor()
+        
+        # get the dict of Cython globals and construct a dict in the inferior
+        # with Cython locals
+        global_dict = gdb.parse_and_eval(
+            '(PyObject *) PyModule_GetDict(__pyx_m)')
+        local_dict = gdb.parse_and_eval('(PyObject *) PyDict_New()')
+        
+        try:
+            self._fill_locals_dict(executor, libpython.pointervalue(local_dict))
+            executor.evalcode(expr, global_dict, local_dict)
+        finally:
+            executor.decref(libpython.pointervalue(local_dict))
 
 
 # Functions
