@@ -2934,12 +2934,13 @@ class PyClassDefNode(ClassDefNode):
     #
     #  The following subnodes are constructed internally:
     #
-    #  dict     DictNode   Class dictionary
+    #  dict     DictNode   Class dictionary or Py3 namespace
     #  classobj ClassNode  Class object
     #  target   NameNode   Variable to assign class object to
 
-    child_attrs = ["body", "dict", "classobj", "target"]
+    child_attrs = ["body", "dict", "metaclass", "mkw", "bases", "classobj", "target"]
     decorators = None
+    py3_style_class = False # Python3 style class
     
     def __init__(self, pos, name, bases, doc, body, decorators = None,
                  keyword_args = None, starstar_arg = None):
@@ -2949,22 +2950,40 @@ class PyClassDefNode(ClassDefNode):
         self.body = body
         self.decorators = decorators
         import ExprNodes
-        self.dict = ExprNodes.DictNode(pos, key_value_pairs = [])
         if self.doc and Options.docstrings:
             doc = embed_position(self.pos, self.doc)
             # FIXME: correct string node?
             doc_node = ExprNodes.StringNode(pos, value = doc)
         else:
             doc_node = None
-        self.classobj = ExprNodes.ClassNode(pos, name = name,
-            bases = bases, dict = self.dict, doc = doc_node,
-            keyword_args = keyword_args, starstar_arg = starstar_arg)
+        if keyword_args or starstar_arg:
+            self.py3_style_class = True
+            self.bases = ExprNodes.PyClassBasesNode(pos, bases = bases)
+            self.mkw = ExprNodes.KeywordArgsNode(pos,
+                    keyword_args = keyword_args, starstar_arg = starstar_arg)
+            self.metaclass = ExprNodes.PyClassMetaclassNode(pos, mkw = self.mkw, bases = self.bases)
+            self.dict = ExprNodes.PyClassNamespaceNode(pos, name = name,
+                        doc = doc_node, metaclass = self.metaclass, bases = self.bases,
+                        mkw = self.mkw, )
+            self.classobj = ExprNodes.Py3ClassNode(pos, name = name,
+                    bases = self.bases, dict = self.dict, doc = doc_node,
+                    metaclass = self.metaclass, mkw = self.mkw)
+        else:
+            self.dict = ExprNodes.DictNode(pos, key_value_pairs = [])
+            self.metaclass = None
+            self.mkw = None
+            self.bases = None
+            self.classobj = ExprNodes.ClassNode(pos, name = name,
+                    bases = bases, dict = self.dict, doc = doc_node)
         self.target = ExprNodes.NameNode(pos, name = name)
         
     def as_cclass(self):
         """
         Return this node as if it were declared as an extension class
         """
+        if self.py3_style_class:
+            error(self.classobj.pos, "Python3 style class could not be represented as C class")
+            return
         bases = self.classobj.bases.args
         if len(bases) == 0:
             base_class_name = None
@@ -3015,6 +3034,10 @@ class PyClassDefNode(ClassDefNode):
         self.body.analyse_declarations(cenv)
     
     def analyse_expressions(self, env):
+        if self.py3_style_class:
+            self.bases.analyse_expressions(env)
+            self.metaclass.analyse_expressions(env)
+            self.mkw.analyse_expressions(env)
         self.dict.analyse_expressions(env)
         self.classobj.analyse_expressions(env)
         genv = env.global_scope()
@@ -3028,6 +3051,10 @@ class PyClassDefNode(ClassDefNode):
     def generate_execution_code(self, code):
         code.pyclass_stack.append(self)
         cenv = self.scope
+        if self.py3_style_class:
+            self.bases.generate_evaluation_code(code)
+            self.mkw.generate_evaluation_code(code)
+            self.metaclass.generate_evaluation_code(code)
         self.dict.generate_evaluation_code(code)
         cenv.namespace_cname = cenv.class_obj_cname = self.dict.result()
         self.body.generate_execution_code(code)
@@ -3036,8 +3063,14 @@ class PyClassDefNode(ClassDefNode):
         self.target.generate_assignment_code(self.classobj, code)
         self.dict.generate_disposal_code(code)
         self.dict.free_temps(code)
+        if self.py3_style_class:
+            self.mkw.generate_disposal_code(code)
+            self.mkw.free_temps(code)
+            self.metaclass.generate_disposal_code(code)
+            self.metaclass.free_temps(code)
+            self.bases.generate_disposal_code(code)
+            self.bases.free_temps(code)
         code.pyclass_stack.pop()
-
 
 class CClassDefNode(ClassDefNode):
     #  An extension type definition.

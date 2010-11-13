@@ -12,17 +12,28 @@ class Foo(object):
     """
     __metaclass__ = Base
 
+class ODict(dict):
+    def __init__(self):
+        dict.__init__(self)
+        self._order = []
+        dict.__setitem__(self, '_order', self._order)
+
+    def __setitem__(self, key, value):
+        dict.__setitem__(self, key, value)
+        self._order.append(key)
 
 class Py3Base(type):
-    def __new__(cls, name, bases, attrs, foo=None):
-        attrs['foo'] = foo
+    def __new__(cls, name, bases, attrs, **kwargs):
+        for key, value in kwargs.items():
+            attrs[key] = value
         return type.__new__(cls, name, bases, attrs)
 
-    def __init__(self, cls, attrs, obj, foo=None):
+    def __init__(self, cls, attrs, obj, **kwargs):
         pass
+
     @staticmethod
-    def __prepare__(name, bases, **kwargs):
-        return {'bar': 666, 'dirty': True}
+    def __prepare__(*args, **kwargs):
+        return ODict()
 
 class Py3Foo(object, metaclass=Py3Base, foo=123):
     """
@@ -30,8 +41,48 @@ class Py3Foo(object, metaclass=Py3Base, foo=123):
     >>> obj.foo
     123
     >>> obj.bar
-    666
-    >>> obj.dirty
-    False
+    321
+    >>> obj._order
+    ['__module__', '__doc__', 'bar', 'foo']
     """
-    dirty = False
+    bar = 321
+
+kwargs = {'foo': 123, 'bar': 456}
+
+class Py3Mixed(metaclass=Py3Base, **kwargs):
+    """
+    >>> Py3Mixed.foo
+    123
+    >>> Py3Mixed.bar
+    456
+    """
+
+kwargs['metaclass'] = Py3Base
+
+class Py3Kwargs(**kwargs):
+    """
+    >>> Py3Kwargs.foo
+    123
+    >>> Py3Kwargs.bar
+    456
+    """
+
+class Base3(type):
+    def __new__(cls, name, bases, attrs, **kwargs):
+        kwargs['b'] = 2
+        return type.__new__(cls, name, bases, attrs)
+
+    def __init__(self, *args, **kwargs):
+        self.kwargs = kwargs
+
+    @staticmethod
+    def __prepare__(*args, **kwargs):
+        kwargs['a'] = 1
+        return {}
+
+kwargs = {'c': 0}
+class Foo3(metaclass=Base3, a=0, b=0, **kwargs):
+    """
+    >>> Foo3.kwargs
+    {'a': 0, 'c': 0, 'b': 0}
+    """
