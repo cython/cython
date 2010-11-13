@@ -534,8 +534,9 @@ class CFuncDeclaratorNode(CDeclaratorNode):
         if nonempty:
             nonempty -= 1
         func_type_args = []
-        for arg_node in self.args:
-            name_declarator, type = arg_node.analyse(env, nonempty = nonempty)
+        for i, arg_node in enumerate(self.args):
+            name_declarator, type = arg_node.analyse(env, nonempty = nonempty,
+                                                     is_self_arg = (i == 0 and env.is_c_class_scope))
             name = name_declarator.name
             if name_declarator.cname:
                 error(self.pos, 
@@ -649,8 +650,9 @@ class CArgDeclNode(Node):
     default_value = None
     annotation = None
 
-    def analyse(self, env, nonempty = 0):
-        #print "CArgDeclNode.analyse: is_self_arg =", self.is_self_arg ###
+    def analyse(self, env, nonempty = 0, is_self_arg = False):
+        if is_self_arg:
+            self.base_type.is_self_arg = self.is_self_arg = True
         if self.type is None:
             # The parser may missinterpret names as types...
             # We fix that here.
@@ -1600,7 +1602,7 @@ class CFuncDefNode(FuncDefNode):
     def analyse_declarations(self, env):
         self.directive_locals.update(env.directives['locals'])
         base_type = self.base_type.analyse(env)
-        # The 2 here is because we need both function and argument names. 
+        # The 2 here is because we need both function and argument names.
         name_declarator, type = self.declarator.analyse(base_type, env, nonempty = 2 * (self.body is not None))
         if not type.is_cfunction:
             error(self.pos, 
@@ -1907,13 +1909,16 @@ class DefNode(FuncDefNode):
                                               is_overridable = True)
             cfunc = CVarDefNode(self.pos, type=cfunc_type)
         else:
+            if scope is None:
+                scope = cfunc.scope
             cfunc_type = cfunc.type
             if len(self.args) != len(cfunc_type.args) or cfunc_type.has_varargs:
                 error(self.pos, "wrong number of arguments")
                 error(cfunc.pos, "previous declaration here")
-            for formal_arg, type_arg in zip(self.args, cfunc_type.args):
-                name_declarator, type = formal_arg.analyse(cfunc.scope, nonempty=1)
-                if type is None or type is PyrexTypes.py_object_type or formal_arg.is_self:
+            for i, (formal_arg, type_arg) in enumerate(zip(self.args, cfunc_type.args)):
+                name_declarator, type = formal_arg.analyse(scope, nonempty=1,
+                                                           is_self_arg = (i == 0 and scope.is_c_class_scope))
+                if type is None or type is PyrexTypes.py_object_type:
                     formal_arg.type = type_arg.type
                     formal_arg.name_declarator = name_declarator
         import ExprNodes
@@ -2935,7 +2940,8 @@ class PyClassDefNode(ClassDefNode):
     child_attrs = ["body", "dict", "classobj", "target"]
     decorators = None
     
-    def __init__(self, pos, name, bases, doc, body, decorators = None):
+    def __init__(self, pos, name, bases, doc, body, decorators = None,
+                 keyword_args = None, starstar_arg = None):
         StatNode.__init__(self, pos)
         self.name = name
         self.doc = doc
@@ -2950,7 +2956,8 @@ class PyClassDefNode(ClassDefNode):
         else:
             doc_node = None
         self.classobj = ExprNodes.ClassNode(pos, name = name,
-            bases = bases, dict = self.dict, doc = doc_node)
+            bases = bases, dict = self.dict, doc = doc_node,
+            keyword_args = keyword_args, starstar_arg = starstar_arg)
         self.target = ExprNodes.NameNode(pos, name = name)
         
     def as_cclass(self):
@@ -3513,132 +3520,41 @@ class InPlaceAssignmentNode(AssignmentNode):
     #  (it must be a NameNode, AttributeNode, or IndexNode).     
     
     child_attrs = ["lhs", "rhs"]
-    dup = None
 
     def analyse_declarations(self, env):
         self.lhs.analyse_target_declaration(env)
         
     def analyse_types(self, env):
-        self.dup = self.create_dup_node(env) # re-assigns lhs to a shallow copy
         self.rhs.analyse_types(env)
         self.lhs.analyse_target_types(env)
-        import ExprNodes
-        if self.lhs.type.is_pyobject:
-            self.rhs = self.rhs.coerce_to_pyobject(env)
-        elif self.rhs.type.is_pyobject or (self.lhs.type.is_numeric and self.rhs.type.is_numeric):
-            self.rhs = self.rhs.coerce_to(self.lhs.type, env)
-        if self.lhs.type.is_pyobject:
-            self.result_value_temp = ExprNodes.PyTempNode(self.pos, env)
-            self.result_value = self.result_value_temp.coerce_to(self.lhs.type, env)
-        
+
     def generate_execution_code(self, code):
         import ExprNodes
         self.rhs.generate_evaluation_code(code)
-        self.dup.generate_subexpr_evaluation_code(code)
-        if self.dup.is_temp:
-            self.dup.allocate_temp_result(code)
-        # self.dup.generate_result_code is run only if it is not buffer access
-        if self.operator == "**":
-            extra = ", Py_None"
-        else:
-            extra = ""
-        if self.lhs.type.is_pyobject:
-            if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
+        self.lhs.generate_subexpr_evaluation_code(code)
+        c_op = self.operator
+        if c_op == "//":
+            c_op = "/"
+        elif c_op == "**":
+            error(self.pos, "No C inplace power operator")
+        if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
+            if self.lhs.type.is_pyobject:
                 error(self.pos, "In-place operators not allowed on object buffers in this release.")
-            self.dup.generate_result_code(code)
-            self.result_value_temp.allocate(code)
-            code.putln(
-                "%s = %s(%s, %s%s); %s" % (
-                    self.result_value.result(), 
-                    self.py_operation_function(), 
-                    self.dup.py_result(),
-                    self.rhs.py_result(),
-                    extra,
-                    code.error_goto_if_null(self.result_value.py_result(), self.pos)))
-            code.put_gotref(self.result_value.py_result())
-            self.result_value.generate_evaluation_code(code) # May be a type check...
-            self.rhs.generate_disposal_code(code)
-            self.rhs.free_temps(code)
-            self.dup.generate_disposal_code(code)
-            self.dup.free_temps(code)
-            self.lhs.generate_assignment_code(self.result_value, code)
-            self.result_value_temp.release(code)
-        else: 
-            c_op = self.operator
-            if c_op == "//":
-                c_op = "/"
-            elif c_op == "**":
-                error(self.pos, "No C inplace power operator")
-            elif self.lhs.type.is_complex:
-                error(self.pos, "Inplace operators not implemented for complex types.")
-                
-            # have to do assignment directly to avoid side-effects
-            if isinstance(self.lhs, ExprNodes.IndexNode) and self.lhs.is_buffer_access:
-                self.lhs.generate_buffer_setitem_code(self.rhs, code, c_op)
-            else:
-                self.dup.generate_result_code(code)
-                code.putln("%s %s= %s;" % (self.lhs.result(), c_op, self.rhs.result()) )
-            self.rhs.generate_disposal_code(code)
-            self.rhs.free_temps(code)
-        if self.dup.is_temp:
-            self.dup.generate_subexpr_disposal_code(code)
-            self.dup.free_subexpr_temps(code)
-            
-    def create_dup_node(self, env): 
-        import ExprNodes
-        self.dup = self.lhs
-        self.dup.analyse_types(env)
-        if isinstance(self.lhs, ExprNodes.NameNode):
-            target_lhs = ExprNodes.NameNode(self.dup.pos,
-                                            name = self.dup.name,
-                                            is_temp = self.dup.is_temp,
-                                            entry = self.dup.entry)
-        elif isinstance(self.lhs, ExprNodes.AttributeNode):
-            target_lhs = ExprNodes.AttributeNode(self.dup.pos,
-                                                 obj = ExprNodes.CloneNode(self.lhs.obj),
-                                                 attribute = self.dup.attribute,
-                                                 is_temp = self.dup.is_temp)
-        elif isinstance(self.lhs, ExprNodes.IndexNode):
-            if self.lhs.index:
-                index = ExprNodes.CloneNode(self.lhs.index)
-            else:
-                index = None
-            if self.lhs.indices:
-                indices = [ExprNodes.CloneNode(x) for x in self.lhs.indices]
-            else:
-                indices = []
-            target_lhs = ExprNodes.IndexNode(self.dup.pos,
-                                             base = ExprNodes.CloneNode(self.dup.base),
-                                             index = index,
-                                             indices = indices,
-                                             is_temp = self.dup.is_temp)
+            if c_op in ('/', '%') and self.lhs.type.is_int and not code.directives['cdivision']:
+                error(self.pos, "In-place non-c divide operators not allowed on int buffers.")
+            self.lhs.generate_buffer_setitem_code(self.rhs, code, c_op)
         else:
-            assert False, "Unsupported node: %s" % type(self.lhs)
-        self.lhs = target_lhs
-        return self.dup
-    
-    def py_operation_function(self):
-        return self.py_functions[self.operator]
-
-    py_functions = {
-        "|":        "PyNumber_InPlaceOr",
-        "^":        "PyNumber_InPlaceXor",
-        "&":        "PyNumber_InPlaceAnd",
-        "+":        "PyNumber_InPlaceAdd",
-        "-":        "PyNumber_InPlaceSubtract",
-        "*":        "PyNumber_InPlaceMultiply",
-        "/":        "__Pyx_PyNumber_InPlaceDivide",
-        "%":        "PyNumber_InPlaceRemainder",
-        "<<":        "PyNumber_InPlaceLshift",
-        ">>":        "PyNumber_InPlaceRshift",
-        "**":        "PyNumber_InPlacePower",
-        "//":        "PyNumber_InPlaceFloorDivide",
-    }
+            # C++
+            # TODO: make sure overload is declared
+            code.putln("%s %s= %s;" % (self.lhs.result(), c_op, self.rhs.result()))
+        self.lhs.generate_subexpr_disposal_code(code)
+        self.lhs.free_subexpr_temps(code)
+        self.rhs.generate_disposal_code(code)
+        self.rhs.free_temps(code)
 
     def annotate(self, code):
         self.lhs.annotate(code)
         self.rhs.annotate(code)
-        self.dup.annotate(code)
     
     def create_binop_node(self):
         import ExprNodes

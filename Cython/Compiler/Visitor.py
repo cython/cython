@@ -20,6 +20,9 @@ class BasicVisitor(object):
         self.dispatch_table = {}
 
     def visit(self, obj):
+        return self._visit(obj)
+
+    def _visit(self, obj):
         try:
             handler_method = self.dispatch_table[type(obj)]
         except KeyError:
@@ -173,10 +176,10 @@ class TreeVisitor(BasicVisitor):
             last_node.pos, self.__class__.__name__,
             u'\n'.join(trace), e, stacktrace)
 
-    def visitchild(self, child, parent, attrname, idx):
+    def _visitchild(self, child, parent, attrname, idx):
         self.access_path.append((parent, attrname, idx))
         try:
-            result = self.visit(child)
+            result = self._visit(child)
         except Errors.CompileError:
             raise
         except Exception, e:
@@ -206,9 +209,9 @@ class TreeVisitor(BasicVisitor):
             child = getattr(parent, attr)
             if child is not None:
                 if type(child) is list:
-                    childretval = [self.visitchild(x, parent, attr, idx) for idx, x in enumerate(child)]
+                    childretval = [self._visitchild(x, parent, attr, idx) for idx, x in enumerate(child)]
                 else:
-                    childretval = self.visitchild(child, parent, attr, None)
+                    childretval = self._visitchild(child, parent, attr, None)
                     assert not isinstance(childretval, list), 'Cannot insert list here: %s in %r' % (attr, parent)
                 result[attr] = childretval
         return result
@@ -256,7 +259,7 @@ class VisitorTransform(TreeVisitor):
         return node
     
     def __call__(self, root):
-        return self.visit(root)
+        return self._visit(root)
 
 class CythonTransform(VisitorTransform):
     """
@@ -288,8 +291,8 @@ class CythonTransform(VisitorTransform):
 
 class ScopeTrackingTransform(CythonTransform):
     # Keeps track of type of scopes
-    scope_type = None # can be either of 'module', 'function', 'cclass', 'pyclass'
-    scope_node = None
+    #scope_type: can be either of 'module', 'function', 'cclass', 'pyclass', 'struct'
+    #scope_node: the node that owns the current scope
     
     def visit_ModuleNode(self, node):
         self.scope_type = 'module'
@@ -388,7 +391,7 @@ class PrintTree(TreeVisitor):
 
     def __call__(self, tree, phase=None):
         print("Parse tree dump at phase '%s'" % phase)
-        self.visit(tree)
+        self._visit(tree)
         return tree
 
     # Don't do anything about process_list, the defaults gives

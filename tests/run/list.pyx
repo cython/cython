@@ -1,3 +1,6 @@
+
+cimport cython
+
 def f(obj1, obj2, obj3, obj4, obj5):
     """
     >>> f(1, 2, 3, 4, 5)
@@ -54,6 +57,7 @@ def test_list_sort_reversed():
     l1.sort(reversed=True)
     return l1
 
+@cython.test_assert_path_exists("//SimpleCallNode//NoneCheckNode")
 def test_list_reverse():
     """
     >>> test_list_reverse()
@@ -62,6 +66,17 @@ def test_list_reverse():
     cdef list l1
     l1 = [4,3,2,1]
     l1.reverse()
+    return l1
+
+@cython.test_assert_path_exists("//SimpleCallNode//NoneCheckNode")
+def test_list_append():
+    """
+    >>> test_list_append()
+    [1, 2, 3, 4]
+    """
+    cdef list l1 = [1,2]
+    l1.append(3)
+    l1.append(4)
     return l1
 
 def test_list_pop():

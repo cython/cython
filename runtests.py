@@ -316,18 +316,22 @@ class CythonCompileTestCase(unittest.TestCase):
         source_file = os.path.join(test_directory, module) + '.pyx'
         source_and_output = codecs.open(
             self.find_module_source_file(source_file), 'rU', 'ISO-8859-1')
-        out = codecs.open(os.path.join(workdir, module + '.pyx'),
-                          'w', 'ISO-8859-1')
-        for line in source_and_output:
-            last_line = line
-            if line.startswith("_ERRORS"):
-                out.close()
-                out = ErrorWriter()
-            else:
-                out.write(line)
+        try:
+            out = codecs.open(os.path.join(workdir, module + '.pyx'),
+                              'w', 'ISO-8859-1')
+            for line in source_and_output:
+                last_line = line
+                if line.startswith("_ERRORS"):
+                    out.close()
+                    out = ErrorWriter()
+                else:
+                    out.write(line)
+        finally:
+            source_and_output.close()
         try:
             geterrors = out.geterrors
         except AttributeError:
+            out.close()
             return []
         else:
             return geterrors()
@@ -660,7 +664,10 @@ def collect_doctests(path, module_prefix, suite, selectors):
             for f in filenames:
                 if file_matches(f):
                     if not f.endswith('.py'): continue
-                    filepath = os.path.join(dirpath, f)[:-len(".py")]
+                    filepath = os.path.join(dirpath, f)
+                    if os.path.getsize(filepath) == 0: continue
+                    if 'no doctest' in open(filepath).next(): continue
+                    filepath = filepath[:-len(".py")]
                     modulename = module_prefix + filepath[len(path)+1:].replace(os.path.sep, '.')
                     if not [ 1 for match in selectors if match(modulename) ]:
                         continue

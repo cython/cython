@@ -56,6 +56,15 @@ def test_set_clear():
     s1.clear()
     return s1
 
+def test_set_clear_None():
+    """
+    >>> test_set_clear_None()
+    Traceback (most recent call last):
+    AttributeError: 'NoneType' object has no attribute 'clear'
+    """
+    cdef set s1 = None
+    s1.clear()
+
 def test_set_list_comp():
     """
     >>> type(test_set_list_comp()) is _set

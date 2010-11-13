@@ -1,3 +1,4 @@
+#no doctest
 print "Warning: Using prototype cython.inline code..."
 
 import tempfile
@@ -8,14 +9,15 @@ try:
 except ImportError:
     import md5 as hashlib
 
-from distutils.dist import Distribution
-from Cython.Distutils.extension import Extension
-from Cython.Distutils import build_ext
+from distutils.core import Distribution, Extension
+from distutils.command.build_ext import build_ext
 
+import Cython
 from Cython.Compiler.Main import Context, CompilationOptions, default_options
 
 from Cython.Compiler.ParseTreeTransforms import CythonTransform, SkipDeclarations, AnalyseDeclarationsTransform
 from Cython.Compiler.TreeFragment import parse_from_strings
+from Cython.Build.Dependencies import strip_string_literals, cythonize
 
 _code_cache = {}
 
@@ -81,6 +83,7 @@ def cython_inline(code,
                   locals=None,
                   globals=None,
                   **kwds):
+    code, literals = strip_string_literals(code)
     code = strip_common_indent(code)
     ctx = Context(include_dirs, default_options)
     if locals is None:
@@ -103,42 +106,54 @@ def cython_inline(code,
     arg_names = kwds.keys()
     arg_names.sort()
     arg_sigs = tuple([(get_type(kwds[arg], ctx), arg) for arg in arg_names])
-    key = code, arg_sigs
-    module = _code_cache.get(key)
-    if not module:
+    key = code, arg_sigs, sys.version_info, sys.executable, Cython.__version__
+    module_name = "_cython_inline_" + hashlib.md5(str(key)).hexdigest()
+#    # TODO: Does this cover all the platforms?
+#    if (not os.path.exists(os.path.join(lib_dir, module_name + ".so")) and 
+#        not os.path.exists(os.path.join(lib_dir, module_name + ".dll"))):
+    try:
+        if not os.path.exists(lib_dir):
+            os.makedirs(lib_dir)
+        if lib_dir not in sys.path:
+            sys.path.append(lib_dir)
+        __import__(module_name)
+    except ImportError:
+        c_include_dirs = []
         cimports = []
         qualified = re.compile(r'([.\w]+)[.]')
         for type, _ in arg_sigs:
             m = qualified.match(type)
             if m:
                 cimports.append('\ncimport %s' % m.groups()[0])
+                # one special case
+                if m.groups()[0] == 'numpy':
+                    import numpy
+                    c_include_dirs.append(numpy.get_include())
         module_body, func_body = extract_func_code(code)
         params = ', '.join(['%s %s' % a for a in arg_sigs])
         module_code = """
-%(cimports)s
 %(module_body)s
+%(cimports)s
 def __invoke(%(params)s):
 %(func_body)s
         """ % {'cimports': '\n'.join(cimports), 'module_body': module_body, 'params': params, 'func_body': func_body }
-#        print module_code
-        _, pyx_file = tempfile.mkstemp('.pyx')
+        for key, value in literals.items():
+            module_code = module_code.replace(key, value)
+        pyx_file = os.path.join(lib_dir, module_name + '.pyx')
         open(pyx_file, 'w').write(module_code)
-        module = "_" + hashlib.md5(code + str(arg_sigs)).hexdigest()
         extension = Extension(
-            name = module,
+            name = module_name,
             sources = [pyx_file],
-            pyrex_include_dirs = include_dirs)
+            include_dirs = c_include_dirs)
         build_extension = build_ext(Distribution())
         build_extension.finalize_options()
-        build_extension.extensions = [extension]
+        build_extension.extensions = cythonize([extension])
         build_extension.build_temp = os.path.dirname(pyx_file)
-        if lib_dir not in sys.path:
-            sys.path.append(lib_dir)
         build_extension.build_lib  = lib_dir
         build_extension.run()
-        _code_cache[key] = module
+        _code_cache[key] = module_name
     arg_list = [kwds[arg] for arg in arg_names]
-    return __import__(module).__invoke(*arg_list)
+    return __import__(module_name).__invoke(*arg_list)
 
 non_space = re.compile('[^ ]')
 def strip_common_indent(code):
@@ -165,7 +180,6 @@ module_statement = re.compile(r'^((cdef +(extern|class))|cimport|(from .+ cimpor
 def extract_func_code(code):
     module = []
     function = []
-    # TODO: string literals, backslash
     current = function
     code = code.replace('\t', ' ')
     lines = code.split('\n')
@@ -177,3 +191,54 @@ def extract_func_code(code):
                 current = function
         current.append(line)
     return '\n'.join(module), '    ' + '\n    '.join(function)
+
+
+
+try:
+    from inspect import getcallargs
+except ImportError:
+    def getcallargs(func, *arg_values, **kwd_values):
+        all = {}
+        args, varargs, kwds, defaults = inspect.getargspec(func)
+        if varargs is not None:
+            all[varargs] = arg_values[len(args):]
+        for name, value in zip(args, arg_values):
+            all[name] = value
+        for name, value in kwd_values.items():
+            if name in args:
+                if name in all:
+                    raise TypeError, "Duplicate argument %s" % name
+                all[name] = kwd_values.pop(name)
+        if kwds is not None:
+            all[kwds] = kwd_values
+        elif kwd_values:
+            raise TypeError, "Unexpected keyword arguments: %s" % kwd_values.keys()
+        if defaults is None:
+            defaults = ()
+        first_default = len(args) - len(defaults)
+        for ix, name in enumerate(args):
+            if name not in all:
+                if ix >= first_default:
+                    all[name] = defaults[ix - first_default]
+                else:
+                    raise TypeError, "Missing argument: %s" % name
+        return all
+
+def get_body(source):
+    ix = source.index(':')
+    if source[:5] == 'lambda':
+        return "return %s" % source[ix+1:]
+    else:
+        return source[ix+1:]
+
+# Lots to be done here... It would be especially cool if compiled functions 
+# could invoke each other quickly.
+class RuntimeCompiledFunction(object):
+
+    def __init__(self, f):
+        self._f = f
+        self._body = get_body(inspect.getsource(f))
+    
+    def __call__(self, *args, **kwds):
+        all = getcallargs(self._f, *args, **kwds)
+        return cython_inline(self._body, locals=self._f.func_globals, globals=self._f.func_globals, **all)

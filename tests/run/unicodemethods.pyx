@@ -180,9 +180,12 @@ pipe_sep = u'|'
 
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode", "//CoerceFromPyTypeNode",
-    "//CastNode", "//TypecastNode")
+    "//CastNode", "//TypecastNode",
+    "//SimpleCallNode//AttributeNode[@is_py_attr = true]")
 @cython.test_assert_path_exists(
-    "//PythonCapiCallNode")
+    "//SimpleCallNode",
+    "//SimpleCallNode//NoneCheckNode",
+    "//SimpleCallNode//AttributeNode[@is_py_attr = false]")
 def join(unicode sep, l):
     """
     >>> l = text.split()
@@ -197,9 +200,11 @@ def join(unicode sep, l):
 
 @cython.test_fail_if_path_exists(
     "//CoerceToPyTypeNode", "//CoerceFromPyTypeNode",
-    "//CastNode", "//TypecastNode", "//NoneCheckNode")
+    "//CastNode", "//TypecastNode", "//NoneCheckNode",
+    "//SimpleCallNode//AttributeNode[@is_py_attr = true]")
 @cython.test_assert_path_exists(
-    "//PythonCapiCallNode")
+    "//SimpleCallNode",
+    "//SimpleCallNode//AttributeNode[@is_py_attr = false]")
 def join_sep(l):
     """
     >>> l = text.split()
@@ -211,6 +216,22 @@ def join_sep(l):
     ab|jd|sdflk|as|sa|sadas|asdas|fsdf
     """
     return u'|'.join(l)
+
+@cython.test_assert_path_exists(
+    "//SimpleCallNode",
+    "//SimpleCallNode//NameNode")
+def join_unbound(unicode sep, l):
+    """
+    >>> l = text.split()
+    >>> len(l)
+    8
+    >>> print( pipe_sep.join(l) )
+    ab|jd|sdflk|as|sa|sadas|asdas|fsdf
+    >>> print( join_unbound(pipe_sep, l) )
+    ab|jd|sdflk|as|sa|sadas|asdas|fsdf
+    """
+    join = unicode.join
+    return join(sep, l)
 
 
 # unicode.startswith(s, prefix, [start, [end]])
