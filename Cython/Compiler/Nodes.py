@@ -2136,7 +2136,7 @@ class DefNode(FuncDefNode):
             entry.doc_cname = \
                 Naming.funcdoc_prefix + prefix + name
             if entry.is_special:
-                if entry.name in TypeSlots.invisible or not entry.doc:
+                if entry.name in TypeSlots.invisible or not entry.doc or (entry.name in '__getattr__' and env.directives['fast_getattr']):
                     entry.wrapperbase_cname = None
                 else:
                     entry.wrapperbase_cname = Naming.wrapperbase_prefix + prefix + name
