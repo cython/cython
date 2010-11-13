@@ -168,6 +168,30 @@ of these commands are analogous to their respective gdb command.
     Import debug information from files given as arguments. The easiest way to
     import debug information is to use the cygdb command line tool.
 
+.. function:: cy exec code
+
+    Execute code in the current Python or Cython frame. This works like
+    Python's interactive interpreter. 
+
+    For Python frames it uses the globals and locals from the Python frame,
+    for Cython frames it uses the dict of globals used on the Cython module
+    and a new dict filled with the local Cython variables.
+
+.. note:: ``cy exec`` modifies state and executes code in the debuggee and is
+          therefore potentially dangerous.           
+
+Example::
+
+    (gdb) cy exec x + 1
+    2
+    (gdb) cy exec import sys; print sys.version_info
+    (2, 6, 5, 'final', 0)
+    (gdb) cy exec
+    >global foo
+    >
+    >foo = 'something'
+    >end
+
 Convenience functions
 =====================
 The following functions are gdb functions, which means they can be used in a
