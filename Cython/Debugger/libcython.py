@@ -598,6 +598,7 @@ class CyCy(CythonCommand):
             finish = CyFinish.register(),
             up = CyUp.register(),
             down = CyDown.register(),
+            select = CySelect.register(),
             bt = CyBacktrace.register(),
             list = CyList.register(),
             print_ = CyPrint.register(),
@@ -947,6 +948,32 @@ class CyDown(CyUp):
     
     name = 'cy down'
     _command = 'down'
+
+
+class CySelect(CythonCodeStepper):
+    """
+    Select a frame. Use frame numbers as listed in `cy backtrace`.
+    This command is useful because `cy backtrace` prints a reversed backtrace.
+    """
+    
+    name = 'cy select'
+    
+    def invoke(self, stackno, from_tty):
+        try:
+            stackno = int(stackno)
+        except ValueError:
+            raise gdb.GdbError("Not a valid number: %r" % (stackno,))
+        
+        frame = gdb.selected_frame()
+        while frame.newer():
+            frame = frame.newer()
+        
+        stackdepth = self._stackdepth(frame)
+        
+        try:
+            gdb.execute('select %d' % (stackdepth - stackno - 1,))
+        except RuntimeError, e:
+            raise gdb.GdbError(*e.args)
 
 
 class CyBacktrace(CythonCommand):
