@@ -165,8 +165,11 @@ class PyObjectPtr(object):
                 return self._gdbval.dereference()[name]
             except RuntimeError:
                 # Python 3:
-                return self._gdbval.dereference()['ob_base'][name]
-
+                try:
+                    return self._gdbval.dereference()['ob_base'][name]
+                except RuntimeError:
+                    return 0
+                
         # General case: look it up inside the object:
         return self._gdbval.dereference()[name]
 
