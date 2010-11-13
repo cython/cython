@@ -1980,7 +1980,7 @@ class PythonCodeExecutor(object):
         globalsp = pointervalue(global_dict)
         localsp = pointervalue(local_dict)
         
-        if globalp == 0 or localp == 0:
+        if globalsp == 0 or localsp == 0:
             raise gdb.GdbError("Unable to obtain or create locals or globals.")
         
         code = """
@@ -2058,7 +2058,8 @@ class FixGdbCommand(gdb.Command):
     
         Program exited normally.
         """
-        warnings.filterwarnings('ignore', r'.*', RuntimeWarning, re.escape(__name__))
+        warnings.filterwarnings('ignore', r'.*', RuntimeWarning, 
+                                re.escape(__name__))
         try:
             long(gdb.parse_and_eval("(void *) 0")) == 0
         except RuntimeError:
@@ -2067,7 +2068,10 @@ class FixGdbCommand(gdb.Command):
     
     def invoke(self, args, from_tty):
         self.fix_gdb()
-        gdb.execute('%s %s' % (self.actual_command, args))
+        try:
+            gdb.execute('%s %s' % (self.actual_command, args))
+        except RuntimeError, e:
+            raise gdb.GdbError(str(e))
         self.fix_gdb()
 
 
