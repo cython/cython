@@ -133,11 +133,22 @@ of these commands are analogous to their respective gdb command.
 
     Go up and down the stack to what is considered a relevant frame.
 
+.. function:: cy finish
+
+    Execute until an upward relevant frame is met or something halts 
+    execution.
+
 .. function:: cy bt
               cy backtrace
 
     Print a traceback of all frames considered relevant. The ``-a`` option
     makes it print the full traceback (all C frames).
+
+.. function:: cy select
+
+    Select a stack frame by number as listed by ``cy backtrace``. This
+    command is introduced because ``cy backtrace`` prints a reversed stack
+    trace, so frame numbers differ from gdb's ``bt``.
 
 .. function:: cy print varname
 
