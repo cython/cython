@@ -3,14 +3,15 @@ cimport cython
 cdef class BasicVisitor:
     cdef dict dispatch_table
     cpdef visit(self, obj)
-    cpdef find_handler(self, obj)
+    cdef _visit(self, obj)
+    cdef find_handler(self, obj)
 
 cdef class TreeVisitor(BasicVisitor):
     cdef public list access_path
-    cpdef visitchild(self, child, parent, attrname, idx)
+    cdef _visitchild(self, child, parent, attrname, idx)
     @cython.locals(idx=int)
-    cpdef dict _visitchildren(self, parent, attrs)
-#    cpdef visitchildren(self, parent, attrs=*)
+    cdef dict _visitchildren(self, parent, attrs)
+    cpdef visitchildren(self, parent, attrs=*)
 
 cdef class VisitorTransform(TreeVisitor):
     cpdef visitchildren(self, parent, attrs=*)
@@ -19,3 +20,15 @@ cdef class VisitorTransform(TreeVisitor):
 cdef class CythonTransform(VisitorTransform):
     cdef public context
     cdef public current_directives
+
+cdef class ScopeTrackingTransform(CythonTransform):
+    cdef public scope_type
+    cdef public scope_node
+    cdef visit_scope(self, node, scope_type)
+
+cdef class EnvTransform(CythonTransform):
+    cdef public list env_stack
+
+cdef class RecursiveNodeReplacer(VisitorTransform):
+     cdef public orig_node
+     cdef public new_node

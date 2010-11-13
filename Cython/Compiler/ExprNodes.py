@@ -651,7 +651,11 @@ class ExprNode(Node):
         return self.result_in_temp()
 
     def may_be_none(self):
-        return self.type.is_pyobject
+        if not self.type.is_pyobject:
+            return False
+        if self.constant_result not in (not_a_constant, constant_value_not_set):
+            return self.constant_result is not None
+        return True
 
     def as_cython_attribute(self):
         return None
@@ -803,22 +807,56 @@ class IntNode(ConstNode):
     def __init__(self, pos, **kwds):
         ExprNode.__init__(self, pos, **kwds)
         if 'type' not in kwds:
-            rank = max(1, len(self.longness))
-            sign = not self.unsigned
-            self.type = PyrexTypes.modifiers_and_name_to_type[sign, rank, "int"]
+            self.type = self.find_suitable_type_for_value()
+
+    def find_suitable_type_for_value(self):
+        if self.constant_result is constant_value_not_set:
+            try:
+                self.calculate_constant_result()
+            except ValueError:
+                pass
+        if self.constant_result in (constant_value_not_set, not_a_constant) or \
+               self.unsigned or self.longness == 'LL':
+            # clearly a C literal
+            rank = (self.longness == 'LL') and 2 or 1
+            suitable_type = PyrexTypes.modifiers_and_name_to_type[not self.unsigned, rank, "int"]
+            if self.type:
+                suitable_type = PyrexTypes.widest_numeric_type(suitable_type, self.type)
+        else:
+            # C literal or Python literal - split at 32bit boundary
+            if self.constant_result >= -2**31 and self.constant_result < 2**31:
+                if self.type and self.type.is_int:
+                    suitable_type = self.type
+                else:
+                    suitable_type = PyrexTypes.c_long_type
+            else:
+                suitable_type = PyrexTypes.py_object_type
+        return suitable_type
 
     def coerce_to(self, dst_type, env):
         if self.type is dst_type:
             return self
         elif dst_type.is_float:
-            float_value = float(self.value)
-            return FloatNode(self.pos, value=repr(float_value), constant_result=float_value)
+            if self.constant_result is not not_a_constant:
+                float_value = float(self.constant_result)
+                return FloatNode(self.pos, value=repr(float_value), type=dst_type,
+                                 constant_result=float_value)
+            else:
+                return FloatNode(self.pos, value=self.value, type=dst_type,
+                                 constant_result=not_a_constant)
         node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
-                       unsigned=self.unsigned, longness=self.longness)
+                       type = dst_type, unsigned=self.unsigned, longness=self.longness)
         if dst_type.is_numeric and not dst_type.is_complex:
+            node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
+                           type = dst_type, unsigned=self.unsigned, longness=self.longness)
             return node
-        if dst_type.is_pyobject:
-            node.type = PyrexTypes.py_object_type
+        elif dst_type.is_pyobject:
+            node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
+                           type = PyrexTypes.py_object_type, unsigned=self.unsigned, longness=self.longness)
+        else:
+            # not setting the type here!
+            node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
+                           unsigned=self.unsigned, longness=self.longness)
         # We still need to perform normal coerce_to processing on the
         # result, because we might be coercing to an extension type,
         # in which case a type test node will be needed.
@@ -1450,7 +1488,7 @@ class NameNode(AtomicExprNode):
             return # There was an error earlier
         if entry.is_builtin and Options.cache_builtins:
             return # Lookup already cached
-        elif entry.is_real_dict:
+        elif entry.is_pyclass_attr:
             assert entry.type.is_pyobject, "Python global or builtin not a Python object"
             interned_cname = code.intern_identifier(self.entry.name)
             if entry.is_builtin:
@@ -1459,7 +1497,7 @@ class NameNode(AtomicExprNode):
                 namespace = entry.scope.namespace_cname
             code.globalstate.use_utility_code(getitem_dict_utility_code)
             code.putln(
-                '%s = __Pyx_PyDict_GetItem(%s, %s); %s' % (
+                '%s = PyObject_GetItem(%s, %s); %s' % (
                 self.result(),
                 namespace,
                 interned_cname,
@@ -1521,9 +1559,9 @@ class NameNode(AtomicExprNode):
                 # in Py2.6+, we need to invalidate the method cache
                 code.putln("PyType_Modified(%s);" %
                             entry.scope.parent_type.typeptr_cname)
-            elif entry.is_real_dict:
+            elif entry.is_pyclass_attr:
                 code.put_error_if_neg(self.pos,
-                    'PyDict_SetItem(%s, %s, %s)' % (
+                    'PyObject_SetItem(%s, %s, %s)' % (
                         namespace,
                         interned_cname,
                         rhs.py_result()))
@@ -1608,10 +1646,10 @@ class NameNode(AtomicExprNode):
         if not self.entry.is_pyglobal:
             error(self.pos, "Deletion of local or C global name not supported")
             return
-        if self.entry.is_real_dict:
+        if self.entry.is_pyclass_attr:
             namespace = self.entry.scope.namespace_cname
             code.put_error_if_neg(self.pos,
-                'PyDict_DelItemString(%s, "%s")' % (
+                'PyMapping_DelItemString(%s, "%s")' % (
                     namespace,
                     self.entry.name))
         else:
@@ -2066,7 +2104,6 @@ class IndexNode(ExprNode):
         skip_child_analysis = False
         buffer_access = False
         if self.base.type.is_buffer:
-            assert hasattr(self.base, "entry") # Must be a NameNode-like node
             if self.indices:
                 indices = self.indices
             else:
@@ -2081,6 +2118,8 @@ class IndexNode(ExprNode):
                     x.analyse_types(env)
                     if not x.type.is_int:
                         buffer_access = False
+            if buffer_access:
+                assert hasattr(self.base, "entry") # Must be a NameNode-like node
 
         # On cloning, indices is cloned. Otherwise, unpack index into indices
         assert not (buffer_access and isinstance(self.index, CloneNode))
@@ -2742,6 +2781,7 @@ class SimpleCallNode(CallNode):
     wrapper_call = False
     has_optional_args = False
     nogil = False
+    analysed = False
     
     def compile_time_value(self, denv):
         function = self.function.compile_time_value(denv)
@@ -2795,6 +2835,9 @@ class SimpleCallNode(CallNode):
     def analyse_types(self, env):
         if self.analyse_as_type_constructor(env):
             return
+        if self.analysed:
+            return
+        self.analysed = True
         function = self.function
         function.is_called = 1
         self.function.analyse_types(env)
@@ -2836,7 +2879,12 @@ class SimpleCallNode(CallNode):
                 arg.analyse_types(env)
             if self.self and func_type.args:
                 # Coerce 'self' to the type expected by the method.
-                expected_type = func_type.args[0].type
+                self_arg = func_type.args[0]
+                if self_arg.not_none: # C methods must do the None test for self at *call* time
+                    self.self = self.self.as_none_safe_node(
+                        "'NoneType' object has no attribute '%s'" % self.function.entry.name,
+                        'PyExc_AttributeError')
+                expected_type = self_arg.type
                 self.coerced_self = CloneNode(self.self).coerce_to(
                     expected_type, env)
                 # Insert coerced 'self' argument into argument list.
@@ -3674,8 +3722,8 @@ class SequenceNode(ExprNode):
             arg = self.args[i]
             if not skip_children: arg.analyse_types(env)
             self.args[i] = arg.coerce_to_pyobject(env)
-        self.type = py_object_type
         self.is_temp = 1
+        # not setting self.type here, subtypes do this
 
     def may_be_none(self):
         return False
@@ -3879,7 +3927,7 @@ class TupleNode(SequenceNode):
             self.is_literal = 1
         else:
             SequenceNode.analyse_types(self, env, skip_children)
-            
+
     def calculate_result_code(self):
         if len(self.args) > 0:
             error(self.pos, "Positive length tuples must be constructed.")
@@ -3935,6 +3983,7 @@ class ListNode(SequenceNode):
     # orignial_args            [ExprNode]     used internally
 
     obj_conversion_errors = []
+    type = list_type
 
     gil_message = "Constructing Python list"
     
@@ -3953,7 +4002,6 @@ class ListNode(SequenceNode):
         hold_errors()
         self.original_args = list(self.args)
         SequenceNode.analyse_types(self, env)
-        self.type = list_type
         self.obj_conversion_errors = held_errors()
         release_errors(ignore=True)
         
@@ -4475,14 +4523,23 @@ class ClassNode(ExprNode, ModuleNameMixin):
     #  dict         ExprNode           Class dict (not owned by this node)
     #  doc          ExprNode or None   Doc string
     #  module_name  EncodedString      Name of defining module
+    #  keyword_args ExprNode or None   Py3 Dict of keyword arguments, passed to __new__
+    #  starstar_arg ExprNode or None   Py3 Dict of extra keyword args, same here
     
-    subexprs = ['bases', 'doc']
+    subexprs = ['bases', 'keyword_args', 'starstar_arg', 'doc']
 
     def analyse_types(self, env):
         self.bases.analyse_types(env)
         if self.doc:
             self.doc.analyse_types(env)
             self.doc = self.doc.coerce_to_pyobject(env)
+        if self.keyword_args:
+            self.keyword_args.analyse_types(env)
+        if self.starstar_arg:
+            self.starstar_arg.analyse_types(env)
+            # make sure we have a Python object as **kwargs mapping
+            self.starstar_arg = \
+                self.starstar_arg.coerce_to_pyobject(env)
         self.type = py_object_type
         self.is_temp = 1
         env.use_utility_code(create_class_utility_code);
@@ -4490,12 +4547,25 @@ class ClassNode(ExprNode, ModuleNameMixin):
         self.set_mod_name(env)
 
     def may_be_none(self):
-        return False
+        return True
 
     gil_message = "Constructing Python class"
 
     def generate_result_code(self, code):
         cname = code.intern_identifier(self.name)
+        if self.keyword_args and self.starstar_arg:
+            code.put_error_if_neg(self.pos,
+                "PyDict_Update(%s, %s)" % (
+                    self.keyword_args.py_result(),
+                    self.starstar_arg.py_result()))
+            keyword_code = self.keyword_args.py_result()
+        elif self.keyword_args:
+            keyword_code = self.keyword_args.py_result()
+        elif self.starstar_arg:
+            keyword_code = self.starstar_arg.py_result()
+        else:
+            keyword_code = 'NULL'
+
         if self.doc:
             code.put_error_if_neg(self.pos, 
                 'PyDict_SetItemString(%s, "__doc__", %s)' % (
@@ -4503,14 +4573,16 @@ class ClassNode(ExprNode, ModuleNameMixin):
                     self.doc.py_result()))
         py_mod_name = self.get_py_mod_name(code)
         code.putln(
-            '%s = __Pyx_CreateClass(%s, %s, %s, %s); %s' % (
+            '%s = __Pyx_CreateClass(%s, %s, %s, %s, %s); %s' % (
                 self.result(),
                 self.bases.py_result(),
                 self.dict.py_result(),
                 cname,
                 py_mod_name,
+                keyword_code,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
+
 
 class BoundMethodNode(ExprNode):
     #  Helper class used in the implementation of Python
@@ -4972,7 +5044,7 @@ def unop_node(pos, operator, operand):
     # Construct unnop node of appropriate class for 
     # given operator.
     if isinstance(operand, IntNode) and operator == '-':
-        return IntNode(pos = operand.pos, value = str(-int(operand.value, 0)))
+        return IntNode(pos = operand.pos, value = str(-Utils.str_to_number(operand.value)))
     elif isinstance(operand, UnopNode) and operand.operator == operator:
         warning(pos, "Python has no increment/decrement operator: %s%sx = %s(%sx) = x" % ((operator,)*4), 5)
     return unop_node_classes[operator](pos, 
@@ -5263,6 +5335,7 @@ class BinopNode(ExprNode):
     #      - Allocate temporary for result if needed.
     
     subexprs = ['operand1', 'operand2']
+    inplace = False
 
     def calculate_constant_result(self):
         func = compile_time_binary_operators[self.operator]
@@ -5369,7 +5442,7 @@ class BinopNode(ExprNode):
         #print "BinopNode.generate_result_code:", self.operand1, self.operand2 ###
         if self.operand1.type.is_pyobject:
             function = self.py_operation_function()
-            if function == "PyNumber_Power":
+            if self.operator == '**':
                 extra_args = ", Py_None"
             else:
                 extra_args = ""
@@ -5472,7 +5545,10 @@ class NumBinopNode(BinopNode):
                 BinopNode.is_py_operation_types(self, type1, type2))
     
     def py_operation_function(self):
-        return self.py_functions[self.operator]
+        fuction = self.py_functions[self.operator]
+        if self.inplace:
+            fuction = fuction.replace('PyNumber_', 'PyNumber_InPlace')
+        return fuction
 
     py_functions = {
         "|":        "PyNumber_Or",
@@ -5488,7 +5564,6 @@ class NumBinopNode(BinopNode):
         "%":        "PyNumber_Remainder",
         "**":       "PyNumber_Power"
     }
-
 
 class IntBinopNode(NumBinopNode):
     #  Binary operation taking integer arguments.
@@ -5952,7 +6027,9 @@ richcmp_constants = {
 class CmpNode(object):
     #  Mixin class containing code common to PrimaryCmpNodes
     #  and CascadedCmpNodes.
-    
+
+    special_bool_cmp_function = None
+
     def infer_type(self, env):
         # TODO: Actually implement this (after merging with -unstable).
         return py_object_type
@@ -6111,6 +6188,7 @@ class CmpNode(object):
 
     def is_python_result(self):
         return ((self.has_python_operands() and
+                 self.special_bool_cmp_function is None and
                  self.operator not in ('is', 'is_not', 'in', 'not_in') and
                  not self.is_c_string_contains() and
                  not self.is_ptr_contains())
@@ -6129,6 +6207,16 @@ class CmpNode(object):
             return (container_type.is_ptr or container_type.is_array) \
                 and not container_type.is_string
 
+    def find_special_bool_compare_function(self, env):
+        if self.operator in ('==', '!='):
+            type1, type2 = self.operand1.type, self.operand2.type
+            if type1.is_pyobject and type2.is_pyobject:
+                if type1 is Builtin.unicode_type or type2 is Builtin.unicode_type:
+                    env.use_utility_code(pyunicode_equals_utility_code)
+                    self.special_bool_cmp_function = "__Pyx_PyUnicode_Equals"
+                    return True
+        return False
+
     def generate_operation_code(self, code, result_code, 
             operand1, op , operand2):
         if self.type.is_pyobject:
@@ -6139,19 +6227,29 @@ class CmpNode(object):
             negation = "!"
         else: 
             negation = ""
-        if op == 'in' or op == 'not_in':
+        if self.special_bool_cmp_function:
+            if operand1.type.is_pyobject:
+                result1 = operand1.py_result()
+            else:
+                result1 = operand1.result()
+            if operand2.type.is_pyobject:
+                result2 = operand2.py_result()
+            else:
+                result2 = operand2.result()
+            code.putln("%s = %s(%s, %s, %s); %s" % (
+                result_code,
+                self.special_bool_cmp_function,
+                result1,
+                result2,
+                richcmp_constants[op],
+                code.error_goto_if_neg(result_code, self.pos)))
+        elif op == 'in' or op == 'not_in':
             code.globalstate.use_utility_code(contains_utility_code)
             if self.type.is_pyobject:
                 coerce_result = "__Pyx_PyBoolOrNull_FromLong"
             if op == 'not_in':
                 negation = "__Pyx_NegateNonNeg"
             if operand2.type is dict_type:
-                code.globalstate.use_utility_code(
-                    raise_none_iter_error_utility_code)
-                code.putln("if (unlikely(%s == Py_None)) {" % operand2.py_result())
-                code.putln("__Pyx_RaiseNoneNotIterableError(); %s" %
-                           code.error_goto(self.pos))
-                code.putln("} else {")
                 method = "PyDict_Contains"
             else:
                 method = "PySequence_Contains"
@@ -6171,9 +6269,6 @@ class CmpNode(object):
                     operand1.py_result(), 
                     got_ref,
                     error_clause(result_code, self.pos)))
-            if operand2.type is dict_type:
-                code.putln("}")
-                    
         elif (operand1.type.is_pyobject
             and op not in ('is', 'is_not')):
                 code.putln("%s = PyObject_RichCompare(%s, %s, %s); %s" % (
@@ -6262,6 +6357,46 @@ static CYTHON_INLINE int __Pyx_UnicodeContains(PyObject* unicode, Py_UNICODE cha
 }
 """)
 
+pyunicode_equals_utility_code = UtilityCode(
+proto="""
+static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals); /*proto*/
+""",
+impl="""
+static CYTHON_INLINE int __Pyx_PyUnicode_Equals(PyObject* s1, PyObject* s2, int equals) {
+    if (s1 == s2) {   /* as done by PyObject_RichCompareBool(); also catches the (interned) empty string */
+        return (equals == Py_EQ);
+    } else if (PyUnicode_CheckExact(s1) & PyUnicode_CheckExact(s2)) {
+        if (PyUnicode_GET_SIZE(s1) != PyUnicode_GET_SIZE(s2)) {
+            return (equals == Py_NE);
+        } else if (PyUnicode_GET_SIZE(s1) == 1) {
+            if (equals == Py_EQ)
+                return (PyUnicode_AS_UNICODE(s1)[0] == PyUnicode_AS_UNICODE(s2)[0]);
+            else
+                return (PyUnicode_AS_UNICODE(s1)[0] != PyUnicode_AS_UNICODE(s2)[0]);
+        } else {
+            int result = PyUnicode_Compare(s1, s2);
+            if ((result == -1) && unlikely(PyErr_Occurred()))
+                return -1;
+            return (equals == Py_EQ) ? (result == 0) : (result != 0);
+        }
+    } else if ((s1 == Py_None) & (s2 == Py_None)) {
+        return (equals == Py_EQ);
+    } else if ((s1 == Py_None) & PyUnicode_CheckExact(s2)) {
+        return (equals == Py_NE);
+    } else if ((s2 == Py_None) & PyUnicode_CheckExact(s1)) {
+        return (equals == Py_NE);
+    } else {
+        int result;
+        PyObject* py_result = PyObject_RichCompare(s1, s2, equals);
+        if (!py_result)
+            return -1;
+        result = __Pyx_PyObject_IsTrue(py_result);
+        Py_DECREF(py_result);
+        return result;
+    }
+}
+""")
+
 
 class PrimaryCmpNode(ExprNode, CmpNode):
     #  Non-cascaded comparison or first comparison of
@@ -6330,8 +6465,14 @@ class PrimaryCmpNode(ExprNode, CmpNode):
                 # Will be transformed by IterationTransform
                 return
             else:
+                if self.operand2.type is dict_type:
+                    self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
                 common_type = py_object_type
                 self.is_pycmp = True
+        elif self.find_special_bool_compare_function(env):
+            common_type = None # if coercion needed, the method call above has already done it
+            self.is_pycmp = False # result is bint
+            self.is_temp = True # must check for error return
         else:
             common_type = self.find_common_type(env, self.operator, self.operand1)
             self.is_pycmp = common_type.is_pyobject
@@ -6487,6 +6628,8 @@ class CascadedCmpNode(Node, CmpNode):
         
     def coerce_operands_to_pyobjects(self, env):
         self.operand2 = self.operand2.coerce_to_pyobject(env)
+        if self.operand2.type is dict_type and self.operator in ('in', 'not_in'):
+            self.operand2 = self.operand2.as_none_safe_node("'NoneType' object is not iterable")
         if self.cascade:
             self.cascade.coerce_operands_to_pyobjects(env)
 
@@ -6536,13 +6679,14 @@ binop_node_classes = {
     "**":       PowNode
 }
 
-def binop_node(pos, operator, operand1, operand2):
+def binop_node(pos, operator, operand1, operand2, inplace=False):
     # Construct binop node of appropriate class for 
     # given operator.
     return binop_node_classes[operator](pos, 
         operator = operator, 
         operand1 = operand1, 
-        operand2 = operand2)
+        operand2 = operand2,
+        inplace = inplace)
 
 #-------------------------------------------------------------------
 #
@@ -7154,44 +7298,115 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
 
 create_class_utility_code = UtilityCode(
 proto = """
-static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name, PyObject *modname); /*proto*/
+static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name,
+                                   PyObject *modname, PyObject *kwargs); /*proto*/
+static int __Pyx_PrepareClass(PyObject *metaclass, PyObject *bases, PyObject *name,
+                              PyObject *mkw, PyObject *dict); /*proto*/
 """,
 impl = """
-static PyObject *__Pyx_CreateClass(
-    PyObject *bases, PyObject *methods, PyObject *name, PyObject *modname)
-{
-    PyObject *result = 0;
-#if PY_MAJOR_VERSION < 3
-    PyObject *metaclass = 0, *base;
-#endif
+static int __Pyx_PrepareClass(PyObject *metaclass, PyObject *bases, PyObject *name,
+                              PyObject *mkw, PyObject *dict) {
+    PyObject *prep;
+    PyObject *pargs;
+    PyObject *ns;
 
-    if (PyDict_SetItemString(methods, "__module__", modname) < 0)
-        goto bad;
-    #if PY_MAJOR_VERSION < 3
-    metaclass = PyDict_GetItemString(methods, "__metaclass__");
+    prep = PyObject_GetAttrString(metaclass, "__prepare__");
+    if (prep == NULL) {
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
+            return -1;
+        PyErr_Clear();
+        return 0;
+    }
+    pargs = PyTuple_New(2);
+    if (!pargs) {
+        Py_DECREF(prep);
+        return -1;
+    }
+    Py_INCREF(name);
+    Py_INCREF(bases);
+    PyTuple_SET_ITEM(pargs, 0, name);
+    PyTuple_SET_ITEM(pargs, 1, bases);
+    ns = PyEval_CallObjectWithKeywords(prep, pargs, mkw);
+    Py_DECREF(pargs);
+    Py_DECREF(prep);
+    if (ns == NULL)
+        return -1;
+    /* XXX: This is hack, merge namespace back to dict,
+       __prepare__ should be ran before dict initialization */
+    if (PyDict_Merge(dict, ns, 0)) {
+        Py_DECREF(ns);
+        return -1;
+    }
+    Py_DECREF(ns);
+    return 0;
+}
 
-    if (metaclass != NULL)
-        Py_INCREF(metaclass);
-    else if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
-        base = PyTuple_GET_ITEM(bases, 0);
-        metaclass = PyObject_GetAttrString(base, "__class__");
-        if (metaclass == NULL) {
-            PyErr_Clear();
-            metaclass = (PyObject *)base->ob_type;
+static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name,
+                                   PyObject *modname, PyObject *kwargs) {
+    PyObject *result = NULL;
+    PyObject *metaclass = NULL;
+    PyObject *mkw = NULL;
+
+    if (PyDict_SetItemString(dict, "__module__", modname) < 0)
+        return NULL;
+
+    /* Python3 metaclasses */
+    if (kwargs) {
+        mkw = PyDict_Copy(kwargs); /* Don't modify kwargs passed in! */
+        if (!mkw)
+            return NULL;
+        metaclass = PyDict_GetItemString(mkw, "metaclass");
+        if (metaclass) {
             Py_INCREF(metaclass);
+            if (PyDict_DelItemString(mkw, "metaclass") < 0)
+                goto bad;
+            if (__Pyx_PrepareClass(metaclass, bases, name, mkw, dict))
+                goto bad;
         }
     }
-    else {
-        metaclass = (PyObject *) &PyClass_Type;
+    if (!metaclass) {
+        /* Python2 __metaclass__ */
+        metaclass = PyDict_GetItemString(dict, "__metaclass__");
+        if (!metaclass) {
+            /* Default metaclass */
+#if PY_MAJOR_VERSION < 3
+            if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+                PyObject *base = PyTuple_GET_ITEM(bases, 0);
+                metaclass = PyObject_GetAttrString(base, "__class__");
+                if (!metaclass) {
+                    PyErr_Clear();
+                    metaclass = (PyObject *)base->ob_type;
+                }
+            } else
+                metaclass = (PyObject *) &PyClass_Type;
+#else
+            if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+                PyObject *base = PyTuple_GET_ITEM(bases, 0);
+                metaclass = (PyObject *)base->ob_type;
+            } else
+                metaclass = (PyObject *) &PyType_Type;
+#endif
+        }
         Py_INCREF(metaclass);
     }
-
-    result = PyObject_CallFunctionObjArgs(metaclass, name, bases, methods, NULL);
-    #else
-    /* it seems that python3+ handle __metaclass__ itself */
-    result = PyObject_CallFunctionObjArgs((PyObject *)&PyType_Type, name, bases, methods, NULL);
-    #endif
+    if (mkw && PyDict_Size(mkw) > 0) {
+        PyObject *margs = PyTuple_New(3);
+        if (!margs)
+            goto bad;
+        Py_INCREF(name);
+        Py_INCREF(bases);
+        Py_INCREF(dict);
+        PyTuple_SET_ITEM(margs, 0, name);
+        PyTuple_SET_ITEM(margs, 1, bases);
+        PyTuple_SET_ITEM(margs, 2, dict);
+        result = PyEval_CallObjectWithKeywords(metaclass, margs, mkw);
+        Py_DECREF(margs);
+    } else {
+        result = PyObject_CallFunctionObjArgs(metaclass, name, bases, dict, NULL);
+    }
 bad:
+    Py_DECREF(metaclass);
+    Py_XDECREF(mkw);
     return result;
 }
 """)

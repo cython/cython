@@ -1,5 +1,5 @@
 from Cython.Compiler.Visitor import VisitorTransform, TreeVisitor
-from Cython.Compiler.Visitor import CythonTransform, EnvTransform
+from Cython.Compiler.Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
 from Cython.Compiler.ModuleNode import ModuleNode
 from Cython.Compiler.Nodes import *
 from Cython.Compiler.ExprNodes import *
@@ -133,7 +133,7 @@ class PostParseError(CompileError): pass
 ERR_CDEF_INCLASS = 'Cannot assign default value to fields in cdef classes, structs or unions'
 ERR_BUF_DEFAULTS = 'Invalid buffer defaults specification (see docs)'
 ERR_INVALID_SPECIALATTR_TYPE = 'Special attributes must not have a type declared'
-class PostParse(CythonTransform):
+class PostParse(ScopeTrackingTransform):
     """
     Basic interpretation of the parse tree, as well as validity
     checking that can be done on a very basic level on the parse
@@ -168,9 +168,6 @@ class PostParse(CythonTransform):
     if a more pure Abstract Syntax Tree is wanted.
     """
 
-    # Track our context.
-    scope_type = None # can be either of 'module', 'function', 'class'
-
     def __init__(self, context):
         super(PostParse, self).__init__(context)
         self.specialattribute_handlers = {
@@ -178,28 +175,8 @@ class PostParse(CythonTransform):
         }
 
     def visit_ModuleNode(self, node):
-        self.scope_type = 'module'
-        self.scope_node = node
         self.lambda_counter = 1
-        self.visitchildren(node)
-        return node
-
-    def visit_scope(self, node, scope_type):
-        prev = self.scope_type, self.scope_node
-        self.scope_type = scope_type
-        self.scope_node = node
-        self.visitchildren(node)
-        self.scope_type, self.scope_node = prev
-        return node
-    
-    def visit_ClassDefNode(self, node):
-        return self.visit_scope(node, 'class')
-
-    def visit_FuncDefNode(self, node):
-        return self.visit_scope(node, 'function')
-
-    def visit_CStructOrUnionDefNode(self, node):
-        return self.visit_scope(node, 'struct')
+        return super(PostParse, self).visit_ModuleNode(node)
 
     def visit_LambdaNode(self, node):
         # unpack a lambda expression into the corresponding DefNode
@@ -242,7 +219,7 @@ class PostParse(CythonTransform):
                     declbase = declbase.base
                 if isinstance(declbase, CNameDeclaratorNode):
                     if declbase.default is not None:
-                        if self.scope_type in ('class', 'struct'):
+                        if self.scope_type in ('cclass', 'pyclass', 'struct'):
                             if isinstance(self.scope_node, CClassDefNode):
                                 handler = self.specialattribute_handlers.get(decl.name)
                                 if handler:
@@ -1197,7 +1174,60 @@ class AnalyseExpressionsTransform(CythonTransform):
             node.analyse_scoped_expressions(node.expr_scope)
         self.visitchildren(node)
         return node
-        
+
+class ExpandInplaceOperators(EnvTransform):
+    
+    def visit_InPlaceAssignmentNode(self, node):
+        lhs = node.lhs
+        rhs = node.rhs
+        if lhs.type.is_cpp_class:
+            # No getting around this exact operator here.
+            return node
+        if isinstance(lhs, IndexNode) and lhs.is_buffer_access:
+            # There is code to handle this case.
+            return node
+
+        def side_effect_free_reference(node, setting=False):
+            if isinstance(node, NameNode):
+                return node, []
+            elif node.type.is_pyobject and not setting:
+                node = LetRefNode(node)
+                return node, [node]
+            elif isinstance(node, IndexNode):
+                if node.is_buffer_access:
+                    raise ValueError, "Buffer access"
+                base, temps = side_effect_free_reference(node.base)
+                index = LetRefNode(node.index)
+                return IndexNode(node.pos, base=base, index=index), temps + [index]
+            elif isinstance(node, AttributeNode):
+                obj, temps = side_effect_free_reference(node.obj)
+                return AttributeNode(node.pos, obj=obj, attribute=node.attribute), temps
+            else:
+                node = LetRefNode(node)
+                return node, [node]
+        try:
+            lhs, let_ref_nodes = side_effect_free_reference(lhs, setting=True)
+        except ValueError:
+            return node
+        dup = lhs.__class__(**lhs.__dict__)
+        binop = binop_node(node.pos, 
+                           operator = node.operator,
+                           operand1 = dup,
+                           operand2 = rhs,
+                           inplace=True)
+        node = SingleAssignmentNode(node.pos, lhs=lhs, rhs=binop)
+        # Use LetRefNode to avoid side effects.
+        let_ref_nodes.reverse()
+        for t in let_ref_nodes:
+            node = LetNode(t, node)
+        node.analyse_expressions(self.current_env())
+        return node
+
+    def visit_ExprNode(self, node):
+        # In-place assignments can't happen within an expression.
+        return node
+
+
 class AlignFunctionDefinitions(CythonTransform):
     """
     This class takes the signatures from a .pxd file and applies them to 
@@ -1236,15 +1266,11 @@ class AlignFunctionDefinitions(CythonTransform):
     def visit_DefNode(self, node):
         pxd_def = self.scope.lookup(node.name)
         if pxd_def:
-            if self.scope.is_c_class_scope and len(pxd_def.type.args) > 0:
-                # The self parameter type needs adjusting.
-                pxd_def.type.args[0].type = self.scope.parent_type
-            if pxd_def.is_cfunction:
-                node = node.as_cfunction(pxd_def)
-            else:
+            if not pxd_def.is_cfunction:
                 error(node.pos, "'%s' redeclared" % node.name)
                 error(pxd_def.pos, "previous declaration here")
                 return None
+            node = node.as_cfunction(pxd_def)
         elif self.scope.is_module_scope and self.directives['auto_cpdef']:
             node = node.as_cfunction(scope=self.scope)
         # Enable this when internal def functions are allowed. 

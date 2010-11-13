@@ -70,7 +70,7 @@ class Entry(object):
     #                               or class attribute during
     #                               class construction
     # is_member        boolean    Is an assigned class member
-    # is_real_dict     boolean    Is a real dict, PyClass attributes dict
+    # is_pyclass_attr  boolean    Is a name in a Python class namespace
     # is_variable      boolean    Is a variable
     # is_cfunction     boolean    Is a C function
     # is_cmethod       boolean    Is a C method of an extension type
@@ -132,7 +132,7 @@ class Entry(object):
     is_cglobal = 0
     is_pyglobal = 0
     is_member = 0
-    is_real_dict = 0
+    is_pyclass_attr = 0
     is_variable = 0
     is_cfunction = 0
     is_cmethod = 0
@@ -539,7 +539,7 @@ class Scope(object):
     
     def declare_cfunction(self, name, type, pos, 
                           cname = None, visibility = 'private', defining = 0,
-                          api = 0, in_pxd = 0, modifiers = ()):
+                          api = 0, in_pxd = 0, modifiers = (), utility_code = None):
         # Add an entry for a C function.
         if not cname:
             if api or visibility != 'private':
@@ -552,7 +552,18 @@ class Scope(object):
                 warning(pos, "Function '%s' previously declared as '%s'" % (name, entry.visibility), 1)
             if not entry.type.same_as(type):
                 if visibility == 'extern' and entry.visibility == 'extern':
+                    can_override = False
                     if self.is_cpp():
+                        can_override = True
+                    elif cname:
+                        # if all alternatives have different cnames,
+                        # it's safe to allow signature overrides
+                        for alt_entry in entry.all_alternatives():
+                            if not alt_entry.cname or cname == alt_entry.cname:
+                                break # cname not unique!
+                        else:
+                            can_override = True
+                    if can_override:
                         temp = self.add_cfunction(name, type, pos, cname, visibility, modifiers)
                         temp.overloaded_alternatives = entry.all_alternatives()
                         entry = temp
@@ -574,6 +585,7 @@ class Scope(object):
             entry.is_implemented = True
         if modifiers:
             entry.func_modifiers = modifiers
+        entry.utility_code = utility_code
         return entry
     
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers):
@@ -711,8 +723,8 @@ class BuiltinScope(Scope):
         # If python_equiv == "*", the Python equivalent has the same name
         # as the entry, otherwise it has the name specified by python_equiv.
         name = EncodedString(name)
-        entry = self.declare_cfunction(name, type, None, cname, visibility='extern')
-        entry.utility_code = utility_code
+        entry = self.declare_cfunction(name, type, None, cname, visibility='extern',
+                                       utility_code = utility_code)
         if python_equiv:
             if python_equiv == "*":
                 python_equiv = name
@@ -1352,7 +1364,7 @@ class StructOrUnionScope(Scope):
 
     def declare_cfunction(self, name, type, pos, 
                           cname = None, visibility = 'private', defining = 0,
-                          api = 0, in_pxd = 0, modifiers = ()):
+                          api = 0, in_pxd = 0, modifiers = ()): # currently no utility code ...
         return self.declare_var(name, type, pos, cname, visibility)
 
 class ClassScope(Scope):
@@ -1407,7 +1419,7 @@ class PyClassScope(ClassScope):
         entry = Scope.declare_var(self, name, type, pos, 
             cname, visibility, is_cdef)
         entry.is_pyglobal = 1
-        entry.is_real_dict = 1
+        entry.is_pyclass_attr = 1
         return entry
 
     def add_default_value(self, type):
@@ -1528,7 +1540,8 @@ class CClassScope(ClassScope):
     
     def declare_cfunction(self, name, type, pos,
                           cname = None, visibility = 'private',
-                          defining = 0, api = 0, in_pxd = 0, modifiers = ()):
+                          defining = 0, api = 0, in_pxd = 0, modifiers = (),
+                          utility_code = None):
         if get_special_method_signature(name):
             error(pos, "Special methods must be declared with 'def', not 'cdef'")
         args = type.args
@@ -1562,6 +1575,7 @@ class CClassScope(ClassScope):
                                        visibility, modifiers)
         if defining:
             entry.func_cname = self.mangle(Naming.func_prefix, name)
+        entry.utility_code = utility_code
         return entry
         
     def add_cfunction(self, name, type, pos, cname, visibility, modifiers):
@@ -1572,7 +1586,20 @@ class CClassScope(ClassScope):
         entry.is_cmethod = 1
         entry.prev_entry = prev_entry
         return entry
-    
+
+    def declare_builtin_cfunction(self, name, type, cname, utility_code = None):
+        # overridden methods of builtin types still have their Python
+        # equivalent that must be accessible to support bound methods
+        name = EncodedString(name)
+        entry = self.declare_cfunction(name, type, None, cname, visibility='extern',
+                                       utility_code = utility_code)
+        var_entry = Entry(name, name, py_object_type)
+        var_entry.is_variable = 1
+        var_entry.is_builtin = 1
+        var_entry.utility_code = utility_code
+        entry.as_variable = var_entry
+        return entry
+
     def declare_property(self, name, doc, pos):
         entry = self.lookup_here(name)
         if entry is None:
@@ -1660,7 +1687,7 @@ class CppClassScope(Scope):
 
     def declare_cfunction(self, name, type, pos,
             cname = None, visibility = 'extern', defining = 0,
-            api = 0, in_pxd = 0, modifiers = ()):
+            api = 0, in_pxd = 0, modifiers = (), utility_code = None):
         if name == self.name.split('::')[-1] and cname is None:
             self.check_base_default_constructor(pos)
             name = '<init>'
@@ -1669,6 +1696,8 @@ class CppClassScope(Scope):
         entry = self.declare_var(name, type, pos, cname, visibility)
         if prev_entry:
             entry.overloaded_alternatives = prev_entry.all_alternatives()
+        entry.utility_code = utility_code
+        return entry
 
     def declare_inherited_cpp_attributes(self, base_scope):
         # Declare entries for all the C++ attributes of an
@@ -1689,7 +1718,8 @@ class CppClassScope(Scope):
         for base_entry in base_scope.cfunc_entries:
             entry = self.declare_cfunction(base_entry.name, base_entry.type,
                                        base_entry.pos, base_entry.cname,
-                                       base_entry.visibility, base_entry.func_modifiers)
+                                       base_entry.visibility, base_entry.func_modifiers,
+                                           utility_code = base_entry.utility_code)
             entry.is_inherited = 1
     
     def specialize(self, values):
@@ -1710,7 +1740,8 @@ class CppClassScope(Scope):
                     scope.declare_cfunction(e.name,
                                             e.type.specialize(values),
                                             e.pos,
-                                            e.cname)
+                                            e.cname,
+                                            utility_code = e.utility_code)
         return scope
 
     def add_include_file(self, filename):

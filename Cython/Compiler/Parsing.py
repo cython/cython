@@ -381,7 +381,7 @@ def p_trailer(s, node1):
 # arglist:  argument (',' argument)* [',']
 # argument: [test '='] test       # Really [keyword '='] test
 
-def p_call(s, function):
+def p_call_parse_args(s, allow_genexp = True):
     # s.sy == '('
     pos = s.position()
     s.next()
@@ -428,29 +428,43 @@ def p_call(s, function):
         if s.sy == ',':
             s.next()
     s.expect(')')
+    return positional_args, keyword_args, star_arg, starstar_arg
+
+def p_call_build_packed_args(pos, positional_args, keyword_args, star_arg):
+    arg_tuple = None
+    keyword_dict = None
+    if positional_args or not star_arg:
+        arg_tuple = ExprNodes.TupleNode(pos,
+            args = positional_args)
+    if star_arg:
+        star_arg_tuple = ExprNodes.AsTupleNode(pos, arg = star_arg)
+        if arg_tuple:
+            arg_tuple = ExprNodes.binop_node(pos,
+                operator = '+', operand1 = arg_tuple,
+                operand2 = star_arg_tuple)
+        else:
+            arg_tuple = star_arg_tuple
+    if keyword_args:
+        keyword_args = [ExprNodes.DictItemNode(pos=key.pos, key=key, value=value)
+                          for key, value in keyword_args]
+        keyword_dict = ExprNodes.DictNode(pos,
+            key_value_pairs = keyword_args)
+    return arg_tuple, keyword_dict
+
+def p_call(s, function):
+    # s.sy == '('
+    pos = s.position()
+
+    positional_args, keyword_args, star_arg, starstar_arg = \
+                     p_call_parse_args(s)
+
     if not (keyword_args or star_arg or starstar_arg):
         return ExprNodes.SimpleCallNode(pos,
             function = function,
             args = positional_args)
     else:
-        arg_tuple = None
-        keyword_dict = None
-        if positional_args or not star_arg:
-            arg_tuple = ExprNodes.TupleNode(pos, 
-                args = positional_args)
-        if star_arg:
-            star_arg_tuple = ExprNodes.AsTupleNode(pos, arg = star_arg)
-            if arg_tuple:
-                arg_tuple = ExprNodes.binop_node(pos, 
-                    operator = '+', operand1 = arg_tuple,
-                    operand2 = star_arg_tuple)
-            else:
-                arg_tuple = star_arg_tuple
-        if keyword_args:
-            keyword_args = [ExprNodes.DictItemNode(pos=key.pos, key=key, value=value) 
-                              for key, value in keyword_args]
-            keyword_dict = ExprNodes.DictNode(pos,
-                key_value_pairs = keyword_args)
+        arg_tuple, keyword_dict = p_call_build_packed_args(
+            pos, positional_args, keyword_args, star_arg)
         return ExprNodes.GeneralCallNode(pos, 
             function = function,
             positional_args = arg_tuple,
@@ -2607,16 +2621,23 @@ def p_class_statement(s, decorators):
     s.next()
     class_name = EncodedString( p_ident(s) )
     class_name.encoding = s.source_encoding
+    arg_tuple = None
+    keyword_dict = None
+    starstar_arg = None
     if s.sy == '(':
-        s.next()
-        base_list = p_simple_expr_list(s)
-        s.expect(')')
-    else:
-        base_list = []
+        positional_args, keyword_args, star_arg, starstar_arg = \
+                            p_call_parse_args(s, allow_genexp = False)
+        arg_tuple, keyword_dict = p_call_build_packed_args(
+            pos, positional_args, keyword_args, star_arg)
+    if arg_tuple is None:
+        # XXX: empty arg_tuple
+        arg_tuple = ExprNodes.TupleNode(pos, args = [])
     doc, body = p_suite(s, Ctx(level = 'class'), with_doc = 1)
     return Nodes.PyClassDefNode(pos,
         name = class_name,
-        bases = ExprNodes.TupleNode(pos, args = base_list),
+        bases = arg_tuple,
+        keyword_args = keyword_dict,
+        starstar_arg = starstar_arg,
         doc = doc, body = body, decorators = decorators)
 
 def p_c_class_definition(s, pos,  ctx):
