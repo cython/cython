@@ -49,6 +49,7 @@ import os
 import re
 import sys
 import atexit
+import warnings
 import tempfile
 import itertools
 
@@ -1591,6 +1592,22 @@ gdb.execute = execute
 _logging_state = _LoggingState()
 
 
+def get_selected_inferior():
+    """
+    Return the selected inferior in gdb.
+    """
+    # Woooh, another bug in gdb! Is there an end in sight?
+    # http://sourceware.org/bugzilla/show_bug.cgi?id=12212
+    return gdb.inferiors()[0]
+    
+    selected_thread = gdb.selected_thread()
+    
+    for inferior in gdb.inferiors():
+        for thread in inferior.threads():
+            if thread == selected_thread:
+                return inferior
+
+
 class GenericCodeStepper(gdb.Command):
     """
     Superclass for code stepping. Subclasses must implement the following 
@@ -1687,7 +1704,7 @@ class GenericCodeStepper(gdb.Command):
         """
     
     def stopped(self):
-        return gdb.inferiors()[0].pid == 0
+        return get_selected_inferior().pid == 0
         
     def _stackdepth(self, frame):
         depth = 0
@@ -1882,3 +1899,191 @@ py_run = PyRun('py-run')
 py_cont = PyCont('py-cont')
 
 py_step.init_breakpoints()
+
+Py_single_input = 256
+Py_eval_input = 258
+
+def pointervalue(gdbval):
+    """
+    Return the value of the pionter as a Python int. 
+    
+    gdbval.type must be a pointer type
+    """
+    # don't convert with int() as it will raise a RuntimeError
+    if gdbval.address is not None:
+        return long(gdbval.address)
+    else:
+        # the address attribute is None sometimes, in which case we can
+        # still convert the pointer to an int
+        return long(gdbval)
+
+
+class PythonCodeExecutor(object):
+        
+    def malloc(self, size):
+        chunk = (gdb.parse_and_eval("(void *) malloc(%d)" % size))
+        
+        pointer = pointervalue(chunk)
+        if pointer == 0:
+            err("No memory could be allocated in the inferior.")
+        
+        return pointer
+        
+    def alloc_string(self, string):
+        pointer = self.malloc(len(string))
+        get_selected_inferior().write_memory(pointer, string)
+        
+        return pointer
+    
+    def alloc_pystring(self, string):
+        stringp = self.alloc_string(string)
+        try:
+            result = gdb.parse_and_eval(
+                'PyString_FromStringAndSize((char *) %d, (size_t) %d)' % 
+                                                 (stringp, len(string)))
+        finally:
+            self.free(stringp)
+        
+        pointer = pointervalue(result)
+        if pointer == 0:
+            err("Unable to allocate Python string in "
+                               "the inferior.")
+        
+        return pointer
+        
+    def free(self, pointer):
+        gdb.parse_and_eval("free((void *) %d)" % pointer)
+    
+    def decref(self, pointer):
+        "Decrement the reference count of a Python object in the inferior."
+        # Py_DecRef is like Py_XDECREF, but a function. So we don't have
+        # to check for NULL. This should also decref all our allocated
+        # Python strings.
+        gdb.parse_and_eval('Py_DecRef((PyObject *) %d)' % pointer)
+    
+    def evalcode(self, code, global_dict=None, local_dict=None):
+        """
+        Evaluate python code `code` given as a string in the inferior and
+        return the result as a gdb.Value. Returns a new reference in the
+        inferior.
+        
+        Of course, executing any code in the inferior may be dangerous and may
+        leave the debuggee in an unsafe state or terminate it alltogether.
+        """
+        if '\0' in code:
+            err("String contains NUL byte.")
+        
+        code += '\0'
+        
+        pointer = self.alloc_string(code)
+        
+        globalsp = pointervalue(global_dict)
+        localsp = pointervalue(local_dict)
+        
+        if globalp == 0 or localp == 0:
+            raise gdb.GdbError("Unable to obtain or create locals or globals.")
+        
+        code = """
+            PyRun_String(
+                (PyObject *) %(code)d,
+                (int) %(start)d,
+                (PyObject *) %(globals)s,
+                (PyObject *) %(locals)d)
+        """ % dict(code=pointer, start=Py_single_input, 
+                   globals=globalsp, locals=localsp)
+        
+        with FetchAndRestoreError():
+            try:
+                self.decref(gdb.parse_and_eval(code))
+            finally:
+                self.free(pointer)
+
+
+class FetchAndRestoreError(PythonCodeExecutor):
+    """
+    Context manager that fetches the error indicator in the inferior and
+    restores it on exit.
+    """
+
+    def __init__(self):
+        self.sizeof_PyObjectPtr = gdb.lookup_type('PyObject').pointer().sizeof
+        self.pointer = self.malloc(self.sizeof_PyObjectPtr * 3)
+        
+        type = self.pointer
+        value = self.pointer + self.sizeof_PyObjectPtr
+        traceback = self.pointer + self.sizeof_PyObjectPtr * 2
+        
+        self.errstate = type, value, traceback
+        
+    def __enter__(self):
+        gdb.parse_and_eval("PyErr_Fetch(%d, %d, %d)" % self.errstate)
+    
+    def __exit__(self, *args):
+        if gdb.parse_and_eval("(int) PyErr_Occurred()"):
+            gdb.parse_and_eval("PyErr_Print()")
+        
+        pyerr_restore = ("PyErr_Restore("
+                            "(PyObject *) *%d,"
+                            "(PyObject *) *%d,"
+                            "(PyObject *) *%d)")
+        
+        try:
+            gdb.parse_and_eval(pyerr_restore % self.errstate)
+        finally:
+            self.free(self.pointer)
+
+
+class FixGdbCommand(gdb.Command):
+
+    def __init__(self, command, actual_command):
+        super(FixGdbCommand, self).__init__(command, gdb.COMMAND_DATA,
+                                            gdb.COMPLETE_NONE)
+        self.actual_command = actual_command
+        
+    def fix_gdb(self):
+        """
+        So, you must be wondering what the story is this time! Yeeees, indeed, 
+        I have quite the story for you! It seems that invoking either 'cy exec'
+        and 'py-exec' work perfectly fine, but after this gdb's python API is 
+        entirely broken. Some unset exception value is still set? 
+        sys.exc_clear() didn't help. A demonstration:
+        
+        (gdb) cy exec 'hello'
+        'hello'
+        (gdb) python gdb.execute('cont')
+        RuntimeError: Cannot convert value to int.
+        Error while executing Python code.
+        (gdb) python gdb.execute('cont')
+        [15148 refs]
+    
+        Program exited normally.
+        """
+        warnings.filterwarnings('ignore', r'.*', RuntimeWarning, re.escape(__name__))
+        try:
+            long(gdb.parse_and_eval("(void *) 0")) == 0
+        except RuntimeError:
+            pass
+        # warnings.resetwarnings()
+    
+    def invoke(self, args, from_tty):
+        self.fix_gdb()
+        gdb.execute('%s %s' % (self.actual_command, args))
+        self.fix_gdb()
+
+
+class PyExec(gdb.Command):
+    
+    def invoke(self, expr, from_tty):
+        executor = PythonCodeExecutor()
+        global_dict = gdb.parse_and_eval('PyEval_GetGlobals()')
+        local_dict = gdb.parse_and_eval('PyEval_GetLocals()')
+        
+        if pointervalue(global_dict) == 0 or pointervalue(local_dict) == 0:
+            raise gdb.GdbError("Unable to find the locals or globals of the "
+                               "most recent Python function (relative to the "
+                               "selected frame).")
+        
+        executor.evalcode(expr, global_dict, local_dict)
+
+py_exec = FixGdbCommand('py-exec', '-py-exec')
+_py_exec = PyExec("-py-exec", gdb.COMMAND_DATA, gdb.COMPLETE_NONE)
