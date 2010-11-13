@@ -1099,7 +1099,7 @@ class CyGlobals(CyLocals):
                                            prefix='    ')
 
 
-class CyExec(CythonCommand):
+class CyExec(CythonCommand, libpython.PyExec):
     name = '-cy-exec'
     command_class = gdb.COMMAND_STACK
     completer_class = gdb.COMPLETE_NONE
@@ -1153,6 +1153,7 @@ class CyExec(CythonCommand):
             libpython.py_exec.invoke(expr, from_tty)
             return
         
+        expr, input_type = self.readcode(expr)
         executor = libpython.PythonCodeExecutor()
         
         # get the dict of Cython globals and construct a dict in the inferior
@@ -1163,7 +1164,7 @@ class CyExec(CythonCommand):
         
         try:
             self._fill_locals_dict(executor, libpython.pointervalue(local_dict))
-            executor.evalcode(expr, global_dict, local_dict)
+            executor.evalcode(expr, input_type, global_dict, local_dict)
         finally:
             executor.decref(libpython.pointervalue(local_dict))
 

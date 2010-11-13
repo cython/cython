@@ -1901,6 +1901,7 @@ py_cont = PyCont('py-cont')
 py_step.init_breakpoints()
 
 Py_single_input = 256
+Py_file_input = 257
 Py_eval_input = 258
 
 def pointervalue(gdbval):
@@ -1961,7 +1962,7 @@ class PythonCodeExecutor(object):
         # Python strings.
         gdb.parse_and_eval('Py_DecRef((PyObject *) %d)' % pointer)
     
-    def evalcode(self, code, global_dict=None, local_dict=None):
+    def evalcode(self, code, input_type, global_dict=None, local_dict=None):
         """
         Evaluate python code `code` given as a string in the inferior and
         return the result as a gdb.Value. Returns a new reference in the
@@ -1989,7 +1990,7 @@ class PythonCodeExecutor(object):
                 (int) %(start)d,
                 (PyObject *) %(globals)s,
                 (PyObject *) %(locals)d)
-        """ % dict(code=pointer, start=Py_single_input, 
+        """ % dict(code=pointer, start=input_type, 
                    globals=globalsp, locals=localsp)
         
         with FetchAndRestoreError():
@@ -2077,7 +2078,27 @@ class FixGdbCommand(gdb.Command):
 
 class PyExec(gdb.Command):
     
+    def readcode(self, expr):
+        if expr:
+            return expr, Py_single_input
+        else:
+            lines = []
+            while True:
+                try:
+                    line = raw_input('>')
+                except EOFError:
+                    break
+                else:
+                    if line.rstrip() == 'end':
+                        break
+                    
+                    lines.append(line)
+            
+            return '\n'.join(lines), Py_file_input
+        
     def invoke(self, expr, from_tty):
+        expr, input_type = self.readcode(expr)
+        
         executor = PythonCodeExecutor()
         global_dict = gdb.parse_and_eval('PyEval_GetGlobals()')
         local_dict = gdb.parse_and_eval('PyEval_GetLocals()')
@@ -2087,7 +2108,7 @@ class PyExec(gdb.Command):
                                "most recent Python function (relative to the "
                                "selected frame).")
         
-        executor.evalcode(expr, global_dict, local_dict)
+        executor.evalcode(expr, input_type, global_dict, local_dict)
 
 py_exec = FixGdbCommand('py-exec', '-py-exec')
 _py_exec = PyExec("-py-exec", gdb.COMMAND_DATA, gdb.COMPLETE_NONE)
