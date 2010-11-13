@@ -71,6 +71,7 @@ directive_defaults = {
     'autotestdict.cdef': False,
     'autotestdict.all': False,
     'language_level': 2,
+    'fast_getattr': False, # Undocumented until we come up with a better way to handle this everywhere.
     
     'warn': None,
     'warn.undeclared': False,

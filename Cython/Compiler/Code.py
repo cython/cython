@@ -1238,11 +1238,13 @@ class CCodeWriter(object):
 
     def put_pymethoddef(self, entry, term, allow_skip=True):
         if entry.is_special or entry.name == '__getattribute__':
-            if entry.name not in ['__cinit__', '__dealloc__', '__richcmp__', '__next__', '__getreadbuffer__', '__getwritebuffer__', '__getsegcount__', '__getcharbuffer__', '__getbuffer__', '__releasebuffer__', '__getattr__']:
+            if entry.name not in ['__cinit__', '__dealloc__', '__richcmp__', '__next__', '__getreadbuffer__', '__getwritebuffer__', '__getsegcount__', '__getcharbuffer__', '__getbuffer__', '__releasebuffer__']:
+                if entry.name == '__getattr__' and not self.globalstate.directives['fast_getattr']:
+                    pass
                 # Python's typeobject.c will automatically fill in our slot
                 # in add_operators() (called by PyType_Ready) with a value
                 # that's better than ours.
-                if allow_skip:
+                elif allow_skip:
                     return
         from TypeSlots import method_coexist
         if entry.doc:
