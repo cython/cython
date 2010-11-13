@@ -4540,23 +4540,14 @@ class ClassNode(ExprNode, ModuleNameMixin):
     #  dict         ExprNode           Class dict (not owned by this node)
     #  doc          ExprNode or None   Doc string
     #  module_name  EncodedString      Name of defining module
-    #  keyword_args ExprNode or None   Py3 Dict of keyword arguments, passed to __new__
-    #  starstar_arg ExprNode or None   Py3 Dict of extra keyword args, same here
     
-    subexprs = ['bases', 'keyword_args', 'starstar_arg', 'doc']
+    subexprs = ['bases', 'doc']
 
     def analyse_types(self, env):
         self.bases.analyse_types(env)
         if self.doc:
             self.doc.analyse_types(env)
             self.doc = self.doc.coerce_to_pyobject(env)
-        if self.keyword_args:
-            self.keyword_args.analyse_types(env)
-        if self.starstar_arg:
-            self.starstar_arg.analyse_types(env)
-            # make sure we have a Python object as **kwargs mapping
-            self.starstar_arg = \
-                self.starstar_arg.coerce_to_pyobject(env)
         self.type = py_object_type
         self.is_temp = 1
         env.use_utility_code(create_class_utility_code);
@@ -4570,18 +4561,6 @@ class ClassNode(ExprNode, ModuleNameMixin):
 
     def generate_result_code(self, code):
         cname = code.intern_identifier(self.name)
-        if self.keyword_args and self.starstar_arg:
-            code.put_error_if_neg(self.pos,
-                "PyDict_Update(%s, %s)" % (
-                    self.keyword_args.py_result(),
-                    self.starstar_arg.py_result()))
-            keyword_code = self.keyword_args.py_result()
-        elif self.keyword_args:
-            keyword_code = self.keyword_args.py_result()
-        elif self.starstar_arg:
-            keyword_code = self.starstar_arg.py_result()
-        else:
-            keyword_code = 'NULL'
 
         if self.doc:
             code.put_error_if_neg(self.pos, 
@@ -4590,16 +4569,179 @@ class ClassNode(ExprNode, ModuleNameMixin):
                     self.doc.py_result()))
         py_mod_name = self.get_py_mod_name(code)
         code.putln(
-            '%s = __Pyx_CreateClass(%s, %s, %s, %s, %s); %s' % (
+            '%s = __Pyx_CreateClass(%s, %s, %s, %s); %s' % (
                 self.result(),
                 self.bases.py_result(),
                 self.dict.py_result(),
                 cname,
                 py_mod_name,
-                keyword_code,
                 code.error_goto_if_null(self.result(), self.pos)))
         code.put_gotref(self.py_result())
 
+
+class Py3ClassNode(ExprNode):
+    #  Helper class used in the implementation of Python3+
+    #  class definitions. Constructs a class object given
+    #  a name, tuple of bases and class dictionary.
+    #
+    #  name         EncodedString      Name of the class
+    #  dict         ExprNode           Class dict (not owned by this node)
+    #  module_name  EncodedString      Name of defining module
+
+    subexprs = []
+
+    def analyse_types(self, env):
+        self.type = py_object_type
+        self.is_temp = 1
+        env.use_utility_code(create_py3class_utility_code);
+
+    def may_be_none(self):
+        return True
+
+    gil_message = "Constructing Python3+ class"
+
+    def generate_result_code(self, code):
+        cname = code.intern_identifier(self.name)
+        code.putln(
+            '%s = __Pyx_Py3ClassCreate(%s, %s, %s, %s, %s); %s' % (
+                self.result(),
+                self.metaclass.result(),
+                cname,
+                self.bases.py_result(),
+                self.dict.py_result(),
+                self.mkw.py_result(),
+                code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
+
+class KeywordArgsNode(ExprNode):
+    # Helper class for keyword arguments
+    #
+    # keyword_args ExprNode or None     Keyword arguments
+    # starstar_arg ExprNode or None     Extra arguments
+
+    subexprs = ['keyword_args', 'starstar_arg']
+
+    def analyse_types(self, env):
+        if self.keyword_args:
+            self.keyword_args.analyse_types(env)
+        if self.starstar_arg:
+            self.starstar_arg.analyse_types(env)
+            # make sure we have a Python object as **kwargs mapping
+            self.starstar_arg = \
+                self.starstar_arg.coerce_to_pyobject(env)
+        self.type = py_object_type
+        self.is_temp = 1
+
+    gil_message = "Constructing Keyword Args"
+
+    def generate_result_code(self, code):
+        if self.keyword_args and self.starstar_arg:
+            code.put_error_if_neg(self.pos,
+                "PyDict_Update(%s, %s)" % (
+                    self.keyword_args.py_result(),
+                    self.starstar_arg.py_result()))
+        if self.keyword_args:
+            code.putln("%s = %s;" % (self.result(), self.keyword_args.result()))
+            code.put_incref(self.keyword_args.result(), self.keyword_args.ctype())
+            code.put_giveref(self.keyword_args.result())
+        elif self.starstar_arg:
+            code.putln(
+                "%s = PyDict_Copy(%s); %s" % (
+                    self.result(),
+                    self.starstar_arg.py_result(),
+                    code.error_goto_if_null(self.result(), self.pos)))
+        else:
+            code.putln(
+                "%s = PyDict_New(); %s" % (
+                    self.result(),
+                    code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
+
+class PyClassBasesNode(ExprNode):
+    # Helper class that holds bases for python3 class
+    # Actually hack to make `bases` visible across other nondes
+    #
+    # bases         ExprNode           Base class tuple
+
+    subexprs = ['bases']
+    type = py_object_type
+    is_temp = True
+
+    def analyse_types(self, env):
+        self.bases.analyse_types(env)
+
+    def generate_result_code(self, code):
+        code.putln("%s = %s;" % (self.result(), self.bases.result()))
+        code.put_incref(self.bases.result(), self.bases.ctype())
+        code.put_giveref(self.bases.result())
+        code.put_gotref(self.py_result())
+
+class PyClassMetaclassNode(ExprNode):
+    # Helper class holds Python3 metaclass object
+    #
+    #  bases        ExprNode           Base class tuple (not owned by this node)
+    #  mkw          ExprNode           Class keyword arguments (not owned by this node)
+
+    subexprs = []
+
+    def analyse_types(self, env):
+        self.type = py_object_type
+        self.is_temp = True
+
+    def may_be_none(self):
+        return True
+
+    def generate_result_code(self, code):
+        code.putln(
+            "%s = __Pyx_Py3MetaclassGet(%s, %s); %s" % (
+                self.result(),
+                self.bases.result(),
+                self.mkw.result(),
+                code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
+
+class PyClassNamespaceNode(ExprNode, ModuleNameMixin):
+    # Helper class holds Python3 namespace object
+    #
+    # All this are not owned by this node
+    #  metaclass    ExprNode           Metaclass object
+    #  bases        ExprNode           Base class tuple
+    #  mkw          ExprNode           Class keyword arguments
+    #  doc          ExprNode or None   Doc string (owned)
+
+    subexprs = ['doc']
+
+    def analyse_types(self, env):
+        self.bases.analyse_types(env)
+        if self.doc:
+            self.doc.analyse_types(env)
+            self.doc = self.doc.coerce_to_pyobject(env)
+        self.type = py_object_type
+        self.is_temp = 1
+        #TODO(craig,haoyu) This should be moved to a better place
+        self.set_mod_name(env)
+
+    def may_be_none(self):
+        return True
+
+    def generate_result_code(self, code):
+        cname = code.intern_identifier(self.name)
+        py_mod_name = self.get_py_mod_name(code)
+        if self.doc:
+            doc_code = self.doc.result()
+        else:
+            doc_code = '(PyObject *) NULL'
+        code.putln(
+            "%s = __Pyx_Py3MetaclassPrepare(%s, %s, %s, %s, %s, %s); %s" % (
+                self.result(),
+                self.metaclass.result(),
+                self.bases.result(),
+                cname,
+                self.mkw.result(),
+                py_mod_name,
+                doc_code,
+                code.error_goto_if_null(self.result(), self.pos)))
+        code.put_gotref(self.py_result())
 
 class BoundMethodNode(ExprNode):
     #  Helper class used in the implementation of Python
@@ -7319,114 +7461,167 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
 create_class_utility_code = UtilityCode(
 proto = """
 static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name,
-                                   PyObject *modname, PyObject *kwargs); /*proto*/
-static int __Pyx_PrepareClass(PyObject *metaclass, PyObject *bases, PyObject *name,
-                              PyObject *mkw, PyObject *dict); /*proto*/
+                                   PyObject *modname); /*proto*/
 """,
 impl = """
-static int __Pyx_PrepareClass(PyObject *metaclass, PyObject *bases, PyObject *name,
-                              PyObject *mkw, PyObject *dict) {
-    PyObject *prep;
-    PyObject *pargs;
-    PyObject *ns;
-
-    prep = PyObject_GetAttrString(metaclass, "__prepare__");
-    if (prep == NULL) {
-        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
-            return -1;
-        PyErr_Clear();
-        return 0;
-    }
-    pargs = PyTuple_New(2);
-    if (!pargs) {
-        Py_DECREF(prep);
-        return -1;
-    }
-    Py_INCREF(name);
-    Py_INCREF(bases);
-    PyTuple_SET_ITEM(pargs, 0, name);
-    PyTuple_SET_ITEM(pargs, 1, bases);
-    ns = PyEval_CallObjectWithKeywords(prep, pargs, mkw);
-    Py_DECREF(pargs);
-    Py_DECREF(prep);
-    if (ns == NULL)
-        return -1;
-    /* XXX: This is hack, merge namespace back to dict,
-       __prepare__ should be ran before dict initialization */
-    if (PyDict_Merge(dict, ns, 0)) {
-        Py_DECREF(ns);
-        return -1;
-    }
-    Py_DECREF(ns);
-    return 0;
-}
-
 static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name,
-                                   PyObject *modname, PyObject *kwargs) {
+                                   PyObject *modname) {
     PyObject *result = NULL;
     PyObject *metaclass = NULL;
-    PyObject *mkw = NULL;
 
     if (PyDict_SetItemString(dict, "__module__", modname) < 0)
         return NULL;
 
-    /* Python3 metaclasses */
-    if (kwargs) {
-        mkw = PyDict_Copy(kwargs); /* Don't modify kwargs passed in! */
-        if (!mkw)
-            return NULL;
-        metaclass = PyDict_GetItemString(mkw, "metaclass");
-        if (metaclass) {
-            Py_INCREF(metaclass);
-            if (PyDict_DelItemString(mkw, "metaclass") < 0)
-                goto bad;
-            if (__Pyx_PrepareClass(metaclass, bases, name, mkw, dict))
-                goto bad;
-        }
-    }
+    /* Python2 __metaclass__ */
+    metaclass = PyDict_GetItemString(dict, "__metaclass__");
+
     if (!metaclass) {
-        /* Python2 __metaclass__ */
-        metaclass = PyDict_GetItemString(dict, "__metaclass__");
-        if (!metaclass) {
-            /* Default metaclass */
+        /* Default metaclass */
 #if PY_MAJOR_VERSION < 3
-            if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
-                PyObject *base = PyTuple_GET_ITEM(bases, 0);
-                metaclass = PyObject_GetAttrString(base, "__class__");
-                if (!metaclass) {
-                    PyErr_Clear();
-                    metaclass = (PyObject *)base->ob_type;
-                }
-            } else
-                metaclass = (PyObject *) &PyClass_Type;
-#else
-            if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
-                PyObject *base = PyTuple_GET_ITEM(bases, 0);
+        if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+            PyObject *base = PyTuple_GET_ITEM(bases, 0);
+            metaclass = PyObject_GetAttrString(base, "__class__");
+            if (!metaclass) {
+                PyErr_Clear();
                 metaclass = (PyObject *)base->ob_type;
-            } else
-                metaclass = (PyObject *) &PyType_Type;
+            }
+        } else
+            metaclass = (PyObject *) &PyClass_Type;
+#else
+        if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+            PyObject *base = PyTuple_GET_ITEM(bases, 0);
+            metaclass = (PyObject *)base->ob_type;
+        } else
+            metaclass = (PyObject *) &PyType_Type;
 #endif
-        }
-        Py_INCREF(metaclass);
     }
-    if (mkw && PyDict_Size(mkw) > 0) {
-        PyObject *margs = PyTuple_New(3);
-        if (!margs)
-            goto bad;
-        Py_INCREF(name);
-        Py_INCREF(bases);
-        Py_INCREF(dict);
-        PyTuple_SET_ITEM(margs, 0, name);
-        PyTuple_SET_ITEM(margs, 1, bases);
-        PyTuple_SET_ITEM(margs, 2, dict);
-        result = PyEval_CallObjectWithKeywords(metaclass, margs, mkw);
-        Py_DECREF(margs);
-    } else {
-        result = PyObject_CallFunctionObjArgs(metaclass, name, bases, dict, NULL);
-    }
-bad:
+    Py_INCREF(metaclass);
+
+    result = PyObject_CallFunctionObjArgs(metaclass, name, bases, dict, NULL);
     Py_DECREF(metaclass);
-    Py_XDECREF(mkw);
+    return result;
+}
+""")
+
+#------------------------------------------------------------------------------------
+
+create_py3class_utility_code = UtilityCode(
+proto = """
+static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw);
+static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *mkw, PyObject *modname, PyObject *doc);
+static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict, PyObject *mkw);
+""",
+impl = """
+PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw)
+{
+    PyObject *metaclass = NULL;
+
+    metaclass = PyDict_GetItemString(mkw, "metaclass");
+    if (metaclass) {
+        Py_INCREF(metaclass);
+        if (PyDict_DelItemString(mkw, "metaclass") < 0) {
+            Py_DECREF(metaclass);
+            return NULL;
+        }
+        return metaclass;
+    }
+    /* Default metaclass */
+#if PY_MAJOR_VERSION < 3
+    if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+        PyObject *base = PyTuple_GET_ITEM(bases, 0);
+        metaclass = PyObject_GetAttrString(base, "__class__");
+        if (metaclass == NULL) {
+            PyErr_Clear();
+            metaclass = (PyObject *)base->ob_type;
+        }
+    } else {
+        metaclass = (PyObject *) &PyClass_Type;
+    }
+#else
+    if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+        PyObject *base = PyTuple_GET_ITEM(bases, 0);
+        metaclass = (PyObject *)base->ob_type;
+    } else {
+        metaclass = (PyObject *) &PyType_Type;
+    }
+#endif
+    Py_INCREF(metaclass);
+    return metaclass;
+}
+
+PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *mkw, PyObject *modname, PyObject *doc)
+{
+    PyObject *prep;
+    PyObject *pargs;
+    PyObject *ns;
+    PyObject *str;
+
+    prep = PyObject_GetAttrString(metaclass, "__prepare__");
+    if (prep == NULL) {
+        if (!PyErr_ExceptionMatches(PyExc_AttributeError))
+            return NULL;
+        PyErr_Clear();
+        return PyDict_New();
+    }
+    pargs = PyTuple_New(2);
+    if (!pargs) {
+        Py_DECREF(prep);
+        return NULL;
+    }
+
+    Py_INCREF(name);
+    Py_INCREF(bases);
+    PyTuple_SET_ITEM(pargs, 0, name);
+    PyTuple_SET_ITEM(pargs, 1, bases);
+
+    ns = PyEval_CallObjectWithKeywords(prep, pargs, mkw);
+
+    Py_DECREF(prep);
+    Py_DECREF(pargs);
+
+    if (ns == NULL)
+        return NULL;
+
+    /* Required here to emulate assignment order */
+    /* XXX: use consts here */
+    str = PyString_FromString("__module__");
+    if (!str) {
+        Py_DECREF(ns);
+        return NULL;
+    }
+
+    if (PyObject_SetItem(ns, str, modname) < 0) {
+        Py_DECREF(ns);
+        Py_DECREF(str);
+        return NULL;
+    }
+    Py_DECREF(str);
+    if (doc) {
+        str = PyString_FromString("__doc__");
+        if (!str) {
+            Py_DECREF(ns);
+            return NULL;
+        }
+        if (PyObject_SetItem(ns, str, doc) < 0) {
+            Py_DECREF(ns);
+            Py_DECREF(str);
+            return NULL;
+        }
+        Py_DECREF(str);
+    }
+    return ns;
+}
+
+PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict, PyObject *mkw)
+{
+    PyObject *result;
+    PyObject *margs;
+
+    margs = PyTuple_Pack(3, name, bases, dict, NULL);
+    if (!margs)
+        return NULL;
+    result = PyEval_CallObjectWithKeywords(metaclass, margs, mkw);
+    Py_DECREF(margs);
     return result;
 }
 """)
