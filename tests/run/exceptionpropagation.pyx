@@ -28,3 +28,17 @@ def test_except_expr(bint fire):
     RuntimeError
     """
     except_expr(fire)
+
+cdef double except_big_result(bint fire) except 100000000000000000000000000000000:
+    if fire:
+        raise RuntimeError
+
+def test_except_big_result(bint fire):
+    """
+    >>> test_except_big_result(False)
+    >>> test_except_big_result(True)
+    Traceback (most recent call last):
+    ...
+    RuntimeError
+    """
+    except_big_result(fire)
