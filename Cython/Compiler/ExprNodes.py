@@ -5359,6 +5359,9 @@ class BinopNode(ExprNode):
     def analyse_types(self, env):
         self.operand1.analyse_types(env)
         self.operand2.analyse_types(env)
+        self.analyse_operation(env)
+    
+    def analyse_operation(self, env):
         if self.is_py_operation():
             self.coerce_operands_to_pyobjects(env)
             self.type = self.result_type(self.operand1.type,
@@ -5653,12 +5656,12 @@ class DivNode(NumBinopNode):
         except Exception, e:
             self.compile_time_value_error(e)
 
-    def analyse_types(self, env):
+    def analyse_operation(self, env):
         if self.cdivision or env.directives['cdivision']:
             self.ctruedivision = False
         else:
             self.ctruedivision = self.truedivision
-        NumBinopNode.analyse_types(self, env)
+        NumBinopNode.analyse_operation(self, env)
         if self.is_cpp_operation():
             self.cdivision = True
         if not self.type.is_pyobject:
