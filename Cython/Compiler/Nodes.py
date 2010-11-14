@@ -4105,6 +4105,7 @@ class SwitchStatNode(StatNode):
     child_attrs = ['test', 'cases', 'else_clause']
     
     def generate_execution_code(self, code):
+        self.test.generate_evaluation_code(code)
         code.putln("switch (%s) {" % self.test.result())
         for case in self.cases:
             case.generate_execution_code(code)
