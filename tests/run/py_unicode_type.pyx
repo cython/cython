@@ -162,3 +162,36 @@ def count_lower_case_characters(unicode ustring):
          if uchar.islower():
              count += 1
     return count
+
+@cython.test_assert_path_exists('//SwitchStatNode',
+                                '//ForFromStatNode')
+@cython.test_fail_if_path_exists('//ForInStatNode')
+def iter_and_in():
+    """
+    >>> iter_and_in()
+    a
+    b
+    e
+    f
+    h
+    """
+    for c in u'abcdefgh':
+        if c in u'abCDefGh':
+            print c
+
+@cython.test_assert_path_exists('//SwitchStatNode',
+                                '//ForFromStatNode')
+@cython.test_fail_if_path_exists('//ForInStatNode')
+def index_and_in():
+    """
+    >>> index_and_in()
+    1
+    3
+    4
+    7
+    8
+    """
+    cdef int i
+    for i in range(1,9):
+        if u'abcdefgh'[-i] in u'abCDefGh':
+            print i

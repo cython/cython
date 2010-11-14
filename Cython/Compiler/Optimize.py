@@ -702,28 +702,25 @@ class SwitchTransform(Visitor.VisitorTransform):
                 break
 
         if isinstance(cond, ExprNodes.PrimaryCmpNode):
-            if cond.cascade is None and not cond.is_python_comparison():
+            if cond.cascade is not None:
+                return self.NO_MATCH
+            elif cond.is_c_string_contains() and \
+                   isinstance(cond.operand2, (ExprNodes.UnicodeNode, ExprNodes.BytesNode)):
+                not_in = cond.operator == 'not_in'
+                if not_in and not allow_not_in:
+                    return self.NO_MATCH
+                if isinstance(cond.operand2, ExprNodes.UnicodeNode) and \
+                       cond.operand2.contains_surrogates():
+                    # dealing with surrogates leads to different
+                    # behaviour on wide and narrow Unicode
+                    # platforms => refuse to optimise this case
+                    return self.NO_MATCH
+                return not_in, cond.operand1, self.extract_in_string_conditions(cond.operand2)
+            elif not cond.is_python_comparison():
                 if cond.operator == '==':
                     not_in = False
                 elif allow_not_in and cond.operator == '!=':
                     not_in = True
-                elif cond.is_c_string_contains() and \
-                         isinstance(cond.operand2, (ExprNodes.UnicodeNode, ExprNodes.BytesNode)):
-                    not_in = cond.operator == 'not_in'
-                    if not_in and not allow_not_in:
-                        return self.NO_MATCH
-                    if isinstance(cond.operand2, ExprNodes.UnicodeNode) and \
-                           cond.operand2.contains_surrogates():
-                        # dealing with surrogates leads to different
-                        # behaviour on wide and narrow Unicode
-                        # platforms => refuse to optimise this case
-                        return self.NO_MATCH
-                    # this looks somewhat silly, but it does the right
-                    # checks for NameNode and AttributeNode
-                    if is_common_value(cond.operand1, cond.operand1):
-                        return not_in, cond.operand1, self.extract_in_string_conditions(cond.operand2)
-                    else:
-                        return self.NO_MATCH
                 else:
                     return self.NO_MATCH
                 # this looks somewhat silly, but it does the right
