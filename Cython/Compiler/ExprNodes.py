@@ -800,9 +800,11 @@ class IntNode(ConstNode):
 
     # unsigned     "" or "U"
     # longness     "" or "L" or "LL"
+    # is_c_literal   True/False/None   creator considers this a C integer literal
 
     unsigned = ""
     longness = ""
+    is_c_literal = None # unknown
 
     def __init__(self, pos, **kwds):
         ExprNode.__init__(self, pos, **kwds)
@@ -815,7 +817,10 @@ class IntNode(ConstNode):
                 self.calculate_constant_result()
             except ValueError:
                 pass
-        if self.constant_result in (constant_value_not_set, not_a_constant) or \
+        # we ignore 'is_c_literal = True' and instead map signed 32bit
+        # integers as C long values
+        if self.is_c_literal or \
+               self.constant_result in (constant_value_not_set, not_a_constant) or \
                self.unsigned or self.longness == 'LL':
             # clearly a C literal
             rank = (self.longness == 'LL') and 2 or 1
@@ -844,17 +849,18 @@ class IntNode(ConstNode):
             else:
                 return FloatNode(self.pos, value=self.value, type=dst_type,
                                  constant_result=not_a_constant)
-        node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
-                       type = dst_type, unsigned=self.unsigned, longness=self.longness)
         if dst_type.is_numeric and not dst_type.is_complex:
             node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
-                           type = dst_type, unsigned=self.unsigned, longness=self.longness)
+                           type = dst_type, is_c_literal = True,
+                           unsigned=self.unsigned, longness=self.longness)
             return node
         elif dst_type.is_pyobject:
             node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
-                           type = PyrexTypes.py_object_type, unsigned=self.unsigned, longness=self.longness)
+                           type = PyrexTypes.py_object_type, is_c_literal = False,
+                           unsigned=self.unsigned, longness=self.longness)
         else:
-            # not setting the type here!
+            # FIXME: not setting the type here to keep it working with
+            # complex numbers. Should they be special cased?
             node = IntNode(self.pos, value=self.value, constant_result=self.constant_result,
                            unsigned=self.unsigned, longness=self.longness)
         # We still need to perform normal coerce_to processing on the
