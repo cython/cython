@@ -592,6 +592,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                             "Exception value must be a Python exception or cdef function with no arguments.")
                     exc_val = self.exception_value
                 else:
+                    self.exception_value = self.exception_value.coerce_to(return_type, env)
                     if self.exception_value.analyse_const_expression(env):
                         exc_val = self.exception_value.get_constant_c_result_code()
                         if exc_val is None:
