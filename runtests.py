@@ -313,11 +313,10 @@ class CythonCompileTestCase(unittest.TestCase):
             if is_related(filename) and os.path.isfile(os.path.join(workdir, filename)) ]
 
     def split_source_and_output(self, test_directory, module, workdir):
-        source_file = os.path.join(test_directory, module) + '.pyx'
-        source_and_output = codecs.open(
-            self.find_module_source_file(source_file), 'rU', 'ISO-8859-1')
+        source_file = self.find_module_source_file(os.path.join(test_directory, module) + '.pyx')
+        source_and_output = codecs.open(source_file, 'rU', 'ISO-8859-1')
         try:
-            out = codecs.open(os.path.join(workdir, module + '.pyx'),
+            out = codecs.open(os.path.join(workdir, module + os.path.splitext(source_file)[1]),
                               'w', 'ISO-8859-1')
             for line in source_and_output:
                 last_line = line
