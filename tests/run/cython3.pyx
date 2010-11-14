@@ -106,3 +106,16 @@ def dict_iter(dict d):
     values = [ value for value in d.values() ]
     items = [ item for item in d.items() ]
     return keys, values, items
+
+def int_literals():
+    """
+    >>> int_literals()
+    long
+    long
+    unsigned long
+    unsigned long
+    """
+    print(cython.typeof(1L))
+    print(cython.typeof(10000000000000L))
+    print(cython.typeof(1UL))
+    print(cython.typeof(10000000000000UL))

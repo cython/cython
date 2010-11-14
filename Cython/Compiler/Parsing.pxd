@@ -1,5 +1,6 @@
 # We declare all of these here to type the first argument.
 
+cimport cython
 from Cython.Compiler.Scanning cimport PyrexScanner
 
 
@@ -46,6 +47,8 @@ cpdef expect_ellipsis(PyrexScanner s)
 cpdef make_slice_nodes(pos, subscripts)
 cpdef make_slice_node(pos, start, stop = *, step = *)
 cpdef p_atom(PyrexScanner s)
+@cython.locals(value=unicode)
+cpdef p_int_literal(PyrexScanner s)
 cpdef p_name(PyrexScanner s, name)
 cpdef p_cat_string_literal(PyrexScanner s)
 cpdef p_opt_string_literal(PyrexScanner s, required_type=*)
