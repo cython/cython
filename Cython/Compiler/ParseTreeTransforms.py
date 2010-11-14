@@ -1184,6 +1184,7 @@ class ExpandInplaceOperators(EnvTransform):
             # There is code to handle this case.
             return node
 
+        env = self.current_env()
         def side_effect_free_reference(node, setting=False):
             if isinstance(node, NameNode):
                 return node, []
@@ -1206,18 +1207,23 @@ class ExpandInplaceOperators(EnvTransform):
             lhs, let_ref_nodes = side_effect_free_reference(lhs, setting=True)
         except ValueError:
             return node
+        lhs.analyse_types(env)
         dup = lhs.__class__(**lhs.__dict__)
         binop = binop_node(node.pos, 
                            operator = node.operator,
                            operand1 = dup,
                            operand2 = rhs,
                            inplace=True)
-        node = SingleAssignmentNode(node.pos, lhs=lhs, rhs=binop)
+        binop.analyse_operation(env)
+        node = SingleAssignmentNode(
+                            node.pos, 
+                            lhs = lhs,
+                            rhs=binop.coerce_to(lhs.type, env))
         # Use LetRefNode to avoid side effects.
         let_ref_nodes.reverse()
         for t in let_ref_nodes:
             node = LetNode(t, node)
-        node.analyse_expressions(self.current_env())
+        # Manually analyse types for new node.
         return node
 
     def visit_ExprNode(self, node):
