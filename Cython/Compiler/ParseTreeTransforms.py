@@ -1057,21 +1057,17 @@ property NAME:
         self.seen_vars_stack.pop()
         return node
 
-    def visit_ComprehensionNode(self, node):
-        self.visitchildren(node)
-        node.analyse_declarations(self.env_stack[-1])
-        return node
-
     def visit_ScopedExprNode(self, node):
         node.analyse_declarations(self.env_stack[-1])
-        if self.seen_vars_stack:
+        # the node may or may not have a local scope
+        if node.expr_scope:
             self.seen_vars_stack.append(set(self.seen_vars_stack[-1]))
+            self.env_stack.append(node.expr_scope)
+            self.visitchildren(node)
+            self.env_stack.pop()
+            self.seen_vars_stack.pop()
         else:
-            self.seen_vars_stack.append(set())
-        self.env_stack.append(node.expr_scope)
-        self.visitchildren(node)
-        self.env_stack.pop()
-        self.seen_vars_stack.pop()
+            self.visitchildren(node)
         return node
 
     def visit_TempResultFromStatNode(self, node):

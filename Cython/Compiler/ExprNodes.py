@@ -4141,10 +4141,7 @@ class ComprehensionNode(ScopedExprNode):
     def analyse_declarations(self, env):
         self.append.target = self # this is used in the PyList_Append of the inner loop
         self.init_scope(env)
-        if self.expr_scope is not None:
-            self.loop.analyse_declarations(self.expr_scope)
-        else:
-            self.loop.analyse_declarations(env)
+        self.loop.analyse_declarations(self.expr_scope or env)
 
     def init_scope(self, outer_scope, expr_scope=None):
         if expr_scope is not None:
