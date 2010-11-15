@@ -141,19 +141,15 @@ class TreeVisitor(object):
         mro = inspect.getmro(cls)
         handler_method = None
         for mro_cls in mro:
-            if hasattr(self, pattern % mro_cls.__name__):
-                handler_method = getattr(self, pattern % mro_cls.__name__)
-                break
-        if handler_method is None:
-            print type(self), cls
-            if hasattr(self, 'access_path') and self.access_path:
-                print self.access_path
-                if self.access_path:
-                    print self.access_path[-1][0].pos
-                    print self.access_path[-1][0].__dict__
-            raise RuntimeError("Visitor %r does not accept object: %s" % (self, obj))
-        #print "Caching " + cls.__name__
-        return handler_method
+            handler_method = getattr(self, pattern % mro_cls.__name__, None)
+            if handler_method is not None:
+                return handler_method
+        print type(self), cls
+        if self.access_path:
+            print self.access_path
+            print self.access_path[-1][0].pos
+            print self.access_path[-1][0].__dict__
+        raise RuntimeError("Visitor %r does not accept object: %s" % (self, obj))
 
     def visit(self, obj):
         return self._visit(obj)
