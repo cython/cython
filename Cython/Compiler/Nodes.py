@@ -4035,7 +4035,6 @@ class IfClauseNode(Node):
         self.body.analyse_control_flow(env)
         
     def analyse_declarations(self, env):
-        self.condition.analyse_declarations(env)
         self.body.analyse_declarations(env)
     
     def analyse_expressions(self, env):

@@ -63,3 +63,16 @@ def nested_result():
     """
     result = [[a-1 for a in range(b)] for b in range(4)]
     return result
+
+def listcomp_as_condition(sequence):
+    """
+    >>> listcomp_as_condition(['a', 'b', '+'])
+    True
+    >>> listcomp_as_condition('ab+')
+    True
+    >>> listcomp_as_condition('abc')
+    False
+    """
+    if [1 for c in sequence if c in '+-*/<=>!%&|([^~,']:
+        return True
+    return False
