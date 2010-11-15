@@ -11,49 +11,7 @@ import Naming
 import Errors
 import DebugFlags
 
-class BasicVisitor(object):
-    """A generic visitor base class which can be used for visiting any kind of object."""
-    # Note: If needed, this can be replaced with a more efficient metaclass
-    # approach, resolving the jump table at module load time rather than per visitor
-    # instance.
-    def __init__(self):
-        self.dispatch_table = {}
-
-    def visit(self, obj):
-        return self._visit(obj)
-
-    def _visit(self, obj):
-        try:
-            handler_method = self.dispatch_table[type(obj)]
-        except KeyError:
-            handler_method = self.find_handler(obj)
-            self.dispatch_table[type(obj)] = handler_method
-        return handler_method(obj)
-
-    def find_handler(self, obj):
-        cls = type(obj)
-        #print "Cache miss for class %s in visitor %s" % (
-        #    cls.__name__, type(self).__name__)
-        # Must resolve, try entire hierarchy
-        pattern = "visit_%s"
-        mro = inspect.getmro(cls)
-        handler_method = None
-        for mro_cls in mro:
-            if hasattr(self, pattern % mro_cls.__name__):
-                handler_method = getattr(self, pattern % mro_cls.__name__)
-                break
-        if handler_method is None:
-            print type(self), cls
-            if hasattr(self, 'access_path') and self.access_path:
-                print self.access_path
-                if self.access_path:
-                    print self.access_path[-1][0].pos
-                    print self.access_path[-1][0].__dict__
-            raise RuntimeError("Visitor %r does not accept object: %s" % (self, obj))
-        #print "Caching " + cls.__name__
-        return handler_method
-
-class TreeVisitor(BasicVisitor):
+class TreeVisitor(object):
     """
     Base class for writing visitors for a Cython tree, contains utilities for
     recursing such trees using visitors. Each node is
@@ -96,9 +54,9 @@ class TreeVisitor(BasicVisitor):
     out 3
     out 0
     """
-    
     def __init__(self):
         super(TreeVisitor, self).__init__()
+        self.dispatch_table = {}
         self.access_path = []
 
     def dump_node(self, node, indent=0):
@@ -176,10 +134,47 @@ class TreeVisitor(BasicVisitor):
             last_node.pos, self.__class__.__name__,
             u'\n'.join(trace), e, stacktrace)
 
+    def find_handler(self, obj):
+        # to resolve, try entire hierarchy
+        cls = type(obj)
+        pattern = "visit_%s"
+        mro = inspect.getmro(cls)
+        handler_method = None
+        for mro_cls in mro:
+            if hasattr(self, pattern % mro_cls.__name__):
+                handler_method = getattr(self, pattern % mro_cls.__name__)
+                break
+        if handler_method is None:
+            print type(self), cls
+            if hasattr(self, 'access_path') and self.access_path:
+                print self.access_path
+                if self.access_path:
+                    print self.access_path[-1][0].pos
+                    print self.access_path[-1][0].__dict__
+            raise RuntimeError("Visitor %r does not accept object: %s" % (self, obj))
+        #print "Caching " + cls.__name__
+        return handler_method
+
+    def visit(self, obj):
+        return self._visit(obj)
+
+    def _visit(self, obj):
+        try:
+            handler_method = self.dispatch_table[type(obj)]
+        except KeyError:
+            handler_method = self.find_handler(obj)
+            self.dispatch_table[type(obj)] = handler_method
+        return handler_method(obj)
+
     def _visitchild(self, child, parent, attrname, idx):
         self.access_path.append((parent, attrname, idx))
         try:
-            result = self._visit(child)
+            try:
+                handler_method = self.dispatch_table[type(child)]
+            except KeyError:
+                handler_method = self.find_handler(child)
+                self.dispatch_table[type(child)] = handler_method
+            result = handler_method(child)
         except Errors.CompileError:
             raise
         except Exception, e:
