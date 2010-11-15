@@ -8,10 +8,12 @@
 #=======================================================================
 
 import cython
-cython.declare(BOL=object, EOL=object, EOF=object)
+cython.declare(BOL=object, EOL=object, EOF=object, NOT_FOUND=object)
 
 import Errors
 from Regexps import BOL, EOL, EOF
+
+NOT_FOUND = object()
 
 class Scanner(object):
   """
@@ -179,8 +181,8 @@ class Scanner(object):
       # End inlined self.save_for_backup()
       c = cur_char
       #new_state = state.new_state(c) #@slow
-      new_state = state.get(c, -1) #@fast
-      if new_state == -1: #@fast
+      new_state = state.get(c, NOT_FOUND) #@fast
+      if new_state is NOT_FOUND: #@fast
         new_state = c and state.get('else') #@fast
       if new_state:
         if trace: #TRACE#
