@@ -2184,7 +2184,7 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
             cname = ctx.namespace + "::" + name
         if name == 'operator' and ctx.visibility == 'extern' and nonempty:
             op = s.sy
-            if [c in '+-*/<=>!%&|([^~,' for c in op]:
+            if [1 for c in op if c in '+-*/<=>!%&|([^~,']:
                 s.next()
                 # Handle diphthong operators.
                 if op == '(':
