@@ -1501,7 +1501,6 @@ class NameNode(AtomicExprNode):
                 namespace = Naming.builtins_cname
             else: # entry.is_pyglobal
                 namespace = entry.scope.namespace_cname
-            code.globalstate.use_utility_code(getitem_dict_utility_code)
             code.putln(
                 '%s = PyObject_GetItem(%s, %s); %s' % (
                 self.result(),
@@ -7504,7 +7503,6 @@ static CYTHON_INLINE void __Pyx_RaiseNoneNotIterableError(void) {
 
 getitem_dict_utility_code = UtilityCode(
 proto = """
-
 #if PY_MAJOR_VERSION >= 3
 static PyObject *__Pyx_PyDict_GetItem(PyObject *d, PyObject* key) {
     PyObject *value;
