@@ -1929,7 +1929,7 @@ class PythonCodeExecutor(object):
         
         pointer = pointervalue(chunk)
         if pointer == 0:
-            err("No memory could be allocated in the inferior.")
+            raise gdb.GdbError("No memory could be allocated in the inferior.")
         
         return pointer
         
@@ -1950,13 +1950,17 @@ class PythonCodeExecutor(object):
         
         pointer = pointervalue(result)
         if pointer == 0:
-            err("Unable to allocate Python string in "
+            raise gdb.GdbError("Unable to allocate Python string in "
                                "the inferior.")
         
         return pointer
         
     def free(self, pointer):
         gdb.parse_and_eval("free((void *) %d)" % pointer)
+    
+    def incref(self, pointer):
+        "Increment the reference count of a Python object in the inferior."
+        gdb.parse_and_eval('Py_IncRef((PyObject *) %d)' % pointer)
     
     def decref(self, pointer):
         "Decrement the reference count of a Python object in the inferior."
@@ -1975,7 +1979,7 @@ class PythonCodeExecutor(object):
         leave the debuggee in an unsafe state or terminate it alltogether.
         """
         if '\0' in code:
-            err("String contains NUL byte.")
+            raise gdb.GdbError("String contains NUL byte.")
         
         code += '\0'
         
