@@ -1141,6 +1141,14 @@ class CyExec(CythonCommand, libpython.PyExec):
             if (cyvar.type == PythonObject and 
                 self.is_initialized(cython_func, name)):
                 
+                try:
+                    val = gdb.parse_and_eval(cyvar.cname)
+                except RuntimeError:
+                    continue
+                else:
+                    if val.is_optimized_out:
+                        continue
+                
                 pystringp = executor.alloc_pystring(name)
                 code = '''
                     PyDict_SetItem(
