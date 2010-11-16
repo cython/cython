@@ -3932,10 +3932,16 @@ class TupleNode(SequenceNode):
             self.is_literal = 1
         else:
             SequenceNode.analyse_types(self, env, skip_children)
+            for child in self.args:
+                if not child.is_literal:
+                    break
+            else:
+                self.is_temp = 0
+                self.is_literal = 1
 
     def calculate_result_code(self):
         if len(self.args) > 0:
-            error(self.pos, "Positive length tuples must be constructed.")
+            return self.result_code
         else:
             return Naming.empty_tuple
 
@@ -3954,6 +3960,16 @@ class TupleNode(SequenceNode):
         if len(self.args) == 0:
             # result_code is Naming.empty_tuple
             return
+        if self.is_literal:
+            # non-empty cached tuple => result is global constant,
+            # creation code goes into separate code writer
+            self.result_code = code.get_py_const(py_object_type, 'tuple_')
+            if Options.generate_cleanup_code >= 2:
+                cleanup_writer = code.get_globals_cleanup_writer()
+                cleanup_writer.put_xdecref_clear(self.result(), py_object_type, nanny=False)
+            code = code.get_cached_constants_writer()
+            code.mark_pos(self.pos)
+
         code.putln(
             "%s = PyTuple_New(%s); %s" % (
                 self.result(),
@@ -3970,6 +3986,8 @@ class TupleNode(SequenceNode):
                     i,
                     arg.py_result()))
             code.put_giveref(arg.py_result())
+        if self.is_literal:
+            code.put_giveref(self.py_result())
     
     def generate_subexpr_disposal_code(self, code):
         # We call generate_post_assignment_code here instead
