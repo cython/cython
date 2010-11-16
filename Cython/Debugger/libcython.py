@@ -159,11 +159,12 @@ class CythonModule(object):
 
 class CythonVariable(object):
 
-    def __init__(self, name, cname, qualified_name, type):
+    def __init__(self, name, cname, qualified_name, type, lineno):
         self.name = name
         self.cname = cname
         self.qualified_name = qualified_name
         self.type = type
+        self.lineno = int(lineno)
 
 class CythonFunction(CythonVariable):
     def __init__(self, 
@@ -177,10 +178,10 @@ class CythonFunction(CythonVariable):
         super(CythonFunction, self).__init__(name, 
                                              cname, 
                                              qualified_name, 
-                                             type)
+                                             type,
+                                             lineno)
         self.module = module
         self.pf_cname = pf_cname
-        self.lineno = int(lineno)
         self.locals = {}
         self.arguments = []
         self.step_into_functions = set()
@@ -387,6 +388,10 @@ class CythonBase(object):
             print '%s%-*s = %s%s' % (prefix, max_name_length, name, typename, 
                                      value)
 
+    def is_initialized(self, cython_func, local_name):
+        cur_lineno = self.get_cython_lineno()
+        return (local_name in cython_func.arguments or 
+                cur_lineno > cython_func.locals[local_name].lineno)
 
 class SourceFileDescriptor(object):
     def __init__(self, filename, lexer, formatter=None):
@@ -1073,12 +1078,8 @@ class CyLocals(CythonCommand):
     completer_class = gdb.COMPLETE_NONE
     
     def _print_if_initialized(self, cyvar, max_name_length, prefix=''):
-        try:
+        if self.is_initialized(self.get_cython_function(), cyvar.name):
             value = gdb.parse_and_eval(cyvar.cname)
-        except RuntimeError:
-            # variable not initialized yet
-            pass
-        else:
             self.print_gdb_value(cyvar.name, value, max_name_length, prefix)
     
     @dispatch_on_frame(c_command='info locals', python_command='py-locals')
@@ -1134,20 +1135,12 @@ class CyExec(CythonCommand, libpython.PyExec):
     def _fill_locals_dict(self, executor, local_dict_pointer):
         "Fill a remotely allocated dict with values from the Cython C stack"
         cython_func = self.get_cython_function()
+        current_lineno = self.get_cython_lineno()
         
         for name, cyvar in cython_func.locals.iteritems():
-            if cyvar.type == PythonObject:
-                # skip unitialized Cython variables 
-                try:
-                    val = gdb.parse_and_eval(cyvar.cname)
-                except RuntimeError:
-                    continue
-                else:
-                    # Fortunately, Cython initializes all local (automatic)
-                    # variables to NULL
-                    if libpython.pointervalue(val) == 0:
-                        continue
-
+            if (cyvar.type == PythonObject and 
+                self.is_initialized(cython_func, name)):
+                
                 pystringp = executor.alloc_pystring(name)
                 code = '''
                     PyDict_SetItem(
@@ -1155,13 +1148,14 @@ class CyExec(CythonCommand, libpython.PyExec):
                         (PyObject *) %d, 
                         (PyObject *) %s)
                 ''' % (local_dict_pointer, pystringp, cyvar.cname)
-                
-                # PyDict_SetItem doesn't steal our reference
-                executor.decref(pystringp)
-                
-                if gdb.parse_and_eval(code) < 0:
-                    gdb.parse_and_eval('PyErr_Print()')
-                    raise gdb.GdbError("Unable to execute Python code.")
+
+                try:
+                    if gdb.parse_and_eval(code) < 0:
+                        gdb.parse_and_eval('PyErr_Print()')
+                        raise gdb.GdbError("Unable to execute Python code.")
+                finally:
+                    # PyDict_SetItem doesn't steal our reference
+                    executor.decref(pystringp)
     
     def _find_first_cython_or_python_frame(self):
         frame = gdb.selected_frame()

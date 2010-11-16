@@ -1606,13 +1606,22 @@ class DebugTransform(CythonTransform):
             cname = entry.cname
             # if entry.type.is_extension_type:
                 # cname = entry.type.typeptr_cname
-
+            
+            if not entry.pos:
+                # this happens for variables that are not in the user's code,
+                # e.g. for the global __builtins__, __doc__, etc. We can just
+                # set the lineno to 0 for those.
+                lineno = '0'
+            else:
+                lineno = str(entry.pos[1])
+                
             attrs = dict(
                 name=entry.name,
                 cname=cname,
                 qualified_name=entry.qualified_name,
-                type=vartype)
-                
+                type=vartype,
+                lineno=lineno)
+            
             self.tb.start('LocalVar', attrs)
             self.tb.end('LocalVar')
         
