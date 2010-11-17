@@ -569,7 +569,7 @@ class GlobalState(object):
         # create a new Python object constant
         const = self.new_py_const(type, prefix)
         if cleanup_level is not None \
-               and cleanup_level >= Options.generate_cleanup_code:
+               and cleanup_level <= Options.generate_cleanup_code:
             cleanup_writer = self.parts['cleanup_globals']
             cleanup_writer.put_xdecref_clear(const.cname, type, nanny=False)
         return const
