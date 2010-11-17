@@ -557,9 +557,6 @@ class GlobalState(object):
     def get_cached_constants_writer(self):
         return self.parts['cached_constants']
 
-    def get_globals_cleanup_writer(self):
-        return self.parts['cleanup_globals']
-
     def get_int_const(self, str_value, longness=False):
         longness = bool(longness)
         try:
@@ -568,9 +565,14 @@ class GlobalState(object):
             c = self.new_int_const(str_value, longness)
         return c
 
-    def get_py_const(self, type, prefix=''):
+    def get_py_const(self, type, prefix='', cleanup_level=None):
         # create a new Python object constant
-        return self.new_py_const(type, prefix)
+        const = self.new_py_const(type, prefix)
+        if cleanup_level is not None \
+               and cleanup_level >= Options.generate_cleanup_code:
+            cleanup_writer = self.parts['cleanup_globals']
+            cleanup_writer.put_xdecref_clear(const.cname, type, nanny=False)
+        return const
 
     def get_string_const(self, text):
         # return a C string constant, creating a new one if necessary
@@ -962,8 +964,8 @@ class CCodeWriter(object):
     def get_py_num(self, str_value, longness):
         return self.globalstate.get_int_const(str_value, longness).cname
 
-    def get_py_const(self, type, prefix=''):
-        return self.globalstate.get_py_const(type, prefix).cname
+    def get_py_const(self, type, prefix='', cleanup_level=None):
+        return self.globalstate.get_py_const(type, prefix, cleanup_level).cname
 
     def get_string_const(self, text):
         return self.globalstate.get_string_const(text).cname
@@ -982,9 +984,6 @@ class CCodeWriter(object):
 
     def get_cached_constants_writer(self):
         return self.globalstate.get_cached_constants_writer()
-
-    def get_globals_cleanup_writer(self):
-        return self.globalstate.get_globals_cleanup_writer()
 
     # code generation
 
