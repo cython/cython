@@ -3963,10 +3963,7 @@ class TupleNode(SequenceNode):
         if self.is_literal:
             # non-empty cached tuple => result is global constant,
             # creation code goes into separate code writer
-            self.result_code = code.get_py_const(py_object_type, 'tuple_')
-            if Options.generate_cleanup_code >= 2:
-                cleanup_writer = code.get_globals_cleanup_writer()
-                cleanup_writer.put_xdecref_clear(self.result(), py_object_type, nanny=False)
+            self.result_code = code.get_py_const(py_object_type, 'tuple_', cleanup_level=2)
             code = code.get_cached_constants_writer()
             code.mark_pos(self.pos)
 
