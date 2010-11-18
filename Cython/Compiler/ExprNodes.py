@@ -7439,6 +7439,38 @@ static CYTHON_INLINE int __Pyx_TypeTest(PyObject *obj, PyTypeObject *type) {
 
 #------------------------------------------------------------------------------------
 
+find_py2_metaclass_utility_code = UtilityCode(
+proto = '''
+static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases); /*proto*/
+''',
+impl = '''
+static PyObject *__Pyx_FindPy2Metaclass(PyObject *bases) {
+    PyObject *metaclass;
+    /* Default metaclass */
+#if PY_MAJOR_VERSION < 3
+    if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+        PyObject *base = PyTuple_GET_ITEM(bases, 0);
+        metaclass = PyObject_GetAttrString(base, "__class__");
+        if (!metaclass) {
+            PyErr_Clear();
+            metaclass = (PyObject*) Py_TYPE(base);
+        }
+    } else {
+        metaclass = (PyObject *) &PyClass_Type;
+    }
+#else
+    if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
+        PyObject *base = PyTuple_GET_ITEM(bases, 0);
+        metaclass = (PyObject*) Py_TYPE(base);
+    } else {
+        metaclass = (PyObject *) &PyType_Type;
+    }
+#endif
+    Py_INCREF(metaclass);
+    return metaclass;
+}
+''')
+
 create_class_utility_code = UtilityCode(
 proto = """
 static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name,
@@ -7447,42 +7479,25 @@ static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *na
 impl = """
 static PyObject *__Pyx_CreateClass(PyObject *bases, PyObject *dict, PyObject *name,
                                    PyObject *modname) {
-    PyObject *result = NULL;
-    PyObject *metaclass = NULL;
+    PyObject *result;
+    PyObject *metaclass;
 
     if (PyDict_SetItemString(dict, "__module__", modname) < 0)
         return NULL;
 
     /* Python2 __metaclass__ */
     metaclass = PyDict_GetItemString(dict, "__metaclass__");
-
-    if (!metaclass) {
-        /* Default metaclass */
-#if PY_MAJOR_VERSION < 3
-        if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
-            PyObject *base = PyTuple_GET_ITEM(bases, 0);
-            metaclass = PyObject_GetAttrString(base, "__class__");
-            if (!metaclass) {
-                PyErr_Clear();
-                metaclass = (PyObject *)base->ob_type;
-            }
-        } else
-            metaclass = (PyObject *) &PyClass_Type;
-#else
-        if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
-            PyObject *base = PyTuple_GET_ITEM(bases, 0);
-            metaclass = (PyObject *)base->ob_type;
-        } else
-            metaclass = (PyObject *) &PyType_Type;
-#endif
+    if (metaclass) {
+        Py_INCREF(metaclass);
+    } else {
+        metaclass = __Pyx_FindPy2Metaclass(bases);
     }
-    Py_INCREF(metaclass);
-
     result = PyObject_CallFunctionObjArgs(metaclass, name, bases, dict, NULL);
     Py_DECREF(metaclass);
     return result;
 }
-""")
+""",
+requires = [find_py2_metaclass_utility_code])
 
 #------------------------------------------------------------------------------------
 
@@ -7495,9 +7510,7 @@ static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObj
 impl = """
 PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw)
 {
-    PyObject *metaclass = NULL;
-
-    metaclass = PyDict_GetItemString(mkw, "metaclass");
+    PyObject *metaclass = PyDict_GetItemString(mkw, "metaclass");
     if (metaclass) {
         Py_INCREF(metaclass);
         if (PyDict_DelItemString(mkw, "metaclass") < 0) {
@@ -7506,28 +7519,7 @@ PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw)
         }
         return metaclass;
     }
-    /* Default metaclass */
-#if PY_MAJOR_VERSION < 3
-    if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
-        PyObject *base = PyTuple_GET_ITEM(bases, 0);
-        metaclass = PyObject_GetAttrString(base, "__class__");
-        if (metaclass == NULL) {
-            PyErr_Clear();
-            metaclass = (PyObject *)base->ob_type;
-        }
-    } else {
-        metaclass = (PyObject *) &PyClass_Type;
-    }
-#else
-    if (PyTuple_Check(bases) && PyTuple_GET_SIZE(bases) > 0) {
-        PyObject *base = PyTuple_GET_ITEM(bases, 0);
-        metaclass = (PyObject *)base->ob_type;
-    } else {
-        metaclass = (PyObject *) &PyType_Type;
-    }
-#endif
-    Py_INCREF(metaclass);
-    return metaclass;
+    return __Pyx_FindPy2Metaclass(bases);
 }
 
 PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *mkw, PyObject *modname, PyObject *doc)
@@ -7604,16 +7596,21 @@ PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObje
 PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict, PyObject *mkw)
 {
     PyObject *result;
-    PyObject *margs;
-
-    margs = PyTuple_Pack(3, name, bases, dict, NULL);
+    PyObject *margs = PyTuple_New(3);
     if (!margs)
         return NULL;
+    Py_INCREF(name);
+    Py_INCREF(bases);
+    Py_INCREF(dict);
+    PyTuple_SET_ITEM(margs, 0, name);
+    PyTuple_SET_ITEM(margs, 1, bases);
+    PyTuple_SET_ITEM(margs, 2, dict);
     result = PyEval_CallObjectWithKeywords(metaclass, margs, mkw);
     Py_DECREF(margs);
     return result;
 }
-""")
+""",
+requires = [find_py2_metaclass_utility_code])
 
 #------------------------------------------------------------------------------------
 
