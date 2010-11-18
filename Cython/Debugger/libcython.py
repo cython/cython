@@ -1080,7 +1080,8 @@ class CyLocals(CythonCommand):
     def _print_if_initialized(self, cyvar, max_name_length, prefix=''):
         if self.is_initialized(self.get_cython_function(), cyvar.name):
             value = gdb.parse_and_eval(cyvar.cname)
-            self.print_gdb_value(cyvar.name, value, max_name_length, prefix)
+            if not value.is_optimized_out:
+                self.print_gdb_value(cyvar.name, value, max_name_length, prefix)
     
     @dispatch_on_frame(c_command='info locals', python_command='py-locals')
     def invoke(self, args, from_tty):
@@ -1191,11 +1192,47 @@ class CyExec(CythonCommand, libpython.PyExec):
             '(PyObject *) PyModule_GetDict(__pyx_m)')
         local_dict = gdb.parse_and_eval('(PyObject *) PyDict_New()')
         
+        cython_function = self.get_cython_function()
+        
         try:
             self._fill_locals_dict(executor, libpython.pointervalue(local_dict))
             executor.evalcode(expr, input_type, global_dict, local_dict)
         finally:
+            
+            # try:
+                # tp, val, tb = sys.exc_info()
+                # sys.exc_clear()
+                # 
+                # try:
+                    # long(gdb.parse_and_eval("(void *) 0")) == 0
+                # except RuntimeError:
+                    # # At this point gdb is broken, just exit this shite, it
+                    # # ain't getting better.
+                    # 
+# # /home/mark/source/code/cython/Cython/Debugger/libcython.py:1206: 
+# # RuntimeWarning: tp_compare didn't return -1 or -2 for exception
+# # long(gdb.parse_and_eval("(void *) 0")) == 0
+# # Traceback (most recent call last):
+# # File "/home/mark/source/code/cython/Cython/Debugger/libcython.py", line 1206, 
+# # in invoke
+# # long(gdb.parse_and_eval("(void *) 0")) == 0
+# # RuntimeError: Cannot convert value to int.
+# # Error occurred in Python command: Cannot convert value to int.
+                    # if sys.exc_info()[0] is None and val is not None:
+                        # raise val, tb
+                # 
+                # for name, value in libpython.PyDictObjectPtr(local_dict).iteritems():
+                    # name = name.proxyval(set())
+                    # cyvar = cython_function.locals.get(name)
+                    # if cyvar is not None and cyvar.type == PythonObject:
+                        # gdb.parse_and_eval('set %s = (PyObject *) %d' % (cyvar.cname,
+                                                                         # pointervalue(value._gdbval)))
+            # finally:
             executor.decref(libpython.pointervalue(local_dict))
+                
+                # if sys.exc_info()[0] is None and val is not None:
+                    # raise val, tb
+                    
 
 
 # Functions

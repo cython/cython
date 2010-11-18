@@ -636,7 +636,7 @@ class PyDictObjectPtr(PyObjectPtr):
             if not pyop_value.is_null():
                 pyop_key = PyObjectPtr.from_pyobject_ptr(ep['me_key'])
                 yield (pyop_key, pyop_value)
-
+    
     def proxyval(self, visited):
         # Guard against infinite loops:
         if self.as_address() in visited:
