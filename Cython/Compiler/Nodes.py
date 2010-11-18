@@ -2958,7 +2958,7 @@ class PyClassDefNode(ClassDefNode):
             doc_node = None
         if keyword_args or starstar_arg:
             self.py3_style_class = True
-            self.bases = ExprNodes.PyClassBasesNode(pos, bases = bases)
+            self.bases = bases
             self.mkw = ExprNodes.KeywordArgsNode(pos,
                     keyword_args = keyword_args, starstar_arg = starstar_arg)
             self.metaclass = ExprNodes.PyClassMetaclassNode(pos, mkw = self.mkw, bases = self.bases)
