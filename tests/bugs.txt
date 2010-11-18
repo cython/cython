@@ -25,3 +25,4 @@ pyregr.test_module
 
 # CPython regression tests that don't make sense
 pyregr.test_gdb
+pyregr.test_support
