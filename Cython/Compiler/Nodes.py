@@ -1177,7 +1177,7 @@ class FuncDefNode(StatNode, BlockNode):
     def create_local_scope(self, env):
         genv = env
         while genv.is_py_class_scope or genv.is_c_class_scope:
-            genv = genv.outer_scope
+            genv = env.outer_scope
         if self.needs_closure:
             lenv = ClosureScope(name=self.entry.name,
                                 outer_scope = genv,
@@ -1255,15 +1255,11 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_function_header(code,
             with_pymethdef = with_pymethdef)
         # ----- Local variable declarations
-        # Find function scope
-        cenv = env
-        while cenv.is_py_class_scope or cenv.is_c_class_scope:
-            cenv = cenv.outer_scope
         if lenv.is_closure_scope:
             code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname))
             code.putln(";")
-        elif cenv.is_closure_scope:
-            code.put(cenv.scope_class.type.declaration_code(Naming.outer_scope_cname))
+        elif env.is_closure_scope:
+            code.put(env.scope_class.type.declaration_code(Naming.outer_scope_cname))
             code.putln(";")
         self.generate_argument_declarations(lenv, code)
         for entry in lenv.var_entries:
@@ -1314,14 +1310,14 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("}")
             code.put_gotref(Naming.cur_scope_cname)
             # Note that it is unsafe to decref the scope at this point.
-        if cenv.is_closure_scope:
+        if env.is_closure_scope:
             code.putln("%s = (%s)%s;" % (
                             outer_scope_cname,
-                            cenv.scope_class.type.declaration_code(''),
+                            env.scope_class.type.declaration_code(''),
                             Naming.self_cname))
             if self.needs_closure:
                 # inner closures own a reference to their outer parent
-                code.put_incref(outer_scope_cname, cenv.scope_class.type)
+                code.put_incref(outer_scope_cname, env.scope_class.type)
                 code.put_giveref(outer_scope_cname)
         # ----- Trace function call
         if profile:
@@ -2215,21 +2211,18 @@ class DefNode(FuncDefNode):
 
     def synthesize_assignment_node(self, env):
         import ExprNodes
-        genv = env
-        while genv.is_py_class_scope or genv.is_c_class_scope:
-            genv = genv.outer_scope
+        if env.is_py_class_scope:
+            rhs = ExprNodes.PyCFunctionNode(self.pos,
+                        pymethdef_cname = self.entry.pymethdef_cname)
+            if not self.is_staticmethod and not self.is_classmethod:
+                rhs.binding = True
 
-        if genv.is_closure_scope:
+        elif env.is_closure_scope:
             rhs = ExprNodes.InnerFunctionNode(
                 self.pos, pymethdef_cname = self.entry.pymethdef_cname)
         else:
             rhs = ExprNodes.PyCFunctionNode(
                 self.pos, pymethdef_cname = self.entry.pymethdef_cname, binding = env.directives['binding'])
-
-        if env.is_py_class_scope:
-            if not self.is_staticmethod and not self.is_classmethod:
-                rhs.binding = True
-
         self.assmt = SingleAssignmentNode(self.pos,
             lhs = ExprNodes.NameNode(self.pos, name = self.name),
             rhs = rhs)
@@ -3009,8 +3002,8 @@ class PyClassDefNode(ClassDefNode):
         
     def create_scope(self, env):
         genv = env
-        while genv.is_py_class_scope or genv.is_c_class_scope:
-            genv = genv.outer_scope
+        while env.is_py_class_scope or env.is_c_class_scope:
+            env = env.outer_scope
         cenv = self.scope = PyClassScope(name = self.name, outer_scope = genv)
         return cenv
     
