@@ -1325,7 +1325,7 @@ class CreateClosureClasses(CythonTransform):
         return node
 
     def create_class_from_scope(self, node, target_module_scope):
-        as_name = "%s%s" % (Naming.closure_class_prefix, node.entry.cname)
+        as_name = '%s_%s' % (target_module_scope.next_id(Naming.closure_class_prefix), node.entry.cname)
         func_scope = node.local_scope
 
         entry = target_module_scope.declare_c_class(name = as_name,
@@ -1334,11 +1334,15 @@ class CreateClosureClasses(CythonTransform):
         class_scope = entry.type.scope
         class_scope.is_internal = True
         class_scope.directives = {'final': True}
-        if node.entry.scope.is_closure_scope:
+
+        cscope = node.entry.scope
+        while cscope.is_py_class_scope or cscope.is_c_class_scope:
+            cscope = cscope.outer_scope
+        if cscope.is_closure_scope:
             class_scope.declare_var(pos=node.pos,
                                     name=Naming.outer_scope_cname, # this could conflict?
                                     cname=Naming.outer_scope_cname,
-                                    type=node.entry.scope.scope_class.type,
+                                    type=cscope.scope_class.type,
                                     is_cdef=True)
         entries = func_scope.entries.items()
         entries.sort()
