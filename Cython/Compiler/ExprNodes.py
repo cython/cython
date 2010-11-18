@@ -7565,7 +7565,11 @@ PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObje
 
     /* Required here to emulate assignment order */
     /* XXX: use consts here */
+    #if PY_MAJOR_VERSION >= 3
+    str = PyUnicode_FromString("__module__");
+    #else
     str = PyString_FromString("__module__");
+    #endif
     if (!str) {
         Py_DECREF(ns);
         return NULL;
@@ -7578,7 +7582,11 @@ PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObje
     }
     Py_DECREF(str);
     if (doc) {
+        #if PY_MAJOR_VERSION >= 3
+        str = PyUnicode_FromString("__doc__");
+        #else
         str = PyString_FromString("__doc__");
+        #endif
         if (!str) {
             Py_DECREF(ns);
             return NULL;
