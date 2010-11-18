@@ -22,6 +22,7 @@ pure_mode_cmethod_inheritance_T583
 # CPython regression tests that don't current work:
 pyregr.test_threadsignals
 pyregr.test_module
+pyregr.test_capi
 
 # CPython regression tests that don't make sense
 pyregr.test_gdb
