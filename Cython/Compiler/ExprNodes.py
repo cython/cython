@@ -4593,14 +4593,14 @@ class Py3ClassNode(ExprNode):
     def analyse_types(self, env):
         self.type = py_object_type
         self.is_temp = 1
-        env.use_utility_code(create_py3class_utility_code);
 
     def may_be_none(self):
         return True
 
-    gil_message = "Constructing Python3+ class"
+    gil_message = "Constructing Python class"
 
     def generate_result_code(self, code):
+        code.globalstate.use_utility_code(create_py3class_utility_code)
         cname = code.intern_identifier(self.name)
         code.putln(
             '%s = __Pyx_Py3ClassCreate(%s, %s, %s, %s, %s); %s' % (
@@ -4643,38 +4643,19 @@ class KeywordArgsNode(ExprNode):
         if self.keyword_args:
             code.putln("%s = %s;" % (self.result(), self.keyword_args.result()))
             code.put_incref(self.keyword_args.result(), self.keyword_args.ctype())
-            code.put_giveref(self.keyword_args.result())
         elif self.starstar_arg:
             code.putln(
                 "%s = PyDict_Copy(%s); %s" % (
                     self.result(),
                     self.starstar_arg.py_result(),
                     code.error_goto_if_null(self.result(), self.pos)))
+            code.put_gotref(self.py_result())
         else:
             code.putln(
                 "%s = PyDict_New(); %s" % (
                     self.result(),
                     code.error_goto_if_null(self.result(), self.pos)))
-        code.put_gotref(self.py_result())
-
-class PyClassBasesNode(ExprNode):
-    # Helper class that holds bases for python3 class
-    # Actually hack to make `bases` visible across other nondes
-    #
-    # bases         ExprNode           Base class tuple
-
-    subexprs = ['bases']
-    type = py_object_type
-    is_temp = True
-
-    def analyse_types(self, env):
-        self.bases.analyse_types(env)
-
-    def generate_result_code(self, code):
-        code.putln("%s = %s;" % (self.result(), self.bases.result()))
-        code.put_incref(self.bases.result(), self.bases.ctype())
-        code.put_giveref(self.bases.result())
-        code.put_gotref(self.py_result())
+            code.put_gotref(self.py_result())
 
 class PyClassMetaclassNode(ExprNode):
     # Helper class holds Python3 metaclass object
