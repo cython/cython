@@ -1740,7 +1740,7 @@ def p_statement(s, ctx, first_statement = 0):
             s.level = ctx.level
             return p_def_statement(s, decorators)
         elif s.sy == 'class':
-            if ctx.level not in ('module', 'function', 'class'):
+            if ctx.level != 'module':
                 s.error("class definition not allowed here")
             return p_class_statement(s, decorators)
         elif s.sy == 'include':
