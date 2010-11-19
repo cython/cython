@@ -23,6 +23,8 @@ closure_class_T596
 pyregr.test_threadsignals
 pyregr.test_module
 pyregr.test_capi
+pyregr.test_socket
+pyregr.test_threading
 
 # CPython regression tests that don't make sense
 pyregr.test_gdb
