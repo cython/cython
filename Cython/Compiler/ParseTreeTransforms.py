@@ -784,6 +784,13 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         body = StatListNode(node.pos, stats=[node])
         return self.visit_with_directives(body, directives)
 
+    def visit_PyClassDefNode(self, node):
+        directives = self._extract_directives(node, 'class')
+        if not directives:
+            return self.visit_Node(node)
+        body = StatListNode(node.pos, stats=[node])
+        return self.visit_with_directives(body, directives)
+
     def _extract_directives(self, node, scope_name):
         if not node.decorators:
             return {}
