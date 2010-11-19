@@ -2952,16 +2952,26 @@ class PyClassDefNode(ClassDefNode):
         import ExprNodes
         if self.doc and Options.docstrings:
             doc = embed_position(self.pos, self.doc)
-            # FIXME: correct string node?
             doc_node = ExprNodes.StringNode(pos, value = doc)
         else:
             doc_node = None
         if keyword_args or starstar_arg:
             self.py3_style_class = True
             self.bases = bases
-            self.mkw = ExprNodes.KeywordArgsNode(pos,
-                    keyword_args = keyword_args, starstar_arg = starstar_arg)
-            self.metaclass = ExprNodes.PyClassMetaclassNode(pos, mkw = self.mkw, bases = self.bases)
+            self.metaclass = None
+            if keyword_args and not starstar_arg and len(keyword_args.key_value_pairs) == 1:
+                item = keyword_args.key_value_pairs[0]
+                if item.key.value == 'metaclass':
+                    # special case: we already know the metaclass and
+                    # it's the only kwarg, so we don't need to do the
+                    # "build kwargs, find metaclass" dance at runtime
+                    self.metaclass = item.value
+                    self.mkw = ExprNodes.NullNode(pos)
+            if self.metaclass is None:
+                self.mkw = ExprNodes.KeywordArgsNode(
+                    pos, keyword_args = keyword_args, starstar_arg = starstar_arg)
+                self.metaclass = ExprNodes.PyClassMetaclassNode(
+                    pos, mkw = self.mkw, bases = self.bases)
             self.dict = ExprNodes.PyClassNamespaceNode(pos, name = name,
                         doc = doc_node, metaclass = self.metaclass, bases = self.bases,
                         mkw = self.mkw, )
