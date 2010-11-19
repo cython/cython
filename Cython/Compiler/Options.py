@@ -102,8 +102,8 @@ directive_scopes = { # defaults to available everywhere
     'autotestdict' : ('module',),
     'autotestdict.all' : ('module',),
     'autotestdict.cdef' : ('module',),
-    'test_assert_path_exists' : ('function',),
-    'test_fail_if_path_exists' : ('function',),
+    'test_assert_path_exists' : ('function', 'class', 'cclass'),
+    'test_fail_if_path_exists' : ('function', 'class', 'cclass'),
 }
 
 def parse_directive_value(name, value, relaxed_bool=False):
