@@ -66,7 +66,8 @@ class Py3Base(type):
     def __prepare__(*args, **kwargs):
         return ODict()
 
-@cython.test_assert_path_exists("//PyClassMetaclassNode", "//Py3ClassNode")
+@cython.test_fail_if_path_exists("//PyClassMetaclassNode")
+@cython.test_assert_path_exists("//Py3ClassNode")
 class Py3Foo(object, metaclass=Py3Base, foo=123):
     """
     >>> obj = Py3Foo()

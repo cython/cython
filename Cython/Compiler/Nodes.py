@@ -2959,22 +2959,27 @@ class PyClassDefNode(ClassDefNode):
             self.py3_style_class = True
             self.bases = bases
             self.metaclass = None
-            if keyword_args and not starstar_arg and len(keyword_args.key_value_pairs) == 1:
-                item = keyword_args.key_value_pairs[0]
-                if item.key.value == 'metaclass':
-                    # special case: we already know the metaclass and
-                    # it's the only kwarg, so we don't need to do the
-                    # "build kwargs, find metaclass" dance at runtime
-                    self.metaclass = item.value
-                    self.mkw = ExprNodes.NullNode(pos)
-            if self.metaclass is None:
+            if keyword_args and not starstar_arg:
+                for i, item in list(enumerate(keyword_args.key_value_pairs))[::-1]:
+                    if item.key.value == 'metaclass':
+                        if self.metaclass is not None:
+                            error(item.pos, "keyword argument 'metaclass' passed multiple times")
+                        # special case: we already know the metaclass,
+                        # so we don't need to do the "build kwargs,
+                        # find metaclass" dance at runtime
+                        self.metaclass = item.value
+                        del keyword_args.key_value_pairs[i]
+            if starstar_arg or (keyword_args and keyword_args.key_value_pairs):
                 self.mkw = ExprNodes.KeywordArgsNode(
                     pos, keyword_args = keyword_args, starstar_arg = starstar_arg)
+            else:
+                self.mkw = ExprNodes.NullNode(pos)
+            if self.metaclass is None:
                 self.metaclass = ExprNodes.PyClassMetaclassNode(
                     pos, mkw = self.mkw, bases = self.bases)
             self.dict = ExprNodes.PyClassNamespaceNode(pos, name = name,
                         doc = doc_node, metaclass = self.metaclass, bases = self.bases,
-                        mkw = self.mkw, )
+                        mkw = self.mkw)
             self.classobj = ExprNodes.Py3ClassNode(pos, name = name,
                     bases = self.bases, dict = self.dict, doc = doc_node,
                     metaclass = self.metaclass, mkw = self.mkw)
