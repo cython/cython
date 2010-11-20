@@ -7503,13 +7503,12 @@ requires = [find_py2_metaclass_utility_code])
 
 create_py3class_utility_code = UtilityCode(
 proto = """
-static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw);
-static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *mkw, PyObject *modname, PyObject *doc);
-static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict, PyObject *mkw);
+static PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw); /*proto*/
+static PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *mkw, PyObject *modname, PyObject *doc); /*proto*/
+static PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict, PyObject *mkw); /*proto*/
 """,
 impl = """
-PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw)
-{
+PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw) {
     PyObject *metaclass = PyDict_GetItemString(mkw, "metaclass");
     if (metaclass) {
         Py_INCREF(metaclass);
@@ -7522,15 +7521,15 @@ PyObject *__Pyx_Py3MetaclassGet(PyObject *bases, PyObject *mkw)
     return __Pyx_FindPy2Metaclass(bases);
 }
 
-PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *mkw, PyObject *modname, PyObject *doc)
-{
+PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObject *name, PyObject *mkw,
+                                    PyObject *modname, PyObject *doc) {
     PyObject *prep;
     PyObject *pargs;
     PyObject *ns;
     PyObject *str;
 
     prep = PyObject_GetAttrString(metaclass, "__prepare__");
-    if (prep == NULL) {
+    if (!prep) {
         if (!PyErr_ExceptionMatches(PyExc_AttributeError))
             return NULL;
         PyErr_Clear();
@@ -7547,7 +7546,7 @@ PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObje
     PyTuple_SET_ITEM(pargs, 0, name);
     PyTuple_SET_ITEM(pargs, 1, bases);
 
-    ns = PyEval_CallObjectWithKeywords(prep, pargs, mkw);
+    ns = PyObject_Call(prep, pargs, mkw);
 
     Py_DECREF(prep);
     Py_DECREF(pargs);
@@ -7593,8 +7592,7 @@ PyObject *__Pyx_Py3MetaclassPrepare(PyObject *metaclass, PyObject *bases, PyObje
     return ns;
 }
 
-PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict, PyObject *mkw)
-{
+PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *bases, PyObject *dict, PyObject *mkw) {
     PyObject *result;
     PyObject *margs = PyTuple_New(3);
     if (!margs)
@@ -7605,7 +7603,7 @@ PyObject *__Pyx_Py3ClassCreate(PyObject *metaclass, PyObject *name, PyObject *ba
     PyTuple_SET_ITEM(margs, 0, name);
     PyTuple_SET_ITEM(margs, 1, bases);
     PyTuple_SET_ITEM(margs, 2, dict);
-    result = PyEval_CallObjectWithKeywords(metaclass, margs, mkw);
+    result = PyObject_Call(metaclass, margs, mkw);
     Py_DECREF(margs);
     return result;
 }
