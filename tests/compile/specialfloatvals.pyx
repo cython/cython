@@ -7,3 +7,5 @@ cdef int f() except -1:
     x = nan
     y = inf
     z = minf
+
+f()
