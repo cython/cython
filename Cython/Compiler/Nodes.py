@@ -2940,7 +2940,7 @@ class PyClassDefNode(ClassDefNode):
 
     child_attrs = ["body", "dict", "metaclass", "mkw", "bases", "classobj", "target"]
     decorators = None
-    py3_style_class = False # Python3 style class
+    py3_style_class = False # Python3 style class (bases+kwargs)
     
     def __init__(self, pos, name, bases, doc, body, decorators = None,
                  keyword_args = None, starstar_arg = None):
