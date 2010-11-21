@@ -421,6 +421,7 @@ class GlobalState(object):
         'all_the_rest',
         'pystring_table',
         'cached_builtins',
+        'cached_constants',
         'init_globals',
         'init_module',
         'cleanup_globals',
@@ -462,7 +463,12 @@ class GlobalState(object):
             w.enter_cfunc_scope()
             w.putln("static int __Pyx_InitCachedBuiltins(void) {")
 
-        
+        w = self.parts['cached_constants']
+        w.enter_cfunc_scope()
+        w.putln("")
+        w.putln("static int __Pyx_InitCachedConstants(void) {")
+        w.put_setup_refcount_context("__Pyx_InitCachedConstants")
+
         w = self.parts['init_globals']
         w.enter_cfunc_scope()
         w.putln("")
@@ -509,15 +515,27 @@ class GlobalState(object):
         if Options.cache_builtins:
             w = self.parts['cached_builtins']
             w.putln("return 0;")
-            w.put_label(w.error_label)
-            w.putln("return -1;")
+            if w.label_used(w.error_label):
+                w.put_label(w.error_label)
+                w.putln("return -1;")
             w.putln("}")
             w.exit_cfunc_scope()
 
+        w = self.parts['cached_constants']
+        w.put_finish_refcount_context()
+        w.putln("return 0;")
+        if w.label_used(w.error_label):
+            w.put_label(w.error_label)
+            w.put_finish_refcount_context()
+            w.putln("return -1;")
+        w.putln("}")
+        w.exit_cfunc_scope()
+
         w = self.parts['init_globals']
         w.putln("return 0;")
-        w.put_label(w.error_label)
-        w.putln("return -1;")
+        if w.label_used(w.error_label):
+            w.put_label(w.error_label)
+            w.putln("return -1;")
         w.putln("}")
         w.exit_cfunc_scope()
 
@@ -536,6 +554,9 @@ class GlobalState(object):
 
     # constant handling at code generation time
 
+    def get_cached_constants_writer(self):
+        return self.parts['cached_constants']
+
     def get_int_const(self, str_value, longness=False):
         longness = bool(longness)
         try:
@@ -544,9 +565,14 @@ class GlobalState(object):
             c = self.new_int_const(str_value, longness)
         return c
 
-    def get_py_const(self, type):
+    def get_py_const(self, type, prefix='', cleanup_level=None):
         # create a new Python object constant
-        return self.new_py_const(type)
+        const = self.new_py_const(type, prefix)
+        if cleanup_level is not None \
+               and cleanup_level <= Options.generate_cleanup_code:
+            cleanup_writer = self.parts['cleanup_globals']
+            cleanup_writer.put_xdecref_clear(const.cname, type, nanny=False)
+        return const
 
     def get_string_const(self, text):
         # return a C string constant, creating a new one if necessary
@@ -581,8 +607,8 @@ class GlobalState(object):
         self.int_const_index[(value, longness)] = c
         return c
 
-    def new_py_const(self, type):
-        cname = self.new_const_cname()
+    def new_py_const(self, type, prefix=''):
+        cname = self.new_const_cname(prefix)
         c = PyObjectConst(cname, type)
         self.py_constants.append(c)
         return c
@@ -946,6 +972,9 @@ class CCodeWriter(object):
     def get_py_num(self, str_value, longness):
         return self.globalstate.get_int_const(str_value, longness).cname
 
+    def get_py_const(self, type, prefix='', cleanup_level=None):
+        return self.globalstate.get_py_const(type, prefix, cleanup_level).cname
+
     def get_string_const(self, text):
         return self.globalstate.get_string_const(text).cname
 
@@ -960,6 +989,9 @@ class CCodeWriter(object):
 
     def intern_identifier(self, text):
         return self.get_py_string_const(text, identifier=True)
+
+    def get_cached_constants_writer(self):
+        return self.globalstate.get_cached_constants_writer()
 
     # code generation
 
@@ -1247,11 +1279,13 @@ class CCodeWriter(object):
 
     def put_pymethoddef(self, entry, term, allow_skip=True):
         if entry.is_special or entry.name == '__getattribute__':
-            if entry.name not in ['__cinit__', '__dealloc__', '__richcmp__', '__next__', '__getreadbuffer__', '__getwritebuffer__', '__getsegcount__', '__getcharbuffer__', '__getbuffer__', '__releasebuffer__', '__getattr__']:
+            if entry.name not in ['__cinit__', '__dealloc__', '__richcmp__', '__next__', '__getreadbuffer__', '__getwritebuffer__', '__getsegcount__', '__getcharbuffer__', '__getbuffer__', '__releasebuffer__']:
+                if entry.name == '__getattr__' and not self.globalstate.directives['fast_getattr']:
+                    pass
                 # Python's typeobject.c will automatically fill in our slot
                 # in add_operators() (called by PyType_Ready) with a value
                 # that's better than ours.
-                if allow_skip:
+                elif allow_skip:
                     return
         from TypeSlots import method_coexist
         if entry.doc:

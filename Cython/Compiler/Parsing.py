@@ -583,20 +583,7 @@ def p_atom(s):
         expect_ellipsis(s)
         return ExprNodes.EllipsisNode(pos)
     elif sy == 'INT':
-        value = s.systring
-        s.next()
-        unsigned = ""
-        longness = ""
-        while value[-1] in "UuLl":
-            if value[-1] in "Ll":
-                longness += "L"
-            else:
-                unsigned += "U"
-            value = value[:-1]
-        return ExprNodes.IntNode(pos, 
-                                 value = value,
-                                 unsigned = unsigned,
-                                 longness = longness)
+        return p_int_literal(s)
     elif sy == 'FLOAT':
         value = s.systring
         s.next()
@@ -630,6 +617,37 @@ def p_atom(s):
             return p_name(s, name)
     else:
         s.error("Expected an identifier or literal")
+
+def p_int_literal(s):
+    pos = s.position()
+    value = s.systring
+    s.next()
+    unsigned = ""
+    longness = ""
+    while value[-1] in u"UuLl":
+        if value[-1] in u"Ll":
+            longness += "L"
+        else:
+            unsigned += "U"
+        value = value[:-1]
+    # '3L' is ambiguous in Py2 but not in Py3.  '3U' and '3LL' are
+    # illegal in Py2 Python files.  All suffixes are illegal in Py3
+    # Python files.
+    is_c_literal = None
+    if unsigned:
+        is_c_literal = True
+    elif longness:
+        if longness == 'LL' or s.context.language_level >= 3:
+            is_c_literal = True
+    if s.in_python_file:
+        if is_c_literal:
+            error(pos, "illegal integer literal syntax in Python source file")
+        is_c_literal = False
+    return ExprNodes.IntNode(pos,
+                             is_c_literal = is_c_literal,
+                             value = value,
+                             unsigned = unsigned,
+                             longness = longness)
 
 def p_name(s, name):
     pos = s.position()
@@ -1722,7 +1740,7 @@ def p_statement(s, ctx, first_statement = 0):
             s.level = ctx.level
             return p_def_statement(s, decorators)
         elif s.sy == 'class':
-            if ctx.level != 'module':
+            if ctx.level not in ('module', 'function', 'class', 'other'):
                 s.error("class definition not allowed here")
             return p_class_statement(s, decorators)
         elif s.sy == 'include':
@@ -2166,7 +2184,7 @@ def p_c_simple_declarator(s, ctx, empty, is_type, cmethod_flag,
             cname = ctx.namespace + "::" + name
         if name == 'operator' and ctx.visibility == 'extern' and nonempty:
             op = s.sy
-            if [c in '+-*/<=>!%&|([^~,' for c in op]:
+            if [1 for c in op if c in '+-*/<=>!%&|([^~,']:
                 s.next()
                 # Handle diphthong operators.
                 if op == '(':

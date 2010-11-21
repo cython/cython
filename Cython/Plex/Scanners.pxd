@@ -1,5 +1,7 @@
 import cython
 
+from Cython.Plex.Actions cimport Action
+
 cdef class Scanner:
 
     cdef public lexicon
@@ -25,10 +27,11 @@ cdef class Scanner:
     cdef public level
 
     @cython.locals(input_state=long)
-    cpdef next_char(self)
-    cpdef tuple read(self)
+    cdef next_char(self)
+    @cython.locals(action=Action)
+    cdef tuple read(self)
     cdef tuple scan_a_token(self)
-    cpdef tuple position(self)
+    cdef tuple position(self)
 
     @cython.locals(cur_pos=long, cur_line=long, cur_line_start=long,
                    input_state=long, next_pos=long, state=dict,
@@ -36,5 +39,5 @@ cdef class Scanner:
                    trace=bint, discard=long, data=unicode, buffer=unicode)
     cdef run_machine_inlined(self)
     
-    cpdef begin(self, state)
-    cpdef produce(self, value, text = *)
+    cdef begin(self, state)
+    cdef produce(self, value, text = *)

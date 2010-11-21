@@ -64,6 +64,19 @@ def list_comp_unknown_type(l):
     """
     return [x*2 for x in l if x % 2 == 0]
 
+def listcomp_as_condition(sequence):
+    """
+    >>> listcomp_as_condition(['a', 'b', '+'])
+    True
+    >>> listcomp_as_condition('ab+')
+    True
+    >>> listcomp_as_condition('abc')
+    False
+    """
+    if [1 for c in sequence if c in '+-*/<=>!%&|([^~,']:
+        return True
+    return False
+
 def set_comp():
     """
     >>> sorted(set_comp())
@@ -106,3 +119,16 @@ def dict_iter(dict d):
     values = [ value for value in d.values() ]
     items = [ item for item in d.items() ]
     return keys, values, items
+
+def int_literals():
+    """
+    >>> int_literals()
+    long
+    long
+    unsigned long
+    unsigned long
+    """
+    print(cython.typeof(1L))
+    print(cython.typeof(10000000000000L))
+    print(cython.typeof(1UL))
+    print(cython.typeof(10000000000000UL))

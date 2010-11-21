@@ -1768,8 +1768,10 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
 
         if Options.cache_builtins:
             code.putln("/*--- Builtin init code ---*/")
-            code.putln(code.error_goto_if_neg("__Pyx_InitCachedBuiltins()",
-                                              self.pos))
+            code.putln(code.error_goto_if_neg("__Pyx_InitCachedBuiltins()", self.pos))
+
+        code.putln("/*--- Constants init code ---*/")
+        code.putln(code.error_goto_if_neg("__Pyx_InitCachedConstants()", self.pos))
 
         code.putln("/*--- Global init code ---*/")
         self.generate_global_init_code(env, code)

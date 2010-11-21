@@ -244,3 +244,13 @@ def double_deref_and_increment(o, key1, key2):
     v __setitem__ a 11
     """
     o[side_effect(key1)][side_effect(key2)] += 1
+
+def conditional_inplace(value, a, condition, b):
+    """
+    >>> conditional_inplace([1, 2, 3], [100], True, [200])
+    [1, 2, 3, 100]
+    >>> conditional_inplace([1, 2, 3], [100], False, [200])
+    [1, 2, 3, 200]
+    """
+    value += a if condition else b
+    return value

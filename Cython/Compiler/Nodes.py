@@ -592,6 +592,7 @@ class CFuncDeclaratorNode(CDeclaratorNode):
                             "Exception value must be a Python exception or cdef function with no arguments.")
                     exc_val = self.exception_value
                 else:
+                    self.exception_value = self.exception_value.coerce_to(return_type, env)
                     if self.exception_value.analyse_const_expression(env):
                         exc_val = self.exception_value.get_constant_c_result_code()
                         if exc_val is None:
@@ -1176,7 +1177,7 @@ class FuncDefNode(StatNode, BlockNode):
     def create_local_scope(self, env):
         genv = env
         while genv.is_py_class_scope or genv.is_c_class_scope:
-            genv = env.outer_scope
+            genv = genv.outer_scope
         if self.needs_closure:
             lenv = ClosureScope(name=self.entry.name,
                                 outer_scope = genv,
@@ -1254,11 +1255,15 @@ class FuncDefNode(StatNode, BlockNode):
         self.generate_function_header(code,
             with_pymethdef = with_pymethdef)
         # ----- Local variable declarations
+        # Find function scope
+        cenv = env
+        while cenv.is_py_class_scope or cenv.is_c_class_scope:
+            cenv = cenv.outer_scope
         if lenv.is_closure_scope:
             code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname))
             code.putln(";")
-        elif env.is_closure_scope:
-            code.put(env.scope_class.type.declaration_code(Naming.outer_scope_cname))
+        elif cenv.is_closure_scope:
+            code.put(cenv.scope_class.type.declaration_code(Naming.outer_scope_cname))
             code.putln(";")
         self.generate_argument_declarations(lenv, code)
         for entry in lenv.var_entries:
@@ -1309,14 +1314,14 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("}")
             code.put_gotref(Naming.cur_scope_cname)
             # Note that it is unsafe to decref the scope at this point.
-        if env.is_closure_scope:
+        if cenv.is_closure_scope:
             code.putln("%s = (%s)%s;" % (
                             outer_scope_cname,
-                            env.scope_class.type.declaration_code(''),
+                            cenv.scope_class.type.declaration_code(''),
                             Naming.self_cname))
             if self.needs_closure:
                 # inner closures own a reference to their outer parent
-                code.put_incref(outer_scope_cname, env.scope_class.type)
+                code.put_incref(outer_scope_cname, cenv.scope_class.type)
                 code.put_giveref(outer_scope_cname)
         # ----- Trace function call
         if profile:
@@ -2136,7 +2141,7 @@ class DefNode(FuncDefNode):
             entry.doc_cname = \
                 Naming.funcdoc_prefix + prefix + name
             if entry.is_special:
-                if entry.name in TypeSlots.invisible or not entry.doc:
+                if entry.name in TypeSlots.invisible or not entry.doc or (entry.name in '__getattr__' and env.directives['fast_getattr']):
                     entry.wrapperbase_cname = None
                 else:
                     entry.wrapperbase_cname = Naming.wrapperbase_prefix + prefix + name
@@ -2210,18 +2215,21 @@ class DefNode(FuncDefNode):
 
     def synthesize_assignment_node(self, env):
         import ExprNodes
-        if env.is_py_class_scope:
-            rhs = ExprNodes.PyCFunctionNode(self.pos,
-                        pymethdef_cname = self.entry.pymethdef_cname)
-            if not self.is_staticmethod and not self.is_classmethod:
-                rhs.binding = True
+        genv = env
+        while genv.is_py_class_scope or genv.is_c_class_scope:
+            genv = genv.outer_scope
 
-        elif env.is_closure_scope:
+        if genv.is_closure_scope:
             rhs = ExprNodes.InnerFunctionNode(
                 self.pos, pymethdef_cname = self.entry.pymethdef_cname)
         else:
             rhs = ExprNodes.PyCFunctionNode(
                 self.pos, pymethdef_cname = self.entry.pymethdef_cname, binding = env.directives['binding'])
+
+        if env.is_py_class_scope:
+            if not self.is_staticmethod and not self.is_classmethod:
+                rhs.binding = True
+
         self.assmt = SingleAssignmentNode(self.pos,
             lhs = ExprNodes.NameNode(self.pos, name = self.name),
             rhs = rhs)
@@ -2933,12 +2941,13 @@ class PyClassDefNode(ClassDefNode):
     #
     #  The following subnodes are constructed internally:
     #
-    #  dict     DictNode   Class dictionary
+    #  dict     DictNode   Class dictionary or Py3 namespace
     #  classobj ClassNode  Class object
     #  target   NameNode   Variable to assign class object to
 
-    child_attrs = ["body", "dict", "classobj", "target"]
+    child_attrs = ["body", "dict", "metaclass", "mkw", "bases", "classobj", "target"]
     decorators = None
+    py3_style_class = False # Python3 style class (bases+kwargs)
     
     def __init__(self, pos, name, bases, doc, body, decorators = None,
                  keyword_args = None, starstar_arg = None):
@@ -2948,22 +2957,55 @@ class PyClassDefNode(ClassDefNode):
         self.body = body
         self.decorators = decorators
         import ExprNodes
-        self.dict = ExprNodes.DictNode(pos, key_value_pairs = [])
         if self.doc and Options.docstrings:
             doc = embed_position(self.pos, self.doc)
-            # FIXME: correct string node?
             doc_node = ExprNodes.StringNode(pos, value = doc)
         else:
             doc_node = None
-        self.classobj = ExprNodes.ClassNode(pos, name = name,
-            bases = bases, dict = self.dict, doc = doc_node,
-            keyword_args = keyword_args, starstar_arg = starstar_arg)
+        if keyword_args or starstar_arg:
+            self.py3_style_class = True
+            self.bases = bases
+            self.metaclass = None
+            if keyword_args and not starstar_arg:
+                for i, item in list(enumerate(keyword_args.key_value_pairs))[::-1]:
+                    if item.key.value == 'metaclass':
+                        if self.metaclass is not None:
+                            error(item.pos, "keyword argument 'metaclass' passed multiple times")
+                        # special case: we already know the metaclass,
+                        # so we don't need to do the "build kwargs,
+                        # find metaclass" dance at runtime
+                        self.metaclass = item.value
+                        del keyword_args.key_value_pairs[i]
+            if starstar_arg or (keyword_args and keyword_args.key_value_pairs):
+                self.mkw = ExprNodes.KeywordArgsNode(
+                    pos, keyword_args = keyword_args, starstar_arg = starstar_arg)
+            else:
+                self.mkw = ExprNodes.NullNode(pos)
+            if self.metaclass is None:
+                self.metaclass = ExprNodes.PyClassMetaclassNode(
+                    pos, mkw = self.mkw, bases = self.bases)
+            self.dict = ExprNodes.PyClassNamespaceNode(pos, name = name,
+                        doc = doc_node, metaclass = self.metaclass, bases = self.bases,
+                        mkw = self.mkw)
+            self.classobj = ExprNodes.Py3ClassNode(pos, name = name,
+                    bases = self.bases, dict = self.dict, doc = doc_node,
+                    metaclass = self.metaclass, mkw = self.mkw)
+        else:
+            self.dict = ExprNodes.DictNode(pos, key_value_pairs = [])
+            self.metaclass = None
+            self.mkw = None
+            self.bases = None
+            self.classobj = ExprNodes.ClassNode(pos, name = name,
+                    bases = bases, dict = self.dict, doc = doc_node)
         self.target = ExprNodes.NameNode(pos, name = name)
         
     def as_cclass(self):
         """
         Return this node as if it were declared as an extension class
         """
+        if self.py3_style_class:
+            error(self.classobj.pos, "Python3 style class could not be represented as C class")
+            return
         bases = self.classobj.bases.args
         if len(bases) == 0:
             base_class_name = None
@@ -3001,8 +3043,8 @@ class PyClassDefNode(ClassDefNode):
         
     def create_scope(self, env):
         genv = env
-        while env.is_py_class_scope or env.is_c_class_scope:
-            env = env.outer_scope
+        while genv.is_py_class_scope or genv.is_c_class_scope:
+            genv = genv.outer_scope
         cenv = self.scope = PyClassScope(name = self.name, outer_scope = genv)
         return cenv
     
@@ -3014,6 +3056,10 @@ class PyClassDefNode(ClassDefNode):
         self.body.analyse_declarations(cenv)
     
     def analyse_expressions(self, env):
+        if self.py3_style_class:
+            self.bases.analyse_expressions(env)
+            self.metaclass.analyse_expressions(env)
+            self.mkw.analyse_expressions(env)
         self.dict.analyse_expressions(env)
         self.classobj.analyse_expressions(env)
         genv = env.global_scope()
@@ -3027,6 +3073,10 @@ class PyClassDefNode(ClassDefNode):
     def generate_execution_code(self, code):
         code.pyclass_stack.append(self)
         cenv = self.scope
+        if self.py3_style_class:
+            self.bases.generate_evaluation_code(code)
+            self.mkw.generate_evaluation_code(code)
+            self.metaclass.generate_evaluation_code(code)
         self.dict.generate_evaluation_code(code)
         cenv.namespace_cname = cenv.class_obj_cname = self.dict.result()
         self.body.generate_execution_code(code)
@@ -3035,8 +3085,14 @@ class PyClassDefNode(ClassDefNode):
         self.target.generate_assignment_code(self.classobj, code)
         self.dict.generate_disposal_code(code)
         self.dict.free_temps(code)
+        if self.py3_style_class:
+            self.mkw.generate_disposal_code(code)
+            self.mkw.free_temps(code)
+            self.metaclass.generate_disposal_code(code)
+            self.metaclass.free_temps(code)
+            self.bases.generate_disposal_code(code)
+            self.bases.free_temps(code)
         code.pyclass_stack.pop()
-
 
 class CClassDefNode(ClassDefNode):
     #  An extension type definition.
@@ -4034,7 +4090,6 @@ class IfClauseNode(Node):
         self.body.analyse_control_flow(env)
         
     def analyse_declarations(self, env):
-        self.condition.analyse_declarations(env)
         self.body.analyse_declarations(env)
     
     def analyse_expressions(self, env):
@@ -4104,6 +4159,7 @@ class SwitchStatNode(StatNode):
     child_attrs = ['test', 'cases', 'else_clause']
     
     def generate_execution_code(self, code):
+        self.test.generate_evaluation_code(code)
         code.putln("switch (%s) {" % self.test.result())
         for case in self.cases:
             case.generate_execution_code(code)
