@@ -71,6 +71,7 @@ directive_defaults = {
     'autotestdict.cdef': False,
     'autotestdict.all': False,
     'language_level': 2,
+    'fast_getattr': False, # Undocumented until we come up with a better way to handle this everywhere.
     
     'warn': None,
     'warn.undeclared': False,
@@ -101,8 +102,8 @@ directive_scopes = { # defaults to available everywhere
     'autotestdict' : ('module',),
     'autotestdict.all' : ('module',),
     'autotestdict.cdef' : ('module',),
-    'test_assert_path_exists' : ('function',),
-    'test_fail_if_path_exists' : ('function',),
+    'test_assert_path_exists' : ('function', 'class', 'cclass'),
+    'test_fail_if_path_exists' : ('function', 'class', 'cclass'),
 }
 
 def parse_directive_value(name, value, relaxed_bool=False):

@@ -1381,9 +1381,6 @@ class ClassScope(Scope):
         self.class_name = name
         self.doc = None
 
-    def add_string_const(self, value, identifier = False):
-        return self.outer_scope.add_string_const(value, identifier)
-
     def lookup(self, name):
         entry = Scope.lookup(self, name)
         if entry:

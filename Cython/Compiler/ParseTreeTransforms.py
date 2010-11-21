@@ -787,6 +787,13 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         body = StatListNode(node.pos, stats=[node])
         return self.visit_with_directives(body, directives)
 
+    def visit_PyClassDefNode(self, node):
+        directives = self._extract_directives(node, 'class')
+        if not directives:
+            return self.visit_Node(node)
+        body = StatListNode(node.pos, stats=[node])
+        return self.visit_with_directives(body, directives)
+
     def _extract_directives(self, node, scope_name):
         if not node.decorators:
             return {}
@@ -1060,21 +1067,17 @@ property NAME:
         self.seen_vars_stack.pop()
         return node
 
-    def visit_ComprehensionNode(self, node):
-        self.visitchildren(node)
-        node.analyse_declarations(self.env_stack[-1])
-        return node
-
     def visit_ScopedExprNode(self, node):
         node.analyse_declarations(self.env_stack[-1])
-        if self.seen_vars_stack:
+        # the node may or may not have a local scope
+        if node.expr_scope:
             self.seen_vars_stack.append(set(self.seen_vars_stack[-1]))
+            self.env_stack.append(node.expr_scope)
+            self.visitchildren(node)
+            self.env_stack.pop()
+            self.seen_vars_stack.pop()
         else:
-            self.seen_vars_stack.append(set())
-        self.env_stack.append(node.expr_scope)
-        self.visitchildren(node)
-        self.env_stack.pop()
-        self.seen_vars_stack.pop()
+            self.visitchildren(node)
         return node
 
     def visit_TempResultFromStatNode(self, node):
@@ -1187,6 +1190,7 @@ class ExpandInplaceOperators(EnvTransform):
             # There is code to handle this case.
             return node
 
+        env = self.current_env()
         def side_effect_free_reference(node, setting=False):
             if isinstance(node, NameNode):
                 return node, []
@@ -1215,12 +1219,18 @@ class ExpandInplaceOperators(EnvTransform):
                            operand1 = dup,
                            operand2 = rhs,
                            inplace=True)
-        node = SingleAssignmentNode(node.pos, lhs=lhs, rhs=binop)
+        # Manually analyse types for new node.
+        lhs.analyse_target_types(env)
+        dup.analyse_types(env)
+        binop.analyse_operation(env)
+        node = SingleAssignmentNode(
+                            node.pos, 
+                            lhs = lhs,
+                            rhs=binop.coerce_to(lhs.type, env))
         # Use LetRefNode to avoid side effects.
         let_ref_nodes.reverse()
         for t in let_ref_nodes:
             node = LetNode(t, node)
-        node.analyse_expressions(self.current_env())
         return node
 
     def visit_ExprNode(self, node):
@@ -1318,7 +1328,7 @@ class CreateClosureClasses(CythonTransform):
         return node
 
     def create_class_from_scope(self, node, target_module_scope):
-        as_name = "%s%s" % (Naming.closure_class_prefix, node.entry.cname)
+        as_name = '%s_%s' % (target_module_scope.next_id(Naming.closure_class_prefix), node.entry.cname)
         func_scope = node.local_scope
 
         entry = target_module_scope.declare_c_class(name = as_name,
@@ -1327,11 +1337,15 @@ class CreateClosureClasses(CythonTransform):
         class_scope = entry.type.scope
         class_scope.is_internal = True
         class_scope.directives = {'final': True}
-        if node.entry.scope.is_closure_scope:
+
+        cscope = node.entry.scope
+        while cscope.is_py_class_scope or cscope.is_c_class_scope:
+            cscope = cscope.outer_scope
+        if cscope.is_closure_scope:
             class_scope.declare_var(pos=node.pos,
                                     name=Naming.outer_scope_cname, # this could conflict?
                                     cname=Naming.outer_scope_cname,
-                                    type=node.entry.scope.scope_class.type,
+                                    type=cscope.scope_class.type,
                                     is_cdef=True)
         entries = func_scope.entries.items()
         entries.sort()

@@ -10,6 +10,7 @@ import unittest
 import doctest
 import operator
 import tempfile
+import traceback
 try:
     from StringIO import StringIO
 except ImportError:
@@ -19,6 +20,11 @@ try:
     import cPickle as pickle
 except ImportError:
     import pickle
+
+try:
+    import threading
+except ImportError: # No threads, no problems
+    threading = None
 
 
 WITH_CYTHON = True
@@ -313,11 +319,10 @@ class CythonCompileTestCase(unittest.TestCase):
             if is_related(filename) and os.path.isfile(os.path.join(workdir, filename)) ]
 
     def split_source_and_output(self, test_directory, module, workdir):
-        source_file = os.path.join(test_directory, module) + '.pyx'
-        source_and_output = codecs.open(
-            self.find_module_source_file(source_file), 'rU', 'ISO-8859-1')
+        source_file = self.find_module_source_file(os.path.join(test_directory, module) + '.pyx')
+        source_and_output = codecs.open(source_file, 'rU', 'ISO-8859-1')
         try:
-            out = codecs.open(os.path.join(workdir, module + '.pyx'),
+            out = codecs.open(os.path.join(workdir, module + os.path.splitext(source_file)[1]),
                               'w', 'ISO-8859-1')
             for line in source_and_output:
                 last_line = line
@@ -434,9 +439,12 @@ class CythonRunTestCase(CythonCompileTestCase):
         result.startTest(self)
         try:
             self.setUp()
-            self.runCompileTest()
-            if not self.cython_only:
-                self.run_doctests(self.module, result)
+            try:
+                self.runCompileTest()
+                if not self.cython_only:
+                    self.run_doctests(self.module, result)
+            finally:
+                check_thread_termination()
         except Exception:
             result.addError(self, sys.exc_info())
             result.stopTest(self)
@@ -477,7 +485,6 @@ class CythonRunTestCase(CythonCompileTestCase):
                     output = open(result_file, 'wb')
                     pickle.dump(partial_result.data(), output)
                 except:
-                    import traceback
                     traceback.print_exc()
             finally:
                 try: output.close()
@@ -531,6 +538,7 @@ class PureDoctestTestCase(unittest.TestCase):
                 del m
                 if loaded_module_name in sys.modules:
                     del sys.modules[loaded_module_name]
+                check_thread_termination()
         except Exception:
             result.addError(self, sys.exc_info())
             result.stopTest(self)
@@ -602,8 +610,11 @@ class CythonUnitTestCase(CythonCompileTestCase):
         result.startTest(self)
         try:
             self.setUp()
-            self.runCompileTest()
-            unittest.defaultTestLoader.loadTestsFromName(self.module).run(result)
+            try:
+                self.runCompileTest()
+                unittest.defaultTestLoader.loadTestsFromName(self.module).run(result)
+            finally:
+                check_thread_termination()
         except Exception:
             result.addError(self, sys.exc_info())
             result.stopTest(self)
@@ -842,8 +853,38 @@ def refactor_for_py3(distdir, cy3_dir):
                      ''')
     sys.path.insert(0, cy3_dir)
 
+class PendingThreadsError(RuntimeError):
+    pass
 
-if __name__ == '__main__':
+threads_seen = []
+
+def check_thread_termination(ignore_seen=True):
+    if threading is None: # no threading enabled in CPython
+        return
+    current = threading.currentThread()
+    blocking_threads = []
+    for t in threading.enumerate():
+        if not t.isAlive() or t == current:
+            continue
+        t.join(timeout=2)
+        if t.isAlive():
+            if not ignore_seen:
+                blocking_threads.append(t)
+                continue
+            for seen in threads_seen:
+                if t is seen:
+                    break
+            else:
+                threads_seen.append(t)
+                blocking_threads.append(t)
+    if not blocking_threads:
+        return
+    sys.stderr.write("warning: left-over threads found after running test:\n")
+    for t in blocking_threads:
+        sys.stderr.write('...%s\n'  % repr(t))
+    raise PendingThreadsError("left-over threads found after running test")
+
+def main():
     from optparse import OptionParser
     parser = OptionParser()
     parser.add_option("--no-cleanup", dest="cleanup_workdir",
@@ -955,6 +996,7 @@ if __name__ == '__main__':
             coverage.start()
 
     if WITH_CYTHON:
+        global CompilationOptions, pyrex_default_options, cython_compile
         from Cython.Compiler.Main import \
             CompilationOptions, \
             default_options as pyrex_default_options, \
@@ -1097,7 +1139,27 @@ if __name__ == '__main__':
         import refnanny
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
+    print("ALL DONE")
+
     if options.exit_ok:
-        sys.exit(0)
+        return_code = 0
     else:
-        sys.exit(not result.wasSuccessful())
+        return_code = not result.wasSuccessful()
+
+    try:
+        check_thread_termination(ignore_seen=False)
+        sys.exit(return_code)
+    except PendingThreadsError:
+        # normal program exit won't kill the threads, do it the hard way here
+        os._exit(return_code)
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception:
+        traceback.print_exc()
+        try:
+            check_thread_termination(ignore_seen=False)
+        except PendingThreadsError:
+            # normal program exit won't kill the threads, do it the hard way here
+            os._exit(1)
