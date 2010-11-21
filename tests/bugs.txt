@@ -25,6 +25,7 @@ pyregr.test_module
 pyregr.test_capi
 pyregr.test_socket
 pyregr.test_threading
+pyregr.test_sys
 
 # CPython regression tests that don't make sense
 pyregr.test_gdb
