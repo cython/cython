@@ -863,6 +863,9 @@ def check_thread_termination(ignore_seen=True):
             continue
         t.join(timeout=2)
         if t.isAlive():
+            if not ignore_seen:
+                blocking_threads.append(t)
+                continue
             for seen in threads_seen:
                 if t is seen:
                     break
