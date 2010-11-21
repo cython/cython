@@ -20,6 +20,11 @@ try:
 except ImportError:
     import pickle
 
+try:
+    import threading
+except ImportError: # No threads, no problems
+    threading = None
+
 
 WITH_CYTHON = True
 
@@ -433,9 +438,12 @@ class CythonRunTestCase(CythonCompileTestCase):
         result.startTest(self)
         try:
             self.setUp()
-            self.runCompileTest()
-            if not self.cython_only:
-                self.run_doctests(self.module, result)
+            try:
+                self.runCompileTest()
+                if not self.cython_only:
+                    self.run_doctests(self.module, result)
+            finally:
+                check_thread_termination()
         except Exception:
             result.addError(self, sys.exc_info())
             result.stopTest(self)
@@ -530,6 +538,7 @@ class PureDoctestTestCase(unittest.TestCase):
                 del m
                 if loaded_module_name in sys.modules:
                     del sys.modules[loaded_module_name]
+                check_thread_termination()
         except Exception:
             result.addError(self, sys.exc_info())
             result.stopTest(self)
@@ -601,8 +610,11 @@ class CythonUnitTestCase(CythonCompileTestCase):
         result.startTest(self)
         try:
             self.setUp()
-            self.runCompileTest()
-            unittest.defaultTestLoader.loadTestsFromName(self.module).run(result)
+            try:
+                self.runCompileTest()
+                unittest.defaultTestLoader.loadTestsFromName(self.module).run(result)
+            finally:
+                check_thread_termination()
         except Exception:
             result.addError(self, sys.exc_info())
             result.stopTest(self)
@@ -836,6 +848,23 @@ def refactor_for_py3(distdir, cy3_dir):
                      ''')
     sys.path.insert(0, cy3_dir)
 
+def check_thread_termination():
+    if threading is None: # no threading enabled in CPython
+        return
+    current = threading.currentThread()
+    blocking_threads = []
+    for t in threading.enumerate():
+        if not t.isAlive() or t == current:
+            continue
+        t.join(timeout=2)
+        if t.isAlive():
+            blocking_threads.append(t)
+    if not blocking_threads:
+        return
+    sys.stderr.write("warning: left-over threads found after running test:\n")
+    for t in blocking_threads:
+        sys.stderr.write('...%s\n'  % repr(t))
+    raise RuntimeError("left-over threads found after running test")
 
 if __name__ == '__main__':
     from optparse import OptionParser
