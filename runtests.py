@@ -10,6 +10,7 @@ import unittest
 import doctest
 import operator
 import tempfile
+import traceback
 try:
     from StringIO import StringIO
 except ImportError:
@@ -484,7 +485,6 @@ class CythonRunTestCase(CythonCompileTestCase):
                     output = open(result_file, 'wb')
                     pickle.dump(partial_result.data(), output)
                 except:
-                    import traceback
                     traceback.print_exc()
             finally:
                 try: output.close()
@@ -848,7 +848,12 @@ def refactor_for_py3(distdir, cy3_dir):
                      ''')
     sys.path.insert(0, cy3_dir)
 
-def check_thread_termination():
+class PendingThreadsError(RuntimeError):
+    pass
+
+threads_seen = []
+
+def check_thread_termination(ignore_seen=True):
     if threading is None: # no threading enabled in CPython
         return
     current = threading.currentThread()
@@ -858,15 +863,20 @@ def check_thread_termination():
             continue
         t.join(timeout=2)
         if t.isAlive():
-            blocking_threads.append(t)
+            for seen in threads_seen:
+                if t is seen:
+                    break
+            else:
+                threads_seen.append(t)
+                blocking_threads.append(t)
     if not blocking_threads:
         return
     sys.stderr.write("warning: left-over threads found after running test:\n")
     for t in blocking_threads:
         sys.stderr.write('...%s\n'  % repr(t))
-    raise RuntimeError("left-over threads found after running test")
+    raise PendingThreadsError("left-over threads found after running test")
 
-if __name__ == '__main__':
+def main():
     from optparse import OptionParser
     parser = OptionParser()
     parser.add_option("--no-cleanup", dest="cleanup_workdir",
@@ -978,6 +988,7 @@ if __name__ == '__main__':
             coverage.start()
 
     if WITH_CYTHON:
+        global CompilationOptions, pyrex_default_options, cython_compile
         from Cython.Compiler.Main import \
             CompilationOptions, \
             default_options as pyrex_default_options, \
@@ -1121,6 +1132,24 @@ if __name__ == '__main__':
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
     if options.exit_ok:
-        sys.exit(0)
+        return_code = 0
     else:
-        sys.exit(not result.wasSuccessful())
+        return_code = not result.wasSuccessful()
+
+    try:
+        check_thread_termination(ignore_seen=False)
+        sys.exit(return_code)
+    except PendingThreadsError:
+        # normal program exit won't kill the threads, do it the hard way here
+        os._exit(return_code)
+
+if __name__ == '__main__':
+    try:
+        main()
+    except Exception:
+        traceback.print_exc()
+        try:
+            check_thread_termination(ignore_seen=False)
+        except PendingThreadsError:
+            # normal program exit won't kill the threads, do it the hard way here
+            os._exit(1)
