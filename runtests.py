@@ -1131,6 +1131,8 @@ def main():
         import refnanny
         sys.stderr.write("\n".join([repr(x) for x in refnanny.reflog]))
 
+    print("ALL DONE")
+
     if options.exit_ok:
         return_code = 0
     else:
