@@ -1280,6 +1280,53 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             gen_expr_node.pos, loop = loop_node, result_node = result_ref,
             expr_scope = gen_expr_node.expr_scope, orig_func = is_any and 'any' or 'all')
 
+    def _handle_simple_function_sorted(self, node, pos_args):
+        """Transform sorted(genexpr) into [listcomp].sort().  CPython
+        just reads the iterable into a list and calls .sort() on it.
+        Expanding the iterable in a listcomp is still faster.
+        """
+        if len(pos_args) != 1:
+            return node
+        if not isinstance(pos_args[0], ExprNodes.GeneratorExpressionNode):
+            return node
+        gen_expr_node = pos_args[0]
+        loop_node = gen_expr_node.loop
+        yield_expression, yield_stat_node = self._find_single_yield_expression(loop_node)
+        if yield_expression is None:
+            return node
+
+        result_node = UtilNodes.ResultRefNode(
+            pos = loop_node.pos, type = Builtin.list_type, may_hold_none=False)
+
+        target = ExprNodes.ListNode(node.pos, args = [])
+        append_node = ExprNodes.ComprehensionAppendNode(
+            yield_expression.pos, expr = yield_expression,
+            target = ExprNodes.CloneNode(target))
+
+        Visitor.recursively_replace_node(loop_node, yield_stat_node, append_node)
+
+        listcomp_node = ExprNodes.ComprehensionNode(
+            gen_expr_node.pos, loop = loop_node, target = target,
+            append = append_node, type = Builtin.list_type,
+            expr_scope = gen_expr_node.expr_scope,
+            has_local_scope = True)
+        listcomp_assign_node = Nodes.SingleAssignmentNode(
+            node.pos, lhs = result_node, rhs = listcomp_node, first = True)
+
+        sort_method = ExprNodes.AttributeNode(
+            node.pos, obj = result_node, attribute = EncodedString('sort'),
+            # entry ? type ?
+            needs_none_check = False)
+        sort_node = Nodes.ExprStatNode(
+            node.pos, expr = ExprNodes.SimpleCallNode(
+                node.pos, function = sort_method, args = []))
+
+        sort_node.analyse_declarations(self.current_env())
+
+        return UtilNodes.TempResultFromStatNode(
+            result_node,
+            Nodes.StatListNode(node.pos, stats = [ listcomp_assign_node, sort_node ]))
+
     def _handle_simple_function_sum(self, node, pos_args):
         """Transform sum(genexpr) into an equivalent inlined aggregation loop.
         """
