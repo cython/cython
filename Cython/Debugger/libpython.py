@@ -1672,11 +1672,26 @@ class GenericCodeStepper(gdb.Command):
         
         for funcname in break_funcs:
             if funcname not in self.static_breakpoints:
-                self.static_breakpoints[funcname] = self._break_func(funcname)
+                try:
+                    gdb.Breakpoint('', gdb.BP_BREAKPOINT, internal=True)
+                except TypeError:
+                    # gdb.Breakpoint does not take an 'internal' argument
+                    breakpoint = self._break_func(funcname)
+                except RuntimeError:
+                    # gdb.Breakpoint does take an 'internal' argument, use it
+                    # and hide output
+                    result = gdb.execute(
+                        "python bp = gdb.Breakpoint(%r, gdb.BP_BREAKPOINT, internal=True); "
+                               "print bp.number", 
+                        to_string=True)
+                    
+                    breakpoint = int(result)
+
+                self.static_breakpoints[funcname] = breakpoint
         
         for bp in set(self.static_breakpoints) - break_funcs:
             gdb.execute("delete " + self.static_breakpoints[bp])
-
+        
         self.disable_breakpoints()
 
     def enable_breakpoints(self):
