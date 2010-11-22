@@ -1151,6 +1151,8 @@ def main():
 if __name__ == '__main__':
     try:
         main()
+    except SystemExit: # <= Py2.4 ...
+        raise
     except Exception:
         traceback.print_exc()
         try:
