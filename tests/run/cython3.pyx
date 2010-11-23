@@ -17,6 +17,19 @@ def print_function(*args):
     """
     print(*args) # this isn't valid Py2 syntax
 
+def locals_function(a, b=2):
+    """
+    >>> items = list(locals_function(1).items())
+    >>> items.sort()
+    >>> for item in items:
+    ...     print('%s = %r' % item)
+    a = 1
+    b = 2
+    x = 'abc'
+    """
+    x = 'abc'
+    return locals()
+
 def exec3_function(cmd):
     """
     >>> exec3_function('a = 1+1')['a']
