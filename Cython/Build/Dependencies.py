@@ -411,10 +411,15 @@ def create_extension_list(patterns, ctx=None, aliases=None):
             raise TypeError(pattern)
         for file in glob(filepattern):
             pkg = deps.package(file)
-            if name == '*':
-                name = deps.fully_qualifeid_name(file)
-            if name not in seen:
-                module_list.append(exn_type(name=name, sources=[file], **deps.distutils_info(file, aliases, base).values))
+            if '*' in name:
+                module_name = deps.fully_qualifeid_name(file)
+            else:
+                module_name = name
+            if module_name not in seen:
+                module_list.append(exn_type(
+                        name=module_name,
+                        sources=[file],
+                        **deps.distutils_info(file, aliases, base).values))
                 seen.add(name)
     return module_list
 
