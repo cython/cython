@@ -57,6 +57,11 @@ class AutoTestDictTransform(ScopeTrackingTransform):
         value = UnicodeNode(pos, value=doctest)
         self.tests.append(DictItemNode(pos, key=key, value=value))
 
+    def visit_ExprNode(self, node):
+        # expressions cannot contain functions and lambda expressions
+        # do not have a docstring
+        return node
+
     def visit_FuncDefNode(self, node):
         if not node.doc:
             return node
