@@ -10,10 +10,10 @@ all_tests_run() is executed which does final validation.
 >>> items.sort()
 >>> for key, value in items:
 ...     print('%s ; %s' % (key, value))
-MyCdefClass.cpdef_method (line 76) ; >>> add_log("cpdef class method")
-MyCdefClass.method (line 73) ; >>> add_log("cdef class method")
-MyClass.method (line 62) ; >>> add_log("class method")
-mycpdeffunc (line 49) ; >>> add_log("cpdef")
+MyCdefClass.cpdef_method (line 77) ; >>> add_log("cpdef class method")
+MyCdefClass.method (line 74) ; >>> add_log("cdef class method")
+MyClass.method (line 63) ; >>> add_log("class method")
+mycpdeffunc (line 50) ; >>> add_log("cpdef")
 myfunc (line 40) ; >>> add_log("def")
 
 """
@@ -39,6 +39,7 @@ def add_log(s):
 
 def myfunc():
     """>>> add_log("def")"""
+    x = lambda a:1 # no docstring here ...
 
 def doc_without_test():
     """Some docs"""
