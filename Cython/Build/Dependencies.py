@@ -315,7 +315,7 @@ class DependencyTree(object):
     
     def immediate_dependencies(self, filename):
         all = list(self.cimported_files(filename))
-        for extern in self.cimports_and_externs(filename):
+        for extern in sum(self.cimports_and_externs(filename), ()):
             all.append(os.path.normpath(os.path.join(os.path.dirname(filename), extern)))
         return tuple(all)
     
