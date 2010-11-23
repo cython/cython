@@ -1076,8 +1076,8 @@ class StringNode(PyConstNode):
     # A Python str object, i.e. a byte string in Python 2.x and a
     # unicode string in Python 3.x
     #
-    # value          BytesLiteral
-    # unicode_value  EncodedString
+    # value          BytesLiteral (or EncodedString with ASCII content)
+    # unicode_value  EncodedString or None
     # is_identifier  boolean
 
     type = str_type
@@ -1094,12 +1094,13 @@ class StringNode(PyConstNode):
             self.check_for_coercion_error(dst_type, fail=True)
 
         # this will be a unicode string in Py3, so make sure we can decode it
-        if self.value.encoding and self.unicode_value is None:
-            encoding = self.value.encoding
+        if self.value.encoding and isinstance(self.value, StringEncoding.BytesLiteral):
             try:
-                self.value.decode(encoding)
-            except (UnicodeDecodeError, AttributeError):
-                error(self.pos, "String decoding as '%s' failed. Consider using a byte string or unicode string explicitly, or adjust the source code encoding." % encoding)
+                self.value.decode(self.value.encoding)
+            except UnicodeDecodeError:
+                error(self.pos, ("Decoding unprefixed string literal from '%s' failed. Consider using"
+                                 "a byte string or unicode string explicitly, "
+                                 "or adjust the source code encoding.") % self.value.encoding)
 
         return self
 
