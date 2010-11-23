@@ -2979,6 +2979,11 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
             # this is a safe operation
             return ExprNodes.FloatNode(node.pos, value = '-' + node.operand.value,
                                        constant_result = node.constant_result)
+        if isinstance(node.operand, ExprNodes.BoolNode):
+            # not important at all, but simplifies the code below
+            return ExprNodes.IntNode(node.pos, value = str(node.constant_result),
+                                     type = PyrexTypes.c_int_type,
+                                     constant_result = node.constant_result)
         node_type = node.operand.type
         if node_type.is_int and node_type.signed or \
                isinstance(node.operand, ExprNodes.IntNode) and node_type.is_pyobject:
