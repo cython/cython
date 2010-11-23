@@ -120,9 +120,10 @@ class ResultRefNode(AtomicExprNode):
     subexprs = []
     lhs_of_first_assignment = False
 
-    def __init__(self, expression=None, pos=None, type=None):
+    def __init__(self, expression=None, pos=None, type=None, may_hold_none=True):
         self.expression = expression
         self.pos = None
+        self.may_hold_none = may_hold_none
         if expression is not None:
             self.pos = expression.pos
             if hasattr(expression, "type"):
@@ -140,6 +141,11 @@ class ResultRefNode(AtomicExprNode):
     def infer_type(self, env):
         if self.expression is not None:
             return self.expression.infer_type(env)
+
+    def may_be_none(self):
+        if not self.type.is_pyobject:
+            return False
+        return self.may_hold_none
 
     def _DISABLED_may_be_none(self):
         # not sure if this is safe - the expression may not be the
