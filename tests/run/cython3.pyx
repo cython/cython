@@ -10,6 +10,25 @@ except NameError:
         seq.sort()
         return seq
 
+__doc__ = """
+>>> items = list(locals_function(1).items())
+>>> items.sort()
+>>> for item in items:
+...     print('%s = %r' % item)
+a = 1
+b = 2
+x = u'abc'
+"""
+
+import sys
+if sys.version_info[0] >= 3:
+    __doc__ = __doc__.replace(" u'", " '")
+
+def locals_function(a, b=2):
+    x = 'abc'
+    return locals()
+
+
 def print_function(*args):
     """
     >>> print_function(1,2,3)

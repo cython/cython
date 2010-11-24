@@ -1451,9 +1451,10 @@ class TransformBuiltinMethods(EnvTransform):
                     error(self.pos, "Builtin 'locals()' called with wrong number of args, expected 0, got %d" % len(node.args))
                     return node
                 pos = node.pos
-                items = [ExprNodes.DictItemNode(pos, 
-                                                key=ExprNodes.StringNode(pos, value=var),
-                                                value=ExprNodes.NameNode(pos, name=var)) for var in lenv.entries]
+                items = [ ExprNodes.DictItemNode(pos,
+                                                 key=ExprNodes.StringNode(pos, value=var),
+                                                 value=ExprNodes.NameNode(pos, name=var))
+                          for var in lenv.entries ]
                 return ExprNodes.DictNode(pos, key_value_pairs=items)
 
         # cython.foo

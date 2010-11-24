@@ -62,6 +62,8 @@ VER_DEP_MODULES = {
                                           ]),
     (2,4) : (operator.le, lambda x: x in ['run.extern_builtins_T258'
                                           ]),
+    (2,4) : (operator.lt, lambda x: x in ['run.builtin_sorted'
+                                          ]),
     (2,6) : (operator.lt, lambda x: x in ['run.print_function',
                                           'run.cython3',
                                           ]),
@@ -1156,6 +1158,8 @@ def main():
 if __name__ == '__main__':
     try:
         main()
+    except SystemExit: # <= Py2.4 ...
+        raise
     except Exception:
         traceback.print_exc()
         try:
