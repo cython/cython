@@ -17,6 +17,7 @@ function_as_method_T494
 closure_inside_cdef_T554
 ipow_crash_T562
 pure_mode_cmethod_inheritance_T583
+list_comp_in_closure_T598
 
 # CPython regression tests that don't current work:
 pyregr.test_threadsignals
