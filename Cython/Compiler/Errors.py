@@ -201,3 +201,11 @@ def release_errors(ignore=False):
 
 def held_errors():
     return error_stack[-1]
+
+
+# this module needs a redesign to support parallel cythonisation, but
+# for now, the following works at least in sequential compiler runs
+
+def reset():
+    _warn_once_seen.clear()
+    del error_stack[:]
