@@ -510,6 +510,7 @@ class Context(object):
         return ".".join(names)
 
     def setup_errors(self, options, result):
+        Errors.reset() # clear any remaining error state
         if options.use_listing_file:
             result.listing_file = Utils.replace_suffix(source, ".lis")
             path = result.listing_file
