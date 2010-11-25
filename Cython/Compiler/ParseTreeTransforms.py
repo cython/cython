@@ -286,7 +286,7 @@ class PostParse(ScopeTrackingTransform):
             duplicates_and_temps = [ (temp.expression, temp)
                                      for temp in temp_refs ]
             sort_common_subsequences(duplicates_and_temps)
-            for _, temp_ref in duplicates_and_temps[::-1]:
+            for _, temp_ref in duplicates_and_temps:
                 assign_node = LetNode(temp_ref, assign_node)
 
         return assign_node
