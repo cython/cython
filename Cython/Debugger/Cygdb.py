@@ -42,7 +42,9 @@ def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
     f.write('python from Cython.Debugger import libcython\n')
     
     if no_import:
-        f.write("file %s\n" % sys.executable)
+        # don't do this, this overrides file command in .gdbinit
+        # f.write("file %s\n" % sys.executable)
+        pass
     else:
         path = os.path.join(path_to_debug_info, "cython_debug", "interpreter")
         interpreter = open(path).read()
