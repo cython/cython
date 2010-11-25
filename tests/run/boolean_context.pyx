@@ -5,4 +5,13 @@ def test():
     True
     """
     cdef int x = 5
-    print bool(x)
+    return bool(x)
+
+def test_bool_and_int():
+    """
+    >>> test_bool_and_int()
+    1
+    """
+    cdef int x = 5
+    cdef int b = bool(x)
+    return b

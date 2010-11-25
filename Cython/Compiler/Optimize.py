@@ -1860,8 +1860,12 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
             self._error_wrong_arg_count('bool', node, pos_args, '0 or 1')
             return node
         else:
-            return pos_args[0].coerce_to_boolean(
-                self.current_env()).coerce_to_pyobject(self.current_env())
+            # => !!<bint>(x)  to make sure it's exactly 0 or 1
+            operand = pos_args[0].coerce_to_boolean(self.current_env())
+            operand = ExprNodes.NotNode(node.pos, operand = operand)
+            operand = ExprNodes.NotNode(node.pos, operand = operand)
+            # coerce back to Python object as that's the result we are expecting
+            return operand.coerce_to_pyobject(self.current_env())
 
     ### builtin functions
 
