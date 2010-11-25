@@ -184,3 +184,31 @@ def more_inner_funcs(x):
         # called with (2,4,8)
         return f(a_f), g(b_g), h(b_h)
     return resolve
+
+def deep_inner():
+    """
+    >>> deep_inner()()
+    2
+    """
+    cdef int x = 1
+    def f():
+        def g():
+            def h():
+                return x+1
+            return h
+        return g()
+    return f()
+
+def deep_inner_sibling():
+    """
+    >>> deep_inner_sibling()()
+    2
+    """
+    cdef int x = 1
+    def f():
+        def g():
+            return x+1
+        def h():
+            return g()
+        return h
+    return f()
