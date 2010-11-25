@@ -1317,16 +1317,58 @@ class MarkClosureVisitor(CythonTransform):
 
 class CreateClosureClasses(CythonTransform):
     # Output closure classes in module scope for all functions
-    # that need it. 
-    
+    # that really need it.
+
+    def __init__(self, context):
+        super(CreateClosureClasses, self).__init__(context)
+        self.path = []
+        self.in_lambda = False
+
     def visit_ModuleNode(self, node):
         self.module_scope = node.scope
         self.visitchildren(node)
         return node
 
-    def create_class_from_scope(self, node, target_module_scope):
-        as_name = '%s_%s' % (target_module_scope.next_id(Naming.closure_class_prefix), node.entry.cname)
+    def get_scope_use(self, node):
+        from_closure = []
+        in_closure = []
+        for name, entry in node.local_scope.entries.items():
+            if entry.from_closure:
+                from_closure.append((name, entry))
+            elif entry.in_closure and not entry.from_closure:
+                in_closure.append((name, entry))
+        return from_closure, in_closure
+
+    def create_class_from_scope(self, node, target_module_scope, inner_node=None):
+        from_closure, in_closure = self.get_scope_use(node)
+        in_closure.sort()
+
+        # Now from the begining
+        node.needs_closure = False
+        node.needs_outer_scope = False
+
         func_scope = node.local_scope
+        cscope = node.entry.scope
+        while cscope.is_py_class_scope or cscope.is_c_class_scope:
+            cscope = cscope.outer_scope
+
+        if not from_closure and self.path:
+            if not inner_node:
+                if not node.assmt:
+                    raise InternalError, "DefNode does not have assignment node"
+                inner_node = node.assmt.rhs
+            inner_node.needs_self_code = False
+            node.needs_outer_scope = False
+        # Simple cases
+        if not in_closure and not from_closure:
+            return
+        elif not in_closure:
+            func_scope.is_passthrough = True
+            func_scope.scope_class = cscope.scope_class
+            node.needs_outer_scope = True
+            return
+
+        as_name = '%s_%s' % (target_module_scope.next_id(Naming.closure_class_prefix), node.entry.cname)
 
         entry = target_module_scope.declare_c_class(name = as_name,
             pos = node.pos, defining = True, implementing = True)
@@ -1335,34 +1377,41 @@ class CreateClosureClasses(CythonTransform):
         class_scope.is_internal = True
         class_scope.directives = {'final': True}
 
-        cscope = node.entry.scope
-        while cscope.is_py_class_scope or cscope.is_c_class_scope:
-            cscope = cscope.outer_scope
-        if cscope.is_closure_scope:
+        if from_closure:
+            assert cscope.is_closure_scope
             class_scope.declare_var(pos=node.pos,
-                                    name=Naming.outer_scope_cname, # this could conflict?
+                                    name=Naming.outer_scope_cname,
                                     cname=Naming.outer_scope_cname,
                                     type=cscope.scope_class.type,
                                     is_cdef=True)
-        entries = func_scope.entries.items()
-        entries.sort()
-        for name, entry in entries:
-            # This is wasteful--we should do this later when we know
-            # which vars are actually being used inside...
-            #
-            # Also, this happens before type inference and type
-            # analysis, so the entries created here may end up having
-            # incorrect or at least unspecified types.
+            node.needs_outer_scope = True
+        for name, entry in in_closure:
             class_scope.declare_var(pos=entry.pos,
                                     name=entry.name,
                                     cname=entry.cname,
                                     type=entry.type,
                                     is_cdef=True)
-            
+        node.needs_closure = True
+        # Do it here because other classes are already checked
+        target_module_scope.check_c_class(func_scope.scope_class)
+
+    def visit_LambdaNode(self, node):
+        was_in_lambda = self.in_lambda
+        self.in_lambda = True
+        self.create_class_from_scope(node.def_node, self.module_scope, node)
+        self.visitchildren(node)
+        self.in_lambda = was_in_lambda
+        return node
+
     def visit_FuncDefNode(self, node):
-        if node.needs_closure:
-            self.create_class_from_scope(node, self.module_scope)
+        if self.in_lambda:
             self.visitchildren(node)
+            return node
+        if node.needs_closure or self.path:
+            self.create_class_from_scope(node, self.module_scope)
+            self.path.append(node)
+            self.visitchildren(node)
+            self.path.pop()
         return node
 
 

@@ -4838,10 +4838,14 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 class InnerFunctionNode(PyCFunctionNode):
     # Special PyCFunctionNode that depends on a closure class
     #
+
     binding = True
-    
+    needs_self_code = True
+
     def self_result_code(self):
-        return "((PyObject*)%s)" % Naming.cur_scope_cname
+        if self.needs_self_code:
+            return "((PyObject*)%s)" % (Naming.cur_scope_cname)
+        return "NULL"
 
 class LambdaNode(InnerFunctionNode):
     # Lambda expression node (only used as a function reference)
@@ -4859,7 +4863,6 @@ class LambdaNode(InnerFunctionNode):
     name = StringEncoding.EncodedString('<lambda>')
 
     def analyse_declarations(self, env):
-        #self.def_node.needs_closure = self.needs_closure
         self.def_node.analyse_declarations(env)
         self.pymethdef_cname = self.def_node.entry.pymethdef_cname
         env.add_lambda_def(self.def_node)
