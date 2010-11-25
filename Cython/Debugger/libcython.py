@@ -1152,9 +1152,9 @@ class CyExec(CythonCommand, libpython.PyExec):
                 
                 pystringp = executor.alloc_pystring(name)
                 code = '''
-                    PyDict_SetItem(
-                        (PyObject *) %d, 
-                        (PyObject *) %d, 
+                    (PyObject *) PyDict_SetItem(
+                        (PyObject *) %d,
+                        (PyObject *) %d,
                         (PyObject *) %s)
                 ''' % (local_dict_pointer, pystringp, cyvar.cname)
 
