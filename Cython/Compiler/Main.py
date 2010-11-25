@@ -134,7 +134,6 @@ class Context(object):
             WithTransform(self),
             DecoratorTransform(self),
             AnalyseDeclarationsTransform(self),
-            CreateClosureClasses(self),
             AutoTestDictTransform(self),
             EmbedSignature(self),
             EarlyReplaceBuiltinCalls(self),  ## Necessary?
@@ -144,6 +143,7 @@ class Context(object):
             IntroduceBufferAuxiliaryVars(self),
             _check_c_declarations,
             AnalyseExpressionsTransform(self),
+            CreateClosureClasses(self),  ## After all lookups and type inference
             ExpandInplaceOperators(self),
             OptimizeBuiltinCalls(self),  ## Necessary?
             IterationTransform(),

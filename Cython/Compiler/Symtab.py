@@ -211,7 +211,8 @@ class Scope(object):
     # return_type       PyrexType or None  Return type of function owning scope
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
-    # is_closure_scope  boolean
+    # is_closure_scope  boolean            Is a closure scope
+    # is_passthrough    boolean            Outer scope is passed directly
     # is_cpp_class_scope  boolean          Is a C++ class scope
     # is_property_scope boolean            Is a extension type property scope
     # scope_prefix      string             Disambiguator for C names
@@ -228,6 +229,7 @@ class Scope(object):
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_closure_scope = 0
+    is_passthrough = 0
     is_cpp_class_scope = 0
     is_property_scope = 0
     is_module_scope = 0
@@ -1121,7 +1123,30 @@ class ModuleScope(Scope):
             # Check defined
             if not entry.type.scope:
                 error(entry.pos, "C class '%s' is declared but not defined" % entry.name)
-                
+
+    def check_c_class(self, entry):
+        type = entry.type
+        name = entry.name
+        visibility = entry.visibility
+        # Check defined
+        if not type.scope:
+            error(entry.pos, "C class '%s' is declared but not defined" % name)
+        # Generate typeobj_cname
+        if visibility != 'extern' and not type.typeobj_cname:
+            type.typeobj_cname = self.mangle(Naming.typeobj_prefix, name)
+        ## Generate typeptr_cname
+        #type.typeptr_cname = self.mangle(Naming.typeptr_prefix, name)
+        # Check C methods defined
+        if type.scope:
+            for method_entry in type.scope.cfunc_entries:
+                if not method_entry.is_inherited and not method_entry.func_cname:
+                    error(method_entry.pos, "C method '%s' is declared but not defined" %
+                        method_entry.name)
+        # Allocate vtable name if necessary
+        if type.vtabslot_cname:
+            #print "ModuleScope.check_c_classes: allocating vtable cname for", self ###
+            type.vtable_cname = self.mangle(Naming.vtable_prefix, entry.name)
+
     def check_c_classes(self):
         # Performs post-analysis checking and finishing up of extension types
         # being implemented in this module. This is called only for the main
@@ -1144,28 +1169,8 @@ class ModuleScope(Scope):
                 print("...entry %s %s" % (entry.name, entry))
                 print("......type = ",  entry.type)
                 print("......visibility = ", entry.visibility)
-            type = entry.type
-            name = entry.name
-            visibility = entry.visibility
-            # Check defined
-            if not type.scope:
-                error(entry.pos, "C class '%s' is declared but not defined" % name)
-            # Generate typeobj_cname
-            if visibility != 'extern' and not type.typeobj_cname:
-                type.typeobj_cname = self.mangle(Naming.typeobj_prefix, name)
-            ## Generate typeptr_cname
-            #type.typeptr_cname = self.mangle(Naming.typeptr_prefix, name)
-            # Check C methods defined
-            if type.scope:
-                for method_entry in type.scope.cfunc_entries:
-                    if not method_entry.is_inherited and not method_entry.func_cname:
-                        error(method_entry.pos, "C method '%s' is declared but not defined" %
-                            method_entry.name)
-            # Allocate vtable name if necessary
-            if type.vtabslot_cname:
-                #print "ModuleScope.check_c_classes: allocating vtable cname for", self ###
-                type.vtable_cname = self.mangle(Naming.vtable_prefix, entry.name)
-                
+            self.check_c_class(entry)
+
     def check_c_functions(self):
         # Performs post-analysis checking making sure all 
         # defined c functions are actually implemented.
@@ -1253,6 +1258,8 @@ class LocalScope(Scope):
         entry = Scope.lookup(self, name)
         if entry is not None:
             if entry.scope is not self and entry.scope.is_closure_scope:
+                if hasattr(entry.scope, "scope_class"):
+                    raise InternalError, "lookup() after scope class created."
                 # The actual c fragment for the different scopes differs 
                 # on the outside and inside, so we make a new entry
                 entry.in_closure = True
@@ -1270,13 +1277,15 @@ class LocalScope(Scope):
         for entry in self.entries.values():
             if entry.from_closure:
                 cname = entry.outer_entry.cname
-                if cname.startswith(Naming.cur_scope_cname):
-                    cname = cname[len(Naming.cur_scope_cname)+2:]
-                entry.cname = "%s->%s" % (outer_scope_cname, cname)
+                if self.is_passthrough:
+                    entry.cname = cname
+                else:
+                    if cname.startswith(Naming.cur_scope_cname):
+                        cname = cname[len(Naming.cur_scope_cname)+2:]
+                    entry.cname = "%s->%s" % (outer_scope_cname, cname)
             elif entry.in_closure:
                 entry.original_cname = entry.cname
                 entry.cname = "%s->%s" % (Naming.cur_scope_cname, entry.cname)
-
 
 class GeneratorExpressionScope(LocalScope):
     """Scope for generator expressions and comprehensions.  As opposed

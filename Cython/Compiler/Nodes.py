@@ -1146,11 +1146,13 @@ class FuncDefNode(StatNode, BlockNode):
     #  #filename        string        C name of filename string const
     #  entry           Symtab.Entry
     #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
+    #  needs_outer_scope boolean      Whether or not this function requires outer scope
     #  directive_locals { string : NameNode } locals defined by cython.locals(...)
     
     py_func = None
     assmt = None
     needs_closure = False
+    needs_outer_scope = False
     modifiers = []
     
     def analyse_default_values(self, env):
@@ -1198,7 +1200,7 @@ class FuncDefNode(StatNode, BlockNode):
         import Buffer
 
         lenv = self.local_scope
-        if lenv.is_closure_scope:
+        if lenv.is_closure_scope and not lenv.is_passthrough:
             outer_scope_cname = "%s->%s" % (Naming.cur_scope_cname,
                                             Naming.outer_scope_cname)
         else:
@@ -1259,10 +1261,13 @@ class FuncDefNode(StatNode, BlockNode):
         cenv = env
         while cenv.is_py_class_scope or cenv.is_c_class_scope:
             cenv = cenv.outer_scope
-        if lenv.is_closure_scope:
+        if self.needs_closure:
             code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname))
             code.putln(";")
-        elif cenv.is_closure_scope:
+        elif self.needs_outer_scope:
+            if lenv.is_passthrough:
+                code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname))
+                code.putln(";")
             code.put(cenv.scope_class.type.declaration_code(Naming.outer_scope_cname))
             code.putln(";")
         self.generate_argument_declarations(lenv, code)
@@ -1314,12 +1319,14 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("}")
             code.put_gotref(Naming.cur_scope_cname)
             # Note that it is unsafe to decref the scope at this point.
-        if cenv.is_closure_scope:
+        if self.needs_outer_scope:
             code.putln("%s = (%s)%s;" % (
                             outer_scope_cname,
                             cenv.scope_class.type.declaration_code(''),
                             Naming.self_cname))
-            if self.needs_closure:
+            if lenv.is_passthrough:
+                code.putln("%s = %s;" % (Naming.cur_scope_cname, outer_scope_cname));
+            elif self.needs_closure:
                 # inner closures own a reference to their outer parent
                 code.put_incref(outer_scope_cname, cenv.scope_class.type)
                 code.put_giveref(outer_scope_cname)
