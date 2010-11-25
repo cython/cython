@@ -1287,19 +1287,19 @@ class LocalScope(Scope):
                 entry.original_cname = entry.cname
                 entry.cname = "%s->%s" % (Naming.cur_scope_cname, entry.cname)
 
-class GeneratorExpressionScope(LocalScope):
+class GeneratorExpressionScope(Scope):
     """Scope for generator expressions and comprehensions.  As opposed
     to generators, these can be easily inlined in some cases, so all
     we really need is a scope that holds the loop variable(s).
     """
     def __init__(self, outer_scope):
         name = outer_scope.global_scope().next_id(Naming.genexpr_id_ref)
-        LocalScope.__init__(self, name, outer_scope)
+        Scope.__init__(self, name, outer_scope, outer_scope)
         self.directives = outer_scope.directives
         self.genexp_prefix = "%s%d%s" % (Naming.pyrex_prefix, len(name), name)
 
     def mangle(self, prefix, name):
-        return '%s%s' % (self.genexp_prefix, self.outer_scope.mangle(self, prefix, name))
+        return '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(self, prefix, name))
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private', is_cdef = True):
@@ -1308,10 +1308,10 @@ class GeneratorExpressionScope(LocalScope):
             outer_entry = self.outer_scope.lookup(name)
             if outer_entry and outer_entry.is_variable:
                 type = outer_entry.type # may still be 'unspecified_type' !
-        # the outer scope needs to generate code for the variable, but
+        # the parent scope needs to generate code for the variable, but
         # this scope must hold its name exclusively
-        cname = '%s%s' % (self.genexp_prefix, self.outer_scope.mangle(Naming.var_prefix, name))
-        entry = self.outer_scope.declare_var(None, type, pos, cname, visibility, is_cdef = True)
+        cname = '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(Naming.var_prefix, name))
+        entry = self.parent_scope.declare_var(None, type, pos, cname, visibility, is_cdef = True)
         self.entries[name] = entry
         return entry
 
