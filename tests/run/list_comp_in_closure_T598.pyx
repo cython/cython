@@ -37,5 +37,5 @@ def genexpr_scope_in_closure():
         return i, x
     result = list( x*i for x in range(5) if x % 2 == 0 )
     assert x == 'abc' # don't leak in Py3 code
-    assert f() == 2,'abc' # don't leak in Py3 code
+    assert f() == (2,'abc') # don't leak in Py3 code
     return result
