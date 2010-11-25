@@ -5651,7 +5651,12 @@ class NumBinopNode(BinopNode):
     
     def compute_c_result_type(self, type1, type2):
         if self.c_types_okay(type1, type2):
-            return PyrexTypes.widest_numeric_type(type1, type2)
+            widest_type = PyrexTypes.widest_numeric_type(type1, type2)
+            if widest_type is PyrexTypes.c_bint_type:
+                if self.operator not in '|^&':
+                    # False + False == 0 # not False!
+                    widest_type = PyrexTypes.c_int_type
+            return widest_type
         else:
             return None
 
