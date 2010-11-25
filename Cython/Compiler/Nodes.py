@@ -241,7 +241,7 @@ class Node(object):
         if encountered is None:
             encountered = set()
         if id(self) in encountered:
-            return "<%s (%d) -- already output>" % (self.__class__.__name__, id(self))
+            return "<%s (0x%x) -- already output>" % (self.__class__.__name__, id(self))
         encountered.add(id(self))
         
         def dump_child(x, level):
