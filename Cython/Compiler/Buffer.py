@@ -7,6 +7,8 @@ from Errors import CompileError
 from Code import UtilityCode
 import Interpreter
 import PyrexTypes
+import Naming
+import Symtab
 
 try:
     set
