@@ -1,3 +1,9 @@
+
+import cython
+from cython import set
+cython.declare(copy=object, ModuleNode=object, TreeFragment=object, TemplateTransform=object,
+               EncodedString=object, error=object, PyrexTypes=object, Naming=object)
+
 from Cython.Compiler.Visitor import VisitorTransform, TreeVisitor
 from Cython.Compiler.Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
 from Cython.Compiler.ModuleNode import ModuleNode
@@ -7,10 +13,8 @@ from Cython.Compiler.UtilNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment, TemplateTransform
 from Cython.Compiler.StringEncoding import EncodedString
 from Cython.Compiler.Errors import error, CompileError
-try:
-    set
-except NameError:
-    from sets import Set as set
+from Cython.Compiler import PyrexTypes, Naming
+
 import copy
 
 
@@ -572,12 +576,12 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
     
     special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof',
                            'cast', 'pointer', 'compiled', 'NULL']
-                          + unop_method_nodes.keys())
+                          + list(unop_method_nodes.keys()))
 
     def __init__(self, context, compilation_directive_defaults):
         super(InterpretCompilerDirectives, self).__init__(context)
         self.compilation_directive_defaults = {}
-        for key, value in compilation_directive_defaults.iteritems():
+        for key, value in compilation_directive_defaults.items():
             self.compilation_directive_defaults[unicode(key)] = value
         self.cython_module_names = set()
         self.directive_names = {}
@@ -593,7 +597,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         
     # Set up processing and handle the cython: comments.
     def visit_ModuleNode(self, node):
-        for key, value in node.directive_comments.iteritems():
+        for key, value in node.directive_comments.items():
             if not self.check_directive_scope(node.pos, key, 'module'):
                 self.wrong_scope_error(node.pos, key, 'module')
                 del node.directive_comments[key]

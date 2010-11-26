@@ -3,15 +3,17 @@
 #   Pyrex - Parse tree nodes
 #
 
+import cython
+from cython import set
+cython.declare(sys=object, os=object, time=object, copy=object,
+               Builtin=object, error=object, warning=object, Naming=object, PyrexTypes=object,
+               py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object, \
+               StructOrUnionScope=object, PyClassScope=object, CClassScope=object,
+               CppClassScope=object, UtilityCode=object, EncodedString=object,
+               absolute_path_length=cython.Py_ssize_t)
+
 import sys, os, time, copy
 
-try:
-    set
-except NameError:
-    # Python 2.3
-    from sets import Set as set
-
-import Code
 import Builtin
 from Errors import error, warning, InternalError
 import Naming
@@ -253,7 +255,7 @@ class Node(object):
                 return repr(x)
             
         
-        attrs = [(key, value) for key, value in self.__dict__.iteritems() if key not in filter_out]
+        attrs = [(key, value) for key, value in self.__dict__.items() if key not in filter_out]
         if len(attrs) == 0:
             return "<%s (0x%x)>" % (self.__class__.__name__, id(self))
         else:
@@ -858,7 +860,7 @@ class TemplatedTypeNode(CBaseTypeNode):
             if sys.version_info[0] < 3:
                 # Py 2.x enforces byte strings as keyword arguments ...
                 options = dict([ (name.encode('ASCII'), value)
-                                 for name, value in options.iteritems() ])
+                                 for name, value in options.items() ])
 
             self.type = PyrexTypes.BufferType(base_type, **options)
         

@@ -36,6 +36,11 @@ from Cython.Debugging import print_call_chain
 from DebugFlags import debug_disposal_code, debug_temp_alloc, \
     debug_coercion
 
+try:
+    from __builtin__ import basestring
+except ImportError:
+    basestring = str # Python 3
+
 class NotConstant(object):
     def __repr__(self):
         return "<NOT CONSTANT>"
@@ -2986,7 +2991,7 @@ class SimpleCallNode(CallNode):
             return "<error>"
         formal_args = func_type.args
         arg_list_code = []
-        args = zip(formal_args, self.args)
+        args = list(zip(formal_args, self.args))
         max_nargs = len(func_type.args)
         expected_nargs = max_nargs - func_type.optional_arg_count
         actual_nargs = len(self.args)
@@ -3031,7 +3036,7 @@ class SimpleCallNode(CallNode):
                         self.opt_arg_struct,
                         Naming.pyrex_prefix + "n",
                         len(self.args) - expected_nargs))
-                args = zip(func_type.args, self.args)
+                args = list(zip(func_type.args, self.args))
                 for formal_arg, actual_arg in args[expected_nargs:actual_nargs]:
                     code.putln("%s.%s = %s;" % (
                             self.opt_arg_struct,
