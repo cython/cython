@@ -2,9 +2,19 @@
 #   Pyrex - Parse tree nodes for expressions
 #
 
+import cython
+from cython import set
+cython.declare(error=object, warning=object, warn_once=object, InternalError=object,
+               CompileError=object, UtilityCode=object, StringEncoding=object, operator=object,
+               Naming=object, Nodes=object, PyrexTypes=object, py_object_type=object,
+               list_type=object, tuple_type=object, set_type=object, dict_type=object, \
+               unicode_type=object, str_type=object, bytes_type=object, type_type=object,
+               Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
+               debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object)
+
 import operator
 
-from Errors import error, warning, warn_once, InternalError
+from Errors import error, warning, warn_once, InternalError, CompileError
 from Errors import hold_errors, release_errors, held_errors, report_error
 from Code import UtilityCode
 import StringEncoding
@@ -21,16 +31,10 @@ import Symtab
 import Options
 from Cython import Utils
 from Annotate import AnnotationItem
-from Cython import Utils
 
 from Cython.Debugging import print_call_chain
 from DebugFlags import debug_disposal_code, debug_temp_alloc, \
     debug_coercion
-
-try:
-    set
-except NameError:
-    from sets import Set as set
 
 class NotConstant(object):
     def __repr__(self):
@@ -202,8 +206,9 @@ class ExprNode(Node):
         _get_child_attrs = operator.attrgetter('subexprs')
     except AttributeError:
         # Python 2.3
-        def _get_child_attrs(self):
+        def __get_child_attrs(self):
             return self.subexprs
+        _get_child_attrs = __get_child_attrs
     child_attrs = property(fget=_get_child_attrs)
         
     def not_implemented(self, method_name):
@@ -3153,7 +3158,7 @@ class GeneralCallNode(CallNode):
             
     def explicit_args_kwds(self):
         if self.starstar_arg or not isinstance(self.positional_args, TupleNode):
-            raise PostParseError(self.pos,
+            raise CompileError(self.pos,
                 'Compile-time keyword arguments must be explicit.')
         return self.positional_args.args, self.keyword_args
 
