@@ -949,7 +949,7 @@ class CVarDefNode(StatNode):
                     entry.directive_locals = self.directive_locals
             else:
                 if self.directive_locals:
-                    s.error("Decorators can only be followed by functions")
+                    error(self.pos, "Decorators can only be followed by functions")
                 if self.in_pxd and self.visibility != 'extern':
                     error(self.pos, 
                         "Only 'extern' C variable declaration allowed in .pxd file")
@@ -3215,7 +3215,7 @@ class CClassDefNode(ClassDefNode):
             api = self.api,
             buffer_defaults = buffer_defaults)
         if home_scope is not env and self.visibility == 'extern':
-            env.add_imported_entry(self.class_name, self.entry, pos)
+            env.add_imported_entry(self.class_name, self.entry, self.pos)
         self.scope = scope = self.entry.type.scope
         if scope is not None:
             scope.directives = env.directives
@@ -3383,7 +3383,7 @@ class SingleAssignmentNode(AssignmentNode):
                 
                 if func_name in ['declare', 'typedef']:
                     if len(args) > 2 or kwds is not None:
-                        error(rhs.pos, "Can only declare one type at a time.")
+                        error(self.rhs.pos, "Can only declare one type at a time.")
                         return
                     type = args[0].analyse_as_type(env)
                     if type is None:
@@ -3414,7 +3414,7 @@ class SingleAssignmentNode(AssignmentNode):
                 elif func_name in ['struct', 'union']:
                     self.declaration_only = True
                     if len(args) > 0 or kwds is None:
-                        error(rhs.pos, "Struct or union members must be given by name.")
+                        error(self.rhs.pos, "Struct or union members must be given by name.")
                         return
                     members = []
                     for member, type_node in kwds.key_value_pairs:
