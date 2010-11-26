@@ -2,7 +2,7 @@
 import cython
 from cython import set
 cython.declare(copy=object, ModuleNode=object, TreeFragment=object, TemplateTransform=object,
-               EncodedString=object, error=object, PyrexTypes=object, Naming=object)
+               EncodedString=object, error=object, warning=object, PyrexTypes=object, Naming=object)
 
 from Cython.Compiler.Visitor import VisitorTransform, TreeVisitor
 from Cython.Compiler.Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
@@ -12,7 +12,7 @@ from Cython.Compiler.ExprNodes import *
 from Cython.Compiler.UtilNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment, TemplateTransform
 from Cython.Compiler.StringEncoding import EncodedString
-from Cython.Compiler.Errors import error, CompileError
+from Cython.Compiler.Errors import error, warning, CompileError
 from Cython.Compiler import PyrexTypes, Naming
 
 import copy
