@@ -1390,7 +1390,7 @@ class EarlyReplaceBuiltinCalls(Visitor.EnvTransform):
             # leave this to Python
             return node
 
-        cascaded_nodes = map(UtilNodes.ResultRefNode, args[1:])
+        cascaded_nodes = list(map(UtilNodes.ResultRefNode, args[1:]))
 
         last_result = args[0]
         for arg_node in cascaded_nodes:
