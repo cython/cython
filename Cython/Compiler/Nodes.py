@@ -4000,7 +4000,7 @@ class AssertStatNode(StatNode):
     gil_message = "Raising exception"
     
     def generate_execution_code(self, code):
-        code.putln("#ifndef PYREX_WITHOUT_ASSERTIONS")
+        code.putln("#ifndef CYTHON_WITHOUT_ASSERTIONS")
         self.cond.generate_evaluation_code(code)
         code.putln(
             "if (unlikely(!%s)) {" %
