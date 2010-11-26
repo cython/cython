@@ -241,8 +241,10 @@ class PostParse(ScopeTrackingTransform):
 
     # Split parallel assignments (a,b = b,a) into separate partial
     # assignments that are executed rhs-first using temps.  This
-    # optimisation is best applied before type analysis so that known
-    # types on rhs and lhs can be matched directly.
+    # restructuring must be applied before type analysis so that known
+    # types on rhs and lhs can be matched directly.  It is required in
+    # the case that the types cannot be coerced to a Python type in
+    # order to assign from a tuple.
 
     def visit_SingleAssignmentNode(self, node):
         self.visitchildren(node)
@@ -339,10 +341,15 @@ def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
 
 def sort_common_subsequences(items):
     """Sort items/subsequences so that all items and subsequences that
-    an item contains appear before the item itself.  This implies a
-    partial order, and the sort must be stable to preserve the
-    original order as much as possible, so we use a simple insertion
-    sort.
+    an item contains appear before the item itself.  This is needed
+    because each rhs item must only be evaluated once, so its value
+    must be evaluated first and then reused when packing sequences
+    that contain it.
+
+    This implies a partial order, and the sort must be stable to
+    preserve the original order as much as possible, so we use a
+    simple insertion sort (which is very fast for short sequences, the
+    normal case in practice).
     """
     def contains(seq, x):
         for item in seq:
