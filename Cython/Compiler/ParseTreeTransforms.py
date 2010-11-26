@@ -288,7 +288,7 @@ class PostParse(ScopeTrackingTransform):
             duplicates_and_temps = [ (temp.expression, temp)
                                      for temp in temp_refs ]
             sort_common_subsequences(duplicates_and_temps)
-            for _, temp_ref in duplicates_and_temps:
+            for _, temp_ref in duplicates_and_temps[::-1]:
                 assign_node = LetNode(temp_ref, assign_node)
 
         return assign_node
@@ -362,8 +362,8 @@ def sort_common_subsequences(items):
         return b.is_sequence_constructor and contains(b.args, a)
 
     for pos, item in enumerate(items):
+        key = item[1] # the ResultRefNode which has already been injected into the sequences
         new_pos = pos
-        key = item[0]
         for i in xrange(pos-1, -1, -1):
             if lower_than(key, items[i][0]):
                 new_pos = i
