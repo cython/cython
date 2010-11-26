@@ -28,6 +28,11 @@ try:
 except ImportError:
     from functools import reduce
 
+try:
+    from __builtin__ import basestring
+except ImportError:
+    basestring = str # Python 3
+
 class FakePythonEnv(object):
     "A fake environment for creating type test nodes etc."
     nogil = False
@@ -751,7 +756,7 @@ class SwitchTransform(Visitor.VisitorTransform):
 
     def extract_in_string_conditions(self, string_literal):
         if isinstance(string_literal, ExprNodes.UnicodeNode):
-            charvals = map(ord, set(string_literal.value))
+            charvals = list(map(ord, set(string_literal.value)))
             charvals.sort()
             return [ ExprNodes.IntNode(string_literal.pos, value=str(charval),
                                        constant_result=charval)
@@ -2937,7 +2942,7 @@ class ConstantFolding(Visitor.VisitorTransform, SkipDeclarations):
 
         # check if all children are constant
         children = self.visitchildren(node)
-        for child_result in children.itervalues():
+        for child_result in children.values():
             if type(child_result) is list:
                 for child in child_result:
                     if getattr(child, 'constant_result', not_a_constant) is not_a_constant:
