@@ -12,9 +12,9 @@ def simple_parallel_assignment_from_call():
     side_effect_count = call_count - side_effect_count
     return side_effect_count, ao, bo, ai, bi, al, bl, c, d
 
-def recursive_parallel_assignment_from_call():
+def recursive_parallel_assignment_from_call_left():
     """
-    >>> recursive_parallel_assignment_from_call()
+    >>> recursive_parallel_assignment_from_call_left()
     (3, 1, 2, 3, 1, 2, 3, (1, 2), 3, [(1, 2), 3])
     """
     cdef int ai, bi, ci
@@ -23,6 +23,42 @@ def recursive_parallel_assignment_from_call():
     (ai, bi), ci = (ao, bo), co = t,o = d = [(intval(1), intval(2)), intval(3)]
     side_effect_count = call_count - side_effect_count
     return side_effect_count, ao, bo, co, ai, bi, ci, t, o, d
+
+def recursive_parallel_assignment_from_call_right():
+    """
+    >>> recursive_parallel_assignment_from_call_right()
+    (3, 1, 2, 3, 1, 2, 3, 1, (2, 3), [1, (2, 3)])
+    """
+    cdef int ai, bi, ci
+    cdef object ao, bo, co
+    cdef int side_effect_count = call_count
+    ai, (bi, ci) = ao, (bo, co) = o,t = d = [intval(1), (intval(2), intval(3))]
+    side_effect_count = call_count - side_effect_count
+    return side_effect_count, ao, bo, co, ai, bi, ci, o, t, d
+
+def recursive_parallel_assignment_from_call_left_reversed():
+    """
+    >>> recursive_parallel_assignment_from_call_left_reversed()
+    (3, 1, 2, 3, 1, 2, 3, (1, 2), 3, [(1, 2), 3])
+    """
+    cdef int ai, bi, ci
+    cdef object ao, bo, co
+    cdef int side_effect_count = call_count
+    d = t,o = (ao, bo), co = (ai, bi), ci = [(intval(1), intval(2)), intval(3)]
+    side_effect_count = call_count - side_effect_count
+    return side_effect_count, ao, bo, co, ai, bi, ci, t, o, d
+
+def recursive_parallel_assignment_from_call_right_reversed():
+    """
+    >>> recursive_parallel_assignment_from_call_right_reversed()
+    (3, 1, 2, 3, 1, 2, 3, 1, (2, 3), [1, (2, 3)])
+    """
+    cdef int ai, bi, ci
+    cdef object ao, bo, co
+    cdef int side_effect_count = call_count
+    d = o,t = ao, (bo, co) = ai, (bi, ci) = [intval(1), (intval(2), intval(3))]
+    side_effect_count = call_count - side_effect_count
+    return side_effect_count, ao, bo, co, ai, bi, ci, o, t, d
 
 cdef int call_count = 0
 
