@@ -93,6 +93,7 @@ def compile_cython_modules(profile=False):
                         "Cython.Compiler.Visitor",
                         "Cython.Compiler.ParseTreeTransforms",
                         "Cython.Compiler.Optimize",
+                        "Cython.Compiler.ModuleNode",
                         "Cython.Runtime.refnanny"]
     extensions = []
 

@@ -2,14 +2,15 @@
 #   Pyrex - Module parse tree node
 #
 
+import cython
+from cython import set
+cython.declare(Naming=object, Options=object, PyrexTypes=object, TypeSlots=object,
+               error=object, warning=object, py_object_type=object, UtilityCode=object,
+               escape_byte_string=object, EncodedString=object)
+
 import os, time
 from PyrexTypes import CPtrType
 import Future
-
-try:
-    set
-except NameError: # Python 2.3
-    from sets import Set as set
 
 import Annotate
 import Code
@@ -1658,7 +1659,7 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                 elif entry.type.from_py_function:
                     rhs = "%s(o)" % entry.type.from_py_function
                     if entry.type.is_enum:
-                        rhs = typecast(entry.type, c_long_type, rhs)
+                        rhs = PyrexTypes.typecast(entry.type, PyrexTypes.c_long_type, rhs)
                     code.putln("%s = %s; if (%s) %s;" % (
                         entry.cname,
                         rhs,
