@@ -1827,7 +1827,7 @@ class OptimizeBuiltinCalls(Visitor.EnvTransform):
         # Note: this requires the float() function to be typed as
         # returning a C 'double'
         if len(pos_args) == 0:
-            return ExprNode.FloatNode(
+            return ExprNodes.FloatNode(
                 node, value="0.0", constant_result=0.0
                 ).coerce_to(Builtin.float_type, self.current_env())
         elif len(pos_args) != 1:
