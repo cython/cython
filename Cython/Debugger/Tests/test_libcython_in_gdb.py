@@ -70,6 +70,8 @@ class DebugTestCase(unittest.TestCase):
         except RuntimeError:
             pass
         
+        gdb.execute('set args -c "import codefile"')
+        
         libcython.cy.step.static_breakpoints.clear()
         libcython.cy.step.runtime_breakpoints.clear()
         libcython.cy.step.init_breakpoints()
@@ -139,6 +141,13 @@ class TestBreak(DebugTestCase):
         gdb.execute('cy break -p join')
         assert 'def join(' in gdb.execute('cy run', to_string=True)
 
+
+class TestKilled(DebugTestCase):
+    
+    def test_abort(self):
+        gdb.execute("set args -c 'import os; os.abort()'")
+        output = gdb.execute('cy run', to_string=True)
+        assert 'abort' in output.lower()
 
 class DebugStepperTestCase(DebugTestCase):
     
@@ -291,6 +300,7 @@ def _main():
                 "debugging information. Either compile python with "
                 "-g or get a debug build (configure with --with-pydebug).")
         warnings.warn(msg)
+        os._exit(1)
     else:
         m = __import__(__name__, fromlist=[''])
         tests = inspect.getmembers(m, inspect.isclass)
@@ -312,3 +322,5 @@ def main(trace_code=False):
         tracer.runfunc(_main)
     else:
         _main()
+
+main()

@@ -332,7 +332,7 @@ class PyObjectPtr(object):
 
         #print 'tp_flags = 0x%08x' % tp_flags
         #print 'tp_name = %r' % tp_name
-
+        
         name_map = {'bool': PyBoolObjectPtr,
                     'classobj': PyClassObjectPtr,
                     'instance': PyInstanceObjectPtr,
@@ -357,7 +357,11 @@ class PyObjectPtr(object):
         if tp_flags & Py_TPFLAGS_TUPLE_SUBCLASS:
             return PyTupleObjectPtr
         if tp_flags & Py_TPFLAGS_STRING_SUBCLASS:
-            return PyStringObjectPtr
+            try:
+                gdb.lookup_type('PyBytesObject')
+                return PyBytesObject
+            except RuntimeError:
+                return PyStringObjectPtr
         if tp_flags & Py_TPFLAGS_UNICODE_SUBCLASS:
             return PyUnicodeObjectPtr
         if tp_flags & Py_TPFLAGS_DICT_SUBCLASS:
@@ -380,7 +384,7 @@ class PyObjectPtr(object):
             p = PyObjectPtr(gdbval)
             cls = cls.subclass_from_type(p.type())
             return cls(gdbval, cast_to=cls.get_gdb_type())
-        except RuntimeError:
+        except RuntimeError, exc:
             # Handle any kind of error e.g. NULL ptrs by simply using the base
             # class
             pass
@@ -554,19 +558,6 @@ class PyBaseExceptionObjectPtr(PyObjectPtr):
 
         out.write(self.safe_tp_name())
         self.write_field_repr('args', out, visited)
-
-class PyBoolObjectPtr(PyObjectPtr):
-    """
-    Class wrapping a gdb.Value that's a PyBoolObject* i.e. one of the two
-    <bool> instances (Py_True/Py_False) within the process being debugged.
-    """
-    _typename = 'PyBoolObject'
-
-    def proxyval(self, visited):
-        if int_from_int(self.field('ob_ival')):
-            return True
-        else:
-            return False
 
 
 class PyClassObjectPtr(PyObjectPtr):
@@ -821,11 +812,10 @@ class PyBoolObjectPtr(PyLongObjectPtr):
     Class wrapping a gdb.Value that's a PyBoolObject* i.e. one of the two
     <bool> instances (Py_True/Py_False) within the process being debugged.
     """
+    
     def proxyval(self, visited):
-        if PyLongObjectPtr.proxyval(self, visited):
-            return True
-        else:
-            return False
+        return bool(PyLongObjectPtr.proxyval(self, visited))
+
 
 class PyNoneStructPtr(PyObjectPtr):
     """
@@ -1072,6 +1062,10 @@ class PyBytesObjectPtr(PyObjectPtr):
             else:
                 out.write(byte)
         out.write(quote)
+
+class PyStringObjectPtr(PyBytesObjectPtr):
+    _typename = 'PyStringObject'
+
 
 class PyTupleObjectPtr(PyObjectPtr):
     _typename = 'PyTupleObject'
@@ -1691,7 +1685,8 @@ class PyNameEquals(gdb.Function):
             pyframe = frame.get_pyop()
             if pyframe is None:
                 return None
-            val = str(getattr(pyframe, attr)); print val, val.proxyval(set()); return val
+            
+            return str(getattr(pyframe, attr))
         
         return None
     
@@ -1924,8 +1919,14 @@ class GenericCodeStepper(gdb.Command):
         context.
         """
     
-    def stopped(self):
-        return get_selected_inferior().pid == 0
+    def stopped(self, result):
+        match = re.search('^Program received signal .*', result, re.MULTILINE)
+        if match:
+            return match.group(0)
+        elif get_selected_inferior().pid == 0:
+            return result
+        else:
+            return None
         
     def _stackdepth(self, frame):
         depth = 0
@@ -1941,8 +1942,17 @@ class GenericCodeStepper(gdb.Command):
         of source code or the result of the last executed gdb command (passed
         in as the `result` argument).
         """
-        if self.stopped():
+        result = self.stopped(result)
+        if result:
             print result.strip()
+            # check whether the program was killed by a signal, it should still
+            # have a stack.
+            try:
+                frame = gdb.selected_frame()
+            except RuntimeError:
+                pass
+            else:
+                print self.get_source_line(frame)
         else:
             frame = gdb.selected_frame()
             output = None
@@ -1985,7 +1995,7 @@ class GenericCodeStepper(gdb.Command):
             
             hitbp = re.search(r'Breakpoint (\d+)', result)
             is_relavant = self.is_relevant_function(frame)
-            if hitbp or is_relavant or self.stopped():
+            if hitbp or is_relavant or self.stopped(result):
                 break
             
         self.finish_executing(result)
@@ -2012,7 +2022,7 @@ class GenericCodeStepper(gdb.Command):
             else:
                 result = self._finish()
             
-            if self.stopped():
+            if self.stopped(result):
                 break
             
             newframe = gdb.selected_frame()

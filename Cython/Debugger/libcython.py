@@ -390,8 +390,9 @@ class CythonBase(object):
 
     def is_initialized(self, cython_func, local_name):
         cur_lineno = self.get_cython_lineno()
-        return (local_name in cython_func.arguments or 
-                cur_lineno > cython_func.locals[local_name].lineno)
+        return (local_name in cython_func.arguments or
+                (local_name in cython_func.locals and
+                 cur_lineno > cython_func.locals[local_name].lineno))
 
 class SourceFileDescriptor(object):
     def __init__(self, filename, lexer, formatter=None):
@@ -1077,18 +1078,16 @@ class CyLocals(CythonCommand):
     command_class = gdb.COMMAND_STACK
     completer_class = gdb.COMPLETE_NONE
     
-    def _print_if_initialized(self, cyvar, max_name_length, prefix=''):
-        if self.is_initialized(self.get_cython_function(), cyvar.name):
-            value = gdb.parse_and_eval(cyvar.cname)
-            if not value.is_optimized_out:
-                self.print_gdb_value(cyvar.name, value, max_name_length, prefix)
-    
     @dispatch_on_frame(c_command='info locals', python_command='py-locals')
     def invoke(self, args, from_tty):
         local_cython_vars = self.get_cython_function().locals
         max_name_length = len(max(local_cython_vars, key=len))
         for name, cyvar in sorted(local_cython_vars.iteritems(), key=sortkey):
-            self._print_if_initialized(cyvar, max_name_length)
+            if self.is_initialized(self.get_cython_function(), cyvar.name):
+                value = gdb.parse_and_eval(cyvar.cname)
+                if not value.is_optimized_out:
+                    self.print_gdb_value(cyvar.name, value, 
+                                         max_name_length, '')
 
 
 class CyGlobals(CyLocals):
@@ -1124,8 +1123,14 @@ class CyGlobals(CyLocals):
         print 'C globals:'
         for name, cyvar in sorted(module_globals.iteritems(), key=sortkey):
             if name not in seen:
-                self._print_if_initialized(cyvar, max_name_length, 
-                                           prefix='    ')
+                try:
+                    value = gdb.parse_and_eval(cyvar.cname)
+                except RuntimeError:
+                    pass
+                else:
+                    if not value.is_optimized_out:
+                        self.print_gdb_value(cyvar.name, value,
+                                             max_name_length, '    ')
 
 
 class CyExec(CythonCommand, libpython.PyExec):
@@ -1284,14 +1289,14 @@ class CyCValue(CyCName):
         try:
             cname = super(CyCValue, self).invoke(cyname, frame=frame)
             return gdb.parse_and_eval(cname)
-        except (gdb.GdbError, RuntimeError):
+        except (gdb.GdbError, RuntimeError), e:
             # variable exists but may not have been initialized yet, or may be
             # in the globals dict of the Cython module
             d = self.get_cython_globals_dict()
             if cyname in d:
                 return d[cyname]._gdbval
 
-            raise gdb.GdbError("Variable %s not initialized yet." % cyname)
+            raise gdb.GdbError(str(e))
 
 
 class CyLine(gdb.Function, CythonBase):
