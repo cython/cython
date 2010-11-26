@@ -1293,9 +1293,12 @@ class AlignFunctionDefinitions(CythonTransform):
         
 
 class MarkClosureVisitor(CythonTransform):
-    
-    needs_closure = False
-    
+
+    def visit_ModuleNode(self, node):
+        self.needs_closure = False
+        self.visitchildren(node)
+        return node
+
     def visit_FuncDefNode(self, node):
         self.needs_closure = False
         self.visitchildren(node)

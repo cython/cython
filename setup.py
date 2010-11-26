@@ -91,6 +91,7 @@ def compile_cython_modules(profile=False):
                         "Cython.Compiler.Scanning",
                         "Cython.Compiler.Parsing",
                         "Cython.Compiler.Visitor",
+                        "Cython.Compiler.ParseTreeTransforms",
                         "Cython.Runtime.refnanny"]
     extensions = []
 
