@@ -1,3 +1,10 @@
+
+import cython
+from cython import set
+cython.declare(UtilityCode=object, EncodedString=object, BytesLiteral=object,
+               Nodes=object, ExprNodes=object, PyrexTypes=object, Builtin=object,
+               UtilNodes=object, Naming=object)
+
 import Nodes
 import ExprNodes
 import PyrexTypes
@@ -17,14 +24,9 @@ from ParseTreeTransforms import SkipDeclarations
 import codecs
 
 try:
-    reduce
-except NameError:
+    from __builtin__ import reduce
+except ImportError:
     from functools import reduce
-
-try:
-    set
-except NameError:
-    from sets import Set as set
 
 class FakePythonEnv(object):
     "A fake environment for creating type test nodes etc."
