@@ -331,13 +331,13 @@ def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
         if node in ref_nodes:
             return ref_nodes[node]
         elif node.is_sequence_constructor:
-            node.args = map(substitute_nodes, node.args)
+            node.args = list(map(substitute_nodes, node.args))
         return node
 
     # replace nodes inside of the common subexpressions
     for node in ref_nodes:
         if node.is_sequence_constructor:
-            node.args = map(substitute_nodes, node.args)
+            node.args = list(map(substitute_nodes, node.args))
 
     # replace common subexpressions on all rhs items
     for expr_list in expr_list_list:
