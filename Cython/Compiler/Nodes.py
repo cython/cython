@@ -2215,6 +2215,8 @@ class DefNode(FuncDefNode):
 
     def needs_assignment_synthesis(self, env, code=None):
         # Should enable for module level as well, that will require more testing...
+        if self.entry.is_lambda:
+            return True
         if env.is_module_scope:
             if code is None:
                 return env.directives['binding']
