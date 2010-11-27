@@ -84,21 +84,24 @@ else:
     else:
         scripts = ["cython.py"]
 
-def compile_cython_modules(profile=False):
+def compile_cython_modules(profile=False, compile_more=False):
     source_root = os.path.abspath(os.path.dirname(__file__))
     compiled_modules = ["Cython.Plex.Scanners",
                         "Cython.Plex.Actions",
                         "Cython.Compiler.Scanning",
                         "Cython.Compiler.Parsing",
                         "Cython.Compiler.Visitor",
-                        #"Cython.Compiler.ParseTreeTransforms",
-                        #"Cython.Compiler.Nodes",
-                        #"Cython.Compiler.ExprNodes",
-                        #"Cython.Compiler.ModuleNode",
-                        #"Cython.Compiler.Optimize",
                         "Cython.Runtime.refnanny"]
-    extensions = []
+    if compile_more:
+        compiled_modules.extend([
+            "Cython.Compiler.ParseTreeTransforms",
+            "Cython.Compiler.Nodes",
+            "Cython.Compiler.ExprNodes",
+            "Cython.Compiler.ModuleNode",
+            "Cython.Compiler.Optimize",
+            ])
 
+    extensions = []
     if sys.version_info[0] >= 3:
         from Cython.Distutils import build_ext as build_ext_orig
         for module in compiled_modules:
@@ -210,9 +213,15 @@ if cython_profile:
     sys.argv.remove('--cython-profile')
 
 try:
+    sys.argv.remove("--cython-compile-all")
+    cython_compile_more = True
+except ValueError:
+    cython_compile_more = False
+
+try:
     sys.argv.remove("--no-cython-compile")
 except ValueError:
-    compile_cython_modules(cython_profile)
+    compile_cython_modules(cython_profile, cython_compile_more)
 
 setup_args.update(setuptools_extra_args)
 
