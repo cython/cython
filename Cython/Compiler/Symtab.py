@@ -75,6 +75,7 @@ class Entry(object):
     # is_cfunction     boolean    Is a C function
     # is_cmethod       boolean    Is a C method of an extension type
     # is_unbound_cmethod boolean  Is an unbound C method of an extension type
+    # is_lambda        boolean    Is a lambda function
     # is_type          boolean    Is a type definition
     # is_cclass        boolean    Is an extension class
     # is_cpp_class     boolean    Is a C++ class
@@ -137,6 +138,7 @@ class Entry(object):
     is_cfunction = 0
     is_cmethod = 0
     is_unbound_cmethod = 0
+    is_lambda = 0
     is_type = 0
     is_cclass = 0
     is_cpp_class = 0
@@ -530,7 +532,7 @@ class Scope(object):
         entry.name = EncodedString(func_cname)
         entry.func_cname = func_cname
         entry.signature = pyfunction_signature
-        self.pyfunc_entries.append(entry)
+        entry.is_lambda = True
         return entry
 
     def add_lambda_def(self, def_node):

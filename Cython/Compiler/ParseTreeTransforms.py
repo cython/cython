@@ -181,9 +181,6 @@ class PostParse(ScopeTrackingTransform):
 
     def visit_LambdaNode(self, node):
         # unpack a lambda expression into the corresponding DefNode
-        if self.scope_type != 'function':
-            error(node.pos,
-                  "lambda functions are currently only supported in functions")
         lambda_id = self.lambda_counter
         self.lambda_counter += 1
         node.lambda_name = EncodedString(u'lambda%d' % lambda_id)
@@ -1366,7 +1363,7 @@ class CreateClosureClasses(CythonTransform):
         while cscope.is_py_class_scope or cscope.is_c_class_scope:
             cscope = cscope.outer_scope
 
-        if not from_closure and self.path:
+        if not from_closure and (self.path or inner_node):
             if not inner_node:
                 if not node.assmt:
                     raise InternalError, "DefNode does not have assignment node"
