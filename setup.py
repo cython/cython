@@ -84,7 +84,7 @@ else:
     else:
         scripts = ["cython.py"]
 
-def compile_cython_modules(profile=False, compile_more=False):
+def compile_cython_modules(profile=False, compile_more=False, cython_with_refnanny=False):
     source_root = os.path.abspath(os.path.dirname(__file__))
     compiled_modules = ["Cython.Plex.Scanners",
                         "Cython.Plex.Actions",
@@ -101,6 +101,10 @@ def compile_cython_modules(profile=False, compile_more=False):
             "Cython.Compiler.Optimize",
             ])
 
+    defines = []
+    if cython_with_refnanny:
+        defines.append(('CYTHON_REFNANNY', '1'))
+
     extensions = []
     if sys.version_info[0] >= 3:
         from Cython.Distutils import build_ext as build_ext_orig
@@ -113,8 +117,13 @@ def compile_cython_modules(profile=False, compile_more=False):
             dep_files = []
             if os.path.exists(source_file + '.pxd'):
                 dep_files.append(source_file + '.pxd')
+            if '.refnanny' in module:
+                defines_for_module = []
+            else:
+                defines_for_module = defines
             extensions.append(
                 Extension(module, sources = [pyx_source_file],
+                          define_macros = defines_for_module,
                           depends = dep_files)
                 )
 
@@ -189,8 +198,13 @@ def compile_cython_modules(profile=False, compile_more=False):
                         if filename_encoding is None:
                             filename_encoding = sys.getdefaultencoding()
                         c_source_file = c_source_file.encode(filename_encoding)
+                    if '.refnanny' in module:
+                        defines_for_module = []
+                    else:
+                        defines_for_module = defines
                     extensions.append(
-                        Extension(module, sources = [c_source_file])
+                        Extension(module, sources = [c_source_file],
+                                  define_macros = defines_for_module)
                         )
                 else:
                     print("Compilation failed")
@@ -219,9 +233,15 @@ except ValueError:
     cython_compile_more = False
 
 try:
+    sys.argv.remove("--cython-with-refnanny")
+    cython_with_refnanny = True
+except ValueError:
+    cython_with_refnanny = False
+
+try:
     sys.argv.remove("--no-cython-compile")
 except ValueError:
-    compile_cython_modules(cython_profile, cython_compile_more)
+    compile_cython_modules(cython_profile, cython_compile_more, cython_with_refnanny)
 
 setup_args.update(setuptools_extra_args)
 
