@@ -1,10 +1,10 @@
 
 from Cython.Compiler.Visitor cimport (
-    CythonTransform, VisitorTransform,
+    CythonTransform, VisitorTransform, TreeVisitor,
     ScopeTrackingTransform, EnvTransform)
 
-#class NameNodeCollector(TreeVisitor):
-#    cdef list name_nodes
+cdef class NameNodeCollector(TreeVisitor):
+    cdef list name_nodes
 
 cdef class SkipDeclarations: # (object):
     pass
