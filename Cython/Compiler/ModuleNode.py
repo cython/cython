@@ -1657,7 +1657,8 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         code.putln("if (!(%s)) %s;" % (
                             entry.type.type_test_code("o"),
                             code.error_goto(entry.pos)))
-                    code.put_var_decref(entry)
+                    code.putln("Py_INCREF(o);")
+                    code.put_decref(entry.cname, entry.type, nanny=False)
                     code.putln("%s = %s;" % (
                         entry.cname, 
                         PyrexTypes.typecast(entry.type, py_object_type, "o")))
@@ -1670,7 +1671,6 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
                         rhs,
                         entry.type.error_condition(entry.cname),
                         code.error_goto(entry.pos)))
-                    code.putln("Py_DECREF(o);")
                 else:
                     code.putln('PyErr_Format(PyExc_TypeError, "Cannot convert Python object %s to %s");' % (name, entry.type))
                     code.putln(code.error_goto(entry.pos))
@@ -1679,12 +1679,12 @@ class ModuleNode(Nodes.Node, Nodes.BlockNode):
         code.putln("if (PyObject_SetAttr(%s, py_name, o) < 0) goto bad;" % Naming.module_cname)
         code.putln("}")
         code.putln("return 0;")
-        code.put_label(code.error_label)
-        # This helps locate the offending name.
-        code.putln('__Pyx_AddTraceback("%s");' % self.full_module_name);
+        if code.label_used(code.error_label):
+            code.put_label(code.error_label)
+            # This helps locate the offending name.
+            code.putln('__Pyx_AddTraceback("%s");' % self.full_module_name);
         code.error_label = old_error_label
         code.putln("bad:")
-        code.putln("Py_DECREF(o);")
         code.putln("return -1;")
         code.putln("}")
         code.putln(import_star_utility_code)
