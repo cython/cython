@@ -26,10 +26,11 @@ class NameNodeCollector(TreeVisitor):
         super(NameNodeCollector, self).__init__()
         self.name_nodes = []
 
-    visit_Node = TreeVisitor.visitchildren
-
     def visit_NameNode(self, node):
         self.name_nodes.append(node)
+
+    def visit_Node(self, node):
+        self._visitchildren(node, None)
 
 
 class SkipDeclarations(object):
