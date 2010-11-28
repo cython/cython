@@ -359,7 +359,7 @@ class PyObjectPtr(object):
         if tp_flags & Py_TPFLAGS_STRING_SUBCLASS:
             try:
                 gdb.lookup_type('PyBytesObject')
-                return PyBytesObject
+                return PyBytesObjectPtr
             except RuntimeError:
                 return PyStringObjectPtr
         if tp_flags & Py_TPFLAGS_UNICODE_SUBCLASS:
@@ -1686,8 +1686,8 @@ class PyNameEquals(gdb.Function):
             if pyframe is None:
                 return None
             
-            return str(getattr(pyframe, attr))
-        
+            return getattr(pyframe, attr).proxyval(set())
+            
         return None
     
     def invoke(self, funcname):
@@ -1872,8 +1872,9 @@ class GenericCodeStepper(gdb.Command):
             if funcname not in self.static_breakpoints:
                 try:
                     gdb.Breakpoint('', gdb.BP_BREAKPOINT, internal=True)
-                except TypeError:
-                    # gdb.Breakpoint does not take an 'internal' argument
+                except (AttributeError, TypeError):
+                    # gdb.Breakpoint does not take an 'internal' argument, or
+                    # gdb.Breakpoint does not exist.
                     breakpoint = self._break_func(funcname)
                 except RuntimeError:
                     # gdb.Breakpoint does take an 'internal' argument, use it
@@ -2061,7 +2062,7 @@ class GenericCodeStepper(gdb.Command):
 
         return result
     
-    def step(self):
+    def step(self, *args):
         return self.finish_executing(self._step())
 
     def run(self, *args):
@@ -2090,7 +2091,9 @@ class PythonCodeStepper(GenericCodeStepper):
 
     def get_source_line(self, frame):
         try:
-            return self.pyframe(frame).current_line().rstrip()
+            pyframe = self.pyframe(frame)
+            return '%4d    %s' % (pyframe.current_line_num(), 
+                                  pyframe.current_line().rstrip())
         except IOError, e:
             return None
     
@@ -2129,6 +2132,7 @@ py_finish = PyFinish('py-finish')
 py_run = PyRun('py-run')
 py_cont = PyCont('py-cont')
 
+gdb.execute('set breakpoint pending on')
 py_step.init_breakpoints()
 
 Py_single_input = 256
