@@ -2185,11 +2185,21 @@ class PythonCodeExecutor(object):
     
     def alloc_pystring(self, string):
         stringp = self.alloc_string(string)
+        PyString_FromStringAndSize = 'PyString_FromStringAndSize'
+        try:
+            gdb.parse_and_eval(PyString_FromStringAndSize)
+        except RuntimeError:
+            try:
+                gdb.parse_and_eval('PyUnicode_FromStringAndSize')
+            except RuntimeError:
+                PyString_FromStringAndSize = 'PyUnicodeUCS2_FromStringAndSize'
+            else:
+                PyString_FromStringAndSize = 'PyUnicode_FromStringAndSize'
+            
         try:
             result = gdb.parse_and_eval(
-                '(PyObject *) PyString_FromStringAndSize('
-                    '(char *) %d,'
-                    '(size_t) %d)' % (stringp, len(string)))
+                '(PyObject *) %s((char *) %d, (size_t) %d)' % (
+                            PyString_FromStringAndSize, stringp, len(string)))
         finally:
             self.free(stringp)
         
