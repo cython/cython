@@ -48,6 +48,7 @@ from __future__ import with_statement
 import os
 import re
 import sys
+import struct
 import locale
 import atexit
 import warnings
@@ -1026,8 +1027,8 @@ class PyBytesObjectPtr(PyObjectPtr):
     def __str__(self):
         field_ob_size = self.field('ob_size')
         field_ob_sval = self.field('ob_sval')
-        char_ptr = field_ob_sval.address.cast(_type_unsigned_char_ptr)
-        return ''.join([chr(char_ptr[i]) for i in safe_range(field_ob_size)])
+        return ''.join(struct.pack('b', field_ob_sval[i]) 
+                           for i in safe_range(field_ob_size))
 
     def proxyval(self, visited):
         return str(self)

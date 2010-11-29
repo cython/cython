@@ -578,13 +578,16 @@ class CyCy(CythonCommand):
         cy next
         cy run
         cy cont
+        cy finish
         cy up
         cy down
+        cy select
         cy bt / cy backtrace
-        cy print
         cy list
+        cy print
         cy locals
         cy globals
+        cy exec
     """
     
     name = 'cy'
