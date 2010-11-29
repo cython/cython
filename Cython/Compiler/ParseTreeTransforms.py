@@ -1,6 +1,5 @@
 
 import cython
-from cython import set
 cython.declare(copy=object, ModuleNode=object, TreeFragment=object, TemplateTransform=object,
                EncodedString=object, error=object, warning=object, PyrexTypes=object, Naming=object)
 
@@ -301,7 +300,7 @@ def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
     and appends them to ref_node_sequence.  The input list is modified
     in-place.
     """
-    seen_nodes = set()
+    seen_nodes = cython.set()
     ref_nodes = {}
     def find_duplicates(node):
         if node.is_literal or node.is_name:
@@ -572,16 +571,16 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         'operator.comma'        : c_binop_constructor(','),
     }
     
-    special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof',
-                           'cast', 'pointer', 'compiled', 'NULL']
-                          + list(unop_method_nodes.keys()))
+    special_methods = cython.set(['declare', 'union', 'struct', 'typedef', 'sizeof',
+                                  'cast', 'pointer', 'compiled', 'NULL'])
+    special_methods.update(unop_method_nodes.keys())
 
     def __init__(self, context, compilation_directive_defaults):
         super(InterpretCompilerDirectives, self).__init__(context)
         self.compilation_directive_defaults = {}
         for key, value in compilation_directive_defaults.items():
             self.compilation_directive_defaults[unicode(key)] = value
-        self.cython_module_names = set()
+        self.cython_module_names = cython.set()
         self.directive_names = {}
 
     def check_directive_scope(self, pos, directive, scope):
@@ -1023,7 +1022,7 @@ property NAME:
         return node
 
     def visit_ModuleNode(self, node):
-        self.seen_vars_stack.append(set())
+        self.seen_vars_stack.append(cython.set())
         node.analyse_declarations(self.env_stack[-1])
         self.visitchildren(node)
         self.seen_vars_stack.pop()
@@ -1055,7 +1054,7 @@ property NAME:
         return node
         
     def visit_FuncDefNode(self, node):
-        self.seen_vars_stack.append(set())
+        self.seen_vars_stack.append(cython.set())
         lenv = node.local_scope
         node.body.analyse_control_flow(lenv) # this will be totally refactored
         node.declare_arguments(lenv)
@@ -1077,7 +1076,7 @@ property NAME:
         node.analyse_declarations(self.env_stack[-1])
         # the node may or may not have a local scope
         if node.expr_scope:
-            self.seen_vars_stack.append(set(self.seen_vars_stack[-1]))
+            self.seen_vars_stack.append(cython.set(self.seen_vars_stack[-1]))
             self.env_stack.append(node.expr_scope)
             self.visitchildren(node)
             self.env_stack.pop()
