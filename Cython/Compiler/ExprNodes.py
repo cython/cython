@@ -4135,38 +4135,11 @@ class ScopedExprNode(ExprNode):
     subexprs = []
     expr_scope = None
 
-    def analyse_types(self, env):
-        # nothing to do here, the children will be analysed separately
-        pass
-
-    def analyse_expressions(self, env):
-        # nothing to do here, the children will be analysed separately
-        pass
-
-    def analyse_scoped_expressions(self, env):
-        # this is called with the expr_scope as env
-        pass
-
-    def init_scope(self, outer_scope, expr_scope=None):
-        self.expr_scope = expr_scope
-
-
-class ComprehensionNode(ScopedExprNode):
-    subexprs = ["target"]
-    child_attrs = ["loop", "append"]
-
-    # leak loop variables or not?  non-leaking Py3 behaviour is
-    # default, except for list comprehensions where the behaviour
-    # differs in Py2 and Py3 (see Parsing.py)
+    # does this node really have a local scope, e.g. does it leak loop
+    # variables or not?  non-leaking Py3 behaviour is default, except
+    # for list comprehensions where the behaviour differs in Py2 and
+    # Py3 (set in Parsing.py based on parser context)
     has_local_scope = True
-
-    def infer_type(self, env):
-        return self.target.infer_type(env)
-
-    def analyse_declarations(self, env):
-        self.append.target = self # this is used in the PyList_Append of the inner loop
-        self.init_scope(env)
-        self.loop.analyse_declarations(self.expr_scope or env)
 
     def init_scope(self, outer_scope, expr_scope=None):
         if expr_scope is not None:
@@ -4176,14 +4149,41 @@ class ComprehensionNode(ScopedExprNode):
         else:
             self.expr_scope = None
 
+    def analyse_declarations(self, env):
+        self.init_scope(env)
+
+    def analyse_scoped_declarations(self, env):
+        # this is called with the expr_scope as env
+        pass
+
+    def analyse_types(self, env):
+        # no recursion here, the children will be analysed separately below
+        pass
+
+    def analyse_scoped_expressions(self, env):
+        # this is called with the expr_scope as env
+        pass
+
+
+class ComprehensionNode(ScopedExprNode):
+    subexprs = ["target"]
+    child_attrs = ["loop", "append"]
+
+    def infer_type(self, env):
+        return self.target.infer_type(env)
+
+    def analyse_declarations(self, env):
+        self.append.target = self # this is used in the PyList_Append of the inner loop
+        self.init_scope(env)
+
+    def analyse_scoped_declarations(self, env):
+        self.loop.analyse_declarations(env)
+
     def analyse_types(self, env):
         self.target.analyse_expressions(env)
         self.type = self.target.type
         if not self.has_local_scope:
             self.loop.analyse_expressions(env)
-
-    def analyse_expressions(self, env):
-        self.analyse_types(env)
 
     def analyse_scoped_expressions(self, env):
         if self.has_local_scope:
@@ -4286,21 +4286,17 @@ class GeneratorExpressionNode(ScopedExprNode):
 
     type = py_object_type
 
-    def analyse_declarations(self, env):
-        self.init_scope(env)
-        self.loop.analyse_declarations(self.expr_scope)
-
-    def init_scope(self, outer_scope, expr_scope=None):
-        if expr_scope is not None:
-            self.expr_scope = expr_scope
-        else:
-            self.expr_scope = Symtab.GeneratorExpressionScope(outer_scope)
+    def analyse_scoped_declarations(self, env):
+        self.loop.analyse_declarations(env)
 
     def analyse_types(self, env):
+        if not self.has_local_scope:
+            self.loop.analyse_expressions(env)
         self.is_temp = True
 
     def analyse_scoped_expressions(self, env):
-        self.loop.analyse_expressions(env)
+        if self.has_local_scope:
+            self.loop.analyse_expressions(env)
 
     def may_be_none(self):
         return False
@@ -4320,14 +4316,29 @@ class InlinedGeneratorExpressionNode(GeneratorExpressionNode):
     # orig_func      String           the name of the builtin function this node replaces
 
     child_attrs = ["loop"]
+    loop_analysed = False
+
+    def infer_type(self, env):
+        return self.result_node.infer_type(env)
 
     def analyse_types(self, env):
+        if not self.has_local_scope:
+            self.loop_analysed = True
+            self.loop.analyse_expressions(env)
         self.type = self.result_node.type
         self.is_temp = True
 
+    def analyse_scoped_expressions(self, env):
+        self.loop_analysed = True
+        GeneratorExpressionNode.analyse_scoped_expressions(self, env)
+
     def coerce_to(self, dst_type, env):
-        if self.orig_func == 'sum' and dst_type.is_numeric:
-            # we can optimise by dropping the aggregation variable into C
+        if self.orig_func == 'sum' and dst_type.is_numeric and not self.loop_analysed:
+            # We can optimise by dropping the aggregation variable and
+            # the add operations into C.  This can only be done safely
+            # before analysing the loop body, after that, the result
+            # reference type will have infected expressions and
+            # assignments.
             self.result_node.type = self.type = dst_type
             return self
         return GeneratorExpressionNode.coerce_to(self, dst_type, env)
