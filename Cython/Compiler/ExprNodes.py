@@ -1770,6 +1770,9 @@ class IteratorNode(ExprNode):
             self.type = self.sequence.type
         else:
             self.sequence = self.sequence.coerce_to_pyobject(env)
+            if self.sequence.type is list_type or \
+                   self.sequence.type is tuple_type:
+                self.sequence = self.sequence.as_none_safe_node("'NoneType' object is not iterable")
         self.is_temp = 1
 
     gil_message = "Iterating over Python object"
@@ -1786,36 +1789,30 @@ class IteratorNode(ExprNode):
             raise InternalError("for in carray slice not transformed")
         is_builtin_sequence = self.sequence.type is list_type or \
                               self.sequence.type is tuple_type
-        may_be_a_sequence = is_builtin_sequence or not self.sequence.type.is_builtin_type
-        if is_builtin_sequence:
-            code.putln(
-                "if (likely(%s != Py_None)) {" % self.sequence.py_result())
-        elif may_be_a_sequence:
+        may_be_a_sequence = not self.sequence.type.is_builtin_type
+        if may_be_a_sequence:
             code.putln(
                 "if (PyList_CheckExact(%s) || PyTuple_CheckExact(%s)) {" % (
                     self.sequence.py_result(),
                     self.sequence.py_result()))
-        if may_be_a_sequence:
+        if is_builtin_sequence or may_be_a_sequence:
             code.putln(
                 "%s = 0; %s = %s; __Pyx_INCREF(%s);" % (
                     self.counter_cname,
                     self.result(),
                     self.sequence.py_result(),
                     self.result()))
-            code.putln("} else {")
-        if is_builtin_sequence:
-            code.putln(
-                'PyErr_SetString(PyExc_TypeError, "\'NoneType\' object is not iterable"); %s' %
-                code.error_goto(self.pos))
-        else:
+        if not is_builtin_sequence:
+            if may_be_a_sequence:
+                code.putln("} else {")
             code.putln("%s = -1; %s = PyObject_GetIter(%s); %s" % (
                     self.counter_cname,
                     self.result(),
                     self.sequence.py_result(),
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
-        if may_be_a_sequence:
-            code.putln("}")
+            if may_be_a_sequence:
+                code.putln("}")
 
 
 class NextNode(AtomicExprNode):
