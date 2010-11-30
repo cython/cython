@@ -141,6 +141,9 @@ class ResultRefNode(AtomicExprNode):
     def infer_type(self, env):
         if self.expression is not None:
             return self.expression.infer_type(env)
+        if self.type is not None:
+            return self.type
+        assert False, "cannot infer type of ResultRefNode"
 
     def may_be_none(self):
         if not self.type.is_pyobject:
