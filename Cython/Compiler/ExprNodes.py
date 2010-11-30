@@ -4161,6 +4161,54 @@ class ScopedExprNode(ExprNode):
         # this is called with the expr_scope as env
         pass
 
+    def generate_evaluation_code(self, code):
+        # set up local variables and free their references on exit
+        generate_inner_evaluation_code = super(ScopedExprNode, self).generate_evaluation_code
+        if not self.has_local_scope or not self.expr_scope.var_entries:
+            # no local variables => delegate, done
+            generate_inner_evaluation_code(code)
+            return
+
+        code.putln('{ /* enter inner scope */')
+        py_entries = []
+        for entry in self.expr_scope.var_entries:
+            if not entry.in_closure:
+                code.put_var_declaration(entry)
+                if entry.type.is_pyobject and entry.used:
+                    py_entries.append(entry)
+                    code.put_init_var_to_py_none(entry)
+        if not py_entries:
+            # no local Python references => no cleanup required
+            generate_inner_evaluation_code(code)
+            code.putln('} /* exit inner scope */')
+            return
+
+        # must free all local Python references at each exit point
+        old_loop_labels = tuple(code.new_loop_labels())
+        old_error_label = code.new_error_label()
+
+        generate_inner_evaluation_code(code)
+
+        # normal (non-error) exit
+        for entry in py_entries:
+            code.put_var_decref(entry)
+
+        # error/loop body exit points
+        exit_scope = code.new_label('exit_scope')
+        code.put_goto(exit_scope)
+        for label, old_label in ([(code.error_label, old_error_label)] +
+                                 list(zip(code.get_loop_labels(), old_loop_labels))):
+            if code.label_used(label):
+                code.put_label(label)
+                for entry in py_entries:
+                    code.put_var_decref(entry)
+                code.put_goto(old_label)
+        code.put_label(exit_scope)
+        code.putln('} /* exit inner scope */')
+
+        code.set_loop_labels(old_loop_labels)
+        code.error_label = old_error_label
+
 
 class ComprehensionNode(ScopedExprNode):
     subexprs = ["target"]

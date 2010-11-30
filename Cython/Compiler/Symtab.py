@@ -1313,7 +1313,9 @@ class GeneratorExpressionScope(Scope):
         # the parent scope needs to generate code for the variable, but
         # this scope must hold its name exclusively
         cname = '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(Naming.var_prefix, name))
-        entry = self.parent_scope.declare_var(None, type, pos, cname, visibility, is_cdef = True)
+        entry = self.declare(name, cname, type, pos, visibility)
+        entry.is_variable = 1
+        self.var_entries.append(entry)
         self.entries[name] = entry
         return entry
 
