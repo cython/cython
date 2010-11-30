@@ -1073,15 +1073,18 @@ property NAME:
         return node
 
     def visit_ScopedExprNode(self, node):
-        node.analyse_declarations(self.env_stack[-1])
+        env = self.env_stack[-1]
+        node.analyse_declarations(env)
         # the node may or may not have a local scope
-        if node.expr_scope:
+        if node.has_local_scope:
             self.seen_vars_stack.append(cython.set(self.seen_vars_stack[-1]))
             self.env_stack.append(node.expr_scope)
+            node.analyse_scoped_declarations(node.expr_scope)
             self.visitchildren(node)
             self.env_stack.pop()
             self.seen_vars_stack.pop()
         else:
+            node.analyse_scoped_declarations(env)
             self.visitchildren(node)
         return node
 
@@ -1177,7 +1180,7 @@ class AnalyseExpressionsTransform(CythonTransform):
         return node
 
     def visit_ScopedExprNode(self, node):
-        if node.expr_scope is not None:
+        if node.has_local_scope:
             node.expr_scope.infer_types()
             node.analyse_scoped_expressions(node.expr_scope)
         self.visitchildren(node)
