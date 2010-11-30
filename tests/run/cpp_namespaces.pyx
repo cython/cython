@@ -1,6 +1,7 @@
 cdef extern from "cpp_namespaces_helper.h" namespace "A":
     ctypedef int A_t
     A_t A_func(A_t first, A_t)
+    cdef void f(A_t)
 
 cdef extern from "cpp_namespaces_helper.h" namespace "outer":
     int outer_value
@@ -26,3 +27,9 @@ def test_nested():
     print outer_value
     print inner_value
 
+def test_typedef(A_t a):
+    """
+    >>> test_typedef(3)
+    3
+    """
+    return a
