@@ -12,30 +12,31 @@ higher, build with Python support (linked to Python 2.5 or higher).
 
 The debugger will need debug information that the Cython compiler can export.
 This can be achieved from within the setup
-script by passing ``pyrex_debug=True`` to your Cython Extenion class::
+script by passing ``pyrex_gdb=True`` to your Cython Extenion class::
 
     from Cython.Distutils import extension
     
-    ext = extension.Extension('source', 'source.pyx', pyrex_debug=True)
+    ext = extension.Extension('source', 'source.pyx', pyrex_gdb=True)
     setup(..., ext_modules=[ext)]
 
 With this approach debug information can be enabled on a per-module basis.
-Another (easier) way is to simply pass the ``--pyrex-debug`` flag as a command
+Another (easier) way is to simply pass the ``--pyrex-gdb`` flag as a command
 line argument::
 
-    python setup.py build_ext --pyrex-debug
+    python setup.py build_ext --pyrex-gdb
 
 For development it's often easy to use the ``--inplace`` flag also, which makes
 distutils build your project "in place", i.e., not in a separate `build`
 directory.
 
 When invoking Cython from the command line directly you can have it write
-debug information using the ``--debug`` flag::
+debug information using the ``--gdb`` flag::
 
-    cython --debug myfile.pyx
+    cython --gdb myfile.pyx
 
 .. note:: The debugger is new in the upcoming release of Cython, 0.13.1.
-          Currently, it can be cloned from hg.cython.org/cython-gdb.
+          Currently, it can be cloned from github at
+          https://markflorisson88@github.com/markflorisson88/cython.
 
 Running the Debugger
 =====================
@@ -44,7 +45,7 @@ Running the Debugger
 To run the Cython debugger and have it import the debug information exported 
 by Cython, run ``cygdb`` in the build directory::
 
-    $ python setup.py build_ext --pyrex-debug --inplace
+    $ python setup.py build_ext --pyrex-gdb --inplace
     $ cygdb
     GNU gdb (GDB) 7.2
     ...
@@ -57,7 +58,7 @@ installed and managed by your package manager you probably need to install debug
 support separately, e.g. for ubuntu::
 
     $ sudo apt-get install python-dbg
-    $ python-dbg setup.py build_ext --pyrex-debug --inplace
+    $ python-dbg setup.py build_ext --pyrex-gdb --inplace
 
 Then you need to run your script with ``python-dbg`` also.
 
@@ -106,6 +107,11 @@ of these commands are analogous to their respective gdb command.
 
         (gdb) cy break -p pythonmodule.python_function_or_method
         (gdb) cy break -p python_function_or_method
+
+.. note:: Python breakpoints only work in Python builds where the Python frame
+          information can be read from the debugger. To ensure this, use a
+          Python debug build or a non-stripped build compiled with debug 
+          support.
 
 .. function:: cy step
 
