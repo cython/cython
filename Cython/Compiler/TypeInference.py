@@ -225,8 +225,6 @@ class SimpleAssignmentTypeInferer(object):
             for entry in scope.entries.values():
                 if entry.type is unspecified_type:
                     entry.type = py_object_type
-            if scope.is_closure_scope:
-                fix_closure_entries(scope)
             return
 
         dependancies_by_entry = {} # entry -> dependancies
@@ -288,19 +286,6 @@ class SimpleAssignmentTypeInferer(object):
             entry.type = py_object_type
             if verbose:
                 message(entry.pos, "inferred '%s' to be of type '%s' (default)" % (entry.name, entry.type))
-        #if scope.is_closure_scope:
-        #    fix_closure_entries(scope)
-
-def fix_closure_entries(scope):
-    """Temporary work-around to fix field types in the closure class
-    that were unknown at the time of creation and only determined
-    during type inference.
-    """
-    closure_entries = scope.scope_class.type.scope.entries
-    for name, entry in scope.entries.iteritems():
-        if name in closure_entries:
-            closure_entry = closure_entries[name]
-            closure_entry.type = entry.type
 
 def find_spanning_type(type1, type2):
     if type1 is type2:

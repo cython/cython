@@ -2,9 +2,19 @@
 #   Pyrex - Parse tree nodes for expressions
 #
 
+import cython
+from cython import set
+cython.declare(error=object, warning=object, warn_once=object, InternalError=object,
+               CompileError=object, UtilityCode=object, StringEncoding=object, operator=object,
+               Naming=object, Nodes=object, PyrexTypes=object, py_object_type=object,
+               list_type=object, tuple_type=object, set_type=object, dict_type=object, \
+               unicode_type=object, str_type=object, bytes_type=object, type_type=object,
+               Builtin=object, Symtab=object, Utils=object, find_coercion_error=object,
+               debug_disposal_code=object, debug_temp_alloc=object, debug_coercion=object)
+
 import operator
 
-from Errors import error, warning, warn_once, InternalError
+from Errors import error, warning, warn_once, InternalError, CompileError
 from Errors import hold_errors, release_errors, held_errors, report_error
 from Code import UtilityCode
 import StringEncoding
@@ -21,16 +31,15 @@ import Symtab
 import Options
 from Cython import Utils
 from Annotate import AnnotationItem
-from Cython import Utils
 
 from Cython.Debugging import print_call_chain
 from DebugFlags import debug_disposal_code, debug_temp_alloc, \
     debug_coercion
 
 try:
-    set
-except NameError:
-    from sets import Set as set
+    from __builtin__ import basestring
+except ImportError:
+    basestring = str # Python 3
 
 class NotConstant(object):
     def __repr__(self):
@@ -202,8 +211,9 @@ class ExprNode(Node):
         _get_child_attrs = operator.attrgetter('subexprs')
     except AttributeError:
         # Python 2.3
-        def _get_child_attrs(self):
+        def __get_child_attrs(self):
             return self.subexprs
+        _get_child_attrs = __get_child_attrs
     child_attrs = property(fget=_get_child_attrs)
         
     def not_implemented(self, method_name):
@@ -1760,6 +1770,9 @@ class IteratorNode(ExprNode):
             self.type = self.sequence.type
         else:
             self.sequence = self.sequence.coerce_to_pyobject(env)
+            if self.sequence.type is list_type or \
+                   self.sequence.type is tuple_type:
+                self.sequence = self.sequence.as_none_safe_node("'NoneType' object is not iterable")
         self.is_temp = 1
 
     gil_message = "Iterating over Python object"
@@ -1776,36 +1789,30 @@ class IteratorNode(ExprNode):
             raise InternalError("for in carray slice not transformed")
         is_builtin_sequence = self.sequence.type is list_type or \
                               self.sequence.type is tuple_type
-        may_be_a_sequence = is_builtin_sequence or not self.sequence.type.is_builtin_type
-        if is_builtin_sequence:
-            code.putln(
-                "if (likely(%s != Py_None)) {" % self.sequence.py_result())
-        elif may_be_a_sequence:
+        may_be_a_sequence = not self.sequence.type.is_builtin_type
+        if may_be_a_sequence:
             code.putln(
                 "if (PyList_CheckExact(%s) || PyTuple_CheckExact(%s)) {" % (
                     self.sequence.py_result(),
                     self.sequence.py_result()))
-        if may_be_a_sequence:
+        if is_builtin_sequence or may_be_a_sequence:
             code.putln(
                 "%s = 0; %s = %s; __Pyx_INCREF(%s);" % (
                     self.counter_cname,
                     self.result(),
                     self.sequence.py_result(),
                     self.result()))
-            code.putln("} else {")
-        if is_builtin_sequence:
-            code.putln(
-                'PyErr_SetString(PyExc_TypeError, "\'NoneType\' object is not iterable"); %s' %
-                code.error_goto(self.pos))
-        else:
+        if not is_builtin_sequence:
+            if may_be_a_sequence:
+                code.putln("} else {")
             code.putln("%s = -1; %s = PyObject_GetIter(%s); %s" % (
                     self.counter_cname,
                     self.result(),
                     self.sequence.py_result(),
                     code.error_goto_if_null(self.result(), self.pos)))
             code.put_gotref(self.py_result())
-        if may_be_a_sequence:
-            code.putln("}")
+            if may_be_a_sequence:
+                code.putln("}")
 
 
 class NextNode(AtomicExprNode):
@@ -2981,7 +2988,7 @@ class SimpleCallNode(CallNode):
             return "<error>"
         formal_args = func_type.args
         arg_list_code = []
-        args = zip(formal_args, self.args)
+        args = list(zip(formal_args, self.args))
         max_nargs = len(func_type.args)
         expected_nargs = max_nargs - func_type.optional_arg_count
         actual_nargs = len(self.args)
@@ -3026,7 +3033,7 @@ class SimpleCallNode(CallNode):
                         self.opt_arg_struct,
                         Naming.pyrex_prefix + "n",
                         len(self.args) - expected_nargs))
-                args = zip(func_type.args, self.args)
+                args = list(zip(func_type.args, self.args))
                 for formal_arg, actual_arg in args[expected_nargs:actual_nargs]:
                     code.putln("%s.%s = %s;" % (
                             self.opt_arg_struct,
@@ -3153,7 +3160,7 @@ class GeneralCallNode(CallNode):
             
     def explicit_args_kwds(self):
         if self.starstar_arg or not isinstance(self.positional_args, TupleNode):
-            raise PostParseError(self.pos,
+            raise CompileError(self.pos,
                 'Compile-time keyword arguments must be explicit.')
         return self.positional_args.args, self.keyword_args
 
@@ -3613,7 +3620,7 @@ class AttributeNode(ExprNode):
         interned_attr_cname = code.intern_identifier(self.attribute)
         self.obj.generate_evaluation_code(code)
         if self.is_py_attr or (isinstance(self.entry.scope, Symtab.PropertyScope)
-                               and self.entry.scope.entries.has_key(u'__del__')):
+                               and u'__del__' in self.entry.scope.entries):
             code.put_error_if_neg(self.pos,
                 'PyObject_DelAttr(%s, %s)' % (
                     self.obj.py_result(),
@@ -4125,38 +4132,11 @@ class ScopedExprNode(ExprNode):
     subexprs = []
     expr_scope = None
 
-    def analyse_types(self, env):
-        # nothing to do here, the children will be analysed separately
-        pass
-
-    def analyse_expressions(self, env):
-        # nothing to do here, the children will be analysed separately
-        pass
-
-    def analyse_scoped_expressions(self, env):
-        # this is called with the expr_scope as env
-        pass
-
-    def init_scope(self, outer_scope, expr_scope=None):
-        self.expr_scope = expr_scope
-
-
-class ComprehensionNode(ScopedExprNode):
-    subexprs = ["target"]
-    child_attrs = ["loop", "append"]
-
-    # leak loop variables or not?  non-leaking Py3 behaviour is
-    # default, except for list comprehensions where the behaviour
-    # differs in Py2 and Py3 (see Parsing.py)
+    # does this node really have a local scope, e.g. does it leak loop
+    # variables or not?  non-leaking Py3 behaviour is default, except
+    # for list comprehensions where the behaviour differs in Py2 and
+    # Py3 (set in Parsing.py based on parser context)
     has_local_scope = True
-
-    def infer_type(self, env):
-        return self.target.infer_type(env)
-
-    def analyse_declarations(self, env):
-        self.append.target = self # this is used in the PyList_Append of the inner loop
-        self.init_scope(env)
-        self.loop.analyse_declarations(self.expr_scope or env)
 
     def init_scope(self, outer_scope, expr_scope=None):
         if expr_scope is not None:
@@ -4166,14 +4146,41 @@ class ComprehensionNode(ScopedExprNode):
         else:
             self.expr_scope = None
 
+    def analyse_declarations(self, env):
+        self.init_scope(env)
+
+    def analyse_scoped_declarations(self, env):
+        # this is called with the expr_scope as env
+        pass
+
+    def analyse_types(self, env):
+        # no recursion here, the children will be analysed separately below
+        pass
+
+    def analyse_scoped_expressions(self, env):
+        # this is called with the expr_scope as env
+        pass
+
+
+class ComprehensionNode(ScopedExprNode):
+    subexprs = ["target"]
+    child_attrs = ["loop", "append"]
+
+    def infer_type(self, env):
+        return self.target.infer_type(env)
+
+    def analyse_declarations(self, env):
+        self.append.target = self # this is used in the PyList_Append of the inner loop
+        self.init_scope(env)
+
+    def analyse_scoped_declarations(self, env):
+        self.loop.analyse_declarations(env)
+
     def analyse_types(self, env):
         self.target.analyse_expressions(env)
         self.type = self.target.type
         if not self.has_local_scope:
             self.loop.analyse_expressions(env)
-
-    def analyse_expressions(self, env):
-        self.analyse_types(env)
 
     def analyse_scoped_expressions(self, env):
         if self.has_local_scope:
@@ -4276,21 +4283,17 @@ class GeneratorExpressionNode(ScopedExprNode):
 
     type = py_object_type
 
-    def analyse_declarations(self, env):
-        self.init_scope(env)
-        self.loop.analyse_declarations(self.expr_scope)
-
-    def init_scope(self, outer_scope, expr_scope=None):
-        if expr_scope is not None:
-            self.expr_scope = expr_scope
-        else:
-            self.expr_scope = Symtab.GeneratorExpressionScope(outer_scope)
+    def analyse_scoped_declarations(self, env):
+        self.loop.analyse_declarations(env)
 
     def analyse_types(self, env):
+        if not self.has_local_scope:
+            self.loop.analyse_expressions(env)
         self.is_temp = True
 
     def analyse_scoped_expressions(self, env):
-        self.loop.analyse_expressions(env)
+        if self.has_local_scope:
+            self.loop.analyse_expressions(env)
 
     def may_be_none(self):
         return False
@@ -4310,14 +4313,29 @@ class InlinedGeneratorExpressionNode(GeneratorExpressionNode):
     # orig_func      String           the name of the builtin function this node replaces
 
     child_attrs = ["loop"]
+    loop_analysed = False
+
+    def infer_type(self, env):
+        return self.result_node.infer_type(env)
 
     def analyse_types(self, env):
+        if not self.has_local_scope:
+            self.loop_analysed = True
+            self.loop.analyse_expressions(env)
         self.type = self.result_node.type
         self.is_temp = True
 
+    def analyse_scoped_expressions(self, env):
+        self.loop_analysed = True
+        GeneratorExpressionNode.analyse_scoped_expressions(self, env)
+
     def coerce_to(self, dst_type, env):
-        if self.orig_func == 'sum' and dst_type.is_numeric:
-            # we can optimise by dropping the aggregation variable into C
+        if self.orig_func == 'sum' and dst_type.is_numeric and not self.loop_analysed:
+            # We can optimise by dropping the aggregation variable and
+            # the add operations into C.  This can only be done safely
+            # before analysing the loop body, after that, the result
+            # reference type will have infected expressions and
+            # assignments.
             self.result_node.type = self.type = dst_type
             return self
         return GeneratorExpressionNode.coerce_to(self, dst_type, env)
@@ -4838,10 +4856,14 @@ class PyCFunctionNode(ExprNode, ModuleNameMixin):
 class InnerFunctionNode(PyCFunctionNode):
     # Special PyCFunctionNode that depends on a closure class
     #
+
     binding = True
-    
+    needs_self_code = True
+
     def self_result_code(self):
-        return "((PyObject*)%s)" % Naming.cur_scope_cname
+        if self.needs_self_code:
+            return "((PyObject*)%s)" % (Naming.cur_scope_cname)
+        return "NULL"
 
 class LambdaNode(InnerFunctionNode):
     # Lambda expression node (only used as a function reference)
@@ -4859,7 +4881,6 @@ class LambdaNode(InnerFunctionNode):
     name = StringEncoding.EncodedString('<lambda>')
 
     def analyse_declarations(self, env):
-        #self.def_node.needs_closure = self.needs_closure
         self.def_node.analyse_declarations(env)
         self.pymethdef_cname = self.def_node.entry.pymethdef_cname
         env.add_lambda_def(self.def_node)
@@ -5651,7 +5672,12 @@ class NumBinopNode(BinopNode):
     
     def compute_c_result_type(self, type1, type2):
         if self.c_types_okay(type1, type2):
-            return PyrexTypes.widest_numeric_type(type1, type2)
+            widest_type = PyrexTypes.widest_numeric_type(type1, type2)
+            if widest_type is PyrexTypes.c_bint_type:
+                if self.operator not in '|^&':
+                    # False + False == 0 # not False!
+                    widest_type = PyrexTypes.c_int_type
+            return widest_type
         else:
             return None
 

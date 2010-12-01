@@ -75,6 +75,7 @@ class Entry(object):
     # is_cfunction     boolean    Is a C function
     # is_cmethod       boolean    Is a C method of an extension type
     # is_unbound_cmethod boolean  Is an unbound C method of an extension type
+    # is_lambda        boolean    Is a lambda function
     # is_type          boolean    Is a type definition
     # is_cclass        boolean    Is an extension class
     # is_cpp_class     boolean    Is a C++ class
@@ -137,6 +138,7 @@ class Entry(object):
     is_cfunction = 0
     is_cmethod = 0
     is_unbound_cmethod = 0
+    is_lambda = 0
     is_type = 0
     is_cclass = 0
     is_cpp_class = 0
@@ -211,7 +213,8 @@ class Scope(object):
     # return_type       PyrexType or None  Return type of function owning scope
     # is_py_class_scope boolean            Is a Python class scope
     # is_c_class_scope  boolean            Is an extension type scope
-    # is_closure_scope  boolean
+    # is_closure_scope  boolean            Is a closure scope
+    # is_passthrough    boolean            Outer scope is passed directly
     # is_cpp_class_scope  boolean          Is a C++ class scope
     # is_property_scope boolean            Is a extension type property scope
     # scope_prefix      string             Disambiguator for C names
@@ -228,6 +231,7 @@ class Scope(object):
     is_py_class_scope = 0
     is_c_class_scope = 0
     is_closure_scope = 0
+    is_passthrough = 0
     is_cpp_class_scope = 0
     is_property_scope = 0
     is_module_scope = 0
@@ -528,7 +532,7 @@ class Scope(object):
         entry.name = EncodedString(func_cname)
         entry.func_cname = func_cname
         entry.signature = pyfunction_signature
-        self.pyfunc_entries.append(entry)
+        entry.is_lambda = True
         return entry
 
     def add_lambda_def(self, def_node):
@@ -1121,7 +1125,30 @@ class ModuleScope(Scope):
             # Check defined
             if not entry.type.scope:
                 error(entry.pos, "C class '%s' is declared but not defined" % entry.name)
-                
+
+    def check_c_class(self, entry):
+        type = entry.type
+        name = entry.name
+        visibility = entry.visibility
+        # Check defined
+        if not type.scope:
+            error(entry.pos, "C class '%s' is declared but not defined" % name)
+        # Generate typeobj_cname
+        if visibility != 'extern' and not type.typeobj_cname:
+            type.typeobj_cname = self.mangle(Naming.typeobj_prefix, name)
+        ## Generate typeptr_cname
+        #type.typeptr_cname = self.mangle(Naming.typeptr_prefix, name)
+        # Check C methods defined
+        if type.scope:
+            for method_entry in type.scope.cfunc_entries:
+                if not method_entry.is_inherited and not method_entry.func_cname:
+                    error(method_entry.pos, "C method '%s' is declared but not defined" %
+                        method_entry.name)
+        # Allocate vtable name if necessary
+        if type.vtabslot_cname:
+            #print "ModuleScope.check_c_classes: allocating vtable cname for", self ###
+            type.vtable_cname = self.mangle(Naming.vtable_prefix, entry.name)
+
     def check_c_classes(self):
         # Performs post-analysis checking and finishing up of extension types
         # being implemented in this module. This is called only for the main
@@ -1144,28 +1171,8 @@ class ModuleScope(Scope):
                 print("...entry %s %s" % (entry.name, entry))
                 print("......type = ",  entry.type)
                 print("......visibility = ", entry.visibility)
-            type = entry.type
-            name = entry.name
-            visibility = entry.visibility
-            # Check defined
-            if not type.scope:
-                error(entry.pos, "C class '%s' is declared but not defined" % name)
-            # Generate typeobj_cname
-            if visibility != 'extern' and not type.typeobj_cname:
-                type.typeobj_cname = self.mangle(Naming.typeobj_prefix, name)
-            ## Generate typeptr_cname
-            #type.typeptr_cname = self.mangle(Naming.typeptr_prefix, name)
-            # Check C methods defined
-            if type.scope:
-                for method_entry in type.scope.cfunc_entries:
-                    if not method_entry.is_inherited and not method_entry.func_cname:
-                        error(method_entry.pos, "C method '%s' is declared but not defined" %
-                            method_entry.name)
-            # Allocate vtable name if necessary
-            if type.vtabslot_cname:
-                #print "ModuleScope.check_c_classes: allocating vtable cname for", self ###
-                type.vtable_cname = self.mangle(Naming.vtable_prefix, entry.name)
-                
+            self.check_c_class(entry)
+
     def check_c_functions(self):
         # Performs post-analysis checking making sure all 
         # defined c functions are actually implemented.
@@ -1253,6 +1260,8 @@ class LocalScope(Scope):
         entry = Scope.lookup(self, name)
         if entry is not None:
             if entry.scope is not self and entry.scope.is_closure_scope:
+                if hasattr(entry.scope, "scope_class"):
+                    raise InternalError, "lookup() after scope class created."
                 # The actual c fragment for the different scopes differs 
                 # on the outside and inside, so we make a new entry
                 entry.in_closure = True
@@ -1270,27 +1279,29 @@ class LocalScope(Scope):
         for entry in self.entries.values():
             if entry.from_closure:
                 cname = entry.outer_entry.cname
-                if cname.startswith(Naming.cur_scope_cname):
-                    cname = cname[len(Naming.cur_scope_cname)+2:]
-                entry.cname = "%s->%s" % (outer_scope_cname, cname)
+                if self.is_passthrough:
+                    entry.cname = cname
+                else:
+                    if cname.startswith(Naming.cur_scope_cname):
+                        cname = cname[len(Naming.cur_scope_cname)+2:]
+                    entry.cname = "%s->%s" % (outer_scope_cname, cname)
             elif entry.in_closure:
                 entry.original_cname = entry.cname
                 entry.cname = "%s->%s" % (Naming.cur_scope_cname, entry.cname)
 
-
-class GeneratorExpressionScope(LocalScope):
+class GeneratorExpressionScope(Scope):
     """Scope for generator expressions and comprehensions.  As opposed
     to generators, these can be easily inlined in some cases, so all
     we really need is a scope that holds the loop variable(s).
     """
     def __init__(self, outer_scope):
         name = outer_scope.global_scope().next_id(Naming.genexpr_id_ref)
-        LocalScope.__init__(self, name, outer_scope)
+        Scope.__init__(self, name, outer_scope, outer_scope)
         self.directives = outer_scope.directives
         self.genexp_prefix = "%s%d%s" % (Naming.pyrex_prefix, len(name), name)
 
     def mangle(self, prefix, name):
-        return '%s%s' % (self.genexp_prefix, self.outer_scope.mangle(self, prefix, name))
+        return '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(self, prefix, name))
 
     def declare_var(self, name, type, pos,
                     cname = None, visibility = 'private', is_cdef = True):
@@ -1299,10 +1310,10 @@ class GeneratorExpressionScope(LocalScope):
             outer_entry = self.outer_scope.lookup(name)
             if outer_entry and outer_entry.is_variable:
                 type = outer_entry.type # may still be 'unspecified_type' !
-        # the outer scope needs to generate code for the variable, but
+        # the parent scope needs to generate code for the variable, but
         # this scope must hold its name exclusively
-        cname = '%s%s' % (self.genexp_prefix, self.outer_scope.mangle(Naming.var_prefix, name))
-        entry = self.outer_scope.declare_var(None, type, pos, cname, visibility, is_cdef = True)
+        cname = '%s%s' % (self.genexp_prefix, self.parent_scope.mangle(Naming.var_prefix, name))
+        entry = self.parent_scope.declare_var(None, type, pos, cname, visibility, is_cdef = True)
         self.entries[name] = entry
         return entry
 

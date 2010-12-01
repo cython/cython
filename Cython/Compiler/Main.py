@@ -138,7 +138,6 @@ class Context(object):
             WithTransform(self),
             DecoratorTransform(self),
             AnalyseDeclarationsTransform(self),
-            CreateClosureClasses(self),
             AutoTestDictTransform(self),
             EmbedSignature(self),
             EarlyReplaceBuiltinCalls(self),  ## Necessary?
@@ -148,6 +147,7 @@ class Context(object):
             IntroduceBufferAuxiliaryVars(self),
             _check_c_declarations,
             AnalyseExpressionsTransform(self),
+            CreateClosureClasses(self),  ## After all lookups and type inference
             ExpandInplaceOperators(self),
             OptimizeBuiltinCalls(self),  ## Necessary?
             IterationTransform(),
@@ -523,6 +523,7 @@ class Context(object):
         return ".".join(names)
 
     def setup_errors(self, options, result):
+        Errors.reset() # clear any remaining error state
         if options.use_listing_file:
             result.listing_file = Utils.replace_suffix(source, ".lis")
             path = result.listing_file

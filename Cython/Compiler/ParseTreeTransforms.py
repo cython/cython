@@ -1,3 +1,8 @@
+
+import cython
+cython.declare(copy=object, ModuleNode=object, TreeFragment=object, TemplateTransform=object,
+               EncodedString=object, error=object, warning=object, PyrexTypes=object, Naming=object)
+
 from Cython.Compiler.Visitor import VisitorTransform, TreeVisitor
 from Cython.Compiler.Visitor import CythonTransform, EnvTransform, ScopeTrackingTransform
 from Cython.Compiler.ModuleNode import ModuleNode
@@ -6,8 +11,9 @@ from Cython.Compiler.ExprNodes import *
 from Cython.Compiler.UtilNodes import *
 from Cython.Compiler.TreeFragment import TreeFragment, TemplateTransform
 from Cython.Compiler.StringEncoding import EncodedString
-from Cython.Compiler.Errors import error, CompileError
-from Cython.Compiler import PyrexTypes
+from Cython.Compiler.Errors import error, warning, CompileError
+from Cython.Compiler import PyrexTypes, Naming
+
 
 try:
     set
@@ -25,10 +31,11 @@ class NameNodeCollector(TreeVisitor):
         super(NameNodeCollector, self).__init__()
         self.name_nodes = []
 
-    visit_Node = TreeVisitor.visitchildren
-
     def visit_NameNode(self, node):
         self.name_nodes.append(node)
+
+    def visit_Node(self, node):
+        self._visitchildren(node, None)
 
 
 class SkipDeclarations(object):
@@ -180,9 +187,6 @@ class PostParse(ScopeTrackingTransform):
 
     def visit_LambdaNode(self, node):
         # unpack a lambda expression into the corresponding DefNode
-        if self.scope_type != 'function':
-            error(node.pos,
-                  "lambda functions are currently only supported in functions")
         lambda_id = self.lambda_counter
         self.lambda_counter += 1
         node.lambda_name = EncodedString(u'lambda%d' % lambda_id)
@@ -244,8 +248,10 @@ class PostParse(ScopeTrackingTransform):
 
     # Split parallel assignments (a,b = b,a) into separate partial
     # assignments that are executed rhs-first using temps.  This
-    # optimisation is best applied before type analysis so that known
-    # types on rhs and lhs can be matched directly.
+    # restructuring must be applied before type analysis so that known
+    # types on rhs and lhs can be matched directly.  It is required in
+    # the case that the types cannot be coerced to a Python type in
+    # order to assign from a tuple.
 
     def visit_SingleAssignmentNode(self, node):
         self.visitchildren(node)
@@ -300,7 +306,7 @@ def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
     and appends them to ref_node_sequence.  The input list is modified
     in-place.
     """
-    seen_nodes = set()
+    seen_nodes = cython.set()
     ref_nodes = {}
     def find_duplicates(node):
         if node.is_literal or node.is_name:
@@ -328,13 +334,13 @@ def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
         if node in ref_nodes:
             return ref_nodes[node]
         elif node.is_sequence_constructor:
-            node.args = map(substitute_nodes, node.args)
+            node.args = list(map(substitute_nodes, node.args))
         return node
 
     # replace nodes inside of the common subexpressions
     for node in ref_nodes:
         if node.is_sequence_constructor:
-            node.args = map(substitute_nodes, node.args)
+            node.args = list(map(substitute_nodes, node.args))
 
     # replace common subexpressions on all rhs items
     for expr_list in expr_list_list:
@@ -342,10 +348,15 @@ def eliminate_rhs_duplicates(expr_list_list, ref_node_sequence):
 
 def sort_common_subsequences(items):
     """Sort items/subsequences so that all items and subsequences that
-    an item contains appear before the item itself.  This implies a
-    partial order, and the sort must be stable to preserve the
-    original order as much as possible, so we use a simple insertion
-    sort.
+    an item contains appear before the item itself.  This is needed
+    because each rhs item must only be evaluated once, so its value
+    must be evaluated first and then reused when packing sequences
+    that contain it.
+
+    This implies a partial order, and the sort must be stable to
+    preserve the original order as much as possible, so we use a
+    simple insertion sort (which is very fast for short sequences, the
+    normal case in practice).
     """
     def contains(seq, x):
         for item in seq:
@@ -358,8 +369,8 @@ def sort_common_subsequences(items):
         return b.is_sequence_constructor and contains(b.args, a)
 
     for pos, item in enumerate(items):
+        key = item[1] # the ResultRefNode which has already been injected into the sequences
         new_pos = pos
-        key = item[0]
         for i in xrange(pos-1, -1, -1):
             if lower_than(key, items[i][0]):
                 new_pos = i
@@ -566,16 +577,16 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         'operator.comma'        : c_binop_constructor(','),
     }
     
-    special_methods = set(['declare', 'union', 'struct', 'typedef', 'sizeof',
-                           'cast', 'pointer', 'compiled', 'NULL']
-                          + unop_method_nodes.keys())
+    special_methods = cython.set(['declare', 'union', 'struct', 'typedef', 'sizeof',
+                                  'cast', 'pointer', 'compiled', 'NULL'])
+    special_methods.update(unop_method_nodes.keys())
 
     def __init__(self, context, compilation_directive_defaults):
         super(InterpretCompilerDirectives, self).__init__(context)
         self.compilation_directive_defaults = {}
-        for key, value in compilation_directive_defaults.iteritems():
+        for key, value in compilation_directive_defaults.items():
             self.compilation_directive_defaults[unicode(key)] = value
-        self.cython_module_names = set()
+        self.cython_module_names = cython.set()
         self.directive_names = {}
 
     def check_directive_scope(self, pos, directive, scope):
@@ -589,7 +600,7 @@ class InterpretCompilerDirectives(CythonTransform, SkipDeclarations):
         
     # Set up processing and handle the cython: comments.
     def visit_ModuleNode(self, node):
-        for key, value in node.directive_comments.iteritems():
+        for key, value in node.directive_comments.items():
             if not self.check_directive_scope(node.pos, key, 'module'):
                 self.wrong_scope_error(node.pos, key, 'module')
                 del node.directive_comments[key]
@@ -1017,7 +1028,7 @@ property NAME:
         return node
 
     def visit_ModuleNode(self, node):
-        self.seen_vars_stack.append(set())
+        self.seen_vars_stack.append(cython.set())
         node.analyse_declarations(self.env_stack[-1])
         self.visitchildren(node)
         self.seen_vars_stack.pop()
@@ -1049,7 +1060,7 @@ property NAME:
         return node
         
     def visit_FuncDefNode(self, node):
-        self.seen_vars_stack.append(set())
+        self.seen_vars_stack.append(cython.set())
         lenv = node.local_scope
         node.body.analyse_control_flow(lenv) # this will be totally refactored
         node.declare_arguments(lenv)
@@ -1068,15 +1079,18 @@ property NAME:
         return node
 
     def visit_ScopedExprNode(self, node):
-        node.analyse_declarations(self.env_stack[-1])
+        env = self.env_stack[-1]
+        node.analyse_declarations(env)
         # the node may or may not have a local scope
-        if node.expr_scope:
-            self.seen_vars_stack.append(set(self.seen_vars_stack[-1]))
+        if node.has_local_scope:
+            self.seen_vars_stack.append(cython.set(self.seen_vars_stack[-1]))
             self.env_stack.append(node.expr_scope)
+            node.analyse_scoped_declarations(node.expr_scope)
             self.visitchildren(node)
             self.env_stack.pop()
             self.seen_vars_stack.pop()
         else:
+            node.analyse_scoped_declarations(env)
             self.visitchildren(node)
         return node
 
@@ -1172,7 +1186,7 @@ class AnalyseExpressionsTransform(CythonTransform):
         return node
 
     def visit_ScopedExprNode(self, node):
-        if node.expr_scope is not None:
+        if node.has_local_scope:
             node.expr_scope.infer_types()
             node.analyse_scoped_expressions(node.expr_scope)
         self.visitchildren(node)
@@ -1289,9 +1303,12 @@ class AlignFunctionDefinitions(CythonTransform):
         
 
 class MarkClosureVisitor(CythonTransform):
-    
-    needs_closure = False
-    
+
+    def visit_ModuleNode(self, node):
+        self.needs_closure = False
+        self.visitchildren(node)
+        return node
+
     def visit_FuncDefNode(self, node):
         self.needs_closure = False
         self.visitchildren(node)
@@ -1320,16 +1337,58 @@ class MarkClosureVisitor(CythonTransform):
 
 class CreateClosureClasses(CythonTransform):
     # Output closure classes in module scope for all functions
-    # that need it. 
-    
+    # that really need it.
+
+    def __init__(self, context):
+        super(CreateClosureClasses, self).__init__(context)
+        self.path = []
+        self.in_lambda = False
+
     def visit_ModuleNode(self, node):
         self.module_scope = node.scope
         self.visitchildren(node)
         return node
 
-    def create_class_from_scope(self, node, target_module_scope):
-        as_name = '%s_%s' % (target_module_scope.next_id(Naming.closure_class_prefix), node.entry.cname)
+    def get_scope_use(self, node):
+        from_closure = []
+        in_closure = []
+        for name, entry in node.local_scope.entries.items():
+            if entry.from_closure:
+                from_closure.append((name, entry))
+            elif entry.in_closure and not entry.from_closure:
+                in_closure.append((name, entry))
+        return from_closure, in_closure
+
+    def create_class_from_scope(self, node, target_module_scope, inner_node=None):
+        from_closure, in_closure = self.get_scope_use(node)
+        in_closure.sort()
+
+        # Now from the begining
+        node.needs_closure = False
+        node.needs_outer_scope = False
+
         func_scope = node.local_scope
+        cscope = node.entry.scope
+        while cscope.is_py_class_scope or cscope.is_c_class_scope:
+            cscope = cscope.outer_scope
+
+        if not from_closure and (self.path or inner_node):
+            if not inner_node:
+                if not node.assmt:
+                    raise InternalError, "DefNode does not have assignment node"
+                inner_node = node.assmt.rhs
+            inner_node.needs_self_code = False
+            node.needs_outer_scope = False
+        # Simple cases
+        if not in_closure and not from_closure:
+            return
+        elif not in_closure:
+            func_scope.is_passthrough = True
+            func_scope.scope_class = cscope.scope_class
+            node.needs_outer_scope = True
+            return
+
+        as_name = '%s_%s' % (target_module_scope.next_id(Naming.closure_class_prefix), node.entry.cname)
 
         entry = target_module_scope.declare_c_class(name = as_name,
             pos = node.pos, defining = True, implementing = True)
@@ -1338,34 +1397,41 @@ class CreateClosureClasses(CythonTransform):
         class_scope.is_internal = True
         class_scope.directives = {'final': True}
 
-        cscope = node.entry.scope
-        while cscope.is_py_class_scope or cscope.is_c_class_scope:
-            cscope = cscope.outer_scope
-        if cscope.is_closure_scope:
+        if from_closure:
+            assert cscope.is_closure_scope
             class_scope.declare_var(pos=node.pos,
-                                    name=Naming.outer_scope_cname, # this could conflict?
+                                    name=Naming.outer_scope_cname,
                                     cname=Naming.outer_scope_cname,
                                     type=cscope.scope_class.type,
                                     is_cdef=True)
-        entries = func_scope.entries.items()
-        entries.sort()
-        for name, entry in entries:
-            # This is wasteful--we should do this later when we know
-            # which vars are actually being used inside...
-            #
-            # Also, this happens before type inference and type
-            # analysis, so the entries created here may end up having
-            # incorrect or at least unspecified types.
+            node.needs_outer_scope = True
+        for name, entry in in_closure:
             class_scope.declare_var(pos=entry.pos,
                                     name=entry.name,
                                     cname=entry.cname,
                                     type=entry.type,
                                     is_cdef=True)
-            
+        node.needs_closure = True
+        # Do it here because other classes are already checked
+        target_module_scope.check_c_class(func_scope.scope_class)
+
+    def visit_LambdaNode(self, node):
+        was_in_lambda = self.in_lambda
+        self.in_lambda = True
+        self.create_class_from_scope(node.def_node, self.module_scope, node)
+        self.visitchildren(node)
+        self.in_lambda = was_in_lambda
+        return node
+
     def visit_FuncDefNode(self, node):
-        if node.needs_closure:
-            self.create_class_from_scope(node, self.module_scope)
+        if self.in_lambda:
             self.visitchildren(node)
+            return node
+        if node.needs_closure or self.path:
+            self.create_class_from_scope(node, self.module_scope)
+            self.path.append(node)
+            self.visitchildren(node)
+            self.path.pop()
         return node
 
 

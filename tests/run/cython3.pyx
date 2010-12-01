@@ -76,6 +76,26 @@ def list_comp():
     assert x == 'abc' # don't leak in Py3 code
     return result
 
+module_level_lc = [ module_level_loopvar*2 for module_level_loopvar in range(4) ]
+def list_comp_module_level():
+    """
+    >>> module_level_lc
+    [0, 2, 4, 6]
+    >>> module_level_loopvar
+    Traceback (most recent call last):
+    NameError: name 'module_level_loopvar' is not defined
+    """
+
+module_level_list_genexp = list(module_level_genexp_loopvar*2 for module_level_genexp_loopvar in range(4))
+def genexpr_module_level():
+    """
+    >>> module_level_list_genexp
+    [0, 2, 4, 6]
+    >>> module_level_genexp_loopvar
+    Traceback (most recent call last):
+    NameError: name 'module_level_genexp_loopvar' is not defined
+    """
+
 def list_comp_unknown_type(l):
     """
     >>> list_comp_unknown_type(range(5))

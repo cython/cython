@@ -149,6 +149,46 @@ def return_typed_sum_squares_start(seq, int start):
     return <int>sum((i*i for i in seq), start)
 
 
+@cython.test_assert_path_exists('//ForInStatNode',
+                                "//InlinedGeneratorExpressionNode")
+@cython.test_fail_if_path_exists('//SimpleCallNode')
+def return_sum_of_listcomp_consts_start(seq, int start):
+    """
+    >>> sum([1 for i in range(10) if i > 3], -1)
+    5
+    >>> return_sum_of_listcomp_consts_start(range(10), -1)
+    5
+
+    >>> print(sum([1 for i in range(10000) if i > 3], 9))
+    10005
+    >>> print(return_sum_of_listcomp_consts_start(range(10000), 9))
+    10005
+    """
+    return sum([1 for i in seq if i > 3], start)
+
+
+@cython.test_assert_path_exists('//ForInStatNode',
+                                "//InlinedGeneratorExpressionNode",
+                                # the next test is for a deficiency
+                                # (see InlinedGeneratorExpressionNode.coerce_to()),
+                                # hope this breaks one day
+                                "//CoerceFromPyTypeNode//InlinedGeneratorExpressionNode")
+@cython.test_fail_if_path_exists('//SimpleCallNode')
+def return_typed_sum_of_listcomp_consts_start(seq, int start):
+    """
+    >>> sum([1 for i in range(10) if i > 3], -1)
+    5
+    >>> return_typed_sum_of_listcomp_consts_start(range(10), -1)
+    5
+
+    >>> print(sum([1 for i in range(10000) if i > 3], 9))
+    10005
+    >>> print(return_typed_sum_of_listcomp_consts_start(range(10000), 9))
+    10005
+    """
+    return <int>sum([1 for i in seq if i > 3], start)
+
+
 @cython.test_assert_path_exists(
     '//ForInStatNode',
     "//InlinedGeneratorExpressionNode")

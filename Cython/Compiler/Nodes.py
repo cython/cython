@@ -3,15 +3,17 @@
 #   Pyrex - Parse tree nodes
 #
 
+import cython
+from cython import set
+cython.declare(sys=object, os=object, time=object, copy=object,
+               Builtin=object, error=object, warning=object, Naming=object, PyrexTypes=object,
+               py_object_type=object, ModuleScope=object, LocalScope=object, ClosureScope=object, \
+               StructOrUnionScope=object, PyClassScope=object, CClassScope=object,
+               CppClassScope=object, UtilityCode=object, EncodedString=object,
+               absolute_path_length=cython.Py_ssize_t)
+
 import sys, os, time, copy
 
-try:
-    set
-except NameError:
-    # Python 2.3
-    from sets import Set as set
-
-import Code
 import Builtin
 from Errors import error, warning, InternalError
 import Naming
@@ -241,7 +243,7 @@ class Node(object):
         if encountered is None:
             encountered = set()
         if id(self) in encountered:
-            return "<%s (%d) -- already output>" % (self.__class__.__name__, id(self))
+            return "<%s (0x%x) -- already output>" % (self.__class__.__name__, id(self))
         encountered.add(id(self))
         
         def dump_child(x, level):
@@ -253,12 +255,12 @@ class Node(object):
                 return repr(x)
             
         
-        attrs = [(key, value) for key, value in self.__dict__.iteritems() if key not in filter_out]
+        attrs = [(key, value) for key, value in self.__dict__.items() if key not in filter_out]
         if len(attrs) == 0:
-            return "<%s (%d)>" % (self.__class__.__name__, id(self))
+            return "<%s (0x%x)>" % (self.__class__.__name__, id(self))
         else:
             indent = "  " * level
-            res = "<%s (%d)\n" % (self.__class__.__name__, id(self))
+            res = "<%s (0x%x)\n" % (self.__class__.__name__, id(self))
             for key, value in attrs:
                 res += "%s  %s: %s\n" % (indent, key, dump_child(value, level + 1))
             res += "%s>" % indent
@@ -858,7 +860,7 @@ class TemplatedTypeNode(CBaseTypeNode):
             if sys.version_info[0] < 3:
                 # Py 2.x enforces byte strings as keyword arguments ...
                 options = dict([ (name.encode('ASCII'), value)
-                                 for name, value in options.iteritems() ])
+                                 for name, value in options.items() ])
 
             self.type = PyrexTypes.BufferType(base_type, **options)
         
@@ -949,7 +951,7 @@ class CVarDefNode(StatNode):
                     entry.directive_locals = self.directive_locals
             else:
                 if self.directive_locals:
-                    s.error("Decorators can only be followed by functions")
+                    error(self.pos, "Decorators can only be followed by functions")
                 if self.in_pxd and self.visibility != 'extern':
                     error(self.pos, 
                         "Only 'extern' C variable declaration allowed in .pxd file")
@@ -1146,11 +1148,13 @@ class FuncDefNode(StatNode, BlockNode):
     #  #filename        string        C name of filename string const
     #  entry           Symtab.Entry
     #  needs_closure   boolean        Whether or not this function has inner functions/classes/yield
+    #  needs_outer_scope boolean      Whether or not this function requires outer scope
     #  directive_locals { string : NameNode } locals defined by cython.locals(...)
     
     py_func = None
     assmt = None
     needs_closure = False
+    needs_outer_scope = False
     modifiers = []
     
     def analyse_default_values(self, env):
@@ -1198,7 +1202,7 @@ class FuncDefNode(StatNode, BlockNode):
         import Buffer
 
         lenv = self.local_scope
-        if lenv.is_closure_scope:
+        if lenv.is_closure_scope and not lenv.is_passthrough:
             outer_scope_cname = "%s->%s" % (Naming.cur_scope_cname,
                                             Naming.outer_scope_cname)
         else:
@@ -1259,10 +1263,13 @@ class FuncDefNode(StatNode, BlockNode):
         cenv = env
         while cenv.is_py_class_scope or cenv.is_c_class_scope:
             cenv = cenv.outer_scope
-        if lenv.is_closure_scope:
+        if self.needs_closure:
             code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname))
             code.putln(";")
-        elif cenv.is_closure_scope:
+        elif self.needs_outer_scope:
+            if lenv.is_passthrough:
+                code.put(lenv.scope_class.type.declaration_code(Naming.cur_scope_cname))
+                code.putln(";")
             code.put(cenv.scope_class.type.declaration_code(Naming.outer_scope_cname))
             code.putln(";")
         self.generate_argument_declarations(lenv, code)
@@ -1314,12 +1321,14 @@ class FuncDefNode(StatNode, BlockNode):
             code.putln("}")
             code.put_gotref(Naming.cur_scope_cname)
             # Note that it is unsafe to decref the scope at this point.
-        if cenv.is_closure_scope:
+        if self.needs_outer_scope:
             code.putln("%s = (%s)%s;" % (
                             outer_scope_cname,
                             cenv.scope_class.type.declaration_code(''),
                             Naming.self_cname))
-            if self.needs_closure:
+            if lenv.is_passthrough:
+                code.putln("%s = %s;" % (Naming.cur_scope_cname, outer_scope_cname));
+            elif self.needs_closure:
                 # inner closures own a reference to their outer parent
                 code.put_incref(outer_scope_cname, cenv.scope_class.type)
                 code.put_giveref(outer_scope_cname)
@@ -2206,6 +2215,8 @@ class DefNode(FuncDefNode):
 
     def needs_assignment_synthesis(self, env, code=None):
         # Should enable for module level as well, that will require more testing...
+        if self.entry.is_lambda:
+            return True
         if env.is_module_scope:
             if code is None:
                 return env.directives['binding']
@@ -3208,7 +3219,7 @@ class CClassDefNode(ClassDefNode):
             api = self.api,
             buffer_defaults = buffer_defaults)
         if home_scope is not env and self.visibility == 'extern':
-            env.add_imported_entry(self.class_name, self.entry, pos)
+            env.add_imported_entry(self.class_name, self.entry, self.pos)
         self.scope = scope = self.entry.type.scope
         if scope is not None:
             scope.directives = env.directives
@@ -3376,7 +3387,7 @@ class SingleAssignmentNode(AssignmentNode):
                 
                 if func_name in ['declare', 'typedef']:
                     if len(args) > 2 or kwds is not None:
-                        error(rhs.pos, "Can only declare one type at a time.")
+                        error(self.rhs.pos, "Can only declare one type at a time.")
                         return
                     type = args[0].analyse_as_type(env)
                     if type is None:
@@ -3407,7 +3418,7 @@ class SingleAssignmentNode(AssignmentNode):
                 elif func_name in ['struct', 'union']:
                     self.declaration_only = True
                     if len(args) > 0 or kwds is None:
-                        error(rhs.pos, "Struct or union members must be given by name.")
+                        error(self.rhs.pos, "Struct or union members must be given by name.")
                         return
                     members = []
                     for member, type_node in kwds.key_value_pairs:
@@ -3991,7 +4002,7 @@ class AssertStatNode(StatNode):
     gil_message = "Raising exception"
     
     def generate_execution_code(self, code):
-        code.putln("#ifndef PYREX_WITHOUT_ASSERTIONS")
+        code.putln("#ifndef CYTHON_WITHOUT_ASSERTIONS")
         self.cond.generate_evaluation_code(code)
         code.putln(
             "if (unlikely(!%s)) {" %
