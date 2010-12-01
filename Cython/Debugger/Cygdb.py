@@ -17,8 +17,7 @@ import glob
 import tempfile
 import subprocess
 
-def usage():
-    print("Usage: cygdb [PATH GDB_ARGUMENTS]")
+usage = "Usage: cygdb [PATH [GDB_ARGUMENTS]]"
 
 def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
     if not no_import:
@@ -28,11 +27,8 @@ def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
         debug_files = glob.glob(pattern)
 
         if not debug_files:
-            usage()
-            sys.exit('No debug files were found in %s. Aborting.' % (
-                    os.path.abspath(path_to_debug_info)))
-    
-    
+            sys.exit('%s.\nNo debug files were found in %s. Aborting.' % (
+                                   usage, os.path.abspath(path_to_debug_info)))
     
     fd, tempfilename = tempfile.mkstemp()
     f = os.fdopen(fd, 'w')
@@ -55,14 +51,28 @@ def make_command_file(path_to_debug_info, prefix_code='', no_import=False):
     
     return tempfilename
 
-def main(path_to_debug_info=os.curdir, gdb_argv=[], no_import=False):
+def main(path_to_debug_info=None, gdb_argv=None, no_import=False):
     """
     Start the Cython debugger. This tells gdb to import the Cython and Python
-    extensions (libpython.py and libcython.py) and it enables gdb's pending 
-    breakpoints
+    extensions (libcython.py and libpython.py) and it enables gdb's pending 
+    breakpoints.
     
-    path_to_debug_info is the path to the cython_debug directory
+    path_to_debug_info is the path to the Cython build directory
+    gdb_argv is the list of options to gdb
+    no_import tells cygdb whether it should import debug information
     """
+    if path_to_debug_info is None:
+        if len(sys.argv) > 1:
+            path_to_debug_info = sys.argv[1]
+        else:
+            path_to_debug_info = os.curdir
+    
+    if gdb_argv is None:
+        gdb_argv = sys.argv[2:]
+    
+    if path_to_debug_info == '--':
+        no_import = True
+    
     tempfilename = make_command_file(path_to_debug_info, no_import=no_import)
     p = subprocess.Popen(['gdb', '-command', tempfilename] + gdb_argv)
     while True:

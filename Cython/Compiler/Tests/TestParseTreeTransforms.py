@@ -1,7 +1,6 @@
 import os
 
 from Cython.Debugger import DebugWriter
-from Cython.Compiler import Main
 from Cython.Compiler import CmdLine
 from Cython.TestUtils import TransformTest
 from Cython.Compiler.ParseTreeTransforms import *
@@ -149,7 +148,8 @@ class TestWithTransform(object): # (TransformTest): # Disabled!
 class TestDebugTransform(TestLibCython.DebuggerTestCase):
     
     def elem_hasattrs(self, elem, attrs):
-        return all(attr in elem.attrib for attr in attrs)
+        # we shall supporteth python 2.3 !
+        return all([attr in elem.attrib for attr in attrs])
     
     def test_debug_info(self):
         try:
@@ -161,12 +161,13 @@ class TestDebugTransform(TestLibCython.DebuggerTestCase):
             L = list(t.find('/Module/Globals'))
             # assertTrue is retarded, use the normal assert statement
             assert L
-            xml_globals = dict((e.attrib['name'], e.attrib['type']) for e in L)
+            xml_globals = dict(
+                            [(e.attrib['name'], e.attrib['type']) for e in L])
             self.assertEqual(len(L), len(xml_globals))
             
             L = list(t.find('/Module/Functions'))
             assert L
-            xml_funcs = dict((e.attrib['qualified_name'], e) for e in L)
+            xml_funcs = dict([(e.attrib['qualified_name'], e) for e in L])
             self.assertEqual(len(L), len(xml_funcs))
             
             # test globals
@@ -176,8 +177,8 @@ class TestDebugTransform(TestLibCython.DebuggerTestCase):
             # test functions
             funcnames = 'codefile.spam', 'codefile.ham', 'codefile.eggs'
             required_xml_attrs = 'name', 'cname', 'qualified_name'
-            assert all(f in xml_funcs for f in funcnames)
-            spam, ham, eggs = (xml_funcs[funcname] for funcname in funcnames) 
+            assert all([f in xml_funcs for f in funcnames])
+            spam, ham, eggs = [xml_funcs[funcname] for funcname in funcnames]
             
             self.assertEqual(spam.attrib['name'], 'spam')
             self.assertNotEqual('spam', spam.attrib['cname'])

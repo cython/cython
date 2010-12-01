@@ -87,7 +87,7 @@ class Context(object):
 
         self.set_language_level(language_level)
         
-        self.debug_outputwriter = None
+        self.gdb_debug_outputwriter = None
 
     def set_language_level(self, level):
         self.language_level = level
@@ -182,10 +182,10 @@ class Context(object):
             from Cython.TestUtils import TreeAssertVisitor
             test_support.append(TreeAssertVisitor())
 
-        if options.debug:
+        if options.gdb_debug:
             from Cython.Debugger import DebugWriter
             from ParseTreeTransforms import DebugTransform
-            self.debug_outputwriter = DebugWriter.CythonDebugWriter(
+            self.gdb_debug_outputwriter = DebugWriter.CythonDebugWriter(
                 options.output_dir)
             debug_transform = [DebugTransform(self, options, result)]
         else:
@@ -814,5 +814,5 @@ default_options = dict(
     evaluate_tree_assertions = False,
     emit_linenums = False,
     language_level = 2,
-    debug = False,
+    gdb_debug = False,
 )

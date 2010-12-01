@@ -70,6 +70,9 @@ else:
 # specific to setup
 setuptools_extra_args = {}
 
+# tells whether to include cygdb (the script and the Cython.Debugger package
+include_debugger = sys.version_info[:2] > (2, 4)
+
 if 'setuptools' in sys.modules:
     setuptools_extra_args['zip_safe'] = False
     setuptools_extra_args['entry_points'] = {
@@ -80,9 +83,13 @@ if 'setuptools' in sys.modules:
     scripts = []
 else:
     if os.name == "posix":
-        scripts = ["bin/cython", "bin/cygdb"]
+        scripts = ["bin/cython"]
+        if include_debugger:
+            scripts.append('bin/cygdb')
     else:
-        scripts = ["cython.py", "cygdb.py"]
+        scripts = ["cython.py"]
+        if include_debugger:
+            scripts.append('cygdb.py')
 
 def compile_cython_modules(profile=False, compile_more=False, cython_with_refnanny=False):
     source_root = os.path.abspath(os.path.dirname(__file__))
@@ -247,6 +254,20 @@ setup_args.update(setuptools_extra_args)
 
 from Cython import __version__ as version
 
+packages = [
+    'Cython',
+    'Cython.Build',
+    'Cython.Compiler',
+    'Cython.Runtime',
+    'Cython.Distutils',
+    'Cython.Plex',
+    'Cython.Tests',
+    'Cython.Compiler.Tests',
+]
+
+if include_debugger:
+    packages.append('Cython.Debugger')
+
 setup(
   name = 'Cython',
   version = version,
@@ -287,17 +308,7 @@ setup(
   ],
 
   scripts = scripts,
-  packages=[
-    'Cython',
-    'Cython.Build',
-    'Cython.Compiler',
-    'Cython.Runtime',
-    'Cython.Distutils',
-    'Cython.Plex',
-    'Cython.Debugger',
-    'Cython.Tests',
-    'Cython.Compiler.Tests',
-    ],
+  packages=packages,
 
   # pyximport
   py_modules = ["pyximport/__init__",
